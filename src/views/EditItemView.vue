@@ -1,5 +1,5 @@
 <template>
-  <div class="page edit-page">
+  <div class="page page--transition edit-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar title="编辑谷子" show-back />
 
     <main class="page-body">
@@ -29,7 +29,18 @@
           <div class="field-card">
             <label class="field">
               <span class="field-label">名称 <span class="required">*</span></span>
-              <input v-model="form.name" type="text" placeholder="例如：初音未来 手办" required />
+              <input
+                v-model="form.name"
+                ref="nameInputRef"
+                type="text"
+                placeholder="例如：初音未来 手办"
+                required
+                @input="syncField('name', $event)"
+                @blur="syncField('name', $event)"
+                @change="syncField('name', $event)"
+                @compositionend="syncField('name', $event)"
+                @paste="syncFieldLater('name', $event)"
+              />
             </label>
 
             <label class="field">
@@ -50,6 +61,7 @@
                   class="multi-select__trigger"
                   :class="{ 'multi-select__trigger--disabled': !form.ip }"
                   type="button"
+                  @pointerdown="flushActiveInput"
                   @click="toggleCharPicker"
                 >
                   <div class="multi-select__content">
@@ -106,7 +118,21 @@
 
             <label class="field">
               <span class="field-label">图片 URL</span>
-              <input v-model="form.image" type="url" placeholder="https://..." />
+              <input
+                v-model="form.image"
+                ref="imageInputRef"
+                type="text"
+                inputmode="url"
+                autocapitalize="off"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="https://..."
+                @input="syncField('image', $event)"
+                @blur="syncField('image', $event)"
+                @change="syncField('image', $event)"
+                @compositionend="syncField('image', $event)"
+                @paste="syncFieldLater('image', $event)"
+              />
             </label>
           </div>
         </section>
@@ -125,7 +151,7 @@
 
             <label class="field">
               <span class="field-label">购入日期</span>
-              <button class="date-field" type="button" @click="openDatePicker">
+              <button class="date-field" type="button" @pointerdown="flushActiveInput" @click="openDatePicker">
                 <span :class="{ 'date-field__value--placeholder': !form.acquiredAt }">
                   {{ form.acquiredAt || '请选择日期' }}
                 </span>
@@ -150,18 +176,28 @@
           <div class="field-card">
             <label class="field field--textarea">
               <span class="field-label">备注内容</span>
-              <textarea v-model="form.note" rows="5" placeholder="来源、编号、状态等…"></textarea>
+              <textarea
+                v-model="form.note"
+                ref="noteInputRef"
+                rows="5"
+                placeholder="来源、编号、状态等..."
+                @input="syncField('note', $event)"
+                @blur="syncField('note', $event)"
+                @change="syncField('note', $event)"
+                @compositionend="syncField('note', $event)"
+                @paste="syncFieldLater('note', $event)"
+              ></textarea>
             </label>
           </div>
         </section>
-
       </form>
     </main>
 
-    <!-- 悬浮保存按钮 -->
-    <div class="float-footer">
-      <button class="btn-primary btn-float" type="button" @click="handleSubmit">保存修改</button>
-    </div>
+    <Teleport to="body">
+      <div class="float-footer">
+        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">保存修改</button>
+      </div>
+    </Teleport>
 
     <Popup v-model:show="showDatePicker" position="bottom" round class="picker-popup">
       <DatePicker
@@ -182,13 +218,18 @@ import { DatePicker, Popup } from 'vant'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
+import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
+import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
+
 const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
+const { isPageLeaving } = usePageLeaveAnimation()
 
 const form = reactive({
   name: '',
@@ -202,6 +243,9 @@ const form = reactive({
 })
 
 const charactersFieldRef = ref(null)
+const nameInputRef = ref(null)
+const imageInputRef = ref(null)
+const noteInputRef = ref(null)
 const showDatePicker = ref(false)
 const showCharPicker = ref(false)
 const datePickerValue = ref(toDatePickerValue(form.acquiredAt))
@@ -251,8 +295,10 @@ onBeforeUnmount(() => {
   document.removeEventListener('touchstart', handleClickOutside)
 })
 
-function handleSubmit() {
-  store.updateGoods(props.id, { ...form })
+async function handleSubmit() {
+  await commitActiveInput()
+  syncDomFields()
+  await store.updateGoods(props.id, { ...form })
   router.back()
 }
 
@@ -263,8 +309,11 @@ function toggleCharPicker() {
 
 function toggleChar(name) {
   const index = form.characters.indexOf(name)
-  if (index === -1) form.characters.push(name)
-  else form.characters.splice(index, 1)
+  if (index === -1) {
+    form.characters.push(name)
+  } else {
+    form.characters.splice(index, 1)
+  }
 }
 
 function openDatePicker() {
@@ -302,6 +351,20 @@ function handleClickOutside(event) {
   if (!charactersFieldRef.value?.contains(event.target)) {
     showCharPicker.value = false
   }
+}
+
+function syncField(key, event) {
+  syncFieldValue(form, key, event)
+}
+
+function syncFieldLater(key, event) {
+  syncFieldValueNextFrame(form, key, event)
+}
+
+function syncDomFields() {
+  if (nameInputRef.value) form.name = nameInputRef.value.value ?? ''
+  if (imageInputRef.value) form.image = imageInputRef.value.value ?? ''
+  if (noteInputRef.value) form.note = noteInputRef.value.value ?? ''
 }
 </script>
 
@@ -685,7 +748,6 @@ function handleClickOutside(event) {
   opacity: 0.94;
 }
 
-/* 悬浮底栏 */
 .float-footer {
   position: fixed;
   left: 50%;
@@ -702,4 +764,5 @@ function handleClickOutside(event) {
   border-radius: 18px;
   box-shadow: 0 8px 24px rgba(20, 20, 22, 0.28);
 }
+
 </style>

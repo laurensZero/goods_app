@@ -1,11 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-/**
- * router/index.js
- * 集中管理所有页面路由。
- * 每个路由对应 views/ 下的一个页面组件。
- * 使用懒加载（动态 import）可按需拆包，加快首屏速度。
- */
 const routes = [
   {
     path: '/',
@@ -15,19 +9,25 @@ const routes = [
     path: '/home',
     name: 'home',
     component: () => import('@/views/HomeView.vue'),
-    meta: { title: '我的谷子' }
+    meta: { title: '我的谷子', keepAlive: true }
   },
   {
     path: '/search',
     name: 'search',
     component: () => import('@/views/SearchView.vue'),
-    meta: { title: '搜索' }
+    meta: { title: '搜索', keepAlive: true }
   },
   {
     path: '/add',
     name: 'add',
     component: () => import('@/views/AddItemView.vue'),
     meta: { title: '添加谷子' }
+  },
+  {
+    path: '/import',
+    name: 'import',
+    component: () => import('@/views/ImportView.vue'),
+    meta: { title: '从米游铺导入' }
   },
   {
     path: '/detail/:id',
@@ -47,7 +47,7 @@ const routes = [
     path: '/manage',
     name: 'manage',
     component: () => import('@/views/ManageView.vue'),
-    meta: { title: '管理' }
+    meta: { title: '管理', keepAlive: true }
   },
   {
     path: '/manage/categories',
@@ -65,19 +65,39 @@ const routes = [
     path: '/manage/characters',
     name: 'manage-characters',
     component: () => import('@/views/CharacterManageView.vue'),
-    meta: { title: '角色名管理' }
+    meta: { title: '角色管理' }
   }
 ]
 
+if ('scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual'
+}
+
+const scrollPositions = new Map()
+
 const router = createRouter({
-  // Hash 模式：兼容 Capacitor file:// 协议（Android/iOS 打包）
   history: createWebHashHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    const cachedTop = scrollPositions.get(to.fullPath)
+    if (typeof cachedTop === 'number') {
+      return { left: 0, top: cachedTop }
+    }
+
+    return { left: 0, top: 0 }
+  }
 })
 
-// 全局前置守卫：动态修改页面标题
-router.beforeEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} - 谷子收纳` : '谷子收纳'
+router.beforeEach((to, from) => {
+  if (from.fullPath) {
+    scrollPositions.set(from.fullPath, window.scrollY)
+  }
+
+  document.title = to.meta.title ? `${to.meta.title} - 谷子收藏` : '谷子收藏'
 })
 
 export default router

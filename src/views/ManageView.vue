@@ -1,5 +1,5 @@
 <template>
-  <div class="page manage-page">
+  <div class="page page--transition manage-page">
     <header class="manage-header">
       <h1 class="manage-title">管理</h1>
     </header>
@@ -102,7 +102,7 @@ const presets = usePresetsStore()
 }
 
 .entry-card:active {
-  transform: scale(0.97);
+  transform: scale(var(--press-scale-card));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 

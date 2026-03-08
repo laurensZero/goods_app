@@ -100,7 +100,7 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
 }
 
 .goods-card:active {
-  transform: scale(0.98);
+  transform: scale(var(--press-scale-card));
 }
 
 @media (hover: hover) {

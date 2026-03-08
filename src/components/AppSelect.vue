@@ -1,6 +1,6 @@
 <template>
   <div ref="rootRef" class="app-select" :class="{ 'app-select--open': open }">
-    <button class="app-select__trigger" type="button" @click="toggle">
+    <button class="app-select__trigger" type="button" @pointerdown="flushActiveInput" @click="toggle">
       <span class="app-select__value" :class="{ 'app-select__value--placeholder': !displayLabel }">
         {{ displayLabel || placeholder }}
       </span>
@@ -41,6 +41,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
 const props = defineProps({
   modelValue: {
@@ -80,7 +81,8 @@ const displayLabel = computed(() => {
   return matched?.label ?? ''
 })
 
-function toggle() {
+async function toggle() {
+  await commitActiveInput()
   open.value = !open.value
 }
 

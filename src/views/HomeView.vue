@@ -44,7 +44,7 @@
             :key="item.id"
             :item="item"
             :density="displayDensity"
-            @click="$router.push(`/detail/${item.id}`)"
+            @click="openDetail(item.id)"
           />
         </div>
       </section>
@@ -76,8 +76,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onActivated, onDeactivated, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { preloadImages } from '@/utils/imageCache'
 import SummaryCard from '@/components/SummaryCard.vue'
@@ -88,6 +88,7 @@ import AddMethodSheet from '@/components/AddMethodSheet.vue'
 const store = useGoodsStore()
 const route = useRoute()
 const DENSITY_STORAGE_KEY = 'goods-app:home-density'
+const HOME_SCROLL_STORAGE_KEY = 'goods-app:home-scroll'
 const densityModes = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
@@ -96,29 +97,63 @@ const densityModes = [
 const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.value, mode.columns]))
 
 const displayDensity = ref('comfortable')
+const savedScrollTop = ref(0)
 
 // 添加方式面板
 const showAddSheet = ref(false)
+const router = useRouter()
 function handleImport() {
-  // TODO: 实现从米游铺导入逻辑
-  console.log('[AddMethodSheet] 米游铺导入（预留接口）')
+  showAddSheet.value = false
+  router.push('/import')
 }
 
-function refresh() {
-  store.refreshList()
+async function refresh() {
+  await store.refreshList()
   const urls = store.list.map((g) => g.image).filter(Boolean)
   if (urls.length) preloadImages(urls)
 }
 
-onMounted(() => {
+function saveScrollPosition() {
+  savedScrollTop.value = window.scrollY || document.documentElement.scrollTop || 0
+  sessionStorage.setItem(HOME_SCROLL_STORAGE_KEY, String(savedScrollTop.value))
+}
+
+async function restoreScrollPosition() {
+  const stored = Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || savedScrollTop.value || 0)
+  savedScrollTop.value = Number.isFinite(stored) ? stored : 0
+
+  await nextTick()
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.scrollTo(0, savedScrollTop.value)
+    })
+  })
+}
+
+onMounted(async () => {
   restoreDisplayDensity()
-  refresh()
+  await refresh()
+  await restoreScrollPosition()
+})
+
+onActivated(async () => {
+  await refresh()
+  await nextTick()
+  await restoreScrollPosition()
+})
+
+onDeactivated(() => {
+  saveScrollPosition()
 })
 
 watch(
   () => route.path,
   (path) => {
-    if (path === '/home') refresh()
+    if (path === '/home') {
+      refresh().then(() => restoreScrollPosition())
+    } else {
+      saveScrollPosition()
+    }
   }
 )
 
@@ -145,6 +180,11 @@ function restoreDisplayDensity() {
   if (storedDensity && densityColumnsMap[storedDensity]) {
     displayDensity.value = storedDensity
   }
+}
+
+function openDetail(id) {
+  saveScrollPosition()
+  router.push(`/detail/${id}`)
 }
 </script>
 

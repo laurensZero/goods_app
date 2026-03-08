@@ -1,4 +1,6 @@
 import { createApp } from 'vue'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
@@ -6,6 +8,27 @@ import 'vant/lib/index.css'
 import './assets/base.css'
 import { initDB } from './utils/db'
 import { useGoodsStore } from './stores/goods'
+import { usePresetsStore } from './stores/presets'
+
+function setupAndroidBackButton() {
+  if (Capacitor.getPlatform() !== 'android') return
+
+  CapacitorApp.addListener('backButton', async ({ canGoBack }) => {
+    const currentRoute = router.currentRoute.value
+    const isHome = currentRoute.name === 'home'
+
+    if (!isHome) {
+      if (canGoBack || window.history.length > 1) {
+        router.back()
+      } else {
+        await router.replace('/home')
+      }
+      return
+    }
+
+    await CapacitorApp.exitApp()
+  })
+}
 
 async function bootstrap() {
   // 初始化 SQLite（原生用 Capacitor，Web 用 sql.js）
@@ -22,12 +45,15 @@ async function bootstrap() {
 
   // 从 SQLite 预加载数据，再挂载 DOM
   const store = useGoodsStore()
+  const presets = usePresetsStore()
   try {
-    await store.init()
+    await Promise.all([store.init(), presets.init()])
   } catch (e) {
-    console.error('[DB] store.init failed:', e)
+    console.error('[bootstrap] store init failed:', e)
   }
 
+  await router.isReady()
+  setupAndroidBackButton()
   app.mount('#app')
 }
 

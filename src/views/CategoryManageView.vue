@@ -1,5 +1,5 @@
 <template>
-  <div class="page sub-page">
+  <div class="page page--transition sub-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar title="分类管理" show-back>
       <template #right>
         <button class="add-btn" type="button" @click="toggleInput">
@@ -19,7 +19,7 @@
             v-model="newName"
             class="row-input"
             type="text"
-            placeholder="输入分类名称…"
+            placeholder="输入分类名称"
             maxlength="20"
             @keyup.enter="doAdd"
           />
@@ -36,7 +36,7 @@
             :class="{ 'row-item--last': idx === presets.categories.length - 1 }"
           >
             <span class="row-label">{{ item }}</span>
-            <button class="row-delete" type="button" @click="presets.removeCategory(item)">
+            <button class="row-delete" type="button" @click="removeCategory(item)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M18 6L6 18" />
                 <path d="M6 6L18 18" />
@@ -55,7 +55,7 @@
             恢复默认分类
           </button>
           <p v-if="presets.categories.length === 0" class="empty-hint">
-            暂无分类，点击右上角「+」新建，或恢复默认。
+            暂无分类，点击右上角新建，或恢复默认分类
           </p>
         </div>
       </section>
@@ -64,15 +64,20 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
+import { commitActiveInput } from '@/utils/commitActiveInput'
+import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
 
 const presets = usePresetsStore()
+const { isPageLeaving } = usePageLeaveAnimation()
 
 const showInput = ref(false)
 const newName = ref('')
 const inputRef = ref(null)
+
+const DEFAULT_LIST = ['手办', '挂件', '立牌', '徽章', '卡片', '色纸', 'CD/专辑', '周边服饰', '其他']
 
 async function toggleInput() {
   showInput.value = !showInput.value
@@ -82,16 +87,22 @@ async function toggleInput() {
   }
 }
 
-function doAdd() {
-  if (presets.addCategory(newName.value)) {
+async function doAdd() {
+  await commitActiveInput()
+  if (await presets.addCategory(newName.value)) {
     newName.value = ''
     showInput.value = false
   }
 }
 
-const DEFAULT_LIST = ['手办', '挂件', '徽章', '卡片', 'CD/专辑', '周边服饰', '其他']
-function restoreDefaults() {
-  DEFAULT_LIST.forEach(c => presets.addCategory(c))
+async function removeCategory(name) {
+  await presets.removeCategory(name)
+}
+
+async function restoreDefaults() {
+  for (const category of DEFAULT_LIST) {
+    await presets.addCategory(category)
+  }
 }
 </script>
 
@@ -121,7 +132,8 @@ function restoreDefaults() {
   outline: none;
   transition: border-color 0.16s;
 }
-.row-input:focus { border-color: rgba(20,20,22,0.16); }
+
+.row-input:focus { border-color: rgba(20, 20, 22, 0.16); }
 .row-input::placeholder { color: var(--app-placeholder); }
 
 .confirm-btn {
@@ -136,6 +148,7 @@ function restoreDefaults() {
   font-weight: 600;
   transition: transform 0.16s, opacity 0.16s;
 }
+
 .confirm-btn:active { transform: scale(0.96); }
 
 .list-section { padding: 0 16px; }
@@ -153,6 +166,7 @@ function restoreDefaults() {
   padding: 14px 16px;
   border-bottom: 1px solid #f2f2f7;
 }
+
 .row-item--last { border-bottom: none; }
 
 .row-label {
@@ -174,9 +188,12 @@ function restoreDefaults() {
   flex-shrink: 0;
   transition: transform 0.14s;
 }
-.row-delete:active { transform: scale(0.9); }
+
+.row-delete:active { transform: scale(var(--press-scale-button)); }
+
 .row-delete svg {
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   stroke: currentColor;
   stroke-width: 2.2;
   stroke-linecap: round;
@@ -197,13 +214,14 @@ function restoreDefaults() {
   padding: 0 18px;
   border: none;
   border-radius: 999px;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--app-shadow);
   color: var(--app-text-secondary);
   font-size: 14px;
   font-weight: 600;
   transition: transform 0.14s;
 }
+
 .restore-btn:active { transform: scale(0.96); }
 
 .empty-hint {
@@ -216,6 +234,7 @@ function restoreDefaults() {
 .panel-fade-leave-active {
   transition: opacity 180ms ease, transform 180ms ease;
 }
+
 .panel-fade-enter-from,
 .panel-fade-leave-to {
   opacity: 0;

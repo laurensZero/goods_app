@@ -4,3 +4,4 @@ dist
 *.local
 .github
 \android
+.idea

@@ -1,5 +1,5 @@
 <template>
-  <div class="page detail-page">
+  <div class="page page--transition detail-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar :title="item ? '收藏详情' : '详情'" show-back>
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑" @click="router.push('/edit/' + props.id)">
@@ -135,6 +135,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { getCachedImage } from '@/utils/imageCache'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -142,6 +143,7 @@ import EmptyState from '@/components/EmptyState.vue'
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
+const { isPageLeaving } = usePageLeaveAnimation()
 
 const item = computed(() => store.getById(props.id))
 const showDeleteDialog = ref(false)
@@ -190,11 +192,12 @@ function closeDeleteDialog() {
   showDeleteDialog.value = false
 }
 
-function confirmDelete() {
-  store.removeGoods(props.id)
+async function confirmDelete() {
+  await store.removeGoods(props.id)
   showDeleteDialog.value = false
   router.back()
 }
+
 </script>
 
 <style scoped>
@@ -516,4 +519,5 @@ function confirmDelete() {
 .dialog-fade-leave-to {
   opacity: 0;
 }
+
 </style>

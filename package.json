@@ -13,8 +13,10 @@
   "dependencies": {
     "@capacitor-community/sqlite": "^8.0.1",
     "@capacitor/android": "^8.2.0",
+    "@capacitor/app": "^8.0.1",
     "@capacitor/core": "^8.2.0",
     "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/preferences": "^8.0.1",
     "jeep-sqlite": "^2.8.0",
     "pinia": "^2.1.0",
     "sql.js": "^1.11.0",

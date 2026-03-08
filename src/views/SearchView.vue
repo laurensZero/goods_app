@@ -1,5 +1,5 @@
 <template>
-  <div class="page search-page">
+  <div class="page page--transition search-page" :class="{ 'page--leaving': isPageLeaving }">
     <header class="search-header">
       <button class="back-btn" type="button" aria-label="返回" @click="$router.back()">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -78,11 +78,13 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
+import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import SearchBar from '@/components/SearchBar.vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const store = useGoodsStore()
+const { isPageLeaving } = usePageLeaveAnimation()
 const keyword = ref('')
 const selectedCategory = ref('')
 const selectedIp = ref('')
@@ -152,7 +154,7 @@ const results = computed(() => {
 }
 
 .back-btn:active {
-  transform: scale(0.92);
+  transform: scale(var(--press-scale-button));
 }
 
 .back-btn svg {
