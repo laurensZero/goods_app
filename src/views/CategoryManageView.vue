@@ -21,9 +21,14 @@
             type="text"
             placeholder="输入分类名称"
             maxlength="20"
+            @input="syncName"
+            @blur="syncName"
+            @change="syncName"
+            @compositionend="syncName"
+            @paste="syncNameLater"
             @keyup.enter="doAdd"
           />
-          <button class="confirm-btn" type="button" @click="doAdd">保存</button>
+          <button class="confirm-btn" type="button" @pointerdown="flushActiveInput" @click="doAdd">保存</button>
         </div>
       </Transition>
 
@@ -66,7 +71,7 @@
 <script setup>
 import { nextTick, ref } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
-import { commitActiveInput } from '@/utils/commitActiveInput'
+import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
 
@@ -77,7 +82,7 @@ const showInput = ref(false)
 const newName = ref('')
 const inputRef = ref(null)
 
-const DEFAULT_LIST = ['手办', '挂件', '立牌', '徽章', '卡片', '色纸', 'CD/专辑', '周边服饰', '其他']
+const DEFAULT_LIST = ['手办', '挂件', '立牌', '徽章', '卡片', '明信片', '色纸', 'CD/专辑', '周边服饰', '其他']
 
 async function toggleInput() {
   showInput.value = !showInput.value
@@ -89,6 +94,7 @@ async function toggleInput() {
 
 async function doAdd() {
   await commitActiveInput()
+  syncDomField()
   if (await presets.addCategory(newName.value)) {
     newName.value = ''
     showInput.value = false
@@ -97,6 +103,18 @@ async function doAdd() {
 
 async function removeCategory(name) {
   await presets.removeCategory(name)
+}
+
+function syncName(event) {
+  newName.value = event.target.value ?? ''
+}
+
+function syncNameLater() {
+  requestAnimationFrame(() => { syncDomField() })
+}
+
+function syncDomField() {
+  if (inputRef.value) newName.value = inputRef.value.value ?? ''
 }
 
 async function restoreDefaults() {

@@ -93,10 +93,13 @@ export async function parseMihoyoUrl(url) {
     throw new Error('未能识别商品信息，请确认链接有效')
   }
 
-  const { ip, name } = parseTitleIpName(detail.name)
+  const { ip, name: rawName } = parseTitleIpName(detail.name)
+  // 去掉标题中的预售标注
+  const name = rawName.replace(/[（(]预售[）)]/g, '').trim()
 
-  // price 单位是"分"，÷100 转成元
-  const priceYuan = detail.price != null ? detail.price / 100 : null
+  // price 单位是"分"，÷100 转成元；含"赠品"的商品默认 0 元
+  const isGift = detail.name.includes('赠品')
+  const priceYuan = isGift ? 0 : (detail.price != null ? detail.price / 100 : null)
 
   // sale_attrs 是数组，每个元素有 name + content[]
   // 例：[{ name: "角色", content: [{text, key, img_url}, ...], is_open }]

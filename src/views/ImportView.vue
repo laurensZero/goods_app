@@ -26,15 +26,18 @@
                 spellcheck="false"
                 class="url-input"
                 placeholder="https://www.mihoyogift.com/goods/..."
-                @input="urlInput = $event.target.value"
-                @change="urlInput = $event.target.value"
-                @compositionend="urlInput = $event.target.value"
+                @input="syncUrlInput($event)"
+                @blur="syncUrlInput($event)"
+                @change="syncUrlInput($event)"
+                @compositionend="syncUrlInput($event)"
+                @paste="syncUrlInputLater"
                 @keydown.enter="handleParse"
               />
               <button
                 class="btn-parse"
                 :class="{ 'btn-parse--loading': parsing }"
-                :disabled="!urlInput.trim() || parsing"
+                :disabled="parsing"
+                @pointerdown="syncUrlInput()"
                 @click="handleParse"
               >
                 <span v-if="!parsing">解析</span>
@@ -133,7 +136,9 @@
               </div>
               <label class="field">
                 <span class="field-label">图片链接</span>
-                <input v-model="form.image" type="url" placeholder="https://..." />
+                <input v-model="form.image" type="text" inputmode="url"
+                  autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
+                  placeholder="https://..." />
               </label>
               <!-- 图片选择器：横向滚动所有可用图 -->
               <div v-if="parsedImages.length > 1" class="field">
@@ -173,7 +178,17 @@
               </label>
               <label class="field">
                 <span class="field-label">购买日期</span>
-                <input v-model="form.purchaseDate" type="date" />
+                <button class="date-field" type="button" @click="openDatePicker">
+                  <span :class="{ 'date-field__value--placeholder': !form.purchaseDate }">
+                    {{ form.purchaseDate || '请选择日期' }}
+                  </span>
+                  <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="3" />
+                    <path d="M8 3V7" />
+                    <path d="M16 3V7" />
+                    <path d="M3 10H21" />
+                  </svg>
+                </button>
               </label>
             </div>
           </section>
@@ -207,18 +222,33 @@
         >保存谷子</button>
       </div>
     </Teleport>
+
+    <!-- 日期选择器弹层（teleport 到 body 防止被 float-footer 遮挡） -->
+    <Popup v-model:show="showDatePicker" teleport="body" :z-index="2000" position="bottom" round class="picker-popup">
+      <DatePicker
+        :model-value="toDatePickerValue(form.purchaseDate)"
+        title="选择购买日期"
+        :min-date="minDate"
+        :max-date="maxDate"
+        @cancel="showDatePicker = false"
+        @confirm="onDateConfirm"
+      />
+    </Popup>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
+import { DatePicker, Popup } from 'vant'
 import { useRouter } from 'vue-router'
+import { formatDate } from '@/utils/format'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { parseMihoyoUrl, isMihoyoGiftUrl, fetchGoodsDetail } from '@/utils/mihoyo'
+import { commitActiveInput } from '@/utils/commitActiveInput'
 
 const router = useRouter()
 const goodsStore = useGoodsStore()
@@ -235,6 +265,11 @@ const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_
 const selectedVariantKey = ref('')  // 当前选中的 SKU key
 const selectedVariantName = ref('')  // 选中款式清洗后的显示名
 const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
+
+// ── 日期选择器 ──
+const showDatePicker = ref(false)
+const minDate = new Date(2000, 0, 1)
+const maxDate = new Date(2100, 11, 31)
 
 const form = reactive({
   name: '',
@@ -312,6 +347,23 @@ function isLikelyCharName(name) {
   return true
 }
 
+function syncUrlInput(event) {
+  if (event?.target) {
+    urlInput.value = event.target.value ?? ''
+    return
+  }
+
+  if (urlInputRef.value) {
+    urlInput.value = urlInputRef.value.value ?? ''
+  }
+}
+
+function syncUrlInputLater() {
+  requestAnimationFrame(() => {
+    syncUrlInput()
+  })
+}
+
 // ── 用户点击款式按钮：单选 + 自动匹配 SKU 专属图 ──
 function handleVariantSelect(v) {
   if (selectedVariantKey.value === v.key) {
@@ -361,7 +413,7 @@ function detectCategory(name) {
 
 async function handleParse() {
   // Android 上 v-model 可能滞后，直接从 DOM 同步最新值
-  if (urlInputRef.value) urlInput.value = urlInputRef.value.value
+  syncUrlInput()
   const url = urlInput.value.trim()
   if (!url) return
   if (!isMihoyoGiftUrl(url)) {
@@ -440,7 +492,31 @@ async function handleParse() {
   }
 }
 
+// ── 日期选择器逻辑 ──
+function openDatePicker() {
+  showDatePicker.value = true
+}
+
+function onDateConfirm({ selectedValues }) {
+  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+  form.purchaseDate = `${year}-${month}-${day}`
+  showDatePicker.value = false
+}
+
+function toDatePickerValue(dateString) {
+  const [year, month, day] = normalizeDateParts(dateString)
+  return [year, month, day]
+}
+
+function normalizeDateParts(dateString) {
+  const [fy, fm, fd] = formatDate(new Date(), 'YYYY-MM-DD').split('-')
+  if (!dateString) return [fy, fm, fd]
+  const [year = fy, month = fm, day = fd] = `${dateString}`.split('-')
+  return [year, month.padStart(2, '0'), day.padStart(2, '0')]
+}
+
 async function handleSave() {
+  await commitActiveInput()
   if (!form.name.trim()) {
     parseError.value = '请填写商品名称'
     return
@@ -945,16 +1021,16 @@ async function handleSave() {
   box-shadow: 0 1px 4px rgba(32, 112, 192, 0.4);
 }
 
-.
-
-.variant-hint--muted {
-  color: var(--app-text-tertiary);
-  font-weight: 400;
-}variant-hint {
+.variant-hint {
   margin-top: 8px;
   font-size: 13px;
   color: #2070c0;
   font-weight: 500;
+}
+
+.variant-hint--muted {
+  color: var(--app-text-tertiary);
+  font-weight: 400;
 }
 
 /* ── 图片选择器 ── */
@@ -1028,6 +1104,51 @@ async function handleSave() {
   justify-content: center;
   line-height: 1;
 }
+
+/* ── 日期选择器按钮 ── */
+.date-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--app-text);
+  text-align: left;
+  transition: border-color 0.18s ease, transform 0.16s ease;
+}
+.date-field:active { transform: scale(0.98); }
+.date-field span {
+  color: var(--app-text);
+  font-size: 16px;
+}
+.date-field__value--placeholder { color: var(--app-placeholder); }
+.date-field__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: #8e8e93;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.picker-popup { overflow: hidden; }
+:deep(.picker-popup .van-picker) {
+  --van-picker-background: #ffffff;
+  --van-picker-toolbar-height: 52px;
+  --van-picker-option-font-size: 17px;
+  --van-picker-title-font-size: 16px;
+  --van-picker-confirm-action-color: #141416;
+  --van-picker-cancel-action-color: #8e8e93;
+}
+:deep(.picker-popup .van-picker__toolbar) { padding: 0 8px; }
+:deep(.picker-popup .van-picker__title) { font-weight: 600; }
+:deep(.picker-popup .van-picker-column__item) { color: var(--app-text-secondary); }
+:deep(.picker-popup .van-picker-column__item--selected) { color: var(--app-text); }
 
 /* ── 款式是否记录为角色：iOS 风格切换行 ── */
 .save-char-row {

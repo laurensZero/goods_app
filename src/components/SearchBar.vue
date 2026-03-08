@@ -6,12 +6,19 @@
     </svg>
 
     <input
+      ref="inputRef"
       :value="modelValue"
       :placeholder="placeholder"
       :autofocus="autofocus"
-      type="search"
+      type="text"
+      inputmode="search"
       class="search-input"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="syncInput($event)"
+      @blur="syncInput($event)"
+      @change="syncInput($event)"
+      @compositionend="syncInput($event)"
+      @paste="syncInputLater"
+      @search="syncInput($event)"
     />
 
     <button
@@ -30,13 +37,30 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '搜索名称或分类' },
   autofocus: { type: Boolean, default: false }
 })
 
-defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue'])
+const inputRef = ref(null)
+
+function syncInput(event) {
+  if (event?.target) {
+    emit('update:modelValue', event.target.value ?? '')
+    return
+  }
+
+  emit('update:modelValue', inputRef.value?.value ?? '')
+}
+
+function syncInputLater() {
+  requestAnimationFrame(() => {
+    syncInput()
+  })
+}
 </script>
 
 <style scoped>

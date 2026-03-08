@@ -60,12 +60,14 @@
       </section>
     </main>
 
-    <button class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 5V19" />
-        <path d="M5 12H19" />
-      </svg>
-    </button>
+    <Teleport to="body">
+      <button class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5V19" />
+          <path d="M5 12H19" />
+        </svg>
+      </button>
+    </Teleport>
 
     <AddMethodSheet
       v-model="showAddSheet"
@@ -337,7 +339,7 @@ function openDetail(id) {
 }
 
 .fab {
-  position: absolute;
+  position: fixed;
   right: 16px;
   bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   display: flex;

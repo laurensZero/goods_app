@@ -199,7 +199,7 @@
       </div>
     </Teleport>
 
-    <Popup v-model:show="showDatePicker" position="bottom" round class="picker-popup">
+    <Popup v-model:show="showDatePicker" teleport="body" :z-index="2000" position="bottom" round class="picker-popup">
       <DatePicker
         v-model="datePickerValue"
         title="选择购入日期"

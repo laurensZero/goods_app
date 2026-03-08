@@ -386,6 +386,7 @@ async function confirmDelete() {
 
 .info-card {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding: 12px;
   border-radius: var(--radius-card);
@@ -410,6 +411,7 @@ async function confirmDelete() {
   font-size: 16px;
   font-weight: 600;
   line-height: 1.4;
+  word-break: break-word;
 }
 
 .note-card {

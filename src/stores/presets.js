@@ -7,7 +7,7 @@ const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
 
-const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡片', '色纸', 'CD/专辑', '服饰', '其他']
+const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡片', '明信片', '色纸', 'CD/专辑', '服饰', '其他']
 const DEFAULT_IPS = []
 const DEFAULT_CHARACTERS = []
 const IS_NATIVE = Capacitor.isNativePlatform()
@@ -92,6 +92,14 @@ export const usePresetsStore = defineStore('presets', () => {
     if (!Array.isArray(ips.value)) ips.value = cloneList(DEFAULT_IPS)
     if (!Array.isArray(characters.value)) characters.value = cloneList(DEFAULT_CHARACTERS)
 
+    // 确保"其他"始终排在分类最末
+    if (categories.value.includes('其他')) {
+      categories.value = [
+        ...categories.value.filter(c => c !== '其他'),
+        '其他'
+      ]
+    }
+
     if (characters.value.some((character) => typeof character === 'string')) {
       characters.value = migrateCharacters(characters.value)
     }
@@ -109,7 +117,12 @@ export const usePresetsStore = defineStore('presets', () => {
     const normalized = name.trim()
     if (!normalized || categories.value.includes(normalized)) return false
 
-    categories.value.push(normalized)
+    // 始终保持"其他"在最末尾
+    const withoutOther = categories.value.filter(c => c !== '其他')
+    const hasOther = categories.value.includes('其他')
+    categories.value = hasOther
+      ? [...withoutOther, normalized, '其他']
+      : [...withoutOther, normalized]
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
     return true
   }
