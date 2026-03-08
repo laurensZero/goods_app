@@ -92,6 +92,8 @@ defineOptions({ name: 'HomeView' })
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const DENSITY_STORAGE_KEY = 'goods-app:home-density'
+const HOME_SCROLL_STORAGE_KEY = 'home-scroll'
+const HOME_SCROLL_RESTORE_PENDING_KEY = 'home-scroll-restore-pending'
 const densityModes = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
@@ -139,7 +141,8 @@ function readScrollTop() {
 function saveScrollPosition() {
   const top = readScrollTop()
   _savedScrollTop = top
-  sessionStorage.setItem('home-scroll', String(top))
+  sessionStorage.setItem(HOME_SCROLL_STORAGE_KEY, String(top))
+  sessionStorage.setItem(HOME_SCROLL_RESTORE_PENDING_KEY, '1')
 }
 
 function applyScrollPosition(top) {
@@ -159,19 +162,29 @@ onMounted(async () => {
   restoreDisplayDensity()
   await refresh()
   await nextTick()
-  const stored = _savedScrollTop || Number(sessionStorage.getItem('home-scroll') || 0)
-  applyScrollPosition(stored)
+  const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
+  const stored = _savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0)
+  if (shouldRestore) {
+    applyScrollPosition(stored)
+    sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
+  }
 })
 
 onActivated(async () => {
   // KeepAlive 保留了 DOM，先读取当前真实滚动位置（KeepAlive 会保留 DOM 状态）
   const domTop = getScrollEl()?.scrollTop ?? 0
+  const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
   const topToRestore = domTop > 0
     ? domTop
-    : (_savedScrollTop || Number(sessionStorage.getItem('home-scroll') || 0))
+    : shouldRestore
+      ? (_savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0))
+      : 0
   await refresh()
   await nextTick()
   applyScrollPosition(topToRestore)
+  if (shouldRestore) {
+    sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
+  }
 })
 
 onDeactivated(() => {
@@ -184,7 +197,7 @@ onBeforeUnmount(() => {
   const top = readScrollTop()
   if (top > 0) {
     _savedScrollTop = top
-    sessionStorage.setItem('home-scroll', String(top))
+    sessionStorage.setItem(HOME_SCROLL_STORAGE_KEY, String(top))
   }
 })
 
