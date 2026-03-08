@@ -15,7 +15,7 @@ const routes = [
     path: '/search',
     name: 'search',
     component: () => import('@/views/SearchView.vue'),
-    meta: { title: '搜索', keepAlive: true }
+    meta: { title: '搜索' }
   },
   {
     path: '/add',
@@ -47,7 +47,7 @@ const routes = [
     path: '/manage',
     name: 'manage',
     component: () => import('@/views/ManageView.vue'),
-    meta: { title: '管理', keepAlive: true }
+    meta: { title: '管理' }
   },
   {
     path: '/manage/categories',
@@ -73,30 +73,15 @@ if ('scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual'
 }
 
-const scrollPositions = new Map()
-
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition
-    }
-
-    const cachedTop = scrollPositions.get(to.fullPath)
-    if (typeof cachedTop === 'number') {
-      return { left: 0, top: cachedTop }
-    }
-
+  scrollBehavior() {
     return { left: 0, top: 0 }
   }
 })
 
-router.beforeEach((to, from) => {
-  if (from.fullPath) {
-    scrollPositions.set(from.fullPath, window.scrollY)
-  }
-
+router.beforeEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} - 谷子收藏` : '谷子收藏'
 })
 

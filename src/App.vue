@@ -1,11 +1,9 @@
 <template>
   <div class="app-wrapper">
-    <RouterView v-slot="{ Component, route: currentRoute }">
-      <KeepAlive v-if="currentRoute.meta.keepAlive">
-        <component :is="Component" :key="currentRoute.name" />
+    <RouterView v-slot="{ Component }">
+      <KeepAlive include="HomeView">
+        <component :is="Component" />
       </KeepAlive>
-
-      <component v-else :is="Component" :key="currentRoute.fullPath" />
     </RouterView>
     <TabBar v-if="showTabBar" />
   </div>

@@ -448,13 +448,12 @@ async function handleParse() {
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
     if (result.goodsId) {
-      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers }) => {
+      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, coverUrl }) => {
         // 把 SKU cover_url 回填到对应变体
-        if (Object.keys(skuCovers).length) {
-          parsedVariants.value = parsedVariants.value.map(v =>
-            skuCovers[v.key] ? { ...v, cover_url: skuCovers[v.key] } : v
-          )
-        }
+        parsedVariants.value = parsedVariants.value.map(v => ({
+          ...v,
+          cover_url: skuCovers[v.key] || v.cover_url || coverUrl || ''
+        }))
         // 补充 main_url 图片到选择器
         const extras = mainImages
           .map(u => (u || '').split('?')[0])

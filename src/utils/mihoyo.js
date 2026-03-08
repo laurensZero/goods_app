@@ -115,6 +115,7 @@ export async function parseMihoyoUrl(url) {
         text: item.text,
         key: item.key || '',
         img_url: item.img_url || '',
+        cover_url: item.cover_url || '',
       })
     }
   }
@@ -149,20 +150,49 @@ export async function fetchGoodsDetail(goodsId) {
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
       const res = await fetch(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
-      if (!res.ok) return { mainImages: [], skuCovers: {} }
+      if (!res.ok) return { mainImages: [], skuCovers: {}, coverUrl: '' }
       json = await res.json()
     }
-    const detail = json?.data?.goods?.detail
-    const mainImages = Array.isArray(detail?.main_url) ? detail.main_url : []
+    const detail =
+      json?.data?.goods?.detail ||
+      json?.data?.detail ||
+      json?.data?.goods ||
+      null
+    const mainImages = Array.isArray(detail?.main_url)
+      ? detail.main_url
+      : Array.isArray(detail?.banner_url)
+        ? detail.banner_url
+        : []
     // skus 是以 key 为属性名的对象，每条有 cover_url
     const skuCovers = {}
     if (detail?.skus && typeof detail.skus === 'object') {
       for (const [key, sku] of Object.entries(detail.skus)) {
-        if (sku.cover_url) skuCovers[key] = sku.cover_url
+        if (!sku?.cover_url) continue
+
+        skuCovers[key] = sku.cover_url
+
+        // 星铁这类商品的 sale_attrs.content[].key 往往只对应 sale_attr1_key，
+        // 但 detail.skus 的对象键是 "sale_attr1_key_sale_attr2_key" 组合键。
+        // 额外回填一份主属性 key，便于前端按角色 key 取到对应封面。
+        const primaryKey = sku.sale_attr1_key || String(key).split('_')[0]
+        if (primaryKey) {
+          skuCovers[primaryKey] = sku.cover_url
+        }
       }
     }
-    return { mainImages, skuCovers }
+    if (Array.isArray(detail?.sale_attrs)) {
+      for (const group of detail.sale_attrs) {
+        if (!Array.isArray(group?.content)) continue
+
+        for (const item of group.content) {
+          if (item?.key && item?.cover_url) {
+            skuCovers[item.key] = item.cover_url
+          }
+        }
+      }
+    }
+    return { mainImages, skuCovers, coverUrl: detail?.cover_url || '' }
   } catch {
-    return { mainImages: [], skuCovers: {} }
+    return { mainImages: [], skuCovers: {}, coverUrl: '' }
   }
 }

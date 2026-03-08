@@ -1,6 +1,6 @@
 <template>
   <div class="page home-page">
-    <main class="page-body">
+    <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">谷子收藏 / Goods Archive</p>
@@ -55,7 +55,7 @@
           title="还没有收藏记录"
           description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
           action-text="添加第一件"
-          @action="$router.push('/add')"
+          @action="goToAdd"
         />
       </section>
     </main>
@@ -71,15 +71,15 @@
 
     <AddMethodSheet
       v-model="showAddSheet"
-      @manual="$router.push('/add')"
+      @manual="goToAdd"
       @import="handleImport"
     />
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onDeactivated, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { preloadImages } from '@/utils/imageCache'
 import SummaryCard from '@/components/SummaryCard.vue'
@@ -87,10 +87,11 @@ import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AddMethodSheet from '@/components/AddMethodSheet.vue'
 
+defineOptions({ name: 'HomeView' })
+
 const store = useGoodsStore()
-const route = useRoute()
+const pageBodyRef = ref(null)
 const DENSITY_STORAGE_KEY = 'goods-app:home-density'
-const HOME_SCROLL_STORAGE_KEY = 'goods-app:home-scroll'
 const densityModes = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
@@ -99,14 +100,23 @@ const densityModes = [
 const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.value, mode.columns]))
 
 const displayDensity = ref('comfortable')
-const savedScrollTop = ref(0)
+
+// 模块级变量，KeepAlive 激活期间稳定保存滚动位置
+let _savedScrollTop = 0
 
 // 添加方式面板
 const showAddSheet = ref(false)
 const router = useRouter()
 function handleImport() {
   showAddSheet.value = false
+  saveScrollPosition()
   router.push('/import')
+}
+
+function goToAdd() {
+  showAddSheet.value = false
+  saveScrollPosition()
+  router.push('/add')
 }
 
 async function refresh() {
@@ -115,49 +125,68 @@ async function refresh() {
   if (urls.length) preloadImages(urls)
 }
 
-function saveScrollPosition() {
-  savedScrollTop.value = window.scrollY || document.documentElement.scrollTop || 0
-  sessionStorage.setItem(HOME_SCROLL_STORAGE_KEY, String(savedScrollTop.value))
+function getScrollEl() {
+  return pageBodyRef.value || document.querySelector('.home-page .page-body')
 }
 
-async function restoreScrollPosition() {
-  const stored = Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || savedScrollTop.value || 0)
-  savedScrollTop.value = Number.isFinite(stored) ? stored : 0
+// 同时读 page-body.scrollTop 和 window.scrollY，取非零的那个
+function readScrollTop() {
+  const elTop = getScrollEl()?.scrollTop ?? 0
+  const winTop = window.scrollY || document.documentElement.scrollTop || 0
+  return elTop > 0 ? elTop : winTop
+}
 
-  await nextTick()
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      window.scrollTo(0, savedScrollTop.value)
-    })
-  })
+function saveScrollPosition() {
+  const top = readScrollTop()
+  _savedScrollTop = top
+  sessionStorage.setItem('home-scroll', String(top))
+}
+
+function applyScrollPosition(top) {
+  if (!top || top <= 0) return
+  const setAll = () => {
+    const el = getScrollEl()
+    if (el) el.scrollTop = top
+    try { document.documentElement.scrollTop = top } catch {}
+    try { document.body.scrollTop = top } catch {}
+    try { window.scrollTo({ top, behavior: 'instant' }) } catch { window.scrollTo(0, top) }
+  }
+  const delays = [0, 50, 100, 200]
+  delays.forEach(delay => setTimeout(setAll, delay))
 }
 
 onMounted(async () => {
   restoreDisplayDensity()
   await refresh()
-  await restoreScrollPosition()
+  await nextTick()
+  const stored = _savedScrollTop || Number(sessionStorage.getItem('home-scroll') || 0)
+  applyScrollPosition(stored)
 })
 
 onActivated(async () => {
+  // KeepAlive 保留了 DOM，先读取当前真实滚动位置（KeepAlive 会保留 DOM 状态）
+  const domTop = getScrollEl()?.scrollTop ?? 0
+  const topToRestore = domTop > 0
+    ? domTop
+    : (_savedScrollTop || Number(sessionStorage.getItem('home-scroll') || 0))
   await refresh()
   await nextTick()
-  await restoreScrollPosition()
+  applyScrollPosition(topToRestore)
 })
 
 onDeactivated(() => {
-  saveScrollPosition()
+  // 不在此处调用 saveScrollPosition：onDeactivated 触发时 window.scrollY 可能已被路由重置为 0
+  // 滚动位置已由 openDetail / handleImport / goToAdd 在跳转前显式保存
 })
 
-watch(
-  () => route.path,
-  (path) => {
-    if (path === '/home') {
-      refresh().then(() => restoreScrollPosition())
-    } else {
-      saveScrollPosition()
-    }
+onBeforeUnmount(() => {
+  // 仅在值大于 0 时才覆盖，避免卸载时 DOM 已清空导致用 0 覆盖正确值
+  const top = readScrollTop()
+  if (top > 0) {
+    _savedScrollTop = top
+    sessionStorage.setItem('home-scroll', String(top))
   }
-)
+})
 
 watch(displayDensity, (value) => {
   localStorage.setItem(DENSITY_STORAGE_KEY, value)
