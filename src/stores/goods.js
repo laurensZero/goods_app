@@ -49,8 +49,44 @@ export const useGoodsStore = defineStore('goods', () => {
     }
   }
 
+  async function updateMultipleGoods(ids, data) {
+    let changed = false
+
+    list.value = list.value.map((item) => {
+      if (!ids.has(item.id)) return item
+      changed = true
+      return { ...item, ...data }
+    })
+
+    if (changed) {
+      await saveItems(list.value)
+    }
+  }
+
   async function removeGoods(id) {
     list.value = list.value.filter((item) => item.id !== id)
+    await saveItems(list.value)
+  }
+
+  /** 批量删除，ids 为 Set<string> */
+  async function removeMultipleGoods(ids) {
+    list.value = list.value.filter((item) => !ids.has(item.id))
+    await saveItems(list.value)
+  }
+
+  /** 批量导入，自动剖除 _开头的元数据字段 */
+  async function addMultipleGoods(items) {
+    const now = Date.now()
+    const newItems = items.map((d, i) => {
+      const clean = Object.fromEntries(
+        Object.entries(d).filter(([k]) => !k.startsWith('_'))
+      )
+      return { ...clean, id: String(now + i) }
+    })
+    // 逆序插入使最先加入的高位于列表顶部
+    for (let i = newItems.length - 1; i >= 0; i--) {
+      list.value.unshift(newItems[i])
+    }
     await saveItems(list.value)
   }
 
@@ -59,5 +95,17 @@ export const useGoodsStore = defineStore('goods', () => {
     list.value = await getItems()
   }
 
-  return { list, isReady, getById, init, addGoods, updateGoods, removeGoods, refreshList }
+  return {
+    list,
+    isReady,
+    getById,
+    init,
+    addGoods,
+    updateGoods,
+    updateMultipleGoods,
+    removeGoods,
+    removeMultipleGoods,
+    addMultipleGoods,
+    refreshList
+  }
 })

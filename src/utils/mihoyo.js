@@ -207,3 +207,269 @@ export async function fetchGoodsDetail(goodsId) {
     return { mainImages: [], skuCovers: {}, coverUrl: '' }
   }
 }
+
+// ─── 账号订单导入 ──────────────────────────────────────────────────
+
+const API_ORDER_LIST = `${API_BASE}/common/homeishop/v1/order/order_list`
+
+/** 解析 Cookie 字符串为 key-value 对象 */
+export function parseCookieString(cookieStr) {
+  const result = {}
+  cookieStr.split(';').forEach((part) => {
+    const idx = part.indexOf('=')
+    if (idx === -1) return
+    const key = part.slice(0, idx).trim()
+    const value = part.slice(idx + 1).trim()
+    if (key) result[key] = value
+  })
+  return result
+}
+
+/** 检验 Cookie 是否包含米游社常見认证字段 */
+export function validateMihoyoCookie(cookieStr) {
+  const parsed = parseCookieString(cookieStr)
+  const hasUid = !!(parsed.account_id_v2 || parsed.ltuid_v2 || parsed.account_id || parsed.ltuid)
+  const hasToken = !!(parsed.cookie_token_v2 || parsed.ltoken_v2 || parsed.ltoken)
+  return hasUid && hasToken
+}
+
+async function fetchOrderPage(cookieStr, page, limit) {
+  const url = `${API_ORDER_LIST}?limit=${limit}&page=${page}`
+  const headers = {
+    'Cookie': cookieStr,
+    'Referer': 'https://mall.mihoyogame.com/',
+    'x-rpc-language': 'zh-cn',
+    'x-rpc-client_type': '5',
+  }
+  let json
+  if (Capacitor.isNativePlatform()) {
+    const res = await CapacitorHttp.get({ url, headers })
+    json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+  } else {
+    // 浏览器不允许 JS 设置 Cookie 头（Forbidden Header），
+    // 改用自定义 x-cookie-forward，由 Vite 代理转换为真正的 Cookie
+    const proxyUrl = url.replace(API_BASE, '/mihoyo-api')
+    const webHeaders = {
+      ...headers,
+      'x-cookie-forward': encodeURIComponent(headers['Cookie'] || ''),
+    }
+    delete webHeaders['Cookie']
+    const res = await fetch(proxyUrl, { headers: webHeaders })
+    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
+    json = await res.json()
+  }
+  if (json.retcode !== 0) throw new Error(json.message || `接口错误 ${json.retcode}`)
+  return json.data
+}
+
+/**
+ * 获取账号全部订单（自动分页，最多 200 条）
+ * @param {string} cookieStr - 完整 Cookie 字符串
+ * @param {function} [onProgress] - (loaded: number, total: number) 进度回调
+ */
+export async function fetchAllOrders(cookieStr, onProgress) {
+  const limit = 20
+  const first = await fetchOrderPage(cookieStr, 1, limit)
+  const total = first.count || 0
+  const totalPages = Math.min(Math.ceil(total / limit), 10)
+  let list = [...first.list]
+  onProgress?.(list.length, total)
+  for (let page = 2; page <= totalPages; page++) {
+    const { list: pageList } = await fetchOrderPage(cookieStr, page, limit)
+    list = [...list, ...pageList]
+    onProgress?.(list.length, total)
+    await new Promise((r) => setTimeout(r, 150))
+  }
+  return { list, total, capped: total > list.length }
+}
+
+/**
+ * 将米游铺订单转换为 App 谷子格式
+ * @param {Object} order - API 返回的单个订单对象
+ * @returns {Object|null}
+ */
+/** 从商品名关键词推断分类 */
+function parseCategoryFromName(name) {
+  if (!name) return ''
+  if (name.includes('手办')) return '手办'
+  if (name.includes('立牌') || name.includes('亚克力')) return '立牌'
+  if (name.includes('挂件') || name.includes('挂饰') || name.includes('吊件') || name.includes('钥匙扣')) return '挂件'
+  if (name.includes('徽章') || name.includes('马口铁') || name.includes('胸章') ||
+      name.includes('Pin') || name.includes('pin')) return '徽章'
+  if (name.includes('明信片')) return '明信片'
+  if (name.includes('卡片') || name.includes('随机卡') || name.includes('收藏卡') ||
+      name.includes('可换卡') || name.includes('卡组')) return '卡片'
+  if (name.includes('CD') || name.includes('专辑') || name.includes('唱片') ||
+      name.includes('OST')) return 'CD/专辑'
+  if (name.includes('色纸') || name.includes('签板')) return '色纸'
+  if (name.includes('上衣') || name.includes('T恤') || name.includes('衬衫') ||
+      name.includes('外套') || name.includes('卫衣') || name.includes('服饰')) return '服饰'
+  if (name.includes('镭射票') || name.includes('镭射')) return '镭射票'
+  if (name.includes('满赠') || name.includes('赠品')) return '满赠'
+  return ''
+}
+
+/** 从店铺名推断 IP（比从商品名解析更稳定） */
+function shopToIp(shopName) {
+  if (!shopName) return ''
+  if (shopName.includes('原神万有铺子')) return '原神'
+  if (shopName.includes('货全杂货铺')) return '崩坏：星穹铁道'
+  if (shopName.includes('绝区零')) return '绝区零'
+  if (shopName.includes('空港集市')) return '崩坏3'
+  if (shopName.includes('未名商城')) return '未定事件簿'
+  if (shopName.includes('千羽万事屋')) return '崩坏学园2nd'
+  if (shopName.includes('别野百货') || shopName.includes('派对'))  return '米游铺周边'
+  return ''
+}
+
+/** 去除商品名中的预售类前缀，如 【预售，预计3月发货】 */
+function cleanGoodsName(str) {
+  return (str || '').replace(/【预售[^】]*】/g, '').trim()
+}
+
+/** 去除 sku 属性值中的所有括号前缀（角色名等应为纯文本）
+ *  同时去除末尾常见变体字母 A-E（如 "昔涟B" → "昔涟"，"叶瞬光A" → "叶瞬光"）
+ */
+function cleanAttrValue(str) {
+  return (str || '')
+    .replace(/【[^】]*】/g, '')  // 清除 【...】 括号内容
+    .replace(/[A-E]$/, '')       // 去除末尾变体字母 A-E
+    .trim()
+}
+
+/** 尝试从"款式"属性值推断角色名（米游铺特定规律）
+ *  "昔涟B" → "昔涟" (2-6 汉字，去掉末尾变体字母 A-E)
+ *  "竖版" / "红色" / "彩色" → 跳过（在常见非角色词表中）
+ */
+const NON_CHAR_STYLE = new Set([
+  '竖版', '横版', '立式', '挂式', '竖排', '横排',
+  '彩色', '单色', '全彩', '黑白', '双色',
+  '个人', '团体', '全员', '集体',
+  '线稿', '线图', '草稿', '线图版',
+  '小', '中', '大', '特大', '加大',
+  '明信片',
+])
+
+// 商品类型后缀：款式值以这些词结尾时，只取前面的角色名部分
+const STYLE_PRODUCT_SUFFIXES = [
+  '套盒', '套组', '套装', '礼盒', '礼包',
+  '小鸟', '宠物', '玩偶', '公仔', '毛绒',
+]
+
+function tryCharFromStyle(attrValue) {
+  // cleanAttrValue 已去括号 + 去末尾 A-E
+  const cleaned = cleanAttrValue(attrValue)
+
+  // 先剥离商品类型后缀，提取前面的角色名（2-3 字）
+  for (const suf of STYLE_PRODUCT_SUFFIXES) {
+    if (cleaned.endsWith(suf)) {
+      const prefix = cleaned.slice(0, cleaned.length - suf.length)
+      if (
+        /^[\u4e00-\u9fa5]{2,3}$/.test(prefix) &&
+        !NON_CHAR_STYLE.has(prefix) &&
+        !/[的与你我他她版款弹期辑章集号场幕套组盒]/.test(prefix)
+      ) {
+        return prefix
+      }
+      return null // 有商品类型后缀但前缀不像角色名，整体排除
+    }
+  }
+
+  // 2-5 个纯汉字才认定为角色名（活动名往往 6 字以上）
+  if (!/^[\u4e00-\u9fa5]{2,5}$/.test(cleaned)) return null
+  // 排除常见非角色描述词
+  if (NON_CHAR_STYLE.has(cleaned)) return null
+  // 含有产品/语法词 → 是描述短语，不是名字
+  if (/[的与你我他她版款弹期辑章集号场幕套组盒]/.test(cleaned)) return null
+  return cleaned
+}
+
+/** 将单件商品 meta_info 转换为 App 谷子格式（内部辅助） */
+function metaToGoods(order, goods, index = 0) {
+  const rawName = cleanGoodsName(
+    goods.goods_name || goods.name || goods.title ||
+    goods.commodity_name || goods.commodityName || ''
+  )
+  const coverUrl =
+    goods.cover_url || goods.img_url || goods.cover ||
+    goods.goods_img || goods.image || ''
+  const rawPrice =
+    goods.price ?? goods.sale_price ?? goods.current_price ??
+    goods.activity_price ?? goods.actual_price ?? 0
+  const skuList =
+    goods.sku_sales || goods.sku_list || goods.sku_attrs || goods.attrs || []
+
+  // IP 优先从店铺名推断；其次从商品名解析
+  const shopName = order.shop?.shop_name || goods.shop_name || ''
+  const ipFromShop = shopToIp(shopName)
+  const { ip: ipFromName, name } = parseTitleIpName(rawName)
+  const ip = ipFromShop || ipFromName
+
+  // 提取角色名：
+  //   1. attr_name 含 "角色" → attr_value 是角色名 (如 "角色":"流萤", "角色-对空六课":"比利")
+  //   2. attr_name === "款式" → attr_value 可能是"角色名+变体字母" (如 "款式":"昔涟B")
+  const charSet = new Set()
+  for (const s of skuList) {
+    const attrName = s.attr_name || s.attrName || ''
+    const attrVal  = s.attr_value || s.attrValue || ''
+    if (attrName.includes('角色')) {
+      const c = cleanAttrValue(attrVal)
+      if (c) charSet.add(c)
+    } else if (attrName === '款式') {
+      const c = tryCharFromStyle(attrVal)
+      if (c) charSet.add(c)
+    }
+  }
+  const characters = [...charSet]
+  const payTime =
+    order.payment_info?.pay_time || order.payment_info?.payTime ||
+    order.pay_time || order.payTime || order.order_time || order.orderTime
+  const acquiredAt = payTime
+    ? new Date(Number(payTime) * 1000).toISOString().split('T')[0]
+    : ''
+  const orderNo = order.order_no || order.orderNo || ''
+  const goodsId = goods.goods_id || goods.goodsId || goods.sku_id || ''
+  // 加上 index 防止同订单内 goods_id 相同时 key 碰撞
+  const itemKey = `${orderNo}_${index}_${goodsId}`
+  return {
+    name: name || rawName,
+    ip: ip || '',
+    characters,
+    image: coverUrl,
+    price: String(Math.round(Number(rawPrice) / 100)),
+    acquiredAt,
+    category: parseCategoryFromName(name || rawName),
+    quantity: Math.max(1, Number(goods.quantity) || 1),
+    note: `来自米游铺订单 #${orderNo}`,
+    // 元数据（不入库）
+    _itemKey: itemKey,
+    _orderNo: orderNo,
+    _statusText: order.status_text || order.statusText || order.manage_status_text || '',
+    _coverUrl: coverUrl,
+  }
+}
+
+/**
+ * 将米游铺订单展开为所有商品（一个订单可能含多件），返回数组
+ * @param {Object} order
+ * @returns {Object[]}
+ */
+export function orderToGoodsList(order) {
+  const wrappers = order.goods_list || order.commodity_list || []
+  return wrappers
+    .map((w, index) => {
+      const goods = w.meta_info || w
+      return metaToGoods(order, goods, index)
+    })
+    .filter((g) => g.name)  // 过滤掉没有名称的条目
+}
+
+/**
+ * 将米游铺订单转换为 App 谷子格式（仅取第一件，兼容旧调用）
+ * @param {Object} order
+ * @returns {Object|null}
+ */
+export function orderToGoods(order) {
+  return orderToGoodsList(order)[0] || null
+}
+

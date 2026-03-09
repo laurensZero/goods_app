@@ -49,6 +49,26 @@
         </div>
       </section>
 
+      <!-- ① 账号批量导入入口 -->
+      <button class="account-import-entry" type="button" @click="$router.push('/account-import')">
+        <div class="aie-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+            <path d="M16 11h6M19 8v6"/>
+          </svg>
+        </div>
+        <div class="aie-body">
+          <p class="aie-title">账号批量导入</p>
+          <p class="aie-sub">一键导入米游铺账号的所有历史订单</p>
+        </div>
+        <svg class="aie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </button>
+
       <!-- ② 解析结果 / 编辑表单（解析成功后展示） -->
       <transition name="result-fade">
         <div v-if="parsed" class="result-area">
@@ -587,6 +607,62 @@ async function handleSave() {
 /* ── URL 输入区 ── */
 .url-section {
   margin-top: 8px;
+}
+
+/* ── 账号批量导入入口 ── */
+.account-import-entry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  border: none;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.13s ease, background 0.12s ease;
+}
+.account-import-entry:active {
+  transform: scale(0.98);
+  background: #f0f0f5;
+}
+.aie-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.aie-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.aie-body {
+  flex: 1;
+  min-width: 0;
+}
+.aie-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0 0 2px;
+}
+.aie-sub {
+  font-size: 12.5px;
+  color: var(--app-text-tertiary);
+  margin: 0;
+}
+.aie-arrow {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: rgba(0, 0, 0, 0.25);
 }
 
 .url-card {

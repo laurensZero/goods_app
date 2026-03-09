@@ -7,7 +7,7 @@ const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
 
-const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡片', '明信片', '色纸', 'CD/专辑', '服饰', '其他']
+const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡片', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '满赠', '其他']
 const DEFAULT_IPS = []
 const DEFAULT_CHARACTERS = []
 const IS_NATIVE = Capacitor.isNativePlatform()

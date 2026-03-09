@@ -42,6 +42,7 @@
   -webkit-backdrop-filter: blur(18px);
   box-shadow: var(--app-shadow);
   transform: translateX(-50%);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
 }
 
 .tab-item {
@@ -78,5 +79,14 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.01em;
+}
+</style>
+
+<!-- 多选模式时全局隐藏导航栏 -->
+<style>
+body.selection-active .tab-bar {
+  transform: translateX(-50%) translateY(calc(100% + 16px));
+  opacity: 0;
+  pointer-events: none;
 }
 </style>

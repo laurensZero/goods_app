@@ -30,6 +30,12 @@ const routes = [
     meta: { title: '从米游铺导入' }
   },
   {
+    path: '/account-import',
+    name: 'account-import',
+    component: () => import('@/views/AccountImportView.vue'),
+    meta: { title: '账号批量导入' }
+  },
+  {
     path: '/detail/:id',
     name: 'detail',
     component: () => import('@/views/DetailView.vue'),

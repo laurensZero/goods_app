@@ -149,8 +149,11 @@
               <input v-model="form.price" type="number" min="0" step="0.01" placeholder="0.00" />
             </label>
 
-            <label class="field">
-              <span class="field-label">购入日期</span>
+            <label class="field">              <span class="field-label">数量</span>
+              <input v-model.number="form.quantity" type="number" min="1" step="1" placeholder="1" />
+            </label>
+
+            <label class="field">              <span class="field-label">购入日期</span>
               <button class="date-field" type="button" @pointerdown="flushActiveInput" @click="openDatePicker">
                 <span :class="{ 'date-field__value--placeholder': !form.acquiredAt }">
                   {{ form.acquiredAt || '请选择日期' }}
@@ -239,7 +242,8 @@ const form = reactive({
   price: '',
   acquiredAt: '',
   image: '',
-  note: ''
+  note: '',
+  quantity: 1
 })
 
 const charactersFieldRef = ref(null)
@@ -283,6 +287,7 @@ onMounted(() => {
     form.acquiredAt = item.acquiredAt ?? ''
     form.image = item.image ?? ''
     form.note = item.note ?? ''
+    form.quantity = Number(item.quantity) || 1
     datePickerValue.value = toDatePickerValue(form.acquiredAt)
   }
 

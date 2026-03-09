@@ -82,6 +82,11 @@
               <span class="info-label">持有时长</span>
               <strong class="info-value">{{ holdingDays }} 天</strong>
             </article>
+
+            <article v-if="item.quantity > 1" class="info-tile">
+              <span class="info-label">数量</span>
+              <strong class="info-value">{{ item.quantity }} 件</strong>
+            </article>
           </div>
         </section>
 

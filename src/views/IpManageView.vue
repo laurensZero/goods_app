@@ -19,7 +19,7 @@
             v-model="newName"
             class="row-input"
             type="text"
-            placeholder="输入 IP / 作品名称"
+            placeholder="输入 IP 名称"
             maxlength="40"
             @input="syncName"
             @blur="syncName"
@@ -42,7 +42,7 @@
             v-model="searchKey"
             class="s-input"
             type="search"
-            placeholder="搜索 IP"
+            placeholder="搜索 IP 名称"
           />
           <button v-if="searchKey" class="s-clear" type="button" @click="searchKey = ''">
             <svg viewBox="0 0 24 24" fill="none">

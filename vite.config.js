@@ -21,7 +21,18 @@ export default defineConfig({
       '/mihoyo-api': {
         target: 'https://api-mall.mihoyogift.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/mihoyo-api/, '')
+        rewrite: (path) => path.replace(/^\/mihoyo-api/, ''),
+        configure: (proxy) => {
+          // 浏览器禁止 JS 设置 Cookie 头（Forbidden Header），
+          // 通过自定义 x-cookie-forward 头在 Vite 代理侧转换
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const fwd = req.headers['x-cookie-forward']
+            if (fwd) {
+              proxyReq.setHeader('cookie', decodeURIComponent(fwd))
+              proxyReq.removeHeader('x-cookie-forward')
+            }
+          })
+        }
       }
     }
   },

@@ -68,7 +68,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'manual', 'import'])
+const emit = defineEmits(['update:modelValue', 'manual', 'import', 'account-import'])
 
 function close() {
   emit('update:modelValue', false)
@@ -82,6 +82,11 @@ function onManual() {
 function onImport() {
   close()
   emit('import')
+}
+
+function onAccountImport() {
+  close()
+  emit('account-import')
 }
 </script>
 
@@ -193,6 +198,32 @@ function onImport() {
   width: 22px;
   height: 22px;
   stroke: #28c880;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.option-icon--account {
+  background: rgba(255, 149, 0, 0.12);
+}
+
+.option-icon--account svg {
+  width: 22px;
+  height: 22px;
+  stroke: #ff9500;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.option-icon--account {
+  background: rgba(255, 149, 0, 0.12);
+}
+
+.option-icon--account svg {
+  width: 22px;
+  height: 22px;
+  stroke: #ff9500;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
