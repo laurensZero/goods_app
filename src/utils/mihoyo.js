@@ -106,7 +106,7 @@ export async function parseMihoyoUrl(url) {
 
   const { ip, name: rawName } = parseTitleIpName(detail.name)
   // 去掉标题中的预售标注
-  const name = rawName.replace(/[（(]预售[）)]/g, '').trim()
+  const name = cleanGoodsName(rawName)
 
   // price 单位是"分"，÷100 转成元；含"赠品"的商品默认 0 元
   const isGift = detail.name.includes('赠品')
@@ -237,7 +237,7 @@ async function fetchOrderPage(cookieStr, page, limit) {
   const url = `${API_ORDER_LIST}?limit=${limit}&page=${page}`
   const headers = {
     'Cookie': cookieStr,
-    'Referer': 'https://mall.mihoyogame.com/',
+    'Referer': 'https://mihoyogift.com/',
     'x-rpc-language': 'zh-cn',
     'x-rpc-client_type': '5',
   }
@@ -291,6 +291,7 @@ export async function fetchAllOrders(cookieStr, onProgress) {
 /** 从商品名关键词推断分类 */
 function parseCategoryFromName(name) {
   if (!name) return ''
+  if (name.includes('满赠') || name.includes('赠品')) return '赠品'
   if (name.includes('手办')) return '手办'
   if (name.includes('立牌') || name.includes('亚克力')) return '立牌'
   if (name.includes('挂件') || name.includes('挂饰') || name.includes('吊件') || name.includes('钥匙扣')) return '挂件'
@@ -305,7 +306,6 @@ function parseCategoryFromName(name) {
   if (name.includes('上衣') || name.includes('T恤') || name.includes('衬衫') ||
       name.includes('外套') || name.includes('卫衣') || name.includes('服饰')) return '服饰'
   if (name.includes('镭射票') || name.includes('镭射')) return '镭射票'
-  if (name.includes('满赠') || name.includes('赠品')) return '满赠'
   return ''
 }
 
@@ -323,13 +323,28 @@ function shopToIp(shopName) {
 }
 
 /** 去除商品名中的预售类前缀，如 【预售，预计3月发货】 */
-function cleanGoodsName(str) {
-  return (str || '').replace(/【预售[^】]*】/g, '').trim()
+function cleanGoodsNameLegacy(str) {
+  return String(str || '')
+    .replace(/【(?:预售|预计)[^】]*】/g, '')
+    .replace(/（(?:预售|预计)?[^）]*(?:到仓|发货|补款|预售)[^）]*）/g, '')
+    .replace(/\((?:预售|预计)?[^)]*(?:到仓|发货|补款|预售)[^)]*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 }
 
 /** 去除 sku 属性值中的所有括号前缀（角色名等应为纯文本）
  *  同时去除末尾常见变体字母 A-E（如 "昔涟B" → "昔涟"，"叶瞬光A" → "叶瞬光"）
  */
+function cleanGoodsName(str) {
+  return String(str || '')
+    .replace(/【(?:预售|预计|现货)[^】]*】/g, '')
+    .replace(/（(?:预售|预计|现货)?[^）]*(?:到仓|发货|补款|预售|现货)[^）]*）/g, '')
+    .replace(/\((?:预售|预计|现货)?[^)]*(?:到仓|发货|补款|预售|现货)[^)]*\)/g, '')
+    .replace(/[（(【\[]?现货[】\])）]?/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 function cleanAttrValue(str) {
   return (str || '')
     .replace(/【[^】]*】/g, '')  // 清除 【...】 括号内容
@@ -341,6 +356,72 @@ function cleanAttrValue(str) {
  *  "昔涟B" → "昔涟" (2-6 汉字，去掉末尾变体字母 A-E)
  *  "竖版" / "红色" / "彩色" → 跳过（在常见非角色词表中）
  */
+function cleanStyleValue(str) {
+  return String(str || '')
+    .replace(/【预售[^】]*】/g, '')
+    .replace(/（预售[^）]*）/g, '')
+    .replace(/\(预售[^)]*\)/g, '')
+    .replace(/【预计[^】]*】/g, '')
+    .replace(/（预计[^）]*）/g, '')
+    .replace(/\(预计[^)]*\)/g, '')
+    .trim()
+}
+
+function firstNonEmpty(...values) {
+  return values.find((value) => String(value || '').trim()) || ''
+}
+
+function getAftersalesStatusText(aftersalesInfo = {}) {
+  const code = Number(aftersalesInfo?.aftersales_status)
+  const explicitText = firstNonEmpty(
+    aftersalesInfo?.aftersales_status_text,
+    aftersalesInfo?.status_text,
+    aftersalesInfo?.status_desc,
+    aftersalesInfo?.status,
+  )
+
+  if (explicitText) return explicitText
+  if (!code) return ''
+
+  if (code >= 400) return '退款完成'
+  if (code >= 300) return '退款中'
+  if (code >= 200) return '售后中'
+  return '售后中'
+}
+
+function extractItemStatusText(goodsWrapper = {}, goods = {}) {
+  const aftersalesText = firstNonEmpty(
+    getAftersalesStatusText(goodsWrapper.aftersales_info),
+    getAftersalesStatusText(goods.aftersales_info),
+  )
+
+  return firstNonEmpty(
+    aftersalesText,
+    goodsWrapper.after_sale_status_text,
+    goodsWrapper.after_sale_text,
+    goodsWrapper.refund_status_text,
+    goodsWrapper.refund_text,
+    goodsWrapper.rights_status_text,
+    goodsWrapper.rights_text,
+    goodsWrapper.status_text,
+    goodsWrapper.manage_status_text,
+    goodsWrapper.status_desc,
+    goodsWrapper.manage_status_desc,
+    goodsWrapper.status,
+    goods.after_sale_status_text,
+    goods.after_sale_text,
+    goods.refund_status_text,
+    goods.refund_text,
+    goods.rights_status_text,
+    goods.rights_text,
+    goods.status_text,
+    goods.manage_status_text,
+    goods.status_desc,
+    goods.manage_status_desc,
+    goods.status,
+  )
+}
+
 const NON_CHAR_STYLE = new Set([
   '竖版', '横版', '立式', '挂式', '竖排', '横排',
   '彩色', '单色', '全彩', '黑白', '双色',
@@ -385,7 +466,7 @@ function tryCharFromStyle(attrValue) {
 }
 
 /** 将单件商品 meta_info 转换为 App 谷子格式（内部辅助） */
-function metaToGoods(order, goods, index = 0) {
+function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
   const rawName = cleanGoodsName(
     goods.goods_name || goods.name || goods.title ||
     goods.commodity_name || goods.commodityName || ''
@@ -397,7 +478,15 @@ function metaToGoods(order, goods, index = 0) {
     goods.price ?? goods.sale_price ?? goods.current_price ??
     goods.activity_price ?? goods.actual_price ?? 0
   const skuList =
-    goods.sku_sales || goods.sku_list || goods.sku_attrs || goods.attrs || []
+    goods.sku_sales ||
+    goods.sku_list ||
+    goods.sku_attrs ||
+    goods.attrs ||
+    goodsWrapper.sku_sales ||
+    goodsWrapper.sku_list ||
+    goodsWrapper.sku_attrs ||
+    goodsWrapper.attrs ||
+    []
 
   // IP 优先从店铺名推断；其次从商品名解析
   const shopName = order.shop?.shop_name || goods.shop_name || ''
@@ -409,18 +498,45 @@ function metaToGoods(order, goods, index = 0) {
   //   1. attr_name 含 "角色" → attr_value 是角色名 (如 "角色":"流萤", "角色-对空六课":"比利")
   //   2. attr_name === "款式" → attr_value 可能是"角色名+变体字母" (如 "款式":"昔涟B")
   const charSet = new Set()
+  const styleSet = new Set()
   for (const s of skuList) {
     const attrName = s.attr_name || s.attrName || ''
     const attrVal  = s.attr_value || s.attrValue || ''
     if (attrName.includes('角色')) {
       const c = cleanAttrValue(attrVal)
       if (c) charSet.add(c)
-    } else if (attrName === '款式') {
+    } else if (attrName.includes('款式')) {
+      const style = cleanStyleValue(attrVal)
+      if (style) styleSet.add(style)
       const c = tryCharFromStyle(attrVal)
       if (c) charSet.add(c)
     }
   }
   const characters = [...charSet]
+  const fallbackVariant = firstNonEmpty(
+    goods.sku_name,
+    goods.sku_title,
+    goods.sku_desc,
+    goods.spec_name,
+    goods.spec_title,
+    goods.spec_value,
+    goods.spec,
+    goods.style,
+    goods.style_name,
+    goods.variant,
+    goodsWrapper.sku_name,
+    goodsWrapper.sku_title,
+    goodsWrapper.sku_desc,
+    goodsWrapper.spec_name,
+    goodsWrapper.spec_title,
+    goodsWrapper.spec_value,
+    goodsWrapper.spec,
+    goodsWrapper.style,
+    goodsWrapper.style_name,
+    goodsWrapper.variant,
+  )
+  const variant = [...styleSet].join(' / ') || String(fallbackVariant || '').trim()
+  const itemStatusText = extractItemStatusText(goodsWrapper, goods)
   const payTime =
     order.payment_info?.pay_time || order.payment_info?.payTime ||
     order.pay_time || order.payTime || order.order_time || order.orderTime
@@ -439,12 +555,23 @@ function metaToGoods(order, goods, index = 0) {
     price: String(Math.round(Number(rawPrice) / 100)),
     acquiredAt,
     category: parseCategoryFromName(name || rawName),
-    quantity: Math.max(1, Number(goods.quantity) || 1),
+    quantity: Math.max(
+      1,
+      Number(goods.quantity) ||
+      Number(goodsWrapper.quantity) ||
+      Number(goods.buy_num) ||
+      Number(goodsWrapper.buy_num) ||
+      1
+    ),
+    variant,
     note: `来自米游铺订单 #${orderNo}`,
     // 元数据（不入库）
     _itemKey: itemKey,
     _orderNo: orderNo,
-    _statusText: order.status_text || order.statusText || order.manage_status_text || '',
+    _statusText: itemStatusText ||
+                 order.status_text || order.statusText || order.manage_status_text || '',
+    // 仅商品级别的独立状态（不含订单 fallback），用于单件状态徽章
+    _wrapperStatus: itemStatusText,
     _coverUrl: coverUrl,
   }
 }
@@ -459,7 +586,7 @@ export function orderToGoodsList(order) {
   return wrappers
     .map((w, index) => {
       const goods = w.meta_info || w
-      return metaToGoods(order, goods, index)
+      return metaToGoods(order, goods, index, w)  // 传入 wrapper 以获取商品级状态
     })
     .filter((g) => g.name)  // 过滤掉没有名称的条目
 }

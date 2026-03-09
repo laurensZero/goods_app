@@ -35,40 +35,52 @@
             <p class="section-label">我的收藏</p>
             <h2 class="section-title">全部谷子<span class="goods-count"> {{ totalQuantity }} 件</span></h2>
           </div>
-          <div class="density-switch" aria-label="展示密度切换">
+          <div class="goods-header-actions">
             <button
-              v-for="mode in densityModes"
-              :key="mode.value"
               type="button"
-              :class="['density-switch__option', { 'density-switch__option--active': displayDensity === mode.value }]"
-              @click="setDisplayDensity(mode.value)"
+              :class="['sort-toggle', { 'sort-toggle--asc': sortDirection === 'asc' }]"
+              :aria-label="sortDirection === 'desc' ? '当前按时间降序，点击切换升序' : '当前按时间升序，点击切换降序'"
+              @click="toggleSortDirection"
             >
-              {{ mode.label }}
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7 6V18" />
+                <path d="M4 9L7 6L10 9" />
+                <path d="M17 18V6" />
+                <path d="M14 15L17 18L20 15" />
+              </svg>
             </button>
+            <div class="density-switch" aria-label="展示密度切换">
+              <button
+                v-for="mode in densityModes"
+                :key="mode.value"
+                type="button"
+                :class="['density-switch__option', { 'density-switch__option--active': displayDensity === mode.value }]"
+                @click="setDisplayDensity(mode.value)"
+              >
+                {{ mode.label }}
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       <section v-if="goodsList.length > 0" class="goods-section">
-        <TransitionGroup
-          tag="div"
-          name="density-card"
-          :class="['goods-list', { 'goods-list--density-transitioning': isDensityTransitioning }]"
+        <div
+          :class="['goods-list', { 'goods-list--density-animating': isDensityAnimating }]"
           :style="goodsGridStyle"
         >
           <GoodsCard
             v-for="item in goodsList"
             :key="item.id"
             :item="item"
-            :density="cardDensity"
-            :transitioning="isDensityTransitioning"
+            :density="displayDensity"
             :selected="selectedIds.has(item.id)"
             :selection-mode="selectionMode"
             @long-press="enterSelectionMode(item.id)"
             @toggle-select="toggleSelect(item.id)"
             @open-detail="openDetail(item.id)"
           />
-        </TransitionGroup>
+        </div>
       </section>
 
       <section v-else class="empty-wrap">
@@ -295,11 +307,11 @@ const densityModes = [
 const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.value, mode.columns]))
 
 const displayDensity = ref('comfortable')
-const cardDensity = ref('comfortable')
-const isDensityTransitioning = ref(false)
+const sortDirection = ref('desc')
+const isDensityAnimating = ref(false)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
-let densityTransitionTimer = 0
+let densityAnimationTimer = 0
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
@@ -399,9 +411,9 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
-  if (densityTransitionTimer) {
-    window.clearTimeout(densityTransitionTimer)
-    densityTransitionTimer = 0
+  if (densityAnimationTimer) {
+    window.clearTimeout(densityAnimationTimer)
+    densityAnimationTimer = 0
   }
   window.removeEventListener('popstate', handlePopState)
   document.body.classList.remove('selection-active')
@@ -417,7 +429,24 @@ watch(displayDensity, (value) => {
   localStorage.setItem(DENSITY_STORAGE_KEY, value)
 })
 
-const goodsList = computed(() => store.list)
+const goodsList = computed(() => {
+  const items = [...store.list]
+
+  items.sort((a, b) => {
+    const aTime = a.acquiredAt ? new Date(a.acquiredAt).getTime() : 0
+    const bTime = b.acquiredAt ? new Date(b.acquiredAt).getTime() : 0
+
+    if (aTime !== bTime) {
+      return sortDirection.value === 'asc' ? aTime - bTime : bTime - aTime
+    }
+
+    return sortDirection.value === 'asc'
+      ? String(a.id).localeCompare(String(b.id))
+      : String(b.id).localeCompare(String(a.id))
+  })
+
+  return items
+})
 const totalValue = computed(() =>
   goodsList.value.reduce((sum, g) => sum + (Number(g.price) || 0) * (Number(g.quantity) || 1), 0).toFixed(2)
 )
@@ -431,25 +460,27 @@ const goodsGridStyle = computed(() => ({
 function setDisplayDensity(mode) {
   if (!densityColumnsMap[mode] || displayDensity.value === mode) return
 
-  isDensityTransitioning.value = true
-  displayDensity.value = mode
-
-  if (densityTransitionTimer) {
-    window.clearTimeout(densityTransitionTimer)
+  if (densityAnimationTimer) {
+    window.clearTimeout(densityAnimationTimer)
+    densityAnimationTimer = 0
   }
 
-  densityTransitionTimer = window.setTimeout(() => {
-    cardDensity.value = mode
-    isDensityTransitioning.value = false
-    densityTransitionTimer = 0
-  }, 300)
+  displayDensity.value = mode
+  isDensityAnimating.value = true
+  densityAnimationTimer = window.setTimeout(() => {
+    isDensityAnimating.value = false
+    densityAnimationTimer = 0
+  }, 170)
+}
+
+function toggleSortDirection() {
+  sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc'
 }
 
 function restoreDisplayDensity() {
   const storedDensity = localStorage.getItem(DENSITY_STORAGE_KEY)
   if (storedDensity && densityColumnsMap[storedDensity]) {
     displayDensity.value = storedDensity
-    cardDensity.value = storedDensity
   }
 }
 
@@ -716,6 +747,13 @@ function normalizeDateParts(dateString) {
   margin-bottom: 14px;
 }
 
+.goods-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .goods-count {
   font-size: 16px;
   font-weight: 400;
@@ -750,7 +788,6 @@ function normalizeDateParts(dateString) {
   display: inline-grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  margin-top: 14px;
   padding: 6px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.86);
@@ -779,30 +816,61 @@ function normalizeDateParts(dateString) {
   transform: scale(0.96);
 }
 
+.sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--app-text-secondary);
+  box-shadow: var(--app-shadow);
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+  flex-shrink: 0;
+}
+
+.sort-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sort-toggle--asc {
+  background: #141416;
+  color: #ffffff;
+}
+
+.sort-toggle:active {
+  transform: scale(0.96);
+}
+
 .goods-list {
   display: grid;
   gap: var(--card-gap);
   align-items: start;
-  transition: grid-template-columns 260ms cubic-bezier(0.22, 1, 0.36, 1), gap 260ms ease;
 }
 
-.goods-list--density-transitioning {
-  pointer-events: none;
+.goods-list--density-animating {
+  animation: density-grid-pulse 170ms ease;
+  transform-origin: top center;
+  will-change: opacity, transform;
 }
 
-.density-card-move {
-  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
-}
+@keyframes density-grid-pulse {
+  0% {
+    opacity: 0.78;
+    transform: scale(0.987);
+  }
 
-.density-card-enter-active,
-.density-card-leave-active {
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.density-card-enter-from,
-.density-card-leave-to {
-  opacity: 0;
-  transform: scale(0.96);
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .fab {

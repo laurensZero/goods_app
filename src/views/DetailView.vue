@@ -78,6 +78,11 @@
               <strong class="info-value">{{ item.acquiredAt || '未填写' }}</strong>
             </article>
 
+            <article v-if="variantText" class="info-tile">
+              <span class="info-label">款式</span>
+              <strong class="info-value">{{ variantText }}</strong>
+            </article>
+
             <article v-if="holdingDays !== null" class="info-tile">
               <span class="info-label">持有时长</span>
               <strong class="info-value">{{ holdingDays }} 天</strong>
@@ -142,6 +147,7 @@ import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { getCachedImage } from '@/utils/imageCache'
+import { getGoodsVariant } from '@/utils/goodsIdentity'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
@@ -169,6 +175,7 @@ const coverBg = computed(() => {
 })
 
 const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).toUpperCase() || '?')
+const variantText = computed(() => getGoodsVariant(item.value))
 
 const cachedImgSrc = ref('')
 

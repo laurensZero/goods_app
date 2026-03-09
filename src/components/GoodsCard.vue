@@ -9,6 +9,7 @@
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
+    @touchcancel="onTouchCancel"
     @mousedown="onMouseDown"
     @mousemove="onMouseMove"
     @mouseup="onMouseUp"
@@ -75,11 +76,15 @@ const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
 const touchStartX = ref(0)
 const touchStartY = ref(0)
+const gestureMoved = ref(false)
+const TOUCH_TAP_THRESHOLD = 12
+const MOUSE_TAP_THRESHOLD = 6
 
 function startLongPress(x, y) {
   touchStartX.value = x
   touchStartY.value = y
   longPressTriggered.value = false
+  gestureMoved.value = false
   longPressTimer.value = setTimeout(() => {
     longPressTriggered.value = true
     try { navigator.vibrate?.(50) } catch {}
@@ -109,41 +114,51 @@ function onTouchStart(e) {
 }
 
 function onTouchMove(e) {
-  if (!longPressTimer.value) return
   const t = e.touches[0]
   const dx = Math.abs(t.clientX - touchStartX.value)
   const dy = Math.abs(t.clientY - touchStartY.value)
-  if (dx > 10 || dy > 10) cancelLongPress()
+  if (dx > TOUCH_TAP_THRESHOLD || dy > TOUCH_TAP_THRESHOLD) {
+    gestureMoved.value = true
+    cancelLongPress()
+  }
 }
 
 function onTouchEnd(e) {
   cancelLongPress()
   // 阻止 touchend 后 click 事件在移动端重复触发
   e.preventDefault()
-  if (longPressTriggered.value) return
+  if (longPressTriggered.value || gestureMoved.value) return
   handleTap()
 }
 
 // --- Mouse （网页端）---
+function onTouchCancel() {
+  gestureMoved.value = true
+  cancelLongPress()
+}
+
 function onMouseDown(e) {
   if (e.button !== 0) return
   startLongPress(e.clientX, e.clientY)
 }
 
 function onMouseMove(e) {
-  if (!longPressTimer.value) return
   const dx = Math.abs(e.clientX - touchStartX.value)
   const dy = Math.abs(e.clientY - touchStartY.value)
-  if (dx > 5 || dy > 5) cancelLongPress()
+  if (dx > MOUSE_TAP_THRESHOLD || dy > MOUSE_TAP_THRESHOLD) {
+    gestureMoved.value = true
+    cancelLongPress()
+  }
 }
 
 function onMouseUp(e) {
   if (e.button !== 0) return
   cancelLongPress()
-  if (!longPressTriggered.value) handleTap()
+  if (!longPressTriggered.value && !gestureMoved.value) handleTap()
 }
 
 function onMouseLeave() {
+  gestureMoved.value = true
   cancelLongPress()
 }
 
@@ -207,10 +222,7 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   -webkit-touch-callout: none;
   transition:
     transform 0.22s ease,
-    box-shadow 0.22s ease,
-    gap 0.26s cubic-bezier(0.22, 1, 0.36, 1),
-    padding 0.26s cubic-bezier(0.22, 1, 0.36, 1),
-    border-radius 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow 0.22s ease;
   animation: card-enter 220ms ease both;
 }
 
@@ -259,9 +271,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   border-radius: 14px;
   background-size: cover;
   background-position: center;
-  transition:
-    padding 0.26s cubic-bezier(0.22, 1, 0.36, 1),
-    border-radius 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cover-img {
@@ -271,7 +280,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   border-radius: 10px;
   backface-visibility: hidden;
   transform: translateZ(0);
-  transition: border-radius 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cover-initial {
@@ -289,7 +297,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  transition: gap 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-name {
@@ -302,7 +309,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   letter-spacing: -0.03em;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  transition: min-height 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-tags {
@@ -313,10 +319,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   overflow: hidden;
   opacity: 1;
   transform: translateY(0);
-  transition:
-    max-height 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.18s ease,
-    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-tags--hidden {
@@ -341,7 +343,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   white-space: nowrap;
   opacity: 1;
   transform: scale(1);
-  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-chip--hidden {
@@ -370,7 +371,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   margin-top: auto;
   overflow: hidden;
   flex-wrap: nowrap;
-  transition: margin-top 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-price {
@@ -440,10 +440,6 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
 
 .goods-card--compact .card-name {
   min-height: 0;
-}
-
-.goods-card--transitioning {
-  transition-duration: 300ms;
 }
 
 @keyframes card-enter {

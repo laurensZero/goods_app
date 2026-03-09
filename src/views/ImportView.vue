@@ -310,6 +310,7 @@ function cleanVariantText(text) {
   if (!text) return text
   let s = text
   s = s.replace(/【[^】]*】/g, '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '')
+  s = s.replace(/预售[^、，,）)】]*/g, '').replace(/预计[^、，,）)】]*/g, '')
   s = s.trim()
   if (s.endsWith('款')) s = s.slice(0, -1)
   return s.trim() || text.trim()
@@ -450,6 +451,7 @@ function toggleSaveAsCharacter() {
 // ── 自动匹配分类（关键词）──
 function detectCategory(name) {
   if (!name) return ''
+  if (name.includes('满赠') || name.includes('赠品')) return '赠品'
   if (name.includes('手办') || name.includes('模型')) return '手办'
   if (name.includes('挂件') || name.includes('挂摆')) return '挂件'
   if (name.includes('徽章')) return '徽章'
@@ -522,7 +524,10 @@ async function handleParse() {
 
     // 3. 自动检测分类
     const detectedCat = detectCategory(result.name)
-    if (detectedCat && presets.categories.includes(detectedCat)) {
+    if (detectedCat) {
+      if (!presets.categories.includes(detectedCat)) {
+        presets.addCategory(detectedCat)
+      }
       form.category = detectedCat
     }
 
@@ -582,6 +587,7 @@ async function handleSave() {
       name: form.name.trim(),
       category: form.category,
       ip: form.ip,
+      variant: selectedVariantName.value,
       image: form.image,
       price: form.price === '' ? null : Number(form.price),
       source: form.source,

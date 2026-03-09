@@ -18,7 +18,7 @@
             <div class="info-body">
               <p class="info-title">如何获取 Cookie？</p>
               <ol class="info-steps">
-                <li>在浏览器中打开 <strong>mall.mihoyogame.com</strong> 并登录</li>
+                <li>在浏览器中打开 <strong>mihoyogift.com</strong> 并登录</li>
                 <li>按 <kbd>F12</kbd> 打开开发者工具 → Network 标签</li>
                 <li>随便点击一下页面，在请求列表中找到任意请求</li>
                 <li>在 Request Headers 中找到 <strong>Cookie</strong> 字段</li>
@@ -66,8 +66,20 @@
           <div class="list-header">
             <p class="list-count">{{ processedOrders.length }} 个订单 · {{ mergedAllGoods.length }} 种（{{ allGoods.length }} 件）</p>
             <div class="list-header-actions">
-              <button class="text-btn" type="button" @click="selectAll">全选</button>
-              <button class="text-btn text-btn--dim" type="button" @click="deselectAll">取消全选</button>
+              <button
+                :class="['text-btn', isAllSelectableSelected && 'text-btn--active']"
+                type="button"
+                @click="selectAll"
+              >
+                全选
+              </button>
+              <button
+                :class="['text-btn', hasSelection && 'text-btn--active']"
+                type="button"
+                @click="deselectAll"
+              >
+                取消全选
+              </button>
             </div>
           </div>
 
@@ -82,10 +94,11 @@
               <div :class="[
                 'order-row',
                 isOrderFullySelected(po) && 'order-row--selected',
-                isOrderPartiallySelected(po) && 'order-row--partial'
+                isOrderPartiallySelected(po) && 'order-row--partial',
+                isOrderSelectionDisabled(po) && 'order-row--disabled'
               ]">
                 <!-- 三态复选框 -->
-                <div class="order-check" @click.stop="toggleOrderSelect(po)">
+                <div :class="['order-check', isOrderSelectionDisabled(po) && 'order-check--disabled']" @click.stop="toggleOrderSelect(po)">
                   <div :class="[
                     'check-dot',
                     isOrderFullySelected(po) && 'check-dot--on',
@@ -121,7 +134,8 @@
                   </div>
                 </div>
 
-                <span v-if="po.statusText" :class="['status-badge', getStatusClass(po.statusText)]">
+                <span v-if="isOrderImported(po)" class="status-badge status--imported">已导入</span>
+                <span v-else-if="po.statusText" :class="['status-badge', getStatusClass(po.statusText)]">
                   {{ po.statusText }}
                 </span>
 
@@ -144,8 +158,11 @@
                   <li
                     v-for="item in po.goods"
                     :key="item._itemKey"
-                    :class="['goods-item', selectedSet.has(item._itemKey) && 'goods-item--selected']"
-                    @click="toggleItem(item._itemKey)"
+                    :class="['goods-item',
+                      selectedSet.has(item._itemKey) && 'goods-item--selected',
+                      (!isItemSelectable(item, po)) && 'goods-item--imported'
+                    ]"
+                    @click="toggleItem(item._itemKey, po)"
                   >
                     <div class="order-check">
                       <div :class="['check-dot', 'check-dot--sm', selectedSet.has(item._itemKey) && 'check-dot--on']">
@@ -164,7 +181,11 @@
                         <span class="meta-price">¥{{ item.price }}</span>
                         <span v-if="item.quantity > 1" class="meta-qty">×{{ item.quantity }}</span>
                         <span v-if="item.ip" class="meta-ip">{{ item.ip }}</span>
-                        <span v-if="item.characters?.length" class="meta-char">{{ item.characters[0] }}</span>
+                        <span v-if="item.variant" class="meta-char">{{ item.variant }}</span>
+                        <span v-else-if="item.characters?.length" class="meta-char">{{ item.characters[0] }}</span>
+                        <span v-if="isItemRefundedOrCancelled(item)" :class="['status-badge', 'status--refund', 'meta-item-status']">{{ getItemStatusText(item) }}</span>
+                        <span v-else-if="isItemImported(item)" class="status-badge status--imported meta-item-status">已导入</span>
+                        <span v-else-if="isItemStatusWorthy(item)" class="status-badge status--neutral meta-item-status">{{ getItemStatusText(item) }}</span>
                       </div>
                     </div>
                   </li>
@@ -212,6 +233,7 @@ import { ref, computed } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { validateMihoyoCookie, fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
+import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
 import NavBar from '@/components/NavBar.vue'
 
 defineOptions({ name: 'AccountImportView' })
@@ -231,6 +253,68 @@ const cappedWarning = ref(false)
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
 
+// 已导入的商品键（名称 + 款式），直接按当前收藏实时计算
+function _itemImportKey(item) {
+  return buildGoodsIdentityKey(item)
+}
+const importedItemKeys = computed(() =>
+  new Set(store.list.map((item) => _itemImportKey(item)))
+)
+
+// 商品是否已导入
+function isItemImported(item) {
+  return importedItemKeys.value.has(_itemImportKey(item))
+}
+// 订单是否已全部导入（所有非退款商品均已导入）
+function isOrderImported(po) {
+  const nonRefunded = po.goods.filter((g) => !isItemRefundedOrCancelled(g))
+  return nonRefunded.length > 0 && nonRefunded.every((g) => isItemImported(g))
+}
+function getItemStatusText(item) {
+  return item._wrapperStatus || item._statusText || ''
+}
+const CLOSED_ORDER_PATTERNS = [
+  /交易关闭/,
+  /订单关闭/,
+  /关闭订单/,
+]
+const REFUND_STATUS_PATTERNS = [
+  /退款/,
+  /退货/,
+  /售后/,
+  /已取消/,
+  /取消订单/,
+]
+// 商品是否已退款/取消
+function isItemRefundedOrCancelled(item) {
+  const t = getItemStatusText(item).trim()
+  return REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(t))
+}
+function isOrderClosed(po) {
+  const t = String(po?.statusText || '').trim()
+  return CLOSED_ORDER_PATTERNS.some((pattern) => pattern.test(t))
+}
+
+// 商品是否有展示价值的非常规状态（山不是「已完成」类气泰状态）
+const SKIP_STATUS_SET = new Set(['交易完成', '交易成功', '已完成', '已成功', '收货成功', '已收货', '已结束'])
+function getSelectableGoods(po) {
+  if (isOrderClosed(po)) return []
+  return po.goods.filter((g) => !isItemImported(g) && !isItemRefundedOrCancelled(g))
+}
+
+function isOrderSelectionDisabled(po) {
+  return isOrderClosed(po) || isOrderImported(po) || getSelectableGoods(po).length === 0
+}
+
+function isItemSelectable(item, po) {
+  return !isOrderSelectionDisabled(po) && !isItemImported(item) && !isItemRefundedOrCancelled(item)
+}
+
+function isItemStatusWorthy(item) {
+  const t = getItemStatusText(item)
+  return t.length > 0 && !SKIP_STATUS_SET.has(t)
+}
+
 // ── Computed ───────────────────────────────────────────────────
 const cookieValid = computed(() => {
   const v = cookieInput.value.trim()
@@ -245,7 +329,7 @@ const processedOrders = computed(() =>
       // 同一订单内同名同款式（名称+角色）的商品合并数量
       const nameMap = new Map()
       for (const g of rawGoods) {
-        const key = g.name.trim() + '||' + (g.characters || []).slice().sort().join(',')
+        const key = buildGoodsIdentityKey(g)
         if (nameMap.has(key)) {
           const ex = nameMap.get(key)
           ex.quantity = (Number(ex.quantity) || 1) + (Number(g.quantity) || 1)
@@ -266,12 +350,19 @@ const processedOrders = computed(() =>
 
 /** 所有商品展平后的列表（用于全选/计数/导入） */
 const allGoods = computed(() => processedOrders.value.flatMap((po) => po.goods))
+const selectableGoods = computed(() =>
+  processedOrders.value.flatMap((po) => getSelectableGoods(po))
+)
+const hasSelection = computed(() => selectedSet.value.size > 0)
+const isAllSelectableSelected = computed(() =>
+  selectableGoods.value.length > 0 && selectedSet.value.size === selectableGoods.value.length
+)
 
 // 按名称+角色去重：同名同款式的商品合并，数量累加
 const mergedAllGoods = computed(() => {
   const map = new Map()
   for (const g of allGoods.value) {
-    const key = g.name.trim() + '||' + (g.characters || []).slice().sort().join(',')
+    const key = buildGoodsIdentityKey(g)
     if (map.has(key)) {
       const ex = map.get(key)
       ex.quantity = (Number(ex.quantity) || 1) + (Number(g.quantity) || 1)
@@ -307,17 +398,22 @@ async function startFetch() {
 }
 
 function isOrderFullySelected(po) {
-  return po.goods.length > 0 && po.goods.every((g) => selectedSet.value.has(g._itemKey))
+  const selectable = getSelectableGoods(po)
+  return selectable.length > 0 && selectable.every((g) => selectedSet.value.has(g._itemKey))
 }
 function isOrderPartiallySelected(po) {
-  return !isOrderFullySelected(po) && po.goods.some((g) => selectedSet.value.has(g._itemKey))
+  const selectable = getSelectableGoods(po)
+  return selectable.length > 0 && !isOrderFullySelected(po) && selectable.some((g) => selectedSet.value.has(g._itemKey))
 }
 function toggleOrderSelect(po) {
+  if (isOrderSelectionDisabled(po)) return
+  const selectable = getSelectableGoods(po)
+  if (selectable.length === 0) return
   const next = new Set(selectedSet.value)
   if (isOrderFullySelected(po)) {
-    po.goods.forEach((g) => next.delete(g._itemKey))
+    selectable.forEach((g) => next.delete(g._itemKey))
   } else {
-    po.goods.forEach((g) => next.add(g._itemKey))
+    selectable.forEach((g) => next.add(g._itemKey))
   }
   selectedSet.value = next
 }
@@ -329,7 +425,9 @@ function toggleExpand(orderNo) {
 }
 
 function selectAll() {
-  selectedSet.value = new Set(allGoods.value.map((g) => g._itemKey))
+  selectedSet.value = new Set(
+    selectableGoods.value.map((g) => g._itemKey)
+  )
 }
 
 function deselectAll() {
@@ -337,14 +435,16 @@ function deselectAll() {
 }
 
 function toggleSelectAll() {
-  if (selectedSet.value.size === allGoods.value.length) {
+  if (isAllSelectableSelected.value) {
     deselectAll()
   } else {
     selectAll()
   }
 }
 
-function toggleItem(itemKey) {
+function toggleItem(itemKey, po) {
+  const item = allGoods.value.find((g) => g._itemKey === itemKey)
+  if (!item || !isItemSelectable(item, po)) return
   const next = new Set(selectedSet.value)
   if (next.has(itemKey)) next.delete(itemKey)
   else next.add(itemKey)
@@ -352,13 +452,17 @@ function toggleItem(itemKey) {
 }
 
 async function doImport() {
-  const selected = allGoods.value.filter((g) => selectedSet.value.has(g._itemKey))
+  const selected = allGoods.value.filter((g) =>
+    selectedSet.value.has(g._itemKey) &&
+    !isItemImported(g) &&
+    !isItemRefundedOrCancelled(g)
+  )
   if (selected.length === 0) return
 
   // 按名称+角色去重，同名同款式数量叠加
   const nameMap = new Map()
   for (const item of selected) {
-    const key = item.name.trim() + '||' + (item.characters || []).slice().sort().join(',')
+    const key = buildGoodsIdentityKey(item)
     if (nameMap.has(key)) {
       const ex = nameMap.get(key)
       ex.quantity = (Number(ex.quantity) || 1) + (Number(item.quantity) || 1)
@@ -378,6 +482,7 @@ async function doImport() {
   }
   importedCount.value = toImport.length
   importedTotalQty.value = toImport.reduce((s, g) => s + (Number(g.quantity) || 1), 0)
+
   step.value = 'done'
 }
 
@@ -385,7 +490,7 @@ function getStatusClass(text) {
   if (!text) return ''
   if (text.includes('成功') || text.includes('已收货')) return 'status--done'
   if (text.includes('待收货') || text.includes('待签收')) return 'status--shipping'
-  if (text.includes('退') || text.includes('取消')) return 'status--refund'
+  if (REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(text))) return 'status--refund'
   return ''
 }
 </script>
@@ -583,36 +688,65 @@ kbd {
 
 /* ── Orders list ───────────────────────────────────────────── */
 .list-header {
+  position: sticky;
+  /* NavBar height ≈ safe-area-inset-top + 10px top-padding + 40px min-height + 6px bottom-padding */
+  top: calc(env(safe-area-inset-top) + 8px);
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 12px;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .list-count {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
+  line-height: 1.45;
   color: var(--app-text-secondary);
   margin: 0;
 }
 
 .text-btn {
   border: none;
+  min-width: 72px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
   background: transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
   cursor: pointer;
-  padding: 0;
+  white-space: nowrap;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.text-btn--dim {
-  color: var(--app-text-tertiary);
+.text-btn:active {
+  transform: scale(0.96);
 }
 
 .list-header-actions {
-  display: flex;
-  gap: 12px;
+  display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.06);
+}
+
+.text-btn--active {
+  background: #141416;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(20, 20, 22, 0.14);
 }
 
 .warn-banner {
@@ -661,6 +795,14 @@ kbd {
   background: rgba(20, 20, 22, 0.035);
 }
 
+.order-row--imported {
+  opacity: 0.5;
+}
+
+.order-row--disabled {
+  opacity: 0.5;
+}
+
 /* 商品子行 */
 .goods-sub-list {
   list-style: none;
@@ -691,6 +833,11 @@ kbd {
 .goods-item--selected {
   background: rgba(20, 20, 22, 0.04);
   border-left-color: rgba(20, 20, 22, 0.15);
+}
+
+.goods-item--imported {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* 展开按钮 */
@@ -741,6 +888,10 @@ kbd {
 .order-check {
   flex-shrink: 0;
   cursor: pointer;
+}
+
+.order-check--disabled {
+  cursor: default;
 }
 
 .check-dot {
@@ -921,12 +1072,29 @@ kbd {
   color: #c74444;
 }
 
+.status--imported {
+  background: rgba(40, 200, 128, 0.1);
+  color: #1a8f4c;
+  font-weight: 600;
+}
+
+.status--neutral {
+  background: rgba(100, 100, 110, 0.09);
+  color: var(--app-text-secondary, #636366);
+}
+
+.meta-item-status {
+  font-size: 10px;
+  padding: 1px 5px;
+}
+
 /* Bottom sticky bar */
 .bottom-bar {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  width: min(100%, 430px);
+  transform: translateX(-50%);
   padding: 12px 16px max(env(safe-area-inset-bottom), 16px);
   background: linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0));
   backdrop-filter: blur(4px);

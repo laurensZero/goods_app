@@ -1,52 +1,82 @@
-/**
- * stores/goods.js
- * 使用 Pinia 管理谷子列表的全局状态。
- * 数据通过 localStorage 持久化，刷新后不丢失。
- *
- * 物品字段结构：
- * {
- *   id: string          唯一标识（时间戳字符串）
- *   name: string        名称
- *   category: string    分类
- *   price: string       购入价格
- *   acquiredAt: string  购入日期（YYYY-MM-DD）
- *   image: string       图片 URL（暂留空）
- *   note: string        备注
- * }
- */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getItems, addItem, saveItems } from '@/utils/db'
+import {
+  buildGoodsIdentityKey,
+  getGoodsVariant,
+  normalizeGoodsName,
+  stripVariantFromNote
+} from '@/utils/goodsIdentity'
 
 export const useGoodsStore = defineStore('goods', () => {
-  // -------- State --------
-  /** 启动时为空，initDB + init() 完成后填充 */
   const list = ref([])
   const isReady = ref(false)
 
-  // -------- Getters --------
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))
 
-  // -------- Actions --------
+  function normalizeGoodsInput(data, fallbackId = '') {
+    const variant = getGoodsVariant(data)
 
-  /** 从 SQLite 加载全量数据，在 main.js 启动阶段调用 */
+    return {
+      id: data.id || fallbackId,
+      name: normalizeGoodsName(data.name),
+      category: String(data.category || '').trim(),
+      ip: String(data.ip || '').trim(),
+      characters: Array.isArray(data.characters) ? data.characters.filter(Boolean) : [],
+      variant,
+      price: data.price === '' || data.price == null ? '' : data.price,
+      acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
+      image: String(data.image || '').trim(),
+      note: stripVariantFromNote(data.note || data.notes || ''),
+      quantity: Math.max(1, Number(data.quantity) || 1),
+    }
+  }
+
+  function mergeGoodsRecord(existing, incoming) {
+    const variant = getGoodsVariant(existing) || getGoodsVariant(incoming)
+
+    return {
+      ...existing,
+      name: existing.name || incoming.name,
+      category: existing.category || incoming.category,
+      ip: existing.ip || incoming.ip,
+      characters: existing.characters?.length ? existing.characters : incoming.characters,
+      variant,
+      price: existing.price === '' || existing.price == null ? incoming.price : existing.price,
+      acquiredAt: existing.acquiredAt || incoming.acquiredAt,
+      image: existing.image || incoming.image,
+      note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
+      quantity: Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1),
+    }
+  }
+
   async function init() {
     list.value = await getItems()
     isReady.value = true
   }
 
   async function addGoods(data) {
-    const newItem = { ...data, id: String(Date.now()) }
-    list.value.unshift(newItem) // 乐观更新：立即插到列表头部
-    await addItem(newItem)
+    const incoming = normalizeGoodsInput(data, String(Date.now()))
+    const key = buildGoodsIdentityKey(incoming)
+    const existingIndex = list.value.findIndex((item) => buildGoodsIdentityKey(item) === key)
+
+    if (existingIndex !== -1) {
+      list.value[existingIndex] = mergeGoodsRecord(list.value[existingIndex], incoming)
+      await addItem(list.value[existingIndex])
+      return list.value[existingIndex]
+    }
+
+    list.value.unshift(incoming)
+    await addItem(incoming)
+    return incoming
   }
 
   async function updateGoods(id, data) {
     const idx = list.value.findIndex((item) => item.id === id)
-    if (idx !== -1) {
-      list.value[idx] = { ...list.value[idx], ...data }
-      await addItem(list.value[idx])
-    }
+    if (idx === -1) return
+
+    list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id }, id)
+    await addItem(list.value[idx])
   }
 
   async function updateMultipleGoods(ids, data) {
@@ -55,7 +85,7 @@ export const useGoodsStore = defineStore('goods', () => {
     list.value = list.value.map((item) => {
       if (!ids.has(item.id)) return item
       changed = true
-      return { ...item, ...data }
+      return normalizeGoodsInput({ ...item, ...data, id: item.id }, item.id)
     })
 
     if (changed) {
@@ -68,31 +98,65 @@ export const useGoodsStore = defineStore('goods', () => {
     await saveItems(list.value)
   }
 
-  /** 批量删除，ids 为 Set<string> */
   async function removeMultipleGoods(ids) {
     list.value = list.value.filter((item) => !ids.has(item.id))
     await saveItems(list.value)
   }
 
-  /** 批量导入，自动剖除 _开头的元数据字段 */
   async function addMultipleGoods(items) {
     const now = Date.now()
-    const newItems = items.map((d, i) => {
+    const existingItems = [...list.value]
+    const existingKeyToIndex = new Map(
+      existingItems.map((item, index) => [buildGoodsIdentityKey(item), index])
+    )
+    const newItems = []
+    const newKeyToIndex = new Map()
+
+    items.forEach((rawItem, index) => {
       const clean = Object.fromEntries(
-        Object.entries(d).filter(([k]) => !k.startsWith('_'))
+        Object.entries(rawItem).filter(([key]) => !key.startsWith('_'))
       )
-      return { ...clean, id: String(now + i) }
+      const normalized = normalizeGoodsInput(clean, String(now + index))
+      const key = buildGoodsIdentityKey(normalized)
+
+      if (existingKeyToIndex.has(key)) {
+        const existingIndex = existingKeyToIndex.get(key)
+        existingItems[existingIndex] = mergeGoodsRecord(existingItems[existingIndex], normalized)
+        return
+      }
+
+      if (newKeyToIndex.has(key)) {
+        const newIndex = newKeyToIndex.get(key)
+        newItems[newIndex] = mergeGoodsRecord(newItems[newIndex], normalized)
+        return
+      }
+
+      newKeyToIndex.set(key, newItems.length)
+      newItems.push(normalized)
     })
-    // 逆序插入使最先加入的高位于列表顶部
-    for (let i = newItems.length - 1; i >= 0; i--) {
-      list.value.unshift(newItems[i])
-    }
+
+    list.value = [...newItems, ...existingItems]
     await saveItems(list.value)
   }
 
-  /** 路由回到首页时重新同步 SQLite 数据 */
   async function refreshList() {
     list.value = await getItems()
+  }
+
+  async function importGoodsBackup(items) {
+    const existingIds = new Set(list.value.map((item) => item.id))
+    const newItems = items
+      .filter((item) => item.id && !existingIds.has(item.id))
+      .map((item) => normalizeGoodsInput(item, item.id))
+
+    if (newItems.length === 0) return 0
+
+    for (let i = newItems.length - 1; i >= 0; i--) {
+      list.value.unshift(newItems[i])
+    }
+
+    await saveItems(list.value)
+    return newItems.length
   }
 
   return {
@@ -106,6 +170,7 @@ export const useGoodsStore = defineStore('goods', () => {
     removeGoods,
     removeMultipleGoods,
     addMultipleGoods,
+    importGoodsBackup,
     refreshList
   }
 })

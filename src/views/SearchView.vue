@@ -188,6 +188,7 @@ const results = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .filter-row-label {
@@ -200,10 +201,15 @@ const results = computed(() => {
 
 .filter-chips {
   display: flex;
+  flex: 1;
+  min-width: 0;
   gap: 6px;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding-bottom: 2px;
+  touch-action: pan-x;
 }
 
 .filter-chips::-webkit-scrollbar {
