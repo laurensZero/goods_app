@@ -1,7 +1,7 @@
 import { onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
-export function usePageLeaveAnimation(duration = 180) {
+export function usePageLeaveAnimation(duration = 200) {
   const isPageLeaving = ref(false)
   let leaveTimer = 0
 

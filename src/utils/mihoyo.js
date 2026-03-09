@@ -41,15 +41,26 @@ export function parseTitleIpName(title) {
   return { ip: '', name: title }
 }
 
-// 从 URL 提取 goods_id
+const MIHOYO_GIFT_HOST = 'mihoyogift.com'
+
+// 从 URL 提取 goods_id，支持桌面页和移动页：
+// - https://www.mihoyogift.com/goods/123
+// - https://www.mihoyogift.com/m/goods/123?...
 function extractGoodsId(url) {
-  const m = url.match(/mihoyogift\.com\/goods\/(\d+)/)
-  return m ? m[1] : null
+  try {
+    const parsed = new URL(url)
+    if (!parsed.hostname.endsWith(MIHOYO_GIFT_HOST)) return null
+
+    const match = parsed.pathname.match(/^\/(?:m\/)?goods\/(\d+)(?:\/)?$/)
+    return match ? match[1] : null
+  } catch {
+    return null
+  }
 }
 
-// 验证是否是米游铺链接
+// 验证是否是米游铺商品链接
 export function isMihoyoGiftUrl(url) {
-  return /mihoyogift\.com\/goods\/\d+/.test(url)
+  return extractGoodsId(url) != null
 }
 
 /**
@@ -59,7 +70,7 @@ export function isMihoyoGiftUrl(url) {
  */
 export async function parseMihoyoUrl(url) {
   if (!isMihoyoGiftUrl(url)) {
-    throw new Error('请输入米游铺商品链接，例如：https://www.mihoyogift.com/goods/...')
+    throw new Error('请输入米游铺商品链接，例如：https://www.mihoyogift.com/goods/... 或 https://www.mihoyogift.com/m/goods/...')
   }
 
   const goodsId = extractGoodsId(url)

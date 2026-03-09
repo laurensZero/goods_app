@@ -95,7 +95,12 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   background: #fff;
   box-shadow: var(--app-shadow);
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    gap 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.26s cubic-bezier(0.22, 1, 0.36, 1);
   animation: card-enter 220ms ease both;
 }
 
@@ -121,6 +126,9 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   border-radius: 14px;
   background-size: cover;
   background-position: center;
+  transition:
+    padding 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cover-img {
@@ -128,6 +136,10 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   height: 100%;
   object-fit: contain;
   border-radius: 10px;
+  transition:
+    width 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cover-initial {
@@ -145,6 +157,7 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  transition: gap 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-name {
@@ -157,6 +170,7 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   letter-spacing: -0.03em;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  transition: min-height 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-tags {
@@ -202,6 +216,7 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   margin-top: auto;
   overflow: hidden;
   flex-wrap: nowrap;
+  transition: margin-top 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-price {

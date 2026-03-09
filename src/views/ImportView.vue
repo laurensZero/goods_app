@@ -25,7 +25,7 @@
                 autocorrect="off"
                 spellcheck="false"
                 class="url-input"
-                placeholder="https://www.mihoyogift.com/goods/..."
+                placeholder="https://www.mihoyogift.com/goods/... 或 /m/goods/..."
                 @input="syncUrlInput($event)"
                 @blur="syncUrlInput($event)"
                 @change="syncUrlInput($event)"
@@ -106,7 +106,7 @@
                     <div v-if="v.cover_url || v.img_url" class="variant-img-wrap">
                       <img :src="v.cover_url || v.img_url" class="variant-img" />
                     </div>
-                    <span class="variant-name">{{ cleanVariantText(v.text) }}</span>
+                    <span class="variant-name">{{ displayVariantText(v.text) }}</span>
                     <div v-if="isVariantSelected(v)" class="variant-check">✓</div>
                   </button>
                 </div>
@@ -264,6 +264,7 @@ const parsedImages = ref([])  // 所有可用图（cover + banners）
 const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
 const selectedVariantKey = ref('')  // 当前选中的 SKU key
 const selectedVariantName = ref('')  // 选中款式清洗后的显示名
+const selectedCharacterName = ref('')  // 选中款式对应的角色名（会归并 A/B/C/D 尾缀）
 const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
 
 // ── 日期选择器 ──
@@ -347,6 +348,30 @@ function isLikelyCharName(name) {
   return true
 }
 
+function displayVariantText(text) {
+  return preserveGenderQualifier(cleanVariantText(text), text)
+}
+
+function normalizeCharacterName(text) {
+  const name = displayVariantText(text).trim()
+  return name.replace(/\s*([ABCD])$/i, '').trim()
+}
+
+function preserveGenderQualifier(cleanedText, originalText) {
+  const base = cleanedText?.trim() || ''
+  const source = String(originalText || '')
+  const match = source.match(/[（(]\s*(男|女|男女|男款|女款)\s*[）)]/)
+
+  if (!match || !base) return base || source.trim()
+
+  const qualifier = match[1]
+  if (base.includes(`（${qualifier}）`) || base.includes(`(${qualifier})`)) {
+    return base
+  }
+
+  return `${base}（${qualifier}）`
+}
+
 function syncUrlInput(event) {
   if (event?.target) {
     urlInput.value = event.target.value ?? ''
@@ -370,16 +395,19 @@ function handleVariantSelect(v) {
     // 再次点击同一个：取消选中
     selectedVariantKey.value = ''
     selectedVariantName.value = ''
+    selectedCharacterName.value = ''
     saveAsCharacter.value = false
     form.characters = []
   } else {
     selectedVariantKey.value = v.key
-    const cleaned = cleanVariantText(v.text)
-    selectedVariantName.value = cleaned
+    const variantName = displayVariantText(v.text)
+    const characterName = normalizeCharacterName(v.text)
+    selectedVariantName.value = variantName
+    selectedCharacterName.value = characterName
     // 默认根据关键词判断是否像角色名，用户可再手动切换
-    const looksLikeChar = isLikelyCharName(cleaned)
+    const looksLikeChar = isLikelyCharName(characterName)
     saveAsCharacter.value = looksLikeChar
-    form.characters = looksLikeChar ? [cleaned] : []
+    form.characters = looksLikeChar ? [characterName] : []
     // 优先用 cover_url（SKU 专属封面），其次 img_url
     const raw = (v.cover_url || v.img_url || '').split('?')[0]
     if (raw) {
@@ -394,8 +422,8 @@ function handleVariantSelect(v) {
 // ── 用户手动切换"是否记录为角色" ──
 function toggleSaveAsCharacter() {
   saveAsCharacter.value = !saveAsCharacter.value
-  form.characters = saveAsCharacter.value && selectedVariantName.value
-    ? [selectedVariantName.value]
+  form.characters = saveAsCharacter.value && selectedCharacterName.value
+    ? [selectedCharacterName.value]
     : []
 }
 
@@ -417,7 +445,7 @@ async function handleParse() {
   const url = urlInput.value.trim()
   if (!url) return
   if (!isMihoyoGiftUrl(url)) {
-    parseError.value = '请输入米游铺商品链接（mihoyogift.com/goods/...）'
+    parseError.value = '请输入米游铺商品链接（mihoyogift.com/goods/... 或 mihoyogift.com/m/goods/...）'
     return
   }
 

@@ -20,8 +20,9 @@
   --icon-button-size: 36px;
   --fab-size: 56px;
   --tabbar-height: 94px;
-  --motion-fast: 180ms;
-  --motion-medium: 220ms;
+  --motion-fast: 200ms;
+  --motion-medium: 260ms;
+  --motion-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
   --press-scale-button: 0.96;
   --press-scale-card: 0.98;
 }
@@ -91,7 +92,7 @@ img {
 }
 
 .page--transition {
-  animation: app-page-enter var(--motion-medium) ease both;
+  animation: app-page-enter var(--motion-medium) var(--motion-emphasis) both;
   will-change: opacity, transform;
 }
 
@@ -114,24 +115,24 @@ img {
 @keyframes app-page-enter {
   from {
     opacity: 0;
-    transform: translateX(18px);
+    transform: translateY(14px) scale(0.994);
   }
 
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes app-page-leave {
   from {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0) scale(1);
   }
 
   to {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateY(-8px) scale(0.998);
   }
 }
 

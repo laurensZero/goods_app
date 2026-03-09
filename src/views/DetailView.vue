@@ -201,11 +201,40 @@ async function confirmDelete() {
 </script>
 
 <style scoped>
+.detail-page.page--transition {
+  animation: detail-page-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-page.page--leaving {
+  animation: detail-page-leave 180ms ease both;
+}
+
 .detail-shell {
   display: flex;
   flex-direction: column;
   gap: var(--section-gap);
   padding: 6px var(--page-padding) 32px;
+}
+
+.detail-page.page--transition .detail-shell > * {
+  opacity: 0;
+  animation: detail-section-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.detail-page.page--transition .detail-shell > :nth-child(1) {
+  animation-delay: 40ms;
+}
+
+.detail-page.page--transition .detail-shell > :nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.detail-page.page--transition .detail-shell > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.detail-page.page--transition .detail-shell > :nth-child(4) {
+  animation-delay: 160ms;
 }
 
 .nav-icon-btn {
@@ -520,6 +549,42 @@ async function confirmDelete() {
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
   opacity: 0;
+}
+
+@keyframes detail-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.992);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes detail-page-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.996);
+  }
+}
+
+@keyframes detail-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 </style>

@@ -38,7 +38,12 @@
       </section>
 
       <section v-if="goodsList.length > 0" class="goods-section">
-        <div class="goods-list" :style="goodsGridStyle">
+        <TransitionGroup
+          tag="div"
+          name="density-card"
+          class="goods-list"
+          :style="goodsGridStyle"
+        >
           <GoodsCard
             v-for="item in goodsList"
             :key="item.id"
@@ -46,7 +51,7 @@
             :density="displayDensity"
             @click="openDetail(item.id)"
           />
-        </div>
+        </TransitionGroup>
       </section>
 
       <section v-else class="empty-wrap">
@@ -378,6 +383,22 @@ function openDetail(id) {
   display: grid;
   gap: var(--card-gap);
   align-items: start;
+  transition: grid-template-columns 260ms cubic-bezier(0.22, 1, 0.36, 1), gap 260ms ease;
+}
+
+.density-card-move {
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.density-card-enter-active,
+.density-card-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.density-card-enter-from,
+.density-card-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
 }
 
 .fab {
