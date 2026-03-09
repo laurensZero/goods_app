@@ -77,6 +77,39 @@ function migrateCharacters(list) {
   ))
 }
 
+function normalizeCharacterName(name) {
+  const text = String(name || '').trim()
+  if (!text) return ''
+
+  if (/[\u4e00-\u9fff]/.test(text)) {
+    return text.replace(/\s*[A-E]$/i, '').trim()
+  }
+
+  return text
+}
+
+function normalizeCharacters(list) {
+  const merged = new Map()
+
+  for (const character of migrateCharacters(list)) {
+    const name = normalizeCharacterName(character.name)
+    const ip = String(character.ip || '').trim()
+    if (!name) continue
+
+    if (!merged.has(name)) {
+      merged.set(name, { name, ip })
+      continue
+    }
+
+    const existing = merged.get(name)
+    if (!existing.ip && ip) {
+      merged.set(name, { name, ip })
+    }
+  }
+
+  return [...merged.values()]
+}
+
 export const usePresetsStore = defineStore('presets', () => {
   const categories = ref(cloneList(DEFAULT_CATEGORIES))
   const ips = ref(cloneList(DEFAULT_IPS))
@@ -100,9 +133,7 @@ export const usePresetsStore = defineStore('presets', () => {
       ]
     }
 
-    if (characters.value.some((character) => typeof character === 'string')) {
-      characters.value = migrateCharacters(characters.value)
-    }
+    characters.value = normalizeCharacters(characters.value)
 
     await Promise.all([
       writePersistedList(STORAGE_KEY_CAT, categories.value),
@@ -152,7 +183,7 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function addCharacter(name, ip = '') {
-    const normalized = name.trim()
+    const normalized = normalizeCharacterName(name)
     if (!normalized || characters.value.some((character) => character.name === normalized)) return false
 
     characters.value.push({ name: normalized, ip: ip.trim() })
@@ -161,16 +192,18 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function removeCharacter(name) {
-    characters.value = characters.value.filter((character) => character.name !== name)
+    const normalized = normalizeCharacterName(name)
+    characters.value = characters.value.filter((character) => character.name !== normalized)
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
   }
 
   async function updateCharacterIp(name, ip) {
-    const index = characters.value.findIndex((character) => character.name === name)
+    const normalized = normalizeCharacterName(name)
+    const index = characters.value.findIndex((character) => character.name === normalized)
     if (index === -1) return
 
     characters.value.splice(index, 1, {
-      name,
+      name: normalized,
       ip: ip.trim()
     })
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
