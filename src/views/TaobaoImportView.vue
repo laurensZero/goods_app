@@ -573,6 +573,11 @@ function closeEdit() {
   text-align: center;
   gap: 12px;
 }
+/* done 步骤中的单独按钮不应撑满纵轴 */
+.step-section--center .primary-btn {
+  flex: unset;
+  width: min(240px, 100%);
+}
 
 .step-section--list {
   gap: 0;
