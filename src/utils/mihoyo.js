@@ -291,7 +291,7 @@ export async function fetchAllOrders(cookieStr, onProgress) {
 /** 从商品名关键词推断分类 */
 function parseCategoryFromName(name) {
   if (!name) return ''
-  if (name.includes('满赠') || name.includes('赠品')) return '赠品'
+  if (name.includes('满赠') || name.includes('赠品')) return '满赠'
   if (name.includes('手办')) return '手办'
   if (name.includes('立牌') || name.includes('亚克力')) return '立牌'
   if (name.includes('挂件') || name.includes('挂饰') || name.includes('吊件') || name.includes('钥匙扣')) return '挂件'
@@ -322,16 +322,6 @@ function shopToIp(shopName) {
   return ''
 }
 
-/** 去除商品名中的预售类前缀，如 【预售，预计3月发货】 */
-function cleanGoodsNameLegacy(str) {
-  return String(str || '')
-    .replace(/【(?:预售|预计)[^】]*】/g, '')
-    .replace(/（(?:预售|预计)?[^）]*(?:到仓|发货|补款|预售)[^）]*）/g, '')
-    .replace(/\((?:预售|预计)?[^)]*(?:到仓|发货|补款|预售)[^)]*\)/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-}
-
 /** 去除 sku 属性值中的所有括号前缀（角色名等应为纯文本）
  *  同时去除末尾常见变体字母 A-E（如 "昔涟B" → "昔涟"，"叶瞬光A" → "叶瞬光"）
  */
@@ -340,6 +330,7 @@ function cleanGoodsName(str) {
     .replace(/【(?:预售|预计|现货)[^】]*】/g, '')
     .replace(/（(?:预售|预计|现货)?[^）]*(?:到仓|发货|补款|预售|现货)[^）]*）/g, '')
     .replace(/\((?:预售|预计|现货)?[^)]*(?:到仓|发货|补款|预售|现货)[^)]*\)/g, '')
+    .replace(/^(?:(?:预售|预计|现货)[^-—:：]*?(?:到仓|发货|补款|开售|现货)?\s*[-—:：]\s*)+/g, '')
     .replace(/[（(【\[]?现货[】\])）]?/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
@@ -467,10 +458,10 @@ function tryCharFromStyle(attrValue) {
 
 /** 将单件商品 meta_info 转换为 App 谷子格式（内部辅助） */
 function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
-  const rawName = cleanGoodsName(
+  const sourceTitle =
     goods.goods_name || goods.name || goods.title ||
     goods.commodity_name || goods.commodityName || ''
-  )
+  const rawName = cleanGoodsName(sourceTitle)
   const coverUrl =
     goods.cover_url || goods.img_url || goods.cover ||
     goods.goods_img || goods.image || ''
@@ -554,7 +545,7 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     image: coverUrl,
     price: String(Math.round(Number(rawPrice) / 100)),
     acquiredAt,
-    category: parseCategoryFromName(name || rawName),
+    category: parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || rawName),
     quantity: Math.max(
       1,
       Number(goods.quantity) ||

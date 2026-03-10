@@ -98,6 +98,7 @@
 <script setup>
 import { ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 
@@ -107,11 +108,57 @@ const goodsStore = useGoodsStore()
 const importFileRef = ref(null)
 const toastMsg = ref('')
 let toastTimer = null
+const BACKUP_DIR = 'GoodsAppBackup'
 
-function showToast(msg) {
+function showToast(msg, duration = 2600) {
   toastMsg.value = msg
   clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMsg.value = '' }, 2600)
+  toastTimer = setTimeout(() => { toastMsg.value = '' }, duration)
+}
+
+async function exportBackupToNative(json, filename) {
+  const publicPath = `${BACKUP_DIR}/${filename}`
+
+  try {
+    if (Capacitor.getPlatform() === 'android') {
+      const permissions = await Filesystem.checkPermissions()
+      if (permissions.publicStorage !== 'granted') {
+        const requested = await Filesystem.requestPermissions()
+        if (requested.publicStorage !== 'granted') {
+          throw new Error('PUBLIC_STORAGE_DENIED')
+        }
+      }
+    }
+
+    const result = await Filesystem.writeFile({
+      path: publicPath,
+      data: json,
+      directory: Directory.Documents,
+      encoding: Encoding.UTF8,
+      recursive: true,
+    })
+
+    return {
+      path: publicPath,
+      uri: result.uri,
+      visibleToUser: true,
+    }
+  } catch {
+    const fallbackPath = `backup/${filename}`
+    const result = await Filesystem.writeFile({
+      path: fallbackPath,
+      data: json,
+      directory: Directory.Data,
+      encoding: Encoding.UTF8,
+      recursive: true,
+    })
+
+    return {
+      path: fallbackPath,
+      uri: result.uri,
+      visibleToUser: false,
+    }
+  }
 }
 
 // ── 导出 ──────────────────────────────────────────────────────
@@ -130,12 +177,14 @@ async function handleExport() {
   const filename = `谷子备份_${new Date().toISOString().split('T')[0]}.json`
 
   try {
-    if (Capacitor.isNativePlatform() && navigator.canShare) {
-      const file = new File([json], filename, { type: 'application/json' })
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: filename })
-        return
+    if (Capacitor.isNativePlatform()) {
+      const saved = await exportBackupToNative(json, filename)
+      if (saved.visibleToUser) {
+        showToast(`已导出到文档/${saved.path}`, 4200)
+      } else {
+        showToast(`已导出到应用目录 ${saved.path}`, 4200)
       }
+      return
     }
   } catch {}
 
@@ -149,7 +198,7 @@ async function handleExport() {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  showToast('已导出备份文件')
+  showToast(`已导出到浏览器下载目录：${filename}`, 4200)
 }
 
 // ── 导入 ──────────────────────────────────────────────────────

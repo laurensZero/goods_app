@@ -13,7 +13,9 @@
         </button>
       </section>
 
-      <section v-else class="selection-header">
+      <template v-else>
+        <section class="selection-header-spacer" aria-hidden="true" />
+        <section class="selection-header" :style="selectionHeaderStyle">
         <button class="sel-back-btn" type="button" aria-label="退出多选" @click="exitSelectionMode">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M15 18l-6-6 6-6" />
@@ -23,7 +25,8 @@
         <button class="sel-all-btn" type="button" @click="toggleSelectAll">
           {{ selectedIds.size === goodsList.length ? '取消全选' : '全选' }}
         </button>
-      </section>
+        </section>
+      </template>
 
       <section class="summary-section">
         <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
@@ -278,6 +281,8 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import { DatePicker, Popup } from 'vant'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
@@ -309,9 +314,13 @@ const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.va
 const displayDensity = ref('comfortable')
 const sortDirection = ref('desc')
 const isDensityAnimating = ref(false)
+const SELECTION_HEADER_INITIAL_OFFSET = 20
+const selectionHeaderTopOffset = ref(SELECTION_HEADER_INITIAL_OFFSET)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 let densityAnimationTimer = 0
+let nativeBackButtonHandle = null
+let selectionHeaderScrollBound = false
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
@@ -374,10 +383,26 @@ function applyScrollPosition(top) {
   delays.forEach(delay => setTimeout(setAll, delay))
 }
 
+function bindSelectionHeaderScroll() {
+  if (selectionHeaderScrollBound) return
+  getScrollEl()?.addEventListener('scroll', updateSelectionHeaderOffset, { passive: true })
+  window.addEventListener('scroll', updateSelectionHeaderOffset, { passive: true })
+  selectionHeaderScrollBound = true
+}
+
+function unbindSelectionHeaderScroll() {
+  if (!selectionHeaderScrollBound) return
+  getScrollEl()?.removeEventListener('scroll', updateSelectionHeaderOffset)
+  window.removeEventListener('scroll', updateSelectionHeaderOffset)
+  selectionHeaderScrollBound = false
+}
+
 onMounted(async () => {
   restoreDisplayDensity()
   await refresh()
   await nextTick()
+  bindSelectionHeaderScroll()
+  updateSelectionHeaderOffset()
   const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
   const stored = _savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0)
   if (shouldRestore) {
@@ -385,6 +410,7 @@ onMounted(async () => {
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
   window.addEventListener('popstate', handlePopState)
+  await bindNativeBackButton()
 })
 
 onActivated(async () => {
@@ -398,16 +424,21 @@ onActivated(async () => {
       : 0
   await refresh()
   await nextTick()
+  bindSelectionHeaderScroll()
   applyScrollPosition(topToRestore)
+  updateSelectionHeaderOffset()
   if (shouldRestore) {
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
+  await bindNativeBackButton()
 })
 
 onDeactivated(() => {
   // 不在此处调用 saveScrollPosition：onDeactivated 触发时 window.scrollY 可能已被路由重置为 0
   // 滚动位置已由 openDetail / handleImport / goToAdd 在跳转前显式保存
   exitSelectionModeQuiet()
+  unbindSelectionHeaderScroll()
+  void unbindNativeBackButton()
 })
 
 onBeforeUnmount(() => {
@@ -415,7 +446,9 @@ onBeforeUnmount(() => {
     window.clearTimeout(densityAnimationTimer)
     densityAnimationTimer = 0
   }
+  unbindSelectionHeaderScroll()
   window.removeEventListener('popstate', handlePopState)
+  void unbindNativeBackButton()
   document.body.classList.remove('selection-active')
   // 仅在值大于 0 时才覆盖，避免卸载时 DOM 已清空导致用 0 覆盖正确值
   const top = readScrollTop()
@@ -456,6 +489,9 @@ const totalQuantity = computed(() =>
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${densityColumnsMap[displayDensity.value] || 2}, minmax(0, 1fr))`
 }))
+const selectionHeaderStyle = computed(() => ({
+  '--selection-header-offset': `${selectionHeaderTopOffset.value}px`
+}))
 
 function setDisplayDensity(mode) {
   if (!densityColumnsMap[mode] || displayDensity.value === mode) return
@@ -482,6 +518,11 @@ function restoreDisplayDensity() {
   if (storedDensity && densityColumnsMap[storedDensity]) {
     displayDensity.value = storedDensity
   }
+}
+
+function updateSelectionHeaderOffset() {
+  const scrolled = Math.min(readScrollTop(), SELECTION_HEADER_INITIAL_OFFSET)
+  selectionHeaderTopOffset.value = Math.max(0, SELECTION_HEADER_INITIAL_OFFSET - scrolled)
 }
 
 function openDetail(id) {
@@ -569,6 +610,46 @@ function handlePopState() {
     selectionMode.value = false
     selectedIds.value = new Set()
   }
+}
+
+async function bindNativeBackButton() {
+  if (!Capacitor.isNativePlatform() || nativeBackButtonHandle) return
+
+  nativeBackButtonHandle = await App.addListener('backButton', ({ canGoBack }) => {
+    if (showBatchEditDatePicker.value) {
+      showBatchEditDatePicker.value = false
+      return
+    }
+
+    if (showBatchEditSheet.value) {
+      closeBatchEditSheet()
+      return
+    }
+
+    if (showDeleteConfirm.value) {
+      showDeleteConfirm.value = false
+      return
+    }
+
+    if (selectionMode.value) {
+      exitSelectionMode()
+      return
+    }
+
+    if (canGoBack) {
+      window.history.back()
+      return
+    }
+
+    App.minimizeApp().catch(() => App.exitApp())
+  })
+}
+
+async function unbindNativeBackButton() {
+  if (!nativeBackButtonHandle) return
+
+  await nativeBackButtonHandle.remove()
+  nativeBackButtonHandle = null
 }
 
 async function batchDelete() {
@@ -904,12 +985,27 @@ function normalizeDateParts(dateString) {
 }
 
 /* -------- Selection mode AppBar -------- */
+.selection-header-spacer {
+  height: 64px;
+}
+
 .selection-header {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + var(--selection-header-offset, 20px));
+  left: 50%;
+  z-index: 70;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 var(--page-padding);
+  width: min(100vw, 430px);
+  padding: 10px var(--page-padding);
+  border-radius: 22px;
+  background: rgba(245, 245, 247, 0.76);
+  box-shadow: 0 10px 26px rgba(20, 20, 22, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transform: translateX(-50%);
 }
 
 /* 左侧返回箭头按鈕 */
@@ -1150,6 +1246,155 @@ function normalizeDateParts(dateString) {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.multi-select {
+  position: relative;
+}
+
+.multi-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--app-text);
+  text-align: left;
+  transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
+}
+
+.multi-select__trigger:active {
+  transform: scale(0.98);
+}
+
+.multi-select--open .multi-select__trigger,
+.multi-select__trigger:focus-visible {
+  border-color: rgba(20, 20, 22, 0.16);
+  box-shadow: 0 0 0 3px rgba(20, 20, 22, 0.04);
+  outline: none;
+}
+
+.multi-select__content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.multi-select__placeholder {
+  color: var(--app-placeholder);
+  font-size: 16px;
+}
+
+.multi-select__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.multi-select__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.08);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.multi-select__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(20, 20, 22, 0.12);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.multi-select__arrow {
+  width: 18px;
+  height: 18px;
+  margin-left: 10px;
+  flex-shrink: 0;
+  stroke: #8e8e93;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+
+.multi-select--open .multi-select__arrow {
+  transform: rotate(180deg);
+}
+
+.multi-select__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid rgba(20, 20, 22, 0.05);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+}
+
+.multi-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #141416;
+  font-size: 15px;
+  text-align: left;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.multi-select__option:active {
+  background: #f5f5f7;
+}
+
+.multi-select__option--active {
+  background: rgba(20, 20, 22, 0.06);
+  font-weight: 600;
+}
+
+.multi-select__check {
+  width: 16px;
+  height: 16px;
+  margin-left: 10px;
+  flex-shrink: 0;
+  stroke: #141416;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.multi-select__empty {
+  padding: 14px 12px;
+  color: #8e8e93;
+  font-size: 14px;
+  text-align: center;
 }
 
 .batch-edit-actions {

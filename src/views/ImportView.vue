@@ -451,7 +451,7 @@ function toggleSaveAsCharacter() {
 // ── 自动匹配分类（关键词）──
 function detectCategory(name) {
   if (!name) return ''
-  if (name.includes('满赠') || name.includes('赠品')) return '赠品'
+  if (name.includes('满赠') || name.includes('赠品')) return '满赠'
   if (name.includes('手办') || name.includes('模型')) return '手办'
   if (name.includes('挂件') || name.includes('挂摆')) return '挂件'
   if (name.includes('徽章')) return '徽章'

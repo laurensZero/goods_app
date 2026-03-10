@@ -55,7 +55,7 @@
             v-for="item in results"
             :key="item.id"
             :item="item"
-            @click="$router.push('/detail/' + item.id)"
+            @open-detail="$router.push('/detail/' + item.id)"
           />
         </div>
       </section>

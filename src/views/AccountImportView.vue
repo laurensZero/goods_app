@@ -493,6 +493,7 @@ function getStatusClass(text) {
   if (REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(text))) return 'status--refund'
   return ''
 }
+
 </script>
 
 <style scoped>
@@ -521,6 +522,7 @@ function getStatusClass(text) {
 .step-section--list {
   gap: 0;
 }
+
 
 /* ── Info card ─────────────────────────────────────────────── */
 .info-card {
@@ -689,9 +691,8 @@ kbd {
 /* ── Orders list ───────────────────────────────────────────── */
 .list-header {
   position: sticky;
-  /* NavBar height ≈ safe-area-inset-top + 10px top-padding + 40px min-height + 6px bottom-padding */
-  top: calc(env(safe-area-inset-top) + 8px);
-  z-index: 20;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
