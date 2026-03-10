@@ -167,6 +167,20 @@ const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.va
 const displayDensity = ref('comfortable')
 const sortDirection = ref('desc')
 const isDensityAnimating = ref(false)
+// 视口宽度，用于响应式列数计算
+const windowWidth = ref(window.innerWidth)
+const _onResize = () => { windowWidth.value = window.innerWidth }
+// 各密度在不同断点下的列数：[{ minWidth, cols }] 降序排列
+const densityBreakpoints = {
+  comfortable: [{ minWidth: 1200, cols: 5 }, { minWidth: 900, cols: 4 }, { minWidth: 600, cols: 3 }, { minWidth: 0, cols: 2 }],
+  standard:    [{ minWidth: 1200, cols: 6 }, { minWidth: 900, cols: 5 }, { minWidth: 600, cols: 4 }, { minWidth: 0, cols: 3 }],
+  compact:     [{ minWidth: 1200, cols: 8 }, { minWidth: 900, cols: 6 }, { minWidth: 600, cols: 5 }, { minWidth: 0, cols: 4 }],
+}
+function getResponsiveCols(density) {
+  const bps = densityBreakpoints[density]
+  if (!bps) return densityColumnsMap[density] || 2
+  return (bps.find(b => windowWidth.value >= b.minWidth) ?? bps[bps.length - 1]).cols
+}
 const SELECTION_HEADER_INITIAL_OFFSET = 20
 const selectionHeaderTopOffset = ref(SELECTION_HEADER_INITIAL_OFFSET)
 const minDate = new Date(2000, 0, 1)
@@ -261,6 +275,7 @@ function unbindSelectionHeaderScroll() {
 
 onMounted(async () => {
   restoreDisplayDensity()
+  window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
   await nextTick()
   bindSelectionHeaderScroll()
@@ -306,6 +321,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', _onResize)
   if (densityAnimationTimer) {
     window.clearTimeout(densityAnimationTimer)
     densityAnimationTimer = 0
@@ -351,7 +367,7 @@ const totalQuantity = computed(() =>
   goodsList.value.reduce((sum, g) => sum + (Number(g.quantity) || 1), 0)
 )
 const goodsGridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${densityColumnsMap[displayDensity.value] || 2}, minmax(0, 1fr))`
+  gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-offset': `${selectionHeaderTopOffset.value}px`
@@ -379,7 +395,9 @@ function toggleSortDirection() {
 
 function restoreDisplayDensity() {
   const storedDensity = localStorage.getItem(DENSITY_STORAGE_KEY)
-  if (storedDensity && densityColumnsMap[storedDensity]) {
+  if (storedDensity && densityModes.find(m => m.value === storedDensity)) {
+    // 手机端不恢复 tile 模式（按钮不可见，避免困惑）
+    if (storedDensity === 'tile' && window.innerWidth < 600) return
     displayDensity.value = storedDensity
   }
 }

@@ -152,3 +152,36 @@ img {
     border-radius: 32px;
   }
 }
+
+/* ── 平板 / 大屏响应式布局 ── */
+@media (min-width: 600px) {
+  :root {
+    --page-padding: 20px;
+  }
+  .app-wrapper {
+    max-width: 680px;
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --page-padding: 24px;
+  }
+
+  /* 大屏平板：全屏铺满，取消卡片样式 */
+  body {
+    padding: 0;
+  }
+
+  .app-wrapper {
+    max-width: 100%;
+    min-height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .page {
+    min-height: 100dvh;
+    border-radius: 0;
+  }
+}

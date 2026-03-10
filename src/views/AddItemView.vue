@@ -747,4 +747,26 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 24px rgba(20, 20, 22, 0.28);
 }
 
+/* ── 平板：左预览 + 右表单 双栏布局 ── */
+@media (min-width: 900px) {
+  .editor-form {
+    display: grid;
+    grid-template-columns: clamp(240px, 36%, 400px) 1fr;
+    column-gap: 28px;
+    align-items: start;
+    padding-top: 20px;
+  }
+
+  .manage-hero {
+    grid-column: 1;
+    grid-row: 1 / 10;
+    position: sticky;
+    top: 16px;
+  }
+
+  .form-section {
+    grid-column: 2;
+  }
+}
+
 </style>

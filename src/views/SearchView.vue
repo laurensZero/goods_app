@@ -21,7 +21,7 @@
       </button>
     </header>
 
-    <main class="page-body">
+    <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="filter-panel">
         <div v-if="categoryOptions.length" class="filter-row">
           <span class="filter-row-label">分类</span>
@@ -53,11 +53,11 @@
           </div>
         </div>
 
-        <div v-if="characterOptions.length" class="filter-row">
-          <span class="filter-row-label">角色</span>
+        <div class="filter-row">
+          <span class="filter-row-label filter-row-label--character">角色</span>
           <div class="filter-chips">
             <button
-              v-for="opt in characterOptions"
+              v-for="opt in characterFilterOptions"
               :key="opt"
               type="button"
               :class="['filter-chip', { 'filter-chip--active': selectedCharacter === opt }]"
@@ -99,7 +99,7 @@
         <EmptyState
           icon="✨"
           title="搜索你的收藏"
-          description="输入关键字，或用上方筛选快速定位；分类、IP、角色都支持直接筛空值。"
+          description="输入关键词，或使用上方筛选快速定位；分类、IP、角色名都支持直接搜索。"
         />
       </section>
     </main>
@@ -121,10 +121,10 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
@@ -138,10 +138,11 @@ import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 const UNCATEGORIZED_OPTION = '未分类'
 const NO_IP_OPTION = '未设置IP'
 const NO_CHARACTER_OPTION = '未设置角色'
-
 const SEARCH_STATE_HISTORY_KEY = 'searchViewState'
+const HOME_PATH = '/home'
 
 const store = useGoodsStore()
+const route = useRoute()
 const router = useRouter()
 const { isPageLeaving } = usePageLeaveAnimation()
 
@@ -152,7 +153,9 @@ const selectedCharacter = ref('')
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const batchEditSheetRef = ref(null)
+const pageBodyRef = ref(null)
 let nativeBackButtonHandle = null
+let savedScrollTop = 0
 
 function buildSearchState() {
   return {
@@ -182,7 +185,10 @@ function persistSearchState() {
     return
   }
 
-  nextState[SEARCH_STATE_HISTORY_KEY] = state
+  nextState[SEARCH_STATE_HISTORY_KEY] = {
+    ...state,
+    scrollTop: pageBodyRef.value?.scrollTop ?? 0,
+  }
   window.history.replaceState(nextState, '')
 }
 
@@ -194,6 +200,7 @@ function restoreSearchState() {
   selectedCategory.value = typeof state.selectedCategory === 'string' ? state.selectedCategory : ''
   selectedIp.value = typeof state.selectedIp === 'string' ? state.selectedIp : ''
   selectedCharacter.value = typeof state.selectedCharacter === 'string' ? state.selectedCharacter : ''
+  savedScrollTop = typeof state.scrollTop === 'number' ? state.scrollTop : 0
 }
 
 function clearSearchState() {
@@ -224,6 +231,10 @@ const characterOptions = computed(() => [
     )
   )
 ])
+
+const characterFilterOptions = computed(() =>
+  characterOptions.value.includes(NO_CHARACTER_OPTION) ? [NO_CHARACTER_OPTION] : []
+)
 
 const isFiltering = computed(() =>
   keyword.value.trim() !== ''
@@ -295,12 +306,25 @@ function handleBack() {
     return
   }
 
-  router.back()
+  navigateBackToHome()
 }
 
 function openDetail(id) {
   persistSearchState()
   router.push(`/detail/${id}`)
+}
+
+function navigateBackToHome() {
+  const previousPath = window.history.state?.back
+
+  if (previousPath === HOME_PATH) {
+    router.back()
+    return
+  }
+
+  if (route.path !== HOME_PATH) {
+    router.replace(HOME_PATH)
+  }
 }
 
 async function bindNativeBackButton() {
@@ -317,10 +341,12 @@ async function bindNativeBackButton() {
       return
     }
     if (canGoBack) {
-      window.history.back()
+      navigateBackToHome()
       return
     }
-    App.minimizeApp().catch(() => App.exitApp())
+    router.replace(HOME_PATH).catch(() => {
+      App.minimizeApp().catch(() => App.exitApp())
+    })
   })
 }
 
@@ -353,6 +379,15 @@ async function applyBatchEditPayload(payload) {
 
 onMounted(async () => {
   restoreSearchState()
+  if (savedScrollTop > 0) {
+    const applyScroll = () => {
+      if (pageBodyRef.value) pageBodyRef.value.scrollTop = savedScrollTop
+    }
+    await nextTick()
+    applyScroll()
+    setTimeout(applyScroll, 80)
+    setTimeout(applyScroll, 200)
+  }
   window.addEventListener('popstate', handleSelectionPopState)
   await bindNativeBackButton()
 })
@@ -480,6 +515,19 @@ onBeforeRouteLeave((to) => {
   font-weight: 600;
 }
 
+.filter-row-label--character {
+  width: auto;
+}
+
+.filter-row-label--character::after {
+  content: '可直接搜索角色名';
+  margin-left: 8px;
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 .filter-chips {
   display: flex;
   flex: 1;
@@ -551,5 +599,34 @@ onBeforeRouteLeave((to) => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--card-gap);
+}
+
+@media (min-width: 600px) {
+  .goods-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .goods-list {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* 筛选面板改为两列并排（分类 & IP 各一列，角色独占一行） */
+  .filter-panel {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 24px;
+  }
+
+  .filter-row:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1200px) {
+  .goods-list {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
 </style>

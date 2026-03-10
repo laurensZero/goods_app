@@ -599,4 +599,35 @@ async function confirmDelete() {
   }
 }
 
+/* ── 平板 / 大屏适配：左封面 + 右详情双栏布局 ── */
+@media (min-width: 900px) {
+  .detail-shell {
+    display: grid;
+    grid-template-columns: clamp(280px, 42%, 480px) 1fr;
+    column-gap: 28px;
+    padding-top: 24px;
+    align-items: start;
+  }
+
+  /* 封面固定在左列，粘性定位跟随滚动 */
+  .cover-stage {
+    grid-column: 1;
+    grid-row: 1 / 10;
+    position: sticky;
+    top: 16px;
+  }
+
+  /* 右列：hero / info / note 依次叠放 */
+  .hero-card,
+  .info-section,
+  .note-section {
+    grid-column: 2;
+  }
+
+  /* 信息卡扩展到 3 列 */
+  .info-card {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 </style>

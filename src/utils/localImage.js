@@ -49,17 +49,25 @@ export async function saveLocalImage(file) {
 
 /**
  * 判断一个图片 URI 是否为本地图片（capacitor:// 原生 URI 或 data: base64 URL）。
+ * Capacitor < 4 Android/iOS 返回 capacitor:// 前缀；
+ * Capacitor 4+ Android 返回 http://localhost/_capacitor_file_/ 前缀；
+ * Capacitor 4+ iOS    返回 capacitor://localhost/_capacitor_file_/ 前缀。
  * @param {string} uri
  * @returns {boolean}
  */
 export function isLocalImageUri(uri) {
   if (!uri || typeof uri !== 'string') return false
-  return uri.startsWith('capacitor://') || uri.startsWith('data:image/')
+  return uri.startsWith('capacitor://')
+    || uri.startsWith('http://localhost/_capacitor_file_/')
+    || uri.startsWith('https://localhost/_capacitor_file_/')
+    || uri.startsWith('data:image/')
 }
 
 /**
- * 从 capacitor:// URI 中提取相对于 Directory.Data 的文件路径。
- * URI 形如：capacitor://localhost/_capacitor_file_/data/.../files/user-images/xxx.jpg
+ * 从本地图片 URI 中提取相对于 Directory.Data 的文件路径。
+ * 支持：
+ *   capacitor://localhost/_capacitor_file_/.../files/user-images/xxx.jpg （Capacitor iOS）
+ *   http://localhost/_capacitor_file_/.../files/user-images/xxx.jpg      （Capacitor Android 4+）
  * @param {string} uri
  * @returns {string|null}
  */
@@ -69,7 +77,8 @@ function _extractLocalPath(uri) {
 }
 
 /**
- * 将本地 capacitor:// URI 读取为 data: URL（用于导出备份时嵌入图片）。
+ * 将本地图片 URI 读取为 data: URL（用于导出备份时嵌入图片）。
+ * 支持 capacitor:// (Capacitor iOS) 和 http://localhost/_capacitor_file_/ (Capacitor Android 4+) 两种前缀。
  * 若 URI 本身已是 data: URL，直接返回。
  * 读取失败时返回 null。
  * @param {string} uri

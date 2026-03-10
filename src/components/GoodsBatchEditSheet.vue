@@ -3,12 +3,12 @@
     v-model:show="showProxy"
     teleport="body"
     :z-index="210"
-    position="bottom"
+    :position="popupPosition"
     round
     class="batch-edit-popup"
   >
     <div class="batch-edit-sheet">
-      <div class="batch-edit-sheet__handle" />
+      <div v-if="!isTablet" class="batch-edit-sheet__handle" />
 
       <section class="batch-edit-hero">
         <p class="batch-edit-hero__label">批量编辑</p>
@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
 import { usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
@@ -156,6 +156,14 @@ const showProxy = computed({
   get: () => props.show,
   set: (value) => emit('update:show', value)
 })
+
+// 平板响应式：≥ 900px 改为居中对话框
+const windowWidth = ref(window.innerWidth)
+const _onResize = () => { windowWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', _onResize))
+onBeforeUnmount(() => window.removeEventListener('resize', _onResize))
+const isTablet = computed(() => windowWidth.value >= 900)
+const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 
 const canSubmit = computed(() =>
   Boolean(form.category || form.ip || form.acquiredAt || form.characters.length > 0)
@@ -294,7 +302,10 @@ defineExpose({
 }
 
 .batch-edit-sheet {
-  padding: 12px 16px calc(env(safe-area-inset-bottom) + 16px);
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+  padding: 12px 16px 0;
   background:
     radial-gradient(circle at top, rgba(20, 20, 22, 0.05), transparent 42%),
     #f5f5f7;
@@ -309,7 +320,21 @@ defineExpose({
 }
 
 .batch-edit-hero {
+  flex-shrink: 0;
   margin-bottom: 14px;
+}
+
+.batch-edit-section {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 8px;
+}
+
+.batch-edit-section::-webkit-scrollbar {
+  display: none;
 }
 
 .batch-edit-hero__label {
@@ -553,10 +578,12 @@ defineExpose({
 }
 
 .batch-edit-actions {
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
 .picker-popup {
@@ -614,5 +641,18 @@ defineExpose({
 .confirm-btn--danger {
   background: #141416;
   color: #ffffff;
+}
+
+/* ── 平板：居中对话框样式 ── */
+@media (min-width: 900px) {
+  .batch-edit-sheet {
+    width: min(90vw, 600px);
+    border-radius: 24px;
+    padding-top: 24px;
+  }
+
+  .batch-edit-actions {
+    padding-bottom: 16px;
+  }
 }
 </style>

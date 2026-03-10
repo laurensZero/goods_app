@@ -339,4 +339,31 @@ function onTaobaoImport() {
   transform: translateX(-50%) translateY(100%);
   opacity: 0.6;
 }
+
+/* ── 平板：居中对话框替代底部抽屉 ── */
+@media (min-width: 900px) {
+  .sheet-panel {
+    bottom: auto;
+    top: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    border-radius: 24px;
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  .sheet-handle {
+    display: none;
+  }
+
+  .sheet-cancel {
+    display: none;
+  }
+
+  /* 弹出动画改为缩放代替上滑 */
+  .sheet-slide-enter-from,
+  .sheet-slide-leave-to {
+    transform: translateX(-50%) translateY(-50%) scale(0.94);
+    opacity: 0;
+  }
+}
 </style>

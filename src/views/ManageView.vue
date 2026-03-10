@@ -99,6 +99,7 @@
 import { ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { isLocalImageUri, readLocalImageAsDataUrl, restoreLocalImageFromDataUrl } from '@/utils/localImage'
@@ -167,6 +168,36 @@ async function exportBackupToNative(json, filename) {
  * 将 goods 列表中所有本地图片（capacitor://）替换为 data: URL，
  * 使备份文件在其他设备上也可还原图片。
  */
+async function exportBackupToShareCache(json, filename) {
+  const sharePath = `backup-share/${filename}`
+  const result = await Filesystem.writeFile({
+    path: sharePath,
+    data: json,
+    directory: Directory.Cache,
+    encoding: Encoding.UTF8,
+    recursive: true,
+  })
+
+  return {
+    path: sharePath,
+    uri: result.uri,
+  }
+}
+
+async function shareBackupFile(uri) {
+  const canShare = await Share.canShare().catch(() => ({ value: false }))
+  if (!canShare.value) return false
+
+  await Share.share({
+    title: '导出备份',
+    text: '请选择保存位置或分享方式',
+    dialogTitle: '导出备份',
+    files: [uri],
+  })
+
+  return true
+}
+
 async function _embedLocalImages(goodsList) {
   return Promise.all(goodsList.map(async (item) => {
     if (!isLocalImageUri(item.image)) return item
@@ -200,6 +231,19 @@ async function handleExport() {
   try {
     if (Capacitor.isNativePlatform()) {
       const saved = await exportBackupToNative(json, filename)
+      const shareable = await exportBackupToShareCache(json, filename).catch(() => null)
+
+      if (shareable) {
+        const shared = await shareBackupFile(shareable.uri).catch(() => false)
+        if (shared) {
+          if (saved.visibleToUser) {
+            showToast(`已打开保存面板；同时写入 文档/${saved.path}`, 4200)
+          } else {
+            showToast('已打开保存面板，请选择“保存到文件”或分享目标', 4200)
+          }
+          return
+        }
+      }
       if (saved.visibleToUser) {
         showToast(`已导出到文档/${saved.path}`, 4200)
       } else {
@@ -439,5 +483,14 @@ async function handleImport(event) {
 .toast-fade-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(8px);
+}
+
+/* ── 平板：入口卡片改为双列网格 ── */
+@media (min-width: 900px) {
+  .hub-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
 }
 </style>
