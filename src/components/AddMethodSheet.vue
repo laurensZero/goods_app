@@ -52,6 +52,26 @@
               <path d="M9 6l6 6-6 6" />
             </svg>
           </button>
+
+          <div class="sheet-divider" />
+
+          <!-- 从淘宝订单导入 -->
+          <button class="sheet-option" type="button" @click="onTaobaoImport">
+            <span class="option-icon option-icon--taobao">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9h18M9 3v18M3 3h18v18H3z" stroke-width="1.6"/>
+                <path d="M15 13l2 2 4-4" stroke-width="2"/>
+              </svg>
+            </span>
+            <div class="option-body">
+              <p class="option-title">从淘宝订单导入</p>
+              <p class="option-desc">导入淘宝导出的 .xlsx 订单文件</p>
+            </div>
+            <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
         </div>
 
         <button class="sheet-cancel" type="button" @click="close">取消</button>
@@ -68,7 +88,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'manual', 'import', 'account-import'])
+const emit = defineEmits(['update:modelValue', 'manual', 'import', 'account-import', 'taobao-import'])
 
 function close() {
   emit('update:modelValue', false)
@@ -87,6 +107,11 @@ function onImport() {
 function onAccountImport() {
   close()
   emit('account-import')
+}
+
+function onTaobaoImport() {
+  close()
+  emit('taobao-import')
 }
 </script>
 
@@ -227,6 +252,17 @@ function onAccountImport() {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.option-icon--taobao {
+  background: rgba(255, 70, 0, 0.10);
+}
+
+.option-icon--taobao svg {
+  width: 22px;
+  height: 22px;
+  stroke: #ff4600;
+  stroke-width: 1.6;
 }
 
 /* 选项文本 */

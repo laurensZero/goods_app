@@ -36,6 +36,12 @@ const routes = [
     meta: { title: '账号批量导入' }
   },
   {
+    path: '/taobao-import',
+    name: 'taobao-import',
+    component: () => import('@/views/TaobaoImportView.vue'),
+    meta: { title: '淘宝订单导入' }
+  },
+  {
     path: '/detail/:id',
     name: 'detail',
     component: () => import('@/views/DetailView.vue'),

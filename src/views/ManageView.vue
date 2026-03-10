@@ -101,6 +101,7 @@ import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { isLocalImageUri, readLocalImageAsDataUrl, restoreLocalImageFromDataUrl } from '@/utils/localImage'
 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
@@ -162,11 +163,31 @@ async function exportBackupToNative(json, filename) {
 }
 
 // ── 导出 ──────────────────────────────────────────────────────
+/**
+ * 将 goods 列表中所有本地图片（capacitor://）替换为 data: URL，
+ * 使备份文件在其他设备上也可还原图片。
+ */
+async function _embedLocalImages(goodsList) {
+  return Promise.all(goodsList.map(async (item) => {
+    if (!isLocalImageUri(item.image)) return item
+    const dataUrl = await readLocalImageAsDataUrl(item.image)
+    return dataUrl ? { ...item, image: dataUrl } : item
+  }))
+}
+
 async function handleExport() {
+  let goodsList = goodsStore.list
+  // 将本地图片嵌入为 base64，使备份自包含
+  try {
+    goodsList = await _embedLocalImages(goodsList)
+  } catch (e) {
+    console.warn('[export] 图片嵌入部分失败，以原始链接代替', e)
+  }
+
   const data = {
     version: 2,
     exportedAt: new Date().toISOString(),
-    goods: goodsStore.list,
+    goods: goodsList,
     presets: {
       categories: presets.categories,
       ips: presets.ips,
@@ -207,6 +228,18 @@ function triggerImport() {
   importFileRef.value.click()
 }
 
+/**
+ * 将备份 JSON 中的 data: 图片 URL 还原保存为本地文件，
+ * 返回替换后的 goods 列表。
+ */
+async function _restoreLocalImages(goodsList) {
+  return Promise.all(goodsList.map(async (item) => {
+    if (!item.image?.startsWith('data:image/')) return item
+    const localUri = await restoreLocalImageFromDataUrl(item.image)
+    return { ...item, image: localUri }
+  }))
+}
+
 async function handleImport(event) {
   const file = event.target.files?.[0]
   if (!file) return
@@ -215,9 +248,19 @@ async function handleImport(event) {
     const text = await file.text()
     const data = JSON.parse(text)
 
+    let goodsToImport = Array.isArray(data.goods) ? data.goods : []
+    // 还原备份中嵌入的 data: 图片为本地文件
+    if (goodsToImport.length > 0) {
+      try {
+        goodsToImport = await _restoreLocalImages(goodsToImport)
+      } catch (e) {
+        console.warn('[import] 图片还原部分失败', e)
+      }
+    }
+
     let goodsAdded = 0
-    if (Array.isArray(data.goods) && data.goods.length > 0) {
-      goodsAdded = await goodsStore.importGoodsBackup(data.goods)
+    if (goodsToImport.length > 0) {
+      goodsAdded = await goodsStore.importGoodsBackup(goodsToImport)
     }
 
     if (data.presets) {

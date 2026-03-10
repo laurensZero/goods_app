@@ -23,7 +23,7 @@
         </button>
         <span class="sel-title">已选择 {{ selectedIds.size }} 项</span>
         <button class="sel-all-btn" type="button" @click="toggleSelectAll">
-          {{ selectedIds.size === goodsList.length ? '取消全选' : '全选' }}
+          {{ allSelected ? '取消全选' : '全选' }}
         </button>
         </section>
       </template>
@@ -111,196 +111,49 @@
       @manual="goToAdd"
       @import="handleImport"
       @account-import="handleAccountImport"
+      @taobao-import="handleTaobaoImport"
     />
 
-    <!-- 批量删除确认弹窗 -->
-    <Teleport to="body">
-      <Transition name="confirm-modal">
-        <div v-if="showDeleteConfirm" class="confirm-overlay" @click="showDeleteConfirm = false">
-          <div class="confirm-card" role="alertdialog" aria-modal="true" @click.stop>
-            <div class="confirm-icon">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M3 6H21" />
-                <path d="M8 6V4H16V6" />
-                <path d="M19 6L18 20H6L5 6" />
-                <path d="M10 11V17" />
-                <path d="M14 11V17" />
-              </svg>
-            </div>
-            <h2 class="confirm-title">删除 {{ selectedIds.size }} 件谷子？</h2>
-            <p class="confirm-desc">删除后无法恢复，这些收藏的记录会从清单中移除。</p>
-            <div class="confirm-actions">
-              <button class="confirm-btn confirm-btn--ghost" type="button" @click="showDeleteConfirm = false">取消</button>
-              <button class="confirm-btn confirm-btn--danger" type="button" @click="confirmDelete">删除</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <GoodsDeleteConfirm v-model:show="showDeleteConfirm" :selected-count="selectedIds.size" @confirm="confirmDelete" />
 
-    <Popup
+    <GoodsBatchEditSheet
+      ref="batchEditSheetRef"
       v-model:show="showBatchEditSheet"
-      teleport="body"
-      :z-index="210"
-      position="bottom"
-      round
-      class="batch-edit-popup"
-    >
-      <div class="batch-edit-sheet">
-        <div class="batch-edit-sheet__handle" />
+      :selected-count="selectedIds.size"
+      @apply="applyBatchEditPayload"
+    />
 
-        <section class="batch-edit-hero">
-          <p class="batch-edit-hero__label">批量编辑</p>
-          <h2 class="batch-edit-hero__title">修改 {{ selectedIds.size }} 件谷子</h2>
-          <p class="batch-edit-hero__desc">只会应用你这次填写的字段，未填写的内容保持原值。</p>
-        </section>
+    <GoodsSelectionActionBar
+      :show="selectionMode && !showBatchEditSheet"
+      :selected-count="selectedIds.size"
+      @delete="batchDelete"
+      @edit="batchEdit"
+    />
 
-        <section class="batch-edit-section">
-          <div class="field-card batch-edit-card">
-            <label class="field">
-              <span class="field-label">IP</span>
-              <AppSelect v-model="batchEditForm.ip" :options="presets.ips" placeholder="留空则不修改" />
-            </label>
-
-            <div class="field">
-              <span class="field-label">角色（留空则不修改）</span>
-              <div class="multi-select" :class="{ 'multi-select--open': showBatchCharPicker }">
-                <button class="multi-select__trigger" type="button" @click="toggleBatchCharPicker">
-                  <div class="multi-select__content">
-                    <span v-if="batchEditForm.characters.length === 0" class="multi-select__placeholder">留空则不修改</span>
-                    <div v-else class="multi-select__chips">
-                      <span v-for="ch in batchEditForm.characters" :key="ch" class="multi-select__chip">
-                        {{ ch }}
-                        <button class="multi-select__chip-remove" type="button" aria-label="移除角色" @click.stop="toggleBatchChar(ch)">×</button>
-                      </span>
-                    </div>
-                  </div>
-                  <svg class="multi-select__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M7 10L12 15L17 10" />
-                  </svg>
-                </button>
-                <transition name="select-panel">
-                  <div v-if="showBatchCharPicker" class="multi-select__panel">
-                    <button
-                      v-for="ch in batchAvailableCharacters"
-                      :key="ch.name"
-                      class="multi-select__option"
-                      :class="{ 'multi-select__option--active': batchEditForm.characters.includes(ch.name) }"
-                      type="button"
-                      @click="toggleBatchChar(ch.name)"
-                    >
-                      <span>{{ ch.name }}</span>
-                      <svg v-if="batchEditForm.characters.includes(ch.name)" class="multi-select__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M5 13L9 17L19 7" />
-                      </svg>
-                    </button>
-                    <div v-if="batchAvailableCharacters.length === 0" class="multi-select__empty">暂无可选角色</div>
-                  </div>
-                </transition>
-              </div>
-            </div>
-
-            <label class="field">
-              <span class="field-label">购入日期</span>
-              <button class="date-field" type="button" @pointerdown="flushActiveInput" @click="openBatchEditDatePicker">
-                <span :class="{ 'date-field__value--placeholder': !batchEditForm.acquiredAt }">
-                  {{ batchEditForm.acquiredAt || '留空则不修改' }}
-                </span>
-
-                <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="16" rx="3" />
-                  <path d="M8 3V7" />
-                  <path d="M16 3V7" />
-                  <path d="M3 10H21" />
-                </svg>
-              </button>
-            </label>
-          </div>
-        </section>
-
-        <div class="batch-edit-actions">
-          <button class="confirm-btn confirm-btn--ghost" type="button" @click="closeBatchEditSheet">取消</button>
-          <button class="confirm-btn confirm-btn--danger" type="button" :disabled="!canSubmitBatchEdit" @click="applyBatchEdit">
-            应用修改
-          </button>
-        </div>
-      </div>
-    </Popup>
-
-    <Popup
-      v-model:show="showBatchEditDatePicker"
-      teleport="body"
-      :z-index="220"
-      position="bottom"
-      round
-      class="picker-popup"
-    >
-      <DatePicker
-        v-model="batchEditDatePickerValue"
-        title="选择购入日期"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showBatchEditDatePicker = false"
-        @confirm="onBatchEditDateConfirm"
-      />
-    </Popup>
-
-    <Teleport to="body">
-      <Transition name="sel-bar">
-        <div v-if="selectionMode && !showBatchEditSheet" class="selection-action-bar">
-          <button
-            class="sel-action-btn sel-action-btn--danger"
-            type="button"
-            :disabled="selectedIds.size === 0"
-            @click="batchDelete"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6" />
-            </svg>
-            删除{{ selectedIds.size > 0 ? ` (${selectedIds.size})` : '' }}
-          </button>
-          <button
-            class="sel-action-btn"
-            type="button"
-            :disabled="selectedIds.size === 0"
-            @click="batchEdit"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            批量修改
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
-import { DatePicker, Popup } from 'vant'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { usePresetsStore } from '@/stores/presets'
-import { formatDate } from '@/utils/format'
-import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { preloadImages } from '@/utils/imageCache'
+import { useGoodsSelection } from '@/composables/useGoodsSelection'
 import SummaryCard from '@/components/SummaryCard.vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AddMethodSheet from '@/components/AddMethodSheet.vue'
-import AppSelect from '@/components/AppSelect.vue'
+import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
+import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
+import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 
 defineOptions({ name: 'HomeView' })
 
 const store = useGoodsStore()
-const presets = usePresetsStore()
 const pageBodyRef = ref(null)
+const batchEditSheetRef = ref(null)
 const DENSITY_STORAGE_KEY = 'goods-app:home-density'
 const HOME_SCROLL_STORAGE_KEY = 'home-scroll'
 const HOME_SCROLL_RESTORE_PENDING_KEY = 'home-scroll-restore-pending'
@@ -340,6 +193,12 @@ function handleAccountImport() {
   router.push('/account-import')
 }
 
+function handleTaobaoImport() {
+  showAddSheet.value = false
+  saveScrollPosition()
+  router.push('/taobao-import')
+}
+
 function goToAdd() {
   showAddSheet.value = false
   saveScrollPosition()
@@ -356,7 +215,7 @@ function getScrollEl() {
   return pageBodyRef.value || document.querySelector('.home-page .page-body')
 }
 
-// 同时读 page-body.scrollTop 和 window.scrollY，取非零的那个
+// 同时读取 page-body.scrollTop 和 window.scrollY，取非零的那个
 function readScrollTop() {
   const elTop = getScrollEl()?.scrollTop ?? 0
   const winTop = window.scrollY || document.documentElement.scrollTop || 0
@@ -409,7 +268,7 @@ onMounted(async () => {
     applyScrollPosition(stored)
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
-  window.addEventListener('popstate', handlePopState)
+  window.addEventListener('popstate', handleSelectionPopState)
   await bindNativeBackButton()
 })
 
@@ -447,7 +306,7 @@ onBeforeUnmount(() => {
     densityAnimationTimer = 0
   }
   unbindSelectionHeaderScroll()
-  window.removeEventListener('popstate', handlePopState)
+  window.removeEventListener('popstate', handleSelectionPopState)
   void unbindNativeBackButton()
   document.body.classList.remove('selection-active')
   // 仅在值大于 0 时才覆盖，避免卸载时 DOM 已清空导致用 0 覆盖正确值
@@ -531,98 +390,34 @@ function openDetail(id) {
 }
 
 // -------- Multi-select --------
-const selectionMode = ref(false)
-const selectedIds = ref(new Set())
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
-const showBatchEditDatePicker = ref(false)
-const showBatchCharPicker = ref(false)
-const batchEditForm = reactive({
-  ip: '',
-  acquiredAt: '',
-  characters: []
-})
-const batchEditDatePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
-const canSubmitBatchEdit = computed(() =>
-  Boolean(batchEditForm.ip || batchEditForm.acquiredAt || batchEditForm.characters.length > 0)
-)
-const batchAvailableCharacters = computed(() =>
-  batchEditForm.ip
-    ? presets.characters.filter((c) => c.ip === batchEditForm.ip)
-    : presets.characters
-)
 
-// 同步 body class ，用于隐藏全局导航栏
-watch(selectionMode, (active) => {
-  document.body.classList.toggle('selection-active', active)
-})
-
-/** 进入多选模式，推入一条历史记录以拦截 Android 返回键 */
-function enterSelectionMode(id) {
-  selectionMode.value = true
-  selectedIds.value = new Set([id])
-  if (!history.state?.selectionMode) {
-    history.pushState({ selectionMode: true }, '')
-  }
-}
-
-function toggleSelect(id) {
-  const next = new Set(selectedIds.value)
-  if (next.has(id)) {
-    next.delete(id)
-  } else {
-    next.add(id)
-  }
-  selectedIds.value = next
-}
-
-function toggleSelectAll() {
-  if (selectedIds.value.size === goodsList.value.length) {
-    selectedIds.value = new Set()
-  } else {
-    selectedIds.value = new Set(goodsList.value.map((g) => g.id))
-  }
-}
-
-/** 静默退出（不操作 history），用于 KeepAlive 途中离开 */
-function exitSelectionModeQuiet() {
+function closeSelectionOverlays() {
   showDeleteConfirm.value = false
-  closeBatchEditSheet()
-  selectionMode.value = false
-  selectedIds.value = new Set()
+  batchEditSheetRef.value?.close()
 }
 
-/** 取消按鈕手动退出：清空状态并审证回退推入的历史记录 */
-function exitSelectionMode() {
-  const hadPushed = !!history.state?.selectionMode
-  showDeleteConfirm.value = false
-  closeBatchEditSheet()
-  selectionMode.value = false
-  selectedIds.value = new Set()
-  if (hadPushed) history.back()
-}
-
-/** popstate 回调：拦截硬件返回键 */
-function handlePopState() {
-  if (selectionMode.value) {
-    showDeleteConfirm.value = false
-    closeBatchEditSheet()
-    selectionMode.value = false
-    selectedIds.value = new Set()
-  }
-}
+const {
+  selectionMode,
+  selectedIds,
+  allSelected,
+  enterSelectionMode,
+  toggleSelect,
+  toggleSelectAll,
+  exitSelectionModeQuiet,
+  exitSelectionMode,
+  handleSelectionPopState
+} = useGoodsSelection(computed(() => store.list), {
+  historyKey: 'selectionMode',
+  onExit: closeSelectionOverlays
+})
 
 async function bindNativeBackButton() {
   if (!Capacitor.isNativePlatform() || nativeBackButtonHandle) return
 
   nativeBackButtonHandle = await App.addListener('backButton', ({ canGoBack }) => {
-    if (showBatchEditDatePicker.value) {
-      showBatchEditDatePicker.value = false
-      return
-    }
-
-    if (showBatchEditSheet.value) {
-      closeBatchEditSheet()
+    if (batchEditSheetRef.value?.consumeBack()) {
       return
     }
 
@@ -665,87 +460,12 @@ async function confirmDelete() {
 
 function batchEdit() {
   if (selectedIds.value.size === 0) return
-  resetBatchEditForm()
   showBatchEditSheet.value = true
 }
 
-function closeBatchEditSheet() {
-  showBatchEditSheet.value = false
-  showBatchEditDatePicker.value = false
-  showBatchCharPicker.value = false
-}
-
-function resetBatchEditForm() {
-  batchEditForm.ip = ''
-  batchEditForm.acquiredAt = ''
-  batchEditForm.characters = []
-  batchEditDatePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
-}
-
-function openBatchEditDatePicker() {
-  batchEditDatePickerValue.value = toDatePickerValue(batchEditForm.acquiredAt)
-  showBatchEditDatePicker.value = true
-}
-
-function onBatchEditDateConfirm({ selectedValues }) {
-  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
-  batchEditForm.acquiredAt = `${year}-${month}-${day}`
-  batchEditDatePickerValue.value = [year, month, day]
-  showBatchEditDatePicker.value = false
-}
-
-function toggleBatchCharPicker() {
-  showBatchCharPicker.value = !showBatchCharPicker.value
-}
-
-function toggleBatchChar(name) {
-  const idx = batchEditForm.characters.indexOf(name)
-  if (idx >= 0) batchEditForm.characters.splice(idx, 1)
-  else batchEditForm.characters.push(name)
-}
-
-// 切换 IP 时，清掉不属于该 IP 的已选角色
-watch(
-  () => batchEditForm.ip,
-  (ip) => {
-    if (ip) {
-      batchEditForm.characters = batchEditForm.characters.filter((name) =>
-        presets.characters.some((c) => c.name === name && c.ip === ip)
-      )
-    }
-  }
-)
-
-async function applyBatchEdit() {
-  if (!canSubmitBatchEdit.value || selectedIds.value.size === 0) return
-
-  await commitActiveInput()
-
-  const payload = {}
-  if (batchEditForm.ip) payload.ip = batchEditForm.ip
-  if (batchEditForm.acquiredAt) payload.acquiredAt = batchEditForm.acquiredAt
-  if (batchEditForm.characters.length > 0) payload.characters = [...batchEditForm.characters]
-
-  if (Object.keys(payload).length === 0) return
-
+async function applyBatchEditPayload(payload) {
   await store.updateMultipleGoods(selectedIds.value, payload)
   exitSelectionModeQuiet()
-}
-
-function toDatePickerValue(dateString) {
-  const [year, month, day] = normalizeDateParts(dateString)
-  return [year, month, day]
-}
-
-function normalizeDateParts(dateString) {
-  const [fallbackYear, fallbackMonth, fallbackDay] = formatDate(new Date(), 'YYYY-MM-DD').split('-')
-
-  if (!dateString) {
-    return [fallbackYear, fallbackMonth, fallbackDay]
-  }
-
-  const [year = fallbackYear, month = fallbackMonth, day = fallbackDay] = `${dateString}`.split('-')
-  return [year, month.padStart(2, '0'), day.padStart(2, '0')]
 }
 </script>
 
@@ -1433,7 +1153,7 @@ function normalizeDateParts(dateString) {
   color: var(--app-text);
 }
 
-/* -------- 批量删除确认弹窗（对齐 DetailView 风格）-------- */
+/* -------- 批量删除确认弹窗（对齐 DetailView 风格）------- */
 .confirm-overlay {
   position: fixed;
   inset: 0;
@@ -1536,3 +1256,5 @@ function normalizeDateParts(dateString) {
   opacity: 0;
 }
 </style>
+
+

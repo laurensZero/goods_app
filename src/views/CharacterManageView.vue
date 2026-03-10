@@ -121,6 +121,12 @@
         <p v-else class="empty-hint">暂无角色，点击右上角新建</p>
       </section>
 
+    </main>
+
+    <Teleport to="body">
+      <Transition name="panel-fade">
+        <div v-if="editingChar" class="edit-ip-backdrop" @click="editingChar = ''" />
+      </Transition>
       <Transition name="panel-fade">
         <div v-if="editingChar" class="edit-ip-sheet">
           <div class="edit-ip-header">
@@ -148,7 +154,7 @@
           </div>
         </div>
       </Transition>
-    </main>
+    </Teleport>
   </div>
 </template>
 
@@ -481,17 +487,28 @@ function syncDomField() {
   padding: 40px 0 0;
 }
 
+.edit-ip-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: rgba(20, 20, 22, 0.12);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
 .edit-ip-sheet {
   position: fixed;
   left: 50%;
-  bottom: max(100px, calc(env(safe-area-inset-bottom) + 90px));
+  bottom: calc(max(env(safe-area-inset-bottom), 16px) + 16px);
   transform: translateX(-50%);
   width: min(calc(100vw - 32px), 420px);
-  background: var(--app-surface);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: var(--radius-card);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
   padding: 16px;
-  z-index: 50;
+  z-index: 60;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .edit-ip-header {

@@ -116,24 +116,14 @@
               </div>
             </div>
 
-            <label class="field">
+            <div class="field">
               <span class="field-label">图片 URL</span>
-              <input
+              <MihoyoImagePicker
+                ref="imagePickerRef"
                 v-model="form.image"
-                ref="imageInputRef"
-                type="text"
-                inputmode="url"
-                autocapitalize="off"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="https://..."
-                @input="syncField('image', $event)"
-                @blur="syncField('image', $event)"
-                @change="syncField('image', $event)"
-                @compositionend="syncField('image', $event)"
-                @paste="syncFieldLater('image', $event)"
+                :hint="form.characters[0] || form.variant || ''"
               />
-            </label>
+            </div>
           </div>
         </section>
 
@@ -227,6 +217,7 @@ import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
+import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
 
 const router = useRouter()
 const store = useGoodsStore()
@@ -247,7 +238,7 @@ const form = reactive({
 
 const charactersFieldRef = ref(null)
 const nameInputRef = ref(null)
-const imageInputRef = ref(null)
+const imagePickerRef = ref(null)
 const noteInputRef = ref(null)
 const showDatePicker = ref(false)
 const showCharPicker = ref(false)
@@ -278,6 +269,9 @@ watch(
 async function handleSubmit() {
   await commitActiveInput()
   syncDomFields()
+  // 如果用户填了米游铺链接并选中了某款式，使用该款式的封面图 URL
+  const pickedImage = imagePickerRef.value?.resolvedUrl
+  if (pickedImage) form.image = pickedImage
   await store.addGoods({ ...form })
   router.back()
 }
@@ -340,7 +334,9 @@ function syncFieldLater(key, event) {
 
 function syncDomFields() {
   if (nameInputRef.value) form.name = nameInputRef.value.value ?? ''
-  if (imageInputRef.value) form.image = imageInputRef.value.value ?? ''
+  // imagePickerRef.value.inputRef 经 Vue 组件代理自动 unwrap，直接是 DOM 元素
+  const imageInputEl = imagePickerRef.value?.inputRef
+  if (imageInputEl) form.image = imageInputEl.value ?? ''
   if (noteInputRef.value) form.note = noteInputRef.value.value ?? ''
 }
 

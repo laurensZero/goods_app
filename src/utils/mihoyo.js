@@ -15,7 +15,8 @@
 import { CapacitorHttp, Capacitor } from '@capacitor/core'
 
 const API_BASE = 'https://api-mall.mihoyogift.com'
-const API_GOODS_DETAIL = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
+const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
+const API_GOODS_SEARCH  = `${API_BASE}/common/homeishop/v1/search/search_goods_list`
 
 // 从商品名称中提取 IP 和去掉前缀的商品名
 // 支持：【原神】xxx  /  「崩坏：星穹铁道」xxx
@@ -208,6 +209,85 @@ export async function fetchGoodsDetail(goodsId) {
   }
 }
 
+/**
+ * 获取指定商品的所有 SKU 变体（含角色封面图）
+ * @param {string} goodsId
+ * @returns {Promise<Array<{text, cover_url, img_url}>>} variants 数组
+ */
+export async function fetchGoodsVariants(goodsId) {
+  if (!goodsId) return []
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+  try {
+    let json
+    if (Capacitor.isNativePlatform()) {
+      const url = `${API_GOODS_DETAIL}?goods_id=${goodsId}`
+      const res = await CapacitorHttp.get({ url, headers: reqHeaders })
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      const url = `/mihoyo-api/common/homeishop/v1/goods/get_goods_spu_detail?goods_id=${goodsId}`
+      const res = await fetch(url, { headers: reqHeaders })
+      if (!res.ok) return []
+      json = await res.json()
+    }
+    if (json.retcode !== 0) return []
+    const detail = json?.data?.detail
+    const variants = []
+    for (const group of (detail?.sale_attrs || [])) {
+      if (!group.content?.length) continue
+      for (const item of group.content) {
+        if (item.text) variants.push({
+          text:      item.text,
+          key:       item.key || '',
+          cover_url: item.cover_url || item.img_url || '',
+        })
+      }
+    }
+    return variants
+  } catch {
+    return []
+  }
+}
+
+// ─── 商品关键词搜索 ────────────────────────────────────────────────
+
+/**
+ * 关键词搜索米游铺商品
+ * @param {string} keyword - 搜索关键词
+ * @param {number} pageSize - 每页数量（默认 5）
+ * @returns {Promise<Array<{goods_id, name, cover_url}>>}
+ */
+export async function searchGoodsList(keyword, pageSize = 5) {
+  if (!keyword) return []
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+  try {
+    let json
+    if (Capacitor.isNativePlatform()) {
+      const url = `${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=1`
+      const res = await CapacitorHttp.get({ url, headers: reqHeaders })
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      const url = `/mihoyo-api/common/homeishop/v1/search/search_goods_list?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=1`
+      const res = await fetch(url, { headers: reqHeaders })
+      if (!res.ok) return []
+      json = await res.json()
+    }
+    if (json.retcode !== 0) return []
+    return (json.data?.list || []).map(item => ({
+      goods_id:  item.goods_id,
+      name:      item.name,
+      cover_url: item.cover_url || '',
+    }))
+  } catch {
+    return []
+  }
+}
+
 // ─── 账号订单导入 ──────────────────────────────────────────────────
 
 const API_ORDER_LIST = `${API_BASE}/common/homeishop/v1/order/order_list`
@@ -289,7 +369,7 @@ export async function fetchAllOrders(cookieStr, onProgress) {
  * @returns {Object|null}
  */
 /** 从商品名关键词推断分类 */
-function parseCategoryFromName(name) {
+export function parseCategoryFromName(name) {
   if (!name) return ''
   if (name.includes('满赠') || name.includes('赠品')) return '满赠'
   if (name.includes('手办')) return '手办'
@@ -325,7 +405,7 @@ function shopToIp(shopName) {
 /** 去除 sku 属性值中的所有括号前缀（角色名等应为纯文本）
  *  同时去除末尾常见变体字母 A-E（如 "昔涟B" → "昔涟"，"叶瞬光A" → "叶瞬光"）
  */
-function cleanGoodsName(str) {
+export function cleanGoodsName(str) {
   return String(str || '')
     .replace(/【(?:预售|预计|现货)[^】]*】/g, '')
     .replace(/（(?:预售|预计|现货)?[^）]*(?:到仓|发货|补款|预售|现货)[^）]*）/g, '')
