@@ -15,6 +15,6 @@ import { useRoute } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
 
 const route = useRoute()
-const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'account-import', 'manage-categories', 'manage-ips', 'manage-characters']
+const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(route.name))
 </script>

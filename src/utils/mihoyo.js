@@ -47,9 +47,12 @@ const MIHOYO_GIFT_HOST = 'mihoyogift.com'
 // 从 URL 提取 goods_id，支持桌面页和移动页：
 // - https://www.mihoyogift.com/goods/123
 // - https://www.mihoyogift.com/m/goods/123?...
+// - www.mihoyogift.com/goods/123（无协议头，自动补全）
 function extractGoodsId(url) {
   try {
-    const parsed = new URL(url)
+    // 若用户粘贴时省略了协议头，自动补全 https:// 再解析
+    const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`
+    const parsed = new URL(normalized)
     if (!parsed.hostname.endsWith(MIHOYO_GIFT_HOST)) return null
 
     const match = parsed.pathname.match(/^\/(?:m\/)?goods\/(\d+)(?:\/)?$/)

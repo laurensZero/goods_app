@@ -98,7 +98,7 @@
     </main>
 
     <Teleport to="body">
-      <button v-if="!selectionMode" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
+      <button v-if="!selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
           <path d="M5 12H19" />
@@ -177,6 +177,9 @@ let selectionHeaderScrollBound = false
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
+
+// KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
+const isHomeActive = ref(true)
 
 // 添加方式面板
 const showAddSheet = ref(false)
@@ -273,6 +276,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  isHomeActive.value = true
   // KeepAlive 保留了 DOM，先读取当前真实滚动位置（KeepAlive 会保留 DOM 状态）
   const domTop = getScrollEl()?.scrollTop ?? 0
   const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
@@ -293,6 +297,7 @@ onActivated(async () => {
 })
 
 onDeactivated(() => {
+  isHomeActive.value = false
   // 不在此处调用 saveScrollPosition：onDeactivated 触发时 window.scrollY 可能已被路由重置为 0
   // 滚动位置已由 openDetail / handleImport / goToAdd 在跳转前显式保存
   exitSelectionModeQuiet()

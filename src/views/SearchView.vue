@@ -124,7 +124,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
@@ -139,6 +139,8 @@ const UNCATEGORIZED_OPTION = '未分类'
 const NO_IP_OPTION = '未设置IP'
 const NO_CHARACTER_OPTION = '未设置角色'
 
+const SEARCH_STATE_HISTORY_KEY = 'searchViewState'
+
 const store = useGoodsStore()
 const router = useRouter()
 const { isPageLeaving } = usePageLeaveAnimation()
@@ -151,6 +153,54 @@ const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const batchEditSheetRef = ref(null)
 let nativeBackButtonHandle = null
+
+function buildSearchState() {
+  return {
+    keyword: keyword.value,
+    selectedCategory: selectedCategory.value,
+    selectedIp: selectedIp.value,
+    selectedCharacter: selectedCharacter.value,
+  }
+}
+
+function hasSearchState(state) {
+  return !!(
+    state.keyword.trim()
+    || state.selectedCategory
+    || state.selectedIp
+    || state.selectedCharacter
+  )
+}
+
+function persistSearchState() {
+  const state = buildSearchState()
+  const nextState = { ...(window.history.state || {}) }
+
+  if (!hasSearchState(state)) {
+    delete nextState[SEARCH_STATE_HISTORY_KEY]
+    window.history.replaceState(nextState, '')
+    return
+  }
+
+  nextState[SEARCH_STATE_HISTORY_KEY] = state
+  window.history.replaceState(nextState, '')
+}
+
+function restoreSearchState() {
+  const state = window.history.state?.[SEARCH_STATE_HISTORY_KEY]
+  if (!state || typeof state !== 'object') return
+
+  keyword.value = typeof state.keyword === 'string' ? state.keyword : ''
+  selectedCategory.value = typeof state.selectedCategory === 'string' ? state.selectedCategory : ''
+  selectedIp.value = typeof state.selectedIp === 'string' ? state.selectedIp : ''
+  selectedCharacter.value = typeof state.selectedCharacter === 'string' ? state.selectedCharacter : ''
+}
+
+function clearSearchState() {
+  const nextState = { ...(window.history.state || {}) }
+  delete nextState[SEARCH_STATE_HISTORY_KEY]
+  window.history.replaceState(nextState, '')
+}
 
 const categoryOptions = computed(() => {
   const categories = [...new Set(store.list.map((item) => String(item.category || '').trim()).filter(Boolean))]
@@ -249,6 +299,7 @@ function handleBack() {
 }
 
 function openDetail(id) {
+  persistSearchState()
   router.push(`/detail/${id}`)
 }
 
@@ -301,6 +352,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 onMounted(async () => {
+  restoreSearchState()
   window.addEventListener('popstate', handleSelectionPopState)
   await bindNativeBackButton()
 })
@@ -309,6 +361,15 @@ onBeforeUnmount(() => {
   window.removeEventListener('popstate', handleSelectionPopState)
   void unbindNativeBackButton()
   document.body.classList.remove('selection-active')
+})
+
+onBeforeRouteLeave((to) => {
+  if (to.name === 'detail') {
+    persistSearchState()
+    return
+  }
+
+  clearSearchState()
 })
 </script>
 
