@@ -533,11 +533,11 @@ async function handleImport(event) {
 
   .page-body {
     display: grid;
-    grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.92fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 24px;
     row-gap: 24px;
     align-items: start;
-    width: min(100%, 1240px);
+    width: min(100%, 1100px);
     padding-top: 26px;
     padding-inline: 28px;
   }
@@ -546,23 +546,11 @@ async function handleImport(event) {
     /* 每列内部仍为单列竖向堆叠 */
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 18px;
   }
 
   .section-gap {
     margin-top: 0;
-  }
-}
-
-@media (min-width: 900px) {
-  .hub-section {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-  }
-
-  .hub-section:first-of-type .entry-card:last-child {
-    grid-column: 1 / -1;
   }
 
   .entry-card {
@@ -587,22 +575,6 @@ async function handleImport(event) {
   }
 }
 
-@media (min-width: 900px) {
-  .page-body {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: min(100%, 1100px);
-  }
-
-  .hub-section {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .hub-section:first-of-type .entry-card:last-child {
-    grid-column: auto;
-  }
-}
 
 @media (prefers-color-scheme: dark) {
   .manage-header {

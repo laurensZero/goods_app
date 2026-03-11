@@ -12,7 +12,7 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage } from '@/utils/imageCache'
+import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
 
 defineOptions({ inheritAttrs: false })
 
@@ -39,6 +39,11 @@ watch(
       resolvedSrc.value = ''
       return
     }
+    const cached = peekCachedImage(url)
+    if (cached) {
+      resolvedSrc.value = cached
+      return
+    }
     if (!isVisible) return
     resolvedSrc.value = props.useCache ? await getCachedImage(url) : url
   },
@@ -46,6 +51,13 @@ watch(
 )
 
 onMounted(() => {
+  const cached = peekCachedImage(props.src)
+  if (cached) {
+    resolvedSrc.value = cached
+    hasEnteredViewport.value = true
+    return
+  }
+
   if (typeof IntersectionObserver === 'undefined') {
     hasEnteredViewport.value = true
     return

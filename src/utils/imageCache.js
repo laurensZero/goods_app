@@ -195,6 +195,17 @@ export function preloadImages(urls) {
   schedulePreloadDrain()
 }
 
+/**
+ * 同步读取内存层缓存。
+ * 只用于避免组件重挂载时出现一帧空白占位。
+ * @param {string} url
+ * @returns {string}
+ */
+export function peekCachedImage(url) {
+  if (!url) return ''
+  return memoryCache.get(url) || ''
+}
+
 function schedulePreloadDrain() {
   if (preloadDrainScheduled) return
   preloadDrainScheduled = true

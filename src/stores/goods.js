@@ -8,11 +8,51 @@ import {
   stripVariantFromNote
 } from '@/utils/goodsIdentity'
 
+function isValidYearMonth(value) {
+  return /^\d{4}-\d{2}$/.test(value)
+}
+
+function parseAcquiredTime(value) {
+  if (!value) return 0
+  const timestamp = Date.parse(String(value))
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function parseTimelineYearMonth(value) {
+  const yearMonth = String(value || '').slice(0, 7)
+  return isValidYearMonth(yearMonth) ? yearMonth : ''
+}
+
+function parseNumericPrice(value) {
+  const price = Number.parseFloat(value)
+  return Number.isFinite(price) ? price : 0
+}
+
+function parseQuantity(value) {
+  return Math.max(1, Number(value) || 1)
+}
+
 export const useGoodsStore = defineStore('goods', () => {
   const list = ref([])
   const isReady = ref(false)
 
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))
+  const viewList = computed(() =>
+    list.value.map((item) => {
+      const quantityNumber = parseQuantity(item.quantity)
+      const priceNumber = parseNumericPrice(item.price)
+
+      return {
+        ...item,
+        sortId: String(item.id),
+        acquiredTime: parseAcquiredTime(item.acquiredAt),
+        timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
+        priceNumber,
+        quantityNumber,
+        totalValueNumber: priceNumber * quantityNumber
+      }
+    })
+  )
 
   function normalizeGoodsInput(data, fallbackId = '') {
     const variant = getGoodsVariant(data)
@@ -163,6 +203,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
   return {
     list,
+    viewList,
     isReady,
     getById,
     init,

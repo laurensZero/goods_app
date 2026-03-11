@@ -60,7 +60,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getCachedImage } from '@/utils/imageCache'
+import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -175,6 +175,11 @@ watch(
       cachedImgSrc.value = ''
       return
     }
+    const cached = peekCachedImage(url)
+    if (cached) {
+      cachedImgSrc.value = cached
+      return
+    }
     if (!isVisible) return
     cachedImgSrc.value = await getCachedImage(url)
   },
@@ -218,6 +223,13 @@ const windowWidth = ref(window.innerWidth)
 const _onResize = () => { windowWidth.value = window.innerWidth }
 onMounted(() => {
   window.addEventListener('resize', _onResize)
+
+  const cached = peekCachedImage(props.item.image)
+  if (cached) {
+    cachedImgSrc.value = cached
+    hasEnteredViewport.value = true
+    return
+  }
 
   if (typeof IntersectionObserver === 'undefined') {
     hasEnteredViewport.value = true
