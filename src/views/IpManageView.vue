@@ -81,6 +81,15 @@
       </section>
     </main>
   </div>
+
+  <PresetDeleteConfirm
+    :show="showDeleteConfirm"
+    :name="pendingDeleteName"
+    :count="affectedCount"
+    field-label="该 IP"
+    @cancel="showDeleteConfirm = false"
+    @confirm="confirmDelete"
+  />
 </template>
 
 <script setup>
@@ -89,9 +98,17 @@ import { usePresetsStore } from '@/stores/presets'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
+import { usePresetDelete } from '@/composables/usePresetDelete'
+import PresetDeleteConfirm from '@/components/PresetDeleteConfirm.vue'
 
 const presets = usePresetsStore()
 const { isPageLeaving } = usePageLeaveAnimation()
+
+const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeIp, confirmDelete } = usePresetDelete({
+  getAffected: (list, name) => list.filter(g => g.ip === name),
+  patch: (item) => ({ ...item, ip: '' }),
+  removePreset: (name) => presets.removeIp(name),
+})
 
 const showInput = ref(false)
 const newName = ref('')
@@ -119,10 +136,6 @@ async function doAdd() {
     newName.value = ''
     showInput.value = false
   }
-}
-
-async function removeIp(name) {
-  await presets.removeIp(name)
 }
 
 function syncName(event) {
@@ -314,4 +327,5 @@ function syncDomField() {
   opacity: 0;
   transform: translateY(-8px);
 }
+
 </style>

@@ -156,6 +156,15 @@
       </Transition>
     </Teleport>
   </div>
+
+  <PresetDeleteConfirm
+    :show="showDeleteConfirm"
+    :name="pendingDeleteName"
+    :count="affectedCount"
+    field-label="该角色"
+    @cancel="showDeleteConfirm = false"
+    @confirm="confirmDelete"
+  />
 </template>
 
 <script setup>
@@ -164,9 +173,17 @@ import { usePresetsStore } from '@/stores/presets'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
+import { usePresetDelete } from '@/composables/usePresetDelete'
+import PresetDeleteConfirm from '@/components/PresetDeleteConfirm.vue'
 
 const presets = usePresetsStore()
 const { isPageLeaving } = usePageLeaveAnimation()
+
+const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeCharacter, confirmDelete } = usePresetDelete({
+  getAffected: (list, name) => list.filter(g => g.characters?.includes(name)),
+  patch: (item, name) => ({ ...item, characters: item.characters.filter(c => c !== name) }),
+  removePreset: (name) => presets.removeCharacter(name),
+})
 
 const showInput = ref(false)
 const newName = ref('')
@@ -220,10 +237,6 @@ function getCharacterIp(name) {
 async function setCharacterIp(name, ip) {
   await presets.updateCharacterIp(name, ip)
   editingChar.value = ''
-}
-
-async function removeCharacter(name) {
-  await presets.removeCharacter(name)
 }
 
 function syncName(event) {

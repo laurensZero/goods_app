@@ -66,17 +66,55 @@
       </section>
     </main>
   </div>
+
+  <PresetDeleteConfirm
+    :show="showDeleteConfirm"
+    :name="pendingDeleteName"
+    :count="affectedCount"
+    field-label="该分类"
+    @cancel="showDeleteConfirm = false"
+    @confirm="confirmDelete"
+  />
 </template>
 
 <script setup>
 import { nextTick, ref } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
+import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
 
 const presets = usePresetsStore()
+const store = useGoodsStore()
 const { isPageLeaving } = usePageLeaveAnimation()
+
+const showDeleteConfirm = ref(false)
+const pendingDeleteName = ref('')
+const affectedCount = ref(0)
+
+async function removeCategory(name) {
+  const affected = store.list.filter(g => g.category === name)
+  if (affected.length > 0) {
+    pendingDeleteName.value = name
+    affectedCount.value = affected.length
+    showDeleteConfirm.value = true
+    return
+  }
+  await presets.removeCategory(name)
+}
+
+async function confirmDelete() {
+  showDeleteConfirm.value = false
+  const name = pendingDeleteName.value
+  const affected = store.list.filter(g => g.category === name)
+  for (const item of affected) {
+    await store.updateGoods(item.id, { ...item, category: '' })
+  }
+  await presets.removeCategory(name)
+  pendingDeleteName.value = ''
+  affectedCount.value = 0
+}
 
 const showInput = ref(false)
 const newName = ref('')
@@ -99,10 +137,6 @@ async function doAdd() {
     newName.value = ''
     showInput.value = false
   }
-}
-
-async function removeCategory(name) {
-  await presets.removeCategory(name)
 }
 
 function syncName(event) {
@@ -258,4 +292,5 @@ async function restoreDefaults() {
   opacity: 0;
   transform: translateY(-8px);
 }
+
 </style>
