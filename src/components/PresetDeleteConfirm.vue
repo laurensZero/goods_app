@@ -142,5 +142,10 @@ defineEmits(['cancel', 'confirm'])
   .confirm-btn--ghost {
     background: rgba(255, 255, 255, 0.06);
   }
+
+  .confirm-btn--danger {
+    background: #f5f5f7;
+    color: #d32f2f;
+  }
 }
 </style>

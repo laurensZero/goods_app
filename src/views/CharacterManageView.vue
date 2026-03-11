@@ -554,5 +554,15 @@ function syncDomField() {
   .edit-ip-sheet {
     background: rgba(28, 28, 30, 0.95);
   }
+
+  .confirm-btn {
+    color: #141416;
+  }
+
+  .ip-chip--active {
+    background: #f5f5f7;
+    border-color: #f5f5f7;
+    color: #141416;
+  }
 }
 </style>

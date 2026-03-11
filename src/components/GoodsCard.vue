@@ -1,5 +1,6 @@
 <template>
   <article
+    ref="cardRef"
     class="goods-card"
     :class="[
       `goods-card--${density || 'comfortable'}`,
@@ -27,7 +28,7 @@
     </Transition>
     <div class="cover-wrap">
       <div class="card-cover" :style="cachedImgSrc ? {} : { background: coverBg }">
-        <img v-if="cachedImgSrc" :src="cachedImgSrc" :alt="item.name" class="cover-img" />
+        <img v-if="cachedImgSrc" :src="cachedImgSrc" :alt="item.name" class="cover-img" loading="lazy" decoding="async" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
@@ -70,6 +71,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
+const cardRef = ref(null)
 
 // -------- Long-press / tap logic --------
 const longPressTimer = ref(null)
@@ -163,11 +165,18 @@ function onMouseLeave() {
 }
 
 const cachedImgSrc = ref('')
+const hasEnteredViewport = ref(false)
+let visibilityObserver = null
 
 watch(
-  () => props.item.image,
-  async (url) => {
-    cachedImgSrc.value = url ? await getCachedImage(url) : ''
+  [() => props.item.image, hasEnteredViewport],
+  async ([url, isVisible]) => {
+    if (!url) {
+      cachedImgSrc.value = ''
+      return
+    }
+    if (!isVisible) return
+    cachedImgSrc.value = await getCachedImage(url)
   },
   { immediate: true }
 )
@@ -207,8 +216,32 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
 
 const windowWidth = ref(window.innerWidth)
 const _onResize = () => { windowWidth.value = window.innerWidth }
-onMounted(() => window.addEventListener('resize', _onResize))
-onBeforeUnmount(() => window.removeEventListener('resize', _onResize))
+onMounted(() => {
+  window.addEventListener('resize', _onResize)
+
+  if (typeof IntersectionObserver === 'undefined') {
+    hasEnteredViewport.value = true
+    return
+  }
+
+  visibilityObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        hasEnteredViewport.value = true
+        visibilityObserver?.disconnect()
+        visibilityObserver = null
+      }
+    },
+    { rootMargin: '180px 0px' }
+  )
+
+  if (cardRef.value) visibilityObserver.observe(cardRef.value)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', _onResize)
+  visibilityObserver?.disconnect()
+  visibilityObserver = null
+})
 const isTablet = computed(() => windowWidth.value >= 900)
 </script>
 
@@ -229,7 +262,8 @@ const isTablet = computed(() => windowWidth.value >= 900)
   transition:
     transform 0.22s ease,
     box-shadow 0.22s ease;
-  animation: card-enter 220ms ease both;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 320px;
 }
 
 .goods-card:active {

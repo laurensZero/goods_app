@@ -2138,5 +2138,18 @@ async function handleSave() {
     background: #f5f5f7;
     color: #141416;
   }
+
+  .btn-parse {
+    color: #141416;
+  }
+
+  .parse-spinner {
+    border-color: rgba(20, 20, 22, 0.30);
+    border-top-color: #141416;
+  }
+
+  .btn-primary {
+    color: #141416;
+  }
 }
 </style>

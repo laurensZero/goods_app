@@ -88,7 +88,7 @@
           :style="goodsGridStyle"
         >
           <GoodsCard
-            v-for="item in goodsList"
+            v-for="item in visibleGoodsList"
             :key="item.id"
             :item="item"
             :density="displayDensity"
@@ -104,7 +104,7 @@
       <!-- 时间线模式 -->
       <template v-if="displayDensity === 'timeline' && goodsList.length > 0">
         <div class="tl-wrapper goods-section">
-          <div class="tl-year-block" v-for="yearGroup in timelineYearGroups" :key="yearGroup.year">
+          <div class="tl-year-block" v-for="yearGroup in visibleTimelineYearGroups" :key="yearGroup.year">
             <div class="tl-year-header">
               <span class="tl-year-num">{{ yearGroup.year }}</span>
               <span class="tl-year-meta">{{ yearGroup.yearCount }} 件 · {{ formatPrice(yearGroup.yearTotal) }}</span>
@@ -143,6 +143,8 @@
                         :src="item.image"
                         :alt="item.name"
                         loading="lazy"
+                        decoding="async"
+                        fetchpriority="low"
                       />
                       <div v-else class="tl-thumb-empty">✦</div>
                     </div>
@@ -152,7 +154,7 @@
             </div>
           </div>
 
-          <div v-if="timelineUnknown.length > 0" class="tl-month-group tl-month-group--last">
+          <div v-if="showVisibleTimelineUnknown" class="tl-month-group tl-month-group--last">
             <div class="tl-month-rail" aria-hidden="true">
               <div class="tl-month-dot tl-month-dot--muted" />
               <div class="tl-month-line" />
@@ -179,6 +181,8 @@
                       :src="item.image"
                       :alt="item.name"
                       loading="lazy"
+                      decoding="async"
+                      fetchpriority="low"
                     />
                     <div v-else class="tl-thumb-empty">✦</div>
                   </div>
@@ -285,12 +289,24 @@ function getResponsiveCols(density) {
   return (bps.find(b => windowWidth.value >= b.minWidth) ?? bps[bps.length - 1]).cols
 }
 const SELECTION_HEADER_INITIAL_OFFSET = 20
+const INITIAL_RENDER_ROWS = 6
+const LOAD_MORE_ROWS = 4
+const LOAD_MORE_THRESHOLD_PX = 720
+const INITIAL_TIMELINE_MONTHS = 6
+const LOAD_MORE_TIMELINE_MONTHS = 4
+const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
+const ROW_HEIGHT_MAP = {
+  comfortable: 308,
+  standard: 272,
+  compact: 236
+}
 const selectionHeaderTopOffset = ref(SELECTION_HEADER_INITIAL_OFFSET)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 let densityAnimationTimer = 0
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
+let pageScrollRaf = 0
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
@@ -330,8 +346,6 @@ function goToAdd() {
 
 async function refresh() {
   await store.refreshList()
-  const urls = store.list.map((g) => g.image).filter(Boolean)
-  if (urls.length) preloadImages(urls)
 }
 
 function getScrollEl() {
@@ -366,17 +380,95 @@ function applyScrollPosition(top) {
   delays.forEach(delay => setTimeout(setAll, delay))
 }
 
+function getInitialVisibleCount() {
+  return Math.max(getResponsiveCols(displayDensity.value) * INITIAL_RENDER_ROWS, 24)
+}
+
+function getLoadMoreStep() {
+  return Math.max(getResponsiveCols(displayDensity.value) * LOAD_MORE_ROWS, 16)
+}
+
+function estimateVisibleCountForScrollTop(scrollTop = 0) {
+  if (displayDensity.value === 'timeline') return goodsList.value.length
+
+  const cols = getResponsiveCols(displayDensity.value)
+  const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  const rowsNeeded = Math.ceil((scrollTop + viewportHeight * 2) / rowHeight)
+  const estimatedCount = rowsNeeded * cols + getLoadMoreStep()
+  return Math.min(goodsList.value.length, Math.max(getInitialVisibleCount(), estimatedCount))
+}
+
+function syncVisibleGoodsCount(scrollTop = 0) {
+  visibleGoodsCount.value = estimateVisibleCountForScrollTop(scrollTop)
+}
+
+function maybeLoadMoreGoods() {
+  if (displayDensity.value === 'timeline') return
+  if (visibleGoodsCount.value >= goodsList.value.length) return
+
+  const el = getScrollEl()
+  if (!el) return
+
+  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
+  if (remaining > LOAD_MORE_THRESHOLD_PX) return
+
+  visibleGoodsCount.value = Math.min(goodsList.value.length, visibleGoodsCount.value + getLoadMoreStep())
+}
+
+function getInitialVisibleTimelineMonths() {
+  return INITIAL_TIMELINE_MONTHS
+}
+
+function estimateVisibleTimelineMonths(scrollTop = 0) {
+  if (displayDensity.value !== 'timeline') return visibleTimelineMonthCount.value
+
+  const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
+  const estimatedMonths = Math.ceil((scrollTop + viewportHeight * 1.6) / TIMELINE_MONTH_ESTIMATED_HEIGHT) + 1
+  return Math.min(allTimelineMonthCount.value, Math.max(getInitialVisibleTimelineMonths(), estimatedMonths))
+}
+
+function syncVisibleTimelineMonthCount(scrollTop = 0) {
+  visibleTimelineMonthCount.value = estimateVisibleTimelineMonths(scrollTop)
+}
+
+function maybeLoadMoreTimelineMonths() {
+  if (displayDensity.value !== 'timeline') return
+  if (visibleTimelineMonthCount.value >= allTimelineMonthCount.value) return
+
+  const el = getScrollEl()
+  if (!el) return
+
+  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
+  if (remaining > LOAD_MORE_THRESHOLD_PX) return
+
+  visibleTimelineMonthCount.value = Math.min(
+    allTimelineMonthCount.value,
+    visibleTimelineMonthCount.value + LOAD_MORE_TIMELINE_MONTHS
+  )
+}
+
+function handlePageScroll() {
+  if (pageScrollRaf) return
+  pageScrollRaf = window.requestAnimationFrame(() => {
+    pageScrollRaf = 0
+    updateSelectionHeaderOffset()
+    maybeLoadMoreGoods()
+    maybeLoadMoreTimelineMonths()
+  })
+}
+
 function bindSelectionHeaderScroll() {
   if (selectionHeaderScrollBound) return
-  getScrollEl()?.addEventListener('scroll', updateSelectionHeaderOffset, { passive: true })
-  window.addEventListener('scroll', updateSelectionHeaderOffset, { passive: true })
+  getScrollEl()?.addEventListener('scroll', handlePageScroll, { passive: true })
+  window.addEventListener('scroll', handlePageScroll, { passive: true })
   selectionHeaderScrollBound = true
 }
 
 function unbindSelectionHeaderScroll() {
   if (!selectionHeaderScrollBound) return
-  getScrollEl()?.removeEventListener('scroll', updateSelectionHeaderOffset)
-  window.removeEventListener('scroll', updateSelectionHeaderOffset)
+  getScrollEl()?.removeEventListener('scroll', handlePageScroll)
+  window.removeEventListener('scroll', handlePageScroll)
   selectionHeaderScrollBound = false
 }
 
@@ -413,12 +505,17 @@ onMounted(async () => {
   restoreDisplayDensity()
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
+  syncVisibleGoodsCount()
+  syncVisibleTimelineMonthCount()
   await nextTick()
   bindSelectionHeaderScroll()
   updateSelectionHeaderOffset()
   const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
   const stored = _savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0)
   if (shouldRestore) {
+    syncVisibleGoodsCount(stored)
+    syncVisibleTimelineMonthCount(stored)
+    await nextTick()
     applyScrollPosition(stored)
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
@@ -438,9 +535,14 @@ onActivated(async () => {
       : 0
   // 如果需要滚动恢复，先显示遮罩防止顶部闪烁
   if (topToRestore > 0) restoringScroll.value = true
+  syncVisibleGoodsCount(topToRestore)
+  syncVisibleTimelineMonthCount(topToRestore)
+  await nextTick()
   // 在 refresh 之前先同步恢复滚动，防止 refresh 重渲染导致闪烁
   applyScrollPosition(topToRestore)
   await refresh()
+  syncVisibleGoodsCount(topToRestore)
+  syncVisibleTimelineMonthCount(topToRestore)
   await nextTick()
   bindSelectionHeaderScroll()
   applyScrollPosition(topToRestore)
@@ -470,6 +572,10 @@ onBeforeUnmount(() => {
   if (densityAnimationTimer) {
     window.clearTimeout(densityAnimationTimer)
     densityAnimationTimer = 0
+  }
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
   }
   unbindSelectionHeaderScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
@@ -505,6 +611,13 @@ const goodsList = computed(() => {
 
   return items
 })
+const visibleGoodsCount = ref(0)
+const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
+const visibleGoodsList = computed(() =>
+  displayDensity.value === 'timeline'
+    ? goodsList.value
+    : goodsList.value.slice(0, visibleGoodsCount.value || getInitialVisibleCount())
+)
 const totalValue = computed(() =>
   goodsList.value.reduce((sum, g) => sum + (Number(g.price) || 0) * (Number(g.quantity) || 1), 0).toFixed(2)
 )
@@ -543,11 +656,39 @@ const timelineYearGroups = computed(() => {
       return { year, months, yearTotal, yearCount }
     })
 })
+const allTimelineMonthCount = computed(() =>
+  timelineYearGroups.value.reduce((sum, yearGroup) => sum + yearGroup.months.length, 0)
+)
+const visibleTimelineYearGroups = computed(() => {
+  if (displayDensity.value !== 'timeline') return timelineYearGroups.value
+
+  let remaining = visibleTimelineMonthCount.value || getInitialVisibleTimelineMonths()
+  const groups = []
+
+  for (const yearGroup of timelineYearGroups.value) {
+    if (remaining <= 0) break
+    const months = yearGroup.months.slice(0, remaining)
+    if (months.length > 0) {
+      groups.push({
+        ...yearGroup,
+        yearCount: months.reduce((sum, month) => sum + month.count, 0),
+        yearTotal: months.reduce((sum, month) => sum + month.totalSpend, 0),
+        months
+      })
+      remaining -= months.length
+    }
+  }
+
+  return groups
+})
 const timelineUnknown = computed(() =>
   goodsList.value.filter((item) => {
     if (!item.acquiredAt) return true
     return !/^\d{4}-\d{2}$/.test(String(item.acquiredAt).slice(0, 7))
   })
+)
+const showVisibleTimelineUnknown = computed(() =>
+  timelineUnknown.value.length > 0 && visibleTimelineMonthCount.value >= allTimelineMonthCount.value
 )
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
@@ -555,6 +696,40 @@ const goodsGridStyle = computed(() => ({
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-offset': `${selectionHeaderTopOffset.value}px`
 }))
+const preloadLeadCount = computed(() =>
+  displayDensity.value === 'timeline'
+    ? 6
+    : Math.max(getResponsiveCols(displayDensity.value) * 2, 8)
+)
+const preloadTargetList = computed(() =>
+  (
+    displayDensity.value === 'timeline'
+      ? [
+          ...visibleTimelineYearGroups.value.flatMap((yearGroup) =>
+            yearGroup.months.flatMap((monthGroup) => monthGroup.items)
+          ),
+          ...(showVisibleTimelineUnknown.value ? timelineUnknown.value : [])
+        ]
+      : visibleGoodsList.value
+  ).slice(0, preloadLeadCount.value)
+)
+
+watch(
+  [() => goodsList.value.length, displayDensity, sortDirection, windowWidth],
+  () => {
+    syncVisibleGoodsCount(readScrollTop())
+    syncVisibleTimelineMonthCount(readScrollTop())
+  },
+  { immediate: true }
+)
+
+watch(
+  () => preloadTargetList.value.map((item) => item.image).filter(Boolean),
+  (urls) => {
+    if (urls.length) preloadImages(urls)
+  },
+  { immediate: true }
+)
 
 function setDisplayDensity(mode) {
   if (!densityColumnsMap[mode] || displayDensity.value === mode) return
@@ -956,6 +1131,8 @@ async function applyBatchEditPayload(payload) {
 
 .tl-month-content {
   min-width: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 340px;
 }
 
 /* 月份小标题行 */
@@ -1002,6 +1179,8 @@ async function applyBatchEditPayload(payload) {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 240px;
 }
 
 @media (min-width: 600px) {
@@ -1024,6 +1203,8 @@ async function applyBatchEditPayload(payload) {
   padding: 0;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: 132px 132px;
 }
 
 .tl-thumb-btn:active {
@@ -1033,7 +1214,7 @@ async function applyBatchEditPayload(payload) {
 
 .tl-thumb-img-wrap {
   width: 100%;
-  aspect-ratio: 0.84;
+  aspect-ratio: 1;
   border-radius: 14px;
   overflow: hidden;
   background: var(--app-surface-soft, #eeeff2);
@@ -1044,9 +1225,10 @@ async function applyBatchEditPayload(payload) {
 .tl-thumb-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
   display: block;
-  background: var(--app-surface);
+  background: transparent;
 }
 
 .tl-thumb-empty {
@@ -1715,7 +1897,8 @@ async function applyBatchEditPayload(payload) {
     background: var(--app-glass);
   }
 
-  /* 激活态按钮（排序 / 时间线）深色下反色 */
+  /* 激活态按钮（密度 / 排序 / 时间线）深色下反色 */
+  .density-switch__option--active,
   .sort-toggle--asc,
   .timeline-toggle--active {
     background: #f5f5f7;
@@ -1870,6 +2053,11 @@ async function applyBatchEditPayload(payload) {
 
   .multi-select__check {
     stroke: var(--app-text);
+  }
+
+  .confirm-btn--danger {
+    background: #f5f5f7;
+    color: #d32f2f;
   }
 }
 </style>

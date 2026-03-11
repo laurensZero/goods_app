@@ -37,7 +37,7 @@
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
-            <span v-if="item.acquiredAt" class="hero-date">购入: {{ item.acquiredAt }}</span>
+            <span v-if="item.acquiredAt" class="hero-date">购入于 {{ item.acquiredAt }}</span>
           </div>
 
           <h1 class="hero-name">{{ item.name }}</h1>
@@ -651,6 +651,23 @@ async function confirmDelete() {
 
   .dialog-btn--ghost {
     background: var(--app-surface-soft);
+  }
+
+  .dialog-btn--danger {
+    background: #f5f5f7;
+    color: #d32f2f;
+  }
+
+  .hero-chip {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .hero-chip.ip-chip {
+    background: rgba(74, 122, 236, 0.22);
+  }
+
+  .hero-chip.char-chip {
+    background: rgba(93, 226, 160, 0.15);
   }
 
   .nav-icon-btn {

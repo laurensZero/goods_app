@@ -40,6 +40,11 @@ const supportsCacheAPI = typeof caches !== 'undefined'
 // 鈹€鈹€ Layer 1锛氬唴瀛樼紦瀛?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 /** @type {Map<string, string>} url 鈫?objectURL 鎴栧師濮?url */
 const memoryCache = new Map()
+const PRELOAD_CONCURRENCY = 2
+const preloadQueue = []
+const preloadQueued = new Set()
+let preloadActiveCount = 0
+let preloadDrainScheduled = false
 
 // 鈹€鈹€ URL 鈫?鏂囦欢鍚?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 /**
@@ -182,8 +187,46 @@ export async function getCachedImage(url) {
  */
 export function preloadImages(urls) {
   urls.forEach((url) => {
-    if (url && !memoryCache.has(url)) getCachedImage(url)
+    if (!url || memoryCache.has(url) || preloadQueued.has(url)) return
+    preloadQueue.push(url)
+    preloadQueued.add(url)
   })
+
+  schedulePreloadDrain()
+}
+
+function schedulePreloadDrain() {
+  if (preloadDrainScheduled) return
+  preloadDrainScheduled = true
+
+  const run = () => {
+    preloadDrainScheduled = false
+    drainPreloadQueue()
+  }
+
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 240 })
+    return
+  }
+
+  setTimeout(run, 32)
+}
+
+function drainPreloadQueue() {
+  while (preloadActiveCount < PRELOAD_CONCURRENCY && preloadQueue.length > 0) {
+    const url = preloadQueue.shift()
+    preloadQueued.delete(url)
+
+    if (!url || memoryCache.has(url)) continue
+
+    preloadActiveCount += 1
+    getCachedImage(url)
+      .catch(() => {})
+      .finally(() => {
+        preloadActiveCount = Math.max(0, preloadActiveCount - 1)
+        if (preloadQueue.length > 0) schedulePreloadDrain()
+      })
+  }
 }
 
 /**

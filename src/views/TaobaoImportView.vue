@@ -1372,5 +1372,11 @@ function closeEdit() {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
+
+  .text-btn--active {
+    background: #f5f5f7;
+    color: #141416;
+    box-shadow: none;
+  }
 }
 </style>
