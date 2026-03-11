@@ -186,7 +186,7 @@ function persistSearchState() {
 
   nextState[SEARCH_STATE_HISTORY_KEY] = {
     ...state,
-    scrollTop: pageBodyRef.value?.scrollTop ?? 0,
+    scrollTop: getSearchScrollTop(),
   }
   window.history.replaceState(nextState, '')
 }
@@ -406,13 +406,8 @@ async function applyBatchEditPayload(payload) {
 onMounted(async () => {
   restoreSearchState()
   if (savedScrollTop > 0) {
-    const applyScroll = () => {
-      if (pageBodyRef.value) pageBodyRef.value.scrollTop = savedScrollTop
-    }
     await nextTick()
-    applyScroll()
-    setTimeout(applyScroll, 80)
-    setTimeout(applyScroll, 200)
+    restoreSearchScrollTop(savedScrollTop)
   }
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
