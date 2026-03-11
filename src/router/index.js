@@ -91,11 +91,21 @@ if ('scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual'
 }
 
+const MANUAL_SCROLL_RESTORE_ROUTES = new Set(['home', 'search'])
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior() {
-    return false
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition && MANUAL_SCROLL_RESTORE_ROUTES.has(String(to.name || ''))) {
+      return false
+    }
+
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    return { left: 0, top: 0 }
   }
 })
 

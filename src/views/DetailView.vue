@@ -143,7 +143,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
@@ -180,6 +180,20 @@ const variantText = computed(() => getGoodsVariant(item.value))
 
 const cachedImgSrc = ref('')
 
+function resetScrollPosition() {
+  const apply = () => {
+    const pageBody = document.querySelector('.detail-page .page-body')
+    if (pageBody) pageBody.scrollTop = 0
+    try { document.documentElement.scrollTop = 0 } catch {}
+    try { document.body.scrollTop = 0 } catch {}
+    try { window.scrollTo({ top: 0, behavior: 'instant' }) } catch { window.scrollTo(0, 0) }
+  }
+
+  apply()
+  window.requestAnimationFrame(apply)
+  window.setTimeout(apply, 60)
+}
+
 watch(
   () => item.value?.image,
   async (url) => {
@@ -210,6 +224,19 @@ async function confirmDelete() {
   showDeleteDialog.value = false
   router.back()
 }
+
+onMounted(async () => {
+  await nextTick()
+  resetScrollPosition()
+})
+
+watch(
+  () => props.id,
+  async () => {
+    await nextTick()
+    resetScrollPosition()
+  }
+)
 
 </script>
 

@@ -42,7 +42,13 @@
           <div class="goods-header-btns">
             <button
               type="button"
-              :class="['sort-toggle', { 'sort-toggle--asc': sortDirection === 'asc' }]"
+              :class="[
+                'sort-toggle',
+                {
+                  'sort-toggle--asc': sortDirection === 'asc',
+                  'sort-toggle--animating': isSortAnimating
+                }
+              ]"
               :aria-label="sortDirection === 'desc' ? '当前按时间降序，点击切换升序' : '当前按时间升序，点击切换降序'"
               @click="toggleSortDirection"
             >
@@ -80,55 +86,112 @@
         </div>
       </section>
 
-      <section v-if="goodsList.length > 0 && displayDensity !== 'timeline'" class="goods-section">
-        <div
-          :class="['goods-list', { 'goods-list--density-animating': isDensityAnimating }]"
-          :style="goodsGridStyle"
+      <Transition name="goods-view-switch" mode="out-in">
+        <section
+          v-if="goodsList.length > 0 && displayDensity !== 'timeline'"
+          key="grid"
+          :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
         >
-          <GoodsCard
-            v-for="item in visibleGoodsList"
-            :key="item.id"
-            :item="item"
-            :density="displayDensity"
-            :selected="selectedIds.has(item.id)"
-            :selection-mode="selectionMode"
-            @long-press="enterSelectionMode(item.id)"
-            @toggle-select="toggleSelect(item.id)"
-            @open-detail="openDetail(item.id)"
-          />
-        </div>
-      </section>
+          <div
+            :class="[
+              'goods-list',
+              {
+                'goods-list--density-animating': isDensityAnimating
+              }
+            ]"
+            :style="goodsGridStyle"
+          >
+            <GoodsCard
+              v-for="item in visibleGoodsList"
+              :key="item.id"
+              :item="item"
+              :density="displayDensity"
+              :selected="selectedIds.has(item.id)"
+              :selection-mode="selectionMode"
+              @long-press="enterSelectionMode(item.id)"
+              @toggle-select="toggleSelect(item.id)"
+              @open-detail="openDetail(item.id)"
+            />
+          </div>
+        </section>
 
-      <!-- 时间线模式 -->
-      <template v-if="displayDensity === 'timeline' && goodsList.length > 0">
-        <div class="tl-wrapper goods-section">
-          <div class="tl-year-block" v-for="yearGroup in visibleTimelineYearGroups" :key="yearGroup.year">
-            <div class="tl-year-header">
-              <span class="tl-year-num">{{ yearGroup.year }}</span>
-              <span class="tl-year-meta">{{ yearGroup.yearCount }} 件 · {{ formatPrice(yearGroup.yearTotal) }}</span>
+        <section
+          v-else-if="goodsList.length > 0"
+          key="timeline"
+          :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
+        >
+          <div class="tl-wrapper">
+            <div class="tl-year-block" v-for="yearGroup in visibleTimelineYearGroups" :key="yearGroup.year">
+              <div class="tl-year-header">
+                <span class="tl-year-num">{{ yearGroup.year }}</span>
+                <span class="tl-year-meta">{{ yearGroup.yearCount }} 件 · {{ formatPrice(yearGroup.yearTotal) }}</span>
+              </div>
+
+              <div
+                v-for="(monthGroup, midx) in yearGroup.months"
+                :key="monthGroup.yearMonth"
+                class="tl-month-group"
+                :class="{ 'tl-month-group--last': midx === yearGroup.months.length - 1 }"
+              >
+                <div class="tl-month-rail" aria-hidden="true">
+                  <div class="tl-month-dot" />
+                  <div class="tl-month-line" />
+                </div>
+                <div class="tl-month-content">
+                  <div class="tl-month-header">
+                    <span class="tl-month-label">{{ monthGroup.month }} 月</span>
+                    <div class="tl-month-meta">
+                      <span class="tl-month-count">{{ monthGroup.count }} 件</span>
+                      <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
+                    </div>
+                  </div>
+                  <div class="tl-thumb-grid">
+                    <button
+                      v-for="item in monthGroup.items"
+                      :key="item.id"
+                      type="button"
+                      class="tl-thumb-btn"
+                      :class="{ 'tl-thumb-btn--active': expandedItemId === item.id }"
+                      @click="toggleTimelineItem(item.id)"
+                    >
+                      <div class="tl-thumb-img-wrap">
+                        <LazyCachedImage
+                          v-if="item.image"
+                          class="tl-thumb-img"
+                          :src="item.image"
+                          :alt="item.name"
+                          root-margin="120px 0px"
+                        />
+                        <div v-else class="tl-thumb-empty">✦</div>
+                      </div>
+                    </button>
+                  </div>
+                  <transition name="tl-expand">
+                    <TimelineExpandCard
+                      v-if="expandedItem && expandedSectionKey === monthGroup.yearMonth"
+                      :item="expandedItem"
+                      @open-detail="openDetail(expandedItem.id)"
+                    />
+                  </transition>
+                </div>
+              </div>
             </div>
 
-            <div
-              v-for="(monthGroup, midx) in yearGroup.months"
-              :key="monthGroup.yearMonth"
-              class="tl-month-group"
-              :class="{ 'tl-month-group--last': midx === yearGroup.months.length - 1 }"
-            >
+            <div v-if="showVisibleTimelineUnknown" class="tl-month-group tl-month-group--last">
               <div class="tl-month-rail" aria-hidden="true">
-                <div class="tl-month-dot" />
+                <div class="tl-month-dot tl-month-dot--muted" />
                 <div class="tl-month-line" />
               </div>
               <div class="tl-month-content">
                 <div class="tl-month-header">
-                  <span class="tl-month-label">{{ monthGroup.month }} 月</span>
+                  <span class="tl-month-label">日期未知</span>
                   <div class="tl-month-meta">
-                    <span class="tl-month-count">{{ monthGroup.count }} 件</span>
-                    <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
+                    <span class="tl-month-count">{{ timelineUnknown.length }} 件</span>
                   </div>
                 </div>
                 <div class="tl-thumb-grid">
                   <button
-                    v-for="item in monthGroup.items"
+                    v-for="item in timelineUnknown"
                     :key="item.id"
                     type="button"
                     class="tl-thumb-btn"
@@ -149,7 +212,7 @@
                 </div>
                 <transition name="tl-expand">
                   <TimelineExpandCard
-                    v-if="expandedItem && expandedSectionKey === monthGroup.yearMonth"
+                    v-if="expandedItem && expandedSectionKey === TIMELINE_UNKNOWN_SECTION_KEY"
                     :item="expandedItem"
                     @open-detail="openDetail(expandedItem.id)"
                   />
@@ -157,61 +220,18 @@
               </div>
             </div>
           </div>
+        </section>
 
-          <div v-if="showVisibleTimelineUnknown" class="tl-month-group tl-month-group--last">
-            <div class="tl-month-rail" aria-hidden="true">
-              <div class="tl-month-dot tl-month-dot--muted" />
-              <div class="tl-month-line" />
-            </div>
-            <div class="tl-month-content">
-              <div class="tl-month-header">
-                <span class="tl-month-label">日期未知</span>
-                <div class="tl-month-meta">
-                  <span class="tl-month-count">{{ timelineUnknown.length }} 件</span>
-                </div>
-              </div>
-              <div class="tl-thumb-grid">
-                <button
-                  v-for="item in timelineUnknown"
-                  :key="item.id"
-                  type="button"
-                  class="tl-thumb-btn"
-                  :class="{ 'tl-thumb-btn--active': expandedItemId === item.id }"
-                  @click="toggleTimelineItem(item.id)"
-                >
-                  <div class="tl-thumb-img-wrap">
-                    <LazyCachedImage
-                      v-if="item.image"
-                      class="tl-thumb-img"
-                      :src="item.image"
-                      :alt="item.name"
-                      root-margin="120px 0px"
-                    />
-                    <div v-else class="tl-thumb-empty">✦</div>
-                  </div>
-                </button>
-              </div>
-              <transition name="tl-expand">
-                <TimelineExpandCard
-                  v-if="expandedItem && expandedSectionKey === TIMELINE_UNKNOWN_SECTION_KEY"
-                  :item="expandedItem"
-                  @open-detail="openDetail(expandedItem.id)"
-                />
-              </transition>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <section v-else-if="goodsList.length === 0" class="empty-wrap">
-        <EmptyState
-          icon="✦"
-          title="还没有收藏记录"
-          description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
-          action-text="添加第一件"
-          @action="goToAdd"
-        />
-      </section>
+        <section v-else key="empty" class="empty-wrap goods-view-pane">
+          <EmptyState
+            icon="✦"
+            title="还没有收藏记录"
+            description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
+            action-text="添加第一件"
+            @action="goToAdd"
+          />
+        </section>
+      </Transition>
     </main>
 
     <Teleport to="body">
@@ -273,7 +293,8 @@ defineOptions({ name: 'HomeView' })
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const batchEditSheetRef = ref(null)
-const DENSITY_STORAGE_KEY = 'goods-app:home-density'
+const GRID_DENSITY_STORAGE_KEY = 'goods-app:home-grid-density'
+const SORT_DIRECTION_STORAGE_KEY = 'goods-app:home-sort-direction'
 const HOME_SCROLL_STORAGE_KEY = 'home-scroll'
 const HOME_SCROLL_RESTORE_PENDING_KEY = 'home-scroll-restore-pending'
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
@@ -287,6 +308,7 @@ const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.va
 const displayDensity = ref('comfortable')
 const sortDirection = ref('desc')
 const isDensityAnimating = ref(false)
+const isSortAnimating = ref(false)
 // 视口宽度，用于响应式列数计算
 const windowWidth = ref(window.innerWidth)
 const _onResize = () => { windowWidth.value = window.innerWidth }
@@ -317,10 +339,12 @@ const selectionHeaderTopOffset = ref(SELECTION_HEADER_INITIAL_OFFSET)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 let densityAnimationTimer = 0
+let sortAnimationTimer = 0
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
 let selectionHeaderScrollStart = 0
+let lastNonTimelineDensity = 'comfortable'
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
@@ -513,6 +537,7 @@ function unbindAndroidBackButton() {
 }
 
 onMounted(async () => {
+  restoreSortDirection()
   restoreDisplayDensity()
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
@@ -588,6 +613,10 @@ onBeforeUnmount(() => {
     window.clearTimeout(densityAnimationTimer)
     densityAnimationTimer = 0
   }
+  if (sortAnimationTimer) {
+    window.clearTimeout(sortAnimationTimer)
+    sortAnimationTimer = 0
+  }
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)
     pageScrollRaf = 0
@@ -605,7 +634,13 @@ onBeforeUnmount(() => {
 })
 
 watch(displayDensity, (value) => {
-  localStorage.setItem(DENSITY_STORAGE_KEY, value)
+  if (value === 'timeline') return
+  lastNonTimelineDensity = value
+  localStorage.setItem(GRID_DENSITY_STORAGE_KEY, value)
+})
+
+watch(sortDirection, (value) => {
+  localStorage.setItem(SORT_DIRECTION_STORAGE_KEY, value)
 })
 
 const goodsList = computed(() => {
@@ -766,23 +801,47 @@ function setDisplayDensity(mode) {
 // 时间线模式切换（独立于密度切换）
 function toggleTimelineMode() {
   if (displayDensity.value === 'timeline') {
-    const stored = localStorage.getItem(DENSITY_STORAGE_KEY)
-    displayDensity.value = densityColumnsMap[stored] ? stored : 'comfortable'
+    displayDensity.value = densityColumnsMap[lastNonTimelineDensity] ? lastNonTimelineDensity : 'comfortable'
   } else {
+    if (densityColumnsMap[displayDensity.value]) {
+      lastNonTimelineDensity = displayDensity.value
+    }
     displayDensity.value = 'timeline'
   }
 }
 
+function triggerSortAnimation() {
+  if (sortAnimationTimer) {
+    window.clearTimeout(sortAnimationTimer)
+    sortAnimationTimer = 0
+  }
+
+  isSortAnimating.value = true
+  sortAnimationTimer = window.setTimeout(() => {
+    isSortAnimating.value = false
+    sortAnimationTimer = 0
+  }, 220)
+}
+
 function toggleSortDirection() {
+  triggerSortAnimation()
   sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc'
 }
 
 function restoreDisplayDensity() {
-  const storedDensity = localStorage.getItem(DENSITY_STORAGE_KEY)
+  const storedDensity = localStorage.getItem(GRID_DENSITY_STORAGE_KEY)
   if (storedDensity && densityModes.find(m => m.value === storedDensity)) {
     // 手机端不恢复 tile 模式（按钮不可见，避免困惑）
     if (storedDensity === 'tile' && window.innerWidth < 600) return
+    lastNonTimelineDensity = storedDensity
     displayDensity.value = storedDensity
+  }
+}
+
+function restoreSortDirection() {
+  const storedSortDirection = localStorage.getItem(SORT_DIRECTION_STORAGE_KEY)
+  if (storedSortDirection === 'asc' || storedSortDirection === 'desc') {
+    sortDirection.value = storedSortDirection
   }
 }
 
@@ -1069,11 +1128,16 @@ async function applyBatchEditPayload(payload) {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .timeline-toggle--active {
   background: #141416;
   color: #ffffff;
+}
+
+.timeline-toggle--active svg {
+  transform: rotate(18deg) scale(1.04);
 }
 
 .timeline-toggle:active {
@@ -1318,11 +1382,20 @@ async function applyBatchEditPayload(payload) {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sort-toggle--asc {
   background: #141416;
   color: #ffffff;
+}
+
+.sort-toggle--asc svg {
+  transform: rotate(180deg);
+}
+
+.sort-toggle--animating {
+  animation: sort-toggle-pulse 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sort-toggle:active {
@@ -1333,6 +1406,26 @@ async function applyBatchEditPayload(payload) {
   display: grid;
   gap: var(--card-gap);
   align-items: start;
+}
+
+.goods-view-pane {
+  transform-origin: top center;
+}
+
+.goods-view-pane--sorting {
+  animation: sort-view-refresh 210ms ease-out;
+  will-change: opacity, transform, filter;
+}
+
+.goods-view-switch-enter-active,
+.goods-view-switch-leave-active {
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.goods-view-switch-enter-from,
+.goods-view-switch-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.992);
 }
 
 .goods-list--density-animating {
@@ -1350,6 +1443,37 @@ async function applyBatchEditPayload(payload) {
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes sort-toggle-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: var(--app-shadow);
+  }
+
+  45% {
+    transform: scale(1.08);
+    box-shadow: 0 12px 28px rgba(20, 20, 22, 0.16);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: var(--app-shadow);
+  }
+}
+
+@keyframes sort-view-refresh {
+  0% {
+    opacity: 0.84;
+    filter: blur(1.5px) saturate(0.96);
+    transform: translateY(4px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0) saturate(1);
+    transform: translateY(0);
   }
 }
 

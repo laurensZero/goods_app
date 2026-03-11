@@ -328,47 +328,79 @@ async function handleImport(event) {
 
 <style scoped>
 .manage-page {
+  position: relative;
   background: var(--app-bg);
   min-height: 100dvh;
+  overflow: hidden;
+}
+
+.manage-page::before,
+.manage-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(10px);
+}
+
+.manage-page::before {
+  top: 110px;
+  right: -120px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(90, 120, 250, 0.16) 0%, rgba(90, 120, 250, 0) 72%);
+}
+
+.manage-page::after {
+  top: 280px;
+  left: -140px;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(40, 200, 128, 0.12) 0%, rgba(40, 200, 128, 0) 74%);
 }
 
 .manage-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 56px var(--page-padding) 12px;
+  padding: 40px var(--page-padding) 14px;
   background: rgba(245, 245, 247, 0.82);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
 
 .manage-title {
+  width: min(100%, 1160px);
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.5px;
   color: var(--app-text);
-  margin: 0;
+  margin: 0 auto;
 }
 
 .page-body {
-  padding: var(--section-gap) var(--page-padding) 120px;
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1160px);
+  margin: 0 auto;
+  padding: 18px var(--page-padding) 120px;
 }
 
 .hub-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .section-gap {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .entry-card {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px;
+  padding: 18px;
   background: var(--app-surface);
   border-radius: var(--radius-card);
   box-shadow: var(--app-shadow);
@@ -379,6 +411,8 @@ async function handleImport(event) {
   cursor: pointer;
   text-align: left;
   width: 100%;
+  min-height: 108px;
+  border: 1px solid rgba(17, 20, 22, 0.04);
 }
 
 .entry-card:active {
@@ -487,13 +521,24 @@ async function handleImport(event) {
 
 /* ── 平板：两列并排布局（左：管理 / 右：导入导出）── */
 @media (min-width: 900px) {
+  .manage-header {
+    padding-top: 48px;
+    padding-bottom: 18px;
+  }
+
+  .manage-title {
+    font-size: 38px;
+    letter-spacing: -0.06em;
+  }
+
   .page-body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 28px;
+    grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.92fr);
+    column-gap: 24px;
+    row-gap: 24px;
     align-items: start;
-    max-width: 860px;
-    margin-inline: auto;
+    width: min(100%, 1240px);
+    padding-top: 26px;
     padding-inline: 28px;
   }
 
@@ -509,9 +554,63 @@ async function handleImport(event) {
   }
 }
 
+@media (min-width: 900px) {
+  .hub-section {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .hub-section:first-of-type .entry-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .entry-card {
+    min-height: 136px;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .entry-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+
+  .entry-name {
+    font-size: 18px;
+  }
+
+  .entry-desc {
+    white-space: normal;
+    line-height: 1.5;
+  }
+}
+
+@media (min-width: 900px) {
+  .page-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 1100px);
+  }
+
+  .hub-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .hub-section:first-of-type .entry-card:last-child {
+    grid-column: auto;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   .manage-header {
     background: rgba(15, 15, 16, 0.90);
+  }
+
+  .entry-card {
+    border-color: rgba(255, 255, 255, 0.04);
   }
 }
 </style>
