@@ -36,11 +36,12 @@
 
       <section class="goods-header-section">
         <div class="goods-header-row">
-          <div>
+          <div class="goods-header-left">
             <p class="section-label">我的收藏</p>
             <h2 class="section-title">全部谷子<span class="goods-count"> {{ totalQuantity }} 件</span></h2>
           </div>
-          <div class="goods-header-actions">
+          <!-- 排序 + 时间线切换 -->
+          <div class="goods-header-btns">
             <button
               type="button"
               :class="['sort-toggle', { 'sort-toggle--asc': sortDirection === 'asc' }]"
@@ -54,22 +55,34 @@
                 <path d="M14 15L17 18L20 15" />
               </svg>
             </button>
-            <div class="density-switch" aria-label="展示密度切换">
-              <button
-                v-for="mode in densityModes"
-                :key="mode.value"
-                type="button"
-                :class="['density-switch__option', { 'density-switch__option--active': displayDensity === mode.value }]"
-                @click="setDisplayDensity(mode.value)"
-              >
-                {{ mode.label }}
-              </button>
-            </div>
+            <button
+              type="button"
+              :class="['timeline-toggle', { 'timeline-toggle--active': displayDensity === 'timeline' }]"
+              aria-label="切换时间线视图"
+              @click="toggleTimelineMode"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v4l2.5 2.5" />
+                <circle cx="12" cy="12" r="8" />
+              </svg>
+            </button>
+          </div>
+          <!-- 密度切换器：手机独占一行（flex-basis:100%），平板同行 -->
+          <div v-if="displayDensity !== 'timeline'" class="density-switch" aria-label="展示密度切换">
+            <button
+              v-for="mode in densityModes"
+              :key="mode.value"
+              type="button"
+              :class="['density-switch__option', { 'density-switch__option--active': displayDensity === mode.value }]"
+              @click="setDisplayDensity(mode.value)"
+            >
+              {{ mode.label }}
+            </button>
           </div>
         </div>
       </section>
 
-      <section v-if="goodsList.length > 0" class="goods-section">
+      <section v-if="goodsList.length > 0 && displayDensity !== 'timeline'" class="goods-section">
         <div
           :class="['goods-list', { 'goods-list--density-animating': isDensityAnimating }]"
           :style="goodsGridStyle"
@@ -88,7 +101,86 @@
         </div>
       </section>
 
-      <section v-else class="empty-wrap">
+      <!-- 时间线模式 -->
+      <template v-if="displayDensity === 'timeline' && goodsList.length > 0">
+        <div class="tl-wrapper goods-section">
+          <div class="tl-year-block" v-for="yearGroup in timelineYearGroups" :key="yearGroup.year">
+            <!-- 年度汇总行 -->
+            <div class="tl-year-header">
+              <span class="tl-year-num">{{ yearGroup.year }}</span>
+              <span class="tl-year-meta">{{ yearGroup.yearCount }} 件 · {{ formatPrice(yearGroup.yearTotal) }}</span>
+            </div>
+            <!-- 各月份 -->
+            <div
+              v-for="(monthGroup, midx) in yearGroup.months"
+              :key="monthGroup.yearMonth"
+              class="tl-month-group"
+              :class="{ 'tl-month-group--last': midx === yearGroup.months.length - 1 }"
+            >
+              <div class="tl-month-dot" />
+              <div class="tl-month-content">
+                <div class="tl-month-header">
+                  <span class="tl-month-label">{{ monthGroup.month }} 月</span>
+                  <span class="tl-month-count">{{ monthGroup.count }} 件</span>
+                  <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
+                </div>
+                <div class="tl-thumb-grid">
+                  <button
+                    v-for="item in monthGroup.items"
+                    :key="item.id"
+                    type="button"
+                    class="tl-thumb-btn"
+                    @click="openDetail(item.id)"
+                  >
+                    <div class="tl-thumb-img-wrap">
+                      <img
+                        v-if="item.image"
+                        class="tl-thumb-img"
+                        :src="item.image"
+                        :alt="item.name"
+                        loading="lazy"
+                      />
+                      <div v-else class="tl-thumb-empty">✦</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 日期未知 -->
+          <div v-if="timelineUnknown.length > 0" class="tl-month-group tl-month-group--last">
+            <div class="tl-month-dot tl-month-dot--muted" />
+            <div class="tl-month-content">
+              <div class="tl-month-header">
+                <span class="tl-month-label">日期未知</span>
+                <span class="tl-month-count">{{ timelineUnknown.length }} 件</span>
+              </div>
+              <div class="tl-thumb-grid">
+                <button
+                  v-for="item in timelineUnknown"
+                  :key="item.id"
+                  type="button"
+                  class="tl-thumb-btn"
+                  @click="openDetail(item.id)"
+                >
+                  <div class="tl-thumb-img-wrap">
+                    <img
+                      v-if="item.image"
+                      class="tl-thumb-img"
+                      :src="item.image"
+                      :alt="item.name"
+                      loading="lazy"
+                    />
+                    <div v-else class="tl-thumb-empty">✦</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <section v-else-if="goodsList.length === 0" class="empty-wrap">
         <EmptyState
           icon="✦"
           title="还没有收藏记录"
@@ -140,6 +232,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { preloadImages } from '@/utils/imageCache'
+import { formatPrice } from '@/utils/format'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import SummaryCard from '@/components/SummaryCard.vue'
@@ -409,6 +502,44 @@ const totalValue = computed(() =>
 const totalQuantity = computed(() =>
   goodsList.value.reduce((sum, g) => sum + (Number(g.quantity) || 1), 0)
 )
+
+// ── 时间线年月分组 ──
+const timelineYearGroups = computed(() => {
+  const monthMap = {}
+  for (const item of goodsList.value) {
+    if (!item.acquiredAt) continue
+    const ym = String(item.acquiredAt).slice(0, 7)
+    if (!/^\d{4}-\d{2}$/.test(ym)) continue
+    if (!monthMap[ym]) monthMap[ym] = []
+    monthMap[ym].push(item)
+  }
+  const yearMap = {}
+  Object.entries(monthMap).forEach(([ym, items]) => {
+    const year = ym.slice(0, 4)
+    if (!yearMap[year]) yearMap[year] = {}
+    yearMap[year][ym] = items
+  })
+  return Object.entries(yearMap)
+    .sort(([a], [b]) => sortDirection.value === 'asc' ? a.localeCompare(b) : b.localeCompare(a))
+    .map(([year, ymMap]) => {
+      const months = Object.entries(ymMap)
+        .sort(([a], [b]) => sortDirection.value === 'asc' ? a.localeCompare(b) : b.localeCompare(a))
+        .map(([ym, items]) => {
+          const [, m] = ym.split('-')
+          const totalSpend = items.reduce((sum, g) => { const p = parseFloat(g.price); return sum + (isNaN(p) ? 0 : p) }, 0)
+          return { yearMonth: ym, month: String(parseInt(m, 10)), count: items.length, totalSpend, items }
+        })
+      const yearTotal = months.reduce((s, m) => s + m.totalSpend, 0)
+      const yearCount = months.reduce((s, m) => s + m.count, 0)
+      return { year, months, yearTotal, yearCount }
+    })
+})
+const timelineUnknown = computed(() =>
+  goodsList.value.filter((item) => {
+    if (!item.acquiredAt) return true
+    return !/^\d{4}-\d{2}$/.test(String(item.acquiredAt).slice(0, 7))
+  })
+)
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
@@ -430,6 +561,16 @@ function setDisplayDensity(mode) {
     isDensityAnimating.value = false
     densityAnimationTimer = 0
   }, 170)
+}
+
+// 时间线模式切换（独立于密度切换）
+function toggleTimelineMode() {
+  if (displayDensity.value === 'timeline') {
+    const stored = localStorage.getItem(DENSITY_STORAGE_KEY)
+    displayDensity.value = densityColumnsMap[stored] ? stored : 'comfortable'
+  } else {
+    displayDensity.value = 'timeline'
+  }
 }
 
 function toggleSortDirection() {
@@ -585,17 +726,22 @@ async function applyBatchEditPayload(payload) {
 
 .goods-header-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
-.goods-header-actions {
+.goods-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.goods-header-btns {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .goods-count {
@@ -628,14 +774,29 @@ async function applyBatchEditPayload(payload) {
   box-shadow: var(--app-shadow);
 }
 
+/* 手机：密度切换器换行占满宽度；平板：回到同行右侧 */
 .density-switch {
-  display: inline-grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   padding: 6px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.86);
   box-shadow: var(--app-shadow);
+}
+
+@media (min-width: 600px) {
+  .density-switch {
+    flex-basis: auto;
+    display: inline-grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    order: 2; /* 平板：密度选择器排在按钮前面 */
+  }
+
+  .goods-header-btns {
+    order: 3; /* 平板：两个按钮排在密度选择器后面 */
+  }
 }
 
 .density-switch__option {
@@ -658,6 +819,223 @@ async function applyBatchEditPayload(payload) {
 
 .density-switch__option:active {
   transform: scale(0.96);
+}
+
+/* ── 时间线切换按钮 ── */
+.timeline-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--app-text-secondary);
+  box-shadow: var(--app-shadow);
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+  flex-shrink: 0;
+}
+
+.timeline-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.timeline-toggle--active {
+  background: #141416;
+  color: #ffffff;
+}
+
+.timeline-toggle:active {
+  transform: scale(0.96);
+}
+
+/* ── 时间线年表模式 ── */
+.tl-wrapper {
+  position: relative;
+}
+
+/* === 年度 block wrapper === */
+.tl-year-block {
+  margin-top: 0;
+}
+
+.tl-year-block + .tl-year-block {
+  margin-top: 4px;
+}
+
+/* 年度标题行 */
+.tl-year-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 0 16px;
+  border-top: 1.5px solid var(--app-border, rgba(0, 0, 0, 0.08));
+}
+
+.tl-year-block:first-child .tl-year-header {
+  border-top: none;
+  padding-top: 0;
+}
+
+.tl-year-num {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--app-text);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.tl-year-meta {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--app-text-secondary, rgba(0, 0, 0, 0.45));
+  white-space: nowrap;
+}
+
+/* === 每个月份行（含左侧竖线和圆点）=== */
+.tl-month-group {
+  position: relative;
+  padding-left: 28px;
+  padding-bottom: 22px;
+}
+
+/* 竖线 */
+.tl-month-group::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--app-border, rgba(0, 0, 0, 0.08));
+}
+
+.tl-month-group--last::before {
+  bottom: auto;
+  height: 14px;
+}
+
+/* 圆点 */
+.tl-month-dot {
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--app-text, #141416);
+  border: 2.5px solid var(--app-bg, #f5f5f7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.tl-month-dot--muted {
+  background: var(--app-text-tertiary);
+  box-shadow: none;
+}
+
+.tl-month-content {
+  padding-left: 2px;
+}
+
+/* 月份小标题行 */
+.tl-month-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tl-month-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--app-text);
+  letter-spacing: -0.01em;
+}
+
+/* 件数 pill */
+.tl-month-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-text-secondary, rgba(0, 0, 0, 0.45));
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+/* 金额：推到右侧，字号放大 */
+.tl-month-spend {
+  margin-left: auto;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(32, 112, 192, 1);
+}
+
+/* === 缩略图网格 === */
+.tl-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 600px) {
+  .tl-thumb-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+@media (min-width: 900px) {
+  .tl-thumb-grid { grid-template-columns: repeat(8, 1fr); }
+}
+
+@media (min-width: 1200px) {
+  .tl-thumb-grid { grid-template-columns: repeat(10, 1fr); }
+}
+
+.tl-thumb-btn {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.tl-thumb-btn:active {
+  transform: scale(0.94);
+  opacity: 0.8;
+}
+
+.tl-thumb-img-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--app-surface-soft, #eeeff2);
+}
+
+.tl-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tl-thumb-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 14px;
 }
 
 .sort-toggle {

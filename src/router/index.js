@@ -62,6 +62,12 @@ const routes = [
     meta: { title: '管理' }
   },
   {
+    path: '/timeline',
+    name: 'timeline',
+    component: () => import('@/views/TimelineView.vue'),
+    meta: { title: '时间线', keepAlive: true }
+  },
+  {
     path: '/manage/categories',
     name: 'manage-categories',
     component: () => import('@/views/CategoryManageView.vue'),
