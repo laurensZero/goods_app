@@ -13,34 +13,31 @@
             </svg>
           </div>
           <div class="url-body">
-            <p class="url-hint">粘贴米游铺商品链接</p>
+            <p class="url-hint">粘贴米游铺商品链接（支持多个，每行一个）</p>
             <div class="url-input-row">
-              <input
+              <textarea
                 ref="urlInputRef"
                 :value="urlInput"
-                type="text"
-                inputmode="url"
                 autocapitalize="off"
                 autocomplete="off"
                 autocorrect="off"
                 spellcheck="false"
                 class="url-input"
-                placeholder="https://www.mihoyogift.com/goods/... 或 /m/goods/..."
+                placeholder="https://www.mihoyogift.com/goods/...或多条链接，每行一个"
                 @input="syncUrlInput($event)"
                 @blur="syncUrlInput($event)"
                 @change="syncUrlInput($event)"
                 @compositionend="syncUrlInput($event)"
                 @paste="syncUrlInputLater"
-                @keydown.enter="handleParse"
               />
               <button
                 class="btn-parse"
-                :class="{ 'btn-parse--loading': parsing }"
-                :disabled="parsing"
+                :class="{ 'btn-parse--loading': parsing || batchParsing }"
+                :disabled="parsing || batchParsing || batchStep === 'list'"
                 @pointerdown="syncUrlInput()"
-                @click="handleParse"
+                @click="batchMode ? handleBatchImport() : handleParse()"
               >
-                <span v-if="!parsing">解析</span>
+                <span v-if="!parsing && !batchParsing">{{ batchMode ? `批量解析 (${urlList.length})` : '解析' }}</span>
                 <span v-else class="parse-spinner" />
               </button>
             </div>
@@ -69,9 +66,9 @@
         </svg>
       </button>
 
-      <!-- ② 解析结果 / 编辑表单（解析成功后展示） -->
+      <!-- ② 解析结果 / 编辑表单（解析成功后展示，仅单一模式） -->
       <transition name="result-fade">
-        <div v-if="parsed" class="result-area">
+        <div v-if="parsed && !batchMode" class="result-area">
           <!-- 预览卡 -->
           <section class="manage-hero">
             <div class="preview-stage">
@@ -229,24 +226,208 @@
         </div>
       </transition>
 
+      <!-- 批量解析进度 -->
+      <transition name="result-fade">
+        <section v-if="batchStep === 'parsing'" class="batch-section">
+          <div class="section-head">
+            <p class="section-label">批量解析</p>
+            <h2 class="section-title">正在识别链接…</h2>
+          </div>
+          <div class="field-card batch-progress-card">
+            <div v-for="(item, i) in batchItems" :key="i" class="batch-progress-row">
+              <span class="batch-status-indicator" :class="`batch-si--${item.status}`">
+                <svg v-if="item.status === 'ready'" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span v-else-if="item.status === 'parsing'" class="parse-spinner batch-spinner" />
+                <svg v-else-if="item.status === 'error'" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                </svg>
+                <span v-else class="batch-si-dot" />
+              </span>
+              <span class="batch-progress-text">
+                {{ item.status === 'ready' ? item.data?.name : shortenUrl(item.url) }}
+              </span>
+              <span v-if="item.status === 'error'" class="batch-progress-err">{{ item.error }}</span>
+            </div>
+          </div>
+        </section>
+      </transition>
+
+      <!-- 批量导入结果列表 -->
+      <transition name="result-fade">
+        <section v-if="batchStep === 'list'" class="batch-section">
+          <div class="section-head">
+            <p class="section-label">
+              识别完成{{ batchItems.filter(i => i.status === 'error').length ? ' · ' + batchItems.filter(i => i.status === 'error').length + ' 件失败' : '' }}
+            </p>
+            <h2 class="section-title">{{ batchItems.filter(i => i.status === 'ready' || i.status === 'saved').length }} 件谷子就绪</h2>
+          </div>
+          <ul class="field-card batch-goods-list">
+            <li
+              v-for="(item, i) in batchItems"
+              :key="i"
+              class="batch-goods-row"
+              :class="{ 'batch-goods-row--saved': item.status === 'saved', 'batch-goods-row--error': item.status === 'error' }"
+            >
+              <div class="batch-goods-thumb">
+                <img
+                  v-if="item.data?.image"
+                  :src="item.data.image"
+                  class="batch-goods-img"
+                  loading="lazy"
+                />
+                <span v-else class="batch-goods-initial">{{ (item.data?.name || '?').charAt(0) }}</span>
+              </div>
+              <div class="batch-goods-info">
+                <p class="batch-goods-name">{{ item.data?.name || shortenUrl(item.url) }}</p>
+                <div class="batch-goods-meta">
+                  <span v-if="item.data?.price" class="batch-meta-tag batch-meta-tag--price">¥{{ item.data.price }}</span>
+                  <span v-if="item.data?.ip" class="batch-meta-tag">{{ item.data.ip }}</span>
+                  <span v-if="item.data?.variant" class="batch-meta-tag">{{ item.data.variant }}</span>
+                  <span v-if="item.data?.variants?.length && !item.data?.variant" class="batch-meta-tag batch-meta-tag--hint">{{ item.data.variants.length }} 款可选</span>
+                  <span v-if="item.status === 'error'" class="batch-meta-tag batch-meta-tag--error">{{ item.error }}</span>
+                </div>
+              </div>
+              <span v-if="item.status === 'saved'" class="batch-saved-badge">已保存</span>
+              <button
+                v-if="item.status === 'ready'"
+                class="batch-goods-edit-btn"
+                type="button"
+                aria-label="编辑"
+                @click="openBatchEdit(i)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            </li>
+          </ul>
+          <button class="batch-reparse-link" type="button" @click="batchStep = 'input'; batchItems = []">
+            重新输入链接
+          </button>
+        </section>
+      </transition>
+
       <!-- 底部空白，防止内容被浮动按钮遮挡 -->
       <div style="height: 120px" />
     </main>
 
     <!-- 浮动保存按钮（Teleport 到 body，避免 will-change 影响 fixed 定位） -->
     <Teleport to="body">
-      <div v-if="parsed" class="float-footer">
-        <button
-          class="btn-primary btn-float"
-          @click="handleSave"
-        >保存谷子</button>
+      <!-- 单条模式保存 -->
+      <div v-if="parsed && !batchMode" class="float-footer">
+        <button class="btn-primary btn-float" @click="handleSave">保存谷子</button>
       </div>
+      <!-- 批量模式保存全部 -->
+      <div v-if="batchStep === 'list' && batchItems.some(i => i.status === 'ready')" class="float-footer">
+        <button class="btn-primary btn-float" :disabled="savingAll" @click="saveAllBatch">
+          {{ savingAll ? '保存中...' : `保存全部 (${batchItems.filter(i => i.status === 'ready').length})` }}
+        </button>
+      </div>
+      <!-- 批量编辑遮罩 -->
+      <Transition name="batch-sheet-backdrop">
+        <div v-if="editingBatchIdx >= 0" class="batch-edit-backdrop" @click="editingBatchIdx = -1" />
+      </Transition>
+      <!-- 批量编辑底部面板 -->
+      <Transition name="batch-sheet-slide">
+        <div v-if="editingBatchIdx >= 0" class="batch-edit-sheet">
+          <div class="batch-edit-handle" />
+          <p class="batch-edit-title">编辑商品资料</p>
+          <div class="batch-edit-form">
+            <label class="field">
+              <span class="field-label">名称</span>
+              <input v-model="batchEditForm.name" type="text" placeholder="商品名称" />
+            </label>
+            <label class="field">
+              <span class="field-label">分类</span>
+              <AppSelect v-model="batchEditForm.category" :options="presets.categories" placeholder="请选择分类" />
+            </label>
+            <label class="field">
+              <span class="field-label">IP</span>
+              <AppSelect v-model="batchEditForm.ip" :options="presets.ips" placeholder="请选择 IP" />
+            </label>
+            <label class="field">
+              <span class="field-label">价格（元）</span>
+              <input v-model.number="batchEditForm.price" type="number" placeholder="0.00" min="0" step="0.01" />
+            </label>
+            <!-- 款式选择（有 SKU 变体时显示） -->
+            <div v-if="batchEditVariants.length > 0" class="field">
+              <span class="field-label">
+                选择款式
+                <span class="auto-badge">{{ batchEditVariants.length }} 款</span>
+              </span>
+              <div class="variant-grid">
+                <button
+                  v-for="v in batchEditVariants"
+                  :key="v.key"
+                  type="button"
+                  class="variant-btn"
+                  :class="{ 'variant-btn--selected': batchEditSelectedVariantKey === v.key }"
+                  @click="handleBatchVariantSelect(v)"
+                >
+                  <div class="variant-img-wrap">
+                    <img
+                      class="variant-img"
+                      :src="v.cover_url || v.img_url"
+                      :alt="v.text"
+                    />
+                  </div>
+                  <span class="variant-name">{{ displayVariantText(v.text) }}</span>
+                  <div v-if="batchEditSelectedVariantKey === v.key" class="variant-check">✓</div>
+                </button>
+              </div>
+            </div>
+            <!-- 图片选择 -->
+            <div v-if="batchEditImages.length > 1" class="field">
+              <span class="field-label">选择图片</span>
+              <div class="img-picker-scroll">
+                <button
+                  v-for="(imgUrl, idx) in batchEditImages"
+                  :key="idx"
+                  type="button"
+                  class="img-picker-item"
+                  :class="{ 'img-picker-item--active': batchEditForm.image === imgUrl }"
+                  @click="batchEditForm.image = imgUrl"
+                >
+                  <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="`图片${idx+1}`" />
+                  <span v-if="idx === 0" class="img-picker-badge">封面</span>
+                  <div v-if="batchEditForm.image === imgUrl" class="img-picker-check">✓</div>
+                </button>
+              </div>
+            </div>
+            <label class="field">
+              <span class="field-label">购买日期</span>
+              <button class="date-field" type="button" @click="openBatchDatePicker">
+                <span :class="{ 'date-field__value--placeholder': !batchEditForm.purchaseDate }">
+                  {{ batchEditForm.purchaseDate || '请选择日期' }}
+                </span>
+                <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="16" rx="3" />
+                  <path d="M8 3V7" />
+                  <path d="M16 3V7" />
+                  <path d="M3 10H21" />
+                </svg>
+              </button>
+            </label>
+            <label class="field">
+              <span class="field-label">备注</span>
+              <input v-model="batchEditForm.notes" type="text" placeholder="可填写款式、编号等" />
+            </label>
+          </div>
+          <div class="batch-edit-actions">
+            <button class="batch-edit-cancel" type="button" @click="editingBatchIdx = -1">取消</button>
+            <button class="batch-edit-save" type="button" @click="saveBatchEdit">完成</button>
+          </div>
+        </div>
+      </Transition>
     </Teleport>
 
     <!-- 日期选择器弹层（teleport 到 body 防止被 float-footer 遮挡） -->
     <Popup v-model:show="showDatePicker" teleport="body" :z-index="2000" position="bottom" round class="picker-popup">
       <DatePicker
-        :model-value="toDatePickerValue(form.purchaseDate)"
+        v-model="datePickerValue"
         title="选择购买日期"
         :min-date="minDate"
         :max-date="maxDate"
@@ -254,11 +435,23 @@
         @confirm="onDateConfirm"
       />
     </Popup>
+
+    <!-- 批量编辑日期选择器（z-index 高于批量编辑面板） -->
+    <Popup v-model:show="showBatchDatePicker" teleport="body" :z-index="2100" position="bottom" round class="picker-popup">
+      <DatePicker
+        v-model="batchDatePickerValue"
+        title="选择购买日期"
+        :min-date="minDate"
+        :max-date="maxDate"
+        @cancel="showBatchDatePicker = false"
+        @confirm="onBatchDateConfirm"
+      />
+    </Popup>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
 import { useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
@@ -280,6 +473,197 @@ const urlInput = ref('')
 const parsing = ref(false)
 const parseError = ref('')
 const parsed = ref(false)
+
+// 多 URL 批量导入状态
+const urlList = computed(() => {
+  const text = urlInput.value || ''
+  return text.split(/[\n\s]+/).map(s => s.trim()).filter(s => isMihoyoGiftUrl(s))
+})
+const batchMode = computed(() => urlList.value.length > 1)
+// 批量步骤: 'input' | 'parsing' | 'list'
+const batchStep = ref('input')
+const batchItems = ref([]) // { url, status: 'pending'|'parsing'|'ready'|'error'|'saved', data, error }
+const batchParsing = ref(false)
+const editingBatchIdx = ref(-1)
+const batchEditForm = reactive({
+  name: '', category: '', ip: '', image: '', price: '',
+  notes: '', characters: [], purchaseDate: '', variant: '',
+})
+const batchEditImages = ref([])
+const batchEditVariants = ref([])           // SKU 变体列表 { text, key, img_url, cover_url? }
+const batchEditSelectedVariantKey = ref('') // 当前选中款式 key
+const savingAll = ref(false)
+
+// 用户编辑输入时重置批量状态
+watch(urlInput, () => {
+  if (batchStep.value !== 'input') {
+    batchStep.value = 'input'
+    batchItems.value = []
+  }
+})
+
+function shortenUrl(url) {
+  try {
+    const u = new URL(url)
+    const path = u.pathname.split('/').filter(Boolean).join('/')
+    return path.length > 38 ? path.slice(0, 38) + '…' : path
+  } catch {
+    return url.length > 38 ? url.slice(0, 38) + '…' : url
+  }
+}
+
+async function handleBatchImport() {
+  syncUrlInput()
+  const urls = urlList.value
+  if (!urls.length) return
+  parseError.value = ''
+  batchStep.value = 'parsing'
+  batchParsing.value = true
+  batchItems.value = urls.map(url => ({ url, status: 'pending', data: null, error: '' }))
+  for (const item of batchItems.value) {
+    item.status = 'parsing'
+    try {
+      const result = await parseMihoyoUrl(item.url)
+      if (result.ip && !presets.ips.includes(result.ip)) presets.addIp(result.ip)
+      const detectedCat = detectCategory(result.name)
+      if (detectedCat && !presets.categories.includes(detectedCat)) presets.addCategory(detectedCat)
+      const allImgs = [result.image, ...(result.banners || [])]
+        .map(u => (u || '').split('?')[0])
+        .filter(Boolean)
+        .filter((u, i, arr) => arr.indexOf(u) === i)
+      item.data = {
+        name: result.name?.trim() || '',
+        category: detectedCat || '',
+        ip: result.ip || '',
+        image: allImgs[0] || '',
+        price: result.price != null ? String(result.price) : '',
+        notes: '',
+        characters: [],
+        purchaseDate: '',
+        variant: '',
+        selectedVariantKey: '',
+        parsedImages: allImgs,
+        variants: result.variants || [],
+        goodsId: result.goodsId || '',
+      }
+      item.status = 'ready'
+      // 异步补全 SKU cover_url + 价格（不阻塞列表显示）
+      if (result.goodsId) {
+        fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, coverUrl, mainImages }) => {
+          item.data.variants = item.data.variants.map(v => ({
+            ...v,
+            cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
+            price: skuPrices[v.key] ?? null,
+          }))
+          const extras = mainImages
+            .map(u => (u || '').split('?')[0])
+            .filter(u => u && !item.data.parsedImages.includes(u))
+          if (extras.length) item.data.parsedImages = [...item.data.parsedImages, ...extras]
+        }).catch(() => {})
+      }
+    } catch (e) {
+      item.status = 'error'
+      item.error = e.message || '解析失败'
+    }
+  }
+  batchParsing.value = false
+  batchStep.value = 'list'
+}
+
+function openBatchEdit(idx) {
+  const item = batchItems.value[idx]
+  if (!item?.data) return
+  editingBatchIdx.value = idx
+  Object.assign(batchEditForm, {
+    name: item.data.name,
+    category: item.data.category,
+    ip: item.data.ip,
+    image: item.data.image,
+    price: item.data.price,
+    notes: item.data.notes,
+    characters: [...item.data.characters],
+    purchaseDate: item.data.purchaseDate,
+    variant: item.data.variant || '',
+  })
+  batchEditImages.value = item.data.parsedImages || []
+  batchEditVariants.value = item.data.variants || []
+  batchEditSelectedVariantKey.value = item.data.selectedVariantKey || ''
+}
+
+function saveBatchEdit() {
+  const idx = editingBatchIdx.value
+  if (idx < 0) return
+  Object.assign(batchItems.value[idx].data, {
+    name: batchEditForm.name,
+    category: batchEditForm.category,
+    ip: batchEditForm.ip,
+    image: batchEditForm.image,
+    price: batchEditForm.price,
+    notes: batchEditForm.notes,
+    characters: [...batchEditForm.characters],
+    purchaseDate: batchEditForm.purchaseDate,
+    variant: batchEditForm.variant,
+    selectedVariantKey: batchEditSelectedVariantKey.value,
+  })
+  editingBatchIdx.value = -1
+}
+
+// ── 批量编辑中选择款式 ──
+function handleBatchVariantSelect(v) {
+  if (batchEditSelectedVariantKey.value === v.key) {
+    // 取消选中
+    batchEditSelectedVariantKey.value = ''
+    batchEditForm.variant = ''
+  } else {
+    batchEditSelectedVariantKey.value = v.key
+    batchEditForm.variant = displayVariantText(v.text)
+    // 优先用 cover_url，其次 img_url
+    const raw = (v.cover_url || v.img_url || '').split('?')[0]
+    if (raw) {
+      if (!batchEditImages.value.includes(raw)) {
+        batchEditImages.value.unshift(raw)
+      }
+      batchEditForm.image = raw
+    }
+    // 如果该 SKU 有独立定价则联动更新价格
+    if (v.price != null) {
+      batchEditForm.price = v.price
+    }
+  }
+}
+
+async function saveAllBatch() {
+  savingAll.value = true
+  for (const item of batchItems.value) {
+    if (item.status !== 'ready') continue
+    item.status = 'saving'
+    try {
+      for (const charName of item.data.characters) {
+        if (!presets.characters.some(c => (typeof c === 'string' ? c : c.name) === charName)) {
+          presets.addCharacter(charName, item.data.ip || '')
+        }
+      }
+      await goodsStore.addGoods({
+        name: item.data.name?.trim() || '',
+        category: item.data.category,
+        ip: item.data.ip,
+        image: item.data.image,
+        price: item.data.price === '' ? null : Number(item.data.price),
+        source: '米游铺',
+        purchaseDate: item.data.purchaseDate,
+        notes: item.data.notes,
+        characters: item.data.characters,
+        variant: item.data.variant || undefined,
+      })
+      item.status = 'saved'
+    } catch (e) {
+      item.status = 'error'
+      item.error = e.message || '保存失败'
+    }
+  }
+  savingAll.value = false
+  router.replace('/home')
+}
 const parsedImages = ref([])  // 所有可用图（cover + banners）
 const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
 const selectedVariantKey = ref('')  // 当前选中的 SKU key
@@ -289,8 +673,11 @@ const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
 
 // ── 日期选择器 ──
 const showDatePicker = ref(false)
+const showBatchDatePicker = ref(false)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
+const datePickerValue = ref(toDatePickerValue(''))
+const batchDatePickerValue = ref(toDatePickerValue(''))
 
 const form = reactive({
   name: '',
@@ -437,6 +824,10 @@ function handleVariantSelect(v) {
       }
       form.image = raw
     }
+    // 如果该 SKU 有独立定价则联动更新价格
+    if (v.price != null) {
+      form.price = v.price
+    }
   }
 }
 
@@ -498,11 +889,12 @@ async function handleParse() {
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
     if (result.goodsId) {
-      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, coverUrl }) => {
-        // 把 SKU cover_url 回填到对应变体
+      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, skuPrices, coverUrl }) => {
+        // 把 SKU cover_url + price 回填到对应变体
         parsedVariants.value = parsedVariants.value.map(v => ({
           ...v,
-          cover_url: skuCovers[v.key] || v.cover_url || coverUrl || ''
+          cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
+          price: skuPrices[v.key] ?? null,
         }))
         // 补充 main_url 图片到选择器
         const extras = mainImages
@@ -546,13 +938,28 @@ async function handleParse() {
 
 // ── 日期选择器逻辑 ──
 function openDatePicker() {
+  datePickerValue.value = toDatePickerValue(form.purchaseDate)
   showDatePicker.value = true
 }
 
 function onDateConfirm({ selectedValues }) {
   const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
   form.purchaseDate = `${year}-${month}-${day}`
+  datePickerValue.value = [year, month, day]
   showDatePicker.value = false
+}
+
+// ── 批量编辑日期选择器 ──
+function openBatchDatePicker() {
+  batchDatePickerValue.value = toDatePickerValue(batchEditForm.purchaseDate)
+  showBatchDatePicker.value = true
+}
+
+function onBatchDateConfirm({ selectedValues }) {
+  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+  batchEditForm.purchaseDate = `${year}-${month}-${day}`
+  batchDatePickerValue.value = [year, month, day]
+  showBatchDatePicker.value = false
 }
 
 function toDatePickerValue(dateString) {
@@ -711,14 +1118,15 @@ async function handleSave() {
 
 .url-input-row {
   display: flex;
+  align-items: flex-start;
   gap: 8px;
 }
 
 .url-input {
   flex: 1;
   min-width: 0;
-  height: 40px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 10px 12px;
   border: 1px solid rgba(20, 20, 22, 0.1);
   border-radius: 10px;
   background: #f4f4f6;
@@ -726,6 +1134,11 @@ async function handleSave() {
   color: var(--app-text);
   outline: none;
   transition: border-color 0.15s;
+  resize: none;
+  line-height: 1.45;
+  font-family: inherit;
+  overflow-y: auto;
+  max-height: 160px;
 }
 
 .url-input::placeholder {
@@ -789,6 +1202,234 @@ async function handleSave() {
   white-space: pre-line;
   line-height: 1.5;
 }
+
+/* ── 批量导入区段 ── */
+.batch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 解析进度卡片 */
+.batch-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 14px !important;
+}
+
+.batch-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.06);
+}
+.batch-progress-row:last-child {
+  border-bottom: none;
+}
+
+.batch-status-indicator {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.batch-si--pending  { background: rgba(142,142,147,0.12); }
+.batch-si--parsing  { background: rgba(32,112,192,0.12); }
+.batch-si--ready    { background: rgba(40,167,69,0.12); color: #28a745; }
+.batch-si--ready svg,
+.batch-si--error svg { width: 13px; height: 13px; }
+.batch-si--error    { background: rgba(199,68,68,0.12); color: #c74444; }
+.batch-si--saved    { background: rgba(40,167,69,0.08); color: #28a745; }
+.batch-si-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(60,60,67,0.25);
+}
+.batch-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(32,112,192,0.22);
+  border-top-color: #2070c0;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.batch-progress-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--app-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.batch-progress-err {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #c74444;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 结果列表 */
+.batch-goods-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.batch-goods-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(60,60,67,0.06);
+  transition: background 0.12s;
+}
+.batch-goods-row:last-child {
+  border-bottom: none;
+}
+.batch-goods-row--saved {
+  opacity: 0.5;
+}
+.batch-goods-row--error {
+  background: rgba(199,68,68,0.04);
+}
+
+.batch-goods-thumb {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e5e5ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.batch-goods-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.batch-goods-initial {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--app-text-tertiary);
+  line-height: 1;
+}
+
+.batch-goods-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.batch-goods-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.batch-goods-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.batch-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: rgba(60,60,67,0.08);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.batch-meta-tag--price {
+  background: rgba(32,112,192,0.1);
+  color: #1a5fa8;
+}
+.batch-meta-tag--hint {
+  background: rgba(32,112,192,0.08);
+  color: #2070c0;
+}
+.batch-meta-tag--error {
+  background: rgba(199,68,68,0.1);
+  color: #c74444;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-saved-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(40,167,69,0.12);
+  color: #28a745;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.batch-goods-edit-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(60,60,67,0.08);
+  color: var(--app-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.batch-goods-edit-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.batch-goods-edit-btn:active {
+  transform: scale(0.92);
+  background: rgba(60,60,67,0.16);
+}
+
+.batch-reparse-link {
+  align-self: center;
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 
 /* ── 结果区过渡 ── */
 .result-fade-enter-active { transition: opacity 0.35s ease, transform 0.35s ease; }
@@ -1304,6 +1945,123 @@ async function handleSave() {
 }
 .save-char-toggle--on .save-char-knob {
   transform: translateX(18px);
+}
+
+/* ── 批量编辑底部面板 ── */
+.batch-edit-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.batch-edit-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2001;
+  background: var(--app-bg, #f2f2f7);
+  border-radius: 20px 20px 0 0;
+  padding: 12px 20px calc(env(safe-area-inset-bottom, 16px) + 12px);
+  max-height: 85dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.batch-edit-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(60, 60, 67, 0.25);
+  align-self: center;
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+
+.batch-edit-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--app-text);
+  margin: 0 0 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.batch-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.batch-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-shrink: 0;
+}
+
+.batch-edit-cancel {
+  flex: 1;
+  height: 48px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(60, 60, 67, 0.1);
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.12s;
+}
+
+.batch-edit-cancel:active {
+  transform: scale(0.97);
+  opacity: 0.75;
+}
+
+.batch-edit-save {
+  flex: 2;
+  height: 48px;
+  border-radius: 14px;
+  border: none;
+  background: var(--app-text);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: opacity 0.15s, transform 0.12s;
+}
+
+.batch-edit-save:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* ── 批量编辑面板过渡动画 ── */
+.batch-sheet-backdrop-enter-active,
+.batch-sheet-backdrop-leave-active {
+  transition: opacity 0.25s ease;
+}
+.batch-sheet-backdrop-enter-from,
+.batch-sheet-backdrop-leave-to {
+  opacity: 0;
+}
+
+.batch-sheet-slide-enter-active {
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.batch-sheet-slide-leave-active {
+  transition: transform 0.22s ease-in;
+}
+.batch-sheet-slide-enter-from,
+.batch-sheet-slide-leave-to {
+  transform: translateY(100%);
 }
 
 </style>

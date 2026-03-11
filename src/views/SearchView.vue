@@ -122,12 +122,11 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Capacitor } from '@capacitor/core'
-import { App } from '@capacitor/app'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import SearchBar from '@/components/SearchBar.vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -154,7 +153,7 @@ const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
-let nativeBackButtonHandle = null
+let removeAndroidBackListener = null
 let savedScrollTop = 0
 
 function buildSearchState() {
@@ -285,6 +284,27 @@ function closeSelectionOverlays() {
   batchEditSheetRef.value?.close()
 }
 
+function getSearchScrollTop() {
+  const elTop = pageBodyRef.value?.scrollTop ?? 0
+  const winTop = window.scrollY || document.documentElement.scrollTop || 0
+  return elTop > 0 ? elTop : winTop
+}
+
+function restoreSearchScrollTop(top) {
+  if (top == null || top <= 0) return
+
+  const applyScroll = () => {
+    if (pageBodyRef.value) pageBodyRef.value.scrollTop = top
+    try { document.documentElement.scrollTop = top } catch {}
+    try { document.body.scrollTop = top } catch {}
+    try { window.scrollTo({ top, behavior: 'instant' }) } catch { window.scrollTo(0, top) }
+  }
+
+  applyScroll()
+  setTimeout(applyScroll, 50)
+  setTimeout(applyScroll, 120)
+}
+
 const {
   selectionMode,
   selectedIds,
@@ -297,7 +317,9 @@ const {
   handleSelectionPopState
 } = useGoodsSelection(results, {
   historyKey: 'searchSelectionMode',
-  onExit: closeSelectionOverlays
+  onExit: closeSelectionOverlays,
+  getScrollTop: getSearchScrollTop,
+  restoreScrollTop: restoreSearchScrollTop
 })
 
 function handleBack() {
@@ -327,33 +349,37 @@ function navigateBackToHome() {
   }
 }
 
-async function bindNativeBackButton() {
-  if (!Capacitor.isNativePlatform() || nativeBackButtonHandle) return
+function handleAndroidBackButton(event) {
+  if (batchEditSheetRef.value?.consumeBack()) {
+    event.preventDefault()
+    return
+  }
 
-  nativeBackButtonHandle = await App.addListener('backButton', ({ canGoBack }) => {
-    if (batchEditSheetRef.value?.consumeBack()) return
-    if (showDeleteConfirm.value) {
-      showDeleteConfirm.value = false
-      return
-    }
-    if (selectionMode.value) {
-      exitSelectionMode()
-      return
-    }
-    if (canGoBack) {
-      navigateBackToHome()
-      return
-    }
-    router.replace(HOME_PATH).catch(() => {
-      App.minimizeApp().catch(() => App.exitApp())
-    })
-  })
+  if (showDeleteConfirm.value) {
+    showDeleteConfirm.value = false
+    event.preventDefault()
+    return
+  }
+
+  if (selectionMode.value) {
+    exitSelectionMode()
+    event.preventDefault()
+    return
+  }
+
+  navigateBackToHome()
+  event.preventDefault()
 }
 
-async function unbindNativeBackButton() {
-  if (!nativeBackButtonHandle) return
-  await nativeBackButtonHandle.remove()
-  nativeBackButtonHandle = null
+function bindAndroidBackButton() {
+  if (removeAndroidBackListener) return
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindAndroidBackButton() {
+  if (!removeAndroidBackListener) return
+  removeAndroidBackListener()
+  removeAndroidBackListener = null
 }
 
 function batchEdit() {
@@ -389,12 +415,12 @@ onMounted(async () => {
     setTimeout(applyScroll, 200)
   }
   window.addEventListener('popstate', handleSelectionPopState)
-  await bindNativeBackButton()
+  bindAndroidBackButton()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', handleSelectionPopState)
-  void unbindNativeBackButton()
+  unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
 })
 

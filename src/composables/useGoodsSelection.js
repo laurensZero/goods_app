@@ -4,11 +4,14 @@ export function useGoodsSelection(items, options = {}) {
   const {
     historyKey = 'selectionMode',
     onExit = null,
-    bodyClass = 'selection-active'
+    bodyClass = 'selection-active',
+    getScrollTop = null,
+    restoreScrollTop = null
   } = options
 
   const selectionMode = ref(false)
   const selectedIds = ref(new Set())
+  let pendingRestoreScrollTop = null
 
   const allSelected = computed(() =>
     items.value.length > 0 && items.value.every((item) => selectedIds.value.has(item.id))
@@ -68,15 +71,36 @@ export function useGoodsSelection(items, options = {}) {
     clearSelectedIds()
   }
 
+  function restoreSelectionScrollTop(top) {
+    if (top == null || !restoreScrollTop) return
+    restoreScrollTop(top)
+  }
+
   function exitSelectionMode() {
     const hadPushed = !!history.state?.[historyKey]
+    const scrollTop = getScrollTop?.() ?? null
+
+    if (hadPushed) {
+      pendingRestoreScrollTop = scrollTop
+      history.back()
+      return
+    }
+
     exitSelectionModeQuiet()
-    if (hadPushed) history.back()
+    restoreSelectionScrollTop(scrollTop)
   }
 
   function handleSelectionPopState() {
-    if (!selectionMode.value) return
-    exitSelectionModeQuiet()
+    if (!selectionMode.value && pendingRestoreScrollTop == null) return
+
+    const scrollTop = pendingRestoreScrollTop ?? getScrollTop?.() ?? null
+    pendingRestoreScrollTop = null
+
+    if (selectionMode.value) {
+      exitSelectionModeQuiet()
+    }
+
+    restoreSelectionScrollTop(scrollTop)
   }
 
   return {

@@ -9,11 +9,14 @@ import './assets/base.css'
 import { initDB } from './utils/db'
 import { useGoodsStore } from './stores/goods'
 import { usePresetsStore } from './stores/presets'
+import { dispatchAndroidBackButton } from './utils/androidBackButton'
 
 function setupAndroidBackButton() {
   if (Capacitor.getPlatform() !== 'android') return
 
   CapacitorApp.addListener('backButton', async ({ canGoBack }) => {
+    if (dispatchAndroidBackButton({ canGoBack })) return
+
     const currentRoute = router.currentRoute.value
     const isHome = currentRoute.name === 'home'
 

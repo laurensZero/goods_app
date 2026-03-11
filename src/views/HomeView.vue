@@ -1,5 +1,7 @@
 <template>
   <div class="page home-page">
+    <!-- 滚动位置恢复期间的遮罩：防止 KeepAlive 重激活时「顶部→目标」的闪烁 -->
+    <div v-if="restoringScroll" class="scroll-restore-cover" aria-hidden="true" />
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -135,12 +137,11 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
-import { Capacitor } from '@capacitor/core'
-import { App } from '@capacitor/app'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { preloadImages } from '@/utils/imageCache'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import SummaryCard from '@/components/SummaryCard.vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -186,11 +187,14 @@ const selectionHeaderTopOffset = ref(SELECTION_HEADER_INITIAL_OFFSET)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 let densityAnimationTimer = 0
-let nativeBackButtonHandle = null
+let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
+
+// 滚动位置恢复中：用遮罩挡住第一帧「滚回顶部」的闪烁
+const restoringScroll = ref(false)
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -274,6 +278,35 @@ function unbindSelectionHeaderScroll() {
   selectionHeaderScrollBound = false
 }
 
+function handleAndroidBackButton(event) {
+  if (batchEditSheetRef.value?.consumeBack()) {
+    event.preventDefault()
+    return
+  }
+
+  if (showDeleteConfirm.value) {
+    showDeleteConfirm.value = false
+    event.preventDefault()
+    return
+  }
+
+  if (selectionMode.value) {
+    exitSelectionMode()
+    event.preventDefault()
+  }
+}
+
+function bindAndroidBackButton() {
+  if (removeAndroidBackListener) return
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindAndroidBackButton() {
+  if (!removeAndroidBackListener) return
+  removeAndroidBackListener()
+  removeAndroidBackListener = null
+}
+
 onMounted(async () => {
   restoreDisplayDensity()
   window.addEventListener('resize', _onResize, { passive: true })
@@ -288,7 +321,7 @@ onMounted(async () => {
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
   window.addEventListener('popstate', handleSelectionPopState)
-  await bindNativeBackButton()
+  bindAndroidBackButton()
 })
 
 onActivated(async () => {
@@ -301,6 +334,8 @@ onActivated(async () => {
     : shouldRestore
       ? (_savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0))
       : 0
+  // 如果需要滚动恢复，先显示遮罩防止顶部闪烁
+  if (topToRestore > 0) restoringScroll.value = true
   // 在 refresh 之前先同步恢复滚动，防止 refresh 重渲染导致闪烁
   applyScrollPosition(topToRestore)
   await refresh()
@@ -311,7 +346,12 @@ onActivated(async () => {
   if (shouldRestore) {
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
-  await bindNativeBackButton()
+  // 遮罩在所有 scroll 重试（最晚 200ms）完成之后才移除
+  // 单个 rAF 在安卓 WebView 上太早（动画还未结束），改用 300ms 保底
+  if (restoringScroll.value) {
+    setTimeout(() => { restoringScroll.value = false }, 300)
+  }
+  bindAndroidBackButton()
 })
 
 onDeactivated(() => {
@@ -320,7 +360,7 @@ onDeactivated(() => {
   // 滚动位置已由 openDetail / handleImport / goToAdd 在跳转前显式保存
   exitSelectionModeQuiet()
   unbindSelectionHeaderScroll()
-  void unbindNativeBackButton()
+  unbindAndroidBackButton()
 })
 
 onBeforeUnmount(() => {
@@ -331,7 +371,7 @@ onBeforeUnmount(() => {
   }
   unbindSelectionHeaderScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
-  void unbindNativeBackButton()
+  unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
   // 仅在值大于 0 时才覆盖，避免卸载时 DOM 已清空导致用 0 覆盖正确值
   const top = readScrollTop()
@@ -436,43 +476,10 @@ const {
   handleSelectionPopState
 } = useGoodsSelection(computed(() => store.list), {
   historyKey: 'selectionMode',
-  onExit: closeSelectionOverlays
+  onExit: closeSelectionOverlays,
+  getScrollTop: readScrollTop,
+  restoreScrollTop: applyScrollPosition
 })
-
-async function bindNativeBackButton() {
-  if (!Capacitor.isNativePlatform() || nativeBackButtonHandle) return
-
-  nativeBackButtonHandle = await App.addListener('backButton', ({ canGoBack }) => {
-    if (batchEditSheetRef.value?.consumeBack()) {
-      return
-    }
-
-    if (showDeleteConfirm.value) {
-      showDeleteConfirm.value = false
-      return
-    }
-
-    if (selectionMode.value) {
-      exitSelectionMode()
-      return
-    }
-
-    if (canGoBack) {
-      window.history.back()
-      return
-    }
-
-    App.minimizeApp().catch(() => App.exitApp())
-  })
-}
-
-async function unbindNativeBackButton() {
-  if (!nativeBackButtonHandle) return
-
-  const handle = nativeBackButtonHandle
-  nativeBackButtonHandle = null  // 同步清空，避免 onActivated 中的 bindNativeBackButton 因非空判断提前返回
-  await handle.remove()
-}
 
 async function batchDelete() {
   if (selectedIds.value.size === 0) return
@@ -497,6 +504,15 @@ async function applyBatchEditPayload(payload) {
 </script>
 
 <style scoped>
+/* 滚动恢复遮罩：防止 KeepAlive 重激活时短暂显示顶部 */
+.scroll-restore-cover {
+  position: fixed;
+  inset: 0;
+  background: var(--app-bg, #f2f2f7);
+  z-index: 9998;
+  pointer-events: none;
+}
+
 .home-page {
   position: relative;
 }

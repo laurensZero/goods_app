@@ -147,6 +147,25 @@ export async function parseMihoyoUrl(url) {
   }
 }
 
+function collectSkuLookupKeys(rawKey, sku = {}) {
+  const keys = new Set()
+
+  if (rawKey) {
+    keys.add(String(rawKey))
+    for (const part of String(rawKey).split('_')) {
+      if (part) keys.add(part)
+    }
+  }
+
+  for (const [field, value] of Object.entries(sku)) {
+    if (/^sale_attr\d+_key$/.test(field) && value) {
+      keys.add(String(value))
+    }
+  }
+
+  return [...keys]
+}
+
 /**
  * 获取 detail 接口数据：
  *   mainImages  - main_url 展示图数组
@@ -178,20 +197,32 @@ export async function fetchGoodsDetail(goodsId) {
       : Array.isArray(detail?.banner_url)
         ? detail.banner_url
         : []
-    // skus 是以 key 为属性名的对象，每条有 cover_url
+    // skus 是以 key 为属性名的对象，每条有 cover_url 和 price（单位：分）
     const skuCovers = {}
+    const skuPrices = {}  // { [key]: priceYuan }
     if (detail?.skus && typeof detail.skus === 'object') {
       for (const [key, sku] of Object.entries(detail.skus)) {
-        if (!sku?.cover_url) continue
+        if (!sku) continue
+        const lookupKeys = collectSkuLookupKeys(key, sku)
 
-        skuCovers[key] = sku.cover_url
+        // 封面
+        if (sku.cover_url) {
+          for (const lookupKey of lookupKeys) {
+            if (lookupKey && !(lookupKey in skuCovers)) {
+              skuCovers[lookupKey] = sku.cover_url
+            }
+          }
+        }
 
-        // 星铁这类商品的 sale_attrs.content[].key 往往只对应 sale_attr1_key，
-        // 但 detail.skus 的对象键是 "sale_attr1_key_sale_attr2_key" 组合键。
-        // 额外回填一份主属性 key，便于前端按角色 key 取到对应封面。
-        const primaryKey = sku.sale_attr1_key || String(key).split('_')[0]
-        if (primaryKey) {
-          skuCovers[primaryKey] = sku.cover_url
+        // 价格（可能字段名有多种）
+        const rawSkuPrice = sku.price ?? sku.sale_price ?? sku.activity_price ?? sku.actual_price
+        if (rawSkuPrice != null && rawSkuPrice > 0) {
+          const priceYuan = rawSkuPrice / 100
+          for (const lookupKey of lookupKeys) {
+            if (lookupKey && !(lookupKey in skuPrices)) {
+              skuPrices[lookupKey] = priceYuan
+            }
+          }
         }
       }
     }
@@ -206,9 +237,9 @@ export async function fetchGoodsDetail(goodsId) {
         }
       }
     }
-    return { mainImages, skuCovers, coverUrl: detail?.cover_url || '' }
+    return { mainImages, skuCovers, skuPrices, coverUrl: detail?.cover_url || '' }
   } catch {
-    return { mainImages: [], skuCovers: {}, coverUrl: '' }
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, coverUrl: '' }
   }
 }
 
@@ -308,7 +339,7 @@ export function parseCookieString(cookieStr) {
   return result
 }
 
-/** 检验 Cookie 是否包含米游社常見认证字段 */
+/** 检验 Cookie 是否包含米游社常见认证字段 */
 export function validateMihoyoCookie(cookieStr) {
   const parsed = parseCookieString(cookieStr)
   const hasUid = !!(parsed.account_id_v2 || parsed.ltuid_v2 || parsed.account_id || parsed.ltuid)
@@ -401,7 +432,7 @@ function shopToIp(shopName) {
   if (shopName.includes('空港集市')) return '崩坏3'
   if (shopName.includes('未名商城')) return '未定事件簿'
   if (shopName.includes('千羽万事屋')) return '崩坏学园2nd'
-  if (shopName.includes('别野百货') || shopName.includes('派对'))  return '米游铺周边'
+  if (shopName.includes('别野百货')) return '米游社周边'
   return ''
 }
 
