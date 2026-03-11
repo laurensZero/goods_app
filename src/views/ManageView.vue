@@ -485,12 +485,27 @@ async function handleImport(event) {
   transform: translateX(-50%) translateY(8px);
 }
 
-/* ── 平板：入口卡片改为双列网格 ── */
+/* ── 平板：两列并排布局（左：管理 / 右：导入导出）── */
 @media (min-width: 900px) {
-  .hub-section {
+  .page-body {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
+    column-gap: 28px;
+    align-items: start;
+    max-width: 860px;
+    margin-inline: auto;
+    padding-inline: 28px;
+  }
+
+  .hub-section {
+    /* 每列内部仍为单列竖向堆叠 */
+    display: flex;
+    flex-direction: column;
     gap: 12px;
+  }
+
+  .section-gap {
+    margin-top: 0;
   }
 }
 
