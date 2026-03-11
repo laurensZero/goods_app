@@ -50,7 +50,7 @@
       </div>
 
       <div class="card-bottom-row">
-        <span class="card-price">{{ item.price ? `¥${item.price}` : '¥—' }}</span>
+        <span class="card-price">{{ item.price ? `¥${item.price}` : '¥—' }}<span v-if="item.points && density === 'comfortable'" class="card-price-points">+{{ item.points }}积分</span></span>
         <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
       </div>
     </div>
@@ -380,6 +380,13 @@ const showHoldingDays = computed(() => props.density !== 'compact' && holdingDay
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;
+}
+
+.card-price-points {
+  margin-left: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #8e8e93;
 }
 
 .card-days {

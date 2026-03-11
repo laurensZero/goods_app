@@ -136,7 +136,23 @@
           <div class="field-card">
             <label class="field">
               <span class="field-label">购入价格（¥）</span>
-              <input v-model="form.price" type="number" min="0" step="0.01" placeholder="0.00" />
+              <div class="price-row">
+                <input v-model="form.price" type="number" min="0" step="0.01" placeholder="0.00" />
+                <button
+                  type="button"
+                  :class="['points-toggle-btn', showPointsInput && 'points-toggle-btn--active']"
+                  :aria-label="showPointsInput ? '隐藏积分' : '输入消耗积分'"
+                  @click="showPointsInput = !showPointsInput"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </button>
+              </div>
+              <div v-if="showPointsInput" class="points-input-wrap">
+                <span class="points-input-label">消耗积分</span>
+                <input v-model.number="form.points" type="number" min="0" step="1" placeholder="0" />
+              </div>
             </label>
 
             <label class="field">              <span class="field-label">数量</span>
@@ -230,11 +246,14 @@ const form = reactive({
   ip: '',
   characters: [],
   price: '',
+  points: '',
   acquiredAt: formatDate(new Date(), 'YYYY-MM-DD'),
   image: '',
   note: '',
   quantity: 1
 })
+
+const showPointsInput = ref(false)
 
 const charactersFieldRef = ref(null)
 const nameInputRef = ref(null)
@@ -503,6 +522,57 @@ onBeforeUnmount(() => {
 .field textarea::placeholder {
   color: var(--app-placeholder);
 }
+
+/* 价格行：input + 积分按钮 */
+.price-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.price-row input {
+  flex: 1;
+  min-width: 0;
+}
+.points-toggle-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: var(--input-height);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--app-placeholder);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+.points-toggle-btn svg {
+  width: 22px;
+  height: 22px;
+}
+.points-toggle-btn--active {
+  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
+  color: var(--color-accent);
+}
+.points-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.points-input-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.points-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
 
 .field input:focus,
 .field textarea:focus {

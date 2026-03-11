@@ -255,7 +255,8 @@ function applyScrollPosition(top) {
     try { document.body.scrollTop = top } catch {}
     try { window.scrollTo({ top, behavior: 'instant' }) } catch { window.scrollTo(0, top) }
   }
-  const delays = [0, 50, 100, 200]
+  setAll() // 立即同步执行，避免第一帧闪烁到顶部
+  const delays = [50, 100, 200]
   delays.forEach(delay => setTimeout(setAll, delay))
 }
 
@@ -300,6 +301,8 @@ onActivated(async () => {
     : shouldRestore
       ? (_savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0))
       : 0
+  // 在 refresh 之前先同步恢复滚动，防止 refresh 重渲染导致闪烁
+  applyScrollPosition(topToRestore)
   await refresh()
   await nextTick()
   bindSelectionHeaderScroll()
@@ -466,8 +469,9 @@ async function bindNativeBackButton() {
 async function unbindNativeBackButton() {
   if (!nativeBackButtonHandle) return
 
-  await nativeBackButtonHandle.remove()
-  nativeBackButtonHandle = null
+  const handle = nativeBackButtonHandle
+  nativeBackButtonHandle = null  // 同步清空，避免 onActivated 中的 bindNativeBackButton 因非空判断提前返回
+  await handle.remove()
 }
 
 async function batchDelete() {

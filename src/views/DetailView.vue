@@ -47,6 +47,7 @@
             <p class="price-value">
               <span class="price-currency">¥</span>
               <span class="price-amount">{{ item.price || '—' }}</span>
+              <span v-if="item.points" class="price-points">+{{ item.points }}积分</span>
             </p>
           </div>
         </section>
@@ -406,6 +407,15 @@ async function confirmDelete() {
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.04em;
+}
+
+.price-points {
+  margin-left: 6px;
+  color: var(--app-text-tertiary);
+  font-size: 15px;
+  font-weight: 500;
+  align-self: flex-end;
+  margin-bottom: 3px;
 }
 
 .section-head {

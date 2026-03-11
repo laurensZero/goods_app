@@ -563,10 +563,16 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     []
 
   // IP 优先从店铺名推断；其次从商品名解析
+  // 如果名称前缀是「积分兑换」等非 IP 标识，则不作为 IP
+  const PSEUDO_IP = new Set(['积分兑换', '积分', '兑换', '限定商品', '限定'])
   const shopName = order.shop?.shop_name || goods.shop_name || ''
   const ipFromShop = shopToIp(shopName)
   const { ip: ipFromName, name } = parseTitleIpName(rawName)
-  const ip = ipFromShop || ipFromName
+  const ipFromNameFiltered = PSEUDO_IP.has(ipFromName) ? '' : ipFromName
+  const ip = ipFromShop || ipFromNameFiltered
+  // 是否积分兑换订单：以商品名前缀「积分兑换」为准（最可靠，API 会显式标注）
+  // order_type 在列表/详情接口值不同（4 vs 401），不单独依赖
+  const isPointsOrder = sourceTitle.includes('积分兑换')
 
   // 提取角色名：
   //   1. attr_name 含 "角色" → attr_value 是角色名 (如 "角色":"流萤", "角色-对空六课":"比利")
@@ -638,7 +644,7 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
       1
     ),
     variant,
-    note: `来自米游铺订单 #${orderNo}`,
+    note: `来自米游铺订单 #${orderNo}${isPointsOrder ? '（积分兑换）' : ''}`,
     // 元数据（不入库）
     _itemKey: itemKey,
     _orderNo: orderNo,
