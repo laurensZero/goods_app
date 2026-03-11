@@ -50,7 +50,7 @@
       </div>
 
       <div class="card-bottom-row">
-        <span class="card-price">{{ item.price ? `¥${item.price}` : '¥—' }}<span v-if="item.points && density === 'comfortable'" class="card-price-points">+{{ item.points }}积分</span></span>
+        <span class="card-price">{{ item.price ? `¥${item.price}` : '¥—' }}<span v-if="item.points && (density === 'comfortable' || isTablet)" class="card-price-points">+{{ item.points }}积分</span></span>
         <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
       </div>
     </div>
@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getCachedImage } from '@/utils/imageCache'
 
 const props = defineProps({
@@ -204,6 +204,12 @@ const allCharacters = computed(() => props.item.characters || [])
 const showCharacters = computed(() => props.density === 'comfortable' && allCharacters.value.length > 0)
 const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value)
 const showHoldingDays = computed(() => props.density !== 'compact' && holdingDays.value !== null)
+
+const windowWidth = ref(window.innerWidth)
+const _onResize = () => { windowWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', _onResize))
+onBeforeUnmount(() => window.removeEventListener('resize', _onResize))
+const isTablet = computed(() => windowWidth.value >= 900)
 </script>
 
 <style scoped>
