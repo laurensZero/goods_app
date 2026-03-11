@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page home-page">
     <!-- 滚动位置恢复期间的遮罩：防止 KeepAlive 重激活时「顶部→目标」的闪烁 -->
     <div v-if="restoringScroll" class="scroll-restore-cover" aria-hidden="true" />
@@ -105,24 +105,28 @@
       <template v-if="displayDensity === 'timeline' && goodsList.length > 0">
         <div class="tl-wrapper goods-section">
           <div class="tl-year-block" v-for="yearGroup in timelineYearGroups" :key="yearGroup.year">
-            <!-- 年度汇总行 -->
             <div class="tl-year-header">
               <span class="tl-year-num">{{ yearGroup.year }}</span>
               <span class="tl-year-meta">{{ yearGroup.yearCount }} 件 · {{ formatPrice(yearGroup.yearTotal) }}</span>
             </div>
-            <!-- 各月份 -->
+
             <div
               v-for="(monthGroup, midx) in yearGroup.months"
               :key="monthGroup.yearMonth"
               class="tl-month-group"
               :class="{ 'tl-month-group--last': midx === yearGroup.months.length - 1 }"
             >
-              <div class="tl-month-dot" />
+              <div class="tl-month-rail" aria-hidden="true">
+                <div class="tl-month-dot" />
+                <div class="tl-month-line" />
+              </div>
               <div class="tl-month-content">
                 <div class="tl-month-header">
                   <span class="tl-month-label">{{ monthGroup.month }} 月</span>
-                  <span class="tl-month-count">{{ monthGroup.count }} 件</span>
-                  <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
+                  <div class="tl-month-meta">
+                    <span class="tl-month-count">{{ monthGroup.count }} 件</span>
+                    <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
+                  </div>
                 </div>
                 <div class="tl-thumb-grid">
                   <button
@@ -147,13 +151,18 @@
               </div>
             </div>
           </div>
-          <!-- 日期未知 -->
+
           <div v-if="timelineUnknown.length > 0" class="tl-month-group tl-month-group--last">
-            <div class="tl-month-dot tl-month-dot--muted" />
+            <div class="tl-month-rail" aria-hidden="true">
+              <div class="tl-month-dot tl-month-dot--muted" />
+              <div class="tl-month-line" />
+            </div>
             <div class="tl-month-content">
               <div class="tl-month-header">
                 <span class="tl-month-label">日期未知</span>
-                <span class="tl-month-count">{{ timelineUnknown.length }} 件</span>
+                <div class="tl-month-meta">
+                  <span class="tl-month-count">{{ timelineUnknown.length }} 件</span>
+                </div>
               </div>
               <div class="tl-thumb-grid">
                 <button
@@ -782,7 +791,7 @@ async function applyBatchEditPayload(payload) {
   gap: 6px;
   padding: 6px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--app-glass);
   box-shadow: var(--app-shadow);
 }
 
@@ -830,7 +839,7 @@ async function applyBatchEditPayload(payload) {
   height: 48px;
   border: none;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--app-glass);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
@@ -858,15 +867,16 @@ async function applyBatchEditPayload(payload) {
 /* ── 时间线年表模式 ── */
 .tl-wrapper {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 
 /* === 年度 block wrapper === */
 .tl-year-block {
-  margin-top: 0;
-}
-
-.tl-year-block + .tl-year-block {
-  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* 年度标题行 */
@@ -875,127 +885,135 @@ async function applyBatchEditPayload(payload) {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 22px 0 16px;
-  border-top: 1.5px solid var(--app-border, rgba(0, 0, 0, 0.08));
-}
-
-.tl-year-block:first-child .tl-year-header {
-  border-top: none;
-  padding-top: 0;
+  padding: 6px 0 10px;
 }
 
 .tl-year-num {
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--app-text);
-  letter-spacing: -0.05em;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--app-text-secondary);
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
 .tl-year-meta {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--app-text-secondary, rgba(0, 0, 0, 0.45));
+  color: var(--app-text-tertiary);
   white-space: nowrap;
 }
 
 /* === 每个月份行（含左侧竖线和圆点）=== */
 .tl-month-group {
   position: relative;
-  padding-left: 28px;
-  padding-bottom: 22px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 14px;
+  padding-bottom: 26px;
+}
+
+.tl-month-group--last {
+  padding-bottom: 0;
+}
+
+.tl-month-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
 }
 
 /* 竖线 */
-.tl-month-group::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  bottom: 0;
-  width: 1.5px;
-  background: var(--app-border, rgba(0, 0, 0, 0.08));
-}
-
-.tl-month-group--last::before {
-  bottom: auto;
-  height: 14px;
-}
 
 /* 圆点 */
 .tl-month-dot {
   position: absolute;
-  left: 1px;
-  top: 4px;
-  width: 16px;
-  height: 16px;
+  top: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--app-text, #141416);
-  border: 2.5px solid var(--app-bg, #f5f5f7);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+  background: color-mix(in srgb, var(--app-text) 82%, var(--app-text-tertiary));
+  border: 1.5px solid var(--app-bg, #f5f5f7);
   z-index: 1;
+}
+
+.tl-month-line {
+  width: 1px;
+  flex: 1;
+  margin-top: 17px;
+  border-radius: 999px;
+  transform: scaleX(0.55);
+  transform-origin: center top;
+  background: color-mix(in srgb, var(--app-text-tertiary) 16%, transparent);
+}
+
+.tl-month-group--last .tl-month-line {
+  display: none;
 }
 
 .tl-month-dot--muted {
   background: var(--app-text-tertiary);
-  box-shadow: none;
 }
 
 .tl-month-content {
-  padding-left: 2px;
+  min-width: 0;
 }
 
 /* 月份小标题行 */
 .tl-month-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 14px;
 }
 
 .tl-month-label {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--app-text);
   letter-spacing: -0.01em;
 }
 
 /* 件数 pill */
+.tl-month-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .tl-month-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--app-text-secondary, rgba(0, 0, 0, 0.45));
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 999px;
-  padding: 2px 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-tertiary);
+  letter-spacing: 0.01em;
 }
 
 /* 金额：推到右侧，字号放大 */
 .tl-month-spend {
-  margin-left: auto;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: rgba(32, 112, 192, 1);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--app-text) 76%, var(--app-text-tertiary));
 }
 
 /* === 缩略图网格 === */
 .tl-thumb-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 12px;
 }
 
 @media (min-width: 600px) {
-  .tl-thumb-grid { grid-template-columns: repeat(6, 1fr); }
+  .tl-thumb-grid { grid-template-columns: repeat(5, 1fr); }
 }
 
 @media (min-width: 900px) {
-  .tl-thumb-grid { grid-template-columns: repeat(8, 1fr); }
+  .tl-thumb-grid { grid-template-columns: repeat(7, 1fr); }
 }
 
 @media (min-width: 1200px) {
-  .tl-thumb-grid { grid-template-columns: repeat(10, 1fr); }
+  .tl-thumb-grid { grid-template-columns: repeat(9, 1fr); }
 }
 
 .tl-thumb-btn {
@@ -1015,17 +1033,20 @@ async function applyBatchEditPayload(payload) {
 
 .tl-thumb-img-wrap {
   width: 100%;
-  aspect-ratio: 1;
-  border-radius: 12px;
+  aspect-ratio: 0.84;
+  border-radius: 14px;
   overflow: hidden;
   background: var(--app-surface-soft, #eeeff2);
+  box-shadow: 0 6px 16px rgba(17, 20, 22, 0.06);
+  border: 1px solid color-mix(in srgb, var(--app-text-tertiary) 10%, transparent);
 }
 
 .tl-thumb-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: var(--app-surface);
 }
 
 .tl-thumb-empty {
@@ -1046,7 +1067,7 @@ async function applyBatchEditPayload(payload) {
   height: 48px;
   border: none;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--app-glass);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
@@ -1142,10 +1163,11 @@ async function applyBatchEditPayload(payload) {
   width: min(100vw, 430px);
   padding: 10px var(--page-padding);
   border-radius: 22px;
-  background: rgba(245, 245, 247, 0.76);
+  background: var(--app-glass-strong);
+  border: 1px solid var(--app-glass-border);
   box-shadow: 0 10px 26px rgba(20, 20, 22, 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
   transform: translateX(-50%);
 }
 
@@ -1158,7 +1180,8 @@ async function applyBatchEditPayload(payload) {
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--app-glass);
+  border: 1px solid var(--app-glass-border);
   color: var(--app-text);
   flex-shrink: 0;
   cursor: pointer;
@@ -1181,7 +1204,7 @@ async function applyBatchEditPayload(payload) {
 /* 右侧胶囊按鈕 */
 .sel-all-btn {
   border: none;
-  background: #f2f2f2;
+  background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 500;
@@ -1215,10 +1238,11 @@ async function applyBatchEditPayload(payload) {
   display: flex;
   gap: 10px;
   padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08), 0 -8px 24px rgba(0, 0, 0, 0.06);
+  background: var(--app-glass-strong);
+  border-top: 1px solid var(--app-glass-border);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--app-glass-border) 60%, transparent), 0 -16px 36px rgba(0, 0, 0, 0.12);
   z-index: 80;
 }
 
@@ -1231,7 +1255,7 @@ async function applyBatchEditPayload(payload) {
   height: 50px;
   border: none;
   border-radius: 14px;
-  background: #f2f2f7;
+  background: color-mix(in srgb, var(--app-glass) 72%, var(--app-surface));
   color: var(--app-text-secondary);
   font-size: 15px;
   font-weight: 600;
@@ -1282,8 +1306,10 @@ async function applyBatchEditPayload(payload) {
 .batch-edit-sheet {
   padding: 12px 16px calc(env(safe-area-inset-bottom) + 16px);
   background:
-    radial-gradient(circle at top, rgba(20, 20, 22, 0.05), transparent 42%),
-    #f5f5f7;
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 34%),
+    color-mix(in srgb, var(--app-surface) 92%, transparent);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
 }
 
 .batch-edit-sheet__handle {
@@ -1326,7 +1352,7 @@ async function applyBatchEditPayload(payload) {
   gap: 14px;
   padding: 14px;
   border-radius: var(--radius-card);
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
@@ -1336,7 +1362,7 @@ async function applyBatchEditPayload(payload) {
   gap: 10px;
   padding: 14px;
   border-radius: var(--radius-small);
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
 }
 
 .field-label {
@@ -1354,7 +1380,7 @@ async function applyBatchEditPayload(payload) {
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
@@ -1402,7 +1428,7 @@ async function applyBatchEditPayload(payload) {
   padding: 10px 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
@@ -1491,7 +1517,7 @@ async function applyBatchEditPayload(payload) {
   padding: 8px;
   border: 1px solid rgba(20, 20, 22, 0.05);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
 
@@ -1550,11 +1576,11 @@ async function applyBatchEditPayload(payload) {
 }
 
 :deep(.picker-popup .van-picker) {
-  --van-picker-background: #ffffff;
+  --van-picker-background: var(--app-surface);
   --van-picker-toolbar-height: 52px;
   --van-picker-option-font-size: 17px;
   --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: #141416;
+  --van-picker-confirm-action-color: var(--app-text);
   --van-picker-cancel-action-color: #8e8e93;
 }
 
@@ -1583,16 +1609,16 @@ async function applyBatchEditPayload(payload) {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(20, 20, 22, 0.22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--app-overlay);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
 }
 
 .confirm-card {
   width: min(100%, 360px);
   padding: 22px;
   border-radius: 24px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
 }
 
@@ -1658,7 +1684,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 .confirm-btn--ghost {
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
   color: var(--app-text);
 }
 
@@ -1675,6 +1701,176 @@ async function applyBatchEditPayload(payload) {
 .confirm-modal-enter-from,
 .confirm-modal-leave-to {
   opacity: 0;
+}
+
+/* ── 深色模式覆盖 ── */
+@media (prefers-color-scheme: dark) {
+  /* 主页搜索按钮 */
+  .hero-search {
+    background: var(--app-glass);
+  }
+
+  /* 数量 pill */
+  .section-count {
+    background: var(--app-glass);
+  }
+
+  /* 激活态按钮（排序 / 时间线）深色下反色 */
+  .sort-toggle--asc,
+  .timeline-toggle--active {
+    background: #f5f5f7;
+    color: #141416;
+  }
+
+  /* 月份 pill 件数 */
+  .tl-month-count {
+    color: var(--app-text-secondary);
+  }
+
+  /* 月份金额：深色模式更亮蓝 */
+  .tl-month-line {
+    background: color-mix(in srgb, var(--app-text-secondary) 18%, transparent);
+  }
+
+  .tl-month-spend {
+    color: color-mix(in srgb, var(--app-text) 80%, var(--app-text-secondary));
+  }
+
+  .tl-thumb-img-wrap {
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* FAB 新增按钮 */
+  .fab {
+    background: #f5f5f5;
+    color: #141416;
+  }
+
+  /* ---- 多选顶部栏 ---- */
+  .selection-header {
+    background: var(--app-glass-strong);
+    border-color: var(--app-glass-border);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  }
+
+  .sel-back-btn {
+    background: var(--app-glass);
+    border-color: var(--app-glass-border);
+  }
+
+  .sel-all-btn {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--app-text-secondary);
+  }
+
+  /* ---- 多选底部操作栏 ---- */
+  .selection-action-bar {
+    background: var(--app-glass-strong);
+    border-top-color: var(--app-glass-border);
+    box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06), 0 -14px 34px rgba(0, 0, 0, 0.34);
+  }
+
+  .sel-action-btn {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--app-text-secondary);
+  }
+
+  /* ---- 批量编辑抽屉 ---- */
+  .batch-edit-sheet {
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+      rgba(20, 20, 22, 0.78);
+  }
+
+  .batch-edit-sheet__handle {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .batch-edit-card {
+    background: var(--app-surface);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .field {
+    background: var(--app-surface-soft);
+  }
+
+  .date-field,
+  .multi-select__trigger {
+    background: var(--app-surface);
+    border-color: rgba(255, 255, 255, 0.07);
+    color: var(--app-text);
+  }
+
+  .multi-select__panel {
+    background: var(--app-surface);
+    border-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  }
+
+  .multi-select__option {
+    color: var(--app-text);
+  }
+
+  .multi-select__option:active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .multi-select__option--active {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .multi-select__chip {
+    background: rgba(255, 255, 255, 0.10);
+  }
+
+  .multi-select__chip-remove {
+    background: rgba(255, 255, 255, 0.10);
+  }
+
+  /* ---- 批量删除确认弹窗 ---- */
+  .confirm-overlay {
+    background: rgba(0, 0, 0, 0.34);
+  }
+
+  .confirm-card {
+    background: rgba(24, 24, 28, 0.8);
+    border: 1px solid var(--app-glass-border);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+  }
+
+  .confirm-btn--ghost {
+    background: var(--app-surface-soft);
+    color: var(--app-text);
+  }
+
+  .date-field,
+  .multi-select__trigger {
+    border-color: rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .multi-select__panel {
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
+  }
+
+  .multi-select__option {
+    color: var(--app-text);
+  }
+
+  .multi-select__option:active {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .multi-select__option--active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .multi-select__check {
+    stroke: var(--app-text);
+  }
 }
 </style>
 

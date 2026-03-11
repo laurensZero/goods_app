@@ -493,4 +493,10 @@ async function handleImport(event) {
     gap: 12px;
   }
 }
+
+@media (prefers-color-scheme: dark) {
+  .manage-header {
+    background: rgba(15, 15, 16, 0.90);
+  }
+}
 </style>

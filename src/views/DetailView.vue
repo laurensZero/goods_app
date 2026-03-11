@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page page--transition detail-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar :title="item ? '收藏详情' : '详情'" show-back>
       <template #right>
@@ -37,7 +37,7 @@
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
-            <span v-if="item.acquiredAt" class="hero-date">购入于 {{ item.acquiredAt }}</span>
+            <span v-if="item.acquiredAt" class="hero-date">购入: {{ item.acquiredAt }}</span>
           </div>
 
           <h1 class="hero-name">{{ item.name }}</h1>
@@ -111,7 +111,7 @@
 
     <EmptyState
       v-else
-      icon="◎"
+      icon="✦"
       title="找不到这件收藏"
       description="它可能已被删除，或者当前数据还没有完成同步。"
     />
@@ -300,7 +300,7 @@ async function confirmDelete() {
   border-radius: var(--radius-large);
   overflow: hidden;
   box-shadow: var(--app-shadow);
-  background: linear-gradient(180deg, #ececf0, #dfdfe5);
+  background: linear-gradient(180deg, var(--app-surface-soft), var(--app-surface-muted));
 }
 
 .cover-img {
@@ -328,7 +328,7 @@ async function confirmDelete() {
 .hero-card,
 .info-card,
 .note-card {
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
@@ -449,7 +449,7 @@ async function confirmDelete() {
   gap: 8px;
   padding: 16px;
   border-radius: var(--radius-small);
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
 }
 
 .info-label {
@@ -494,7 +494,7 @@ async function confirmDelete() {
   width: min(100%, 360px);
   padding: 22px;
   border-radius: 24px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
 }
 
@@ -554,7 +554,7 @@ async function confirmDelete() {
 }
 
 .dialog-btn--ghost {
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
   color: var(--app-text);
 }
 
@@ -640,4 +640,21 @@ async function confirmDelete() {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  .cover-glow {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .cover-card {
+    background: linear-gradient(180deg, #242428, #1a1a1d);
+  }
+
+  .dialog-btn--ghost {
+    background: var(--app-surface-soft);
+  }
+
+  .nav-icon-btn {
+    background: var(--app-glass);
+  }
+}
 </style>

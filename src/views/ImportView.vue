@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page page--transition import-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar title="从米游铺导入" show-back />
 
@@ -1129,7 +1129,7 @@ async function handleSave() {
   padding: 10px 12px;
   border: 1px solid rgba(20, 20, 22, 0.1);
   border-radius: 10px;
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
   font-size: 14px;
   color: var(--app-text);
   outline: none;
@@ -1148,7 +1148,7 @@ async function handleSave() {
 
 .url-input:focus {
   border-color: rgba(20, 20, 22, 0.25);
-  background: #fff;
+  background: var(--app-surface);
 }
 
 .btn-parse {
@@ -1562,7 +1562,7 @@ async function handleSave() {
   gap: 10px;
   padding: 14px;
   border-radius: var(--radius-small, 12px);
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
 }
 
 .field-label {
@@ -1579,7 +1579,7 @@ async function handleSave() {
   min-height: 44px;
   border: 1px solid transparent;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   font-size: 16px;
   padding: 0 14px;
@@ -1601,7 +1601,7 @@ async function handleSave() {
 .field input:focus,
 .field textarea:focus {
   border-color: rgba(20, 20, 22, 0.16);
-  background: #fff;
+  background: var(--app-surface);
 }
 
 /* ── 浮动保存按钮 ── */
@@ -1708,7 +1708,7 @@ async function handleSave() {
   padding: 8px 14px;
   border: 2px solid rgba(20, 20, 22, 0.1);
   border-radius: 12px;
-  background: #fff;
+  background: var(--app-surface);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
   min-width: 60px;
@@ -1865,7 +1865,7 @@ async function handleSave() {
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.16s ease;
@@ -1888,11 +1888,11 @@ async function handleSave() {
 
 .picker-popup { overflow: hidden; }
 :deep(.picker-popup .van-picker) {
-  --van-picker-background: #ffffff;
+  --van-picker-background: var(--app-surface);
   --van-picker-toolbar-height: 52px;
   --van-picker-option-font-size: 17px;
   --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: #141416;
+  --van-picker-confirm-action-color: var(--app-text);
   --van-picker-cancel-action-color: #8e8e93;
 }
 :deep(.picker-popup .van-picker__toolbar) { padding: 0 8px; }
@@ -2064,4 +2064,79 @@ async function handleSave() {
   transform: translateY(100%);
 }
 
+@media (prefers-color-scheme: dark) {
+  .field input,
+  .field textarea,
+  .date-field {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .field input:focus,
+  .field textarea:focus {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
+  }
+
+  .variant-btn {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .variant-btn--selected {
+    background: rgba(74, 122, 236, 0.16);
+  }
+
+  .variant-img-wrap,
+  .img-picker-item {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .date-field {
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  :deep(.picker-popup .van-picker) {
+    --van-picker-background: rgba(24, 24, 28, 0.96);
+  }
+
+  .save-char-row {
+    background: rgba(74, 122, 236, 0.12);
+  }
+
+  .save-char-toggle {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .save-char-knob {
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  .batch-edit-backdrop {
+    background: var(--app-overlay);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+
+  .batch-edit-sheet {
+    background: rgba(24, 24, 28, 0.82);
+    border: 1px solid var(--app-glass-border);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .batch-edit-cancel {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .batch-edit-save {
+    background: #f5f5f7;
+    color: #141416;
+  }
+}
 </style>

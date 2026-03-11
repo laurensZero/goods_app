@@ -549,4 +549,10 @@ function syncDomField() {
   align-items: center;
   justify-content: center;
 }
+
+@media (prefers-color-scheme: dark) {
+  .edit-ip-sheet {
+    background: rgba(28, 28, 30, 0.95);
+  }
+}
 </style>

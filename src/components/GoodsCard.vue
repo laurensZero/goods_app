@@ -221,7 +221,7 @@ const isTablet = computed(() => windowWidth.value >= 900)
   height: 100%;
   padding: 10px;
   border-radius: var(--radius-card);
-  background: #fff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
   cursor: pointer;
   user-select: none;
@@ -523,5 +523,33 @@ const isTablet = computed(() => windowWidth.value >= 900)
 .sel-overlay-enter-from,
 .sel-overlay-leave-to {
   opacity: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* 通用 chip */
+  .card-chip {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--app-text-secondary);
+  }
+
+  .card-chip.char-chip {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--app-text);
+  }
+
+  .card-chip.ip-chip {
+    background: rgba(100, 170, 255, 0.12);
+    color: rgba(100, 170, 255, 0.90);
+  }
+
+  /* 多选勾：深色模式下使用浅色填充 */
+  .check-icon--checked {
+    background: #f5f5f7;
+    border-color: #f5f5f7;
+  }
+
+  .check-icon--checked svg {
+    stroke: #141416;
+  }
 }
 </style>

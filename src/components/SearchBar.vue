@@ -71,7 +71,7 @@ function syncInputLater() {
   min-height: var(--input-height);
   padding: 0 14px;
   border-radius: var(--radius-small);
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
   border: 1px solid transparent;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
@@ -124,13 +124,13 @@ function syncInputLater() {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: #efeff2;
+  background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   transition: transform 0.16s ease, background 0.16s ease;
 }
 
 .clear-btn:active {
   transform: scale(0.96);
-  background: #e4e4e8;
+  background: rgba(20, 20, 22, 0.12);
 }
 </style>

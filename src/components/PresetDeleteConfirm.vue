@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Teleport to="body">
     <Transition name="confirm-modal">
       <div v-if="show" class="confirm-overlay" @click="$emit('cancel')">
@@ -43,16 +43,17 @@ defineEmits(['cancel', 'confirm'])
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(20, 20, 22, 0.22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--app-overlay);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
 }
 
 .confirm-card {
   width: min(100%, 360px);
   padding: 22px;
   border-radius: 24px;
-  background: #ffffff;
+  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+  border: 1px solid var(--app-glass-border);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
 }
 
@@ -113,7 +114,7 @@ defineEmits(['cancel', 'confirm'])
 }
 
 .confirm-btn--ghost {
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
   color: var(--app-text);
 }
 
@@ -130,5 +131,16 @@ defineEmits(['cancel', 'confirm'])
 .confirm-modal-enter-from,
 .confirm-modal-leave-to {
   opacity: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .confirm-card {
+    background: rgba(24, 24, 28, 0.78);
+    box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
+  }
+
+  .confirm-btn--ghost {
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 </style>

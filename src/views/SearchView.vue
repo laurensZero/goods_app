@@ -445,9 +445,9 @@ onBeforeRouteLeave((to) => {
   gap: 10px;
   padding: calc(env(safe-area-inset-top) + 10px) var(--page-padding) 10px;
   background:
-    linear-gradient(180deg, rgba(245, 245, 247, 0.96) 0%, rgba(245, 245, 247, 0.82) 70%, rgba(245, 245, 247, 0) 100%);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+    linear-gradient(180deg, color-mix(in srgb, var(--app-glass-strong) 100%, transparent) 0%, color-mix(in srgb, var(--app-glass) 82%, transparent) 70%, rgba(245, 245, 247, 0) 100%);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
 .back-btn,
@@ -460,7 +460,8 @@ onBeforeRouteLeave((to) => {
   height: var(--icon-button-size);
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--app-glass);
+  border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   transition: transform 0.16s ease, opacity 0.16s ease;
@@ -500,7 +501,8 @@ onBeforeRouteLeave((to) => {
   padding: 0 14px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--app-glass);
+  border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow);
   color: var(--app-text-secondary);
   font-size: 13px;
@@ -653,6 +655,34 @@ onBeforeRouteLeave((to) => {
 @media (min-width: 1200px) {
   .goods-list {
     grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  /* 搜索/选择顶栏：白色渐变改深色渐变 */
+  .search-header,
+  .selection-header {
+    background:
+      linear-gradient(180deg, rgba(18, 18, 22, 0.82) 0%, rgba(18, 18, 22, 0.56) 72%, rgba(15, 15, 16, 0) 100%);
+  }
+
+  /* 返回 / 全选 按钮 */
+  .back-btn,
+  .sel-back-btn,
+  .sel-all-btn {
+    background: var(--app-glass);
+    border-color: var(--app-glass-border);
+  }
+
+  /* 筛选胶囊 */
+  .filter-chip {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .filter-chip--active {
+    background: #f5f5f7;
+    border-color: #f5f5f7;
+    color: #141416;
   }
 }
 </style>

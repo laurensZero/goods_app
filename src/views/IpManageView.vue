@@ -164,7 +164,7 @@ function syncDomField() {
   margin: 0 16px 12px;
   padding: 12px;
   border-radius: var(--radius-card);
-  background: #fff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
@@ -175,7 +175,7 @@ function syncDomField() {
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-small);
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
   color: var(--app-text);
   font-size: 15px;
   outline: none;
@@ -264,7 +264,7 @@ function syncDomField() {
 .list-section { padding: 0 16px; }
 
 .row-list {
-  background: #fff;
+  background: var(--app-surface);
   border-radius: var(--radius-card);
   box-shadow: var(--app-shadow);
   overflow: hidden;
@@ -328,4 +328,26 @@ function syncDomField() {
   transform: translateY(-8px);
 }
 
+@media (prefers-color-scheme: dark) {
+  .confirm-btn {
+    background: #f5f5f7;
+    color: #141416;
+  }
+
+  .row-item {
+    border-bottom-color: var(--app-border);
+  }
+
+  .row-delete {
+    background: rgba(199, 68, 68, 0.15);
+  }
+
+  .s-clear {
+    background: rgba(255, 255, 255, 0.20);
+  }
+
+  .row-input:focus {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+}
 </style>

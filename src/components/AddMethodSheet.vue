@@ -121,9 +121,9 @@ function onTaobaoImport() {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: var(--app-overlay);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
 }
 
 /* ---- 面板 ---- */
@@ -134,7 +134,9 @@ function onTaobaoImport() {
   transform: translateX(-50%);
   width: min(100vw, 480px);
   z-index: 90;
-  background: var(--app-surface, #fff);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
+  border: 1px solid var(--app-glass-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
   border-radius: 24px 24px 0 0;
   padding: 12px 16px max(24px, env(safe-area-inset-bottom));
   display: flex;
@@ -163,7 +165,7 @@ function onTaobaoImport() {
 
 /* ---- 选项卡片 ---- */
 .sheet-options {
-  background: var(--app-bg, #f5f5f7);
+  background: color-mix(in srgb, var(--app-bg) 88%, var(--app-glass));
   border-radius: 18px;
   overflow: hidden;
   margin-bottom: 10px;
@@ -364,6 +366,22 @@ function onTaobaoImport() {
   .sheet-slide-leave-to {
     transform: translateX(-50%) translateY(-50%) scale(0.94);
     opacity: 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .sheet-panel {
+    background: rgba(24, 24, 28, 0.8);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+  }
+
+  .sheet-options,
+  .sheet-cancel {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .sheet-option:active {
+    background: rgba(255, 255, 255, 0.06);
   }
 }
 </style>

@@ -127,10 +127,10 @@ onBeforeUnmount(() => {
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
-  color: #141416;
+  background: var(--app-surface);
+  color: var(--app-text);
   text-align: left;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 68%, transparent);
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
 }
 
@@ -147,14 +147,14 @@ onBeforeUnmount(() => {
 
 .app-select__value {
   overflow: hidden;
-  color: #141416;
+  color: var(--app-text);
   font-size: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .app-select__value--placeholder {
-  color: #a1a1a6;
+  color: var(--app-placeholder);
 }
 
 .app-select__arrow {
@@ -162,7 +162,7 @@ onBeforeUnmount(() => {
   height: 18px;
   margin-left: 10px;
   flex-shrink: 0;
-  stroke: #8e8e93;
+  stroke: var(--app-text-tertiary);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
   padding: 8px;
   border: 1px solid rgba(20, 20, 22, 0.05);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
@@ -196,7 +196,7 @@ onBeforeUnmount(() => {
   border: none;
   border-radius: 12px;
   background: transparent;
-  color: #141416;
+  color: var(--app-text);
   font-size: 15px;
   text-align: left;
   transition: background 0.16s ease, transform 0.16s ease, color 0.16s ease;
@@ -204,12 +204,12 @@ onBeforeUnmount(() => {
 
 .app-select__option:hover,
 .app-select__option:active {
-  background: #f5f5f7;
+  background: var(--app-surface-soft);
 }
 
 .app-select__option--active {
   background: rgba(20, 20, 22, 0.06);
-  color: #141416;
+  color: var(--app-text);
   font-weight: 600;
 }
 
@@ -218,7 +218,7 @@ onBeforeUnmount(() => {
   height: 16px;
   margin-left: 10px;
   flex-shrink: 0;
-  stroke: #141416;
+  stroke: currentColor;
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -226,7 +226,7 @@ onBeforeUnmount(() => {
 
 .app-select__empty {
   padding: 14px 12px;
-  color: #8e8e93;
+  color: var(--app-text-tertiary);
   font-size: 14px;
   text-align: center;
 }
@@ -241,5 +241,37 @@ onBeforeUnmount(() => {
 .select-panel-leave-to {
   opacity: 0;
   transform: translateY(-6px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-select__trigger {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .app-select--open .app-select__trigger,
+  .app-select__trigger:focus-visible {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .app-select__panel {
+    border-color: rgba(255, 255, 255, 0.06);
+    background: rgba(24, 24, 28, 0.82);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  }
+
+  .app-select__option:hover,
+  .app-select__option:active,
+  .app-select__option--active {
+    background: rgba(255, 255, 255, 0.07);
+  }
 }
 </style>

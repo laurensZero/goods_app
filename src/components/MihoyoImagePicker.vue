@@ -217,7 +217,7 @@ input {
   min-height: var(--input-height, 48px);
   border: 1px solid transparent;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--app-surface, #ffffff);
   color: var(--app-text, #1a1a1a);
   font-size: 16px;
   padding: 0 14px;
@@ -249,8 +249,8 @@ input::placeholder {
   height: var(--input-height, 48px);
   border: 1px solid transparent;
   border-radius: 14px;
-  background: #ffffff;
-  color: var(--text-secondary, #666);
+  background: var(--app-surface, #ffffff);
+  color: var(--app-text-secondary, #666);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -282,7 +282,7 @@ input::placeholder {
 
 .mhpicker-hint {
   font-size: 12px;
-  color: var(--text-tertiary, #aaa);
+  color: var(--app-text-tertiary, #aaa);
   padding: 2px 0;
   line-height: 1.4;
 }
@@ -311,7 +311,7 @@ input::placeholder {
   padding: 5px;
   border-radius: 10px;
   border: 2px solid transparent;
-  background: var(--bg-page, #f4f4f6);
+  background: var(--app-surface-soft, #f4f4f6);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -346,7 +346,7 @@ input::placeholder {
 
 .mhpicker-label {
   font-size: 10px;
-  color: var(--text-secondary, #666);
+  color: var(--app-text-secondary, #666);
   max-width: 68px;
   text-align: center;
   white-space: nowrap;
@@ -357,8 +357,40 @@ input::placeholder {
 
 .mhpicker-save-hint {
   font-size: 11px;
-  color: var(--text-tertiary, #aaa);
+  color: var(--app-text-tertiary, #aaa);
   margin: 0;
   padding: 0 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  input {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .mhpicker-upload-btn {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+    color: var(--app-text-secondary);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .mhpicker-upload-btn:active {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--app-text);
+  }
+
+  .mhpicker-item {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .mhpicker-item--active {
+    background: rgba(74, 122, 236, 0.18);
+  }
 }
 </style>

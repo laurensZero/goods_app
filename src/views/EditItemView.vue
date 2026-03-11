@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page page--transition edit-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar title="编辑谷子" show-back />
 
@@ -33,7 +33,7 @@
                 v-model="form.name"
                 ref="nameInputRef"
                 type="text"
-                placeholder="例如：初音未来 手办"
+                placeholder="例如：甘雨手办"
                 required
                 @input="syncField('name', $event)"
                 @blur="syncField('name', $event)"
@@ -400,7 +400,7 @@ function syncDomFields() {
 
 .hero-card,
 .field-card {
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
@@ -505,7 +505,7 @@ function syncDomFields() {
   gap: 10px;
   padding: 14px;
   border-radius: var(--radius-small);
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
 }
 
 .field-label {
@@ -524,7 +524,7 @@ function syncDomFields() {
   min-height: var(--input-height);
   border: 1px solid transparent;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   font-size: 16px;
   padding: 0 14px;
@@ -559,7 +559,7 @@ function syncDomFields() {
   height: var(--input-height);
   border: 1px solid transparent;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-placeholder);
   display: flex;
   align-items: center;
@@ -596,7 +596,7 @@ function syncDomFields() {
 .field input:focus,
 .field textarea:focus {
   border-color: rgba(20, 20, 22, 0.16);
-  background: #ffffff;
+  background: var(--app-surface);
 }
 
 .date-field,
@@ -609,7 +609,7 @@ function syncDomFields() {
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
@@ -721,7 +721,7 @@ function syncDomFields() {
   padding: 8px;
   border: 1px solid rgba(20, 20, 22, 0.05);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
@@ -766,11 +766,11 @@ function syncDomFields() {
 }
 
 :deep(.picker-popup .van-picker) {
-  --van-picker-background: #ffffff;
+  --van-picker-background: var(--app-surface);
   --van-picker-toolbar-height: 52px;
   --van-picker-option-font-size: 17px;
   --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: #141416;
+  --van-picker-confirm-action-color: var(--app-text);
   --van-picker-cancel-action-color: #8e8e93;
 }
 
@@ -859,4 +859,63 @@ function syncDomFields() {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  /* 主操作按钮 */
+  .primary-btn {
+    background: #f5f5f7;
+    color: #141416;
+  }
+
+  /* 下拉选项 hover/active */
+  .multi-select__option:active,
+  .multi-select__option:hover {
+    background: var(--app-surface-soft);
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .date-field,
+  .multi-select__trigger {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .date-field:focus-visible,
+  .multi-select--open .multi-select__trigger,
+  .multi-select__trigger:focus-visible {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .multi-select__chip {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  .multi-select__chip-remove {
+    background: rgba(255, 255, 255, 0.10);
+  }
+
+  .multi-select__panel {
+    border-color: rgba(255, 255, 255, 0.06);
+    background: rgba(24, 24, 28, 0.82);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  }
+
+  .multi-select__option:active,
+  .multi-select__option:hover,
+  .multi-select__option--active {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .btn-primary {
+    background: #f5f5f7;
+    color: #141416;
+  }
+}
 </style>

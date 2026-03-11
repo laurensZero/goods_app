@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Popup
     v-model:show="showProxy"
     teleport="body"
@@ -365,7 +365,7 @@ defineExpose({
   gap: 14px;
   padding: 14px;
   border-radius: var(--radius-card);
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
@@ -375,7 +375,7 @@ defineExpose({
   gap: 10px;
   padding: 14px;
   border-radius: var(--radius-small);
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
 }
 
 .field-label {
@@ -393,7 +393,7 @@ defineExpose({
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
@@ -441,7 +441,7 @@ defineExpose({
   padding: 10px 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
@@ -530,7 +530,7 @@ defineExpose({
   padding: 8px;
   border: 1px solid rgba(20, 20, 22, 0.05);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
 
@@ -591,11 +591,11 @@ defineExpose({
 }
 
 :deep(.picker-popup .van-picker) {
-  --van-picker-background: #ffffff;
+  --van-picker-background: var(--app-surface);
   --van-picker-toolbar-height: 52px;
   --van-picker-option-font-size: 17px;
   --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: #141416;
+  --van-picker-confirm-action-color: var(--app-text);
   --van-picker-cancel-action-color: #8e8e93;
 }
 
@@ -634,7 +634,7 @@ defineExpose({
 }
 
 .confirm-btn--ghost {
-  background: #f4f4f6;
+  background: var(--app-surface-soft);
   color: var(--app-text);
 }
 
@@ -653,6 +653,40 @@ defineExpose({
 
   .batch-edit-actions {
     padding-bottom: 16px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .date-field,
+  .multi-select__trigger {
+    border-color: rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .multi-select__panel {
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
+  }
+
+  .multi-select__option {
+    color: var(--app-text);
+  }
+
+  .multi-select__option:active {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .multi-select__option--active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .multi-select__check {
+    stroke: var(--app-text);
+  }
+
+  .confirm-btn--danger {
+    background: #f5f5f7;
+    color: #141416;
   }
 }
 </style>

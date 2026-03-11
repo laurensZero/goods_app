@@ -35,9 +35,9 @@ const router = useRouter()
   z-index: 50;
   padding: calc(env(safe-area-inset-top) + 10px) var(--page-padding) 6px;
   background:
-    linear-gradient(180deg, rgba(245, 245, 247, 0.94) 0%, rgba(245, 245, 247, 0.78) 70%, rgba(245, 245, 247, 0) 100%);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+    linear-gradient(180deg, color-mix(in srgb, var(--app-glass-strong) 100%, transparent) 0%, color-mix(in srgb, var(--app-glass) 82%, transparent) 70%, rgba(245, 245, 247, 0) 100%);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
 .nav-bar__inner {
@@ -57,7 +57,8 @@ const router = useRouter()
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--app-glass);
+  border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   transition: transform 0.16s ease, background 0.16s ease;
@@ -74,7 +75,7 @@ const router = useRouter()
 
 .nav-back:active {
   transform: scale(0.96);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--app-glass-strong);
 }
 
 .nav-placeholder {
@@ -97,7 +98,8 @@ const router = useRouter()
   height: var(--icon-button-size);
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--app-glass);
+  border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   transition: transform 0.16s ease;
@@ -125,5 +127,23 @@ const router = useRouter()
   text-overflow: ellipsis;
   white-space: nowrap;
   letter-spacing: -0.02em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .nav-bar {
+    background:
+      linear-gradient(180deg, rgba(18, 18, 22, 0.82) 0%, rgba(18, 18, 22, 0.56) 72%, rgba(15, 15, 16, 0) 100%);
+  }
+
+  .nav-back,
+  :slotted(.add-btn) {
+    background: var(--app-glass);
+    border-color: var(--app-glass-border);
+  }
+
+  .nav-back:active,
+  :slotted(.add-btn):active {
+    background: var(--app-glass-strong);
+  }
 }
 </style>

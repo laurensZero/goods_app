@@ -37,9 +37,10 @@
   width: min(calc(100vw - 24px), 398px);
   padding: 10px;
   border-radius: var(--radius-large);
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: var(--app-glass-strong);
+  border: 1px solid var(--app-glass-border);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   box-shadow: var(--app-shadow);
   transform: translateX(-50%);
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
@@ -79,6 +80,19 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.01em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab-bar {
+    background: var(--app-glass-strong);
+    border-color: var(--app-glass-border);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  }
+
+  .tab-item--active {
+    background: #f5f5f5;
+    color: #141416;
+  }
 }
 </style>
 
