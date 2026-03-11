@@ -1,7 +1,5 @@
 ﻿<template>
   <div class="page home-page">
-    <!-- 滚动位置恢复期间的遮罩：防止 KeepAlive 重激活时「顶部→目标」的闪烁 -->
-    <div v-if="restoringScroll" class="scroll-restore-cover" aria-hidden="true" />
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -134,22 +132,28 @@
                     :key="item.id"
                     type="button"
                     class="tl-thumb-btn"
-                    @click="openDetail(item.id)"
+                    :class="{ 'tl-thumb-btn--active': expandedItemId === item.id }"
+                    @click="toggleTimelineItem(item.id)"
                   >
                     <div class="tl-thumb-img-wrap">
-                      <img
+                      <LazyCachedImage
                         v-if="item.image"
                         class="tl-thumb-img"
                         :src="item.image"
                         :alt="item.name"
-                        loading="lazy"
-                        decoding="async"
-                        fetchpriority="low"
+                        root-margin="120px 0px"
                       />
                       <div v-else class="tl-thumb-empty">✦</div>
                     </div>
                   </button>
                 </div>
+                <transition name="tl-expand">
+                  <TimelineExpandCard
+                    v-if="expandedItem && expandedSectionKey === monthGroup.yearMonth"
+                    :item="expandedItem"
+                    @open-detail="openDetail(expandedItem.id)"
+                  />
+                </transition>
               </div>
             </div>
           </div>
@@ -172,22 +176,28 @@
                   :key="item.id"
                   type="button"
                   class="tl-thumb-btn"
-                  @click="openDetail(item.id)"
+                  :class="{ 'tl-thumb-btn--active': expandedItemId === item.id }"
+                  @click="toggleTimelineItem(item.id)"
                 >
                   <div class="tl-thumb-img-wrap">
-                    <img
+                    <LazyCachedImage
                       v-if="item.image"
                       class="tl-thumb-img"
                       :src="item.image"
                       :alt="item.name"
-                      loading="lazy"
-                      decoding="async"
-                      fetchpriority="low"
+                      root-margin="120px 0px"
                     />
                     <div v-else class="tl-thumb-empty">✦</div>
                   </div>
                 </button>
               </div>
+              <transition name="tl-expand">
+                <TimelineExpandCard
+                  v-if="expandedItem && expandedSectionKey === TIMELINE_UNKNOWN_SECTION_KEY"
+                  :item="expandedItem"
+                  @open-detail="openDetail(expandedItem.id)"
+                />
+              </transition>
             </div>
           </div>
         </div>
@@ -255,6 +265,8 @@ import AddMethodSheet from '@/components/AddMethodSheet.vue'
 import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
+import LazyCachedImage from '@/components/LazyCachedImage.vue'
+import TimelineExpandCard from '@/components/TimelineExpandCard.vue'
 
 defineOptions({ name: 'HomeView' })
 
@@ -264,6 +276,7 @@ const batchEditSheetRef = ref(null)
 const DENSITY_STORAGE_KEY = 'goods-app:home-density'
 const HOME_SCROLL_STORAGE_KEY = 'home-scroll'
 const HOME_SCROLL_RESTORE_PENDING_KEY = 'home-scroll-restore-pending'
+const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const densityModes = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
@@ -307,12 +320,10 @@ let densityAnimationTimer = 0
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
+let selectionHeaderScrollStart = 0
 
 // 模块级变量，KeepAlive 激活期间稳定保存滚动位置
 let _savedScrollTop = 0
-
-// 滚动位置恢复中：用遮罩挡住第一帧「滚回顶部」的闪烁
-const restoringScroll = ref(false)
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -452,7 +463,7 @@ function handlePageScroll() {
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
-    updateSelectionHeaderOffset()
+    if (selectionMode.value) updateSelectionHeaderOffset()
     maybeLoadMoreGoods()
     maybeLoadMoreTimelineMonths()
   })
@@ -528,32 +539,36 @@ onActivated(async () => {
   // KeepAlive 保留了 DOM，先读取当前真实滚动位置（KeepAlive 会保留 DOM 状态）
   const domTop = getScrollEl()?.scrollTop ?? 0
   const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
-  const topToRestore = domTop > 0
-    ? domTop
-    : shouldRestore
-      ? (_savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0))
-      : 0
-  // 如果需要滚动恢复，先显示遮罩防止顶部闪烁
-  if (topToRestore > 0) restoringScroll.value = true
-  syncVisibleGoodsCount(topToRestore)
-  syncVisibleTimelineMonthCount(topToRestore)
+  const storedTop = shouldRestore
+    ? (_savedScrollTop || Number(sessionStorage.getItem(HOME_SCROLL_STORAGE_KEY) || 0))
+    : 0
+
+  // 优先复用 KeepAlive 已保留的 DOM 位置，避免返回时先显示顶部再回跳。
+  if (domTop > 0) {
+    syncVisibleGoodsCount(domTop)
+    syncVisibleTimelineMonthCount(domTop)
+    if (shouldRestore) {
+      sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
+    }
+    bindSelectionHeaderScroll()
+    updateSelectionHeaderOffset()
+    bindAndroidBackButton()
+    return
+  }
+
+  syncVisibleGoodsCount(storedTop)
+  syncVisibleTimelineMonthCount(storedTop)
+  if (storedTop > 0) {
+    applyScrollPosition(storedTop)
+  }
   await nextTick()
-  // 在 refresh 之前先同步恢复滚动，防止 refresh 重渲染导致闪烁
-  applyScrollPosition(topToRestore)
-  await refresh()
-  syncVisibleGoodsCount(topToRestore)
-  syncVisibleTimelineMonthCount(topToRestore)
-  await nextTick()
+  if (storedTop > 0) {
+    applyScrollPosition(storedTop)
+  }
   bindSelectionHeaderScroll()
-  applyScrollPosition(topToRestore)
   updateSelectionHeaderOffset()
   if (shouldRestore) {
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
-  }
-  // 遮罩在所有 scroll 重试（最晚 200ms）完成之后才移除
-  // 单个 rAF 在安卓 WebView 上太早（动画还未结束），改用 300ms 保底
-  if (restoringScroll.value) {
-    setTimeout(() => { restoringScroll.value = false }, 300)
   }
   bindAndroidBackButton()
 })
@@ -611,6 +626,7 @@ const goodsList = computed(() => {
 
   return items
 })
+const goodsById = computed(() => new Map(goodsList.value.map((item) => [item.id, item])))
 const visibleGoodsCount = ref(0)
 const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
 const visibleGoodsList = computed(() =>
@@ -771,7 +787,10 @@ function restoreDisplayDensity() {
 }
 
 function updateSelectionHeaderOffset() {
-  const scrolled = Math.min(readScrollTop(), SELECTION_HEADER_INITIAL_OFFSET)
+  const scrolled = Math.min(
+    Math.max(0, readScrollTop() - selectionHeaderScrollStart),
+    SELECTION_HEADER_INITIAL_OFFSET
+  )
   selectionHeaderTopOffset.value = Math.max(0, SELECTION_HEADER_INITIAL_OFFSET - scrolled)
 }
 
@@ -779,6 +798,26 @@ function openDetail(id) {
   saveScrollPosition()
   router.push(`/detail/${id}`)
 }
+
+// -------- 时间线内联展开 --------
+const expandedItemId = ref(null)
+const expandedItem = computed(() =>
+  expandedItemId.value ? goodsById.value.get(expandedItemId.value) ?? null : null
+)
+const expandedSectionKey = computed(() => {
+  if (!expandedItem.value) return ''
+
+  const yearMonth = String(expandedItem.value.acquiredAt || '').slice(0, 7)
+  return /^\d{4}-\d{2}$/.test(yearMonth) ? yearMonth : TIMELINE_UNKNOWN_SECTION_KEY
+})
+
+function toggleTimelineItem(id) {
+  expandedItemId.value = expandedItemId.value === id ? null : id
+}
+
+watch(displayDensity, (v) => {
+  if (v !== 'timeline') expandedItemId.value = null
+})
 
 // -------- Multi-select --------
 const showDeleteConfirm = ref(false)
@@ -806,6 +845,17 @@ const {
   restoreScrollTop: applyScrollPosition
 })
 
+watch(selectionMode, (active) => {
+  if (active) {
+    selectionHeaderScrollStart = readScrollTop()
+    selectionHeaderTopOffset.value = SELECTION_HEADER_INITIAL_OFFSET
+    return
+  }
+
+  selectionHeaderScrollStart = 0
+  selectionHeaderTopOffset.value = SELECTION_HEADER_INITIAL_OFFSET
+})
+
 async function batchDelete() {
   if (selectedIds.value.size === 0) return
   showDeleteConfirm.value = true
@@ -829,15 +879,6 @@ async function applyBatchEditPayload(payload) {
 </script>
 
 <style scoped>
-/* 滚动恢复遮罩：防止 KeepAlive 重激活时短暂显示顶部 */
-.scroll-restore-cover {
-  position: fixed;
-  inset: 0;
-  background: var(--app-bg, #f2f2f7);
-  z-index: 9998;
-  pointer-events: none;
-}
-
 .home-page {
   position: relative;
 }
@@ -1220,6 +1261,7 @@ async function applyBatchEditPayload(payload) {
   background: var(--app-surface-soft, #eeeff2);
   box-shadow: 0 6px 16px rgba(17, 20, 22, 0.06);
   border: 1px solid color-mix(in srgb, var(--app-text-tertiary) 10%, transparent);
+  transition: box-shadow 0.2s ease, outline-color 0.2s ease, outline-offset 0.2s ease;
 }
 
 .tl-thumb-img {
@@ -1239,6 +1281,19 @@ async function applyBatchEditPayload(payload) {
   justify-content: center;
   color: var(--app-text-tertiary);
   font-size: 14px;
+}
+
+/* === 缩略图选中高亮（outline + 阳边 + 浮层阴影）=== */
+.tl-thumb-btn--active {
+  transform: scale(1.04);
+  z-index: 1;
+  position: relative;
+}
+
+.tl-thumb-btn--active .tl-thumb-img-wrap {
+  outline: 2px solid var(--app-text);
+  outline-offset: 3px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.20), 0 3px 8px rgba(0, 0, 0, 0.10);
 }
 
 .sort-toggle {
@@ -1782,6 +1837,10 @@ async function applyBatchEditPayload(payload) {
   color: var(--app-text);
 }
 
+:deep(.picker-popup .van-picker-column) {
+  touch-action: pan-y;
+}
+
 /* -------- 批量删除确认弹窗（对齐 DetailView 风格）------- */
 .confirm-overlay {
   position: fixed;
@@ -1887,6 +1946,22 @@ async function applyBatchEditPayload(payload) {
 
 /* ── 深色模式覆盖 ── */
 @media (prefers-color-scheme: dark) {
+  /* 日期选择器深色适配 */
+  :deep(.picker-popup .van-picker) {
+    --van-picker-mask-color:
+      linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
+      linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
+  }
+
+  :deep(.picker-popup.van-popup),
+  :deep(.picker-popup.van-popup--bottom) {
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  }
+
   /* 主页搜索按钮 */
   .hero-search {
     background: var(--app-glass);
@@ -1922,6 +1997,12 @@ async function applyBatchEditPayload(payload) {
   .tl-thumb-img-wrap {
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
     border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .tl-thumb-btn--active .tl-thumb-img-wrap {
+    outline: 2px solid rgba(245, 245, 247, 0.80);
+    outline-offset: 3px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.44), 0 3px 8px rgba(0, 0, 0, 0.24);
   }
 
   /* FAB 新增按钮 */

@@ -615,6 +615,10 @@ defineExpose({
   color: var(--app-text);
 }
 
+:deep(.picker-popup .van-picker-column) {
+  touch-action: pan-y;
+}
+
 .confirm-btn {
   height: 48px;
   border: none;
@@ -657,6 +661,16 @@ defineExpose({
 }
 
 @media (prefers-color-scheme: dark) {
+  .batch-edit-sheet {
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 42%),
+      var(--app-surface);
+  }
+
+  .batch-edit-sheet__handle {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
   .date-field,
   .multi-select__trigger {
     border-color: rgba(255, 255, 255, 0.07);
@@ -682,6 +696,21 @@ defineExpose({
 
   .multi-select__check {
     stroke: var(--app-text);
+  }
+
+  :deep(.picker-popup.van-popup),
+  :deep(.picker-popup.van-popup--bottom) {
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  }
+
+  :deep(.picker-popup .van-picker) {
+    --van-picker-mask-color:
+      linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
+      linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
   }
 
   .confirm-btn--danger {

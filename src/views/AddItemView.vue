@@ -771,6 +771,10 @@ onBeforeUnmount(() => {
   color: var(--app-text);
 }
 
+:deep(.picker-popup .van-picker-column) {
+  touch-action: pan-y;
+}
+
 .select-panel-enter-active,
 .select-panel-leave-active {
   transition: opacity 0.18s ease, transform 0.18s ease;
@@ -840,12 +844,6 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-color-scheme: dark) {
-  /* 主操作按钮 */
-  .primary-btn {
-    background: #f5f5f7;
-    color: #141416;
-  }
-
   /* 下拉选项 hover/active */
   .multi-select__option:active,
   .multi-select__option:hover {
@@ -853,6 +851,11 @@ onBeforeUnmount(() => {
   }
 }
 @media (prefers-color-scheme: dark) {
+  /* 预览图占位背景（无图片时） */
+  .preview-media {
+    background: linear-gradient(180deg, #1a1a1e, #252528);
+  }
+
   .date-field,
   .multi-select__trigger {
     border-color: rgba(255, 255, 255, 0.07);
@@ -893,9 +896,28 @@ onBeforeUnmount(() => {
     background: rgba(255, 255, 255, 0.07);
   }
 
+  :deep(.picker-popup.van-popup),
+  :deep(.picker-popup.van-popup--bottom) {
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  }
+
+  :deep(.picker-popup .van-picker) {
+    --van-picker-mask-color:
+      linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
+      linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
+  }
+
   .btn-primary {
     background: #f5f5f7;
     color: #141416;
+  }
+
+  .btn-float {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
   }
 }
 </style>

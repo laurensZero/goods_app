@@ -1899,6 +1899,7 @@ async function handleSave() {
 :deep(.picker-popup .van-picker__title) { font-weight: 600; }
 :deep(.picker-popup .van-picker-column__item) { color: var(--app-text-secondary); }
 :deep(.picker-popup .van-picker-column__item--selected) { color: var(--app-text); }
+:deep(.picker-popup .van-picker-column) { touch-action: pan-y; }
 
 /* ── 款式是否记录为角色：iOS 风格切换行 ── */
 .save-char-row {
@@ -2102,6 +2103,18 @@ async function handleSave() {
 
   :deep(.picker-popup .van-picker) {
     --van-picker-background: rgba(24, 24, 28, 0.96);
+    --van-picker-mask-color:
+      linear-gradient(180deg, rgba(24, 24, 28, 0.96), rgba(24, 24, 28, 0)),
+      linear-gradient(0deg, rgba(24, 24, 28, 0.96), rgba(24, 24, 28, 0));
+  }
+
+  :deep(.picker-popup.van-popup),
+  :deep(.picker-popup.van-popup--bottom) {
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
 
   .save-char-row {
@@ -2149,7 +2162,12 @@ async function handleSave() {
   }
 
   .btn-primary {
+    background: #f5f5f7;
     color: #141416;
+  }
+
+  .btn-float {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
   }
 }
 </style>
