@@ -53,10 +53,13 @@
             :style="goodsGridStyle"
           >
             <GoodsCard
-              v-for="item in visibleGoodsList"
+              v-for="(item, index) in visibleGoodsList"
               :key="item.id"
               :item="item"
               :density="displayDensity"
+              :data-goods-id="item.id"
+              :data-scroll-anchor="'goods-card'"
+              :data-scroll-index="index"
               :selected="selectedIds.has(item.id)"
               :selection-mode="selectionMode"
               @long-press="enterSelectionMode(item.id)"
@@ -293,6 +296,20 @@ function syncVisibleTimelineMonthCount(scrollTop = 0) {
   visibleTimelineMonthCount.value = estimateVisibleTimelineMonths(scrollTop)
 }
 
+function prepareRestoreState(state) {
+  if (!state || displayDensity.value === 'timeline') return
+
+  const anchorIndex = Number(state.anchorIndex)
+  if (!Number.isFinite(anchorIndex) || anchorIndex < 0) return
+
+  const cols = getResponsiveCols(displayDensity.value)
+  const bufferedCount = anchorIndex + cols * 3
+  visibleGoodsCount.value = Math.min(
+    goodsList.value.length,
+    Math.max(visibleGoodsCount.value, getInitialVisibleCount(), bufferedCount)
+  )
+}
+
 function maybeLoadMoreTimelineMonths() {
   if (displayDensity.value !== 'timeline') return
   if (visibleTimelineMonthCount.value >= allTimelineMonthCount.value) return
@@ -371,14 +388,14 @@ onMounted(async () => {
   await nextTick()
   bindSelectionHeaderScroll()
   updateSelectionHeaderOffset()
-  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
 })
 
 onActivated(async () => {
   isHomeActive.value = true
-  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
   bindSelectionHeaderScroll()
   updateSelectionHeaderOffset()
   bindAndroidBackButton()

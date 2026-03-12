@@ -1693,9 +1693,9 @@ async function handleSave() {
 
 /* ── 变体（角色款式）选择器 ── */
 .variant-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 10px;
   margin-top: 4px;
 }
 
@@ -1703,15 +1703,18 @@ async function handleSave() {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 144px;
+  padding: 10px;
   border: 2px solid rgba(20, 20, 22, 0.1);
   border-radius: 12px;
   background: var(--app-surface);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
-  min-width: 60px;
 }
 
 .variant-btn:active {
@@ -1724,8 +1727,8 @@ async function handleSave() {
 }
 
 .variant-img-wrap {
-  width: 56px;
-  height: 56px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   border-radius: 8px;
   overflow: hidden;
   background: #eeeef0;
@@ -1743,9 +1746,12 @@ async function handleSave() {
   font-weight: 500;
   color: var(--app-text);
   line-height: 1.3;
-  text-align: center;
-  max-width: 80px;
-  word-break: break-all;
+  text-align: left;
+  width: 100%;
+  max-width: none;
+  min-height: 34px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .variant-btn--selected .variant-name {
@@ -1755,8 +1761,8 @@ async function handleSave() {
 
 .variant-check {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 8px;
+  right: 8px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -2168,6 +2174,12 @@ async function handleSave() {
 
   .btn-float {
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+  }
+}
+
+@media (max-width: 359px) {
+  .variant-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

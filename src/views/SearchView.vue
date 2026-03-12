@@ -430,6 +430,11 @@ onBeforeRouteLeave((to) => {
 </script>
 
 <style scoped>
+.search-page,
+.page-body {
+  overflow-x: hidden;
+}
+
 .search-header,
 .selection-header {
   position: sticky;
@@ -524,14 +529,17 @@ onBeforeRouteLeave((to) => {
 }
 
 .filter-row {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
   min-width: 0;
 }
 
 .filter-row-label {
-  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
   width: 28px;
   color: var(--app-text-tertiary);
   font-size: 12px;
@@ -554,6 +562,8 @@ onBeforeRouteLeave((to) => {
 .filter-chips {
   display: flex;
   flex: 1;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   gap: 6px;
   overflow-x: auto;
@@ -594,6 +604,7 @@ onBeforeRouteLeave((to) => {
 .results-section,
 .empty-wrap {
   margin-top: var(--section-gap);
+  min-width: 0;
 }
 
 .results-section--selection,
@@ -622,6 +633,13 @@ onBeforeRouteLeave((to) => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--card-gap);
+  min-width: 0;
+}
+
+@media (max-width: 599px) {
+  .filter-row-label--character::after {
+    display: none;
+  }
 }
 
 @media (min-width: 600px) {
