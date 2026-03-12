@@ -141,7 +141,7 @@
         <div v-if="editingCharacter" class="edit-backdrop" @click="closeEdit" />
       </Transition>
       <Transition name="sheet-slide">
-        <div v-if="editingCharacter" class="edit-sheet">
+        <div v-if="editingCharacter" class="edit-sheet" :style="editSheetStyle">
           <div class="edit-header">
             <span class="edit-title">编辑角色</span>
             <button type="button" class="edit-close" @click="closeEdit">×</button>
@@ -156,6 +156,7 @@
             type="text"
             maxlength="30"
             placeholder="输入新的角色名称"
+            @focus="handleEditInputFocus"
             @keyup.enter="saveEdit"
           />
 
@@ -200,7 +201,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
@@ -233,6 +234,11 @@ const editName = ref('')
 const editIp = ref('')
 const editError = ref('')
 const editInputRef = ref(null)
+const keyboardInset = ref(0)
+
+const editSheetStyle = computed(() => ({
+  '--edit-sheet-keyboard-offset': `${keyboardInset.value}px`
+}))
 
 const filteredCharacters = computed(() => {
   let list = presets.characters.map((character) => ({
@@ -351,6 +357,59 @@ async function saveEdit() {
 
   closeEdit()
 }
+
+function updateKeyboardInset() {
+  if (!editingCharacter.value) {
+    keyboardInset.value = 0
+    return
+  }
+
+  const viewport = window.visualViewport
+  if (!viewport) {
+    keyboardInset.value = 0
+    return
+  }
+
+  keyboardInset.value = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+}
+
+function ensureEditInputVisible() {
+  if (!editingCharacter.value) return
+  editInputRef.value?.scrollIntoView?.({
+    block: 'center',
+    inline: 'nearest',
+    behavior: 'smooth'
+  })
+}
+
+function handleEditInputFocus() {
+  window.setTimeout(() => {
+    updateKeyboardInset()
+    ensureEditInputVisible()
+  }, 80)
+  window.setTimeout(ensureEditInputVisible, 220)
+}
+
+onMounted(() => {
+  window.visualViewport?.addEventListener('resize', updateKeyboardInset)
+  window.visualViewport?.addEventListener('scroll', updateKeyboardInset)
+})
+
+onBeforeUnmount(() => {
+  window.visualViewport?.removeEventListener('resize', updateKeyboardInset)
+  window.visualViewport?.removeEventListener('scroll', updateKeyboardInset)
+})
+
+watch(editingCharacter, async (value) => {
+  if (!value) {
+    keyboardInset.value = 0
+    return
+  }
+
+  await nextTick()
+  updateKeyboardInset()
+  window.setTimeout(ensureEditInputVisible, 120)
+})
 </script>
 
 <style scoped>
@@ -616,14 +675,17 @@ async function saveEdit() {
 .edit-sheet {
   position: fixed;
   left: 50%;
-  bottom: calc(max(env(safe-area-inset-bottom), 16px) + 16px);
+  bottom: calc(max(env(safe-area-inset-bottom), 16px) + 16px + var(--edit-sheet-keyboard-offset, 0px));
   transform: translateX(-50%);
   width: min(calc(100vw - 32px), 420px);
+  max-height: calc(100dvh - var(--edit-sheet-keyboard-offset, 0px) - 32px);
   background: rgba(255, 255, 255, 0.92);
   border-radius: var(--radius-card);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
   padding: 18px 16px 16px;
   z-index: 60;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }

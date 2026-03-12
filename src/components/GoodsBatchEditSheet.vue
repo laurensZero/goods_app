@@ -19,26 +19,46 @@
       <section class="batch-edit-section">
         <div class="field-card batch-edit-card">
           <label class="field">
-            <span class="field-label">分类</span>
+            <div class="field-head">
+              <span class="field-label">分类</span>
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('category')">快速新增</button>
+            </div>
             <AppSelect v-model="form.category" :options="presets.categories" placeholder="留空则不修改" />
+            <QuickPresetCreator
+              v-if="quickCreateTarget === 'category'"
+              :show="quickCreateTarget === 'category'"
+              v-model="quickCategoryName"
+              placeholder="输入分类名称"
+              :maxlength="20"
+              submit-text="新增分类"
+              @cancel="closeQuickCreate"
+              @submit="submitQuickCategory"
+            />
           </label>
 
           <label class="field">
-            <span class="field-label">IP</span>
+            <div class="field-head">
+              <span class="field-label">IP</span>
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('ip')">快速新增</button>
+            </div>
             <AppSelect v-model="form.ip" :options="presets.ips" placeholder="留空则不修改" />
+            <QuickPresetCreator
+              v-if="quickCreateTarget === 'ip'"
+              :show="quickCreateTarget === 'ip'"
+              v-model="quickIpName"
+              placeholder="输入 IP 名称"
+              :maxlength="40"
+              submit-text="新增 IP"
+              @cancel="closeQuickCreate"
+              @submit="submitQuickIp"
+            />
           </label>
 
           <div class="field">
-            <span class="field-label">收纳位置</span>
-            <StorageLocationInput
-              v-model="form.storageLocation"
-              :options="storageLocationOptions"
-              placeholder="留空则不修改"
-            />
-          </div>
-
-          <div class="field">
-            <span class="field-label">角色</span>
+            <div class="field-head">
+              <span class="field-label">角色</span>
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('character')">快速新增</button>
+            </div>
             <div class="multi-select" :class="{ 'multi-select--open': showCharPicker }">
               <button class="multi-select__trigger" type="button" @click="toggleCharPicker">
                 <div class="multi-select__content">
@@ -86,6 +106,31 @@
                 </div>
               </transition>
             </div>
+
+            <QuickPresetCreator
+              v-if="quickCreateTarget === 'character'"
+              :show="quickCreateTarget === 'character'"
+              v-model="quickCharacterName"
+              placeholder="输入角色名称"
+              :maxlength="30"
+              submit-text="新增角色"
+              :secondary-value="quickCharacterIp"
+              :secondary-options="quickCharacterIpOptions"
+              :secondary-label="form.ip ? '当前将归到已选 IP' : '选择角色归属 IP'"
+              secondary-placeholder="不设置 IP"
+              @update:secondary-value="quickCharacterIp = $event"
+              @cancel="closeQuickCreate"
+              @submit="submitQuickCharacter"
+            />
+          </div>
+
+          <div class="field">
+            <span class="field-label">收纳位置</span>
+            <StorageLocationInput
+              v-model="form.storageLocation"
+              :options="storageLocationOptions"
+              placeholder="留空则不修改"
+            />
           </div>
 
           <label class="field">
@@ -136,12 +181,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
-import { usePresetsStore } from '@/stores/presets'
+import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import AppSelect from '@/components/AppSelect.vue'
 import StorageLocationInput from '@/components/StorageLocationInput.vue'
+import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -150,12 +196,19 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'apply'])
 
+const NO_IP_OPTION = '__NO_IP__'
+
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 const showDatePicker = ref(false)
 const showCharPicker = ref(false)
+const quickCreateTarget = ref('')
+const quickCategoryName = ref('')
+const quickIpName = ref('')
+const quickCharacterName = ref('')
+const quickCharacterIp = ref(NO_IP_OPTION)
 const form = reactive({
   category: '',
   ip: '',
@@ -182,6 +235,16 @@ const canSubmit = computed(() =>
   Boolean(form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
 )
 const storageLocationOptions = computed(() => goodsStore.storageLocations)
+const quickCharacterIpOptions = computed(() => {
+  if (form.ip) {
+    return [{ label: form.ip, value: form.ip }]
+  }
+
+  return [
+    { label: '不设置 IP', value: NO_IP_OPTION },
+    ...presets.ips.map((ip) => ({ label: ip, value: ip }))
+  ]
+})
 
 const availableCharacters = computed(() =>
   form.ip
@@ -204,11 +267,15 @@ watch(
 watch(
   () => form.ip,
   (ip) => {
-    if (!ip) return
+    if (ip) {
+      form.characters = form.characters.filter((name) =>
+        presets.characters.some((character) => character.name === name && character.ip === ip)
+      )
+    }
 
-    form.characters = form.characters.filter((name) =>
-      presets.characters.some((character) => character.name === name && character.ip === ip)
-    )
+    if (quickCreateTarget.value === 'character') {
+      quickCharacterIp.value = ip || NO_IP_OPTION
+    }
   }
 )
 
@@ -218,6 +285,7 @@ function resetForm() {
   form.acquiredAt = ''
   form.storageLocation = ''
   form.characters = []
+  closeQuickCreate()
   datePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
   closeNestedPanels()
 }
@@ -227,8 +295,30 @@ function closeNestedPanels() {
   showCharPicker.value = false
 }
 
+function closeQuickCreate() {
+  quickCreateTarget.value = ''
+  quickCategoryName.value = ''
+  quickIpName.value = ''
+  quickCharacterName.value = ''
+  quickCharacterIp.value = form.ip || NO_IP_OPTION
+}
+
+function toggleQuickCreate(type) {
+  if (quickCreateTarget.value === type) {
+    closeQuickCreate()
+    return
+  }
+
+  quickCreateTarget.value = type
+  quickCategoryName.value = ''
+  quickIpName.value = ''
+  quickCharacterName.value = ''
+  quickCharacterIp.value = form.ip || NO_IP_OPTION
+}
+
 function close() {
   closeNestedPanels()
+  closeQuickCreate()
   emit('update:show', false)
 }
 
@@ -252,6 +342,43 @@ function toggleChar(name) {
   const idx = form.characters.indexOf(name)
   if (idx >= 0) form.characters.splice(idx, 1)
   else form.characters.push(name)
+}
+
+async function submitQuickCategory() {
+  await commitActiveInput()
+  const name = String(quickCategoryName.value || '').trim()
+  if (!name) return
+  await presets.addCategory(name)
+  form.category = name
+  closeQuickCreate()
+}
+
+async function submitQuickIp() {
+  await commitActiveInput()
+  const name = String(quickIpName.value || '').trim()
+  if (!name) return
+  await presets.addIp(name)
+  form.ip = name
+  closeQuickCreate()
+}
+
+async function submitQuickCharacter() {
+  await commitActiveInput()
+  const name = normalizeCharacterName(quickCharacterName.value)
+  if (!name) return
+
+  const targetIp = form.ip || (quickCharacterIp.value === NO_IP_OPTION ? '' : quickCharacterIp.value)
+  await presets.addCharacter(name, targetIp)
+
+  if (!form.ip && targetIp) {
+    form.ip = targetIp
+  }
+
+  if (!form.characters.includes(name)) {
+    form.characters.push(name)
+  }
+
+  closeQuickCreate()
 }
 
 async function apply() {
@@ -394,10 +521,31 @@ defineExpose({
   background: var(--app-surface-soft);
 }
 
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .field-label {
   color: var(--app-text);
   font-size: 14px;
   font-weight: 600;
+}
+
+.field-add-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #2070c0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.field-add-btn:active {
+  transform: scale(0.96);
 }
 
 .date-field {

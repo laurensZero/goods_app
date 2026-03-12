@@ -81,21 +81,6 @@
               />
             </label>
 
-            <div class="field">
-              <span class="field-label">收纳位置</span>
-              <StorageLocationInput
-                v-model="form.storageLocation"
-                :options="storageLocationOptions"
-                placeholder="未设置收纳位置"
-                quick-create
-              />
-            </div>
-
-            <div class="field">
-              <span class="field-label">自定义标签</span>
-              <TagInput v-model="form.tags" placeholder="例如：生日谷、吧唧墙、待出" />
-            </div>
-
             <div ref="charactersFieldRef" class="field">
               <div class="field-head">
                 <span class="field-label">角色</span>
@@ -176,6 +161,21 @@
                 @cancel="closeQuickCreate"
                 @submit="submitQuickCharacter"
               />
+            </div>
+
+            <div class="field">
+              <span class="field-label">收纳位置</span>
+              <StorageLocationInput
+                v-model="form.storageLocation"
+                :options="storageLocationOptions"
+                placeholder="未设置收纳位置"
+                quick-create
+              />
+            </div>
+
+            <div class="field">
+              <span class="field-label">自定义标签</span>
+              <TagInput v-model="form.tags" placeholder="例如：生日谷、吧唧墙、待出" />
             </div>
 
             <div class="field">

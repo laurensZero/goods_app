@@ -51,6 +51,7 @@ async function bootstrap() {
   const presets = usePresetsStore()
   try {
     await Promise.all([store.init(), presets.init()])
+    await presets.syncCharactersFromGoods(store.list)
     await presets.syncStorageLocationsFromPaths(store.storageLocations)
   } catch (e) {
     console.error('[bootstrap] store init failed:', e)

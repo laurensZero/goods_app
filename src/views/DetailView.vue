@@ -85,9 +85,9 @@
               <strong class="info-value">{{ item.acquiredAt || '未填写' }}</strong>
             </article>
 
-            <article class="info-tile">
+            <article v-if="item.storageLocation" class="info-tile">
               <span class="info-label">收纳位置</span>
-              <strong class="info-value">{{ item.storageLocation || '未填写' }}</strong>
+              <strong class="info-value">{{ item.storageLocation }}</strong>
             </article>
 
             <article v-if="variantText" class="info-tile">

@@ -326,6 +326,34 @@ export const usePresetsStore = defineStore('presets', () => {
     return true
   }
 
+  async function syncCharactersFromGoods(items) {
+    if (!Array.isArray(items) || items.length === 0) return false
+
+    const merged = normalizeCharacters([
+      ...characters.value,
+      ...items.flatMap((item) => {
+        const itemIp = String(item?.ip || '').trim()
+        const itemCharacters = Array.isArray(item?.characters) ? item.characters : []
+        return itemCharacters.map((name) => ({
+          name,
+          ip: itemIp
+        }))
+      })
+    ])
+
+    if (merged.length === characters.value.length) {
+      const unchanged = merged.every((character, index) => (
+        character.name === characters.value[index]?.name
+        && character.ip === characters.value[index]?.ip
+      ))
+      if (unchanged) return false
+    }
+
+    characters.value = merged
+    await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    return true
+  }
+
   async function ensureStorageLocationPath(value) {
     const normalized = normalizeStorageLocationValue(value)
     if (!normalized) return []
@@ -559,6 +587,7 @@ export const usePresetsStore = defineStore('presets', () => {
     findStorageLocationPathIds,
     ensureStorageLocationPath,
     syncStorageLocationsFromPaths,
+    syncCharactersFromGoods,
     characterNames
   }
 })

@@ -25,7 +25,10 @@
     </div>
 
     <p class="summary-value">
-      <span class="summary-currency">¥</span>{{ displayIntPart }}<span class="summary-decimal">.{{ displayDecPart }}</span>
+      <template v-if="isHidden">-</template>
+      <template v-else>
+        <span class="summary-currency">¥</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
+      </template>
     </p>
   </section>
 </template>
@@ -43,16 +46,6 @@ const props = defineProps({
 const intPart = computed(() => props.totalValue.split('.')[0])
 const decPart = computed(() => props.totalValue.split('.')[1] ?? '00')
 const isHidden = ref(localStorage.getItem(SUMMARY_VISIBILITY_STORAGE_KEY) === '1')
-const displayIntPart = computed(() => (
-  isHidden.value
-    ? intPart.value.replace(/\d/g, '•') || '••••'
-    : intPart.value
-))
-const displayDecPart = computed(() => (
-  isHidden.value
-    ? decPart.value.replace(/\d/g, '•') || '••'
-    : decPart.value
-))
 
 function toggleHidden() {
   isHidden.value = !isHidden.value
