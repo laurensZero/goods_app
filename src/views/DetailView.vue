@@ -37,6 +37,7 @@
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
+            <span v-for="tag in item.tags || []" :key="tag" class="hero-chip tag-chip">#{{ tag }}</span>
             <span v-if="item.acquiredAt" class="hero-date">购入于 {{ item.acquiredAt }}</span>
           </div>
 
@@ -72,6 +73,11 @@
             <article v-if="item.characters && item.characters.length" class="info-tile">
               <span class="info-label">角色名</span>
               <strong class="info-value">{{ item.characters.join('、') }}</strong>
+            </article>
+
+            <article v-if="item.tags && item.tags.length" class="info-tile">
+              <span class="info-label">自定义标签</span>
+              <strong class="info-value">{{ item.tags.map((tag) => `#${tag}`).join('、') }}</strong>
             </article>
 
             <article class="info-tile">
@@ -395,6 +401,11 @@ watch(
   color: #5de2a0;
 }
 
+.hero-chip.tag-chip {
+  background: #4b315d;
+  color: #f1dcff;
+}
+
 .hero-date {
   color: var(--app-text-tertiary);
   font-size: 13px;
@@ -697,6 +708,11 @@ watch(
 
   .hero-chip.char-chip {
     background: rgba(93, 226, 160, 0.15);
+  }
+
+  .hero-chip.tag-chip {
+    background: rgba(201, 148, 255, 0.18);
+    color: #f1dcff;
   }
 
   .nav-icon-btn {

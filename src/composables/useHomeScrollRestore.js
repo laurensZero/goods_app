@@ -192,12 +192,9 @@ export function useHomeScrollRestore(pageBodyRef) {
     const storedState = shouldRestore ? readStoredScrollState() : null
     const storedTop = storedState?.top || 0
 
-    if (domTop > 0) {
+    if (!shouldRestore) {
       syncVisibleGoodsCount(domTop)
       syncVisibleTimelineMonthCount(domTop)
-      if (shouldRestore) {
-        sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
-      }
       return
     }
 

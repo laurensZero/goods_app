@@ -37,7 +37,16 @@
     <div class="card-body">
       <h3 class="card-name">{{ item.name }}</h3>
 
-      <div class="card-tags" :class="{ 'card-tags--hidden': !showTags }">
+      <div
+        ref="tagsScrollerRef"
+        class="card-tags"
+        :class="{ 'card-tags--hidden': !showTags, 'card-tags--dragging': tagsDragging }"
+        @click.stop
+        @mousedown.stop="onTagsMouseDown"
+        @touchstart.stop
+        @touchmove.stop
+        @touchend.stop
+      >
         <span class="card-chip" :class="{ 'card-chip--hidden': !showCategory }">{{ item.category }}</span>
         <span class="card-chip ip-chip" :class="{ 'card-chip--hidden': !showIp }">{{ item.ip }}</span>
         <span
@@ -47,6 +56,14 @@
           :class="{ 'card-chip--hidden': !showCharacters }"
         >
           {{ character }}
+        </span>
+        <span
+          v-for="tag in allCustomTags"
+          :key="tag"
+          class="card-chip tag-chip"
+          :class="{ 'card-chip--hidden': !showCustomTags }"
+        >
+          #{{ tag }}
         </span>
       </div>
 
@@ -72,6 +89,7 @@ const props = defineProps({
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const cardRef = ref(null)
+const tagsScrollerRef = ref(null)
 
 // -------- Long-press / tap logic --------
 const longPressTimer = ref(null)
@@ -79,8 +97,11 @@ const longPressTriggered = ref(false)
 const touchStartX = ref(0)
 const touchStartY = ref(0)
 const gestureMoved = ref(false)
+const tagsDragging = ref(false)
 const TOUCH_TAP_THRESHOLD = 12
 const MOUSE_TAP_THRESHOLD = 6
+let tagsDragStartX = 0
+let tagsDragStartScrollLeft = 0
 
 function startLongPress(x, y) {
   touchStartX.value = x
@@ -164,6 +185,35 @@ function onMouseLeave() {
   cancelLongPress()
 }
 
+function onTagsMouseDown(event) {
+  if (event.button !== 0) return
+  const scroller = tagsScrollerRef.value
+  if (!scroller) return
+
+  tagsDragging.value = true
+  tagsDragStartX = event.clientX
+  tagsDragStartScrollLeft = scroller.scrollLeft
+  cancelLongPress()
+  gestureMoved.value = true
+
+  window.addEventListener('mousemove', onTagsMouseMove)
+  window.addEventListener('mouseup', onTagsMouseUp)
+}
+
+function onTagsMouseMove(event) {
+  const scroller = tagsScrollerRef.value
+  if (!tagsDragging.value || !scroller) return
+
+  const deltaX = event.clientX - tagsDragStartX
+  scroller.scrollLeft = tagsDragStartScrollLeft - deltaX
+}
+
+function onTagsMouseUp() {
+  tagsDragging.value = false
+  window.removeEventListener('mousemove', onTagsMouseMove)
+  window.removeEventListener('mouseup', onTagsMouseUp)
+}
+
 const cachedImgSrc = ref('')
 const hasEnteredViewport = ref(false)
 let visibilityObserver = null
@@ -215,8 +265,10 @@ const holdingDays = computed(() => {
 const showCategory = computed(() => props.density !== 'compact' && !!props.item.category)
 const showIp = computed(() => props.density !== 'compact' && !!props.item.ip)
 const allCharacters = computed(() => props.item.characters || [])
+const allCustomTags = computed(() => props.item.tags || [])
 const showCharacters = computed(() => props.density === 'comfortable' && allCharacters.value.length > 0)
-const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value)
+const showCustomTags = computed(() => props.density === 'comfortable' && allCustomTags.value.length > 0)
+const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value || showCustomTags.value)
 const showHoldingDays = computed(() => props.density !== 'compact' && holdingDays.value !== null)
 
 const windowWidth = ref(window.innerWidth)
@@ -251,6 +303,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', _onResize)
+  onTagsMouseUp()
   visibilityObserver?.disconnect()
   visibilityObserver = null
 })
@@ -366,9 +419,14 @@ const isTablet = computed(() => windowWidth.value >= 900)
   gap: 5px;
   max-height: 28px;
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   opacity: 1;
   transform: translateY(0);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  cursor: grab;
 }
 
 .card-tags--hidden {
@@ -377,19 +435,24 @@ const isTablet = computed(() => windowWidth.value >= 900)
   transform: translateY(-4px);
 }
 
+.card-tags::-webkit-scrollbar {
+  display: none;
+}
+
+.card-tags--dragging {
+  cursor: grabbing;
+}
+
 .card-chip {
   display: inline-flex;
   align-items: center;
-  min-width: 0;
-  max-width: 100%;
+  flex: 0 0 auto;
   padding: 2px 8px;
-  overflow: hidden;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.06);
   color: #3a3a3c;
   font-size: 11px;
   font-weight: 500;
-  text-overflow: ellipsis;
   white-space: nowrap;
   opacity: 1;
   transform: scale(1);
@@ -410,6 +473,11 @@ const isTablet = computed(() => windowWidth.value >= 900)
 .card-chip.char-chip {
   background: rgba(20, 20, 22, 0.08);
   color: #141416;
+}
+
+.card-chip.tag-chip {
+  background: rgba(75, 49, 93, 0.12);
+  color: #5b3578;
 }
 
 .card-bottom-row {
@@ -584,6 +652,11 @@ const isTablet = computed(() => windowWidth.value >= 900)
   .card-chip.ip-chip {
     background: rgba(100, 170, 255, 0.12);
     color: rgba(100, 170, 255, 0.90);
+  }
+
+  .card-chip.tag-chip {
+    background: rgba(201, 148, 255, 0.14);
+    color: #f1dcff;
   }
 
   /* 多选勾：深色模式下使用浅色填充 */

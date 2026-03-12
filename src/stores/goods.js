@@ -51,6 +51,15 @@ function normalizeCharacterList(list) {
   )]
 }
 
+function normalizeTagList(list) {
+  if (!Array.isArray(list)) return []
+  return [...new Set(
+    list
+      .map((tag) => String(tag || '').trim())
+      .filter(Boolean)
+  )]
+}
+
 function parseDeletedTime(value) {
   if (!value) return 0
   const timestamp = Date.parse(String(value))
@@ -167,7 +176,8 @@ export const useGoodsStore = defineStore('goods', () => {
       name: normalizeGoodsName(data.name),
       category: String(data.category || '').trim(),
       ip: String(data.ip || '').trim(),
-      characters: Array.isArray(data.characters) ? data.characters.filter(Boolean) : [],
+      characters: normalizeCharacterList(data.characters),
+      tags: normalizeTagList(data.tags),
       storageLocation: normalizeStorageLocationValue(data.storageLocation || data.location || ''),
       variant,
       price: data.price === '' || data.price == null ? '' : data.price,
@@ -195,6 +205,7 @@ export const useGoodsStore = defineStore('goods', () => {
       category: existing.category || incoming.category,
       ip: existing.ip || incoming.ip,
       characters: existing.characters?.length ? existing.characters : incoming.characters,
+      tags: normalizeTagList([...(existing.tags || []), ...(incoming.tags || [])]),
       storageLocation: existing.storageLocation || incoming.storageLocation,
       variant,
       price: existing.price === '' || existing.price == null ? incoming.price : existing.price,

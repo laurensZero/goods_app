@@ -91,6 +91,11 @@
               />
             </div>
 
+            <div class="field">
+              <span class="field-label">自定义标签</span>
+              <TagInput v-model="form.tags" placeholder="例如：生日谷、吧唧墙、待出" />
+            </div>
+
             <div ref="charactersFieldRef" class="field">
               <div class="field-head">
                 <span class="field-label">角色</span>
@@ -292,6 +297,7 @@ import AppSelect from '@/components/AppSelect.vue'
 import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
 import StorageLocationInput from '@/components/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
+import TagInput from '@/components/TagInput.vue'
 
 const NO_IP_OPTION = '__NO_IP__'
 
@@ -307,6 +313,7 @@ const form = reactive({
   category: '',
   ip: '',
   characters: [],
+  tags: [],
   storageLocation: '',
   price: '',
   points: '',
@@ -383,6 +390,7 @@ onMounted(() => {
     form.category = item.category ?? ''
     form.ip = item.ip ?? ''
     form.characters = item.characters ? [...item.characters] : []
+    form.tags = item.tags ? [...item.tags] : []
     form.storageLocation = item.storageLocation ?? ''
     form.price = item.price ?? ''
     form.points = item.points ?? ''

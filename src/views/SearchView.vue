@@ -258,13 +258,15 @@ const results = computed(() => {
     const category = String(item.category || '').trim()
     const ip = String(item.ip || '').trim()
     const characters = Array.isArray(item.characters) ? item.characters : []
+    const tags = Array.isArray(item.tags) ? item.tags : []
 
     const kwMatch =
       !kw ||
       name.toLowerCase().includes(kw) ||
       category.toLowerCase().includes(kw) ||
       ip.toLowerCase().includes(kw) ||
-      characters.some((character) => String(character).toLowerCase().includes(kw))
+      characters.some((character) => String(character).toLowerCase().includes(kw)) ||
+      tags.some((tag) => String(tag).toLowerCase().includes(kw))
 
     const catMatch = !selectedCategory.value
       || (selectedCategory.value === UNCATEGORIZED_OPTION ? !category : category === selectedCategory.value)
