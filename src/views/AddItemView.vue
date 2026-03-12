@@ -45,12 +45,16 @@
               <span v-if="nameError" class="field-error">{{ nameError }}</span>
             </label>
 
-            <label class="field">
-              <div class="field-head">
-                <span class="field-label">分类</span>
-                <button class="field-add-btn" type="button" @click="toggleQuickCreate('category')">快速新增</button>
-              </div>
+            <div class="field">
+              <span class="field-label">分类</span>
               <AppSelect v-model="form.category" :options="presets.categories" placeholder="请选择分类" />
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('category')">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 3V13" />
+                  <path d="M3 8H13" />
+                </svg>
+                新建分类
+              </button>
               <QuickPresetCreator
                 v-if="quickCreateTarget === 'category'"
                 :show="quickCreateTarget === 'category'"
@@ -61,14 +65,18 @@
                 @cancel="closeQuickCreate"
                 @submit="submitQuickCategory"
               />
-            </label>
+            </div>
 
-            <label class="field">
-              <div class="field-head">
-                <span class="field-label">IP</span>
-                <button class="field-add-btn" type="button" @click="toggleQuickCreate('ip')">快速新增</button>
-              </div>
+            <div class="field">
+              <span class="field-label">IP</span>
               <AppSelect v-model="form.ip" :options="presets.ips" placeholder="请选择 IP" />
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('ip')">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 3V13" />
+                  <path d="M3 8H13" />
+                </svg>
+                新建 IP
+              </button>
               <QuickPresetCreator
                 v-if="quickCreateTarget === 'ip'"
                 :show="quickCreateTarget === 'ip'"
@@ -79,7 +87,7 @@
                 @cancel="closeQuickCreate"
                 @submit="submitQuickIp"
               />
-            </label>
+            </div>
 
             <div class="field">
               <span class="field-label">收纳位置</span>
@@ -97,10 +105,7 @@
             </div>
 
             <div ref="charactersFieldRef" class="field">
-              <div class="field-head">
-                <span class="field-label">角色</span>
-                <button class="field-add-btn" type="button" @click="toggleQuickCreate('character')">快速新增</button>
-              </div>
+              <span class="field-label">角色</span>
 
               <div class="multi-select" :class="{ 'multi-select--open': showCharPicker }">
                 <button
@@ -160,6 +165,14 @@
                   </div>
                 </transition>
               </div>
+
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('character')">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 3V13" />
+                  <path d="M3 8H13" />
+                </svg>
+                新建角色
+              </button>
 
               <QuickPresetCreator
                 v-if="quickCreateTarget === 'character'"
@@ -661,13 +674,6 @@ onBeforeUnmount(() => {
   box-shadow: inset 0 0 0 1px rgba(199, 68, 68, 0.18);
 }
 
-.field-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .field-label {
   color: var(--app-text);
   font-size: 14px;
@@ -675,17 +681,30 @@ onBeforeUnmount(() => {
 }
 
 .field-add-btn {
-  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
   border: none;
   background: transparent;
-  color: #2070c0;
+  color: var(--app-text-tertiary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.2;
   padding: 0;
+  margin-top: -2px;
 }
 
 .field-add-btn:active {
   transform: scale(0.96);
+}
+
+.field-add-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 
 .required {

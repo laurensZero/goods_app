@@ -26,6 +26,10 @@
       class="storage-location-create-btn"
       @click="toggleQuickCreate"
     >
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 3V13" />
+        <path d="M3 8H13" />
+      </svg>
       {{ quickCreateButtonText }}
     </button>
 
@@ -128,7 +132,7 @@ const levelConfigs = computed(() => {
 })
 
 const quickCreateButtonText = computed(() =>
-  deepestSelectedId.value ? '快速新增下一级' : '快速新增一级位置'
+  deepestSelectedId.value ? '新建下一级位置' : '新建一级位置'
 )
 
 const quickCreatePlaceholder = computed(() =>
@@ -244,17 +248,30 @@ async function submitQuickCreate() {
 }
 
 .storage-location-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
   align-self: flex-start;
   border: none;
   background: transparent;
-  color: #2070c0;
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
   padding: 0;
 }
 
 .storage-location-create-btn:active {
   transform: scale(0.96);
+}
+
+.storage-location-create-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 
 @media (prefers-color-scheme: dark) {

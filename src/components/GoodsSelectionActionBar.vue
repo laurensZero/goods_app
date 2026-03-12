@@ -104,6 +104,19 @@ defineEmits(['delete', 'edit'])
   opacity: 0;
 }
 
+@media (min-width: 600px) {
+  .selection-action-bar {
+    left: 50%;
+    right: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: min(100vw, 430px);
+    padding: 10px var(--page-padding);
+    border: 1px solid var(--app-glass-border);
+    border-radius: 22px;
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   .selection-action-bar {
     background: var(--app-glass-strong);

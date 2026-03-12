@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page taobao-import-page">
+  <div class="page page--transition taobao-import-page" :class="{ 'page--leaving': isPageLeaving }">
     <NavBar title="淘宝订单导入" show-back />
 
     <main class="page-body">
@@ -261,6 +261,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { parseTaobaoXlsx } from '@/utils/taobao'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
 import NavBar from '@/components/NavBar.vue'
@@ -271,6 +272,7 @@ defineOptions({ name: 'TaobaoImportView' })
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
+const { isPageLeaving } = usePageLeaveAnimation()
 
 // ── State ──────────────────────────────────────────────────────
 const step         = ref('pick')   // 'pick' | 'list' | 'done'
