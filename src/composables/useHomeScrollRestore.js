@@ -10,10 +10,29 @@ export function useHomeScrollRestore(pageBodyRef) {
     return pageBodyRef.value || document.querySelector('.home-page .page-body')
   }
 
+  function getWindowScrollTop() {
+    return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
+  }
+
+  function detectScrollSource() {
+    const el = getScrollEl()
+    const elTop = el?.scrollTop || 0
+    const winTop = getWindowScrollTop()
+
+    if (winTop > elTop + 1) return 'window'
+    if (elTop > winTop + 1) return 'element'
+
+    if (el && el.scrollHeight > el.clientHeight + 4) {
+      return 'element'
+    }
+
+    return 'window'
+  }
+
   function readScrollTop() {
-    const elTop = getScrollEl()?.scrollTop ?? 0
-    const winTop = window.scrollY || document.documentElement.scrollTop || 0
-    return elTop > 0 ? elTop : winTop
+    const elTop = getScrollEl()?.scrollTop || 0
+    const winTop = getWindowScrollTop()
+    return Math.max(elTop, winTop)
   }
 
   function readStoredScrollState() {
@@ -27,6 +46,7 @@ export function useHomeScrollRestore(pageBodyRef) {
       if (parsed && typeof parsed === 'object') {
         savedScrollState = {
           top: Number(parsed.top) || 0,
+          source: parsed.source === 'window' ? 'window' : 'element',
           anchorId: parsed.anchorId ? String(parsed.anchorId) : '',
           anchorIndex: Number.isFinite(Number(parsed.anchorIndex)) ? Number(parsed.anchorIndex) : -1,
           anchorOffset: Number(parsed.anchorOffset) || 0
@@ -40,6 +60,7 @@ export function useHomeScrollRestore(pageBodyRef) {
 
     savedScrollState = {
       top,
+      source: 'element',
       anchorId: '',
       anchorIndex: -1,
       anchorOffset: 0
@@ -76,10 +97,19 @@ export function useHomeScrollRestore(pageBodyRef) {
     sessionStorage.setItem(HOME_SCROLL_STORAGE_KEY, JSON.stringify(state))
   }
 
+  function getStoredScrollState() {
+    return readStoredScrollState()
+  }
+
+  function hasPendingRestore() {
+    return sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
+  }
+
   function saveScrollPosition() {
     const top = readScrollTop()
     const state = {
       top,
+      source: detectScrollSource(),
       ...readScrollAnchor(top)
     }
     writeScrollState(state)
@@ -104,16 +134,41 @@ export function useHomeScrollRestore(pageBodyRef) {
     const top = resolveScrollTargetTop(stateOrTop)
     if (!top || top <= 0) return
 
-    const setAll = () => {
+    const setScroll = () => {
       const el = getScrollEl()
-      if (el) el.scrollTop = top
-      try { document.documentElement.scrollTop = top } catch {}
-      try { document.body.scrollTop = top } catch {}
-      try { window.scrollTo({ top, behavior: 'instant' }) } catch { window.scrollTo(0, top) }
+      const source = typeof stateOrTop === 'object' && stateOrTop?.source === 'window' ? 'window' : 'element'
+
+      if (source === 'window') {
+        try { window.scrollTo(0, top) } catch {}
+        try { document.documentElement.scrollTop = top } catch {}
+        try { document.body.scrollTop = top } catch {}
+        return true
+      }
+
+      if (!el) return false
+      el.scrollTop = top
+      return true
     }
 
-    setAll()
-    ;[50, 120, 220, 360].forEach((delay) => setTimeout(setAll, delay))
+    if (!setScroll()) return
+
+    let frame = 0
+    const tick = () => {
+      frame += 1
+      setScroll()
+      if (frame < 5) {
+        window.requestAnimationFrame(tick)
+      }
+    }
+
+    window.requestAnimationFrame(tick)
+  }
+
+  async function waitForLayout(frames = 1) {
+    for (let index = 0; index < frames; index += 1) {
+      await nextTick()
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+    }
   }
 
   async function restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState = null) {
@@ -126,13 +181,13 @@ export function useHomeScrollRestore(pageBodyRef) {
     syncVisibleGoodsCount(storedTop)
     syncVisibleTimelineMonthCount(storedTop)
     prepareRestoreState?.(storedState)
-    await nextTick()
+    await waitForLayout(2)
     applyScrollPosition(storedState || storedTop)
     sessionStorage.removeItem(HOME_SCROLL_RESTORE_PENDING_KEY)
   }
 
   async function restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState = null) {
-    const domTop = getScrollEl()?.scrollTop ?? 0
+    const domTop = Math.max(getScrollEl()?.scrollTop ?? 0, getWindowScrollTop())
     const shouldRestore = sessionStorage.getItem(HOME_SCROLL_RESTORE_PENDING_KEY) === '1'
     const storedState = shouldRestore ? readStoredScrollState() : null
     const storedTop = storedState?.top || 0
@@ -149,10 +204,11 @@ export function useHomeScrollRestore(pageBodyRef) {
     syncVisibleGoodsCount(storedTop)
     syncVisibleTimelineMonthCount(storedTop)
     prepareRestoreState?.(storedState)
+    await waitForLayout(2)
     if (storedTop > 0) {
       applyScrollPosition(storedState || storedTop)
     }
-    await nextTick()
+    await waitForLayout(2)
     if (storedTop > 0) {
       applyScrollPosition(storedState || storedTop)
     }
@@ -174,6 +230,8 @@ export function useHomeScrollRestore(pageBodyRef) {
   return {
     getScrollEl,
     readScrollTop,
+    getStoredScrollState,
+    hasPendingRestore,
     saveScrollPosition,
     applyScrollPosition,
     restorePendingScrollPosition,

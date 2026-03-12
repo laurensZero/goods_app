@@ -1,10 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
-  {
-    path: '/',
-    redirect: '/home'
-  },
+  { path: '/', redirect: '/home' },
   {
     path: '/home',
     name: 'home',
@@ -84,6 +81,24 @@ const routes = [
     name: 'manage-characters',
     component: () => import('@/views/CharacterManageView.vue'),
     meta: { title: '角色管理' }
+  },
+  {
+    path: '/leaderboard/characters',
+    name: 'character-leaderboard',
+    component: () => import('@/views/CharacterLeaderboardView.vue'),
+    meta: { title: '角色排行榜' }
+  },
+  {
+    path: '/storage-locations',
+    name: 'storage-locations',
+    component: () => import('@/views/StorageLocationsView.vue'),
+    meta: { title: '收纳位置' }
+  },
+  {
+    path: '/trash',
+    name: 'trash',
+    component: () => import('@/views/TrashView.vue'),
+    meta: { title: '回收站' }
   }
 ]
 
@@ -97,7 +112,7 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition && MANUAL_SCROLL_RESTORE_ROUTES.has(String(to.name || ''))) {
+    if (MANUAL_SCROLL_RESTORE_ROUTES.has(String(to.name || ''))) {
       return false
     }
 

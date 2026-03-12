@@ -12,11 +12,11 @@
               <path d="M14 11V17" />
             </svg>
           </div>
-          <h2 class="confirm-title">删除 {{ selectedCount }} 件谷子？</h2>
-          <p class="confirm-desc">删除后无法恢复，这些收藏会从清单里移除。</p>
+          <h2 class="confirm-title">移到回收站？</h2>
+          <p class="confirm-desc">这些收藏会从清单中移除，但之后可以在回收站里恢复。</p>
           <div class="confirm-actions">
             <button class="confirm-btn confirm-btn--ghost" type="button" @click="updateShow(false)">取消</button>
-            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">删除</button>
+            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">移入回收站</button>
           </div>
         </div>
       </div>

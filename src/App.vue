@@ -17,6 +17,6 @@ import TabBar from '@/components/TabBar.vue'
 
 const route = useRoute()
 const keepAliveViewNames = ['HomeView', 'TimelineView']
-const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters']
+const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(route.name))
 </script>

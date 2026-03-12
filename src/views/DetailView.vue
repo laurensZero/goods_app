@@ -79,6 +79,11 @@
               <strong class="info-value">{{ item.acquiredAt || '未填写' }}</strong>
             </article>
 
+            <article class="info-tile">
+              <span class="info-label">收纳位置</span>
+              <strong class="info-value">{{ item.storageLocation || '未填写' }}</strong>
+            </article>
+
             <article v-if="variantText" class="info-tile">
               <span class="info-label">款式</span>
               <strong class="info-value">{{ variantText }}</strong>
@@ -129,12 +134,12 @@
             </svg>
           </div>
 
-          <h2 class="dialog-title">删除这件收藏？</h2>
-          <p class="dialog-desc">删除后无法恢复，{{ item?.name || '该收藏' }} 的记录会从清单中移除。</p>
+          <h2 class="dialog-title">移到回收站？</h2>
+          <p class="dialog-desc">{{ item?.name || '该收藏' }} 会先进入回收站，之后仍然可以恢复。</p>
 
           <div class="dialog-actions">
             <button class="dialog-btn dialog-btn--ghost" type="button" @click="closeDeleteDialog">取消</button>
-            <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">删除</button>
+            <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">移入回收站</button>
           </div>
         </div>
       </div>
@@ -184,14 +189,11 @@ function resetScrollPosition() {
   const apply = () => {
     const pageBody = document.querySelector('.detail-page .page-body')
     if (pageBody) pageBody.scrollTop = 0
-    try { document.documentElement.scrollTop = 0 } catch {}
-    try { document.body.scrollTop = 0 } catch {}
-    try { window.scrollTo({ top: 0, behavior: 'instant' }) } catch { window.scrollTo(0, 0) }
   }
 
   apply()
   window.requestAnimationFrame(apply)
-  window.setTimeout(apply, 60)
+  window.setTimeout(apply, 32)
 }
 
 watch(

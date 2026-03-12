@@ -1,13 +1,16 @@
 <template>
   <template v-if="show">
     <section class="selection-header-spacer" aria-hidden="true" />
+
     <section class="selection-header" :style="headerStyle">
       <button class="sel-back-btn" type="button" aria-label="退出多选" @click="$emit('back')">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M15 18l-6-6 6-6" />
         </svg>
       </button>
+
       <span class="sel-title">已选择 {{ selectedCount }} 项</span>
+
       <button class="sel-all-btn" type="button" @click="$emit('toggle-all')">
         {{ allSelected ? '取消全选' : '全选' }}
       </button>
@@ -33,7 +36,7 @@ defineEmits(['back', 'toggle-all'])
 
 .selection-header {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + var(--selection-header-offset, 20px));
+  top: var(--selection-header-top, 0px);
   left: 50%;
   z-index: 70;
   display: flex;

@@ -274,8 +274,6 @@ const isTablet = computed(() => windowWidth.value >= 900)
   transition:
     transform 0.22s ease,
     box-shadow 0.22s ease;
-  content-visibility: auto;
-  contain-intrinsic-size: 280px 320px;
 }
 
 .goods-card:active {

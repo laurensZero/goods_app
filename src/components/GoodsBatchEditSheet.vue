@@ -29,6 +29,15 @@
           </label>
 
           <div class="field">
+            <span class="field-label">收纳位置</span>
+            <StorageLocationInput
+              v-model="form.storageLocation"
+              :options="storageLocationOptions"
+              placeholder="留空则不修改"
+            />
+          </div>
+
+          <div class="field">
             <span class="field-label">角色</span>
             <div class="multi-select" :class="{ 'multi-select--open': showCharPicker }">
               <button class="multi-select__trigger" type="button" @click="toggleCharPicker">
@@ -128,9 +137,11 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
 import { usePresetsStore } from '@/stores/presets'
+import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import AppSelect from '@/components/AppSelect.vue'
+import StorageLocationInput from '@/components/StorageLocationInput.vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -140,6 +151,7 @@ const props = defineProps({
 const emit = defineEmits(['update:show', 'apply'])
 
 const presets = usePresetsStore()
+const goodsStore = useGoodsStore()
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 const showDatePicker = ref(false)
@@ -148,6 +160,7 @@ const form = reactive({
   category: '',
   ip: '',
   acquiredAt: '',
+  storageLocation: '',
   characters: []
 })
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
@@ -166,8 +179,9 @@ const isTablet = computed(() => windowWidth.value >= 900)
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 
 const canSubmit = computed(() =>
-  Boolean(form.category || form.ip || form.acquiredAt || form.characters.length > 0)
+  Boolean(form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
 )
+const storageLocationOptions = computed(() => goodsStore.storageLocations)
 
 const availableCharacters = computed(() =>
   form.ip
@@ -202,6 +216,7 @@ function resetForm() {
   form.category = ''
   form.ip = ''
   form.acquiredAt = ''
+  form.storageLocation = ''
   form.characters = []
   datePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
   closeNestedPanels()
@@ -248,6 +263,7 @@ async function apply() {
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
   if (form.acquiredAt) payload.acquiredAt = form.acquiredAt
+  if (form.storageLocation) payload.storageLocation = form.storageLocation
   if (form.characters.length > 0) payload.characters = [...form.characters]
   if (Object.keys(payload).length === 0) return
 

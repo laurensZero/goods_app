@@ -27,7 +27,7 @@
           </div>
 
           <div class="field-card">
-            <label class="field">
+            <label class="field" :class="{ 'field--error': nameError }">
               <span class="field-label">名称 <span class="required">*</span></span>
               <input
                 v-model="form.name"
@@ -35,26 +35,67 @@
                 type="text"
                 placeholder="例如：甘雨手办"
                 required
+                :aria-invalid="Boolean(nameError)"
                 @input="syncField('name', $event)"
                 @blur="syncField('name', $event)"
                 @change="syncField('name', $event)"
                 @compositionend="syncField('name', $event)"
                 @paste="syncFieldLater('name', $event)"
               />
+              <span v-if="nameError" class="field-error">{{ nameError }}</span>
             </label>
 
             <label class="field">
-              <span class="field-label">分类</span>
+              <div class="field-head">
+                <span class="field-label">分类</span>
+                <button class="field-add-btn" type="button" @click="toggleQuickCreate('category')">快速新增</button>
+              </div>
               <AppSelect v-model="form.category" :options="presets.categories" placeholder="请选择分类" />
+              <QuickPresetCreator
+                v-if="quickCreateTarget === 'category'"
+                :show="quickCreateTarget === 'category'"
+                v-model="quickCategoryName"
+                placeholder="输入分类名称"
+                :maxlength="20"
+                submit-text="新增分类"
+                @cancel="closeQuickCreate"
+                @submit="submitQuickCategory"
+              />
             </label>
 
             <label class="field">
-              <span class="field-label">IP</span>
+              <div class="field-head">
+                <span class="field-label">IP</span>
+                <button class="field-add-btn" type="button" @click="toggleQuickCreate('ip')">快速新增</button>
+              </div>
               <AppSelect v-model="form.ip" :options="presets.ips" placeholder="请选择 IP" />
+              <QuickPresetCreator
+                v-if="quickCreateTarget === 'ip'"
+                :show="quickCreateTarget === 'ip'"
+                v-model="quickIpName"
+                placeholder="输入 IP 名称"
+                :maxlength="40"
+                submit-text="新增 IP"
+                @cancel="closeQuickCreate"
+                @submit="submitQuickIp"
+              />
             </label>
+
+            <div class="field">
+              <span class="field-label">收纳位置</span>
+              <StorageLocationInput
+                v-model="form.storageLocation"
+                :options="storageLocationOptions"
+                placeholder="未设置收纳位置"
+                quick-create
+              />
+            </div>
 
             <div ref="charactersFieldRef" class="field">
-              <span class="field-label">角色</span>
+              <div class="field-head">
+                <span class="field-label">角色</span>
+                <button class="field-add-btn" type="button" @click="toggleQuickCreate('character')">快速新增</button>
+              </div>
 
               <div class="multi-select" :class="{ 'multi-select--open': showCharPicker }">
                 <button
@@ -114,6 +155,22 @@
                   </div>
                 </transition>
               </div>
+
+              <QuickPresetCreator
+                v-if="quickCreateTarget === 'character'"
+                :show="quickCreateTarget === 'character'"
+                v-model="quickCharacterName"
+                placeholder="输入角色名称"
+                :maxlength="30"
+                submit-text="新增角色"
+                :secondary-value="quickCharacterIp"
+                :secondary-options="quickCharacterIpOptions"
+                :secondary-label="form.ip ? '当前将归到已选 IP' : '选择角色归属 IP'"
+                secondary-placeholder="不设置 IP"
+                @update:secondary-value="quickCharacterIp = $event"
+                @cancel="closeQuickCreate"
+                @submit="submitQuickCharacter"
+              />
             </div>
 
             <div class="field">
@@ -226,7 +283,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { usePresetsStore } from '@/stores/presets'
+import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
@@ -234,6 +291,10 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
+import StorageLocationInput from '@/components/StorageLocationInput.vue'
+import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
+
+const NO_IP_OPTION = '__NO_IP__'
 
 const router = useRouter()
 const store = useGoodsStore()
@@ -245,6 +306,7 @@ const form = reactive({
   category: '',
   ip: '',
   characters: [],
+  storageLocation: '',
   price: '',
   points: '',
   acquiredAt: formatDate(new Date(), 'YYYY-MM-DD'),
@@ -254,6 +316,12 @@ const form = reactive({
 })
 
 const showPointsInput = ref(false)
+const quickCreateTarget = ref('')
+const quickCategoryName = ref('')
+const quickIpName = ref('')
+const quickCharacterName = ref('')
+const quickCharacterIp = ref(NO_IP_OPTION)
+const nameError = ref('')
 
 const charactersFieldRef = ref(null)
 const nameInputRef = ref(null)
@@ -268,6 +336,17 @@ const maxDate = new Date(2100, 11, 31)
 const availableCharacters = computed(() =>
   form.ip ? presets.characters.filter((character) => character.ip === form.ip) : []
 )
+const storageLocationOptions = computed(() => store.storageLocations)
+const quickCharacterIpOptions = computed(() => {
+  if (form.ip) {
+    return [{ label: form.ip, value: form.ip }]
+  }
+
+  return [
+    { label: '不设置 IP', value: NO_IP_OPTION },
+    ...presets.ips.map((ip) => ({ label: ip, value: ip }))
+  ]
+})
 
 const characterPlaceholder = computed(() => {
   if (!form.ip) return '请先选择 IP'
@@ -276,18 +355,31 @@ const characterPlaceholder = computed(() => {
 })
 
 watch(
+  () => form.name,
+  (value) => {
+    if (String(value || '').trim()) {
+      nameError.value = ''
+    }
+  }
+)
+
+watch(
   () => form.ip,
   (ip) => {
     form.characters = form.characters.filter((name) =>
       presets.characters.some((character) => character.name === name && character.ip === ip)
     )
     showCharPicker.value = false
+    if (!quickCreateTarget.value || quickCreateTarget.value !== 'character') return
+    quickCharacterIp.value = ip || NO_IP_OPTION
   }
 )
 
 async function handleSubmit() {
   await commitActiveInput()
   syncDomFields()
+  form.name = String(form.name || '').trim()
+  if (!validateName()) return
   // 如果用户填了米游铺链接并选中了某款式，使用该款式的封面图 URL
   const pickedImage = imagePickerRef.value?.resolvedUrl
   if (pickedImage) form.image = pickedImage
@@ -295,9 +387,79 @@ async function handleSubmit() {
   router.back()
 }
 
+function validateName() {
+  if (form.name) {
+    nameError.value = ''
+    return true
+  }
+
+  nameError.value = '请先填写名称'
+  nameInputRef.value?.focus?.()
+  nameInputRef.value?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+  return false
+}
+
 function toggleCharPicker() {
   if (!form.ip) return
   showCharPicker.value = !showCharPicker.value
+}
+
+function closeQuickCreate() {
+  quickCreateTarget.value = ''
+  quickCategoryName.value = ''
+  quickIpName.value = ''
+  quickCharacterName.value = ''
+  quickCharacterIp.value = form.ip || NO_IP_OPTION
+}
+
+function toggleQuickCreate(type) {
+  if (quickCreateTarget.value === type) {
+    closeQuickCreate()
+    return
+  }
+
+  quickCreateTarget.value = type
+  quickCategoryName.value = ''
+  quickIpName.value = ''
+  quickCharacterName.value = ''
+  quickCharacterIp.value = form.ip || NO_IP_OPTION
+}
+
+async function submitQuickCategory() {
+  await commitActiveInput()
+  const name = String(quickCategoryName.value || '').trim()
+  if (!name) return
+  await presets.addCategory(name)
+  form.category = name
+  closeQuickCreate()
+}
+
+async function submitQuickIp() {
+  await commitActiveInput()
+  const name = String(quickIpName.value || '').trim()
+  if (!name) return
+  await presets.addIp(name)
+  form.ip = name
+  closeQuickCreate()
+}
+
+async function submitQuickCharacter() {
+  await commitActiveInput()
+  const name = normalizeCharacterName(quickCharacterName.value)
+  if (!name) return
+
+  const targetIp = form.ip || (quickCharacterIp.value === NO_IP_OPTION ? '' : quickCharacterIp.value)
+  await presets.addCharacter(name, targetIp)
+
+  if (!form.ip && targetIp) {
+    form.ip = targetIp
+  }
+
+  if (!form.characters.includes(name)) {
+    form.characters.push(name)
+  }
+
+  closeQuickCreate()
 }
 
 function toggleChar(name) {
@@ -488,10 +650,35 @@ onBeforeUnmount(() => {
   background: var(--app-surface-soft);
 }
 
+.field--error {
+  box-shadow: inset 0 0 0 1px rgba(199, 68, 68, 0.18);
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .field-label {
   color: var(--app-text);
   font-size: 14px;
   font-weight: 600;
+}
+
+.field-add-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #2070c0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.field-add-btn:active {
+  transform: scale(0.96);
 }
 
 .required {
@@ -578,6 +765,16 @@ onBeforeUnmount(() => {
 .field textarea:focus {
   border-color: rgba(20, 20, 22, 0.16);
   background: var(--app-surface);
+}
+
+.field--error input {
+  border-color: rgba(199, 68, 68, 0.38);
+}
+
+.field-error {
+  color: #c74444;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .date-field,

@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page home-page" :style="HOME_MOTION_CSS_VARS">
+  <div class="page home-page" :class="{ 'home-page--restoring': !homeDisplayReady }" :style="HOME_MOTION_CSS_VARS">
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -163,10 +163,11 @@ const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const batchEditSheetRef = ref(null)
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
+const SELECTION_HEADER_HEIGHT = 64
 // 视口宽度，用于响应式列数计算
 const windowWidth = ref(window.innerWidth)
 const _onResize = () => { windowWidth.value = window.innerWidth }
-const SELECTION_HEADER_INITIAL_OFFSET = 20
+const selectionHeaderTop = ref(0)
 const INITIAL_RENDER_ROWS = 6
 const LOAD_MORE_ROWS = 4
 const LOAD_MORE_THRESHOLD_PX = 720
@@ -178,11 +179,9 @@ const ROW_HEIGHT_MAP = {
   standard: 272,
   compact: 236
 }
-const selectionHeaderTopOffset = ref(SELECTION_HEADER_INITIAL_OFFSET)
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
-let selectionHeaderScrollStart = 0
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -206,12 +205,15 @@ const {
 const {
   getScrollEl,
   readScrollTop,
+  getStoredScrollState,
+  hasPendingRestore,
   saveScrollPosition,
   applyScrollPosition,
   restorePendingScrollPosition,
   restoreActivatedScrollPosition,
   rememberCurrentScrollPosition
 } = useHomeScrollRestore(pageBodyRef)
+const homeDisplayReady = ref(true)
 
 // 添加方式面板
 const showAddSheet = ref(false)
@@ -330,7 +332,7 @@ function handlePageScroll() {
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
-    if (selectionMode.value) updateSelectionHeaderOffset()
+    if (selectionMode.value) updateSelectionHeaderPosition()
     maybeLoadMoreGoods()
     maybeLoadMoreTimelineMonths()
   })
@@ -380,6 +382,8 @@ function unbindAndroidBackButton() {
 }
 
 onMounted(async () => {
+  const shouldMaskDisplay = hasPendingRestore() && (getStoredScrollState()?.top || 0) > 0
+  homeDisplayReady.value = !shouldMaskDisplay
   restoreHomePreferences()
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
@@ -387,17 +391,25 @@ onMounted(async () => {
   syncVisibleTimelineMonthCount()
   await nextTick()
   bindSelectionHeaderScroll()
-  updateSelectionHeaderOffset()
+  updateSelectionHeaderPosition()
   await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
+  await nextTick()
+  homeDisplayReady.value = true
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
 })
 
 onActivated(async () => {
   isHomeActive.value = true
+  const shouldMaskDisplay = hasPendingRestore() && (getStoredScrollState()?.top || 0) > 0
+  if (shouldMaskDisplay) {
+    homeDisplayReady.value = false
+  }
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
+  await nextTick()
+  homeDisplayReady.value = true
   bindSelectionHeaderScroll()
-  updateSelectionHeaderOffset()
+  updateSelectionHeaderPosition()
   bindAndroidBackButton()
 })
 
@@ -469,7 +481,7 @@ const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
 const selectionHeaderStyle = computed(() => ({
-  '--selection-header-offset': `${selectionHeaderTopOffset.value}px`
+  '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
 const preloadLeadCount = computed(() =>
   displayDensity.value === 'timeline'
@@ -506,17 +518,21 @@ watch(
   { immediate: true }
 )
 
-function updateSelectionHeaderOffset() {
-  const scrolled = Math.min(
-    Math.max(0, readScrollTop() - selectionHeaderScrollStart),
-    SELECTION_HEADER_INITIAL_OFFSET
-  )
-  selectionHeaderTopOffset.value = Math.max(0, SELECTION_HEADER_INITIAL_OFFSET - scrolled)
-}
-
 function openDetail(id) {
   saveScrollPosition()
   router.push(`/detail/${id}`)
+}
+
+function updateSelectionHeaderPosition() {
+  const spacer = pageBodyRef.value?.querySelector?.('.selection-header-spacer')
+  if (!spacer) {
+    selectionHeaderTop.value = 0
+    return
+  }
+
+  const rect = spacer.getBoundingClientRect()
+  const maxTop = Math.max(0, window.innerHeight - SELECTION_HEADER_HEIGHT)
+  selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
 }
 
 // -------- 时间线内联展开 --------
@@ -564,15 +580,14 @@ const {
   restoreScrollTop: applyScrollPosition
 })
 
-watch(selectionMode, (active) => {
-  if (active) {
-    selectionHeaderScrollStart = readScrollTop()
-    selectionHeaderTopOffset.value = SELECTION_HEADER_INITIAL_OFFSET
+watch(selectionMode, async (active) => {
+  if (!active) {
+    selectionHeaderTop.value = 0
     return
   }
 
-  selectionHeaderScrollStart = 0
-  selectionHeaderTopOffset.value = SELECTION_HEADER_INITIAL_OFFSET
+  await nextTick()
+  updateSelectionHeaderPosition()
 })
 
 async function batchDelete() {
@@ -600,6 +615,10 @@ async function applyBatchEditPayload(payload) {
 <style scoped>
 .home-page {
   position: relative;
+}
+
+.home-page--restoring {
+  visibility: hidden;
 }
 
 .page-body {

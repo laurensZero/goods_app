@@ -10,6 +10,15 @@
       <span class="tab-label">收藏</span>
     </RouterLink>
 
+    <RouterLink to="/leaderboard/characters" class="tab-item" active-class="tab-item--active">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 20V11" />
+        <path d="M12 20V4" />
+        <path d="M18 20v-6" />
+      </svg>
+      <span class="tab-label">排行</span>
+    </RouterLink>
+
     <RouterLink to="/manage" class="tab-item" active-class="tab-item--active">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="9" cy="7" r="3" />
@@ -34,7 +43,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  width: min(calc(100vw - 24px), 398px);
+  width: min(calc(100vw - 24px), 430px);
   padding: 10px;
   border-radius: var(--radius-large);
   background: var(--app-glass-strong);
@@ -53,7 +62,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 18px;
+  padding: 0 14px;
   border-radius: 18px;
   color: var(--app-text-tertiary);
   text-decoration: none;
@@ -74,6 +83,8 @@
   height: 18px;
   stroke: currentColor;
   stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tab-label {
@@ -96,7 +107,6 @@
 }
 </style>
 
-<!-- 多选模式时全局隐藏导航栏 -->
 <style>
 body.selection-active .tab-bar {
   transform: translateX(-50%) translateY(calc(100% + 16px));
