@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, shallowRef, computed, triggerRef } from 'vue'
 import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
 import {
   buildGoodsIdentityKey,
@@ -121,8 +121,8 @@ async function writePersistedTrash(list) {
 }
 
 export const useGoodsStore = defineStore('goods', () => {
-  const list = ref([])
-  const trashList = ref([])
+  const list = shallowRef([])
+  const trashList = shallowRef([])
   const isReady = ref(false)
 
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))
@@ -234,11 +234,13 @@ export const useGoodsStore = defineStore('goods', () => {
 
     if (existingIndex !== -1) {
       list.value[existingIndex] = mergeGoodsRecord(list.value[existingIndex], incoming)
+    triggerRef(list)
       await addItem(list.value[existingIndex])
       return list.value[existingIndex]
     }
 
     list.value.unshift(incoming)
+    triggerRef(list)
     await addItem(incoming)
     return incoming
   }
@@ -248,6 +250,7 @@ export const useGoodsStore = defineStore('goods', () => {
     if (idx === -1) return
 
     list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id }, id)
+    triggerRef(list)
     await addItem(list.value[idx])
   }
 
@@ -270,6 +273,7 @@ export const useGoodsStore = defineStore('goods', () => {
     if (!item) return
 
     trashList.value.unshift(normalizeTrashItem(item, item.id))
+    triggerRef(trashList)
     list.value = list.value.filter((entry) => entry.id !== id)
     await Promise.all([
       deleteItems([id]),
@@ -302,6 +306,7 @@ export const useGoodsStore = defineStore('goods', () => {
     }
 
     list.value.unshift(restored)
+    triggerRef(list)
     trashList.value = trashList.value.filter((entry) => entry.id !== id)
     await Promise.all([
       addItem(restored),
@@ -572,9 +577,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
     if (newItems.length === 0) return 0
 
-    for (let i = newItems.length - 1; i >= 0; i--) {
-      list.value.unshift(newItems[i])
-    }
+    list.value = [...newItems, ...list.value]
 
     await saveItems(newItems)
     return newItems.length

@@ -7,6 +7,7 @@
       { 'goods-card--transitioning': transitioning },
       { 'goods-card--selected': selected }
     ]"
+    :style="cardStyle"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -17,6 +18,7 @@
     @mouseleave="onMouseLeave"
     @contextmenu.prevent
   >
+    <template v-if="isVisible">
     <Transition name="sel-overlay">
       <div v-if="selectionMode" class="selection-overlay">
         <div :class="['check-icon', { 'check-icon--checked': selected }]">
@@ -72,12 +74,41 @@
         <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
       </div>
     </div>
+    </template>
   </article>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, nextTick } from 'vue'
+import { useIntersectionObserver } from '@vueuse/core'
 import LazyCachedImage from '@/components/LazyCachedImage.vue'
+
+const isVisible = shallowRef(true)
+const savedHeight = shallowRef(0)
+const cardRef = ref(null)
+
+const { stop } = useIntersectionObserver(
+  cardRef,
+  ([{ isIntersecting, boundingClientRect }]) => {
+    if (isIntersecting) {
+      isVisible.value = true
+    } else {
+      if (boundingClientRect && boundingClientRect.height > 0) {
+        savedHeight.value = boundingClientRect.height
+      }
+      setTimeout(() => {
+        if (!isVisible.value) return; 
+      }, 50);
+      isVisible.value = false
+    }
+  },
+  { rootMargin: '1000px' }
+)
+
+const cardStyle = computed(() => {
+  if (isVisible.value || !savedHeight.value) return {}
+  return { height: `${savedHeight.value}px`, contain: 'layout paint' }
+})
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -88,7 +119,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
-const cardRef = ref(null)
 const tagsScrollerRef = ref(null)
 
 // -------- Long-press / tap logic --------

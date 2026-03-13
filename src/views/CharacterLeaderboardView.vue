@@ -1,7 +1,5 @@
 <template>
   <div class="page page--transition leaderboard-page" :class="{ 'page--leaving': isPageLeaving }">
-    <NavBar title="" show-back />
-
     <main class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
@@ -90,7 +88,6 @@ import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
-import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const store = useGoodsStore()
@@ -165,6 +162,10 @@ function formatMetricValue(entry) {
 </script>
 
 <style scoped>
+.page-body {
+  padding-top: calc(env(safe-area-inset-top) + 20px);
+}
+
 .leaderboard-page {
   background:
     radial-gradient(circle at top right, rgba(255, 182, 74, 0.16), transparent 28%),

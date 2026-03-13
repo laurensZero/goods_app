@@ -18,12 +18,14 @@
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
+    "@vueuse/core": "^14.2.1",
     "fflate": "^0.8.2",
     "pinia": "^2.1.0",
     "sql.js": "^1.11.0",
     "vant": "^4.9.22",
     "vue": "^3.4.0",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "vue-virtual-scroller": "^2.0.0-beta.10"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.2.0",
