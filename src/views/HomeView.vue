@@ -657,6 +657,9 @@ async function applyBatchEditPayload(payload) {
   color: var(--app-text);
   flex-shrink: 0;
   transition: transform 0.16s ease, background 0.16s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .hero-search svg {

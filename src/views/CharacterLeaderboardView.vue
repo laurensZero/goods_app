@@ -201,7 +201,7 @@ function formatMetricValue(entry) {
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.04em;
 }
