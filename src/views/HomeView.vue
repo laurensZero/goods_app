@@ -101,6 +101,7 @@
     </main>
 
     <Teleport to="body">
+      <ScrollTopButton :show="showScrollTopButton && !selectionMode && isHomeActive" @click="scrollToTop" />
       <button v-if="!selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
@@ -138,7 +139,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { preloadImages } from '@/utils/imageCache'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
@@ -147,6 +148,7 @@ import { useHomeScrollRestore } from '@/composables/useHomeScrollRestore'
 import { useHomeTimeline } from '@/composables/useHomeTimeline'
 import { useHomeGoodsList } from '@/composables/useHomeGoodsList'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/HomeGoodsToolbar.vue'
@@ -154,6 +156,7 @@ import SummaryCard from '@/components/SummaryCard.vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AddMethodSheet from '@/components/AddMethodSheet.vue'
+import ScrollTopButton from '@/components/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
@@ -176,6 +179,7 @@ const LOAD_MORE_THRESHOLD_PX = 720
 const INITIAL_TIMELINE_MONTHS = 6
 const LOAD_MORE_TIMELINE_MONTHS = 4
 const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
+const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
   standard: 272,
@@ -184,6 +188,8 @@ const ROW_HEIGHT_MAP = {
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
+let elementScrollHandler = null
+let windowScrollHandler = null
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -206,6 +212,9 @@ const {
 
 const {
   getScrollEl,
+  getActiveScrollSource,
+  getDomScrollSnapshot,
+  markScrollSource,
   readScrollTop,
   getStoredScrollState,
   hasPendingRestore,
@@ -213,34 +222,37 @@ const {
   applyScrollPosition,
   restorePendingScrollPosition,
   restoreActivatedScrollPosition,
-  rememberCurrentScrollPosition
+  rememberCurrentScrollPosition,
+  clearDisplayedScrollPosition,
+  resetStoredScrollOnReload
 } = useHomeScrollRestore(pageBodyRef)
 const homeDisplayReady = ref(true)
+const showScrollTopButton = ref(false)
 
 // 添加方式面板
 const showAddSheet = ref(false)
 const router = useRouter()
 function handleImport() {
   showAddSheet.value = false
-  saveScrollPosition()
+  saveScrollPosition(true, 'home:handleImport')
   router.push('/import')
 }
 
 function handleAccountImport() {
   showAddSheet.value = false
-  saveScrollPosition()
+  saveScrollPosition(true, 'home:handleAccountImport')
   router.push('/account-import')
 }
 
 function handleTaobaoImport() {
   showAddSheet.value = false
-  saveScrollPosition()
+  saveScrollPosition(true, 'home:handleTaobaoImport')
   router.push('/taobao-import')
 }
 
 function goToAdd() {
   showAddSheet.value = false
-  saveScrollPosition()
+  saveScrollPosition(true, 'home:goToAdd')
   router.push('/add')
 }
 
@@ -334,23 +346,47 @@ function handlePageScroll() {
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
+    rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
     maybeLoadMoreGoods()
     maybeLoadMoreTimelineMonths()
+    updateScrollTopButtonVisibility()
   })
+}
+
+function updateScrollTopButtonVisibility() {
+  showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
 }
 
 function bindSelectionHeaderScroll() {
   if (selectionHeaderScrollBound) return
-  getScrollEl()?.addEventListener('scroll', handlePageScroll, { passive: true })
-  window.addEventListener('scroll', handlePageScroll, { passive: true })
+  // Guardrail:
+  // We intentionally listen to both the page container and window.
+  // Different routes / browser states can move the effective scroll source.
+  // The handler marks the real source before saving so restore uses the same target later.
+  elementScrollHandler = () => {
+    markScrollSource('element')
+    handlePageScroll()
+  }
+  windowScrollHandler = () => {
+    markScrollSource('window')
+    handlePageScroll()
+  }
+  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
+  window.addEventListener('scroll', windowScrollHandler, { passive: true })
   selectionHeaderScrollBound = true
 }
 
 function unbindSelectionHeaderScroll() {
   if (!selectionHeaderScrollBound) return
-  getScrollEl()?.removeEventListener('scroll', handlePageScroll)
-  window.removeEventListener('scroll', handlePageScroll)
+  if (elementScrollHandler) {
+    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
+    elementScrollHandler = null
+  }
+  if (windowScrollHandler) {
+    window.removeEventListener('scroll', windowScrollHandler)
+    windowScrollHandler = null
+  }
   selectionHeaderScrollBound = false
 }
 
@@ -383,8 +419,18 @@ function unbindAndroidBackButton() {
   removeAndroidBackListener = null
 }
 
+function shouldMaskHomeDisplay() {
+  const storedTop = getStoredScrollState()?.top || 0
+  if (storedTop <= 0) return false
+  return Math.abs(readScrollTop() - storedTop) > 1
+}
+
 onMounted(async () => {
-  const shouldMaskDisplay = hasPendingRestore() && (getStoredScrollState()?.top || 0) > 0
+  const didResetOnReload = resetStoredScrollOnReload()
+  if (didResetOnReload) {
+    clearDisplayedScrollPosition()
+  }
+  const shouldMaskDisplay = shouldMaskHomeDisplay()
   homeDisplayReady.value = !shouldMaskDisplay
   restoreHomePreferences()
   window.addEventListener('resize', _onResize, { passive: true })
@@ -397,13 +443,14 @@ onMounted(async () => {
   await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
   await nextTick()
   homeDisplayReady.value = true
+  updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
 })
 
 onActivated(async () => {
   isHomeActive.value = true
-  const shouldMaskDisplay = hasPendingRestore() && (getStoredScrollState()?.top || 0) > 0
+  const shouldMaskDisplay = shouldMaskHomeDisplay()
   if (shouldMaskDisplay) {
     homeDisplayReady.value = false
   }
@@ -412,13 +459,12 @@ onActivated(async () => {
   homeDisplayReady.value = true
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
+  updateScrollTopButtonVisibility()
   bindAndroidBackButton()
 })
 
 onDeactivated(() => {
   isHomeActive.value = false
-  // 不在此处调用 saveScrollPosition：onDeactivated 触发时 window.scrollY 可能已被路由重置为 0
-  // 滚动位置已由 openDetail / handleImport / goToAdd 在跳转前显式保存
   exitSelectionModeQuiet()
   unbindSelectionHeaderScroll()
   unbindAndroidBackButton()
@@ -435,6 +481,10 @@ onBeforeUnmount(() => {
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
   rememberCurrentScrollPosition()
+})
+
+onBeforeRouteLeave(() => {
+  saveScrollPosition(true, 'home:onBeforeRouteLeave')
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortDirection)
@@ -499,8 +549,17 @@ watch(
 )
 
 function openDetail(id) {
-  saveScrollPosition()
+  saveScrollPosition(true, `home:openDetail:${id}`)
   router.push(`/detail/${id}`)
+}
+
+function scrollToTop() {
+  scrollToTopAnimated(getScrollEl, 260, () => {
+    updateScrollTopButtonVisibility()
+    rememberCurrentScrollPosition()
+  // Use the currently marked source instead of forcing window/element.
+  // Forcing one side previously broke either restore or the scroll-top button.
+  }, getActiveScrollSource())
 }
 
 function updateSelectionHeaderPosition() {
@@ -737,7 +796,6 @@ async function applyBatchEditPayload(payload) {
 
 .fab {
   position: fixed;
-  right: 16px;
   bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
@@ -751,6 +809,12 @@ async function applyBatchEditPayload(payload) {
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, box-shadow 0.16s ease;
   z-index: 65;
+}
+
+.fab {
+  right: 16px;
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 .fab svg {

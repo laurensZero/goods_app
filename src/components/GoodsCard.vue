@@ -1,13 +1,11 @@
 <template>
   <article
-    ref="cardRef"
     class="goods-card"
     :class="[
       `goods-card--${density || 'comfortable'}`,
       { 'goods-card--transitioning': transitioning },
       { 'goods-card--selected': selected }
     ]"
-    :style="cardStyle"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -18,100 +16,72 @@
     @mouseleave="onMouseLeave"
     @contextmenu.prevent
   >
-    <template v-if="isVisible">
-      <Transition name="sel-overlay">
-        <div v-if="selectionMode" class="selection-overlay">
-          <div :class="['check-icon', { 'check-icon--checked': selected }]">
-            <svg v-if="selected" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
+    <Transition name="sel-overlay">
+      <div v-if="selectionMode" class="selection-overlay">
+        <div :class="['check-icon', { 'check-icon--checked': selected }]">
+          <svg v-if="selected" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
-      </Transition>
-
-      <div class="cover-wrap">
-        <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
-          <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" :lazy="false" class="cover-img" />
-          <span v-else class="cover-initial">{{ coverInitial }}</span>
-        </div>
-        <div v-if="item.isWishlist" class="wishlist-badge">心愿</div>
-        <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
       </div>
+    </Transition>
 
-      <div class="card-body">
-        <h3 class="card-name">{{ item.name }}</h3>
+    <div class="cover-wrap">
+      <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
+        <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" :lazy="false" class="cover-img" />
+        <span v-else class="cover-initial">{{ coverInitial }}</span>
+      </div>
+      <div v-if="item.isWishlist" class="wishlist-badge">心愿</div>
+      <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
+    </div>
 
-        <div
-          ref="tagsScrollerRef"
-          class="card-tags"
-          :class="{ 'card-tags--hidden': !showTags, 'card-tags--dragging': tagsDragging }"
-          @click.stop
-          @mousedown.stop="onTagsMouseDown"
-          @touchstart.stop
-          @touchmove.stop
-          @touchend.stop
+    <div class="card-body">
+      <h3 class="card-name">{{ item.name }}</h3>
+
+      <div
+        ref="tagsScrollerRef"
+        class="card-tags"
+        :class="{ 'card-tags--hidden': !showTags, 'card-tags--dragging': tagsDragging }"
+        @click.stop
+        @mousedown.stop="onTagsMouseDown"
+        @touchstart.stop
+        @touchmove.stop
+        @touchend.stop
+      >
+        <span class="card-chip" :class="{ 'card-chip--hidden': !showCategory }">{{ item.category }}</span>
+        <span class="card-chip ip-chip" :class="{ 'card-chip--hidden': !showIp }">{{ item.ip }}</span>
+        <span
+          v-for="character in allCharacters"
+          :key="character"
+          class="card-chip char-chip"
+          :class="{ 'card-chip--hidden': !showCharacters }"
         >
-          <span class="card-chip" :class="{ 'card-chip--hidden': !showCategory }">{{ item.category }}</span>
-          <span class="card-chip ip-chip" :class="{ 'card-chip--hidden': !showIp }">{{ item.ip }}</span>
-          <span
-            v-for="character in allCharacters"
-            :key="character"
-            class="card-chip char-chip"
-            :class="{ 'card-chip--hidden': !showCharacters }"
-          >
-            {{ character }}
-          </span>
-          <span
-            v-for="tag in allCustomTags"
-            :key="tag"
-            class="card-chip tag-chip"
-            :class="{ 'card-chip--hidden': !showCustomTags }"
-          >
-            #{{ tag }}
-          </span>
-        </div>
-
-        <div class="card-bottom-row">
-          <span class="card-price">
-            {{ priceText }}
-            <span v-if="showPoints" class="card-price-points">+{{ item.points }}积分</span>
-          </span>
-          <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
-        </div>
+          {{ character }}
+        </span>
+        <span
+          v-for="tag in allCustomTags"
+          :key="tag"
+          class="card-chip tag-chip"
+          :class="{ 'card-chip--hidden': !showCustomTags }"
+        >
+          #{{ tag }}
+        </span>
       </div>
-    </template>
+
+      <div class="card-bottom-row">
+        <span class="card-price">
+          {{ priceText }}
+          <span v-if="showPoints" class="card-price-points">+{{ item.points }}积分</span>
+        </span>
+        <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
+      </div>
+    </div>
   </article>
 </template>
 
 <script setup>
-import { computed, ref, shallowRef } from 'vue'
-import { useIntersectionObserver } from '@vueuse/core'
+import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/LazyCachedImage.vue'
-
-const isVisible = shallowRef(true)
-const savedHeight = shallowRef(0)
-const cardRef = ref(null)
-
-useIntersectionObserver(
-  cardRef,
-  ([{ isIntersecting, boundingClientRect }]) => {
-    if (isIntersecting) {
-      isVisible.value = true
-      return
-    }
-
-    if (boundingClientRect && boundingClientRect.height > 0) {
-      savedHeight.value = boundingClientRect.height
-    }
-    isVisible.value = false
-  },
-  { rootMargin: '1000px' }
-)
-
-const cardStyle = computed(() => {
-  if (isVisible.value || !savedHeight.value) return {}
-  return { height: `${savedHeight.value}px`, contain: 'layout paint' }
-})
 
 const props = defineProps({
   item: { type: Object, required: true },

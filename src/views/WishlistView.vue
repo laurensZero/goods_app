@@ -1,6 +1,6 @@
 <template>
-  <div class="page wishlist-page">
-    <main class="page-body">
+  <div class="page wishlist-page" :class="{ 'wishlist-page--restoring': !wishlistDisplayReady }">
+    <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Wish Archive</p>
@@ -73,10 +73,13 @@
       <section v-if="goodsList.length > 0" class="goods-section">
         <div class="goods-list" :style="goodsGridStyle">
           <GoodsCard
-            v-for="item in goodsList"
+            v-for="(item, index) in goodsList"
             :key="item.id"
             :item="item"
             :density="displayDensity"
+            :data-goods-id="item.id"
+            :data-scroll-anchor="'goods-card'"
+            :data-scroll-index="index"
             :selected="selectedIds.has(item.id)"
             :selection-mode="selectionMode"
             @long-press="enterSelectionMode(item.id)"
@@ -97,7 +100,9 @@
       </section>
     </main>
 
-    <Teleport to="body">
+    <Teleport v-if="isWishlistActive" to="body">
+      <ScrollTopButton :show="showScrollTopButton && !selectionMode" @click="scrollToTop" />
+
       <button v-if="!selectionMode" class="fab" type="button" aria-label="添加心愿" @click="goToAdd">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
@@ -133,16 +138,19 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
+import { useWishlistScrollRestore } from '@/composables/useWishlistScrollRestore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SummaryCard from '@/components/SummaryCard.vue'
 import AddMethodSheet from '@/components/AddMethodSheet.vue'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
+import ScrollTopButton from '@/components/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
@@ -151,6 +159,7 @@ defineOptions({ name: 'WishlistView' })
 
 const DENSITY_STORAGE_KEY = 'goods-app:wishlist-grid-density'
 const SORT_STORAGE_KEY = 'goods-app:wishlist-sort-direction'
+const SCROLL_TOP_BUTTON_THRESHOLD = 900
 
 const densityModes = [
   { value: 'comfortable', label: '舒展' },
@@ -181,15 +190,38 @@ const densityBreakpoints = {
 
 const router = useRouter()
 const store = useGoodsStore()
+const pageBodyRef = ref(null)
 const windowWidth = ref(window.innerWidth)
 const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const batchEditSheetRef = ref(null)
+const isWishlistActive = ref(true)
+const wishlistDisplayReady = ref(true)
+const showScrollTopButton = ref(false)
 const displayDensity = ref(localStorage.getItem(DENSITY_STORAGE_KEY) || 'comfortable')
 const sortDirection = ref(localStorage.getItem(SORT_STORAGE_KEY) || 'desc')
 const selectionHeaderStyle = computed(() => ({ '--selection-header-top': '0px' }))
 let removeAndroidBackListener = null
+let pageScrollBound = false
+let pageScrollRaf = 0
+let elementScrollHandler = null
+let windowScrollHandler = null
+
+const {
+  getScrollEl,
+  getActiveScrollSource,
+  markScrollSource,
+  readScrollTop,
+  getStoredScrollState,
+  saveScrollPosition,
+  applyScrollPosition,
+  restorePendingScrollPosition,
+  restoreActivatedScrollPosition,
+  rememberCurrentScrollPosition,
+  clearDisplayedScrollPosition,
+  resetStoredScrollOnReload
+} = useWishlistScrollRestore(pageBodyRef)
 
 const baseGoodsList = computed(() => store.wishlistViewList)
 const totalQuantity = computed(() =>
@@ -240,9 +272,12 @@ const {
 } = useGoodsSelection(goodsList, {
   historyKey: 'wishlistSelectionMode',
   onExit: closeSelectionOverlays,
-  getScrollTop: () => window.scrollY,
-  restoreScrollTop: (top) => window.scrollTo({ top, behavior: 'auto' })
+  getScrollTop: readScrollTop,
+  restoreScrollTop: applyScrollPosition
 })
+
+function syncVisibleGoodsCount() {}
+function syncVisibleTimelineMonthCount() {}
 
 function getResponsiveCols(density) {
   const breakpoints = densityBreakpoints[density] || densityBreakpoints.comfortable
@@ -260,11 +295,65 @@ function toggleSortDirection() {
   localStorage.setItem(SORT_STORAGE_KEY, sortDirection.value)
 }
 
+function updateScrollTopButtonVisibility() {
+  showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
+}
+
+function handlePageScroll() {
+  if (pageScrollRaf) return
+  pageScrollRaf = window.requestAnimationFrame(() => {
+    pageScrollRaf = 0
+    rememberCurrentScrollPosition()
+    updateScrollTopButtonVisibility()
+  })
+}
+
+function bindPageScroll() {
+  if (pageScrollBound) return
+  // Guardrail:
+  // Wishlist must track both element and window scroll events.
+  // This page has regressed repeatedly when the source was hardcoded.
+  elementScrollHandler = () => {
+    markScrollSource('element')
+    handlePageScroll()
+  }
+  windowScrollHandler = () => {
+    markScrollSource('window')
+    handlePageScroll()
+  }
+  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
+  window.addEventListener('scroll', windowScrollHandler, { passive: true })
+  pageScrollBound = true
+}
+
+function unbindPageScroll() {
+  if (!pageScrollBound) return
+  if (elementScrollHandler) {
+    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
+    elementScrollHandler = null
+  }
+  if (windowScrollHandler) {
+    window.removeEventListener('scroll', windowScrollHandler)
+    windowScrollHandler = null
+  }
+  pageScrollBound = false
+}
+
+function scrollToTop() {
+  scrollToTopAnimated(getScrollEl, 260, () => {
+    updateScrollTopButtonVisibility()
+    rememberCurrentScrollPosition()
+  // Use the current tracked source. Do not hardcode "window" or "element" here.
+  }, getActiveScrollSource())
+}
+
 function openDetail(id) {
+  saveScrollPosition(true, `wishlist:openDetail:${id}`)
   router.push(`/detail/${id}`)
 }
 
 function openSearch() {
+  saveScrollPosition(true, 'wishlist:openSearch')
   router.push('/search?scope=wishlist')
 }
 
@@ -278,16 +367,24 @@ function goToAdd() {
 
 function goToManualAdd() {
   showAddSheet.value = false
+  saveScrollPosition(true, 'wishlist:goToManualAdd')
   router.push('/add?mode=wishlist')
 }
 
 function goToImport() {
   showAddSheet.value = false
+  saveScrollPosition(true, 'wishlist:goToImport')
   router.push('/import?mode=wishlist')
 }
 
 function handleResize() {
   windowWidth.value = window.innerWidth
+}
+
+function shouldMaskWishlistDisplay() {
+  const storedTop = getStoredScrollState()?.top || 0
+  if (storedTop <= 0) return false
+  return Math.abs(readScrollTop() - storedTop) > 1
 }
 
 function handleAndroidBackButton(event) {
@@ -340,23 +437,70 @@ async function applyBatchEditPayload(payload) {
   exitSelectionModeQuiet()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const didResetOnReload = resetStoredScrollOnReload()
+  if (didResetOnReload) {
+    clearDisplayedScrollPosition()
+  }
+  const shouldMaskDisplay = shouldMaskWishlistDisplay()
+  wishlistDisplayReady.value = !shouldMaskDisplay
   window.addEventListener('resize', handleResize, { passive: true })
+  await nextTick()
+  bindPageScroll()
+  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await nextTick()
+  wishlistDisplayReady.value = true
+  updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
 })
 
+onActivated(async () => {
+  isWishlistActive.value = true
+  const shouldMaskDisplay = shouldMaskWishlistDisplay()
+  if (shouldMaskDisplay) {
+    wishlistDisplayReady.value = false
+  }
+  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await nextTick()
+  wishlistDisplayReady.value = true
+  bindPageScroll()
+  updateScrollTopButtonVisibility()
+  bindAndroidBackButton()
+})
+
+onDeactivated(() => {
+  isWishlistActive.value = false
+  exitSelectionModeQuiet()
+  unbindPageScroll()
+  unbindAndroidBackButton()
+})
+
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
+  rememberCurrentScrollPosition()
   exitSelectionModeQuiet()
+})
+
+onBeforeRouteLeave(() => {
+  saveScrollPosition(true, 'wishlist:onBeforeRouteLeave')
 })
 </script>
 
 <style scoped>
 .wishlist-page {
   position: relative;
+}
+
+.wishlist-page--restoring {
+  visibility: hidden;
 }
 
 .page-body {
@@ -421,12 +565,20 @@ onBeforeUnmount(() => {
 }
 
 .hero-search svg,
-.fab svg,
 .sort-toggle svg {
   width: 18px;
   height: 18px;
   stroke: currentColor;
   stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fab svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -522,7 +674,8 @@ onBeforeUnmount(() => {
 }
 
 .density-switch__option:active,
-.sort-toggle:active {
+.sort-toggle:active,
+.fab:active {
   transform: scale(0.96);
 }
 

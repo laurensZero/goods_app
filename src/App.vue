@@ -2,20 +2,18 @@
   <div class="app-wrapper">
     <RouterView v-slot="{ Component, route: currentRoute }">
       <template v-if="Component">
-        <template v-if="currentRoute.meta.keepAlive">
-          <KeepAlive :include="keepAliveViewNames">
-            <component
-              :is="Component"
-              :key="getKeepAliveKey(currentRoute)"
-            />
-          </KeepAlive>
-        </template>
-        <template v-else>
+        <KeepAlive :include="keepAliveViewNames">
           <component
+            v-if="currentRoute.meta.keepAlive"
             :is="Component"
-            :key="getRouteKey(currentRoute)"
+            :key="getKeepAliveKey(currentRoute)"
           />
-        </template>
+        </KeepAlive>
+        <component
+          v-if="!currentRoute.meta.keepAlive"
+          :is="Component"
+          :key="getRouteKey(currentRoute)"
+        />
       </template>
     </RouterView>
     <TabBar v-if="showTabBar" />
