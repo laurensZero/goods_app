@@ -23,7 +23,8 @@ const props = defineProps({
   loading: { type: String, default: 'lazy' },
   decoding: { type: String, default: 'async' },
   fetchpriority: { type: String, default: 'low' },
-  useCache: { type: Boolean, default: true }
+  useCache: { type: Boolean, default: true },
+  lazy: { type: Boolean, default: true }
 })
 
 const attrs = useAttrs()
@@ -51,6 +52,11 @@ watch(
 )
 
 onMounted(() => {
+  if (!props.lazy) {
+    hasEnteredViewport.value = true
+    return
+  }
+
   const cached = peekCachedImage(props.src)
   if (cached) {
     resolvedSrc.value = cached

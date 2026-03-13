@@ -3,7 +3,8 @@
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
-          <p class="hero-label">谷子收藏 / Goods Archive</p>
+          <p class="hero-label">Goods Archive</p>
+          <h1 class="hero-title">全部收藏</h1>
         </div>
         <button class="hero-search" type="button" aria-label="搜索" @click="$router.push('/search')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -637,14 +638,19 @@ async function applyBatchEditPayload(payload) {
   text-transform: uppercase;
 }
 
-.hero-search {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--icon-button-size);
-  height: var(--icon-button-size);
-  margin-top: 6px;
-  border: none;
+  .hero-title {
+    margin-top: 4px;
+    color: var(--app-text);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+
+  .hero-search {
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
+    margin-top: 6px;
+    border: none;
   border-radius: 50%;
   background: var(--app-glass);
   box-shadow: var(--app-shadow);

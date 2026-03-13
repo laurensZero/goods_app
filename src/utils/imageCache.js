@@ -27,7 +27,7 @@ const supportsCacheAPI = typeof caches !== 'undefined'
 // --- Layer 1: 内存缓存 ---
 /** @type {Map<string, string>} url -> objectURL 或原始 url */
 const memoryCache = new Map()
-const MAX_MEMORY_CACHE_SIZE = 300
+const MAX_MEMORY_CACHE_SIZE = 1500
 
 function setMemoryCache(url, objectUrl) {
   if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
@@ -137,43 +137,57 @@ async function putToCapacitorFS(url, blob) {
  *
  * @returns {Promise<string>}
  */
+const inFlight = new Map()
+
 export async function getCachedImage(url) {
   if (!url) return ''
 
   // 1: 内存
   if (memoryCache.has(url)) return memoryCache.get(url)
 
-  // 2: Cache API (Web)
-  const cacheHit = await getFromCacheAPI(url)
-  if (cacheHit) {
-    setMemoryCache(url, cacheHit)
-    return cacheHit
-  }
+  // 防止并发请求相同 URL 导致多次 IO 和网络请求
+  if (inFlight.has(url)) return inFlight.get(url)
 
-  // 3: Capacitor FS (Native)
-  const fsHit = await getFromCapacitorFS(url)
-  if (fsHit) {
-    setMemoryCache(url, fsHit)
-    return fsHit
-  }
+  const promise = (async () => {
+    // 2: Cache API (Web)
+    const cacheHit = await getFromCacheAPI(url)
+    if (cacheHit) {
+      setMemoryCache(url, cacheHit)
+      inFlight.delete(url)
+      return cacheHit
+    }
 
-  try {
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    // 3: Capacitor FS (Native)
+    const fsHit = await getFromCapacitorFS(url)
+    if (fsHit) {
+      setMemoryCache(url, fsHit)
+      inFlight.delete(url)
+      return fsHit
+    }
 
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    setMemoryCache(url, objectUrl)
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-    // 后台写入 Cache API 和 Capacitor FS，不阻塞返回
-    putToCacheAPI(url, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
-    putToCapacitorFS(url, blob)
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      setMemoryCache(url, objectUrl)
 
-    return objectUrl
-  } catch {
-    setMemoryCache(url, url)
-    return url
-  }
+      // 后台写入 Cache API 和 Capacitor FS，不阻塞返回
+      putToCacheAPI(url, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
+      putToCapacitorFS(url, blob)
+
+      inFlight.delete(url)
+      return objectUrl
+    } catch {
+      setMemoryCache(url, url)
+      inFlight.delete(url)
+      return url
+    }
+  })()
+
+  inFlight.set(url, promise)
+  return promise
 }
 
 /**

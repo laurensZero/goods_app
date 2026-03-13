@@ -30,7 +30,7 @@
     </Transition>
     <div class="cover-wrap">
       <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
-        <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" class="cover-img" />
+        <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" :lazy="false" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
@@ -96,9 +96,6 @@ const { stop } = useIntersectionObserver(
       if (boundingClientRect && boundingClientRect.height > 0) {
         savedHeight.value = boundingClientRect.height
       }
-      setTimeout(() => {
-        if (!isVisible.value) return; 
-      }, 50);
       isVisible.value = false
     }
   },
@@ -398,7 +395,7 @@ const isTablet = computed(() => windowWidth.value >= 900)
   transform: translateY(0);
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  touch-action: auto;
   cursor: grab;
 }
 

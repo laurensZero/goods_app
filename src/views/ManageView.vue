@@ -1,10 +1,14 @@
 <template>
   <div class="page page--transition manage-page">
-    <header class="manage-header">
-      <h1 class="manage-title">管理</h1>
-    </header>
-
     <main class="page-body">
+      <section class="hero-section">
+        <div class="hero-copy">
+          <p class="hero-label">Presets & Data</p>
+          <h1 class="hero-title">数据管理</h1>
+          <p class="hero-desc">维护下拉筛选选项和导入数据。</p>
+        </div>
+      </section>
+
       <div class="manage-column manage-column--primary">
         <section class="hub-section">
           <RouterLink class="entry-card" to="/manage/categories">
@@ -422,31 +426,45 @@ async function handleImport(event) {
   background: radial-gradient(circle, rgba(40, 200, 128, 0.12) 0%, rgba(40, 200, 128, 0) 74%);
 }
 
-.manage-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: 40px var(--page-padding) 14px;
-  background: rgba(245, 245, 247, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
 
-.manage-title {
-  width: min(100%, 1160px);
-  margin: 0 auto;
-  color: var(--app-text);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-}
+
+
 
 .page-body {
   position: relative;
   z-index: 1;
   width: min(100%, 1160px);
   margin: 0 auto;
-  padding: 18px var(--page-padding) 120px;
+  padding: calc(env(safe-area-inset-top) + 20px) var(--page-padding) 120px;
+}
+
+.hero-section {
+  display: grid;
+  gap: 14px;
+  grid-column: 1 / -1;
+  margin-bottom: 24px;
+}
+
+.hero-label {
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-title {
+  margin-top: 4px;
+  color: var(--app-text);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.hero-desc {
+  margin-top: 8px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .manage-column {
@@ -639,15 +657,9 @@ async function handleImport(event) {
 }
 
 @media (min-width: 1280px) {
-  .manage-header {
-    padding-top: 48px;
-    padding-bottom: 18px;
-  }
+  
 
-  .manage-title {
-    font-size: 38px;
-    letter-spacing: -0.06em;
-  }
+  
 
   .page-body {
     display: grid;
@@ -699,9 +711,7 @@ async function handleImport(event) {
 }
 
 @media (prefers-color-scheme: dark) {
-  .manage-header {
-    background: rgba(15, 15, 16, 0.9);
-  }
+  
 
   .entry-card {
     border-color: rgba(255, 255, 255, 0.04);

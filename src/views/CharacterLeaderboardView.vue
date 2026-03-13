@@ -167,9 +167,7 @@ function formatMetricValue(entry) {
 }
 
 .leaderboard-page {
-  background:
-    radial-gradient(circle at top right, rgba(255, 182, 74, 0.16), transparent 28%),
-    var(--app-bg);
+  background: var(--app-bg);
 }
 
 .hero-section,
@@ -193,8 +191,10 @@ function formatMetricValue(entry) {
 
 .hero-label,
 .section-label {
-  color: var(--app-text-tertiary);
+  
   font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .hero-title,
