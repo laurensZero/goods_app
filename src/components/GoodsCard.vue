@@ -27,8 +27,8 @@
       </div>
     </Transition>
     <div class="cover-wrap">
-      <div class="card-cover" :style="cachedImgSrc ? {} : { background: coverBg }">
-        <img v-if="cachedImgSrc" :src="cachedImgSrc" :alt="item.name" class="cover-img" loading="lazy" decoding="async" />
+      <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
+        <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
@@ -76,8 +76,8 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
+import { computed, ref } from 'vue'
+import LazyCachedImage from '@/components/LazyCachedImage.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -214,28 +214,6 @@ function onTagsMouseUp() {
   window.removeEventListener('mouseup', onTagsMouseUp)
 }
 
-const cachedImgSrc = ref('')
-const hasEnteredViewport = ref(false)
-let visibilityObserver = null
-
-watch(
-  [() => props.item.image, hasEnteredViewport],
-  async ([url, isVisible]) => {
-    if (!url) {
-      cachedImgSrc.value = ''
-      return
-    }
-    const cached = peekCachedImage(url)
-    if (cached) {
-      cachedImgSrc.value = cached
-      return
-    }
-    if (!isVisible) return
-    cachedImgSrc.value = await getCachedImage(url)
-  },
-  { immediate: true }
-)
-
 const colorMap = {
   手办: ['#2c2c2e', '#3a3a3c'],
   挂件: ['#1c3a5e', '#2a5298'],
@@ -272,41 +250,6 @@ const showTags = computed(() => showCategory.value || showIp.value || showCharac
 const showHoldingDays = computed(() => props.density !== 'compact' && holdingDays.value !== null)
 
 const windowWidth = ref(window.innerWidth)
-const _onResize = () => { windowWidth.value = window.innerWidth }
-onMounted(() => {
-  window.addEventListener('resize', _onResize)
-
-  const cached = peekCachedImage(props.item.image)
-  if (cached) {
-    cachedImgSrc.value = cached
-    hasEnteredViewport.value = true
-    return
-  }
-
-  if (typeof IntersectionObserver === 'undefined') {
-    hasEnteredViewport.value = true
-    return
-  }
-
-  visibilityObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        hasEnteredViewport.value = true
-        visibilityObserver?.disconnect()
-        visibilityObserver = null
-      }
-    },
-    { rootMargin: '180px 0px' }
-  )
-
-  if (cardRef.value) visibilityObserver.observe(cardRef.value)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', _onResize)
-  onTagsMouseUp()
-  visibilityObserver?.disconnect()
-  visibilityObserver = null
-})
 const isTablet = computed(() => windowWidth.value >= 900)
 </script>
 

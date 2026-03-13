@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getItems, addItem, saveItems } from '@/utils/db'
+import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
 import {
   buildGoodsIdentityKey,
   getGoodsVariant,
@@ -253,7 +253,6 @@ export const useGoodsStore = defineStore('goods', () => {
 
   async function updateMultipleGoods(ids, data) {
     let changed = false
-
     list.value = list.value.map((item) => {
       if (!ids.has(item.id)) return item
       changed = true
@@ -261,7 +260,8 @@ export const useGoodsStore = defineStore('goods', () => {
     })
 
     if (changed) {
-      await saveItems(list.value)
+      const updatedItems = list.value.filter(item => ids.has(item.id))
+      await saveItems(updatedItems)
     }
   }
 
@@ -272,7 +272,7 @@ export const useGoodsStore = defineStore('goods', () => {
     trashList.value.unshift(normalizeTrashItem(item, item.id))
     list.value = list.value.filter((entry) => entry.id !== id)
     await Promise.all([
-      saveItems(list.value),
+      deleteItems([id]),
       persistTrash()
     ])
   }
@@ -287,7 +287,7 @@ export const useGoodsStore = defineStore('goods', () => {
     trashList.value = [...removedItems, ...trashList.value]
     list.value = list.value.filter((item) => !ids.has(item.id))
     await Promise.all([
-      saveItems(list.value),
+      deleteItems(Array.from(ids)),
       persistTrash()
     ])
   }
@@ -304,7 +304,7 @@ export const useGoodsStore = defineStore('goods', () => {
     list.value.unshift(restored)
     trashList.value = trashList.value.filter((entry) => entry.id !== id)
     await Promise.all([
-      saveItems(list.value),
+      addItem(restored),
       persistTrash()
     ])
     return restored
@@ -350,8 +350,10 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
+    const updatedItems = list.value.filter(item => item.category === next)
+
     await Promise.all([
-      listChanged ? saveItems(list.value) : Promise.resolve(),
+      listChanged ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -382,8 +384,10 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
+    const updatedItems = list.value.filter(item => item.ip === next)
+
     await Promise.all([
-      listChanged ? saveItems(list.value) : Promise.resolve(),
+      listChanged ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -418,8 +422,10 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
+    const updatedItems = list.value.filter(item => item.characters?.includes(next))
+
     await Promise.all([
-      listChanged ? saveItems(list.value) : Promise.resolve(),
+      listChanged ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -457,8 +463,13 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
+    const updatedItems = list.value.filter(item => {
+      if (!item.characters?.includes(characterName)) return false
+      return item.ip === targetIp
+    })
+
     await Promise.all([
-      listChanged ? saveItems(list.value) : Promise.resolve(),
+      listChanged ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -485,7 +496,8 @@ export const useGoodsStore = defineStore('goods', () => {
     })
 
     if (changed) {
-      await saveItems(list.value)
+      const updatedItems = list.value.filter(item => isStorageLocationUnderPrefix(item.storageLocation, normalizedNewPrefix) || item.storageLocation === normalizedNewPrefix)
+      await saveItems(updatedItems)
     }
   }
 
@@ -507,7 +519,8 @@ export const useGoodsStore = defineStore('goods', () => {
     })
 
     if (changed) {
-      await saveItems(list.value)
+      const updatedItems = list.value.filter(item => item.storageLocation === '' && !isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix))
+      await saveItems(updatedItems)
     }
   }
 
@@ -544,7 +557,7 @@ export const useGoodsStore = defineStore('goods', () => {
     })
 
     list.value = [...newItems, ...existingItems]
-    await saveItems(list.value)
+    await saveItems(newItems.concat(existingItems.filter((_, i) => items.some(item => buildGoodsIdentityKey(normalizeGoodsInput(item, '')) === buildGoodsIdentityKey(existingItems[i])))))
   }
 
   async function refreshList() {
@@ -563,7 +576,7 @@ export const useGoodsStore = defineStore('goods', () => {
       list.value.unshift(newItems[i])
     }
 
-    await saveItems(list.value)
+    await saveItems(newItems)
     return newItems.length
   }
 

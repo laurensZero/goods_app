@@ -144,6 +144,7 @@ import { useGoodsSelection } from '@/composables/useGoodsSelection'
 import { useHomePreferences } from '@/composables/useHomePreferences'
 import { useHomeScrollRestore } from '@/composables/useHomeScrollRestore'
 import { useHomeTimeline } from '@/composables/useHomeTimeline'
+import { useHomeGoodsList } from '@/composables/useHomeGoodsList'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
@@ -435,36 +436,14 @@ onBeforeUnmount(() => {
   rememberCurrentScrollPosition()
 })
 
-const goodsList = computed(() => {
-  const items = [...store.viewList]
+const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortDirection)
 
-  items.sort((a, b) => {
-    if (a.acquiredTime !== b.acquiredTime) {
-      return sortDirection.value === 'asc'
-        ? a.acquiredTime - b.acquiredTime
-        : b.acquiredTime - a.acquiredTime
-    }
-
-    return sortDirection.value === 'asc'
-      ? a.sortId.localeCompare(b.sortId)
-      : b.sortId.localeCompare(a.sortId)
-  })
-
-  return items
-})
-const goodsById = computed(() => new Map(goodsList.value.map((item) => [item.id, item])))
 const visibleGoodsCount = ref(0)
 const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
 const visibleGoodsList = computed(() =>
   displayDensity.value === 'timeline'
     ? goodsList.value
     : goodsList.value.slice(0, visibleGoodsCount.value || getInitialVisibleCount())
-)
-const totalValue = computed(() =>
-  goodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
-)
-const totalQuantity = computed(() =>
-  goodsList.value.reduce((sum, item) => sum + item.quantityNumber, 0)
 )
 const {
   allTimelineMonthCount,
@@ -667,7 +646,7 @@ async function applyBatchEditPayload(payload) {
   margin-top: 6px;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.84);
+  background: var(--app-glass);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   flex-shrink: 0;
@@ -758,8 +737,8 @@ async function applyBatchEditPayload(payload) {
   height: var(--fab-size);
   border: none;
   border-radius: 50%;
-  background: #141416;
-  color: #ffffff;
+  background: var(--app-text);
+  color: var(--app-surface);
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, box-shadow 0.16s ease;
   z-index: 65;
@@ -784,8 +763,8 @@ async function applyBatchEditPayload(payload) {
   }
 
   .fab {
-    background: #f5f5f5;
-    color: #141416;
+    background: var(--app-text);
+    color: var(--app-surface);
   }
 }
 </style>

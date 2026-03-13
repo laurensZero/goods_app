@@ -3,7 +3,6 @@
  * 双轨 SQLite 实现：
  *   - 原生端（iOS / Android）：@capacitor-community/sqlite（真正的 .db 文件）
  *   - Web 端（浏览器开发 / PWA）：sql.js 直接驱动 + IndexedDB 持久化
- *     sql.js 的 JS 与 WASM 来自同一 npm 包，天然版本匹配，无需 jeep-sqlite。
  */
 
 import { Capacitor } from '@capacitor/core'
@@ -168,9 +167,11 @@ export async function addItem(item) {
 }
 
 export async function saveItems(items) {
+  if (!items || items.length === 0) return
+
   if (IS_NATIVE) {
     if (!_nativeDb) return
-    const stmts = [{ statement: 'DELETE FROM goods', values: [] }]
+    const stmts = []
     for (const item of items) {
       const { id, name = '', category = '', ip = '', characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
@@ -178,14 +179,13 @@ export async function saveItems(items) {
       const qty = Math.max(1, Number(quantity) || 1)
       const pts = points != null && points !== '' ? Number(points) : null
       stmts.push({
-        statement: 'INSERT INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         values: [id, name, category, ip, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
       })
     }
     await _nativeDb.executeSet(stmts)
   } else {
     if (!_sqlDb) return
-    _sqlDb.run('DELETE FROM goods')
     for (const item of items) {
       const { id, name = '', category = '', ip = '', characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
@@ -193,9 +193,28 @@ export async function saveItems(items) {
       const qty = Math.max(1, Number(quantity) || 1)
       const pts = points != null && points !== '' ? Number(points) : null
       _sqlDb.run(
-        'INSERT INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT OR REPLACE INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [id, name, category, ip, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
       )
+    }
+    await _saveBinaryToIDB(_sqlDb)
+  }
+}
+
+export async function deleteItems(ids) {
+  if (!ids || ids.length === 0) return
+
+  if (IS_NATIVE) {
+    if (!_nativeDb) return
+    const stmts = ids.map(id => ({
+      statement: 'DELETE FROM goods WHERE id = ?',
+      values: [id]
+    }))
+    await _nativeDb.executeSet(stmts)
+  } else {
+    if (!_sqlDb) return
+    for (const id of ids) {
+      _sqlDb.run('DELETE FROM goods WHERE id = ?', [id])
     }
     await _saveBinaryToIDB(_sqlDb)
   }

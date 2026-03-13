@@ -36,8 +36,16 @@ export default defineConfig({
       }
     }
   },
-  // jeep-sqlite 使用动态 import + Worker，需排除预构建优化
-  optimizeDeps: {
-    exclude: ['@capacitor-community/sqlite']
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'ui-library': ['vant'],
+          'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences'],
+          'db-engine': ['@capacitor-community/sqlite', 'sql.js']
+        }
+      }
+    }
   }
 })

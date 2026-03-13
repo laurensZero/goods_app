@@ -121,7 +121,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
@@ -153,8 +153,17 @@ const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
+const debouncedKeyword = ref('')
+let searchTimeout = null
 let removeAndroidBackListener = null
 let savedScrollTop = 0
+
+watch(keyword, (newVal) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    debouncedKeyword.value = newVal.trim().toLowerCase()
+  }, 180)
+}, { immediate: true })
 
 function buildSearchState() {
   return {
@@ -236,22 +245,22 @@ const characterFilterOptions = computed(() =>
 )
 
 const isFiltering = computed(() =>
-  keyword.value.trim() !== ''
+  debouncedKeyword.value !== ''
     || selectedCategory.value !== ''
     || selectedIp.value !== ''
     || selectedCharacter.value !== ''
 )
 
 const emptyDesc = computed(() =>
-  keyword.value.trim()
-    ? `没有找到与“${keyword.value.trim()}”相关的谷子，试试更短的关键字。`
+  debouncedKeyword.value
+    ? `没有找到与“${debouncedKeyword.value}”相关的谷子，试试更短的关键字。`
     : '当前筛选条件下没有匹配的收藏。'
 )
 
 const results = computed(() => {
   if (!isFiltering.value) return []
 
-  const kw = keyword.value.trim().toLowerCase()
+  const kw = debouncedKeyword.value
 
   return store.list.filter((item) => {
     const name = String(item.name || '')
@@ -585,7 +594,7 @@ onBeforeRouteLeave((to) => {
   padding: 5px 12px;
   border: 1.5px solid var(--app-border);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--app-glass-strong);
   color: var(--app-text);
   font-size: 13px;
   font-weight: 500;
@@ -598,9 +607,9 @@ onBeforeRouteLeave((to) => {
 }
 
 .filter-chip--active {
-  border-color: #141416;
-  background: #141416;
-  color: #ffffff;
+  border-color: var(--app-text);
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 .results-section,
@@ -691,13 +700,13 @@ onBeforeRouteLeave((to) => {
 
   /* 筛选胶囊 */
   .filter-chip {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--app-glass-border);
   }
 
   .filter-chip--active {
-    background: #f5f5f7;
-    border-color: #f5f5f7;
-    color: #141416;
+    background: var(--app-text);
+    border-color: var(--app-text);
+    color: var(--app-surface);
   }
 }
 </style>
