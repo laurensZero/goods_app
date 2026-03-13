@@ -42,6 +42,10 @@ function parseQuantity(value) {
   return Math.max(1, Number(value) || 1)
 }
 
+function normalizeWishlistFlag(value) {
+  return value === true || value === 1 || value === '1'
+}
+
 function normalizeCharacterList(list) {
   if (!Array.isArray(list)) return []
   return [...new Set(
@@ -127,9 +131,11 @@ export const useGoodsStore = defineStore('goods', () => {
 
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))
   const getTrashById = computed(() => (id) => trashList.value.find((item) => item.id === id))
+  const collectionList = computed(() => list.value.filter((item) => !item.isWishlist))
+  const wishlistList = computed(() => list.value.filter((item) => item.isWishlist))
   const storageLocations = computed(() =>
     [...new Set(
-      list.value
+      collectionList.value
         .map((item) => normalizeStorageLocationValue(item.storageLocation || ''))
         .filter(Boolean)
     )].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
@@ -141,6 +147,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
       return {
         ...item,
+        isWishlist: normalizeWishlistFlag(item.isWishlist),
         sortId: String(item.id),
         acquiredTime: parseAcquiredTime(item.acquiredAt),
         timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
@@ -150,6 +157,8 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
   )
+  const collectionViewList = computed(() => viewList.value.filter((item) => !item.isWishlist))
+  const wishlistViewList = computed(() => viewList.value.filter((item) => item.isWishlist))
   const trashViewList = computed(() =>
     [...trashList.value]
       .map((item) => {
@@ -176,6 +185,7 @@ export const useGoodsStore = defineStore('goods', () => {
       name: normalizeGoodsName(data.name),
       category: String(data.category || '').trim(),
       ip: String(data.ip || '').trim(),
+      isWishlist: normalizeWishlistFlag(data.isWishlist),
       characters: normalizeCharacterList(data.characters),
       tags: normalizeTagList(data.tags),
       storageLocation: normalizeStorageLocationValue(data.storageLocation || data.location || ''),
@@ -204,6 +214,7 @@ export const useGoodsStore = defineStore('goods', () => {
       name: existing.name || incoming.name,
       category: existing.category || incoming.category,
       ip: existing.ip || incoming.ip,
+      isWishlist: normalizeWishlistFlag(existing.isWishlist),
       characters: existing.characters?.length ? existing.characters : incoming.characters,
       tags: normalizeTagList([...(existing.tags || []), ...(incoming.tags || [])]),
       storageLocation: existing.storageLocation || incoming.storageLocation,
@@ -230,7 +241,9 @@ export const useGoodsStore = defineStore('goods', () => {
   async function addGoods(data) {
     const incoming = normalizeGoodsInput(data, String(Date.now()))
     const key = buildGoodsIdentityKey(incoming)
-    const existingIndex = list.value.findIndex((item) => buildGoodsIdentityKey(item) === key)
+    const existingIndex = list.value.findIndex((item) =>
+      item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
+    )
 
     if (existingIndex !== -1) {
       list.value[existingIndex] = mergeGoodsRecord(list.value[existingIndex], incoming)
@@ -532,22 +545,25 @@ export const useGoodsStore = defineStore('goods', () => {
   async function addMultipleGoods(items) {
     const now = Date.now()
     const existingItems = [...list.value]
+    const buildScopedKey = (item) => `${item.isWishlist ? 1 : 0}::${buildGoodsIdentityKey(item)}`
     const existingKeyToIndex = new Map(
-      existingItems.map((item, index) => [buildGoodsIdentityKey(item), index])
+      existingItems.map((item, index) => [buildScopedKey(item), index])
     )
     const newItems = []
     const newKeyToIndex = new Map()
+    const changedExistingIds = new Set()
 
     items.forEach((rawItem, index) => {
       const clean = Object.fromEntries(
         Object.entries(rawItem).filter(([key]) => !key.startsWith('_'))
       )
       const normalized = normalizeGoodsInput(clean, String(now + index))
-      const key = buildGoodsIdentityKey(normalized)
+      const key = buildScopedKey(normalized)
 
       if (existingKeyToIndex.has(key)) {
         const existingIndex = existingKeyToIndex.get(key)
         existingItems[existingIndex] = mergeGoodsRecord(existingItems[existingIndex], normalized)
+        changedExistingIds.add(existingItems[existingIndex].id)
         return
       }
 
@@ -562,7 +578,10 @@ export const useGoodsStore = defineStore('goods', () => {
     })
 
     list.value = [...newItems, ...existingItems]
-    await saveItems(newItems.concat(existingItems.filter((_, i) => items.some(item => buildGoodsIdentityKey(normalizeGoodsInput(item, '')) === buildGoodsIdentityKey(existingItems[i])))))
+    await saveItems([
+      ...newItems,
+      ...existingItems.filter((item) => changedExistingIds.has(item.id))
+    ])
   }
 
   async function refreshList() {
@@ -601,7 +620,11 @@ export const useGoodsStore = defineStore('goods', () => {
   return {
     list,
     trashList,
+    collectionList,
+    wishlistList,
     viewList,
+    collectionViewList,
+    wishlistViewList,
     trashViewList,
     storageLocations,
     isReady,

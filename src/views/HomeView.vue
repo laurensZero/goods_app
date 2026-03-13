@@ -553,7 +553,7 @@ const {
   exitSelectionModeQuiet,
   exitSelectionMode,
   handleSelectionPopState
-} = useGoodsSelection(computed(() => store.list), {
+} = useGoodsSelection(computed(() => store.collectionList), {
   historyKey: 'selectionMode',
   onExit: closeSelectionOverlays,
   getScrollTop: readScrollTop,

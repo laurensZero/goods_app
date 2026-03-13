@@ -53,10 +53,10 @@
             </svg>
           </button>
 
-          <div class="sheet-divider" />
+          <div v-if="props.showTaobaoImport" class="sheet-divider" />
 
           <!-- 从淘宝订单导入 -->
-          <button class="sheet-option" type="button" @click="onTaobaoImport">
+          <button v-if="props.showTaobaoImport" class="sheet-option" type="button" @click="onTaobaoImport">
             <span class="option-icon option-icon--taobao">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -81,10 +81,14 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   modelValue: {
     type: Boolean,
     default: false
+  },
+  showTaobaoImport: {
+    type: Boolean,
+    default: true
   }
 })
 

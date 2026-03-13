@@ -2,7 +2,7 @@ import { computed } from 'vue'
 
 export function useHomeGoodsList(store, sortDirection) {
   const listData = computed(() => {
-    const items = [...store.viewList]
+    const items = [...store.collectionViewList]
     let totalVal = 0
     let totalQty = 0
 

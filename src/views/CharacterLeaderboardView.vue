@@ -107,7 +107,7 @@ const characterStats = computed(() => {
     presets.characters.map((character) => [character.name, character.ip || ''])
   )
 
-  for (const item of store.viewList) {
+  for (const item of store.collectionViewList) {
     if (!Array.isArray(item.characters) || item.characters.length === 0) continue
 
     for (const rawName of item.characters) {
@@ -134,7 +134,7 @@ const characterStats = computed(() => {
 })
 
 const uncategorizedCharacterCount = computed(() =>
-  store.viewList.filter((item) => !Array.isArray(item.characters) || item.characters.length === 0).length
+  store.collectionViewList.filter((item) => !Array.isArray(item.characters) || item.characters.length === 0).length
 )
 
 const sortedStats = computed(() => {

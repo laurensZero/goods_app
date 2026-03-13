@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="page page--transition detail-page" :class="{ 'page--leaving': isPageLeaving }">
-    <NavBar :title="item ? '收藏详情' : '详情'" show-back>
+    <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back>
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑" @click="router.push('/edit/' + props.id)">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -34,23 +34,28 @@
 
         <section class="hero-card">
           <div class="hero-meta">
+            <span v-if="item.isWishlist" class="hero-chip wish-chip">心愿单</span>
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
             <span v-for="tag in item.tags || []" :key="tag" class="hero-chip tag-chip">#{{ tag }}</span>
-            <span v-if="item.acquiredAt" class="hero-date">购入于 {{ item.acquiredAt }}</span>
+            <span v-if="item.acquiredAt" class="hero-date">{{ item.isWishlist ? '计划于' : '购入于' }} {{ item.acquiredAt }}</span>
           </div>
 
           <h1 class="hero-name">{{ item.name }}</h1>
 
           <div class="hero-price">
-            <span class="price-label">购入价格</span>
+            <span class="price-label">{{ item.isWishlist ? '目标价格' : '购入价格' }}</span>
             <p class="price-value">
               <span class="price-currency">¥</span>
               <span class="price-amount">{{ item.price || '—' }}</span>
               <span v-if="item.points" class="price-points">+{{ item.points }}积分</span>
             </p>
           </div>
+
+          <button v-if="item.isWishlist" class="hero-action-btn" type="button" @click="markAsOwned">
+            标记为已入手
+          </button>
         </section>
 
         <section class="info-section">
@@ -81,7 +86,7 @@
             </article>
 
             <article class="info-tile">
-              <span class="info-label">购入日期</span>
+              <span class="info-label">{{ item.isWishlist ? '预计入手日期' : '购入日期' }}</span>
               <strong class="info-value">{{ item.acquiredAt || '未填写' }}</strong>
             </article>
 
@@ -95,7 +100,7 @@
               <strong class="info-value">{{ variantText }}</strong>
             </article>
 
-            <article v-if="holdingDays !== null" class="info-tile">
+            <article v-if="!item.isWishlist && holdingDays !== null" class="info-tile">
               <span class="info-label">持有时长</span>
               <strong class="info-value">{{ holdingDays }} 天</strong>
             </article>
@@ -159,6 +164,7 @@ import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { getCachedImage } from '@/utils/imageCache'
+import { formatDate } from '@/utils/format'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -231,6 +237,14 @@ async function confirmDelete() {
   await store.removeGoods(props.id)
   showDeleteDialog.value = false
   router.back()
+}
+
+async function markAsOwned() {
+  if (!item.value) return
+  await store.updateGoods(props.id, {
+    isWishlist: false,
+    acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
+  })
 }
 
 onMounted(async () => {
@@ -396,6 +410,11 @@ watch(
   color: #8ab4f8;
 }
 
+.hero-chip.wish-chip {
+  background: #c7375d;
+  color: #fff1f4;
+}
+
 .hero-chip.char-chip {
   background: #1e3a2f;
   color: #5de2a0;
@@ -422,6 +441,19 @@ watch(
 
 .hero-price {
   margin-top: 18px;
+}
+
+.hero-action-btn {
+  margin-top: 16px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 14px;
+  background: #141416;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  width: fit-content;
 }
 
 .price-label {

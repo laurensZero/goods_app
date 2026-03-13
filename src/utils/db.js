@@ -15,6 +15,7 @@ const CREATE_TABLE_SQL = `
     name       TEXT NOT NULL DEFAULT '',
     category   TEXT DEFAULT '',
     ip         TEXT DEFAULT '',
+    isWishlist INTEGER DEFAULT 0,
     characters TEXT DEFAULT '[]',
     tags       TEXT DEFAULT '[]',
     storageLocation TEXT DEFAULT '',
@@ -29,6 +30,7 @@ const CREATE_TABLE_SQL = `
 `
 
 const MIGRATE_ADD_IP  = "ALTER TABLE goods ADD COLUMN ip TEXT DEFAULT ''"
+const MIGRATE_ADD_WISHLIST = 'ALTER TABLE goods ADD COLUMN isWishlist INTEGER DEFAULT 0'
 const MIGRATE_ADD_CHR = "ALTER TABLE goods ADD COLUMN characters TEXT DEFAULT '[]'"
 const MIGRATE_ADD_TAGS = "ALTER TABLE goods ADD COLUMN tags TEXT DEFAULT '[]'"
 const MIGRATE_ADD_LOC = "ALTER TABLE goods ADD COLUMN storageLocation TEXT DEFAULT ''"
@@ -83,6 +85,7 @@ async function _initWebDB() {
   _sqlDb = saved ? new SQL.Database(saved) : new SQL.Database()
   _sqlDb.run(CREATE_TABLE_SQL)
   try { _sqlDb.run(MIGRATE_ADD_IP) } catch (e) { /* column already exists */ }
+  try { _sqlDb.run(MIGRATE_ADD_WISHLIST) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_CHR) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_TAGS) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_LOC) } catch (e) { /* column already exists */ }
@@ -116,6 +119,7 @@ async function _initNativeDB() {
   await _nativeDb.open()
   await _nativeDb.execute(CREATE_TABLE_SQL)
   try { await _nativeDb.execute(MIGRATE_ADD_IP) } catch (e) { /* column already exists */ }
+  try { await _nativeDb.execute(MIGRATE_ADD_WISHLIST) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_CHR) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_TAGS) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_LOC) } catch (e) { /* column already exists */ }
@@ -135,10 +139,11 @@ export async function getItems() {
     if (!_nativeDb) return []
     rows = (await _nativeDb.query('SELECT * FROM goods ORDER BY rowid DESC')).values ?? []
   } else {
-    rows = _webQuery('SELECT id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points FROM goods ORDER BY rowid DESC')
+    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points FROM goods ORDER BY rowid DESC')
   }
   return rows.map(r => ({
     ...r,
+    isWishlist: Boolean(Number(r.isWishlist ?? 0)),
     characters: (() => { try { return JSON.parse(r.characters || '[]') } catch { return [] } })(),
     tags: (() => { try { return JSON.parse(r.tags || '[]') } catch { return [] } })(),
     storageLocation: String(r.storageLocation || '').trim(),
@@ -149,13 +154,13 @@ export async function getItems() {
 }
 
 export async function addItem(item) {
-  const { id, name = '', category = '', ip = '', characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
+  const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
   const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const qty = Math.max(1, Number(quantity) || 1)
   const pts = points != null && points !== '' ? Number(points) : null
-  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, category, ip, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
+  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -173,28 +178,28 @@ export async function saveItems(items) {
     if (!_nativeDb) return
     const stmts = []
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
+      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const qty = Math.max(1, Number(quantity) || 1)
       const pts = points != null && points !== '' ? Number(points) : null
       stmts.push({
-        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, category, ip, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
+        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
       })
     }
     await _nativeDb.executeSet(stmts)
   } else {
     if (!_sqlDb) return
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
+      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', note = '', quantity = 1, points } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const qty = Math.max(1, Number(quantity) || 1)
       const pts = points != null && points !== '' ? Number(points) : null
       _sqlDb.run(
-        'INSERT OR REPLACE INTO goods (id,name,category,ip,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, category, ip, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
+        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, image, note, qty, pts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)

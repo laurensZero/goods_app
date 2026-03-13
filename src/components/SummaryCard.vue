@@ -4,7 +4,7 @@
     <div class="summary-orb summary-orb--right" />
 
     <div class="summary-head">
-      <p class="summary-label">Collection Value</p>
+      <p class="summary-label">{{ label }}</p>
       <button
         type="button"
         class="summary-visibility-btn"
@@ -27,7 +27,7 @@
     <p class="summary-value">
       <template v-if="isHidden">-</template>
       <template v-else>
-        <span class="summary-currency">¥</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
+        <span class="summary-currency">{{ currency }}</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
       </template>
     </p>
   </section>
@@ -40,19 +40,22 @@ const SUMMARY_VISIBILITY_STORAGE_KEY = 'goods-app:home-total-value-hidden'
 
 const props = defineProps({
   totalValue: { type: String, default: '0.00' },
-  totalCount: { type: Number, default: 0 }
+  totalCount: { type: Number, default: 0 },
+  label: { type: String, default: 'Collection Value' },
+  storageKey: { type: String, default: SUMMARY_VISIBILITY_STORAGE_KEY },
+  currency: { type: String, default: '¥' }
 })
 
 const intPart = computed(() => props.totalValue.split('.')[0])
 const decPart = computed(() => props.totalValue.split('.')[1] ?? '00')
-const isHidden = ref(localStorage.getItem(SUMMARY_VISIBILITY_STORAGE_KEY) === '1')
+const isHidden = ref(localStorage.getItem(props.storageKey) === '1')
 
 function toggleHidden() {
   isHidden.value = !isHidden.value
 }
 
 watch(isHidden, (value) => {
-  localStorage.setItem(SUMMARY_VISIBILITY_STORAGE_KEY, value ? '1' : '0')
+  localStorage.setItem(props.storageKey, value ? '1' : '0')
 }, { immediate: true })
 </script>
 

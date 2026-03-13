@@ -10,6 +10,13 @@
       <span class="tab-label">收藏</span>
     </RouterLink>
 
+    <RouterLink to="/wishlist" class="tab-item" active-class="tab-item--active">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 20s-6.8-4.3-9.2-8.2C.9 8.7 2 5.1 5.1 3.8c2.2-.9 4.3 0 5.6 1.7 1.3-1.7 3.4-2.6 5.6-1.7 3.1 1.3 4.2 4.9 2.3 8-2.4 3.9-9.2 8.2-9.2 8.2Z" />
+      </svg>
+      <span class="tab-label">心愿</span>
+    </RouterLink>
+
     <RouterLink to="/leaderboard/characters" class="tab-item" active-class="tab-item--active">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M6 20V11" />

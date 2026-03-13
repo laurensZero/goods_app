@@ -19,67 +19,72 @@
     @contextmenu.prevent
   >
     <template v-if="isVisible">
-    <Transition name="sel-overlay">
-      <div v-if="selectionMode" class="selection-overlay">
-        <div :class="['check-icon', { 'check-icon--checked': selected }]">
-          <svg v-if="selected" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+      <Transition name="sel-overlay">
+        <div v-if="selectionMode" class="selection-overlay">
+          <div :class="['check-icon', { 'check-icon--checked': selected }]">
+            <svg v-if="selected" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        </div>
+      </Transition>
+
+      <div class="cover-wrap">
+        <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
+          <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" :lazy="false" class="cover-img" />
+          <span v-else class="cover-initial">{{ coverInitial }}</span>
+        </div>
+        <div v-if="item.isWishlist" class="wishlist-badge">心愿</div>
+        <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
+      </div>
+
+      <div class="card-body">
+        <h3 class="card-name">{{ item.name }}</h3>
+
+        <div
+          ref="tagsScrollerRef"
+          class="card-tags"
+          :class="{ 'card-tags--hidden': !showTags, 'card-tags--dragging': tagsDragging }"
+          @click.stop
+          @mousedown.stop="onTagsMouseDown"
+          @touchstart.stop
+          @touchmove.stop
+          @touchend.stop
+        >
+          <span class="card-chip" :class="{ 'card-chip--hidden': !showCategory }">{{ item.category }}</span>
+          <span class="card-chip ip-chip" :class="{ 'card-chip--hidden': !showIp }">{{ item.ip }}</span>
+          <span
+            v-for="character in allCharacters"
+            :key="character"
+            class="card-chip char-chip"
+            :class="{ 'card-chip--hidden': !showCharacters }"
+          >
+            {{ character }}
+          </span>
+          <span
+            v-for="tag in allCustomTags"
+            :key="tag"
+            class="card-chip tag-chip"
+            :class="{ 'card-chip--hidden': !showCustomTags }"
+          >
+            #{{ tag }}
+          </span>
+        </div>
+
+        <div class="card-bottom-row">
+          <span class="card-price">
+            {{ priceText }}
+            <span v-if="showPoints" class="card-price-points">+{{ item.points }}积分</span>
+          </span>
+          <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
         </div>
       </div>
-    </Transition>
-    <div class="cover-wrap">
-      <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
-        <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" :lazy="false" class="cover-img" />
-        <span v-else class="cover-initial">{{ coverInitial }}</span>
-      </div>
-      <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
-    </div>
-
-    <div class="card-body">
-      <h3 class="card-name">{{ item.name }}</h3>
-
-      <div
-        ref="tagsScrollerRef"
-        class="card-tags"
-        :class="{ 'card-tags--hidden': !showTags, 'card-tags--dragging': tagsDragging }"
-        @click.stop
-        @mousedown.stop="onTagsMouseDown"
-        @touchstart.stop
-        @touchmove.stop
-        @touchend.stop
-      >
-        <span class="card-chip" :class="{ 'card-chip--hidden': !showCategory }">{{ item.category }}</span>
-        <span class="card-chip ip-chip" :class="{ 'card-chip--hidden': !showIp }">{{ item.ip }}</span>
-        <span
-          v-for="character in allCharacters"
-          :key="character"
-          class="card-chip char-chip"
-          :class="{ 'card-chip--hidden': !showCharacters }"
-        >
-          {{ character }}
-        </span>
-        <span
-          v-for="tag in allCustomTags"
-          :key="tag"
-          class="card-chip tag-chip"
-          :class="{ 'card-chip--hidden': !showCustomTags }"
-        >
-          #{{ tag }}
-        </span>
-      </div>
-
-      <div class="card-bottom-row">
-        <span class="card-price">{{ item.price ? `¥${item.price}` : '¥—' }}<span v-if="item.points && (density === 'comfortable' || isTablet)" class="card-price-points">+{{ item.points }}积分</span></span>
-        <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
-      </div>
-    </div>
     </template>
   </article>
 </template>
 
 <script setup>
-import { computed, ref, shallowRef, nextTick } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { useIntersectionObserver } from '@vueuse/core'
 import LazyCachedImage from '@/components/LazyCachedImage.vue'
 
@@ -87,17 +92,18 @@ const isVisible = shallowRef(true)
 const savedHeight = shallowRef(0)
 const cardRef = ref(null)
 
-const { stop } = useIntersectionObserver(
+useIntersectionObserver(
   cardRef,
   ([{ isIntersecting, boundingClientRect }]) => {
     if (isIntersecting) {
       isVisible.value = true
-    } else {
-      if (boundingClientRect && boundingClientRect.height > 0) {
-        savedHeight.value = boundingClientRect.height
-      }
-      isVisible.value = false
+      return
     }
+
+    if (boundingClientRect && boundingClientRect.height > 0) {
+      savedHeight.value = boundingClientRect.height
+    }
+    isVisible.value = false
   },
   { rootMargin: '1000px' }
 )
@@ -118,7 +124,6 @@ const props = defineProps({
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const tagsScrollerRef = ref(null)
 
-// -------- Long-press / tap logic --------
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
 const touchStartX = ref(0)
@@ -157,52 +162,49 @@ function handleTap() {
   }
 }
 
-// --- Touch ---
-function onTouchStart(e) {
-  const t = e.touches[0]
-  startLongPress(t.clientX, t.clientY)
+function onTouchStart(event) {
+  const touch = event.touches[0]
+  startLongPress(touch.clientX, touch.clientY)
 }
 
-function onTouchMove(e) {
-  const t = e.touches[0]
-  const dx = Math.abs(t.clientX - touchStartX.value)
-  const dy = Math.abs(t.clientY - touchStartY.value)
+function onTouchMove(event) {
+  const touch = event.touches[0]
+  const dx = Math.abs(touch.clientX - touchStartX.value)
+  const dy = Math.abs(touch.clientY - touchStartY.value)
   if (dx > TOUCH_TAP_THRESHOLD || dy > TOUCH_TAP_THRESHOLD) {
     gestureMoved.value = true
     cancelLongPress()
   }
 }
 
-function onTouchEnd(e) {
+function onTouchEnd(event) {
   cancelLongPress()
-  // 阻止 touchend 后 click 事件在移动端重复触发
-  e.preventDefault()
+  event.preventDefault()
   if (longPressTriggered.value || gestureMoved.value) return
   handleTap()
 }
 
-// --- Mouse （网页端）---
 function onTouchCancel() {
   gestureMoved.value = true
   cancelLongPress()
 }
 
-function onMouseDown(e) {
-  if (e.button !== 0) return
-  startLongPress(e.clientX, e.clientY)
+function onMouseDown(event) {
+  if (event.button !== 0) return
+  startLongPress(event.clientX, event.clientY)
 }
 
-function onMouseMove(e) {
-  const dx = Math.abs(e.clientX - touchStartX.value)
-  const dy = Math.abs(e.clientY - touchStartY.value)
+function onMouseMove(event) {
+  const dx = Math.abs(event.clientX - touchStartX.value)
+  const dy = Math.abs(event.clientY - touchStartY.value)
   if (dx > MOUSE_TAP_THRESHOLD || dy > MOUSE_TAP_THRESHOLD) {
     gestureMoved.value = true
     cancelLongPress()
   }
 }
 
-function onMouseUp(e) {
-  if (e.button !== 0) return
+function onMouseUp(event) {
+  if (event.button !== 0) return
   cancelLongPress()
   if (!longPressTriggered.value && !gestureMoved.value) handleTap()
 }
@@ -274,10 +276,17 @@ const allCustomTags = computed(() => props.item.tags || [])
 const showCharacters = computed(() => props.density === 'comfortable' && allCharacters.value.length > 0)
 const showCustomTags = computed(() => props.density === 'comfortable' && allCustomTags.value.length > 0)
 const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value || showCustomTags.value)
-const showHoldingDays = computed(() => props.density !== 'compact' && holdingDays.value !== null)
-
 const windowWidth = ref(window.innerWidth)
 const isTablet = computed(() => windowWidth.value >= 900)
+const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && holdingDays.value !== null)
+const showPoints = computed(() => !props.item.isWishlist && props.item.points && (props.density === 'comfortable' || isTablet.value))
+const priceText = computed(() => {
+  if (props.item.isWishlist) {
+    return props.item.price ? `目标 ¥${props.item.price}` : '心愿单'
+  }
+
+  return props.item.price ? `¥${props.item.price}` : '¥—'
+})
 </script>
 
 <style scoped>
@@ -313,6 +322,21 @@ const isTablet = computed(() => windowWidth.value >= 900)
 .cover-wrap {
   position: relative;
   width: 100%;
+}
+
+.wishlist-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(211, 61, 87, 0.92);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
 }
 
 .qty-badge {
@@ -537,32 +561,14 @@ const isTablet = computed(() => windowWidth.value >= 900)
   min-height: 0;
 }
 
-@keyframes card-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* -------- Selection overlay -------- */
-/*
-  遗罩不被沿中暂暗，仅用于定位勾选图标
-  卡片选中效果通过 .goods-card--selected 的 filter 实现
-*/
 .selection-overlay {
   position: absolute;
   top: 8px;
   left: 8px;
-  z-index: 2;
+  z-index: 3;
   pointer-events: none;
 }
 
-/* 未选中：透明背景圆形轮廓 */
 .check-icon {
   width: 20px;
   height: 20px;
@@ -577,7 +583,6 @@ const isTablet = computed(() => windowWidth.value >= 900)
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
-/* 选中：实心深色圆 + 白色勾 */
 .check-icon--checked {
   background: #141416;
   border-color: #141416;
@@ -592,7 +597,6 @@ const isTablet = computed(() => windowWidth.value >= 900)
   stroke-linejoin: round;
 }
 
-/* 选中卡片：轻度暗化，不加边框 */
 .goods-card--selected {
   filter: brightness(0.88);
 }
@@ -608,7 +612,6 @@ const isTablet = computed(() => windowWidth.value >= 900)
 }
 
 @media (prefers-color-scheme: dark) {
-  /* 通用 chip */
   .card-chip {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text-secondary);
@@ -621,7 +624,7 @@ const isTablet = computed(() => windowWidth.value >= 900)
 
   .card-chip.ip-chip {
     background: rgba(100, 170, 255, 0.12);
-    color: rgba(100, 170, 255, 0.90);
+    color: rgba(100, 170, 255, 0.9);
   }
 
   .card-chip.tag-chip {
@@ -629,7 +632,6 @@ const isTablet = computed(() => windowWidth.value >= 900)
     color: #f1dcff;
   }
 
-  /* 多选勾：深色模式下使用浅色填充 */
   .check-icon--checked {
     background: #f5f5f7;
     border-color: #f5f5f7;

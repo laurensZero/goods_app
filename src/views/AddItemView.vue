@@ -14,9 +14,9 @@
           </div>
 
           <article class="hero-card">
-            <p class="hero-label">新增收藏</p>
-            <h1 class="hero-title">{{ form.name || '记录一件新的收藏' }}</h1>
-            <p class="hero-desc">填写基础信息和购买信息，让你的谷子清单保持整洁。</p>
+            <p class="hero-label">{{ form.isWishlist ? '新增心愿' : '新增收藏' }}</p>
+            <h1 class="hero-title">{{ form.name || (form.isWishlist ? '记下一件想要的谷子' : '记录一件新的收藏') }}</h1>
+            <p class="hero-desc">{{ form.isWishlist ? '先保存目标、预算和备注，入手后再补完整。' : '填写基础信息和购买信息，让你的谷子清单保持整洁。' }}</p>
           </article>
         </section>
 
@@ -27,6 +27,26 @@
           </div>
 
           <div class="field-card">
+            <div class="field">
+              <span class="field-label">状态</span>
+              <div class="status-toggle">
+                <button
+                  type="button"
+                  :class="['status-toggle__option', { 'status-toggle__option--active': !form.isWishlist }]"
+                  @click="setWishlist(false)"
+                >
+                  已入手
+                </button>
+                <button
+                  type="button"
+                  :class="['status-toggle__option', { 'status-toggle__option--active': form.isWishlist }]"
+                  @click="setWishlist(true)"
+                >
+                  心愿单
+                </button>
+              </div>
+            </div>
+
             <label class="field" :class="{ 'field--error': nameError }">
               <span class="field-label">名称 <span class="required">*</span></span>
               <input
@@ -204,16 +224,17 @@
 
         <section class="form-section">
           <div class="section-head">
-            <p class="section-label">购入信息</p>
-            <h2 class="section-title">价格与时间</h2>
+            <p class="section-label">{{ form.isWishlist ? '目标信息' : '购入信息' }}</p>
+            <h2 class="section-title">{{ form.isWishlist ? '预算与时间' : '价格与时间' }}</h2>
           </div>
 
           <div class="field-card">
             <label class="field">
-              <span class="field-label">购入价格（¥）</span>
+              <span class="field-label">{{ form.isWishlist ? '目标价格（¥）' : '购入价格（¥）' }}</span>
               <div class="price-row">
                 <input v-model="form.price" type="number" min="0" step="0.01" placeholder="0.00" />
                 <button
+                  v-if="!form.isWishlist"
                   type="button"
                   :class="['points-toggle-btn', showPointsInput && 'points-toggle-btn--active']"
                   :aria-label="showPointsInput ? '隐藏积分' : '输入消耗积分'"
@@ -234,10 +255,10 @@
               <input v-model.number="form.quantity" type="number" min="1" step="1" placeholder="1" />
             </label>
 
-            <label class="field">              <span class="field-label">购入日期</span>
+            <label class="field">              <span class="field-label">{{ form.isWishlist ? '预计入手日期' : '购入日期' }}</span>
               <button class="date-field" type="button" @pointerdown="flushActiveInput" @click="openDatePicker">
                 <span :class="{ 'date-field__value--placeholder': !form.acquiredAt }">
-                  {{ form.acquiredAt || '请选择日期' }}
+                  {{ form.acquiredAt || (form.isWishlist ? '可选，暂未计划' : '请选择日期') }}
                 </span>
 
                 <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -279,7 +300,7 @@
 
     <Teleport to="body">
       <div class="float-footer">
-        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">保存谷子</button>
+        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">{{ form.isWishlist ? '保存心愿' : '保存谷子' }}</button>
       </div>
     </Teleport>
 
@@ -299,7 +320,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
@@ -314,8 +335,10 @@ import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
 import TagInput from '@/components/TagInput.vue'
 
 const NO_IP_OPTION = '__NO_IP__'
+const today = formatDate(new Date(), 'YYYY-MM-DD')
 
 const router = useRouter()
+const route = useRoute()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const { isPageLeaving } = usePageLeaveAnimation()
@@ -324,12 +347,13 @@ const form = reactive({
   name: '',
   category: '',
   ip: '',
+  isWishlist: false,
   characters: [],
   tags: [],
   storageLocation: '',
   price: '',
   points: '',
-  acquiredAt: formatDate(new Date(), 'YYYY-MM-DD'),
+  acquiredAt: '',
   image: '',
   note: '',
   quantity: 1
@@ -352,6 +376,7 @@ const showCharPicker = ref(false)
 const datePickerValue = ref(toDatePickerValue(form.acquiredAt))
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
+const hasCustomAcquiredAt = ref(false)
 
 const availableCharacters = computed(() =>
   form.ip ? presets.characters.filter((character) => character.ip === form.ip) : []
@@ -392,6 +417,24 @@ watch(
     showCharPicker.value = false
     if (!quickCreateTarget.value || quickCreateTarget.value !== 'character') return
     quickCharacterIp.value = ip || NO_IP_OPTION
+  }
+)
+
+watch(
+  () => form.isWishlist,
+  (isWishlist) => {
+    if (isWishlist) {
+      if (!hasCustomAcquiredAt.value || form.acquiredAt === today) {
+        form.acquiredAt = ''
+      }
+      showPointsInput.value = false
+      form.points = ''
+      return
+    }
+
+    if (!form.acquiredAt && !hasCustomAcquiredAt.value) {
+      form.acquiredAt = today
+    }
   }
 )
 
@@ -491,6 +534,10 @@ function toggleChar(name) {
   }
 }
 
+function setWishlist(nextValue) {
+  form.isWishlist = nextValue
+}
+
 function openDatePicker() {
   datePickerValue.value = toDatePickerValue(form.acquiredAt)
   showDatePicker.value = true
@@ -500,6 +547,7 @@ function onDateConfirm({ selectedValues }) {
   const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
   form.acquiredAt = `${year}-${month}-${day}`
   datePickerValue.value = [year, month, day]
+  hasCustomAcquiredAt.value = true
   showDatePicker.value = false
 }
 
@@ -542,6 +590,10 @@ function syncDomFields() {
 }
 
 onMounted(() => {
+  form.isWishlist = route.query.mode === 'wishlist'
+  if (!form.isWishlist) {
+    form.acquiredAt = today
+  }
   document.addEventListener('mousedown', handleClickOutside)
   document.addEventListener('touchstart', handleClickOutside)
 })
@@ -791,6 +843,31 @@ onBeforeUnmount(() => {
 .field textarea:focus {
   border-color: rgba(20, 20, 22, 0.16);
   background: var(--app-surface);
+}
+
+.status-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--app-surface);
+}
+
+.status-toggle__option {
+  min-height: 42px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.status-toggle__option--active {
+  background: #141416;
+  color: #ffffff;
 }
 
 .field--error input {

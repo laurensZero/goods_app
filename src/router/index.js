@@ -9,6 +9,12 @@ const routes = [
     meta: { title: '我的谷子', keepAlive: true }
   },
   {
+    path: '/wishlist',
+    name: 'wishlist',
+    component: () => import('@/views/WishlistView.vue'),
+    meta: { title: '心愿单', keepAlive: true }
+  },
+  {
     path: '/search',
     name: 'search',
     component: () => import('@/views/SearchView.vue'),
@@ -25,6 +31,12 @@ const routes = [
     name: 'import',
     component: () => import('@/views/ImportView.vue'),
     meta: { title: '从米游铺导入' }
+  },
+  {
+    path: '/cart-import',
+    name: 'cart-import',
+    component: () => import('@/views/CartImportView.vue'),
+    meta: { title: '购物车导入' }
   },
   {
     path: '/account-import',

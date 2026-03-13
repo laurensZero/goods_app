@@ -53,7 +53,7 @@
           </div>
         </div>
 
-        <div class="filter-row">
+        <div v-if="characterFilterOptions.length" class="filter-row">
           <span class="filter-row-label filter-row-label--character">角色</span>
           <div class="filter-chips">
             <button
@@ -109,6 +109,7 @@
       ref="batchEditSheetRef"
       v-model:show="showBatchEditSheet"
       :selected-count="selectedIds.size"
+      :allow-mark-owned="searchScope === 'wishlist'"
       @apply="applyBatchEditPayload"
     />
     <GoodsSelectionActionBar
@@ -137,13 +138,19 @@ import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 const UNCATEGORIZED_OPTION = '未分类'
 const NO_IP_OPTION = '未设置IP'
 const NO_CHARACTER_OPTION = '未设置角色'
-const SEARCH_STATE_HISTORY_KEY = 'searchViewState'
-const HOME_PATH = '/home'
-
 const store = useGoodsStore()
 const route = useRoute()
 const router = useRouter()
 const { isPageLeaving } = usePageLeaveAnimation()
+const searchScope = computed(() => route.query.scope === 'wishlist' ? 'wishlist' : 'collection')
+const searchStateHistoryKey = computed(() => `searchViewState:${searchScope.value}`)
+const defaultBackPath = computed(() => (searchScope.value === 'wishlist' ? '/wishlist' : '/home'))
+const selectionHistoryKey = route.query.scope === 'wishlist'
+  ? 'searchSelectionMode:wishlist'
+  : 'searchSelectionMode:collection'
+const sourceList = computed(() =>
+  searchScope.value === 'wishlist' ? store.wishlistViewList : store.collectionViewList
+)
 
 const keyword = ref('')
 const selectedCategory = ref('')
@@ -188,12 +195,12 @@ function persistSearchState() {
   const nextState = { ...(window.history.state || {}) }
 
   if (!hasSearchState(state)) {
-    delete nextState[SEARCH_STATE_HISTORY_KEY]
+    delete nextState[searchStateHistoryKey.value]
     window.history.replaceState(nextState, '')
     return
   }
 
-  nextState[SEARCH_STATE_HISTORY_KEY] = {
+  nextState[searchStateHistoryKey.value] = {
     ...state,
     scrollTop: getSearchScrollTop(),
   }
@@ -201,7 +208,7 @@ function persistSearchState() {
 }
 
 function restoreSearchState() {
-  const state = window.history.state?.[SEARCH_STATE_HISTORY_KEY]
+  const state = window.history.state?.[searchStateHistoryKey.value]
   if (!state || typeof state !== 'object') return
 
   keyword.value = typeof state.keyword === 'string' ? state.keyword : ''
@@ -213,36 +220,29 @@ function restoreSearchState() {
 
 function clearSearchState() {
   const nextState = { ...(window.history.state || {}) }
-  delete nextState[SEARCH_STATE_HISTORY_KEY]
+  delete nextState[searchStateHistoryKey.value]
   window.history.replaceState(nextState, '')
 }
 
 const categoryOptions = computed(() => {
-  const categories = [...new Set(store.list.map((item) => String(item.category || '').trim()).filter(Boolean))]
-  return store.list.some((item) => !String(item.category || '').trim())
+  const categories = [...new Set(sourceList.value.map((item) => String(item.category || '').trim()).filter(Boolean))]
+  return sourceList.value.some((item) => !String(item.category || '').trim())
     ? [UNCATEGORIZED_OPTION, ...categories]
     : categories
 })
 
 const ipOptions = computed(() => [
-  ...(store.list.some((item) => !String(item.ip || '').trim()) ? [NO_IP_OPTION] : []),
-  ...new Set(store.list.map((item) => String(item.ip || '').trim()).filter(Boolean))
+  ...(sourceList.value.some((item) => !String(item.ip || '').trim()) ? [NO_IP_OPTION] : []),
+  ...new Set(sourceList.value.map((item) => String(item.ip || '').trim()).filter(Boolean))
 ])
 
-const characterOptions = computed(() => [
-  ...(store.list.some((item) => !Array.isArray(item.characters) || item.characters.length === 0) ? [NO_CHARACTER_OPTION] : []),
-  ...new Set(
-    store.list.flatMap((item) =>
-      Array.isArray(item.characters)
-        ? item.characters.map((character) => String(character).trim()).filter(Boolean)
-        : []
-    )
-  )
-])
+const characterOptions = computed(() => (
+  sourceList.value.some((item) => !Array.isArray(item.characters) || item.characters.length === 0)
+    ? [NO_CHARACTER_OPTION]
+    : []
+))
 
-const characterFilterOptions = computed(() =>
-  characterOptions.value.includes(NO_CHARACTER_OPTION) ? [NO_CHARACTER_OPTION] : []
-)
+const characterFilterOptions = computed(() => characterOptions.value)
 
 const isFiltering = computed(() =>
   debouncedKeyword.value !== ''
@@ -262,7 +262,7 @@ const results = computed(() => {
 
   const kw = debouncedKeyword.value
 
-  return store.list.filter((item) => {
+  return sourceList.value.filter((item) => {
     const name = String(item.name || '')
     const category = String(item.category || '').trim()
     const ip = String(item.ip || '').trim()
@@ -327,7 +327,7 @@ const {
   exitSelectionMode,
   handleSelectionPopState
 } = useGoodsSelection(results, {
-  historyKey: 'searchSelectionMode',
+  historyKey: selectionHistoryKey,
   onExit: closeSelectionOverlays,
   getScrollTop: getSearchScrollTop,
   restoreScrollTop: restoreSearchScrollTop
@@ -350,13 +350,13 @@ function openDetail(id) {
 function navigateBackToHome() {
   const previousPath = window.history.state?.back
 
-  if (previousPath === HOME_PATH) {
+  if (previousPath === defaultBackPath.value) {
     router.back()
     return
   }
 
-  if (route.path !== HOME_PATH) {
-    router.replace(HOME_PATH)
+  if (route.fullPath !== defaultBackPath.value) {
+    router.replace(defaultBackPath.value)
   }
 }
 

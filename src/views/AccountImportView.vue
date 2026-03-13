@@ -42,6 +42,17 @@
             </p>
           </div>
 
+          <div class="cookie-actions">
+            <label class="remember-row">
+              <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
+              <span>保存 Cookie，下次自动尝试</span>
+            </label>
+            <button v-if="hasSavedCookie" class="cookie-clear-btn" type="button" @click="clearSavedCookie(false)">
+              清除已保存
+            </button>
+          </div>
+          <p v-if="cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
+
           <button
             class="primary-btn"
             type="button"
@@ -229,11 +240,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
-import { validateMihoyoCookie, fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
+import { useMihoyoCookieState } from '@/composables/useMihoyoCookieState'
+import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
 import NavBar from '@/components/NavBar.vue'
 
@@ -242,10 +254,22 @@ defineOptions({ name: 'AccountImportView' })
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const { isPageLeaving } = usePageLeaveAnimation()
+const {
+  cookieInput,
+  rememberCookie,
+  hasSavedCookie,
+  cookieValid,
+  cookieWarningMessage,
+  canAutoSubmitSavedCookie,
+  initializeCookieState,
+  applySavedCookieToInput,
+  persistCookieAfterSuccess,
+  handleCookieFailure,
+  clearSavedCookie
+} = useMihoyoCookieState()
 
 // ── State ──────────────────────────────────────────────────────
 const step = ref('cookie')        // 'cookie' | 'loading' | 'orders' | 'done'
-const cookieInput = ref('')
 const loadedCount = ref(0)
 const totalCount = ref(0)
 const rawOrders = ref([])         // 原始 API 订单列表
@@ -260,7 +284,7 @@ function _itemImportKey(item) {
   return buildGoodsIdentityKey(item)
 }
 const importedItemKeys = computed(() =>
-  new Set(store.list.map((item) => _itemImportKey(item)))
+  new Set(store.collectionList.map((item) => _itemImportKey(item)))
 )
 
 // 商品是否已导入
@@ -318,11 +342,6 @@ function isItemStatusWorthy(item) {
 }
 
 // ── Computed ───────────────────────────────────────────────────
-const cookieValid = computed(() => {
-  const v = cookieInput.value.trim()
-  return v.length > 20 && validateMihoyoCookie(v)
-})
-
 /** 按订单分组，每组含该订单所有商品（同名项合并数量） */
 const processedOrders = computed(() =>
   rawOrders.value
@@ -376,7 +395,18 @@ const mergedAllGoods = computed(() => {
 })
 
 // ── Actions ────────────────────────────────────────────────────
-async function startFetch() {
+onMounted(async () => {
+  await initializeCookieState()
+
+  if (!canAutoSubmitSavedCookie.value) return
+
+  applySavedCookieToInput()
+  await startFetch({ silentCookieExpired: true })
+})
+
+/*
+async function legacyStartFetch(options = {}) {
+  const { silentCookieExpired = false } = options
   step.value = 'loading'
   loadedCount.value = 0
   totalCount.value = 0
@@ -390,10 +420,50 @@ async function startFetch() {
     )
     cappedWarning.value = capped
     rawOrders.value = list
+    await persistCookieAfterSuccess()
     // 默认不选中任何条目
     selectedSet.value = new Set()
     step.value = 'orders'
   } catch (err) {
+    alert(`获取订单失败：${err.message}`)
+    const cookieExpired = await handleCookieFailure(err)
+    if (cookieExpired) {
+      alert('已保存的 Cookie 可能已失效，请更新后重试。')
+    }
+    step.value = 'cookie'
+  }
+}
+*/
+
+const startFetch = async (options = {}) => {
+  const { silentCookieExpired = false } = options
+  step.value = 'loading'
+  loadedCount.value = 0
+  totalCount.value = 0
+
+  try {
+    const { list, capped } = await fetchAllOrders(
+      cookieInput.value.trim(),
+      (loaded, total_) => {
+        loadedCount.value = loaded
+        totalCount.value = total_
+      }
+    )
+    cappedWarning.value = capped
+    rawOrders.value = list
+    await persistCookieAfterSuccess()
+    selectedSet.value = new Set()
+    step.value = 'orders'
+  } catch (err) {
+    const cookieExpired = await handleCookieFailure(err)
+    if (cookieExpired) {
+      step.value = 'cookie'
+      if (!silentCookieExpired) {
+        alert('已保存的 Cookie 可能已失效，请重新输入并更新。')
+      }
+      return
+    }
+
     alert(`获取订单失败：${err.message}`)
     step.value = 'cookie'
   }
@@ -631,6 +701,49 @@ kbd {
   font-size: 13px;
   color: #c74444;
   margin: 0;
+}
+
+.cookie-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.remember-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.remember-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #141416;
+}
+
+.cookie-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cookie-tip {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cookie-tip--warn {
+  color: #c74444;
 }
 
 /* ── Primary button ────────────────────────────────────────── */

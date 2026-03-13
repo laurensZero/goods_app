@@ -17,6 +17,20 @@ import { CapacitorHttp, Capacitor } from '@capacitor/core'
 const API_BASE = 'https://api-mall.mihoyogift.com'
 const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
 const API_GOODS_SEARCH  = `${API_BASE}/common/homeishop/v1/search/search_goods_list`
+const API_GOODS_SPU_LIST = `${API_BASE}/common/homeishop/v1/goods/search_goods_spu_list`
+const API_CATEGORY_LIST = `${API_BASE}/common/homeishop/v1/category/get_category_list`
+
+const MIHOYO_SHOP_CODE_BY_IP = {
+  '原神': 'ys',
+  '崩坏：星穹铁道': 'xqtd',
+  '绝区零': 'zzz'
+}
+
+export function getMihoyoShopCodeByIp(ip) {
+  return MIHOYO_SHOP_CODE_BY_IP[String(ip || '').trim()] || ''
+}
+
+export const MIHOYO_ROLE_SHOP_CODES = Object.values(MIHOYO_SHOP_CODE_BY_IP)
 
 // 从商品名称中提取 IP 和去掉前缀的商品名
 // 支持：【原神】xxx  /  「崩坏：星穹铁道」xxx
@@ -325,6 +339,7 @@ export async function searchGoodsList(keyword, pageSize = 5) {
 // ─── 账号订单导入 ──────────────────────────────────────────────────
 
 const API_ORDER_LIST = `${API_BASE}/common/homeishop/v1/order/order_list`
+const API_CART_LIST = `${API_BASE}/common/homeishop/v2/shop_car/get_shop_car_list`
 
 /** 解析 Cookie 字符串为 key-value 对象 */
 export function parseCookieString(cookieStr) {
@@ -345,6 +360,13 @@ export function validateMihoyoCookie(cookieStr) {
   const hasUid = !!(parsed.account_id_v2 || parsed.ltuid_v2 || parsed.account_id || parsed.ltuid)
   const hasToken = !!(parsed.cookie_token_v2 || parsed.ltoken_v2 || parsed.ltoken)
   return hasUid && hasToken
+}
+
+export function isMihoyoCookieExpiredError(error) {
+  const message = String(error?.message || error || '').trim()
+  if (!message) return false
+
+  return /cookie|token|ltoken|login|account|auth|unauthorized|forbidden|401|403|登录|失效|过期|无效|认证|鉴权/i.test(message)
 }
 
 async function fetchOrderPage(cookieStr, page, limit) {
@@ -395,6 +417,33 @@ export async function fetchAllOrders(cookieStr, onProgress) {
     await new Promise((r) => setTimeout(r, 150))
   }
   return { list, total, capped: total > list.length }
+}
+
+export async function fetchCartList(cookieStr) {
+  const headers = {
+    'Cookie': cookieStr,
+    'Referer': 'https://mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+    'x-rpc-client_type': '5',
+  }
+
+  let json
+  if (Capacitor.isNativePlatform()) {
+    const res = await CapacitorHttp.get({ url: API_CART_LIST, headers })
+    json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+  } else {
+    const webHeaders = {
+      ...headers,
+      'x-cookie-forward': encodeURIComponent(headers['Cookie'] || ''),
+    }
+    delete webHeaders['Cookie']
+    const res = await fetch(API_CART_LIST.replace(API_BASE, '/mihoyo-api'), { headers: webHeaders })
+    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
+    json = await res.json()
+  }
+
+  if (json.retcode !== 0) throw new Error(json.message || `接口错误 ${json.retcode}`)
+  return json.data?.list || []
 }
 
 /**
@@ -709,5 +758,137 @@ export function orderToGoodsList(order) {
  */
 export function orderToGoods(order) {
   return orderToGoodsList(order)[0] || null
+}
+
+function cartItemToGoods(shop, item, index = 0) {
+  const sourceTitle = cleanGoodsName(item.goods_name || item.name || '')
+  const { ip: ipFromName, name } = parseTitleIpName(sourceTitle)
+  const ip = shopToIp(shop?.shop_name || shop?.shopName || '') || ipFromName
+  const rawVariant = String(item.sale_attr_val || item.sale_attr || '').trim()
+  const style = cleanStyleValue(rawVariant)
+  const charName = tryCharFromStyle(rawVariant)
+  const quantity = Math.max(1, Number(item.nums) || Number(item.quantity_buy) || 1)
+  const priceFee = item.new_price_fee ?? item.price_fee ?? item.old_price_fee ?? 0
+  const noteParts = ['来自米游铺购物车']
+
+  if (shop?.shop_name || shop?.shopName) {
+    noteParts.push(`店铺：${shop.shop_name || shop.shopName}`)
+  }
+
+  return {
+    name: name || sourceTitle,
+    ip: ip || '',
+    characters: charName ? [charName] : [],
+    image: item.cover_url || '',
+    price: String(Math.round(Number(priceFee) / 100)),
+    acquiredAt: '',
+    category: parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || sourceTitle),
+    quantity,
+    variant: style,
+    note: noteParts.join('｜'),
+    _itemKey: `cart_${shop?.shop_code || shop?.shopCode || 'unknown'}_${item.goods_id || 'goods'}_${item.sku_id || index}`,
+    _goodsId: String(item.goods_id || ''),
+    _skuId: String(item.sku_id || ''),
+    _shopCode: String(shop?.shop_code || shop?.shopCode || ''),
+    _shopName: String(shop?.shop_name || shop?.shopName || ''),
+    _soldOut: Number(item.sold_out_status || 0) !== 0,
+    _isEffective: item.is_effect !== false && Number(item.sold_out_status || 0) === 0 && Number(item.quantity || 1) > 0,
+    _reason: String(item.noneffecttive_reason || ''),
+  }
+}
+
+export async function fetchGoodsCategoryList(shopCode) {
+  const normalizedShopCode = String(shopCode || '').trim()
+  if (!normalizedShopCode) return []
+
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+
+  try {
+    let json
+    if (Capacitor.isNativePlatform()) {
+      const url = `${API_CATEGORY_LIST}?shop_code=${encodeURIComponent(normalizedShopCode)}`
+      const res = await CapacitorHttp.get({ url, headers: reqHeaders })
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      const url = `/mihoyo-api/common/homeishop/v1/category/get_category_list?shop_code=${encodeURIComponent(normalizedShopCode)}`
+      const res = await fetch(url, { headers: reqHeaders })
+      if (!res.ok) return []
+      json = await res.json()
+    }
+
+    if (json.retcode !== 0) return []
+    return Array.isArray(json.data?.list) ? json.data.list : []
+  } catch {
+    return []
+  }
+}
+
+export async function searchGoodsSpuList({
+  shopCode,
+  categoryId,
+  pageSize = 12,
+  page = 1,
+  orderBy = 'comprehensive',
+  showSaleType = 1,
+  hideSoldOut = false,
+  random = true,
+}) {
+  const normalizedShopCode = String(shopCode || '').trim()
+  const normalizedCategoryId = Number(categoryId)
+
+  if (!normalizedShopCode || !Number.isFinite(normalizedCategoryId) || normalizedCategoryId <= 0) {
+    return []
+  }
+
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+
+  const query = new URLSearchParams({
+    limit: String(pageSize),
+    page: String(page),
+    shop_code: normalizedShopCode,
+    order_by: orderBy,
+    category_id: String(normalizedCategoryId),
+    show_sale_type: String(showSaleType),
+    hide_sold_out: String(Boolean(hideSoldOut)),
+    random: String(Boolean(random)),
+  })
+
+  try {
+    let json
+    if (Capacitor.isNativePlatform()) {
+      const res = await CapacitorHttp.get({ url: `${API_GOODS_SPU_LIST}?${query.toString()}`, headers: reqHeaders })
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      const res = await fetch(`/mihoyo-api/common/homeishop/v1/goods/search_goods_spu_list?${query.toString()}`, { headers: reqHeaders })
+      if (!res.ok) return []
+      json = await res.json()
+    }
+
+    if (json.retcode !== 0) return []
+
+    return (json.data?.list || []).map((item) => ({
+      goods_id: item.goods_id,
+      name: item.name,
+      cover_url: item.cover_url || '',
+      price: item.price != null ? item.price / 100 : null,
+      shop_code: normalizedShopCode,
+      category_id: normalizedCategoryId,
+    }))
+  } catch {
+    return []
+  }
+}
+
+export function cartShopToGoodsList(shop) {
+  const list = Array.isArray(shop?.list) ? shop.list : []
+  return list
+    .map((item, index) => cartItemToGoods(shop, item, index))
+    .filter((item) => item.name)
 }
 

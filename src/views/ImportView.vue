@@ -1,8 +1,63 @@
 ﻿<template>
   <div class="page page--transition import-page" :class="{ 'page--leaving': isPageLeaving }">
-    <NavBar title="从米游铺导入" show-back />
+    <NavBar :title="pageTitle" show-back />
 
     <main class="page-body">
+      <section v-if="isWishlistMode" class="search-section">
+        <div class="search-card">
+          <div class="search-head">
+            <p class="search-label">心愿快捷搜索</p>
+            <h2 class="search-title">按角色查米游铺周边</h2>
+          </div>
+
+          <div v-if="wishlistCharacterOptions.length > 0" class="search-filter-row">
+            <span class="search-filter-label">角色</span>
+            <div class="search-filter-chips">
+              <button
+                v-for="character in wishlistCharacterOptions"
+                :key="character.name"
+                type="button"
+                :class="['search-filter-chip', { 'search-filter-chip--active': selectedSearchCharacter === character.name }]"
+                @click="handleSearchCharacterSelect(character.name)"
+              >
+                {{ character.name }}
+              </button>
+            </div>
+          </div>
+
+          <div class="search-row">
+            <input
+              v-model="searchKeyword"
+              type="text"
+              class="search-input"
+              placeholder="例如：芙宁娜、流萤、安比"
+              @keydown.enter.prevent="handleGoodsSearch"
+            />
+            <button class="search-btn" type="button" :disabled="searching" @click="handleGoodsSearch">
+              {{ searching ? '搜索中' : '搜索' }}
+            </button>
+          </div>
+
+          <p v-if="searchError" class="search-error">{{ searchError }}</p>
+
+          <div v-if="searchResults.length > 0" class="search-results">
+            <button
+              v-for="item in searchResults"
+              :key="item.goods_id"
+              type="button"
+              class="search-result-card"
+              @click="selectSearchResult(item)"
+            >
+              <div class="search-result-thumb">
+                <img v-if="item.cover_url" :src="item.cover_url" :alt="item.name" loading="lazy" />
+                <span v-else>{{ (item.name || '?').charAt(0) }}</span>
+              </div>
+              <span class="search-result-name">{{ item.name }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- ① URL 输入区 -->
       <section class="url-section">
         <div class="url-card">
@@ -13,7 +68,7 @@
             </svg>
           </div>
           <div class="url-body">
-            <p class="url-hint">粘贴米游铺商品链接（支持多个，每行一个）</p>
+            <p class="url-hint">{{ urlHintText }}</p>
             <div class="url-input-row">
               <textarea
                 ref="urlInputRef"
@@ -23,7 +78,7 @@
                 autocorrect="off"
                 spellcheck="false"
                 class="url-input"
-                placeholder="https://www.mihoyogift.com/goods/...或多条链接，每行一个"
+                :placeholder="urlPlaceholder"
                 @input="syncUrlInput($event)"
                 @blur="syncUrlInput($event)"
                 @change="syncUrlInput($event)"
@@ -37,7 +92,7 @@
                 @pointerdown="syncUrlInput()"
                 @click="batchMode ? handleBatchImport() : handleParse()"
               >
-                <span v-if="!parsing && !batchParsing">{{ batchMode ? `批量解析 (${urlList.length})` : '解析' }}</span>
+                <span v-if="!parsing && !batchParsing">{{ batchMode ? `批量解析 (${urlList.length})` : parseButtonText }}</span>
                 <span v-else class="parse-spinner" />
               </button>
             </div>
@@ -46,25 +101,49 @@
         </div>
       </section>
 
-      <!-- ① 账号批量导入入口 -->
-      <button class="account-import-entry" type="button" @click="$router.push('/account-import')">
-        <div class="aie-icon">
+      <div class="import-entry-list">
+        <button
+          class="import-entry import-entry--cart"
+          type="button"
+          @click="$router.push(isWishlistMode ? '/cart-import?mode=wishlist' : '/cart-import')"
+        >
+          <div class="ie-icon ie-icon--cart">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="20" r="1.5" />
+              <circle cx="18" cy="20" r="1.5" />
+              <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h9.9a1 1 0 0 0 1-.77L21 7H7.4" />
+            </svg>
+          </div>
+          <div class="ie-body">
+            <p class="ie-title">{{ isWishlistMode ? '从购物车导入心愿' : '从购物车导入' }}</p>
+            <p class="ie-sub">{{ isWishlistMode ? '读取米游铺购物车商品，批量加入心愿单' : '读取米游铺购物车商品，批量导入当前收藏' }}</p>
+          </div>
+          <svg class="ie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+
+        <button v-if="!isWishlistMode" class="import-entry" type="button" @click="$router.push('/account-import')">
+          <div class="ie-icon ie-icon--account">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
             stroke-linecap="round" stroke-linejoin="round">
             <circle cx="9" cy="7" r="4"/>
             <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
             <path d="M16 11h6M19 8v6"/>
           </svg>
-        </div>
-        <div class="aie-body">
-          <p class="aie-title">账号批量导入</p>
-          <p class="aie-sub">一键导入米游铺账号的所有历史订单</p>
-        </div>
-        <svg class="aie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 18l6-6-6-6"/>
-        </svg>
-      </button>
+          </div>
+          <div class="ie-body">
+            <p class="ie-title">账号批量导入</p>
+            <p class="ie-sub">一键导入米游铺账号的所有历史订单</p>
+          </div>
+          <svg class="ie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
 
       <!-- ② 解析结果 / 编辑表单（解析成功后展示，仅单一模式） -->
       <transition name="result-fade">
@@ -80,9 +159,9 @@
             </div>
 
             <article class="hero-card">
-              <p class="hero-label">来自米游铺</p>
+              <p class="hero-label">{{ isWishlistMode ? '来自米游铺心愿' : '来自米游铺' }}</p>
               <h1 class="hero-title">{{ form.name || '商品名称' }}</h1>
-              <p class="hero-desc">请检查并补充以下信息，确认后保存到你的收藏。</p>
+              <p class="hero-desc">{{ isWishlistMode ? '请确认目标款式、图片和预算，然后加入心愿单。' : '请检查并补充以下信息，确认后保存到你的收藏。' }}</p>
             </article>
           </section>
 
@@ -130,7 +209,7 @@
                 <!-- 选中款式后：是否记录为角色开关 -->
                 <div v-if="selectedVariantKey" class="save-char-row" @click="toggleSaveAsCharacter">
                   <span class="save-char-label">
-                    将「{{ selectedVariantName }}」记录为角色
+                    将角色记录为「{{ selectedCharacterName || selectedVariantName }}」
                   </span>
                   <div class="save-char-toggle" :class="{ 'save-char-toggle--on': saveAsCharacter }">
                     <div class="save-char-knob" />
@@ -181,12 +260,12 @@
           <!-- 购入信息 -->
           <section class="form-section">
             <div class="section-head">
-              <p class="section-label">购入记录</p>
-              <h2 class="section-title">价格与来源</h2>
+              <p class="section-label">{{ isWishlistMode ? '目标信息' : '购入记录' }}</p>
+              <h2 class="section-title">{{ isWishlistMode ? '预算与来源' : '价格与来源' }}</h2>
             </div>
             <div class="field-card">
               <label class="field">
-                <span class="field-label">价格（元）</span>
+                <span class="field-label">{{ isWishlistMode ? '目标价格（元）' : '价格（元）' }}</span>
                 <input v-model.number="form.price" type="number" placeholder="0.00" min="0" step="0.01" />
               </label>
               <label class="field">
@@ -194,10 +273,10 @@
                 <input v-model="form.source" type="text" placeholder="米游铺" />
               </label>
               <label class="field">
-                <span class="field-label">购买日期</span>
+                <span class="field-label">{{ isWishlistMode ? '预计入手日期' : '购买日期' }}</span>
                 <button class="date-field" type="button" @click="openDatePicker">
                   <span :class="{ 'date-field__value--placeholder': !form.purchaseDate }">
-                    {{ form.purchaseDate || '请选择日期' }}
+                    {{ form.purchaseDate || (isWishlistMode ? '可选，暂未计划' : '请选择日期') }}
                   </span>
                   <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -318,7 +397,7 @@
     <Teleport to="body">
       <!-- 单条模式保存 -->
       <div v-if="parsed && !batchMode" class="float-footer">
-        <button class="btn-primary btn-float" @click="handleSave">保存谷子</button>
+        <button class="btn-primary btn-float" @click="handleSave">{{ isWishlistMode ? '加入心愿单' : '保存谷子' }}</button>
       </div>
       <!-- 批量模式保存全部 -->
       <div v-if="batchStep === 'list' && batchItems.some(i => i.status === 'ready')" class="float-footer">
@@ -451,28 +530,130 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { DatePicker, Popup } from 'vant'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
-import { parseMihoyoUrl, isMihoyoGiftUrl, fetchGoodsDetail } from '@/utils/mihoyo'
+import {
+  parseMihoyoUrl,
+  isMihoyoGiftUrl,
+  fetchGoodsDetail,
+  searchGoodsList,
+  fetchGoodsCategoryList,
+  searchGoodsSpuList,
+  getMihoyoShopCodeByIp,
+  MIHOYO_ROLE_SHOP_CODES
+} from '@/utils/mihoyo'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 
 const router = useRouter()
+const route = useRoute()
 const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
 const { isPageLeaving } = usePageLeaveAnimation()
+const isWishlistMode = computed(() => route.query.mode === 'wishlist')
+const pageTitle = computed(() => isWishlistMode.value ? '导入心愿' : '从米游铺导入')
+const urlHintText = computed(() =>
+  isWishlistMode.value
+    ? '先按角色搜索，或直接粘贴米游铺商品链接（支持多个，每行一个）'
+    : '粘贴米游铺商品链接（支持多个，每行一个）'
+)
+const urlPlaceholder = computed(() =>
+  isWishlistMode.value
+    ? '搜索后会自动填入，也可手动粘贴米游铺商品链接'
+    : 'https://www.mihoyogift.com/goods/...或多条链接，每行一个'
+)
+const parseButtonText = computed(() => isWishlistMode.value ? '解析心愿' : '解析')
 
 const urlInputRef = ref(null)
 const urlInput = ref('')
 const parsing = ref(false)
 const parseError = ref('')
 const parsed = ref(false)
+const searchKeyword = ref('')
+const searchResults = ref([])
+const searching = ref(false)
+const searchError = ref('')
+const variantSearchHint = ref('')
+const selectedSearchCharacter = ref('')
+
+const wishlistCharacterOptions = computed(() => {
+  const seen = new Map()
+
+  for (const item of presets.characters) {
+    const name = String(item?.name || item || '').trim()
+    const ip = String(item?.ip || '').trim()
+    if (!getMihoyoShopCodeByIp(ip)) continue
+    if (!name) continue
+    if (!seen.has(name)) {
+      seen.set(name, { name, ip })
+      continue
+    }
+    if (!seen.get(name).ip && ip) {
+      seen.set(name, { name, ip })
+    }
+  }
+
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
+})
+
+const mihoyoRoleCategoryCache = new Map()
+
+function normalizeRoleCategoryName(name) {
+  return String(name || '')
+    .trim()
+    .replace(/\(/g, '（')
+    .replace(/\)/g, '）')
+    .replace(/\s+/g, '')
+}
+
+function extractRoleCategories(categories) {
+  const roleGroup = (categories || []).find((item) => String(item?.name || '').trim() === '角色分类')
+  return Array.isArray(roleGroup?.child) ? roleGroup.child : []
+}
+
+async function getRoleCategoriesForShop(shopCode) {
+  const normalizedShopCode = String(shopCode || '').trim()
+  if (!normalizedShopCode) return []
+  if (!mihoyoRoleCategoryCache.has(normalizedShopCode)) {
+    const categories = await fetchGoodsCategoryList(normalizedShopCode)
+    mihoyoRoleCategoryCache.set(normalizedShopCode, extractRoleCategories(categories))
+  }
+  return mihoyoRoleCategoryCache.get(normalizedShopCode) || []
+}
+
+async function resolveRoleSearchTargets(keyword) {
+  const normalizedKeyword = normalizeRoleCategoryName(keyword)
+  if (!normalizedKeyword) return []
+
+  const preferredCharacter = wishlistCharacterOptions.value.find(
+    (item) => normalizeRoleCategoryName(item.name) === normalizedKeyword
+  )
+  const preferredShopCode = getMihoyoShopCodeByIp(preferredCharacter?.ip)
+  const shopCodes = preferredShopCode
+    ? [preferredShopCode]
+    : MIHOYO_ROLE_SHOP_CODES
+
+  const targets = []
+
+  for (const shopCode of shopCodes) {
+    const categories = await getRoleCategoriesForShop(shopCode)
+    const matchedCategory = categories.find((item) => normalizeRoleCategoryName(item?.name) === normalizedKeyword)
+    if (!matchedCategory?.id) continue
+    targets.push({
+      shopCode,
+      categoryId: matchedCategory.id,
+      categoryName: String(matchedCategory.name || '').trim()
+    })
+  }
+
+  return targets
+}
 
 // 多 URL 批量导入状态
 const urlList = computed(() => {
@@ -501,6 +682,95 @@ watch(urlInput, () => {
     batchItems.value = []
   }
 })
+
+watch(isWishlistMode, (active) => {
+  if (!active) {
+    searchKeyword.value = ''
+    searchResults.value = []
+    searchError.value = ''
+    variantSearchHint.value = ''
+    selectedSearchCharacter.value = ''
+  }
+}, { immediate: true })
+
+watch(searchKeyword, (value) => {
+  if (value.trim() !== selectedSearchCharacter.value) {
+    selectedSearchCharacter.value = ''
+  }
+})
+
+async function handleGoodsSearch() {
+  const keyword = searchKeyword.value.trim()
+  variantSearchHint.value = normalizeSearchHintText(keyword)
+  searchError.value = ''
+
+  if (!keyword) {
+    searchResults.value = []
+    return
+  }
+
+  searching.value = true
+  try {
+    let results = []
+    const roleTargets = await resolveRoleSearchTargets(keyword)
+
+    if (roleTargets.length > 0) {
+      const groupedResults = await Promise.all(
+        roleTargets.map((target) =>
+          searchGoodsSpuList({
+            shopCode: target.shopCode,
+            categoryId: target.categoryId,
+            pageSize: 12,
+          })
+        )
+      )
+
+      const deduped = new Map()
+      for (const item of groupedResults.flat()) {
+        const key = `${item.shop_code || ''}:${item.goods_id || ''}`
+        if (!deduped.has(key)) {
+          deduped.set(key, item)
+        }
+      }
+      results = [...deduped.values()]
+    }
+
+    if (!results.length) {
+      results = await searchGoodsList(keyword, 12)
+    }
+
+    searchResults.value = results
+    if (!results.length) {
+      searchError.value = '没有找到相关商品，换个角色名或关键词试试'
+    }
+  } catch (error) {
+    searchResults.value = []
+    searchError.value = error?.message || '搜索失败，请稍后重试'
+  } finally {
+    searching.value = false
+  }
+}
+
+async function handleSearchCharacterSelect(name) {
+  const next = selectedSearchCharacter.value === name ? '' : name
+  selectedSearchCharacter.value = next
+  searchKeyword.value = next
+  searchResults.value = []
+  searchError.value = ''
+
+  if (next) {
+    await handleGoodsSearch()
+  }
+}
+
+async function selectSearchResult(item) {
+  if (!item?.goods_id) return
+
+  variantSearchHint.value = normalizeSearchHintText(selectedSearchCharacter.value || searchKeyword.value.trim())
+  setUrlInputValue(`https://www.mihoyogift.com/goods/${item.goods_id}`)
+  await nextTick()
+  await handleParse()
+}
 
 function shortenUrl(url) {
   try {
@@ -654,6 +924,7 @@ async function saveAllBatch() {
         notes: item.data.notes,
         characters: item.data.characters,
         variant: item.data.variant || undefined,
+        isWishlist: isWishlistMode.value,
       })
       item.status = 'saved'
     } catch (e) {
@@ -662,7 +933,7 @@ async function saveAllBatch() {
     }
   }
   savingAll.value = false
-  router.replace('/home')
+  router.replace(isWishlistMode.value ? '/wishlist' : '/home')
 }
 const parsedImages = ref([])  // 所有可用图（cover + banners）
 const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
@@ -690,6 +961,15 @@ const form = reactive({
   notes: '',
   characters: [],
 })
+
+const preferredSearchCharacterName = computed(() =>
+  normalizeSearchHintText(selectedSearchCharacter.value || searchKeyword.value)
+)
+
+function applyPreferredSearchCharacter() {
+  const preferredName = preferredSearchCharacterName.value
+  form.characters = preferredName ? [preferredName] : []
+}
 
 // ── 展示用：只去【】括号和尾款，保留周年对应信息 ──
 // 例："二周年贺图款" → "二周年贺图"   "兹白【预售，5月初】" → "兹白"
@@ -797,6 +1077,52 @@ function syncUrlInputLater() {
   })
 }
 
+function setUrlInputValue(value) {
+  const nextValue = String(value || '')
+  urlInput.value = nextValue
+  if (urlInputRef.value) {
+    urlInputRef.value.value = nextValue
+  }
+}
+
+function normalizeSearchHintText(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[「」『』【】《》〈〉]/g, '')
+    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+    .trim()
+}
+
+function applySelectedVariantMedia(variant) {
+  const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
+  if (raw) {
+    if (!parsedImages.value.includes(raw)) {
+      parsedImages.value.unshift(raw)
+    }
+    form.image = raw
+  }
+
+  if (variant?.price != null) {
+    form.price = variant.price
+  }
+}
+
+function autoSelectVariantByHint() {
+  const hint = normalizeSearchHintText(variantSearchHint.value).toLowerCase()
+  if (!hint || !parsedVariants.value.length || selectedVariantKey.value) return
+
+  const matched = parsedVariants.value.find((variant) => {
+    const text = String(variant.text || '').trim().toLowerCase()
+    const display = displayVariantText(variant.text).trim().toLowerCase()
+    const normalizedChar = normalizeCharacterName(variant.text).trim().toLowerCase()
+    return text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)
+  })
+
+  if (matched) {
+    handleVariantSelect(matched)
+  }
+}
+
 // ── 用户点击款式按钮：单选 + 自动匹配 SKU 专属图 ──
 function handleVariantSelect(v) {
   if (selectedVariantKey.value === v.key) {
@@ -805,29 +1131,19 @@ function handleVariantSelect(v) {
     selectedVariantName.value = ''
     selectedCharacterName.value = ''
     saveAsCharacter.value = false
-    form.characters = []
+    applyPreferredSearchCharacter()
   } else {
     selectedVariantKey.value = v.key
     const variantName = displayVariantText(v.text)
-    const characterName = normalizeCharacterName(v.text)
+    const variantCharacterName = normalizeCharacterName(v.text)
+    const preferredCharacterName = preferredSearchCharacterName.value
     selectedVariantName.value = variantName
-    selectedCharacterName.value = characterName
-    // 默认根据关键词判断是否像角色名，用户可再手动切换
-    const looksLikeChar = isLikelyCharName(characterName)
-    saveAsCharacter.value = looksLikeChar
-    form.characters = looksLikeChar ? [characterName] : []
-    // 优先用 cover_url（SKU 专属封面），其次 img_url
-    const raw = (v.cover_url || v.img_url || '').split('?')[0]
-    if (raw) {
-      if (!parsedImages.value.includes(raw)) {
-        parsedImages.value.unshift(raw)
-      }
-      form.image = raw
-    }
-    // 如果该 SKU 有独立定价则联动更新价格
-    if (v.price != null) {
-      form.price = v.price
-    }
+    // 默认优先使用款式里能识别出的角色名，否则回落到当前搜索角色
+    const looksLikeChar = isLikelyCharName(variantCharacterName)
+    selectedCharacterName.value = looksLikeChar ? variantCharacterName : preferredCharacterName
+    saveAsCharacter.value = Boolean(selectedCharacterName.value)
+    form.characters = selectedCharacterName.value ? [selectedCharacterName.value] : []
+    applySelectedVariantMedia(v)
   }
 }
 
@@ -867,7 +1183,7 @@ async function handleParse() {
   parsed.value = false
   parsedVariants.value = []
   parsedImages.value = []
-  form.characters = []
+  applyPreferredSearchCharacter()
   selectedVariantKey.value = ''
 
   try {
@@ -903,6 +1219,11 @@ async function handleParse() {
         if (extras.length) {
           parsedImages.value = [...parsedImages.value, ...extras]
         }
+        autoSelectVariantByHint()
+        if (selectedVariantKey.value) {
+          const selected = parsedVariants.value.find(v => v.key === selectedVariantKey.value)
+          applySelectedVariantMedia(selected)
+        }
       }).catch(() => {})
     }
 
@@ -923,10 +1244,11 @@ async function handleParse() {
       form.category = detectedCat
     }
 
-    // 4. 填充变体选项（角色由用户自己选择）
+    // 4. 填充变体选项，并先把搜索角色写入角色字段作为默认值
     parsedVariants.value = result.variants || []
-    form.characters = []      // 清空，等用户手动选
+    applyPreferredSearchCharacter()
     selectedVariantKey.value = ''  // 重置选中状态
+    autoSelectVariantByHint()
 
     parsed.value = true
   } catch (e) {
@@ -1001,8 +1323,9 @@ async function handleSave() {
       purchaseDate: form.purchaseDate,
       notes: form.notes,
       characters: form.characters,
+      isWishlist: isWishlistMode.value,
     })
-    router.replace('/home')
+    router.replace(isWishlistMode.value ? '/wishlist' : '/home')
   } catch (e) {
     parseError.value = '保存失败：' + e.message
   }
@@ -1017,13 +1340,179 @@ async function handleSave() {
   gap: 24px;
 }
 
+.search-section {
+  margin-top: 8px;
+}
+
+.search-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+}
+
+.search-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-label {
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+}
+
+.search-title {
+  color: var(--app-text);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.search-row {
+  display: flex;
+  gap: 10px;
+}
+
+.search-filter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.search-filter-label {
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.search-filter-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.search-filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.search-filter-chip {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.search-filter-chip--active {
+  border-color: #141416;
+  background: #141416;
+  color: #ffffff;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 15px;
+  padding: 0 14px;
+  outline: none;
+}
+
+.search-btn {
+  flex-shrink: 0;
+  min-width: 80px;
+  min-height: 46px;
+  border: none;
+  border-radius: 14px;
+  background: #c7375d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.search-error {
+  color: #c74444;
+  font-size: 13px;
+}
+
+.search-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.search-result-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: none;
+  border-radius: 14px;
+  background: var(--app-surface-soft);
+  text-align: left;
+}
+
+.search-result-thumb {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(20, 20, 22, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.search-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-result-name {
+  color: var(--app-text);
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 /* ── URL 输入区 ── */
 .url-section {
   margin-top: 8px;
 }
 
-/* ── 账号批量导入入口 ── */
-.account-import-entry {
+/* ── 导入入口 ── */
+.import-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.import-entry {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1037,41 +1526,49 @@ async function handleSave() {
   text-align: left;
   transition: transform 0.13s ease, background 0.12s ease;
 }
-.account-import-entry:active {
+.import-entry:active {
   transform: scale(0.98);
   background: #f0f0f5;
 }
-.aie-icon {
+.ie-icon {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: rgba(255, 149, 0, 0.12);
-  color: #ff9500;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.aie-icon svg {
+.ie-icon--cart {
+  background: rgba(32, 112, 192, 0.12);
+  color: #2070c0;
+}
+
+.ie-icon--account {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
+.ie-icon svg {
   width: 20px;
   height: 20px;
 }
-.aie-body {
+.ie-body {
   flex: 1;
   min-width: 0;
 }
-.aie-title {
+.ie-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--app-text);
   margin: 0 0 2px;
 }
-.aie-sub {
+.ie-sub {
   font-size: 12.5px;
   color: var(--app-text-tertiary);
   margin: 0;
 }
-.aie-arrow {
+.ie-arrow {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
@@ -2072,6 +2569,19 @@ async function handleSave() {
 }
 
 @media (prefers-color-scheme: dark) {
+  .search-input {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+  }
+
+  .search-result-card {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .search-result-thumb {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
   .field input,
   .field textarea,
   .date-field {
@@ -2182,4 +2692,5 @@ async function handleSave() {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
 </style>

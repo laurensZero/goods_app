@@ -9,7 +9,7 @@
       </section>
 
       <!-- 总览统计 -->
-      <section v-if="store.list.length > 0" class="stats-section">
+      <section v-if="store.collectionList.length > 0" class="stats-section">
         <div class="field-card stats-card">
           <div class="stat-item">
             <span class="stat-value">{{ datedCount }}</span>
@@ -94,7 +94,7 @@
       </section>
 
       <!-- 空状态 -->
-      <section v-if="store.list.length === 0" class="empty-wrap">
+      <section v-if="store.collectionList.length === 0" class="empty-wrap">
         <EmptyState
           icon="✦"
           title="还没有收藏记录"
@@ -129,7 +129,7 @@ onActivated(refresh)
 // ── 数据分组 ──
 const monthGroups = computed(() => {
   const grouped = {}
-  for (const item of store.list) {
+  for (const item of store.collectionList) {
     if (!item.acquiredAt) continue
     const ym = String(item.acquiredAt).slice(0, 7) // 'YYYY-MM'
     if (ym.length < 7 || !/^\d{4}-\d{2}$/.test(ym)) continue
@@ -156,7 +156,7 @@ const monthGroups = computed(() => {
 })
 
 const unknownItems = computed(() =>
-  store.list.filter((item) => {
+  store.collectionList.filter((item) => {
     if (!item.acquiredAt) return true
     const ym = String(item.acquiredAt).slice(0, 7)
     return ym.length < 7 || !/^\d{4}-\d{2}$/.test(ym)

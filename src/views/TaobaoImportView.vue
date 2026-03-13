@@ -304,7 +304,7 @@ const editForm = reactive({
 
 /** 已导入谷子的身份键集合 */
 const importedItemKeys = computed(
-  () => new Set(store.list.map(item => buildGoodsIdentityKey(item)))
+  () => new Set(store.collectionList.map(item => buildGoodsIdentityKey(item)))
 )
 
 function isItemImported(item)  { return importedItemKeys.value.has(buildGoodsIdentityKey(item)) }

@@ -18,6 +18,24 @@
 
       <section class="batch-edit-section">
         <div class="field-card batch-edit-card">
+          <button
+            v-if="allowMarkOwned"
+            type="button"
+            class="mark-owned-card"
+            :class="{ 'mark-owned-card--active': form.markAsOwned }"
+            @click="toggleMarkAsOwned"
+          >
+            <div class="mark-owned-copy">
+              <span class="field-label">批量标记已入手</span>
+              <p class="mark-owned-desc">勾选后会把这些心愿移到收藏；未填写购入日期时自动写入今天。</p>
+            </div>
+            <span class="mark-owned-check" aria-hidden="true">
+              <svg v-if="form.markAsOwned" viewBox="0 0 24 24" fill="none">
+                <path d="M5 13L9 17L19 7" />
+              </svg>
+            </span>
+          </button>
+
           <label class="field">
             <div class="field-head">
               <span class="field-label">分类</span>
@@ -191,7 +209,8 @@ import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  selectedCount: { type: Number, default: 0 }
+  selectedCount: { type: Number, default: 0 },
+  allowMarkOwned: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:show', 'apply'])
@@ -210,6 +229,7 @@ const quickIpName = ref('')
 const quickCharacterName = ref('')
 const quickCharacterIp = ref(NO_IP_OPTION)
 const form = reactive({
+  markAsOwned: false,
   category: '',
   ip: '',
   acquiredAt: '',
@@ -232,7 +252,7 @@ const isTablet = computed(() => windowWidth.value >= 900)
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 
 const canSubmit = computed(() =>
-  Boolean(form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
+  Boolean(form.markAsOwned || form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
 )
 const storageLocationOptions = computed(() => goodsStore.storageLocations)
 const quickCharacterIpOptions = computed(() => {
@@ -280,6 +300,7 @@ watch(
 )
 
 function resetForm() {
+  form.markAsOwned = false
   form.category = ''
   form.ip = ''
   form.acquiredAt = ''
@@ -314,6 +335,10 @@ function toggleQuickCreate(type) {
   quickIpName.value = ''
   quickCharacterName.value = ''
   quickCharacterIp.value = form.ip || NO_IP_OPTION
+}
+
+function toggleMarkAsOwned() {
+  form.markAsOwned = !form.markAsOwned
 }
 
 function close() {
@@ -387,6 +412,10 @@ async function apply() {
   await commitActiveInput()
 
   const payload = {}
+  if (form.markAsOwned) {
+    payload.isWishlist = false
+    payload.acquiredAt = form.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
+  }
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
   if (form.acquiredAt) payload.acquiredAt = form.acquiredAt
@@ -510,6 +539,63 @@ defineExpose({
   border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
+}
+
+.mark-owned-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: rgba(199, 55, 93, 0.08);
+  color: inherit;
+  text-align: left;
+}
+
+.mark-owned-card--active {
+  background: rgba(199, 55, 93, 0.14);
+}
+
+.mark-owned-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mark-owned-desc {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mark-owned-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(199, 55, 93, 0.4);
+  flex-shrink: 0;
+}
+
+.mark-owned-card--active .mark-owned-check {
+  background: #c7375d;
+  border-color: #c7375d;
+  color: #fff;
+}
+
+.mark-owned-check svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .field {
@@ -833,6 +919,18 @@ defineExpose({
 
   .batch-edit-sheet__handle {
     background: rgba(255, 255, 255, 0.12);
+  }
+
+  .mark-owned-card {
+    background: rgba(199, 55, 93, 0.14);
+  }
+
+  .mark-owned-card--active {
+    background: rgba(199, 55, 93, 0.22);
+  }
+
+  .mark-owned-check {
+    border-color: rgba(255, 255, 255, 0.16);
   }
 
   .date-field,

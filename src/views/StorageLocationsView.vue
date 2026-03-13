@@ -109,7 +109,7 @@ const statsById = computed(() => {
     }
   }
 
-  for (const item of store.viewList) {
+  for (const item of store.collectionViewList) {
     const location = String(item.storageLocation || '').trim()
     if (!location) continue
 
@@ -131,7 +131,7 @@ const statsById = computed(() => {
 })
 
 const unassignedCount = computed(() =>
-  store.viewList.filter((item) => !String(item.storageLocation || '').trim()).length
+  store.collectionViewList.filter((item) => !String(item.storageLocation || '').trim()).length
 )
 
 const editorTargetPath = computed(() =>
