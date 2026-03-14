@@ -1,9 +1,11 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 
-const GRID_DENSITY_STORAGE_KEY = 'goods-app:home-grid-density'
-const SORT_DIRECTION_STORAGE_KEY = 'goods-app:home-sort-direction'
-const TIMELINE_EXPANDED_ITEM_STORAGE_KEY = 'goods-app:home-timeline-expanded-item'
+const DEFAULT_STORAGE_KEYS = {
+  gridDensity: 'goods-app:home-grid-density',
+  sortDirection: 'goods-app:home-sort-direction',
+  expandedTimelineItem: 'goods-app:home-timeline-expanded-item'
+}
 
 const densityModes = [
   { value: 'comfortable', label: '舒适', columns: 2 },
@@ -34,7 +36,11 @@ const densityBreakpoints = {
   ]
 }
 
-export function useHomePreferences(windowWidth) {
+export function useHomePreferences(windowWidth, options = {}) {
+  const {
+    storageKeys = DEFAULT_STORAGE_KEYS,
+    allowTimeline = true
+  } = options
   const displayDensity = ref('comfortable')
   const sortDirection = ref('desc')
   const expandedTimelineItemId = ref(null)
@@ -75,6 +81,7 @@ export function useHomePreferences(windowWidth) {
   }
 
   function toggleTimelineMode() {
+    if (!allowTimeline) return
     if (displayDensity.value === 'timeline') {
       displayDensity.value = densityColumnsMap[lastNonTimelineDensity] ? lastNonTimelineDensity : 'comfortable'
       return
@@ -101,7 +108,7 @@ export function useHomePreferences(windowWidth) {
   }
 
   function restoreDisplayDensity() {
-    const storedDensity = localStorage.getItem(GRID_DENSITY_STORAGE_KEY)
+    const storedDensity = localStorage.getItem(storageKeys.gridDensity)
     if (!storedDensity || !densityModes.find((mode) => mode.value === storedDensity)) return
 
     lastNonTimelineDensity = storedDensity
@@ -109,14 +116,18 @@ export function useHomePreferences(windowWidth) {
   }
 
   function restoreSortDirection() {
-    const storedSortDirection = localStorage.getItem(SORT_DIRECTION_STORAGE_KEY)
+    const storedSortDirection = localStorage.getItem(storageKeys.sortDirection)
     if (storedSortDirection === 'asc' || storedSortDirection === 'desc') {
       sortDirection.value = storedSortDirection
     }
   }
 
   function restoreExpandedTimelineItem() {
-    expandedTimelineItemId.value = localStorage.getItem(TIMELINE_EXPANDED_ITEM_STORAGE_KEY) || null
+    if (!allowTimeline) {
+      expandedTimelineItemId.value = null
+      return
+    }
+    expandedTimelineItemId.value = localStorage.getItem(storageKeys.expandedTimelineItem) || null
   }
 
   function restoreHomePreferences() {
@@ -136,20 +147,21 @@ export function useHomePreferences(windowWidth) {
   watch(displayDensity, (value) => {
     if (value === 'timeline') return
     lastNonTimelineDensity = value
-    localStorage.setItem(GRID_DENSITY_STORAGE_KEY, value)
+    localStorage.setItem(storageKeys.gridDensity, value)
   })
 
   watch(sortDirection, (value) => {
-    localStorage.setItem(SORT_DIRECTION_STORAGE_KEY, value)
+    localStorage.setItem(storageKeys.sortDirection, value)
   })
 
   watch(expandedTimelineItemId, (value) => {
+    if (!allowTimeline) return
     if (value) {
-      localStorage.setItem(TIMELINE_EXPANDED_ITEM_STORAGE_KEY, value)
+      localStorage.setItem(storageKeys.expandedTimelineItem, value)
       return
     }
 
-    localStorage.removeItem(TIMELINE_EXPANDED_ITEM_STORAGE_KEY)
+    localStorage.removeItem(storageKeys.expandedTimelineItem)
   })
 
   onBeforeUnmount(() => {

@@ -2,8 +2,8 @@
   <section class="goods-header-section">
     <div class="goods-header-row">
       <div class="goods-header-left">
-        <p class="section-label">我的收藏</p>
-        <h2 class="section-title">全部谷子<span class="goods-count"> {{ totalQuantity }} 件</span></h2>
+        <p class="section-label">{{ sectionLabel }}</p>
+        <h2 class="section-title">{{ title }}<span class="goods-count"> {{ totalQuantity }} 件</span></h2>
       </div>
 
       <div class="goods-header-btns">
@@ -28,6 +28,7 @@
         </button>
 
         <button
+          v-if="showTimelineToggle"
           type="button"
           :class="['timeline-toggle', { 'timeline-toggle--active': displayDensity === 'timeline' }]"
           aria-label="切换时间线视图"
@@ -57,11 +58,14 @@
 
 <script setup>
 defineProps({
+  sectionLabel: { type: String, default: '我的收藏' },
+  title: { type: String, default: '全部谷子' },
   totalQuantity: { type: Number, required: true },
   sortDirection: { type: String, required: true },
   isSortAnimating: { type: Boolean, default: false },
   displayDensity: { type: String, required: true },
-  densityModes: { type: Array, required: true }
+  densityModes: { type: Array, required: true },
+  showTimelineToggle: { type: Boolean, default: true }
 })
 
 defineEmits(['toggle-sort', 'toggle-timeline', 'set-density'])

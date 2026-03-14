@@ -98,7 +98,7 @@ const routes = [
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),
-    meta: { title: '角色排行榜' }
+    meta: { title: '数据统计' }
   },
   {
     path: '/storage-locations',

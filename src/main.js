@@ -9,6 +9,7 @@ import './assets/base.css'
 import { initDB } from './utils/db'
 import { useGoodsStore } from './stores/goods'
 import { usePresetsStore } from './stores/presets'
+import { useFilterPresetsStore } from './stores/filterPresets'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
 
 function setupAndroidBackButton() {
@@ -49,8 +50,9 @@ async function bootstrap() {
   // 从 SQLite 预加载数据，再挂载 DOM
   const store = useGoodsStore()
   const presets = usePresetsStore()
+  const filterPresets = useFilterPresetsStore()
   try {
-    await Promise.all([store.init(), presets.init()])
+    await Promise.all([store.init(), presets.init(), filterPresets.init()])
     await presets.syncCharactersFromGoods(store.list)
     await presets.syncStorageLocationsFromPaths(store.storageLocations)
   } catch (e) {

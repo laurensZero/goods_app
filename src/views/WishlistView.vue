@@ -1,5 +1,5 @@
 <template>
-  <div class="page wishlist-page" :class="{ 'wishlist-page--restoring': !wishlistDisplayReady }">
+  <div class="page wishlist-page" :class="{ 'wishlist-page--restoring': !wishlistDisplayReady }" :style="HOME_MOTION_CSS_VARS">
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -33,45 +33,31 @@
         />
       </section>
 
-      <section v-if="goodsList.length > 0" class="toolbar-section">
-        <div class="toolbar-header">
-          <div class="toolbar-copy">
-            <p class="toolbar-label">我的心愿</p>
-            <h2 class="toolbar-title">全部目标<span class="toolbar-count"> {{ totalQuantity }} 件</span></h2>
-          </div>
+      <HomeGoodsToolbar
+        v-if="goodsList.length > 0"
+        section-label="我的心愿"
+        title="全部目标"
+        :total-quantity="totalQuantity"
+        :sort-direction="sortDirection"
+        :is-sort-animating="isSortAnimating"
+        :display-density="displayDensity"
+        :density-modes="densityModes"
+        :show-timeline-toggle="false"
+        @toggle-sort="toggleSortDirection"
+        @set-density="setDisplayDensity"
+      />
 
-          <div class="density-switch" aria-label="切换展示密度">
-            <button
-              v-for="mode in densityModes"
-              :key="mode.value"
-              type="button"
-              :class="['density-switch__option', { 'density-switch__option--active': displayDensity === mode.value }]"
-              @click="setDisplayDensity(mode.value)"
-            >
-              {{ mode.label }}
-            </button>
-          </div>
-
-          <div class="toolbar-btns">
-            <button
-              type="button"
-              :class="['sort-toggle', { 'sort-toggle--asc': sortDirection === 'asc' }]"
-              :aria-label="sortDirection === 'desc' ? '当前按时间降序，点击切换升序' : '当前按时间升序，点击切换降序'"
-              @click="toggleSortDirection"
-            >
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M7 6V18" />
-                <path d="M4 9L7 6L10 9" />
-                <path d="M17 18V6" />
-                <path d="M14 15L17 18L20 15" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section v-if="goodsList.length > 0" class="goods-section">
-        <div class="goods-list" :style="goodsGridStyle">
+      <section
+        v-if="goodsList.length > 0"
+        :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
+      >
+        <div
+          :class="[
+            'goods-list',
+            { 'goods-list--density-animating': isDensityAnimating }
+          ]"
+          :style="goodsGridStyle"
+        >
           <GoodsCard
             v-for="(item, index) in goodsList"
             :key="item.id"
@@ -142,14 +128,17 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
+import { useHomePreferences } from '@/composables/useHomePreferences'
 import { useWishlistScrollRestore } from '@/composables/useWishlistScrollRestore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SummaryCard from '@/components/SummaryCard.vue'
 import AddMethodSheet from '@/components/AddMethodSheet.vue'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
+import HomeGoodsToolbar from '@/components/HomeGoodsToolbar.vue'
 import ScrollTopButton from '@/components/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
@@ -157,36 +146,7 @@ import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 
 defineOptions({ name: 'WishlistView' })
 
-const DENSITY_STORAGE_KEY = 'goods-app:wishlist-grid-density'
-const SORT_STORAGE_KEY = 'goods-app:wishlist-sort-direction'
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
-
-const densityModes = [
-  { value: 'comfortable', label: '舒展' },
-  { value: 'standard', label: '标准' },
-  { value: 'compact', label: '紧凑' }
-]
-
-const densityBreakpoints = {
-  comfortable: [
-    { minWidth: 1200, cols: 5 },
-    { minWidth: 900, cols: 4 },
-    { minWidth: 600, cols: 3 },
-    { minWidth: 0, cols: 2 }
-  ],
-  standard: [
-    { minWidth: 1200, cols: 6 },
-    { minWidth: 900, cols: 5 },
-    { minWidth: 600, cols: 4 },
-    { minWidth: 0, cols: 3 }
-  ],
-  compact: [
-    { minWidth: 1200, cols: 8 },
-    { minWidth: 900, cols: 6 },
-    { minWidth: 600, cols: 5 },
-    { minWidth: 0, cols: 4 }
-  ]
-}
 
 const router = useRouter()
 const store = useGoodsStore()
@@ -199,14 +159,31 @@ const batchEditSheetRef = ref(null)
 const isWishlistActive = ref(true)
 const wishlistDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
-const displayDensity = ref(localStorage.getItem(DENSITY_STORAGE_KEY) || 'comfortable')
-const sortDirection = ref(localStorage.getItem(SORT_STORAGE_KEY) || 'desc')
 const selectionHeaderStyle = computed(() => ({ '--selection-header-top': '0px' }))
 let removeAndroidBackListener = null
 let pageScrollBound = false
 let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
+
+const {
+  densityModes,
+  displayDensity,
+  sortDirection,
+  isDensityAnimating,
+  isSortAnimating,
+  getResponsiveCols,
+  setDisplayDensity,
+  toggleSortDirection,
+  restoreHomePreferences
+} = useHomePreferences(windowWidth, {
+  allowTimeline: false,
+  storageKeys: {
+    gridDensity: 'goods-app:wishlist-grid-density',
+    sortDirection: 'goods-app:wishlist-sort-direction',
+    expandedTimelineItem: 'goods-app:wishlist-expanded-item-unused'
+  }
+})
 
 const {
   getScrollEl,
@@ -224,12 +201,12 @@ const {
 } = useWishlistScrollRestore(pageBodyRef)
 
 const baseGoodsList = computed(() => store.wishlistViewList)
-const totalQuantity = computed(() =>
+const totalQuantity = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.quantityNumber, 0)
-)
-const totalValue = computed(() =>
+))
+const totalValue = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
-)
+))
 
 const goodsList = computed(() => {
   const items = [...baseGoodsList.value]
@@ -279,22 +256,6 @@ const {
 function syncVisibleGoodsCount() {}
 function syncVisibleTimelineMonthCount() {}
 
-function getResponsiveCols(density) {
-  const breakpoints = densityBreakpoints[density] || densityBreakpoints.comfortable
-  return (breakpoints.find((item) => windowWidth.value >= item.minWidth) ?? breakpoints[breakpoints.length - 1]).cols
-}
-
-function setDisplayDensity(mode) {
-  if (!densityModes.some((item) => item.value === mode)) return
-  displayDensity.value = mode
-  localStorage.setItem(DENSITY_STORAGE_KEY, mode)
-}
-
-function toggleSortDirection() {
-  sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc'
-  localStorage.setItem(SORT_STORAGE_KEY, sortDirection.value)
-}
-
 function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
 }
@@ -310,9 +271,7 @@ function handlePageScroll() {
 
 function bindPageScroll() {
   if (pageScrollBound) return
-  // Guardrail:
-  // Wishlist must track both element and window scroll events.
-  // This page has regressed repeatedly when the source was hardcoded.
+
   elementScrollHandler = () => {
     markScrollSource('element')
     handlePageScroll()
@@ -343,7 +302,6 @@ function scrollToTop() {
   scrollToTopAnimated(getScrollEl, 260, () => {
     updateScrollTopButtonVisibility()
     rememberCurrentScrollPosition()
-  // Use the current tracked source. Do not hardcode "window" or "element" here.
   }, getActiveScrollSource())
 }
 
@@ -416,7 +374,7 @@ function unbindAndroidBackButton() {
   removeAndroidBackListener = null
 }
 
-async function batchDelete() {
+function batchDelete() {
   if (selectedIds.value.size === 0) return
   showDeleteConfirm.value = true
 }
@@ -444,6 +402,7 @@ onMounted(async () => {
   }
   const shouldMaskDisplay = shouldMaskWishlistDisplay()
   wishlistDisplayReady.value = !shouldMaskDisplay
+  restoreHomePreferences()
   window.addEventListener('resize', handleResize, { passive: true })
   await nextTick()
   bindPageScroll()
@@ -512,14 +471,14 @@ onBeforeRouteLeave(() => {
 
 .hero-section,
 .summary-section,
-.toolbar-section,
+.goods-header-section,
 .goods-section,
 .empty-wrap {
   padding: 0 var(--page-padding);
 }
 
 .summary-section,
-.toolbar-section,
+.goods-header-section,
 .goods-section,
 .empty-wrap {
   margin-top: var(--section-gap);
@@ -536,8 +495,7 @@ onBeforeRouteLeave(() => {
   max-width: 320px;
 }
 
-.hero-label,
-.toolbar-label {
+.hero-label {
   color: var(--app-text-tertiary);
   font-size: 13px;
   letter-spacing: 0.08em;
@@ -562,13 +520,14 @@ onBeforeRouteLeave(() => {
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   flex-shrink: 0;
+  transition: transform 0.16s ease, background 0.16s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .hero-search svg,
-.sort-toggle svg {
+.fab svg {
   width: 18px;
   height: 18px;
   stroke: currentColor;
@@ -577,114 +536,72 @@ onBeforeRouteLeave(() => {
   stroke-linejoin: round;
 }
 
-.fab svg {
-  width: 22px;
-  height: 22px;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.toolbar-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.toolbar-copy {
-  flex: 1;
-  min-width: 0;
-  order: 0;
-}
-
-.toolbar-btns {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  order: 1;
-  margin-left: auto;
-}
-
-.toolbar-title {
-  margin-top: 4px;
-  color: var(--app-text);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-}
-
-.toolbar-count {
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--app-text-tertiary);
-  margin-left: 4px;
-}
-
-.sort-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: none;
-  border-radius: 18px;
-  background: var(--app-glass);
-  color: var(--app-text-secondary);
-  box-shadow: var(--app-shadow);
-  flex-shrink: 0;
-}
-
-.sort-toggle--asc {
-  background: #141416;
-  color: #ffffff;
-}
-
-.sort-toggle--asc svg {
-  transform: rotate(180deg);
-}
-
-.density-switch {
-  flex-basis: 100%;
-  order: 2;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding: 6px;
-  border-radius: 18px;
-  background: var(--app-glass);
-  box-shadow: var(--app-shadow);
-}
-
-.density-switch__option {
-  min-width: 0;
-  height: 36px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 14px;
-  background: transparent;
-  color: var(--app-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.density-switch__option--active {
-  background: #141416;
-  color: #ffffff;
-}
-
-.density-switch__option:active,
-.sort-toggle:active,
-.fab:active {
+.hero-search:active {
   transform: scale(0.96);
 }
 
 .goods-list {
   display: grid;
   gap: var(--card-gap);
+  align-items: start;
+}
+
+.goods-view-pane {
+  transform-origin: top center;
+}
+
+.goods-view-pane--sorting {
+  animation: sort-view-refresh var(--home-motion-sort-view-duration) var(--home-motion-ease-standard);
+  will-change: opacity, transform, filter;
+}
+
+.goods-list--density-animating {
+  animation: density-grid-pulse var(--home-motion-density-duration) var(--home-motion-ease-standard);
+  transform-origin: top center;
+  will-change: opacity, transform;
+}
+
+.goods-list--density-animating :deep(.goods-card) {
+  animation: density-card-settle var(--home-motion-density-duration) var(--home-motion-ease-standard);
+  will-change: opacity, transform;
+}
+
+@keyframes density-grid-pulse {
+  0% {
+    opacity: 0.78;
+    transform: scale(0.987);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes density-card-settle {
+  0% {
+    opacity: 0.76;
+    transform: translateY(6px) scale(0.982);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sort-view-refresh {
+  0% {
+    opacity: 0.84;
+    filter: blur(1.5px) saturate(0.96);
+    transform: translateY(4px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0) saturate(1);
+    transform: translateY(0);
+  }
 }
 
 .fab {
@@ -698,30 +615,31 @@ onBeforeRouteLeave(() => {
   height: var(--fab-size);
   border: none;
   border-radius: 50%;
-  background: #c7375d;
-  color: #ffffff;
+  background: var(--app-text);
+  color: var(--app-surface);
   box-shadow: var(--app-shadow);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
   z-index: 65;
 }
 
-@media (min-width: 600px) {
-  .density-switch {
-    flex-basis: auto;
-    display: inline-grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    order: 2;
-  }
+.fab svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.2;
+}
 
-  .toolbar-btns {
-    order: 3;
-  }
+.fab:active {
+  transform: scale(0.96);
 }
 
 @media (prefers-color-scheme: dark) {
-  .sort-toggle--asc,
-  .density-switch__option--active {
-    background: #f5f5f7;
-    color: #141416;
+  .hero-search {
+    background: var(--app-glass);
+  }
+
+  .fab {
+    background: var(--app-text);
+    color: var(--app-surface);
   }
 }
 </style>

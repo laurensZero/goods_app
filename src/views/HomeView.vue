@@ -4,7 +4,7 @@
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Goods Archive</p>
-          <h1 class="hero-title">全部收藏</h1>
+          <h1 class="hero-title">收藏库</h1>
         </div>
         <button class="hero-search" type="button" aria-label="搜索" @click="$router.push('/search')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -799,6 +799,11 @@ async function applyBatchEditPayload(payload) {
   will-change: opacity, transform;
 }
 
+.goods-list--density-animating :deep(.goods-card) {
+  animation: density-card-settle var(--home-motion-density-duration) var(--home-motion-ease-standard);
+  will-change: opacity, transform;
+}
+
 @keyframes density-grid-pulse {
   0% {
     opacity: 0.78;
@@ -808,6 +813,18 @@ async function applyBatchEditPayload(payload) {
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes density-card-settle {
+  0% {
+    opacity: 0.76;
+    transform: translateY(6px) scale(0.982);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

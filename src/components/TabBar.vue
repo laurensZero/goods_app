@@ -23,7 +23,7 @@
         <path d="M12 20V4" />
         <path d="M18 20v-6" />
       </svg>
-      <span class="tab-label">排行</span>
+      <span class="tab-label">统计</span>
     </RouterLink>
 
     <RouterLink to="/manage" class="tab-item" active-class="tab-item--active">
