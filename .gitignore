@@ -3,6 +3,5 @@ dist
 .DS_Store
 *.local
 .github
-\android
 .idea
 \docs
