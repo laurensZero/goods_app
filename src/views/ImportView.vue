@@ -669,6 +669,7 @@ const batchEditForm = reactive({
   notes: '', characters: [], purchaseDate: '', variant: '',
 })
 const batchEditImages = ref([])
+const batchEditBaseImages = ref([])
 const batchEditVariants = ref([])           // SKU 变体列表 { text, key, img_url, cover_url? }
 const batchEditSelectedVariantKey = ref('') // 当前选中款式 key
 const savingAll = ref(false)
@@ -795,7 +796,8 @@ async function handleBatchImport() {
       if (result.ip && !presets.ips.includes(result.ip)) presets.addIp(result.ip)
       const detectedCat = detectCategory(result.name)
       if (detectedCat && !presets.categories.includes(detectedCat)) presets.addCategory(detectedCat)
-      const allImgs = [result.image, ...(result.banners || [])]
+      const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
+      const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
         .map(u => (u || '').split('?')[0])
         .filter(Boolean)
         .filter((u, i, arr) => arr.indexOf(u) === i)
@@ -810,6 +812,7 @@ async function handleBatchImport() {
         purchaseDate: '',
         variant: '',
         selectedVariantKey: '',
+        baseParsedImages: allImgs,
         parsedImages: allImgs,
         variants: result.variants || [],
         goodsId: result.goodsId || '',
@@ -817,16 +820,24 @@ async function handleBatchImport() {
       item.status = 'ready'
       // 异步补全 SKU cover_url + 价格（不阻塞列表显示）
       if (result.goodsId) {
-        fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, coverUrl, mainImages }) => {
-          item.data.variants = item.data.variants.map(v => ({
+        fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, skuVariants, coverUrl, mainImages }) => {
+          const sourceVariants = skuVariants.length
+            ? skuVariants
+            : item.data.variants
+          item.data.variants = sourceVariants.map(v => ({
             ...v,
             cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
-            price: skuPrices[v.key] ?? null,
+            price: v.price ?? skuPrices[v.key] ?? null,
           }))
-          const extras = mainImages
-            .map(u => (u || '').split('?')[0])
-            .filter(u => u && !item.data.parsedImages.includes(u))
-          if (extras.length) item.data.parsedImages = [...item.data.parsedImages, ...extras]
+          if (!item.data.variants.length) {
+            const extras = mainImages
+              .map(u => (u || '').split('?')[0])
+              .filter(u => u && !item.data.baseParsedImages.includes(u))
+            if (extras.length) {
+              item.data.baseParsedImages = [...item.data.baseParsedImages, ...extras]
+              item.data.parsedImages = [...item.data.baseParsedImages]
+            }
+          }
         }).catch(() => {})
       }
     } catch (e) {
@@ -853,9 +864,16 @@ function openBatchEdit(idx) {
     purchaseDate: item.data.purchaseDate,
     variant: item.data.variant || '',
   })
-  batchEditImages.value = item.data.parsedImages || []
+  batchEditBaseImages.value = [...(item.data.baseParsedImages || item.data.parsedImages || [])]
+  batchEditImages.value = [...batchEditBaseImages.value]
   batchEditVariants.value = item.data.variants || []
   batchEditSelectedVariantKey.value = item.data.selectedVariantKey || ''
+  if (batchEditSelectedVariantKey.value) {
+    const selected = batchEditVariants.value.find((variant) => variant.key === batchEditSelectedVariantKey.value)
+    if (selected) {
+      applyBatchVariantMedia(selected)
+    }
+  }
 }
 
 function saveBatchEdit() {
@@ -872,31 +890,41 @@ function saveBatchEdit() {
     purchaseDate: batchEditForm.purchaseDate,
     variant: batchEditForm.variant,
     selectedVariantKey: batchEditSelectedVariantKey.value,
+    baseParsedImages: [...batchEditBaseImages.value],
+    parsedImages: [...batchEditImages.value],
   })
   editingBatchIdx.value = -1
 }
 
 // ── 批量编辑中选择款式 ──
+function applyBatchVariantMedia(variant) {
+  const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
+  const nextImages = [...batchEditBaseImages.value]
+
+  if (raw) {
+    batchEditImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
+    batchEditForm.image = raw
+  } else {
+    batchEditImages.value = nextImages
+    batchEditForm.image = nextImages[0] || batchEditForm.image
+  }
+
+  if (variant?.price != null) {
+    batchEditForm.price = variant.price
+  }
+}
+
 function handleBatchVariantSelect(v) {
   if (batchEditSelectedVariantKey.value === v.key) {
     // 取消选中
     batchEditSelectedVariantKey.value = ''
     batchEditForm.variant = ''
+    batchEditImages.value = [...batchEditBaseImages.value]
+    batchEditForm.image = batchEditBaseImages.value[0] || ''
   } else {
     batchEditSelectedVariantKey.value = v.key
     batchEditForm.variant = displayVariantText(v.text)
-    // 优先用 cover_url，其次 img_url
-    const raw = (v.cover_url || v.img_url || '').split('?')[0]
-    if (raw) {
-      if (!batchEditImages.value.includes(raw)) {
-        batchEditImages.value.unshift(raw)
-      }
-      batchEditForm.image = raw
-    }
-    // 如果该 SKU 有独立定价则联动更新价格
-    if (v.price != null) {
-      batchEditForm.price = v.price
-    }
+    applyBatchVariantMedia(v)
   }
 }
 
@@ -933,7 +961,8 @@ async function saveAllBatch() {
   savingAll.value = false
   router.replace(isWishlistMode.value ? '/wishlist' : '/home')
 }
-const parsedImages = ref([])  // 所有可用图（cover + banners）
+const parsedImages = ref([])  // 当前商品可用图
+const parsedBaseImages = ref([])  // 不区分款式的基础图
 const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
 const selectedVariantKey = ref('')  // 当前选中的 SKU key
 const selectedVariantName = ref('')  // 选中款式清洗后的显示名
@@ -1093,11 +1122,14 @@ function normalizeSearchHintText(value) {
 
 function applySelectedVariantMedia(variant) {
   const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
+  const nextImages = [...parsedBaseImages.value]
+
   if (raw) {
-    if (!parsedImages.value.includes(raw)) {
-      parsedImages.value.unshift(raw)
-    }
+    parsedImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
     form.image = raw
+  } else {
+    parsedImages.value = nextImages
+    form.image = nextImages[0] || form.image
   }
 
   if (variant?.price != null) {
@@ -1109,15 +1141,15 @@ function autoSelectVariantByHint() {
   const hint = normalizeSearchHintText(variantSearchHint.value).toLowerCase()
   if (!hint || !parsedVariants.value.length || selectedVariantKey.value) return
 
-  const matched = parsedVariants.value.find((variant) => {
+  const matched = parsedVariants.value.filter((variant) => {
     const text = String(variant.text || '').trim().toLowerCase()
     const display = displayVariantText(variant.text).trim().toLowerCase()
     const normalizedChar = normalizeCharacterName(variant.text).trim().toLowerCase()
     return text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)
   })
 
-  if (matched) {
-    handleVariantSelect(matched)
+  if (matched.length === 1) {
+    handleVariantSelect(matched[0])
   }
 }
 
@@ -1129,6 +1161,8 @@ function handleVariantSelect(v) {
     selectedVariantName.value = ''
     selectedCharacterName.value = ''
     saveAsCharacter.value = false
+    parsedImages.value = [...parsedBaseImages.value]
+    form.image = parsedBaseImages.value[0] || ''
     applyPreferredSearchCharacter()
   } else {
     selectedVariantKey.value = v.key
@@ -1181,6 +1215,7 @@ async function handleParse() {
   parsed.value = false
   parsedVariants.value = []
   parsedImages.value = []
+  parsedBaseImages.value = []
   applyPreferredSearchCharacter()
   selectedVariantKey.value = ''
 
@@ -1193,29 +1228,37 @@ async function handleParse() {
     form.price = result.price != null ? result.price : ''
 
     // 收集所有可用图（去重，去掉 OSS resize 参数）
-    const allImgs = [result.image, ...(result.banners || [])]
+    const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
+    const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
       .map(u => (u || '').split('?')[0])  // 去 OSS resize 参数
       .filter(Boolean)
       .filter((u, i, arr) => arr.indexOf(u) === i)  // 去重
-    parsedImages.value = allImgs
+    parsedBaseImages.value = allImgs
+    parsedImages.value = [...allImgs]
     // 默认选第一张（封面）
     form.image = allImgs[0] || result.image || ''
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
     if (result.goodsId) {
-      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, skuPrices, coverUrl }) => {
+      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, skuPrices, skuVariants, coverUrl }) => {
+        const sourceVariants = skuVariants.length
+          ? skuVariants
+          : parsedVariants.value
         // 把 SKU cover_url + price 回填到对应变体
-        parsedVariants.value = parsedVariants.value.map(v => ({
+        parsedVariants.value = sourceVariants.map(v => ({
           ...v,
           cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
-          price: skuPrices[v.key] ?? null,
+          price: v.price ?? skuPrices[v.key] ?? null,
         }))
-        // 补充 main_url 图片到选择器
-        const extras = mainImages
-          .map(u => (u || '').split('?')[0])
-          .filter(u => u && !parsedImages.value.includes(u))
-        if (extras.length) {
-          parsedImages.value = [...parsedImages.value, ...extras]
+        // 多款式商品不再把整组 main_url 当成同一件商品的图片，避免不同款式混图
+        if (!parsedVariants.value.length) {
+          const extras = mainImages
+            .map(u => (u || '').split('?')[0])
+            .filter(u => u && !parsedBaseImages.value.includes(u))
+          if (extras.length) {
+            parsedBaseImages.value = [...parsedBaseImages.value, ...extras]
+            parsedImages.value = [...parsedBaseImages.value]
+          }
         }
         autoSelectVariantByHint()
         if (selectedVariantKey.value) {
@@ -2139,8 +2182,8 @@ async function handleSave() {
   margin-left: 6px;
   padding: 1px 7px;
   border-radius: 6px;
-  background: #e3f0ff;
-  color: #2070c0;
+  background: color-mix(in srgb, #4a7aec 12%, var(--app-surface-soft));
+  color: color-mix(in srgb, #4a7aec 78%, var(--app-text));
   font-size: 11px;
   font-weight: 500;
   vertical-align: middle;
@@ -2205,11 +2248,16 @@ async function handleSave() {
   min-width: 0;
   min-height: 144px;
   padding: 10px;
-  border: 2px solid rgba(20, 20, 22, 0.1);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   background: var(--app-surface);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 6%, transparent);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
 }
 
 .variant-btn:active {
@@ -2217,8 +2265,11 @@ async function handleSave() {
 }
 
 .variant-btn--selected {
-  border-color: #2070c0;
-  background: #e8f2ff;
+  border-color: color-mix(in srgb, #4a7aec 70%, var(--app-border));
+  background: color-mix(in srgb, #4a7aec 14%, var(--app-surface));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #4a7aec 40%, transparent),
+    0 10px 24px color-mix(in srgb, #4a7aec 10%, transparent);
 }
 
 .variant-img-wrap {
@@ -2226,7 +2277,7 @@ async function handleSave() {
   aspect-ratio: 1 / 1;
   border-radius: 8px;
   overflow: hidden;
-  background: #eeeef0;
+  background: var(--app-surface-soft);
 }
 
 .variant-img {
@@ -2307,9 +2358,9 @@ async function handleSave() {
   border-radius: 12px;
   overflow: hidden;
   padding: 0;
-  background: #eeeef0;
+  background: var(--app-surface-soft);
   cursor: pointer;
-  transition: border-color 0.15s, transform 0.12s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
 
 .img-picker-item:active {
@@ -2318,6 +2369,7 @@ async function handleSave() {
 
 .img-picker-item--active {
   border-color: #2070c0;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #4a7aec 36%, transparent);
 }
 
 .img-picker-item img {
@@ -2409,8 +2461,9 @@ async function handleSave() {
   justify-content: space-between;
   margin-top: 10px;
   padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, #4a7aec 18%, var(--app-border));
   border-radius: 12px;
-  background: #f0f4ff;
+  background: color-mix(in srgb, #4a7aec 10%, var(--app-surface));
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -2427,7 +2480,7 @@ async function handleSave() {
   width: 44px;
   height: 26px;
   border-radius: 13px;
-  background: #d0d0d4;
+  background: color-mix(in srgb, var(--app-text) 12%, var(--app-surface-soft));
   position: relative;
   transition: background 0.22s;
 }
@@ -2441,7 +2494,7 @@ async function handleSave() {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--app-surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
   transition: transform 0.22s cubic-bezier(0.34, 1.1, 0.64, 1);
 }
@@ -2597,16 +2650,37 @@ async function handleSave() {
 
 :global(html.theme-dark) .variant-btn {
     border-color: rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--app-surface) 94%, rgba(255, 255, 255, 0.04));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(255, 255, 255, 0.01);
   }
 
 :global(html.theme-dark) .variant-btn--selected {
-    background: rgba(74, 122, 236, 0.16);
+    border-color: rgba(109, 157, 255, 0.82);
+    background: color-mix(in srgb, #4a7aec 20%, var(--app-surface));
+    box-shadow:
+      0 0 0 1px rgba(109, 157, 255, 0.28),
+      0 14px 28px rgba(35, 71, 140, 0.22);
+  }
+
+:global(html.theme-dark) .variant-btn--selected .variant-name {
+    color: #a9c5ff;
   }
 
 :global(html.theme-dark) .variant-img-wrap,
   :global(html.theme-dark) .img-picker-item {
     background: rgba(255, 255, 255, 0.06);
+  }
+
+:global(html.theme-dark) .img-picker-item--active {
+    border-color: rgba(109, 157, 255, 0.86);
+    box-shadow: 0 0 0 1px rgba(109, 157, 255, 0.26);
+  }
+
+:global(html.theme-dark) .auto-badge {
+    background: rgba(109, 157, 255, 0.14);
+    color: #bfd4ff;
   }
 
 :global(html.theme-dark) .date-field {
@@ -2631,15 +2705,20 @@ async function handleSave() {
   }
 
 :global(html.theme-dark) .save-char-row {
-    background: rgba(74, 122, 236, 0.12);
+    border-color: rgba(109, 157, 255, 0.18);
+    background: color-mix(in srgb, #4a7aec 14%, rgba(255, 255, 255, 0.04));
+  }
+
+:global(html.theme-dark) .save-char-label {
+    color: var(--app-text);
   }
 
 :global(html.theme-dark) .save-char-toggle {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.14);
   }
 
 :global(html.theme-dark) .save-char-knob {
-    background: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.94);
   }
 
 :global(html.theme-dark) .batch-edit-backdrop {

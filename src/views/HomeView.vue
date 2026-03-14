@@ -30,10 +30,13 @@
       <HomeGoodsToolbar
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
+        :sort-mode="sortMode"
+        :sort-options="HOME_SORT_OPTIONS"
         :is-sort-animating="isSortAnimating"
         :display-density="displayDensity"
         :density-modes="densityModes"
         @toggle-sort="toggleSortDirection"
+        @set-sort-mode="setSortMode"
         @toggle-timeline="toggleTimelineMode"
         @set-density="setDisplayDensity"
       />
@@ -151,6 +154,7 @@ import { useHomeGoodsList } from '@/composables/useHomeGoodsList'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
+import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/SummaryCard.vue'
@@ -200,6 +204,7 @@ const {
   densityModes,
   displayDensity,
   sortDirection,
+  sortMode,
   expandedTimelineItemId,
   isDensityAnimating,
   isSortAnimating,
@@ -207,6 +212,7 @@ const {
   setDisplayDensity,
   toggleTimelineMode,
   toggleSortDirection,
+  setSortMode,
   toggleExpandedTimelineItem,
   clearExpandedTimelineItem,
   restoreHomePreferences
@@ -226,7 +232,8 @@ const {
   restoreActivatedScrollPosition,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
-  resetStoredScrollOnReload
+  resetStoredScrollOnReload,
+  cancelPendingRestore
 } = useHomeScrollRestore(pageBodyRef)
 const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
@@ -490,6 +497,8 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isHomeActive.value = false
+  cancelPendingRestore()
+  rememberCurrentScrollPosition()
   if (readScrollTop() > 1) {
     homeDisplayReady.value = false
   }
@@ -499,6 +508,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelPendingRestore()
   window.removeEventListener('resize', _onResize)
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)
@@ -515,7 +525,7 @@ onBeforeRouteLeave(() => {
   saveScrollPosition(true, 'home:onBeforeRouteLeave')
 })
 
-const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortDirection)
+const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)
 
 const visibleGoodsCount = ref(0)
 const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
@@ -563,7 +573,7 @@ const preloadTargetList = computed(() =>
 )
 
 watch(
-  [() => goodsList.value.length, displayDensity, sortDirection, windowWidth],
+  [() => goodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
   () => {
     syncVisibleGoodsCount(readScrollTop())
     syncVisibleTimelineMonthCount(readScrollTop())

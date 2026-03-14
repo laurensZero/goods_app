@@ -81,6 +81,104 @@ export function isMihoyoGiftUrl(url) {
   return extractGoodsId(url) != null
 }
 
+function normalizeSaleAttrGroups(rawSaleAttrs) {
+  const groups = Array.isArray(rawSaleAttrs)
+    ? rawSaleAttrs
+    : (rawSaleAttrs ? [rawSaleAttrs] : [])
+
+  return groups
+    .map((group) => ({
+      name: String(group?.name || '').trim(),
+      key: String(group?.key || '').trim(),
+      content: Array.isArray(group?.content)
+        ? group.content
+            .filter((item) => String(item?.text || '').trim() && String(item?.key || '').trim())
+            .map((item) => ({
+              text: String(item.text || '').trim(),
+              key: String(item.key || '').trim(),
+              img_url: item.img_url || '',
+              cover_url: item.cover_url || '',
+            }))
+        : [],
+    }))
+    .filter((group) => group.content.length > 0)
+}
+
+function buildVariantFromSelections(selections, overrides = {}) {
+  const texts = selections.map((item) => item.text).filter(Boolean)
+  const keys = selections.map((item) => item.key).filter(Boolean)
+  const media = selections.find((item) => item.cover_url || item.img_url) || {}
+
+  return {
+    text: texts.join(' / '),
+    key: keys.join('_'),
+    img_url: overrides.img_url ?? media.img_url ?? '',
+    cover_url: overrides.cover_url ?? media.cover_url ?? media.img_url ?? '',
+    price: overrides.price ?? null,
+  }
+}
+
+function buildSaleAttrVariants(rawSaleAttrs) {
+  const groups = normalizeSaleAttrGroups(rawSaleAttrs)
+  if (!groups.length) return []
+
+  if (groups.length === 1) {
+    return groups[0].content.map((item) => buildVariantFromSelections([item]))
+  }
+
+  const variants = []
+  const walk = (groupIndex, selections) => {
+    if (groupIndex >= groups.length) {
+      variants.push(buildVariantFromSelections(selections))
+      return
+    }
+
+    for (const item of groups[groupIndex].content) {
+      walk(groupIndex + 1, [...selections, item])
+    }
+  }
+
+  walk(0, [])
+  return variants
+}
+
+function buildSkuVariantsFromDetail(detail) {
+  const groups = normalizeSaleAttrGroups(detail?.sale_attrs)
+  if (!groups.length) return []
+
+  const keyToAttr = new Map()
+  for (const group of groups) {
+    for (const item of group.content) {
+      keyToAttr.set(item.key, item)
+    }
+  }
+
+  const variants = []
+  const skus = detail?.skus && typeof detail.skus === 'object'
+    ? Object.entries(detail.skus)
+    : []
+
+  for (const [skuKey, sku] of skus) {
+    const partKeys = String(skuKey || '')
+      .split('_')
+      .map((part) => part.trim())
+      .filter(Boolean)
+    const selections = partKeys
+      .map((partKey) => keyToAttr.get(partKey))
+      .filter(Boolean)
+
+    if (!selections.length) continue
+
+    const rawSkuPrice = sku?.price ?? sku?.sale_price ?? sku?.activity_price ?? sku?.actual_price
+    variants.push(buildVariantFromSelections(selections, {
+      cover_url: sku?.cover_url || '',
+      price: rawSkuPrice != null && rawSkuPrice > 0 ? rawSkuPrice / 100 : null,
+    }))
+  }
+
+  return variants.length ? variants : buildSaleAttrVariants(groups)
+}
+
 /**
  * 解析米游铺商品链接
  * - 原生 Android/iOS：使用 CapacitorHttp（直连，无 CORS 限制）
@@ -132,22 +230,7 @@ export async function parseMihoyoUrl(url) {
 
   // sale_attrs 是数组，每个元素有 name + content[]
   // 例：[{ name: "角色", content: [{text, key, img_url}, ...], is_open }]
-  const variants = []
-  const attrGroups = Array.isArray(detail.sale_attrs)
-    ? detail.sale_attrs
-    : (detail.sale_attrs ? [detail.sale_attrs] : [])
-
-  for (const group of attrGroups) {
-    if (!group.content?.length) continue
-    for (const item of group.content) {
-      if (item.text) variants.push({
-        text: item.text,
-        key: item.key || '',
-        img_url: item.img_url || '',
-        cover_url: item.cover_url || '',
-      })
-    }
-  }
+  const variants = buildSaleAttrVariants(detail.sale_attrs)
 
   return {
     raw: detail.name,
@@ -198,7 +281,7 @@ export async function fetchGoodsDetail(goodsId) {
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
       const res = await fetch(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
-      if (!res.ok) return { mainImages: [], skuCovers: {}, coverUrl: '' }
+      if (!res.ok) return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '' }
       json = await res.json()
     }
     const detail =
@@ -211,6 +294,7 @@ export async function fetchGoodsDetail(goodsId) {
       : Array.isArray(detail?.banner_url)
         ? detail.banner_url
         : []
+    const skuVariants = buildSkuVariantsFromDetail(detail)
     // skus 是以 key 为属性名的对象，每条有 cover_url 和 price（单位：分）
     const skuCovers = {}
     const skuPrices = {}  // { [key]: priceYuan }
@@ -251,9 +335,9 @@ export async function fetchGoodsDetail(goodsId) {
         }
       }
     }
-    return { mainImages, skuCovers, skuPrices, coverUrl: detail?.cover_url || '' }
+    return { mainImages, skuCovers, skuPrices, skuVariants, coverUrl: detail?.cover_url || '' }
   } catch {
-    return { mainImages: [], skuCovers: {}, skuPrices: {}, coverUrl: '' }
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '' }
   }
 }
 
@@ -282,18 +366,7 @@ export async function fetchGoodsVariants(goodsId) {
     }
     if (json.retcode !== 0) return []
     const detail = json?.data?.detail
-    const variants = []
-    for (const group of (detail?.sale_attrs || [])) {
-      if (!group.content?.length) continue
-      for (const item of group.content) {
-        if (item.text) variants.push({
-          text:      item.text,
-          key:       item.key || '',
-          cover_url: item.cover_url || item.img_url || '',
-        })
-      }
-    }
-    return variants
+    return buildSaleAttrVariants(detail?.sale_attrs)
   } catch {
     return []
   }

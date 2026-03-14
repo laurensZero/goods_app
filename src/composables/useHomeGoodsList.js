@@ -1,22 +1,11 @@
 import { computed } from 'vue'
+import { sortHomeGoodsList } from '@/utils/homeSort'
 
-export function useHomeGoodsList(store, sortDirection) {
+export function useHomeGoodsList(store, sortMode, sortDirection) {
   const listData = computed(() => {
-    const items = [...store.collectionViewList]
+    const items = sortHomeGoodsList(store.collectionViewList, sortMode.value, sortDirection.value)
     let totalVal = 0
     let totalQty = 0
-
-    items.sort((a, b) => {
-      if (a.acquiredTime !== b.acquiredTime) {
-        return sortDirection.value === 'asc'
-          ? a.acquiredTime - b.acquiredTime
-          : b.acquiredTime - a.acquiredTime
-      }
-
-      return sortDirection.value === 'asc'
-        ? a.sortId.localeCompare(b.sortId)
-        : b.sortId.localeCompare(a.sortId)
-    })
 
     for (let i = 0; i < items.length; i++) {
         totalVal += items[i].totalValueNumber

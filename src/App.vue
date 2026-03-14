@@ -91,11 +91,15 @@ function getSceneKey(currentRoute) {
   min-height: inherit;
   overflow: hidden;
   isolation: isolate;
+  background-color: var(--app-bg);
+  background: var(--app-bg-gradient);
 }
 
 .route-scene {
   min-height: inherit;
   backface-visibility: hidden;
+  background-color: var(--app-bg);
+  background: var(--app-bg-gradient);
 }
 
 .route-forward-enter-active,

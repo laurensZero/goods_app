@@ -180,10 +180,11 @@ async function tryFetch(url) {
       return
     }
     // 并行获取 SKU 封面图（sale_attrs.content 里的 cover_url/img_url 通常为空）
-    const { skuCovers, coverUrl: mainCover } = await fetchGoodsDetail(result.goodsId).catch(() => ({ skuCovers: {}, coverUrl: '' }))
+    const { skuCovers, skuVariants, coverUrl: mainCover } = await fetchGoodsDetail(result.goodsId).catch(() => ({ skuCovers: {}, skuVariants: [], coverUrl: '' }))
     // 合并封面：skuCovers[key] > cover_url > img_url > 商品主图
     const fallback = mainCover || result.image || ''
-    variants.value = result.variants.map(v => ({
+    const sourceVariants = skuVariants.length ? skuVariants : result.variants
+    variants.value = sourceVariants.map(v => ({
       ...v,
       cover_url: skuCovers[v.key] || v.cover_url || v.img_url || fallback,
     }))
@@ -191,10 +192,13 @@ async function tryFetch(url) {
     const hint = props.hint?.trim().toLowerCase()
     let matched = null
     if (hint) {
-      matched = variants.value.find(v => {
+      const matchedList = variants.value.filter(v => {
         const t = (v.text ?? '').toLowerCase()
         return t.includes(hint) || hint.includes(t)
       })
+      if (matchedList.length === 1) {
+        matched = matchedList[0]
+      }
     }
     const picked = matched ?? variants.value[0]
     selectedKey.value = picked.key

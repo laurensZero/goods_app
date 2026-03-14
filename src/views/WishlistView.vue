@@ -39,11 +39,14 @@
         title="全部目标"
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
+        :sort-mode="sortMode"
+        :sort-options="HOME_SORT_OPTIONS"
         :is-sort-animating="isSortAnimating"
         :display-density="displayDensity"
         :density-modes="densityModes"
         :show-timeline-toggle="false"
         @toggle-sort="toggleSortDirection"
+        @set-sort-mode="setSortMode"
         @set-density="setDisplayDensity"
       />
 
@@ -143,6 +146,7 @@ import ScrollTopButton from '@/components/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
+import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -170,17 +174,20 @@ const {
   densityModes,
   displayDensity,
   sortDirection,
+  sortMode,
   isDensityAnimating,
   isSortAnimating,
   getResponsiveCols,
   setDisplayDensity,
   toggleSortDirection,
+  setSortMode,
   restoreHomePreferences
 } = useHomePreferences(windowWidth, {
   allowTimeline: false,
   storageKeys: {
     gridDensity: 'goods-app:wishlist-grid-density',
     sortDirection: 'goods-app:wishlist-sort-direction',
+    sortMode: 'goods-app:wishlist-sort-mode',
     expandedTimelineItem: 'goods-app:wishlist-expanded-item-unused'
   }
 })
@@ -197,7 +204,8 @@ const {
   restoreActivatedScrollPosition,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
-  resetStoredScrollOnReload
+  resetStoredScrollOnReload,
+  cancelPendingRestore
 } = useWishlistScrollRestore(pageBodyRef)
 
 const baseGoodsList = computed(() => store.wishlistViewList)
@@ -208,23 +216,7 @@ const totalValue = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
 ))
 
-const goodsList = computed(() => {
-  const items = [...baseGoodsList.value]
-
-  items.sort((a, b) => {
-    if (a.acquiredTime !== b.acquiredTime) {
-      return sortDirection.value === 'asc'
-        ? a.acquiredTime - b.acquiredTime
-        : b.acquiredTime - a.acquiredTime
-    }
-
-    return sortDirection.value === 'asc'
-      ? a.sortId.localeCompare(b.sortId)
-      : b.sortId.localeCompare(a.sortId)
-  })
-
-  return items
-})
+const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
 
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
@@ -430,6 +422,8 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isWishlistActive.value = false
+  cancelPendingRestore()
+  rememberCurrentScrollPosition()
   if (readScrollTop() > 1) {
     wishlistDisplayReady.value = false
   }
@@ -439,6 +433,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelPendingRestore()
   window.removeEventListener('resize', handleResize)
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)

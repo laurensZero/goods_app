@@ -83,8 +83,12 @@ export const useThemeStore = defineStore('theme', () => {
     if (!canUseDom()) return
 
     const root = document.documentElement
+    const body = document.body
+    const appRoot = document.getElementById('app')
     const appearance = appliedAppearance.value
     const tokens = themeDefinition.value.appearances[appearance]
+    const bgColor = tokens['--app-bg']
+    const bgGradient = tokens['--app-bg-gradient'] || bgColor
 
     root.classList.toggle('theme-dark', appearance === 'dark')
     root.classList.toggle('theme-light', appearance !== 'dark')
@@ -94,6 +98,21 @@ export const useThemeStore = defineStore('theme', () => {
 
     for (const [token, value] of Object.entries(tokens)) {
       root.style.setProperty(token, value)
+    }
+
+    // Force Android WebView to repaint the root layers with the current theme
+    // so cold starts do not briefly show the host window background at the corners.
+    root.style.backgroundColor = bgColor
+    root.style.background = bgGradient
+
+    if (body) {
+      body.style.backgroundColor = bgColor
+      body.style.background = bgGradient
+    }
+
+    if (appRoot) {
+      appRoot.style.backgroundColor = bgColor
+      appRoot.style.background = bgGradient
     }
   }
 
