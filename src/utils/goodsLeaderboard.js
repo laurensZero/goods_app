@@ -9,7 +9,6 @@ export const LEADERBOARD_DIMENSION_OPTIONS = [
 export const LEADERBOARD_METRIC_OPTIONS = [
   { label: '总件数', value: 'quantity' },
   { label: '总花费', value: 'totalValue' },
-  { label: '条目数', value: 'itemCount' },
   { label: '均价', value: 'averageUnitPrice' }
 ]
 
@@ -173,8 +172,6 @@ export function formatLeaderboardMetricValue(entry, metric) {
   switch (metric) {
     case 'totalValue':
       return `¥ ${Number(entry.totalValue || 0).toFixed(2)}`
-    case 'itemCount':
-      return `${Number(entry.itemCount || 0)} 条`
     case 'averageUnitPrice':
       return `¥ ${Number(entry.averageUnitPrice || 0).toFixed(2)}`
     case 'quantity':

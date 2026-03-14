@@ -108,7 +108,9 @@ img {
 
 .page-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   scrollbar-width: none;
 }

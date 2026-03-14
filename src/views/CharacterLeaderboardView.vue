@@ -91,7 +91,6 @@
               <div class="ranking-meta">
                 <span class="ranking-chip">{{ entry.quantity }} 件</span>
                 <span class="ranking-chip">¥ {{ entry.totalValue.toFixed(2) }}</span>
-                <span class="ranking-chip">{{ entry.itemCount }} 条</span>
                 <span class="ranking-chip">均价 ¥ {{ entry.averageUnitPrice.toFixed(2) }}</span>
               </div>
             </div>

@@ -210,10 +210,20 @@
                 </div>
 
                 <div v-if="characterOptions.length" class="field-block">
-                  <label class="field-label">角色</label>
+                  <div class="field-head">
+                    <label class="field-label">角色</label>
+                    <button
+                      v-if="hasCollapsedCharacterOptions"
+                      class="field-toggle"
+                      type="button"
+                      @click="showAllCharacterOptions = !showAllCharacterOptions"
+                    >
+                      {{ showAllCharacterOptions ? '收起角色' : '展开角色' }}
+                    </button>
+                  </div>
                   <div class="chip-wrap">
                     <button
-                      v-for="option in characterOptions"
+                      v-for="option in visibleCharacterOptions"
                       :key="option.value"
                       type="button"
                       :class="['chip', { 'chip--active': filters.characters.includes(option.value) }]"
@@ -413,6 +423,28 @@ const characterOptions = computed(() => buildOptionList(
     ? { label: '未设置角色', value: GOODS_FILTER_SPECIAL_VALUES.noCharacter }
     : null
 ))
+
+const showAllCharacterOptions = ref(false)
+const hasCollapsedCharacterOptions = computed(() => (
+  characterOptions.value.some((option) => option.value !== GOODS_FILTER_SPECIAL_VALUES.noCharacter)
+))
+const visibleCharacterOptions = computed(() => {
+  if (showAllCharacterOptions.value) return characterOptions.value
+
+  return characterOptions.value.filter((option) => (
+    option.value === GOODS_FILTER_SPECIAL_VALUES.noCharacter
+  ))
+})
+
+watch(
+  () => filters.characters.slice(),
+  (selectedValues) => {
+    if (selectedValues.some((value) => value !== GOODS_FILTER_SPECIAL_VALUES.noCharacter)) {
+      showAllCharacterOptions.value = true
+    }
+  },
+  { immediate: true }
+)
 
 const hasUnassignedStorageLocation = computed(() => (
   sourceList.value.some((item) => !normalizeStorageLocationValue(item.storageLocation))
@@ -890,12 +922,29 @@ onBeforeRouteLeave((to) => {
   flex-wrap: wrap;
 }
 
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .section-label,
 .field-label {
   color: var(--app-text-tertiary);
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.field-toggle {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .section-title {

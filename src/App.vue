@@ -96,7 +96,6 @@ function getSceneKey(currentRoute) {
 .route-scene {
   min-height: inherit;
   backface-visibility: hidden;
-  contain: paint;
 }
 
 .route-forward-enter-active,

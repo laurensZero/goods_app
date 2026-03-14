@@ -171,7 +171,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeMount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { getCachedImage } from '@/utils/imageCache'
@@ -214,13 +214,6 @@ const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).t
 const variantText = computed(() => getGoodsVariant(item.value))
 
 const cachedImgSrc = ref('')
-const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
-
-function setDetailWindowScrollLock(locked) {
-  document.documentElement.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, locked)
-  document.body.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, locked)
-}
-
 function setWindowScrollTop(top = 0) {
   try { document.documentElement.scrollTop = top } catch {}
   try { document.body.scrollTop = top } catch {}
@@ -302,7 +295,6 @@ async function markAsOwned() {
 }
 
 onBeforeMount(() => {
-  setDetailWindowScrollLock(true)
   setWindowScrollTop(0)
 })
 
@@ -319,10 +311,6 @@ watch(
   }
 )
 
-onBeforeUnmount(() => {
-  setDetailWindowScrollLock(false)
-})
-
 function getImageKindLabel(kind) {
   return GOODS_IMAGE_KIND_OPTIONS.find((option) => option.value === kind)?.label || '图片'
 }
@@ -330,6 +318,11 @@ function getImageKindLabel(kind) {
 </script>
 
 <style scoped>
+.detail-page {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .detail-shell {
   display: flex;
   flex-direction: column;

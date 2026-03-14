@@ -146,11 +146,6 @@
             </li>
           </ul>
 
-          <div class="bottom-bar" v-if="processedGroups.length > 0">
-            <button class="primary-btn" type="button" :disabled="selectedSet.size === 0" @click="doImport">
-              导入 {{ selectedSet.size > 0 ? `${selectedSet.size} 件` : '' }}{{ isWishlistMode ? '心愿' : '谷子' }}
-            </button>
-          </div>
         </section>
 
         <section v-else key="done" class="step-section step-section--center">
@@ -168,6 +163,12 @@
         </section>
       </Transition>
     </main>
+
+    <div v-if="step === 'list' && processedGroups.length > 0" class="bottom-bar">
+      <button class="primary-btn" type="button" :disabled="selectedSet.size === 0" @click="doImport">
+        确定导入
+      </button>
+    </div>
   </div>
 </template>
 
@@ -228,7 +229,7 @@ const processedGroups = computed(() =>
           normalizedItem._isEffective = true
           normalizedItem._reason = ''
         } else if (isWishlistMode.value && normalizedItem._soldOut && !String(normalizedItem._reason || '').trim()) {
-          normalizedItem._reason = '已售罄'
+          normalizedItem._reason = '商品已售罄'
         }
 
         const key = buildGoodsIdentityKey(normalizedItem)
@@ -412,6 +413,7 @@ async function doImport() {
 
 .step-section--list {
   gap: 0;
+  padding-bottom: calc(88px + max(env(safe-area-inset-bottom), 16px));
 }
 
 .info-card {
@@ -829,14 +831,11 @@ async function doImport() {
 
 .bottom-bar {
   position: fixed;
-  bottom: 0;
+  bottom: max(env(safe-area-inset-bottom), 12px);
   left: 50%;
-  width: min(100%, 430px);
+  width: min(calc(100% - 32px), calc(430px - 32px));
   transform: translateX(-50%);
-  padding: 12px 16px max(env(safe-area-inset-bottom), 16px);
-  background: linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0));
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  padding: 0;
   z-index: 50;
 }
 
@@ -924,7 +923,7 @@ async function doImport() {
   }
 
   .bottom-bar {
-    background: linear-gradient(to top, rgba(15, 15, 16, 0.82) 60%, rgba(15, 15, 16, 0));
+    background: none;
   }
 }
 </style>

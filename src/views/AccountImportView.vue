@@ -206,17 +206,6 @@
             </li>
           </ul>
 
-          <!-- 底部导入按钮 -->
-          <div class="bottom-bar">
-            <button
-              class="primary-btn"
-              type="button"
-              :disabled="selectedSet.size === 0"
-              @click="doImport"
-            >
-              导入 {{ selectedSet.size > 0 ? `${selectedSet.size} 件` : '' }}谷子
-            </button>
-          </div>
         </section>
 
         <!-- ========== Step: done ========== -->
@@ -236,6 +225,17 @@
       </Transition>
 
     </main>
+
+    <div v-if="step === 'orders'" class="bottom-bar">
+      <button
+        class="primary-btn"
+        type="button"
+        :disabled="selectedSet.size === 0"
+        @click="doImport"
+      >
+        导入 {{ selectedSet.size > 0 ? `${selectedSet.size} 件` : '' }}谷子
+      </button>
+    </div>
   </div>
 </template>
 
@@ -1205,14 +1205,11 @@ kbd {
 /* Bottom sticky bar */
 .bottom-bar {
   position: fixed;
-  bottom: 0;
+  bottom: max(env(safe-area-inset-bottom), 12px);
   left: 50%;
-  width: min(100%, 430px);
+  width: min(calc(100% - 32px), calc(430px - 32px));
   transform: translateX(-50%);
-  padding: 12px 16px max(env(safe-area-inset-bottom), 16px);
-  background: linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0));
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  padding: 0;
   z-index: 50;
 }
 
@@ -1311,7 +1308,7 @@ kbd {
 
   /* 底部操作栏渐变深色 */
   .bottom-bar {
-    background: linear-gradient(to top, rgba(15, 15, 16, 0.97) 60%, rgba(15, 15, 16, 0));
+    background: none;
   }
 
   /* 输入框深色边框 */
@@ -1393,9 +1390,7 @@ kbd {
   }
 
   .bottom-bar {
-    background: linear-gradient(to top, rgba(15, 15, 16, 0.82) 60%, rgba(15, 15, 16, 0));
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    background: none;
   }
 
   .check-dot--on {
