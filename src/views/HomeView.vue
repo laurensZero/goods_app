@@ -490,6 +490,9 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isHomeActive.value = false
+  if (readScrollTop() > 1) {
+    homeDisplayReady.value = false
+  }
   exitSelectionModeQuiet()
   unbindSelectionHeaderScroll()
   unbindAndroidBackButton()

@@ -1,6 +1,6 @@
 <template>
   <div class="page leaderboard-page">
-    <main class="page-body">
+    <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Character Ranking</p>
@@ -84,13 +84,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import EmptyState from '@/components/EmptyState.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
+const pageBodyRef = ref(null)
 
 const metrics = [
   { value: 'quantity', label: '总数量' },
@@ -98,6 +99,25 @@ const metrics = [
 ]
 
 const selectedMetric = ref('quantity')
+
+function resetPageScrollTop() {
+  try {
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    window.scrollTo(0, 0)
+  } catch {
+    // ignore scroll reset failures in non-browser contexts
+  }
+
+  if (pageBodyRef.value) {
+    pageBodyRef.value.scrollTop = 0
+  }
+}
+
+onMounted(() => {
+  resetPageScrollTop()
+  window.requestAnimationFrame(resetPageScrollTop)
+})
 
 const characterStats = computed(() => {
   const map = new Map()

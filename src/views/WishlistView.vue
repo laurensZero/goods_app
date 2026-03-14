@@ -471,6 +471,9 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isWishlistActive.value = false
+  if (readScrollTop() > 1) {
+    wishlistDisplayReady.value = false
+  }
   exitSelectionModeQuiet()
   unbindPageScroll()
   unbindAndroidBackButton()

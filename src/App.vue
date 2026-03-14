@@ -96,7 +96,7 @@ function getSceneKey(currentRoute) {
 .route-scene {
   min-height: inherit;
   backface-visibility: hidden;
-  transform: translateZ(0);
+  contain: paint;
 }
 
 .route-forward-enter-active,
@@ -104,29 +104,27 @@ function getSceneKey(currentRoute) {
 .route-back-enter-active,
 .route-back-leave-active {
   transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms ease;
+    transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 170ms ease;
   will-change: transform, opacity;
 }
 
 .route-forward-enter-from {
   opacity: 0;
-  transform: translate3d(28px, 0, 0);
+  transform: translate3d(12px, 0, 0);
 }
 
 .route-forward-leave-to {
   opacity: 0;
-  transform: translate3d(-10px, 0, 0);
 }
 
 .route-back-enter-from {
   opacity: 0;
-  transform: translate3d(-18px, 0, 0);
+  transform: translate3d(-10px, 0, 0);
 }
 
 .route-back-leave-to {
   opacity: 0;
-  transform: translate3d(22px, 0, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -149,10 +147,8 @@ function getSceneKey(currentRoute) {
 .tab-bar.tabbar-forward-leave-active,
 .tab-bar.tabbar-back-enter-active,
 .tab-bar.tabbar-back-leave-active {
-  transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms ease;
-  will-change: transform, opacity;
+  transition: opacity 160ms ease;
+  will-change: opacity;
 }
 
 .tab-bar.tabbar-forward-enter-from,
@@ -160,8 +156,6 @@ function getSceneKey(currentRoute) {
 .tab-bar.tabbar-back-enter-from,
 .tab-bar.tabbar-back-leave-to {
   opacity: 0;
-  --tab-bar-shift-y: calc(100% + 16px);
-  --tab-bar-scale: 0.98;
 }
 
 @media (prefers-reduced-motion: reduce) {

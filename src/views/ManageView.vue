@@ -1,6 +1,6 @@
 <template>
   <div class="page manage-page">
-    <main class="page-body">
+    <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Presets & Data</p>
@@ -148,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
@@ -159,10 +159,30 @@ import { isLocalImageUri, readLocalImageAsDataUrl, restoreLocalImageFromDataUrl 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
 
+const pageBodyRef = ref(null)
 const importFileRef = ref(null)
 const toastMsg = ref('')
 let toastTimer = null
 const BACKUP_DIR = 'GoodsAppBackup'
+
+function resetPageScrollTop() {
+  try {
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    window.scrollTo(0, 0)
+  } catch {
+    // ignore scroll reset failures in non-browser contexts
+  }
+
+  if (pageBodyRef.value) {
+    pageBodyRef.value.scrollTop = 0
+  }
+}
+
+onMounted(() => {
+  resetPageScrollTop()
+  window.requestAnimationFrame(resetPageScrollTop)
+})
 
 function showToast(message, duration = 2600) {
   toastMsg.value = message

@@ -118,7 +118,14 @@ if ('scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual'
 }
 
-const MANUAL_SCROLL_RESTORE_ROUTES = new Set(['home', 'search', 'wishlist', 'detail'])
+const MANUAL_SCROLL_RESTORE_ROUTES = new Set([
+  'home',
+  'search',
+  'wishlist',
+  'detail',
+  'character-leaderboard',
+  'manage'
+])
 
 const router = createRouter({
   history: createWebHashHistory(),
