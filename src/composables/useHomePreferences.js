@@ -2,6 +2,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 
 const DEFAULT_STORAGE_KEYS = {
+  displayMode: 'goods-app:home-display-mode',
   gridDensity: 'goods-app:home-grid-density',
   sortDirection: 'goods-app:home-sort-direction',
   expandedTimelineItem: 'goods-app:home-timeline-expanded-item'
@@ -41,6 +42,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     storageKeys = DEFAULT_STORAGE_KEYS,
     allowTimeline = true
   } = options
+  const displayModeStorageKey = storageKeys.displayMode || storageKeys.gridDensity
   const displayDensity = ref('comfortable')
   const sortDirection = ref('desc')
   const expandedTimelineItemId = ref(null)
@@ -108,7 +110,17 @@ export function useHomePreferences(windowWidth, options = {}) {
   }
 
   function restoreDisplayDensity() {
-    const storedDensity = localStorage.getItem(storageKeys.gridDensity)
+    const storedDisplayMode = localStorage.getItem(displayModeStorageKey)
+    if (allowTimeline && storedDisplayMode === 'timeline') {
+      const storedGridDensity = localStorage.getItem(storageKeys.gridDensity)
+      if (storedGridDensity && densityModes.find((mode) => mode.value === storedGridDensity)) {
+        lastNonTimelineDensity = storedGridDensity
+      }
+      displayDensity.value = 'timeline'
+      return
+    }
+
+    const storedDensity = storedDisplayMode || localStorage.getItem(storageKeys.gridDensity)
     if (!storedDensity || !densityModes.find((mode) => mode.value === storedDensity)) return
 
     lastNonTimelineDensity = storedDensity
@@ -144,7 +156,12 @@ export function useHomePreferences(windowWidth, options = {}) {
     expandedTimelineItemId.value = null
   }
 
+  // Restore synchronously during setup so keep-alive pages don't flash
+  // the default grid mode for one frame before switching back to timeline.
+  restoreHomePreferences()
+
   watch(displayDensity, (value) => {
+    localStorage.setItem(displayModeStorageKey, value)
     if (value === 'timeline') return
     lastNonTimelineDensity = value
     localStorage.setItem(storageKeys.gridDensity, value)
