@@ -3,9 +3,9 @@
     <div class="tl-expand-inner">
       <div class="tl-expand-left">
         <LazyCachedImage
-          v-if="item.image"
+          v-if="item.coverImage"
           class="tl-expand-img"
-          :src="item.image"
+          :src="item.coverImage"
           :alt="item.name"
           root-margin="48px 0px"
         />

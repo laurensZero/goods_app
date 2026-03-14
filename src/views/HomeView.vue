@@ -572,7 +572,7 @@ watch(
 )
 
 watch(
-  () => preloadTargetList.value.map((item) => item.image).filter(Boolean),
+  () => preloadTargetList.value.map((item) => item.coverImage).filter(Boolean),
   (urls) => {
     if (urls.length) preloadImages(urls)
   },

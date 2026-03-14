@@ -21,7 +21,13 @@
       @paste="onNativePaste"
     />
     <!-- 从相册/文件选择图片 -->
-    <button class="mhpicker-upload-btn" type="button" :disabled="uploading" @click="triggerUpload">
+    <button
+      v-if="allowLocalUpload"
+      class="mhpicker-upload-btn"
+      type="button"
+      :disabled="uploading"
+      @click="triggerUpload"
+    >
       <svg v-if="!uploading" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="3"/>
@@ -33,7 +39,14 @@
         <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
       </svg>
     </button>
-    <input ref="fileInputRef" type="file" accept="image/*" class="mhpicker-hidden-input" @change="onFileChange" />
+    <input
+      v-if="allowLocalUpload"
+      ref="fileInputRef"
+      type="file"
+      accept="image/*"
+      class="mhpicker-hidden-input"
+      @change="onFileChange"
+    />
   </div>
 
   <div v-if="fetchState === 'loading'" class="mhpicker-hint">
@@ -73,6 +86,7 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   /** 角色/款式提示词，用于自动匹配默认款式 */
   hint: { type: String, default: '' },
+  allowLocalUpload: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['update:modelValue'])

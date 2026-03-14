@@ -11,6 +11,7 @@
     "open:android": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/camera": "^8.0.2",
     "@capacitor-community/sqlite": "^8.0.1",
     "@capacitor/android": "^8.2.0",
     "@capacitor/app": "^8.0.1",

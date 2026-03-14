@@ -35,7 +35,7 @@
         <div v-if="store.trashViewList.length > 0" class="trash-list">
           <article v-for="item in store.trashViewList" :key="item.id" class="trash-card">
             <div class="trash-thumb">
-              <img v-if="item.image" :src="item.image" :alt="item.name" loading="lazy" />
+              <img v-if="item.coverImage" :src="item.coverImage" :alt="item.name" loading="lazy" />
               <span v-else>{{ item.name.trim().charAt(0).toUpperCase() || '谷' }}</span>
             </div>
 

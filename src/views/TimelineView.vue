@@ -50,9 +50,9 @@
                 @click="router.push(`/detail/${item.id}`)"
               >
                 <img
-                  v-if="item.image"
+                  v-if="item.coverImage"
                   class="thumb-img"
-                  :src="item.image"
+                  :src="item.coverImage"
                   :alt="item.name"
                   loading="lazy"
                 />
@@ -81,9 +81,9 @@
               @click="router.push(`/detail/${item.id}`)"
             >
               <img
-                v-if="item.image"
+                v-if="item.coverImage"
                 class="thumb-img"
-                :src="item.image"
+                :src="item.coverImage"
                 :alt="item.name"
                 loading="lazy"
               />

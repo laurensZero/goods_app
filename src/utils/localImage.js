@@ -47,6 +47,35 @@ export async function saveLocalImage(file) {
   }
 }
 
+export async function pickLinkedLocalImage() {
+  if (Capacitor.isNativePlatform()) {
+    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
+    const photo = await Camera.getPhoto({
+      source: CameraSource.Photos,
+      resultType: CameraResultType.Uri,
+      quality: 95
+    })
+
+    const uri = String(photo.webPath || photo.path || '').trim()
+    if (!uri) return null
+
+    return {
+      uri,
+      localPath: String(photo.path || '').trim(),
+      storageMode: 'linked-local'
+    }
+  }
+
+  const file = await _pickBrowserImageFile()
+  if (!file) return null
+
+  return {
+    uri: await _fileToDataUrl(file),
+    localPath: '',
+    storageMode: 'inline-local'
+  }
+}
+
 /**
  * 判断一个图片 URI 是否为本地图片（capacitor:// 原生 URI 或 data: base64 URL）。
  * Capacitor < 4 Android/iOS 返回 capacitor:// 前缀；
@@ -154,5 +183,21 @@ function _fileToDataUrl(file) {
     reader.onload = (e) => resolve(/** @type {string} */ (e.target.result))
     reader.onerror = () => reject(new Error('图片读取失败'))
     reader.readAsDataURL(file)
+  })
+}
+
+function _pickBrowserImageFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.style.display = 'none'
+    input.addEventListener('change', () => {
+      const file = input.files?.[0] || null
+      input.remove()
+      resolve(file)
+    }, { once: true })
+    document.body.appendChild(input)
+    input.click()
   })
 }

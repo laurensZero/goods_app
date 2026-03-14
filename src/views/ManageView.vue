@@ -154,7 +154,7 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { isLocalImageUri, readLocalImageAsDataUrl, restoreLocalImageFromDataUrl } from '@/utils/localImage'
+import { sanitizeGoodsItemForExport } from '@/utils/goodsImages'
 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
@@ -267,35 +267,12 @@ async function shareBackupFile(uri) {
   return true
 }
 
-async function embedLocalImages(goodsList) {
-  return Promise.all(goodsList.map(async (item) => {
-    if (!isLocalImageUri(item.image)) return item
-    const dataUrl = await readLocalImageAsDataUrl(item.image)
-    return dataUrl ? { ...item, image: dataUrl } : item
-  }))
-}
-
-async function restoreLocalImages(goodsList) {
-  return Promise.all(goodsList.map(async (item) => {
-    if (!item.image?.startsWith('data:image/')) return item
-    const localUri = await restoreLocalImageFromDataUrl(item.image)
-    return { ...item, image: localUri }
-  }))
-}
-
 async function handleExport() {
-  let goodsList = goodsStore.list
-  let trashList = goodsStore.trashList
-
-  try {
-    goodsList = await embedLocalImages(goodsList)
-    trashList = await embedLocalImages(trashList)
-  } catch (error) {
-    console.warn('[export] embed local images failed', error)
-  }
+  const goodsList = goodsStore.list.map((item) => sanitizeGoodsItemForExport(item))
+  const trashList = goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item))
 
   const data = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     goods: goodsList,
     trash: trashList,
@@ -365,15 +342,8 @@ async function handleImport(event) {
     const text = await file.text()
     const data = JSON.parse(text)
 
-    let goodsToImport = Array.isArray(data.goods) ? data.goods : []
-    let trashToImport = Array.isArray(data.trash) ? data.trash : []
-
-    if (goodsToImport.length > 0) {
-      goodsToImport = await restoreLocalImages(goodsToImport)
-    }
-    if (trashToImport.length > 0) {
-      trashToImport = await restoreLocalImages(trashToImport)
-    }
+    const goodsToImport = Array.isArray(data.goods) ? data.goods : []
+    const trashToImport = Array.isArray(data.trash) ? data.trash : []
 
     const goodsAdded = goodsToImport.length > 0
       ? await goodsStore.importGoodsBackup(goodsToImport)

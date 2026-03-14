@@ -7,8 +7,8 @@
         <section class="manage-hero">
           <div class="preview-stage">
             <div class="preview-glow" />
-            <div class="preview-media" :class="{ 'preview-media--empty': !form.image }">
-              <img v-if="form.image" :src="form.image" :alt="form.name || '预览图'" class="preview-image" />
+            <div class="preview-media" :class="{ 'preview-media--empty': !primaryPreviewImage }">
+              <img v-if="primaryPreviewImage" :src="primaryPreviewImage" :alt="form.name || '预览图'" class="preview-image" />
               <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || '谷' }}</span>
             </div>
           </div>
@@ -212,12 +212,8 @@
             </div>
 
             <div class="field">
-              <span class="field-label">图片 URL</span>
-              <MihoyoImagePicker
-                ref="imagePickerRef"
-                v-model="form.image"
-                :hint="form.characters[0] || form.variant || ''"
-              />
+              <span class="field-label">图片集</span>
+              <GoodsImageManager v-model="form.images" :hint="form.characters[0] || ''" />
             </div>
           </div>
         </section>
@@ -324,10 +320,11 @@ import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
+import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
-import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
+import GoodsImageManager from '@/components/GoodsImageManager.vue'
 import StorageLocationInput from '@/components/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
 import TagInput from '@/components/TagInput.vue'
@@ -351,7 +348,7 @@ const form = reactive({
   price: '',
   points: '',
   acquiredAt: '',
-  image: '',
+  images: [],
   note: '',
   quantity: 1
 })
@@ -366,7 +363,6 @@ const nameError = ref('')
 
 const charactersFieldRef = ref(null)
 const nameInputRef = ref(null)
-const imagePickerRef = ref(null)
 const noteInputRef = ref(null)
 const showDatePicker = ref(false)
 const showCharPicker = ref(false)
@@ -394,6 +390,7 @@ const characterPlaceholder = computed(() => {
   if (availableCharacters.value.length === 0) return '该 IP 暂无角色'
   return '请选择角色'
 })
+const primaryPreviewImage = computed(() => getPrimaryGoodsImageUrl(form.images))
 
 watch(
   () => form.name,
@@ -430,7 +427,7 @@ onMounted(() => {
     form.points = item.points ?? ''
     showPointsInput.value = !!item.points
     form.acquiredAt = item.acquiredAt ?? ''
-    form.image = item.image ?? ''
+    form.images = item.images ? [...item.images] : []
     form.note = item.note ?? ''
     form.quantity = Number(item.quantity) || 1
     datePickerValue.value = toDatePickerValue(form.acquiredAt)
@@ -460,9 +457,6 @@ async function handleSubmit() {
   syncDomFields()
   form.name = String(form.name || '').trim()
   if (!validateName()) return
-  // 如果用户填了米游铺链接并选中了某款式，使用该款式的封面图 URL
-  const pickedImage = imagePickerRef.value?.resolvedUrl
-  if (pickedImage) form.image = pickedImage
   await store.updateGoods(props.id, { ...form })
   router.back()
 }
@@ -598,9 +592,6 @@ function syncFieldLater(key, event) {
 
 function syncDomFields() {
   if (nameInputRef.value) form.name = nameInputRef.value.value ?? ''
-  // imagePickerRef.value.inputRef 经 Vue 组件代理自动 unwrap，直接是 DOM 元素
-  const imageInputEl = imagePickerRef.value?.inputRef
-  if (imageInputEl) form.image = imageInputEl.value ?? ''
   if (noteInputRef.value) form.note = noteInputRef.value.value ?? ''
 }
 </script>

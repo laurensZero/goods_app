@@ -27,8 +27,8 @@
     </Transition>
 
     <div class="cover-wrap">
-      <div class="card-cover" :style="!item.image ? { background: coverBg } : {}">
-        <LazyCachedImage v-if="item.image" :src="item.image" :alt="item.name" :lazy="false" class="cover-img" />
+      <div class="card-cover" :style="!item.coverImage ? { background: coverBg } : {}">
+        <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div v-if="item.isWishlist" class="wishlist-badge">心愿</div>

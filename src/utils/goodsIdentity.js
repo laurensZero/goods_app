@@ -39,6 +39,8 @@ export function getGoodsVariant(item) {
   return ''
 }
 
+import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
+
 export function buildGoodsIdentityKey(item) {
   const name = normalizeGoodsName(item?.name)
   const variant = getGoodsVariant(item)
@@ -47,7 +49,7 @@ export function buildGoodsIdentityKey(item) {
     return `${name}||${variant}`
   }
 
-  const image = String(item?.image || item?._coverUrl || '').trim()
+  const image = String(getPrimaryGoodsImageUrl(item?.images, item?.coverImage || item?._coverUrl || '') || '').trim()
   if (image) {
     return `${name}||img:${image}`
   }

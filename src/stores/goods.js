@@ -14,6 +14,10 @@ import {
   normalizeStorageLocationValue,
   replaceStorageLocationPrefix as replaceStorageLocationPathPrefix
 } from '@/utils/storageLocations'
+import {
+  getPrimaryGoodsImageUrl,
+  normalizeGoodsImageList
+} from '@/utils/goodsImages'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IS_NATIVE = Capacitor.isNativePlatform()
@@ -62,6 +66,15 @@ function normalizeTagList(list) {
       .map((tag) => String(tag || '').trim())
       .filter(Boolean)
   )]
+}
+
+function mergeGoodsImages(existingImages, incomingImages, existingImage = '', incomingImage = '') {
+  const merged = normalizeGoodsImageList(
+    [...normalizeGoodsImageList(existingImages, existingImage), ...normalizeGoodsImageList(incomingImages, incomingImage)],
+    existingImage || incomingImage
+  )
+
+  return merged.length > 0 ? merged : normalizeGoodsImageList([], existingImage || incomingImage)
 }
 
 function parseDeletedTime(value) {
@@ -179,6 +192,8 @@ export const useGoodsStore = defineStore('goods', () => {
 
   function normalizeGoodsInput(data, fallbackId = '') {
     const variant = getGoodsVariant(data)
+    const images = normalizeGoodsImageList(data.images, data.image || data.coverImage)
+    const coverImage = getPrimaryGoodsImageUrl(images, data.image || data.coverImage)
 
     return {
       id: data.id || fallbackId,
@@ -193,7 +208,8 @@ export const useGoodsStore = defineStore('goods', () => {
       price: data.price === '' || data.price == null ? '' : data.price,
       points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
       acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
-      image: String(data.image || '').trim(),
+      coverImage,
+      images,
       note: stripVariantFromNote(data.note || data.notes || ''),
       quantity: Math.max(1, Number(data.quantity) || 1)
     }
@@ -208,6 +224,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
   function mergeGoodsRecord(existing, incoming) {
     const variant = getGoodsVariant(existing) || getGoodsVariant(incoming)
+    const images = mergeGoodsImages(existing.images, incoming.images, existing.coverImage, incoming.coverImage)
 
     return {
       ...existing,
@@ -222,7 +239,8 @@ export const useGoodsStore = defineStore('goods', () => {
       price: existing.price === '' || existing.price == null ? incoming.price : existing.price,
       points: existing.points ?? incoming.points,
       acquiredAt: existing.acquiredAt || incoming.acquiredAt,
-      image: existing.image || incoming.image,
+      coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
+      images,
       note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
       quantity: Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1)
     }

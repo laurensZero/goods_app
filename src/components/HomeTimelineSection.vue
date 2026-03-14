@@ -38,9 +38,9 @@
             >
               <div class="tl-thumb-img-wrap">
                 <LazyCachedImage
-                  v-if="item.image"
+                  v-if="item.coverImage"
                   class="tl-thumb-img"
-                  :src="item.image"
+                  :src="item.coverImage"
                   :alt="item.name"
                   root-margin="120px 0px"
                 />
@@ -85,9 +85,9 @@
           >
             <div class="tl-thumb-img-wrap">
               <LazyCachedImage
-                v-if="item.image"
+                v-if="item.coverImage"
                 class="tl-thumb-img"
-                :src="item.image"
+                :src="item.coverImage"
                 :alt="item.name"
                 root-margin="120px 0px"
               />

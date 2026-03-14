@@ -30,6 +30,18 @@
               <span class="cover-initial">{{ coverInitial }}</span>
             </div>
           </div>
+          <div v-if="galleryImages.length > 1" class="cover-gallery">
+            <button
+              v-for="image in galleryImages"
+              :key="image.id"
+              type="button"
+              :class="['cover-gallery__item', { 'cover-gallery__item--active': image.id === activeImageId }]"
+              @click="activeImageId = image.id"
+            >
+              <img :src="image.uri" :alt="image.label || getImageKindLabel(image.kind)" class="cover-gallery__img" />
+              <span class="cover-gallery__meta">{{ image.label || getImageKindLabel(image.kind) }}</span>
+            </button>
+          </div>
         </section>
 
         <section class="hero-card">
@@ -164,6 +176,7 @@ import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { getCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
+import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -175,6 +188,7 @@ const pageBodyRef = ref(null)
 
 const item = computed(() => store.getById(props.id))
 const showDeleteDialog = ref(false)
+const activeImageId = ref('')
 
 const colorMap = {
   手办: ['#2c2c2e', '#3a3a3c'],
@@ -191,6 +205,11 @@ const coverBg = computed(() => {
   return `linear-gradient(135deg, ${from}, ${to})`
 })
 
+const galleryImages = computed(() => normalizeGoodsImageList(item.value?.images))
+const activeImage = computed(() => (
+  galleryImages.value.find((image) => image.id === activeImageId.value)
+  || getPrimaryGoodsImage(galleryImages.value)
+))
 const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 const variantText = computed(() => getGoodsVariant(item.value))
 
@@ -230,11 +249,25 @@ async function prepareDetailLayout() {
 }
 
 watch(
-  () => item.value?.image,
+  () => activeImage.value?.uri,
   async (url) => {
     cachedImgSrc.value = url ? await getCachedImage(url) : ''
   },
   { immediate: true }
+)
+
+watch(
+  () => galleryImages.value,
+  (images) => {
+    if (images.length === 0) {
+      activeImageId.value = ''
+      return
+    }
+
+    if (images.some((image) => image.id === activeImageId.value)) return
+    activeImageId.value = images.find((image) => image.isPrimary)?.id || images[0].id
+  },
+  { immediate: true, deep: true }
 )
 
 const holdingDays = computed(() => {
@@ -280,6 +313,7 @@ onMounted(async () => {
 watch(
   () => props.id,
   async () => {
+    activeImageId.value = ''
     setWindowScrollTop(0)
     await prepareDetailLayout()
   }
@@ -288,6 +322,10 @@ watch(
 onBeforeUnmount(() => {
   setDetailWindowScrollLock(false)
 })
+
+function getImageKindLabel(kind) {
+  return GOODS_IMAGE_KIND_OPTIONS.find((option) => option.value === kind)?.label || '图片'
+}
 
 </script>
 
@@ -372,6 +410,83 @@ onBeforeUnmount(() => {
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.06em;
+}
+
+.cover-gallery {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 2px;
+  scrollbar-width: none;
+}
+
+.cover-gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.cover-gallery__item {
+  position: relative;
+  flex: none;
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+  padding: 0;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+  text-align: left;
+  transition: transform 0.16s ease;
+}
+
+.cover-gallery__item--active {
+  transform: translateY(-2px);
+}
+
+.cover-gallery__item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+}
+
+.cover-gallery__item--active::before {
+  box-shadow:
+    inset 0 0 0 2px #141416,
+    var(--app-shadow);
+}
+
+.cover-gallery__img {
+  display: block;
+  position: relative;
+  z-index: 1;
+  width: 84px;
+  height: 84px;
+  padding: 5px;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.cover-gallery__meta {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  max-width: calc(100% - 20px);
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #141416;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hero-card,
