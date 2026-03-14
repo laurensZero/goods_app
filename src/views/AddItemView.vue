@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page page--transition add-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page add-page">
     <NavBar title="添加谷子" show-back />
 
     <main class="page-body">
@@ -325,7 +325,6 @@ import { useGoodsStore } from '@/stores/goods'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
@@ -341,7 +340,6 @@ const router = useRouter()
 const route = useRoute()
 const store = useGoodsStore()
 const presets = usePresetsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 
 const form = reactive({
   name: '',

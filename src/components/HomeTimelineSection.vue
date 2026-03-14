@@ -30,6 +30,9 @@
               :key="item.id"
               type="button"
               class="tl-thumb-btn"
+              :data-goods-id="item.id"
+              data-scroll-anchor="timeline-thumb"
+              :data-scroll-index="itemIndexById.get(item.id) ?? -1"
               :class="{ 'tl-thumb-btn--active': activeItemId === item.id }"
               @click="$emit('toggle-item', item.id)"
             >
@@ -74,6 +77,9 @@
             :key="item.id"
             type="button"
             class="tl-thumb-btn"
+            :data-goods-id="item.id"
+            data-scroll-anchor="timeline-thumb"
+            :data-scroll-index="itemIndexById.get(item.id) ?? -1"
             :class="{ 'tl-thumb-btn--active': activeItemId === item.id }"
             @click="$emit('toggle-item', item.id)"
           >
@@ -113,6 +119,7 @@ defineProps({
   activeItemId: { type: String, default: null },
   expandedItem: { type: Object, default: null },
   expandedSectionKey: { type: String, default: '' },
+  itemIndexById: { type: Map, required: true },
   unknownSectionKey: { type: String, required: true }
 })
 

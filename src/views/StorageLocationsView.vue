@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition locations-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page locations-page">
     <NavBar title="收纳位置" show-back />
 
     <main class="page-body">
@@ -85,7 +85,6 @@
 import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
@@ -93,7 +92,6 @@ import StorageLocationTreeNode from '@/components/StorageLocationTreeNode.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 
 const editorMode = ref('')
 const editorNodeId = ref('')

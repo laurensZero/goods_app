@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition trash-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page trash-page">
     <NavBar title="回收站" show-back />
 
     <main class="page-body">
@@ -74,12 +74,10 @@
 <script setup>
 import { computed } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const store = useGoodsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 
 const totalQuantity = computed(() =>
   store.trashViewList.reduce((sum, item) => sum + item.quantityNumber, 0)

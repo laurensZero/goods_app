@@ -54,6 +54,17 @@ body {
   overflow-x: hidden;
 }
 
+html.detail-route-scroll-lock,
+body.detail-route-scroll-lock {
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+html.detail-route-scroll-lock::-webkit-scrollbar,
+body.detail-route-scroll-lock::-webkit-scrollbar {
+  display: none;
+}
+
 button,
 input,
 select,
@@ -93,16 +104,6 @@ img {
   flex-direction: column;
   min-height: 100dvh;
   background: var(--app-bg);
-}
-
-.page--transition {
-  animation: app-page-enter var(--motion-medium) var(--motion-emphasis) both;
-  will-change: opacity, transform;
-}
-
-.page--leaving {
-  animation: app-page-leave var(--motion-fast) ease both;
-  will-change: opacity, transform;
 }
 
 .page-body {
@@ -147,30 +148,6 @@ img {
 
 .picker-popup .van-picker-column {
   touch-action: pan-y;
-}
-
-@keyframes app-page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.994);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes app-page-leave {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.998);
-  }
 }
 
 @media (min-width: 520px) {

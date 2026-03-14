@@ -1,27 +1,33 @@
 <template>
   <div class="app-wrapper">
-    <RouterView v-slot="{ Component, route: currentRoute }">
-      <template v-if="Component">
-        <KeepAlive :include="keepAliveViewNames">
-          <component
-            v-if="currentRoute.meta.keepAlive"
-            :is="Component"
-            :key="getKeepAliveKey(currentRoute)"
-          />
-        </KeepAlive>
-        <component
-          v-if="!currentRoute.meta.keepAlive"
-          :is="Component"
-          :key="getRouteKey(currentRoute)"
-        />
-      </template>
-    </RouterView>
-    <TabBar v-if="showTabBar" />
+    <div class="route-stage">
+      <RouterView v-slot="{ Component, route: currentRoute }">
+        <Transition :name="routeTransitionName" mode="out-in">
+          <div v-if="Component" :key="getSceneKey(currentRoute)" class="route-scene">
+            <KeepAlive :include="keepAliveViewNames">
+              <component
+                v-if="currentRoute.meta.keepAlive"
+                :is="Component"
+                :key="getKeepAliveKey(currentRoute)"
+              />
+            </KeepAlive>
+            <component
+              v-if="!currentRoute.meta.keepAlive"
+              :is="Component"
+              :key="getRouteKey(currentRoute)"
+            />
+          </div>
+        </Transition>
+      </RouterView>
+    </div>
+    <Transition :name="tabBarTransitionName">
+      <TabBar v-if="showTabBar" />
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { computed, KeepAlive } from 'vue'
+import { computed, KeepAlive, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
 
@@ -29,6 +35,42 @@ const route = useRoute()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
+const routeTransitionName = ref('route-none')
+const tabBarTransitionName = computed(() => {
+  if (routeTransitionName.value === 'route-back') return 'tabbar-back'
+  if (routeTransitionName.value === 'route-forward') return 'tabbar-forward'
+  return 'tabbar-none'
+})
+let pendingRouteDirection = 'forward'
+let hasMountedRoute = false
+
+function markBackNavigation() {
+  pendingRouteDirection = 'back'
+}
+
+watch(
+  () => route.fullPath,
+  (_, previousPath) => {
+    if (!previousPath || !hasMountedRoute) {
+      hasMountedRoute = true
+      routeTransitionName.value = 'route-none'
+      pendingRouteDirection = 'forward'
+      return
+    }
+
+    routeTransitionName.value = pendingRouteDirection === 'back' ? 'route-back' : 'route-forward'
+    pendingRouteDirection = 'forward'
+  }
+)
+
+onMounted(() => {
+  hasMountedRoute = true
+  window.addEventListener('popstate', markBackNavigation, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', markBackNavigation)
+})
 
 function getKeepAliveKey(currentRoute) {
   return String(currentRoute.name ?? currentRoute.path ?? currentRoute.fullPath)
@@ -37,4 +79,97 @@ function getKeepAliveKey(currentRoute) {
 function getRouteKey(currentRoute) {
   return currentRoute.fullPath
 }
+
+function getSceneKey(currentRoute) {
+  return String(currentRoute.fullPath || currentRoute.path || currentRoute.name || '')
+}
 </script>
+
+<style>
+.route-stage {
+  position: relative;
+  min-height: inherit;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.route-scene {
+  min-height: inherit;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.route-forward-enter-active,
+.route-forward-leave-active,
+.route-back-enter-active,
+.route-back-leave-active {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+  will-change: transform, opacity;
+}
+
+.route-forward-enter-from {
+  opacity: 0;
+  transform: translate3d(28px, 0, 0);
+}
+
+.route-forward-leave-to {
+  opacity: 0;
+  transform: translate3d(-10px, 0, 0);
+}
+
+.route-back-enter-from {
+  opacity: 0;
+  transform: translate3d(-18px, 0, 0);
+}
+
+.route-back-leave-to {
+  opacity: 0;
+  transform: translate3d(22px, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-forward-enter-active,
+  .route-forward-leave-active,
+  .route-back-enter-active,
+  .route-back-leave-active {
+    transition: opacity 120ms ease;
+  }
+
+  .route-forward-enter-from,
+  .route-forward-leave-to,
+  .route-back-enter-from,
+  .route-back-leave-to {
+    transform: none;
+  }
+}
+
+.tab-bar.tabbar-forward-enter-active,
+.tab-bar.tabbar-forward-leave-active,
+.tab-bar.tabbar-back-enter-active,
+.tab-bar.tabbar-back-leave-active {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+  will-change: transform, opacity;
+}
+
+.tab-bar.tabbar-forward-enter-from,
+.tab-bar.tabbar-forward-leave-to,
+.tab-bar.tabbar-back-enter-from,
+.tab-bar.tabbar-back-leave-to {
+  opacity: 0;
+  --tab-bar-shift-y: calc(100% + 16px);
+  --tab-bar-scale: 0.98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-bar.tabbar-forward-enter-active,
+  .tab-bar.tabbar-forward-leave-active,
+  .tab-bar.tabbar-back-enter-active,
+  .tab-bar.tabbar-back-leave-active {
+    transition: opacity 120ms ease;
+  }
+}
+</style>

@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page page--transition import-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page import-page">
     <NavBar :title="pageTitle" show-back />
 
     <main class="page-body">
@@ -538,7 +538,6 @@ import NavBar from '@/components/NavBar.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import {
   parseMihoyoUrl,
   isMihoyoGiftUrl,
@@ -555,7 +554,6 @@ const router = useRouter()
 const route = useRoute()
 const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? '导入心愿' : '从米游铺导入')
 const urlHintText = computed(() =>

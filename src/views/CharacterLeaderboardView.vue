@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition leaderboard-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page leaderboard-page">
     <main class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
@@ -87,12 +87,10 @@
 import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import EmptyState from '@/components/EmptyState.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 
 const metrics = [
   { value: 'quantity', label: '总数量' },

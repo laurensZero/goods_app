@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition search-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page search-page">
     <header v-if="!selectionMode" class="search-header">
       <button class="back-btn" type="button" aria-label="返回" @click="handleBack">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -125,7 +125,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import SearchBar from '@/components/SearchBar.vue'
@@ -141,7 +140,6 @@ const NO_CHARACTER_OPTION = '未设置角色'
 const store = useGoodsStore()
 const route = useRoute()
 const router = useRouter()
-const { isPageLeaving } = usePageLeaveAnimation()
 const searchScope = computed(() => route.query.scope === 'wishlist' ? 'wishlist' : 'collection')
 const searchStateHistoryKey = computed(() => `searchViewState:${searchScope.value}`)
 const defaultBackPath = computed(() => (searchScope.value === 'wishlist' ? '/wishlist' : '/home'))

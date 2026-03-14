@@ -82,6 +82,7 @@
             :active-item-id="expandedTimelineItemId"
             :expanded-item="expandedItem"
             :expanded-section-key="expandedSectionKey"
+            :item-index-by-id="timelineItemIndexById"
             :unknown-section-key="TIMELINE_UNKNOWN_SECTION_KEY"
             @toggle-item="toggleTimelineItem"
             @open-detail="openDetail"
@@ -178,6 +179,7 @@ const LOAD_MORE_ROWS = 4
 const LOAD_MORE_THRESHOLD_PX = 720
 const INITIAL_TIMELINE_MONTHS = 6
 const LOAD_MORE_TIMELINE_MONTHS = 4
+const TIMELINE_RESTORE_BUFFER_MONTHS = 2
 const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const ROW_HEIGHT_MAP = {
@@ -313,7 +315,30 @@ function syncVisibleTimelineMonthCount(scrollTop = 0) {
 }
 
 function prepareRestoreState(state) {
-  if (!state || displayDensity.value === 'timeline') return
+  if (!state) return
+
+  if (displayDensity.value === 'timeline') {
+    const anchorId = String(state.anchorId || '')
+    if (!anchorId) return
+
+    if (timelineUnknownItemIds.value.has(anchorId)) {
+      visibleTimelineMonthCount.value = allTimelineMonthCount.value
+      return
+    }
+
+    const monthIndex = timelineMonthIndexByItemId.value.get(anchorId)
+    if (!Number.isFinite(monthIndex) || monthIndex < 0) return
+
+    visibleTimelineMonthCount.value = Math.min(
+      allTimelineMonthCount.value,
+      Math.max(
+        visibleTimelineMonthCount.value,
+        getInitialVisibleTimelineMonths(),
+        monthIndex + 1 + TIMELINE_RESTORE_BUFFER_MONTHS
+      )
+    )
+    return
+  }
 
   const anchorIndex = Number(state.anchorIndex)
   if (!Number.isFinite(anchorIndex) || anchorIndex < 0) return
@@ -498,6 +523,9 @@ const visibleGoodsList = computed(() =>
 )
 const {
   allTimelineMonthCount,
+  timelineMonthIndexByItemId,
+  timelineItemIndexById,
+  timelineUnknownItemIds,
   visibleTimelineYearGroups,
   timelineUnknown,
   showVisibleTimelineUnknown

@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition account-import-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page account-import-page">
     <NavBar title="账号批量导入" show-back />
 
     <main class="page-body">
@@ -243,7 +243,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { useMihoyoCookieState } from '@/composables/useMihoyoCookieState'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
@@ -253,7 +252,6 @@ defineOptions({ name: 'AccountImportView' })
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 const {
   cookieInput,
   rememberCookie,

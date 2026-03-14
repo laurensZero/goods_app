@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition manage-page">
+  <div class="page manage-page">
     <main class="page-body">
       <section class="hero-section">
         <div class="hero-copy">

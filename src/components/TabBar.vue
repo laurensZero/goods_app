@@ -58,7 +58,7 @@
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   box-shadow: var(--app-shadow);
-  transform: translateX(-50%);
+  transform: translateX(var(--tab-bar-shift-x, -50%)) translateY(var(--tab-bar-shift-y, 0)) scale(var(--tab-bar-scale, 1));
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
 }
 
@@ -116,7 +116,7 @@
 
 <style>
 body.selection-active .tab-bar {
-  transform: translateX(-50%) translateY(calc(100% + 16px));
+  --tab-bar-shift-y: calc(100% + 16px);
   opacity: 0;
   pointer-events: none;
 }

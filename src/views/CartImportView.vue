@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition cart-import-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page cart-import-page">
     <NavBar :title="pageTitle" show-back />
 
     <main class="page-body">
@@ -176,7 +176,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { useMihoyoCookieState } from '@/composables/useMihoyoCookieState'
 import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
@@ -189,7 +188,6 @@ const route = useRoute()
 const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 const {
   cookieInput,
   rememberCookie,

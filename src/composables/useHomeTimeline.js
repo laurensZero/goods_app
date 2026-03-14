@@ -55,6 +55,40 @@ export function useHomeTimeline({
     timelineYearGroups.value.reduce((sum, yearGroup) => sum + yearGroup.months.length, 0)
   )
 
+  const timelineMonthIndexByItemId = computed(() => {
+    const map = new Map()
+    let monthIndex = 0
+
+    for (const yearGroup of timelineYearGroups.value) {
+      for (const monthGroup of yearGroup.months) {
+        for (const item of monthGroup.items) {
+          map.set(item.id, monthIndex)
+        }
+        monthIndex += 1
+      }
+    }
+
+    return map
+  })
+
+  const timelineItemIndexById = computed(() => {
+    const map = new Map()
+
+    goodsList.value.forEach((item, index) => {
+      map.set(item.id, index)
+    })
+
+    return map
+  })
+
+  const timelineUnknownItemIds = computed(() =>
+    new Set(
+      goodsList.value
+        .filter((item) => !item.timelineYearMonth)
+        .map((item) => item.id)
+    )
+  )
+
   const visibleTimelineYearGroups = computed(() => {
     if (displayDensity.value !== 'timeline') return timelineYearGroups.value
 
@@ -89,6 +123,9 @@ export function useHomeTimeline({
   return {
     timelineYearGroups,
     allTimelineMonthCount,
+    timelineMonthIndexByItemId,
+    timelineItemIndexById,
+    timelineUnknownItemIds,
     visibleTimelineYearGroups,
     timelineUnknown,
     showVisibleTimelineUnknown

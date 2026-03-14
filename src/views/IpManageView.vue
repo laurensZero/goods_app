@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition sub-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page sub-page">
     <NavBar title="IP 管理" show-back>
       <template #right>
         <button class="add-btn" type="button" @click="toggleInput">
@@ -134,14 +134,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { usePresetDelete } from '@/composables/usePresetDelete'
 import NavBar from '@/components/NavBar.vue'
 import PresetDeleteConfirm from '@/components/PresetDeleteConfirm.vue'
 
 const presets = usePresetsStore()
 const store = useGoodsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 
 const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeIp, confirmDelete } = usePresetDelete({
   getAffected: (list, name) => list.filter((item) => item.ip === name),

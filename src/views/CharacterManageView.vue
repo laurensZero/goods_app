@@ -1,5 +1,5 @@
 <template>
-  <div class="page page--transition sub-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page sub-page">
     <NavBar title="角色管理" show-back>
       <template #right>
         <button class="add-btn" type="button" @click="toggleInput">
@@ -205,7 +205,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { usePresetDelete } from '@/composables/usePresetDelete'
 import NavBar from '@/components/NavBar.vue'
 import PresetDeleteConfirm from '@/components/PresetDeleteConfirm.vue'
@@ -214,7 +213,6 @@ const EMPTY_IP_FILTER = '__empty__'
 
 const presets = usePresetsStore()
 const store = useGoodsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
 
 const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeCharacter, confirmDelete } = usePresetDelete({
   getAffected: (list, name) => list.filter((item) => item.characters?.includes(name)),

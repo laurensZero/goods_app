@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page page--transition detail-page" :class="{ 'page--leaving': isPageLeaving }">
+  <div class="page detail-page">
     <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back>
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑" @click="router.push('/edit/' + props.id)">
@@ -20,7 +20,7 @@
       </template>
     </NavBar>
 
-    <main v-if="item" class="page-body">
+    <main v-if="item" ref="pageBodyRef" class="page-body">
       <section class="detail-shell">
         <section class="cover-stage">
           <div class="cover-glow" />
@@ -159,10 +159,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { usePageLeaveAnimation } from '@/composables/usePageLeaveAnimation'
 import { getCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
@@ -172,7 +171,7 @@ import EmptyState from '@/components/EmptyState.vue'
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
-const { isPageLeaving } = usePageLeaveAnimation()
+const pageBodyRef = ref(null)
 
 const item = computed(() => store.getById(props.id))
 const showDeleteDialog = ref(false)
@@ -196,16 +195,38 @@ const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).t
 const variantText = computed(() => getGoodsVariant(item.value))
 
 const cachedImgSrc = ref('')
+const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
+
+function setDetailWindowScrollLock(locked) {
+  document.documentElement.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, locked)
+  document.body.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, locked)
+}
+
+function setWindowScrollTop(top = 0) {
+  try { document.documentElement.scrollTop = top } catch {}
+  try { document.body.scrollTop = top } catch {}
+  try { window.scrollTo(0, top) } catch {}
+}
 
 function resetScrollPosition() {
-  const apply = () => {
-    const pageBody = document.querySelector('.detail-page .page-body')
-    if (pageBody) pageBody.scrollTop = 0
-  }
+  const pageBody = pageBodyRef.value
+  setWindowScrollTop(0)
+  if (!pageBody) return
 
-  apply()
-  window.requestAnimationFrame(apply)
-  window.setTimeout(apply, 32)
+  pageBody.scrollTop = 0
+  window.requestAnimationFrame(() => {
+    setWindowScrollTop(0)
+    pageBody.scrollTop = 0
+  })
+  window.setTimeout(() => {
+    setWindowScrollTop(0)
+    pageBody.scrollTop = 0
+  }, 32)
+}
+
+async function prepareDetailLayout() {
+  await nextTick()
+  resetScrollPosition()
 }
 
 watch(
@@ -247,56 +268,35 @@ async function markAsOwned() {
   })
 }
 
+onBeforeMount(() => {
+  setDetailWindowScrollLock(true)
+  setWindowScrollTop(0)
+})
+
 onMounted(async () => {
-  await nextTick()
-  resetScrollPosition()
+  await prepareDetailLayout()
 })
 
 watch(
   () => props.id,
   async () => {
-    await nextTick()
-    resetScrollPosition()
+    setWindowScrollTop(0)
+    await prepareDetailLayout()
   }
 )
+
+onBeforeUnmount(() => {
+  setDetailWindowScrollLock(false)
+})
 
 </script>
 
 <style scoped>
-.detail-page.page--transition {
-  animation: detail-page-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.detail-page.page--leaving {
-  animation: detail-page-leave 180ms ease both;
-}
-
 .detail-shell {
   display: flex;
   flex-direction: column;
   gap: var(--section-gap);
   padding: 6px var(--page-padding) 32px;
-}
-
-.detail-page.page--transition .detail-shell > * {
-  opacity: 0;
-  animation: detail-section-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.detail-page.page--transition .detail-shell > :nth-child(1) {
-  animation-delay: 40ms;
-}
-
-.detail-page.page--transition .detail-shell > :nth-child(2) {
-  animation-delay: 80ms;
-}
-
-.detail-page.page--transition .detail-shell > :nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.detail-page.page--transition .detail-shell > :nth-child(4) {
-  animation-delay: 160ms;
 }
 
 .nav-icon-btn {
@@ -643,42 +643,6 @@ watch(
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
   opacity: 0;
-}
-
-@keyframes detail-page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.992);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes detail-page-leave {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.996);
-  }
-}
-
-@keyframes detail-section-enter {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ── 平板 / 大屏适配：左封面 + 右详情双栏布局 ── */
