@@ -1220,20 +1220,18 @@ onBeforeRouteLeave((to) => {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .search-header,
-  .selection-header {
+:global(html.theme-dark) .search-header,
+  :global(html.theme-dark) .selection-header {
     background: linear-gradient(180deg, rgba(18, 18, 22, 0.82) 0%, rgba(18, 18, 22, 0.56) 72%, rgba(15, 15, 16, 0) 100%);
   }
 
-  .chip--active,
-  .primary-btn {
+:global(html.theme-dark) .chip--active,
+  :global(html.theme-dark) .primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-  .preset-card--active {
+:global(html.theme-dark) .preset-card--active {
     outline-color: rgba(255, 255, 255, 0.08);
   }
-}
 </style>

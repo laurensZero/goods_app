@@ -2566,23 +2566,22 @@ async function handleSave() {
   transform: translateY(100%);
 }
 
-@media (prefers-color-scheme: dark) {
-  .search-input {
+:global(html.theme-dark) .search-input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
   }
 
-  .search-result-card {
+:global(html.theme-dark) .search-result-card {
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .search-result-thumb {
+:global(html.theme-dark) .search-result-thumb {
     background: rgba(255, 255, 255, 0.06);
   }
 
-  .field input,
-  .field textarea,
-  .date-field {
+:global(html.theme-dark) .field input,
+  :global(html.theme-dark) .field textarea,
+  :global(html.theme-dark) .date-field {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     box-shadow:
@@ -2590,40 +2589,40 @@ async function handleSave() {
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-  .field input:focus,
-  .field textarea:focus {
+:global(html.theme-dark) .field input:focus,
+  :global(html.theme-dark) .field textarea:focus {
     border-color: rgba(255, 255, 255, 0.12);
     background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
   }
 
-  .variant-btn {
+:global(html.theme-dark) .variant-btn {
     border-color: rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .variant-btn--selected {
+:global(html.theme-dark) .variant-btn--selected {
     background: rgba(74, 122, 236, 0.16);
   }
 
-  .variant-img-wrap,
-  .img-picker-item {
+:global(html.theme-dark) .variant-img-wrap,
+  :global(html.theme-dark) .img-picker-item {
     background: rgba(255, 255, 255, 0.06);
   }
 
-  .date-field {
+:global(html.theme-dark) .date-field {
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
   }
 
-  :deep(.picker-popup .van-picker) {
+:global(html.theme-dark) :deep(.picker-popup .van-picker) {
     --van-picker-background: rgba(24, 24, 28, 0.96);
     --van-picker-mask-color:
       linear-gradient(180deg, rgba(24, 24, 28, 0.96), rgba(24, 24, 28, 0)),
       linear-gradient(0deg, rgba(24, 24, 28, 0.96), rgba(24, 24, 28, 0));
   }
 
-  :deep(.picker-popup.van-popup),
-  :deep(.picker-popup.van-popup--bottom) {
+:global(html.theme-dark) :deep(.picker-popup.van-popup),
+  :global(html.theme-dark) :deep(.picker-popup.van-popup--bottom) {
     background: rgba(24, 24, 28, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
@@ -2631,25 +2630,25 @@ async function handleSave() {
     -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
 
-  .save-char-row {
+:global(html.theme-dark) .save-char-row {
     background: rgba(74, 122, 236, 0.12);
   }
 
-  .save-char-toggle {
+:global(html.theme-dark) .save-char-toggle {
     background: rgba(255, 255, 255, 0.16);
   }
 
-  .save-char-knob {
+:global(html.theme-dark) .save-char-knob {
     background: rgba(255, 255, 255, 0.92);
   }
 
-  .batch-edit-backdrop {
+:global(html.theme-dark) .batch-edit-backdrop {
     background: var(--app-overlay);
     backdrop-filter: blur(14px) saturate(120%);
     -webkit-backdrop-filter: blur(14px) saturate(120%);
   }
 
-  .batch-edit-sheet {
+:global(html.theme-dark) .batch-edit-sheet {
     background: rgba(24, 24, 28, 0.82);
     border: 1px solid var(--app-glass-border);
     box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
@@ -2657,33 +2656,32 @@ async function handleSave() {
     -webkit-backdrop-filter: blur(20px) saturate(140%);
   }
 
-  .batch-edit-cancel {
+:global(html.theme-dark) .batch-edit-cancel {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .batch-edit-save {
+:global(html.theme-dark) .batch-edit-save {
     background: #f5f5f7;
     color: #141416;
   }
 
-  .btn-parse {
+:global(html.theme-dark) .btn-parse {
     color: #141416;
   }
 
-  .parse-spinner {
+:global(html.theme-dark) .parse-spinner {
     border-color: rgba(20, 20, 22, 0.30);
     border-top-color: #141416;
   }
 
-  .btn-primary {
+:global(html.theme-dark) .btn-primary {
     background: #f5f5f7;
     color: #141416;
   }
 
-  .btn-float {
+:global(html.theme-dark) .btn-float {
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
   }
-}
 
 @media (max-width: 359px) {
   .variant-grid {

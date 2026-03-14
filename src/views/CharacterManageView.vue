@@ -777,24 +777,22 @@ watch(editingCharacter, async (value) => {
   transform: translateX(-50%) translateY(28px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .edit-sheet {
+:global(html.theme-dark) .edit-sheet {
     background: rgba(28, 28, 30, 0.95);
   }
 
-  .confirm-btn,
-  .save-btn {
+:global(html.theme-dark) .confirm-btn,
+  :global(html.theme-dark) .save-btn {
     color: #141416;
   }
 
-  .ip-chip--active {
+:global(html.theme-dark) .ip-chip--active {
     background: #f5f5f7;
     border-color: #f5f5f7;
     color: #141416;
   }
 
-  .row-input:focus {
+:global(html.theme-dark) .row-input:focus {
     border-color: rgba(255, 255, 255, 0.15);
   }
-}
 </style>

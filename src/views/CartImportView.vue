@@ -870,60 +870,58 @@ async function doImport() {
   transform: translateY(-8px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .primary-btn,
-  .text-btn--active {
+:global(html.theme-dark) .primary-btn,
+  :global(html.theme-dark) .text-btn--active {
     background: #f5f5f7;
     color: #141416;
   }
 
-  .list-header {
+:global(html.theme-dark) .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
   }
 
-  .list-header-actions {
+:global(html.theme-dark) .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .shop-group {
+:global(html.theme-dark) .shop-group {
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .shop-row,
-  .goods-item {
+:global(html.theme-dark) .shop-row,
+  :global(html.theme-dark) .goods-item {
     background: rgba(24, 24, 28, 0.82);
   }
 
-  .goods-item--selected {
+:global(html.theme-dark) .goods-item--selected {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .meta-tag,
-  .meta-qty {
+:global(html.theme-dark) .meta-tag,
+  :global(html.theme-dark) .meta-qty {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .meta-tag--ip {
+:global(html.theme-dark) .meta-tag--ip {
     background: rgba(138, 180, 248, 0.12);
     color: #8ab4f8;
   }
 
-  .goods-thumb {
+:global(html.theme-dark) .goods-thumb {
     background: rgba(255, 255, 255, 0.06);
   }
 
-  .check-dot--on {
+:global(html.theme-dark) .check-dot--on {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
 
-  .check-dot--on svg {
+:global(html.theme-dark) .check-dot--on svg {
     stroke: #141416;
   }
 
-  .bottom-bar {
+:global(html.theme-dark) .bottom-bar {
     background: none;
   }
-}
 </style>

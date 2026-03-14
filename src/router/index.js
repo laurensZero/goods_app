@@ -95,6 +95,12 @@ const routes = [
     meta: { title: '角色管理' }
   },
   {
+    path: '/manage/theme',
+    name: 'manage-theme',
+    component: () => import('@/views/ThemeView.vue'),
+    meta: { title: '主题与外观' }
+  },
+  {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),

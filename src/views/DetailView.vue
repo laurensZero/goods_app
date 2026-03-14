@@ -784,43 +784,41 @@ function getImageKindLabel(kind) {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .cover-glow {
+:global(html.theme-dark) .cover-glow {
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .cover-card {
+:global(html.theme-dark) .cover-card {
     background: linear-gradient(180deg, #242428, #1a1a1d);
   }
 
-  .dialog-btn--ghost {
+:global(html.theme-dark) .dialog-btn--ghost {
     background: var(--app-surface-soft);
   }
 
-  .dialog-btn--danger {
+:global(html.theme-dark) .dialog-btn--danger {
     background: #f5f5f7;
     color: #d32f2f;
   }
 
-  .hero-chip {
+:global(html.theme-dark) .hero-chip {
     background: rgba(255, 255, 255, 0.12);
   }
 
-  .hero-chip.ip-chip {
+:global(html.theme-dark) .hero-chip.ip-chip {
     background: rgba(74, 122, 236, 0.22);
   }
 
-  .hero-chip.char-chip {
+:global(html.theme-dark) .hero-chip.char-chip {
     background: rgba(93, 226, 160, 0.15);
   }
 
-  .hero-chip.tag-chip {
+:global(html.theme-dark) .hero-chip.tag-chip {
     background: rgba(201, 148, 255, 0.18);
     color: #f1dcff;
   }
 
-  .nav-icon-btn {
+:global(html.theme-dark) .nav-icon-btn {
     background: var(--app-glass);
   }
-}
 </style>

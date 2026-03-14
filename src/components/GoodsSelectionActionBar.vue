@@ -117,16 +117,14 @@ defineEmits(['delete', 'edit'])
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .selection-action-bar {
+:global(html.theme-dark) .selection-action-bar {
     background: var(--app-glass-strong);
     border-top-color: var(--app-glass-border);
     box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06), 0 -14px 34px rgba(0, 0, 0, 0.34);
   }
 
-  .sel-action-btn {
+:global(html.theme-dark) .sel-action-btn {
     background: rgba(255, 255, 255, 0.07);
     color: var(--app-text-secondary);
   }
-}
 </style>

@@ -154,17 +154,15 @@ function removeTag(tag) {
   line-height: 1.5;
 }
 
-@media (prefers-color-scheme: dark) {
-  .tag-list {
+:global(html.theme-dark) .tag-list {
     border-color: rgba(255, 255, 255, 0.07);
   }
 
-  .tag-chip {
+:global(html.theme-dark) .tag-chip {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .tag-chip__remove {
+:global(html.theme-dark) .tag-chip__remove {
     background: rgba(255, 255, 255, 0.1);
   }
-}
 </style>

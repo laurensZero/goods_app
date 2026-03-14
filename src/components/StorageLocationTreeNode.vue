@@ -137,14 +137,12 @@ const stats = computed(() =>
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .tree-node__action {
+:global(html.theme-dark) .tree-node__action {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-  .tree-node__children {
+:global(html.theme-dark) .tree-node__children {
     border-left-color: rgba(255, 255, 255, 0.08);
   }
-}
 </style>

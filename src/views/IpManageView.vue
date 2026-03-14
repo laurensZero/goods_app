@@ -586,27 +586,25 @@ watch(editingIp, async (value) => {
   transform: translateX(-50%) translateY(28px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .confirm-btn,
-  .save-btn {
+:global(html.theme-dark) .confirm-btn,
+  :global(html.theme-dark) .save-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-  .row-item {
+:global(html.theme-dark) .row-item {
     border-bottom-color: var(--app-border);
   }
 
-  .edit-sheet {
+:global(html.theme-dark) .edit-sheet {
     background: rgba(28, 28, 30, 0.95);
   }
 
-  .row-input:focus {
+:global(html.theme-dark) .row-input:focus {
     border-color: rgba(255, 255, 255, 0.15);
   }
 
-  .s-clear {
+:global(html.theme-dark) .s-clear {
     background: rgba(255, 255, 255, 0.2);
   }
-}
 </style>

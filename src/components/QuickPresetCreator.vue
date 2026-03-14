@@ -129,28 +129,26 @@ watch(() => props.show, async (visible) => {
   color: #ffffff;
 }
 
-@media (prefers-color-scheme: dark) {
-  .quick-create-card {
+:global(html.theme-dark) .quick-create-card {
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .quick-create-input {
+:global(html.theme-dark) .quick-create-input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
   }
 
-  .quick-create-input:focus {
+:global(html.theme-dark) .quick-create-input:focus {
     border-color: rgba(255, 255, 255, 0.12);
   }
 
-  .quick-create-btn--ghost {
+:global(html.theme-dark) .quick-create-btn--ghost {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-  .quick-create-btn--primary {
+:global(html.theme-dark) .quick-create-btn--primary {
     background: #f5f5f7;
     color: #141416;
   }
-}
 </style>

@@ -136,19 +136,17 @@ function updateShow(value) {
   opacity: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  .confirm-card {
+:global(html.theme-dark) .confirm-card {
     background: rgba(24, 24, 28, 0.78);
     box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
   }
 
-  .confirm-btn--ghost {
+:global(html.theme-dark) .confirm-btn--ghost {
     background: rgba(255, 255, 255, 0.06);
   }
 
-  .confirm-btn--danger {
+:global(html.theme-dark) .confirm-btn--danger {
     background: #f5f5f7;
     color: #d32f2f;
   }
-}
 </style>

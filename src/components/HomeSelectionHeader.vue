@@ -110,21 +110,19 @@ defineEmits(['back', 'toggle-all'])
   letter-spacing: -0.02em;
 }
 
-@media (prefers-color-scheme: dark) {
-  .selection-header {
+:global(html.theme-dark) .selection-header {
     background: var(--app-glass-strong);
     border-color: var(--app-glass-border);
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
   }
 
-  .sel-back-btn {
+:global(html.theme-dark) .sel-back-btn {
     background: var(--app-glass);
     border-color: var(--app-glass-border);
   }
 
-  .sel-all-btn {
+:global(html.theme-dark) .sel-all-btn {
     background: rgba(255, 255, 255, 0.07);
     color: var(--app-text-secondary);
   }
-}
 </style>

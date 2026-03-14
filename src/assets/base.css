@@ -9,6 +9,14 @@
   --app-placeholder: #a1a1a6;
   --app-border: rgba(17, 20, 22, 0.06);
   --app-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --app-bg-gradient: linear-gradient(180deg, #efeff2 0%, #e7e7eb 100%);
+  --summary-card-gradient: linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%);
+  --summary-card-orb: rgba(255, 255, 255, 0.08);
+  --summary-card-text: #ffffff;
+  --summary-card-label: rgba(255, 255, 255, 0.56);
+  --summary-card-button-bg: rgba(255, 255, 255, 0.08);
+  --summary-card-button-border: rgba(255, 255, 255, 0.12);
+  --summary-card-button-text: rgba(255, 255, 255, 0.82);
   --app-glass: rgba(255, 255, 255, 0.86);
   --app-glass-strong: rgba(255, 255, 255, 0.72);
   --app-glass-border: rgba(255, 255, 255, 0.52);
@@ -47,7 +55,7 @@ body {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   color: var(--app-text);
-  background: linear-gradient(180deg, #efeff2 0%, #e7e7eb 100%);
+  background: var(--app-bg-gradient);
 }
 
 body {
@@ -203,49 +211,47 @@ img {
 }
 
 /* ── 深色模式 ── */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --app-bg: #0f0f10;
-    --app-surface: #1c1c1e;
-    --app-surface-soft: #2c2c2e;
-    --app-surface-muted: #28282a;
-    --app-text: #f5f5f7;
-    --app-text-secondary: #aeaeb2;
-    --app-text-tertiary: #636366;
-    --app-placeholder: #5a5a5f;
-    --app-border: rgba(255, 255, 255, 0.08);
-    --app-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --app-glass: rgba(34, 34, 38, 0.68);
-    --app-glass-strong: rgba(24, 24, 28, 0.78);
-    --app-glass-border: rgba(255, 255, 255, 0.10);
-    --app-overlay: rgba(0, 0, 0, 0.36);
-  }
+html.theme-dark {
+  --app-bg: #0f0f10;
+  --app-surface: #1c1c1e;
+  --app-surface-soft: #2c2c2e;
+  --app-surface-muted: #28282a;
+  --app-text: #f5f5f7;
+  --app-text-secondary: #aeaeb2;
+  --app-text-tertiary: #636366;
+  --app-placeholder: #5a5a5f;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --app-glass: rgba(34, 34, 38, 0.68);
+  --app-glass-strong: rgba(24, 24, 28, 0.78);
+  --app-glass-border: rgba(255, 255, 255, 0.10);
+  --app-overlay: rgba(0, 0, 0, 0.36);
+}
 
-  html,
-  body {
-    background: linear-gradient(180deg, #0a0a0b 0%, #0f0f11 100%);
-    color: var(--app-text);
-  }
+html.theme-dark,
+html.theme-dark body {
+  background: var(--app-bg-gradient);
+  color: var(--app-text);
+}
 
-  .picker-popup.van-popup,
-  .picker-popup.van-popup--bottom {
-    background: rgba(24, 24, 28, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(24px) saturate(150%);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
-  }
+html.theme-dark .picker-popup.van-popup,
+html.theme-dark .picker-popup.van-popup--bottom {
+  background: rgba(24, 24, 28, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
 
-  .picker-popup .van-picker {
-    --van-picker-background: rgba(24, 24, 28, 0.96);
-    --van-picker-mask-color:
-      linear-gradient(180deg, rgba(24, 24, 28, 0.94), rgba(24, 24, 28, 0.18)),
-      linear-gradient(0deg, rgba(24, 24, 28, 0.94), rgba(24, 24, 28, 0.18));
-  }
+html.theme-dark .picker-popup .van-picker {
+  --van-picker-background: rgba(24, 24, 28, 0.96);
+  --van-picker-mask-color:
+    linear-gradient(180deg, rgba(24, 24, 28, 0.94), rgba(24, 24, 28, 0.18)),
+    linear-gradient(0deg, rgba(24, 24, 28, 0.94), rgba(24, 24, 28, 0.18));
+}
 
-  @media (min-width: 520px) {
-    .app-wrapper {
-      box-shadow: 0 28px 60px rgba(0, 0, 0, 0.55);
-    }
+@media (min-width: 520px) {
+  html.theme-dark .app-wrapper {
+    box-shadow: 0 28px 60px rgba(0, 0, 0, 0.55);
   }
 }

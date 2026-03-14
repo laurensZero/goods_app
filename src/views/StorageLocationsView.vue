@@ -323,10 +323,8 @@ async function removeNode(node) {
   gap: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .editor-primary-btn {
+:global(html.theme-dark) .editor-primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
-}
 </style>

@@ -274,9 +274,7 @@ async function submitQuickCreate() {
   stroke-linecap: round;
 }
 
-@media (prefers-color-scheme: dark) {
-  .storage-location-summary {
+:global(html.theme-dark) .storage-location-summary {
     background: rgba(255, 255, 255, 0.05);
   }
-}
 </style>

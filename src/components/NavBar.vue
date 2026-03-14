@@ -129,21 +129,19 @@ const router = useRouter()
   letter-spacing: -0.02em;
 }
 
-@media (prefers-color-scheme: dark) {
-  .nav-bar {
+:global(html.theme-dark) .nav-bar {
     background:
       linear-gradient(180deg, rgba(18, 18, 22, 0.82) 0%, rgba(18, 18, 22, 0.56) 72%, rgba(15, 15, 16, 0) 100%);
   }
 
-  .nav-back,
-  :slotted(.add-btn) {
+:global(html.theme-dark) .nav-back,
+  :global(html.theme-dark) :slotted(.add-btn) {
     background: var(--app-glass);
     border-color: var(--app-glass-border);
   }
 
-  .nav-back:active,
-  :slotted(.add-btn):active {
+:global(html.theme-dark) .nav-back:active,
+  :global(html.theme-dark) :slotted(.add-btn):active {
     background: var(--app-glass-strong);
   }
-}
 </style>

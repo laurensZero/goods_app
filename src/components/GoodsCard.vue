@@ -581,34 +581,32 @@ const priceText = computed(() => {
   opacity: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  .card-chip {
+:global(html.theme-dark) .card-chip {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text-secondary);
   }
 
-  .card-chip.char-chip {
+:global(html.theme-dark) .card-chip.char-chip {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-  .card-chip.ip-chip {
+:global(html.theme-dark) .card-chip.ip-chip {
     background: rgba(100, 170, 255, 0.12);
     color: rgba(100, 170, 255, 0.9);
   }
 
-  .card-chip.tag-chip {
+:global(html.theme-dark) .card-chip.tag-chip {
     background: rgba(201, 148, 255, 0.14);
     color: #f1dcff;
   }
 
-  .check-icon--checked {
+:global(html.theme-dark) .check-icon--checked {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
 
-  .check-icon--checked svg {
+:global(html.theme-dark) .check-icon--checked svg {
     stroke: #141416;
   }
-}
 </style>

@@ -208,29 +208,27 @@ const totalPrice = computed(() =>
   transform: translateY(-6px) scale(0.97);
 }
 
-@media (prefers-color-scheme: dark) {
-  .tl-expand-card {
+:global(html.theme-dark) .tl-expand-card {
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.32);
   }
 
-  .tl-expand-chip--ip {
+:global(html.theme-dark) .tl-expand-chip--ip {
     color: #7da4f5;
     background: rgba(74, 122, 236, 0.18);
   }
 
-  .tl-expand-chip--char {
+:global(html.theme-dark) .tl-expand-chip--char {
     color: #4fd69b;
     background: rgba(93, 226, 160, 0.14);
   }
 
-  .tl-expand-chip--variant {
+:global(html.theme-dark) .tl-expand-chip--variant {
     color: #f5c842;
     background: rgba(255, 180, 0, 0.14);
   }
 
-  .tl-expand-detail-btn {
+:global(html.theme-dark) .tl-expand-detail-btn {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text-secondary);
   }
-}
 </style>

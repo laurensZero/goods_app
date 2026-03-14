@@ -10,6 +10,7 @@ import { initDB } from './utils/db'
 import { useGoodsStore } from './stores/goods'
 import { usePresetsStore } from './stores/presets'
 import { useFilterPresetsStore } from './stores/filterPresets'
+import { useThemeStore } from './stores/theme'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
 
 function setupAndroidBackButton() {
@@ -51,7 +52,9 @@ async function bootstrap() {
   const store = useGoodsStore()
   const presets = usePresetsStore()
   const filterPresets = useFilterPresetsStore()
+  const theme = useThemeStore()
   try {
+    await theme.init()
     await Promise.all([store.init(), presets.init(), filterPresets.init()])
     await presets.syncCharactersFromGoods(store.list)
     await presets.syncStorageLocationsFromPaths(store.storageLocations)

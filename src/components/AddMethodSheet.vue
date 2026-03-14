@@ -373,19 +373,17 @@ function onTaobaoImport() {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .sheet-panel {
+:global(html.theme-dark) .sheet-panel {
     background: rgba(24, 24, 28, 0.8);
     box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
   }
 
-  .sheet-options,
-  .sheet-cancel {
+:global(html.theme-dark) .sheet-options,
+  :global(html.theme-dark) .sheet-cancel {
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .sheet-option:active {
+:global(html.theme-dark) .sheet-option:active {
     background: rgba(255, 255, 255, 0.06);
   }
-}
 </style>

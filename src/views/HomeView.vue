@@ -878,16 +878,13 @@ async function applyBatchEditPayload(payload) {
 }
 
 /* ── 深色模式覆盖 ── */
-@media (prefers-color-scheme: dark) {
-  .hero-search {
+:global(html.theme-dark) .hero-search {
     background: var(--app-glass);
   }
-
-  .fab {
+:global(html.theme-dark) .fab {
     background: var(--app-text);
     color: var(--app-surface);
   }
-}
 </style>
 
 

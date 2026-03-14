@@ -243,8 +243,7 @@ onBeforeUnmount(() => {
   transform: translateY(-6px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .app-select__trigger {
+:global(html.theme-dark) .app-select__trigger {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     box-shadow:
@@ -252,15 +251,15 @@ onBeforeUnmount(() => {
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-  .app-select--open .app-select__trigger,
-  .app-select__trigger:focus-visible {
+:global(html.theme-dark) .app-select--open .app-select__trigger,
+  :global(html.theme-dark) .app-select__trigger:focus-visible {
     border-color: rgba(255, 255, 255, 0.12);
     box-shadow:
       0 0 0 3px rgba(255, 255, 255, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  .app-select__panel {
+:global(html.theme-dark) .app-select__panel {
     border-color: rgba(255, 255, 255, 0.06);
     background: rgba(24, 24, 28, 0.82);
     backdrop-filter: blur(20px) saturate(140%);
@@ -268,10 +267,9 @@ onBeforeUnmount(() => {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
   }
 
-  .app-select__option:hover,
-  .app-select__option:active,
-  .app-select__option--active {
+:global(html.theme-dark) .app-select__option:hover,
+  :global(html.theme-dark) .app-select__option:active,
+  :global(html.theme-dark) .app-select__option--active {
     background: rgba(255, 255, 255, 0.07);
   }
-}
 </style>

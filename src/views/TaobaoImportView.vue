@@ -1296,87 +1296,73 @@ function closeEdit() {
 .sheet-slide-enter-from,
 .sheet-slide-leave-to     { transform: translateX(-50%) translateY(100%); }
 
-@media (prefers-color-scheme: dark) {
-  .file-pick-area {
+:global(html.theme-dark) .file-pick-area {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.10);
   }
 
-  .file-pick-area:active {
+:global(html.theme-dark) .file-pick-area:active {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .list-header {
+:global(html.theme-dark) .list-header {
     background: rgba(20, 20, 22, 0.90);
   }
 
-  .bottom-bar {
+:global(html.theme-dark) .bottom-bar {
     background: linear-gradient(to top, rgba(15, 15, 16, 0.97) 60%, rgba(15, 15, 16, 0));
   }
 
-  .primary-btn {
+:global(html.theme-dark) .primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
-}
-@media (prefers-color-scheme: dark) {
-  .list-header {
+:global(html.theme-dark) .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
     backdrop-filter: blur(22px) saturate(145%);
     -webkit-backdrop-filter: blur(22px) saturate(145%);
   }
-
-  .goods-item {
+:global(html.theme-dark) .goods-item {
     background: rgba(255, 255, 255, 0.05);
     border-left-color: rgba(255, 255, 255, 0.06);
   }
-
-  .goods-item:active {
+:global(html.theme-dark) .goods-item:active {
     background: rgba(255, 255, 255, 0.08);
   }
-
-  .goods-item--selected {
+:global(html.theme-dark) .goods-item--selected {
     background: rgba(255, 255, 255, 0.08);
     border-left-color: rgba(255, 255, 255, 0.16);
   }
-
-  .bottom-bar {
+:global(html.theme-dark) .bottom-bar {
     background: linear-gradient(to top, rgba(15, 15, 16, 0.82) 60%, rgba(15, 15, 16, 0));
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
   }
-
-  .sheet-backdrop {
+:global(html.theme-dark) .sheet-backdrop {
     background: var(--app-overlay);
     backdrop-filter: blur(14px) saturate(120%);
     -webkit-backdrop-filter: blur(14px) saturate(120%);
   }
-
-  .edit-sheet {
+:global(html.theme-dark) .edit-sheet {
     background: rgba(24, 24, 28, 0.82);
     border: 1px solid var(--app-glass-border);
     box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
   }
-
-  .edit-field {
+:global(html.theme-dark) .edit-field {
     background: rgba(255, 255, 255, 0.05);
   }
-
-  .edit-input {
+:global(html.theme-dark) .edit-input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
   }
-
-  .check-dot--on {
+:global(html.theme-dark) .check-dot--on {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
-
-  .text-btn--active {
+:global(html.theme-dark) .text-btn--active {
     background: #f5f5f7;
     color: #141416;
     box-shadow: none;
   }
-}
 </style>

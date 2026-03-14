@@ -65,17 +65,17 @@ watch(isHidden, (value) => {
   padding: 24px;
   border-radius: var(--radius-large);
   overflow: hidden;
-  color: #fff;
+  color: var(--summary-card-text);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 34%),
-    linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%);
+    var(--summary-card-gradient);
   box-shadow: var(--app-shadow);
 }
 
 .summary-orb {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--summary-card-orb);
   pointer-events: none;
   filter: blur(2px);
 }
@@ -108,7 +108,7 @@ watch(isHidden, (value) => {
 }
 
 .summary-label {
-  color: rgba(255, 255, 255, 0.56);
+  color: var(--summary-card-label);
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -120,10 +120,10 @@ watch(isHidden, (value) => {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--summary-card-button-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
+  background: var(--summary-card-button-bg);
+  color: var(--summary-card-button-text);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;

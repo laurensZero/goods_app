@@ -100,18 +100,16 @@
   letter-spacing: 0.01em;
 }
 
-@media (prefers-color-scheme: dark) {
-  .tab-bar {
+:global(html.theme-dark) .tab-bar {
     background: var(--app-glass-strong);
     border-color: var(--app-glass-border);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
   }
 
-  .tab-item--active {
+:global(html.theme-dark) .tab-item--active {
     background: #f5f5f5;
     color: #141416;
   }
-}
 </style>
 
 <style>

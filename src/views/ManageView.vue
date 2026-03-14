@@ -76,6 +76,30 @@
 
       <div class="manage-column manage-column--secondary">
         <section class="hub-section">
+          <RouterLink class="entry-card" to="/manage/theme">
+            <span class="entry-icon theme-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2" />
+                <path d="M12 20v2" />
+                <path d="M4.93 4.93l1.41 1.41" />
+                <path d="M17.66 17.66l1.41 1.41" />
+                <path d="M2 12h2" />
+                <path d="M20 12h2" />
+                <path d="M4.93 19.07l1.41-1.41" />
+                <path d="M17.66 6.34l1.41-1.41" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">外观与主题</p>
+              <h2 class="entry-name">主题模式</h2>
+              <p class="entry-desc">切换主题风格与外观模式</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </RouterLink>
+
           <RouterLink class="entry-card" to="/trash">
             <span class="entry-icon trash-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -517,6 +541,7 @@ async function handleImport(event) {
 .ip-icon { background: rgba(250, 149, 90, 0.12); color: #fa9040; }
 .char-icon { background: rgba(50, 200, 140, 0.12); color: #28c880; }
 .storage-icon { background: rgba(80, 120, 230, 0.10); color: #4f76d6; }
+.theme-icon { background: rgba(255, 162, 0, 0.12); color: #d07a0b; }
 .trash-icon { background: rgba(199, 68, 68, 0.10); color: #c74444; }
 .export-icon { background: rgba(90, 120, 250, 0.10); color: #5a78fa; }
 .import-icon { background: rgba(50, 200, 140, 0.10); color: #28c880; }
@@ -700,11 +725,7 @@ async function handleImport(event) {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  
-
-  .entry-card {
+:global(html.theme-dark) .entry-card {
     border-color: rgba(255, 255, 255, 0.04);
   }
-}
 </style>

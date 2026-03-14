@@ -236,12 +236,10 @@ defineEmits(['toggle-sort', 'toggle-timeline', 'set-density'])
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .density-switch__option--active,
-  .sort-toggle--asc,
-  .timeline-toggle--active {
+:global(html.theme-dark) .density-switch__option--active,
+  :global(html.theme-dark) .sort-toggle--asc,
+  :global(html.theme-dark) .timeline-toggle--active {
     background: #f5f5f7;
     color: #141416;
   }
-}
 </style>

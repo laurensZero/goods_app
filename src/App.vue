@@ -33,7 +33,7 @@ import TabBar from '@/components/TabBar.vue'
 
 const route = useRoute()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
-const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'storage-locations', 'trash']
+const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const routeTransitionName = ref('route-none')
 const tabBarTransitionName = computed(() => {

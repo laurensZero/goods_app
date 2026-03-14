@@ -1270,132 +1270,118 @@ kbd {
   transform: translateY(-8px);
 }
 
-@media (prefers-color-scheme: dark) {
-  /* 主操作按鈕：深色下用浅色背景 */
-  .primary-btn {
+/* 主操作按鈕：深色下用浅色背景 */
+
+:global(html.theme-dark) .primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-  /* 加载轮 */
-  .loading-ring {
+/* 加载轮 */
+
+:global(html.theme-dark) .loading-ring {
     border-color: rgba(255, 255, 255, 0.10);
     border-top-color: #f5f5f7;
   }
 
-  /* 列表头部浮层 */
-  .list-header {
+/* 列表头部浮层 */
+
+:global(html.theme-dark) .list-header {
     background: rgba(20, 20, 22, 0.90);
   }
 
-  .list-header-actions {
+:global(html.theme-dark) .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .text-btn--active {
+:global(html.theme-dark) .text-btn--active {
     background: #f5f5f5;
     color: #141416;
   }
 
-  /* 订单组 */
-  .order-group {
+/* 订单组 */
+
+:global(html.theme-dark) .order-group {
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .order-item:active {
+:global(html.theme-dark) .order-item:active {
     background: var(--app-surface-soft);
   }
 
-  /* 底部操作栏渐变深色 */
-  .bottom-bar {
+/* 底部操作栏渐变深色 */
+
+:global(html.theme-dark) .bottom-bar {
     background: none;
   }
 
-  /* 输入框深色边框 */
-  .cookie-textarea {
+/* 输入框深色边框 */
+
+:global(html.theme-dark) .cookie-textarea {
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .cookie-textarea:focus {
+:global(html.theme-dark) .cookie-textarea:focus {
     border-color: rgba(255, 255, 255, 0.18);
   }
-}
-@media (prefers-color-scheme: dark) {
-  .list-header {
+:global(html.theme-dark) .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
     backdrop-filter: blur(22px) saturate(145%);
     -webkit-backdrop-filter: blur(22px) saturate(145%);
   }
-
-  .list-header-actions {
+:global(html.theme-dark) .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
-
-  .order-group {
+:global(html.theme-dark) .order-group {
     background: rgba(255, 255, 255, 0.04);
   }
-
-  .order-row {
+:global(html.theme-dark) .order-row {
     background: rgba(24, 24, 28, 0.82);
   }
-
-  .order-row--selected {
+:global(html.theme-dark) .order-row--selected {
     background: rgba(255, 255, 255, 0.05);
   }
-
-  .goods-item {
+:global(html.theme-dark) .goods-item {
     background: rgba(255, 255, 255, 0.05);
     border-left-color: rgba(255, 255, 255, 0.06);
   }
-
-  .goods-item:active,
-  .order-item:active {
+:global(html.theme-dark) .goods-item:active,
+  :global(html.theme-dark) .order-item:active {
     background: rgba(255, 255, 255, 0.08);
   }
-
-  .goods-item--selected {
+:global(html.theme-dark) .goods-item--selected {
     background: rgba(255, 255, 255, 0.08);
     border-left-color: rgba(255, 255, 255, 0.16);
   }
-
-  .expand-btn {
+:global(html.theme-dark) .expand-btn {
     color: rgba(255, 255, 255, 0.34);
   }
-
-  .expand-btn--open {
+:global(html.theme-dark) .expand-btn--open {
     color: rgba(255, 255, 255, 0.68);
   }
-
-  .check-dot {
+:global(html.theme-dark) .check-dot {
     border-color: rgba(255, 255, 255, 0.22);
   }
-
-  .order-thumb {
+:global(html.theme-dark) .order-thumb {
     background: rgba(255, 255, 255, 0.06);
   }
-
-  .thumb-initial {
+:global(html.theme-dark) .thumb-initial {
     color: rgba(255, 255, 255, 0.28);
   }
-
-  .meta-ip {
+:global(html.theme-dark) .meta-ip {
     background: rgba(138, 180, 248, 0.12);
     color: #8ab4f8;
   }
-
-  .meta-qty,
-  .status-badge {
+:global(html.theme-dark) .meta-qty,
+  :global(html.theme-dark) .status-badge {
     background: rgba(255, 255, 255, 0.08);
   }
-
-  .bottom-bar {
+:global(html.theme-dark) .bottom-bar {
     background: none;
   }
-
-  .check-dot--on {
+:global(html.theme-dark) .check-dot--on {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
-}
 </style>

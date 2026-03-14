@@ -1132,81 +1132,68 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  /* 下拉选项 hover/active */
-  .multi-select__option:active,
-  .multi-select__option:hover {
+/* 下拉选项 hover/active */
+
+:global(html.theme-dark) .multi-select__option:active,
+  :global(html.theme-dark) .multi-select__option:hover {
     background: var(--app-surface-soft);
   }
-}
-@media (prefers-color-scheme: dark) {
-  /* 预览图占位背景（无图片时） */
-  .preview-media {
+/* 预览图占位背景（无图片时） */
+:global(html.theme-dark) .preview-media {
     background: linear-gradient(180deg, #1a1a1e, #252528);
   }
-
-  .date-field,
-  .multi-select__trigger {
+:global(html.theme-dark) .date-field,
+  :global(html.theme-dark) .multi-select__trigger {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.04),
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
-
-  .date-field:focus-visible,
-  .multi-select--open .multi-select__trigger,
-  .multi-select__trigger:focus-visible {
+:global(html.theme-dark) .date-field:focus-visible,
+  :global(html.theme-dark) .multi-select--open .multi-select__trigger,
+  :global(html.theme-dark) .multi-select__trigger:focus-visible {
     border-color: rgba(255, 255, 255, 0.12);
     box-shadow:
       0 0 0 3px rgba(255, 255, 255, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
-
-  .multi-select__chip {
+:global(html.theme-dark) .multi-select__chip {
     background: rgba(255, 255, 255, 0.09);
   }
-
-  .multi-select__chip-remove {
+:global(html.theme-dark) .multi-select__chip-remove {
     background: rgba(255, 255, 255, 0.10);
   }
-
-  .multi-select__panel {
+:global(html.theme-dark) .multi-select__panel {
     border-color: rgba(255, 255, 255, 0.06);
     background: rgba(24, 24, 28, 0.82);
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
   }
-
-  .multi-select__option:active,
-  .multi-select__option:hover,
-  .multi-select__option--active {
+:global(html.theme-dark) .multi-select__option:active,
+  :global(html.theme-dark) .multi-select__option:hover,
+  :global(html.theme-dark) .multi-select__option--active {
     background: rgba(255, 255, 255, 0.07);
   }
-
-  :deep(.picker-popup.van-popup),
-  :deep(.picker-popup.van-popup--bottom) {
+:global(html.theme-dark) :deep(.picker-popup.van-popup),
+  :global(html.theme-dark) :deep(.picker-popup.van-popup--bottom) {
     background: rgba(24, 24, 28, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(24px) saturate(150%);
     -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
-
-  :deep(.picker-popup .van-picker) {
+:global(html.theme-dark) :deep(.picker-popup .van-picker) {
     --van-picker-mask-color:
       linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
       linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
   }
-
-  .btn-primary {
+:global(html.theme-dark) .btn-primary {
     background: #f5f5f7;
     color: #141416;
   }
-
-  .btn-float {
+:global(html.theme-dark) .btn-float {
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
   }
-}
 </style>

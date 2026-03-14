@@ -328,28 +328,26 @@ defineEmits(['toggle-item', 'open-detail'])
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  .tl-month-count {
+:global(html.theme-dark) .tl-month-count {
     color: var(--app-text-secondary);
   }
 
-  .tl-month-line {
+:global(html.theme-dark) .tl-month-line {
     background: color-mix(in srgb, var(--app-text-secondary) 18%, transparent);
   }
 
-  .tl-month-spend {
+:global(html.theme-dark) .tl-month-spend {
     color: color-mix(in srgb, var(--app-text) 80%, var(--app-text-secondary));
   }
 
-  .tl-thumb-img-wrap {
+:global(html.theme-dark) .tl-thumb-img-wrap {
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .tl-thumb-btn--active .tl-thumb-img-wrap {
+:global(html.theme-dark) .tl-thumb-btn--active .tl-thumb-img-wrap {
     outline: 2px solid rgba(245, 245, 247, 0.8);
     outline-offset: 3px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.44), 0 3px 8px rgba(0, 0, 0, 0.24);
   }
-}
 </style>

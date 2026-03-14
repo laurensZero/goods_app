@@ -910,58 +910,57 @@ defineExpose({
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .batch-edit-sheet {
+:global(html.theme-dark) .batch-edit-sheet {
     background:
       radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 42%),
       var(--app-surface);
   }
 
-  .batch-edit-sheet__handle {
+:global(html.theme-dark) .batch-edit-sheet__handle {
     background: rgba(255, 255, 255, 0.12);
   }
 
-  .mark-owned-card {
+:global(html.theme-dark) .mark-owned-card {
     background: rgba(199, 55, 93, 0.14);
   }
 
-  .mark-owned-card--active {
+:global(html.theme-dark) .mark-owned-card--active {
     background: rgba(199, 55, 93, 0.22);
   }
 
-  .mark-owned-check {
+:global(html.theme-dark) .mark-owned-check {
     border-color: rgba(255, 255, 255, 0.16);
   }
 
-  .date-field,
-  .multi-select__trigger {
+:global(html.theme-dark) .date-field,
+  :global(html.theme-dark) .multi-select__trigger {
     border-color: rgba(255, 255, 255, 0.07);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  .multi-select__panel {
+:global(html.theme-dark) .multi-select__panel {
     border-color: rgba(255, 255, 255, 0.06);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
   }
 
-  .multi-select__option {
+:global(html.theme-dark) .multi-select__option {
     color: var(--app-text);
   }
 
-  .multi-select__option:active {
+:global(html.theme-dark) .multi-select__option:active {
     background: rgba(255, 255, 255, 0.07);
   }
 
-  .multi-select__option--active {
+:global(html.theme-dark) .multi-select__option--active {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .multi-select__check {
+:global(html.theme-dark) .multi-select__check {
     stroke: var(--app-text);
   }
 
-  :deep(.picker-popup.van-popup),
-  :deep(.picker-popup.van-popup--bottom) {
+:global(html.theme-dark) :deep(.picker-popup.van-popup),
+  :global(html.theme-dark) :deep(.picker-popup.van-popup--bottom) {
     background: rgba(24, 24, 28, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
@@ -969,15 +968,14 @@ defineExpose({
     -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
 
-  :deep(.picker-popup .van-picker) {
+:global(html.theme-dark) :deep(.picker-popup .van-picker) {
     --van-picker-mask-color:
       linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
       linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
   }
 
-  .confirm-btn--danger {
+:global(html.theme-dark) .confirm-btn--danger {
     background: #f5f5f7;
     color: #141416;
   }
-}
 </style>

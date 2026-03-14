@@ -376,8 +376,7 @@ input::placeholder {
   padding: 0 2px;
 }
 
-@media (prefers-color-scheme: dark) {
-  input {
+:global(html.theme-dark) input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     box-shadow:
@@ -385,7 +384,7 @@ input::placeholder {
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-  .mhpicker-upload-btn {
+:global(html.theme-dark) .mhpicker-upload-btn {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     color: var(--app-text-secondary);
@@ -394,17 +393,16 @@ input::placeholder {
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-  .mhpicker-upload-btn:active {
+:global(html.theme-dark) .mhpicker-upload-btn:active {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-  .mhpicker-item {
+:global(html.theme-dark) .mhpicker-item {
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .mhpicker-item--active {
+:global(html.theme-dark) .mhpicker-item--active {
     background: rgba(74, 122, 236, 0.18);
   }
-}
 </style>
