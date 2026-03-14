@@ -31,7 +31,12 @@
         <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
-      <div v-if="item.isWishlist" class="wishlist-badge">心愿</div>
+      <div
+        v-if="item.isWishlist"
+        :class="['wishlist-badge', { 'wishlist-badge--compact': density === 'compact' }]"
+      >
+        心愿
+      </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
     </div>
 
@@ -307,6 +312,20 @@ const priceText = computed(() => {
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: 0.02em;
+  box-shadow: 0 6px 14px rgba(211, 61, 87, 0.2);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.wishlist-badge--compact {
+  top: -6px;
+  left: -6px;
+  padding: 2px 7px;
+  font-size: 10px;
+  line-height: 1.2;
+  background: rgba(211, 61, 87, 0.86);
+  box-shadow: 0 4px 10px rgba(211, 61, 87, 0.16);
 }
 
 .qty-badge {

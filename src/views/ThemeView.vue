@@ -322,15 +322,22 @@ onMounted(() => {
 }
 
 .theme-card {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   padding: 14px;
   border-radius: var(--radius-card);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text) 6%, transparent);
+  transition:
+    transform var(--motion-fast) var(--motion-emphasis),
+    box-shadow var(--motion-fast) var(--motion-emphasis);
 }
 
 .theme-card__preview {
   display: grid;
   grid-template-columns: repeat(var(--theme-preview-columns), minmax(0, 1fr));
+  align-items: stretch;
   gap: 8px;
 }
 
@@ -339,6 +346,9 @@ onMounted(() => {
 }
 
 .theme-card__pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 124px;
   padding: 12px;
   border-radius: calc(var(--radius-card) - 4px);
   background: var(--theme-preview-bg);
@@ -440,12 +450,13 @@ onMounted(() => {
 .theme-card__swatches {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .theme-card__pane--dual .theme-card__swatches {
   gap: 6px;
-  margin-top: 10px;
+  padding-top: 10px;
 }
 
 .theme-card__swatch {
@@ -484,6 +495,21 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.theme-card__state {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  transition:
+    background var(--motion-fast) var(--motion-emphasis),
+    color var(--motion-fast) var(--motion-emphasis),
+    box-shadow var(--motion-fast) var(--motion-emphasis);
+}
+
 .theme-card__name {
   flex: 1;
   min-width: 0;
@@ -501,7 +527,26 @@ onMounted(() => {
 .theme-card--active {
   box-shadow:
     var(--app-shadow),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 12%, transparent);
+    0 0 0 2px color-mix(in srgb, var(--app-text) 32%, transparent),
+    0 14px 30px color-mix(in srgb, var(--app-text) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.theme-card--active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--app-text) 22%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.theme-card--active .theme-card__state {
+  background: var(--app-text);
+  color: var(--app-surface);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-text) 14%, transparent);
 }
 
 .mode-list {
@@ -544,7 +589,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .theme-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .theme-card__desc {
