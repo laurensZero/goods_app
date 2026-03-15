@@ -239,10 +239,6 @@ const {
   cancelPendingRestore
 } = useHomeScrollRestore(pageBodyRef)
 
-const densityFlip = createDensityFlip({
-  getContainer: () => goodsListRef.value,
-  getViewport: () => getScrollEl()?.getBoundingClientRect()
-})
 const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
 
@@ -534,6 +530,39 @@ onBeforeRouteLeave(() => {
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)
+const isAndroid = /Android/i.test(navigator.userAgent || '')
+const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
+const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
+const isLowPerfDevice = isAndroid || lowCores || lowMem
+const densityFlip = createDensityFlip({
+  getContainer: () => goodsListRef.value,
+  getItems: (container) => {
+    if (!container) return []
+    const children = container.children
+    const total = children.length
+    if (!total) return []
+    const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+    const cols = getResponsiveCols(displayDensity.value)
+    const scrollTop = readScrollTop()
+    const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
+    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1)
+    const endRow = Math.ceil((scrollTop + viewportHeight) / rowHeight) + 1
+    const startIndex = Math.max(0, startRow * cols)
+    const endIndex = Math.min(total, endRow * cols)
+    const items = []
+    for (let i = startIndex; i < endIndex; i += 1) {
+      const el = children[i]
+      if (el) items.push(el)
+    }
+    return items
+  },
+  getViewport: () => getScrollEl()?.getBoundingClientRect(),
+  maxItems: () => (isLowPerfDevice ? 14 : goodsList.value.length > 220 ? 24 : 40),
+  overscan: () => (isLowPerfDevice ? 40 : 80),
+  duration: () => (isLowPerfDevice ? 200 : 260),
+  fade: () => (isLowPerfDevice ? 0.985 : 0.97),
+  scale: () => (isLowPerfDevice ? 0.995 : 0.99)
+})
 
 const visibleGoodsCount = ref(0)
 const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)

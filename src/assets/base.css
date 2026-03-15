@@ -242,6 +242,7 @@ img {
 /* ── 深色模式 ── */
 html.theme-dark {
   --app-bg: #0f0f10;
+  --app-bg-gradient: linear-gradient(180deg, #0f0f10 0%, #141417 100%);
   --app-surface: #1c1c1e;
   --app-surface-soft: #2c2c2e;
   --app-surface-muted: #28282a;

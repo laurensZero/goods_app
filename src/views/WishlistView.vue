@@ -153,6 +153,11 @@ import { createDensityFlip } from '@/utils/densityFlip'
 defineOptions({ name: 'WishlistView' })
 
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
+const ROW_HEIGHT_MAP = {
+  comfortable: 308,
+  standard: 272,
+  compact: 236
+}
 
 const router = useRouter()
 const store = useGoodsStore()
@@ -211,11 +216,6 @@ const {
   cancelPendingRestore
 } = useWishlistScrollRestore(pageBodyRef)
 
-const densityFlip = createDensityFlip({
-  getContainer: () => goodsListRef.value,
-  getViewport: () => getScrollEl()?.getBoundingClientRect()
-})
-
 const baseGoodsList = computed(() => store.wishlistViewList)
 const totalQuantity = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.quantityNumber, 0)
@@ -225,6 +225,39 @@ const totalValue = computed(() => (
 ))
 
 const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
+const isAndroid = /Android/i.test(navigator.userAgent || '')
+const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
+const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
+const isLowPerfDevice = isAndroid || lowCores || lowMem
+const densityFlip = createDensityFlip({
+  getContainer: () => goodsListRef.value,
+  getItems: (container) => {
+    if (!container) return []
+    const children = container.children
+    const total = children.length
+    if (!total) return []
+    const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+    const cols = getResponsiveCols(displayDensity.value)
+    const scrollTop = readScrollTop()
+    const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
+    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1)
+    const endRow = Math.ceil((scrollTop + viewportHeight) / rowHeight) + 1
+    const startIndex = Math.max(0, startRow * cols)
+    const endIndex = Math.min(total, endRow * cols)
+    const items = []
+    for (let i = startIndex; i < endIndex; i += 1) {
+      const el = children[i]
+      if (el) items.push(el)
+    }
+    return items
+  },
+  getViewport: () => getScrollEl()?.getBoundingClientRect(),
+  maxItems: () => (isLowPerfDevice ? 14 : goodsList.value.length > 220 ? 24 : 40),
+  overscan: () => (isLowPerfDevice ? 40 : 80),
+  duration: () => (isLowPerfDevice ? 200 : 260),
+  fade: () => (isLowPerfDevice ? 0.985 : 0.97),
+  scale: () => (isLowPerfDevice ? 0.995 : 0.99)
+})
 
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
