@@ -292,11 +292,11 @@ async function shareBackupFile(uri) {
 }
 
 async function handleExport() {
-  const goodsList = goodsStore.list.map((item) => sanitizeGoodsItemForExport(item))
-  const trashList = goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item))
+  const goodsList = await Promise.all(goodsStore.list.map((item) => sanitizeGoodsItemForExport(item)))
+  const trashList = await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item)))
 
   const data = {
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     goods: goodsList,
     trash: trashList,

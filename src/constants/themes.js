@@ -9,7 +9,8 @@ export const THEME_IDS = {
   paper: 'paper',
   mint: 'mint',
   vinyl: 'vinyl',
-  terracotta: 'terracotta'
+  terracotta: 'terracotta',
+  bruise: 'bruise'
 }
 
 export const APPEARANCE_PREFERENCES = {
@@ -506,6 +507,41 @@ export const THEME_DEFINITIONS = {
         '--app-overlay': 'rgba(43, 31, 27, 0.2)'
       }
     }
+  },
+  [THEME_IDS.bruise]: {
+    id: THEME_IDS.bruise,
+    label: '黄祸紫瘀',
+    description: '故意做得很难看的一套高饱和黄紫主题，默认隐藏，不出现在常规主题列表里。',
+    defaultAppearance: 'light',
+    supportsAppearanceControl: false,
+    hidden: true,
+    preview: ['#ffea00', '#8000ff', '#2b0057'],
+    appearances: {
+      light: {
+        '--app-bg': '#ffea00',
+        '--app-bg-gradient': 'linear-gradient(180deg, #fff200 0%, #ffea00 52%, #ffd600 100%)',
+        '--app-surface': '#fff95c',
+        '--app-surface-soft': '#8000ff',
+        '--app-surface-muted': '#f3dc00',
+        '--app-text': '#2b0057',
+        '--app-text-secondary': '#4b0099',
+        '--app-text-tertiary': '#7a28d4',
+        '--app-placeholder': '#9b59ea',
+        '--app-border': 'rgba(97, 0, 194, 0.24)',
+        '--app-shadow': '0 16px 34px rgba(94, 0, 182, 0.28)',
+        '--summary-card-gradient': 'linear-gradient(145deg, #2b0057 0%, #8000ff 48%, #ffea00 100%)',
+        '--summary-card-orb': 'rgba(255, 242, 0, 0.36)',
+        '--summary-card-text': '#fffbd2',
+        '--summary-card-label': 'rgba(255, 251, 210, 0.78)',
+        '--summary-card-button-bg': 'rgba(255, 242, 0, 0.20)',
+        '--summary-card-button-border': 'rgba(255, 242, 0, 0.30)',
+        '--summary-card-button-text': '#fff8b3',
+        '--app-glass': 'rgba(255, 245, 64, 0.78)',
+        '--app-glass-strong': 'rgba(255, 234, 0, 0.72)',
+        '--app-glass-border': 'rgba(128, 0, 255, 0.26)',
+        '--app-overlay': 'rgba(43, 0, 87, 0.26)'
+      }
+    }
   }
 }
 
@@ -520,7 +556,8 @@ export const THEME_OPTIONS = [
   THEME_DEFINITIONS[THEME_IDS.cobalt],
   THEME_DEFINITIONS[THEME_IDS.jade],
   THEME_DEFINITIONS[THEME_IDS.gilded],
-  THEME_DEFINITIONS[THEME_IDS.idol]
+  THEME_DEFINITIONS[THEME_IDS.idol],
+  THEME_DEFINITIONS[THEME_IDS.bruise]
 ]
 
 export function getThemeDefinition(themeId) {

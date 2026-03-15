@@ -1,4 +1,4 @@
-import { isLocalImageUri } from '@/utils/localImage'
+import { isLocalImageUri, readLocalImageAsDataUrl } from '@/utils/localImage'
 
 export const GOODS_IMAGE_KIND_OPTIONS = [
   { value: 'primary', label: '主图' },
@@ -20,8 +20,6 @@ export function inferGoodsImageStorageMode(uri, explicitMode = '') {
 
   const normalizedUri = String(uri || '').trim()
   if (!normalizedUri) return 'remote'
-  if (normalizedUri.startsWith('http://') || normalizedUri.startsWith('https://')) return 'remote'
-  if (normalizedUri.startsWith('blob:') || normalizedUri.startsWith('data:image/')) return 'inline-local'
   if (
     normalizedUri.startsWith('content://')
     || normalizedUri.startsWith('file://')
@@ -29,8 +27,12 @@ export function inferGoodsImageStorageMode(uri, explicitMode = '') {
     || normalizedUri.startsWith('/private/')
     || isLocalImageUri(normalizedUri)
   ) {
-    return 'linked-local'
+    return normalizedUri.startsWith('blob:') || normalizedUri.startsWith('data:image/')
+      ? 'inline-local'
+      : 'linked-local'
   }
+  if (normalizedUri.startsWith('http://') || normalizedUri.startsWith('https://')) return 'remote'
+  if (normalizedUri.startsWith('blob:') || normalizedUri.startsWith('data:image/')) return 'inline-local'
 
   return 'remote'
 }
@@ -103,24 +105,51 @@ export function getPrimaryGoodsImageUrl(images, fallbackImage = '') {
   return getPrimaryGoodsImage(images, fallbackImage)?.uri || String(fallbackImage || '').trim()
 }
 
-export function sanitizeGoodsImagesForExport(images, fallbackImage = '') {
-  const exportableImages = normalizeGoodsImageList(images, fallbackImage).filter(isExportableGoodsImage)
+export async function sanitizeGoodsImagesForExport(images, fallbackImage = '') {
+  const normalizedImages = normalizeGoodsImageList(images, fallbackImage)
+  if (normalizedImages.length === 0) return []
+
+  const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
+  const exportableImages = (await Promise.all(normalizedImages.map(async (entry) => {
+    if (isExportableGoodsImage(entry)) {
+      return {
+        id: entry.id,
+        uri: entry.uri,
+        kind: entry.kind,
+        label: entry.label,
+        storageMode: 'remote',
+        isPrimary: entry.id === primaryId
+      }
+    }
+
+    if (entry.id !== primaryId) return null
+
+    const embeddedUri = await readLocalImageAsDataUrl(entry.uri)
+    if (!embeddedUri?.startsWith('data:image/')) return null
+
+    return {
+      id: entry.id,
+      uri: embeddedUri,
+      kind: 'primary',
+      label: entry.label,
+      storageMode: 'inline-local',
+      isPrimary: true
+    }
+  }))).filter(Boolean)
+
   if (exportableImages.length === 0) return []
 
-  const primaryId = exportableImages.find((entry) => entry.isPrimary)?.id || exportableImages[0].id
+  const resolvedPrimaryId = exportableImages.find((entry) => entry.isPrimary)?.id || exportableImages[0].id
   return exportableImages.map((entry) => ({
-    id: entry.id,
-    uri: entry.uri,
-    kind: entry.id === primaryId ? 'primary' : entry.kind,
-    label: entry.label,
-    storageMode: 'remote',
-    isPrimary: entry.id === primaryId
+    ...entry,
+    kind: entry.id === resolvedPrimaryId ? 'primary' : entry.kind,
+    isPrimary: entry.id === resolvedPrimaryId
   }))
 }
 
-export function sanitizeGoodsItemForExport(item) {
+export async function sanitizeGoodsItemForExport(item) {
   const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
-  const images = sanitizeGoodsImagesForExport(item?.images, item?.coverImage || item?.image)
+  const images = await sanitizeGoodsImagesForExport(item?.images, item?.coverImage || item?.image)
   return {
     ...rest,
     images

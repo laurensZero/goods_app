@@ -18,6 +18,7 @@ import {
   getPrimaryGoodsImageUrl,
   normalizeGoodsImageList
 } from '@/utils/goodsImages'
+import { restoreLocalImageFromDataUrl } from '@/utils/localImage'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IS_NATIVE = Capacitor.isNativePlatform()
@@ -134,6 +135,32 @@ async function writePersistedTrash(list) {
     })
   } catch {
     // ignore
+  }
+}
+
+async function restoreImportedGoodsItem(rawItem) {
+  const normalizedImages = normalizeGoodsImageList(rawItem?.images, rawItem?.coverImage || rawItem?.image)
+  if (normalizedImages.length === 0) return rawItem
+
+  const restoredImages = await Promise.all(normalizedImages.map(async (entry) => {
+    if (!String(entry.uri || '').startsWith('data:image/')) return entry
+
+    return {
+      ...entry,
+      uri: await restoreLocalImageFromDataUrl(entry.uri),
+      storageMode: '',
+      localPath: ''
+    }
+  }))
+
+  const images = normalizeGoodsImageList(restoredImages)
+  const coverImage = getPrimaryGoodsImageUrl(images, rawItem?.coverImage || rawItem?.image)
+
+  return {
+    ...rawItem,
+    image: coverImage,
+    coverImage,
+    images
   }
 }
 
@@ -608,9 +635,10 @@ export const useGoodsStore = defineStore('goods', () => {
 
   async function importGoodsBackup(items) {
     const existingIds = new Set(list.value.map((item) => item.id))
-    const newItems = items
-      .filter((item) => item.id && !existingIds.has(item.id))
-      .map((item) => normalizeGoodsInput(item, item.id))
+    const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
+    const newItems = await Promise.all(
+      importableItems.map(async (item) => normalizeGoodsInput(await restoreImportedGoodsItem(item), item.id))
+    )
 
     if (newItems.length === 0) return 0
 
@@ -624,9 +652,10 @@ export const useGoodsStore = defineStore('goods', () => {
     if (!Array.isArray(items) || items.length === 0) return 0
 
     const existingIds = new Set(trashList.value.map((item) => item.id))
-    const newItems = items
-      .filter((item) => item.id && !existingIds.has(item.id))
-      .map((item) => normalizeTrashItem(item, item.id))
+    const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
+    const newItems = await Promise.all(
+      importableItems.map(async (item) => normalizeTrashItem(await restoreImportedGoodsItem(item), item.id))
+    )
 
     if (newItems.length === 0) return 0
 

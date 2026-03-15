@@ -7,7 +7,7 @@
         <div class="hero-copy">
           <p class="hero-label">Trash Bin</p>
           <h1 class="hero-title">误删的谷子可以在这里恢复</h1>
-          <p class="hero-desc">删除后的商品会先进入回收站，恢复后会重新回到收藏列表。</p>
+          <p class="hero-desc">删除后的物品会先进入回收站，恢复后会重新回到收藏列表。</p>
         </div>
 
         <div class="summary-grid">
@@ -48,7 +48,7 @@
               <div class="trash-chips">
                 <span v-if="item.category" class="trash-chip">{{ item.category }}</span>
                 <span v-if="item.ip" class="trash-chip">{{ item.ip }}</span>
-                <span class="trash-chip">{{ item.quantityNumber }} 个</span>
+                <span class="trash-chip">{{ item.quantityNumber }} 件</span>
                 <span v-if="item.totalValueNumber > 0" class="trash-chip">¥{{ item.totalValueNumber.toFixed(2) }}</span>
               </div>
 
@@ -62,22 +62,44 @@
 
         <EmptyState
           v-else
-          icon="✦"
+          icon="✓"
           title="回收站是空的"
           description="以后误删的谷子会先出现在这里。"
         />
       </section>
+
+      <DangerConfirmDialog
+        :show="showDeleteConfirm"
+        title="彻底删除这条记录？"
+        description="删除后将无法恢复，这件物品会从回收站中永久移除。"
+        confirm-text="彻底删除"
+        @cancel="cancelDelete"
+        @confirm="confirmDelete"
+      />
+
+      <DangerConfirmDialog
+        :show="showEmptyConfirm"
+        title="清空整个回收站？"
+        description="清空后将无法恢复，回收站中的所有记录都会被永久删除。"
+        confirm-text="清空回收站"
+        @cancel="showEmptyConfirm = false"
+        @confirm="confirmEmptyAll"
+      />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
 
 const store = useGoodsStore()
+const showDeleteConfirm = ref(false)
+const showEmptyConfirm = ref(false)
+const pendingDeleteId = ref('')
 
 const totalQuantity = computed(() =>
   store.trashViewList.reduce((sum, item) => sum + item.quantityNumber, 0)
@@ -100,10 +122,9 @@ async function restoreItem(id) {
   await store.restoreTrashItem(id)
 }
 
-async function deleteItem(id) {
-  const confirmed = window.confirm('彻底删除后将无法恢复，确定继续吗？')
-  if (!confirmed) return
-  await store.deleteTrashItem(id)
+function deleteItem(id) {
+  pendingDeleteId.value = id
+  showDeleteConfirm.value = true
 }
 
 async function restoreAll() {
@@ -113,9 +134,25 @@ async function restoreAll() {
   }
 }
 
-async function emptyAll() {
-  const confirmed = window.confirm('确定清空整个回收站吗？清空后将无法恢复。')
-  if (!confirmed) return
+function emptyAll() {
+  showEmptyConfirm.value = true
+}
+
+function cancelDelete() {
+  pendingDeleteId.value = ''
+  showDeleteConfirm.value = false
+}
+
+async function confirmDelete() {
+  const id = pendingDeleteId.value
+  pendingDeleteId.value = ''
+  showDeleteConfirm.value = false
+  if (!id) return
+  await store.deleteTrashItem(id)
+}
+
+async function confirmEmptyAll() {
+  showEmptyConfirm.value = false
   await store.emptyTrash()
 }
 </script>
@@ -301,8 +338,8 @@ async function emptyAll() {
 }
 
 :global(html.theme-dark) .action-btn--danger,
-  :global(html.theme-dark) .trash-btn--danger {
-    background: #f5f5f7;
-    color: #141416;
-  }
+:global(html.theme-dark) .trash-btn--danger {
+  background: #f5f5f7;
+  color: #141416;
+}
 </style>

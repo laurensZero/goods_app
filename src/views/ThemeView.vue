@@ -30,7 +30,7 @@
 
         <div class="theme-grid">
           <button
-            v-for="theme in THEME_OPTIONS"
+            v-for="theme in visibleThemeOptions"
             :key="theme.id"
             type="button"
             :class="['theme-card', { 'theme-card--active': themeStore.themeId === theme.id }]"
@@ -128,6 +128,7 @@ import { useThemeStore } from '@/stores/theme'
 
 const themeStore = useThemeStore()
 const pageBodyRef = ref(null)
+const visibleThemeOptions = THEME_OPTIONS.filter((theme) => !theme.hidden)
 
 const appliedAppearanceLabel = computed(() => (
   themeStore.appliedAppearance === 'dark' ? '深色' : '浅色'
