@@ -38,7 +38,7 @@
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortMode"
         @toggle-timeline="toggleTimelineMode"
-        @set-density="setDisplayDensity"
+        @set-density="setDisplayDensityWithFlip"
       />
 
       <Transition name="goods-view-switch" mode="out-in">
@@ -48,6 +48,7 @@
           :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
         >
           <div
+            ref="goodsListRef"
             :class="[
               'goods-list',
               {
@@ -155,6 +156,7 @@ import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
+import { createDensityFlip } from '@/utils/densityFlip'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/SummaryCard.vue'
@@ -171,6 +173,7 @@ defineOptions({ name: 'HomeView' })
 
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
+const goodsListRef = ref(null)
 const batchEditSheetRef = ref(null)
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
@@ -235,6 +238,11 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useHomeScrollRestore(pageBodyRef)
+
+const densityFlip = createDensityFlip({
+  getContainer: () => goodsListRef.value,
+  getViewport: () => getScrollEl()?.getBoundingClientRect()
+})
 const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
 
@@ -630,6 +638,13 @@ function toggleTimelineItem(id) {
   toggleExpandedTimelineItem(id)
 }
 
+function setDisplayDensityWithFlip(mode) {
+  if (displayDensity.value === mode) return
+  const captured = densityFlip.capture()
+  setDisplayDensity(mode)
+  if (captured) densityFlip.animate()
+}
+
 watch(displayDensity, (v) => {
   if (v !== 'timeline') clearExpandedTimelineItem()
 })
@@ -803,24 +818,6 @@ async function applyBatchEditPayload(payload) {
 .goods-view-switch-leave-to {
   opacity: 0;
   transform: translateY(12px) scale(0.992);
-}
-
-.goods-list--density-animating {
-  animation: density-grid-pulse var(--home-motion-density-duration) var(--home-motion-ease-standard);
-  transform-origin: top center;
-  will-change: opacity, transform;
-}
-
-@keyframes density-grid-pulse {
-  0% {
-    opacity: 0.94;
-    transform: translateY(2px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes sort-view-refresh {

@@ -47,7 +47,7 @@
         :show-timeline-toggle="false"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortMode"
-        @set-density="setDisplayDensity"
+        @set-density="setDisplayDensityWithFlip"
       />
 
       <section
@@ -55,6 +55,7 @@
         :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
       >
         <div
+          ref="goodsListRef"
           :class="[
             'goods-list',
             { 'goods-list--density-animating': isDensityAnimating }
@@ -147,6 +148,7 @@ import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
+import { createDensityFlip } from '@/utils/densityFlip'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -155,6 +157,7 @@ const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const router = useRouter()
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
+const goodsListRef = ref(null)
 const windowWidth = ref(window.innerWidth)
 const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
@@ -207,6 +210,11 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useWishlistScrollRestore(pageBodyRef)
+
+const densityFlip = createDensityFlip({
+  getContainer: () => goodsListRef.value,
+  getViewport: () => getScrollEl()?.getBoundingClientRect()
+})
 
 const baseGoodsList = computed(() => store.wishlistViewList)
 const totalQuantity = computed(() => (
@@ -305,6 +313,13 @@ function openDetail(id) {
 function openSearch() {
   saveScrollPosition(true, 'wishlist:openSearch')
   router.push('/search?scope=wishlist')
+}
+
+function setDisplayDensityWithFlip(mode) {
+  if (displayDensity.value === mode) return
+  const captured = densityFlip.capture()
+  setDisplayDensity(mode)
+  if (captured) densityFlip.animate()
 }
 
 function openAddSheet() {
@@ -550,24 +565,6 @@ onBeforeRouteLeave(() => {
 .goods-view-pane--sorting {
   animation: sort-view-refresh var(--home-motion-sort-view-duration) var(--home-motion-ease-standard);
   will-change: opacity, transform;
-}
-
-.goods-list--density-animating {
-  animation: density-grid-pulse var(--home-motion-density-duration) var(--home-motion-ease-standard);
-  transform-origin: top center;
-  will-change: opacity, transform;
-}
-
-@keyframes density-grid-pulse {
-  0% {
-    opacity: 0.94;
-    transform: translateY(2px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes sort-view-refresh {

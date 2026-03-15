@@ -132,6 +132,30 @@ img {
   display: none;
 }
 
+.goods-list--density-animating {
+  animation: density-grid-pulse var(--home-motion-density-duration) var(--home-motion-ease-emphasis);
+  transform-origin: top center;
+  will-change: opacity, transform;
+}
+
+@keyframes density-grid-pulse {
+  0% {
+    opacity: 0.992;
+    transform: translateY(1px) scale(0.998);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goods-list--density-animating {
+    animation: none;
+  }
+}
+
 .picker-popup {
   overflow: hidden;
 }

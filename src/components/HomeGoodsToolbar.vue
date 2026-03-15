@@ -52,7 +52,13 @@
         </button>
       </div>
 
-      <div v-if="displayDensity !== 'timeline'" class="density-switch" aria-label="展示密度切换">
+      <div
+        v-if="displayDensity !== 'timeline'"
+        class="density-switch"
+        :style="densitySwitchStyle"
+        aria-label="展示密度切换"
+      >
+        <span class="density-switch__indicator" aria-hidden="true" />
         <button
           v-for="mode in densityModes"
           :key="mode.value"
@@ -150,6 +156,16 @@ const currentDirectionLabel = computed(() => (
 const sortButtonLabel = computed(() => (
   `当前按${currentSortOption.value.label}${props.sortDirection === 'asc' ? '升序' : '降序'}，点击切换升降序，长按选择排序方式`
 ))
+const densityModeCount = computed(() => Math.max(props.densityModes.length, 1))
+const activeDensityIndex = computed(() => {
+  const index = props.densityModes.findIndex((mode) => mode.value === props.displayDensity)
+  if (index < 0) return 0
+  return Math.min(index, densityModeCount.value - 1)
+})
+const densitySwitchStyle = computed(() => ({
+  '--density-switch-count': densityModeCount.value,
+  '--density-switch-index': activeDensityIndex.value
+}))
 
 function clearSortLongPressTimer() {
   if (!sortLongPressTimer) return
@@ -251,10 +267,17 @@ onBeforeUnmount(() => {
 
 .density-switch {
   flex-basis: 100%;
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding: 6px;
+  grid-template-columns: repeat(var(--density-switch-count, 3), minmax(0, 1fr));
+  gap: var(--density-switch-gap, 6px);
+  padding: var(--density-switch-pad, 6px);
+  --density-switch-gap: 6px;
+  --density-switch-pad: 6px;
+  --density-switch-height: 36px;
+  --density-switch-duration: calc(var(--home-motion-density-duration) + 80ms);
+  --density-switch-count: 3;
+  --density-switch-index: 0;
   border-radius: 18px;
   background: var(--app-glass);
   box-shadow: var(--app-shadow);
@@ -264,7 +287,7 @@ onBeforeUnmount(() => {
   .density-switch {
     flex-basis: auto;
     display: inline-grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--density-switch-count, 3), minmax(0, 1fr));
     order: 2;
   }
 
@@ -275,7 +298,9 @@ onBeforeUnmount(() => {
 
 .density-switch__option {
   min-width: 0;
-  height: 36px;
+  position: relative;
+  z-index: 1;
+  height: var(--density-switch-height, 36px);
   padding: 0 12px;
   border: none;
   border-radius: 14px;
@@ -285,13 +310,33 @@ onBeforeUnmount(() => {
   font-weight: 600;
   transition:
     transform var(--home-motion-density-duration) var(--home-motion-ease-standard),
-    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
     color var(--home-motion-density-duration) var(--home-motion-ease-standard);
 }
 
 .density-switch__option--active {
-  background: #141416;
   color: #ffffff;
+}
+
+.density-switch__indicator {
+  position: absolute;
+  top: var(--density-switch-pad, 6px);
+  left: var(--density-switch-pad, 6px);
+  height: var(--density-switch-height, 36px);
+  width: calc(
+    (100% - (var(--density-switch-gap, 6px) * (var(--density-switch-count, 3) - 1)) - (var(--density-switch-pad, 6px) * 2))
+    / var(--density-switch-count, 3)
+  );
+  border-radius: 14px;
+  background: #141416;
+  transform: translateX(calc((100% + var(--density-switch-gap, 6px)) * var(--density-switch-index, 0)));
+  transition:
+    transform var(--density-switch-duration) var(--home-motion-ease-emphasis),
+    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
+    box-shadow var(--home-motion-density-duration) var(--home-motion-ease-standard);
+  box-shadow: 0 6px 14px rgba(20, 20, 22, 0.12);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .density-switch__option:active {
@@ -605,7 +650,14 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-:global(html.theme-dark) .density-switch__option--active,
+:global(html.theme-dark) .density-switch__indicator {
+  background: #f5f5f7;
+}
+
+:global(html.theme-dark) .density-switch__option--active {
+  color: #141416;
+}
+
 :global(html.theme-dark) .timeline-toggle--active {
   background: #f5f5f7;
   color: #141416;
@@ -657,5 +709,12 @@ onBeforeUnmount(() => {
 
 :global(html.theme-dark) .sort-sheet--tablet .sort-sheet__option:active {
   background: rgba(255, 255, 255, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .density-switch__indicator,
+  .density-switch__option {
+    transition-duration: 0ms;
+  }
 }
 </style>
