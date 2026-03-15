@@ -57,6 +57,7 @@ body {
   color: var(--app-text);
   background-color: var(--app-bg);
   background: var(--app-bg-gradient);
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -237,6 +238,72 @@ html.theme-dark body {
   background-color: var(--app-bg);
   background: var(--app-bg-gradient);
   color: var(--app-text);
+}
+
+html.theme-dark .app-select__trigger,
+html.theme-dark .add-page .date-field,
+html.theme-dark .add-page .multi-select__trigger,
+html.theme-dark .edit-page .date-field,
+html.theme-dark .edit-page .multi-select__trigger {
+  border-color: transparent !important;
+  background: color-mix(in srgb, var(--app-surface) 96%, var(--app-glass)) !important;
+  box-shadow: none !important;
+}
+
+html.theme-dark .app-select--open .app-select__trigger,
+html.theme-dark .app-select__trigger:focus-visible,
+html.theme-dark .add-page .multi-select--open .multi-select__trigger,
+html.theme-dark .add-page .multi-select__trigger:focus-visible,
+html.theme-dark .add-page .date-field:focus-visible,
+html.theme-dark .edit-page .multi-select--open .multi-select__trigger,
+html.theme-dark .edit-page .multi-select__trigger:focus-visible,
+html.theme-dark .edit-page .date-field:focus-visible {
+  border-color: rgba(118, 148, 210, 0.24) !important;
+  box-shadow: 0 0 0 2px rgba(118, 148, 210, 0.14) !important;
+}
+
+html.theme-dark .add-page .multi-select__chip,
+html.theme-dark .edit-page .multi-select__chip {
+  border: 1px solid rgba(124, 154, 216, 0.26) !important;
+  background: rgba(79, 109, 172, 0.52) !important;
+  color: #f4f7ff !important;
+}
+
+html.theme-dark .add-page .multi-select__chip-remove,
+html.theme-dark .edit-page .multi-select__chip-remove {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #f4f7ff !important;
+}
+
+html.theme-dark .add-page .multi-select__panel,
+html.theme-dark .edit-page .multi-select__panel {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(24, 24, 28, 0.96) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34) !important;
+}
+
+html.theme-dark .add-page .multi-select__option,
+html.theme-dark .edit-page .multi-select__option {
+  color: #f3f5fb !important;
+}
+
+html.theme-dark .add-page .multi-select__option:hover,
+html.theme-dark .add-page .multi-select__option:active,
+html.theme-dark .edit-page .multi-select__option:hover,
+html.theme-dark .edit-page .multi-select__option:active {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #f4f7ff !important;
+}
+
+html.theme-dark .add-page .multi-select__option--active,
+html.theme-dark .edit-page .multi-select__option--active {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #f4f7ff !important;
+}
+
+html.theme-dark .add-page .multi-select__option--active .multi-select__check,
+html.theme-dark .edit-page .multi-select__option--active .multi-select__check {
+  stroke: #f4f7ff !important;
 }
 
 html.theme-dark .picker-popup.van-popup,

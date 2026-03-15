@@ -109,21 +109,6 @@
               />
             </div>
 
-            <div class="field">
-              <span class="field-label">收纳位置</span>
-              <StorageLocationInput
-                v-model="form.storageLocation"
-                :options="storageLocationOptions"
-                placeholder="未设置收纳位置"
-                quick-create
-              />
-            </div>
-
-            <div class="field">
-              <span class="field-label">自定义标签</span>
-              <TagInput v-model="form.tags" placeholder="例如：生日谷、吧唧墙、待出" />
-            </div>
-
             <div ref="charactersFieldRef" class="field">
               <span class="field-label">角色</span>
 
@@ -209,6 +194,21 @@
                 @cancel="closeQuickCreate"
                 @submit="submitQuickCharacter"
               />
+            </div>
+
+            <div class="field">
+              <span class="field-label">收纳位置</span>
+              <StorageLocationInput
+                v-model="form.storageLocation"
+                :options="storageLocationOptions"
+                placeholder="未设置收纳位置"
+                quick-create
+              />
+            </div>
+
+            <div class="field">
+              <span class="field-label">自定义标签</span>
+              <TagInput v-model="form.tags" placeholder="例如：生日谷、吧唧墙、待出" />
             </div>
 
             <div class="field">
@@ -1142,27 +1142,28 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .preview-media {
     background: linear-gradient(180deg, #1a1a1e, #252528);
   }
-:global(html.theme-dark) .date-field,
-  :global(html.theme-dark) .multi-select__trigger {
-    border-color: rgba(255, 255, 255, 0.07);
-    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+:global(html.theme-dark) .add-page .date-field,
+  :global(html.theme-dark) .add-page .multi-select__trigger {
+    border-color: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+:global(html.theme-dark) .add-page .date-field:focus-visible,
+  :global(html.theme-dark) .add-page .multi-select--open .multi-select__trigger,
+  :global(html.theme-dark) .add-page .multi-select__trigger:focus-visible {
+    border-color: rgba(118, 148, 210, 0.3);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      0 0 0 1px rgba(255, 255, 255, 0.02);
+      0 0 0 3px rgba(118, 148, 210, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
-:global(html.theme-dark) .date-field:focus-visible,
-  :global(html.theme-dark) .multi-select--open .multi-select__trigger,
-  :global(html.theme-dark) .multi-select__trigger:focus-visible {
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+:global(html.theme-dark) .add-page .multi-select__chip {
+    border: 1px solid rgba(124, 154, 216, 0.24) !important;
+    background: rgba(82, 112, 176, 0.34) !important;
+    color: #f3f7ff !important;
   }
-:global(html.theme-dark) .multi-select__chip {
-    background: rgba(255, 255, 255, 0.09);
-  }
-:global(html.theme-dark) .multi-select__chip-remove {
-    background: rgba(255, 255, 255, 0.10);
+:global(html.theme-dark) .add-page .multi-select__chip-remove {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #f3f7ff !important;
   }
 :global(html.theme-dark) .multi-select__panel {
     border-color: rgba(255, 255, 255, 0.06);

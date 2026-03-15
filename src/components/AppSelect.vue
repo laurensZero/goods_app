@@ -244,19 +244,17 @@ onBeforeUnmount(() => {
 }
 
 :global(html.theme-dark) .app-select__trigger {
-    border-color: rgba(255, 255, 255, 0.07);
-    background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      0 0 0 1px rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    background: color-mix(in srgb, var(--app-surface) 96%, var(--app-glass)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
 :global(html.theme-dark) .app-select--open .app-select__trigger,
   :global(html.theme-dark) .app-select__trigger:focus-visible {
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(118, 148, 210, 0.28) !important;
     box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      0 0 0 2px rgba(118, 148, 210, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
 :global(html.theme-dark) .app-select__panel {

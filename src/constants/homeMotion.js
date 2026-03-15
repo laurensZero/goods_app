@@ -1,10 +1,10 @@
 export const HOME_MOTION = Object.freeze({
-  densityDurationMs: 170,
-  sortDurationMs: 220,
-  sortViewDurationMs: 210,
+  densityDurationMs: 140,
+  sortDurationMs: 170,
+  sortViewDurationMs: 160,
   viewFadeDurationMs: 180,
   viewTransformDurationMs: 220,
-  easeStandard: 'ease',
+  easeStandard: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
   easeEmphasis: 'cubic-bezier(0.22, 1, 0.36, 1)'
 })
 

@@ -779,15 +779,17 @@ async function applyBatchEditPayload(payload) {
   display: grid;
   gap: var(--card-gap);
   align-items: start;
+  contain: layout paint;
 }
 
 .goods-view-pane {
   transform-origin: top center;
+  contain: paint;
 }
 
 .goods-view-pane--sorting {
   animation: sort-view-refresh var(--home-motion-sort-view-duration) var(--home-motion-ease-standard);
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .goods-view-switch-enter-active,
@@ -809,45 +811,26 @@ async function applyBatchEditPayload(payload) {
   will-change: opacity, transform;
 }
 
-.goods-list--density-animating :deep(.goods-card) {
-  animation: density-card-settle var(--home-motion-density-duration) var(--home-motion-ease-standard);
-  will-change: opacity, transform;
-}
-
 @keyframes density-grid-pulse {
   0% {
-    opacity: 0.78;
-    transform: scale(0.987);
+    opacity: 0.94;
+    transform: translateY(2px);
   }
 
   100% {
     opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes density-card-settle {
-  0% {
-    opacity: 0.76;
-    transform: translateY(6px) scale(0.982);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 @keyframes sort-view-refresh {
   0% {
-    opacity: 0.84;
-    filter: blur(1.5px) saturate(0.96);
-    transform: translateY(4px);
+    opacity: 0.92;
+    transform: translateY(3px);
   }
 
   100% {
     opacity: 1;
-    filter: blur(0) saturate(1);
     transform: translateY(0);
   }
 }

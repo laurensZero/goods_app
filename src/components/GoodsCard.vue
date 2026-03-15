@@ -278,6 +278,7 @@ const priceText = computed(() => {
   cursor: pointer;
   user-select: none;
   -webkit-touch-callout: none;
+  contain: layout paint style;
   transition:
     transform 0.22s ease,
     box-shadow 0.22s ease;
@@ -313,8 +314,6 @@ const priceText = computed(() => {
   line-height: 1.3;
   letter-spacing: 0.02em;
   box-shadow: 0 6px 14px rgba(211, 61, 87, 0.2);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   pointer-events: none;
 }
 
@@ -339,8 +338,6 @@ const priceText = computed(() => {
   border-radius: 7px;
   padding: 2px 6px;
   line-height: 1.4;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   pointer-events: none;
   z-index: 2;
   letter-spacing: 0.02em;

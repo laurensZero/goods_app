@@ -12,14 +12,14 @@
         @click="toggleHidden"
       >
         <svg v-if="!isHidden" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
-          <circle cx="12" cy="12" r="3.2" />
+          <path d="M2.75 12C4.6 8.92 7.88 7 12 7s7.4 1.92 9.25 5c-1.85 3.08-5.13 5-9.25 5s-7.4-1.92-9.25-5Z" />
+          <circle cx="12" cy="12" r="2.6" />
         </svg>
         <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M3 3 21 21" />
-          <path d="M10.6 6.2A11.8 11.8 0 0 1 12 6c6.5 0 10 6 10 6a18.8 18.8 0 0 1-4.1 4.5" />
-          <path d="M6.7 6.8C4.1 8.3 2 12 2 12s3.5 6 10 6c1 0 2-.1 2.9-.4" />
-          <path d="M9.9 9.9A3.2 3.2 0 0 0 14.1 14.1" />
+          <path d="M4 4 20 20" />
+          <path d="M9.9 7.28A11.4 11.4 0 0 1 12 7c4.12 0 7.4 1.92 9.25 5a11.8 11.8 0 0 1-3.03 3.33" />
+          <path d="M6.16 9.09A11.53 11.53 0 0 0 2.75 12c1.85 3.08 5.13 5 9.25 5 1.08 0 2.1-.13 3.04-.39" />
+          <path d="M10.59 10.59A2.05 2.05 0 0 0 10 12c0 1.1.9 2 2 2 .52 0 1-.2 1.36-.53" />
         </svg>
       </button>
     </div>
@@ -118,26 +118,28 @@ watch(isHidden, (value) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--summary-card-button-border);
-  border-radius: 999px;
-  background: var(--summary-card-button-bg);
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
   color: var(--summary-card-button-text);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 20px rgba(0, 0, 0, 0.16);
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 
 .summary-visibility-btn:active {
   transform: scale(0.94);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .summary-visibility-btn svg {
   width: 18px;
   height: 18px;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

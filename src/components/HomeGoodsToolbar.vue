@@ -26,11 +26,15 @@
           @mouseleave="cancelSortLongPress"
           @contextmenu.prevent="openSortSheet"
         >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M7 6V18" />
-            <path d="M4 9L7 6L10 9" />
-            <path d="M17 18V6" />
-            <path d="M14 15L17 18L20 15" />
+          <svg class="sort-toggle__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <g class="sort-toggle__group sort-toggle__group--up">
+              <path d="M7 18V7" />
+              <path d="M3.5 10.5L7 7L10.5 10.5" />
+            </g>
+            <g class="sort-toggle__group sort-toggle__group--down">
+              <path d="M17 6V17" />
+              <path d="M13.5 13.5L17 17L20.5 13.5" />
+            </g>
           </svg>
         </button>
 
@@ -62,9 +66,16 @@
     </div>
   </section>
 
-  <Popup v-model:show="showSortSheet" teleport="body" position="bottom" round class="sort-sheet">
+  <Popup
+    v-model:show="showSortSheet"
+    teleport="body"
+    :position="popupPosition"
+    :round="!isTablet"
+    overlay-class="sort-sheet-overlay"
+    :class="['sort-sheet', { 'sort-sheet--tablet': isTablet }]"
+  >
     <div class="sort-sheet__panel">
-      <div class="sort-sheet__handle" />
+      <div v-if="!isTablet" class="sort-sheet__handle" />
       <div class="sort-sheet__head">
         <div>
           <p class="sort-sheet__label">排序方式</p>
@@ -94,10 +105,11 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Popup } from 'vant'
 
 const LONG_PRESS_DELAY_MS = 420
+const TABLET_BREAKPOINT = 900
 
 const props = defineProps({
   sectionLabel: { type: String, default: '我的收藏' },
@@ -115,8 +127,15 @@ const props = defineProps({
 const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode'])
 
 const showSortSheet = ref(false)
+const windowWidth = ref(window.innerWidth)
+const isTablet = computed(() => windowWidth.value >= TABLET_BREAKPOINT)
+const popupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 let sortLongPressTimer = 0
 let suppressNextSortClick = false
+
+function handleResize() {
+  windowWidth.value = window.innerWidth
+}
 
 const currentSortOption = computed(() =>
   props.sortOptions.find((option) => option.value === props.sortMode) || props.sortOptions[0] || {
@@ -174,8 +193,13 @@ function selectSortMode(value) {
   showSortSheet.value = false
 }
 
+onMounted(() => {
+  window.addEventListener('resize', handleResize, { passive: true })
+})
+
 onBeforeUnmount(() => {
   clearSortLongPressTimer()
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -294,14 +318,52 @@ onBeforeUnmount(() => {
 }
 
 .timeline-toggle svg,
-.sort-toggle svg {
+.sort-toggle__icon {
   width: 18px;
   height: 18px;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.timeline-toggle svg {
   transition: transform var(--home-motion-sort-duration) var(--home-motion-ease-emphasis);
+}
+
+.sort-toggle__icon {
+  overflow: visible;
+  transform-origin: center;
+  color: #6f7682;
+}
+
+.sort-toggle__group {
+  transition:
+    opacity 180ms ease,
+    color 180ms ease;
+}
+
+.sort-toggle__group path {
+  stroke: currentColor;
+  transition: stroke-width 180ms ease, stroke 180ms ease;
+}
+
+.sort-toggle__group--up {
+  color: #b7bcc5;
+  opacity: 1;
+}
+
+.sort-toggle__group--down {
+  color: #5f6570;
+  opacity: 1;
+}
+
+.sort-toggle__group--up path {
+  stroke-width: 2.15;
+}
+
+.sort-toggle__group--down path {
+  stroke-width: 2.65;
 }
 
 .timeline-toggle--active,
@@ -314,12 +376,37 @@ onBeforeUnmount(() => {
   transform: rotate(18deg) scale(1.04);
 }
 
-.sort-toggle--asc svg {
-  transform: rotate(180deg);
+.sort-toggle--asc {
+  background: var(--app-glass);
+  color: var(--app-text-secondary);
+}
+
+.sort-toggle--asc .sort-toggle__group--up {
+  color: #141416;
+}
+
+.sort-toggle--asc .sort-toggle__group--down {
+  color: #b7bcc5;
+}
+
+.sort-toggle--asc .sort-toggle__group--up path {
+  stroke-width: 2.65;
+}
+
+.sort-toggle--asc .sort-toggle__group--down path {
+  stroke-width: 2.15;
 }
 
 .sort-toggle--animating {
   animation: sort-toggle-pulse var(--home-motion-sort-duration) var(--home-motion-ease-emphasis);
+}
+
+.sort-toggle--animating .sort-toggle__icon {
+  animation: sort-toggle-icon-pulse 220ms var(--home-motion-ease-emphasis);
+}
+
+.sort-toggle--asc.sort-toggle--animating .sort-toggle__icon {
+  animation-name: sort-toggle-icon-pulse;
 }
 
 .timeline-toggle:active,
@@ -344,13 +431,49 @@ onBeforeUnmount(() => {
   }
 }
 
+@keyframes sort-toggle-icon-pulse {
+  0% {
+    transform: scale(0.92);
+  }
+
+  55% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
 .sort-sheet {
   overflow: hidden;
+}
+
+:global(.sort-sheet-overlay) {
+  background: var(--app-overlay);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.sort-sheet--tablet {
+  width: min(560px, calc(100vw - 64px));
+  max-width: calc(100vw - 64px);
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sort-sheet__panel {
   padding: 12px 16px calc(max(env(safe-area-inset-bottom), 16px) + 4px);
   background: var(--app-surface);
+}
+
+.sort-sheet--tablet .sort-sheet__panel {
+  padding: 18px;
+  border: 1px solid var(--app-glass-border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
 }
 
 .sort-sheet__handle {
@@ -369,6 +492,16 @@ onBeforeUnmount(() => {
   margin-bottom: 14px;
 }
 
+.sort-sheet--tablet .sort-sheet__head {
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sort-sheet--tablet .sort-sheet__head > div {
+  min-width: 0;
+}
+
 .sort-sheet__label {
   color: var(--app-text-tertiary);
   font-size: 12px;
@@ -379,6 +512,14 @@ onBeforeUnmount(() => {
   color: var(--app-text);
   font-size: 20px;
   font-weight: 700;
+}
+
+.sort-sheet--tablet .sort-sheet__label {
+  font-size: 13px;
+}
+
+.sort-sheet--tablet .sort-sheet__title {
+  font-size: 18px;
 }
 
 .sort-sheet__dir-btn {
@@ -392,9 +533,26 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.sort-sheet--tablet .sort-sheet__dir-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-glass));
+}
+
 .sort-sheet__options {
   display: grid;
   gap: 10px;
+  max-height: min(60vh, 520px);
+  overflow: auto;
+}
+
+.sort-sheet--tablet .sort-sheet__options {
+  gap: 0;
+  max-height: min(56vh, 420px);
+  padding: 6px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--app-bg) 88%, var(--app-glass));
 }
 
 .sort-sheet__option {
@@ -411,9 +569,30 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 
+.sort-sheet--tablet .sort-sheet__option {
+  padding: 18px 18px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.sort-sheet--tablet .sort-sheet__option + .sort-sheet__option {
+  margin-top: 2px;
+}
+
 .sort-sheet__option--active {
   border-color: color-mix(in srgb, var(--app-text) 24%, transparent);
   background: color-mix(in srgb, var(--app-text) 6%, var(--app-surface));
+}
+
+.sort-sheet--tablet .sort-sheet__option--active {
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.14);
+}
+
+.sort-sheet--tablet .sort-sheet__option:active {
+  background: rgba(20, 20, 22, 0.05);
 }
 
 .sort-sheet__option-name {
@@ -427,14 +606,56 @@ onBeforeUnmount(() => {
 }
 
 :global(html.theme-dark) .density-switch__option--active,
-:global(html.theme-dark) .sort-toggle--asc,
 :global(html.theme-dark) .timeline-toggle--active {
   background: #f5f5f7;
   color: #141416;
 }
 
+:global(html.theme-dark) .sort-toggle--asc {
+  background: var(--app-glass);
+  color: var(--app-text-secondary);
+}
+
+:global(html.theme-dark) .sort-toggle__group--up {
+  color: #70757f;
+}
+
+:global(html.theme-dark) .sort-toggle__group--down {
+  color: #f5f5f7;
+}
+
+:global(html.theme-dark) .sort-toggle--asc .sort-toggle__group--up {
+  color: #f5f5f7;
+}
+
+:global(html.theme-dark) .sort-toggle--asc .sort-toggle__group--down {
+  color: #70757f;
+}
+
 :global(html.theme-dark) .sort-sheet__dir-btn,
 :global(html.theme-dark) .sort-sheet__option--active {
   background: rgba(255, 255, 255, 0.08);
+}
+
+:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__panel {
+  background: rgba(24, 24, 28, 0.8);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+}
+
+:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__options {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__dir-btn {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__option--active {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__option:active {
+  background: rgba(255, 255, 255, 0.06);
 }
 </style>

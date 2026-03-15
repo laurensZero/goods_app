@@ -27,7 +27,11 @@
     </header>
 
     <main ref="pageBodyRef" class="page-body">
-      <template v-if="!selectionMode">
+      <div
+        class="search-controls"
+        :class="{ 'search-controls--selection': selectionMode }"
+        :aria-hidden="selectionMode ? 'true' : undefined"
+      >
         <section class="content-section">
           <button
             class="advanced-toggle"
@@ -260,7 +264,7 @@
             </section>
           </div>
         </Transition>
-      </template>
+      </div>
 
       <section v-if="results.length > 0" :class="['content-section', { 'content-section--selection': selectionMode }]">
         <div class="section-head">
@@ -417,9 +421,20 @@ const ipOptions = computed(() => buildOptionList(
     : null
 ))
 
+const characterSourceList = computed(() => {
+  if (filters.ips.length === 0) return sourceList.value
+
+  return sourceList.value.filter((item) => {
+    const itemIp = String(item.ip || '').trim()
+    return filters.ips.some((value) => (
+      value === GOODS_FILTER_SPECIAL_VALUES.noIp ? !itemIp : value === itemIp
+    ))
+  })
+})
+
 const characterOptions = computed(() => buildOptionList(
-  sourceList.value.flatMap((item) => (Array.isArray(item.characters) ? item.characters : [])),
-  sourceList.value.some((item) => !Array.isArray(item.characters) || item.characters.length === 0)
+  characterSourceList.value.flatMap((item) => (Array.isArray(item.characters) ? item.characters : [])),
+  characterSourceList.value.some((item) => !Array.isArray(item.characters) || item.characters.length === 0)
     ? { label: '未设置角色', value: GOODS_FILTER_SPECIAL_VALUES.noCharacter }
     : null
 ))
@@ -441,6 +456,19 @@ watch(
   (selectedValues) => {
     if (selectedValues.some((value) => value !== GOODS_FILTER_SPECIAL_VALUES.noCharacter)) {
       showAllCharacterOptions.value = true
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => characterOptions.value.map((option) => option.value),
+  (nextOptions) => {
+    const allowedValues = new Set(nextOptions)
+    const nextCharacters = filters.characters.filter((value) => allowedValues.has(value))
+
+    if (nextCharacters.length !== filters.characters.length) {
+      filters.characters = nextCharacters
     }
   },
   { immediate: true }
@@ -798,6 +826,11 @@ onBeforeRouteLeave((to) => {
 .search-page,
 .page-body {
   overflow-x: hidden;
+}
+
+.search-controls--selection {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .search-header,

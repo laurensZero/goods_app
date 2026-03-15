@@ -171,7 +171,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeMount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { getCachedImage } from '@/utils/imageCache'
@@ -214,6 +214,13 @@ const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).t
 const variantText = computed(() => getGoodsVariant(item.value))
 
 const cachedImgSrc = ref('')
+const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
+
+function syncDetailScrollLock(active) {
+  document.documentElement.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, active)
+  document.body.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, active)
+}
+
 function setWindowScrollTop(top = 0) {
   try { document.documentElement.scrollTop = top } catch {}
   try { document.body.scrollTop = top } catch {}
@@ -299,7 +306,12 @@ onBeforeMount(() => {
 })
 
 onMounted(async () => {
+  syncDetailScrollLock(true)
   await prepareDetailLayout()
+})
+
+onBeforeUnmount(() => {
+  syncDetailScrollLock(false)
 })
 
 watch(
@@ -321,6 +333,18 @@ function getImageKindLabel(kind) {
 .detail-page {
   height: 100dvh;
   overflow: hidden;
+}
+
+.detail-page .page-body {
+  overscroll-behavior-y: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.detail-page .page-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .detail-shell {
