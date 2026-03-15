@@ -41,6 +41,14 @@ const MIGRATE_ADD_QTY = "ALTER TABLE goods ADD COLUMN quantity INTEGER DEFAULT 1
 const MIGRATE_ADD_PTS = "ALTER TABLE goods ADD COLUMN points INTEGER DEFAULT NULL"
 const MIGRATE_ADD_IMAGES = "ALTER TABLE goods ADD COLUMN images TEXT DEFAULT '[]'"
 
+const CREATE_INDEXES_SQL = [
+  'CREATE INDEX IF NOT EXISTS idx_goods_isWishlist ON goods (isWishlist)',
+  'CREATE INDEX IF NOT EXISTS idx_goods_category ON goods (category)',
+  'CREATE INDEX IF NOT EXISTS idx_goods_ip ON goods (ip)',
+  'CREATE INDEX IF NOT EXISTS idx_goods_storageLocation ON goods (storageLocation)',
+  'CREATE INDEX IF NOT EXISTS idx_goods_acquiredAt ON goods (acquiredAt)'
+]
+
 //  Web 实现：sql.js + IndexedDB 
 let _sqlDb = null
 const IDB_NAME = 'goods_idb'
@@ -96,6 +104,9 @@ async function _initWebDB() {
   try { _sqlDb.run(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
+  for (const sql of CREATE_INDEXES_SQL) {
+    try { _sqlDb.run(sql) } catch (e) { /* index may already exist */ }
+  }
   await _saveBinaryToIDB(_sqlDb)
 }
 
@@ -131,6 +142,9 @@ async function _initNativeDB() {
   try { await _nativeDb.execute(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
+  for (const sql of CREATE_INDEXES_SQL) {
+    try { await _nativeDb.execute(sql) } catch (e) { /* index may already exist */ }
+  }
 }
 
 //  统一对外 API 

@@ -142,8 +142,10 @@ export const useGoodsStore = defineStore('goods', () => {
   const trashList = shallowRef([])
   const isReady = ref(false)
 
-  const getById = computed(() => (id) => list.value.find((item) => item.id === id))
-  const getTrashById = computed(() => (id) => trashList.value.find((item) => item.id === id))
+  const listById = computed(() => new Map(list.value.map((item) => [item.id, item])))
+  const trashById = computed(() => new Map(trashList.value.map((item) => [item.id, item])))
+  const getById = computed(() => (id) => listById.value.get(id))
+  const getTrashById = computed(() => (id) => trashById.value.get(id))
   const collectionList = computed(() => list.value.filter((item) => !item.isWishlist))
   const wishlistList = computed(() => list.value.filter((item) => item.isWishlist))
   const storageLocations = computed(() =>
@@ -365,16 +367,14 @@ export const useGoodsStore = defineStore('goods', () => {
     const next = String(newName || '').trim()
     if (!previous || !next || previous === next) return
 
-    let listChanged = false
     let trashChanged = false
+    const updatedItems = []
 
     list.value = list.value.map((item) => {
       if (item.category !== previous) return item
-      listChanged = true
-      return {
-        ...item,
-        category: next
-      }
+      const updated = { ...item, category: next }
+      updatedItems.push(updated)
+      return updated
     })
 
     trashList.value = trashList.value.map((item) => {
@@ -386,10 +386,8 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
-    const updatedItems = list.value.filter(item => item.category === next)
-
     await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
+      updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -399,16 +397,14 @@ export const useGoodsStore = defineStore('goods', () => {
     const next = String(newName || '').trim()
     if (!previous || !next || previous === next) return
 
-    let listChanged = false
     let trashChanged = false
+    const updatedItems = []
 
     list.value = list.value.map((item) => {
       if (item.ip !== previous) return item
-      listChanged = true
-      return {
-        ...item,
-        ip: next
-      }
+      const updated = { ...item, ip: next }
+      updatedItems.push(updated)
+      return updated
     })
 
     trashList.value = trashList.value.map((item) => {
@@ -420,10 +416,8 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
-    const updatedItems = list.value.filter(item => item.ip === next)
-
     await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
+      updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -433,18 +427,19 @@ export const useGoodsStore = defineStore('goods', () => {
     const next = String(newName || '').trim()
     if (!previous || !next || previous === next) return
 
-    let listChanged = false
     let trashChanged = false
+    const updatedItems = []
 
     list.value = list.value.map((item) => {
       if (!item.characters?.includes(previous)) return item
-      listChanged = true
-      return {
+      const updated = {
         ...item,
         characters: normalizeCharacterList(
           item.characters.map((character) => (character === previous ? next : character))
         )
       }
+      updatedItems.push(updated)
+      return updated
     })
 
     trashList.value = trashList.value.map((item) => {
@@ -458,10 +453,8 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
-    const updatedItems = list.value.filter(item => item.characters?.includes(next))
-
     await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
+      updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -472,8 +465,8 @@ export const useGoodsStore = defineStore('goods', () => {
     const targetIp = String(nextIp || '').trim()
     if (!characterName || currentIp === targetIp) return
 
-    let listChanged = false
     let trashChanged = false
+    const updatedItems = []
 
     const shouldSyncItem = (item) => {
       if (!item.characters?.includes(characterName)) return false
@@ -483,11 +476,9 @@ export const useGoodsStore = defineStore('goods', () => {
 
     list.value = list.value.map((item) => {
       if (!shouldSyncItem(item)) return item
-      listChanged = true
-      return {
-        ...item,
-        ip: targetIp
-      }
+      const updated = { ...item, ip: targetIp }
+      updatedItems.push(updated)
+      return updated
     })
 
     trashList.value = trashList.value.map((item) => {
@@ -499,13 +490,8 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     })
 
-    const updatedItems = list.value.filter(item => {
-      if (!item.characters?.includes(characterName)) return false
-      return item.ip === targetIp
-    })
-
     await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
+      updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve(),
       trashChanged ? persistTrash() : Promise.resolve()
     ])
   }
@@ -515,7 +501,7 @@ export const useGoodsStore = defineStore('goods', () => {
     const normalizedNewPrefix = normalizeStorageLocationValue(newPrefix)
     if (!normalizedOldPrefix || normalizedOldPrefix === normalizedNewPrefix) return
 
-    let changed = false
+    const updatedItems = []
     list.value = list.value.map((item) => {
       const nextLocation = replaceStorageLocationPathPrefix(
         item.storageLocation,
@@ -524,15 +510,12 @@ export const useGoodsStore = defineStore('goods', () => {
       )
 
       if (nextLocation === item.storageLocation) return item
-      changed = true
-      return {
-        ...item,
-        storageLocation: nextLocation
-      }
+      const updated = { ...item, storageLocation: nextLocation }
+      updatedItems.push(updated)
+      return updated
     })
 
-    if (changed) {
-      const updatedItems = list.value.filter(item => isStorageLocationUnderPrefix(item.storageLocation, normalizedNewPrefix) || item.storageLocation === normalizedNewPrefix)
+    if (updatedItems.length > 0) {
       await saveItems(updatedItems)
     }
   }
@@ -541,21 +524,18 @@ export const useGoodsStore = defineStore('goods', () => {
     const normalizedPrefix = normalizeStorageLocationValue(prefix)
     if (!normalizedPrefix) return
 
-    let changed = false
+    const updatedItems = []
     list.value = list.value.map((item) => {
       if (!isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix)) {
         return item
       }
 
-      changed = true
-      return {
-        ...item,
-        storageLocation: ''
-      }
+      const updated = { ...item, storageLocation: '' }
+      updatedItems.push(updated)
+      return updated
     })
 
-    if (changed) {
-      const updatedItems = list.value.filter(item => item.storageLocation === '' && !isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix))
+    if (updatedItems.length > 0) {
       await saveItems(updatedItems)
     }
   }
