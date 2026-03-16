@@ -21,6 +21,7 @@ import {
 import { restoreLocalImageFromDataUrl } from '@/utils/localImage'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'
+const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
 const IS_NATIVE = Capacitor.isNativePlatform()
 
 function isValidYearMonth(value) {
@@ -138,6 +139,43 @@ async function writePersistedTrash(list) {
   }
 }
 
+function readImagesMigrationFlagLocal() {
+  try {
+    return localStorage.getItem(IMAGES_MIGRATION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+async function readImagesMigrationFlag() {
+  if (IS_NATIVE) {
+    try {
+      const { value } = await Preferences.get({ key: IMAGES_MIGRATION_KEY })
+      return value === '1'
+    } catch {
+      return false
+    }
+  }
+
+  return readImagesMigrationFlagLocal()
+}
+
+async function writeImagesMigrationFlag() {
+  try {
+    localStorage.setItem(IMAGES_MIGRATION_KEY, '1')
+  } catch {
+    // ignore
+  }
+
+  if (!IS_NATIVE) return
+
+  try {
+    await Preferences.set({ key: IMAGES_MIGRATION_KEY, value: '1' })
+  } catch {
+    // ignore
+  }
+}
+
 async function restoreImportedGoodsItem(rawItem) {
   const normalizedImages = normalizeGoodsImageList(rawItem?.images, rawItem?.coverImage || rawItem?.image)
   if (normalizedImages.length === 0) return rawItem
@@ -219,8 +257,12 @@ export const useGoodsStore = defineStore('goods', () => {
 
   function normalizeGoodsInput(data, fallbackId = '') {
     const variant = getGoodsVariant(data)
-    const images = normalizeGoodsImageList(data.images, data.image || data.coverImage)
-    const coverImage = getPrimaryGoodsImageUrl(images, data.image || data.coverImage)
+    const hasImagesArray = Array.isArray(data?.images)
+    const imagesExplicit = data?.__imagesExplicit === true && hasImagesArray
+    const shouldUseImagesArray = imagesExplicit || (hasImagesArray && data.images.length > 0)
+    const fallbackImage = imagesExplicit ? '' : (data.image || data.coverImage)
+    const images = normalizeGoodsImageList(shouldUseImagesArray ? data.images : undefined, fallbackImage)
+    const coverImage = getPrimaryGoodsImageUrl(images, fallbackImage)
 
     return {
       id: data.id || fallbackId,
@@ -280,11 +322,36 @@ export const useGoodsStore = defineStore('goods', () => {
   async function init() {
     list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
     trashList.value = (await readPersistedTrash()).map((item) => normalizeTrashItem(item, item.id))
+    if (!(await readImagesMigrationFlag())) {
+      await backfillLegacyImages()
+      await writeImagesMigrationFlag()
+    }
     isReady.value = true
   }
 
+  async function backfillLegacyImages() {
+    const updates = []
+    list.value = list.value.map((item) => {
+      if (Array.isArray(item.images) && item.images.length > 0) return item
+      const legacyCover = String(item.coverImage || '').trim()
+      if (!legacyCover) return item
+      const images = normalizeGoodsImageList(undefined, legacyCover)
+      if (images.length === 0) return item
+      const coverImage = getPrimaryGoodsImageUrl(images, legacyCover)
+      const next = { ...item, images, coverImage }
+      updates.push(next)
+      return next
+    })
+
+    if (updates.length > 0) {
+      triggerRef(list)
+      await saveItems(updates)
+    }
+  }
+
   async function addGoods(data) {
-    const incoming = normalizeGoodsInput(data, String(Date.now()))
+    const imagesExplicit = Array.isArray(data?.images)
+    const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit }, String(Date.now()))
     const key = buildGoodsIdentityKey(incoming)
     const existingIndex = list.value.findIndex((item) =>
       item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
@@ -307,17 +374,19 @@ export const useGoodsStore = defineStore('goods', () => {
     const idx = list.value.findIndex((item) => item.id === id)
     if (idx === -1) return
 
-    list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id }, id)
+    const imagesExplicit = Array.isArray(data?.images)
+    list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id, __imagesExplicit: imagesExplicit }, id)
     triggerRef(list)
     await addItem(list.value[idx])
   }
 
   async function updateMultipleGoods(ids, data) {
     let changed = false
+    const imagesExplicit = Array.isArray(data?.images)
     list.value = list.value.map((item) => {
       if (!ids.has(item.id)) return item
       changed = true
-      return normalizeGoodsInput({ ...item, ...data, id: item.id }, item.id)
+      return normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit }, item.id)
     })
 
     if (changed) {
