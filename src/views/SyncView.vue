@@ -194,12 +194,16 @@
                 <span class="conflict-diff-label">远端新增</span>
                 <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyGoods }} 收藏, +{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
               </div>
+              <div v-if="pullConflictData.updatedGoods > 0" class="conflict-diff-row">
+                <span class="conflict-diff-label">远端修改</span>
+                <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictData.updatedGoods }} 条</span>
+              </div>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">本地独有</span>
                 <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyGoods }} 收藏, {{ pullConflictData.localOnlyTrash }} 回收站</span>
               </div>
             </div>
-            <p class="conflict-desc">拉取会将远端新增数据合并到本地，不会删除现有数据。</p>
+            <p class="conflict-desc">拉取会将远端数据合并到本地，不会删除现有数据。</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
@@ -773,6 +777,10 @@ onMounted(async () => {
 
 .conflict-diff-value--add {
   color: #28c880;
+}
+
+.conflict-diff-value--update {
+  color: #f59e0b;
 }
 
 .conflict-diff-value--local {

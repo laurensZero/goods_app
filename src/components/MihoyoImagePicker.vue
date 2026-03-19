@@ -176,6 +176,13 @@ async function tryFetch(url) {
   try {
     const result = await parseMihoyoUrl(url)
     if (!result?.variants?.length) {
+      // 没有款式，直接使用商品主图
+      const coverUrl = result?.image || ''
+      if (coverUrl) {
+        pickedCover.value = coverUrl
+        emit('update:modelValue', coverUrl)
+        lastParsedUrl = coverUrl
+      }
       fetchState.value = 'done'
       return
     }
@@ -216,12 +223,16 @@ function pickVariant(v) {
   pickedCover.value = v.cover_url || ''
   // 用户主动点击款式 → 立即 emit，让父组件大图预览实时更新
   emit('update:modelValue', v.cover_url || props.modelValue)
+  // 更新 lastParsedUrl，避免 watch 触发 tryFetch 清除款式选择器
+  lastParsedUrl = v.cover_url || props.modelValue
 }
 
 // 当 modelValue 从外部变化时（比如打开编辑不同商品），重新尝试解析
 watch(
   () => props.modelValue,
   (url) => {
+    // 如果已经有款式选择器显示，不触发重新解析
+    if (variants.value.length > 0) return
     if (url !== lastParsedUrl) scheduleFetch(url)
   },
   { immediate: true }

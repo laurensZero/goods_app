@@ -547,12 +547,25 @@ export const useSyncStore = defineStore('sync', () => {
 
         // 计算差异
         const goodsStore = useGoodsStore()
-        const localGoodsIds = new Set(goodsStore.list.map(g => g.id))
+        const localGoodsMap = new Map(goodsStore.list.map(g => [g.id, g]))
         const localTrashIds = new Set(goodsStore.trashList.map(t => t.id))
 
-        const remoteOnlyGoods = remoteGoodsIds.size ? [...remoteGoodsIds].filter(id => !localGoodsIds.has(id)).length : 0
-        const remoteOnlyTrash = remoteTrashIds.size ? [...remoteTrashIds].filter(id => !localTrashIds.has(id)).length : 0
-        const localOnlyGoods = [...localGoodsIds].filter(id => !remoteGoodsIds.has(id)).length
+        let remoteOnlyGoods = 0
+        let remoteOnlyTrash = 0
+        let updatedGoods = 0
+
+        const remoteGoodsArray = dataContent ? JSON.parse(dataContent).goods || [] : []
+
+        for (const remoteItem of remoteGoodsArray) {
+          if (!localGoodsMap.has(remoteItem.id)) {
+            remoteOnlyGoods++
+          } else if ((remoteItem.updatedAt || 0) > (localGoodsMap.get(remoteItem.id).updatedAt || 0)) {
+            updatedGoods++
+          }
+        }
+
+        remoteOnlyTrash = remoteTrashIds.size ? [...remoteTrashIds].filter(id => !localTrashIds.has(id)).length : 0
+        const localOnlyGoods = [...localGoodsMap.keys()].filter(id => !remoteGoodsIds.has(id)).length
         const localOnlyTrash = [...localTrashIds].filter(id => !remoteTrashIds.has(id)).length
 
         conflictData.value = {
@@ -566,6 +579,7 @@ export const useSyncStore = defineStore('sync', () => {
           remoteOnlyTrash,
           localOnlyGoods,
           localOnlyTrash,
+          updatedGoods,
           isPullOnly: true
         }
         syncStatus.value = '检测到远端数据'

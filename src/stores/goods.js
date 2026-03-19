@@ -280,7 +280,8 @@ export const useGoodsStore = defineStore('goods', () => {
       coverImage,
       images,
       note: stripVariantFromNote(data.note || data.notes || ''),
-      quantity: Math.max(1, Number(data.quantity) || 1)
+      quantity: Math.max(1, Number(data.quantity) || 1),
+      updatedAt: data.updatedAt || 0
     }
   }
 
