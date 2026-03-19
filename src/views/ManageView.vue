@@ -161,6 +161,26 @@
           </button>
 
           <input ref="importFileRef" type="file" accept=".json" hidden @change="handleImport" />
+
+          <RouterLink class="entry-card" to="/manage/sync">
+            <span class="entry-icon sync-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.5 2v6h-6" />
+                <path d="M2.5 22v-6h6" />
+                <path d="M2 11.5a10 10 0 0 1 18.8-4.3" />
+                <path d="M22 12.5a10 10 0 0 1-18.8 4.3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">云同步</p>
+              <h2 class="entry-name">GitHub Gist 同步</h2>
+              <p class="entry-desc">多设备数据同步</p>
+              <p v-if="syncStore.lastSyncedAt" class="entry-count">上次同步：{{ formatSyncTime(syncStore.lastSyncedAt) }}</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </RouterLink>
         </section>
       </div>
 
@@ -178,10 +198,19 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { useSyncStore } from '@/stores/sync'
 import { sanitizeGoodsItemForExport } from '@/utils/goodsImages'
 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
+const syncStore = useSyncStore()
+
+function formatSyncTime(isoString) {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 const pageBodyRef = ref(null)
 const importFileRef = ref(null)
@@ -206,6 +235,7 @@ function resetPageScrollTop() {
 onMounted(() => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+  syncStore.init()
 })
 
 function showToast(message, duration = 2600) {
@@ -545,6 +575,7 @@ async function handleImport(event) {
 .trash-icon { background: rgba(199, 68, 68, 0.10); color: #c74444; }
 .export-icon { background: rgba(90, 120, 250, 0.10); color: #5a78fa; }
 .import-icon { background: rgba(50, 200, 140, 0.10); color: #28c880; }
+.sync-icon { background: rgba(120, 100, 255, 0.10); color: #7864ff; }
 
 .entry-body {
   flex: 1;

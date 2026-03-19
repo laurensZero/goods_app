@@ -117,6 +117,12 @@ const routes = [
     name: 'trash',
     component: () => import('@/views/TrashView.vue'),
     meta: { title: '回收站' }
+  },
+  {
+    path: '/manage/sync',
+    name: 'manage-sync',
+    component: () => import('@/views/SyncView.vue'),
+    meta: { title: '云同步' }
   }
 ]
 
