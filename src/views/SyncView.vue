@@ -12,9 +12,15 @@
             </div>
 
             <div class="info-list">
-              <div class="info-row">
+              <div class="info-row" @click="copyText(syncStore.token)">
                 <span class="info-label">Token</span>
-                <span class="info-value">{{ tokenDisplay }}</span>
+                <span class="info-value info-value--token">
+                  <svg v-if="syncStore.token" class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  {{ tokenDisplay }}
+                </span>
               </div>
               <div class="info-row">
                 <span class="info-label">Gist ID</span>
@@ -164,6 +170,46 @@
         </div>
       </Transition>
 
+      <Transition name="overlay-fade">
+        <div v-if="showPullConflict" class="overlay">
+          <div class="dialog">
+            <h3 class="dialog-title">检测到远端数据</h3>
+            <div class="conflict-info">
+              <div class="conflict-row">
+                <span class="conflict-label">来源设备</span>
+                <span class="conflict-value">{{ pullConflictData.remoteDevice }}</span>
+              </div>
+              <div class="conflict-row">
+                <span class="conflict-label">远端时间</span>
+                <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
+              </div>
+              <div class="conflict-row">
+                <span class="conflict-label">远端总数</span>
+                <span class="conflict-value">{{ pullConflictData.remoteGoodsCount }} 收藏, {{ pullConflictData.remoteTrashCount }} 回收站</span>
+              </div>
+            </div>
+            <div class="conflict-diff">
+              <p class="conflict-diff-title">差异</p>
+              <div class="conflict-diff-row">
+                <span class="conflict-diff-label">远端新增</span>
+                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyGoods }} 收藏, +{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
+              </div>
+              <div class="conflict-diff-row">
+                <span class="conflict-diff-label">本地独有</span>
+                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyGoods }} 收藏, {{ pullConflictData.localOnlyTrash }} 回收站</span>
+              </div>
+            </div>
+            <p class="conflict-desc">拉取会将远端新增数据合并到本地，不会删除现有数据。</p>
+            <div class="dialog-actions">
+              <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
+              <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
+                确认拉取
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <Transition name="toast-fade">
         <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
       </Transition>
@@ -172,7 +218,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
 import { validateToken, getGist, extractGistFileContent } from '@/utils/githubGist'
 import NavBar from '@/components/NavBar.vue'
@@ -181,13 +227,24 @@ const syncStore = useSyncStore()
 
 const showTokenDialog = ref(false)
 const showResetConfirm = ref(false)
+const showPullConflict = ref(false)
 const tokenInput = ref('')
 const tokenError = ref('')
 const tokenValidLogin = ref('')
 const isVerifyingToken = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
+const pullConflictData = ref({})
 let toastTimer = null
+
+watch(() => syncStore.conflictData, (val) => {
+  if (val?.isPullOnly) {
+    pullConflictData.value = val
+    showPullConflict.value = true
+  } else {
+    showPullConflict.value = false
+  }
+})
 
 const lastSyncDisplay = computed(() => {
   if (!syncStore.lastSyncedAt) return '从未同步'
@@ -277,6 +334,16 @@ async function loadGistInfo() {
   }
 }
 
+async function copyText(text) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    showToast('已复制')
+  } catch {
+    showToast('复制失败')
+  }
+}
+
 async function handleSync() {
   if (syncStore.isSyncing) return
 
@@ -296,8 +363,23 @@ async function handlePull() {
 
   try {
     await syncStore.pullOnly()
-    showToast('拉取完成')
-    await loadGistInfo()
+    if (!syncStore.conflictData) {
+      showToast('拉取完成')
+      await loadGistInfo()
+    }
+  } catch (error) {
+    showToast(`拉取失败：${error.message}`)
+  }
+}
+
+async function handlePullConflict(confirm) {
+  try {
+    await syncStore.resolvePullConflict(confirm)
+    showPullConflict.value = false
+    if (confirm) {
+      showToast('拉取完成')
+      await loadGistInfo()
+    }
   } catch (error) {
     showToast(`拉取失败：${error.message}`)
   }
@@ -431,6 +513,29 @@ onMounted(async () => {
   border-bottom: none;
 }
 
+.info-value--token {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-row--copyable {
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.info-row--copyable:active {
+  transform: scale(0.98);
+  background: var(--app-surface-soft);
+}
+
+.copy-icon {
+  width: 14px;
+  height: 14px;
+  stroke: var(--app-text-tertiary);
+  flex-shrink: 0;
+}
+
 .info-label {
   color: var(--app-text-secondary);
   font-size: 14px;
@@ -463,10 +568,16 @@ onMounted(async () => {
   text-align: left;
   cursor: pointer;
   text-decoration: none;
+  transition: transform 0.16s ease, background 0.16s ease;
 }
 
 .action-item:last-child {
   border-bottom: none;
+}
+
+.action-item:not(:disabled):active {
+  transform: scale(0.98);
+  background: var(--app-surface-soft);
 }
 
 .action-item--primary {
@@ -592,6 +703,80 @@ onMounted(async () => {
   margin-top: 8px;
   color: #28c880;
   font-size: 13px;
+}
+
+.conflict-info {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+}
+
+.conflict-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.conflict-row:not(:last-child) {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.conflict-label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.conflict-value {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.conflict-desc {
+  margin: 0 0 16px;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+}
+
+.conflict-diff {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+}
+
+.conflict-diff-title {
+  margin: 0 0 8px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.conflict-diff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.conflict-diff-label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.conflict-diff-value {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.conflict-diff-value--add {
+  color: #28c880;
+}
+
+.conflict-diff-value--local {
+  color: var(--app-text);
 }
 
 .dialog-actions {

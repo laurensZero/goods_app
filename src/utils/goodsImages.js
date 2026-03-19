@@ -147,6 +147,41 @@ export async function sanitizeGoodsImagesForExport(images, fallbackImage = '') {
   }))
 }
 
+export function sanitizeGoodsImagesForSync(images) {
+  const normalizedImages = normalizeGoodsImageList(images)
+  if (normalizedImages.length === 0) return []
+
+  const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
+  const remoteImages = normalizedImages
+    .filter((entry) => isExportableGoodsImage(entry))
+    .map((entry) => ({
+      id: entry.id,
+      uri: entry.uri,
+      kind: entry.kind,
+      label: entry.label,
+      storageMode: 'remote',
+      isPrimary: entry.id === primaryId
+    }))
+
+  if (remoteImages.length === 0) return []
+
+  const resolvedPrimaryId = remoteImages.find((entry) => entry.isPrimary)?.id || remoteImages[0].id
+  return remoteImages.map((entry) => ({
+    ...entry,
+    kind: entry.id === resolvedPrimaryId ? 'primary' : entry.kind,
+    isPrimary: entry.id === resolvedPrimaryId
+  }))
+}
+
+export function sanitizeGoodsItemForSync(item) {
+  const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
+  const images = sanitizeGoodsImagesForSync(item?.images)
+  return {
+    ...rest,
+    images
+  }
+}
+
 export async function sanitizeGoodsItemForExport(item) {
   const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
   const images = await sanitizeGoodsImagesForExport(item?.images, item?.coverImage || item?.image)

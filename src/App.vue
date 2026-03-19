@@ -30,8 +30,10 @@
 import { computed, KeepAlive, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
+import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
+const syncStore = useSyncStore()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
@@ -63,13 +65,37 @@ watch(
   }
 )
 
-onMounted(() => {
+async function handleVisibilityChange() {
+  if (document.hidden) {
+    if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
+      try {
+        await syncStore.fullSync()
+      } catch {
+        // silent fail on background sync
+      }
+    }
+  }
+}
+
+onMounted(async () => {
   hasMountedRoute = true
   window.addEventListener('popstate', markBackNavigation, { passive: true })
+  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+
+  // 自动拉取
+  await syncStore.init()
+  if (syncStore.token && syncStore.gistId && !syncStore.isSyncing) {
+    try {
+      await syncStore.pullOnly()
+    } catch {
+      // silent fail on startup pull
+    }
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', markBackNavigation)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 function getKeepAliveKey(currentRoute) {

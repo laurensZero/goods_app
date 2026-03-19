@@ -40,6 +40,7 @@ const MIGRATE_ADD_VAR = "ALTER TABLE goods ADD COLUMN variant TEXT DEFAULT ''"
 const MIGRATE_ADD_QTY = "ALTER TABLE goods ADD COLUMN quantity INTEGER DEFAULT 1"
 const MIGRATE_ADD_PTS = "ALTER TABLE goods ADD COLUMN points INTEGER DEFAULT NULL"
 const MIGRATE_ADD_IMAGES = "ALTER TABLE goods ADD COLUMN images TEXT DEFAULT '[]'"
+const MIGRATE_ADD_UPDATED_AT = "ALTER TABLE goods ADD COLUMN updatedAt INTEGER DEFAULT 0"
 
 //  Web 实现：sql.js + IndexedDB 
 let _sqlDb = null
@@ -96,6 +97,7 @@ async function _initWebDB() {
   try { _sqlDb.run(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
+  try { _sqlDb.run(MIGRATE_ADD_UPDATED_AT) } catch (e) { /* column already exists */ }
   await _saveBinaryToIDB(_sqlDb)
 }
 
@@ -131,6 +133,7 @@ async function _initNativeDB() {
   try { await _nativeDb.execute(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
+  try { await _nativeDb.execute(MIGRATE_ADD_UPDATED_AT) } catch (e) { /* column already exists */ }
 }
 
 //  统一对外 API 
@@ -144,7 +147,7 @@ export async function getItems() {
     if (!_nativeDb) return []
     rows = (await _nativeDb.query('SELECT * FROM goods ORDER BY rowid DESC')).values ?? []
   } else {
-    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points FROM goods ORDER BY rowid DESC')
+    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt FROM goods ORDER BY rowid DESC')
   }
   return rows.map(r => ({
     ...r,
@@ -155,20 +158,22 @@ export async function getItems() {
     storageLocation: String(r.storageLocation || '').trim(),
     variant: String(r.variant || '').trim(),
     quantity: Number(r.quantity ?? 1) || 1,
-    points: r.points != null && r.points !== '' ? Number(r.points) : undefined
+    points: r.points != null && r.points !== '' ? Number(r.points) : undefined,
+    updatedAt: Number(r.updatedAt) || 0
   }))
 }
 
 export async function addItem(item) {
-  const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points } = item
+  const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
   const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
   const qty = Math.max(1, Number(quantity) || 1)
   const pts = points != null && points !== '' ? Number(points) : null
   const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
-  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts]
+  const ts = updatedAt || Date.now()
+  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -186,32 +191,34 @@ export async function saveItems(items) {
     if (!_nativeDb) return
     const stmts = []
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points } = item
+      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
       const qty = Math.max(1, Number(quantity) || 1)
       const pts = points != null && points !== '' ? Number(points) : null
       const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
+      const ts = updatedAt || Date.now()
       stmts.push({
-        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts]
+        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
       })
     }
     await _nativeDb.executeSet(stmts)
   } else {
     if (!_sqlDb) return
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points } = item
+      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
       const qty = Math.max(1, Number(quantity) || 1)
       const pts = points != null && points !== '' ? Number(points) : null
       const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
+      const ts = updatedAt || Date.now()
       _sqlDb.run(
-        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts]
+        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)

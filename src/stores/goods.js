@@ -351,7 +351,8 @@ export const useGoodsStore = defineStore('goods', () => {
 
   async function addGoods(data) {
     const imagesExplicit = Array.isArray(data?.images)
-    const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit }, String(Date.now()))
+    const now = Date.now()
+    const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now))
     const key = buildGoodsIdentityKey(incoming)
     const existingIndex = list.value.findIndex((item) =>
       item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
@@ -372,21 +373,24 @@ export const useGoodsStore = defineStore('goods', () => {
 
   async function updateGoods(id, data) {
     const idx = list.value.findIndex((item) => item.id === id)
-    if (idx === -1) return
+    if (idx === -1) return null
 
     const imagesExplicit = Array.isArray(data?.images)
-    list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id, __imagesExplicit: imagesExplicit }, id)
+    list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
     triggerRef(list)
     await addItem(list.value[idx])
+    return id
   }
 
   async function updateMultipleGoods(ids, data) {
     let changed = false
     const imagesExplicit = Array.isArray(data?.images)
+    const now = Date.now()
+
     list.value = list.value.map((item) => {
       if (!ids.has(item.id)) return item
       changed = true
-      return normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit }, item.id)
+      return normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }, item.id)
     })
 
     if (changed) {
