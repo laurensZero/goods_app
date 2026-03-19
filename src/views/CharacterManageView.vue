@@ -778,7 +778,9 @@ watch(editingCharacter, async (value) => {
 }
 
 :global(html.theme-dark) .edit-sheet {
-    background: rgba(28, 28, 30, 0.95);
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
   }
 
 :global(html.theme-dark) .confirm-btn,

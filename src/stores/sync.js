@@ -293,13 +293,47 @@ export const useSyncStore = defineStore('sync', () => {
 
     // 更新已有的数据（远端更新的版本）
     if (goodsToUpdate.length) {
-      for (const item of goodsToUpdate) {
-        const idx = goodsStore.list.findIndex(g => g.id === item.id)
+      for (const remoteItem of goodsToUpdate) {
+        const idx = goodsStore.list.findIndex(g => g.id === remoteItem.id)
         if (idx !== -1) {
-          goodsStore.list[idx] = { ...goodsStore.list[idx], ...item }
+          const localItem = goodsStore.list[idx]
+          const localImages = localItem.images || []
+          const remoteImages = remoteItem.images || []
+          
+          // 保留本地图片（本地有但远端没有的）
+          const localImageIds = new Set(localImages.map(img => img.id))
+          const remoteImageIds = new Set(remoteImages.map(img => img.id))
+          
+          // 本地独有的图片（包括本地图片和远程URL图片）
+          const localOnlyImages = localImages.filter(img => !remoteImageIds.has(img.id))
+          
+          // 远端有的图片
+          const remoteImageMap = new Map(remoteImages.map(img => [img.id, img]))
+          
+          // 合并：远端图片 + 本地独有图片
+          const mergedImages = [...remoteImages, ...localOnlyImages]
+          
+          // 保留本地 coverImage（如果本地有本地图片作为封面）
+          const localCoverImage = localItem.coverImage
+          const remoteCoverImage = remoteItem.coverImage
+          const finalCoverImage = localOnlyImages.some(img => img.uri === localCoverImage) 
+            ? localCoverImage 
+            : remoteCoverImage
+          
+          goodsStore.list[idx] = { 
+            ...localItem, 
+            ...remoteItem, 
+            images: mergedImages,
+            coverImage: finalCoverImage
+          }
         }
       }
-      await saveItems(goodsToUpdate)
+      
+      const itemsToSave = goodsToUpdate.map(remoteItem => {
+        const localItem = goodsStore.list.find(g => g.id === remoteItem.id)
+        return localItem || remoteItem
+      })
+      await saveItems(itemsToSave)
     }
 
     // 同步回收站：导入本地没有的，更新本地已有的

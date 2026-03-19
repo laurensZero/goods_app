@@ -427,7 +427,7 @@ watch(editingIp, async (value) => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #f2f2f7;
+  border-bottom: 1px solid rgba(142, 142, 147, 0.12);
 }
 
 .row-item--last { border-bottom: none; }
@@ -592,12 +592,10 @@ watch(editingIp, async (value) => {
     color: #141416;
   }
 
-:global(html.theme-dark) .row-item {
-    border-bottom-color: var(--app-border);
-  }
-
 :global(html.theme-dark) .edit-sheet {
-    background: rgba(28, 28, 30, 0.95);
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
   }
 
 :global(html.theme-dark) .row-input:focus {
