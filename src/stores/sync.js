@@ -302,9 +302,20 @@ export const useSyncStore = defineStore('sync', () => {
       await saveItems(goodsToUpdate)
     }
 
-    // 导入新增的回收站数据
-    const localTrashIds = new Set(goodsStore.trashList.map(item => item.id))
-    const trashToImport = (remoteData.trash || []).filter(item => !localTrashIds.has(item.id))
+    // 同步回收站：导入本地没有的，更新本地已有的
+    const localTrashMap = new Map(goodsStore.trashList.map(item => [item.id, item]))
+    const trashToImport = []
+    const trashToUpdate = []
+
+    for (const remoteItem of (remoteData.trash || [])) {
+      const localItem = localTrashMap.get(remoteItem.id)
+      if (!localItem) {
+        trashToImport.push(remoteItem)
+      } else if ((remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
+        trashToUpdate.push(remoteItem)
+      }
+    }
+
     if (trashToImport.length) {
       await goodsStore.importTrashBackup(trashToImport)
     }
@@ -373,31 +384,12 @@ export const useSyncStore = defineStore('sync', () => {
       // 否则保留远端版本
     }
 
-    // 合并 trash
-    const remoteTrashMap = new Map(remoteTrash.map(item => [item.id, item]))
-    const localTrashMap = new Map(goodsStore.trashList.map(item => [item.id, item]))
-
-    const mergedTrashMap = new Map()
-
-    for (const [id, remoteItem] of remoteTrashMap) {
-      mergedTrashMap.set(id, remoteItem)
-    }
-
-    for (const [id, localItem] of localTrashMap) {
-      const remoteItem = remoteTrashMap.get(id)
-      if (!remoteItem) {
-        mergedTrashMap.set(id, await sanitizeGoodsItemForSync(localItem))
-      } else if ((localItem.updatedAt || 0) >= (remoteItem.updatedAt || 0)) {
-        mergedTrashMap.set(id, await sanitizeGoodsItemForSync(localItem))
-      }
-    }
-
     const syncData = {
       version: 5,
       updatedAt: new Date().toISOString(),
       deviceId: deviceId.value,
       goods: [...mergedGoodsMap.values()],
-      trash: [...mergedTrashMap.values()],
+      trash: await Promise.all(goodsStore.trashList.map(item => sanitizeGoodsItemForSync(item))),
       presets: await buildPresetsData()
     }
 
