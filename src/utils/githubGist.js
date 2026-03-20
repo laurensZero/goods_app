@@ -9,26 +9,41 @@ function buildHeaders(token) {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 30000
+
 async function request(method, path, token, body = null) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
   const options = {
     method,
-    headers: buildHeaders(token)
+    headers: buildHeaders(token),
+    signal: controller.signal
   }
 
   if (body !== null) {
     options.body = JSON.stringify(body)
   }
 
-  const response = await fetch(`${GITHUB_API_BASE}${path}`, options)
+  try {
+    const response = await fetch(`${GITHUB_API_BASE}${path}`, options)
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    const message = error?.message || `GitHub API error: ${response.status}`
-    throw new Error(message)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      const message = error?.message || `GitHub API error: ${response.status}`
+      throw new Error(message)
+    }
+
+    if (response.status === 204) return null
+    return response.json()
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('请求超时，请检查网络连接')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
   }
-
-  if (response.status === 204) return null
-  return response.json()
 }
 
 export async function validateToken(token) {
@@ -74,10 +89,8 @@ export function extractGistFileContent(gist, filename) {
   const file = gist?.files?.[filename]
   if (!file) return null
 
-  if (file.truncated && file.raw_url) {
-    return null
-  }
-
+  // 如果文件被截断但有 raw_url，返回已有的内容（可能是部分数据）
+  // GitHub API 在小文件时会直接返回完整内容
   return file.content
 }
 

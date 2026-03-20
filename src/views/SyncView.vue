@@ -68,7 +68,7 @@
               <path d="M2 11.5a10 10 0 0 1 18.8-4.3" />
               <path d="M22 12.5a10 10 0 0 1-18.8 4.3" />
             </svg>
-            <span>{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中...') : '同步' }}</span>
+            <span>{{ syncStore.isSyncing ? (syncStore.syncStatus || '上传中...') : '上传' }}</span>
             <span v-if="!syncStore.isSyncing" class="action-arrow">↑</span>
             <span v-else class="sync-spinner action-icon" aria-hidden="true" />
           </button>
@@ -214,6 +214,34 @@
         </div>
       </Transition>
 
+      <Transition name="overlay-fade">
+        <div v-if="showSyncConflict" class="overlay">
+          <div class="dialog">
+            <h3 class="dialog-title">检测到冲突</h3>
+            <p class="conflict-desc">远端有其他设备的更新数据，时间比本地更新。</p>
+            <div class="conflict-info">
+              <div class="conflict-row">
+                <span class="conflict-label">远端时间</span>
+                <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
+              </div>
+              <div class="conflict-row">
+                <span class="conflict-label">本地时间</span>
+                <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || '从未同步' }}</span>
+              </div>
+            </div>
+            <p class="conflict-desc">请选择保留哪边的数据：</p>
+            <div class="dialog-actions">
+              <button class="dialog-btn dialog-btn--secondary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(false)">
+                上传本地
+              </button>
+              <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(true)">
+                拉取远端
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <Transition name="toast-fade">
         <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
       </Transition>
@@ -232,6 +260,8 @@ const syncStore = useSyncStore()
 const showTokenDialog = ref(false)
 const showResetConfirm = ref(false)
 const showPullConflict = ref(false)
+const showSyncConflict = ref(false)
+const syncConflictData = ref({})
 const tokenInput = ref('')
 const tokenError = ref('')
 const tokenValidLogin = ref('')
@@ -264,11 +294,11 @@ const statusBadgeClass = computed(() => {
 })
 
 const statusBadgeText = computed(() => {
-  if (syncStore.isSyncing) return '同步中'
+  if (syncStore.isSyncing) return '上传中'
   if (syncStore.lastError) return '有错误'
   if (!syncStore.token) return '未配置'
   if (syncStore.gistId) return '已连接'
-  return '待同步'
+  return '待上传'
 })
 
 const tokenDisplay = computed(() => {
@@ -352,13 +382,48 @@ async function handleSync() {
   if (syncStore.isSyncing) return
 
   try {
-    await syncStore.fullSync()
-    if (!syncStore.conflictData) {
-      showToast('同步完成')
+    const result = await syncStore.fullSync()
+    
+    if (!result) {
+      showToast('上传完成')
       await loadGistInfo()
+      return
     }
+
+    if (result.action === 'conflict') {
+      // 显示冲突弹窗让用户选择
+      syncConflictData.value = {
+        remoteTime: syncStore.conflictData?.remoteTime,
+        localTime: syncStore.conflictData?.localTime
+      }
+      showSyncConflict.value = true
+      return
+    }
+
+    let message = ''
+    if (result.action === 'pulled') {
+      const parts = []
+      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
+      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
+      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+    } else if (result.action === 'pushed') {
+      if (result.hasChanges) {
+        const parts = []
+        if (result.updatedGoods > 0) parts.push(`商品 ${result.updatedGoods} 件`)
+        if (result.updatedTrash > 0) parts.push(`回收站 ${result.updatedTrash} 条`)
+        message = `上传完成：${parts.join('，')}`
+      } else {
+        message = '数据已是最新，无需上传'
+      }
+    } else {
+      message = '上传完成'
+    }
+
+    showToast(message, 3500)
+    await loadGistInfo()
   } catch (error) {
-    showToast(`同步失败：${error.message}`)
+    showToast(`上传失败：${error.message}`)
   }
 }
 
@@ -366,11 +431,20 @@ async function handlePull() {
   if (syncStore.isSyncing) return
 
   try {
-    await syncStore.pullOnly()
-    if (!syncStore.conflictData) {
-      showToast('拉取完成')
+    const result = await syncStore.pullOnly()
+    
+    if (result?.action === 'pulled') {
+      const parts = []
+      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
+      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
+      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      const message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      showToast(message, 3500)
       await loadGistInfo()
+    } else if (result?.action === 'no_changes') {
+      showToast('数据已是最新')
     }
+    // 有冲突时会显示弹窗，不需要额外提示
   } catch (error) {
     showToast(`拉取失败：${error.message}`)
   }
@@ -378,14 +452,43 @@ async function handlePull() {
 
 async function handlePullConflict(confirm) {
   try {
-    await syncStore.resolvePullConflict(confirm)
+    const result = await syncStore.resolvePullConflict(confirm)
     showPullConflict.value = false
-    if (confirm) {
-      showToast('拉取完成')
+    
+    if (result?.action === 'pulled') {
+      const parts = []
+      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
+      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
+      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      const message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      showToast(message, 3500)
       await loadGistInfo()
+    } else if (result?.action === 'cancelled') {
+      showToast('已取消拉取')
     }
   } catch (error) {
     showToast(`拉取失败：${error.message}`)
+  }
+}
+
+async function handleSyncConflict(useRemote) {
+  try {
+    const result = await syncStore.resolveConflict(useRemote)
+    showSyncConflict.value = false
+
+    if (result?.action === 'pulled') {
+      const parts = []
+      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
+      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
+      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      const message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      showToast(message, 3500)
+    } else if (result?.action === 'pushed') {
+      showToast('上传完成')
+    }
+    await loadGistInfo()
+  } catch (error) {
+    showToast(useRemote ? `拉取失败：${error.message}` : `上传失败：${error.message}`)
   }
 }
 

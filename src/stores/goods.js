@@ -19,9 +19,11 @@ import {
   normalizeGoodsImageList
 } from '@/utils/goodsImages'
 import { restoreLocalImageFromDataUrl } from '@/utils/localImage'
+import { normalizeCharacterName } from '@/stores/presets'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
+const CHARACTERS_MIGRATION_KEY = 'goods_characters_normalized_v1'
 const IS_NATIVE = Capacitor.isNativePlatform()
 
 function isValidYearMonth(value) {
@@ -56,7 +58,7 @@ function normalizeCharacterList(list) {
   if (!Array.isArray(list)) return []
   return [...new Set(
     list
-      .map((name) => String(name || '').trim())
+      .map((name) => normalizeCharacterName(name))
       .filter(Boolean)
   )]
 }
@@ -171,6 +173,43 @@ async function writeImagesMigrationFlag() {
 
   try {
     await Preferences.set({ key: IMAGES_MIGRATION_KEY, value: '1' })
+  } catch {
+    // ignore
+  }
+}
+
+function readCharactersMigrationFlagLocal() {
+  try {
+    return localStorage.getItem(CHARACTERS_MIGRATION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+async function readCharactersMigrationFlag() {
+  if (IS_NATIVE) {
+    try {
+      const { value } = await Preferences.get({ key: CHARACTERS_MIGRATION_KEY })
+      return value === '1'
+    } catch {
+      return false
+    }
+  }
+
+  return readCharactersMigrationFlagLocal()
+}
+
+async function writeCharactersMigrationFlag() {
+  try {
+    localStorage.setItem(CHARACTERS_MIGRATION_KEY, '1')
+  } catch {
+    // ignore
+  }
+
+  if (!IS_NATIVE) return
+
+  try {
+    await Preferences.set({ key: CHARACTERS_MIGRATION_KEY, value: '1' })
   } catch {
     // ignore
   }
@@ -312,7 +351,8 @@ export const useGoodsStore = defineStore('goods', () => {
       coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
       images,
       note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
-      quantity: Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1)
+      quantity: Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1),
+      updatedAt: Date.now()
     }
   }
 
@@ -327,7 +367,39 @@ export const useGoodsStore = defineStore('goods', () => {
       await backfillLegacyImages()
       await writeImagesMigrationFlag()
     }
+    if (!(await readCharactersMigrationFlag())) {
+      await normalizeExistingCharacters()
+      await writeCharactersMigrationFlag()
+    }
     isReady.value = true
+  }
+
+  async function normalizeExistingCharacters() {
+    const updates = []
+    list.value = list.value.map((item) => {
+      const normalizedCharacters = normalizeCharacterList(item.characters)
+      if (JSON.stringify(normalizedCharacters) === JSON.stringify(item.characters)) return item
+      const next = { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
+      updates.push(next)
+      return next
+    })
+
+    let trashChanged = false
+    trashList.value = trashList.value.map((item) => {
+      const normalizedCharacters = normalizeCharacterList(item.characters)
+      if (JSON.stringify(normalizedCharacters) === JSON.stringify(item.characters)) return item
+      trashChanged = true
+      return { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
+    })
+
+    if (updates.length > 0) {
+      triggerRef(list)
+      await saveItems(updates)
+    }
+    if (trashChanged) {
+      triggerRef(trashList)
+      await persistTrash()
+    }
   }
 
   async function backfillLegacyImages() {
@@ -468,13 +540,15 @@ export const useGoodsStore = defineStore('goods', () => {
 
     let listChanged = false
     let trashChanged = false
+    const now = Date.now()
 
     list.value = list.value.map((item) => {
       if (item.category !== previous) return item
       listChanged = true
       return {
         ...item,
-        category: next
+        category: next,
+        updatedAt: now
       }
     })
 
@@ -483,7 +557,8 @@ export const useGoodsStore = defineStore('goods', () => {
       trashChanged = true
       return {
         ...item,
-        category: next
+        category: next,
+        updatedAt: now
       }
     })
 
@@ -502,13 +577,15 @@ export const useGoodsStore = defineStore('goods', () => {
 
     let listChanged = false
     let trashChanged = false
+    const now = Date.now()
 
     list.value = list.value.map((item) => {
       if (item.ip !== previous) return item
       listChanged = true
       return {
         ...item,
-        ip: next
+        ip: next,
+        updatedAt: now
       }
     })
 
@@ -517,7 +594,8 @@ export const useGoodsStore = defineStore('goods', () => {
       trashChanged = true
       return {
         ...item,
-        ip: next
+        ip: next,
+        updatedAt: now
       }
     })
 
@@ -530,12 +608,13 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   async function replaceCharacterName(oldName, newName) {
-    const previous = String(oldName || '').trim()
-    const next = String(newName || '').trim()
+    const previous = normalizeCharacterName(oldName)
+    const next = normalizeCharacterName(newName)
     if (!previous || !next || previous === next) return
 
     let listChanged = false
     let trashChanged = false
+    const now = Date.now()
 
     list.value = list.value.map((item) => {
       if (!item.characters?.includes(previous)) return item
@@ -544,7 +623,8 @@ export const useGoodsStore = defineStore('goods', () => {
         ...item,
         characters: normalizeCharacterList(
           item.characters.map((character) => (character === previous ? next : character))
-        )
+        ),
+        updatedAt: now
       }
     })
 
@@ -555,7 +635,8 @@ export const useGoodsStore = defineStore('goods', () => {
         ...item,
         characters: normalizeCharacterList(
           item.characters.map((character) => (character === previous ? next : character))
-        )
+        ),
+        updatedAt: now
       }
     })
 
@@ -568,13 +649,14 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   async function syncCharacterIp(name, nextIp, previousIp = '') {
-    const characterName = String(name || '').trim()
+    const characterName = normalizeCharacterName(name)
     const currentIp = String(previousIp || '').trim()
     const targetIp = String(nextIp || '').trim()
     if (!characterName || currentIp === targetIp) return
 
     let listChanged = false
     let trashChanged = false
+    const now = Date.now()
 
     const shouldSyncItem = (item) => {
       if (!item.characters?.includes(characterName)) return false
@@ -587,7 +669,8 @@ export const useGoodsStore = defineStore('goods', () => {
       listChanged = true
       return {
         ...item,
-        ip: targetIp
+        ip: targetIp,
+        updatedAt: now
       }
     })
 
@@ -596,7 +679,8 @@ export const useGoodsStore = defineStore('goods', () => {
       trashChanged = true
       return {
         ...item,
-        ip: targetIp
+        ip: targetIp,
+        updatedAt: now
       }
     })
 
@@ -617,6 +701,7 @@ export const useGoodsStore = defineStore('goods', () => {
     if (!normalizedOldPrefix || normalizedOldPrefix === normalizedNewPrefix) return
 
     let changed = false
+    const now = Date.now()
     list.value = list.value.map((item) => {
       const nextLocation = replaceStorageLocationPathPrefix(
         item.storageLocation,
@@ -628,7 +713,8 @@ export const useGoodsStore = defineStore('goods', () => {
       changed = true
       return {
         ...item,
-        storageLocation: nextLocation
+        storageLocation: nextLocation,
+        updatedAt: now
       }
     })
 
@@ -643,6 +729,7 @@ export const useGoodsStore = defineStore('goods', () => {
     if (!normalizedPrefix) return
 
     let changed = false
+    const now = Date.now()
     list.value = list.value.map((item) => {
       if (!isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix)) {
         return item
@@ -651,7 +738,8 @@ export const useGoodsStore = defineStore('goods', () => {
       changed = true
       return {
         ...item,
-        storageLocation: ''
+        storageLocation: '',
+        updatedAt: now
       }
     })
 
@@ -738,6 +826,29 @@ export const useGoodsStore = defineStore('goods', () => {
     return newItems.length
   }
 
+  async function updateTrashBackup(items) {
+    if (!Array.isArray(items) || items.length === 0) return 0
+
+    const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
+    let updated = false
+
+    for (const remoteItem of items) {
+      const localItem = existingMap.get(remoteItem.id)
+      if (localItem && (remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
+        const idx = trashList.value.findIndex(g => g.id === remoteItem.id)
+        if (idx !== -1) {
+          trashList.value[idx] = { ...localItem, ...remoteItem }
+          updated = true
+        }
+      }
+    }
+
+    if (updated) {
+      await persistTrash()
+    }
+    return updated ? items.length : 0
+  }
+
   return {
     list,
     trashList,
@@ -769,6 +880,7 @@ export const useGoodsStore = defineStore('goods', () => {
     addMultipleGoods,
     importGoodsBackup,
     importTrashBackup,
+    updateTrashBackup,
     refreshList
   }
 })

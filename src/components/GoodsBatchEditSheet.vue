@@ -910,14 +910,20 @@ defineExpose({
   }
 }
 
+:global(html.theme-dark) .batch-edit-popup.van-popup {
+    --van-popup-background: var(--app-surface);
+    background: var(--app-surface) !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42);
+    border: none;
+  }
+
 :global(html.theme-dark) .batch-edit-sheet {
-    background:
-      radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 42%),
-      var(--app-surface);
+    background: var(--app-surface) !important;
+    color: var(--app-text);
   }
 
 :global(html.theme-dark) .batch-edit-sheet__handle {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.15);
   }
 
 :global(html.theme-dark) .mark-owned-card {
@@ -977,5 +983,21 @@ defineExpose({
 :global(html.theme-dark) .confirm-btn--danger {
     background: #f5f5f7;
     color: #141416;
+  }
+
+  :global(html.theme-dark) .batch-edit-hero {
+    color: var(--app-text);
+  }
+
+  :global(html.theme-dark) .batch-edit-hero__label {
+    color: var(--app-text-secondary);
+  }
+
+  :global(html.theme-dark) .batch-edit-hero__title {
+    color: var(--app-text);
+  }
+
+  :global(html.theme-dark) .batch-edit-hero__desc {
+    color: var(--app-text-secondary);
   }
 </style>

@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
@@ -153,6 +153,7 @@ import { createDensityFlip } from '@/utils/densityFlip'
 defineOptions({ name: 'WishlistView' })
 
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
+const SELECTION_HEADER_HEIGHT = 64
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
   standard: 272,
@@ -171,7 +172,10 @@ const batchEditSheetRef = ref(null)
 const isWishlistActive = ref(true)
 const wishlistDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
-const selectionHeaderStyle = computed(() => ({ '--selection-header-top': '0px' }))
+const selectionHeaderTop = ref(0)
+const selectionHeaderStyle = computed(() => ({
+  '--selection-header-top': `${selectionHeaderTop.value}px`
+}))
 let removeAndroidBackListener = null
 let pageScrollBound = false
 let pageScrollRaf = 0
@@ -286,6 +290,16 @@ const {
   restoreScrollTop: applyScrollPosition
 })
 
+watch(selectionMode, async (active) => {
+  if (!active) {
+    selectionHeaderTop.value = 0
+    return
+  }
+
+  await nextTick()
+  updateSelectionHeaderPosition()
+})
+
 function syncVisibleGoodsCount() {}
 function syncVisibleTimelineMonthCount() {}
 
@@ -293,11 +307,24 @@ function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
 }
 
+function updateSelectionHeaderPosition() {
+  const spacer = pageBodyRef.value?.querySelector?.('.selection-header-spacer')
+  if (!spacer) {
+    selectionHeaderTop.value = 0
+    return
+  }
+
+  const rect = spacer.getBoundingClientRect()
+  const maxTop = Math.max(0, window.innerHeight - SELECTION_HEADER_HEIGHT)
+  selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
+}
+
 function handlePageScroll() {
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
     rememberCurrentScrollPosition()
+    if (selectionMode.value) updateSelectionHeaderPosition()
     updateScrollTopButtonVisibility()
   })
 }

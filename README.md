@@ -113,7 +113,3 @@ npm run open:android
 - Vant 4 (UI 组件库)
 - Pinia (状态管理)
 - SQLite (本地数据库)
-
-## 许可证
-
-Private

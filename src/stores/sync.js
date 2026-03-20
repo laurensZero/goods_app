@@ -134,6 +134,9 @@ export const useSyncStore = defineStore('sync', () => {
   async function saveToken(newToken) {
     token.value = newToken
     await writeKey(TOKEN_KEY, newToken)
+    // 配置新 token 时清除旧的 gistId，因为新 token 可能属于不同账户
+    gistId.value = ''
+    await writeKey(GIST_ID_KEY, '')
   }
 
   async function saveGistId(newGistId) {
@@ -208,8 +211,19 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function ensureGist() {
     if (gistId.value) {
-      const existing = await getGist(token.value, gistId.value)
-      if (existing) return existing
+      try {
+        const existing = await getGist(token.value, gistId.value)
+        if (existing) return existing
+        // gist 不存在，清除本地记录的 gistId
+        gistId.value = ''
+        await writeKey(GIST_ID_KEY, '')
+      } catch (error) {
+        // 如果是 401 错误，说明 token 无效
+        if (error.message.includes('401')) {
+          throw new Error('Token 无效或已过期，请重新配置')
+        }
+        // 其他错误，尝试继续查找
+      }
     }
 
     const desc = buildSyncDescription(deviceId.value)
@@ -353,13 +367,26 @@ export const useSyncStore = defineStore('sync', () => {
     if (trashToImport.length) {
       await goodsStore.importTrashBackup(trashToImport)
     }
+
+    // 更新已有的回收站数据
+    if (trashToUpdate.length) {
+      await goodsStore.updateTrashBackup(trashToUpdate)
+    }
+
+    return {
+      importedGoods: goodsToImport.length,
+      updatedGoods: goodsToUpdate.length,
+      importedTrash: trashToImport.length,
+      totalGoods: remoteData.goods?.length || 0,
+      totalTrash: remoteData.trash?.length || 0
+    }
   }
 
-  async function pushToRemote() {
+  async function pushToRemote(existingGist = null) {
     const goodsStore = useGoodsStore()
 
-    // 先拉取远端数据
-    const gist = await getGist(token.value, gistId.value)
+    // 先拉取远端数据（如果已传入则复用）
+    const gist = existingGist || await getGist(token.value, gistId.value)
     let remoteGoods = []
     let remoteTrash = []
 
@@ -448,13 +475,13 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   async function fullSync() {
-    if (isSyncing.value) return
+    if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     if (!token.value) throw new Error('未配置 Token')
 
     isSyncing.value = true
     lastError.value = ''
     conflictData.value = null
-    syncStatus.value = '正在连接...'
+    syncStatus.value = '正在上传...'
 
     try {
       const gist = await ensureGist()
@@ -477,28 +504,41 @@ export const useSyncStore = defineStore('sync', () => {
             gist
           }
           syncStatus.value = '检测到冲突'
-          return
+          return { action: 'conflict' }
         }
 
         // 同一设备或 manifest 丢失 → 拉取
         syncStatus.value = '正在拉取远端数据...'
-        await pullFromRemote(gist)
+        const result = await pullFromRemote(gist)
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-        syncStatus.value = '同步完成'
-        return
+        syncStatus.value = '拉取完成'
+        return { action: 'pulled', ...result }
       }
 
+      // 检查本地是否有变更需要上传
+      const localChanges = getLocalChangesSince(remoteTime || localSyncTime)
+      
       // 本地是最新的或从未同步 → 上传
       syncStatus.value = '正在上传数据...'
-      await pushToRemote()
-      syncStatus.value = '同步完成'
+      await pushToRemote(gist)
+      syncStatus.value = '上传完成'
+      return { action: 'pushed', ...localChanges }
     } catch (error) {
       lastError.value = error.message
-      syncStatus.value = '同步失败'
+      syncStatus.value = '上传失败'
       throw error
     } finally {
       isSyncing.value = false
     }
+  }
+
+  function getLocalChangesSince(timestamp) {
+    const goodsStore = useGoodsStore()
+    const updatedGoods = goodsStore.list.filter(item => (item.updatedAt || 0) > timestamp).length
+    const updatedTrash = goodsStore.trashList.filter(item => (item.updatedAt || 0) > timestamp).length
+    const totalGoods = goodsStore.list.length
+    const totalTrash = goodsStore.trashList.length
+    return { updatedGoods, updatedTrash, totalGoods, totalTrash, hasChanges: updatedGoods > 0 || updatedTrash > 0 }
   }
 
   async function resolveConflict(useRemote) {
@@ -509,19 +549,23 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       if (useRemote) {
         syncStatus.value = '正在拉取远端数据...'
-        await pullFromRemote(conflictData.value.gist)
+        const result = await pullFromRemote(conflictData.value.gist)
         const manifestContent = extractGistFileContent(conflictData.value.gist, MANIFEST_FILENAME)
         const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
+        conflictData.value = null
+        syncStatus.value = '拉取完成'
+        return { action: 'pulled', ...result }
       } else {
         syncStatus.value = '正在上传本地数据...'
-        await pushToRemote()
+        await pushToRemote(conflictData.value.gist)
+        conflictData.value = null
+        syncStatus.value = '上传完成'
+        return { action: 'pushed' }
       }
-      conflictData.value = null
-      syncStatus.value = '同步完成'
     } catch (error) {
       lastError.value = error.message
-      syncStatus.value = '同步失败'
+      syncStatus.value = '上传失败'
       throw error
     } finally {
       isSyncing.value = false
@@ -594,6 +638,12 @@ export const useSyncStore = defineStore('sync', () => {
         const localOnlyGoods = [...localGoodsMap.keys()].filter(id => !remoteGoodsIds.has(id)).length
         const localOnlyTrash = [...localTrashIds].filter(id => !remoteTrashIds.has(id)).length
 
+        // 如果没有差异，直接返回无需弹窗
+        if (remoteOnlyGoods === 0 && remoteOnlyTrash === 0 && updatedGoods === 0) {
+          syncStatus.value = '拉取完成'
+          return { action: 'no_changes' }
+        }
+
         conflictData.value = {
           remoteTime: remoteManifest.lastSyncAt,
           remoteDevice: remoteManifest.deviceId,
@@ -609,14 +659,15 @@ export const useSyncStore = defineStore('sync', () => {
           isPullOnly: true
         }
         syncStatus.value = '检测到远端数据'
-        return
+        return { action: 'conflict' }
       }
 
       syncStatus.value = '正在拉取远端数据...'
-      await pullFromRemote(gist)
+      const result = await pullFromRemote(gist)
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
 
       syncStatus.value = '拉取完成'
+      return { action: 'pulled', ...result }
     } catch (error) {
       lastError.value = error.message
       syncStatus.value = '拉取失败'
@@ -635,16 +686,19 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       if (confirm) {
         syncStatus.value = '正在拉取远端数据...'
-        await pullFromRemote(conflictData.value.gist)
+        const result = await pullFromRemote(conflictData.value.gist)
 
         const manifestContent = extractGistFileContent(conflictData.value.gist, MANIFEST_FILENAME)
         const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         syncStatus.value = '拉取完成'
+        conflictData.value = null
+        return { action: 'pulled', ...result }
       } else {
         syncStatus.value = '已取消'
+        conflictData.value = null
+        return { action: 'cancelled' }
       }
-      conflictData.value = null
     } catch (error) {
       lastError.value = error.message
       syncStatus.value = '拉取失败'
