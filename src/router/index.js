@@ -101,6 +101,12 @@ const routes = [
     meta: { title: '主题与外观' }
   },
   {
+    path: '/manage/about',
+    name: 'manage-about',
+    component: () => import('@/views/AboutView.vue'),
+    meta: { title: '关于应用' }
+  },
+  {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),

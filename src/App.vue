@@ -35,7 +35,7 @@ import { useSyncStore } from '@/stores/sync'
 const route = useRoute()
 const syncStore = useSyncStore()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
-const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'storage-locations', 'trash']
+const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const routeTransitionName = ref('route-none')
 const tabBarTransitionName = computed(() => {

@@ -1,123 +1,219 @@
 <template>
-  <div class="page sub-page">
+  <div class="page sync-page">
     <NavBar title="云同步" show-back />
 
-    <main class="page-body">
-      <div class="info-grid">
-        <section class="card-section">
-          <div class="card">
-            <div class="card-header">
-              <p class="card-kicker">Sync Status</p>
-              <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
+    <main ref="pageBodyRef" class="page-body">
+      <section class="hero-section">
+        <article class="hero-card">
+          <div class="hero-head">
+            <div class="hero-copy">
+              <p class="hero-label">Cloud Sync</p>
+              <h1 class="hero-title">GitHub Gist 同步</h1>
+              <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站与预设数据。</p>
             </div>
-
-            <div class="info-list">
-              <div class="info-row" @click="copyText(syncStore.token)">
-                <span class="info-label">Token</span>
-                <span class="info-value info-value--token">
-                  <svg v-if="syncStore.token" class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                  {{ tokenDisplay }}
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Gist ID</span>
-                <span class="info-value">{{ syncStore.gistId || '未创建' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">设备 ID</span>
-                <span class="info-value">{{ syncStore.deviceId }}</span>
-              </div>
-              <div class="info-row info-row--last">
-                <span class="info-label">上次同步</span>
-                <span class="info-value">{{ lastSyncDisplay }}</span>
-              </div>
-            </div>
+            <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
           </div>
-        </section>
 
-        <section class="card-section">
-          <div class="card">
-            <p class="card-kicker card-kicker--spaced">Gist Detail</p>
-            <div class="info-list">
-              <div class="info-row">
-                <span class="info-label">收藏</span>
-                <span class="info-value">{{ collectionCount }} 件</span>
+          <div class="hero-grid">
+            <div class="hero-metric">
+              <p class="hero-metric__label">最近同步</p>
+              <p class="hero-metric__value">{{ lastSyncDisplay }}</p>
+            </div>
+            <div class="hero-metric">
+              <p class="hero-metric__label">远端 Gist</p>
+              <p class="hero-metric__value hero-metric__value--mono">{{ syncStore.gistId || '未创建' }}</p>
+            </div>
+            <button
+              type="button"
+              class="hero-metric hero-metric--interactive"
+              :disabled="!syncStore.token"
+              @click="copyText(syncStore.token)"
+            >
+              <p class="hero-metric__label">同步 Token</p>
+              <p class="hero-metric__value hero-metric__value--mono">{{ tokenDisplay }}</p>
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <section class="content-section">
+        <div class="section-head">
+          <p class="section-label">Sync Overview</p>
+          <h2 class="section-title">同步概览</h2>
+        </div>
+
+        <div class="overview-grid">
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Connection</p>
+                <h3 class="panel-title">连接信息</h3>
               </div>
-              <div class="info-row">
-                <span class="info-label">心愿单</span>
-                <span class="info-value">{{ wishlistCount }} 件</span>
+              <span class="panel-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
+            </div>
+
+            <div class="detail-list">
+              <button type="button" class="detail-row detail-row--button" :disabled="!syncStore.token" @click="copyText(syncStore.token)">
+                <span class="detail-label">Token</span>
+                <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
+              </button>
+              <div class="detail-row">
+                <span class="detail-label">Gist ID</span>
+                <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
               </div>
-              <div class="info-row info-row--last">
-                <span class="info-label">回收站</span>
-                <span class="info-value">{{ trashCount }} 条</span>
+              <div class="detail-row">
+                <span class="detail-label">设备 ID</span>
+                <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
+              </div>
+              <div class="detail-row detail-row--last">
+                <span class="detail-label">最近同步</span>
+                <span class="detail-value">{{ lastSyncDisplay }}</span>
               </div>
             </div>
-          </div>
-        </section>
-      </div>
+          </article>
 
-      <section class="card-section">
-        <div class="action-group">
-          <button class="action-item action-item--primary" :disabled="syncStore.isSyncing || !syncStore.token" @click="handleSync">
-            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2v6h-6" />
-              <path d="M2.5 22v-6h6" />
-              <path d="M2 11.5a10 10 0 0 1 18.8-4.3" />
-              <path d="M22 12.5a10 10 0 0 1-18.8 4.3" />
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Remote Data</p>
+                <h3 class="panel-title">远端数据</h3>
+              </div>
+            </div>
+
+            <div class="stats-grid">
+              <article class="stat-card stat-card--collection">
+                <p class="stat-label">收藏</p>
+                <p class="stat-value">{{ collectionCount }}</p>
+                <p class="stat-desc">云端已记录的正式收藏条目。</p>
+              </article>
+              <article class="stat-card stat-card--wishlist">
+                <p class="stat-label">心愿单</p>
+                <p class="stat-value">{{ wishlistCount }}</p>
+                <p class="stat-desc">云端当前标记为心愿单的条目。</p>
+              </article>
+              <article class="stat-card stat-card--trash">
+                <p class="stat-label">回收站</p>
+                <p class="stat-value">{{ trashCount }}</p>
+                <p class="stat-desc">云端保留的已删除数据数量。</p>
+              </article>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section">
+        <div class="section-head">
+          <p class="section-label">Sync Actions</p>
+          <h2 class="section-title">同步操作</h2>
+        </div>
+
+        <div class="action-grid">
+          <button
+            type="button"
+            class="entry-card"
+            :disabled="syncStore.isSyncing || !syncStore.token"
+            @click="handleSync"
+          >
+            <span class="entry-icon sync-icon">
+              <svg v-if="!syncStore.isSyncing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.5 2v6h-6" />
+                <path d="M2.5 22v-6h6" />
+                <path d="M2 11.5a10 10 0 0 1 18.8-4.3" />
+                <path d="M22 12.5a10 10 0 0 1-18.8 4.3" />
+              </svg>
+              <span v-else class="sync-spinner" aria-hidden="true" />
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Push & Resolve</p>
+              <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中') : '上传到云端' }}</h3>
+              <p class="entry-desc">将本地数据推送到 Gist，若发现冲突会提示你选择处理方式。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
             </svg>
-            <span>{{ syncStore.isSyncing ? (syncStore.syncStatus || '上传中...') : '上传' }}</span>
-            <span v-if="!syncStore.isSyncing" class="action-arrow">↑</span>
-            <span v-else class="sync-spinner action-icon" aria-hidden="true" />
           </button>
 
-          <button v-if="syncStore.gistId" class="action-item action-item--primary" :disabled="syncStore.isSyncing" @click="handlePull">
-            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
+          <button
+            type="button"
+            class="entry-card"
+            :disabled="syncStore.isSyncing || !syncStore.gistId"
+            @click="handlePull"
+          >
+            <span class="entry-icon pull-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Remote to Local</p>
+              <h3 class="entry-name">拉取远端数据</h3>
+              <p class="entry-desc">把 Gist 中的最新数据合并到当前设备，不会直接覆盖本地收藏。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
             </svg>
-            <span>拉取</span>
-            <span class="action-arrow">↓</span>
           </button>
         </div>
       </section>
 
-      <section class="card-section">
-        <div class="action-group">
-          <button class="action-item" @click="openTokenDialog">
-            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-            <span>{{ syncStore.token ? '更换 Token' : '配置 Token' }}</span>
-            <svg class="action-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <section class="content-section">
+        <div class="section-head">
+          <p class="section-label">Config</p>
+          <h2 class="section-title">配置与维护</h2>
+        </div>
+
+        <div class="action-grid">
+          <button type="button" class="entry-card" @click="openTokenDialog">
+            <span class="entry-icon token-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">GitHub Access</p>
+              <h3 class="entry-name">{{ syncStore.token ? '更换 Token' : '配置 Token' }}</h3>
+              <p class="entry-desc">保存带有 `gist` 权限的 Personal Access Token，用于创建和更新 Gist。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </button>
 
-          <a v-if="gistUrl" class="action-item" :href="gistUrl" target="_blank" rel="noopener">
-            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            <span>在 GitHub 查看</span>
-            <svg class="action-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <a v-if="gistUrl" class="entry-card" :href="gistUrl" target="_blank" rel="noopener">
+            <span class="entry-icon link-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Remote Inspect</p>
+              <h3 class="entry-name">在 GitHub 查看</h3>
+              <p class="entry-desc">直接打开当前 Gist 页面，检查远端文件、更新时间与历史版本。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </a>
 
-          <button v-if="syncStore.gistId" class="action-item action-item--danger" @click="showResetConfirm = true">
-            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h18" />
-              <path d="M8 6V4h8v2" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-            </svg>
-            <span>清除配置</span>
-            <svg class="action-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button v-if="syncStore.gistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
+            <span class="entry-icon danger-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Reset</p>
+              <h3 class="entry-name">清除同步配置</h3>
+              <p class="entry-desc">移除当前设备保存的 Token 和 Gist 配置，但不会删除 GitHub 上的远端数据。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </button>
@@ -129,7 +225,7 @@
           <div class="dialog">
             <h3 class="dialog-title">配置 GitHub Token</h3>
             <p class="dialog-desc">
-              需要一个具有 <code>gist</code> 权限的 Personal Access Token。
+              需要一个包含 <code>gist</code> 权限的 Personal Access Token。
               <a href="https://github.com/settings/tokens/new?scopes=gist&description=goods-app-sync" target="_blank" rel="noopener">点击创建</a>
             </p>
             <input
@@ -160,7 +256,7 @@
           <div class="dialog">
             <h3 class="dialog-title">确认清除配置</h3>
             <p class="dialog-desc">
-              清除后需要重新配置 Token，Gist 中的数据不会被删除。
+              清除后需要重新配置 Token。远端 Gist 中的数据不会被删除。
             </p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="showResetConfirm = false">取消</button>
@@ -172,7 +268,7 @@
 
       <Transition name="overlay-fade">
         <div v-if="showPullConflict" class="overlay">
-          <div class="dialog">
+          <div class="dialog dialog--wide">
             <h3 class="dialog-title">检测到远端数据</h3>
             <div class="conflict-info">
               <div class="conflict-row">
@@ -185,14 +281,14 @@
               </div>
               <div class="conflict-row">
                 <span class="conflict-label">远端总数</span>
-                <span class="conflict-value">{{ pullConflictData.remoteGoodsCount }} 收藏, {{ pullConflictData.remoteTrashCount }} 回收站</span>
+                <span class="conflict-value">{{ pullConflictData.remoteGoodsCount }} 收藏，{{ pullConflictData.remoteTrashCount }} 回收站</span>
               </div>
             </div>
             <div class="conflict-diff">
               <p class="conflict-diff-title">差异</p>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">远端新增</span>
-                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyGoods }} 收藏, +{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
+                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyGoods }} 收藏，+{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
               </div>
               <div v-if="pullConflictData.updatedGoods > 0" class="conflict-diff-row">
                 <span class="conflict-diff-label">远端修改</span>
@@ -200,10 +296,10 @@
               </div>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">本地独有</span>
-                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyGoods }} 收藏, {{ pullConflictData.localOnlyTrash }} 回收站</span>
+                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyGoods }} 收藏，{{ pullConflictData.localOnlyTrash }} 回收站</span>
               </div>
             </div>
-            <p class="conflict-desc">拉取会将远端数据合并到本地，不会删除现有数据。</p>
+            <p class="conflict-desc">拉取会将远端数据合并到本地，不会删除当前设备现有数据。</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
@@ -218,7 +314,7 @@
         <div v-if="showSyncConflict" class="overlay">
           <div class="dialog">
             <h3 class="dialog-title">检测到冲突</h3>
-            <p class="conflict-desc">远端有其他设备的更新数据，时间比本地更新。</p>
+            <p class="conflict-desc">远端存在其他设备更新的数据，并且时间比当前本地记录更新。</p>
             <div class="conflict-info">
               <div class="conflict-row">
                 <span class="conflict-label">远端时间</span>
@@ -229,7 +325,7 @@
                 <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || '从未同步' }}</span>
               </div>
             </div>
-            <p class="conflict-desc">请选择保留哪边的数据：</p>
+            <p class="conflict-desc">请选择要保留哪一边的数据：</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(false)">
                 上传本地
@@ -257,6 +353,7 @@ import NavBar from '@/components/NavBar.vue'
 
 const syncStore = useSyncStore()
 
+const pageBodyRef = ref(null)
 const showTokenDialog = ref(false)
 const showResetConfirm = ref(false)
 const showPullConflict = ref(false)
@@ -294,7 +391,7 @@ const statusBadgeClass = computed(() => {
 })
 
 const statusBadgeText = computed(() => {
-  if (syncStore.isSyncing) return '上传中'
+  if (syncStore.isSyncing) return '同步中'
   if (syncStore.lastError) return '有错误'
   if (!syncStore.token) return '未配置'
   if (syncStore.gistId) return '已连接'
@@ -303,8 +400,8 @@ const statusBadgeText = computed(() => {
 
 const tokenDisplay = computed(() => {
   if (!syncStore.token) return '未配置'
-  const t = syncStore.token
-  return `${t.slice(0, 4)}...${t.slice(-4)}`
+  const token = syncStore.token
+  return `${token.slice(0, 4)}...${token.slice(-4)}`
 })
 
 const gistUrl = computed(() => {
@@ -316,11 +413,25 @@ const collectionCount = computed(() => gistInfo.value?.collectionCount ?? '-')
 const wishlistCount = computed(() => gistInfo.value?.wishlistCount ?? '-')
 const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
 
+function resetPageScrollTop() {
+  try {
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    window.scrollTo(0, 0)
+  } catch {
+    // ignore scroll reset failures in non-browser contexts
+  }
+
+  if (pageBodyRef.value) {
+    pageBodyRef.value.scrollTop = 0
+  }
+}
+
 function formatTime(isoString) {
   if (!isoString) return ''
-  const d = new Date(isoString)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const date = new Date(isoString)
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function showToast(message, duration = 2600) {
@@ -346,23 +457,27 @@ async function loadGistInfo() {
 
     const content = extractGistFileContent(gist, 'data.json')
 
-    let collectionCount = 0
-    let wishlistCount = 0
-    let trashCount = 0
+    let nextCollectionCount = 0
+    let nextWishlistCount = 0
+    let nextTrashCount = 0
 
     if (content) {
       try {
         const data = JSON.parse(content)
         const goods = Array.isArray(data.goods) ? data.goods : []
-        collectionCount = goods.filter((item) => !item.isWishlist).length
-        wishlistCount = goods.filter((item) => item.isWishlist).length
-        trashCount = Array.isArray(data.trash) ? data.trash.length : 0
+        nextCollectionCount = goods.filter((item) => !item.isWishlist).length
+        nextWishlistCount = goods.filter((item) => item.isWishlist).length
+        nextTrashCount = Array.isArray(data.trash) ? data.trash.length : 0
       } catch {
         // ignore parse error
       }
     }
 
-    gistInfo.value = { collectionCount, wishlistCount, trashCount }
+    gistInfo.value = {
+      collectionCount: nextCollectionCount,
+      wishlistCount: nextWishlistCount,
+      trashCount: nextTrashCount
+    }
   } catch {
     gistInfo.value = null
   }
@@ -383,7 +498,7 @@ async function handleSync() {
 
   try {
     const result = await syncStore.fullSync()
-    
+
     if (!result) {
       showToast('上传完成')
       await loadGistInfo()
@@ -391,7 +506,6 @@ async function handleSync() {
     }
 
     if (result.action === 'conflict') {
-      // 显示冲突弹窗让用户选择
       syncConflictData.value = {
         remoteTime: syncStore.conflictData?.remoteTime,
         localTime: syncStore.conflictData?.localTime
@@ -406,15 +520,15 @@ async function handleSync() {
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
     } else if (result.action === 'pushed') {
       if (result.hasChanges) {
         const parts = []
-        if (result.updatedGoods > 0) parts.push(`商品 ${result.updatedGoods} 件`)
+        if (result.updatedGoods > 0) parts.push(`收藏 ${result.updatedGoods} 件`)
         if (result.updatedTrash > 0) parts.push(`回收站 ${result.updatedTrash} 条`)
-        message = `上传完成：${parts.join('，')}`
+        message = `上传完成，${parts.join('，')}`
       } else {
-        message = '数据已是最新，无需上传'
+        message = '数据已经是最新，无需上传'
       }
     } else {
       message = '上传完成'
@@ -432,19 +546,18 @@ async function handlePull() {
 
   try {
     const result = await syncStore.pullOnly()
-    
+
     if (result?.action === 'pulled') {
       const parts = []
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      const message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'no_changes') {
-      showToast('数据已是最新')
+      showToast('数据已经是最新')
     }
-    // 有冲突时会显示弹窗，不需要额外提示
   } catch (error) {
     showToast(`拉取失败：${error.message}`)
   }
@@ -454,13 +567,13 @@ async function handlePullConflict(confirm) {
   try {
     const result = await syncStore.resolvePullConflict(confirm)
     showPullConflict.value = false
-    
+
     if (result?.action === 'pulled') {
       const parts = []
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      const message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'cancelled') {
@@ -481,7 +594,7 @@ async function handleSyncConflict(useRemote) {
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      const message = parts.length > 0 ? `拉取完成：${parts.join('，')}` : '数据已是最新'
+      const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {
       showToast('上传完成')
@@ -521,7 +634,7 @@ async function handleSaveToken() {
     }
     tokenValidLogin.value = check.login
     await syncStore.saveToken(input)
-    showToast(`Token 已保存 (${tokenValidLogin.value})`)
+    showToast(`Token 已保存（${tokenValidLogin.value}）`)
     closeTokenDialog()
     await loadGistInfo()
   } catch (error) {
@@ -539,200 +652,448 @@ async function handleReset() {
 }
 
 onMounted(async () => {
+  resetPageScrollTop()
+  window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
   await loadGistInfo()
 })
 </script>
 
 <style scoped>
-.sub-page {
+.sync-page {
+  position: relative;
   min-height: 100dvh;
+  overflow: hidden;
   background: var(--app-bg);
 }
 
+.sync-page::before,
+.sync-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(10px);
+}
+
+.sync-page::before {
+  top: 104px;
+  right: -118px;
+  width: 316px;
+  height: 316px;
+  background: radial-gradient(circle, rgba(114, 102, 255, 0.16) 0%, rgba(114, 102, 255, 0) 72%);
+}
+
+.sync-page::after {
+  top: 284px;
+  left: -140px;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(73, 163, 255, 0.12) 0%, rgba(73, 163, 255, 0) 74%);
+}
+
 .page-body {
-  padding: 16px var(--page-padding) 120px;
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1160px);
+  margin: 0 auto;
+  padding: 0 var(--page-padding) 120px;
 }
 
-.info-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 12px;
+.hero-section,
+.content-section {
+  margin-top: var(--section-gap);
 }
 
-.card-section {
-  margin-bottom: 12px;
-}
-
-.card {
-  padding: 16px;
-  border-radius: var(--radius-card);
+.hero-card,
+.panel-card,
+.stat-card,
+.entry-card,
+.dialog {
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
+.hero-card {
+  position: relative;
+  padding: 22px;
+  overflow: hidden;
+  border-radius: var(--radius-large);
 }
 
-.card-kicker {
-  margin: 0;
+.hero-card::before {
+  content: '';
+  position: absolute;
+  inset: auto -84px -108px auto;
+  width: 248px;
+  height: 248px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(118, 102, 255, 0.18) 0%, rgba(118, 102, 255, 0) 72%);
+  pointer-events: none;
+}
+
+.hero-head,
+.hero-grid,
+.panel-head,
+.section-head,
+.detail-list,
+.stats-grid,
+.action-grid {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.hero-label,
+.section-label,
+.panel-kicker,
+.entry-kicker,
+.stat-label {
   color: var(--app-text-tertiary);
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.card-kicker--spaced {
-  margin-bottom: 12px;
+.hero-title,
+.section-title,
+.panel-title,
+.entry-name {
+  margin-top: 6px;
+  color: var(--app-text);
+  letter-spacing: -0.04em;
 }
 
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 11px;
+.hero-title {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.hero-desc,
+.entry-desc,
+.stat-desc,
+.detail-label,
+.detail-value,
+.dialog-desc,
+.conflict-desc {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.hero-desc {
+  margin-top: 10px;
+  max-width: 540px;
+}
+
+.status-badge,
+.panel-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge--success {
+  background: rgba(40, 200, 128, 0.12);
+  color: #28c880;
+}
+
+.badge--warning {
+  background: rgba(255, 162, 0, 0.12);
+  color: #d07a0b;
+}
+
+.badge--error {
+  background: rgba(199, 68, 68, 0.10);
+  color: #c74444;
+}
+
+.badge--syncing {
+  background: rgba(120, 100, 255, 0.10);
+  color: #7864ff;
+}
+
+.hero-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.hero-metric {
+  display: block;
+  width: 100%;
+  padding: 16px 18px;
+  border: none;
+  border-radius: calc(var(--radius-card) - 2px);
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  text-align: left;
+}
+
+.hero-metric--interactive {
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-emphasis), background var(--motion-fast) var(--motion-emphasis);
+}
+
+.hero-metric--interactive:not(:disabled):active {
+  transform: scale(var(--press-scale-card));
+}
+
+.hero-metric--interactive:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.hero-metric__label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hero-metric__value {
+  margin-top: 8px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.hero-metric__value--mono,
+.detail-value--mono {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.section-head {
+  margin-bottom: 14px;
+}
+
+.section-title {
+  font-size: 22px;
   font-weight: 600;
 }
 
-.badge--success { background: rgba(40, 200, 128, 0.12); color: #28c880; }
-.badge--warning { background: rgba(255, 162, 0, 0.12); color: #d07a0b; }
-.badge--error { background: rgba(199, 68, 68, 0.1); color: #c74444; }
-.badge--syncing { background: rgba(120, 100, 255, 0.1); color: #7864ff; }
+.overview-grid,
+.action-grid {
+  display: grid;
+  gap: 12px;
+}
 
-.info-list {
+.panel-card {
+  padding: 18px;
+  border-radius: var(--radius-large);
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panel-title {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.detail-list {
   display: flex;
   flex-direction: column;
 }
 
-.info-row {
+.detail-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--app-border);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 
-.info-row--last {
+.detail-row--last {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
-.info-value--token {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.info-row--copyable {
+.detail-row--button {
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  background: transparent;
   cursor: pointer;
-  transition: transform 0.16s ease, background 0.16s ease;
+  text-align: left;
 }
 
-.info-row--copyable:active {
-  transform: scale(0.98);
-  background: var(--app-surface-soft);
+.detail-row--button:not(:disabled):active {
+  transform: scale(var(--press-scale-card));
 }
 
-.copy-icon {
-  width: 14px;
-  height: 14px;
-  stroke: var(--app-text-tertiary);
+.detail-row--button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.detail-label {
   flex-shrink: 0;
 }
 
-.info-label {
-  color: var(--app-text-secondary);
-  font-size: 14px;
-}
-
-.info-value {
+.detail-value {
   color: var(--app-text);
-  font-size: 14px;
   font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
-.action-group {
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-}
-
-.action-item {
-  display: flex;
-  align-items: center;
+.stats-grid {
+  display: grid;
   gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border: none;
-  border-bottom: 1px solid var(--app-border);
-  background: transparent;
+}
+
+.stat-card {
+  padding: 16px 18px;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--app-surface-soft) 84%, transparent);
+}
+
+.stat-value {
+  margin-top: 8px;
   color: var(--app-text);
-  font-size: 15px;
-  text-align: left;
-  cursor: pointer;
-  text-decoration: none;
-  transition: transform 0.16s ease, background 0.16s ease;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
 }
 
-.action-item:last-child {
-  border-bottom: none;
+.stat-card--collection .stat-value {
+  color: #5a78fa;
 }
 
-.action-item:not(:disabled):active {
-  transform: scale(0.98);
-  background: var(--app-surface-soft);
+.stat-card--wishlist .stat-value {
+  color: #7864ff;
 }
 
-.action-item--primary {
-  color: var(--app-text);
-  font-weight: 500;
-}
-
-.action-item--danger {
+.stat-card--trash .stat-value {
   color: #c74444;
 }
 
-.action-item:disabled {
-  opacity: 0.4;
+.entry-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 120px;
+  padding: 18px;
+  border: 1px solid rgba(17, 20, 22, 0.04);
+  border-radius: var(--radius-card);
+  color: var(--app-text);
+  text-align: left;
+  text-decoration: none;
+  transition: transform var(--motion-fast) var(--motion-emphasis), box-shadow var(--motion-fast) var(--motion-emphasis);
+}
+
+.entry-card:not(:disabled):active {
+  transform: scale(var(--press-scale-card));
+}
+
+.entry-card:disabled {
+  opacity: 0.56;
   cursor: not-allowed;
 }
 
-.action-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+.entry-card--danger .entry-name,
+.entry-card--danger .entry-desc {
+  color: #c74444;
 }
 
-.action-arrow {
-  margin-left: auto;
-  font-size: 14px;
-  color: var(--app-text-tertiary);
+.entry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.entry-icon svg,
+.sync-spinner {
+  width: 22px;
+  height: 22px;
+}
+
+.sync-icon {
+  background: rgba(120, 100, 255, 0.10);
+  color: #7864ff;
+}
+
+.pull-icon {
+  background: rgba(50, 200, 140, 0.10);
+  color: #28c880;
+}
+
+.token-icon {
+  background: rgba(90, 120, 250, 0.10);
+  color: #5a78fa;
+}
+
+.link-icon {
+  background: rgba(255, 162, 0, 0.12);
+  color: #d07a0b;
+}
+
+.danger-icon {
+  background: rgba(199, 68, 68, 0.10);
+  color: #c74444;
+}
+
+.entry-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-name {
+  font-size: 18px;
   font-weight: 600;
 }
 
-.action-arrow-icon {
-  margin-left: auto;
-  width: 16px;
-  height: 16px;
+.entry-desc {
+  margin-top: 4px;
+}
+
+.entry-arrow {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
   stroke: var(--app-text-tertiary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .sync-spinner {
-  margin-left: auto;
-  border: 2px solid var(--app-text-tertiary);
+  border: 2px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  width: 16px;
-  height: 16px;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .overlay {
@@ -743,37 +1104,36 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(14, 18, 28, 0.38);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .dialog {
-  width: 100%;
-  max-width: 340px;
+  width: min(100%, 420px);
   padding: 24px;
   border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.dialog--wide {
+  width: min(100%, 520px);
 }
 
 .dialog-title {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 .dialog-desc {
   margin: 0 0 16px;
-  color: var(--app-text-secondary);
-  font-size: 14px;
-  line-height: 1.6;
 }
 
 .dialog-desc code {
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--app-surface-soft);
   font-size: 13px;
 }
@@ -785,19 +1145,19 @@ onMounted(async () => {
 
 .dialog-input {
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
+  border-radius: 14px;
   background: transparent;
   color: var(--app-text);
   font-size: 14px;
-  font-family: monospace;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
   outline: none;
-  box-sizing: border-box;
 }
 
 .dialog-input:focus {
-  border-color: var(--app-text-tertiary);
+  border-color: color-mix(in srgb, var(--app-text) 24%, transparent);
 }
 
 .dialog-error {
@@ -812,70 +1172,45 @@ onMounted(async () => {
   font-size: 13px;
 }
 
-.conflict-info {
+.conflict-info,
+.conflict-diff {
   margin: 16px 0;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   background: var(--app-surface-soft);
 }
 
-.conflict-row {
+.conflict-row,
+.conflict-diff-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 8px 0;
 }
 
 .conflict-row:not(:last-child) {
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 
-.conflict-label {
+.conflict-label,
+.conflict-diff-label,
+.conflict-diff-title {
   color: var(--app-text-secondary);
   font-size: 13px;
-}
-
-.conflict-value {
-  color: var(--app-text);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.conflict-desc {
-  margin: 0 0 16px;
-  color: var(--app-text-tertiary);
-  font-size: 13px;
-}
-
-.conflict-diff {
-  margin: 16px 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--app-surface-soft);
 }
 
 .conflict-diff-title {
   margin: 0 0 8px;
-  color: var(--app-text-secondary);
-  font-size: 12px;
   font-weight: 600;
 }
 
-.conflict-diff-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-}
-
-.conflict-diff-label {
-  color: var(--app-text-secondary);
-  font-size: 13px;
-}
-
+.conflict-value,
 .conflict-diff-value {
+  color: var(--app-text);
   font-size: 13px;
   font-weight: 500;
+  text-align: right;
 }
 
 .conflict-diff-value--add {
@@ -886,23 +1221,20 @@ onMounted(async () => {
   color: #f59e0b;
 }
 
-.conflict-diff-value--local {
-  color: var(--app-text);
-}
-
 .dialog-actions {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
   justify-content: flex-end;
+  margin-top: 20px;
 }
 
 .dialog-btn {
-  padding: 10px 20px;
+  min-height: 42px;
+  padding: 0 18px;
   border: none;
   border-radius: 12px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -917,12 +1249,12 @@ onMounted(async () => {
 }
 
 .dialog-btn--danger {
-  background: rgba(199, 68, 68, 0.1);
+  background: rgba(199, 68, 68, 0.10);
   color: #c74444;
 }
 
 .dialog-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.56;
   cursor: not-allowed;
 }
 
@@ -933,13 +1265,15 @@ onMounted(async () => {
   z-index: 999;
   padding: 10px 20px;
   border-radius: 20px;
-  background: var(--app-text);
-  color: var(--app-bg);
+  background: rgba(20, 20, 22, 0.88);
+  color: #ffffff;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .toast-fade-enter-active,
@@ -973,11 +1307,98 @@ onMounted(async () => {
   transform: scale(0.95) translateY(8px);
 }
 
-@media (min-width: 768px) {
-  .info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+:deep(.nav-bar) {
+  z-index: 60;
+}
+
+:deep(.nav-back) {
+  background: color-mix(in srgb, var(--app-surface) 84%, transparent);
+  border-color: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+@media (max-width: 767px) {
+  .hero-head,
+  .panel-head,
+  .detail-row,
+  .conflict-row,
+  .conflict-diff-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
+
+  .detail-value,
+  .conflict-value,
+  .conflict-diff-value {
+    text-align: left;
+  }
+
+  .dialog-actions {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 768px) {
+  .hero-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1279px) {
+  .page-body {
+    width: min(100%, 1100px);
+    padding-inline: 28px;
+  }
+
+  .overview-grid,
+  .action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entry-card {
+    min-height: 136px;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .entry-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .page-body {
+    width: min(100%, 1100px);
+    padding-inline: 28px;
+  }
+
+  .overview-grid,
+  .action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entry-card {
+    min-height: 136px;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .entry-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+}
+
+:global(html.theme-dark) .entry-card,
+:global(html.theme-dark) .panel-card,
+:global(html.theme-dark) .hero-card,
+:global(html.theme-dark) .dialog {
+  border-color: rgba(255, 255, 255, 0.04);
 }
 </style>

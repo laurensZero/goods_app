@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="176" y1="128" x2="864" y2="912" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF" />
+      <stop offset="1" stop-color="#E7F1FF" />
+    </linearGradient>
+    <linearGradient id="box" x1="248" y1="320" x2="784" y2="736" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3F86F7" />
+      <stop offset="1" stop-color="#74B0FF" />
+    </linearGradient>
+    <linearGradient id="lid" x1="220" y1="228" x2="804" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F73EA" />
+      <stop offset="1" stop-color="#5BA0FF" />
+    </linearGradient>
+    <filter id="panelShadow" x="36" y="40" width="952" height="952" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#7FA9E5" flood-opacity=".24" />
+    </filter>
+    <filter id="boxShadow" x="136" y="210" width="752" height="700" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#1E4B8C" flood-opacity=".16" />
+    </filter>
+  </defs>
+
+  <g filter="url(#panelShadow)">
+    <rect x="72" y="72" width="880" height="880" rx="224" fill="url(#bg)" />
+    <circle cx="270" cy="248" r="172" fill="#FFF" fill-opacity=".58" />
+    <circle cx="810" cy="788" r="228" fill="#D8E8FF" fill-opacity=".72" />
+    <rect x="72" y="72" width="880" height="880" rx="224" stroke="#FFF" stroke-opacity=".72" stroke-width="10" />
+  </g>
+
+  <g filter="url(#boxShadow)" transform="translate(0 42)">
+    <ellipse cx="512" cy="780" rx="246" ry="46" fill="#28589E" fill-opacity=".18" />
+    <rect x="236" y="308" width="552" height="412" rx="126" fill="url(#box)" />
+    <rect x="200" y="220" width="624" height="188" rx="96" fill="url(#lid)" />
+    <rect x="254" y="252" width="516" height="48" rx="24" fill="#8BBCFF" fill-opacity=".32" />
+    <rect x="396" y="390" width="232" height="40" rx="20" fill="#FFF" fill-opacity=".94" />
+    <circle cx="292" cy="396" r="18" fill="#FFD54E" />
+    <circle cx="732" cy="396" r="18" fill="#FFD54E" />
+    <rect x="304" y="494" width="416" height="164" rx="44" fill="#FFF" fill-opacity=".97" stroke="#CDDEFF" stroke-width="6" />
+    <rect x="362" y="540" width="208" height="24" rx="12" fill="#4A8CF7" />
+    <rect x="362" y="582" width="164" height="24" rx="12" fill="#74A9FF" />
+    <rect x="362" y="624" width="120" height="24" rx="12" fill="#BED6FF" />
+    <circle cx="634" cy="574" r="18" fill="#FFD54E" />
+  </g>
+</svg>

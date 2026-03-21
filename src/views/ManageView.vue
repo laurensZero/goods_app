@@ -181,6 +181,24 @@
               <path d="M9 6l6 6-6 6" />
             </svg>
           </RouterLink>
+
+          <RouterLink class="entry-card" to="/manage/about">
+            <span class="entry-icon about-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 10v6" />
+                <path d="M12 7h.01" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">应用信息</p>
+              <h2 class="entry-name">关于应用</h2>
+              <p class="entry-desc">查看版本、数据说明与同步使用方式</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </RouterLink>
         </section>
       </div>
 
@@ -572,6 +590,7 @@ async function handleImport(event) {
 .char-icon { background: rgba(50, 200, 140, 0.12); color: #28c880; }
 .storage-icon { background: rgba(80, 120, 230, 0.10); color: #4f76d6; }
 .theme-icon { background: rgba(255, 162, 0, 0.12); color: #d07a0b; }
+.about-icon { background: rgba(50, 122, 255, 0.10); color: #327aff; }
 .trash-icon { background: rgba(199, 68, 68, 0.10); color: #c74444; }
 .export-icon { background: rgba(90, 120, 250, 0.10); color: #5a78fa; }
 .import-icon { background: rgba(50, 200, 140, 0.10); color: #28c880; }
@@ -658,10 +677,20 @@ async function handleImport(event) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 24px;
+    row-gap: 18px;
     align-items: start;
     width: min(100%, 1100px);
     padding-top: 26px;
     padding-inline: 28px;
+  }
+
+  .hero-section {
+    margin-bottom: 0;
+  }
+
+  .manage-column,
+  .hub-section {
+    display: contents;
   }
 
   .manage-column {
@@ -681,6 +710,7 @@ async function handleImport(event) {
   }
 
   .entry-card {
+    grid-column: span 1;
     min-height: 136px;
     padding: 22px;
     border-radius: 24px;
@@ -711,11 +741,20 @@ async function handleImport(event) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 24px;
-    row-gap: 24px;
+    row-gap: 18px;
     align-items: start;
     width: min(100%, 1100px);
     padding-top: 26px;
     padding-inline: 28px;
+  }
+
+  .hero-section {
+    margin-bottom: 0;
+  }
+
+  .manage-column,
+  .hub-section {
+    display: contents;
   }
 
   .manage-column {
@@ -735,6 +774,7 @@ async function handleImport(event) {
   }
 
   .entry-card {
+    grid-column: span 1;
     min-height: 136px;
     padding: 22px;
     border-radius: 24px;
