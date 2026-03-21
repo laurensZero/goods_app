@@ -127,7 +127,10 @@ function sortByLocale(list, pick = (item) => item) {
 }
 
 export function normalizeCharacterName(name) {
-  const text = String(name || '').trim()
+  const text = String(name || '')
+    .replace(/^\s*[\/／]+\s*/g, '')
+    .replace(/\s*[\/／]+\s*$/g, '')
+    .trim()
   if (!text) return ''
 
   if (/[\u4e00-\u9fff]/.test(text)) {

@@ -2,10 +2,26 @@ export function normalizeGoodsName(name) {
   return String(name || '').trim()
 }
 
+export function normalizeGoodsVariant(variant) {
+  let value = String(variant || '').trim()
+  if (!value) return ''
+
+  let previous = ''
+  while (value && value !== previous) {
+    previous = value
+    value = value
+      .replace(/^\s*[\/／]+\s*/g, '')
+      .replace(/\s*[\/／]+\s*$/g, '')
+      .trim()
+  }
+
+  return value
+}
+
 export function extractVariantFromNote(note) {
   const text = String(note || '')
   const match = text.match(/(?:^|\n)款式[:：]\s*(.+?)(?=\n|$)/)
-  return match?.[1]?.trim() || ''
+  return normalizeGoodsVariant(match?.[1] || '')
 }
 
 export function stripVariantFromNote(note) {
@@ -17,7 +33,7 @@ export function stripVariantFromNote(note) {
 }
 
 export function buildNoteWithVariant(note, variant) {
-  const cleanVariant = String(variant || '').trim()
+  const cleanVariant = normalizeGoodsVariant(variant)
   const body = stripVariantFromNote(note)
 
   if (!cleanVariant) return body
@@ -25,7 +41,7 @@ export function buildNoteWithVariant(note, variant) {
 }
 
 export function getGoodsVariant(item) {
-  const explicitVariant = String(item?.variant || item?.style || '').trim()
+  const explicitVariant = normalizeGoodsVariant(item?.variant || item?.style)
   if (explicitVariant) return explicitVariant
 
   const noteVariant = extractVariantFromNote(item?.note || item?.notes || '')

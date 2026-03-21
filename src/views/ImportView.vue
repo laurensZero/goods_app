@@ -10,21 +10,6 @@
             <h2 class="search-title">按角色查米游铺周边</h2>
           </div>
 
-          <div v-if="wishlistCharacterOptions.length > 0" class="search-filter-row">
-            <span class="search-filter-label">角色</span>
-            <div class="search-filter-chips">
-              <button
-                v-for="character in wishlistCharacterOptions"
-                :key="character.name"
-                type="button"
-                :class="['search-filter-chip', { 'search-filter-chip--active': selectedSearchCharacter === character.name }]"
-                @click="handleSearchCharacterSelect(character.name)"
-              >
-                {{ character.name }}
-              </button>
-            </div>
-          </div>
-
           <div class="search-row">
             <input
               v-model="searchKeyword"
@@ -750,18 +735,6 @@ async function handleGoodsSearch() {
   }
 }
 
-async function handleSearchCharacterSelect(name) {
-  const next = selectedSearchCharacter.value === name ? '' : name
-  selectedSearchCharacter.value = next
-  searchKeyword.value = next
-  searchResults.value = []
-  searchError.value = ''
-
-  if (next) {
-    await handleGoodsSearch()
-  }
-}
-
 async function selectSearchResult(item) {
   if (!item?.goods_id) return
 
@@ -1005,6 +978,7 @@ function cleanVariantText(text) {
   let s = text
   s = s.replace(/【[^】]*】/g, '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '')
   s = s.replace(/预售[^、，,）)】]*/g, '').replace(/预计[^、，,）)】]*/g, '')
+  s = s.replace(/^\s*[\/／]+\s*/g, '').replace(/\s*[\/／]+\s*$/g, '')
   s = s.trim()
   if (s.endsWith('款')) s = s.slice(0, -1)
   return s.trim() || text.trim()
@@ -1016,6 +990,7 @@ function extractCharName(text) {
   if (!text) return null
   let s = text
   s = s.replace(/【[^】]*】/g, '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '')
+  s = s.replace(/^\s*[\/／]+\s*/g, '').replace(/\s*[\/／]+\s*$/g, '')
   s = s.trim()
   if (s.endsWith('款')) s = s.slice(0, -1)
   s = s.replace(/^[二三四五六七八九十]+周年/, '')  // 中文周年前缀
@@ -1416,50 +1391,6 @@ async function handleSave() {
 .search-row {
   display: flex;
   gap: 10px;
-}
-
-.search-filter-row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.search-filter-label {
-  color: var(--app-text-tertiary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.search-filter-chips {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.search-filter-chips::-webkit-scrollbar {
-  display: none;
-}
-
-.search-filter-chip {
-  flex-shrink: 0;
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 999px;
-  background: var(--app-surface);
-  color: var(--app-text);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.search-filter-chip--active {
-  border-color: #141416;
-  background: #141416;
-  color: #ffffff;
 }
 
 .search-input {

@@ -3,8 +3,8 @@ import { ref, computed } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { useGoodsStore } from './goods'
-import { usePresetsStore } from './presets'
-import { saveItems, deleteItems } from '@/utils/db'
+import { usePresetsStore, normalizeCharacterName } from './presets'
+import { deleteItems } from '@/utils/db'
 import {
   validateToken,
   createGist,
@@ -201,7 +201,13 @@ export const useSyncStore = defineStore('sync', () => {
     return {
       categories: [...presets.categories],
       ips: [...presets.ips],
-      characters: presets.characters.map((item) => ({ ...item })),
+      characters: presets.characters
+        .map((item) => ({
+          ...item,
+          name: normalizeCharacterName(item?.name || ''),
+          ip: String(item?.ip || '').trim()
+        }))
+        .filter((item) => item.name),
       storageLocations: [...presets.storageLocationPaths]
     }
   }
@@ -323,41 +329,6 @@ export const useSyncStore = defineStore('sync', () => {
     return created
   }
 
-  async function applyGoodsUpdates(goodsToUpdate) {
-    const goodsStore = useGoodsStore()
-    if (goodsToUpdate.length === 0) return
-
-    for (const remoteItem of goodsToUpdate) {
-      const index = goodsStore.list.findIndex((item) => item.id === remoteItem.id)
-      if (index === -1) continue
-
-      const localItem = goodsStore.list[index]
-      const localImages = localItem.images || []
-      const remoteImages = remoteItem.images || []
-      const remoteImageIds = new Set(remoteImages.map((image) => image.id))
-      const localOnlyImages = localImages.filter((image) => !remoteImageIds.has(image.id))
-      const mergedImages = [...remoteImages, ...localOnlyImages]
-      const finalCoverImage = localOnlyImages.some((image) => image.uri === localItem.coverImage)
-        ? localItem.coverImage
-        : remoteItem.coverImage
-
-      goodsStore.list[index] = {
-        ...localItem,
-        ...remoteItem,
-        images: mergedImages,
-        coverImage: finalCoverImage
-      }
-    }
-
-    const itemsToSave = goodsToUpdate
-      .map((remoteItem) => goodsStore.list.find((item) => item.id === remoteItem.id))
-      .filter(Boolean)
-
-    if (itemsToSave.length > 0) {
-      await saveItems(itemsToSave)
-    }
-  }
-
   async function pullFromRemote(gist) {
     const dataContent = extractGistFileContent(gist, DATA_FILENAME)
     if (!dataContent) throw new Error('远端数据为空')
@@ -424,7 +395,7 @@ export const useSyncStore = defineStore('sync', () => {
       )
     }
 
-    await applyGoodsUpdates(goodsToUpdate)
+    await goodsStore.updateGoodsBackup(goodsToUpdate)
 
     const currentGoodsMap = new Map(goodsStore.list.map((item) => [item.id, item]))
     const currentTrashMap = new Map(goodsStore.trashList.map((item) => [item.id, item]))

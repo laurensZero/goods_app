@@ -173,11 +173,28 @@ export function sanitizeGoodsImagesForSync(images) {
   }))
 }
 
+function normalizeSyncVariant(variant) {
+  let value = String(variant || '').trim()
+  if (!value) return ''
+
+  let previous = ''
+  while (value && value !== previous) {
+    previous = value
+    value = value
+      .replace(/^\s*[\/／]+\s*/g, '')
+      .replace(/\s*[\/／]+\s*$/g, '')
+      .trim()
+  }
+
+  return value
+}
+
 export function sanitizeGoodsItemForSync(item) {
   const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
   const images = sanitizeGoodsImagesForSync(item?.images)
   return {
     ...rest,
+    variant: normalizeSyncVariant(rest.variant),
     images
   }
 }

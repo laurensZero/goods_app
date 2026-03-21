@@ -24,6 +24,7 @@ import { normalizeCharacterName } from '@/stores/presets'
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
 const CHARACTERS_MIGRATION_KEY = 'goods_characters_normalized_v1'
+const VARIANT_MIGRATION_KEY = 'goods_variant_normalized_v1'
 const IS_NATIVE = Capacitor.isNativePlatform()
 
 function isValidYearMonth(value) {
@@ -215,6 +216,43 @@ async function writeCharactersMigrationFlag() {
   }
 }
 
+function readVariantMigrationFlagLocal() {
+  try {
+    return localStorage.getItem(VARIANT_MIGRATION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+async function readVariantMigrationFlag() {
+  if (IS_NATIVE) {
+    try {
+      const { value } = await Preferences.get({ key: VARIANT_MIGRATION_KEY })
+      return value === '1'
+    } catch {
+      return false
+    }
+  }
+
+  return readVariantMigrationFlagLocal()
+}
+
+async function writeVariantMigrationFlag() {
+  try {
+    localStorage.setItem(VARIANT_MIGRATION_KEY, '1')
+  } catch {
+    // ignore
+  }
+
+  if (!IS_NATIVE) return
+
+  try {
+    await Preferences.set({ key: VARIANT_MIGRATION_KEY, value: '1' })
+  } catch {
+    // ignore
+  }
+}
+
 async function restoreImportedGoodsItem(rawItem) {
   const normalizedImages = normalizeGoodsImageList(rawItem?.images, rawItem?.coverImage || rawItem?.image)
   if (normalizedImages.length === 0) return rawItem
@@ -371,6 +409,10 @@ export const useGoodsStore = defineStore('goods', () => {
       await normalizeExistingCharacters()
       await writeCharactersMigrationFlag()
     }
+    if (!(await readVariantMigrationFlag())) {
+      await normalizeExistingVariants()
+      await writeVariantMigrationFlag()
+    }
     isReady.value = true
   }
 
@@ -390,6 +432,37 @@ export const useGoodsStore = defineStore('goods', () => {
       if (JSON.stringify(normalizedCharacters) === JSON.stringify(item.characters)) return item
       trashChanged = true
       return { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
+    })
+
+    if (updates.length > 0) {
+      triggerRef(list)
+      await saveItems(updates)
+    }
+    if (trashChanged) {
+      triggerRef(trashList)
+      await persistTrash()
+    }
+  }
+
+  async function normalizeExistingVariants() {
+    const updates = []
+    const now = Date.now()
+
+    list.value = list.value.map((item) => {
+      const normalized = normalizeGoodsInput(item, item.id)
+      if (JSON.stringify(normalized) === JSON.stringify(item)) return item
+      const next = { ...normalized, updatedAt: now }
+      updates.push(next)
+      return next
+    })
+
+    let trashChanged = false
+    trashList.value = trashList.value.map((item) => {
+      const normalized = normalizeTrashItem(item, item.id)
+      if (JSON.stringify(normalized) === JSON.stringify(item)) return item
+      const next = { ...normalized, updatedAt: now }
+      trashChanged = true
+      return next
     })
 
     if (updates.length > 0) {
@@ -820,6 +893,47 @@ export const useGoodsStore = defineStore('goods', () => {
     return newItems.length
   }
 
+  async function updateGoodsBackup(items) {
+    if (!Array.isArray(items) || items.length === 0) return 0
+
+    const existingMap = new Map(list.value.map((item) => [item.id, item]))
+    const updatedItems = []
+
+    for (const remoteItem of items) {
+      const localItem = existingMap.get(remoteItem.id)
+      if (!localItem || (remoteItem.updatedAt || 0) <= (localItem.updatedAt || 0)) continue
+
+      const restoredRemote = await restoreImportedGoodsItem(remoteItem)
+      const localImages = localItem.images || []
+      const remoteImages = restoredRemote.images || []
+      const remoteImageIds = new Set(remoteImages.map((image) => image.id))
+      const localOnlyImages = localImages.filter((image) => !remoteImageIds.has(image.id))
+      const mergedImages = [...remoteImages, ...localOnlyImages]
+      const finalCoverImage = localOnlyImages.some((image) => image.uri === localItem.coverImage)
+        ? localItem.coverImage
+        : restoredRemote.coverImage
+
+      const normalized = normalizeGoodsInput({
+        ...localItem,
+        ...restoredRemote,
+        images: mergedImages,
+        coverImage: finalCoverImage,
+        updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
+      }, remoteItem.id)
+      const idx = list.value.findIndex((item) => item.id === remoteItem.id)
+      if (idx === -1) continue
+      list.value[idx] = normalized
+      updatedItems.push(normalized)
+    }
+
+    if (updatedItems.length > 0) {
+      triggerRef(list)
+      await saveItems(updatedItems)
+    }
+
+    return updatedItems.length
+  }
+
   async function importTrashBackup(items) {
     if (!Array.isArray(items) || items.length === 0) return 0
 
@@ -840,23 +954,30 @@ export const useGoodsStore = defineStore('goods', () => {
     if (!Array.isArray(items) || items.length === 0) return 0
 
     const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
-    let updated = false
+    const updatedItems = []
 
     for (const remoteItem of items) {
       const localItem = existingMap.get(remoteItem.id)
       if (localItem && (remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
         const idx = trashList.value.findIndex(g => g.id === remoteItem.id)
         if (idx !== -1) {
-          trashList.value[idx] = { ...localItem, ...remoteItem }
-          updated = true
+          const restoredRemote = await restoreImportedGoodsItem(remoteItem)
+          const normalized = normalizeTrashItem({
+            ...localItem,
+            ...restoredRemote,
+            updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
+          }, remoteItem.id)
+          trashList.value[idx] = normalized
+          updatedItems.push(normalized)
         }
       }
     }
 
-    if (updated) {
+    if (updatedItems.length > 0) {
+      triggerRef(trashList)
       await persistTrash()
     }
-    return updated ? items.length : 0
+    return updatedItems.length
   }
 
   return {
@@ -889,6 +1010,7 @@ export const useGoodsStore = defineStore('goods', () => {
     clearStorageLocationPrefix,
     addMultipleGoods,
     importGoodsBackup,
+    updateGoodsBackup,
     importTrashBackup,
     updateTrashBackup,
     refreshList
