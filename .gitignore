@@ -5,3 +5,4 @@ dist
 .github
 .idea
 \docs
+scripts/generate-android-icons.ps1
