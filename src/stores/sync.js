@@ -34,6 +34,21 @@ function getItemTimestamp(item) {
   return Number(item?.updatedAt) || 0
 }
 
+function countWishlistSplit(items = []) {
+  let collection = 0
+  let wishlist = 0
+
+  for (const item of items) {
+    if (item?.isWishlist) {
+      wishlist += 1
+    } else {
+      collection += 1
+    }
+  }
+
+  return { collection, wishlist }
+}
+
 function resolveGoodsTrashMaps(goodsList = [], trashList = []) {
   const goodsMap = new Map(goodsList.map((item) => [item.id, item]))
   const trashMap = new Map(trashList.map((item) => [item.id, item]))
@@ -508,7 +523,11 @@ export const useSyncStore = defineStore('sync', () => {
     const remoteTrashMap = new Map(remoteTrash.map((item) => [item.id, item]))
 
     let remoteOnlyGoods = 0
+    let remoteOnlyCollection = 0
+    let remoteOnlyWishlist = 0
     let remoteOnlyTrash = 0
+    let localOnlyCollection = 0
+    let localOnlyWishlist = 0
     let updatedGoods = 0
 
     for (const remoteItem of remoteGoods) {
@@ -517,6 +536,11 @@ export const useSyncStore = defineStore('sync', () => {
 
       if (!localGoodsItem && !localTrashItem) {
         remoteOnlyGoods++
+        if (remoteItem?.isWishlist) {
+          remoteOnlyWishlist++
+        } else {
+          remoteOnlyCollection++
+        }
       } else if (localGoodsItem && getItemTimestamp(remoteItem) > getItemTimestamp(localGoodsItem)) {
         updatedGoods++
       } else if (localTrashItem && getItemTimestamp(remoteItem) > getItemTimestamp(localTrashItem)) {
@@ -532,6 +556,16 @@ export const useSyncStore = defineStore('sync', () => {
 
     const localOnlyGoods = [...localGoodsMap.keys()].filter((id) => !remoteGoodsMap.has(id) && !remoteTrashMap.has(id)).length
     const localOnlyTrash = [...localTrashMap.keys()].filter((id) => !remoteTrashMap.has(id) && !remoteGoodsMap.has(id)).length
+    for (const item of localGoodsMap.values()) {
+      if (remoteGoodsMap.has(item.id) || remoteTrashMap.has(item.id)) continue
+      if (item?.isWishlist) {
+        localOnlyWishlist++
+      } else {
+        localOnlyCollection++
+      }
+    }
+
+    const remoteCounts = countWishlistSplit(remoteGoods)
 
     return {
       remoteTime: remoteManifest?.lastSyncAt || '',
@@ -540,10 +574,16 @@ export const useSyncStore = defineStore('sync', () => {
       localModifiedTime: getLatestLocalModifiedAt(),
       gist,
       remoteGoodsCount: remoteGoods.length,
+      remoteCollectionCount: remoteCounts.collection,
+      remoteWishlistCount: remoteCounts.wishlist,
       remoteTrashCount: remoteTrash.length,
       remoteOnlyGoods,
+      remoteOnlyCollection,
+      remoteOnlyWishlist,
       remoteOnlyTrash,
       localOnlyGoods,
+      localOnlyCollection,
+      localOnlyWishlist,
       localOnlyTrash,
       updatedGoods
     }

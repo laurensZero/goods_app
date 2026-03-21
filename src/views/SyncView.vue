@@ -281,14 +281,14 @@
               </div>
               <div class="conflict-row">
                 <span class="conflict-label">远端总数</span>
-                <span class="conflict-value">{{ pullConflictData.remoteGoodsCount }} 收藏，{{ pullConflictData.remoteTrashCount }} 回收站</span>
+                <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站</span>
               </div>
             </div>
             <div class="conflict-diff">
               <p class="conflict-diff-title">差异</p>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">远端新增</span>
-                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyGoods }} 收藏，+{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
+                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
               </div>
               <div v-if="pullConflictData.updatedGoods > 0" class="conflict-diff-row">
                 <span class="conflict-diff-label">远端修改</span>
@@ -296,7 +296,7 @@
               </div>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">本地独有</span>
-                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyGoods }} 收藏，{{ pullConflictData.localOnlyTrash }} 回收站</span>
+                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站</span>
               </div>
             </div>
             <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
