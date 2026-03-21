@@ -526,6 +526,8 @@ async function handleSync() {
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+    } else if (result.action === 'no_changes') {
+      message = '数据已经是最新，无需上传'
     } else if (result.action === 'pushed') {
       if (result.hasChanges) {
         const parts = []

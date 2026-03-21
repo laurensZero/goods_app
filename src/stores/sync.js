@@ -52,6 +52,23 @@ function resolveGoodsTrashMaps(goodsList = [], trashList = []) {
   return { goodsMap, trashMap }
 }
 
+function sortObjectKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortObjectKeys)
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+
+  return Object.keys(value)
+    .sort()
+    .reduce((result, key) => {
+      result[key] = sortObjectKeys(value[key])
+      return result
+    }, {})
+}
+
 async function readKey(key) {
   if (IS_NATIVE) {
     try {
@@ -217,6 +234,23 @@ export const useSyncStore = defineStore('sync', () => {
       trash,
       presets: await buildPresetsData()
     }
+  }
+
+  async function buildComparableSyncStateFromData(data) {
+    const resolved = resolveGoodsTrashMaps(data?.goods || [], data?.trash || [])
+    const goods = [...resolved.goodsMap.values()]
+      .map((item) => sortObjectKeys(item))
+      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+    const trash = [...resolved.trashMap.values()]
+      .map((item) => sortObjectKeys(item))
+      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+    const presetsData = data?.presets || await buildPresetsData()
+
+    return JSON.stringify(sortObjectKeys({
+      goods,
+      trash,
+      presets: presetsData
+    }))
   }
 
   function buildManifest() {
@@ -537,11 +571,28 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = '正在检查远端数据...'
 
       const manifestContent = extractGistFileContent(gist, MANIFEST_FILENAME)
+      const dataContent = extractGistFileContent(gist, DATA_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
       const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
       const localChanges = getLocalChangesSince(localSyncTime)
+      const remoteData = dataContent ? JSON.parse(dataContent) : { goods: [], trash: [], presets: {} }
+      const localSyncData = await buildSyncData()
+      const localComparableState = await buildComparableSyncStateFromData(localSyncData)
+      const remoteComparableState = await buildComparableSyncStateFromData(remoteData)
+      const hasEffectiveDiff = localComparableState !== remoteComparableState
+
+      if (!hasEffectiveDiff) {
+        if (remoteManifest?.lastSyncAt) {
+          await saveLastSyncedAt(remoteManifest.lastSyncAt)
+        }
+        syncStatus.value = '数据已经是最新'
+        return {
+          action: 'no_changes',
+          ...getLocalChangesSince(remoteTime || localSyncTime)
+        }
+      }
 
       if (remoteTime > localSyncTime || !remoteManifest) {
         if (isRemoteFromOtherDevice && remoteManifest && localChanges.hasChanges) {
