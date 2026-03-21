@@ -299,7 +299,7 @@
                 <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyGoods }} 收藏，{{ pullConflictData.localOnlyTrash }} 回收站</span>
               </div>
             </div>
-            <p class="conflict-desc">拉取会将远端数据合并到本地，不会删除当前设备现有数据。</p>
+            <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">

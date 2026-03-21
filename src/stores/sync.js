@@ -464,6 +464,27 @@ export const useSyncStore = defineStore('sync', () => {
       await goodsStore.updateTrashBackup(trashToUpdate)
     }
 
+    const remoteGoodsIds = new Set(remoteGoods.map((item) => item.id))
+    const remoteTrashIds = new Set(remoteTrash.map((item) => item.id))
+    const localOnlyGoodsIds = goodsStore.list
+      .filter((item) => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id))
+      .map((item) => item.id)
+    const localOnlyTrashIds = goodsStore.trashList
+      .filter((item) => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id))
+      .map((item) => item.id)
+
+    if (localOnlyGoodsIds.length > 0) {
+      const localOnlyGoodsSet = new Set(localOnlyGoodsIds)
+      goodsStore.list = goodsStore.list.filter((item) => !localOnlyGoodsSet.has(item.id))
+      await deleteItems(localOnlyGoodsIds)
+    }
+
+    if (localOnlyTrashIds.length > 0) {
+      for (const id of localOnlyTrashIds) {
+        await goodsStore.deleteTrashItem(id)
+      }
+    }
+
     return {
       importedGoods: goodsToImport.length,
       updatedGoods: goodsToUpdate.length,
@@ -686,6 +707,8 @@ export const useSyncStore = defineStore('sync', () => {
         if (
           diff.remoteOnlyGoods === 0
           && diff.remoteOnlyTrash === 0
+          && diff.localOnlyGoods === 0
+          && diff.localOnlyTrash === 0
           && diff.updatedGoods === 0
         ) {
           syncStatus.value = '数据已是最新'
