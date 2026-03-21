@@ -314,15 +314,19 @@
         <div v-if="showSyncConflict" class="overlay">
           <div class="dialog">
             <h3 class="dialog-title">检测到冲突</h3>
-            <p class="conflict-desc">远端存在其他设备更新的数据，并且时间比当前本地记录更新。</p>
+            <p class="conflict-desc">远端存在其他设备更新的数据。下面会同时显示本地上次同步时间和本地最近修改时间。</p>
             <div class="conflict-info">
               <div class="conflict-row">
                 <span class="conflict-label">远端时间</span>
                 <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
               </div>
               <div class="conflict-row">
-                <span class="conflict-label">本地时间</span>
+                <span class="conflict-label">本地上次同步</span>
                 <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || '从未同步' }}</span>
+              </div>
+              <div class="conflict-row">
+                <span class="conflict-label">本地最近修改</span>
+                <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || '无本地改动' }}</span>
               </div>
             </div>
             <p class="conflict-desc">请选择要保留哪一边的数据：</p>
@@ -508,7 +512,8 @@ async function handleSync() {
     if (result.action === 'conflict') {
       syncConflictData.value = {
         remoteTime: syncStore.conflictData?.remoteTime,
-        localTime: syncStore.conflictData?.localTime
+        localTime: syncStore.conflictData?.localTime,
+        localModifiedTime: syncStore.conflictData?.localModifiedTime
       }
       showSyncConflict.value = true
       return
@@ -528,7 +533,7 @@ async function handleSync() {
         if (result.updatedTrash > 0) parts.push(`回收站 ${result.updatedTrash} 条`)
         message = `上传完成，${parts.join('，')}`
       } else {
-        message = '数据已经是最新，无需上传'
+        message = '已按当前本地数据重新上传'
       }
     } else {
       message = '上传完成'

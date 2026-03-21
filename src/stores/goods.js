@@ -476,7 +476,12 @@ export const useGoodsStore = defineStore('goods', () => {
     const item = list.value.find((entry) => entry.id === id)
     if (!item) return
 
-    trashList.value.unshift(normalizeTrashItem(item, item.id))
+    const now = Date.now()
+    trashList.value.unshift(normalizeTrashItem({
+      ...item,
+      updatedAt: now,
+      deletedAt: new Date(now).toISOString()
+    }, item.id))
     triggerRef(trashList)
     list.value = list.value.filter((entry) => entry.id !== id)
     await Promise.all([
@@ -486,9 +491,14 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   async function removeMultipleGoods(ids) {
+    const now = Date.now()
     const removedItems = list.value
       .filter((item) => ids.has(item.id))
-      .map((item) => normalizeTrashItem(item, item.id))
+      .map((item) => normalizeTrashItem({
+        ...item,
+        updatedAt: now,
+        deletedAt: new Date(now).toISOString()
+      }, item.id))
 
     if (removedItems.length === 0) return
 
@@ -504,7 +514,7 @@ export const useGoodsStore = defineStore('goods', () => {
     const item = trashList.value.find((entry) => entry.id === id)
     if (!item) return null
 
-    const restored = normalizeGoodsInput(item, item.id)
+    const restored = normalizeGoodsInput({ ...item, updatedAt: Date.now() }, item.id)
     if (list.value.some((entry) => entry.id === restored.id)) {
       restored.id = String(Date.now())
     }

@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { useGoodsStore } from './goods'
 import { usePresetsStore } from './presets'
-import { saveItems } from '@/utils/db'
+import { saveItems, deleteItems } from '@/utils/db'
 import {
   validateToken,
   createGist,
@@ -23,12 +23,33 @@ const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : '
 
 const DATA_FILENAME = 'data.json'
 const MANIFEST_FILENAME = 'manifest.json'
-
 const IS_NATIVE = Capacitor.isNativePlatform()
 
 function generateDeviceId() {
-  const platform = Capacitor.isNativePlatform() ? 'native' : 'web'
+  const platform = IS_NATIVE ? 'native' : 'web'
   return `device_${platform}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function getItemTimestamp(item) {
+  return Number(item?.updatedAt) || 0
+}
+
+function resolveGoodsTrashMaps(goodsList = [], trashList = []) {
+  const goodsMap = new Map(goodsList.map((item) => [item.id, item]))
+  const trashMap = new Map(trashList.map((item) => [item.id, item]))
+
+  for (const [id, trashItem] of trashMap) {
+    const goodsItem = goodsMap.get(id)
+    if (!goodsItem) continue
+
+    if (getItemTimestamp(trashItem) >= getItemTimestamp(goodsItem)) {
+      goodsMap.delete(id)
+    } else {
+      trashMap.delete(id)
+    }
+  }
+
+  return { goodsMap, trashMap }
 }
 
 async function readKey(key) {
@@ -40,6 +61,7 @@ async function readKey(key) {
       // fall through
     }
   }
+
   try {
     return localStorage.getItem(key)
   } catch {
@@ -53,7 +75,9 @@ async function writeKey(key, value) {
   } catch {
     // ignore
   }
+
   if (!IS_NATIVE) return
+
   try {
     await Preferences.set({ key, value: value ?? '' })
   } catch {
@@ -62,7 +86,6 @@ async function writeKey(key, value) {
 }
 
 async function readDeviceId() {
-  // 优先从 Preferences 读取（原生端）
   if (IS_NATIVE) {
     try {
       const { value } = await Preferences.get({ key: DEVICE_ID_KEY })
@@ -72,21 +95,23 @@ async function readDeviceId() {
     }
   }
 
-  // 从 localStorage 读取
-  let id = localStorage.getItem(DEVICE_ID_KEY)
+  let id = ''
+  try {
+    id = localStorage.getItem(DEVICE_ID_KEY) || ''
+  } catch {
+    id = ''
+  }
+
   if (id) return id
 
-  // 生成新的设备 ID
   id = generateDeviceId()
 
-  // 保存到 localStorage
   try {
     localStorage.setItem(DEVICE_ID_KEY, id)
   } catch {
     // ignore
   }
 
-  // 原生端也保存到 Preferences
   if (IS_NATIVE) {
     try {
       await Preferences.set({ key: DEVICE_ID_KEY, value: id })
@@ -118,7 +143,6 @@ export const useSyncStore = defineStore('sync', () => {
     deviceId.value = await readDeviceId()
     isInitialized.value = true
 
-    // 如果有 Token 但没有 Gist ID，尝试查找已有的 Gist
     if (token.value && !gistId.value) {
       try {
         const matched = await listGists(token.value, 'goods-app-sync')
@@ -126,7 +150,7 @@ export const useSyncStore = defineStore('sync', () => {
           await saveGistId(matched[0].id)
         }
       } catch {
-        // ignore network errors
+        // ignore
       }
     }
   }
@@ -134,9 +158,10 @@ export const useSyncStore = defineStore('sync', () => {
   async function saveToken(newToken) {
     token.value = newToken
     await writeKey(TOKEN_KEY, newToken)
-    // 配置新 token 时清除旧的 gistId，因为新 token 可能属于不同账户
     gistId.value = ''
+    lastSyncedAt.value = ''
     await writeKey(GIST_ID_KEY, '')
+    await writeKey(LAST_SYNC_KEY, '')
   }
 
   async function saveGistId(newGistId) {
@@ -154,50 +179,43 @@ export const useSyncStore = defineStore('sync', () => {
     return validateToken(token.value)
   }
 
+  async function buildPresetsData() {
+    const presets = usePresetsStore()
+    return {
+      categories: [...presets.categories],
+      ips: [...presets.ips],
+      characters: presets.characters.map((item) => ({ ...item })),
+      storageLocations: [...presets.storageLocationPaths]
+    }
+  }
+
   async function buildSyncData(incremental = false) {
     const goodsStore = useGoodsStore()
-    const presets = usePresetsStore()
-
     const lastSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
+    const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
-    let goodsList
-    if (incremental && lastSyncTime > 0) {
-      goodsList = await Promise.all(
-        goodsStore.list
-          .filter((item) => (item.updatedAt || 0) > lastSyncTime)
-          .map((item) => sanitizeGoodsItemForSync(item))
-      )
-    } else {
-      goodsList = await Promise.all(
-        goodsStore.list.map((item) => sanitizeGoodsItemForSync(item))
-      )
-    }
+    const sourceGoods = [...resolvedLocal.goodsMap.values()]
+    const sourceTrash = [...resolvedLocal.trashMap.values()]
 
-    let trashList
-    if (incremental && lastSyncTime > 0) {
-      trashList = await Promise.all(
-        goodsStore.trashList
-          .filter((item) => (item.updatedAt || 0) > lastSyncTime)
-          .map((item) => sanitizeGoodsItemForSync(item))
-      )
-    } else {
-      trashList = await Promise.all(
-        goodsStore.trashList.map((item) => sanitizeGoodsItemForSync(item))
-      )
-    }
+    const goods = await Promise.all(
+      sourceGoods
+        .filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+        .map((item) => sanitizeGoodsItemForSync(item))
+    )
+
+    const trash = await Promise.all(
+      sourceTrash
+        .filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+        .map((item) => sanitizeGoodsItemForSync(item))
+    )
 
     return {
       version: 5,
       updatedAt: new Date().toISOString(),
       deviceId: deviceId.value,
-      goods: goodsList,
-      trash: trashList,
-      presets: {
-        categories: [...presets.categories],
-        ips: [...presets.ips],
-        characters: presets.characters.map((c) => ({ ...c })),
-        storageLocations: [...presets.storageLocationPaths]
-      }
+      goods,
+      trash,
+      presets: await buildPresetsData()
     }
   }
 
@@ -209,20 +227,46 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  function getLocalChangesSince(timestamp) {
+    const goodsStore = useGoodsStore()
+    const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
+    const goods = [...resolvedLocal.goodsMap.values()]
+    const trash = [...resolvedLocal.trashMap.values()]
+
+    const updatedGoods = goods.filter((item) => getItemTimestamp(item) > timestamp).length
+    const updatedTrash = trash.filter((item) => getItemTimestamp(item) > timestamp).length
+
+    return {
+      updatedGoods,
+      updatedTrash,
+      totalGoods: goods.length,
+      totalTrash: trash.length,
+      hasChanges: updatedGoods > 0 || updatedTrash > 0
+    }
+  }
+
+  function getLatestLocalModifiedAt() {
+    const goodsStore = useGoodsStore()
+    const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
+    const timestamps = [
+      ...[...resolvedLocal.goodsMap.values()].map((item) => getItemTimestamp(item)),
+      ...[...resolvedLocal.trashMap.values()].map((item) => getItemTimestamp(item))
+    ]
+    const latest = Math.max(0, ...timestamps)
+    return latest > 0 ? new Date(latest).toISOString() : ''
+  }
+
   async function ensureGist() {
     if (gistId.value) {
       try {
         const existing = await getGist(token.value, gistId.value)
         if (existing) return existing
-        // gist 不存在，清除本地记录的 gistId
         gistId.value = ''
         await writeKey(GIST_ID_KEY, '')
       } catch (error) {
-        // 如果是 401 错误，说明 token 无效
         if (error.message.includes('401')) {
           throw new Error('Token 无效或已过期，请重新配置')
         }
-        // 其他错误，尝试继续查找
       }
     }
 
@@ -230,12 +274,11 @@ export const useSyncStore = defineStore('sync', () => {
     const matched = await listGists(token.value, 'goods-app-sync')
     if (matched.length > 0) {
       await saveGistId(matched[0].id)
-      return matched[0]
+      return getGist(token.value, matched[0].id)
     }
 
     const syncData = await buildSyncData()
     const manifest = buildManifest()
-
     const created = await createGist(token.value, desc, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
       [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
@@ -246,19 +289,44 @@ export const useSyncStore = defineStore('sync', () => {
     return created
   }
 
-  function detectConflict(localData, remoteManifest) {
-    if (!remoteManifest?.lastSyncAt) return false
-    if (!lastSyncedAt.value) return false
+  async function applyGoodsUpdates(goodsToUpdate) {
+    const goodsStore = useGoodsStore()
+    if (goodsToUpdate.length === 0) return
 
-    const remoteTime = new Date(remoteManifest.lastSyncAt).getTime()
-    const localTime = new Date(lastSyncedAt.value).getTime()
+    for (const remoteItem of goodsToUpdate) {
+      const index = goodsStore.list.findIndex((item) => item.id === remoteItem.id)
+      if (index === -1) continue
 
-    return remoteTime > localTime && remoteManifest.deviceId !== deviceId.value
+      const localItem = goodsStore.list[index]
+      const localImages = localItem.images || []
+      const remoteImages = remoteItem.images || []
+      const remoteImageIds = new Set(remoteImages.map((image) => image.id))
+      const localOnlyImages = localImages.filter((image) => !remoteImageIds.has(image.id))
+      const mergedImages = [...remoteImages, ...localOnlyImages]
+      const finalCoverImage = localOnlyImages.some((image) => image.uri === localItem.coverImage)
+        ? localItem.coverImage
+        : remoteItem.coverImage
+
+      goodsStore.list[index] = {
+        ...localItem,
+        ...remoteItem,
+        images: mergedImages,
+        coverImage: finalCoverImage
+      }
+    }
+
+    const itemsToSave = goodsToUpdate
+      .map((remoteItem) => goodsStore.list.find((item) => item.id === remoteItem.id))
+      .filter(Boolean)
+
+    if (itemsToSave.length > 0) {
+      await saveItems(itemsToSave)
+    }
   }
 
   async function pullFromRemote(gist) {
     const dataContent = extractGistFileContent(gist, DATA_FILENAME)
-    if (!dataContent) throw new Error('远程数据为空')
+    if (!dataContent) throw new Error('远端数据为空')
 
     const remoteData = JSON.parse(dataContent)
     const goodsStore = useGoodsStore()
@@ -279,25 +347,42 @@ export const useSyncStore = defineStore('sync', () => {
       await presets.syncStorageLocationsFromPaths(remoteData.presets.storageLocations || [])
     }
 
-    // 合并远端数据：导入本地没有的，更新本地已有的（如果远端更新）
-    const localGoodsMap = new Map(goodsStore.list.map(item => [item.id, item]))
+    const resolvedRemote = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
+    const remoteGoods = [...resolvedRemote.goodsMap.values()]
+    const remoteTrash = [...resolvedRemote.trashMap.values()]
 
     const goodsToImport = []
     const goodsToUpdate = []
+    const trashIdsToRemove = new Set()
+    const localGoodsMap = new Map(goodsStore.list.map((item) => [item.id, item]))
+    const localTrashMap = new Map(goodsStore.trashList.map((item) => [item.id, item]))
 
-    for (const remoteItem of (remoteData.goods || [])) {
+    for (const remoteItem of remoteGoods) {
       const localItem = localGoodsMap.get(remoteItem.id)
+      const localTrashItem = localTrashMap.get(remoteItem.id)
+
+      if (localTrashItem) {
+        if (getItemTimestamp(remoteItem) > getItemTimestamp(localTrashItem)) {
+          trashIdsToRemove.add(remoteItem.id)
+        } else {
+          continue
+        }
+      }
+
       if (!localItem) {
-        // 本地没有，导入
         goodsToImport.push(remoteItem)
-      } else if ((remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
-        // 远端更新，需要更新本地
+      } else if (getItemTimestamp(remoteItem) > getItemTimestamp(localItem)) {
         goodsToUpdate.push(remoteItem)
       }
     }
 
-    // 导入新增的数据
-    if (goodsToImport.length) {
+    if (trashIdsToRemove.size > 0) {
+      for (const id of trashIdsToRemove) {
+        await goodsStore.deleteTrashItem(id)
+      }
+    }
+
+    if (goodsToImport.length > 0) {
       await goodsStore.importGoodsBackup(goodsToImport)
       await presets.syncCharactersFromGoods(goodsToImport)
       await presets.syncStorageLocationsFromPaths(
@@ -305,71 +390,43 @@ export const useSyncStore = defineStore('sync', () => {
       )
     }
 
-    // 更新已有的数据（远端更新的版本）
-    if (goodsToUpdate.length) {
-      for (const remoteItem of goodsToUpdate) {
-        const idx = goodsStore.list.findIndex(g => g.id === remoteItem.id)
-        if (idx !== -1) {
-          const localItem = goodsStore.list[idx]
-          const localImages = localItem.images || []
-          const remoteImages = remoteItem.images || []
-          
-          // 保留本地图片（本地有但远端没有的）
-          const localImageIds = new Set(localImages.map(img => img.id))
-          const remoteImageIds = new Set(remoteImages.map(img => img.id))
-          
-          // 本地独有的图片（包括本地图片和远程URL图片）
-          const localOnlyImages = localImages.filter(img => !remoteImageIds.has(img.id))
-          
-          // 远端有的图片
-          const remoteImageMap = new Map(remoteImages.map(img => [img.id, img]))
-          
-          // 合并：远端图片 + 本地独有图片
-          const mergedImages = [...remoteImages, ...localOnlyImages]
-          
-          // 保留本地 coverImage（如果本地有本地图片作为封面）
-          const localCoverImage = localItem.coverImage
-          const remoteCoverImage = remoteItem.coverImage
-          const finalCoverImage = localOnlyImages.some(img => img.uri === localCoverImage) 
-            ? localCoverImage 
-            : remoteCoverImage
-          
-          goodsStore.list[idx] = { 
-            ...localItem, 
-            ...remoteItem, 
-            images: mergedImages,
-            coverImage: finalCoverImage
-          }
-        }
-      }
-      
-      const itemsToSave = goodsToUpdate.map(remoteItem => {
-        const localItem = goodsStore.list.find(g => g.id === remoteItem.id)
-        return localItem || remoteItem
-      })
-      await saveItems(itemsToSave)
-    }
+    await applyGoodsUpdates(goodsToUpdate)
 
-    // 同步回收站：导入本地没有的，更新本地已有的
-    const localTrashMap = new Map(goodsStore.trashList.map(item => [item.id, item]))
+    const currentGoodsMap = new Map(goodsStore.list.map((item) => [item.id, item]))
+    const currentTrashMap = new Map(goodsStore.trashList.map((item) => [item.id, item]))
+    const goodsIdsToDelete = new Set()
     const trashToImport = []
     const trashToUpdate = []
 
-    for (const remoteItem of (remoteData.trash || [])) {
-      const localItem = localTrashMap.get(remoteItem.id)
-      if (!localItem) {
+    for (const remoteItem of remoteTrash) {
+      const localGoodsItem = currentGoodsMap.get(remoteItem.id)
+      const localTrashItem = currentTrashMap.get(remoteItem.id)
+
+      if (localGoodsItem) {
+        if (getItemTimestamp(remoteItem) >= getItemTimestamp(localGoodsItem)) {
+          goodsIdsToDelete.add(remoteItem.id)
+        } else {
+          continue
+        }
+      }
+
+      if (!localTrashItem) {
         trashToImport.push(remoteItem)
-      } else if ((remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
+      } else if (getItemTimestamp(remoteItem) > getItemTimestamp(localTrashItem)) {
         trashToUpdate.push(remoteItem)
       }
     }
 
-    if (trashToImport.length) {
+    if (goodsIdsToDelete.size > 0) {
+      goodsStore.list = goodsStore.list.filter((item) => !goodsIdsToDelete.has(item.id))
+      await deleteItems([...goodsIdsToDelete])
+    }
+
+    if (trashToImport.length > 0) {
       await goodsStore.importTrashBackup(trashToImport)
     }
 
-    // 更新已有的回收站数据
-    if (trashToUpdate.length) {
+    if (trashToUpdate.length > 0) {
       await goodsStore.updateTrashBackup(trashToUpdate)
     }
 
@@ -377,82 +434,18 @@ export const useSyncStore = defineStore('sync', () => {
       importedGoods: goodsToImport.length,
       updatedGoods: goodsToUpdate.length,
       importedTrash: trashToImport.length,
-      totalGoods: remoteData.goods?.length || 0,
-      totalTrash: remoteData.trash?.length || 0
+      updatedTrash: trashToUpdate.length,
+      totalGoods: remoteGoods.length,
+      totalTrash: remoteTrash.length
     }
   }
 
   async function pushToRemote(existingGist = null) {
-    const goodsStore = useGoodsStore()
-
-    // 先拉取远端数据（如果已传入则复用）
-    const gist = existingGist || await getGist(token.value, gistId.value)
-    let remoteGoods = []
-    let remoteTrash = []
-
-    if (gist) {
-      const content = extractGistFileContent(gist, DATA_FILENAME)
-      if (content) {
-        try {
-          const remoteData = JSON.parse(content)
-          remoteGoods = Array.isArray(remoteData.goods) ? remoteData.goods : []
-          remoteTrash = Array.isArray(remoteData.trash) ? remoteData.trash : []
-        } catch {
-          // ignore parse error
-        }
-      }
+    if (!existingGist && gistId.value) {
+      await getGist(token.value, gistId.value)
     }
 
-    // 合并：远端没有的本地数据 + 远端已有的数据
-    const localGoodsIds = new Set(goodsStore.list.map((item) => item.id))
-    const localTrashIds = new Set(goodsStore.trashList.map((item) => item.id))
-    const remoteGoodsIds = new Set(remoteGoods.map((item) => item.id))
-    const remoteTrashIds = new Set(remoteTrash.map((item) => item.id))
-
-    // 本地新增的数据
-    const newLocalGoods = await Promise.all(
-      goodsStore.list
-        .filter((item) => !remoteGoodsIds.has(item.id))
-        .map((item) => sanitizeGoodsItemForSync(item))
-    )
-    const newLocalTrash = await Promise.all(
-      goodsStore.trashList
-        .filter((item) => !remoteTrashIds.has(item.id))
-        .map((item) => sanitizeGoodsItemForSync(item))
-    )
-
-    // 合并相同 ID 的数据，使用 updatedAt 更大的版本
-    const remoteGoodsMap = new Map(remoteGoods.map(item => [item.id, item]))
-    const localGoodsMap = new Map(goodsStore.list.map(item => [item.id, item]))
-
-    const mergedGoodsMap = new Map()
-
-    // 添加远端数据
-    for (const [id, remoteItem] of remoteGoodsMap) {
-      mergedGoodsMap.set(id, remoteItem)
-    }
-
-    // 合并本地数据
-    for (const [id, localItem] of localGoodsMap) {
-      const remoteItem = remoteGoodsMap.get(id)
-      if (!remoteItem) {
-        // 本地新增
-        mergedGoodsMap.set(id, await sanitizeGoodsItemForSync(localItem))
-      } else if ((localItem.updatedAt || 0) >= (remoteItem.updatedAt || 0)) {
-        // 本地更新
-        mergedGoodsMap.set(id, await sanitizeGoodsItemForSync(localItem))
-      }
-      // 否则保留远端版本
-    }
-
-    const syncData = {
-      version: 5,
-      updatedAt: new Date().toISOString(),
-      deviceId: deviceId.value,
-      goods: [...mergedGoodsMap.values()],
-      trash: await Promise.all(goodsStore.trashList.map(item => sanitizeGoodsItemForSync(item))),
-      presets: await buildPresetsData()
-    }
+    const syncData = await buildSyncData()
 
     const manifest = buildManifest()
 
@@ -464,13 +457,69 @@ export const useSyncStore = defineStore('sync', () => {
     await saveLastSyncedAt(manifest.lastSyncAt)
   }
 
-  async function buildPresetsData() {
-    const presets = usePresetsStore()
+  async function buildPullConflictData(gist, remoteManifest) {
+    const goodsStore = useGoodsStore()
+    const dataContent = extractGistFileContent(gist, DATA_FILENAME)
+    const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
+
+    let remoteGoods = []
+    let remoteTrash = []
+
+    if (dataContent) {
+      try {
+        const remoteData = JSON.parse(dataContent)
+        const resolvedRemote = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
+        remoteGoods = [...resolvedRemote.goodsMap.values()]
+        remoteTrash = [...resolvedRemote.trashMap.values()]
+      } catch {
+        // ignore
+      }
+    }
+
+    const localGoodsMap = resolvedLocal.goodsMap
+    const localTrashMap = resolvedLocal.trashMap
+    const remoteGoodsMap = new Map(remoteGoods.map((item) => [item.id, item]))
+    const remoteTrashMap = new Map(remoteTrash.map((item) => [item.id, item]))
+
+    let remoteOnlyGoods = 0
+    let remoteOnlyTrash = 0
+    let updatedGoods = 0
+
+    for (const remoteItem of remoteGoods) {
+      const localGoodsItem = localGoodsMap.get(remoteItem.id)
+      const localTrashItem = localTrashMap.get(remoteItem.id)
+
+      if (!localGoodsItem && !localTrashItem) {
+        remoteOnlyGoods++
+      } else if (localGoodsItem && getItemTimestamp(remoteItem) > getItemTimestamp(localGoodsItem)) {
+        updatedGoods++
+      } else if (localTrashItem && getItemTimestamp(remoteItem) > getItemTimestamp(localTrashItem)) {
+        updatedGoods++
+      }
+    }
+
+    for (const remoteItem of remoteTrash) {
+      if (!localTrashMap.has(remoteItem.id) && !localGoodsMap.has(remoteItem.id)) {
+        remoteOnlyTrash++
+      }
+    }
+
+    const localOnlyGoods = [...localGoodsMap.keys()].filter((id) => !remoteGoodsMap.has(id) && !remoteTrashMap.has(id)).length
+    const localOnlyTrash = [...localTrashMap.keys()].filter((id) => !remoteTrashMap.has(id) && !remoteGoodsMap.has(id)).length
+
     return {
-      categories: [...presets.categories],
-      ips: [...presets.ips],
-      characters: presets.characters.map((c) => ({ ...c })),
-      storageLocations: [...presets.storageLocationPaths]
+      remoteTime: remoteManifest?.lastSyncAt || '',
+      remoteDevice: remoteManifest?.deviceId || '',
+      localTime: lastSyncedAt.value,
+      localModifiedTime: getLatestLocalModifiedAt(),
+      gist,
+      remoteGoodsCount: remoteGoods.length,
+      remoteTrashCount: remoteTrash.length,
+      remoteOnlyGoods,
+      remoteOnlyTrash,
+      localOnlyGoods,
+      localOnlyTrash,
+      updatedGoods
     }
   }
 
@@ -481,33 +530,32 @@ export const useSyncStore = defineStore('sync', () => {
     isSyncing.value = true
     lastError.value = ''
     conflictData.value = null
-    syncStatus.value = '正在上传...'
+    syncStatus.value = '正在同步...'
 
     try {
       const gist = await ensureGist()
-      syncStatus.value = '检查远端数据...'
+      syncStatus.value = '正在检查远端数据...'
 
       const manifestContent = extractGistFileContent(gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
       const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
-      const isRemoteFromOtherDevice = remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value
+      const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
+      const localChanges = getLocalChangesSince(localSyncTime)
 
-      // 远端有数据且比本地记录更新，或者无法读取 manifest（被截断）
       if (remoteTime > localSyncTime || !remoteManifest) {
-        // 是其他设备上传的 → 冲突，让用户选择
-        if (isRemoteFromOtherDevice && remoteManifest) {
+        if (isRemoteFromOtherDevice && remoteManifest && localChanges.hasChanges) {
           conflictData.value = {
             remoteTime: remoteManifest.lastSyncAt,
             remoteDevice: remoteManifest.deviceId,
             localTime: lastSyncedAt.value,
+            localModifiedTime: getLatestLocalModifiedAt(),
             gist
           }
           syncStatus.value = '检测到冲突'
           return { action: 'conflict' }
         }
 
-        // 同一设备或 manifest 丢失 → 拉取
         syncStatus.value = '正在拉取远端数据...'
         const result = await pullFromRemote(gist)
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
@@ -515,34 +563,22 @@ export const useSyncStore = defineStore('sync', () => {
         return { action: 'pulled', ...result }
       }
 
-      // 检查本地是否有变更需要上传
-      const localChanges = getLocalChangesSince(remoteTime || localSyncTime)
-      
-      // 本地是最新的或从未同步 → 上传
-      syncStatus.value = '正在上传数据...'
+      syncStatus.value = '正在上传本地数据...'
       await pushToRemote(gist)
       syncStatus.value = '上传完成'
-      return { action: 'pushed', ...localChanges }
+      return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime) }
     } catch (error) {
       lastError.value = error.message
-      syncStatus.value = '上传失败'
+      syncStatus.value = '同步失败'
       throw error
     } finally {
       isSyncing.value = false
     }
   }
 
-  function getLocalChangesSince(timestamp) {
-    const goodsStore = useGoodsStore()
-    const updatedGoods = goodsStore.list.filter(item => (item.updatedAt || 0) > timestamp).length
-    const updatedTrash = goodsStore.trashList.filter(item => (item.updatedAt || 0) > timestamp).length
-    const totalGoods = goodsStore.list.length
-    const totalTrash = goodsStore.trashList.length
-    return { updatedGoods, updatedTrash, totalGoods, totalTrash, hasChanges: updatedGoods > 0 || updatedTrash > 0 }
-  }
-
   async function resolveConflict(useRemote) {
     if (!conflictData.value) return
+
     isSyncing.value = true
     syncStatus.value = '正在解决冲突...'
 
@@ -556,16 +592,16 @@ export const useSyncStore = defineStore('sync', () => {
         conflictData.value = null
         syncStatus.value = '拉取完成'
         return { action: 'pulled', ...result }
-      } else {
-        syncStatus.value = '正在上传本地数据...'
-        await pushToRemote(conflictData.value.gist)
-        conflictData.value = null
-        syncStatus.value = '上传完成'
-        return { action: 'pushed' }
       }
+
+      syncStatus.value = '正在上传本地数据...'
+      await pushToRemote(conflictData.value.gist)
+      conflictData.value = null
+      syncStatus.value = '上传完成'
+      return { action: 'pushed' }
     } catch (error) {
       lastError.value = error.message
-      syncStatus.value = '上传失败'
+      syncStatus.value = '同步失败'
       throw error
     } finally {
       isSyncing.value = false
@@ -579,6 +615,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function pullOnly() {
     if (isSyncing.value) return
     if (!token.value) throw new Error('未配置 Token')
+    if (!gistId.value) throw new Error('未找到 Gist')
 
     isSyncing.value = true
     lastError.value = ''
@@ -589,73 +626,23 @@ export const useSyncStore = defineStore('sync', () => {
       const gist = await getGist(token.value, gistId.value)
       if (!gist) throw new Error('未找到 Gist')
 
-      // 检测远端数据来源
       const manifestContent = extractGistFileContent(gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
-      const isRemoteFromOtherDevice = remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value
+      const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
 
-      // 如果是其他设备的数据，弹窗提醒
       if (isRemoteFromOtherDevice) {
-        const dataContent = extractGistFileContent(gist, DATA_FILENAME)
-        let remoteGoodsCount = 0
-        let remoteTrashCount = 0
-        let remoteGoodsIds = new Set()
-        let remoteTrashIds = new Set()
-        if (dataContent) {
-          try {
-            const remoteData = JSON.parse(dataContent)
-            const remoteGoods = Array.isArray(remoteData.goods) ? remoteData.goods : []
-            const remoteTrash = Array.isArray(remoteData.trash) ? remoteData.trash : []
-            remoteGoodsCount = remoteGoods.length
-            remoteTrashCount = remoteTrash.length
-            remoteGoodsIds = new Set(remoteGoods.map(g => g.id))
-            remoteTrashIds = new Set(remoteTrash.map(t => t.id))
-          } catch {
-            // ignore
-          }
-        }
-
-        // 计算差异
-        const goodsStore = useGoodsStore()
-        const localGoodsMap = new Map(goodsStore.list.map(g => [g.id, g]))
-        const localTrashIds = new Set(goodsStore.trashList.map(t => t.id))
-
-        let remoteOnlyGoods = 0
-        let remoteOnlyTrash = 0
-        let updatedGoods = 0
-
-        const remoteGoodsArray = dataContent ? JSON.parse(dataContent).goods || [] : []
-
-        for (const remoteItem of remoteGoodsArray) {
-          if (!localGoodsMap.has(remoteItem.id)) {
-            remoteOnlyGoods++
-          } else if ((remoteItem.updatedAt || 0) > (localGoodsMap.get(remoteItem.id).updatedAt || 0)) {
-            updatedGoods++
-          }
-        }
-
-        remoteOnlyTrash = remoteTrashIds.size ? [...remoteTrashIds].filter(id => !localTrashIds.has(id)).length : 0
-        const localOnlyGoods = [...localGoodsMap.keys()].filter(id => !remoteGoodsIds.has(id)).length
-        const localOnlyTrash = [...localTrashIds].filter(id => !remoteTrashIds.has(id)).length
-
-        // 如果没有差异，直接返回无需弹窗
-        if (remoteOnlyGoods === 0 && remoteOnlyTrash === 0 && updatedGoods === 0) {
-          syncStatus.value = '拉取完成'
+        const diff = await buildPullConflictData(gist, remoteManifest)
+        if (
+          diff.remoteOnlyGoods === 0
+          && diff.remoteOnlyTrash === 0
+          && diff.updatedGoods === 0
+        ) {
+          syncStatus.value = '数据已是最新'
           return { action: 'no_changes' }
         }
 
         conflictData.value = {
-          remoteTime: remoteManifest.lastSyncAt,
-          remoteDevice: remoteManifest.deviceId,
-          localTime: lastSyncedAt.value,
-          gist,
-          remoteGoodsCount,
-          remoteTrashCount,
-          remoteOnlyGoods,
-          remoteOnlyTrash,
-          localOnlyGoods,
-          localOnlyTrash,
-          updatedGoods,
+          ...diff,
           isPullOnly: true
         }
         syncStatus.value = '检测到远端数据'
@@ -665,7 +652,6 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = '正在拉取远端数据...'
       const result = await pullFromRemote(gist)
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-
       syncStatus.value = '拉取完成'
       return { action: 'pulled', ...result }
     } catch (error) {
@@ -684,21 +670,20 @@ export const useSyncStore = defineStore('sync', () => {
     syncStatus.value = '正在拉取...'
 
     try {
-      if (confirm) {
-        syncStatus.value = '正在拉取远端数据...'
-        const result = await pullFromRemote(conflictData.value.gist)
-
-        const manifestContent = extractGistFileContent(conflictData.value.gist, MANIFEST_FILENAME)
-        const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
-        await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-        syncStatus.value = '拉取完成'
-        conflictData.value = null
-        return { action: 'pulled', ...result }
-      } else {
+      if (!confirm) {
         syncStatus.value = '已取消'
         conflictData.value = null
         return { action: 'cancelled' }
       }
+
+      syncStatus.value = '正在拉取远端数据...'
+      const result = await pullFromRemote(conflictData.value.gist)
+      const manifestContent = extractGistFileContent(conflictData.value.gist, MANIFEST_FILENAME)
+      const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
+      await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
+      syncStatus.value = '拉取完成'
+      conflictData.value = null
+      return { action: 'pulled', ...result }
     } catch (error) {
       lastError.value = error.message
       syncStatus.value = '拉取失败'
