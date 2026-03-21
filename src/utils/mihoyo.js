@@ -81,6 +81,13 @@ export function isMihoyoGiftUrl(url) {
   return extractGoodsId(url) != null
 }
 
+function normalizeSaleAttrText(text) {
+  return String(text || '')
+    .replace(/^\s*[\/／]+\s*/g, '')
+    .replace(/\s*[\/／]+\s*$/g, '')
+    .trim()
+}
+
 function normalizeSaleAttrGroups(rawSaleAttrs) {
   const groups = Array.isArray(rawSaleAttrs)
     ? rawSaleAttrs
@@ -92,10 +99,16 @@ function normalizeSaleAttrGroups(rawSaleAttrs) {
       key: String(group?.key || '').trim(),
       content: Array.isArray(group?.content)
         ? group.content
-            .filter((item) => String(item?.text || '').trim() && String(item?.key || '').trim())
             .map((item) => ({
-              text: String(item.text || '').trim(),
-              key: String(item.key || '').trim(),
+              text: normalizeSaleAttrText(item?.text),
+              key: String(item?.key || '').trim(),
+              img_url: item?.img_url || '',
+              cover_url: item?.cover_url || '',
+            }))
+            .filter((item) => item.text && item.key)
+            .map((item) => ({
+              text: item.text,
+              key: item.key,
               img_url: item.img_url || '',
               cover_url: item.cover_url || '',
             }))
