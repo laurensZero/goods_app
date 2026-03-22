@@ -71,7 +71,35 @@ function extractAppLocalPath(uri) {
   return match ? match[0] : null
 }
 
-export async function readLocalImageAsDataUrl(uri) {
+function inferImageMimeFromPath(path) {
+  const ext = String(path || '').split('.').pop()?.toLowerCase()
+  const mimeMap = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    avif: 'image/avif',
+    heic: 'image/heic',
+    heif: 'image/heif'
+  }
+  return mimeMap[ext] || 'image/jpeg'
+}
+
+async function readNativePathAsDataUrl(path) {
+  const resolvedPath = String(path || '').trim()
+  if (!resolvedPath || !Capacitor.isNativePlatform()) return null
+
+  try {
+    const { data } = await Filesystem.readFile({ path: resolvedPath })
+    return `data:${inferImageMimeFromPath(resolvedPath)};base64,${data}`
+  } catch (error) {
+    console.warn('[localImage] failed to read native path for export', resolvedPath, error)
+    return null
+  }
+}
+
+export async function readLocalImageAsDataUrl(uri, localPath = '') {
   if (!uri) return null
   if (uri.startsWith('data:')) return uri
 
@@ -79,14 +107,14 @@ export async function readLocalImageAsDataUrl(uri) {
   if (appLocalPath) {
     try {
       const { data } = await Filesystem.readFile({ path: appLocalPath, directory: Directory.Data })
-      const ext = appLocalPath.split('.').pop().toLowerCase()
-      const mimeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif' }
-      const mime = mimeMap[ext] || 'image/jpeg'
-      return `data:${mime};base64,${data}`
+      return `data:${inferImageMimeFromPath(appLocalPath)};base64,${data}`
     } catch (error) {
       console.warn('[localImage] failed to read app image for export', appLocalPath, error)
     }
   }
+
+  const nativePathDataUrl = await readNativePathAsDataUrl(localPath)
+  if (nativePathDataUrl) return nativePathDataUrl
 
   try {
     const response = await fetch(uri)

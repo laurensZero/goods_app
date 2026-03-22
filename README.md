@@ -85,7 +85,7 @@ npm run open:android
 
 ### GitHub Gist 同步
 
-支持通过 GitHub Gist 在多设备间同步数据。
+支持通过 GitHub Gist 在多设备间同步数据和本地图片。
 
 **首次配置：**
 
@@ -95,7 +95,8 @@ npm run open:android
 
 **使用同步：**
 
-- 点击同步按钮即可将数据上传到 GitHub Gist
+- 点击同步按钮即可将数据上传到数据 Gist
+- 首次遇到本地图片时，会自动创建一个独立的图片 Gist，并把不超过 1MB 的本地图同步过去
 - 在其他设备上配置相同的 Token，点击同步即可拉取数据
 - 检测到冲突时会弹窗让你选择以哪个版本为准
 

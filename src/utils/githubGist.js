@@ -1,12 +1,17 @@
 const GITHUB_API_BASE = 'https://api.github.com'
 
-function buildHeaders(token) {
-  return {
+function buildHeaders(token, includeContentType = true) {
+  const headers = {
     Accept: 'application/vnd.github+json',
     Authorization: `Bearer ${token}`,
     'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type': 'application/json'
   }
+
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  return headers
 }
 
 const REQUEST_TIMEOUT_MS = 30000
@@ -85,15 +90,49 @@ export async function listGists(token, description = '') {
   return gists.filter((gist) => gist.description?.includes(description))
 }
 
-export function extractGistFileContent(gist, filename) {
-  const file = gist?.files?.[filename]
-  if (!file) return null
-
-  // 如果文件被截断但有 raw_url，返回已有的内容（可能是部分数据）
-  // GitHub API 在小文件时会直接返回完整内容
-  return file.content
+function buildFallbackRawUrl(gist, filename) {
+  const gistId = String(gist?.id || '').trim()
+  const owner = String(gist?.owner?.login || '').trim()
+  const resolvedName = String(filename || '').trim()
+  if (!gistId || !owner || !resolvedName) return ''
+  return `https://gist.githubusercontent.com/${owner}/${gistId}/raw/${encodeURIComponent(resolvedName)}`
 }
 
-export function buildSyncDescription(deviceId) {
-  return `goods-app-sync-${deviceId}`
+async function readRawText(url) {
+  if (!url) return null
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/plain'
+    }
+  })
+
+  if (!response.ok) return null
+  return response.text()
+}
+
+export async function getGistFileContent(token, gist, filename) {
+  const file = gist?.files?.[filename]
+  if (!file) {
+    return readRawText(buildFallbackRawUrl(gist, filename))
+  }
+  if (typeof file.content === 'string' && !file.truncated) return file.content
+  if (!file.raw_url) {
+    return (await readRawText(buildFallbackRawUrl(gist, filename)))
+      || (typeof file.content === 'string' ? file.content : null)
+  }
+
+  const rawText = await readRawText(file.raw_url)
+  if (rawText != null) return rawText
+
+  const fallbackText = await readRawText(buildFallbackRawUrl(gist, filename))
+  if (fallbackText != null) return fallbackText
+
+  throw new Error(`Gist file read failed: ${filename}`)
+}
+
+export function buildSyncDescription(deviceId, kind = 'data') {
+  return kind === 'image'
+    ? `goods-app-images-${deviceId}`
+    : `goods-app-sync-${deviceId}`
 }

@@ -42,6 +42,25 @@ function parseTimelineYearMonth(value) {
   return isValidYearMonth(yearMonth) ? yearMonth : ''
 }
 
+function buildComparableImageState(item) {
+  return normalizeGoodsImageList(item?.images, item?.coverImage || item?.image)
+    .map((entry) => ({
+      id: String(entry?.id || '').trim(),
+      kind: String(entry?.kind || '').trim(),
+      label: String(entry?.label || '').trim(),
+      isPrimary: entry?.isPrimary === true,
+      source: String(entry?.gistFileName || entry?.uri || '').trim(),
+      mimeType: String(entry?.mimeType || '').trim(),
+      fileSize: Number(entry?.fileSize) > 0 ? Number(entry.fileSize) : 0
+    }))
+}
+
+function shouldApplyRemoteBackup(localItem, remoteItem) {
+  if (!localItem) return true
+  if ((remoteItem?.updatedAt || 0) > (localItem?.updatedAt || 0)) return true
+  return JSON.stringify(buildComparableImageState(localItem)) !== JSON.stringify(buildComparableImageState(remoteItem))
+}
+
 function parseNumericPrice(value) {
   const price = Number.parseFloat(value)
   return Number.isFinite(price) ? price : 0
@@ -901,7 +920,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
     for (const remoteItem of items) {
       const localItem = existingMap.get(remoteItem.id)
-      if (!localItem || (remoteItem.updatedAt || 0) <= (localItem.updatedAt || 0)) continue
+      if (!localItem || !shouldApplyRemoteBackup(localItem, remoteItem)) continue
 
       const restoredRemote = await restoreImportedGoodsItem(remoteItem)
       const localImages = localItem.images || []
@@ -958,7 +977,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
     for (const remoteItem of items) {
       const localItem = existingMap.get(remoteItem.id)
-      if (localItem && (remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
+      if (localItem && shouldApplyRemoteBackup(localItem, remoteItem)) {
         const idx = trashList.value.findIndex(g => g.id === remoteItem.id)
         if (idx !== -1) {
           const restoredRemote = await restoreImportedGoodsItem(remoteItem)

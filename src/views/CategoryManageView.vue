@@ -1,5 +1,6 @@
 <template>
-  <div class="page sub-page">
+  <div class="route-page">
+    <div class="page sub-page">
     <NavBar title="分类管理" show-back>
       <template #right>
         <button class="add-btn" type="button" @click="toggleInput">
@@ -103,7 +104,7 @@
         </div>
       </Transition>
     </Teleport>
-  </div>
+    </div>
 
   <PresetDeleteConfirm
     :show="showDeleteConfirm"
@@ -113,6 +114,7 @@
     @cancel="showDeleteConfirm = false"
     @confirm="confirmDelete"
   />
+  </div>
 </template>
 
 <script setup>

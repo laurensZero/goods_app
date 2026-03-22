@@ -11,19 +11,40 @@ import {
   getGist,
   updateGist,
   listGists,
-  extractGistFileContent,
+  getGistFileContent,
   buildSyncDescription
 } from '@/utils/githubGist'
-import { sanitizeGoodsItemForSync } from '@/utils/goodsImages'
+import {
+  buildGistImageUri,
+  inferGoodsImageStorageMode,
+  normalizeGoodsImageList,
+  parseGistImageUri,
+  sanitizeGoodsItemForSync
+} from '@/utils/goodsImages'
+import { readLocalImageAsDataUrl } from '@/utils/localImage'
 
 const TOKEN_KEY = 'sync_github_token'
 const GIST_ID_KEY = 'sync_gist_id'
+const IMAGE_GIST_ID_KEY = 'sync_image_gist_id'
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
 
 const DATA_FILENAME = 'data.json'
 const MANIFEST_FILENAME = 'manifest.json'
 const IS_NATIVE = Capacitor.isNativePlatform()
+const IMAGE_FILE_PREFIX = 'goods-image__'
+const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024
+
+const MIME_EXTENSION_MAP = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'image/svg+xml': 'svg'
+}
 
 function generateDeviceId() {
   const platform = IS_NATIVE ? 'native' : 'web'
@@ -32,6 +53,45 @@ function generateDeviceId() {
 
 function getItemTimestamp(item) {
   return Number(item?.updatedAt) || 0
+}
+
+function buildComparableImageState(item) {
+  return normalizeGoodsImageList(item?.images, item?.coverImage || item?.image)
+    .map((entry) => {
+      const uri = String(entry?.uri || '').trim()
+      const gistFileName = String(entry?.gistFileName || parseGistImageUri(uri)).trim()
+      return {
+        id: String(entry?.id || '').trim(),
+        kind: String(entry?.kind || '').trim(),
+        label: String(entry?.label || '').trim(),
+        isPrimary: entry?.isPrimary === true,
+        source: gistFileName || uri,
+        mimeType: String(entry?.mimeType || '').trim(),
+        fileSize: Number(entry?.fileSize) > 0 ? Number(entry.fileSize) : 0
+      }
+    })
+}
+
+function hasComparableImageDiff(localItem, remoteItem) {
+  return JSON.stringify(buildComparableImageState(localItem)) !== JSON.stringify(buildComparableImageState(remoteItem))
+}
+
+function shouldApplyRemoteItem(localItem, remoteItem) {
+  if (!localItem) return true
+  return getItemTimestamp(remoteItem) > getItemTimestamp(localItem) || hasComparableImageDiff(localItem, remoteItem)
+}
+
+function hasRemoteImageChangesSince(localSyncTime, remoteManifest, currentImageGistId = '') {
+  const remoteImageGistId = String(remoteManifest?.imageGistId || '').trim()
+  if (remoteImageGistId && remoteImageGistId !== String(currentImageGistId || '').trim()) {
+    return true
+  }
+
+  const remoteImageUpdatedAt = remoteManifest?.imageUpdatedAt
+    ? new Date(remoteManifest.imageUpdatedAt).getTime()
+    : 0
+
+  return remoteImageUpdatedAt > localSyncTime
 }
 
 function countWishlistSplit(items = []) {
@@ -155,9 +215,66 @@ async function readDeviceId() {
   return id
 }
 
+function sanitizeFilenamePart(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    || 'unknown'
+}
+
+function getBase64ByteSize(base64Data) {
+  const normalized = String(base64Data || '').trim()
+  if (!normalized) return 0
+  const padding = normalized.endsWith('==') ? 2 : (normalized.endsWith('=') ? 1 : 0)
+  return Math.floor((normalized.length * 3) / 4) - padding
+}
+
+function parseImageDataUrl(dataUrl) {
+  const match = String(dataUrl || '').match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+  if (!match) return null
+
+  const mimeType = match[1].toLowerCase()
+  const base64Data = match[2]
+
+  return {
+    mimeType,
+    base64Data,
+    fileSize: getBase64ByteSize(base64Data)
+  }
+}
+
+function resolveImageExtension(mimeType, fallbackName = '') {
+  const normalizedMimeType = String(mimeType || '').trim().toLowerCase()
+  if (MIME_EXTENSION_MAP[normalizedMimeType]) return MIME_EXTENSION_MAP[normalizedMimeType]
+
+  const nameExt = String(fallbackName || '').split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return nameExt || 'jpg'
+}
+
+function buildImageFilename(item, imageEntry, mimeType) {
+  const itemId = sanitizeFilenamePart(item?.id)
+  const imageId = sanitizeFilenamePart(imageEntry?.id)
+  const updatedAt = String(getItemTimestamp(item) || 0)
+  const extension = resolveImageExtension(mimeType, imageEntry?.uri || imageEntry?.gistFileName || '')
+  return `${IMAGE_FILE_PREFIX}${itemId}__${imageId}__${updatedAt}.${extension}.txt`
+}
+
+function buildImageSyncStats() {
+  return {
+    uploadedImages: 0,
+    reusedImages: 0,
+    restoredImages: 0,
+    imageFileCount: 0,
+    imageUpdatedAt: ''
+  }
+}
+
 export const useSyncStore = defineStore('sync', () => {
   const token = ref('')
   const gistId = ref('')
+  const imageGistId = ref('')
   const lastSyncedAt = ref('')
   const deviceId = ref('')
   const isInitialized = ref(false)
@@ -171,6 +288,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function init() {
     token.value = (await readKey(TOKEN_KEY)) || ''
     gistId.value = (await readKey(GIST_ID_KEY)) || ''
+    imageGistId.value = (await readKey(IMAGE_GIST_ID_KEY)) || ''
     lastSyncedAt.value = (await readKey(LAST_SYNC_KEY)) || ''
     deviceId.value = await readDeviceId()
     isInitialized.value = true
@@ -185,20 +303,51 @@ export const useSyncStore = defineStore('sync', () => {
         // ignore
       }
     }
+
+    if (token.value && gistId.value && !imageGistId.value) {
+      try {
+        const gist = await getGist(token.value, gistId.value)
+        const manifestContent = gist ? await getGistFileContent(token.value, gist, MANIFEST_FILENAME) : null
+        const manifest = manifestContent ? JSON.parse(manifestContent) : null
+        if (manifest?.imageGistId) {
+          await saveImageGistId(manifest.imageGistId)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (token.value && !imageGistId.value) {
+      try {
+        const matched = await listGists(token.value, 'goods-app-images')
+        if (matched.length > 0) {
+          await saveImageGistId(matched[0].id)
+        }
+      } catch {
+        // ignore
+      }
+    }
   }
 
   async function saveToken(newToken) {
     token.value = newToken
     await writeKey(TOKEN_KEY, newToken)
     gistId.value = ''
+    imageGistId.value = ''
     lastSyncedAt.value = ''
     await writeKey(GIST_ID_KEY, '')
+    await writeKey(IMAGE_GIST_ID_KEY, '')
     await writeKey(LAST_SYNC_KEY, '')
   }
 
   async function saveGistId(newGistId) {
     gistId.value = newGistId
     await writeKey(GIST_ID_KEY, newGistId)
+  }
+
+  async function saveImageGistId(newImageGistId) {
+    imageGistId.value = newImageGistId
+    await writeKey(IMAGE_GIST_ID_KEY, newImageGistId)
   }
 
   async function saveLastSyncedAt(timestamp) {
@@ -227,34 +376,114 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  async function buildSyncData(incremental = false) {
+  async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
+    const normalizedImages = normalizeGoodsImageList(item?.images)
+    if (normalizedImages.length === 0) return []
+
+    const preparedImages = []
+
+    for (const imageEntry of normalizedImages) {
+      const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
+
+      if (storageMode === 'remote') {
+        preparedImages.push({
+          ...imageEntry,
+          storageMode: 'remote',
+          gistFileName: '',
+          mimeType: '',
+          fileSize: 0
+        })
+        continue
+      }
+
+      const imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)
+      if (!imageDataUrl?.startsWith('data:image/')) {
+        throw new Error(`图片读取失败：${item?.name || item?.id || '未命名条目'}`)
+      }
+
+      const parsedData = parseImageDataUrl(imageDataUrl)
+      if (!parsedData) {
+        throw new Error(`图片格式不支持：${item?.name || item?.id || '未命名条目'}`)
+      }
+
+      if (parsedData.fileSize > IMAGE_FILE_SIZE_LIMIT) {
+        throw new Error(`图片超过 1MB：${item?.name || item?.id || '未命名条目'}`)
+      }
+
+      const gistFileName = buildImageFilename(item, imageEntry, parsedData.mimeType)
+      referencedImageFiles.add(gistFileName)
+
+      if (existingImageFiles?.has(gistFileName)) {
+        imageStats.reusedImages += 1
+      } else if (imageFiles) {
+        imageFiles[gistFileName] = { content: imageDataUrl }
+        imageStats.uploadedImages += 1
+      }
+
+      imageStats.imageUpdatedAt = new Date().toISOString()
+
+      preparedImages.push({
+        ...imageEntry,
+        uri: buildGistImageUri(gistFileName),
+        storageMode: 'gist-local',
+        gistFileName,
+        mimeType: parsedData.mimeType,
+        fileSize: parsedData.fileSize
+      })
+    }
+
+    return preparedImages
+  }
+
+  async function buildSyncPayload({ incremental = false, existingImageGist = null } = {}) {
     const goodsStore = useGoodsStore()
     const lastSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
-
     const sourceGoods = [...resolvedLocal.goodsMap.values()]
     const sourceTrash = [...resolvedLocal.trashMap.values()]
+    const imageStats = buildImageSyncStats()
+    const referencedImageFiles = new Set()
+    const imageFiles = {}
+    const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
 
     const goods = await Promise.all(
       sourceGoods
         .filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
-        .map((item) => sanitizeGoodsItemForSync(item))
+        .map(async (item) => {
+          const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+          return sanitizeGoodsItemForSync(item, preparedImages)
+        })
     )
 
     const trash = await Promise.all(
       sourceTrash
         .filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
-        .map((item) => sanitizeGoodsItemForSync(item))
+        .map(async (item) => {
+          const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+          return sanitizeGoodsItemForSync(item, preparedImages)
+        })
     )
 
+    imageStats.imageFileCount = referencedImageFiles.size
+
     return {
-      version: 5,
-      updatedAt: new Date().toISOString(),
-      deviceId: deviceId.value,
-      goods,
-      trash,
-      presets: await buildPresetsData()
+      syncData: {
+        version: 6,
+        updatedAt: new Date().toISOString(),
+        deviceId: deviceId.value,
+        goods,
+        trash,
+        presets: await buildPresetsData()
+      },
+      imageStats,
+      imageFiles,
+      referencedImageFiles
     }
+  }
+
+  async function buildSyncData(incremental = false) {
+    const { syncData } = await buildSyncPayload({ incremental })
+    return syncData
   }
 
   async function buildComparableSyncStateFromData(data) {
@@ -274,11 +503,14 @@ export const useSyncStore = defineStore('sync', () => {
     }))
   }
 
-  function buildManifest() {
+  function buildManifest(imageStats = {}) {
     return {
       version: 1,
       deviceId: deviceId.value,
-      lastSyncAt: new Date().toISOString()
+      lastSyncAt: new Date().toISOString(),
+      imageGistId: imageGistId.value || '',
+      imageFileCount: Number(imageStats.imageFileCount) || 0,
+      imageUpdatedAt: imageStats.imageUpdatedAt || ''
     }
   }
 
@@ -311,6 +543,35 @@ export const useSyncStore = defineStore('sync', () => {
     return latest > 0 ? new Date(latest).toISOString() : ''
   }
 
+  async function ensureImageGist() {
+    if (imageGistId.value) {
+      try {
+        const existing = await getGist(token.value, imageGistId.value)
+        if (existing) return existing
+        imageGistId.value = ''
+        await writeKey(IMAGE_GIST_ID_KEY, '')
+      } catch (error) {
+        if (error.message.includes('401')) {
+          throw new Error('Token 无效或已过期，请重新配置')
+        }
+      }
+    }
+
+    const desc = buildSyncDescription(deviceId.value, 'image')
+    const matched = await listGists(token.value, 'goods-app-images')
+    if (matched.length > 0) {
+      await saveImageGistId(matched[0].id)
+      return getGist(token.value, matched[0].id)
+    }
+
+    const created = await createGist(token.value, desc, {
+      'README.md': { content: '# goods-app image store\n\nThis gist stores synced local images.' }
+    })
+
+    await saveImageGistId(created.id)
+    return created
+  }
+
   async function ensureGist() {
     if (gistId.value) {
       try {
@@ -329,11 +590,26 @@ export const useSyncStore = defineStore('sync', () => {
     const matched = await listGists(token.value, 'goods-app-sync')
     if (matched.length > 0) {
       await saveGistId(matched[0].id)
-      return getGist(token.value, matched[0].id)
+      const existing = await getGist(token.value, matched[0].id)
+      try {
+        const manifestContent = existing ? await getGistFileContent(token.value, existing, MANIFEST_FILENAME) : null
+        const manifest = manifestContent ? JSON.parse(manifestContent) : null
+        if (manifest?.imageGistId) {
+          await saveImageGistId(manifest.imageGistId)
+        }
+      } catch {
+        // ignore
+      }
+      return existing
     }
 
-    const syncData = await buildSyncData()
-    const manifest = buildManifest()
+    const existingImageGist = await ensureImageGist()
+    const { syncData, imageStats, imageFiles } = await buildSyncPayload({ existingImageGist })
+    if (Object.keys(imageFiles).length > 0) {
+      await updateGist(token.value, existingImageGist.id, imageFiles)
+    }
+
+    const manifest = buildManifest(imageStats)
     const created = await createGist(token.value, desc, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
       [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
@@ -344,27 +620,85 @@ export const useSyncStore = defineStore('sync', () => {
     return created
   }
 
-  async function pullFromRemote(gist) {
-    const dataContent = extractGistFileContent(gist, DATA_FILENAME)
+  async function resolveRemoteImageGist(remoteManifest) {
+    const remoteImageGistId = String(remoteManifest?.imageGistId || imageGistId.value || '').trim()
+    if (!remoteImageGistId) return null
+    if (remoteImageGistId !== imageGistId.value) {
+      await saveImageGistId(remoteImageGistId)
+    }
+
+    const gist = await getGist(token.value, remoteImageGistId)
+    if (!gist) {
+      throw new Error('未找到图片 Gist')
+    }
+
+    return gist
+  }
+
+  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats) {
+    const fileCache = new Map()
+
+    return Promise.all((items || []).map(async (item) => {
+      const normalizedImages = normalizeGoodsImageList(item?.images)
+      if (normalizedImages.length === 0) return item
+
+      const hydratedImages = await Promise.all(normalizedImages.map(async (imageEntry) => {
+        const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
+        if (storageMode !== 'gist-local') return imageEntry
+
+        const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
+        if (!gistFileName) {
+          throw new Error(`图片引用无效：${item?.name || item?.id || '未命名条目'}`)
+        }
+        if (!imageGist) {
+          throw new Error('远端数据包含图片引用，但未找到图片 Gist')
+        }
+
+        if (!fileCache.has(gistFileName)) {
+          fileCache.set(gistFileName, await getGistFileContent(token.value, imageGist, gistFileName))
+        }
+
+        const imageDataUrl = fileCache.get(gistFileName)
+        if (!String(imageDataUrl || '').startsWith('data:image/')) {
+          throw new Error(`远端图片缺失：${gistFileName}`)
+        }
+
+        imageStats.restoredImages += 1
+
+        return {
+          ...imageEntry,
+          uri: imageDataUrl,
+          storageMode: 'gist-local',
+          gistFileName
+        }
+      }))
+
+      const primaryImage = hydratedImages.find((entry) => entry.isPrimary) || hydratedImages[0] || null
+      const coverImage = primaryImage?.uri || String(item?.coverImage || item?.image || '').trim()
+
+      return {
+        ...item,
+        image: coverImage,
+        coverImage,
+        images: hydratedImages
+      }
+    }))
+  }
+
+  async function pullFromRemote(gist, remoteManifest = null) {
+    const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
     if (!dataContent) throw new Error('远端数据为空')
 
     const remoteData = JSON.parse(dataContent)
+    const imageStats = buildImageSyncStats()
+    const imageGist = await resolveRemoteImageGist(remoteManifest)
+    remoteData.goods = await hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats)
+    remoteData.trash = await hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats)
     const goodsStore = useGoodsStore()
     const presets = usePresetsStore()
 
     if (remoteData.presets) {
-      for (const category of (remoteData.presets.categories || [])) {
-        if (category) await presets.addCategory(category)
-      }
-      for (const ip of (remoteData.presets.ips || [])) {
-        if (ip) await presets.addIp(ip)
-      }
-      for (const character of (remoteData.presets.characters || [])) {
-        if (character?.name) {
-          await presets.addCharacter(character.name, character.ip || '')
-        }
-      }
-      await presets.syncStorageLocationsFromPaths(remoteData.presets.storageLocations || [])
+      await presets.replacePresetsSnapshot(remoteData.presets)
     }
 
     const resolvedRemote = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
@@ -391,7 +725,7 @@ export const useSyncStore = defineStore('sync', () => {
 
       if (!localItem) {
         goodsToImport.push(remoteItem)
-      } else if (getItemTimestamp(remoteItem) > getItemTimestamp(localItem)) {
+      } else if (shouldApplyRemoteItem(localItem, remoteItem)) {
         goodsToUpdate.push(remoteItem)
       }
     }
@@ -432,7 +766,7 @@ export const useSyncStore = defineStore('sync', () => {
 
       if (!localTrashItem) {
         trashToImport.push(remoteItem)
-      } else if (getItemTimestamp(remoteItem) > getItemTimestamp(localTrashItem)) {
+      } else if (shouldApplyRemoteItem(localTrashItem, remoteItem)) {
         trashToUpdate.push(remoteItem)
       }
     }
@@ -476,19 +810,58 @@ export const useSyncStore = defineStore('sync', () => {
       updatedGoods: goodsToUpdate.length,
       importedTrash: trashToImport.length,
       updatedTrash: trashToUpdate.length,
+      restoredImages: imageStats.restoredImages,
       totalGoods: remoteGoods.length,
       totalTrash: remoteTrash.length
     }
   }
 
-  async function pushToRemote(existingGist = null) {
+  function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
+    const files = {}
+    for (const filename of Object.keys(existingImageGist?.files || {})) {
+      if (!filename.startsWith(IMAGE_FILE_PREFIX)) continue
+      if (referencedImageFiles.has(filename)) continue
+      files[filename] = null
+    }
+    return files
+  }
+
+  async function getExistingImageGist(remoteManifest = null) {
+    const remoteImageGistId = String(remoteManifest?.imageGistId || imageGistId.value || '').trim()
+    if (!remoteImageGistId) return null
+
+    try {
+      const gist = await getGist(token.value, remoteImageGistId)
+      if (gist && remoteImageGistId !== imageGistId.value) {
+        await saveImageGistId(remoteImageGistId)
+      }
+      return gist || null
+    } catch (error) {
+      if (String(error?.message || '').includes('401')) {
+        throw new Error('Token 无效或已过期，请重新配置')
+      }
+      return null
+    }
+  }
+
+  async function pushToRemote(existingGist = null, existingImageGist = null) {
     if (!existingGist && gistId.value) {
       await getGist(token.value, gistId.value)
     }
 
-    const syncData = await buildSyncData()
+    const imageGist = existingImageGist || await ensureImageGist()
+    const { syncData, imageStats, imageFiles, referencedImageFiles } = await buildSyncPayload({ existingImageGist: imageGist })
+    const imageCleanupFiles = buildImageCleanupFiles(imageGist, referencedImageFiles)
+    const imageUpdates = {
+      ...imageFiles,
+      ...imageCleanupFiles
+    }
 
-    const manifest = buildManifest()
+    if (Object.keys(imageUpdates).length > 0) {
+      await updateGist(token.value, imageGist.id, imageUpdates)
+    }
+
+    const manifest = buildManifest(imageStats)
 
     await updateGist(token.value, gistId.value, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
@@ -496,11 +869,12 @@ export const useSyncStore = defineStore('sync', () => {
     })
 
     await saveLastSyncedAt(manifest.lastSyncAt)
+    return imageStats
   }
 
   async function buildPullConflictData(gist, remoteManifest) {
     const goodsStore = useGoodsStore()
-    const dataContent = extractGistFileContent(gist, DATA_FILENAME)
+    const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
     let remoteGoods = []
@@ -541,9 +915,9 @@ export const useSyncStore = defineStore('sync', () => {
         } else {
           remoteOnlyCollection++
         }
-      } else if (localGoodsItem && getItemTimestamp(remoteItem) > getItemTimestamp(localGoodsItem)) {
+      } else if (localGoodsItem && shouldApplyRemoteItem(localGoodsItem, remoteItem)) {
         updatedGoods++
-      } else if (localTrashItem && getItemTimestamp(remoteItem) > getItemTimestamp(localTrashItem)) {
+      } else if (localTrashItem && shouldApplyRemoteItem(localTrashItem, remoteItem)) {
         updatedGoods++
       }
     }
@@ -602,18 +976,26 @@ export const useSyncStore = defineStore('sync', () => {
       const gist = await ensureGist()
       syncStatus.value = '正在检查远端数据...'
 
-      const manifestContent = extractGistFileContent(gist, MANIFEST_FILENAME)
-      const dataContent = extractGistFileContent(gist, DATA_FILENAME)
+      const manifestContent = await getGistFileContent(token.value, gist, MANIFEST_FILENAME)
+      const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
+      if (remoteManifest?.imageGistId) {
+        await saveImageGistId(remoteManifest.imageGistId)
+      }
       const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
+      const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
       const localChanges = getLocalChangesSince(localSyncTime)
       const remoteData = dataContent ? JSON.parse(dataContent) : { goods: [], trash: [], presets: {} }
-      const localSyncData = await buildSyncData()
-      const localComparableState = await buildComparableSyncStateFromData(localSyncData)
+      const existingImageGist = await getExistingImageGist(remoteManifest)
+      const localPayload = await buildSyncPayload({ existingImageGist })
+      const localComparableState = await buildComparableSyncStateFromData(localPayload.syncData)
       const remoteComparableState = await buildComparableSyncStateFromData(remoteData)
-      const hasEffectiveDiff = localComparableState !== remoteComparableState
+      const hasDataDiff = localComparableState !== remoteComparableState
+      const pendingImageCleanup = buildImageCleanupFiles(existingImageGist, localPayload.referencedImageFiles)
+      const hasPendingImageChanges = Object.keys(localPayload.imageFiles).length > 0 || Object.keys(pendingImageCleanup).length > 0
+      const hasEffectiveDiff = hasDataDiff || hasPendingImageChanges || hasRemoteImageChanges
 
       if (!hasEffectiveDiff) {
         if (remoteManifest?.lastSyncAt) {
@@ -624,6 +1006,13 @@ export const useSyncStore = defineStore('sync', () => {
           action: 'no_changes',
           ...getLocalChangesSince(remoteTime || localSyncTime)
         }
+      }
+
+      if (!hasDataDiff && hasPendingImageChanges) {
+        syncStatus.value = '姝ｅ湪涓婁紶鏈湴鏁版嵁...'
+        const imageStats = await pushToRemote(gist, existingImageGist)
+        syncStatus.value = '涓婁紶瀹屾垚'
+        return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
       }
 
       if (remoteTime > localSyncTime || !remoteManifest) {
@@ -640,16 +1029,16 @@ export const useSyncStore = defineStore('sync', () => {
         }
 
         syncStatus.value = '正在拉取远端数据...'
-        const result = await pullFromRemote(gist)
+        const result = await pullFromRemote(gist, remoteManifest)
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         syncStatus.value = '拉取完成'
         return { action: 'pulled', ...result }
       }
 
       syncStatus.value = '正在上传本地数据...'
-      await pushToRemote(gist)
+      const imageStats = await pushToRemote(gist)
       syncStatus.value = '上传完成'
-      return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime) }
+      return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
     } catch (error) {
       lastError.value = error.message
       syncStatus.value = '同步失败'
@@ -668,9 +1057,9 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       if (useRemote) {
         syncStatus.value = '正在拉取远端数据...'
-        const result = await pullFromRemote(conflictData.value.gist)
-        const manifestContent = extractGistFileContent(conflictData.value.gist, MANIFEST_FILENAME)
+        const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
         const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
+        const result = await pullFromRemote(conflictData.value.gist, remoteManifest)
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         conflictData.value = null
         syncStatus.value = '拉取完成'
@@ -678,10 +1067,10 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在上传本地数据...'
-      await pushToRemote(conflictData.value.gist)
+      const imageStats = await pushToRemote(conflictData.value.gist)
       conflictData.value = null
       syncStatus.value = '上传完成'
-      return { action: 'pushed' }
+      return { action: 'pushed', ...imageStats }
     } catch (error) {
       lastError.value = error.message
       syncStatus.value = '同步失败'
@@ -709,21 +1098,35 @@ export const useSyncStore = defineStore('sync', () => {
       const gist = await getGist(token.value, gistId.value)
       if (!gist) throw new Error('未找到 Gist')
 
-      const manifestContent = extractGistFileContent(gist, MANIFEST_FILENAME)
+      const manifestContent = await getGistFileContent(token.value, gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
+      if (remoteManifest?.imageGistId) {
+        await saveImageGistId(remoteManifest.imageGistId)
+      }
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
+      const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
+      const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
 
       if (isRemoteFromOtherDevice) {
         const diff = await buildPullConflictData(gist, remoteManifest)
-        if (
-          diff.remoteOnlyGoods === 0
-          && diff.remoteOnlyTrash === 0
-          && diff.localOnlyGoods === 0
-          && diff.localOnlyTrash === 0
-          && diff.updatedGoods === 0
-        ) {
+        const hasContentDiff = (
+          diff.remoteOnlyGoods > 0
+          || diff.remoteOnlyTrash > 0
+          || diff.localOnlyGoods > 0
+          || diff.localOnlyTrash > 0
+          || diff.updatedGoods > 0
+        )
+        if (!hasContentDiff && !hasRemoteImageChanges) {
           syncStatus.value = '数据已是最新'
           return { action: 'no_changes' }
+        }
+
+        if (!hasContentDiff && hasRemoteImageChanges) {
+          syncStatus.value = '姝ｅ湪鎷夊彇杩滅鏁版嵁...'
+          const result = await pullFromRemote(gist, remoteManifest)
+          await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
+          syncStatus.value = '鎷夊彇瀹屾垚'
+          return { action: 'pulled', ...result }
         }
 
         conflictData.value = {
@@ -735,7 +1138,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在拉取远端数据...'
-      const result = await pullFromRemote(gist)
+      const result = await pullFromRemote(gist, remoteManifest)
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
       return { action: 'pulled', ...result }
@@ -762,9 +1165,9 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在拉取远端数据...'
-      const result = await pullFromRemote(conflictData.value.gist)
-      const manifestContent = extractGistFileContent(conflictData.value.gist, MANIFEST_FILENAME)
+      const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
+      const result = await pullFromRemote(conflictData.value.gist, remoteManifest)
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
       conflictData.value = null
@@ -781,15 +1184,18 @@ export const useSyncStore = defineStore('sync', () => {
   async function resetConfig() {
     token.value = ''
     gistId.value = ''
+    imageGistId.value = ''
     lastSyncedAt.value = ''
     await writeKey(TOKEN_KEY, '')
     await writeKey(GIST_ID_KEY, '')
+    await writeKey(IMAGE_GIST_ID_KEY, '')
     await writeKey(LAST_SYNC_KEY, '')
   }
 
   return {
     token,
     gistId,
+    imageGistId,
     lastSyncedAt,
     deviceId,
     isInitialized,

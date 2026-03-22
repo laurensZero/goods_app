@@ -9,7 +9,7 @@
             <div class="hero-copy">
               <p class="hero-label">Cloud Sync</p>
               <h1 class="hero-title">GitHub Gist 同步</h1>
-              <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站与预设数据。</p>
+              <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站、预设数据和本地图片。</p>
             </div>
             <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
           </div>
@@ -58,18 +58,48 @@
                 <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
               </button>
               <div class="detail-row">
-                <span class="detail-label">Gist ID</span>
+                <span class="detail-label">Data Gist</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">设备 ID</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
               </div>
+              <div class="detail-row">
+                <span class="detail-label">Image Gist</span>
+                <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
+              </div>
               <div class="detail-row detail-row--last">
                 <span class="detail-label">最近同步</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
               </div>
             </div>
+          </article>
+
+          <article v-if="false" class="panel-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Image Sync</p>
+                <h3 class="panel-title">图片同步</h3>
+              </div>
+            </div>
+
+            <div class="detail-list">
+              <div class="detail-row">
+                <span class="detail-label">Image Gist</span>
+                <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">图片文件数</span>
+                <span class="detail-value">{{ imageFileCount }}</span>
+              </div>
+              <article class="stat-card stat-card--image">
+                <p class="stat-label">Images</p>
+                <p class="stat-value">{{ imageFileCount }}</p>
+                <p class="stat-desc">图片 Gist 当前保存的图片文件数量。</p>
+              </article>
+            </div>
+            <p class="section-note">本地图片会同步到独立图片 Gist，最近图片同步时间：{{ imageSyncDisplay }}。</p>
           </article>
 
           <article class="panel-card">
@@ -95,6 +125,11 @@
                 <p class="stat-label">回收站</p>
                 <p class="stat-value">{{ trashCount }}</p>
                 <p class="stat-desc">云端保留的已删除数据数量。</p>
+              </article>
+              <article class="stat-card stat-card--image">
+                <p class="stat-label">图片文件</p>
+                <p class="stat-value">{{ imageFileCount }}</p>
+                <p class="stat-desc">图片 Gist 当前保存的图片文件数量。</p>
               </article>
             </div>
           </article>
@@ -165,7 +200,43 @@
         </div>
 
         <div class="action-grid">
-          <button type="button" class="entry-card" @click="openTokenDialog">
+          <a v-if="gistUrl" class="entry-card" :href="gistUrl" target="_blank" rel="noopener">
+            <span class="entry-icon link-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Remote Inspect</p>
+              <h3 class="entry-name">查看数据 Gist</h3>
+              <p class="entry-desc">直接打开当前 Gist 页面，检查远端文件、更新时间与历史版本。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </a>
+
+          <a v-if="imageGistUrl" class="entry-card" :href="imageGistUrl" target="_blank" rel="noopener">
+            <span class="entry-icon link-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Image Store</p>
+              <h3 class="entry-name">查看图片 Gist</h3>
+              <p class="entry-desc">打开独立图片 Gist，查看同步后的本地图片文件和更新时间。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </a>
+
+                    <button type="button" class="entry-card" @click="openTokenDialog">
             <span class="entry-icon token-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 20h9" />
@@ -182,25 +253,7 @@
             </svg>
           </button>
 
-          <a v-if="gistUrl" class="entry-card" :href="gistUrl" target="_blank" rel="noopener">
-            <span class="entry-icon link-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Remote Inspect</p>
-              <h3 class="entry-name">在 GitHub 查看</h3>
-              <p class="entry-desc">直接打开当前 Gist 页面，检查远端文件、更新时间与历史版本。</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </a>
-
-          <button v-if="syncStore.gistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
+          <button v-if="syncStore.gistId || resolvedImageGistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
             <span class="entry-icon danger-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 6h18" />
@@ -352,7 +405,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
-import { validateToken, getGist, extractGistFileContent } from '@/utils/githubGist'
+import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
 import NavBar from '@/components/NavBar.vue'
 
 const syncStore = useSyncStore()
@@ -386,6 +439,8 @@ const lastSyncDisplay = computed(() => {
   return formatTime(syncStore.lastSyncedAt)
 })
 
+const resolvedImageGistId = computed(() => gistInfo.value?.imageGistId || syncStore.imageGistId || '')
+
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
   if (syncStore.lastError) return 'badge--error'
@@ -413,9 +468,19 @@ const gistUrl = computed(() => {
   return `https://gist.github.com/${syncStore.gistId}`
 })
 
+const imageGistUrl = computed(() => {
+  if (!resolvedImageGistId.value) return ''
+  return `https://gist.github.com/${resolvedImageGistId.value}`
+})
+
 const collectionCount = computed(() => gistInfo.value?.collectionCount ?? '-')
 const wishlistCount = computed(() => gistInfo.value?.wishlistCount ?? '-')
 const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
+const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
+const imageSyncDisplay = computed(() => {
+  if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
+  return formatTime(gistInfo.value.imageUpdatedAt)
+})
 
 function resetPageScrollTop() {
   try {
@@ -459,7 +524,11 @@ async function loadGistInfo() {
       return
     }
 
-    const content = extractGistFileContent(gist, 'data.json')
+    const [content, manifestContent] = await Promise.all([
+      getGistFileContent(syncStore.token, gist, 'data.json'),
+      getGistFileContent(syncStore.token, gist, 'manifest.json')
+    ])
+    const manifest = manifestContent ? JSON.parse(manifestContent) : null
 
     let nextCollectionCount = 0
     let nextWishlistCount = 0
@@ -480,11 +549,22 @@ async function loadGistInfo() {
     gistInfo.value = {
       collectionCount: nextCollectionCount,
       wishlistCount: nextWishlistCount,
-      trashCount: nextTrashCount
+      trashCount: nextTrashCount,
+      imageGistId: manifest?.imageGistId || '',
+      imageFileCount: Number(manifest?.imageFileCount) || 0,
+      imageUpdatedAt: manifest?.imageUpdatedAt || ''
     }
   } catch {
     gistInfo.value = null
   }
+}
+
+function buildImageSyncText(result) {
+  const parts = []
+  if (result?.uploadedImages > 0) parts.push(`上传 ${result.uploadedImages} 张图片`)
+  if (result?.reusedImages > 0) parts.push(`复用 ${result.reusedImages} 张图片`)
+  if (result?.restoredImages > 0) parts.push(`恢复 ${result.restoredImages} 张图片`)
+  return parts.join('，')
 }
 
 async function copyText(text) {
@@ -571,9 +651,9 @@ async function handlePull() {
 }
 
 async function handlePullConflict(confirm) {
+  showPullConflict.value = false
   try {
     const result = await syncStore.resolvePullConflict(confirm)
-    showPullConflict.value = false
 
     if (result?.action === 'pulled') {
       const parts = []
@@ -894,6 +974,13 @@ onMounted(async () => {
   font-weight: 600;
 }
 
+.section-note {
+  margin-top: 8px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .overview-grid,
 .action-grid {
   display: grid;
@@ -994,6 +1081,10 @@ onMounted(async () => {
 
 .stat-card--trash .stat-value {
   color: #c74444;
+}
+
+.stat-card--image .stat-value {
+  color: #1f9a8a;
 }
 
 .entry-card {
@@ -1344,13 +1435,13 @@ onMounted(async () => {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 1279px) {
   .hero-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .stats-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

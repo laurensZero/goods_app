@@ -162,6 +162,24 @@ function normalizeCharacters(list) {
   return [...merged.values()]
 }
 
+function normalizeCategoriesList(list) {
+  const values = Array.isArray(list)
+    ? list.map((item) => String(item || '').trim()).filter(Boolean)
+    : []
+  const unique = [...new Set(values)]
+  const withoutOther = unique.filter((item) => item !== '其他')
+  return unique.includes('其他')
+    ? [...withoutOther, '其他']
+    : withoutOther
+}
+
+function normalizeIpsList(list) {
+  const values = Array.isArray(list)
+    ? list.map((item) => String(item || '').trim()).filter(Boolean)
+    : []
+  return [...new Set(values)]
+}
+
 export const usePresetsStore = defineStore('presets', () => {
   const categories = ref(cloneList(DEFAULT_CATEGORIES))
   const ips = ref(cloneList(DEFAULT_IPS))
@@ -558,6 +576,20 @@ export const usePresetsStore = defineStore('presets', () => {
     return [...removedIds]
   }
 
+  async function replacePresetsSnapshot(snapshot = {}) {
+    categories.value = normalizeCategoriesList(snapshot.categories)
+    ips.value = normalizeIpsList(snapshot.ips)
+    characters.value = normalizeCharacters(snapshot.characters)
+    storageLocations.value = normalizeStorageLocationNodes(snapshot.storageLocations)
+
+    await Promise.all([
+      writePersistedList(STORAGE_KEY_CAT, categories.value),
+      writePersistedList(STORAGE_KEY_IP, ips.value),
+      writePersistedList(STORAGE_KEY_CHR, characters.value),
+      writePersistedList(STORAGE_KEY_LOC, storageLocations.value)
+    ])
+  }
+
   function characterNames() {
     return characters.value.map((character) => character.name)
   }
@@ -591,6 +623,7 @@ export const usePresetsStore = defineStore('presets', () => {
     ensureStorageLocationPath,
     syncStorageLocationsFromPaths,
     syncCharactersFromGoods,
+    replacePresetsSnapshot,
     characterNames
   }
 })
