@@ -178,6 +178,7 @@ const goodsListRef = ref(null)
 const batchEditSheetRef = ref(null)
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
+const DENSITY_DEBUG = import.meta.env.DEV
 // 视口宽度，用于响应式列数计算
 const windowWidth = ref(window.innerWidth)
 const _onResize = () => { windowWidth.value = window.innerWidth }
@@ -286,7 +287,7 @@ function estimateVisibleCountForScrollTop(scrollTop = 0) {
   if (displayDensity.value === 'timeline') return goodsList.value.length
 
   const cols = getResponsiveCols(displayDensity.value)
-  const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
+  const viewportHeight = getFlipViewportHeight()
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
   const rowsNeeded = Math.ceil((scrollTop + viewportHeight * 2) / rowHeight)
   const estimatedCount = rowsNeeded * cols + getLoadMoreStep()
@@ -301,10 +302,8 @@ function maybeLoadMoreGoods() {
   if (displayDensity.value === 'timeline') return
   if (visibleGoodsCount.value >= goodsList.value.length) return
 
-  const el = getScrollEl()
-  if (!el) return
-
-  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
+  const { viewportHeight, scrollTop, scrollHeight } = getDensityScrollMetrics()
+  const remaining = scrollHeight - scrollTop - viewportHeight
   if (remaining > LOAD_MORE_THRESHOLD_PX) return
 
   visibleGoodsCount.value = Math.min(goodsList.value.length, visibleGoodsCount.value + getLoadMoreStep())
@@ -317,7 +316,7 @@ function getInitialVisibleTimelineMonths() {
 function estimateVisibleTimelineMonths(scrollTop = 0) {
   if (displayDensity.value !== 'timeline') return visibleTimelineMonthCount.value
 
-  const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
+  const viewportHeight = getFlipViewportHeight()
   const estimatedMonths = Math.ceil((scrollTop + viewportHeight * 1.6) / TIMELINE_MONTH_ESTIMATED_HEIGHT) + 1
   return Math.min(allTimelineMonthCount.value, Math.max(getInitialVisibleTimelineMonths(), estimatedMonths))
 }
@@ -367,10 +366,8 @@ function maybeLoadMoreTimelineMonths() {
   if (displayDensity.value !== 'timeline') return
   if (visibleTimelineMonthCount.value >= allTimelineMonthCount.value) return
 
-  const el = getScrollEl()
-  if (!el) return
-
-  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
+  const { viewportHeight, scrollTop, scrollHeight } = getDensityScrollMetrics()
+  const remaining = scrollHeight - scrollTop - viewportHeight
   if (remaining > LOAD_MORE_THRESHOLD_PX) return
 
   visibleTimelineMonthCount.value = Math.min(
@@ -393,6 +390,89 @@ function handlePageScroll() {
 
 function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
+}
+
+function canUseElementViewport() {
+  const el = getScrollEl()
+  if (!el) return false
+
+  const overflowY = window.getComputedStyle?.(el)?.overflowY || ''
+  const allowsElementScroll = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
+  if (!allowsElementScroll) return false
+
+  return (el.scrollHeight - el.clientHeight) > 1
+}
+
+function getDensityScrollSource() {
+  const activeSource = getActiveScrollSource()
+  if (activeSource === 'window') return 'window'
+  if (activeSource === 'element' && canUseElementViewport()) return 'element'
+  return canUseElementViewport() ? 'element' : 'window'
+}
+
+function getDensityScrollMetrics() {
+  const source = getDensityScrollSource()
+  const viewportHeight = source === 'window'
+    ? (window.innerHeight || document.documentElement.clientHeight || 800)
+    : Math.max(0, getScrollEl()?.clientHeight || 0)
+  const scrollTop = source === 'window'
+    ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0)
+    : (getScrollEl()?.scrollTop || 0)
+  const scrollHeight = source === 'window'
+    ? Math.max(
+        document.documentElement.scrollHeight || 0,
+        document.body.scrollHeight || 0,
+        getScrollEl()?.scrollHeight || 0
+      )
+    : (getScrollEl()?.scrollHeight || 0)
+
+  return { source, viewportHeight, scrollTop, scrollHeight }
+}
+
+function getFlipViewportHeight() {
+  if (getDensityScrollSource() === 'window') {
+    return window.innerHeight || document.documentElement.clientHeight || 800
+  }
+  const rect = getScrollEl()?.getBoundingClientRect()
+  if (!rect) return window.innerHeight || document.documentElement.clientHeight || 800
+  const visibleTop = Math.max(0, rect.top)
+  const visibleBottom = Math.min(window.innerHeight || document.documentElement.clientHeight || 0, rect.bottom)
+  const visibleHeight = visibleBottom - visibleTop
+  return visibleHeight > 0 ? visibleHeight : (window.innerHeight || document.documentElement.clientHeight || 800)
+}
+
+function getFlipViewportRect() {
+  if (getDensityScrollSource() === 'window') {
+    return {
+      top: 0,
+      bottom: window.innerHeight || document.documentElement.clientHeight || 0,
+      left: 0,
+      right: window.innerWidth || document.documentElement.clientWidth || 0
+    }
+  }
+  const rect = getScrollEl()?.getBoundingClientRect()
+  if (!rect) return undefined
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+  return {
+    top: Math.max(0, rect.top),
+    bottom: Math.min(viewportHeight, rect.bottom),
+    left: Math.max(0, rect.left),
+    right: Math.min(viewportWidth, rect.right)
+  }
+}
+
+function getContainerScrollOffset(container) {
+  if (!container) return 0
+  if (getDensityScrollSource() === 'window') {
+    return container.getBoundingClientRect().top + (window.scrollY || document.documentElement.scrollTop || 0)
+  }
+
+  const scrollEl = getScrollEl()
+  if (!scrollEl) return container.offsetTop || 0
+  const containerRect = container.getBoundingClientRect()
+  const scrollRect = scrollEl.getBoundingClientRect()
+  return containerRect.top - scrollRect.top + scrollEl.scrollTop
 }
 
 function bindSelectionHeaderScroll() {
@@ -544,10 +624,11 @@ const densityFlip = createDensityFlip({
     if (!total) return []
     const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
     const cols = getResponsiveCols(displayDensity.value)
-    const scrollTop = readScrollTop()
-    const viewportHeight = getScrollEl()?.clientHeight || window.innerHeight || 800
-    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1)
-    const endRow = Math.ceil((scrollTop + viewportHeight) / rowHeight) + 1
+    const scrollTop = getDensityScrollMetrics().scrollTop
+    const viewportHeight = getFlipViewportHeight()
+    const relativeScrollTop = Math.max(0, scrollTop - getContainerScrollOffset(container))
+    const startRow = Math.max(0, Math.floor(relativeScrollTop / rowHeight) - 1)
+    const endRow = Math.ceil((relativeScrollTop + viewportHeight) / rowHeight) + 1
     const startIndex = Math.max(0, startRow * cols)
     const endIndex = Math.min(total, endRow * cols)
     const items = []
@@ -557,12 +638,13 @@ const densityFlip = createDensityFlip({
     }
     return items
   },
-  getViewport: () => getScrollEl()?.getBoundingClientRect(),
+  getViewport: () => getFlipViewportRect(),
   maxItems: () => (isLowPerfDevice ? 14 : goodsList.value.length > 220 ? 24 : 40),
   overscan: () => (isLowPerfDevice ? 40 : 80),
   duration: () => (isLowPerfDevice ? 200 : 260),
   fade: () => (isLowPerfDevice ? 0.985 : 0.97),
-  scale: () => (isLowPerfDevice ? 0.995 : 0.99)
+  scale: () => (isLowPerfDevice ? 0.995 : 0.99),
+  debugLabel: 'home'
 })
 
 const visibleGoodsCount = ref(0)
@@ -670,6 +752,28 @@ function toggleTimelineItem(id) {
 
 function setDisplayDensityWithFlip(mode) {
   if (displayDensity.value === mode) return
+  if (DENSITY_DEBUG) {
+    const payload = {
+      from: displayDensity.value,
+      to: mode,
+      scrollSource: getActiveScrollSource(),
+      flipScrollSource: getDensityScrollSource(),
+      mountedCards: goodsListRef.value?.querySelectorAll?.('[data-scroll-anchor="goods-card"]')?.length ?? 0,
+      visibleGoodsCount: visibleGoodsCount.value,
+      totalGoods: goodsList.value.length
+    }
+    console.log('[densitySwitch:home] before', payload)
+    try {
+      const store = Array.isArray(window.__densityDebug) ? window.__densityDebug : []
+      store.push({
+        at: new Date().toISOString(),
+        source: '[densitySwitch:home]',
+        phase: 'before',
+        ...payload
+      })
+      window.__densityDebug = store
+    } catch {}
+  }
   const captured = densityFlip.capture()
   setDisplayDensity(mode)
   if (captured) densityFlip.animate()
