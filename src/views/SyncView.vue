@@ -813,8 +813,7 @@ onMounted(async () => {
 .hero-card,
 .panel-card,
 .stat-card,
-.entry-card,
-.dialog {
+.entry-card {
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -1229,6 +1228,11 @@ onMounted(async () => {
   width: min(100%, 420px);
   padding: 24px;
   border-radius: var(--radius-large);
+  border: 1px solid var(--app-glass-border);
+  background: var(--app-glass-strong);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
 .dialog--wide {
@@ -1381,15 +1385,17 @@ onMounted(async () => {
   z-index: 999;
   padding: 10px 20px;
   border-radius: 20px;
-  background: rgba(20, 20, 22, 0.88);
-  color: #ffffff;
+  border: 1px solid var(--app-glass-border);
+  background: var(--app-glass-strong);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
 .toast-fade-enter-active,
