@@ -103,16 +103,19 @@ export const useThemeStore = defineStore('theme', () => {
     // Force Android WebView to repaint the root layers with the current theme
     // so cold starts do not briefly show the host window background at the corners.
     root.style.backgroundColor = bgColor
-    root.style.background = bgGradient
+    root.style.backgroundImage = bgGradient
+    root.style.backgroundAttachment = 'fixed'
 
     if (body) {
       body.style.backgroundColor = bgColor
-      body.style.background = bgGradient
+      body.style.backgroundImage = bgGradient
+      body.style.backgroundAttachment = 'fixed'
     }
 
     if (appRoot) {
       appRoot.style.backgroundColor = bgColor
-      appRoot.style.background = bgGradient
+      appRoot.style.backgroundImage = bgGradient
+      appRoot.style.backgroundAttachment = 'fixed'
     }
   }
 

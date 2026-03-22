@@ -108,14 +108,16 @@ function getRouteKey(currentRoute) {
   overflow: hidden;
   isolation: isolate;
   background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
+  background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
 }
 
 .route-scene {
   min-height: inherit;
   backface-visibility: hidden;
   background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
+  background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
 }
 
 .route-forward-enter-active,

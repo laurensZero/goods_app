@@ -50,13 +50,14 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
   font-family: 'SF Pro Display', 'PingFang SC', 'Avenir Next', 'Helvetica Neue', sans-serif;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
-  color: var(--app-text);
   background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
+  background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
+  color: var(--app-text);
   scrollbar-gutter: stable;
 }
 
@@ -98,7 +99,8 @@ img {
 #app {
   min-height: 100%;
   background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
+  background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
 }
 
 .app-wrapper {
@@ -108,7 +110,8 @@ img {
   min-height: 100dvh;
   margin: 0 auto;
   background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
+  background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
   overflow: clip;
 }
 
@@ -261,7 +264,8 @@ html.theme-dark {
 html.theme-dark,
 html.theme-dark body {
   background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
+  background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
   color: var(--app-text);
 }
 
