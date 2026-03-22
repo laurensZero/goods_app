@@ -18,12 +18,17 @@
     <filter id="boxShadow" x="136" y="210" width="752" height="700" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
       <feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#1E4B8C" flood-opacity=".16" />
     </filter>
+    <clipPath id="panelClip">
+      <rect x="72" y="72" width="880" height="880" rx="224" />
+    </clipPath>
   </defs>
 
   <g filter="url(#panelShadow)">
     <rect x="72" y="72" width="880" height="880" rx="224" fill="url(#bg)" />
-    <circle cx="270" cy="248" r="172" fill="#FFF" fill-opacity=".58" />
-    <circle cx="810" cy="788" r="228" fill="#D8E8FF" fill-opacity=".72" />
+    <g clip-path="url(#panelClip)">
+      <circle cx="270" cy="248" r="172" fill="#FFF" fill-opacity=".58" />
+      <circle cx="810" cy="788" r="228" fill="#D8E8FF" fill-opacity=".72" />
+    </g>
     <rect x="72" y="72" width="880" height="880" rx="224" stroke="#FFF" stroke-opacity=".72" stroke-width="10" />
   </g>
 
