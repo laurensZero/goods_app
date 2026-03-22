@@ -266,27 +266,32 @@ function getLoadMoreStep() {
   return Math.max(getResponsiveCols(displayDensity.value) * LOAD_MORE_ROWS, 16)
 }
 
-function estimateVisibleCountForScrollTop(scrollTop = 0) {
+function estimateVisibleCountForScrollTop(scrollTop = 0, options = {}) {
   if (displayDensity.value === 'timeline') return goodsList.value.length
 
+  const { useFlipViewport = false } = options
   const cols = getResponsiveCols(displayDensity.value)
-  const viewportHeight = getFlipViewportHeight()
+  const viewportHeight = useFlipViewport
+    ? getFlipViewportHeight()
+    : (getScrollEl()?.clientHeight || window.innerHeight || 800)
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
   const rowsNeeded = Math.ceil((scrollTop + viewportHeight * 2) / rowHeight)
   const estimatedCount = rowsNeeded * cols + getLoadMoreStep()
   return Math.min(goodsList.value.length, Math.max(getInitialVisibleCount(), estimatedCount))
 }
 
-function syncVisibleGoodsCount(scrollTop = 0) {
-  visibleGoodsCount.value = estimateVisibleCountForScrollTop(scrollTop)
+function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
+  visibleGoodsCount.value = estimateVisibleCountForScrollTop(scrollTop, options)
 }
 
 function maybeLoadMoreGoods() {
   if (displayDensity.value === 'timeline') return
   if (visibleGoodsCount.value >= goodsList.value.length) return
 
-  const { viewportHeight, scrollTop, scrollHeight } = getDensityScrollMetrics()
-  const remaining = scrollHeight - scrollTop - viewportHeight
+  const el = getScrollEl()
+  if (!el) return
+
+  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
   if (remaining > LOAD_MORE_THRESHOLD_PX) return
 
   visibleGoodsCount.value = Math.min(goodsList.value.length, visibleGoodsCount.value + getLoadMoreStep())
@@ -296,16 +301,19 @@ function getInitialVisibleTimelineMonths() {
   return INITIAL_TIMELINE_MONTHS
 }
 
-function estimateVisibleTimelineMonths(scrollTop = 0) {
+function estimateVisibleTimelineMonths(scrollTop = 0, options = {}) {
   if (displayDensity.value !== 'timeline') return visibleTimelineMonthCount.value
 
-  const viewportHeight = getFlipViewportHeight()
+  const { useFlipViewport = false } = options
+  const viewportHeight = useFlipViewport
+    ? getFlipViewportHeight()
+    : (getScrollEl()?.clientHeight || window.innerHeight || 800)
   const estimatedMonths = Math.ceil((scrollTop + viewportHeight * 1.6) / TIMELINE_MONTH_ESTIMATED_HEIGHT) + 1
   return Math.min(allTimelineMonthCount.value, Math.max(getInitialVisibleTimelineMonths(), estimatedMonths))
 }
 
-function syncVisibleTimelineMonthCount(scrollTop = 0) {
-  visibleTimelineMonthCount.value = estimateVisibleTimelineMonths(scrollTop)
+function syncVisibleTimelineMonthCount(scrollTop = 0, options = {}) {
+  visibleTimelineMonthCount.value = estimateVisibleTimelineMonths(scrollTop, options)
 }
 
 function prepareRestoreState(state) {
@@ -349,8 +357,10 @@ function maybeLoadMoreTimelineMonths() {
   if (displayDensity.value !== 'timeline') return
   if (visibleTimelineMonthCount.value >= allTimelineMonthCount.value) return
 
-  const { viewportHeight, scrollTop, scrollHeight } = getDensityScrollMetrics()
-  const remaining = scrollHeight - scrollTop - viewportHeight
+  const el = getScrollEl()
+  if (!el) return
+
+  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
   if (remaining > LOAD_MORE_THRESHOLD_PX) return
 
   visibleTimelineMonthCount.value = Math.min(
@@ -471,10 +481,6 @@ onMounted(async () => {
 
 onActivated(async () => {
   isHomeActive.value = true
-  const shouldMaskDisplay = shouldMaskHomeDisplay()
-  if (shouldMaskDisplay) {
-    homeDisplayReady.value = false
-  }
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
   await nextTick()
   homeDisplayReady.value = true
@@ -488,9 +494,6 @@ onDeactivated(() => {
   isHomeActive.value = false
   cancelPendingRestore()
   rememberCurrentScrollPosition()
-  if (readScrollTop() > 1) {
-    homeDisplayReady.value = false
-  }
   exitSelectionModeQuiet()
   unbindSelectionHeaderScroll()
   unbindAndroidBackButton()
@@ -520,7 +523,6 @@ const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency 
 const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
 const isLowPerfDevice = isAndroid || lowCores || lowMem
 const {
-  getDensityScrollMetrics,
   getDensityScrollTop,
   getFlipViewportHeight,
   getFlipViewportRect,
@@ -590,8 +592,8 @@ const preloadTargetList = computed(() =>
 watch(
   [() => goodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
   () => {
-    syncVisibleGoodsCount(readScrollTop())
-    syncVisibleTimelineMonthCount(readScrollTop())
+    syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
+    syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
   },
   { immediate: true }
 )
