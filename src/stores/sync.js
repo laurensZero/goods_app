@@ -372,7 +372,11 @@ export const useSyncStore = defineStore('sync', () => {
           ip: String(item?.ip || '').trim()
         }))
         .filter((item) => item.name),
-      storageLocations: [...presets.storageLocationPaths]
+      storageLocations: presets.storageLocations.map((item) => ({
+        id: String(item?.id || '').trim(),
+        name: String(item?.name || '').trim(),
+        parentId: String(item?.parentId || '').trim()
+      }))
     }
   }
 

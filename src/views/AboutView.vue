@@ -240,8 +240,8 @@ let toastTimer = null
 const appIconSrc = `${import.meta.env.BASE_URL}assets/icon-android-1024.png`
 const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
 const appId = capacitorConfig.appId || 'unknown'
-const appVersion = packageJson.version || '0.0.0'
-const androidVersionName = '1.0'
+const appVersion = import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0'
+const androidVersionName = import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0'
 
 const feedbackUrl = computed(() => {
   const params = new URLSearchParams({
@@ -345,14 +345,14 @@ function showToast(message, duration = 2600) {
   }, duration)
 }
 
-async function copyText(text, successMessage = '宸插鍒?') {
+async function copyText(text, successMessage = '已复制') {
   if (!text) return
 
   try {
     await navigator.clipboard.writeText(text)
     showToast(successMessage)
   } catch {
-    showToast('澶嶅埗澶辫触')
+    showToast('复制失败')
   }
 }
 
@@ -973,3 +973,4 @@ onBeforeUnmount(() => {
 
 }
 </style>
+

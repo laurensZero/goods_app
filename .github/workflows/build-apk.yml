@@ -155,6 +155,9 @@ jobs:
         run: npm ci
 
       - name: Build web assets and sync Android project
+        env:
+          VITE_APP_VERSION: ${{ steps.release_meta.outputs.version_name }}
+          VITE_ANDROID_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
         run: npm run build:android
 
       - name: Prepare Gradle wrapper
@@ -195,3 +198,4 @@ jobs:
           RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
         run: |
           gh release upload "$RELEASE_TAG" "android/app/build/outputs/apk/release/app-release.apk#$RELEASE_ASSET_NAME" --clobber
+

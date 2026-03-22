@@ -122,6 +122,42 @@ function normalizeStorageLocationNodes(list) {
   return normalized
 }
 
+function normalizeStorageLocationSnapshot(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return cloneList(DEFAULT_STORAGE_LOCATIONS)
+  }
+
+  // Backward compatibility for older sync payloads that stored only path strings.
+  if (list.every((item) => typeof item === 'string')) {
+    const nodes = []
+
+    for (const rawPath of list) {
+      const parts = splitStorageLocationPath(rawPath)
+      let parentId = ''
+
+      for (const part of parts) {
+        const existing = nodes.find((node) => node.parentId === parentId && node.name === part)
+        if (existing) {
+          parentId = existing.id
+          continue
+        }
+
+        const node = {
+          id: createStorageLocationId(),
+          name: part,
+          parentId
+        }
+        nodes.push(node)
+        parentId = node.id
+      }
+    }
+
+    return normalizeStorageLocationNodes(nodes)
+  }
+
+  return normalizeStorageLocationNodes(list)
+}
+
 function sortByLocale(list, pick = (item) => item) {
   return [...list].sort((a, b) => pick(a).localeCompare(pick(b), 'zh-Hans-CN'))
 }
@@ -580,7 +616,7 @@ export const usePresetsStore = defineStore('presets', () => {
     categories.value = normalizeCategoriesList(snapshot.categories)
     ips.value = normalizeIpsList(snapshot.ips)
     characters.value = normalizeCharacters(snapshot.characters)
-    storageLocations.value = normalizeStorageLocationNodes(snapshot.storageLocations)
+    storageLocations.value = normalizeStorageLocationSnapshot(snapshot.storageLocations)
 
     await Promise.all([
       writePersistedList(STORAGE_KEY_CAT, categories.value),
