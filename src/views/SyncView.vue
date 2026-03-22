@@ -3,7 +3,7 @@
     <NavBar title="云同步" show-back />
 
     <main ref="pageBodyRef" class="page-body">
-      <section class="hero-section">
+      <section class="hero-section hero-section--sync">
         <article class="hero-card">
           <div class="hero-head">
             <div class="hero-copy">
@@ -36,7 +36,7 @@
         </article>
       </section>
 
-      <section class="content-section">
+      <section class="content-section overview-section">
         <div class="section-head">
           <p class="section-label">Sync Overview</p>
           <h2 class="section-title">同步概览</h2>
@@ -136,7 +136,7 @@
         </div>
       </section>
 
-      <section class="content-section">
+      <section class="content-section actions-section">
         <div class="section-head">
           <p class="section-label">Sync Actions</p>
           <h2 class="section-title">同步操作</h2>
@@ -193,7 +193,7 @@
         </div>
       </section>
 
-      <section class="content-section">
+      <section class="content-section config-section">
         <div class="section-head">
           <p class="section-label">Config</p>
           <h2 class="section-title">配置与维护</h2>
@@ -781,6 +781,8 @@ onMounted(async () => {
 
 .page-body {
   position: relative;
+  display: flex;
+  flex-direction: column;
   z-index: 1;
   width: min(100%, 1160px);
   margin: 0 auto;
@@ -790,6 +792,22 @@ onMounted(async () => {
 .hero-section,
 .content-section {
   margin-top: var(--section-gap);
+}
+
+.hero-section--sync {
+  order: 1;
+}
+
+.overview-section {
+  order: 3;
+}
+
+.actions-section {
+  order: 2;
+}
+
+.config-section {
+  order: 4;
 }
 
 .hero-card,
@@ -1435,7 +1453,15 @@ onMounted(async () => {
   }
 }
 
-@media (min-width: 768px) and (max-width: 1279px) {
+@media (min-width: 768px) {
+  .overview-section {
+    order: 2;
+  }
+
+  .actions-section {
+    order: 3;
+  }
+
   .hero-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
