@@ -50,35 +50,20 @@
         @set-density="setDisplayDensityWithFlip"
       />
 
-      <section
+      <GoodsCardGridSection
         v-if="goodsList.length > 0"
-        :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
-      >
-        <div
-          ref="goodsListRef"
-          :class="[
-            'goods-list',
-            { 'goods-list--density-animating': isDensityAnimating }
-          ]"
-          :style="goodsGridStyle"
-        >
-          <GoodsCard
-            v-for="(item, index) in goodsList"
-            :key="item.id"
-            :item="item"
-            :density="displayDensity"
-            :transitioning="isDensityAnimating"
-            :data-goods-id="item.id"
-            :data-scroll-anchor="'goods-card'"
-            :data-scroll-index="index"
-            :selected="selectedIds.has(item.id)"
-            :selection-mode="selectionMode"
-            @long-press="enterSelectionMode(item.id)"
-            @toggle-select="toggleSelect(item.id)"
-            @open-detail="openDetail(item.id)"
-          />
-        </div>
-      </section>
+        ref="goodsGridSectionRef"
+        :items="goodsList"
+        :density="displayDensity"
+        :grid-style="goodsGridStyle"
+        :transitioning="isDensityAnimating"
+        :is-sort-animating="isSortAnimating"
+        :selection-mode="selectionMode"
+        :selected-ids="selectedIds"
+        @long-press="enterSelectionMode"
+        @toggle-select="toggleSelect"
+        @open-detail="openDetail"
+      />
 
       <section v-else class="empty-wrap">
         <EmptyState
@@ -135,10 +120,12 @@ import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
 import { useHomePreferences } from '@/composables/useHomePreferences'
 import { useWishlistScrollRestore } from '@/composables/useWishlistScrollRestore'
+import { useDensityGridViewport } from '@/composables/useDensityGridViewport'
+import { useGoodsGridDensityFlip } from '@/composables/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
-import GoodsCard from '@/components/GoodsCard.vue'
+import GoodsCardGridSection from '@/components/GoodsCardGridSection.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SummaryCard from '@/components/SummaryCard.vue'
 import AddMethodSheet from '@/components/AddMethodSheet.vue'
@@ -149,13 +136,11 @@ import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
-import { createDensityFlip } from '@/utils/densityFlip'
 
 defineOptions({ name: 'WishlistView' })
 
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
-const DENSITY_DEBUG = import.meta.env.DEV
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
   standard: 272,
@@ -165,7 +150,7 @@ const ROW_HEIGHT_MAP = {
 const router = useRouter()
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
-const goodsListRef = ref(null)
+const goodsGridSectionRef = ref(null)
 const windowWidth = ref(window.innerWidth)
 const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
@@ -235,36 +220,26 @@ const isAndroid = /Android/i.test(navigator.userAgent || '')
 const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
 const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
 const isLowPerfDevice = isAndroid || lowCores || lowMem
-const densityFlip = createDensityFlip({
-  getContainer: () => goodsListRef.value,
-  getItems: (container) => {
-    if (!container) return []
-    const children = container.children
-    const total = children.length
-    if (!total) return []
-    const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-    const cols = getResponsiveCols(displayDensity.value)
-    const scrollTop = getDensityScrollTop()
-    const viewportHeight = getFlipViewportHeight()
-    const relativeScrollTop = Math.max(0, scrollTop - getContainerScrollOffset(container))
-    const startRow = Math.max(0, Math.floor(relativeScrollTop / rowHeight) - 1)
-    const endRow = Math.ceil((relativeScrollTop + viewportHeight) / rowHeight) + 1
-    const startIndex = Math.max(0, startRow * cols)
-    const endIndex = Math.min(total, endRow * cols)
-    const items = []
-    for (let i = startIndex; i < endIndex; i += 1) {
-      const el = children[i]
-      if (el) items.push(el)
-    }
-    return items
-  },
-  getViewport: () => getFlipViewportRect(),
-  maxItems: () => (isLowPerfDevice ? 14 : goodsList.value.length > 220 ? 24 : 40),
-  overscan: () => (isLowPerfDevice ? 40 : 80),
-  duration: () => (isLowPerfDevice ? 200 : 260),
-  fade: () => (isLowPerfDevice ? 0.985 : 0.97),
-  scale: () => (isLowPerfDevice ? 0.995 : 0.99),
-  debugLabel: 'wishlist'
+const {
+  getDensityScrollTop,
+  getFlipViewportHeight,
+  getFlipViewportRect,
+  getContainerScrollOffset
+} = useDensityGridViewport({
+  getScrollEl,
+  getActiveScrollSource
+})
+const densityFlip = useGoodsGridDensityFlip({
+  getContainer: () => getGoodsListEl(),
+  getDisplayDensity: () => displayDensity.value,
+  getResponsiveCols,
+  rowHeightMap: ROW_HEIGHT_MAP,
+  getDensityScrollTop,
+  getFlipViewportHeight,
+  getFlipViewportRect,
+  getContainerScrollOffset,
+  isLowPerfDevice,
+  getItemCount: () => goodsList.value.length
 })
 
 const goodsGridStyle = computed(() => ({
@@ -323,74 +298,8 @@ function updateSelectionHeaderPosition() {
   selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
 }
 
-function canUseElementViewport() {
-  const el = getScrollEl()
-  if (!el) return false
-
-  const overflowY = window.getComputedStyle?.(el)?.overflowY || ''
-  const allowsElementScroll = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
-  if (!allowsElementScroll) return false
-
-  return (el.scrollHeight - el.clientHeight) > 1
-}
-
-function getDensityScrollSource() {
-  const activeSource = getActiveScrollSource()
-  if (activeSource === 'window') return 'window'
-  if (activeSource === 'element' && canUseElementViewport()) return 'element'
-  return canUseElementViewport() ? 'element' : 'window'
-}
-
-function getDensityScrollTop() {
-  return getDensityScrollSource() === 'window'
-    ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0)
-    : (getScrollEl()?.scrollTop || 0)
-}
-
-function getFlipViewportHeight() {
-  if (getDensityScrollSource() === 'window') {
-    return window.innerHeight || document.documentElement.clientHeight || 800
-  }
-  const rect = getScrollEl()?.getBoundingClientRect()
-  if (!rect) return window.innerHeight || document.documentElement.clientHeight || 800
-  const visibleTop = Math.max(0, rect.top)
-  const visibleBottom = Math.min(window.innerHeight || document.documentElement.clientHeight || 0, rect.bottom)
-  const visibleHeight = visibleBottom - visibleTop
-  return visibleHeight > 0 ? visibleHeight : (window.innerHeight || document.documentElement.clientHeight || 800)
-}
-
-function getFlipViewportRect() {
-  if (getDensityScrollSource() === 'window') {
-    return {
-      top: 0,
-      bottom: window.innerHeight || document.documentElement.clientHeight || 0,
-      left: 0,
-      right: window.innerWidth || document.documentElement.clientWidth || 0
-    }
-  }
-  const rect = getScrollEl()?.getBoundingClientRect()
-  if (!rect) return undefined
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
-  return {
-    top: Math.max(0, rect.top),
-    bottom: Math.min(viewportHeight, rect.bottom),
-    left: Math.max(0, rect.left),
-    right: Math.min(viewportWidth, rect.right)
-  }
-}
-
-function getContainerScrollOffset(container) {
-  if (!container) return 0
-  if (getDensityScrollSource() === 'window') {
-    return container.getBoundingClientRect().top + (window.scrollY || document.documentElement.scrollTop || 0)
-  }
-
-  const scrollEl = getScrollEl()
-  if (!scrollEl) return container.offsetTop || 0
-  const containerRect = container.getBoundingClientRect()
-  const scrollRect = scrollEl.getBoundingClientRect()
-  return containerRect.top - scrollRect.top + scrollEl.scrollTop
+function getGoodsListEl() {
+  return goodsGridSectionRef.value?.goodsListEl?.value || goodsGridSectionRef.value?.goodsListEl || null
 }
 
 function handlePageScroll() {
@@ -451,27 +360,6 @@ function openSearch() {
 
 function setDisplayDensityWithFlip(mode) {
   if (displayDensity.value === mode) return
-  if (DENSITY_DEBUG) {
-    const payload = {
-      from: displayDensity.value,
-      to: mode,
-      scrollSource: getActiveScrollSource(),
-      flipScrollSource: getDensityScrollSource(),
-      mountedCards: goodsListRef.value?.querySelectorAll?.('[data-scroll-anchor="goods-card"]')?.length ?? 0,
-      totalGoods: goodsList.value.length
-    }
-    console.log('[densitySwitch:wishlist] before', payload)
-    try {
-      const store = Array.isArray(window.__densityDebug) ? window.__densityDebug : []
-      store.push({
-        at: new Date().toISOString(),
-        source: '[densitySwitch:wishlist]',
-        phase: 'before',
-        ...payload
-      })
-      window.__densityDebug = store
-    } catch {}
-  }
   const captured = densityFlip.capture()
   setDisplayDensity(mode)
   if (captured) densityFlip.animate()

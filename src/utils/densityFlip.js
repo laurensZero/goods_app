@@ -3,20 +3,6 @@ import { HOME_MOTION } from '@/constants/homeMotion'
 
 const DEFAULT_OVERSCAN_PX = 80
 const DEFAULT_MAX_ITEMS = 48
-const DENSITY_FLIP_DEBUG = import.meta.env.DEV
-
-function pushDensityDebugLog(entry) {
-  if (!DENSITY_FLIP_DEBUG) return
-  try {
-    const target = window
-    const store = Array.isArray(target.__densityDebug) ? target.__densityDebug : []
-    store.push({
-      at: new Date().toISOString(),
-      ...entry
-    })
-    target.__densityDebug = store
-  } catch {}
-}
 
 function getViewportRect(getViewport) {
   if (!getViewport) {
@@ -58,13 +44,10 @@ export function createDensityFlip({
   easing = HOME_MOTION.easeEmphasis,
   fade = 0.96,
   scale = 0.99,
-  canAnimate = () => true,
-  debugLabel = ''
+  canAnimate = () => true
 }) {
   const getElements = getItems || ((container) => container?.children ?? [])
   const firstRects = new Map()
-  const logPrefix = debugLabel ? `[densityFlip:${debugLabel}]` : '[densityFlip]'
-  let lastCaptureStats = null
 
   function capture() {
     if (!canAnimate()) return false
@@ -76,11 +59,6 @@ export function createDensityFlip({
     const elements = getElements(container)
     const effectiveOverscan = resolveOption(overscan, DEFAULT_OVERSCAN_PX)
     const effectiveMaxItems = resolveOption(maxItems, DEFAULT_MAX_ITEMS)
-    const totalElements = elements && typeof elements.length === 'number'
-      ? elements.length
-      : Array.isArray(elements)
-        ? elements.length
-        : undefined
     let collected = 0
     if (elements && typeof elements.length === 'number') {
       for (let i = 0; i < elements.length; i += 1) {
@@ -105,22 +83,6 @@ export function createDensityFlip({
       }
     }
 
-    lastCaptureStats = {
-      totalElements,
-      captured: firstRects.size,
-      maxItems: effectiveMaxItems,
-      overscan: effectiveOverscan,
-      viewportHeight: Math.round((viewport.bottom || 0) - (viewport.top || 0))
-    }
-    if (DENSITY_FLIP_DEBUG) {
-      console.log(logPrefix, 'capture', lastCaptureStats)
-      pushDensityDebugLog({
-        source: logPrefix,
-        phase: 'capture',
-        ...lastCaptureStats
-      })
-    }
-
     return firstRects.size > 0
   }
 
@@ -130,10 +92,8 @@ export function createDensityFlip({
       return
     }
 
-    const animateStartedAt = performance.now()
     await nextTick()
     await nextAnimationFrame()
-    const afterFrameAt = performance.now()
 
     const container = getContainer?.()
     if (!container) {
@@ -148,7 +108,6 @@ export function createDensityFlip({
     const effectiveFade = resolveOption(fade, 0.96)
     const effectiveScale = resolveOption(scale, 0.99)
     const animations = []
-    const rectReadStartedAt = performance.now()
 
     for (const [el, first] of firstRects.entries()) {
       if (!el || !el.isConnected || !el.animate) continue
@@ -162,7 +121,6 @@ export function createDensityFlip({
 
       animations.push({ el, dx, dy })
     }
-    const rectReadFinishedAt = performance.now()
 
     for (const { el, dx, dy } of animations) {
       el.animate(
@@ -172,23 +130,6 @@ export function createDensityFlip({
         ],
         { duration: effectiveDuration, easing: effectiveEasing }
       )
-    }
-
-    if (DENSITY_FLIP_DEBUG) {
-      const payload = {
-        ...lastCaptureStats,
-        animated: animations.length,
-        waitForFrameMs: Math.round((afterFrameAt - animateStartedAt) * 100) / 100,
-        rectReadMs: Math.round((rectReadFinishedAt - rectReadStartedAt) * 100) / 100,
-        totalAnimatePrepMs: Math.round((rectReadFinishedAt - animateStartedAt) * 100) / 100,
-        duration: effectiveDuration
-      }
-      console.log(logPrefix, 'animate', payload)
-      pushDensityDebugLog({
-        source: logPrefix,
-        phase: 'animate',
-        ...payload
-      })
     }
 
     firstRects.clear()
