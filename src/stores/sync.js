@@ -1013,9 +1013,9 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       if (!hasDataDiff && hasPendingImageChanges) {
-        syncStatus.value = '姝ｅ湪涓婁紶鏈湴鏁版嵁...'
+        syncStatus.value = '正在上传本地数据...'
         const imageStats = await pushToRemote(gist, existingImageGist)
-        syncStatus.value = '涓婁紶瀹屾垚'
+        syncStatus.value = '上传完成'
         return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
       }
 
@@ -1126,10 +1126,10 @@ export const useSyncStore = defineStore('sync', () => {
         }
 
         if (!hasContentDiff && hasRemoteImageChanges) {
-          syncStatus.value = '姝ｅ湪鎷夊彇杩滅鏁版嵁...'
+          syncStatus.value = '正在拉取远端数据...'
           const result = await pullFromRemote(gist, remoteManifest)
           await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-          syncStatus.value = '鎷夊彇瀹屾垚'
+          syncStatus.value = '拉取完成'
           return { action: 'pulled', ...result }
         }
 
