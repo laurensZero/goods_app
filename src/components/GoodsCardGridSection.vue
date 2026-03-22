@@ -23,6 +23,12 @@
         @toggle-select="emit('toggle-select', item.id)"
         @open-detail="emit('open-detail', item.id)"
       />
+      <div
+        v-if="afterSpacerHeight > 0"
+        class="goods-list-spacer"
+        aria-hidden="true"
+        :style="{ height: `${afterSpacerHeight}px` }"
+      />
     </div>
   </section>
 </template>
@@ -65,6 +71,10 @@ const props = defineProps({
   indexOffset: {
     type: Number,
     default: 0
+  },
+  afterSpacerHeight: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -91,6 +101,11 @@ defineExpose({
 }
 
 .goods-view-pane--sorting {
+  pointer-events: none;
+}
+
+.goods-list-spacer {
+  grid-column: 1 / -1;
   pointer-events: none;
 }
 </style>

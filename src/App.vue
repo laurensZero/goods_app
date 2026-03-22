@@ -3,20 +3,13 @@
     <div class="route-stage">
       <RouterView v-slot="{ Component, route: currentRoute }">
         <Transition :name="routeTransitionName" mode="out-in">
-          <div v-if="Component" :key="getSceneKey(currentRoute)" class="route-scene">
-            <KeepAlive :include="keepAliveViewNames">
-              <component
-                v-if="currentRoute.meta.keepAlive"
-                :is="Component"
-                :key="getKeepAliveKey(currentRoute)"
-              />
-            </KeepAlive>
+          <KeepAlive v-if="Component" :include="keepAliveViewNames">
             <component
-              v-if="!currentRoute.meta.keepAlive"
               :is="Component"
-              :key="getRouteKey(currentRoute)"
+              :key="currentRoute.meta.keepAlive ? getKeepAliveKey(currentRoute) : getRouteKey(currentRoute)"
+              class="route-scene"
             />
-          </div>
+          </KeepAlive>
         </Transition>
       </RouterView>
     </div>
@@ -106,9 +99,6 @@ function getRouteKey(currentRoute) {
   return currentRoute.fullPath
 }
 
-function getSceneKey(currentRoute) {
-  return String(currentRoute.fullPath || currentRoute.path || currentRoute.name || '')
-}
 </script>
 
 <style>

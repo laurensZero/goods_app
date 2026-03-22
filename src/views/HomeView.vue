@@ -49,6 +49,7 @@
           :items="visibleGoodsList"
           :density="displayDensity"
           :grid-style="goodsGridStyle"
+          :after-spacer-height="visibleGoodsTailSpacerHeight"
           :transitioning="isDensityAnimating"
           :is-sort-animating="isSortAnimating"
           :selection-mode="selectionMode"
@@ -184,6 +185,7 @@ let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
+let mountBootstrapSession = 0
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -284,6 +286,18 @@ function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
   visibleGoodsCount.value = estimateVisibleCountForScrollTop(scrollTop, options)
 }
 
+function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
+  const viewportHeight = getFlipViewportHeight()
+  const preloadTargetTop = scrollTop + viewportHeight * 2.5
+  visibleGoodsCount.value = Math.min(
+    goodsList.value.length,
+    Math.max(
+      visibleGoodsCount.value,
+      estimateVisibleCountForScrollTop(preloadTargetTop, { useFlipViewport: true }) + getLoadMoreStep()
+    )
+  )
+}
+
 function maybeLoadMoreGoods() {
   if (displayDensity.value === 'timeline') return
   if (visibleGoodsCount.value >= goodsList.value.length) return
@@ -314,6 +328,27 @@ function estimateVisibleTimelineMonths(scrollTop = 0, options = {}) {
 
 function syncVisibleTimelineMonthCount(scrollTop = 0, options = {}) {
   visibleTimelineMonthCount.value = estimateVisibleTimelineMonths(scrollTop, options)
+}
+
+function syncVisibleTimelineMonthCountForActivatedRestore(scrollTop = 0) {
+  const viewportHeight = getFlipViewportHeight()
+  const preloadTargetTop = scrollTop + viewportHeight * 2
+  visibleTimelineMonthCount.value = Math.min(
+    allTimelineMonthCount.value,
+    Math.max(
+      visibleTimelineMonthCount.value,
+      estimateVisibleTimelineMonths(preloadTargetTop, { useFlipViewport: true }) + 1
+    )
+  )
+}
+
+function primeActivatedRestoreWindow(state) {
+  if (!state) return
+
+  const top = Math.max(0, Number(state.top) || 0)
+  syncVisibleGoodsCountForActivatedRestore(top)
+  syncVisibleTimelineMonthCountForActivatedRestore(top)
+  prepareRestoreState(state)
 }
 
 function prepareRestoreState(state) {
@@ -457,7 +492,9 @@ function shouldMaskHomeDisplay() {
 }
 
 onMounted(async () => {
+  const sessionId = ++mountBootstrapSession
   const didResetOnReload = resetStoredScrollOnReload()
+  if (sessionId !== mountBootstrapSession) return
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
   }
@@ -466,13 +503,21 @@ onMounted(async () => {
   restoreHomePreferences()
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
+  if (sessionId !== mountBootstrapSession) return
   syncVisibleGoodsCount()
   syncVisibleTimelineMonthCount()
   await nextTick()
+  if (sessionId !== mountBootstrapSession) return
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
+  const pendingState = getStoredScrollState()
+  if (pendingState?.source) {
+    markScrollSource(pendingState.source)
+  }
   await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
+  if (sessionId !== mountBootstrapSession) return
   await nextTick()
+  if (sessionId !== mountBootstrapSession) return
   homeDisplayReady.value = true
   updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
@@ -481,7 +526,16 @@ onMounted(async () => {
 
 onActivated(async () => {
   isHomeActive.value = true
-  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
+  homeDisplayReady.value = true
+  const storedState = getStoredScrollState()
+  if (storedState?.source) {
+    markScrollSource(storedState.source)
+  }
+  await restoreActivatedScrollPosition(
+    syncVisibleGoodsCountForActivatedRestore,
+    syncVisibleTimelineMonthCountForActivatedRestore,
+    prepareRestoreState
+  )
   await nextTick()
   homeDisplayReady.value = true
   bindSelectionHeaderScroll()
@@ -492,6 +546,7 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isHomeActive.value = false
+  mountBootstrapSession += 1
   cancelPendingRestore()
   rememberCurrentScrollPosition()
   exitSelectionModeQuiet()
@@ -568,6 +623,20 @@ const {
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
+const visibleGoodsTailSpacerHeight = computed(() => {
+  if (displayDensity.value === 'timeline') return 0
+
+  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsList.value.length)
+  if (!remainingItems) return 0
+
+  const cols = getResponsiveCols(displayDensity.value)
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  const gap = 12
+  const remainingRows = Math.ceil(remainingItems / cols)
+  return remainingRows > 0
+    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * gap
+    : 0
+})
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
@@ -608,6 +677,7 @@ watch(
 
 function openDetail(id) {
   saveScrollPosition(true, `home:openDetail:${id}`)
+  primeActivatedRestoreWindow(getStoredScrollState())
   router.push(`/detail/${id}`)
 }
 
