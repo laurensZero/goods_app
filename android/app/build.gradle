@@ -14,6 +14,7 @@ def releaseStoreFile = System.getenv('ANDROID_KEYSTORE_FILE') ?: keystorePropert
 def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: keystoreProperties.getProperty('storePassword')
 def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: keystoreProperties.getProperty('keyAlias')
 def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: keystoreProperties.getProperty('keyPassword')
+def releaseVersionName = System.getenv('ANDROID_VERSION_NAME') ?: '1.0'
 def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
 android {
@@ -34,7 +35,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName releaseVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
