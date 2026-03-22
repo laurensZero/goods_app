@@ -193,68 +193,68 @@
 
       </Transition>
     </main>
+
+    <!-- ========== 编辑商品信息底部弹窗 ========== -->
+    <Teleport to="body">
+      <Transition name="sheet-backdrop">
+        <div v-if="showEditSheet" class="sheet-backdrop" @click="closeEdit" />
+      </Transition>
+      <Transition name="sheet-slide">
+        <div v-if="showEditSheet" class="edit-sheet" role="dialog" aria-modal="true" aria-label="编辑商品信息">
+          <div class="sheet-handle" aria-hidden="true" />
+          <p class="sheet-title">编辑商品信息</p>
+
+          <div class="edit-sheet-body">
+            <div class="edit-field">
+              <span class="edit-label">名称</span>
+              <input v-model="editForm.name" type="text" placeholder="商品名称" class="edit-input" />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">IP</span>
+              <AppSelect v-model="editForm.ip" :options="presets.ips" placeholder="请选择 IP" />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">分类</span>
+              <AppSelect v-model="editForm.category" :options="presets.categories" placeholder="请选择分类" />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">角色</span>
+              <input v-model="editForm.charactersText" type="text" placeholder="角色名（多个用逗号分隔）" class="edit-input" />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">款式</span>
+              <input v-model="editForm.variant" type="text" placeholder="款式描述" class="edit-input" />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">价格（¥）</span>
+              <input v-model="editForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="edit-input" />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">购入日期</span>
+              <input v-model="editForm.acquiredAt" type="date" class="edit-input" />
+            </div>
+            <div class="edit-field edit-field--image">
+              <span class="edit-label">图片 URL</span>
+              <MihoyoImagePicker
+                ref="editMihoyoPickerRef"
+                v-model="editForm.image"
+                :hint="editForm.charactersText.split(',')[0]?.trim() || editForm.variant || ''"
+              />
+            </div>
+            <div class="edit-field">
+              <span class="edit-label">备注</span>
+              <input v-model="editForm.note" type="text" placeholder="备注（可选）" class="edit-input" />
+            </div>
+          </div>
+
+          <div class="edit-sheet-actions">
+            <button class="edit-cancel-btn" type="button" @click="closeEdit">取消</button>
+            <button class="edit-save-btn" type="button" @click="saveEdit">保存</button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
-
-  <!-- ========== 编辑商品信息底部弹窗 ========== -->
-  <Teleport to="body">
-    <Transition name="sheet-backdrop">
-      <div v-if="showEditSheet" class="sheet-backdrop" @click="closeEdit" />
-    </Transition>
-    <Transition name="sheet-slide">
-      <div v-if="showEditSheet" class="edit-sheet" role="dialog" aria-modal="true" aria-label="编辑商品信息">
-        <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">编辑商品信息</p>
-
-        <div class="edit-sheet-body">
-          <div class="edit-field">
-            <span class="edit-label">名称</span>
-            <input v-model="editForm.name" type="text" placeholder="商品名称" class="edit-input" />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">IP</span>
-            <AppSelect v-model="editForm.ip" :options="presets.ips" placeholder="请选择 IP" />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">分类</span>
-            <AppSelect v-model="editForm.category" :options="presets.categories" placeholder="请选择分类" />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">角色</span>
-            <input v-model="editForm.charactersText" type="text" placeholder="角色名（多个用逗号分隔）" class="edit-input" />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">款式</span>
-            <input v-model="editForm.variant" type="text" placeholder="款式描述" class="edit-input" />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">价格（¥）</span>
-            <input v-model="editForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="edit-input" />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">购入日期</span>
-            <input v-model="editForm.acquiredAt" type="date" class="edit-input" />
-          </div>
-          <div class="edit-field edit-field--image">
-            <span class="edit-label">图片 URL</span>
-            <MihoyoImagePicker
-              ref="editMihoyoPickerRef"
-              v-model="editForm.image"
-              :hint="editForm.charactersText.split(',')[0]?.trim() || editForm.variant || ''"
-            />
-          </div>
-          <div class="edit-field">
-            <span class="edit-label">备注</span>
-            <input v-model="editForm.note" type="text" placeholder="备注（可选）" class="edit-input" />
-          </div>
-        </div>
-
-        <div class="edit-sheet-actions">
-          <button class="edit-cancel-btn" type="button" @click="closeEdit">取消</button>
-          <button class="edit-save-btn" type="button" @click="saveEdit">保存</button>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
 </template>
 
 <script setup>
