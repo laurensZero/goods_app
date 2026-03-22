@@ -15,11 +15,15 @@ on:
         options:
           - debug
           - release
+      release_tag:
+        description: Release tag for manual release builds, for example v1.0.0
+        required: false
+        type: string
 
 jobs:
   build-debug:
     if: |
-      startsWith(github.ref, 'refs/heads/') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'debug')
     runs-on: ubuntu-latest
 
@@ -74,9 +78,11 @@ jobs:
 
   build-release:
     if: |
-      startsWith(github.ref, 'refs/tags/') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -142,9 +148,45 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
+      - name: Determine release tag
+        id: release_meta
+        env:
+          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -z "$MANUAL_RELEASE_TAG" ]; then
+              echo "Manual release builds require the release_tag input."
+              exit 1
+            fi
+            TAG="$MANUAL_RELEASE_TAG"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "asset_name=goods-app-$TAG-release.apk" >> "$GITHUB_OUTPUT"
+
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: goods-app-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
+          else
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --generate-notes --target "$GITHUB_SHA"
+          fi
+
+      - name: Upload APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
+        run: |
+          gh release upload "$RELEASE_TAG" "android/app/build/outputs/apk/release/app-release.apk#$RELEASE_ASSET_NAME" --clobber
