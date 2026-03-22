@@ -284,21 +284,6 @@ const priceText = computed(() => {
     box-shadow 0.22s ease;
 }
 
-@supports (content-visibility: auto) {
-  .goods-card {
-    content-visibility: auto;
-    contain-intrinsic-size: 1px 308px;
-  }
-
-  .goods-card--standard {
-    contain-intrinsic-size: 1px 272px;
-  }
-
-  .goods-card--compact {
-    contain-intrinsic-size: 1px 236px;
-  }
-}
-
 .goods-card--transitioning {
   transition: none;
 }
