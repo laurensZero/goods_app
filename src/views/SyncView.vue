@@ -1383,19 +1383,26 @@ onMounted(async () => {
   left: 50%;
   bottom: calc(80px + max(env(safe-area-inset-bottom), 12px) + 12px);
   z-index: 999;
-  padding: 10px 20px;
-  border-radius: 20px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(calc(100vw - 32px), 420px);
+  padding: 11px 16px;
+  border-radius: 18px;
   border: 1px solid var(--app-glass-border);
-  background: var(--app-glass-strong);
+  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
   color: var(--app-text);
   box-shadow: var(--app-shadow);
   font-size: 14px;
   font-weight: 500;
-  white-space: nowrap;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
   transform: translateX(-50%);
   pointer-events: none;
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .toast-fade-enter-active,

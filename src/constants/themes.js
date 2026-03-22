@@ -10,7 +10,8 @@ export const THEME_IDS = {
   mint: 'mint',
   vinyl: 'vinyl',
   terracotta: 'terracotta',
-  bruise: 'bruise'
+  bruise: 'bruise',
+  custom: 'custom'
 }
 
 export const APPEARANCE_PREFERENCES = {
@@ -38,6 +39,64 @@ export const APPEARANCE_OPTIONS = [
 ]
 
 export const THEME_DEFINITIONS = {
+  [THEME_IDS.custom]: {
+    id: THEME_IDS.custom,
+    label: '自定义调色板',
+    description: '完全自由设定的专属主色调选项，创造你的个人风格。',
+    defaultAppearance: 'light',
+    supportsAppearanceControl: true,
+    preview: ['#f5f5f7', '#ffffff', '#141416'],
+    appearances: {
+      light: {
+        '--app-bg': '#f5f5f7',
+        '--app-bg-gradient': 'linear-gradient(180deg, var(--app-bg) 0%, color-mix(in srgb, var(--app-bg) 95%, #000) 100%)',
+        '--app-surface': '#ffffff',
+        '--app-surface-soft': 'color-mix(in srgb, var(--app-surface) 96%, #000)',
+        '--app-surface-muted': 'color-mix(in srgb, var(--app-surface) 92%, #000)',
+        '--app-text': '#141416',
+        '--app-text-secondary': 'color-mix(in srgb, var(--app-text) 60%, transparent)',
+        '--app-text-tertiary': 'color-mix(in srgb, var(--app-text) 40%, transparent)',
+        '--app-placeholder': 'color-mix(in srgb, var(--app-text) 25%, transparent)',
+        '--app-border': 'color-mix(in srgb, var(--app-text) 6%, transparent)',
+        '--app-shadow': '0 8px 24px color-mix(in srgb, var(--app-text) 6%, transparent)',
+        '--summary-card-gradient': 'linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%)',
+        '--summary-card-orb': 'rgba(255, 255, 255, 0.08)',
+        '--summary-card-text': '#ffffff',
+        '--summary-card-label': 'rgba(255, 255, 255, 0.56)',
+        '--summary-card-button-bg': 'rgba(255, 255, 255, 0.08)',
+        '--summary-card-button-border': 'rgba(255, 255, 255, 0.12)',
+        '--summary-card-button-text': 'rgba(255, 255, 255, 0.82)',
+        '--app-glass': 'color-mix(in srgb, var(--app-surface) 86%, transparent)',
+        '--app-glass-strong': 'color-mix(in srgb, var(--app-surface) 72%, transparent)',
+        '--app-glass-border': 'color-mix(in srgb, var(--app-surface) 52%, transparent)',
+        '--app-overlay': 'rgba(20, 20, 22, 0.22)'
+      },
+      dark: {
+        '--app-bg': '#0f0f10',
+        '--app-bg-gradient': 'linear-gradient(180deg, var(--app-bg) 0%, color-mix(in srgb, var(--app-bg) 95%, #fff) 100%)',
+        '--app-surface': '#1c1c1e',
+        '--app-surface-soft': 'color-mix(in srgb, var(--app-surface) 93%, #fff)',
+        '--app-surface-muted': 'color-mix(in srgb, var(--app-surface) 85%, #fff)',
+        '--app-text': '#f5f5f7',
+        '--app-text-secondary': 'color-mix(in srgb, var(--app-text) 65%, transparent)',
+        '--app-text-tertiary': 'color-mix(in srgb, var(--app-text) 45%, transparent)',
+        '--app-placeholder': 'color-mix(in srgb, var(--app-text) 30%, transparent)',
+        '--app-border': 'color-mix(in srgb, var(--app-text) 10%, transparent)',
+        '--app-shadow': '0 8px 24px color-mix(in srgb, var(--app-surface) 40%, #000)',
+        '--summary-card-gradient': 'linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%)',
+        '--summary-card-orb': 'rgba(255, 255, 255, 0.08)',
+        '--summary-card-text': '#ffffff',
+        '--summary-card-label': 'rgba(255, 255, 255, 0.56)',
+        '--summary-card-button-bg': 'rgba(255, 255, 255, 0.08)',
+        '--summary-card-button-border': 'rgba(255, 255, 255, 0.12)',
+        '--summary-card-button-text': 'rgba(255, 255, 255, 0.82)',
+        '--app-glass': 'color-mix(in srgb, var(--app-surface) 68%, transparent)',
+        '--app-glass-strong': 'color-mix(in srgb, var(--app-surface) 78%, transparent)',
+        '--app-glass-border': 'color-mix(in srgb, var(--app-text) 10%, transparent)',
+        '--app-overlay': 'rgba(0, 0, 0, 0.36)'
+      }
+    }
+  },
   [THEME_IDS.mist]: {
     id: THEME_IDS.mist,
     label: '银雾玻璃',
@@ -557,7 +616,8 @@ export const THEME_OPTIONS = [
   THEME_DEFINITIONS[THEME_IDS.jade],
   THEME_DEFINITIONS[THEME_IDS.gilded],
   THEME_DEFINITIONS[THEME_IDS.idol],
-  THEME_DEFINITIONS[THEME_IDS.bruise]
+  THEME_DEFINITIONS[THEME_IDS.bruise],
+  THEME_DEFINITIONS[THEME_IDS.custom]
 ]
 
 export function getThemeDefinition(themeId) {

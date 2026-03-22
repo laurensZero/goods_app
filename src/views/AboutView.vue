@@ -237,7 +237,7 @@ const isSubmittingFeedback = ref(false)
 const toastMsg = ref('')
 let toastTimer = null
 
-const appIconSrc = `${import.meta.env.BASE_URL}assets/icon-android-1024.png`
+const appIconSrc = `${import.meta.env.BASE_URL}favicon.svg`
 const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
 const appId = capacitorConfig.appId || 'unknown'
 const appVersion = import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0'
