@@ -62,6 +62,7 @@
               :key="item.id"
               :item="item"
               :density="displayDensity"
+              :transitioning="isDensityAnimating"
               :data-goods-id="item.id"
               :data-scroll-anchor="'goods-card'"
               :data-scroll-index="index"

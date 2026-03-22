@@ -30,6 +30,10 @@ function resolveOption(option, fallback) {
   return option
 }
 
+function nextAnimationFrame() {
+  return new Promise((resolve) => window.requestAnimationFrame(resolve))
+}
+
 export function createDensityFlip({
   getContainer,
   getItems,
@@ -89,6 +93,7 @@ export function createDensityFlip({
     }
 
     await nextTick()
+    await nextAnimationFrame()
 
     const container = getContainer?.()
     if (!container) {
@@ -102,6 +107,8 @@ export function createDensityFlip({
     const effectiveEasing = resolveOption(easing, HOME_MOTION.easeEmphasis)
     const effectiveFade = resolveOption(fade, 0.96)
     const effectiveScale = resolveOption(scale, 0.99)
+    const animations = []
+
     for (const [el, first] of firstRects.entries()) {
       if (!el || !el.isConnected || !el.animate) continue
       const last = el.getBoundingClientRect()
@@ -112,6 +119,10 @@ export function createDensityFlip({
       const dy = first.top - last.top
       if (!dx && !dy) continue
 
+      animations.push({ el, dx, dy })
+    }
+
+    for (const { el, dx, dy } of animations) {
       el.animate(
         [
           { transform: `translate(${dx}px, ${dy}px) scale(${effectiveScale})`, opacity: effectiveFade },

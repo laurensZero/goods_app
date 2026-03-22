@@ -284,6 +284,34 @@ const priceText = computed(() => {
     box-shadow 0.22s ease;
 }
 
+@supports (content-visibility: auto) {
+  .goods-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 308px;
+  }
+
+  .goods-card--standard {
+    contain-intrinsic-size: 1px 272px;
+  }
+
+  .goods-card--compact {
+    contain-intrinsic-size: 1px 236px;
+  }
+}
+
+.goods-card--transitioning {
+  transition: none;
+}
+
+.goods-card--transitioning .card-tags,
+.goods-card--transitioning .card-chip,
+.goods-card--transitioning .card-days,
+.goods-card--transitioning .check-icon,
+.goods-card--transitioning .selection-overlay {
+  transition: none !important;
+  animation: none !important;
+}
+
 .goods-card:active {
   transform: scale(var(--press-scale-card));
 }
