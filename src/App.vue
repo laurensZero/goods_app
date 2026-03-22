@@ -109,6 +109,7 @@ function getRouteKey(currentRoute) {
   isolation: isolate;
   background-color: var(--app-bg);
   background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
 }
 
 .route-scene {
@@ -116,6 +117,7 @@ function getRouteKey(currentRoute) {
   backface-visibility: hidden;
   background-color: var(--app-bg);
   background-image: var(--app-bg-gradient);
+  background-attachment: fixed;
 }
 
 .route-forward-enter-active,
