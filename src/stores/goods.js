@@ -24,7 +24,7 @@ import { normalizeCharacterName } from '@/stores/presets'
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
 const CHARACTERS_MIGRATION_KEY = 'goods_characters_normalized_v1'
-const VARIANT_MIGRATION_KEY = 'goods_variant_normalized_v1'
+const VARIANT_MIGRATION_KEY = 'goods_variant_normalized_v2'
 const IS_NATIVE = Capacitor.isNativePlatform()
 
 function isValidYearMonth(value) {
@@ -464,15 +464,29 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   async function normalizeExistingVariants() {
-    const updates = []
     const now = Date.now()
+    let listChanged = false
+    const mergedList = []
+    const mergedKeyToIndex = new Map()
+    const removedIds = new Set()
 
-    list.value = list.value.map((item) => {
+    list.value.forEach((item) => {
       const normalized = normalizeGoodsInput(item, item.id)
-      if (JSON.stringify(normalized) === JSON.stringify(item)) return item
-      const next = { ...normalized, updatedAt: now }
-      updates.push(next)
-      return next
+      const unchanged = JSON.stringify(normalized) === JSON.stringify(item)
+      const next = unchanged ? item : { ...normalized, updatedAt: now }
+      if (!unchanged) listChanged = true
+
+      const key = `${next.isWishlist ? 1 : 0}::${buildGoodsIdentityKey(next)}`
+      if (mergedKeyToIndex.has(key)) {
+        const existingIndex = mergedKeyToIndex.get(key)
+        mergedList[existingIndex] = { ...mergeGoodsRecord(mergedList[existingIndex], next), updatedAt: now }
+        removedIds.add(next.id)
+        listChanged = true
+        return
+      }
+
+      mergedKeyToIndex.set(key, mergedList.length)
+      mergedList.push(next)
     })
 
     let trashChanged = false
@@ -484,9 +498,13 @@ export const useGoodsStore = defineStore('goods', () => {
       return next
     })
 
-    if (updates.length > 0) {
+    if (listChanged) {
+      list.value = mergedList
       triggerRef(list)
-      await saveItems(updates)
+      await saveItems(mergedList)
+      if (removedIds.size > 0) {
+        await deleteItems(Array.from(removedIds))
+      }
     }
     if (trashChanged) {
       triggerRef(trashList)

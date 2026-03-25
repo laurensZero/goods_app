@@ -2,14 +2,51 @@ export function normalizeGoodsName(name) {
   return String(name || '').trim()
 }
 
+const VARIANT_SALE_KEYWORD_RE = /(?:(?:第?\d+|[一二三四五六七八九十两]+)(?:批|批次)?\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售|以规格标注为准)/
+const VARIANT_SALE_MARKER_PATTERNS = [
+  /【[^】]*】/g,
+  /（[^）]*）/g,
+  /\([^)]*\)/g,
+]
+const VARIANT_TRAILING_SALE_NOTE_RE = /\s*[，,、;；]\s*.*?(?:(?:第?\d+|[一二三四五六七八九十两]+)(?:批|批次)?\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售|以规格标注为准).*$/g
+
+function stripVariantSaleMarkers(value) {
+  return VARIANT_SALE_MARKER_PATTERNS.reduce((result, pattern) => (
+    result.replace(pattern, (match) => (VARIANT_SALE_KEYWORD_RE.test(match) ? '' : match))
+  ), String(value || ''))
+}
+
+function isVariantSaleSegment(segment) {
+  const value = String(segment || '').trim()
+  if (!value) return false
+  const match = value.match(VARIANT_SALE_KEYWORD_RE)
+  if (!match) return false
+  const prefix = value.slice(0, match.index).replace(/[\s，,、;；:：|／/（）()【】\[\]-—]+/g, '')
+  return !prefix
+}
+
 export function normalizeGoodsVariant(variant) {
-  let value = String(variant || '').trim()
+  let value = stripVariantSaleMarkers(variant).trim()
   if (!value) return ''
 
   let previous = ''
   while (value && value !== previous) {
     previous = value
-    value = value
+    const parts = stripVariantSaleMarkers(value)
+      .split(/\s*[\/／]+\s*/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter((part) => !isVariantSaleSegment(part))
+
+    value = parts.join(' / ')
+      .replace(VARIANT_TRAILING_SALE_NOTE_RE, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/^\s*[-—:：|]+\s*/g, '')
+      .replace(/\s*[-—:：|]+\s*$/g, '')
+      .replace(/^\s*[，,、;；]+\s*/g, '')
+      .replace(/\s*[，,、;；]+\s*$/g, '')
+      .replace(/\s*[，,、;；]+\s*([\/／])/g, ' $1')
+      .replace(/([\/／])\s*[，,、;；]+\s*/g, '$1 ')
       .replace(/^\s*[\/／]+\s*/g, '')
       .replace(/\s*[\/／]+\s*$/g, '')
       .trim()

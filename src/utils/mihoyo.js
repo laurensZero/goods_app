@@ -13,6 +13,7 @@
  *   - 浏览器 / Web：使用 fetch，跨域会被拦截（开发阶段正常，APK 内正常）
  */
 import { CapacitorHttp, Capacitor } from '@capacitor/core'
+import { normalizeGoodsVariant } from '@/utils/goodsIdentity'
 
 const API_BASE = 'https://api-mall.mihoyogift.com'
 const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
@@ -597,14 +598,7 @@ function cleanAttrValue(str) {
  *  "竖版" / "红色" / "彩色" → 跳过（在常见非角色词表中）
  */
 function cleanStyleValue(str) {
-  return String(str || '')
-    .replace(/【预售[^】]*】/g, '')
-    .replace(/（预售[^）]*）/g, '')
-    .replace(/\(预售[^)]*\)/g, '')
-    .replace(/【预计[^】]*】/g, '')
-    .replace(/（预计[^）]*）/g, '')
-    .replace(/\(预计[^)]*\)/g, '')
-    .trim()
+  return normalizeGoodsVariant(str)
 }
 
 function firstNonEmpty(...values) {
@@ -781,7 +775,7 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     goodsWrapper.style_name,
     goodsWrapper.variant,
   )
-  const variant = [...styleSet].join(' / ') || String(fallbackVariant || '').trim()
+  const variant = normalizeGoodsVariant([...styleSet].join(' / ') || String(fallbackVariant || '').trim())
   const itemStatusText = extractItemStatusText(goodsWrapper, goods)
   const payTime =
     order.payment_info?.pay_time || order.payment_info?.payTime ||
