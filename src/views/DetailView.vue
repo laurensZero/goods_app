@@ -110,7 +110,7 @@
 
             <article v-if="showActualPriceTile" class="info-tile">
               <span class="info-label">入手价</span>
-              <strong class="info-value">¥{{ item.actualPrice }}</strong>
+              <strong class="info-value">{{ actualPriceDisplayText }}</strong>
             </article>
 
             <article v-if="item.storageLocation" class="info-tile">
@@ -230,16 +230,19 @@ function hasActualPriceValue(value) {
 const heroPriceAmount = computed(() => {
   if (!item.value) return '—'
   if (item.value.isWishlist) return item.value.price || '—'
+  if (unitActualPriceAmountText.value) return unitActualPriceAmountText.value
   return hasActualPriceValue(item.value.actualPrice) ? item.value.actualPrice : (item.value.price || '—')
 })
 const heroPriceLabel = computed(() => {
   if (!item.value) return '价格'
+  if (unitActualPriceAmountText.value) return '价格'
   if (item.value.isWishlist) return '目标价格'
   return hasActualPriceValue(item.value.actualPrice) ? '入手价' : '价格'
 })
-const showHeroPointsInline = computed(() => !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
+const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
 const heroPriceHint = computed(() => {
   if (!item.value || item.value.isWishlist) return ''
+  if (unitActualPriceAmountText.value) return ''
   const parts = []
   if (hasActualPriceValue(item.value.actualPrice) && item.value.price) {
     parts.push(`价格 ¥${item.value.price}`)
@@ -254,7 +257,32 @@ const officialPriceText = computed(() => {
   return item.value.points ? `¥${item.value.price} +${item.value.points}积分` : `¥${item.value.price}`
 })
 const showOfficialPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.price)
-const showActualPriceTile = computed(() => !item.value?.isWishlist && hasActualPriceValue(item.value?.actualPrice))
+const unitActualPriceAmountText = computed(() => {
+  const quantity = Number(item.value?.quantity) || 1
+  if (quantity < 2) return ''
+
+  const list = Array.isArray(item.value?.unitActualPriceList) ? item.value.unitActualPriceList : []
+  const normalized = list
+    .map((value) => {
+      const numeric = Number.parseFloat(String(value || '').trim())
+      if (!Number.isFinite(numeric) || numeric < 0) return ''
+      return `${Math.round(numeric * 100) / 100}`
+    })
+    .filter(Boolean)
+
+  if (normalized.length < 2) return ''
+  return normalized.join(' / ')
+})
+const unitActualPriceText = computed(() => {
+  if (!unitActualPriceAmountText.value) return ''
+  return unitActualPriceAmountText.value.split(' / ').map((value) => `¥${value}`).join(' / ')
+})
+const actualPriceDisplayText = computed(() => {
+  if (unitActualPriceText.value) return unitActualPriceText.value
+  if (hasActualPriceValue(item.value?.actualPrice)) return `¥${item.value.actualPrice}`
+  return '未填写'
+})
+const showActualPriceTile = computed(() => !item.value?.isWishlist && (hasActualPriceValue(item.value?.actualPrice) || !!unitActualPriceText.value))
 const unitAcquiredAtText = computed(() => {
   const quantity = Number(item.value?.quantity) || 1
   if (quantity < 2) return ''

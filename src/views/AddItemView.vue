@@ -249,10 +249,10 @@
                 <button class="actual-price-toggle" type="button" @click="showActualPriceInput = !showActualPriceInput">
                   <span class="actual-price-toggle__copy">
                     <span class="actual-price-toggle__title">
-                      {{ showActualPriceInput ? '收起实际入手价' : (hasActualPriceValue(form.actualPrice) ? '已填写实际入手价' : '补充实际入手价') }}
+                      {{ showActualPriceInput ? '收起入手价信息' : ((hasActualPriceValue(form.actualPrice) || hasUnitActualPriceValue) ? '已填写入手价信息' : '补充入手价信息') }}
                     </span>
                     <span class="actual-price-toggle__desc">
-                      {{ showActualPriceInput ? '用于单独记录最终成交价' : (hasActualPriceValue(form.actualPrice) ? `当前 ¥${form.actualPrice}` : '如果成交价和标价不同，可以单独填写') }}
+                      {{ showActualPriceInput ? '可记录总入手价与逐份入手价' : ((hasActualPriceValue(form.actualPrice) || hasUnitActualPriceValue) ? '已保存部分价格信息' : '如果成交价和标价不同，可以补充总价或逐份价格') }}
                     </span>
                   </span>
                   <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showActualPriceInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -262,7 +262,50 @@
 
                 <div v-if="showActualPriceInput" class="actual-price-panel">
                   <span class="field-label">入手价（¥）</span>
-                  <input v-model="form.actualPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+                  <input
+                    v-model="form.actualPrice"
+                    :class="{ 'actual-price-input--disabled': disableActualPriceInput }"
+                    :disabled="disableActualPriceInput"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    @blur="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
+                    @change="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
+                  />
+
+                  <template v-if="quantityNumber >= 2">
+                    <div class="actual-price-block" :class="{ 'actual-price-block--open': showUnitActualPriceInput }">
+                      <button class="actual-price-toggle" type="button" @click="showUnitActualPriceInput = !showUnitActualPriceInput">
+                        <span class="actual-price-toggle__copy">
+                          <span class="actual-price-toggle__title">
+                            {{ showUnitActualPriceInput ? '收起逐份入手价' : (hasUnitActualPriceValue ? '已填写逐份入手价' : '设置逐份入手价') }}
+                          </span>
+                          <span class="actual-price-toggle__desc">
+                            {{ showUnitActualPriceInput ? '可分别记录每一份谷子的成交价' : (hasUnitActualPriceValue ? '已保存部分逐份价格' : '数量大于等于 2 时可单独设置每份价格') }}
+                          </span>
+                        </span>
+                        <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showUnitActualPriceInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M7 10L12 15L17 10" />
+                        </svg>
+                      </button>
+
+                      <div v-if="showUnitActualPriceInput" class="actual-price-panel">
+                        <label v-for="index in quantityNumber" :key="`unit-price-${index}`" class="unit-date-field">
+                          <span class="field-label">第 {{ index }} 份入手价（¥）</span>
+                          <input
+                            v-model="form.unitActualPriceList[index - 1]"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            @blur="normalizeUnitPriceAt(index - 1)"
+                            @change="normalizeUnitPriceAt(index - 1)"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </template>
                 </div>
               </div>
             </label>
@@ -447,12 +490,14 @@ const form = reactive({
   images: [],
   note: '',
   quantity: 1,
-  unitAcquiredAtList: []
+  unitAcquiredAtList: [],
+  unitActualPriceList: []
 })
 
 const showPointsInput = ref(false)
 const showActualPriceInput = ref(false)
 const showUnitAcquiredAtInput = ref(false)
+const showUnitActualPriceInput = ref(false)
 const quickCreateTarget = ref('')
 const quickCategoryName = ref('')
 const quickIpName = ref('')
@@ -498,6 +543,8 @@ const characterPlaceholder = computed(() => {
 const primaryPreviewImage = computed(() => getPrimaryGoodsImageUrl(form.images))
 const quantityNumber = computed(() => Math.max(1, Number(form.quantity) || 1))
 const hasUnitAcquiredAtValue = computed(() => form.unitAcquiredAtList.some((value) => !!String(value || '').trim()))
+const hasUnitActualPriceValue = computed(() => form.unitActualPriceList.some((value) => !!String(value || '').trim()))
+const disableActualPriceInput = computed(() => !form.isWishlist && quantityNumber.value >= 2 && showUnitActualPriceInput.value)
 const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
 const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 
@@ -536,9 +583,11 @@ watch(
       showPointsInput.value = false
       showActualPriceInput.value = false
       showUnitAcquiredAtInput.value = false
+      showUnitActualPriceInput.value = false
       form.actualPrice = ''
       form.points = ''
       form.unitAcquiredAtList = []
+      form.unitActualPriceList = []
       return
     }
 
@@ -552,6 +601,7 @@ watch(
   quantityNumber,
   () => {
     syncUnitAcquiredAtListLength()
+    syncUnitActualPriceListLength()
   },
   { immediate: true }
 )
@@ -667,6 +717,18 @@ function normalizeUnitDateAt(index) {
   form.unitAcquiredAtList[index] = normalizeUnitDateValue(form.unitAcquiredAtList[index])
 }
 
+function normalizeUnitPriceValue(value) {
+  if (value === '' || value == null) return ''
+  const numeric = Number.parseFloat(String(value).trim())
+  if (!Number.isFinite(numeric) || numeric < 0) return ''
+  return `${Math.round(numeric * 100) / 100}`
+}
+
+function normalizeUnitPriceAt(index) {
+  if (index < 0 || index >= form.unitActualPriceList.length) return
+  form.unitActualPriceList[index] = normalizeUnitPriceValue(form.unitActualPriceList[index])
+}
+
 function syncUnitAcquiredAtListLength() {
   const targetLength = quantityNumber.value
   const fallbackDate = normalizeUnitDateValue(form.acquiredAt)
@@ -684,6 +746,23 @@ function syncUnitAcquiredAtListLength() {
   }
 }
 
+function syncUnitActualPriceListLength() {
+  const targetLength = quantityNumber.value
+  const fallbackPrice = normalizeUnitPriceValue(form.actualPrice)
+  const current = Array.isArray(form.unitActualPriceList) ? [...form.unitActualPriceList] : []
+  const next = Array.from({ length: targetLength }, (_, index) => normalizeUnitPriceValue(current[index]) || fallbackPrice)
+
+  while (next.length > 0 && !next[next.length - 1]) {
+    next.pop()
+  }
+
+  form.unitActualPriceList = next
+
+  if (targetLength < 2) {
+    showUnitActualPriceInput.value = false
+  }
+}
+
 function syncAllUnitDatesFromPrimaryDate() {
   if (form.isWishlist || quantityNumber.value < 2) return
 
@@ -691,6 +770,15 @@ function syncAllUnitDatesFromPrimaryDate() {
   if (!normalizedDate) return
 
   form.unitAcquiredAtList = Array.from({ length: quantityNumber.value }, () => normalizedDate)
+}
+
+function syncAllUnitPricesFromActualPrice() {
+  if (form.isWishlist || quantityNumber.value < 2) return
+
+  const normalizedPrice = normalizeUnitPriceValue(form.actualPrice)
+  if (!normalizedPrice) return
+
+  form.unitActualPriceList = Array.from({ length: quantityNumber.value }, () => normalizedPrice)
 }
 
 function openDatePicker() {
@@ -768,6 +856,7 @@ onMounted(() => {
     form.acquiredAt = today
   }
   syncUnitAcquiredAtListLength()
+  syncUnitActualPriceListLength()
   handleViewportResize()
   window.addEventListener('resize', handleViewportResize)
   document.addEventListener('mousedown', handleClickOutside)
@@ -1079,6 +1168,11 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
   width: auto;
+}
+
+.actual-price-input--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 

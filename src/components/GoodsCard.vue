@@ -255,9 +255,29 @@ const windowWidth = ref(window.innerWidth)
 const isTablet = computed(() => windowWidth.value >= 900)
 const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && holdingDays.value !== null)
 const showPoints = computed(() => !props.item.isWishlist && props.item.points && (props.density === 'comfortable' || isTablet.value))
+const unitActualPriceText = computed(() => {
+  const quantity = Math.max(1, Number(props.item.quantity) || 1)
+  if (quantity < 2 || props.item.isWishlist) return ''
+
+  const list = Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList : []
+  const normalized = list
+    .map((value) => {
+      const numeric = Number.parseFloat(String(value || '').trim())
+      if (!Number.isFinite(numeric) || numeric < 0) return ''
+      return `¥${Math.round(numeric * 100) / 100}`
+    })
+    .filter(Boolean)
+
+  if (normalized.length < 2) return ''
+  return normalized.join(' / ')
+})
 const priceText = computed(() => {
   if (props.item.isWishlist) {
     return props.item.price ? `目标 ¥${props.item.price}` : '心愿单'
+  }
+
+  if (unitActualPriceText.value) {
+    return unitActualPriceText.value
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {

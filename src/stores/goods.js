@@ -90,6 +90,39 @@ function normalizeUnitAcquiredAtList(list, quantity) {
   return normalized
 }
 
+function normalizeUnitPriceValue(value) {
+  if (value === '' || value == null) return ''
+  const numeric = Number.parseFloat(String(value).trim())
+  if (!Number.isFinite(numeric) || numeric < 0) return ''
+  return `${Math.round(numeric * 100) / 100}`
+}
+
+function normalizeUnitActualPriceList(list, quantity) {
+  const quantityNumber = parseQuantity(quantity)
+  if (quantityNumber < 2 || !Array.isArray(list)) return []
+
+  const normalized = list
+    .slice(0, quantityNumber)
+    .map((value) => normalizeUnitPriceValue(value))
+
+  while (normalized.length > 0 && !normalized[normalized.length - 1]) {
+    normalized.pop()
+  }
+
+  return normalized
+}
+
+function resolveCompleteUnitActualPriceTotal(list, quantity) {
+  const quantityNumber = parseQuantity(quantity)
+  if (quantityNumber < 2 || !Array.isArray(list) || list.length < quantityNumber) return ''
+
+  const prices = list.slice(0, quantityNumber).map((value) => Number.parseFloat(value))
+  if (prices.some((value) => !Number.isFinite(value) || value < 0)) return ''
+
+  const total = prices.reduce((sum, value) => sum + value, 0)
+  return `${Math.round(total * 100) / 100}`
+}
+
 function normalizePriceValue(value) {
   if (value === '' || value == null) return ''
   return value
@@ -407,6 +440,13 @@ export const useGoodsStore = defineStore('goods', () => {
     const images = normalizeGoodsImageList(shouldUseImagesArray ? data.images : undefined, fallbackImage)
     const coverImage = getPrimaryGoodsImageUrl(images, fallbackImage)
 
+    const unitActualPriceList = normalizeWishlistFlag(data.isWishlist)
+      ? []
+      : normalizeUnitActualPriceList(data.unitActualPriceList || data.purchasePriceList, data.quantity)
+    const normalizedActualPrice = normalizeWishlistFlag(data.isWishlist)
+      ? ''
+      : (normalizePriceValue(data.actualPrice) || resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity))
+
     return {
       id: data.id || fallbackId,
       name: normalizeGoodsName(data.name),
@@ -418,12 +458,13 @@ export const useGoodsStore = defineStore('goods', () => {
       storageLocation: normalizeStorageLocationValue(data.storageLocation || data.location || ''),
       variant,
       price: normalizePriceValue(data.price),
-      actualPrice: normalizeWishlistFlag(data.isWishlist) ? '' : normalizePriceValue(data.actualPrice),
+      actualPrice: normalizedActualPrice,
       points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
       acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
       unitAcquiredAtList: normalizeWishlistFlag(data.isWishlist)
         ? []
         : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
+      unitActualPriceList,
       coverImage,
       images,
       note: stripVariantFromNote(data.note || data.notes || ''),
@@ -460,6 +501,10 @@ export const useGoodsStore = defineStore('goods', () => {
       acquiredAt: existing.acquiredAt || incoming.acquiredAt,
       unitAcquiredAtList: normalizeUnitAcquiredAtList(
         [...(existing.unitAcquiredAtList || []), ...(incoming.unitAcquiredAtList || [])],
+        mergedQuantity
+      ),
+      unitActualPriceList: normalizeUnitActualPriceList(
+        [...(existing.unitActualPriceList || []), ...(incoming.unitActualPriceList || [])],
         mergedQuantity
       ),
       coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
