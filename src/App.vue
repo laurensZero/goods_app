@@ -16,17 +16,21 @@
     <Transition :name="tabBarTransitionName">
       <TabBar v-if="showTabBar" />
     </Transition>
+    <AppUpdateDialog />
   </div>
 </template>
 
 <script setup>
 import { computed, KeepAlive, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import AppUpdateDialog from '@/components/AppUpdateDialog.vue'
 import TabBar from '@/components/TabBar.vue'
+import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
 const syncStore = useSyncStore()
+const appUpdateStore = useAppUpdateStore()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
@@ -74,6 +78,11 @@ onMounted(async () => {
   hasMountedRoute = true
   window.addEventListener('popstate', markBackNavigation, { passive: true })
   document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+
+  void appUpdateStore.init()
+  void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
+    // silent fail on startup update check
+  })
 
   // 自动拉取
   await syncStore.init()

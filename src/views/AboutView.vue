@@ -53,6 +53,40 @@
 
       <section class="content-section">
         <div class="section-head">
+          <p class="section-label">App Update</p>
+          <h2 class="section-title">检查更新</h2>
+        </div>
+
+        <article class="update-panel">
+          <p class="info-kicker">GitHub Release</p>
+          <h3 class="info-value">当前版本 v{{ updateStore.currentVersion }}</h3>
+          <p class="info-desc">启动时会自动检查一次更新，你也可以在这里手动触发。</p>
+          <p class="update-status">{{ updateStatusText }}</p>
+          <p class="update-meta">上次检查：{{ updateCheckedAtLabel }}</p>
+
+          <div class="update-actions">
+            <button
+              type="button"
+              class="dialog-btn dialog-btn--secondary"
+              :disabled="updateStore.isChecking"
+              @click="handleManualCheckUpdate"
+            >
+              {{ updateStore.isChecking ? '检查中...' : '手动检查更新' }}
+            </button>
+            <button
+              v-if="updateStore.hasUpdate"
+              type="button"
+              class="dialog-btn dialog-btn--primary"
+              @click="updateStore.openReleasePage()"
+            >
+              前往更新
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <section class="content-section">
+        <div class="section-head">
           <p class="section-label">Current Data</p>
           <h2 class="section-title">当前数据</h2>
         </div>
@@ -209,6 +243,7 @@ import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/NavBar.vue'
+import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
@@ -225,6 +260,7 @@ const IS_NATIVE = Capacitor.isNativePlatform()
 const goodsStore = useGoodsStore()
 const presetsStore = usePresetsStore()
 const syncStore = useSyncStore()
+const updateStore = useAppUpdateStore()
 const pageBodyRef = ref(null)
 const showFeedbackDialog = ref(false)
 const showFeedbackToken = ref(false)
@@ -290,6 +326,21 @@ const statsCards = computed(() => [
     desc: syncStore.lastSyncedAt ? `最近同步：${formatSyncTime(syncStore.lastSyncedAt)}` : '可在管理页中配置 GitHub Gist 同步。'
   }
 ])
+
+const updateStatusText = computed(() => {
+  if (updateStore.isChecking) return '正在检查 GitHub Release 更新...'
+  if (updateStore.lastStatus === 'disabled') return '当前为 Web 开发环境，已禁用更新检查。'
+  if (updateStore.lastStatus === 'available' && updateStore.latestVersion) {
+    return `发现新版本 v${updateStore.latestVersion}`
+  }
+  if (updateStore.lastStatus === 'latest') return '当前已是最新版本'
+  if (updateStore.lastStatus === 'error') return updateStore.lastError || '检查更新失败，请稍后再试。'
+  return '可手动检查 GitHub Release 更新。'
+})
+
+const updateCheckedAtLabel = computed(() => (
+  updateStore.lastCheckedAt ? formatSyncTime(updateStore.lastCheckedAt) : '尚未检查'
+))
 
 function buildIssueBody(content) {
   const lines = [
@@ -469,10 +520,32 @@ async function submitFeedbackIssue() {
   }
 }
 
+async function handleManualCheckUpdate() {
+  if (updateStore.isChecking) return
+
+  try {
+    const result = await updateStore.checkForUpdates({ source: 'manual' })
+    if (result?.status === 'disabled') {
+      showToast('Web 开发环境已禁用更新检查')
+      return
+    }
+
+    if (result?.status === 'available') {
+      showToast(`发现新版本 v${updateStore.latestVersion}`, 3200)
+      return
+    }
+
+    showToast('当前已是最新版本')
+  } catch (error) {
+    showToast(updateStore.lastError || error?.message || '检查更新失败，请稍后再试。', 3200)
+  }
+}
+
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
   syncStore.init()
+  void updateStore.init()
   feedbackToken.value = await readPersistedFeedbackToken()
 })
 
@@ -500,6 +573,7 @@ onBeforeUnmount(() => {
 .info-card,
 .stat-card,
 .feedback-card,
+.update-panel,
 .dialog {
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
@@ -536,7 +610,8 @@ onBeforeUnmount(() => {
 .section-head,
 .info-card,
 .stat-card,
-.feedback-card {
+.feedback-card,
+.update-panel {
   position: relative;
   z-index: 1;
 }
@@ -716,6 +791,30 @@ onBeforeUnmount(() => {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.update-panel {
+  padding: 18px;
+  border-radius: var(--radius-card);
+}
+
+.update-status,
+.update-meta {
+  margin-top: 10px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.update-meta {
+  color: var(--app-text-tertiary);
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .overlay {
