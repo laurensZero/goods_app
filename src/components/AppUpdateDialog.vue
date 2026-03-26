@@ -25,11 +25,31 @@
           <pre class="release-notes__body">{{ updateStore.releaseNotesPreview }}</pre>
         </section>
 
-        <p class="update-tip">更新页面会在浏览器中打开 GitHub Release，你可以自行决定是否下载安装。</p>
+        <p class="update-tip">
+          {{ updateStore.supportsInAppDownload
+            ? '将直接在应用内下载更新包，下载后可直接调用系统安装程序。'
+            : '当前环境不支持应用内下载，将打开更新页面进行下载。' }}
+        </p>
+        <section v-if="updateStore.isDownloading" class="download-progress">
+          <div class="download-progress__head">
+            <span>下载中</span>
+            <span>{{ updateStore.downloadProgress }}%</span>
+          </div>
+          <div class="download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
+            <span class="download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
+          </div>
+          <div class="download-progress__meta">
+            <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
+            <span>{{ updateStore.downloadSpeed || '--' }}</span>
+          </div>
+        </section>
+        <p v-if="updateStore.downloadError" class="update-error">{{ updateStore.downloadError }}</p>
 
         <div class="dialog-actions">
-          <button type="button" class="dialog-btn dialog-btn--secondary" @click="updateStore.dismissDialog()">稍后再说</button>
-          <button type="button" class="dialog-btn dialog-btn--primary" @click="updateStore.openReleasePage()">前往更新</button>
+          <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">稍后再说</button>
+          <button type="button" class="dialog-btn dialog-btn--primary" :disabled="updateStore.isDownloading" @click="updateStore.downloadAndInstallUpdate()">
+            {{ updateStore.isDownloading ? '正在下载…' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
+          </button>
         </div>
       </div>
     </div>
@@ -97,6 +117,55 @@ const publishedAtLabel = computed(() => {
   color: var(--app-text-secondary);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.update-error {
+  margin-top: 10px;
+  color: #c74444;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.download-progress {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--app-surface-soft);
+}
+
+.download-progress__head,
+.download-progress__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.download-progress__head {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.download-progress__meta {
+  margin-top: 8px;
+  color: var(--app-text-tertiary);
+}
+
+.download-progress__track {
+  margin-top: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.08);
+  overflow: hidden;
+}
+
+.download-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-text);
+  transition: width 0.2s ease;
 }
 
 .version-row {
@@ -167,6 +236,10 @@ const publishedAtLabel = computed(() => {
   border-radius: 12px;
   font-size: 14px;
   font-weight: 500;
+}
+
+.dialog-btn:disabled {
+  opacity: 0.6;
 }
 
 .dialog-btn--secondary {

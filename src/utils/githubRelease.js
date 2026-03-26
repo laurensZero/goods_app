@@ -115,12 +115,16 @@ export async function getLatestRelease(owner, repo) {
 }
 
 export function resolveReleaseTargetUrl(release) {
-  const assets = Array.isArray(release?.assets) ? release.assets : []
-  const preferredAsset = assets.find((asset) => /\.apk$/i.test(asset?.name || ''))
-    || assets.find((asset) => /\.aab$/i.test(asset?.name || ''))
-    || assets[0]
+  const preferredAsset = resolveReleaseAsset(release)
 
   return preferredAsset?.browser_download_url || release?.html_url || ''
+}
+
+export function resolveReleaseAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : []
+  return assets.find((asset) => /\.apk$/i.test(asset?.name || ''))
+    || assets.find((asset) => /\.aab$/i.test(asset?.name || ''))
+    || assets[0]
 }
 
 export function buildReleaseNotesPreview(body, lineLimit = 8) {
