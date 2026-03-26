@@ -249,10 +249,10 @@
                 <button class="actual-price-toggle" type="button" @click="showActualPriceInput = !showActualPriceInput">
                   <span class="actual-price-toggle__copy">
                     <span class="actual-price-toggle__title">
-                      {{ showActualPriceInput ? '收起实际入手价' : (form.actualPrice ? '已填写实际入手价' : '补充实际入手价') }}
+                      {{ showActualPriceInput ? '收起实际入手价' : (hasActualPriceValue(form.actualPrice) ? '已填写实际入手价' : '补充实际入手价') }}
                     </span>
                     <span class="actual-price-toggle__desc">
-                      {{ showActualPriceInput ? '用于单独记录最终成交价' : (form.actualPrice ? `当前 ¥${form.actualPrice}` : '如果成交价和标价不同，可以单独填写') }}
+                      {{ showActualPriceInput ? '用于单独记录最终成交价' : (hasActualPriceValue(form.actualPrice) ? `当前 ¥${form.actualPrice}` : '如果成交价和标价不同，可以单独填写') }}
                     </span>
                   </span>
                   <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showActualPriceInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -552,6 +552,10 @@ function toggleChar(name) {
 
 function setWishlist(nextValue) {
   form.isWishlist = nextValue
+}
+
+function hasActualPriceValue(value) {
+  return value !== '' && value != null
 }
 
 function openDatePicker() {

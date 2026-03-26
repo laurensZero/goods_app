@@ -53,7 +53,9 @@ const props = defineProps({
 defineEmits(['open-detail'])
 
 const displayUnitPrice = computed(() => (
-  props.item.isWishlist ? props.item.price : (props.item.actualPrice || props.item.price)
+  props.item.isWishlist
+    ? props.item.price
+    : (props.item.actualPrice !== '' && props.item.actualPrice != null ? props.item.actualPrice : props.item.price)
 ))
 const totalPrice = computed(() =>
   formatPrice(Number(displayUnitPrice.value || 0) * Number(props.item.quantity || 1))

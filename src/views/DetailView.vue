@@ -223,21 +223,24 @@ const activeImage = computed(() => (
 ))
 const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 const variantText = computed(() => getGoodsVariant(item.value))
+function hasActualPriceValue(value) {
+  return value !== '' && value != null
+}
 const heroPriceAmount = computed(() => {
   if (!item.value) return '—'
   if (item.value.isWishlist) return item.value.price || '—'
-  return item.value.actualPrice || item.value.price || '—'
+  return hasActualPriceValue(item.value.actualPrice) ? item.value.actualPrice : (item.value.price || '—')
 })
 const heroPriceLabel = computed(() => {
   if (!item.value) return '价格'
   if (item.value.isWishlist) return '目标价格'
-  return item.value.actualPrice ? '入手价' : '价格'
+  return hasActualPriceValue(item.value.actualPrice) ? '入手价' : '价格'
 })
-const showHeroPointsInline = computed(() => !item.value?.actualPrice && !!item.value?.points)
+const showHeroPointsInline = computed(() => !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
 const heroPriceHint = computed(() => {
   if (!item.value || item.value.isWishlist) return ''
   const parts = []
-  if (item.value.actualPrice && item.value.price) {
+  if (hasActualPriceValue(item.value.actualPrice) && item.value.price) {
     parts.push(`价格 ¥${item.value.price}`)
   }
   if (item.value.points) {
@@ -250,7 +253,7 @@ const officialPriceText = computed(() => {
   return item.value.points ? `¥${item.value.price} +${item.value.points}积分` : `¥${item.value.price}`
 })
 const showOfficialPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.price)
-const showActualPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.actualPrice)
+const showActualPriceTile = computed(() => !item.value?.isWishlist && hasActualPriceValue(item.value?.actualPrice))
 
 const cachedImgSrc = ref('')
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
