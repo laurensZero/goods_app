@@ -131,6 +131,12 @@
   gap: 12px;
 }
 
+.update-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
 .info-grid,
 .stats-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -237,6 +243,8 @@
 }
 
 .update-panel {
+  display: flex;
+  flex-direction: column;
   padding: 18px;
   border-radius: var(--radius-card);
 }
@@ -337,7 +345,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: auto;
+  padding-top: 14px;
 }
 
 .overlay {
@@ -593,4 +602,15 @@
     transform: none;
   }
 
+}
+
+@media (min-width: 769px) {
+  .update-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .update-grid .update-panel {
+    height: 100%;
+  }
 }

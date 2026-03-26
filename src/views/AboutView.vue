@@ -39,12 +39,6 @@
           </article>
 
           <article class="info-card">
-            <p class="info-kicker">Web 版本</p>
-            <h3 class="info-value">v{{ appVersion }}</h3>
-            <p class="info-desc">来自项目根目录的 package.json。</p>
-          </article>
-
-          <article class="info-card">
             <p class="info-kicker">Android 版本</p>
             <h3 class="info-value">{{ androidVersionName }}</h3>
             <p class="info-desc">当前原生工程中的 versionName。</p>
@@ -64,106 +58,108 @@
           <h2 class="section-title">检查更新</h2>
         </div>
 
-        <article class="update-panel">
-          <p class="info-kicker">GitHub Release</p>
-          <h3 class="info-value">当前版本 v{{ updateStore.currentVersion }}</h3>
-          <p class="info-desc">{{ IS_NATIVE ? '启动时会自动检查一次更新，你也可以在这里手动触发。' : 'Web 端默认不自动检查，你可以在这里手动触发。' }}</p>
-          <p class="update-status">{{ updateStatusText }}</p>
-          <p v-if="updateStore.downloadError" class="update-status update-status--error">{{ updateStore.downloadError }}</p>
-          <div v-if="updateStore.isDownloading" class="update-download-progress">
-            <div class="update-download-progress__head">
-              <span>下载中</span>
-              <span>{{ updateStore.downloadProgress }}%</span>
+        <div class="update-grid">
+          <article class="update-panel">
+            <p class="info-kicker">GitHub Release</p>
+            <h3 class="info-value">当前版本 v{{ updateStore.currentVersion }}</h3>
+            <p class="info-desc">{{ IS_NATIVE ? '启动时会自动检查一次更新，你也可以在这里手动触发。' : 'Web 端默认不自动检查，你可以在这里手动触发。' }}</p>
+            <p class="update-status">{{ updateStatusText }}</p>
+            <p v-if="updateStore.downloadError" class="update-status update-status--error">{{ updateStore.downloadError }}</p>
+            <div v-if="updateStore.isDownloading" class="update-download-progress">
+              <div class="update-download-progress__head">
+                <span>下载中</span>
+                <span>{{ updateStore.downloadProgress }}%</span>
+              </div>
+              <div class="update-download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
+                <span class="update-download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
+              </div>
+              <div class="update-download-progress__meta">
+                <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
+                <span>{{ updateStore.downloadSpeed || '--' }}</span>
+              </div>
             </div>
-            <div class="update-download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
-              <span class="update-download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
-            </div>
-            <div class="update-download-progress__meta">
-              <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
-              <span>{{ updateStore.downloadSpeed || '--' }}</span>
-            </div>
-          </div>
-          <p class="update-meta">上次检查：{{ updateCheckedAtLabel }}</p>
+            <p class="update-meta">上次检查：{{ updateCheckedAtLabel }}</p>
 
-          <div class="update-actions">
-            <button
-              type="button"
-              class="dialog-btn dialog-btn--secondary"
-              :disabled="updateStore.isChecking"
-              @click="handleManualCheckUpdate"
-            >
-              {{ updateStore.isChecking ? '检查中...' : '手动检查更新' }}
-            </button>
-            <button
-              v-if="updateStore.hasUpdate"
-              type="button"
-              class="dialog-btn dialog-btn--primary"
-              :disabled="updateStore.isDownloading"
-              @click="handleStartUpdate"
-            >
-              {{ updateStore.isDownloading ? '下载中...' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
-            </button>
-          </div>
-        </article>
-
-        <article class="update-panel">
-          <p class="info-kicker">GitHub Pages</p>
-          <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
-          <p class="info-desc">通过 GitHub Pages 的 stable manifest 执行资源增量更新，不修改 APK。</p>
-          <div class="update-channel-row">
-            <span class="update-channel-label">更新通道</span>
-            <div class="update-channel-actions">
+            <div class="update-actions">
               <button
-                v-for="channel in webUpdateStore.availableUpdateChannels"
-                :key="channel"
                 type="button"
-                :class="['update-channel-btn', { 'update-channel-btn--active': webUpdateStore.selectedChannel === channel }]"
-                @click="handleWebUpdateChannelChange(channel)"
+                class="dialog-btn dialog-btn--secondary"
+                :disabled="updateStore.isChecking"
+                @click="handleManualCheckUpdate"
               >
-                {{ channel }}
+                {{ updateStore.isChecking ? '检查中...' : '手动检查更新' }}
+              </button>
+              <button
+                v-if="updateStore.hasUpdate"
+                type="button"
+                class="dialog-btn dialog-btn--primary"
+                :disabled="updateStore.isDownloading"
+                @click="handleStartUpdate"
+              >
+                {{ updateStore.isDownloading ? '下载中...' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
               </button>
             </div>
-          </div>
-          <p class="update-status">{{ webUpdateStatusText }}</p>
-          <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
-          <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
-            <div class="update-download-progress__head">
-              <span>下载中</span>
-              <span>{{ webUpdateStore.downloadProgress }}%</span>
+          </article>
+
+          <article class="update-panel">
+            <p class="info-kicker">GitHub Pages</p>
+            <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
+            <p class="info-desc">通过 GitHub Pages 的 stable manifest 执行资源增量更新，不修改 APK。</p>
+            <div class="update-channel-row">
+              <span class="update-channel-label">更新通道</span>
+              <div class="update-channel-actions">
+                <button
+                  v-for="channel in webUpdateStore.availableUpdateChannels"
+                  :key="channel"
+                  type="button"
+                  :class="['update-channel-btn', { 'update-channel-btn--active': webUpdateStore.selectedChannel === channel }]"
+                  @click="handleWebUpdateChannelChange(channel)"
+                >
+                  {{ channel }}
+                </button>
+              </div>
             </div>
-            <div class="update-download-progress__track" role="progressbar" :aria-valuenow="webUpdateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
-              <span class="update-download-progress__bar" :style="{ width: `${webUpdateStore.downloadProgress}%` }" />
+            <p class="update-status">{{ webUpdateStatusText }}</p>
+            <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
+            <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
+              <div class="update-download-progress__head">
+                <span>下载中</span>
+                <span>{{ webUpdateStore.downloadProgress }}%</span>
+              </div>
+              <div class="update-download-progress__track" role="progressbar" :aria-valuenow="webUpdateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
+                <span class="update-download-progress__bar" :style="{ width: `${webUpdateStore.downloadProgress}%` }" />
+              </div>
             </div>
-          </div>
-          <p class="update-meta">上次检查：{{ webUpdateCheckedAtLabel }}</p>
-          <div class="update-actions">
-            <button
-              type="button"
-              class="dialog-btn dialog-btn--secondary"
-              :disabled="!webUpdateStore.supported || webUpdateStore.isChecking"
-              @click="handleManualCheckWebUpdate"
-            >
-              {{ webUpdateStore.isChecking ? '检查中...' : '检查资源更新' }}
-            </button>
-            <button
-              v-if="webUpdateStore.hasUpdate"
-              type="button"
-              class="dialog-btn dialog-btn--primary"
-              :disabled="webUpdateStore.isDownloading"
-              @click="handleStartWebUpdate"
-            >
-              {{ webUpdateStore.isDownloading ? '下载中...' : '下载并下次启动生效' }}
-            </button>
-            <button
-              v-if="webUpdateStore.supported"
-              type="button"
-              class="dialog-btn dialog-btn--ghost"
-              @click="showWebUpdateResetDialog = true"
-            >
-              恢复内置资源
-            </button>
-          </div>
-        </article>
+            <p class="update-meta">上次检查：{{ webUpdateCheckedAtLabel }}</p>
+            <div class="update-actions">
+              <button
+                type="button"
+                class="dialog-btn dialog-btn--secondary"
+                :disabled="!webUpdateStore.supported || webUpdateStore.isChecking"
+                @click="handleManualCheckWebUpdate"
+              >
+                {{ webUpdateStore.isChecking ? '检查中...' : '检查资源更新' }}
+              </button>
+              <button
+                v-if="webUpdateStore.hasUpdate"
+                type="button"
+                class="dialog-btn dialog-btn--primary"
+                :disabled="webUpdateStore.isDownloading"
+                @click="handleStartWebUpdate"
+              >
+                {{ webUpdateStore.isDownloading ? '下载中...' : '下载并下次启动生效' }}
+              </button>
+              <button
+                v-if="webUpdateStore.supported"
+                type="button"
+                class="dialog-btn dialog-btn--ghost"
+                @click="showWebUpdateResetDialog = true"
+              >
+                恢复内置资源
+              </button>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section class="content-section">
