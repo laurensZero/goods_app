@@ -443,9 +443,12 @@ export const useGoodsStore = defineStore('goods', () => {
     const unitActualPriceList = normalizeWishlistFlag(data.isWishlist)
       ? []
       : normalizeUnitActualPriceList(data.unitActualPriceList || data.purchasePriceList, data.quantity)
+    const resolvedUnitActualPriceTotal = normalizeWishlistFlag(data.isWishlist)
+      ? ''
+      : resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity)
     const normalizedActualPrice = normalizeWishlistFlag(data.isWishlist)
       ? ''
-      : (normalizePriceValue(data.actualPrice) || resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity))
+      : (resolvedUnitActualPriceTotal || normalizePriceValue(data.actualPrice))
 
     return {
       id: data.id || fallbackId,
