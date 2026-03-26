@@ -7,7 +7,9 @@ import {
   normalizeVersionTag
 } from '@/utils/githubRelease'
 
-const WEB_MANIFEST_URL = 'https://laurenszero.github.io/goods_app/stable/manifest.json'
+const WEB_MANIFEST_URL_BASE = 'https://laurenszero.github.io/goods_app'
+const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
+const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
 const REQUEST_TIMEOUT_MS = 15000
 
 let activeCheckPromise = null
@@ -41,11 +43,66 @@ async function fetchWebManifest(url) {
   }
 }
 
+function normalizeUpdateChannel(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (AVAILABLE_UPDATE_CHANNELS.includes(normalized)) return normalized
+  return 'stable'
+}
+
+function normalizeBundleUrl(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+
+  try {
+    const parsed = new URL(raw)
+    parsed.hostname = parsed.hostname.toLowerCase()
+    return parsed.toString()
+  } catch {
+    return raw
+  }
+}
+
+function normalizeErrorMessage(error, fallback) {
+  const message = String(error?.message || fallback || '').trim()
+  if (!message) return fallback || '操作失败，请稍后重试。'
+
+  const lines = message
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const uniqueLines = []
+  for (const line of lines) {
+    if (uniqueLines[uniqueLines.length - 1] !== line) {
+      uniqueLines.push(line)
+    }
+  }
+
+  return uniqueLines.join('；') || fallback || '操作失败，请稍后重试。'
+}
+
+function readPersistedChannel() {
+  try {
+    return normalizeUpdateChannel(localStorage.getItem(UPDATE_CHANNEL_STORAGE_KEY))
+  } catch {
+    return 'stable'
+  }
+}
+
+function persistChannel(channel) {
+  try {
+    localStorage.setItem(UPDATE_CHANNEL_STORAGE_KEY, channel)
+  } catch {
+    // ignore persistence failures
+  }
+}
+
 export const useWebUpdateStore = defineStore('webUpdate', () => {
   const initialized = ref(false)
   const supported = ref(false)
   const currentVersion = ref('')
   const currentBundleId = ref('builtin')
+  const selectedChannel = ref('stable')
   const nativeVersion = ref('')
   const latestVersion = ref('')
   const latestZipUrl = ref('')
@@ -70,6 +127,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     return compareVersions(latestVersion.value, currentVersion.value) > 0
   })
 
+  const manifestUrl = computed(() => `${WEB_MANIFEST_URL_BASE}/${selectedChannel.value}/manifest.json`)
+
   async function notifyAppReady() {
     if (!Capacitor.isNativePlatform()) return false
 
@@ -83,6 +142,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
   async function init() {
     if (initialized.value) return
+
+    selectedChannel.value = readPersistedChannel()
 
     supported.value = Capacitor.isNativePlatform()
     if (!supported.value) {
@@ -126,12 +187,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastError.value = ''
 
       try {
-        const manifest = await fetchWebManifest(WEB_MANIFEST_URL)
+        const manifest = await fetchWebManifest(manifestUrl.value)
         latestRelease.value = manifest
         lastCheckedAt.value = new Date().toISOString()
 
         latestVersion.value = normalizeVersionTag(manifest?.version || '')
-        latestZipUrl.value = String(manifest?.url || '').trim()
+        latestZipUrl.value = normalizeBundleUrl(manifest?.url)
         latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
 
         if (!latestVersion.value || !latestZipUrl.value) {
@@ -168,7 +229,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
           return { status: 'latest' }
         }
         lastStatus.value = 'error'
-        lastError.value = error?.message || '检查资源更新失败，请稍后再试。'
+        lastError.value = normalizeErrorMessage(error, '检查资源更新失败，请稍后再试。')
         throw error
       } finally {
         isChecking.value = false
@@ -187,7 +248,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     }
 
     if (!latestZipUrl.value || !latestVersion.value) {
-      lastError.value = '未找到可用的资源包（dist.zip）。'
+      lastError.value = '未找到可用的资源包 URL。'
       return false
     }
 
@@ -220,7 +281,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       return true
     } catch (error) {
       lastStatus.value = 'error'
-      lastError.value = error?.message || '下载资源更新失败，请稍后再试。'
+      lastError.value = normalizeErrorMessage(error, '下载资源更新失败，请稍后再试。')
       return false
     } finally {
       isDownloading.value = false
@@ -228,11 +289,69 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     }
   }
 
+  async function applyPendingUpdateNow() {
+    await init()
+    if (!supported.value) {
+      lastError.value = '仅原生环境支持资源增量更新。'
+      return false
+    }
+
+    const targetBundleId = String(pendingBundleId.value || '').trim()
+    if (!targetBundleId) {
+      lastError.value = '暂无待应用的资源包，请先下载更新。'
+      return false
+    }
+
+    try {
+      await CapacitorUpdater.set({ id: targetBundleId })
+      return true
+    } catch (error) {
+      lastStatus.value = 'error'
+      lastError.value = normalizeErrorMessage(error, '应用资源更新失败，请手动重启应用。')
+      return false
+    }
+  }
+
+  async function resetToBuiltinBundle() {
+    await init()
+    if (!supported.value) {
+      lastError.value = '仅原生环境支持资源增量更新。'
+      return false
+    }
+
+    try {
+      await CapacitorUpdater.reset({ toLastSuccessful: false })
+      return true
+    } catch (error) {
+      lastStatus.value = 'error'
+      lastError.value = normalizeErrorMessage(error, '恢复内置资源失败，请手动重启应用。')
+      return false
+    }
+  }
+
+  function setUpdateChannel(channel) {
+    const nextChannel = normalizeUpdateChannel(channel)
+    if (selectedChannel.value === nextChannel) return
+
+    selectedChannel.value = nextChannel
+    persistChannel(nextChannel)
+
+    latestVersion.value = ''
+    latestZipUrl.value = ''
+    latestRelease.value = null
+    latestMinNativeVersion.value = ''
+    lastStatus.value = 'ready'
+    lastError.value = ''
+  }
+
   return {
     initialized,
     supported,
     currentVersion,
     currentBundleId,
+    selectedChannel,
+    availableUpdateChannels: AVAILABLE_UPDATE_CHANNELS,
+    manifestUrl,
     nativeVersion,
     latestVersion,
     latestZipUrl,
@@ -249,7 +368,10 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     lastCheckedAt,
     notifyAppReady,
     init,
+    setUpdateChannel,
     checkForUpdates,
-    downloadAndPrepareUpdate
+    downloadAndPrepareUpdate,
+    applyPendingUpdateNow,
+    resetToBuiltinBundle
   }
 })

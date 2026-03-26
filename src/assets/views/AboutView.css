@@ -257,6 +257,40 @@
   color: #c74444;
 }
 
+.update-channel-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.update-channel-label {
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.update-channel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-channel-btn {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  text-transform: lowercase;
+}
+
+.update-channel-btn--active {
+  color: var(--app-text);
+  border-color: var(--app-text-secondary);
+}
+
 .update-download-progress {
   margin-top: 10px;
   padding: 10px 12px;

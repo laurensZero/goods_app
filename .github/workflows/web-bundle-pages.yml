@@ -1,6 +1,9 @@
 name: Publish Web Bundle to Pages
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       channel:
@@ -52,15 +55,22 @@ jobs:
       - name: Package bundle and manifest
         id: package
         env:
-          CHANNEL: ${{ inputs.channel }}
           INPUT_VERSION: ${{ inputs.bundle_version }}
           INPUT_MIN_NATIVE: ${{ inputs.min_native_version }}
           INPUT_NOTES: ${{ inputs.notes }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
           RUN_NUMBER: ${{ github.run_number }}
+          EVENT_NAME: ${{ github.event_name }}
+          CHANNEL_INPUT: ${{ inputs.channel }}
         run: |
           set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "push" ]; then
+            CHANNEL="beta"
+          else
+            CHANNEL="${CHANNEL_INPUT:-stable}"
+          fi
 
           DATE_TAG=$(date -u +%Y%m%d)
           if [ -n "${INPUT_VERSION}" ]; then
@@ -77,7 +87,8 @@ jobs:
           cd ..
 
           HASH=$(sha256sum "pages/${CHANNEL}/${BUNDLE_NAME}" | awk '{print $1}')
-          URL="https://${OWNER}.github.io/${REPO}/${CHANNEL}/${BUNDLE_NAME}"
+          OWNER_LOWER=$(printf '%s' "${OWNER}" | tr '[:upper:]' '[:lower:]')
+          URL="https://${OWNER_LOWER}.github.io/${REPO}/${CHANNEL}/${BUNDLE_NAME}"
           PUBLISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           MIN_NATIVE_JSON="null"
@@ -105,6 +116,7 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "bundle=${BUNDLE_NAME}" >> $GITHUB_OUTPUT
           echo "url=${URL}" >> $GITHUB_OUTPUT
+          echo "channel=${CHANNEL}" >> $GITHUB_OUTPUT
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
@@ -116,7 +128,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "Channel: ${{ inputs.channel }}"
+          echo "Channel: ${{ steps.package.outputs.channel }}"
           echo "Version: ${{ steps.package.outputs.version }}"
           echo "Bundle: ${{ steps.package.outputs.bundle }}"
           echo "URL: ${{ steps.package.outputs.url }}"

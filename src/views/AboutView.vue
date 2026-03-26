@@ -110,6 +110,20 @@
           <p class="info-kicker">GitHub Pages</p>
           <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
           <p class="info-desc">通过 GitHub Pages 的 stable manifest 执行资源增量更新，不修改 APK。</p>
+          <div class="update-channel-row">
+            <span class="update-channel-label">更新通道</span>
+            <div class="update-channel-actions">
+              <button
+                v-for="channel in webUpdateStore.availableUpdateChannels"
+                :key="channel"
+                type="button"
+                :class="['update-channel-btn', { 'update-channel-btn--active': webUpdateStore.selectedChannel === channel }]"
+                @click="handleWebUpdateChannelChange(channel)"
+              >
+                {{ channel }}
+              </button>
+            </div>
+          </div>
           <p class="update-status">{{ webUpdateStatusText }}</p>
           <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
           <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
@@ -139,6 +153,14 @@
               @click="handleStartWebUpdate"
             >
               {{ webUpdateStore.isDownloading ? '下载中...' : '下载并下次启动生效' }}
+            </button>
+            <button
+              v-if="webUpdateStore.supported"
+              type="button"
+              class="dialog-btn dialog-btn--ghost"
+              @click="showWebUpdateResetDialog = true"
+            >
+              恢复内置资源
             </button>
           </div>
         </article>
@@ -291,6 +313,32 @@
       </div>
     </Transition>
 
+    <Transition name="overlay-fade">
+      <div v-if="showWebUpdateRestartDialog" class="overlay" @click.self="cancelWebUpdateRestart">
+        <div class="dialog">
+          <h3 class="dialog-title">资源更新已下载完成</h3>
+          <p class="dialog-desc">新资源将在重启 App 后生效，是否现在重启？</p>
+          <div class="dialog-actions dialog-actions__right">
+            <button type="button" class="dialog-btn dialog-btn--secondary" @click="cancelWebUpdateRestart">稍后</button>
+            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmWebUpdateRestart">立即重启</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="overlay-fade">
+      <div v-if="showWebUpdateResetDialog" class="overlay" @click.self="showWebUpdateResetDialog = false">
+        <div class="dialog">
+          <h3 class="dialog-title">恢复内置资源版本</h3>
+          <p class="dialog-desc">将回退到 APK 内置前端资源并立即重载应用，是否继续？</p>
+          <div class="dialog-actions dialog-actions__right">
+            <button type="button" class="dialog-btn dialog-btn--secondary" @click="showWebUpdateResetDialog = false">取消</button>
+            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmResetWebUpdate">确认恢复</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <Transition name="toast-fade">
       <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
     </Transition>
@@ -299,6 +347,7 @@
 
 <script setup>
 import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { Preferences } from '@capacitor/preferences'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/NavBar.vue'
@@ -324,6 +373,8 @@ const updateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
 const pageBodyRef = ref(null)
 const showFeedbackDialog = ref(false)
+const showWebUpdateRestartDialog = ref(false)
+const showWebUpdateResetDialog = ref(false)
 const showFeedbackToken = ref(false)
 const feedbackToken = ref('')
 const feedbackTokenLogin = ref('')
@@ -333,13 +384,15 @@ const feedbackError = ref('')
 const isSubmittingFeedback = ref(false)
 const toastMsg = ref('')
 let toastTimer = null
+let lastToastText = ''
+let lastToastAt = 0
 
 const appIconSrc = `${import.meta.env.BASE_URL}favicon.svg`
 const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
 const appId = capacitorConfig.appId || 'unknown'
-const appVersion = import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0'
-const androidVersionName = import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0'
-const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v${appVersion}`)
+const appVersion = ref(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
+const androidVersionName = ref(import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0')
+const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v${appVersion.value}`)
 
 const feedbackUrl = computed(() => {
   const params = new URLSearchParams({
@@ -421,7 +474,7 @@ const webUpdateStatusText = computed(() => {
   }
   if (webUpdateStore.lastStatus === 'latest') return '当前资源已是最新版本'
   if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || '资源更新检查失败'
-  return '可手动检查 GitHub Pages stable manifest 资源包。'
+  return `可手动检查 GitHub Pages ${webUpdateStore.selectedChannel} 通道资源包。`
 })
 
 const webUpdateCheckedAtLabel = computed(() => (
@@ -436,8 +489,8 @@ function buildIssueBody(content) {
     '',
     '### 版本信息',
     `- App: ${appName}`,
-    `- Web: v${appVersion}`,
-    `- Android: ${androidVersionName}`,
+    `- Web: v${appVersion.value}`,
+    `- Android: ${androidVersionName.value}`,
     `- 包名: ${appId}`,
     `- 最近同步: ${syncStore.lastSyncedAt ? formatSyncTime(syncStore.lastSyncedAt) : '从未同步'}`,
     '',
@@ -475,7 +528,17 @@ function resetPageScrollTop() {
 }
 
 function showToast(message, duration = 2600) {
-  toastMsg.value = message
+  const nextMessage = String(message || '').trim()
+  if (!nextMessage) return
+
+  const now = Date.now()
+  if (nextMessage === lastToastText && now - lastToastAt < 1200) {
+    return
+  }
+
+  lastToastText = nextMessage
+  lastToastAt = now
+  toastMsg.value = nextMessage
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => {
     toastMsg.value = ''
@@ -675,23 +738,69 @@ async function handleManualCheckWebUpdate() {
   }
 }
 
+async function handleWebUpdateChannelChange(channel) {
+  if (webUpdateStore.selectedChannel === channel) return
+  webUpdateStore.setUpdateChannel(channel)
+  showToast(`已切换资源更新通道：${channel}`, 2200)
+  await handleManualCheckWebUpdate()
+}
+
 async function handleStartWebUpdate() {
   if (webUpdateStore.isDownloading) return
 
   const succeeded = await webUpdateStore.downloadAndPrepareUpdate()
   if (succeeded) {
-    showToast('资源包下载完成，将在重启或切后台后生效。', 3600)
+    showWebUpdateRestartDialog.value = true
+    return
+  }
+}
+
+function cancelWebUpdateRestart() {
+  showWebUpdateRestartDialog.value = false
+  showToast('已保留更新，稍后重启后生效。', 2600)
+}
+
+async function confirmWebUpdateRestart() {
+  showWebUpdateRestartDialog.value = false
+
+  if (!IS_NATIVE) {
+    window.location.reload()
     return
   }
 
-  if (webUpdateStore.lastError) {
-    showToast(webUpdateStore.lastError, 3200)
+  showToast('正在应用更新并重启...', 1800)
+  const activated = await webUpdateStore.applyPendingUpdateNow()
+  if (!activated) {
+    showToast(webUpdateStore.lastError || '应用更新失败，请手动重开应用。', 3200)
+  }
+}
+
+async function confirmResetWebUpdate() {
+  showWebUpdateResetDialog.value = false
+  showToast('正在恢复内置资源...', 1800)
+  const resetOk = await webUpdateStore.resetToBuiltinBundle()
+  if (!resetOk) {
+    showToast(webUpdateStore.lastError || '恢复失败，请手动重启应用。', 3200)
   }
 }
 
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+
+  if (IS_NATIVE) {
+    try {
+      const info = await CapacitorApp.getInfo()
+      const runtimeVersion = String(info?.version || '').trim()
+      if (runtimeVersion) {
+        appVersion.value = runtimeVersion
+        androidVersionName.value = runtimeVersion
+      }
+    } catch {
+      // ignore runtime version read failures and keep fallback values
+    }
+  }
+
   syncStore.init()
   void updateStore.init()
   void webUpdateStore.init()
@@ -699,7 +808,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  // no-op
+  clearTimeout(toastTimer)
 })
 </script>
 
