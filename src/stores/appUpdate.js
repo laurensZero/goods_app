@@ -123,6 +123,21 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     return normalized
   }
 
+  function resolveDownloadErrorMessage(error) {
+    const raw = String(error?.message || '').toLowerCase()
+    if (
+      raw.includes('unknown sources')
+      || raw.includes('install_unknown_apps')
+      || raw.includes('permission')
+      || raw.includes('not allowed')
+      || raw.includes('权限')
+    ) {
+      return '未授予安装权限。请到系统设置 > 应用 > 谷子收纳 > 安装未知应用，开启“允许来自此来源”。'
+    }
+
+    return error?.message || '下载更新包失败，请稍后再试。'
+  }
+
   async function downloadAndInstallUpdate() {
     downloadError.value = ''
     downloadProgress.value = 0
@@ -236,7 +251,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       dialogVisible.value = false
       return true
     } catch (error) {
-      downloadError.value = error?.message || '下载更新包失败，请稍后再试。'
+      downloadError.value = resolveDownloadErrorMessage(error)
       return false
     } finally {
       await progressListener?.remove?.()
