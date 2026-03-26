@@ -178,6 +178,14 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       const filePath = `updates/${fileName}`
       const startedAt = Date.now()
 
+      await Filesystem.mkdir({
+        path: 'updates',
+        directory: Directory.Cache,
+        recursive: true
+      }).catch(() => {
+        // ignore if directory already exists
+      })
+
       progressListener = await Filesystem.addListener('progress', (status) => {
         if (status?.url && status.url !== downloadUrl) return
 
@@ -196,13 +204,23 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         downloadSpeed.value = `${formatBytes(bytesPerSecond)}/s`
       })
 
-      await Filesystem.downloadFile({
-        url: downloadUrl,
-        path: filePath,
-        directory: Directory.Cache,
-        progress: true,
-        recursive: true
-      })
+      let downloadAttempt = 0
+      while (downloadAttempt < 2) {
+        downloadAttempt += 1
+        try {
+          await Filesystem.downloadFile({
+            url: downloadUrl,
+            path: filePath,
+            directory: Directory.Cache,
+            progress: true,
+            recursive: true
+          })
+          break
+        } catch (downloadErr) {
+          if (downloadAttempt >= 2) throw downloadErr
+          await sleep(450)
+        }
+      }
 
       const { uri } = await Filesystem.getUri({
         path: filePath,
