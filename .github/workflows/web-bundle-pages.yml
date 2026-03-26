@@ -1,0 +1,122 @@
+name: Publish Web Bundle to Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 发布通道
+        required: true
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
+      bundle_version:
+        description: 资源版本（可选，不填自动生成 YYYYMMDD.runNumber）
+        required: false
+        type: string
+      min_native_version:
+        description: 最低原生版本（可选，如 1.3.0）
+        required: false
+        default: ""
+        type: string
+      notes:
+        description: 更新说明（可选）
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Package bundle and manifest
+        id: package
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          INPUT_VERSION: ${{ inputs.bundle_version }}
+          INPUT_MIN_NATIVE: ${{ inputs.min_native_version }}
+          INPUT_NOTES: ${{ inputs.notes }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          DATE_TAG=$(date -u +%Y%m%d)
+          if [ -n "${INPUT_VERSION}" ]; then
+            VERSION="${INPUT_VERSION}"
+          else
+            VERSION="${DATE_TAG}.${RUN_NUMBER}"
+          fi
+
+          BUNDLE_NAME="bundle-${VERSION}.zip"
+          mkdir -p "pages/${CHANNEL}"
+
+          cd dist
+          zip -r "../pages/${CHANNEL}/${BUNDLE_NAME}" .
+          cd ..
+
+          HASH=$(sha256sum "pages/${CHANNEL}/${BUNDLE_NAME}" | awk '{print $1}')
+          URL="https://${OWNER}.github.io/${REPO}/${CHANNEL}/${BUNDLE_NAME}"
+          PUBLISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          MIN_NATIVE_JSON="null"
+          if [ -n "${INPUT_MIN_NATIVE}" ]; then
+            MIN_NATIVE_JSON="\"${INPUT_MIN_NATIVE}\""
+          fi
+
+          NOTES_JSON="null"
+          if [ -n "${INPUT_NOTES}" ]; then
+            ESCAPED_NOTES=$(printf '%s' "${INPUT_NOTES}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+            NOTES_JSON="${ESCAPED_NOTES}"
+          fi
+
+          cat > "pages/${CHANNEL}/manifest.json" <<EOF
+          {
+            "version": "${VERSION}",
+            "url": "${URL}",
+            "hash": "${HASH}",
+            "minNativeVersion": ${MIN_NATIVE_JSON},
+            "notes": ${NOTES_JSON},
+            "publishedAt": "${PUBLISHED_AT}"
+          }
+          EOF
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "bundle=${BUNDLE_NAME}" >> $GITHUB_OUTPUT
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./pages
+          keep_files: true
+
+      - name: Summary
+        run: |
+          echo "Channel: ${{ inputs.channel }}"
+          echo "Version: ${{ steps.package.outputs.version }}"
+          echo "Bundle: ${{ steps.package.outputs.bundle }}"
+          echo "URL: ${{ steps.package.outputs.url }}"

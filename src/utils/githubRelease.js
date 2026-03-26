@@ -127,6 +127,14 @@ export function resolveReleaseAsset(release) {
     || assets[0]
 }
 
+export function resolveReleaseWebBundleAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : []
+  return assets.find((asset) => /^dist\.zip$/i.test(asset?.name || ''))
+    || assets.find((asset) => /web|bundle|assets/i.test(asset?.name || '') && /\.zip$/i.test(asset?.name || ''))
+    || assets.find((asset) => /\.zip$/i.test(asset?.name || ''))
+    || null
+}
+
 export function buildReleaseNotesPreview(body, lineLimit = 8) {
   const text = String(body || '').trim()
   if (!text) return ''

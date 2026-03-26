@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
@@ -12,6 +13,16 @@ import { usePresetsStore } from './stores/presets'
 import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
+
+async function notifyUpdaterReady() {
+  if (!Capacitor.isNativePlatform()) return
+
+  try {
+    await CapacitorUpdater.notifyAppReady()
+  } catch (error) {
+    console.warn('[updater] notifyAppReady failed:', error)
+  }
+}
 
 function setupAndroidBackButton() {
   if (Capacitor.getPlatform() !== 'android') return
@@ -36,6 +47,8 @@ function setupAndroidBackButton() {
 }
 
 async function bootstrap() {
+  void notifyUpdaterReady()
+
   // 初始化 SQLite（原生用 Capacitor，Web 用 sql.js）
   try {
     await initDB()

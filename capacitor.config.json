@@ -7,6 +7,13 @@
     "captureInput": false
   },
   "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "appReadyTimeout": 15000,
+      "autoDeleteFailed": true,
+      "autoDeletePrevious": true,
+      "resetWhenUpdate": true
+    },
     "CapacitorSQLite": {
       "androidIsEncryption": false,
       "androidBiometric": {

@@ -21,6 +21,7 @@
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
     "@capawesome-team/capacitor-file-opener": "^8.0.1",
+    "@capgo/capacitor-updater": "^8.45.0",
     "@vueuse/core": "^14.2.1",
     "fflate": "^0.8.2",
     "pinia": "^2.1.0",

@@ -13,6 +13,7 @@
             <div class="hero-meta">
               <span class="hero-chip">版本 {{ appVersion }}</span>
               <span class="hero-chip">Android {{ androidVersionName }}</span>
+              <span class="hero-chip">资源 {{ webBundleVersionLabel }}</span>
             </div>
           </div>
         </article>
@@ -47,6 +48,12 @@
             <p class="info-kicker">Android 版本</p>
             <h3 class="info-value">{{ androidVersionName }}</h3>
             <p class="info-desc">当前原生工程中的 versionName。</p>
+          </article>
+
+          <article class="info-card">
+            <p class="info-kicker">资源版本</p>
+            <h3 class="info-value">{{ webBundleVersionLabel }}</h3>
+            <p class="info-desc">当前生效的前端资源包版本（Capacitor Updater）。</p>
           </article>
         </div>
       </section>
@@ -95,6 +102,43 @@
               @click="handleStartUpdate"
             >
               {{ updateStore.isDownloading ? '下载中...' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
+            </button>
+          </div>
+        </article>
+
+        <article class="update-panel">
+          <p class="info-kicker">Resource Bundle</p>
+          <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
+          <p class="info-desc">通过 GitHub Release 的 dist.zip 执行资源增量更新，不修改 APK。</p>
+          <p class="update-status">{{ webUpdateStatusText }}</p>
+          <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
+          <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
+            <div class="update-download-progress__head">
+              <span>下载中</span>
+              <span>{{ webUpdateStore.downloadProgress }}%</span>
+            </div>
+            <div class="update-download-progress__track" role="progressbar" :aria-valuenow="webUpdateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
+              <span class="update-download-progress__bar" :style="{ width: `${webUpdateStore.downloadProgress}%` }" />
+            </div>
+          </div>
+          <p class="update-meta">上次检查：{{ webUpdateCheckedAtLabel }}</p>
+          <div class="update-actions">
+            <button
+              type="button"
+              class="dialog-btn dialog-btn--secondary"
+              :disabled="!webUpdateStore.supported || webUpdateStore.isChecking"
+              @click="handleManualCheckWebUpdate"
+            >
+              {{ webUpdateStore.isChecking ? '检查中...' : '检查资源更新' }}
+            </button>
+            <button
+              v-if="webUpdateStore.hasUpdate"
+              type="button"
+              class="dialog-btn dialog-btn--primary"
+              :disabled="webUpdateStore.isDownloading"
+              @click="handleStartWebUpdate"
+            >
+              {{ webUpdateStore.isDownloading ? '下载中...' : '下载并下次启动生效' }}
             </button>
           </div>
         </article>
@@ -259,6 +303,7 @@ import { Preferences } from '@capacitor/preferences'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import { useAppUpdateStore } from '@/stores/appUpdate'
+import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
@@ -276,6 +321,7 @@ const goodsStore = useGoodsStore()
 const presetsStore = usePresetsStore()
 const syncStore = useSyncStore()
 const updateStore = useAppUpdateStore()
+const webUpdateStore = useWebUpdateStore()
 const pageBodyRef = ref(null)
 const showFeedbackDialog = ref(false)
 const showFeedbackToken = ref(false)
@@ -293,6 +339,7 @@ const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
 const appId = capacitorConfig.appId || 'unknown'
 const appVersion = import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0'
 const androidVersionName = import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0'
+const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v${appVersion}`)
 
 const feedbackUrl = computed(() => {
   const params = new URLSearchParams({
@@ -355,6 +402,27 @@ const updateStatusText = computed(() => {
 
 const updateCheckedAtLabel = computed(() => (
   updateStore.lastCheckedAt ? formatSyncTime(updateStore.lastCheckedAt) : '尚未检查'
+))
+
+const webUpdateStatusText = computed(() => {
+  if (!webUpdateStore.supported) return '仅原生环境支持资源增量更新。'
+  if (webUpdateStore.isChecking) return '正在检查资源更新...'
+  if (webUpdateStore.lastStatus === 'pending' && webUpdateStore.pendingVersion) {
+    return `资源包 v${webUpdateStore.pendingVersion} 已就绪，重启或切后台后生效。`
+  }
+  if (webUpdateStore.lastStatus === 'available' && webUpdateStore.latestVersion) {
+    return `发现资源更新 v${webUpdateStore.latestVersion}`
+  }
+  if (webUpdateStore.lastStatus === 'missing-asset') {
+    return '最新 Release 未找到 dist.zip 资源包。'
+  }
+  if (webUpdateStore.lastStatus === 'latest') return '当前资源已是最新版本'
+  if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || '资源更新检查失败'
+  return '可手动检查 GitHub Release 的 dist.zip 资源包。'
+})
+
+const webUpdateCheckedAtLabel = computed(() => (
+  webUpdateStore.lastCheckedAt ? formatSyncTime(webUpdateStore.lastCheckedAt) : '尚未检查'
 ))
 
 function buildIssueBody(content) {
@@ -576,11 +644,45 @@ async function handleStartUpdate() {
   }
 }
 
+async function handleManualCheckWebUpdate() {
+  if (!webUpdateStore.supported || webUpdateStore.isChecking) return
+
+  try {
+    const result = await webUpdateStore.checkForUpdates()
+    if (result?.status === 'available') {
+      showToast(`发现资源更新 v${webUpdateStore.latestVersion}`, 3200)
+      return
+    }
+    if (result?.status === 'missing-asset') {
+      showToast('最新 Release 未找到 dist.zip', 3200)
+      return
+    }
+    showToast('当前资源已是最新版本')
+  } catch (error) {
+    showToast(webUpdateStore.lastError || error?.message || '检查资源更新失败', 3200)
+  }
+}
+
+async function handleStartWebUpdate() {
+  if (webUpdateStore.isDownloading) return
+
+  const succeeded = await webUpdateStore.downloadAndPrepareUpdate()
+  if (succeeded) {
+    showToast('资源包下载完成，将在重启或切后台后生效。', 3600)
+    return
+  }
+
+  if (webUpdateStore.lastError) {
+    showToast(webUpdateStore.lastError, 3200)
+  }
+}
+
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
   syncStore.init()
   void updateStore.init()
+  void webUpdateStore.init()
   feedbackToken.value = await readPersistedFeedbackToken()
 })
 

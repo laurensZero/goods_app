@@ -27,11 +27,13 @@ import { useRoute } from 'vue-router'
 import AppUpdateDialog from '@/components/AppUpdateDialog.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useAppUpdateStore } from '@/stores/appUpdate'
+import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
 const syncStore = useSyncStore()
 const appUpdateStore = useAppUpdateStore()
+const webUpdateStore = useWebUpdateStore()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
@@ -81,11 +83,18 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
 
   void appUpdateStore.init()
+  void webUpdateStore.init()
   const shouldAutoCheckUpdate = !(import.meta.env.DEV && !Capacitor.isNativePlatform())
   if (shouldAutoCheckUpdate) {
     void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
       // silent fail on startup update check
     })
+
+    if (Capacitor.isNativePlatform()) {
+      void webUpdateStore.checkForUpdates().catch(() => {
+        // silent fail on startup web bundle update check
+      })
+    }
   }
 
   // 自动拉取
