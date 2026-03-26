@@ -4,15 +4,42 @@ import { Capacitor } from '@capacitor/core'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
   compareVersions,
-  getLatestRelease,
-  normalizeVersionTag,
-  resolveReleaseWebBundleAsset
+  normalizeVersionTag
 } from '@/utils/githubRelease'
 
-const UPDATE_REPO_OWNER = 'laurensZero'
-const UPDATE_REPO_NAME = 'goods_app'
+const WEB_MANIFEST_URL = 'https://laurenszero.github.io/goods_app/stable/manifest.json'
+const REQUEST_TIMEOUT_MS = 15000
 
 let activeCheckPromise = null
+
+async function fetchWebManifest(url) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json'
+      },
+      cache: 'no-store',
+      signal: controller.signal
+    })
+
+    if (!response.ok) {
+      throw new Error(`资源清单请求失败（${response.status}）。`)
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('检查资源更新超时，请稍后再试。')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
 
 export const useWebUpdateStore = defineStore('webUpdate', () => {
   const initialized = ref(false)
@@ -23,6 +50,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const latestVersion = ref('')
   const latestZipUrl = ref('')
   const latestRelease = ref(null)
+  const latestMinNativeVersion = ref('')
   const pendingBundleId = ref('')
   const pendingVersion = ref('')
   const isChecking = ref(false)
@@ -34,6 +62,11 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
   const hasUpdate = computed(() => {
     if (!latestVersion.value || !currentVersion.value) return false
+    if (latestMinNativeVersion.value && nativeVersion.value) {
+      if (compareVersions(nativeVersion.value, latestMinNativeVersion.value) < 0) {
+        return false
+      }
+    }
     return compareVersions(latestVersion.value, currentVersion.value) > 0
   })
 
@@ -93,33 +126,41 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastError.value = ''
 
       try {
-        const release = await getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME)
-        latestRelease.value = release
+        const manifest = await fetchWebManifest(WEB_MANIFEST_URL)
+        latestRelease.value = manifest
         lastCheckedAt.value = new Date().toISOString()
 
-        const webAsset = resolveReleaseWebBundleAsset(release)
-        if (!webAsset?.browser_download_url) {
+        latestVersion.value = normalizeVersionTag(manifest?.version || '')
+        latestZipUrl.value = String(manifest?.url || '').trim()
+        latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
+
+        if (!latestVersion.value || !latestZipUrl.value) {
           latestVersion.value = ''
           latestZipUrl.value = ''
+          latestMinNativeVersion.value = ''
           lastStatus.value = 'missing-asset'
-          return { status: 'missing-asset', release }
+          return { status: 'missing-asset', manifest }
         }
 
-        latestVersion.value = normalizeVersionTag(release?.tag_name || '')
-        latestZipUrl.value = webAsset.browser_download_url
+        if (latestMinNativeVersion.value && nativeVersion.value) {
+          if (compareVersions(nativeVersion.value, latestMinNativeVersion.value) < 0) {
+            lastStatus.value = 'incompatible-native'
+            return { status: 'incompatible-native', manifest }
+          }
+        }
 
         if (!latestVersion.value || !currentVersion.value) {
           lastStatus.value = 'ready'
-          return { status: 'ready', release }
+          return { status: 'ready', manifest }
         }
 
         if (compareVersions(latestVersion.value, currentVersion.value) > 0) {
           lastStatus.value = 'available'
-          return { status: 'available', release }
+          return { status: 'available', manifest }
         }
 
         lastStatus.value = 'latest'
-        return { status: 'latest', release }
+        return { status: 'latest', manifest }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
         if (parseNoUpdateError(error)) {
@@ -196,6 +237,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersion,
     latestZipUrl,
     latestRelease,
+    latestMinNativeVersion,
     pendingBundleId,
     pendingVersion,
     isChecking,

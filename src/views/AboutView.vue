@@ -107,9 +107,9 @@
         </article>
 
         <article class="update-panel">
-          <p class="info-kicker">Resource Bundle</p>
+          <p class="info-kicker">GitHub Pages</p>
           <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
-          <p class="info-desc">通过 GitHub Release 的 dist.zip 执行资源增量更新，不修改 APK。</p>
+          <p class="info-desc">通过 GitHub Pages 的 stable manifest 执行资源增量更新，不修改 APK。</p>
           <p class="update-status">{{ webUpdateStatusText }}</p>
           <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
           <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
@@ -413,12 +413,15 @@ const webUpdateStatusText = computed(() => {
   if (webUpdateStore.lastStatus === 'available' && webUpdateStore.latestVersion) {
     return `发现资源更新 v${webUpdateStore.latestVersion}`
   }
+  if (webUpdateStore.lastStatus === 'incompatible-native' && webUpdateStore.latestMinNativeVersion) {
+    return `当前原生版本过低，需升级到 Android ${webUpdateStore.latestMinNativeVersion} 后再应用此资源包。`
+  }
   if (webUpdateStore.lastStatus === 'missing-asset') {
-    return '最新 Release 未找到 dist.zip 资源包。'
+    return 'stable manifest 缺少 version/url 字段，无法更新资源。'
   }
   if (webUpdateStore.lastStatus === 'latest') return '当前资源已是最新版本'
   if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || '资源更新检查失败'
-  return '可手动检查 GitHub Release 的 dist.zip 资源包。'
+  return '可手动检查 GitHub Pages stable manifest 资源包。'
 })
 
 const webUpdateCheckedAtLabel = computed(() => (
@@ -653,8 +656,17 @@ async function handleManualCheckWebUpdate() {
       showToast(`发现资源更新 v${webUpdateStore.latestVersion}`, 3200)
       return
     }
+    if (result?.status === 'incompatible-native') {
+      showToast(
+        webUpdateStore.latestMinNativeVersion
+          ? `需要先升级到 Android ${webUpdateStore.latestMinNativeVersion} 再更新资源。`
+          : '当前原生版本不满足资源包要求。',
+        3200
+      )
+      return
+    }
     if (result?.status === 'missing-asset') {
-      showToast('最新 Release 未找到 dist.zip', 3200)
+      showToast('stable manifest 缺少 version/url', 3200)
       return
     }
     showToast('当前资源已是最新版本')
