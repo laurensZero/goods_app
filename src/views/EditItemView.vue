@@ -291,6 +291,10 @@
                       </button>
 
                       <div v-if="showUnitActualPriceInput" class="actual-price-panel">
+                        <div class="inline-actions">
+                          <span class="inline-actions__label">逐份明细</span>
+                          <button class="inline-clear-btn" type="button" @click="clearUnitActualPriceList">清空</button>
+                        </div>
                         <label v-for="index in quantityNumber" :key="`unit-price-${index}`" class="unit-date-field">
                           <span class="field-label">第 {{ index }} 份入手价（¥）</span>
                           <input
@@ -352,6 +356,10 @@
                 </button>
 
                 <div v-if="showUnitAcquiredAtInput" class="actual-price-panel">
+                  <div class="inline-actions">
+                    <span class="inline-actions__label">逐份明细</span>
+                    <button class="inline-clear-btn" type="button" @click="clearUnitAcquiredAtList">清空</button>
+                  </div>
                   <label v-for="index in quantityNumber" :key="`unit-date-${index}`" class="unit-date-field">
                     <span class="field-label">第 {{ index }} 份购入日期</span>
                     <button
@@ -789,6 +797,16 @@ function syncUnitActualPriceListLength() {
   }
 }
 
+function clearUnitAcquiredAtList() {
+  form.unitAcquiredAtList = []
+  showUnitAcquiredAtInput.value = false
+}
+
+function clearUnitActualPriceList() {
+  form.unitActualPriceList = []
+  showUnitActualPriceInput.value = false
+}
+
 function syncAllUnitDatesFromPrimaryDate() {
   if (form.isWishlist || quantityNumber.value < 2) return
 
@@ -1182,6 +1200,35 @@ function syncDomFields() {
 .actual-price-input--disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.inline-clear-btn {
+  border: 1px solid rgba(20, 20, 22, 0.1);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 10px;
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.inline-clear-btn:active {
+  transform: scale(0.98);
+}
+
+.inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inline-actions__label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .field input:focus,
