@@ -123,24 +123,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     return normalized
   }
 
-  function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const value = String(reader.result || '')
-        const marker = 'base64,'
-        const markerIndex = value.indexOf(marker)
-        if (markerIndex === -1) {
-          reject(new Error('更新包写入失败，请稍后重试。'))
-          return
-        }
-        resolve(value.slice(markerIndex + marker.length))
-      }
-      reader.onerror = () => reject(new Error('更新包读取失败，请稍后重试。'))
-      reader.readAsDataURL(blob)
-    })
-  }
-
   async function downloadAndInstallUpdate() {
     downloadError.value = ''
     downloadProgress.value = 0
@@ -190,64 +172,35 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
     isDownloading.value = true
 
+    let progressListener = null
     try {
-      const response = await fetch(downloadUrl)
-      if (!response.ok) {
-        throw new Error(`下载失败（${response.status}）`)
-      }
-
-      const totalBytes = Number.parseInt(response.headers.get('content-length') || '0', 10)
-      const reader = response.body?.getReader?.()
-      const chunks = []
-      let receivedBytes = 0
-      const startedAt = Date.now()
-
-      if (!reader) {
-        const blob = await response.blob()
-        receivedBytes = blob.size
-        downloadProgress.value = 100
-        downloadTransferred.value = formatBytes(receivedBytes)
-        downloadSpeed.value = ''
-        chunks.push(blob)
-      } else {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          if (!value) continue
-
-          chunks.push(value)
-          receivedBytes += value.length
-
-          if (totalBytes > 0) {
-            const progress = Math.min(100, (receivedBytes / totalBytes) * 100)
-            downloadProgress.value = Number(progress.toFixed(1))
-            downloadTransferred.value = `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
-          } else {
-            downloadProgress.value = 0
-            downloadTransferred.value = formatBytes(receivedBytes)
-          }
-
-          const elapsedSeconds = Math.max((Date.now() - startedAt) / 1000, 0.2)
-          const bytesPerSecond = receivedBytes / elapsedSeconds
-          downloadSpeed.value = `${formatBytes(bytesPerSecond)}/s`
-        }
-
-        if (totalBytes <= 0) {
-          downloadProgress.value = 100
-        }
-      }
-
-      const blob = chunks.length === 1 && chunks[0] instanceof Blob
-        ? chunks[0]
-        : new Blob(chunks)
-      const base64 = await blobToBase64(blob)
       const fileName = normalizePackageFilename(asset?.name)
       const filePath = `updates/${fileName}`
+      const startedAt = Date.now()
 
-      await Filesystem.writeFile({
+      progressListener = await Filesystem.addListener('progress', (status) => {
+        if (status?.url && status.url !== downloadUrl) return
+
+        const downloadedBytes = Number(status?.bytes || 0)
+        const totalBytes = Number(status?.contentLength || 0)
+        if (totalBytes > 0) {
+          const progress = Math.min(100, (downloadedBytes / totalBytes) * 100)
+          downloadProgress.value = Number(progress.toFixed(1))
+          downloadTransferred.value = `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}`
+        } else {
+          downloadTransferred.value = formatBytes(downloadedBytes)
+        }
+
+        const elapsedSeconds = Math.max((Date.now() - startedAt) / 1000, 0.2)
+        const bytesPerSecond = downloadedBytes / elapsedSeconds
+        downloadSpeed.value = `${formatBytes(bytesPerSecond)}/s`
+      })
+
+      await Filesystem.downloadFile({
+        url: downloadUrl,
         path: filePath,
         directory: Directory.Cache,
-        data: base64,
+        progress: true,
         recursive: true
       })
 
@@ -270,6 +223,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       downloadError.value = error?.message || '下载更新包失败，请稍后再试。'
       return false
     } finally {
+      await progressListener?.remove?.()
       isDownloading.value = false
     }
   }

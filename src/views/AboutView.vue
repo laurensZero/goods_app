@@ -60,8 +60,22 @@
         <article class="update-panel">
           <p class="info-kicker">GitHub Release</p>
           <h3 class="info-value">当前版本 v{{ updateStore.currentVersion }}</h3>
-          <p class="info-desc">启动时会自动检查一次更新，你也可以在这里手动触发。</p>
+          <p class="info-desc">{{ IS_NATIVE ? '启动时会自动检查一次更新，你也可以在这里手动触发。' : 'Web 端默认不自动检查，你可以在这里手动触发。' }}</p>
           <p class="update-status">{{ updateStatusText }}</p>
+          <p v-if="updateStore.downloadError" class="update-status update-status--error">{{ updateStore.downloadError }}</p>
+          <div v-if="updateStore.isDownloading" class="update-download-progress">
+            <div class="update-download-progress__head">
+              <span>下载中</span>
+              <span>{{ updateStore.downloadProgress }}%</span>
+            </div>
+            <div class="update-download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
+              <span class="update-download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
+            </div>
+            <div class="update-download-progress__meta">
+              <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
+              <span>{{ updateStore.downloadSpeed || '--' }}</span>
+            </div>
+          </div>
           <p class="update-meta">上次检查：{{ updateCheckedAtLabel }}</p>
 
           <div class="update-actions">
@@ -77,9 +91,10 @@
               v-if="updateStore.hasUpdate"
               type="button"
               class="dialog-btn dialog-btn--primary"
-              @click="updateStore.openReleasePage()"
+              :disabled="updateStore.isDownloading"
+              @click="handleStartUpdate"
             >
-              前往更新
+              {{ updateStore.isDownloading ? '下载中...' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
             </button>
           </div>
         </article>
@@ -541,6 +556,26 @@ async function handleManualCheckUpdate() {
   }
 }
 
+async function handleStartUpdate() {
+  if (updateStore.isDownloading) return
+
+  const succeeded = await updateStore.downloadAndInstallUpdate()
+  if (succeeded) {
+    if (updateStore.usingMockDownload) {
+      showToast('模拟下载完成', 2200)
+      return
+    }
+    if (updateStore.supportsInAppDownload) {
+      showToast('更新包下载完成，请选择安装程序继续安装。', 3200)
+      return
+    }
+  }
+
+  if (updateStore.downloadError) {
+    showToast(updateStore.downloadError, 3200)
+  }
+}
+
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
@@ -808,6 +843,52 @@ onBeforeUnmount(() => {
 
 .update-meta {
   color: var(--app-text-tertiary);
+}
+
+.update-status--error {
+  color: #c74444;
+}
+
+.update-download-progress {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+}
+
+.update-download-progress__head,
+.update-download-progress__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.update-download-progress__head {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.update-download-progress__meta {
+  margin-top: 6px;
+  color: var(--app-text-tertiary);
+}
+
+.update-download-progress__track {
+  margin-top: 8px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.08);
+  overflow: hidden;
+}
+
+.update-download-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-text);
+  transition: width 0.2s ease;
 }
 
 .update-actions {
