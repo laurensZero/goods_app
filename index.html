@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>OTA Bundle 管理台</title>
+  <style>
+    :root {
+      --app-bg: #f5f7fb;
+      --app-surface: #ffffff;
+      --app-surface-soft: #f0f3fa;
+      --app-text: #1e2430;
+      --app-text-secondary: #5b6679;
+      --app-text-tertiary: #8a94a6;
+      --app-border: rgba(30, 36, 48, 0.1);
+      --app-primary: #3c7bff;
+      --app-shadow: 0 12px 30px rgba(26, 40, 75, 0.08);
+      --radius-card: 18px;
+      --radius-large: 24px;
+      --page-padding: clamp(16px, 3vw, 26px);
+      --section-gap: 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --app-bg: #0e121a;
+        --app-surface: #171c27;
+        --app-surface-soft: #20283a;
+        --app-text: #edf2ff;
+        --app-text-secondary: #b7c0d5;
+        --app-text-tertiary: #8a96b3;
+        --app-border: rgba(237, 242, 255, 0.12);
+        --app-primary: #77a5ff;
+        --app-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at right top, rgba(60, 123, 255, 0.12), transparent 40%), var(--app-bg);
+      color: var(--app-text);
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px var(--page-padding) 40px;
+    }
+
+    .hero {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: var(--radius-large);
+      padding: 22px;
+      box-shadow: var(--app-shadow);
+    }
+
+    .hero-kicker {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--app-text-tertiary);
+    }
+
+    .hero-title {
+      margin: 8px 0 0;
+      font-size: clamp(24px, 5vw, 34px);
+      letter-spacing: -0.03em;
+    }
+
+    .hero-desc {
+      margin: 10px 0 0;
+      color: var(--app-text-secondary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .hero-row {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--app-surface-soft);
+      color: var(--app-text-secondary);
+      font-size: 12px;
+      border: 1px solid var(--app-border);
+    }
+
+    .btn {
+      border: 1px solid var(--app-border);
+      background: var(--app-surface-soft);
+      color: var(--app-text);
+      border-radius: 12px;
+      min-height: 38px;
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .section {
+      margin-top: var(--section-gap);
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      box-shadow: var(--app-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 280px;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-kicker {
+      margin: 0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--app-text-tertiary);
+    }
+
+    .card-title {
+      margin: 4px 0 0;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .state {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface-soft);
+      color: var(--app-text-secondary);
+    }
+
+    .state--ok { color: #22a161; border-color: rgba(34, 161, 97, 0.35); }
+    .state--warn { color: #ce7c12; border-color: rgba(206, 124, 18, 0.35); }
+    .state--error { color: #c74444; border-color: rgba(199, 68, 68, 0.35); }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 8px 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .meta dt { color: var(--app-text-tertiary); }
+    .meta dd { margin: 0; color: var(--app-text); word-break: break-all; }
+
+    .meta a {
+      color: var(--app-primary);
+      text-decoration: none;
+    }
+
+    .meta a:hover { text-decoration: underline; }
+
+    .actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tip {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--app-text-tertiary);
+    }
+
+    .publish-card {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      box-shadow: var(--app-shadow);
+      display: grid;
+      gap: 12px;
+    }
+
+    .publish-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      color: var(--app-text-tertiary);
+    }
+
+    .input,
+    .select,
+    .textarea {
+      width: 100%;
+      min-height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface-soft);
+      color: var(--app-text);
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .textarea {
+      min-height: 78px;
+      resize: vertical;
+    }
+
+    .publish-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .publish-status {
+      margin: 0;
+      font-size: 13px;
+      color: var(--app-text-secondary);
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .publish-status--error {
+      color: #c74444;
+    }
+
+    .publish-status--ok {
+      color: #22a161;
+    }
+
+    @media (min-width: 860px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+      }
+
+      .publish-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field--full {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="hero-kicker">OTA Bundle Dashboard</p>
+      <h1 class="hero-title">Goods App OTA Bundle 管理台</h1>
+      <p class="hero-desc">用于查看 GitHub Pages 上 stable 与 beta 通道的 manifest 与 bundle 资源状态。可快速核对版本、哈希、最小原生版本与下载链接。</p>
+      <div class="hero-row">
+        <span class="chip" id="baseUrlChip">Base: ./</span>
+        <span class="chip" id="updatedAtChip">最近刷新：--</span>
+        <button class="btn" id="refreshAllBtn" type="button">刷新全部</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">发布通道</h2>
+      <div class="grid" id="channelGrid"></div>
+      <p class="tip">提示：你可以直接在下方发布面板触发 workflow_dispatch，或点击 Actions 页面手动发布。</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">发布操作</h2>
+      <article class="publish-card">
+        <div class="publish-grid">
+          <label class="field">
+            <span class="field-label">发布通道</span>
+            <select id="publishChannel" class="select">
+              <option value="stable">stable</option>
+              <option value="beta">beta</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">资源版本（可选）</span>
+            <input id="publishVersion" class="input" type="text" placeholder="留空=自动 YYYYMMDD.runNumber" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">最低原生版本（可选）</span>
+            <input id="publishMinNative" class="input" type="text" placeholder="例如 1.3.1" />
+          </label>
+
+          <label class="field field--full">
+            <span class="field-label">更新说明（可选）</span>
+            <textarea id="publishNotes" class="textarea" placeholder="例如：修复 OTA 激活时机与恢复入口"></textarea>
+          </label>
+
+          <label class="field field--full">
+            <span class="field-label">GitHub Token（需要 repo/workflow 权限，不会持久化）</span>
+            <input id="publishToken" class="input" type="password" placeholder="ghp_xxx / github_pat_xxx" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="publish-actions">
+          <button class="btn" id="publishBtn" type="button">触发发布</button>
+          <button class="btn" id="openActionsBtn" type="button">打开 Actions 页面</button>
+        </div>
+        <p id="publishStatus" class="publish-status">等待操作</p>
+      </article>
+    </section>
+  </main>
+
+  <template id="channelCardTpl">
+    <article class="card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Channel</p>
+          <h3 class="card-title" data-title></h3>
+        </div>
+        <span class="state" data-state>加载中</span>
+      </div>
+      <dl class="meta">
+        <dt>版本</dt><dd data-version>--</dd>
+        <dt>发布时间</dt><dd data-published>--</dd>
+        <dt>最小壳版本</dt><dd data-min-native>--</dd>
+        <dt>资源链接</dt><dd><a data-url href="#" target="_blank" rel="noopener">--</a></dd>
+        <dt>SHA-256</dt><dd data-hash>--</dd>
+        <dt>更新说明</dt><dd data-notes>--</dd>
+      </dl>
+      <div class="actions">
+        <button class="btn" type="button" data-open-manifest>打开 manifest</button>
+        <button class="btn" type="button" data-open-bundle>打开 bundle</button>
+        <button class="btn" type="button" data-refresh>刷新此通道</button>
+      </div>
+    </article>
+  </template>
+
+  <script>
+    const channels = ['stable', 'beta']
+    const baseUrl = new URL('./', window.location.href)
+    const channelGrid = document.getElementById('channelGrid')
+    const refreshAllBtn = document.getElementById('refreshAllBtn')
+    const updatedAtChip = document.getElementById('updatedAtChip')
+    const baseUrlChip = document.getElementById('baseUrlChip')
+    const tpl = document.getElementById('channelCardTpl')
+    const publishChannel = document.getElementById('publishChannel')
+    const publishVersion = document.getElementById('publishVersion')
+    const publishMinNative = document.getElementById('publishMinNative')
+    const publishNotes = document.getElementById('publishNotes')
+    const publishToken = document.getElementById('publishToken')
+    const publishBtn = document.getElementById('publishBtn')
+    const openActionsBtn = document.getElementById('openActionsBtn')
+    const publishStatus = document.getElementById('publishStatus')
+
+    const repoOwner = 'laurenszero'
+    const repoName = 'goods_app'
+    const workflowId = 'web-bundle-pages.yml'
+
+    baseUrlChip.textContent = `Base: ${baseUrl.href}`
+
+    const cards = new Map()
+
+    function setPublishStatus(message, type = 'default') {
+      publishStatus.textContent = message
+      publishStatus.className = 'publish-status'
+      if (type === 'ok') publishStatus.classList.add('publish-status--ok')
+      if (type === 'error') publishStatus.classList.add('publish-status--error')
+    }
+
+    function formatTime(value) {
+      if (!value) return '--'
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return String(value)
+      return date.toLocaleString('zh-CN', { hour12: false })
+    }
+
+    function statusClass(kind) {
+      if (kind === 'ok') return 'state state--ok'
+      if (kind === 'warn') return 'state state--warn'
+      if (kind === 'error') return 'state state--error'
+      return 'state'
+    }
+
+    async function fetchManifest(channel) {
+      const manifestUrl = new URL(`./${channel}/manifest.json`, baseUrl)
+      const res = await fetch(manifestUrl.href, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`)
+      const data = await res.json()
+      return { data, manifestUrl: manifestUrl.href }
+    }
+
+    function bindCard(channel) {
+      const node = tpl.content.firstElementChild.cloneNode(true)
+      node.querySelector('[data-title]').textContent = channel
+      channelGrid.appendChild(node)
+
+      const refs = {
+        node,
+        state: node.querySelector('[data-state]'),
+        version: node.querySelector('[data-version]'),
+        published: node.querySelector('[data-published]'),
+        minNative: node.querySelector('[data-min-native]'),
+        url: node.querySelector('[data-url]'),
+        hash: node.querySelector('[data-hash]'),
+        notes: node.querySelector('[data-notes]'),
+        openManifest: node.querySelector('[data-open-manifest]'),
+        openBundle: node.querySelector('[data-open-bundle]'),
+        refresh: node.querySelector('[data-refresh]')
+      }
+
+      refs.refresh.addEventListener('click', () => loadChannel(channel))
+      cards.set(channel, refs)
+    }
+
+    function renderChannel(channel, payload) {
+      const refs = cards.get(channel)
+      if (!refs) return
+
+      if (payload.error) {
+        refs.state.className = statusClass('error')
+        refs.state.textContent = '读取失败'
+        refs.version.textContent = '--'
+        refs.published.textContent = '--'
+        refs.minNative.textContent = '--'
+        refs.url.textContent = '--'
+        refs.url.href = '#'
+        refs.hash.textContent = payload.error
+        refs.notes.textContent = '--'
+        refs.openBundle.disabled = true
+        refs.openManifest.onclick = () => window.open(new URL(`./${channel}/manifest.json`, baseUrl).href, '_blank', 'noopener')
+        return
+      }
+
+      const { data, manifestUrl } = payload
+      const bundleUrl = String(data?.url || '').trim()
+      const hasVersion = Boolean(data?.version)
+      const hasBundle = Boolean(bundleUrl)
+      const stateType = hasVersion && hasBundle ? 'ok' : 'warn'
+      const stateText = hasVersion && hasBundle ? '正常' : '字段缺失'
+
+      refs.state.className = statusClass(stateType)
+      refs.state.textContent = stateText
+      refs.version.textContent = data?.version || '--'
+      refs.published.textContent = formatTime(data?.publishedAt)
+      refs.minNative.textContent = data?.minNativeVersion || '--'
+      refs.hash.textContent = data?.hash || '--'
+      refs.notes.textContent = data?.notes || '--'
+      refs.url.textContent = hasBundle ? bundleUrl : '--'
+      refs.url.href = hasBundle ? bundleUrl : '#'
+
+      refs.openManifest.disabled = false
+      refs.openManifest.onclick = () => window.open(manifestUrl, '_blank', 'noopener')
+      refs.openBundle.disabled = !hasBundle
+      refs.openBundle.onclick = () => {
+        if (!hasBundle) return
+        window.open(bundleUrl, '_blank', 'noopener')
+      }
+    }
+
+    async function loadChannel(channel) {
+      const refs = cards.get(channel)
+      if (refs) {
+        refs.state.className = statusClass('warn')
+        refs.state.textContent = '刷新中'
+      }
+
+      try {
+        const payload = await fetchManifest(channel)
+        renderChannel(channel, payload)
+      } catch (error) {
+        renderChannel(channel, { error: error?.message || '未知错误' })
+      }
+    }
+
+    async function loadAllChannels() {
+      refreshAllBtn.disabled = true
+      try {
+        await Promise.all(channels.map((channel) => loadChannel(channel)))
+        updatedAtChip.textContent = `最近刷新：${formatTime(new Date().toISOString())}`
+      } finally {
+        refreshAllBtn.disabled = false
+      }
+    }
+
+    async function triggerPublish() {
+      const token = String(publishToken.value || '').trim()
+      if (!token) {
+        setPublishStatus('请先填写 GitHub Token（需要 workflow 权限）。', 'error')
+        return
+      }
+
+      const channel = publishChannel.value
+      const bundleVersion = String(publishVersion.value || '').trim()
+      const minNativeVersion = String(publishMinNative.value || '').trim()
+      const notes = String(publishNotes.value || '').trim()
+
+      const inputs = {
+        channel,
+        bundle_version: bundleVersion,
+        min_native_version: minNativeVersion,
+        notes
+      }
+
+      publishBtn.disabled = true
+      setPublishStatus('正在触发发布工作流...', 'default')
+
+      try {
+        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/${workflowId}/dispatches`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ref: 'main',
+            inputs
+          })
+        })
+
+        if (!response.ok) {
+          const detail = await response.text().catch(() => '')
+          throw new Error(`触发失败（${response.status}）${detail ? `：${detail}` : ''}`)
+        }
+
+        setPublishStatus('已触发发布。请在 Actions 页面查看执行进度，完成后可点击“刷新全部”。', 'ok')
+      } catch (error) {
+        setPublishStatus(error?.message || '触发发布失败。', 'error')
+      } finally {
+        publishBtn.disabled = false
+      }
+    }
+
+    function openActionsPage() {
+      const url = `https://github.com/${repoOwner}/${repoName}/actions/workflows/${workflowId}`
+      window.open(url, '_blank', 'noopener')
+    }
+
+    channels.forEach(bindCard)
+    refreshAllBtn.addEventListener('click', loadAllChannels)
+    publishBtn.addEventListener('click', triggerPublish)
+    openActionsBtn.addEventListener('click', openActionsPage)
+    loadAllChannels()
+  </script>
+</body>
+</html>
