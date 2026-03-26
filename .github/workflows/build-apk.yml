@@ -187,11 +187,11 @@ jobs:
             TITLE=$(git log -1 --format=%s "$COMMIT")
             TITLE_LOWER=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]')
 
-            if [[ "$TITLE_LOWER" =~ ^merge[[:space:]] ]]; then
+            if [[ "$TITLE_LOWER" == merge\ * ]]; then
               continue
             fi
 
-            if [[ "$TITLE_LOWER" =~ ^chore([(:]|[[:space:]]) ]]; then
+            if [[ "$TITLE_LOWER" == chore:* || "$TITLE_LOWER" == "chore "* || "$TITLE_LOWER" == chore\(* ]]; then
               continue
             fi
 
