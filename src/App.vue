@@ -34,7 +34,7 @@ const route = useRoute()
 const syncStore = useSyncStore()
 const appUpdateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
-const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView']
+const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView', 'ManageView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const routeTransitionName = ref('route-none')

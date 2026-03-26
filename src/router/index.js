@@ -68,7 +68,7 @@ const routes = [
     path: '/manage',
     name: 'manage',
     component: () => import('@/views/ManageView.vue'),
-    meta: { title: '管理' }
+    meta: { title: '管理', keepAlive: true }
   },
   {
     path: '/timeline',

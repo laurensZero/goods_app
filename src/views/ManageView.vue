@@ -1,5 +1,5 @@
 <template>
-  <div class="page manage-page">
+  <div class="page manage-page" :class="{ 'manage-page--restoring': !manageDisplayReady }">
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
@@ -210,14 +210,18 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
+import { useManageScrollRestore } from '@/composables/useManageScrollRestore'
 import { sanitizeGoodsItemForExport } from '@/utils/goodsImages'
+
+defineOptions({ name: 'ManageView' })
 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
@@ -233,27 +237,136 @@ function formatSyncTime(isoString) {
 const pageBodyRef = ref(null)
 const importFileRef = ref(null)
 const toastMsg = ref('')
+const manageDisplayReady = ref(true)
 let toastTimer = null
+let pageScrollBound = false
+let pageScrollRaf = 0
+let elementScrollHandler = null
+let windowScrollHandler = null
 const BACKUP_DIR = 'GoodsAppBackup'
 
-function resetPageScrollTop() {
-  try {
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    window.scrollTo(0, 0)
-  } catch {
-    // ignore scroll reset failures in non-browser contexts
+const {
+  getScrollEl,
+  getStoredScrollState,
+  markScrollSource,
+  readScrollTop,
+  saveScrollPosition,
+  restorePendingScrollPosition,
+  restoreActivatedScrollPosition,
+  rememberCurrentScrollPosition,
+  clearDisplayedScrollPosition,
+  resetStoredScrollOnReload,
+  cancelPendingRestore
+} = useManageScrollRestore(pageBodyRef)
+
+function syncVisibleGoodsCount() {}
+function syncVisibleTimelineMonthCount() {}
+
+function shouldMaskManageDisplay() {
+  const storedTop = getStoredScrollState()?.top || 0
+  if (storedTop <= 0) return false
+  return Math.abs(readScrollTop() - storedTop) > 1
+}
+
+function handlePageScroll() {
+  if (pageScrollRaf) return
+  pageScrollRaf = window.requestAnimationFrame(() => {
+    pageScrollRaf = 0
+    rememberCurrentScrollPosition()
+  })
+}
+
+function bindPageScroll() {
+  if (pageScrollBound) return
+
+  elementScrollHandler = () => {
+    markScrollSource('element')
+    handlePageScroll()
+  }
+  windowScrollHandler = () => {
+    markScrollSource('window')
+    handlePageScroll()
   }
 
-  if (pageBodyRef.value) {
-    pageBodyRef.value.scrollTop = 0
+  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
+  window.addEventListener('scroll', windowScrollHandler, { passive: true })
+  pageScrollBound = true
+}
+
+function unbindPageScroll() {
+  if (!pageScrollBound) return
+
+  if (elementScrollHandler) {
+    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
+    elementScrollHandler = null
   }
+  if (windowScrollHandler) {
+    window.removeEventListener('scroll', windowScrollHandler)
+    windowScrollHandler = null
+  }
+
+  pageScrollBound = false
 }
 
 onMounted(() => {
-  resetPageScrollTop()
-  window.requestAnimationFrame(resetPageScrollTop)
+  const didResetOnReload = resetStoredScrollOnReload()
+  if (didResetOnReload) {
+    clearDisplayedScrollPosition()
+  }
+})
+
+onMounted(async () => {
+  const shouldMaskDisplay = shouldMaskManageDisplay()
+  manageDisplayReady.value = !shouldMaskDisplay
+  await nextTick()
+  bindPageScroll()
+  const pendingState = getStoredScrollState()
+  if (pendingState?.source) {
+    markScrollSource(pendingState.source)
+  }
+  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await nextTick()
+  manageDisplayReady.value = true
   syncStore.init()
+})
+
+onActivated(async () => {
+  const shouldMaskDisplay = shouldMaskManageDisplay()
+  if (shouldMaskDisplay) {
+    manageDisplayReady.value = false
+  }
+  const storedState = getStoredScrollState()
+  if (storedState?.source) {
+    markScrollSource(storedState.source)
+  }
+  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await nextTick()
+  manageDisplayReady.value = true
+  bindPageScroll()
+})
+
+onDeactivated(() => {
+  cancelPendingRestore()
+  rememberCurrentScrollPosition()
+  if (readScrollTop() > 1) {
+    manageDisplayReady.value = false
+  }
+  unbindPageScroll()
+})
+
+onBeforeUnmount(() => {
+  cancelPendingRestore()
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
+  rememberCurrentScrollPosition()
+  clearTimeout(toastTimer)
+})
+
+onBeforeRouteLeave(() => {
+  saveScrollPosition(true, 'manage:onBeforeRouteLeave')
 })
 
 function showToast(message, duration = 2600) {
@@ -461,6 +574,10 @@ async function handleImport(event) {
   min-height: 100dvh;
   overflow: hidden;
   background: var(--app-bg);
+}
+
+.manage-page--restoring {
+  visibility: hidden;
 }
 
 .manage-page::before,
