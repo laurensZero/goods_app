@@ -70,6 +70,26 @@ function parseQuantity(value) {
   return Math.max(1, Number(value) || 1)
 }
 
+function normalizeSingleDateValue(value) {
+  const normalized = String(value || '').trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
+}
+
+function normalizeUnitAcquiredAtList(list, quantity) {
+  const quantityNumber = parseQuantity(quantity)
+  if (quantityNumber < 2 || !Array.isArray(list)) return []
+
+  const normalized = list
+    .slice(0, quantityNumber)
+    .map((value) => normalizeSingleDateValue(value))
+
+  while (normalized.length > 0 && !normalized[normalized.length - 1]) {
+    normalized.pop()
+  }
+
+  return normalized
+}
+
 function normalizePriceValue(value) {
   if (value === '' || value == null) return ''
   return value
@@ -401,6 +421,9 @@ export const useGoodsStore = defineStore('goods', () => {
       actualPrice: normalizeWishlistFlag(data.isWishlist) ? '' : normalizePriceValue(data.actualPrice),
       points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
       acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
+      unitAcquiredAtList: normalizeWishlistFlag(data.isWishlist)
+        ? []
+        : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
       coverImage,
       images,
       note: stripVariantFromNote(data.note || data.notes || ''),
@@ -419,6 +442,7 @@ export const useGoodsStore = defineStore('goods', () => {
   function mergeGoodsRecord(existing, incoming) {
     const variant = getGoodsVariant(existing) || getGoodsVariant(incoming)
     const images = mergeGoodsImages(existing.images, incoming.images, existing.coverImage, incoming.coverImage)
+    const mergedQuantity = Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1)
 
     return {
       ...existing,
@@ -434,10 +458,14 @@ export const useGoodsStore = defineStore('goods', () => {
       actualPrice: existing.actualPrice === '' || existing.actualPrice == null ? incoming.actualPrice : existing.actualPrice,
       points: existing.points ?? incoming.points,
       acquiredAt: existing.acquiredAt || incoming.acquiredAt,
+      unitAcquiredAtList: normalizeUnitAcquiredAtList(
+        [...(existing.unitAcquiredAtList || []), ...(incoming.unitAcquiredAtList || [])],
+        mergedQuantity
+      ),
       coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
       images,
       note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
-      quantity: Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1),
+      quantity: mergedQuantity,
       updatedAt: Date.now()
     }
   }

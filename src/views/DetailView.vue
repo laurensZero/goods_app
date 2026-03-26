@@ -100,7 +100,7 @@
 
             <article class="info-tile">
               <span class="info-label">{{ item.isWishlist ? '预计入手日期' : '购入日期' }}</span>
-              <strong class="info-value">{{ item.acquiredAt || '未填写' }}</strong>
+              <strong class="info-value">{{ acquiredAtDisplayText }}</strong>
             </article>
 
             <article v-if="showOfficialPriceTile" class="info-tile">
@@ -132,6 +132,7 @@
               <span class="info-label">数量</span>
               <strong class="info-value">{{ item.quantity }} 件</strong>
             </article>
+
           </div>
         </section>
 
@@ -254,6 +255,35 @@ const officialPriceText = computed(() => {
 })
 const showOfficialPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.price)
 const showActualPriceTile = computed(() => !item.value?.isWishlist && hasActualPriceValue(item.value?.actualPrice))
+const unitAcquiredAtText = computed(() => {
+  const quantity = Number(item.value?.quantity) || 1
+  if (quantity < 2) return ''
+
+  const list = Array.isArray(item.value?.unitAcquiredAtList) ? item.value.unitAcquiredAtList : []
+  const seen = new Set()
+  const deduped = []
+
+  for (const date of list) {
+    const normalized = String(date || '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) continue
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    deduped.push(normalized)
+  }
+
+  if (deduped.length <= 1) return ''
+
+  return deduped.join(' / ')
+})
+const acquiredAtDisplayText = computed(() => {
+  if (!item.value) return '未填写'
+
+  if (!item.value.isWishlist && unitAcquiredAtText.value) {
+    return unitAcquiredAtText.value
+  }
+
+  return item.value.acquiredAt || '未填写'
+})
 
 const cachedImgSrc = ref('')
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'

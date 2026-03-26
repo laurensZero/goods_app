@@ -272,7 +272,15 @@
             </label>
 
             <label class="field">              <span class="field-label">{{ form.isWishlist ? '预计入手日期' : '购入日期' }}</span>
-              <button class="date-field" type="button" @pointerdown="flushActiveInput" @click="openDatePicker">
+              <button
+                class="date-field"
+                :class="{ 'date-field--disabled': quantityNumber >= 2 && showUnitAcquiredAtInput && !form.isWishlist }"
+                type="button"
+                :disabled="quantityNumber >= 2 && showUnitAcquiredAtInput && !form.isWishlist"
+                :aria-disabled="quantityNumber >= 2 && showUnitAcquiredAtInput && !form.isWishlist"
+                @pointerdown="flushActiveInput"
+                @click="openDatePicker"
+              >
                 <span :class="{ 'date-field__value--placeholder': !form.acquiredAt }">
                   {{ form.acquiredAt || (form.isWishlist ? '可选，暂未计划' : '请选择日期') }}
                 </span>
@@ -284,6 +292,45 @@
                   <path d="M3 10H21" />
                 </svg>
               </button>
+
+              <div v-if="!form.isWishlist && quantityNumber >= 2" class="actual-price-block" :class="{ 'actual-price-block--open': showUnitAcquiredAtInput }">
+                <button class="actual-price-toggle" type="button" @click="showUnitAcquiredAtInput = !showUnitAcquiredAtInput">
+                  <span class="actual-price-toggle__copy">
+                    <span class="actual-price-toggle__title">
+                      {{ showUnitAcquiredAtInput ? '收起逐份购入时间' : (hasUnitAcquiredAtValue ? '已填写逐份购入时间' : '设置逐份购入时间') }}
+                    </span>
+                    <span class="actual-price-toggle__desc">
+                      {{ showUnitAcquiredAtInput ? '可分别记录每一份谷子的购入日期' : (hasUnitAcquiredAtValue ? '已保存部分逐份日期' : '数量大于等于 2 时可单独设置每份日期') }}
+                    </span>
+                  </span>
+                  <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showUnitAcquiredAtInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 10L12 15L17 10" />
+                  </svg>
+                </button>
+
+                <div v-if="showUnitAcquiredAtInput" class="actual-price-panel">
+                  <label v-for="index in quantityNumber" :key="`unit-date-${index}`" class="unit-date-field">
+                    <span class="field-label">第 {{ index }} 份购入日期</span>
+                    <button
+                      class="date-field"
+                      type="button"
+                      @pointerdown="flushActiveInput"
+                      @click="openUnitDatePicker(index - 1)"
+                    >
+                      <span :class="{ 'date-field__value--placeholder': !form.unitAcquiredAtList[index - 1] }">
+                        {{ form.unitAcquiredAtList[index - 1] || '请选择日期' }}
+                      </span>
+
+                      <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="16" rx="3" />
+                        <path d="M8 3V7" />
+                        <path d="M16 3V7" />
+                        <path d="M3 10H21" />
+                      </svg>
+                    </button>
+                  </label>
+                </div>
+              </div>
             </label>
           </div>
         </section>
@@ -320,7 +367,15 @@
       </div>
     </Teleport>
 
-    <Popup v-model:show="showDatePicker" teleport="body" :z-index="2000" position="bottom" round class="picker-popup">
+    <Popup
+      v-model:show="showDatePicker"
+      teleport="body"
+      :z-index="2000"
+      :lock-scroll="false"
+      :position="datePickerPopupPosition"
+      :round="!isTabletViewport"
+      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
+    >
       <DatePicker
         v-model="datePickerValue"
         title="选择购入日期"
@@ -328,6 +383,25 @@
         :max-date="maxDate"
         @cancel="showDatePicker = false"
         @confirm="onDateConfirm"
+      />
+    </Popup>
+
+    <Popup
+      v-model:show="showUnitDatePicker"
+      teleport="body"
+      :z-index="2001"
+      :lock-scroll="false"
+      :position="datePickerPopupPosition"
+      :round="!isTabletViewport"
+      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
+    >
+      <DatePicker
+        v-model="unitDatePickerValue"
+        title="选择逐份购入日期"
+        :min-date="minDate"
+        :max-date="maxDate"
+        @cancel="showUnitDatePicker = false"
+        @confirm="onUnitDateConfirm"
       />
     </Popup>
   </div>
@@ -371,11 +445,13 @@ const form = reactive({
   acquiredAt: '',
   images: [],
   note: '',
-  quantity: 1
+  quantity: 1,
+  unitAcquiredAtList: []
 })
 
 const showPointsInput = ref(false)
 const showActualPriceInput = ref(false)
+const showUnitAcquiredAtInput = ref(false)
 const quickCreateTarget = ref('')
 const quickCategoryName = ref('')
 const quickIpName = ref('')
@@ -387,10 +463,15 @@ const charactersFieldRef = ref(null)
 const nameInputRef = ref(null)
 const noteInputRef = ref(null)
 const showDatePicker = ref(false)
+const showUnitDatePicker = ref(false)
 const showCharPicker = ref(false)
 const datePickerValue = ref(toDatePickerValue(form.acquiredAt))
+const unitDatePickerValue = ref(toDatePickerValue(form.acquiredAt))
+const activeUnitDateIndex = ref(-1)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
+const TABLET_BREAKPOINT = 768
+const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
 
 const availableCharacters = computed(() =>
   form.ip ? presets.characters.filter((character) => character.ip === form.ip) : []
@@ -413,6 +494,14 @@ const characterPlaceholder = computed(() => {
   return '请选择角色'
 })
 const primaryPreviewImage = computed(() => getPrimaryGoodsImageUrl(form.images))
+const quantityNumber = computed(() => Math.max(1, Number(form.quantity) || 1))
+const hasUnitAcquiredAtValue = computed(() => form.unitAcquiredAtList.some((value) => !!String(value || '').trim()))
+const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
+const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+
+function handleViewportResize() {
+  viewportWidth.value = window.innerWidth
+}
 
 watch(
   () => form.name,
@@ -435,7 +524,17 @@ watch(
   }
 )
 
+watch(
+  quantityNumber,
+  () => {
+    syncUnitAcquiredAtListLength()
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
+  handleViewportResize()
+  window.addEventListener('resize', handleViewportResize)
   const item = store.getById(props.id)
   if (item) {
     form.name = item.name ?? ''
@@ -454,6 +553,9 @@ onMounted(() => {
     form.images = item.images ? [...item.images] : []
     form.note = item.note ?? ''
     form.quantity = Number(item.quantity) || 1
+    form.unitAcquiredAtList = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
+    showUnitAcquiredAtInput.value = form.unitAcquiredAtList.some((value) => !!String(value || '').trim())
+    syncUnitAcquiredAtListLength()
     datePickerValue.value = toDatePickerValue(form.acquiredAt)
   }
 
@@ -467,13 +569,16 @@ watch(
     if (isWishlist) {
       showPointsInput.value = false
       showActualPriceInput.value = false
+      showUnitAcquiredAtInput.value = false
       form.actualPrice = ''
       form.points = ''
+      form.unitAcquiredAtList = []
     }
   }
 )
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleViewportResize)
   document.removeEventListener('mousedown', handleClickOutside)
   document.removeEventListener('touchstart', handleClickOutside)
 })
@@ -575,16 +680,73 @@ function hasActualPriceValue(value) {
   return value !== '' && value != null
 }
 
+function normalizeUnitDateValue(value) {
+  const normalized = String(value || '').trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
+}
+
+function normalizeUnitDateAt(index) {
+  if (index < 0 || index >= form.unitAcquiredAtList.length) return
+  form.unitAcquiredAtList[index] = normalizeUnitDateValue(form.unitAcquiredAtList[index])
+}
+
+function syncUnitAcquiredAtListLength() {
+  const targetLength = quantityNumber.value
+  const fallbackDate = normalizeUnitDateValue(form.acquiredAt)
+  const current = Array.isArray(form.unitAcquiredAtList) ? [...form.unitAcquiredAtList] : []
+  const next = Array.from({ length: targetLength }, (_, index) => normalizeUnitDateValue(current[index]) || fallbackDate)
+
+  while (next.length > 0 && !next[next.length - 1]) {
+    next.pop()
+  }
+
+  form.unitAcquiredAtList = next
+
+  if (targetLength < 2) {
+    showUnitAcquiredAtInput.value = false
+  }
+}
+
+function syncAllUnitDatesFromPrimaryDate() {
+  if (form.isWishlist || quantityNumber.value < 2) return
+
+  const normalizedDate = normalizeUnitDateValue(form.acquiredAt)
+  if (!normalizedDate) return
+
+  form.unitAcquiredAtList = Array.from({ length: quantityNumber.value }, () => normalizedDate)
+}
+
 function openDatePicker() {
   datePickerValue.value = toDatePickerValue(form.acquiredAt)
   showDatePicker.value = true
+}
+
+function openUnitDatePicker(index) {
+  if (index < 0 || index >= quantityNumber.value) return
+  activeUnitDateIndex.value = index
+  unitDatePickerValue.value = toDatePickerValue(form.unitAcquiredAtList[index] || form.acquiredAt)
+  showUnitDatePicker.value = true
 }
 
 function onDateConfirm({ selectedValues }) {
   const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
   form.acquiredAt = `${year}-${month}-${day}`
   datePickerValue.value = [year, month, day]
+  syncAllUnitDatesFromPrimaryDate()
   showDatePicker.value = false
+}
+
+function onUnitDateConfirm({ selectedValues }) {
+  const index = activeUnitDateIndex.value
+  if (index < 0 || index >= quantityNumber.value) {
+    showUnitDatePicker.value = false
+    return
+  }
+
+  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+  form.unitAcquiredAtList[index] = `${year}-${month}-${day}`
+  unitDatePickerValue.value = [year, month, day]
+  showUnitDatePicker.value = false
 }
 
 function toDatePickerValue(dateString) {
@@ -807,6 +969,12 @@ function syncDomFields() {
   margin-top: 12px;
 }
 
+.unit-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .actual-price-toggle__copy {
   display: flex;
   flex-direction: column;
@@ -979,7 +1147,7 @@ function syncDomFields() {
 
 .date-field:active,
 .multi-select__trigger:active {
-  transform: scale(0.98);
+  transform: scale(0.995);
 }
 
 .multi-select__trigger--disabled {
@@ -1005,6 +1173,15 @@ function syncDomFields() {
 
 .date-field__value--placeholder {
   color: var(--app-placeholder);
+}
+
+.date-field--disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.date-field--disabled:active {
+  transform: none;
 }
 
 .date-field__icon,
@@ -1124,6 +1301,13 @@ function syncDomFields() {
 }
 
 .picker-popup {
+  overflow: hidden;
+}
+
+:global(.picker-popup--center.van-popup--center) {
+  width: min(560px, calc(100vw - 64px));
+  max-width: calc(100vw - 64px);
+  border-radius: 24px;
   overflow: hidden;
 }
 
