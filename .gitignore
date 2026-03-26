@@ -6,5 +6,6 @@ dist
 !.github/workflows/
 !.github/workflows/**
 .idea
-\docs
+docs/*
+!docs/ota-bundle-manager.html
 scripts/generate-android-icons.ps1
