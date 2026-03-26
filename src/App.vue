@@ -22,6 +22,7 @@
 
 <script setup>
 import { computed, KeepAlive, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import { useRoute } from 'vue-router'
 import AppUpdateDialog from '@/components/AppUpdateDialog.vue'
 import TabBar from '@/components/TabBar.vue'
@@ -80,9 +81,12 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
 
   void appUpdateStore.init()
-  void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
-    // silent fail on startup update check
-  })
+  const shouldAutoCheckUpdate = !(import.meta.env.DEV && !Capacitor.isNativePlatform())
+  if (shouldAutoCheckUpdate) {
+    void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
+      // silent fail on startup update check
+    })
+  }
 
   // 自动拉取
   await syncStore.init()

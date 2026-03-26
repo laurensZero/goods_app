@@ -26,9 +26,11 @@
         </section>
 
         <p class="update-tip">
-          {{ updateStore.supportsInAppDownload
-            ? '将直接在应用内下载更新包，下载后可直接调用系统安装程序。'
-            : '当前环境不支持应用内下载，将打开更新页面进行下载。' }}
+          {{ updateStore.usingMockDownload
+            ? '当前为开发预览模式：将模拟应用内下载进度与速度。'
+            : (updateStore.supportsInAppDownload
+              ? '将直接在应用内下载更新包，下载后可直接调用系统安装程序。'
+              : '当前环境不支持应用内下载，将打开更新页面进行下载。') }}
         </p>
         <section v-if="updateStore.isDownloading" class="download-progress">
           <div class="download-progress__head">
@@ -48,7 +50,7 @@
         <div class="dialog-actions">
           <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">稍后再说</button>
           <button type="button" class="dialog-btn dialog-btn--primary" :disabled="updateStore.isDownloading" @click="updateStore.downloadAndInstallUpdate()">
-            {{ updateStore.isDownloading ? '正在下载…' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
+            {{ updateStore.isDownloading ? '正在下载…' : (updateStore.usingMockDownload ? '模拟下载' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新')) }}
           </button>
         </div>
       </div>

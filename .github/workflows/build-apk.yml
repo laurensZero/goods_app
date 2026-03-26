@@ -167,15 +167,71 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
+      - name: Generate release notes from commits
+        env:
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -Fxv "$RELEASE_TAG" | head -n 1 || true)
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            RANGE="$PREVIOUS_TAG..$GITHUB_SHA"
+          else
+            RANGE="$GITHUB_SHA"
+          fi
+
+          echo "## 更新说明" > release-notes.md
+          echo "" >> release-notes.md
+
+          HAS_NOTES=0
+          for COMMIT in $(git rev-list --reverse "$RANGE"); do
+            TITLE=$(git log -1 --format=%s "$COMMIT")
+            TITLE_LOWER=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]')
+
+            if [[ "$TITLE_LOWER" =~ ^merge[[:space:]] ]]; then
+              continue
+            fi
+
+            if [[ "$TITLE_LOWER" =~ ^chore([(:]|[[:space:]]) ]]; then
+              continue
+            fi
+
+            FILES=$(git diff-tree --no-commit-id --name-only -r "$COMMIT")
+            if [ -z "$FILES" ]; then
+              continue
+            fi
+
+            if ! echo "$FILES" | grep -qvE '^\.github/workflows/'; then
+              continue
+            fi
+
+            echo "- $TITLE" >> release-notes.md
+            BODY=$(git log -1 --format=%b "$COMMIT")
+            if [ -n "$BODY" ]; then
+              while IFS= read -r LINE || [ -n "$LINE" ]; do
+                if [ -n "$LINE" ]; then
+                  echo "  $LINE" >> release-notes.md
+                else
+                  echo "" >> release-notes.md
+                fi
+              done <<< "$BODY"
+            fi
+            echo "" >> release-notes.md
+            HAS_NOTES=1
+          done
+
+          if [ "$HAS_NOTES" -eq 0 ]; then
+            echo "- 本次更新无可用变更说明" >> release-notes.md
+          fi
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
         run: |
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
           else
-            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --generate-notes --target "$GITHUB_SHA"
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md --target "$GITHUB_SHA"
           fi
 
       - name: Upload APK to GitHub Release
