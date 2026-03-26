@@ -226,7 +226,7 @@
 
           <div class="field-card">
             <label class="field">
-              <span class="field-label">{{ form.isWishlist ? '目标价格（¥）' : '购入价格（¥）' }}</span>
+              <span class="field-label">{{ form.isWishlist ? '目标价格（¥）' : '价格（¥）' }}</span>
               <div class="price-row">
                 <input v-model="form.price" type="number" min="0" step="0.01" placeholder="0.00" />
                 <button
@@ -244,6 +244,26 @@
               <div v-if="showPointsInput" class="points-input-wrap">
                 <span class="points-input-label">消耗积分</span>
                 <input v-model.number="form.points" type="number" min="0" step="1" placeholder="0" />
+              </div>
+              <div v-if="!form.isWishlist" class="actual-price-block" :class="{ 'actual-price-block--open': showActualPriceInput }">
+                <button class="actual-price-toggle" type="button" @click="showActualPriceInput = !showActualPriceInput">
+                  <span class="actual-price-toggle__copy">
+                    <span class="actual-price-toggle__title">
+                      {{ showActualPriceInput ? '收起实际入手价' : (form.actualPrice ? '已填写实际入手价' : '补充实际入手价') }}
+                    </span>
+                    <span class="actual-price-toggle__desc">
+                      {{ showActualPriceInput ? '用于单独记录最终成交价' : (form.actualPrice ? `当前 ¥${form.actualPrice}` : '如果成交价和标价不同，可以单独填写') }}
+                    </span>
+                  </span>
+                  <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showActualPriceInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 10L12 15L17 10" />
+                  </svg>
+                </button>
+
+                <div v-if="showActualPriceInput" class="actual-price-panel">
+                  <span class="field-label">入手价（¥）</span>
+                  <input v-model="form.actualPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+                </div>
               </div>
             </label>
 
@@ -346,6 +366,7 @@ const form = reactive({
   tags: [],
   storageLocation: '',
   price: '',
+  actualPrice: '',
   points: '',
   acquiredAt: '',
   images: [],
@@ -354,6 +375,7 @@ const form = reactive({
 })
 
 const showPointsInput = ref(false)
+const showActualPriceInput = ref(false)
 const quickCreateTarget = ref('')
 const quickCategoryName = ref('')
 const quickIpName = ref('')
@@ -424,8 +446,10 @@ onMounted(() => {
     form.tags = item.tags ? [...item.tags] : []
     form.storageLocation = item.storageLocation ?? ''
     form.price = item.price ?? ''
+    form.actualPrice = item.actualPrice ?? ''
     form.points = item.points ?? ''
     showPointsInput.value = !!item.points
+    showActualPriceInput.value = !!item.actualPrice
     form.acquiredAt = item.acquiredAt ?? ''
     form.images = item.images ? [...item.images] : []
     form.note = item.note ?? ''
@@ -442,6 +466,8 @@ watch(
   (isWishlist) => {
     if (isWishlist) {
       showPointsInput.value = false
+      showActualPriceInput.value = false
+      form.actualPrice = ''
       form.points = ''
     }
   }
@@ -749,6 +775,66 @@ function syncDomFields() {
   stroke: currentColor;
   stroke-width: 1.8;
   stroke-linecap: round;
+}
+
+.actual-price-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.actual-price-block {
+  margin-top: 4px;
+  border-top: 1px solid rgba(20, 20, 22, 0.08);
+  padding-top: 12px;
+}
+
+.actual-price-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.actual-price-toggle__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.actual-price-toggle__title {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actual-price-toggle__desc {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.actual-price-toggle__arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: #8e8e93;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+
+.actual-price-toggle__arrow--open {
+  transform: rotate(180deg);
 }
 
 .required {

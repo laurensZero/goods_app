@@ -70,8 +70,25 @@ function parseQuantity(value) {
   return Math.max(1, Number(value) || 1)
 }
 
+function normalizePriceValue(value) {
+  if (value === '' || value == null) return ''
+  return value
+}
+
 function normalizeWishlistFlag(value) {
   return value === true || value === 1 || value === '1'
+}
+
+function resolveEffectivePriceValue(item) {
+  if (normalizeWishlistFlag(item?.isWishlist)) {
+    return item?.price
+  }
+
+  if (item?.actualPrice !== '' && item?.actualPrice != null) {
+    return item.actualPrice
+  }
+
+  return item?.price
 }
 
 function normalizeCharacterList(list) {
@@ -317,7 +334,9 @@ export const useGoodsStore = defineStore('goods', () => {
   const viewList = computed(() =>
     list.value.map((item) => {
       const quantityNumber = parseQuantity(item.quantity)
-      const priceNumber = parseNumericPrice(item.price)
+      const officialPriceNumber = parseNumericPrice(item.price)
+      const actualPriceNumber = parseNumericPrice(item.actualPrice)
+      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
 
       return {
         ...item,
@@ -325,9 +344,12 @@ export const useGoodsStore = defineStore('goods', () => {
         sortId: String(item.id),
         acquiredTime: parseAcquiredTime(item.acquiredAt),
         timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
-        priceNumber,
+        priceNumber: effectivePriceNumber,
+        officialPriceNumber,
+        actualPriceNumber,
+        effectivePriceNumber,
         quantityNumber,
-        totalValueNumber: priceNumber * quantityNumber
+        totalValueNumber: effectivePriceNumber * quantityNumber
       }
     })
   )
@@ -337,15 +359,20 @@ export const useGoodsStore = defineStore('goods', () => {
     [...trashList.value]
       .map((item) => {
         const quantityNumber = parseQuantity(item.quantity)
-        const priceNumber = parseNumericPrice(item.price)
+        const officialPriceNumber = parseNumericPrice(item.price)
+        const actualPriceNumber = parseNumericPrice(item.actualPrice)
+        const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
 
         return {
           ...item,
           deletedTime: parseDeletedTime(item.deletedAt),
           acquiredTime: parseAcquiredTime(item.acquiredAt),
-          priceNumber,
+          priceNumber: effectivePriceNumber,
+          officialPriceNumber,
+          actualPriceNumber,
+          effectivePriceNumber,
           quantityNumber,
-          totalValueNumber: priceNumber * quantityNumber
+          totalValueNumber: effectivePriceNumber * quantityNumber
         }
       })
       .sort((a, b) => b.deletedTime - a.deletedTime || b.acquiredTime - a.acquiredTime)
@@ -370,7 +397,8 @@ export const useGoodsStore = defineStore('goods', () => {
       tags: normalizeTagList(data.tags),
       storageLocation: normalizeStorageLocationValue(data.storageLocation || data.location || ''),
       variant,
-      price: data.price === '' || data.price == null ? '' : data.price,
+      price: normalizePriceValue(data.price),
+      actualPrice: normalizeWishlistFlag(data.isWishlist) ? '' : normalizePriceValue(data.actualPrice),
       points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
       acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
       coverImage,
@@ -403,6 +431,7 @@ export const useGoodsStore = defineStore('goods', () => {
       storageLocation: existing.storageLocation || incoming.storageLocation,
       variant,
       price: existing.price === '' || existing.price == null ? incoming.price : existing.price,
+      actualPrice: existing.actualPrice === '' || existing.actualPrice == null ? incoming.actualPrice : existing.actualPrice,
       points: existing.points ?? incoming.points,
       acquiredAt: existing.acquiredAt || incoming.acquiredAt,
       coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),

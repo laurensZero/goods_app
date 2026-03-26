@@ -344,7 +344,7 @@ async function handleExport() {
   const trashList = await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item)))
 
   const data = {
-    version: 5,
+    version: 6,
     exportedAt: new Date().toISOString(),
     goods: goodsList,
     trash: trashList,

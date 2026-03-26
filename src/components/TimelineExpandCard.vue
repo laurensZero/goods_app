@@ -30,7 +30,7 @@
 
         <div class="tl-expand-meta">
           <span v-if="item.acquiredAt" class="tl-expand-date">{{ item.acquiredAt }}</span>
-          <span v-if="item.price !== ''" class="tl-expand-price">{{ totalPrice }}</span>
+          <span v-if="displayUnitPrice !== ''" class="tl-expand-price">{{ totalPrice }}</span>
         </div>
 
         <p v-if="item.note" class="tl-expand-note">{{ item.note }}</p>
@@ -52,8 +52,11 @@ const props = defineProps({
 
 defineEmits(['open-detail'])
 
+const displayUnitPrice = computed(() => (
+  props.item.isWishlist ? props.item.price : (props.item.actualPrice || props.item.price)
+))
 const totalPrice = computed(() =>
-  formatPrice(Number(props.item.price || 0) * Number(props.item.quantity || 1))
+  formatPrice(Number(displayUnitPrice.value || 0) * Number(props.item.quantity || 1))
 )
 </script>
 

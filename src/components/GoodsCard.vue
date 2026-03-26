@@ -260,6 +260,10 @@ const priceText = computed(() => {
     return props.item.price ? `目标 ¥${props.item.price}` : '心愿单'
   }
 
+  if (props.item.actualPrice) {
+    return `到手 ¥${props.item.actualPrice}`
+  }
+
   return props.item.price ? `¥${props.item.price}` : '¥—'
 })
 </script>

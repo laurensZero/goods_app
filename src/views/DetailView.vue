@@ -57,12 +57,13 @@
           <h1 class="hero-name">{{ item.name }}</h1>
 
           <div class="hero-price">
-            <span class="price-label">{{ item.isWishlist ? '目标价格' : '购入价格' }}</span>
+            <span class="price-label">{{ heroPriceLabel }}</span>
             <p class="price-value">
               <span class="price-currency">¥</span>
-              <span class="price-amount">{{ item.price || '—' }}</span>
-              <span v-if="item.points" class="price-points">+{{ item.points }}积分</span>
+              <span class="price-amount">{{ heroPriceAmount }}</span>
+              <span v-if="showHeroPointsInline" class="price-points">+{{ item.points }}积分</span>
             </p>
+            <p v-if="heroPriceHint" class="price-hint">{{ heroPriceHint }}</p>
           </div>
 
           <button v-if="item.isWishlist" class="hero-action-btn" type="button" @click="markAsOwned">
@@ -100,6 +101,16 @@
             <article class="info-tile">
               <span class="info-label">{{ item.isWishlist ? '预计入手日期' : '购入日期' }}</span>
               <strong class="info-value">{{ item.acquiredAt || '未填写' }}</strong>
+            </article>
+
+            <article v-if="showOfficialPriceTile" class="info-tile">
+              <span class="info-label">价格</span>
+              <strong class="info-value">{{ officialPriceText }}</strong>
+            </article>
+
+            <article v-if="showActualPriceTile" class="info-tile">
+              <span class="info-label">入手价</span>
+              <strong class="info-value">¥{{ item.actualPrice }}</strong>
             </article>
 
             <article v-if="item.storageLocation" class="info-tile">
@@ -212,6 +223,34 @@ const activeImage = computed(() => (
 ))
 const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 const variantText = computed(() => getGoodsVariant(item.value))
+const heroPriceAmount = computed(() => {
+  if (!item.value) return '—'
+  if (item.value.isWishlist) return item.value.price || '—'
+  return item.value.actualPrice || item.value.price || '—'
+})
+const heroPriceLabel = computed(() => {
+  if (!item.value) return '价格'
+  if (item.value.isWishlist) return '目标价格'
+  return item.value.actualPrice ? '入手价' : '价格'
+})
+const showHeroPointsInline = computed(() => !item.value?.actualPrice && !!item.value?.points)
+const heroPriceHint = computed(() => {
+  if (!item.value || item.value.isWishlist) return ''
+  const parts = []
+  if (item.value.actualPrice && item.value.price) {
+    parts.push(`价格 ¥${item.value.price}`)
+  }
+  if (item.value.points) {
+    parts.push(`+${item.value.points}积分`)
+  }
+  return parts.join(' ')
+})
+const officialPriceText = computed(() => {
+  if (!item.value?.price) return '未填写'
+  return item.value.points ? `¥${item.value.price} +${item.value.points}积分` : `¥${item.value.price}`
+})
+const showOfficialPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.price)
+const showActualPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.actualPrice)
 
 const cachedImgSrc = ref('')
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
@@ -620,6 +659,12 @@ function getImageKindLabel(kind) {
   font-weight: 500;
   align-self: flex-end;
   margin-bottom: 3px;
+}
+
+.price-hint {
+  margin: 6px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
 }
 
 .section-head {

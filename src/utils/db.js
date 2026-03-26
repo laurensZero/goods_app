@@ -22,6 +22,7 @@ const CREATE_TABLE_SQL = `
     storageLocation TEXT DEFAULT '',
     variant    TEXT DEFAULT '',
     price      TEXT DEFAULT '',
+    actualPrice TEXT DEFAULT '',
     acquiredAt TEXT DEFAULT '',
     image      TEXT DEFAULT '',
     images     TEXT DEFAULT '[]',
@@ -37,6 +38,7 @@ const MIGRATE_ADD_CHR = "ALTER TABLE goods ADD COLUMN characters TEXT DEFAULT '[
 const MIGRATE_ADD_TAGS = "ALTER TABLE goods ADD COLUMN tags TEXT DEFAULT '[]'"
 const MIGRATE_ADD_LOC = "ALTER TABLE goods ADD COLUMN storageLocation TEXT DEFAULT ''"
 const MIGRATE_ADD_VAR = "ALTER TABLE goods ADD COLUMN variant TEXT DEFAULT ''"
+const MIGRATE_ADD_ACTUAL_PRICE = "ALTER TABLE goods ADD COLUMN actualPrice TEXT DEFAULT ''"
 const MIGRATE_ADD_QTY = "ALTER TABLE goods ADD COLUMN quantity INTEGER DEFAULT 1"
 const MIGRATE_ADD_PTS = "ALTER TABLE goods ADD COLUMN points INTEGER DEFAULT NULL"
 const MIGRATE_ADD_IMAGES = "ALTER TABLE goods ADD COLUMN images TEXT DEFAULT '[]'"
@@ -94,6 +96,7 @@ async function _initWebDB() {
   try { _sqlDb.run(MIGRATE_ADD_TAGS) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_LOC) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_VAR) } catch (e) { /* column already exists */ }
+  try { _sqlDb.run(MIGRATE_ADD_ACTUAL_PRICE) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
   try { _sqlDb.run(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
@@ -130,6 +133,7 @@ async function _initNativeDB() {
   try { await _nativeDb.execute(MIGRATE_ADD_TAGS) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_LOC) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_VAR) } catch (e) { /* column already exists */ }
+  try { await _nativeDb.execute(MIGRATE_ADD_ACTUAL_PRICE) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
   try { await _nativeDb.execute(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
@@ -147,7 +151,7 @@ export async function getItems() {
     if (!_nativeDb) return []
     rows = (await _nativeDb.query('SELECT * FROM goods ORDER BY rowid DESC')).values ?? []
   } else {
-    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt FROM goods ORDER BY rowid DESC')
+    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,image,images,note,quantity,points,updatedAt FROM goods ORDER BY rowid DESC')
   }
   return rows.map(r => ({
     ...r,
@@ -157,6 +161,7 @@ export async function getItems() {
     images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
     storageLocation: String(r.storageLocation || '').trim(),
     variant: String(r.variant || '').trim(),
+    actualPrice: String(r.actualPrice || '').trim(),
     quantity: Number(r.quantity ?? 1) || 1,
     points: r.points != null && r.points !== '' ? Number(r.points) : undefined,
     updatedAt: Number(r.updatedAt) || 0
@@ -164,7 +169,7 @@ export async function getItems() {
 }
 
 export async function addItem(item) {
-  const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
+  const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', actualPrice = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
   const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
@@ -172,8 +177,8 @@ export async function addItem(item) {
   const pts = points != null && points !== '' ? Number(points) : null
   const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
   const ts = updatedAt || Date.now()
-  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
+  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -191,7 +196,7 @@ export async function saveItems(items) {
     if (!_nativeDb) return
     const stmts = []
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
+      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', actualPrice = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
@@ -200,15 +205,15 @@ export async function saveItems(items) {
       const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
       const ts = updatedAt || Date.now()
       stmts.push({
-        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
+        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
       })
     }
     await _nativeDb.executeSet(stmts)
   } else {
     if (!_sqlDb) return
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
+      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', actualPrice = '', acquiredAt = '', image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
       const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
@@ -217,8 +222,8 @@ export async function saveItems(items) {
       const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
       const ts = updatedAt || Date.now()
       _sqlDb.run(
-        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
+        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, legacyImage, imagesStr, note, qty, pts, ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)
