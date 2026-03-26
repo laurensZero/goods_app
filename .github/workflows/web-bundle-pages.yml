@@ -82,6 +82,10 @@ jobs:
           BUNDLE_NAME="bundle-${VERSION}.zip"
           mkdir -p "pages/${CHANNEL}"
 
+          if [ -f "docs/ota-bundle-manager.html" ]; then
+            cp "docs/ota-bundle-manager.html" "pages/index.html"
+          fi
+
           cd dist
           zip -r "../pages/${CHANNEL}/${BUNDLE_NAME}" .
           cd ..

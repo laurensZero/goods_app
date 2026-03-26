@@ -104,7 +104,7 @@
           <article class="update-panel">
             <p class="info-kicker">GitHub Pages</p>
             <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
-            <p class="info-desc">通过 GitHub Pages 的 stable manifest 执行资源增量更新，不修改 APK。</p>
+            <p class="info-desc">通过 GitHub Pages 的 manifest 执行资源增量更新，不修改 APK。</p>
             <div class="update-channel-row">
               <span class="update-channel-label">更新通道</span>
               <div class="update-channel-actions">
@@ -466,7 +466,7 @@ const webUpdateStatusText = computed(() => {
     return `当前原生版本过低，需升级到 Android ${webUpdateStore.latestMinNativeVersion} 后再应用此资源包。`
   }
   if (webUpdateStore.lastStatus === 'missing-asset') {
-    return 'stable manifest 缺少 version/url 字段，无法更新资源。'
+    return 'manifest 缺少 version/url 字段，无法更新资源。'
   }
   if (webUpdateStore.lastStatus === 'latest') return '当前资源已是最新版本'
   if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || '资源更新检查失败'
@@ -725,7 +725,7 @@ async function handleManualCheckWebUpdate() {
       return
     }
     if (result?.status === 'missing-asset') {
-      showToast('stable manifest 缺少 version/url', 3200)
+      showToast('manifest 缺少 version/url', 3200)
       return
     }
     showToast('当前资源已是最新版本')
