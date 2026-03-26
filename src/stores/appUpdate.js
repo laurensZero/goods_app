@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Directory, Filesystem } from '@capacitor/filesystem'
-import { Share } from '@capacitor/share'
+import { FileOpener } from '@capawesome-team/capacitor-file-opener'
 import packageJson from '../../package.json'
 import {
   buildReleaseNotesPreview,
@@ -227,11 +227,9 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         directory: Directory.Cache
       })
 
-      await Share.share({
-        title: '安装更新包',
-        text: '更新包已下载完成，请选择“软件包安装程序”继续安装。',
-        url: uri,
-        dialogTitle: '安装更新包'
+      await FileOpener.openFile({
+        path: uri,
+        mimeType: 'application/vnd.android.package-archive'
       })
 
       downloadProgress.value = 100

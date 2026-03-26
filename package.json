@@ -12,14 +12,15 @@
     "open:android": "npx cap open android"
   },
   "dependencies": {
-    "@capacitor/camera": "^8.0.2",
     "@capacitor-community/sqlite": "^8.0.1",
     "@capacitor/android": "^8.2.0",
     "@capacitor/app": "^8.0.1",
+    "@capacitor/camera": "^8.0.2",
     "@capacitor/core": "^8.2.0",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
+    "@capawesome-team/capacitor-file-opener": "^8.0.1",
     "@vueuse/core": "^14.2.1",
     "fflate": "^0.8.2",
     "pinia": "^2.1.0",
