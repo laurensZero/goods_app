@@ -226,11 +226,21 @@ jobs:
           fi
 
           for FILE in "${FILES[@]}"; do
-            echo "Uploading $(basename "${FILE}") to gitee release ${RELEASE_ID}"
-            curl -fsSL -X POST "${API}/releases/${RELEASE_ID}/attach_files" \
+            FILE_NAME="$(basename "${FILE}")"
+            FILE_SIZE="$(du -h "${FILE}" | awk '{print $1}')"
+            echo "Uploading ${FILE_NAME} (${FILE_SIZE}) to gitee release ${RELEASE_ID}"
+
+            curl -fsSL \
+              --connect-timeout 20 \
+              --max-time 1800 \
+              --retry 2 \
+              --retry-delay 3 \
+              -X POST "${API}/releases/${RELEASE_ID}/attach_files" \
               -F "access_token=${GITEE_TOKEN}" \
               -F "file=@${FILE}" \
               -o /tmp/gitee-upload.json
+
+            echo "Upload finished: ${FILE_NAME}"
           done
 
       - name: Missing secrets
