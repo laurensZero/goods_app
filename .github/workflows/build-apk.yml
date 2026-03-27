@@ -82,7 +82,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write
 
     steps:
       - name: Checkout code
@@ -189,7 +188,7 @@ jobs:
             RANGE="$RELEASE_TAG"
           fi
 
-          echo "## 更新说明" > release-notes.md
+          echo "## Release Notes" > release-notes.md
           echo "" >> release-notes.md
 
           HAS_NOTES=0
@@ -230,7 +229,7 @@ jobs:
           done
 
           if [ "$HAS_NOTES" -eq 0 ]; then
-            echo "- 本次更新无可用变更说明" >> release-notes.md
+            echo "- No user-facing changes were detected for this tag." >> release-notes.md
           fi
 
       - name: Create or update GitHub Release
@@ -252,9 +251,3 @@ jobs:
         run: |
           gh release upload "$RELEASE_TAG" "android/app/build/outputs/apk/release/app-release.apk#$RELEASE_ASSET_NAME" --clobber
 
-      - name: Trigger gitee release sync workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
-        run: |
-          gh workflow run sync-gitee-release.yml -f tag="$RELEASE_TAG"

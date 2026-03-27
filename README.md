@@ -139,25 +139,39 @@ npm run open:android
 
 说明：`gh-pages` 里已有 `stable/beta` 目录结构，可直接复用，无需额外开通 Gitee Pages。
 
-### GitHub Release 同步到 Gitee Release
+### Gitee Go 本地 Agent 构建 APK 并发布 Release
 
-仓库已提供工作流 [`.github/workflows/sync-gitee-release.yml`](.github/workflows/sync-gitee-release.yml)：
+不再使用 GitHub Release 同步到 Gitee Release。
 
-- 当 GitHub `Release published` 时自动触发
-- 自动读取该 tag 的 GitHub Release，并上传同名资产到 Gitee Release
+当前推荐链路：
 
-补充：`build-apk` 流程会在上传 APK 到 GitHub Release 后，显式触发一次该同步 workflow，避免 `GITHUB_TOKEN` 事件隔离导致的漏触发。
+1. GitHub tag 触发 [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) 构建并发布 GitHub Release
+2. [`.github/workflows/sync-gitee.yml`](.github/workflows/sync-gitee.yml) 同步代码和 tag 到 Gitee
+3. Gitee 收到同名 tag 后，使用 [`.workflow/gitee-go-release.yml`](.workflow/gitee-go-release.yml) 在自有 Agent 上执行 [`scripts/gitee-go/build-release.sh`](scripts/gitee-go/build-release.sh)
+4. 脚本直接创建或复用 Gitee Release，并上传 `app-release.apk`
 
-需要额外配置以下 Secrets：
+Gitee Go 开通时，**不要直接接受默认的 `Java（Maven）` 三条流水线**（`MasterPipeline` / `BranchPipeline` / `PRPipeline`）。
 
-- `GITEE_OWNER`：Gitee 仓库 owner
-- `GITEE_REPO`：Gitee 仓库名（若上方已配置可复用）
-- `GITEE_TOKEN`：可操作 Release 的 Gitee Token
+原因是这个仓库实际是 `Vue + Vite + Capacitor + Android Gradle` 组合，不是纯 Maven 项目。更稳妥的方式是：
+
+- 保留仓库里的自定义流水线 [`.workflow/gitee-go-release.yml`](.workflow/gitee-go-release.yml)
+- 使用 Gitee Go 的 `shell@agent` 在你自己的 Linux Agent 上构建
+- 让 Agent 机器自己提供 Node、JDK、Android SDK 等运行环境
+
+使用前需要准备：
+
+- 在 Gitee Go 的「计算资源管理」里创建并关联一个 Linux 主机组
+- 把 [`.workflow/gitee-go-release.yml`](.workflow/gitee-go-release.yml) 里的 `hostGroupID` 改成你的主机组 ID
+- 在 Agent 主机上安装 `node`、`npm`、JDK、Android SDK
+- 配置环境变量：`GITEE_TOKEN` / `GITEE_RELEASE_TOKEN`、`GITEE_OWNER`、`GITEE_REPO`
+- 配置 Android 环境变量：`ANDROID_SDK_ROOT` 或 `ANDROID_HOME`
+- 配置签名变量：`ANDROID_KEYSTORE_BASE64` 或 `ANDROID_KEYSTORE_FILE`
+- 配置签名变量：`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`
 
 建议触发策略：
 
-- `Release` 使用 tag 驱动（例如 `v1.2.3`）
-- `Bundle` 发布仍通过现有 workflow 手动触发，减少误发布风险
+- `Release` 继续使用 tag 驱动（例如 `v1.2.3`）
+- Gitee Go 只监听 tag，避免普通提交也重复打正式包
 
 ## 技术栈
 
@@ -167,3 +181,4 @@ npm run open:android
 - Vant 4 (UI 组件库)
 - Pinia (状态管理)
 - SQLite (本地数据库)
+

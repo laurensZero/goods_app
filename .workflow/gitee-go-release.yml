@@ -1,0 +1,28 @@
+version: '1.0'
+name: gitee-go-apk-release
+displayName: Gitee Go APK Release
+triggers:
+  trigger: auto
+  push:
+    tags:
+      include:
+        - v*
+stages:
+  - name: build-release
+    displayName: Build And Publish APK
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: shell@agent
+        name: build_and_publish_apk
+        displayName: Build And Publish APK
+        hostGroupID: goods-app-android
+        script: |
+          chmod +x scripts/gitee-go/build-release.sh
+          ./scripts/gitee-go/build-release.sh
+        strategy:
+          retry: '0'
+permissions:
+  - role: admin
+    members: []
