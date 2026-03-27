@@ -9,21 +9,69 @@ import {
   buildReleaseNotesPreview,
   compareVersions,
   getLatestRelease,
+  getLatestReleaseFromGitee,
   normalizeVersionTag,
   resolveReleaseAsset,
   resolveReleaseTargetUrl
 } from '@/utils/githubRelease'
 
-const UPDATE_REPO_OWNER = 'laurensZero'
 const UPDATE_REPO_NAME = 'goods_app'
+const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
+  github: 'laurensZero',
+  gitee: 'laurenszero'
+})
+const UPDATE_SOURCE_STORAGE_KEY = 'goods_app_update_source'
+const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
 const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatform() && !SUPPORT_WEB_MOCK_DOWNLOAD
 
 let activeCheckPromise = null
 
+function normalizeUpdateSource(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized
+  return 'auto'
+}
+
+function readPersistedSource() {
+  try {
+    return normalizeUpdateSource(localStorage.getItem(UPDATE_SOURCE_STORAGE_KEY))
+  } catch {
+    return 'auto'
+  }
+}
+
+function persistSource(source) {
+  try {
+    localStorage.setItem(UPDATE_SOURCE_STORAGE_KEY, source)
+  } catch {
+    // ignore persistence failures
+  }
+}
+
+function resolveSourceCandidates(source) {
+  if (source === 'auto') return ['gitee', 'github']
+  return [source]
+}
+
+async function fetchLatestReleaseBySource(source) {
+  const owner = UPDATE_REPO_OWNER_BY_SOURCE[source]
+  if (!owner) {
+    throw new Error(`不支持的更新源：${source}`)
+  }
+
+  if (source === 'gitee') {
+    return getLatestReleaseFromGitee(owner, UPDATE_REPO_NAME)
+  }
+
+  return getLatestRelease(owner, UPDATE_REPO_NAME)
+}
+
 export const useAppUpdateStore = defineStore('appUpdate', () => {
   const initialized = ref(false)
+  const selectedSource = ref('auto')
+  const resolvedSource = ref('')
   const currentVersion = ref(FALLBACK_VERSION)
   const currentBuild = ref('')
   const latestRelease = ref(null)
@@ -77,6 +125,8 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
   async function init() {
     if (initialized.value) return
+
+    selectedSource.value = readPersistedSource()
 
     try {
       if (Capacitor.isNativePlatform()) {
@@ -276,7 +326,26 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
           return { status: 'disabled', release: null }
         }
 
-        const release = await getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME)
+        const sourceCandidates = resolveSourceCandidates(selectedSource.value)
+        let release = null
+        let resolvedReleaseSource = ''
+        let lastRequestError = null
+
+        for (const candidate of sourceCandidates) {
+          try {
+            release = await fetchLatestReleaseBySource(candidate)
+            resolvedReleaseSource = candidate
+            break
+          } catch (error) {
+            lastRequestError = error
+          }
+        }
+
+        if (!release) {
+          throw lastRequestError || new Error('未获取到可用版本信息。')
+        }
+
+        resolvedSource.value = resolvedReleaseSource
         latestRelease.value = release
         lastCheckedAt.value = new Date().toISOString()
 
@@ -287,14 +356,14 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         if (hasUpdate.value) {
           lastStatus.value = 'available'
           dialogVisible.value = true
-          return { status: 'available', release }
+          return { status: 'available', release, source: resolvedReleaseSource }
         }
 
         lastStatus.value = 'latest'
         if (source === 'manual') {
           dialogVisible.value = false
         }
-        return { status: 'latest', release }
+        return { status: 'latest', release, source: resolvedReleaseSource }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
         lastStatus.value = 'error'
@@ -309,7 +378,22 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     return activeCheckPromise
   }
 
+  function setUpdateSource(source) {
+    const nextSource = normalizeUpdateSource(source)
+    if (selectedSource.value === nextSource) return
+
+    selectedSource.value = nextSource
+    persistSource(nextSource)
+    resolvedSource.value = ''
+    latestRelease.value = null
+    lastStatus.value = 'idle'
+    lastError.value = ''
+  }
+
   return {
+    selectedSource,
+    resolvedSource,
+    availableUpdateSources: AVAILABLE_UPDATE_SOURCES,
     currentVersion,
     currentBuild,
     latestRelease,
@@ -330,6 +414,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     supportsInAppDownload,
     usingMockDownload,
     releaseNotesPreview,
+    setUpdateSource,
     init,
     dismissDialog,
     openReleasePage,

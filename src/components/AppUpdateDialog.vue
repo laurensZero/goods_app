@@ -5,7 +5,7 @@
         <p class="update-kicker">Update Available</p>
         <h3 class="dialog-title">发现新版本 v{{ updateStore.latestVersion }}</h3>
         <p class="dialog-desc">
-          当前版本 v{{ updateStore.currentVersion }}，GitHub Release 最新版本为 v{{ updateStore.latestVersion }}。
+          当前版本 v{{ updateStore.currentVersion }}，可用最新版本为 v{{ updateStore.latestVersion }}。
           <template v-if="publishedAtLabel">发布于 {{ publishedAtLabel }}。</template>
         </p>
 

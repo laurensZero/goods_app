@@ -1,10 +1,17 @@
 const GITHUB_API_BASE = 'https://api.github.com'
+const GITEE_API_BASE = 'https://gitee.com/api/v5'
 const REQUEST_TIMEOUT_MS = 15000
 
-function buildHeaders() {
+function buildGitHubHeaders() {
   return {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
+  }
+}
+
+function buildGiteeHeaders() {
+  return {
+    Accept: 'application/json'
   }
 }
 
@@ -32,14 +39,46 @@ function parseVersion(version) {
   }
 }
 
-async function request(path) {
+function normalizeReleaseAsset(asset) {
+  if (!asset || typeof asset !== 'object') return null
+
+  const browserDownloadUrl = asset.browser_download_url || asset.browserDownloadUrl || asset.download_url || ''
+  return {
+    ...asset,
+    browser_download_url: String(browserDownloadUrl || '').trim(),
+    name: String(asset.name || asset.file_name || '').trim()
+  }
+}
+
+function normalizeRelease(release, source = 'github') {
+  if (!release || typeof release !== 'object') return null
+
+  const assets = Array.isArray(release.assets)
+    ? release.assets.map((item) => normalizeReleaseAsset(item)).filter(Boolean)
+    : []
+
+  const fallbackHtmlUrl = source === 'gitee'
+    ? (release.html_url || release.url || release.tag_name ? `https://gitee.com/${release?.namespace || ''}` : '')
+    : ''
+
+  return {
+    ...release,
+    assets,
+    html_url: String(release.html_url || release.target_url || fallbackHtmlUrl || '').trim(),
+    tag_name: String(release.tag_name || release.tag || '').trim(),
+    body: String(release.body || release.description || '').trim(),
+    source
+  }
+}
+
+async function request(baseUrl, path, headers) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(`${GITHUB_API_BASE}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       method: 'GET',
-      headers: buildHeaders(),
+      headers,
       signal: controller.signal
     })
 
@@ -105,10 +144,39 @@ export async function getLatestRelease(owner, repo) {
   }
 
   try {
-    return await request(`/repos/${owner}/${repo}/releases/latest`)
+    const release = await request(
+      GITHUB_API_BASE,
+      `/repos/${owner}/${repo}/releases/latest`,
+      buildGitHubHeaders()
+    )
+    return normalizeRelease(release, 'github')
   } catch (error) {
     if (String(error?.message || '').includes('404')) {
       throw new Error('当前仓库还没有可用的 Release。')
+    }
+    throw error
+  }
+}
+
+export async function getLatestReleaseFromGitee(owner, repo) {
+  if (!owner || !repo) {
+    throw new Error('缺少 Gitee 仓库信息，无法检查更新。')
+  }
+
+  try {
+    const release = await request(
+      GITEE_API_BASE,
+      `/repos/${owner}/${repo}/releases/latest`,
+      buildGiteeHeaders()
+    )
+    const normalized = normalizeRelease(release, 'gitee')
+    if (normalized && !normalized.html_url) {
+      normalized.html_url = `https://gitee.com/${owner}/${repo}/releases`
+    }
+    return normalized
+  } catch (error) {
+    if (String(error?.message || '').includes('404')) {
+      throw new Error('当前 Gitee 仓库还没有可用的 Release。')
     }
     throw error
   }

@@ -7,9 +7,14 @@ import {
   normalizeVersionTag
 } from '@/utils/githubRelease'
 
-const WEB_MANIFEST_URL_BASE = 'https://laurenszero.github.io/goods_app'
+const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
+  gitee: 'https://laurenszero.gitee.io/goods_app',
+  github: 'https://laurenszero.github.io/goods_app'
+})
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
+const UPDATE_SOURCE_STORAGE_KEY = 'goods_web_update_source'
 const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
+const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const REQUEST_TIMEOUT_MS = 15000
 
 let activeCheckPromise = null
@@ -47,6 +52,12 @@ function normalizeUpdateChannel(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (AVAILABLE_UPDATE_CHANNELS.includes(normalized)) return normalized
   return 'stable'
+}
+
+function normalizeUpdateSource(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized
+  return 'auto'
 }
 
 function normalizeBundleUrl(value) {
@@ -89,6 +100,14 @@ function readPersistedChannel() {
   }
 }
 
+function readPersistedSource() {
+  try {
+    return normalizeUpdateSource(localStorage.getItem(UPDATE_SOURCE_STORAGE_KEY))
+  } catch {
+    return 'auto'
+  }
+}
+
 function persistChannel(channel) {
   try {
     localStorage.setItem(UPDATE_CHANNEL_STORAGE_KEY, channel)
@@ -97,12 +116,33 @@ function persistChannel(channel) {
   }
 }
 
+function persistSource(source) {
+  try {
+    localStorage.setItem(UPDATE_SOURCE_STORAGE_KEY, source)
+  } catch {
+    // ignore persistence failures
+  }
+}
+
+function buildManifestUrl(channel, source) {
+  const base = WEB_MANIFEST_BASE_BY_SOURCE[source]
+  if (!base) return ''
+  return `${base}/${channel}/manifest.json`
+}
+
+function resolveSourceCandidates(source) {
+  if (source === 'auto') return ['gitee', 'github']
+  return [source]
+}
+
 export const useWebUpdateStore = defineStore('webUpdate', () => {
   const initialized = ref(false)
   const supported = ref(false)
   const currentVersion = ref('')
   const currentBundleId = ref('builtin')
   const selectedChannel = ref('stable')
+  const selectedSource = ref('auto')
+  const resolvedSource = ref('')
   const nativeVersion = ref('')
   const latestVersion = ref('')
   const latestZipUrl = ref('')
@@ -127,7 +167,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     return compareVersions(latestVersion.value, currentVersion.value) > 0
   })
 
-  const manifestUrl = computed(() => `${WEB_MANIFEST_URL_BASE}/${selectedChannel.value}/manifest.json`)
+  const manifestUrl = computed(() => {
+    const source = selectedSource.value === 'auto'
+      ? (resolvedSource.value || 'gitee')
+      : selectedSource.value
+    return buildManifestUrl(selectedChannel.value, source)
+  })
 
   async function notifyAppReady() {
     if (!Capacitor.isNativePlatform()) return false
@@ -144,6 +189,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     if (initialized.value) return
 
     selectedChannel.value = readPersistedChannel()
+    selectedSource.value = readPersistedSource()
 
     supported.value = Capacitor.isNativePlatform()
     if (!supported.value) {
@@ -187,7 +233,27 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastError.value = ''
 
       try {
-        const manifest = await fetchWebManifest(manifestUrl.value)
+        const sourceCandidates = resolveSourceCandidates(selectedSource.value)
+        let manifest = null
+        let resolvedManifestSource = ''
+        let lastRequestError = null
+
+        for (const source of sourceCandidates) {
+          try {
+            const candidateUrl = buildManifestUrl(selectedChannel.value, source)
+            manifest = await fetchWebManifest(candidateUrl)
+            resolvedManifestSource = source
+            break
+          } catch (error) {
+            lastRequestError = error
+          }
+        }
+
+        if (!manifest) {
+          throw lastRequestError || new Error('未获取到可用 manifest。')
+        }
+
+        resolvedSource.value = resolvedManifestSource
         latestRelease.value = manifest
         lastCheckedAt.value = new Date().toISOString()
 
@@ -200,28 +266,28 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
           latestZipUrl.value = ''
           latestMinNativeVersion.value = ''
           lastStatus.value = 'missing-asset'
-          return { status: 'missing-asset', manifest }
+          return { status: 'missing-asset', manifest, source: resolvedManifestSource }
         }
 
         if (latestMinNativeVersion.value && nativeVersion.value) {
           if (compareVersions(nativeVersion.value, latestMinNativeVersion.value) < 0) {
             lastStatus.value = 'incompatible-native'
-            return { status: 'incompatible-native', manifest }
+            return { status: 'incompatible-native', manifest, source: resolvedManifestSource }
           }
         }
 
         if (!latestVersion.value || !currentVersion.value) {
           lastStatus.value = 'ready'
-          return { status: 'ready', manifest }
+          return { status: 'ready', manifest, source: resolvedManifestSource }
         }
 
         if (compareVersions(latestVersion.value, currentVersion.value) > 0) {
           lastStatus.value = 'available'
-          return { status: 'available', manifest }
+          return { status: 'available', manifest, source: resolvedManifestSource }
         }
 
         lastStatus.value = 'latest'
-        return { status: 'latest', manifest }
+        return { status: 'latest', manifest, source: resolvedManifestSource }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
         if (parseNoUpdateError(error)) {
@@ -340,6 +406,23 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestZipUrl.value = ''
     latestRelease.value = null
     latestMinNativeVersion.value = ''
+    resolvedSource.value = ''
+    lastStatus.value = 'ready'
+    lastError.value = ''
+  }
+
+  function setUpdateSource(source) {
+    const nextSource = normalizeUpdateSource(source)
+    if (selectedSource.value === nextSource) return
+
+    selectedSource.value = nextSource
+    persistSource(nextSource)
+
+    latestVersion.value = ''
+    latestZipUrl.value = ''
+    latestRelease.value = null
+    latestMinNativeVersion.value = ''
+    resolvedSource.value = ''
     lastStatus.value = 'ready'
     lastError.value = ''
   }
@@ -350,7 +433,10 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     currentVersion,
     currentBundleId,
     selectedChannel,
+    selectedSource,
+    resolvedSource,
     availableUpdateChannels: AVAILABLE_UPDATE_CHANNELS,
+    availableUpdateSources: AVAILABLE_UPDATE_SOURCES,
     manifestUrl,
     nativeVersion,
     latestVersion,
@@ -369,6 +455,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     notifyAppReady,
     init,
     setUpdateChannel,
+    setUpdateSource,
     checkForUpdates,
     downloadAndPrepareUpdate,
     applyPendingUpdateNow,

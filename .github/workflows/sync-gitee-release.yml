@@ -1,0 +1,158 @@
+name: Sync GitHub Release to Gitee Release
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 需要同步的 tag（例如 v1.2.3）
+        required: true
+        type: string
+
+jobs:
+  sync-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check required secrets
+        id: check
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_OWNER: ${{ secrets.GITEE_OWNER }}
+          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+        run: |
+          if [ -n "${GITEE_TOKEN}" ] && [ -n "${GITEE_OWNER}" ] && [ -n "${GITEE_REPO}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve release payload
+        if: steps.check.outputs.enabled == 'true'
+        id: payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          TAG="${EVENT_TAG}"
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${INPUT_TAG}"
+          fi
+
+          if [ -z "${TAG}" ]; then
+            echo "tag 为空，无法同步 release" >&2
+            exit 1
+          fi
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/releases/tags/${TAG}" \
+            -o gh-release.json
+
+          NAME=$(jq -r '.name // .tag_name' gh-release.json)
+          BODY=$(jq -r '.body // ""' gh-release.json)
+
+          {
+            echo "tag=${TAG}"
+            echo "name<<EOF"
+            echo "${NAME}"
+            echo "EOF"
+            echo "body<<EOF"
+            echo "${BODY}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or get gitee release
+        if: steps.check.outputs.enabled == 'true'
+        id: gitee_release
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_OWNER: ${{ secrets.GITEE_OWNER }}
+          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+          TAG: ${{ steps.payload.outputs.tag }}
+          NAME: ${{ steps.payload.outputs.name }}
+          BODY: ${{ steps.payload.outputs.body }}
+        run: |
+          set -euo pipefail
+
+          API="https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}"
+
+          STATUS=$(curl -s -o gitee-release.json -w "%{http_code}" \
+            "${API}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}")
+
+          if [ "${STATUS}" = "200" ]; then
+            RELEASE_ID=$(jq -r '.id' gitee-release.json)
+          else
+            curl -fsSL -X POST "${API}/releases" \
+              --data-urlencode "access_token=${GITEE_TOKEN}" \
+              --data-urlencode "tag_name=${TAG}" \
+              --data-urlencode "name=${NAME}" \
+              --data-urlencode "body=${BODY}" \
+              -o gitee-release.json
+            RELEASE_ID=$(jq -r '.id' gitee-release.json)
+          fi
+
+          if [ -z "${RELEASE_ID}" ] || [ "${RELEASE_ID}" = "null" ]; then
+            echo "创建或读取 Gitee Release 失败" >&2
+            cat gitee-release.json >&2 || true
+            exit 1
+          fi
+
+          echo "id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Download GitHub assets
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p gitee-assets
+
+          jq -r '.assets[]?.browser_download_url // empty' gh-release.json | while read -r URL; do
+            [ -n "${URL}" ] || continue
+            FILE_NAME="$(basename "${URL}")"
+            curl -fsSL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/octet-stream" \
+              "${URL}" -o "gitee-assets/${FILE_NAME}"
+          done
+
+      - name: Upload assets to gitee release
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_OWNER: ${{ secrets.GITEE_OWNER }}
+          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+          RELEASE_ID: ${{ steps.gitee_release.outputs.id }}
+        run: |
+          set -euo pipefail
+          API="https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}"
+
+          shopt -s nullglob
+          FILES=(gitee-assets/*)
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No release assets found, skip upload."
+            exit 0
+          fi
+
+          for FILE in "${FILES[@]}"; do
+            echo "Uploading $(basename "${FILE}") to gitee release ${RELEASE_ID}"
+            curl -fsSL -X POST "${API}/releases/${RELEASE_ID}/attach_files" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "file=@${FILE}" \
+              -o /tmp/gitee-upload.json
+          done
+
+      - name: Missing secrets
+        if: steps.check.outputs.enabled != 'true'
+        run: |
+          echo "Skip gitee release sync because required secrets are missing."
+          echo "Required: GITEE_TOKEN, GITEE_OWNER, GITEE_REPO"
