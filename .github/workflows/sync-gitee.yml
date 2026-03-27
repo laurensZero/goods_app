@@ -90,7 +90,7 @@ jobs:
       - name: Push branches and tags to gitee
         if: steps.check.outputs.enabled == 'true'
         run: |
-          git push gitee "refs/remotes/origin/*:refs/heads/*" --prune
+          git push gitee "+refs/remotes/origin/*:refs/heads/*" --prune
           git push gitee "+refs/tags/*:refs/tags/*" --prune
 
       - name: Missing gitee secrets
