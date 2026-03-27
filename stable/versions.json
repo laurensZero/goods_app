@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260327.5",
+    "url": "bundle-20260327.5.zip",
+    "hash": "eb73639eca632e6c2d258e7398456980ddc9eaf865b2b83294216e2c2243db4b",
+    "minNativeVersion": "1.3.2",
+    "notes": "公告系统\n更新级别",
+    "updateLevel": "prompt",
+    "publishedAt": "2026-03-27T14:15:33Z"
+  },
+  {
     "version": "20260327.4",
     "url": "bundle-20260327.4.zip",
     "hash": "54e925aecd0b020b12d52a09f6ca97b5655240cfcebdd850012306ec9cdb0194",
@@ -14,13 +23,5 @@
     "minNativeVersion": "1.3.1",
     "notes": "update layout",
     "publishedAt": "2026-03-26T14:52:28Z"
-  },
-  {
-    "version": "20260327.2",
-    "url": "bundle-20260327.2.zip",
-    "hash": "d16887d1564c8f8c2972f6ef73cd58c7d6296bcb95c205980051668273cbc6d6",
-    "minNativeVersion": null,
-    "notes": null,
-    "publishedAt": "2026-03-26T14:37:25Z"
   }
 ]
