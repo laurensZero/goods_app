@@ -25,6 +25,7 @@ const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
 const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatform() && !SUPPORT_WEB_MOCK_DOWNLOAD
+const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
 let activeCheckPromise = null
 
@@ -53,6 +54,29 @@ function persistSource(source) {
 function resolveSourceCandidates(source) {
   if (source === 'auto') return ['gitee', 'github']
   return [source]
+}
+
+function normalizeUpdateLevel(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (AVAILABLE_UPDATE_LEVELS.includes(normalized)) return normalized
+  return 'prompt'
+}
+
+function resolveUpdateLevelFromRelease(release) {
+  const body = String(release?.body || '').trim()
+  if (!body) return 'prompt'
+
+  const explicitMatch = body.match(/(?:update[_-]?level|更新级别)\s*[:=]\s*(force|prompt|silent)/i)
+  if (explicitMatch?.[1]) {
+    return normalizeUpdateLevel(explicitMatch[1])
+  }
+
+  const tagMatch = body.match(/\[(?:update[_-]?level)\s*:\s*(force|prompt|silent)\]/i)
+  if (tagMatch?.[1]) {
+    return normalizeUpdateLevel(tagMatch[1])
+  }
+
+  return 'prompt'
 }
 
 async function fetchLatestReleaseBySource(source) {
@@ -86,6 +110,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
   const downloadSpeed = ref('')
   const downloadTransferred = ref('')
   const forceMockDialog = ref(false)
+  const updateLevel = ref('prompt')
   const nativeAndroidDownloadEnabled = computed(() => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android')
   const usingMockDownload = computed(() => !nativeAndroidDownloadEnabled.value && SUPPORT_WEB_MOCK_DOWNLOAD)
 
@@ -101,6 +126,8 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
   const releaseAsset = computed(() => resolveReleaseAsset(latestRelease.value))
   const supportsInAppDownload = computed(() => nativeAndroidDownloadEnabled.value || usingMockDownload.value)
   const releaseNotesPreview = computed(() => buildReleaseNotesPreview(latestRelease.value?.body))
+  const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
+  const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
@@ -144,6 +171,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
   }
 
   function dismissDialog() {
+    if (isForceUpdate.value) return
     dialogVisible.value = false
   }
 
@@ -347,6 +375,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
         resolvedSource.value = resolvedReleaseSource
         latestRelease.value = release
+        updateLevel.value = resolveUpdateLevelFromRelease(release)
         lastCheckedAt.value = new Date().toISOString()
 
         if (usingMockDownload.value && source === 'manual' && !hasUpdate.value) {
@@ -355,11 +384,12 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
         if (hasUpdate.value) {
           lastStatus.value = 'available'
-          dialogVisible.value = true
+          dialogVisible.value = !isSilentUpdate.value
           return { status: 'available', release, source: resolvedReleaseSource }
         }
 
         lastStatus.value = 'latest'
+        updateLevel.value = 'prompt'
         if (source === 'manual') {
           dialogVisible.value = false
         }
@@ -386,6 +416,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     persistSource(nextSource)
     resolvedSource.value = ''
     latestRelease.value = null
+    updateLevel.value = 'prompt'
     lastStatus.value = 'idle'
     lastError.value = ''
   }
@@ -414,6 +445,9 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     supportsInAppDownload,
     usingMockDownload,
     releaseNotesPreview,
+    updateLevel,
+    isForceUpdate,
+    isSilentUpdate,
     setUpdateSource,
     init,
     dismissDialog,

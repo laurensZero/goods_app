@@ -29,6 +29,15 @@ on:
         required: false
         default: ""
         type: string
+      update_level:
+        description: 更新级别（force/prompt/silent）
+        required: false
+        default: prompt
+        type: choice
+        options:
+          - prompt
+          - force
+          - silent
       rollback_version:
         description: 回档版本（可选，填写后将回档到该版本，不重新打包）
         required: false
@@ -72,6 +81,7 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.bundle_version || '' }}
           INPUT_MIN_NATIVE: ${{ github.event.inputs.min_native_version || '' }}
           INPUT_NOTES: ${{ github.event.inputs.notes || '' }}
+          INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
           INPUT_ROLLBACK_VERSION: ${{ github.event.inputs.rollback_version || '' }}
           CHANNEL_INPUT: ${{ github.event.inputs.channel || '' }}
           OWNER: ${{ github.repository_owner }}

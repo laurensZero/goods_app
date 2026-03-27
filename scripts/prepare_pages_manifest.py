@@ -16,10 +16,14 @@ def main() -> int:
     hashv = os.environ.get('HASH', '').strip()
     min_native = os.environ.get('INPUT_MIN_NATIVE', '').strip()
     notes = os.environ.get('INPUT_NOTES', '').strip()
+    update_level = os.environ.get('INPUT_UPDATE_LEVEL', '').strip().lower()
     published_at = os.environ.get('PUBLISHED_AT', '').strip()
     channel = os.environ.get('CHANNEL', '').strip()
     bundle_name = os.environ.get('BUNDLE_NAME', '').strip()
     mode = os.environ.get('MODE', '').strip()
+
+    if update_level not in {'force', 'prompt', 'silent'}:
+        update_level = 'prompt'
 
     if not history_file:
         return fail('HISTORY_FILE 为空，无法生成 manifest。')
@@ -41,6 +45,9 @@ def main() -> int:
         hashv = str(target.get('hash', '')).strip()
         min_native = '' if target.get('minNativeVersion') is None else str(target.get('minNativeVersion')).strip()
         notes = '' if target.get('notes') is None else str(target.get('notes')).strip()
+        update_level = str(target.get('updateLevel', 'prompt') or 'prompt').strip().lower()
+        if update_level not in {'force', 'prompt', 'silent'}:
+            update_level = 'prompt'
         published_at = str(target.get('publishedAt', '')).strip()
         mode = 'rollback'
         bundle_name = '(existing)'
@@ -54,6 +61,7 @@ def main() -> int:
         'hash': hashv,
         'minNativeVersion': (min_native or None),
         'notes': (notes or None),
+        'updateLevel': update_level,
         'publishedAt': published_at,
     }
 
@@ -67,6 +75,7 @@ def main() -> int:
         'hash': hashv,
         'minNativeVersion': (min_native or None),
         'notes': (notes or None),
+        'updateLevel': update_level,
         'publishedAt': published_at,
     }
 

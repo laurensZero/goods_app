@@ -1,12 +1,13 @@
 <template>
   <Transition name="overlay-fade">
-    <div v-if="showDialog" class="overlay" @click.self="updateStore.dismissDialog()">
+    <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
       <div class="dialog update-dialog">
         <p class="update-kicker">Update Available</p>
         <h3 class="dialog-title">发现新版本 v{{ updateStore.latestVersion }}</h3>
         <p class="dialog-desc">
           当前版本 v{{ updateStore.currentVersion }}，可用最新版本为 v{{ updateStore.latestVersion }}。
           <template v-if="publishedAtLabel">发布于 {{ publishedAtLabel }}。</template>
+          <template v-if="updateStore.isForceUpdate">本次为强制更新，需先更新后继续使用。</template>
         </p>
 
         <div class="version-row">
@@ -48,7 +49,7 @@
         <p v-if="updateStore.downloadError" class="update-error">{{ updateStore.downloadError }}</p>
 
         <div class="dialog-actions">
-          <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">稍后再说</button>
+          <button v-if="!updateStore.isForceUpdate" type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">稍后再说</button>
           <button type="button" class="dialog-btn dialog-btn--primary" :disabled="updateStore.isDownloading" @click="updateStore.downloadAndInstallUpdate()">
             {{ updateStore.isDownloading ? '正在下载…' : (updateStore.usingMockDownload ? '模拟下载' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新')) }}
           </button>
@@ -75,6 +76,11 @@ const publishedAtLabel = computed(() => {
   const pad = (part) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 })
+
+function handleOverlayClick() {
+  if (updateStore.isForceUpdate) return
+  updateStore.dismissDialog()
+}
 </script>
 
 <style scoped>

@@ -16,6 +16,7 @@ const UPDATE_SOURCE_STORAGE_KEY = 'goods_web_update_source'
 const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
 const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const REQUEST_TIMEOUT_MS = 15000
+const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
 let activeCheckPromise = null
 
@@ -107,6 +108,18 @@ function normalizeUpdateSource(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized
   return 'auto'
+}
+
+function normalizeUpdateLevel(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (AVAILABLE_UPDATE_LEVELS.includes(normalized)) return normalized
+  return 'prompt'
+}
+
+function resolveUpdateLevelFromManifest(manifest) {
+  if (manifest?.forceUpdate === true) return 'force'
+  if (manifest?.silentUpdate === true) return 'silent'
+  return normalizeUpdateLevel(manifest?.updateLevel || manifest?.update_level || 'prompt')
 }
 
 function normalizeBundleUrl(value) {
@@ -214,6 +227,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const pendingVersion = ref('')
   const isChecking = ref(false)
   const isDownloading = ref(false)
+  const dialogVisible = ref(false)
+  const updateLevel = ref('prompt')
   const downloadProgress = ref(0)
   const lastStatus = ref('idle')
   const lastError = ref('')
@@ -235,6 +250,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       : selectedSource.value
     return buildManifestUrl(selectedChannel.value, source)
   })
+  const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
+  const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
 
   async function notifyAppReady() {
     if (!Capacitor.isNativePlatform()) return false
@@ -319,6 +336,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
         resolvedSource.value = resolvedManifestSource
         latestRelease.value = manifest
+        updateLevel.value = resolveUpdateLevelFromManifest(manifest)
         lastCheckedAt.value = new Date().toISOString()
 
         latestVersion.value = normalizeVersionTag(manifest?.version || '')
@@ -347,10 +365,13 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
         if (compareVersions(latestVersion.value, currentVersion.value) > 0) {
           lastStatus.value = 'available'
+          dialogVisible.value = !isSilentUpdate.value
           return { status: 'available', manifest, source: resolvedManifestSource }
         }
 
         lastStatus.value = 'latest'
+        dialogVisible.value = false
+        updateLevel.value = 'prompt'
         return { status: 'latest', manifest, source: resolvedManifestSource }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
@@ -471,6 +492,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestRelease.value = null
     latestMinNativeVersion.value = ''
     resolvedSource.value = ''
+    dialogVisible.value = false
+    updateLevel.value = 'prompt'
     lastStatus.value = 'ready'
     lastError.value = ''
   }
@@ -487,8 +510,15 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestRelease.value = null
     latestMinNativeVersion.value = ''
     resolvedSource.value = ''
+    dialogVisible.value = false
+    updateLevel.value = 'prompt'
     lastStatus.value = 'ready'
     lastError.value = ''
+  }
+
+  function dismissDialog() {
+    if (isForceUpdate.value) return
+    dialogVisible.value = false
   }
 
   return {
@@ -507,6 +537,10 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestZipUrl,
     latestRelease,
     latestMinNativeVersion,
+    updateLevel,
+    isForceUpdate,
+    isSilentUpdate,
+    dialogVisible,
     pendingBundleId,
     pendingVersion,
     isChecking,
@@ -520,6 +554,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     init,
     setUpdateChannel,
     setUpdateSource,
+    dismissDialog,
     checkForUpdates,
     downloadAndPrepareUpdate,
     applyPendingUpdateNow,

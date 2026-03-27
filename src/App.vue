@@ -17,6 +17,7 @@
       <TabBar v-if="showTabBar" />
     </Transition>
     <AnnouncementDialog />
+    <WebUpdateDialog />
     <AppUpdateDialog />
   </div>
 </template>
@@ -27,6 +28,7 @@ import { Capacitor } from '@capacitor/core'
 import { useRoute } from 'vue-router'
 import AnnouncementDialog from '@/components/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/AppUpdateDialog.vue'
+import WebUpdateDialog from '@/components/WebUpdateDialog.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useAppUpdateStore } from '@/stores/appUpdate'
