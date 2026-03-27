@@ -15,7 +15,7 @@ on:
           - stable
           - beta
       bundle_version:
-        description: 资源版本（可选，不填自动生成 YYYYMMDD.runNumber）
+        description: 资源版本（可选，不填自动生成 YYYYMMDD.N）
         required: false
         default: ""
         type: string
@@ -98,7 +98,7 @@ jobs:
             cp "ghpages/${CHANNEL}/versions.json" "${HISTORY_FILE}"
           fi
 
-          DATE_TAG=$(date -u +%Y%m%d)
+          DATE_TAG=$(TZ=Asia/Shanghai date +%Y%m%d)
           if [ -n "${INPUT_VERSION}" ]; then
             VERSION="${INPUT_VERSION}"
           else
