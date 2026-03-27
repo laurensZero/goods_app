@@ -16,6 +16,7 @@
     <Transition :name="tabBarTransitionName">
       <TabBar v-if="showTabBar" />
     </Transition>
+    <AnnouncementDialog />
     <AppUpdateDialog />
   </div>
 </template>
@@ -24,14 +25,17 @@
 import { computed, KeepAlive, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { useRoute } from 'vue-router'
+import AnnouncementDialog from '@/components/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/AppUpdateDialog.vue'
 import TabBar from '@/components/TabBar.vue'
+import { useAnnouncementStore } from '@/stores/announcement'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
 const syncStore = useSyncStore()
+const announcementStore = useAnnouncementStore()
 const appUpdateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
 const keepAliveViewNames = ['HomeView', 'TimelineView', 'WishlistView', 'ManageView']
@@ -84,6 +88,7 @@ onMounted(async () => {
 
   void appUpdateStore.init()
   void webUpdateStore.init()
+  void announcementStore.init()
   const shouldAutoCheckUpdate = !(import.meta.env.DEV && !Capacitor.isNativePlatform())
   if (shouldAutoCheckUpdate) {
     void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
@@ -95,7 +100,12 @@ onMounted(async () => {
         // silent fail on startup web bundle update check
       })
     }
+
   }
+
+  void announcementStore.checkAndDecide({ source: 'startup' }).catch(() => {
+    // silent fail on startup announcement check
+  })
 
   // 自动拉取
   await syncStore.init()

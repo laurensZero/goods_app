@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "updatedAt": "2026-03-27T00:00:00Z",
+  "announcements": [
+    {
+      "id": "sample-announcement-20260327",
+      "enabled": false,
+      "priority": 100,
+      "title": "公告示例",
+      "message": "这是一条默认关闭的公告模板。将 enabled 改为 true 并更新文案后即可在 App 内弹窗。",
+      "cta": {
+        "text": "查看详情",
+        "url": "",
+        "action": "open_url"
+      },
+      "showRule": {
+        "showMode": "once",
+        "startAt": "2026-03-27T00:00:00Z",
+        "endAt": "",
+        "minAppVersion": "",
+        "maxAppVersion": "",
+        "channels": ["stable", "beta"]
+      }
+    }
+  ]
+}
