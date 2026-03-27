@@ -355,6 +355,23 @@
     </section>
 
     <section class="section">
+      <h2 class="section-title">认证信息</h2>
+      <article class="publish-card">
+        <div class="publish-grid">
+          <label class="field field--full">
+            <span class="field-label">GitHub Token（公告发布需要 gist；工作流触发需要 repo/workflow）</span>
+            <input id="publishToken" class="input" type="password" placeholder="ghp_xxx / github_pat_xxx" autocomplete="off" />
+          </label>
+        </div>
+        <div class="publish-actions">
+          <button class="btn" id="saveTokenBtn" type="button">保存 Token</button>
+          <button class="btn" id="copyTokenBtn" type="button">复制 Token</button>
+          <button class="btn" id="clearTokenBtn" type="button">一键清除</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="section">
       <h2 class="section-title">发布通道</h2>
       <div class="grid" id="channelGrid"></div>
       <p class="tip">提示：你可以直接在下方发布面板触发 workflow_dispatch，或点击 Actions 页面手动发布。</p>
@@ -387,15 +404,10 @@
             <textarea id="publishNotes" class="textarea" placeholder="例如：修复 OTA 激活时机与恢复入口"></textarea>
           </label>
 
-          <label class="field field--full">
-            <span class="field-label">GitHub Token（需要 repo/workflow 权限，不会持久化）</span>
-            <input id="publishToken" class="input" type="password" placeholder="ghp_xxx / github_pat_xxx" autocomplete="off" />
-          </label>
         </div>
 
         <div class="publish-actions">
           <button class="btn" id="publishBtn" type="button">触发发布</button>
-          <button class="btn" id="saveTokenBtn" type="button">保存 Token</button>
           <button class="btn" id="openActionsBtn" type="button">打开 Actions 页面</button>
         </div>
         <p id="publishStatus" class="publish-status">等待操作</p>
@@ -562,6 +574,8 @@
     const publishToken = document.getElementById('publishToken')
     const publishBtn = document.getElementById('publishBtn')
     const saveTokenBtn = document.getElementById('saveTokenBtn')
+    const copyTokenBtn = document.getElementById('copyTokenBtn')
+    const clearTokenBtn = document.getElementById('clearTokenBtn')
     const openActionsBtn = document.getElementById('openActionsBtn')
     const publishStatus = document.getElementById('publishStatus')
     const giteeReleaseTag = document.getElementById('giteeReleaseTag')
@@ -650,6 +664,31 @@
       } catch {
         // ignore
       }
+    }
+
+    async function copyTokenToClipboard() {
+      const token = String(publishToken.value || '').trim()
+      if (!token) {
+        setPublishStatus('Token 为空，无法复制。', 'error')
+        return
+      }
+
+      try {
+        await navigator.clipboard.writeText(token)
+        setPublishStatus('Token 已复制到剪贴板。', 'ok')
+      } catch (error) {
+        setPublishStatus(error?.message || '复制失败，请手动复制。', 'error')
+      }
+    }
+
+    function clearTokenStorageAndInput() {
+      publishToken.value = ''
+      try {
+        localStorage.removeItem(githubTokenStorageKey)
+      } catch {
+        // ignore
+      }
+      setPublishStatus('已清除本地保存 Token。', 'ok')
     }
 
     function normalizeHttpsUrl(value) {
@@ -1249,6 +1288,8 @@
     refreshAllBtn.addEventListener('click', loadAllChannels)
     publishBtn.addEventListener('click', triggerPublish)
     saveTokenBtn.addEventListener('click', saveTokenToLocalStorage)
+    copyTokenBtn.addEventListener('click', copyTokenToClipboard)
+    clearTokenBtn.addEventListener('click', clearTokenStorageAndInput)
     openActionsBtn.addEventListener('click', openActionsPage)
     loadAnnouncementBtn.addEventListener('click', loadAnnouncementFromGist)
     publishAnnouncementBtn.addEventListener('click', publishAnnouncementToGist)
