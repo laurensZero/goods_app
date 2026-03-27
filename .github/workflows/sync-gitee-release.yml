@@ -91,6 +91,37 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Checkout tags
+        if: steps.check.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure gitee tag exists
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
+          GITEE_OWNER: ${{ steps.check.outputs.owner }}
+          GITEE_REPO: ${{ steps.check.outputs.repo }}
+          TAG: ${{ steps.payload.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          PUSH_USER="${GITEE_USERNAME}"
+          if [ -z "${PUSH_USER}" ]; then
+            PUSH_USER="${GITEE_OWNER}"
+          fi
+
+          git remote remove gitee 2>/dev/null || true
+          git remote add gitee "https://${PUSH_USER}:${GITEE_TOKEN}@gitee.com/${GITEE_OWNER}/${GITEE_REPO}.git"
+
+          if git ls-remote --tags gitee "refs/tags/${TAG}" | grep -q "refs/tags/${TAG}"; then
+            echo "Tag ${TAG} already exists in gitee"
+          else
+            git push gitee "+refs/tags/${TAG}:refs/tags/${TAG}"
+          fi
+
       - name: Create or get gitee release
         if: steps.check.outputs.enabled == 'true'
         id: gitee_release
