@@ -76,7 +76,6 @@ jobs:
           CHANNEL_INPUT: ${{ github.event.inputs.channel || '' }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
-          RUN_NUMBER: ${{ github.run_number }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
@@ -103,7 +102,37 @@ jobs:
           if [ -n "${INPUT_VERSION}" ]; then
             VERSION="${INPUT_VERSION}"
           else
-            VERSION="${DATE_TAG}.${RUN_NUMBER}"
+            DAILY_SEQ=$(python3 - <<'PY'
+import json
+import os
+import re
+
+history_file = os.environ.get('HISTORY_FILE', '').strip()
+date_tag = os.environ.get('DATE_TAG', '').strip()
+pattern = re.compile(rf'^{re.escape(date_tag)}\.(\d+)$')
+max_seq = 0
+
+if history_file and os.path.exists(history_file):
+    try:
+        with open(history_file, 'r', encoding='utf-8') as f:
+            items = json.load(f)
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+else:
+    items = []
+
+for item in items:
+    version = str((item or {}).get('version', '')).strip()
+    match = pattern.match(version)
+    if match:
+        max_seq = max(max_seq, int(match.group(1)))
+
+print(max_seq + 1)
+PY
+)
+            VERSION="${DATE_TAG}.${DAILY_SEQ}"
           fi
 
           OWNER_LOWER=$(printf '%s' "${OWNER}" | tr '[:upper:]' '[:lower:]')
