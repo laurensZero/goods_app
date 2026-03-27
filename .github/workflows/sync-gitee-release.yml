@@ -186,9 +186,17 @@ jobs:
         if: steps.check.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.payload.outputs.tag }}
         run: |
           set -euo pipefail
           mkdir -p gitee-assets
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/releases/tags/${TAG}" \
+            -o gh-release.json
 
           jq -r '.assets[]?.browser_download_url // empty' gh-release.json | while read -r URL; do
             [ -n "${URL}" ] || continue
