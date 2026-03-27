@@ -85,12 +85,26 @@ jobs:
         run: |
           git remote remove gitee 2>/dev/null || true
           git remote add gitee "https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/${GITEE_REPO}.git"
+          git fetch gitee --prune || true
 
-      - name: Push branches and tags to gitee
+      - name: Push matching ref to gitee
         if: steps.check.outputs.enabled == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          git push gitee "+refs/remotes/origin/*:refs/heads/*" --prune
-          git push gitee "+refs/tags/*:refs/tags/*" --prune
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
+            git push gitee "+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
+          elif [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "tag" ]; then
+            git push gitee "+refs/tags/${REF_NAME}:refs/tags/${REF_NAME}"
+          elif [ "${EVENT_NAME}" = "workflow_run" ]; then
+            git push gitee "+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
+          else
+            echo "No matching ref sync rule for event ${EVENT_NAME}, skip."
+          fi
 
       - name: Missing gitee secrets
         if: steps.check.outputs.enabled != 'true'
