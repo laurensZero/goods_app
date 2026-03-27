@@ -145,7 +145,7 @@ jobs:
             sleep_seconds=$((attempt * 10))
             echo "Push to gitee failed on attempt ${attempt}, retry in ${sleep_seconds}s..."
             sleep "${sleep_seconds}"
-          fi
+          done
 
       - name: Missing gitee secrets
         if: steps.check.outputs.enabled != 'true'
