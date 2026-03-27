@@ -1,0 +1,113 @@
+name: Build and Sync to Gitee
+
+on:
+  push:
+    branches:
+      - gh-pages
+    tags:
+      - '*'
+  workflow_run:
+    workflows:
+      - Publish Web Bundle to Pages
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+          if-no-files-found: error
+
+  sync-gitee:
+    needs: build
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all origin branches
+        run: |
+          git fetch origin "+refs/heads/*:refs/remotes/origin/*"
+          git update-ref -d refs/remotes/origin/HEAD || true
+
+      - name: Check gitee secrets
+        id: check
+        env:
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+        run: |
+          if [ -n "${GITEE_USERNAME}" ] && [ -n "${GITEE_TOKEN}" ] && [ -n "${GITEE_REPO}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git identity
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add gitee remote
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+        run: |
+          git remote remove gitee 2>/dev/null || true
+          git remote add gitee "https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/${GITEE_REPO}.git"
+          git fetch gitee --prune || true
+
+      - name: Push matching ref to gitee
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
+            git push gitee "+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
+          elif [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "tag" ]; then
+            git push gitee "+refs/tags/${REF_NAME}:refs/tags/${REF_NAME}"
+          elif [ "${EVENT_NAME}" = "workflow_run" ]; then
+            git push gitee "+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
+          else
+            echo "No matching ref sync rule for event ${EVENT_NAME}, skip."
+          fi
+
+      - name: Missing gitee secrets
+        if: steps.check.outputs.enabled != 'true'
+        run: |
+          echo "Skip gitee sync because required secrets are missing."
+          echo "Required: GITEE_USERNAME, GITEE_TOKEN, GITEE_REPO"

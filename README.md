@@ -106,6 +106,59 @@ npm run open:android
 - 分类、IP、角色等预设
 - 远程图片 URL（本地拍摄的图片不会同步）
 
+### GitHub Action 同步到 Gitee
+
+仓库已提供工作流 [`.github/workflows/sync-gitee.yml`](.github/workflows/sync-gitee.yml)：
+
+- GitHub 有新提交（`main`/`tag`）时，先执行 `npm ci` + `npm run build`
+- 构建成功后自动同步所有分支（含 `gh-pages`）和标签到 Gitee
+
+使用前需在 GitHub 仓库 Secrets 中配置：
+
+- `GITEE_USERNAME`：Gitee 用户名
+- `GITEE_TOKEN`：Gitee 私人令牌（建议仅授予仓库写权限）
+- `GITEE_REPO`：目标仓库，格式 `owner/repo`
+
+未配置以上 Secrets 时，工作流会仅执行编译并跳过同步步骤。
+
+**Gitee 上 bundle 如何更新：**
+
+1. 先运行 [`.github/workflows/web-bundle-pages.yml`](.github/workflows/web-bundle-pages.yml) 发布或回档 `manifest.json` 与 `bundle-*.zip` 到 `gh-pages`
+2. [`.github/workflows/sync-gitee.yml`](.github/workflows/sync-gitee.yml) 会在该 workflow 成功后自动触发
+3. 自动把最新 `gh-pages` 同步到 Gitee，Gitee Pages 即可提供最新 bundle 地址
+
+如果你需要手动补同步，也可以手动触发 `sync-gitee` workflow。
+
+当前推荐的 bundle 拉取策略：
+
+- `gitee` 源：读取 Gitee 仓库 `raw/gh-pages/<channel>/manifest.json`
+- `github` 源：读取 GitHub Pages `/<channel>/manifest.json`
+- `auto` 源：优先 `gitee`，失败自动回退 `github`
+
+说明补充：在原生端（Capacitor），bundle manifest 会优先使用原生 HTTP 请求，避免 Gitee raw 的浏览器 CORS 限制。
+
+说明：`gh-pages` 里已有 `stable/beta` 目录结构，可直接复用，无需额外开通 Gitee Pages。
+
+### GitHub Release 同步到 Gitee Release
+
+仓库已提供工作流 [`.github/workflows/sync-gitee-release.yml`](.github/workflows/sync-gitee-release.yml)：
+
+- 当 GitHub `Release published` 时自动触发
+- 自动读取该 tag 的 GitHub Release，并上传同名资产到 Gitee Release
+
+补充：`build-apk` 流程会在上传 APK 到 GitHub Release 后，显式触发一次该同步 workflow，避免 `GITHUB_TOKEN` 事件隔离导致的漏触发。
+
+需要额外配置以下 Secrets：
+
+- `GITEE_OWNER`：Gitee 仓库 owner
+- `GITEE_REPO`：Gitee 仓库名（若上方已配置可复用）
+- `GITEE_TOKEN`：可操作 Release 的 Gitee Token
+
+建议触发策略：
+
+- `Release` 使用 tag 驱动（例如 `v1.2.3`）
+- `Bundle` 发布仍通过现有 workflow 手动触发，减少误发布风险
+
 ## 技术栈
 
 - Vue 3

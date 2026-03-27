@@ -15,7 +15,7 @@ on:
           - stable
           - beta
       bundle_version:
-        description: 资源版本（可选，不填自动生成 YYYYMMDD.runNumber）
+        description: 资源版本（可选，不填自动生成 YYYYMMDD.N）
         required: false
         default: ""
         type: string
@@ -76,7 +76,6 @@ jobs:
           CHANNEL_INPUT: ${{ github.event.inputs.channel || '' }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
-          RUN_NUMBER: ${{ github.run_number }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
@@ -99,11 +98,12 @@ jobs:
             cp "ghpages/${CHANNEL}/versions.json" "${HISTORY_FILE}"
           fi
 
-          DATE_TAG=$(date -u +%Y%m%d)
+          DATE_TAG=$(TZ=Asia/Shanghai date +%Y%m%d)
           if [ -n "${INPUT_VERSION}" ]; then
             VERSION="${INPUT_VERSION}"
           else
-            VERSION="${DATE_TAG}.${RUN_NUMBER}"
+            DAILY_SEQ=$(python3 scripts/next_bundle_daily_seq.py "${HISTORY_FILE}" "${DATE_TAG}")
+            VERSION="${DATE_TAG}.${DAILY_SEQ}"
           fi
 
           OWNER_LOWER=$(printf '%s' "${OWNER}" | tr '[:upper:]' '[:lower:]')
@@ -120,7 +120,7 @@ jobs:
             zip -r "../pages/${CHANNEL}/${BUNDLE_NAME}" .
             cd ..
             HASH=$(sha256sum "pages/${CHANNEL}/${BUNDLE_NAME}" | awk '{print $1}')
-            URL="https://${OWNER_LOWER}.github.io/${REPO}/${CHANNEL}/${BUNDLE_NAME}"
+            URL="${BUNDLE_NAME}"
           fi
 
           export HISTORY_FILE ROLLBACK_VERSION VERSION URL HASH INPUT_MIN_NATIVE INPUT_NOTES PUBLISHED_AT CHANNEL BUNDLE_NAME MODE

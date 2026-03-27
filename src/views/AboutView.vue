@@ -60,9 +60,23 @@
 
         <div class="update-grid">
           <article class="update-panel">
-            <p class="info-kicker">GitHub Release</p>
+            <p class="info-kicker">App Release</p>
             <h3 class="info-value">当前版本 v{{ updateStore.currentVersion }}</h3>
             <p class="info-desc">{{ IS_NATIVE ? '启动时会自动检查一次更新，你也可以在这里手动触发。' : 'Web 端默认不自动检查，你可以在这里手动触发。' }}</p>
+            <div class="update-channel-row">
+              <span class="update-channel-label">更新源</span>
+              <div class="update-channel-actions">
+                <button
+                  v-for="source in updateStore.availableUpdateSources"
+                  :key="`app-${source}`"
+                  type="button"
+                  :class="['update-channel-btn', { 'update-channel-btn--active': updateStore.selectedSource === source }]"
+                  @click="handleAppUpdateSourceChange(source)"
+                >
+                  {{ source }}
+                </button>
+              </div>
+            </div>
             <p class="update-status">{{ updateStatusText }}</p>
             <p v-if="updateStore.downloadError" class="update-status update-status--error">{{ updateStore.downloadError }}</p>
             <div v-if="updateStore.isDownloading" class="update-download-progress">
@@ -102,9 +116,23 @@
           </article>
 
           <article class="update-panel">
-            <p class="info-kicker">GitHub Pages</p>
+            <p class="info-kicker">Web Bundle</p>
             <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
-            <p class="info-desc">通过 GitHub Pages 的 manifest 执行资源增量更新，不修改 APK。</p>
+            <p class="info-desc">通过 manifest 执行资源增量更新，不修改 APK。</p>
+            <div class="update-channel-row">
+              <span class="update-channel-label">更新源</span>
+              <div class="update-channel-actions">
+                <button
+                  v-for="source in webUpdateStore.availableUpdateSources"
+                  :key="`bundle-${source}`"
+                  type="button"
+                  :class="['update-channel-btn', { 'update-channel-btn--active': webUpdateStore.selectedSource === source }]"
+                  @click="handleWebUpdateSourceChange(source)"
+                >
+                  {{ source }}
+                </button>
+              </div>
+            </div>
             <div class="update-channel-row">
               <span class="update-channel-label">更新通道</span>
               <div class="update-channel-actions">
@@ -390,6 +418,14 @@ const appVersion = ref(import.meta.env.VITE_APP_VERSION || packageJson.version |
 const androidVersionName = ref(import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0')
 const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v${appVersion.value}`)
 
+function formatUpdateSourceLabel(source) {
+  const normalized = String(source || '').trim().toLowerCase()
+  if (normalized === 'gitee') return 'Gitee'
+  if (normalized === 'github') return 'GitHub'
+  if (normalized === 'auto') return '自动'
+  return normalized || '--'
+}
+
 const feedbackUrl = computed(() => {
   const params = new URLSearchParams({
     title: '[反馈] ',
@@ -439,14 +475,22 @@ const statsCards = computed(() => [
 ])
 
 const updateStatusText = computed(() => {
-  if (updateStore.isChecking) return '正在检查 GitHub Release 更新...'
+  const sourceLabel = formatUpdateSourceLabel(updateStore.selectedSource)
+  const resolvedLabel = updateStore.resolvedSource ? formatUpdateSourceLabel(updateStore.resolvedSource) : ''
+
+  if (updateStore.isChecking) return `正在检查版本更新（${sourceLabel}）...`
   if (updateStore.lastStatus === 'disabled') return '当前为 Web 开发环境，已禁用更新检查。'
   if (updateStore.lastStatus === 'available' && updateStore.latestVersion) {
-    return `发现新版本 v${updateStore.latestVersion}`
+    return resolvedLabel
+      ? `发现新版本 v${updateStore.latestVersion}（命中 ${resolvedLabel}）`
+      : `发现新版本 v${updateStore.latestVersion}`
   }
   if (updateStore.lastStatus === 'latest') return '当前已是最新版本'
   if (updateStore.lastStatus === 'error') return updateStore.lastError || '检查更新失败，请稍后再试。'
-  return '可手动检查 GitHub Release 更新。'
+  if (resolvedLabel) {
+    return `可手动检查版本更新（策略 ${sourceLabel}，最近命中 ${resolvedLabel}）。`
+  }
+  return `可手动检查版本更新（策略 ${sourceLabel}）。`
 })
 
 const updateCheckedAtLabel = computed(() => (
@@ -454,13 +498,18 @@ const updateCheckedAtLabel = computed(() => (
 ))
 
 const webUpdateStatusText = computed(() => {
+  const sourceLabel = formatUpdateSourceLabel(webUpdateStore.selectedSource)
+  const resolvedLabel = webUpdateStore.resolvedSource ? formatUpdateSourceLabel(webUpdateStore.resolvedSource) : ''
+
   if (!webUpdateStore.supported) return '仅原生环境支持资源增量更新。'
-  if (webUpdateStore.isChecking) return '正在检查资源更新...'
+  if (webUpdateStore.isChecking) return `正在检查资源更新（${sourceLabel}）...`
   if (webUpdateStore.lastStatus === 'pending' && webUpdateStore.pendingVersion) {
     return `资源包 v${webUpdateStore.pendingVersion} 已就绪，重启或切后台后生效。`
   }
   if (webUpdateStore.lastStatus === 'available' && webUpdateStore.latestVersion) {
-    return `发现资源更新 v${webUpdateStore.latestVersion}`
+    return resolvedLabel
+      ? `发现资源更新 v${webUpdateStore.latestVersion}（命中 ${resolvedLabel}）`
+      : `发现资源更新 v${webUpdateStore.latestVersion}`
   }
   if (webUpdateStore.lastStatus === 'incompatible-native' && webUpdateStore.latestMinNativeVersion) {
     return `当前原生版本过低，需升级到 Android ${webUpdateStore.latestMinNativeVersion} 后再应用此资源包。`
@@ -470,7 +519,10 @@ const webUpdateStatusText = computed(() => {
   }
   if (webUpdateStore.lastStatus === 'latest') return '当前资源已是最新版本'
   if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || '资源更新检查失败'
-  return `可手动检查 GitHub Pages ${webUpdateStore.selectedChannel} 通道资源包。`
+  if (resolvedLabel) {
+    return `可手动检查 ${webUpdateStore.selectedChannel} 通道资源包（策略 ${sourceLabel}，最近命中 ${resolvedLabel}）。`
+  }
+  return `可手动检查 ${webUpdateStore.selectedChannel} 通道资源包（策略 ${sourceLabel}）。`
 })
 
 const webUpdateCheckedAtLabel = computed(() => (
@@ -706,6 +758,13 @@ async function handleStartUpdate() {
   }
 }
 
+async function handleAppUpdateSourceChange(source) {
+  if (updateStore.selectedSource === source) return
+  updateStore.setUpdateSource(source)
+  showToast(`已切换版本更新源：${source}`, 2200)
+  await handleManualCheckUpdate()
+}
+
 async function handleManualCheckWebUpdate() {
   if (!webUpdateStore.supported || webUpdateStore.isChecking) return
 
@@ -738,6 +797,13 @@ async function handleWebUpdateChannelChange(channel) {
   if (webUpdateStore.selectedChannel === channel) return
   webUpdateStore.setUpdateChannel(channel)
   showToast(`已切换资源更新通道：${channel}`, 2200)
+  await handleManualCheckWebUpdate()
+}
+
+async function handleWebUpdateSourceChange(source) {
+  if (webUpdateStore.selectedSource === source) return
+  webUpdateStore.setUpdateSource(source)
+  showToast(`已切换资源更新源：${source}`, 2200)
   await handleManualCheckWebUpdate()
 }
 
