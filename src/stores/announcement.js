@@ -31,7 +31,7 @@ function normalizeSource(value) {
 
 function normalizeShowMode(value) {
   const normalized = String(value || '').trim().toLowerCase()
-  if (normalized === 'daily' || normalized === 'per_version') return normalized
+  if (normalized === 'daily' || normalized === 'per_version' || normalized === 'every_enter') return normalized
   return 'once'
 }
 
@@ -469,6 +469,10 @@ function matchesAnnouncementRule(announcement, context) {
 
   if (showMode === 'per_version') {
     if (record.lastShownVersion === context.appVersion) return false
+    return true
+  }
+
+  if (showMode === 'every_enter') {
     return true
   }
 
