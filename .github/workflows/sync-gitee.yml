@@ -75,6 +75,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config http.connectTimeout 30
+          git config http.lowSpeedLimit 1000
+          git config http.lowSpeedTime 60
+          git config http.maxRequests 5
+          git config http.postBuffer 524288000
 
       - name: Add gitee remote
         if: steps.check.outputs.enabled == 'true'
@@ -83,9 +88,26 @@ jobs:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITEE_REPO: ${{ secrets.GITEE_REPO }}
         run: |
+          set -euo pipefail
+
           git remote remove gitee 2>/dev/null || true
           git remote add gitee "https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/${GITEE_REPO}.git"
-          git fetch gitee --prune || true
+
+          for attempt in 1 2 3; do
+            if git fetch gitee --prune; then
+              echo "Fetch gitee succeeded on attempt ${attempt}"
+              break
+            fi
+
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Fetch gitee failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+
+            sleep_seconds=$((attempt * 8))
+            echo "Fetch gitee failed on attempt ${attempt}, retry in ${sleep_seconds}s..."
+            sleep "${sleep_seconds}"
+          done
 
       - name: Push matching ref to gitee
         if: steps.check.outputs.enabled == 'true'
@@ -96,14 +118,33 @@ jobs:
         run: |
           set -euo pipefail
 
+          refspec=""
+
           if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
-            git push gitee "+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
+            refspec="+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
           elif [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "tag" ]; then
-            git push gitee "+refs/tags/${REF_NAME}:refs/tags/${REF_NAME}"
+            refspec="+refs/tags/${REF_NAME}:refs/tags/${REF_NAME}"
           elif [ "${EVENT_NAME}" = "workflow_run" ]; then
-            git push gitee "+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
+            refspec="+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
           else
             echo "No matching ref sync rule for event ${EVENT_NAME}, skip."
+            exit 0
+          fi
+
+          for attempt in 1 2 3 4; do
+            if git push gitee "${refspec}"; then
+              echo "Push to gitee succeeded on attempt ${attempt}"
+              break
+            fi
+
+            if [ "${attempt}" -eq 4 ]; then
+              echo "Push to gitee failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+
+            sleep_seconds=$((attempt * 10))
+            echo "Push to gitee failed on attempt ${attempt}, retry in ${sleep_seconds}s..."
+            sleep "${sleep_seconds}"
           fi
 
       - name: Missing gitee secrets
