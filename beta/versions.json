@@ -1,5 +1,13 @@
 [
   {
+    "version": "20260327.9",
+    "url": "https://laurenszero.github.io/goods_app/beta/bundle-20260327.9.zip",
+    "hash": "d080dde28470559ce9e921cf4a720b02f7a24a3fb2711edd5e7c7b6282861137",
+    "minNativeVersion": null,
+    "notes": "test",
+    "publishedAt": "2026-03-27T01:03:54Z"
+  },
+  {
     "version": "20260327.8",
     "url": "https://laurenszero.github.io/goods_app/beta/bundle-20260327.8.zip",
     "hash": "05a01d94ff78b8cfa17a76622bbaf07fc7955f693864a185d27e9012579b03d1",
