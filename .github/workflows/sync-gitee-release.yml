@@ -21,10 +21,31 @@ jobs:
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITEE_OWNER: ${{ secrets.GITEE_OWNER }}
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
           GITEE_REPO: ${{ secrets.GITEE_REPO }}
         run: |
-          if [ -n "${GITEE_TOKEN}" ] && [ -n "${GITEE_OWNER}" ] && [ -n "${GITEE_REPO}" ]; then
+          OWNER=""
+          REPO=""
+
+          if [ -n "${GITEE_OWNER}" ] && [ -n "${GITEE_REPO}" ]; then
+            OWNER="${GITEE_OWNER}"
+            REPO="${GITEE_REPO}"
+            if echo "${REPO}" | grep -q '/'; then
+              OWNER="${REPO%%/*}"
+              REPO="${REPO##*/}"
+            fi
+          elif [ -n "${GITEE_REPO}" ] && echo "${GITEE_REPO}" | grep -q '/'; then
+            OWNER="${GITEE_REPO%%/*}"
+            REPO="${GITEE_REPO##*/}"
+          elif [ -n "${GITEE_USERNAME}" ] && [ -n "${GITEE_REPO}" ]; then
+            OWNER="${GITEE_USERNAME}"
+            REPO="${GITEE_REPO}"
+          fi
+
+          if [ -n "${GITEE_TOKEN}" ] && [ -n "${OWNER}" ] && [ -n "${REPO}" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "owner=${OWNER}" >> "$GITHUB_OUTPUT"
+            echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           fi
@@ -75,8 +96,8 @@ jobs:
         id: gitee_release
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          GITEE_OWNER: ${{ secrets.GITEE_OWNER }}
-          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+          GITEE_OWNER: ${{ steps.check.outputs.owner }}
+          GITEE_REPO: ${{ steps.check.outputs.repo }}
           TAG: ${{ steps.payload.outputs.tag }}
           NAME: ${{ steps.payload.outputs.name }}
           BODY: ${{ steps.payload.outputs.body }}
@@ -129,8 +150,8 @@ jobs:
         if: steps.check.outputs.enabled == 'true'
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          GITEE_OWNER: ${{ secrets.GITEE_OWNER }}
-          GITEE_REPO: ${{ secrets.GITEE_REPO }}
+          GITEE_OWNER: ${{ steps.check.outputs.owner }}
+          GITEE_REPO: ${{ steps.check.outputs.repo }}
           RELEASE_ID: ${{ steps.gitee_release.outputs.id }}
         run: |
           set -euo pipefail
@@ -155,4 +176,4 @@ jobs:
         if: steps.check.outputs.enabled != 'true'
         run: |
           echo "Skip gitee release sync because required secrets are missing."
-          echo "Required: GITEE_TOKEN, GITEE_OWNER, GITEE_REPO"
+          echo "Required: GITEE_TOKEN + (GITEE_OWNER,GITEE_REPO) or GITEE_REPO=owner/repo or (GITEE_USERNAME,GITEE_REPO)"
