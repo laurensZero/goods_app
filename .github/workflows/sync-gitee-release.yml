@@ -233,7 +233,6 @@ jobs:
 
             curl -fL --progress-bar \
               --connect-timeout 20 \
-              --max-time 1800 \
               --speed-time 60 \
               --speed-limit 1024 \
               --retry 2 \
