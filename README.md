@@ -135,6 +135,8 @@ npm run open:android
 - `github` 源：读取 GitHub Pages `/<channel>/manifest.json`
 - `auto` 源：优先 `gitee`，失败自动回退 `github`
 
+说明补充：在原生端（Capacitor），bundle manifest 会优先使用原生 HTTP 请求，避免 Gitee raw 的浏览器 CORS 限制。
+
 说明：`gh-pages` 里已有 `stable/beta` 目录结构，可直接复用，无需额外开通 Gitee Pages。
 
 ### GitHub Release 同步到 Gitee Release

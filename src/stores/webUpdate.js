@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
   compareVersions,
@@ -19,7 +19,56 @@ const REQUEST_TIMEOUT_MS = 15000
 
 let activeCheckPromise = null
 
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
+    })
+  ])
+}
+
+function parseManifestPayload(payload) {
+  if (payload && typeof payload === 'object') {
+    return payload
+  }
+
+  if (typeof payload === 'string') {
+    return JSON.parse(payload)
+  }
+
+  throw new Error('资源清单格式无效。')
+}
+
 async function fetchWebManifest(url) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const response = await withTimeout(
+        CapacitorHttp.get({
+          url,
+          headers: {
+            Accept: 'application/json'
+          }
+        }),
+        REQUEST_TIMEOUT_MS,
+        '检查资源更新超时，请稍后再试。'
+      )
+
+      const status = Number(response?.status || 0)
+      if (status < 200 || status >= 300) {
+        throw new Error(`资源清单请求失败（${status || 'unknown'}）。`)
+      }
+
+      return parseManifestPayload(response?.data)
+    } catch (error) {
+      const message = String(error?.message || '')
+      if (message.includes('超时')) {
+        throw error
+      }
+      throw new Error(message || '检查资源更新失败，请稍后再试。')
+    }
+  }
+
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
