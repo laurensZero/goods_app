@@ -16,10 +16,20 @@ on:
         type: choice
         options:
           - debug
+          - release
       release_tag:
-        description: Release tag for manual release builds, for example v1.0.0
+        description: Release tag for manual release builds, for example v1.0.0 (build_type=release 必填)
         required: false
         type: string
+      update_level:
+        description: App 更新级别（仅 build_type=release 生效）
+        required: false
+        default: prompt
+        type: choice
+        options:
+          - prompt
+          - force
+          - silent
 
 jobs:
   build-debug:
@@ -78,7 +88,7 @@ jobs:
           if-no-files-found: error
 
   build-release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -134,8 +144,20 @@ jobs:
 
       - name: Determine release tag
         id: release_meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${INPUT_RELEASE_TAG// /}"
+            if [ -z "${TAG}" ]; then
+              echo "release_tag is required when build_type=release" >&2
+              exit 1
+            fi
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
           VERSION_NAME="$TAG"
           VERSION_NAME="${VERSION_NAME#v}"
           VERSION_NAME="${VERSION_NAME#V}"
@@ -174,9 +196,28 @@ jobs:
 
       - name: Generate release notes from commits
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
         run: |
           git fetch --tags --force
+
+          UPDATE_LEVEL="prompt"
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            CANDIDATE_LEVEL=$(printf '%s' "${INPUT_UPDATE_LEVEL}" | tr '[:upper:]' '[:lower:]')
+            if [[ "${CANDIDATE_LEVEL}" == "force" || "${CANDIDATE_LEVEL}" == "prompt" || "${CANDIDATE_LEVEL}" == "silent" ]]; then
+              UPDATE_LEVEL="${CANDIDATE_LEVEL}"
+            fi
+          else
+            TAG_OBJECT_TYPE=$(git cat-file -t "refs/tags/${RELEASE_TAG}" 2>/dev/null || true)
+            if [ "${TAG_OBJECT_TYPE}" = "tag" ]; then
+              TAG_MESSAGE=$(git for-each-ref "refs/tags/${RELEASE_TAG}" --format='%(contents)' || true)
+              TAG_LEVEL=$(printf '%s\n' "${TAG_MESSAGE}" | sed -nE 's/.*(update_level|更新级别)[[:space:]]*[:=][[:space:]]*(force|prompt|silent).*/\2/ip' | head -n 1 | tr '[:upper:]' '[:lower:]')
+              if [ -n "${TAG_LEVEL}" ]; then
+                UPDATE_LEVEL="${TAG_LEVEL}"
+              fi
+            fi
+          fi
 
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)
           if [ -z "$PREVIOUS_TAG" ]; then
@@ -189,7 +230,9 @@ jobs:
             RANGE="$RELEASE_TAG"
           fi
 
-          echo "## 更新说明" > release-notes.md
+          echo "update_level: ${UPDATE_LEVEL}" > release-notes.md
+          echo "" >> release-notes.md
+          echo "## 更新说明" >> release-notes.md
           echo "" >> release-notes.md
 
           HAS_NOTES=0
