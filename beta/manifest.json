@@ -1,8 +1,9 @@
 {
-  "version": "20260327.17",
-  "url": "bundle-20260327.17.zip",
-  "hash": "6b67635c832a2d82132fff4e30dfd27450b40f63c25c4eb855cccc3a24227913",
+  "version": "20260327.18",
+  "url": "bundle-20260327.18.zip",
+  "hash": "2f318736da546c3e6cc5972235b982e0025ded7885e37a46b0cb454bf5d2a441",
   "minNativeVersion": null,
   "notes": null,
-  "publishedAt": "2026-03-27T13:09:06Z"
+  "updateLevel": "prompt",
+  "publishedAt": "2026-03-27T14:06:52Z"
 }
