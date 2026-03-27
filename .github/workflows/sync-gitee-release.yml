@@ -139,21 +139,23 @@ jobs:
 
           STATUS=$(curl -s -o gitee-release.json -w "%{http_code}" \
             "${API}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}")
+          echo "Get release by tag status: ${STATUS}"
 
           if [ "${STATUS}" = "200" ]; then
             RELEASE_ID=$(jq -r '.id // .release.id // empty' gitee-release.json)
           else
-            curl -fsSL -X POST "${API}/releases" \
+            CREATE_STATUS=$(curl -s -o gitee-release.json -w "%{http_code}" -X POST "${API}/releases" \
               --data-urlencode "access_token=${GITEE_TOKEN}" \
               --data-urlencode "tag_name=${TAG}" \
               --data-urlencode "name=${NAME}" \
-              --data-urlencode "body=${BODY}" \
-              -o gitee-release.json
+              --data-urlencode "body=${BODY}")
+            echo "Create release status: ${CREATE_STATUS}"
             RELEASE_ID=$(jq -r '.id // .release.id // empty' gitee-release.json)
           fi
 
           if [ -z "${RELEASE_ID}" ] || [ "${RELEASE_ID}" = "null" ]; then
-            curl -fsSL "${API}/releases?access_token=${GITEE_TOKEN}&page=1&per_page=100" -o gitee-releases-list.json || true
+            LIST_STATUS=$(curl -s -o gitee-releases-list.json -w "%{http_code}" "${API}/releases?access_token=${GITEE_TOKEN}&page=1&per_page=100" || true)
+            echo "List releases status: ${LIST_STATUS}"
             RELEASE_ID=$(jq -r --arg TAG "${TAG}" 'map(select((.tag_name // "") == $TAG)) | .[0].id // empty' gitee-releases-list.json 2>/dev/null || true)
           fi
 
