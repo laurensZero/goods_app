@@ -110,7 +110,7 @@ jobs:
             "${API}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}")
 
           if [ "${STATUS}" = "200" ]; then
-            RELEASE_ID=$(jq -r '.id' gitee-release.json)
+            RELEASE_ID=$(jq -r '.id // .release.id // empty' gitee-release.json)
           else
             curl -fsSL -X POST "${API}/releases" \
               --data-urlencode "access_token=${GITEE_TOKEN}" \
@@ -118,12 +118,22 @@ jobs:
               --data-urlencode "name=${NAME}" \
               --data-urlencode "body=${BODY}" \
               -o gitee-release.json
-            RELEASE_ID=$(jq -r '.id' gitee-release.json)
+            RELEASE_ID=$(jq -r '.id // .release.id // empty' gitee-release.json)
           fi
 
           if [ -z "${RELEASE_ID}" ] || [ "${RELEASE_ID}" = "null" ]; then
-            echo "创建或读取 Gitee Release 失败" >&2
+            curl -fsSL "${API}/releases?access_token=${GITEE_TOKEN}&page=1&per_page=100" -o gitee-releases-list.json || true
+            RELEASE_ID=$(jq -r --arg TAG "${TAG}" 'map(select((.tag_name // "") == $TAG)) | .[0].id // empty' gitee-releases-list.json 2>/dev/null || true)
+          fi
+
+          if [ -z "${RELEASE_ID}" ] || [ "${RELEASE_ID}" = "null" ]; then
+            echo "创建或读取 Gitee Release 失败（owner=${GITEE_OWNER}, repo=${GITEE_REPO}, tag=${TAG}）。" >&2
+            echo "gitee-release.json:" >&2
             cat gitee-release.json >&2 || true
+            if [ -f gitee-releases-list.json ]; then
+              echo "gitee-releases-list.json (first 20 lines):" >&2
+              head -n 20 gitee-releases-list.json >&2 || true
+            fi
             exit 1
           fi
 
