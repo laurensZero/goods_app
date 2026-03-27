@@ -146,6 +146,8 @@ npm run open:android
 - 当 GitHub `Release published` 时自动触发
 - 自动读取该 tag 的 GitHub Release，并上传同名资产到 Gitee Release
 
+补充：`build-apk` 流程会在上传 APK 到 GitHub Release 后，显式触发一次该同步 workflow，避免 `GITHUB_TOKEN` 事件隔离导致的漏触发。
+
 需要额外配置以下 Secrets：
 
 - `GITEE_OWNER`：Gitee 仓库 owner

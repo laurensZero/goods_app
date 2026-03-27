@@ -82,6 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
 
     steps:
       - name: Checkout code
@@ -250,3 +251,10 @@ jobs:
           RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
         run: |
           gh release upload "$RELEASE_TAG" "android/app/build/outputs/apk/release/app-release.apk#$RELEASE_ASSET_NAME" --clobber
+
+      - name: Trigger gitee release sync workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          gh workflow run sync-gitee-release.yml -f tag="$RELEASE_TAG"
