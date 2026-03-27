@@ -579,6 +579,7 @@
               <option value="once">once（仅一次）</option>
               <option value="daily">daily（每天一次）</option>
               <option value="per_version">per_version（每版本一次）</option>
+              <option value="every_enter">every_enter（每次进入都弹）</option>
             </select>
           </label>
 
@@ -901,7 +902,7 @@
       announcementPriority.value = Number.isFinite(Number(item.priority)) ? String(Number(item.priority)) : '100'
       announcementTitle.value = String(item.title || '').trim()
       announcementMessage.value = String(item.message || '').trim()
-      announcementShowMode.value = ['once', 'daily', 'per_version'].includes(String(showRule.showMode || '').trim())
+      announcementShowMode.value = ['once', 'daily', 'per_version', 'every_enter'].includes(String(showRule.showMode || '').trim())
         ? String(showRule.showMode || '').trim()
         : 'once'
       announcementChannels.value = Array.isArray(showRule.channels) && showRule.channels.length
