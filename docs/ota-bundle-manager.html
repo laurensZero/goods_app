@@ -489,6 +489,7 @@
           <button class="btn" id="copyTokenBtn" type="button">复制 Token</button>
           <button class="btn" id="clearTokenBtn" type="button">一键清除</button>
         </div>
+        <p id="tokenStatus" class="publish-status">等待操作</p>
       </article>
     </section>
 
@@ -528,6 +529,10 @@
               <option value="silent">silent（不弹窗，仅手动）</option>
             </select>
           </label>
+
+          <div class="field field--full">
+            <span class="field-label">默认规则：stable=prompt，beta=silent（可手动覆盖）</span>
+          </div>
 
           <label class="field field--full">
             <span class="field-label">更新说明（可选）</span>
@@ -708,6 +713,7 @@
     const saveTokenBtn = document.getElementById('saveTokenBtn')
     const copyTokenBtn = document.getElementById('copyTokenBtn')
     const clearTokenBtn = document.getElementById('clearTokenBtn')
+    const tokenStatus = document.getElementById('tokenStatus')
     const openActionsBtn = document.getElementById('openActionsBtn')
     const publishStatus = document.getElementById('publishStatus')
     const giteeReleaseTag = document.getElementById('giteeReleaseTag')
@@ -768,6 +774,22 @@
       if (type === 'error') giteeWorkflowStatus.classList.add('publish-status--error')
     }
 
+    function setTokenStatus(message, type = 'default') {
+      tokenStatus.textContent = message
+      tokenStatus.className = 'publish-status'
+      if (type === 'ok') tokenStatus.classList.add('publish-status--ok')
+      if (type === 'error') tokenStatus.classList.add('publish-status--error')
+    }
+
+    function syncPublishUpdateLevelByChannel() {
+      const channel = String(publishChannel.value || 'stable').trim().toLowerCase()
+      if (channel === 'beta') {
+        publishUpdateLevel.value = 'silent'
+        return
+      }
+      publishUpdateLevel.value = 'prompt'
+    }
+
     function setAnnouncementStatus(message, type = 'default') {
       announcementStatus.textContent = message
       announcementStatus.className = 'publish-status'
@@ -778,15 +800,15 @@
     function saveTokenToLocalStorage() {
       const token = String(publishToken.value || '').trim()
       if (!token) {
-        setPublishStatus('Token 为空，无法保存。', 'error')
+        setTokenStatus('Token 为空，无法保存。', 'error')
         return
       }
 
       try {
         localStorage.setItem(githubTokenStorageKey, token)
-        setPublishStatus('Token 已保存到本地浏览器（localStorage）。', 'ok')
+        setTokenStatus('Token 已保存到本地浏览器（localStorage）。', 'ok')
       } catch (error) {
-        setPublishStatus(error?.message || '保存 Token 失败。', 'error')
+        setTokenStatus(error?.message || '保存 Token 失败。', 'error')
       }
     }
 
@@ -795,7 +817,7 @@
         const token = String(localStorage.getItem(githubTokenStorageKey) || '').trim()
         if (token) {
           publishToken.value = token
-          setPublishStatus('已从本地恢复已保存 Token。', 'ok')
+          setTokenStatus('已从本地恢复已保存 Token。', 'ok')
         }
       } catch {
         // ignore
@@ -805,15 +827,15 @@
     async function copyTokenToClipboard() {
       const token = String(publishToken.value || '').trim()
       if (!token) {
-        setPublishStatus('Token 为空，无法复制。', 'error')
+        setTokenStatus('Token 为空，无法复制。', 'error')
         return
       }
 
       try {
         await navigator.clipboard.writeText(token)
-        setPublishStatus('Token 已复制到剪贴板。', 'ok')
+        setTokenStatus('Token 已复制到剪贴板。', 'ok')
       } catch (error) {
-        setPublishStatus(error?.message || '复制失败，请手动复制。', 'error')
+        setTokenStatus(error?.message || '复制失败，请手动复制。', 'error')
       }
     }
 
@@ -824,7 +846,7 @@
       } catch {
         // ignore
       }
-      setPublishStatus('已清除本地保存 Token。', 'ok')
+      setTokenStatus('已清除本地保存 Token。', 'ok')
     }
 
     function normalizeHttpsUrl(value) {
@@ -1510,7 +1532,9 @@
     channels.forEach(bindCard)
     restoreTokenFromLocalStorage()
     announcementGistUrl.value = defaultAnnouncementGistUrl
+    syncPublishUpdateLevelByChannel()
     refreshAllBtn.addEventListener('click', loadAllChannels)
+    publishChannel.addEventListener('change', syncPublishUpdateLevelByChannel)
     publishBtn.addEventListener('click', triggerPublish)
     saveTokenBtn.addEventListener('click', saveTokenToLocalStorage)
     copyTokenBtn.addEventListener('click', copyTokenToClipboard)

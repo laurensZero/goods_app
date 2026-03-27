@@ -23,7 +23,7 @@ def main() -> int:
     mode = os.environ.get('MODE', '').strip()
 
     if update_level not in {'force', 'prompt', 'silent'}:
-        update_level = 'prompt'
+        update_level = 'silent' if channel == 'beta' else 'prompt'
 
     if not history_file:
         return fail('HISTORY_FILE 为空，无法生成 manifest。')

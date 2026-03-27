@@ -3,10 +3,13 @@
     <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
       <div class="dialog update-dialog">
         <p class="update-kicker">Bundle Update</p>
-        <h3 class="dialog-title">发现资源更新 v{{ webUpdateStore.latestVersion }}</h3>
-        <p class="dialog-desc">
+        <h3 class="dialog-title">{{ restartReady ? '资源更新已下载完成' : `发现资源更新 v${webUpdateStore.latestVersion}` }}</h3>
+        <p class="dialog-desc" v-if="!restartReady">
           当前资源 {{ webUpdateStore.currentVersion || 'builtin' }}，可用资源为 v{{ webUpdateStore.latestVersion }}。
           <template v-if="webUpdateStore.isForceUpdate">本次为强制资源更新，需下载后重启生效。</template>
+        </p>
+        <p class="dialog-desc" v-else>
+          新资源将在重启 App 后生效，是否现在重启？
         </p>
 
         <div class="version-row">
@@ -20,7 +23,7 @@
           </div>
         </div>
 
-        <section v-if="releaseNotesPreview" class="release-notes">
+        <section v-if="releaseNotesPreview && !restartReady" class="release-notes">
           <p class="release-notes__label">更新说明</p>
           <pre class="release-notes__body">{{ releaseNotesPreview }}</pre>
         </section>
@@ -34,17 +37,17 @@
             type="button"
             class="dialog-btn dialog-btn--secondary"
             :disabled="webUpdateStore.isDownloading"
-            @click="webUpdateStore.dismissDialog()"
+            @click="restartReady ? handleLaterRestart() : webUpdateStore.dismissDialog()"
           >
-            稍后再说
+            {{ restartReady ? '稍后' : '稍后再说' }}
           </button>
           <button
             type="button"
             class="dialog-btn dialog-btn--primary"
             :disabled="webUpdateStore.isDownloading"
-            @click="handleStartWebUpdate"
+            @click="restartReady ? handleRestartNow() : handleStartWebUpdate()"
           >
-            {{ webUpdateStore.isDownloading ? '下载中…' : '下载并下次启动生效' }}
+            {{ restartReady ? '立即重启' : (webUpdateStore.isDownloading ? '下载中…' : '下载并下次启动生效') }}
           </button>
         </div>
       </div>
@@ -53,10 +56,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 
 const webUpdateStore = useWebUpdateStore()
+const restartReady = ref(false)
 
 const showDialog = computed(() => webUpdateStore.dialogVisible && webUpdateStore.hasUpdate)
 const releaseNotesPreview = computed(() => {
@@ -72,10 +77,34 @@ function handleOverlayClick() {
 
 async function handleStartWebUpdate() {
   const ok = await webUpdateStore.downloadAndPrepareUpdate()
-  if (ok && !webUpdateStore.isForceUpdate) {
+  if (ok) {
+    restartReady.value = true
+  }
+}
+
+function handleLaterRestart() {
+  restartReady.value = false
+  webUpdateStore.dismissDialog()
+}
+
+async function handleRestartNow() {
+  if (!Capacitor.isNativePlatform()) {
+    window.location.reload()
+    return
+  }
+
+  const activated = await webUpdateStore.applyPendingUpdateNow()
+  if (!activated && !webUpdateStore.isForceUpdate) {
+    restartReady.value = false
     webUpdateStore.dismissDialog()
   }
 }
+
+watch(showDialog, (visible) => {
+  if (!visible) {
+    restartReady.value = false
+  }
+})
 </script>
 
 <style scoped>

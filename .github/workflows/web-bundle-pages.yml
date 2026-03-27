@@ -81,7 +81,7 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.bundle_version || '' }}
           INPUT_MIN_NATIVE: ${{ github.event.inputs.min_native_version || '' }}
           INPUT_NOTES: ${{ github.event.inputs.notes || '' }}
-          INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
+          INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || '' }}
           INPUT_ROLLBACK_VERSION: ${{ github.event.inputs.rollback_version || '' }}
           CHANNEL_INPUT: ${{ github.event.inputs.channel || '' }}
           OWNER: ${{ github.repository_owner }}

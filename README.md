@@ -135,6 +135,13 @@ npm run open:android
 - `github` 源：读取 GitHub Pages `/<channel>/manifest.json`
 - `auto` 源：优先 `gitee`，失败自动回退 `github`
 
+Bundle 发布级别默认规则（用于客户端弹窗策略）：
+
+- `stable` 通道默认 `prompt`（弹窗可忽略）
+- `beta` 通道默认 `silent`（不弹窗，仅手动检查可见）
+
+可在发布时显式覆盖为 `force/prompt/silent`。
+
 说明补充：在原生端（Capacitor），bundle manifest 会优先使用原生 HTTP 请求，避免 Gitee raw 的浏览器 CORS 限制。
 
 说明：`gh-pages` 里已有 `stable/beta` 目录结构，可直接复用，无需额外开通 Gitee Pages。
