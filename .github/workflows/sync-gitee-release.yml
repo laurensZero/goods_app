@@ -80,9 +80,14 @@ jobs:
 
           NAME=$(jq -r '.name // .tag_name' gh-release.json)
           BODY=$(jq -r '.body // ""' gh-release.json)
+          TARGET_COMMITISH=$(jq -r '.target_commitish // .tag_name // ""' gh-release.json)
+          if [ -z "${TARGET_COMMITISH}" ] || [ "${TARGET_COMMITISH}" = "null" ]; then
+            TARGET_COMMITISH="${TAG}"
+          fi
 
           {
             echo "tag=${TAG}"
+            echo "target_commitish=${TARGET_COMMITISH}"
             echo "name<<EOF"
             echo "${NAME}"
             echo "EOF"
@@ -130,6 +135,7 @@ jobs:
           GITEE_OWNER: ${{ steps.check.outputs.owner }}
           GITEE_REPO: ${{ steps.check.outputs.repo }}
           TAG: ${{ steps.payload.outputs.tag }}
+          TARGET_COMMITISH: ${{ steps.payload.outputs.target_commitish }}
           NAME: ${{ steps.payload.outputs.name }}
           BODY: ${{ steps.payload.outputs.body }}
         run: |
@@ -150,6 +156,7 @@ jobs:
             CREATE_STATUS=$(curl -s -o gitee-release.json -w "%{http_code}" -X POST "${API}/releases" \
               --data-urlencode "access_token=${GITEE_TOKEN}" \
               --data-urlencode "tag_name=${TAG}" \
+              --data-urlencode "target_commitish=${TARGET_COMMITISH}" \
               --data-urlencode "name=${NAME}" \
               --data-urlencode "body=${BODY}")
             echo "Create release status: ${CREATE_STATUS}"
