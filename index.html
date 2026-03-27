@@ -310,6 +310,21 @@
       color: #22a161;
     }
 
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      color: var(--app-text-secondary);
+      font-size: 13px;
+    }
+
+    .checkbox-row input[type='checkbox'] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--app-primary);
+    }
+
     @media (min-width: 860px) {
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -383,6 +398,97 @@
           <button class="btn" id="openActionsBtn" type="button">打开 Actions 页面</button>
         </div>
         <p id="publishStatus" class="publish-status">等待操作</p>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">公告编辑与发布（Gist）</h2>
+      <article class="publish-card">
+        <div class="publish-grid">
+          <label class="field field--full">
+            <span class="field-label">公告 Gist 链接（支持 gist 页面链接或 raw 链接）</span>
+            <input id="announcementGistUrl" class="input" type="text" placeholder="https://gist.github.com/<user>/<gist_id>" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">公告 ID</span>
+            <input id="announcementId" class="input" type="text" placeholder="例如 notice-20260327-1" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">优先级</span>
+            <input id="announcementPriority" class="input" type="number" value="100" min="0" step="1" />
+          </label>
+
+          <label class="field field--full">
+            <span class="field-label">标题</span>
+            <input id="announcementTitle" class="input" type="text" placeholder="公告标题" />
+          </label>
+
+          <label class="field field--full">
+            <span class="field-label">正文</span>
+            <textarea id="announcementMessage" class="textarea" placeholder="公告正文，支持换行"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">展示模式</span>
+            <select id="announcementShowMode" class="select">
+              <option value="once">once（仅一次）</option>
+              <option value="daily">daily（每天一次）</option>
+              <option value="per_version">per_version（每版本一次）</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">渠道（逗号分隔）</span>
+            <input id="announcementChannels" class="input" type="text" value="stable,beta" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">开始时间（ISO，可留空）</span>
+            <input id="announcementStartAt" class="input" type="text" placeholder="2026-03-27T00:00:00Z" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">结束时间（ISO，可留空）</span>
+            <input id="announcementEndAt" class="input" type="text" placeholder="2026-04-30T23:59:59Z" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">最低 App 版本（可留空）</span>
+            <input id="announcementMinVersion" class="input" type="text" placeholder="例如 1.3.2" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">最高 App 版本（可留空）</span>
+            <input id="announcementMaxVersion" class="input" type="text" placeholder="例如 2.0.0" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">按钮文案（可留空）</span>
+            <input id="announcementCtaText" class="input" type="text" placeholder="例如 查看详情" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">按钮链接（https，可留空）</span>
+            <input id="announcementCtaUrl" class="input" type="text" placeholder="https://example.com" />
+          </label>
+
+          <label class="field field--full">
+            <span class="field-label">开关</span>
+            <div class="checkbox-row">
+              <input id="announcementEnabled" type="checkbox" checked />
+              <label for="announcementEnabled">启用公告（enabled=true）</label>
+            </div>
+          </label>
+        </div>
+
+        <div class="publish-actions">
+          <button class="btn" id="loadAnnouncementBtn" type="button">从 Gist 读取</button>
+          <button class="btn" id="publishAnnouncementBtn" type="button">发布到 Gist</button>
+          <button class="btn" id="openAnnouncementGistBtn" type="button">打开 Gist 页面</button>
+        </div>
+        <p id="announcementStatus" class="publish-status">等待操作</p>
       </article>
     </section>
 
@@ -462,12 +568,34 @@
     const syncGiteeReleaseBtn = document.getElementById('syncGiteeReleaseBtn')
     const openSyncGiteeReleaseBtn = document.getElementById('openSyncGiteeReleaseBtn')
     const giteeWorkflowStatus = document.getElementById('giteeWorkflowStatus')
+    const announcementGistUrl = document.getElementById('announcementGistUrl')
+    const announcementId = document.getElementById('announcementId')
+    const announcementPriority = document.getElementById('announcementPriority')
+    const announcementTitle = document.getElementById('announcementTitle')
+    const announcementMessage = document.getElementById('announcementMessage')
+    const announcementShowMode = document.getElementById('announcementShowMode')
+    const announcementChannels = document.getElementById('announcementChannels')
+    const announcementStartAt = document.getElementById('announcementStartAt')
+    const announcementEndAt = document.getElementById('announcementEndAt')
+    const announcementMinVersion = document.getElementById('announcementMinVersion')
+    const announcementMaxVersion = document.getElementById('announcementMaxVersion')
+    const announcementCtaText = document.getElementById('announcementCtaText')
+    const announcementCtaUrl = document.getElementById('announcementCtaUrl')
+    const announcementEnabled = document.getElementById('announcementEnabled')
+    const loadAnnouncementBtn = document.getElementById('loadAnnouncementBtn')
+    const publishAnnouncementBtn = document.getElementById('publishAnnouncementBtn')
+    const openAnnouncementGistBtn = document.getElementById('openAnnouncementGistBtn')
+    const announcementStatus = document.getElementById('announcementStatus')
 
     const repoOwner = 'laurenszero'
     const repoName = 'goods_app'
     const workflowId = 'web-bundle-pages.yml'
     const syncGiteeWorkflowId = 'sync-gitee.yml'
     const syncGiteeReleaseWorkflowId = 'sync-gitee-release.yml'
+    const defaultAnnouncementGistUrl = 'https://gist.github.com/laurensZero/0a88ab223f6e8c6cc8542401e907154c'
+
+    let currentAnnouncementManifest = null
+    let currentAnnouncementFileName = 'manifest.json'
 
     baseUrlChip.textContent = `Base: ${baseUrl.href}`
 
@@ -485,6 +613,266 @@
       giteeWorkflowStatus.className = 'publish-status'
       if (type === 'ok') giteeWorkflowStatus.classList.add('publish-status--ok')
       if (type === 'error') giteeWorkflowStatus.classList.add('publish-status--error')
+    }
+
+    function setAnnouncementStatus(message, type = 'default') {
+      announcementStatus.textContent = message
+      announcementStatus.className = 'publish-status'
+      if (type === 'ok') announcementStatus.classList.add('publish-status--ok')
+      if (type === 'error') announcementStatus.classList.add('publish-status--error')
+    }
+
+    function normalizeHttpsUrl(value) {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+      try {
+        const parsed = new URL(raw)
+        if (parsed.protocol !== 'https:') return ''
+        return parsed.href
+      } catch {
+        return ''
+      }
+    }
+
+    function parseGistId(value) {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+
+      const direct = raw.match(/^[a-f0-9]{20,}$/i)
+      if (direct) return direct[0]
+
+      try {
+        const parsed = new URL(raw)
+        const host = parsed.hostname.toLowerCase()
+
+        if (host === 'gist.github.com') {
+          const segments = parsed.pathname.split('/').filter(Boolean)
+          return String(segments[segments.length - 1] || '').trim()
+        }
+
+        if (host === 'api.github.com') {
+          const match = parsed.pathname.match(/\/gists\/([a-f0-9]+)/i)
+          return match?.[1] || ''
+        }
+
+        if (host === 'gist.githubusercontent.com') {
+          const segments = parsed.pathname.split('/').filter(Boolean)
+          return String(segments[1] || '').trim()
+        }
+      } catch {
+        return ''
+      }
+
+      return ''
+    }
+
+    function buildGitHubHeaders(token) {
+      const headers = {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json'
+      }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      return headers
+    }
+
+    function pickAnnouncementFile(files) {
+      const entries = Object.entries(files || {})
+      if (!entries.length) return null
+
+      return entries.find(([name]) => /manifest/i.test(name) && /\.json$/i.test(name))
+        || entries.find(([name]) => /\.json$/i.test(name))
+        || entries[0]
+    }
+
+    function applyAnnouncementToForm(manifest) {
+      const list = Array.isArray(manifest?.announcements) ? manifest.announcements : []
+      const item = list[0] || {}
+      const showRule = item.showRule && typeof item.showRule === 'object' ? item.showRule : {}
+      const cta = item.cta && typeof item.cta === 'object' ? item.cta : {}
+
+      announcementId.value = String(item.id || '').trim()
+      announcementPriority.value = Number.isFinite(Number(item.priority)) ? String(Number(item.priority)) : '100'
+      announcementTitle.value = String(item.title || '').trim()
+      announcementMessage.value = String(item.message || '').trim()
+      announcementShowMode.value = ['once', 'daily', 'per_version'].includes(String(showRule.showMode || '').trim())
+        ? String(showRule.showMode || '').trim()
+        : 'once'
+      announcementChannels.value = Array.isArray(showRule.channels) && showRule.channels.length
+        ? showRule.channels.map((entry) => String(entry || '').trim()).filter(Boolean).join(',')
+        : 'stable,beta'
+      announcementStartAt.value = String(showRule.startAt || '').trim()
+      announcementEndAt.value = String(showRule.endAt || '').trim()
+      announcementMinVersion.value = String(showRule.minAppVersion || '').trim()
+      announcementMaxVersion.value = String(showRule.maxAppVersion || '').trim()
+      announcementCtaText.value = String(cta.text || '').trim()
+      announcementCtaUrl.value = String(cta.url || '').trim()
+      announcementEnabled.checked = item.enabled !== false
+    }
+
+    function buildAnnouncementFromForm() {
+      const id = String(announcementId.value || '').trim()
+      const title = String(announcementTitle.value || '').trim()
+      const message = String(announcementMessage.value || '').trim()
+
+      if (!id) {
+        throw new Error('公告 ID 不能为空。')
+      }
+      if (!title) {
+        throw new Error('公告标题不能为空。')
+      }
+      if (!message) {
+        throw new Error('公告正文不能为空。')
+      }
+
+      const channels = String(announcementChannels.value || '')
+        .split(',')
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean)
+
+      const ctaUrl = normalizeHttpsUrl(announcementCtaUrl.value)
+      const ctaText = String(announcementCtaText.value || '').trim()
+
+      return {
+        id,
+        enabled: announcementEnabled.checked,
+        priority: Number.isFinite(Number(announcementPriority.value)) ? Number(announcementPriority.value) : 100,
+        title,
+        message,
+        cta: {
+          text: ctaText,
+          url: ctaUrl,
+          action: ctaUrl ? 'open_url' : 'dismiss'
+        },
+        showRule: {
+          showMode: String(announcementShowMode.value || 'once').trim() || 'once',
+          startAt: String(announcementStartAt.value || '').trim(),
+          endAt: String(announcementEndAt.value || '').trim(),
+          minAppVersion: String(announcementMinVersion.value || '').trim(),
+          maxAppVersion: String(announcementMaxVersion.value || '').trim(),
+          channels: channels.length ? channels : ['stable', 'beta']
+        }
+      }
+    }
+
+    async function requestGist(gistId, token, method = 'GET', body = null) {
+      const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method,
+        headers: buildGitHubHeaders(token),
+        body: body ? JSON.stringify(body) : null
+      })
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '')
+        throw new Error(`Gist 请求失败（${response.status}）${detail ? `：${detail}` : ''}`)
+      }
+
+      return response.json()
+    }
+
+    async function loadAnnouncementFromGist() {
+      const token = String(publishToken.value || '').trim()
+      if (!token) {
+        setAnnouncementStatus('请先填写 GitHub Token（需要 gist 权限）。', 'error')
+        return
+      }
+
+      const gistInput = String(announcementGistUrl.value || '').trim()
+      const gistId = parseGistId(gistInput)
+      if (!gistId) {
+        setAnnouncementStatus('请填写有效的 Gist 链接或 Gist ID。', 'error')
+        return
+      }
+
+      loadAnnouncementBtn.disabled = true
+      setAnnouncementStatus('正在读取 Gist 公告配置...', 'default')
+
+      try {
+        const gistPayload = await requestGist(gistId, token)
+        const picked = pickAnnouncementFile(gistPayload?.files)
+        if (!picked) {
+          throw new Error('Gist 中未找到可用 JSON 文件。')
+        }
+
+        const [fileName, filePayload] = picked
+        currentAnnouncementFileName = fileName
+        const rawContent = String(filePayload?.content || '').trim()
+        if (!rawContent) {
+          throw new Error(`文件 ${fileName} 内容为空。`)
+        }
+
+        const manifest = JSON.parse(rawContent)
+        currentAnnouncementManifest = manifest
+        applyAnnouncementToForm(manifest)
+
+        announcementGistUrl.value = `https://gist.github.com/${repoOwner}/${gistId}`
+        setAnnouncementStatus(`读取成功：${fileName}。你可以编辑后发布。`, 'ok')
+      } catch (error) {
+        setAnnouncementStatus(error?.message || '读取公告失败。', 'error')
+      } finally {
+        loadAnnouncementBtn.disabled = false
+      }
+    }
+
+    async function publishAnnouncementToGist() {
+      const token = String(publishToken.value || '').trim()
+      if (!token) {
+        setAnnouncementStatus('发布需要 GitHub Token（gist 权限）。', 'error')
+        return
+      }
+
+      const gistInput = String(announcementGistUrl.value || '').trim()
+      const gistId = parseGistId(gistInput)
+      if (!gistId) {
+        setAnnouncementStatus('请填写有效的 Gist 链接或 Gist ID。', 'error')
+        return
+      }
+
+      publishAnnouncementBtn.disabled = true
+      setAnnouncementStatus('正在发布公告到 Gist...', 'default')
+
+      try {
+        const nextAnnouncement = buildAnnouncementFromForm()
+        const baseManifest = currentAnnouncementManifest && typeof currentAnnouncementManifest === 'object'
+          ? currentAnnouncementManifest
+          : {}
+
+        const nextManifest = {
+          version: Number.isFinite(Number(baseManifest.version)) ? Number(baseManifest.version) : 1,
+          updatedAt: new Date().toISOString(),
+          announcements: [nextAnnouncement]
+        }
+
+        const fileName = String(currentAnnouncementFileName || 'manifest.json').trim() || 'manifest.json'
+
+        await requestGist(gistId, token, 'PATCH', {
+          files: {
+            [fileName]: {
+              content: JSON.stringify(nextManifest, null, 2)
+            }
+          }
+        })
+
+        currentAnnouncementManifest = nextManifest
+        announcementGistUrl.value = `https://gist.github.com/${repoOwner}/${gistId}`
+        setAnnouncementStatus(`发布成功：${fileName} 已更新。`, 'ok')
+      } catch (error) {
+        setAnnouncementStatus(error?.message || '发布公告失败。', 'error')
+      } finally {
+        publishAnnouncementBtn.disabled = false
+      }
+    }
+
+    function openAnnouncementGistPage() {
+      const gistInput = String(announcementGistUrl.value || '').trim()
+      const gistId = parseGistId(gistInput)
+      if (!gistId) {
+        setAnnouncementStatus('请先填写有效的 Gist 链接。', 'error')
+        return
+      }
+      window.open(`https://gist.github.com/${repoOwner}/${gistId}`, '_blank', 'noopener')
     }
 
     function formatTime(value) {
@@ -826,9 +1214,13 @@
     }
 
     channels.forEach(bindCard)
+    announcementGistUrl.value = defaultAnnouncementGistUrl
     refreshAllBtn.addEventListener('click', loadAllChannels)
     publishBtn.addEventListener('click', triggerPublish)
     openActionsBtn.addEventListener('click', openActionsPage)
+    loadAnnouncementBtn.addEventListener('click', loadAnnouncementFromGist)
+    publishAnnouncementBtn.addEventListener('click', publishAnnouncementToGist)
+    openAnnouncementGistBtn.addEventListener('click', openAnnouncementGistPage)
     syncGiteeBtn.addEventListener('click', triggerSyncGitee)
     syncGiteeReleaseBtn.addEventListener('click', triggerSyncGiteeRelease)
     openSyncGiteeBtn.addEventListener('click', () => openWorkflowPageById(syncGiteeWorkflowId))
