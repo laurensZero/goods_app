@@ -1,5 +1,13 @@
 [
   {
+    "version": "20260327.10",
+    "url": "bundle-20260327.10.zip",
+    "hash": "3824d704f2f11c76cb1fd27f7fca6a9b248650a62beddc7b32b8a8a98a80f3a0",
+    "minNativeVersion": null,
+    "notes": null,
+    "publishedAt": "2026-03-27T01:18:33Z"
+  },
+  {
     "version": "20260327.9",
     "url": "https://laurenszero.github.io/goods_app/beta/bundle-20260327.9.zip",
     "hash": "d080dde28470559ce9e921cf4a720b02f7a24a3fb2711edd5e7c7b6282861137",
@@ -14,13 +22,5 @@
     "minNativeVersion": null,
     "notes": null,
     "publishedAt": "2026-03-27T00:57:01Z"
-  },
-  {
-    "version": "20260326.7",
-    "url": "https://laurenszero.github.io/goods_app/beta/bundle-20260326.7.zip",
-    "hash": "d04223b9c3ede94cf071922db9467ca166249da0bfcdfe62c08f876ed0d60809",
-    "minNativeVersion": null,
-    "notes": null,
-    "publishedAt": "2026-03-26T15:23:34Z"
   }
 ]
