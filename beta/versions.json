@@ -1,5 +1,13 @@
 [
   {
+    "version": "20260327.13",
+    "url": "bundle-20260327.13.zip",
+    "hash": "6b47488da1409e78e422c3ab276d6fd805f21164aa0aaab4f7277c1909f8b941",
+    "minNativeVersion": null,
+    "notes": null,
+    "publishedAt": "2026-03-27T01:51:18Z"
+  },
+  {
     "version": "20260327.12",
     "url": "bundle-20260327.12.zip",
     "hash": "2c5a390d0c8915e549dd0a6cb39211ab4b9179090b70b12380805e66095c5537",
@@ -14,13 +22,5 @@
     "minNativeVersion": null,
     "notes": null,
     "publishedAt": "2026-03-27T01:39:05Z"
-  },
-  {
-    "version": "20260327.10",
-    "url": "bundle-20260327.10.zip",
-    "hash": "3824d704f2f11c76cb1fd27f7fca6a9b248650a62beddc7b32b8a8a98a80f3a0",
-    "minNativeVersion": null,
-    "notes": null,
-    "publishedAt": "2026-03-27T01:18:33Z"
   }
 ]
