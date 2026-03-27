@@ -310,6 +310,98 @@
       color: #22a161;
     }
 
+    .quick-nav {
+      position: fixed;
+      left: clamp(8px, 2vw, 18px);
+      top: 120px;
+      z-index: 20;
+      width: 170px;
+      background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+      border: 1px solid var(--app-border);
+      border-radius: 14px;
+      padding: 10px;
+      box-shadow: var(--app-shadow);
+      display: grid;
+      gap: 6px;
+      backdrop-filter: blur(6px);
+    }
+
+    .top-nav {
+      position: sticky;
+      top: 10px;
+      z-index: 25;
+      display: none;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--app-surface) 90%, transparent);
+      box-shadow: var(--app-shadow);
+      overflow-x: auto;
+      white-space: nowrap;
+      backdrop-filter: blur(6px);
+    }
+
+    .quick-nav-title {
+      margin: 0 0 4px;
+      font-size: 11px;
+      color: var(--app-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 0 4px;
+    }
+
+    .quick-nav-btn {
+      border: 1px solid var(--app-border);
+      background: var(--app-surface-soft);
+      color: var(--app-text-secondary);
+      border-radius: 10px;
+      min-height: 34px;
+      padding: 0 10px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .top-nav-btn {
+      border: 1px solid var(--app-border);
+      background: var(--app-surface-soft);
+      color: var(--app-text-secondary);
+      border-radius: 999px;
+      min-height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .top-nav-btn.active {
+      color: var(--app-primary);
+      border-color: color-mix(in srgb, var(--app-primary) 45%, var(--app-border));
+      background: color-mix(in srgb, var(--app-primary) 10%, var(--app-surface-soft));
+    }
+
+    .focus-toggle {
+      border-style: dashed;
+    }
+
+    .section--collapsed {
+      display: none;
+    }
+
+    .quick-nav-btn:hover {
+      color: var(--app-text);
+    }
+
+    .quick-nav-btn.active {
+      color: var(--app-primary);
+      border-color: color-mix(in srgb, var(--app-primary) 45%, var(--app-border));
+      background: color-mix(in srgb, var(--app-primary) 10%, var(--app-surface-soft));
+    }
+
     .checkbox-row {
       display: flex;
       align-items: center;
@@ -339,6 +431,16 @@
         grid-column: 1 / -1;
       }
     }
+
+    @media (max-width: 1320px) {
+      .quick-nav {
+        display: none;
+      }
+
+      .top-nav {
+        display: flex;
+      }
+    }
   </style>
 </head>
 <body>
@@ -354,7 +456,26 @@
       </div>
     </section>
 
-    <section class="section">
+    <aside class="quick-nav" aria-label="区域快速切换">
+      <p class="quick-nav-title">快速切换</p>
+      <button class="quick-nav-btn" type="button" data-nav-target="authSection">认证信息</button>
+      <button class="quick-nav-btn" type="button" data-nav-target="channelSection">发布通道</button>
+      <button class="quick-nav-btn" type="button" data-nav-target="publishSection">发布操作</button>
+      <button class="quick-nav-btn" type="button" data-nav-target="announcementSection">公告发布</button>
+      <button class="quick-nav-btn" type="button" data-nav-target="giteeSection">Gitee 同步</button>
+      <button class="quick-nav-btn focus-toggle" id="showAllSectionsBtn" type="button">显示全部区域</button>
+    </aside>
+
+    <div class="top-nav" aria-label="移动端快速切换">
+      <button class="top-nav-btn" type="button" data-nav-target-mobile="authSection">认证</button>
+      <button class="top-nav-btn" type="button" data-nav-target-mobile="channelSection">通道</button>
+      <button class="top-nav-btn" type="button" data-nav-target-mobile="publishSection">发布</button>
+      <button class="top-nav-btn" type="button" data-nav-target-mobile="announcementSection">公告</button>
+      <button class="top-nav-btn" type="button" data-nav-target-mobile="giteeSection">Gitee</button>
+      <button class="top-nav-btn focus-toggle" id="showAllSectionsMobileBtn" type="button">全部</button>
+    </div>
+
+    <section class="section" id="authSection">
       <h2 class="section-title">认证信息</h2>
       <article class="publish-card">
         <div class="publish-grid">
@@ -371,13 +492,13 @@
       </article>
     </section>
 
-    <section class="section">
+    <section class="section" id="channelSection">
       <h2 class="section-title">发布通道</h2>
       <div class="grid" id="channelGrid"></div>
       <p class="tip">提示：你可以直接在下方发布面板触发 workflow_dispatch，或点击 Actions 页面手动发布。</p>
     </section>
 
-    <section class="section">
+    <section class="section" id="publishSection">
       <h2 class="section-title">发布操作</h2>
       <article class="publish-card">
         <div class="publish-grid">
@@ -414,7 +535,7 @@
       </article>
     </section>
 
-    <section class="section">
+    <section class="section" id="announcementSection">
       <h2 class="section-title">公告编辑与发布（Gist）</h2>
       <article class="publish-card">
         <div class="publish-grid">
@@ -505,7 +626,7 @@
       </article>
     </section>
 
-    <section class="section">
+    <section class="section" id="giteeSection">
       <h2 class="section-title">Gitee 同步操作</h2>
       <article class="publish-card">
         <div class="publish-grid">
@@ -602,6 +723,10 @@
     const publishAnnouncementBtn = document.getElementById('publishAnnouncementBtn')
     const openAnnouncementGistBtn = document.getElementById('openAnnouncementGistBtn')
     const announcementStatus = document.getElementById('announcementStatus')
+    const quickNavButtons = Array.from(document.querySelectorAll('[data-nav-target]'))
+    const quickNavMobileButtons = Array.from(document.querySelectorAll('[data-nav-target-mobile]'))
+    const showAllSectionsBtn = document.getElementById('showAllSectionsBtn')
+    const showAllSectionsMobileBtn = document.getElementById('showAllSectionsMobileBtn')
 
     const repoOwner = 'laurenszero'
     const repoName = 'goods_app'
@@ -1282,6 +1407,92 @@
       window.open(url, '_blank', 'noopener')
     }
 
+    function setupQuickNav() {
+      if (!quickNavButtons.length && !quickNavMobileButtons.length) return
+
+      const sectionById = new Map()
+      const allNavButtons = [...quickNavButtons, ...quickNavMobileButtons]
+
+      allNavButtons.forEach((btn) => {
+        const targetId = String(btn.dataset.navTarget || btn.dataset.navTargetMobile || '').trim()
+        const section = document.getElementById(targetId)
+        if (!section) return
+        sectionById.set(targetId, section)
+      })
+
+      if (!sectionById.size) return
+
+      function focusSection(targetId) {
+        sectionById.forEach((section, id) => {
+          section.classList.toggle('section--collapsed', id !== targetId)
+        })
+
+        allNavButtons.forEach((btn) => {
+          const currentTargetId = String(btn.dataset.navTarget || btn.dataset.navTargetMobile || '').trim()
+          btn.classList.toggle('active', currentTargetId === targetId)
+        })
+
+        const section = sectionById.get(targetId)
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }
+
+      function showAllSections() {
+        sectionById.forEach((section) => {
+          section.classList.remove('section--collapsed')
+        })
+
+        allNavButtons.forEach((btn) => {
+          btn.classList.remove('active')
+        })
+      }
+
+      allNavButtons.forEach((btn) => {
+        const targetId = String(btn.dataset.navTarget || '').trim()
+        const mobileTargetId = String(btn.dataset.navTargetMobile || '').trim()
+        const sectionId = targetId || mobileTargetId
+        if (!sectionId) return
+
+        btn.addEventListener('click', () => {
+          focusSection(sectionId)
+        })
+      })
+
+      const refreshActiveState = () => {
+        const hasCollapsedSection = Array.from(sectionById.values()).some((section) => section.classList.contains('section--collapsed'))
+        if (hasCollapsedSection) return
+
+        let activeId = ''
+        let nearestOffset = Number.POSITIVE_INFINITY
+
+        sectionById.forEach((section, id) => {
+          const rect = section.getBoundingClientRect()
+          const offset = Math.abs(rect.top - 120)
+          if (rect.bottom > 120 && offset < nearestOffset) {
+            nearestOffset = offset
+            activeId = id
+          }
+        })
+
+        allNavButtons.forEach((btn) => {
+          const targetId = String(btn.dataset.navTarget || btn.dataset.navTargetMobile || '').trim()
+          btn.classList.toggle('active', targetId === activeId)
+        })
+      }
+
+      window.addEventListener('scroll', refreshActiveState, { passive: true })
+
+      if (showAllSectionsBtn) {
+        showAllSectionsBtn.addEventListener('click', showAllSections)
+      }
+      if (showAllSectionsMobileBtn) {
+        showAllSectionsMobileBtn.addEventListener('click', showAllSections)
+      }
+
+      refreshActiveState()
+    }
+
     channels.forEach(bindCard)
     restoreTokenFromLocalStorage()
     announcementGistUrl.value = defaultAnnouncementGistUrl
@@ -1298,6 +1509,7 @@
     syncGiteeReleaseBtn.addEventListener('click', triggerSyncGiteeRelease)
     openSyncGiteeBtn.addEventListener('click', () => openWorkflowPageById(syncGiteeWorkflowId))
     openSyncGiteeReleaseBtn.addEventListener('click', () => openWorkflowPageById(syncGiteeReleaseWorkflowId))
+    setupQuickNav()
     loadAllChannels()
   </script>
 </body>
