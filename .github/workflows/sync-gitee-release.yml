@@ -228,17 +228,22 @@ jobs:
           for FILE in "${FILES[@]}"; do
             FILE_NAME="$(basename "${FILE}")"
             FILE_SIZE="$(du -h "${FILE}" | awk '{print $1}')"
+
             echo "Uploading ${FILE_NAME} (${FILE_SIZE}) to gitee release ${RELEASE_ID}"
 
-            curl -fsSL \
+            curl -fL --progress-bar \
               --connect-timeout 20 \
               --max-time 1800 \
+              --speed-time 60 \
+              --speed-limit 1024 \
               --retry 2 \
+              --retry-all-errors \
               --retry-delay 3 \
               -X POST "${API}/releases/${RELEASE_ID}/attach_files" \
               -F "access_token=${GITEE_TOKEN}" \
               -F "file=@${FILE}" \
-              -o /tmp/gitee-upload.json
+              -o /tmp/gitee-upload.json \
+              -w "\nUpload metrics => file:${FILE_NAME} http:%{http_code} size:%{size_upload}B speed:%{speed_upload}B/s time:%{time_total}s\n"
 
             echo "Upload finished: ${FILE_NAME}"
           done
