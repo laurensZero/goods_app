@@ -395,6 +395,7 @@
 
         <div class="publish-actions">
           <button class="btn" id="publishBtn" type="button">触发发布</button>
+          <button class="btn" id="saveTokenBtn" type="button">保存 Token</button>
           <button class="btn" id="openActionsBtn" type="button">打开 Actions 页面</button>
         </div>
         <p id="publishStatus" class="publish-status">等待操作</p>
@@ -560,6 +561,7 @@
     const publishNotes = document.getElementById('publishNotes')
     const publishToken = document.getElementById('publishToken')
     const publishBtn = document.getElementById('publishBtn')
+    const saveTokenBtn = document.getElementById('saveTokenBtn')
     const openActionsBtn = document.getElementById('openActionsBtn')
     const publishStatus = document.getElementById('publishStatus')
     const giteeReleaseTag = document.getElementById('giteeReleaseTag')
@@ -593,6 +595,7 @@
     const syncGiteeWorkflowId = 'sync-gitee.yml'
     const syncGiteeReleaseWorkflowId = 'sync-gitee-release.yml'
     const defaultAnnouncementGistUrl = 'https://gist.github.com/laurensZero/0a88ab223f6e8c6cc8542401e907154c'
+    const githubTokenStorageKey = 'ota_manager_github_token'
 
     let currentAnnouncementManifest = null
     let currentAnnouncementFileName = 'manifest.json'
@@ -620,6 +623,33 @@
       announcementStatus.className = 'publish-status'
       if (type === 'ok') announcementStatus.classList.add('publish-status--ok')
       if (type === 'error') announcementStatus.classList.add('publish-status--error')
+    }
+
+    function saveTokenToLocalStorage() {
+      const token = String(publishToken.value || '').trim()
+      if (!token) {
+        setPublishStatus('Token 为空，无法保存。', 'error')
+        return
+      }
+
+      try {
+        localStorage.setItem(githubTokenStorageKey, token)
+        setPublishStatus('Token 已保存到本地浏览器（localStorage）。', 'ok')
+      } catch (error) {
+        setPublishStatus(error?.message || '保存 Token 失败。', 'error')
+      }
+    }
+
+    function restoreTokenFromLocalStorage() {
+      try {
+        const token = String(localStorage.getItem(githubTokenStorageKey) || '').trim()
+        if (token) {
+          publishToken.value = token
+          setPublishStatus('已从本地恢复已保存 Token。', 'ok')
+        }
+      } catch {
+        // ignore
+      }
     }
 
     function normalizeHttpsUrl(value) {
@@ -1214,9 +1244,11 @@
     }
 
     channels.forEach(bindCard)
+    restoreTokenFromLocalStorage()
     announcementGistUrl.value = defaultAnnouncementGistUrl
     refreshAllBtn.addEventListener('click', loadAllChannels)
     publishBtn.addEventListener('click', triggerPublish)
+    saveTokenBtn.addEventListener('click', saveTokenToLocalStorage)
     openActionsBtn.addEventListener('click', openActionsPage)
     loadAnnouncementBtn.addEventListener('click', loadAnnouncementFromGist)
     publishAnnouncementBtn.addEventListener('click', publishAnnouncementToGist)
