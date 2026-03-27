@@ -3,7 +3,6 @@ name: Build and Sync to Gitee
 on:
   push:
     branches:
-      - main
       - gh-pages
     tags:
       - '*'
