@@ -129,6 +129,14 @@ npm run open:android
 
 如果你需要手动补同步，也可以手动触发 `sync-gitee` workflow。
 
+当前推荐的 bundle 拉取策略：
+
+- `gitee` 源：读取 Gitee 仓库 `raw/gh-pages/<channel>/manifest.json`
+- `github` 源：读取 GitHub Pages `/<channel>/manifest.json`
+- `auto` 源：优先 `gitee`，失败自动回退 `github`
+
+说明：`gh-pages` 里已有 `stable/beta` 目录结构，可直接复用，无需额外开通 Gitee Pages。
+
 ### GitHub Release 同步到 Gitee Release
 
 仓库已提供工作流 [`.github/workflows/sync-gitee-release.yml`](.github/workflows/sync-gitee-release.yml)：

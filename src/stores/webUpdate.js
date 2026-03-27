@@ -8,7 +8,7 @@ import {
 } from '@/utils/githubRelease'
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
-  gitee: 'https://laurenszero.gitee.io/goods_app',
+  gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
   github: 'https://laurenszero.github.io/goods_app'
 })
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
@@ -70,6 +70,19 @@ function normalizeBundleUrl(value) {
     return parsed.toString()
   } catch {
     return raw
+  }
+}
+
+function resolveBundleUrl(manifestUrl, bundleUrl) {
+  const rawBundleUrl = String(bundleUrl || '').trim()
+  if (!rawBundleUrl) return ''
+
+  try {
+    const resolved = new URL(rawBundleUrl, manifestUrl)
+    resolved.hostname = resolved.hostname.toLowerCase()
+    return resolved.toString()
+  } catch {
+    return normalizeBundleUrl(rawBundleUrl)
   }
 }
 
@@ -236,6 +249,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const sourceCandidates = resolveSourceCandidates(selectedSource.value)
         let manifest = null
         let resolvedManifestSource = ''
+        let resolvedManifestUrl = ''
         let lastRequestError = null
 
         for (const source of sourceCandidates) {
@@ -243,6 +257,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
             const candidateUrl = buildManifestUrl(selectedChannel.value, source)
             manifest = await fetchWebManifest(candidateUrl)
             resolvedManifestSource = source
+            resolvedManifestUrl = candidateUrl
             break
           } catch (error) {
             lastRequestError = error
@@ -258,7 +273,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         lastCheckedAt.value = new Date().toISOString()
 
         latestVersion.value = normalizeVersionTag(manifest?.version || '')
-        latestZipUrl.value = normalizeBundleUrl(manifest?.url)
+        latestZipUrl.value = resolveBundleUrl(resolvedManifestUrl, manifest?.url)
         latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
 
         if (!latestVersion.value || !latestZipUrl.value) {

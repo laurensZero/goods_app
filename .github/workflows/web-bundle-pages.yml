@@ -120,7 +120,7 @@ jobs:
             zip -r "../pages/${CHANNEL}/${BUNDLE_NAME}" .
             cd ..
             HASH=$(sha256sum "pages/${CHANNEL}/${BUNDLE_NAME}" | awk '{print $1}')
-            URL="https://${OWNER_LOWER}.github.io/${REPO}/${CHANNEL}/${BUNDLE_NAME}"
+            URL="${BUNDLE_NAME}"
           fi
 
           export HISTORY_FILE ROLLBACK_VERSION VERSION URL HASH INPUT_MIN_NATIVE INPUT_NOTES PUBLISHED_AT CHANNEL BUNDLE_NAME MODE
