@@ -99,12 +99,10 @@ function close() {
 }
 
 function onManual() {
-  close()
   emit('manual')
 }
 
 function onImport() {
-  close()
   emit('import')
 }
 
@@ -114,7 +112,6 @@ function onAccountImport() {
 }
 
 function onTaobaoImport() {
-  close()
   emit('taobao-import')
 }
 </script>

@@ -373,16 +373,24 @@ function goToAdd() {
   openAddSheet()
 }
 
-function goToManualAdd() {
+async function navigateFromAddSheet(path, reason) {
+  saveScrollPosition(true, reason)
+  wishlistDisplayReady.value = false
   showAddSheet.value = false
-  saveScrollPosition(true, 'wishlist:goToManualAdd')
-  router.push('/add?mode=wishlist')
+  try {
+    await router.push(path)
+  }
+  catch {
+    wishlistDisplayReady.value = true
+  }
+}
+
+function goToManualAdd() {
+  navigateFromAddSheet('/add?mode=wishlist', 'wishlist:goToManualAdd')
 }
 
 function goToImport() {
-  showAddSheet.value = false
-  saveScrollPosition(true, 'wishlist:goToImport')
-  router.push('/import?mode=wishlist')
+  navigateFromAddSheet('/import?mode=wishlist', 'wishlist:goToImport')
 }
 
 function handleResize() {

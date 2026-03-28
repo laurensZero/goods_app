@@ -232,28 +232,32 @@ const showScrollTopButton = ref(false)
 // 添加方式面板
 const showAddSheet = ref(false)
 const router = useRouter()
-function handleImport() {
+async function navigateFromAddSheet(path, reason) {
+  saveScrollPosition(true, reason)
+  homeDisplayReady.value = false
   showAddSheet.value = false
-  saveScrollPosition(true, 'home:handleImport')
-  router.push('/import')
+  try {
+    await router.push(path)
+  }
+  catch {
+    homeDisplayReady.value = true
+  }
+}
+
+function handleImport() {
+  navigateFromAddSheet('/import', 'home:handleImport')
 }
 
 function handleAccountImport() {
-  showAddSheet.value = false
-  saveScrollPosition(true, 'home:handleAccountImport')
-  router.push('/account-import')
+  navigateFromAddSheet('/account-import', 'home:handleAccountImport')
 }
 
 function handleTaobaoImport() {
-  showAddSheet.value = false
-  saveScrollPosition(true, 'home:handleTaobaoImport')
-  router.push('/taobao-import')
+  navigateFromAddSheet('/taobao-import', 'home:handleTaobaoImport')
 }
 
 function goToAdd() {
-  showAddSheet.value = false
-  saveScrollPosition(true, 'home:goToAdd')
-  router.push('/add')
+  navigateFromAddSheet('/add', 'home:goToAdd')
 }
 
 async function refresh() {
