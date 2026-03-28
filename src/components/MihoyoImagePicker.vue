@@ -75,12 +75,19 @@
     </button>
   </div>
   <p v-if="variants.length > 0" class="mhpicker-save-hint">点击选择款式，保存时自动写入图片链接</p>
+
+  <QuickImageEditorDialog
+    v-model:show="showQuickEditor"
+    :source-file="pendingLocalFile"
+    @save="handleQuickEditorSave"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo'
 import { saveLocalImage } from '@/utils/localImage'
+import QuickImageEditorDialog from '@/components/QuickImageEditorDialog.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -98,6 +105,8 @@ const variants = ref([])
 const selectedKey = ref('')
 const pickedCover = ref('') // 当前选中款式的 cover_url（不立即写回 v-model）
 const uploading = ref(false)
+const showQuickEditor = ref(false)
+const pendingLocalFile = ref(null)
 
 let lastParsedUrl = ''
 let fetchTimer = null
@@ -139,9 +148,16 @@ async function onFileChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
   e.target.value = '' // 允许再次选同一文件
+
+  pendingLocalFile.value = file
+  showQuickEditor.value = true
+}
+
+async function handleQuickEditorSave(result) {
+  if (!result?.file) return
   uploading.value = true
   try {
-    const localUri = await saveLocalImage(file)
+    const localUri = await saveLocalImage(result.file)
     // 清除米游铺款式选择状态（本地图片不需要）
     variants.value = []
     fetchState.value = ''
@@ -152,6 +168,7 @@ async function onFileChange(e) {
   } catch (err) {
     console.error('[localImage] 图片保存失败', err)
   } finally {
+    pendingLocalFile.value = null
     uploading.value = false
   }
 }

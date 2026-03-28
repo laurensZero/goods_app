@@ -95,6 +95,14 @@
 
           <div class="image-manager__editor-actions">
             <button
+              type="button"
+              class="image-manager__secondary-btn"
+              :disabled="isPreparingEdit"
+              @click="openQuickEdit(activeImage)"
+            >
+              {{ isPreparingEdit ? '准备编辑中...' : '快速编辑图片' }}
+            </button>
+            <button
               v-if="!activeImage.isPrimary"
               type="button"
               class="image-manager__secondary-btn"
@@ -114,6 +122,12 @@
       <p class="image-manager__empty-title">还没有图片</p>
       <p class="image-manager__empty-desc">先添加一张主图，之后再补局部图或开箱图。</p>
     </div>
+
+    <QuickImageEditorDialog
+      v-model:show="showQuickEditor"
+      :source-file="editingSourceFile"
+      @save="handleQuickEditSave"
+    />
   </div>
 </template>
 
@@ -121,13 +135,14 @@
 import { computed, ref, watch } from 'vue'
 import AppSelect from '@/components/AppSelect.vue'
 import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
+import QuickImageEditorDialog from '@/components/QuickImageEditorDialog.vue'
 import {
   GOODS_IMAGE_KIND_OPTIONS,
   createGoodsImageId,
   inferGoodsImageStorageMode,
   normalizeGoodsImageList
 } from '@/utils/goodsImages'
-import { pickLinkedLocalImage } from '@/utils/localImage'
+import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/localImage'
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
@@ -140,7 +155,11 @@ const remotePickerRef = ref(null)
 const draftRemoteUrl = ref('')
 const draftKind = ref('primary')
 const isPickingLocal = ref(false)
+const isPreparingEdit = ref(false)
 const activeImageId = ref('')
+const showQuickEditor = ref(false)
+const editingSourceFile = ref(null)
+const editingTargetId = ref('')
 
 const kindOptions = GOODS_IMAGE_KIND_OPTIONS
 const kindSelectOptions = GOODS_IMAGE_KIND_OPTIONS.map((option) => ({
@@ -235,6 +254,70 @@ async function addLocalImage() {
   } finally {
     isPickingLocal.value = false
   }
+}
+
+async function openQuickEdit(image) {
+  if (!image?.id || !image?.uri || isPreparingEdit.value) return
+
+  isPreparingEdit.value = true
+  try {
+    const dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '')
+    if (!dataUrl?.startsWith('data:image/')) {
+      throw new Error('当前图片暂不支持编辑')
+    }
+
+    const sourceFile = dataUrlToFile(dataUrl, image.id)
+    editingTargetId.value = image.id
+    editingSourceFile.value = sourceFile
+    showQuickEditor.value = true
+  } catch (error) {
+    console.error('[image-manager] 打开图片编辑失败', error)
+  } finally {
+    isPreparingEdit.value = false
+  }
+}
+
+async function handleQuickEditSave(result) {
+  if (!result?.file || !editingTargetId.value) return
+
+  try {
+    const localUri = await saveLocalImage(result.file)
+    emitImages(images.value.map((image) => {
+      if (image.id !== editingTargetId.value) return image
+      return {
+        ...image,
+        uri: localUri,
+        storageMode: inferGoodsImageStorageMode(localUri),
+        localPath: ''
+      }
+    }))
+  } catch (error) {
+    console.error('[image-manager] 保存编辑图片失败', error)
+  } finally {
+    editingSourceFile.value = null
+    editingTargetId.value = ''
+  }
+}
+
+function dataUrlToFile(dataUrl, fileSeed = 'image') {
+  const match = String(dataUrl || '').match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+  if (!match) throw new Error('图片数据格式无效')
+
+  const mime = match[1]
+  const base64 = match[2]
+  const binary = atob(base64)
+  const len = binary.length
+  const bytes = new Uint8Array(len)
+
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+
+  const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg')
+  return new File([bytes], `${fileSeed || 'image'}_${Date.now()}.${ext}`, {
+    type: mime,
+    lastModified: Date.now()
+  })
 }
 
 function setPrimary(targetId) {
@@ -546,6 +629,7 @@ function getSourceLabel(storageMode) {
 
 .image-manager__editor-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
