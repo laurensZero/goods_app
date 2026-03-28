@@ -42,6 +42,18 @@
   --motion-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
   --press-scale-button: 0.96;
   --press-scale-card: 0.98;
+  --app-selection-bg: color-mix(in srgb, var(--app-text) 18%, transparent);
+  --app-selection-text: var(--app-text);
+}
+
+::selection {
+  color: var(--app-selection-text);
+  background: var(--app-selection-bg);
+}
+
+::-moz-selection {
+  color: var(--app-selection-text);
+  background: var(--app-selection-bg);
 }
 
 *,

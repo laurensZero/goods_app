@@ -72,6 +72,16 @@ watch(isHidden, (value) => {
   box-shadow: var(--app-shadow);
 }
 
+.summary-card ::selection {
+  color: var(--summary-card-text);
+  background: color-mix(in srgb, var(--summary-card-text) 24%, transparent);
+}
+
+.summary-card ::-moz-selection {
+  color: var(--summary-card-text);
+  background: color-mix(in srgb, var(--summary-card-text) 24%, transparent);
+}
+
 .summary-orb {
   position: absolute;
   border-radius: 50%;
