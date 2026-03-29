@@ -10,6 +10,8 @@ const DEFAULT_STORAGE_KEYS = {
   expandedTimelineItem: 'goods-app:home-timeline-expanded-item'
 }
 
+const TIMELINE_ONLY_SORT_MODE = 'acquiredAt'
+
 const densityModes = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
@@ -96,6 +98,7 @@ export function useHomePreferences(windowWidth, options = {}) {
       lastNonTimelineDensity = displayDensity.value
     }
     displayDensity.value = 'timeline'
+    sortMode.value = TIMELINE_ONLY_SORT_MODE
   }
 
   function triggerSortAnimation() {
@@ -113,7 +116,9 @@ export function useHomePreferences(windowWidth, options = {}) {
   }
 
   function setSortMode(nextMode) {
-    const normalized = normalizeHomeSortMode(nextMode)
+    const normalized = displayDensity.value === 'timeline'
+      ? TIMELINE_ONLY_SORT_MODE
+      : normalizeHomeSortMode(nextMode)
     if (sortMode.value === normalized) return
 
     triggerSortAnimation()
@@ -161,6 +166,9 @@ export function useHomePreferences(windowWidth, options = {}) {
     restoreSortMode()
     restoreSortDirection()
     restoreDisplayDensity()
+    if (displayDensity.value === 'timeline') {
+      sortMode.value = TIMELINE_ONLY_SORT_MODE
+    }
     restoreExpandedTimelineItem()
   }
 
@@ -178,6 +186,9 @@ export function useHomePreferences(windowWidth, options = {}) {
 
   watch(displayDensity, (value) => {
     localStorage.setItem(displayModeStorageKey, value)
+    if (value === 'timeline') {
+      sortMode.value = TIMELINE_ONLY_SORT_MODE
+    }
     if (value === 'timeline') return
     lastNonTimelineDensity = value
     localStorage.setItem(storageKeys.gridDensity, value)
