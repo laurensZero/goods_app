@@ -238,7 +238,7 @@ export function useImageExport() {
     }
 
     if (options.applyWhiteBg && String(options.whiteBgStyle || 'standard') === 'product') {
-      emitProgress(24, '\u4f18\u5316\u5546\u54c1\u56fe\u98ce\u683c...')
+      emitProgress(24, '优化商品图风格...')
       workingBlob = await enhanceForProductShot(workingBlob, {
         brightness: options.productBoostBrightness,
         contrast: options.productBoostContrast,

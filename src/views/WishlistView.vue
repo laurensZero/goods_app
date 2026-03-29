@@ -1,5 +1,9 @@
 <template>
-  <div class="page wishlist-page" :class="{ 'wishlist-page--restoring': !wishlistDisplayReady }" :style="HOME_MOTION_CSS_VARS">
+  <div
+    class="page wishlist-page"
+    :class="{ 'wishlist-page--restoring': !wishlistDisplayReady, 'wishlist-page--top-jump': topJumpMasking }"
+    :style="HOME_MOTION_CSS_VARS"
+  >
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -123,7 +127,6 @@ import { useWishlistScrollRestore } from '@/composables/useWishlistScrollRestore
 import { useDensityGridViewport } from '@/composables/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
-import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import GoodsCardGridSection from '@/components/GoodsCardGridSection.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -159,6 +162,7 @@ const batchEditSheetRef = ref(null)
 const isWishlistActive = ref(true)
 const wishlistDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
+const topJumpMasking = ref(false)
 const selectionHeaderTop = ref(0)
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
@@ -168,6 +172,7 @@ let pageScrollBound = false
 let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
+let topJumpMaskTimer = 0
 
 const {
   densityModes,
@@ -342,10 +347,27 @@ function unbindPageScroll() {
 }
 
 function scrollToTop() {
-  scrollToTopAnimated(getScrollEl, 260, () => {
-    updateScrollTopButtonVisibility()
-    rememberCurrentScrollPosition()
-  }, getActiveScrollSource())
+  triggerTopJumpMask()
+  const scrollEl = getScrollEl?.()
+  if (scrollEl) {
+    scrollEl.scrollTop = 0
+  }
+  try { document.documentElement.scrollTop = 0 } catch {}
+  try { document.body.scrollTop = 0 } catch {}
+  try { window.scrollTo(0, 0) } catch {}
+  updateScrollTopButtonVisibility()
+  rememberCurrentScrollPosition()
+}
+
+function triggerTopJumpMask() {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+  }
+  topJumpMasking.value = true
+  topJumpMaskTimer = window.setTimeout(() => {
+    topJumpMasking.value = false
+    topJumpMaskTimer = 0
+  }, 260)
 }
 
 function openDetail(id) {
@@ -499,6 +521,10 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+    topJumpMaskTimer = 0
+  }
   cancelPendingRestore()
   window.removeEventListener('resize', handleResize)
   if (pageScrollRaf) {
@@ -520,6 +546,22 @@ onBeforeRouteLeave(() => {
 <style scoped>
 .wishlist-page {
   position: relative;
+}
+
+.wishlist-page--top-jump .page-body {
+  animation: top-jump-mask-strong 260ms ease-out;
+}
+
+@keyframes top-jump-mask-strong {
+  0% {
+    opacity: 0.72;
+    filter: saturate(88%);
+  }
+
+  100% {
+    opacity: 1;
+    filter: saturate(100%);
+  }
 }
 
 .wishlist-page--restoring {

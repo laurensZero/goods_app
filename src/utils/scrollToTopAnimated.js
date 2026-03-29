@@ -12,6 +12,12 @@ export function scrollToTopAnimated(target, duration = 260, onComplete = null, p
     return
   }
 
+  if (!Number.isFinite(duration) || duration <= 0) {
+    setTop(0)
+    window.requestAnimationFrame(() => onComplete?.())
+    return
+  }
+
   const startTime = performance.now()
 
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)

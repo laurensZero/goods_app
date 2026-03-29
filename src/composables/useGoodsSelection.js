@@ -34,6 +34,13 @@ export function useGoodsSelection(items, options = {}) {
     selectedIds.value = new Set()
   }
 
+  function clearSelectionHistoryFlag() {
+    if (!history.state?.[historyKey]) return
+    const nextState = { ...(history.state || {}) }
+    delete nextState[historyKey]
+    history.replaceState(nextState, '')
+  }
+
   function enterSelectionMode(id) {
     if (!selectionMode.value) {
       selectionMode.value = true
@@ -66,6 +73,7 @@ export function useGoodsSelection(items, options = {}) {
   }
 
   function exitSelectionModeQuiet() {
+    clearSelectionHistoryFlag()
     onExit?.()
     selectionMode.value = false
     clearSelectedIds()

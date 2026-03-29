@@ -25,6 +25,7 @@
     "@imgly/background-removal": "^1.7.0",
     "@vueuse/core": "^14.2.1",
     "cropperjs": "^1.6.2",
+    "fabric": "^6.9.1",
     "fflate": "^0.8.2",
     "pica": "^9.0.1",
     "pinia": "^2.1.0",

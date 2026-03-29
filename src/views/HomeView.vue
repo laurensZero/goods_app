@@ -1,5 +1,9 @@
 ﻿<template>
-  <div class="page home-page" :class="{ 'home-page--restoring': !homeDisplayReady }" :style="HOME_MOTION_CSS_VARS">
+  <div
+    class="page home-page"
+    :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking }"
+    :style="HOME_MOTION_CSS_VARS"
+  >
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -140,7 +144,6 @@ import { useHomeGoodsList } from '@/composables/useHomeGoodsList'
 import { useDensityGridViewport } from '@/composables/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
-import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
@@ -228,6 +231,8 @@ const {
 
 const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
+const topJumpMasking = ref(false)
+let topJumpMaskTimer = 0
 
 // 添加方式面板
 const showAddSheet = ref(false)
@@ -559,6 +564,10 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+    topJumpMaskTimer = 0
+  }
   cancelPendingRestore()
   window.removeEventListener('resize', _onResize)
   if (pageScrollRaf) {
@@ -686,12 +695,27 @@ function openDetail(id) {
 }
 
 function scrollToTop() {
-  scrollToTopAnimated(getScrollEl, 260, () => {
-    updateScrollTopButtonVisibility()
-    rememberCurrentScrollPosition()
-  // Use the currently marked source instead of forcing window/element.
-  // Forcing one side previously broke either restore or the scroll-top button.
-  }, getActiveScrollSource())
+  triggerTopJumpMask()
+  const scrollEl = getScrollEl?.()
+  if (scrollEl) {
+    scrollEl.scrollTop = 0
+  }
+  try { document.documentElement.scrollTop = 0 } catch {}
+  try { document.body.scrollTop = 0 } catch {}
+  try { window.scrollTo(0, 0) } catch {}
+  updateScrollTopButtonVisibility()
+  rememberCurrentScrollPosition()
+}
+
+function triggerTopJumpMask() {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+  }
+  topJumpMasking.value = true
+  topJumpMaskTimer = window.setTimeout(() => {
+    topJumpMasking.value = false
+    topJumpMaskTimer = 0
+  }, 260)
 }
 
 function updateSelectionHeaderPosition() {
@@ -793,6 +817,22 @@ async function applyBatchEditPayload(payload) {
 <style scoped>
 .home-page {
   position: relative;
+}
+
+.home-page--top-jump .page-body {
+  animation: top-jump-mask-strong 260ms ease-out;
+}
+
+@keyframes top-jump-mask-strong {
+  0% {
+    opacity: 0.72;
+    filter: saturate(88%);
+  }
+
+  100% {
+    opacity: 1;
+    filter: saturate(100%);
+  }
 }
 
 .home-page--restoring {

@@ -520,6 +520,92 @@ export function useImageCutout() {
     await preloadPromise
   }
 
+  async function createCutoutMask(inputBlob, options = {}) {
+    const reportProgress = typeof options.onProgress === 'function'
+      ? options.onProgress
+      : null
+
+    const emitProgress = (percent, text) => {
+      if (!reportProgress) return
+      reportProgress({
+        percent: clamp(Math.round(Number(percent) || 0), 0, 100),
+        text: text || '抠图处理中...'
+      })
+    }
+
+    await ensureCutoutModelReady()
+      .then(() => {
+        emitProgress(20, '模型准备完成')
+      })
+      .catch((error) => {
+        throw normalizeCutoutError(error, '抠图模型准备失败')
+      })
+
+    emitProgress(28, '抠图引擎启动中...')
+    const localPublicPath = await prepareLocalCutoutAssets().catch(() => '')
+    const preparedInput = await prepareCutoutInput(inputBlob, options)
+
+    const removeConfig = {
+      model: 'isnet',
+      fetchArgs: {
+        cache: 'force-cache'
+      },
+      progress: (key, current, total) => {
+        const currentValue = Number(current)
+        const totalValue = Number(total)
+        if (!Number.isFinite(currentValue) || !Number.isFinite(totalValue) || totalValue <= 0) {
+          return
+        }
+        const ratio = clamp(currentValue / totalValue, 0, 1)
+        const percent = 28 + ratio * 57
+        emitProgress(percent, `抠图处理中：${Math.round(ratio * 100)}%`)
+      },
+      output: {
+        format: 'image/png',
+        quality: 1,
+        type: 'mask'
+      }
+    }
+
+    if (localPublicPath) {
+      removeConfig.publicPath = localPublicPath
+    }
+
+    const maskBlob = await segmentForeground(preparedInput.blob, removeConfig)
+    emitProgress(88, '修复主体颜色中...')
+    const refinedMask = await refineCutoutMask(maskBlob, preparedInput.referenceCanvas)
+    emitProgress(94, '边缘优化中...')
+
+    return {
+      preparedBlob: preparedInput.blob,
+      maskBlob: refinedMask,
+      meta: preparedInput.meta,
+      width: preparedInput.referenceCanvas.width,
+      height: preparedInput.referenceCanvas.height
+    }
+  }
+
+  async function applyCutoutMask(preparedBlob, maskBlob, meta) {
+    const localPublicPath = await prepareLocalCutoutAssets().catch(() => '')
+    const applyConfig = {
+      model: 'isnet',
+      fetchArgs: {
+        cache: 'force-cache'
+      },
+      output: {
+        format: 'image/png',
+        quality: 1
+      }
+    }
+
+    if (localPublicPath) {
+      applyConfig.publicPath = localPublicPath
+    }
+
+    const cutoutBlob = await applySegmentationMask(preparedBlob, maskBlob, applyConfig)
+    return finalizeCutoutResult(cutoutBlob, meta)
+  }
+
   async function removeBackgroundWithTimeout(inputBlob, options = {}) {
     const explicitTimeoutMs = Number(options.timeoutMs)
     const timeoutMs = explicitTimeoutMs > 0
@@ -606,6 +692,8 @@ export function useImageCutout() {
   }
 
   return {
+    applyCutoutMask,
+    createCutoutMask,
     removeBackgroundWithTimeout,
     ensureCutoutModelReady,
     isCutoutModelReady
