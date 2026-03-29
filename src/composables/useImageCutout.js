@@ -1,10 +1,10 @@
 import { applySegmentationMask, preload, segmentForeground } from '@imgly/background-removal'
 import { Capacitor } from '@capacitor/core'
-import { Directory, Filesystem } from '@capacitor/filesystem'
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 
 let hasSuccessfulCutout = false
 const MODEL_READY_STORAGE_KEY = 'goods-app:cutout-model-ready'
-const LOCAL_ASSET_READY_STORAGE_KEY = 'goods-app:cutout-local-assets-ready-v1.7.0'
+const LOCAL_ASSET_READY_STORAGE_KEY = 'goods-app:cutout-local-assets-ready-v1.7.1-utf8'
 const MIRROR_URLS_STORAGE_KEY = 'goods-app:cutout-mirror-urls'
 const IMGLY_MODEL_VERSION = '1.7.0'
 const IMGLY_BASE_URL = `https://staticimgly.com/@imgly/background-removal-data/${IMGLY_MODEL_VERSION}/dist/`
@@ -201,6 +201,7 @@ async function prepareLocalCutoutAssets() {
         path: markerPath,
         data: JSON.stringify(resourceMap),
         directory: Directory.Data,
+        encoding: Encoding.UTF8,
         recursive: true
       })
 
