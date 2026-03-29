@@ -60,14 +60,15 @@ async function resizeCanvasByMaxEdge(sourceCanvas, maxEdge, picaInstance) {
   return targetCanvas
 }
 
-function applyBrightnessContrastToCanvas(canvas, brightness = 0, contrast = 0) {
-  const b = clamp(Number(brightness) || 0, -100, 100)
-  const c = clamp(Number(contrast) || 0, -100, 100)
-  if (b === 0 && c === 0) return canvas
+function applyCanvasAdjustmentsToCanvas(canvas, adjustments = {}) {
+  const b = clamp(Number(adjustments.brightness) || 0, -100, 100)
+  const c = clamp(Number(adjustments.contrast) || 0, -100, 100)
+  const s = clamp(Number(adjustments.saturation) || 0, -100, 100)
+  if (b === 0 && c === 0 && s === 0) return canvas
 
   const outputCanvas = createCanvas(canvas.width, canvas.height)
   const ctx = outputCanvas.getContext('2d')
-  ctx.filter = `brightness(${100 + b}%) contrast(${100 + c}%)`
+  ctx.filter = `brightness(${100 + b}%) contrast(${100 + c}%) saturate(${100 + s}%)`
   ctx.drawImage(canvas, 0, 0)
   ctx.filter = 'none'
   return outputCanvas
@@ -102,6 +103,29 @@ async function binarySearchQuality({ canvas, format, targetMaxBytes, qLow, qHigh
 
 export function useImageExport() {
   const picaInstance = Pica()
+
+  async function enhanceForProductShot(inputBlob, options = {}) {
+    const sourceCanvas = await decodeBlobToCanvas(inputBlob)
+    const adjustedCanvas = applyCanvasAdjustmentsToCanvas(sourceCanvas, {
+      brightness: options.brightness ?? 12,
+      contrast: options.contrast ?? 8,
+      saturation: options.saturation ?? 6
+    })
+    const outputCanvas = createCanvas(adjustedCanvas.width, adjustedCanvas.height)
+
+    try {
+      await picaInstance.resize(adjustedCanvas, outputCanvas, {
+        unsharpAmount: Number(options.unsharpAmount) || 160,
+        unsharpRadius: Number(options.unsharpRadius) || 0.6,
+        unsharpThreshold: Number(options.unsharpThreshold) || 1
+      })
+    } catch {
+      const ctx = outputCanvas.getContext('2d')
+      ctx.drawImage(adjustedCanvas, 0, 0)
+    }
+
+    return canvasToBlob(outputCanvas, 'image/png', 1)
+  }
 
   async function composeWhiteBackground(inputBlob, options = {}) {
     const bgColor = options.bgColor || '#ffffff'
@@ -206,12 +230,23 @@ export function useImageExport() {
     if ((Number(options.brightness) || 0) !== 0 || (Number(options.contrast) || 0) !== 0) {
       emitProgress(16, '应用亮度/对比度...')
       const adjustmentCanvas = await decodeBlobToCanvas(workingBlob)
-      const adjustedCanvas = applyBrightnessContrastToCanvas(
-        adjustmentCanvas,
-        Number(options.brightness) || 0,
-        Number(options.contrast) || 0
-      )
+      const adjustedCanvas = applyCanvasAdjustmentsToCanvas(adjustmentCanvas, {
+        brightness: Number(options.brightness) || 0,
+        contrast: Number(options.contrast) || 0
+      })
       workingBlob = await canvasToBlob(adjustedCanvas, 'image/png', 1)
+    }
+
+    if (options.applyWhiteBg && String(options.whiteBgStyle || 'standard') === 'product') {
+      emitProgress(24, '\u4f18\u5316\u5546\u54c1\u56fe\u98ce\u683c...')
+      workingBlob = await enhanceForProductShot(workingBlob, {
+        brightness: options.productBoostBrightness,
+        contrast: options.productBoostContrast,
+        saturation: options.productBoostSaturation,
+        unsharpAmount: options.productUnsharpAmount,
+        unsharpRadius: options.productUnsharpRadius,
+        unsharpThreshold: options.productUnsharpThreshold
+      })
     }
 
     if (options.applyWhiteBg) {

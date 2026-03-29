@@ -176,7 +176,17 @@
                       </span>
                     </label>
 
+                    <label v-if="whiteBgEnabled" class="quick-editor-field">
+                      <span class="quick-editor-field__label">白底风格</span>
+                      <AppSelect
+                        v-model="whiteBgStyle"
+                        :options="WHITE_BG_STYLE_OPTIONS"
+                        placeholder="选择导出风格"
+                      />
+                    </label>
+
                     <div class="quick-editor-info-card quick-editor-info-card--soft">
+                      <p>标准白底会尽量保留原图观感；商品图增强会额外提亮、轻微增对比和锐化，更接近常见商品图。</p>
                       <p>保存时会自动压缩到 1MB 以内；如果仍然超限，会继续缩小尺寸兜底。</p>
                     </div>
                   </div>
@@ -215,6 +225,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
+import AppSelect from '@/components/AppSelect.vue'
 import { useImageCutout } from '@/composables/useImageCutout'
 import { useImageExport } from '@/composables/useImageExport'
 
@@ -234,11 +245,17 @@ const saving = ref(false)
 const saveProgress = ref(0)
 const saveProgressText = ref('保存处理中...')
 const whiteBgEnabled = ref(true)
+const whiteBgStyle = ref('standard')
 const brightness = ref(0)
 const contrast = ref(0)
 const errorText = ref('')
 const { removeBackgroundWithTimeout, isCutoutModelReady } = useImageCutout()
 const { exportForUpload } = useImageExport()
+
+const WHITE_BG_STYLE_OPTIONS = [
+  { label: '标准白底', value: 'standard' },
+  { label: '商品图增强', value: 'product' }
+]
 
 const tabOptions = [
   {
@@ -372,6 +389,7 @@ function openFromFile(file) {
   previewUrl.value = URL.createObjectURL(file)
   activeTab.value = 'basic'
   whiteBgEnabled.value = true
+  whiteBgStyle.value = 'standard'
   brightness.value = 0
   contrast.value = 0
   cutoutProgress.value = 0
@@ -476,6 +494,7 @@ async function handleSave() {
     const exported = await exportForUpload(sourceBlob, {
       targetMaxBytes: 1024 * 1024,
       applyWhiteBg: whiteBgEnabled.value,
+      whiteBgStyle: whiteBgStyle.value,
       bgColor: '#ffffff',
       brightness: brightness.value,
       contrast: contrast.value,
@@ -1026,6 +1045,18 @@ onBeforeUnmount(() => {
 
 .quick-editor-switch__input:checked + .quick-editor-switch__track .quick-editor-switch__thumb {
   transform: translateX(20px);
+}
+
+.quick-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-editor-field__label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .quick-editor-tip,
