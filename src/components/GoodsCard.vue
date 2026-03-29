@@ -271,9 +271,14 @@ const unitActualPriceText = computed(() => {
   if (normalized.length < 2) return ''
   return normalized.join(' / ')
 })
+
+function hasPriceValue(value) {
+  return value !== '' && value != null
+}
+
 const priceText = computed(() => {
   if (props.item.isWishlist) {
-    return props.item.price ? `目标 ¥${props.item.price}` : '心愿单'
+    return hasPriceValue(props.item.price) ? `目标 ¥${props.item.price}` : '心愿单'
   }
 
   if (unitActualPriceText.value) {
@@ -284,7 +289,7 @@ const priceText = computed(() => {
     return `到手 ¥${props.item.actualPrice}`
   }
 
-  return props.item.price ? `¥${props.item.price}` : '¥—'
+  return hasPriceValue(props.item.price) ? `¥${props.item.price}` : '¥—'
 })
 </script>
 

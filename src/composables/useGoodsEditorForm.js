@@ -208,7 +208,12 @@ export function useGoodsEditorForm(options = {}) {
     if (!validateName()) return
 
     if (mode === 'edit') {
-      await store.updateGoods(editId, { ...form })
+      const updatedId = await store.updateGoods(editId, { ...form })
+      if (!updatedId) {
+        alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
+        router.replace('/home')
+        return
+      }
     } else {
       await store.addGoods({ ...form })
     }

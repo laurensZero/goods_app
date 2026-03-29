@@ -649,7 +649,12 @@ async function handleSubmit() {
   syncDomFields()
   form.name = String(form.name || '').trim()
   if (!validateName()) return
-  await store.updateGoods(props.id, { ...form })
+  const updatedId = await store.updateGoods(props.id, { ...form })
+  if (!updatedId) {
+    alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
+    router.replace('/home')
+    return
+  }
   router.back()
 }
 

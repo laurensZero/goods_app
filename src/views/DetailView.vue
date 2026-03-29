@@ -227,11 +227,18 @@ const variantText = computed(() => getGoodsVariant(item.value))
 function hasActualPriceValue(value) {
   return value !== '' && value != null
 }
+
+function hasPriceValue(value) {
+  return value !== '' && value != null
+}
+
 const heroPriceAmount = computed(() => {
   if (!item.value) return '—'
-  if (item.value.isWishlist) return item.value.price || '—'
+  if (item.value.isWishlist) return hasPriceValue(item.value.price) ? item.value.price : '—'
   if (unitActualPriceAmountText.value) return unitActualPriceAmountText.value
-  return hasActualPriceValue(item.value.actualPrice) ? item.value.actualPrice : (item.value.price || '—')
+  return hasActualPriceValue(item.value.actualPrice)
+    ? item.value.actualPrice
+    : (hasPriceValue(item.value.price) ? item.value.price : '—')
 })
 const heroPriceLabel = computed(() => {
   if (!item.value) return '价格'
@@ -244,7 +251,7 @@ const heroPriceHint = computed(() => {
   if (!item.value || item.value.isWishlist) return ''
   if (unitActualPriceAmountText.value) return ''
   const parts = []
-  if (hasActualPriceValue(item.value.actualPrice) && item.value.price) {
+  if (hasActualPriceValue(item.value.actualPrice) && hasPriceValue(item.value.price)) {
     parts.push(`价格 ¥${item.value.price}`)
   }
   if (item.value.points) {
@@ -253,10 +260,10 @@ const heroPriceHint = computed(() => {
   return parts.join(' ')
 })
 const officialPriceText = computed(() => {
-  if (!item.value?.price) return '未填写'
+  if (!hasPriceValue(item.value?.price)) return '未填写'
   return item.value.points ? `¥${item.value.price} +${item.value.points}积分` : `¥${item.value.price}`
 })
-const showOfficialPriceTile = computed(() => !item.value?.isWishlist && !!item.value?.price)
+const showOfficialPriceTile = computed(() => !item.value?.isWishlist && hasPriceValue(item.value?.price))
 const unitActualPriceAmountText = computed(() => {
   const quantity = Number(item.value?.quantity) || 1
   if (quantity < 2) return ''
