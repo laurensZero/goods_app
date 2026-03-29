@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260329.1",
+    "url": "bundle-20260329.1.zip",
+    "hash": "8382e7e2d6b9de379f774cf168f160bc372169464e9e379f5680edfd3b4b7669",
+    "minNativeVersion": "1.4.0",
+    "notes": "image studio",
+    "updateLevel": "prompt",
+    "publishedAt": "2026-03-29T12:28:19Z"
+  },
+  {
     "version": "20260327.5",
     "url": "bundle-20260327.5.zip",
     "hash": "eb73639eca632e6c2d258e7398456980ddc9eaf865b2b83294216e2c2243db4b",
@@ -15,13 +24,5 @@
     "minNativeVersion": "1.3.2",
     "notes": "add gitee update source",
     "publishedAt": "2026-03-27T05:32:55Z"
-  },
-  {
-    "version": "20260327.3",
-    "url": "bundle-20260327.3.zip",
-    "hash": "b60334c74bfd5d3de661a2ee5826c4e9a1ed88793f5fbf18757f2914509acbb3",
-    "minNativeVersion": "1.3.1",
-    "notes": "update layout",
-    "publishedAt": "2026-03-26T14:52:28Z"
   }
 ]
