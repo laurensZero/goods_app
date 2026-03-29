@@ -203,15 +203,20 @@ export function resolveReleaseWebBundleAsset(release) {
     || null
 }
 
-export function buildReleaseNotesPreview(body, lineLimit = 8) {
+export function buildReleaseNotesPreview(body, lineLimit = 0) {
   const text = String(body || '').trim()
   if (!text) return ''
+
+  const normalizedLimit = Number(lineLimit)
 
   const lines = text
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter((line, index, source) => line || (index > 0 && source[index - 1]))
-    .slice(0, lineLimit)
+
+  if (Number.isFinite(normalizedLimit) && normalizedLimit > 0) {
+    return lines.slice(0, normalizedLimit).join('\n').trim()
+  }
 
   return lines.join('\n').trim()
 }

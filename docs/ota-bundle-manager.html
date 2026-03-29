@@ -604,13 +604,55 @@
           </label>
 
           <label class="field">
-            <span class="field-label">最低 App 版本（可留空）</span>
-            <input id="announcementMinVersion" class="input" type="text" placeholder="例如 1.3.2" />
+            <span class="field-label">AppVersion 条件</span>
+            <select id="announcementAppVersionMode" class="select">
+              <option value="any">不限</option>
+              <option value="exact">等于（=）</option>
+              <option value="gte">大于等于（>=）</option>
+              <option value="lte">小于等于（<=）</option>
+              <option value="range">区间（>= 且 <=）</option>
+            </select>
+          </label>
+
+          <label class="field" id="announcementAppVersionExactField" hidden>
+            <span class="field-label">AppVersion 值（=）</span>
+            <input id="announcementAppVersionExact" class="input" type="text" placeholder="例如 1.3.2" />
+          </label>
+
+          <label class="field" id="announcementAppVersionMinField" hidden>
+            <span class="field-label">AppVersion 最小值（>=）</span>
+            <input id="announcementAppVersionMin" class="input" type="text" placeholder="例如 1.3.2" />
+          </label>
+
+          <label class="field" id="announcementAppVersionMaxField" hidden>
+            <span class="field-label">AppVersion 最大值（<=）</span>
+            <input id="announcementAppVersionMax" class="input" type="text" placeholder="例如 2.0.0" />
           </label>
 
           <label class="field">
-            <span class="field-label">最高 App 版本（可留空）</span>
-            <input id="announcementMaxVersion" class="input" type="text" placeholder="例如 2.0.0" />
+            <span class="field-label">BundleVersion 条件</span>
+            <select id="announcementBundleVersionMode" class="select">
+              <option value="any">不限</option>
+              <option value="exact">等于（=）</option>
+              <option value="gte">大于等于（>=）</option>
+              <option value="lte">小于等于（<=）</option>
+              <option value="range">区间（>= 且 <=）</option>
+            </select>
+          </label>
+
+          <label class="field" id="announcementBundleVersionExactField" hidden>
+            <span class="field-label">BundleVersion 值（=）</span>
+            <input id="announcementBundleVersionExact" class="input" type="text" placeholder="例如 20260327.1" />
+          </label>
+
+          <label class="field" id="announcementBundleVersionMinField" hidden>
+            <span class="field-label">BundleVersion 最小值（>=）</span>
+            <input id="announcementBundleVersionMin" class="input" type="text" placeholder="例如 20260320.1" />
+          </label>
+
+          <label class="field" id="announcementBundleVersionMaxField" hidden>
+            <span class="field-label">BundleVersion 最大值（<=）</span>
+            <input id="announcementBundleVersionMax" class="input" type="text" placeholder="例如 20260401.1" />
           </label>
 
           <label class="field">
@@ -731,8 +773,20 @@
     const announcementChannels = document.getElementById('announcementChannels')
     const announcementStartAt = document.getElementById('announcementStartAt')
     const announcementEndAt = document.getElementById('announcementEndAt')
-    const announcementMinVersion = document.getElementById('announcementMinVersion')
-    const announcementMaxVersion = document.getElementById('announcementMaxVersion')
+    const announcementAppVersionMode = document.getElementById('announcementAppVersionMode')
+    const announcementAppVersionExactField = document.getElementById('announcementAppVersionExactField')
+    const announcementAppVersionMinField = document.getElementById('announcementAppVersionMinField')
+    const announcementAppVersionMaxField = document.getElementById('announcementAppVersionMaxField')
+    const announcementAppVersionExact = document.getElementById('announcementAppVersionExact')
+    const announcementAppVersionMin = document.getElementById('announcementAppVersionMin')
+    const announcementAppVersionMax = document.getElementById('announcementAppVersionMax')
+    const announcementBundleVersionMode = document.getElementById('announcementBundleVersionMode')
+    const announcementBundleVersionExactField = document.getElementById('announcementBundleVersionExactField')
+    const announcementBundleVersionMinField = document.getElementById('announcementBundleVersionMinField')
+    const announcementBundleVersionMaxField = document.getElementById('announcementBundleVersionMaxField')
+    const announcementBundleVersionExact = document.getElementById('announcementBundleVersionExact')
+    const announcementBundleVersionMin = document.getElementById('announcementBundleVersionMin')
+    const announcementBundleVersionMax = document.getElementById('announcementBundleVersionMax')
     const announcementCtaText = document.getElementById('announcementCtaText')
     const announcementCtaUrl = document.getElementById('announcementCtaUrl')
     const announcementEnabled = document.getElementById('announcementEnabled')
@@ -795,6 +849,66 @@
       announcementStatus.className = 'publish-status'
       if (type === 'ok') announcementStatus.classList.add('publish-status--ok')
       if (type === 'error') announcementStatus.classList.add('publish-status--error')
+    }
+
+    function normalizeVersionRuleForForm(ruleSource, legacyExact, legacyMin, legacyMax) {
+      const source = ruleSource && typeof ruleSource === 'object' ? ruleSource : {}
+      const exact = String(source.exact || legacyExact || '').trim()
+      const min = String(source.min || legacyMin || '').trim()
+      const max = String(source.max || legacyMax || '').trim()
+
+      if (exact) {
+        return { mode: 'exact', exact, min: '', max: '' }
+      }
+      if (min && max) {
+        return { mode: 'range', exact: '', min, max }
+      }
+      if (min) {
+        return { mode: 'gte', exact: '', min, max: '' }
+      }
+      if (max) {
+        return { mode: 'lte', exact: '', min: '', max }
+      }
+      return { mode: 'any', exact: '', min: '', max: '' }
+    }
+
+    function syncVersionFields(prefix) {
+      const modeElement = prefix === 'app' ? announcementAppVersionMode : announcementBundleVersionMode
+      const exactField = prefix === 'app' ? announcementAppVersionExactField : announcementBundleVersionExactField
+      const minField = prefix === 'app' ? announcementAppVersionMinField : announcementBundleVersionMinField
+      const maxField = prefix === 'app' ? announcementAppVersionMaxField : announcementBundleVersionMaxField
+      const mode = String(modeElement.value || 'any').trim()
+
+      exactField.hidden = mode !== 'exact'
+      minField.hidden = !(mode === 'gte' || mode === 'range')
+      maxField.hidden = !(mode === 'lte' || mode === 'range')
+    }
+
+    function buildVersionRuleFromForm(modeElement, exactElement, minElement, maxElement, label) {
+      const mode = String(modeElement.value || 'any').trim()
+      const exact = String(exactElement.value || '').trim()
+      const min = String(minElement.value || '').trim()
+      const max = String(maxElement.value || '').trim()
+
+      if (mode === 'any') {
+        return null
+      }
+      if (mode === 'exact') {
+        if (!exact) throw new Error(`${label} 条件选择为等于时，版本值不能为空。`)
+        return { exact }
+      }
+      if (mode === 'gte') {
+        if (!min) throw new Error(`${label} 条件选择为大于等于时，最小值不能为空。`)
+        return { min }
+      }
+      if (mode === 'lte') {
+        if (!max) throw new Error(`${label} 条件选择为小于等于时，最大值不能为空。`)
+        return { max }
+      }
+      if (!min || !max) {
+        throw new Error(`${label} 条件选择为区间时，最小值和最大值都不能为空。`)
+      }
+      return { min, max }
     }
 
     function saveTokenToLocalStorage() {
@@ -919,6 +1033,18 @@
       const item = list[0] || {}
       const showRule = item.showRule && typeof item.showRule === 'object' ? item.showRule : {}
       const cta = item.cta && typeof item.cta === 'object' ? item.cta : {}
+      const appRule = normalizeVersionRuleForForm(
+        showRule.appVersionRule,
+        showRule.appVersion,
+        showRule.minAppVersion,
+        showRule.maxAppVersion
+      )
+      const bundleRule = normalizeVersionRuleForForm(
+        showRule.bundleVersionRule,
+        showRule.bundleVersion,
+        showRule.minBundleVersion,
+        showRule.maxBundleVersion
+      )
 
       announcementId.value = String(item.id || '').trim()
       announcementPriority.value = Number.isFinite(Number(item.priority)) ? String(Number(item.priority)) : '100'
@@ -932,11 +1058,20 @@
         : 'stable,beta'
       announcementStartAt.value = String(showRule.startAt || '').trim()
       announcementEndAt.value = String(showRule.endAt || '').trim()
-      announcementMinVersion.value = String(showRule.minAppVersion || '').trim()
-      announcementMaxVersion.value = String(showRule.maxAppVersion || '').trim()
+      announcementAppVersionMode.value = appRule.mode
+      announcementAppVersionExact.value = appRule.exact
+      announcementAppVersionMin.value = appRule.min
+      announcementAppVersionMax.value = appRule.max
+      announcementBundleVersionMode.value = bundleRule.mode
+      announcementBundleVersionExact.value = bundleRule.exact
+      announcementBundleVersionMin.value = bundleRule.min
+      announcementBundleVersionMax.value = bundleRule.max
       announcementCtaText.value = String(cta.text || '').trim()
       announcementCtaUrl.value = String(cta.url || '').trim()
       announcementEnabled.checked = item.enabled !== false
+
+      syncVersionFields('app')
+      syncVersionFields('bundle')
     }
 
     function buildAnnouncementFromForm() {
@@ -958,9 +1093,44 @@
         .split(',')
         .map((entry) => entry.trim().toLowerCase())
         .filter(Boolean)
+      const appVersionRule = buildVersionRuleFromForm(
+        announcementAppVersionMode,
+        announcementAppVersionExact,
+        announcementAppVersionMin,
+        announcementAppVersionMax,
+        'AppVersion'
+      )
+      const bundleVersionRule = buildVersionRuleFromForm(
+        announcementBundleVersionMode,
+        announcementBundleVersionExact,
+        announcementBundleVersionMin,
+        announcementBundleVersionMax,
+        'BundleVersion'
+      )
 
       const ctaUrl = normalizeHttpsUrl(announcementCtaUrl.value)
       const ctaText = String(announcementCtaText.value || '').trim()
+
+      const showRule = {
+        showMode: String(announcementShowMode.value || 'once').trim() || 'once',
+        startAt: String(announcementStartAt.value || '').trim(),
+        endAt: String(announcementEndAt.value || '').trim(),
+        channels: channels.length ? channels : ['stable', 'beta']
+      }
+
+      if (appVersionRule) {
+        showRule.appVersionRule = appVersionRule
+        if (appVersionRule.exact) showRule.appVersion = appVersionRule.exact
+        if (appVersionRule.min) showRule.minAppVersion = appVersionRule.min
+        if (appVersionRule.max) showRule.maxAppVersion = appVersionRule.max
+      }
+
+      if (bundleVersionRule) {
+        showRule.bundleVersionRule = bundleVersionRule
+        if (bundleVersionRule.exact) showRule.bundleVersion = bundleVersionRule.exact
+        if (bundleVersionRule.min) showRule.minBundleVersion = bundleVersionRule.min
+        if (bundleVersionRule.max) showRule.maxBundleVersion = bundleVersionRule.max
+      }
 
       return {
         id,
@@ -973,14 +1143,7 @@
           url: ctaUrl,
           action: ctaUrl ? 'open_url' : 'dismiss'
         },
-        showRule: {
-          showMode: String(announcementShowMode.value || 'once').trim() || 'once',
-          startAt: String(announcementStartAt.value || '').trim(),
-          endAt: String(announcementEndAt.value || '').trim(),
-          minAppVersion: String(announcementMinVersion.value || '').trim(),
-          maxAppVersion: String(announcementMaxVersion.value || '').trim(),
-          channels: channels.length ? channels : ['stable', 'beta']
-        }
+        showRule
       }
     }
 
@@ -1543,6 +1706,10 @@
     loadAnnouncementBtn.addEventListener('click', loadAnnouncementFromGist)
     publishAnnouncementBtn.addEventListener('click', publishAnnouncementToGist)
     openAnnouncementGistBtn.addEventListener('click', openAnnouncementGistPage)
+    announcementAppVersionMode.addEventListener('change', () => syncVersionFields('app'))
+    announcementBundleVersionMode.addEventListener('change', () => syncVersionFields('bundle'))
+    syncVersionFields('app')
+    syncVersionFields('bundle')
     syncGiteeBtn.addEventListener('click', triggerSyncGitee)
     syncGiteeReleaseBtn.addEventListener('click', triggerSyncGiteeRelease)
     openSyncGiteeBtn.addEventListener('click', () => openWorkflowPageById(syncGiteeWorkflowId))

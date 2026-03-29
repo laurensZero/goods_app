@@ -101,6 +101,8 @@ function handleOverlayClick() {
   border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
+  max-height: min(86vh, 760px);
+  overflow: auto;
 }
 
 .update-kicker {

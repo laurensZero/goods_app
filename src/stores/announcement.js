@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
 import { compareVersions, normalizeVersionTag } from '@/utils/githubRelease'
 
@@ -84,6 +85,43 @@ function parseTime(value) {
   const timestamp = new Date(value).getTime()
   if (!Number.isFinite(timestamp)) return 0
   return timestamp
+}
+
+function pickFirstVersionValue(values = []) {
+  for (const value of values) {
+    const normalized = normalizeVersionTag(value || '')
+    if (normalized) return normalized
+  }
+  return ''
+}
+
+function normalizeVersionRule(source = {}, options = {}) {
+  const exactKeys = Array.isArray(options.exactKeys) ? options.exactKeys : []
+  const minKeys = Array.isArray(options.minKeys) ? options.minKeys : []
+  const maxKeys = Array.isArray(options.maxKeys) ? options.maxKeys : []
+
+  const exact = pickFirstVersionValue(exactKeys.map((key) => source?.[key]))
+  const min = pickFirstVersionValue(minKeys.map((key) => source?.[key]))
+  const max = pickFirstVersionValue(maxKeys.map((key) => source?.[key]))
+
+  return {
+    exact,
+    min,
+    max,
+    hasConstraint: !!(exact || min || max)
+  }
+}
+
+function matchesVersionRule(currentVersion, rule) {
+  const normalizedCurrent = normalizeVersionTag(currentVersion || '')
+  if (!rule?.hasConstraint) return true
+  if (!normalizedCurrent) return false
+
+  if (rule.exact && compareVersions(normalizedCurrent, rule.exact) !== 0) return false
+  if (rule.min && compareVersions(normalizedCurrent, rule.min) < 0) return false
+  if (rule.max && compareVersions(normalizedCurrent, rule.max) > 0) return false
+
+  return true
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
@@ -239,8 +277,16 @@ function normalizeAnnouncementItem(item) {
       showMode: normalizeShowMode(showRule.showMode),
       startAt: parseTime(showRule.startAt),
       endAt: parseTime(showRule.endAt),
-      minAppVersion: normalizeVersionTag(showRule.minAppVersion || ''),
-      maxAppVersion: normalizeVersionTag(showRule.maxAppVersion || ''),
+      appVersionRule: normalizeVersionRule(showRule, {
+        exactKeys: ['appVersion', 'ver', 'targetAppVersion', 'exactAppVersion'],
+        minKeys: ['minAppVersion', 'appVersionMin', 'verMin', 'appVersionGte', 'verGte'],
+        maxKeys: ['maxAppVersion', 'appVersionMax', 'verMax', 'appVersionLte', 'verLte']
+      }),
+      bundleVersionRule: normalizeVersionRule(showRule, {
+        exactKeys: ['bundleVersion', 'targetBundleVersion', 'exactBundleVersion'],
+        minKeys: ['minBundleVersion', 'bundleVersionMin', 'bundleVersionGte'],
+        maxKeys: ['maxBundleVersion', 'bundleVersionMax', 'bundleVersionLte']
+      }),
       channels: channels.length ? channels : ['stable', 'beta']
     }
   }
@@ -448,11 +494,8 @@ function matchesAnnouncementRule(announcement, context) {
   const channels = Array.isArray(announcement?.showRule?.channels) ? announcement.showRule.channels : []
   if (channels.length > 0 && !channels.includes(context.channel)) return false
 
-  const minAppVersion = String(announcement?.showRule?.minAppVersion || '').trim()
-  if (minAppVersion && compareVersions(context.appVersion, minAppVersion) < 0) return false
-
-  const maxAppVersion = String(announcement?.showRule?.maxAppVersion || '').trim()
-  if (maxAppVersion && compareVersions(context.appVersion, maxAppVersion) > 0) return false
+  if (!matchesVersionRule(context.appVersion, announcement?.showRule?.appVersionRule)) return false
+  if (!matchesVersionRule(context.bundleVersion, announcement?.showRule?.bundleVersionRule)) return false
 
   const record = context.record?.[announcement.id] || {}
   const showMode = announcement?.showRule?.showMode || 'once'
@@ -485,6 +528,7 @@ export const useAnnouncementStore = defineStore('announcement', () => {
   const selectedSource = ref('auto')
   const resolvedSource = ref('')
   const appVersion = ref(FALLBACK_VERSION)
+  const bundleVersion = ref('')
   const channel = ref('stable')
   const dialogVisible = ref(false)
   const activeAnnouncement = ref(null)
@@ -508,11 +552,19 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       if (Capacitor.isNativePlatform()) {
         const info = await CapacitorApp.getInfo()
         appVersion.value = normalizeVersionTag(info?.version || FALLBACK_VERSION) || FALLBACK_VERSION
+        try {
+          const bundleInfo = await CapacitorUpdater.current()
+          bundleVersion.value = normalizeVersionTag(bundleInfo?.bundle?.version || '')
+        } catch {
+          bundleVersion.value = ''
+        }
       } else {
         appVersion.value = FALLBACK_VERSION
+        bundleVersion.value = FALLBACK_VERSION
       }
     } catch {
       appVersion.value = FALLBACK_VERSION
+      bundleVersion.value = Capacitor.isNativePlatform() ? '' : FALLBACK_VERSION
     } finally {
       initialized.value = true
     }
@@ -573,6 +625,7 @@ export const useAnnouncementStore = defineStore('announcement', () => {
             now,
             today: currentDay,
             appVersion: currentAppVersion,
+            bundleVersion: bundleVersion.value,
             channel: channel.value,
             record: showRecord.value
           })
@@ -672,6 +725,7 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     selectedSource,
     resolvedSource,
     appVersion,
+    bundleVersion,
     channel,
     dialogVisible,
     activeAnnouncement,

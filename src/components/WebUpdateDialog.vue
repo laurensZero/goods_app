@@ -67,7 +67,7 @@ const showDialog = computed(() => webUpdateStore.dialogVisible && webUpdateStore
 const releaseNotesPreview = computed(() => {
   const raw = String(webUpdateStore.latestRelease?.notes || webUpdateStore.latestRelease?.body || '').trim()
   if (!raw) return ''
-  return raw.split(/\r?\n/).slice(0, 8).join('\n').trim()
+  return raw
 })
 
 function handleOverlayClick() {
@@ -125,6 +125,8 @@ watch(showDialog, (visible) => {
   border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
+  max-height: min(86vh, 760px);
+  overflow: auto;
 }
 
 .update-kicker {

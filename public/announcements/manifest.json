@@ -17,8 +17,12 @@
         "showMode": "once",
         "startAt": "2026-03-27T00:00:00Z",
         "endAt": "",
+        "appVersion": "",
         "minAppVersion": "",
         "maxAppVersion": "",
+        "bundleVersion": "",
+        "minBundleVersion": "",
+        "maxBundleVersion": "",
         "channels": ["stable", "beta"]
       }
     }
