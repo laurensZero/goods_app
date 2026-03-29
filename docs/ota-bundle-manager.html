@@ -417,6 +417,12 @@
       accent-color: var(--app-primary);
     }
 
+    .inline-combo {
+      display: grid;
+      grid-template-columns: minmax(120px, 180px) 1fr;
+      gap: 8px;
+    }
+
     @media (min-width: 860px) {
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -605,55 +611,32 @@
 
           <label class="field">
             <span class="field-label">AppVersion 条件</span>
-            <select id="announcementAppVersionMode" class="select">
-              <option value="any">不限</option>
-              <option value="exact">等于（=）</option>
-              <option value="gte">大于等于（>=）</option>
-              <option value="lte">小于等于（<=）</option>
-              <option value="range">区间（>= 且 <=）</option>
-            </select>
-          </label>
-
-          <label class="field" id="announcementAppVersionExactField" hidden>
-            <span class="field-label">AppVersion 值（=）</span>
-            <input id="announcementAppVersionExact" class="input" type="text" placeholder="例如 1.3.2" />
-          </label>
-
-          <label class="field" id="announcementAppVersionMinField" hidden>
-            <span class="field-label">AppVersion 最小值（>=）</span>
-            <input id="announcementAppVersionMin" class="input" type="text" placeholder="例如 1.3.2" />
-          </label>
-
-          <label class="field" id="announcementAppVersionMaxField" hidden>
-            <span class="field-label">AppVersion 最大值（<=）</span>
-            <input id="announcementAppVersionMax" class="input" type="text" placeholder="例如 2.0.0" />
+            <div class="inline-combo">
+              <select id="announcementAppVersionMode" class="select">
+                <option value="any">不限</option>
+                <option value="exact">等于（=）</option>
+                <option value="gte">大于等于（>=）</option>
+                <option value="lte">小于等于（<=）</option>
+              </select>
+              <input id="announcementAppVersionValueInput" class="input" type="text" list="announcementAppVersionOptions" placeholder="可手输或选择 AppVersion" />
+            </div>
           </label>
 
           <label class="field">
             <span class="field-label">BundleVersion 条件</span>
-            <select id="announcementBundleVersionMode" class="select">
-              <option value="any">不限</option>
-              <option value="exact">等于（=）</option>
-              <option value="gte">大于等于（>=）</option>
-              <option value="lte">小于等于（<=）</option>
-              <option value="range">区间（>= 且 <=）</option>
-            </select>
+            <div class="inline-combo">
+              <select id="announcementBundleVersionMode" class="select">
+                <option value="any">不限</option>
+                <option value="exact">等于（=）</option>
+                <option value="gte">大于等于（>=）</option>
+                <option value="lte">小于等于（<=）</option>
+              </select>
+              <input id="announcementBundleVersionValueInput" class="input" type="text" list="announcementBundleVersionOptions" placeholder="可手输或选择 BundleVersion" />
+            </div>
           </label>
 
-          <label class="field" id="announcementBundleVersionExactField" hidden>
-            <span class="field-label">BundleVersion 值（=）</span>
-            <input id="announcementBundleVersionExact" class="input" type="text" placeholder="例如 20260327.1" />
-          </label>
-
-          <label class="field" id="announcementBundleVersionMinField" hidden>
-            <span class="field-label">BundleVersion 最小值（>=）</span>
-            <input id="announcementBundleVersionMin" class="input" type="text" placeholder="例如 20260320.1" />
-          </label>
-
-          <label class="field" id="announcementBundleVersionMaxField" hidden>
-            <span class="field-label">BundleVersion 最大值（<=）</span>
-            <input id="announcementBundleVersionMax" class="input" type="text" placeholder="例如 20260401.1" />
-          </label>
+          <datalist id="announcementAppVersionOptions"></datalist>
+          <datalist id="announcementBundleVersionOptions"></datalist>
 
           <label class="field">
             <span class="field-label">按钮文案（可留空）</span>
@@ -774,19 +757,11 @@
     const announcementStartAt = document.getElementById('announcementStartAt')
     const announcementEndAt = document.getElementById('announcementEndAt')
     const announcementAppVersionMode = document.getElementById('announcementAppVersionMode')
-    const announcementAppVersionExactField = document.getElementById('announcementAppVersionExactField')
-    const announcementAppVersionMinField = document.getElementById('announcementAppVersionMinField')
-    const announcementAppVersionMaxField = document.getElementById('announcementAppVersionMaxField')
-    const announcementAppVersionExact = document.getElementById('announcementAppVersionExact')
-    const announcementAppVersionMin = document.getElementById('announcementAppVersionMin')
-    const announcementAppVersionMax = document.getElementById('announcementAppVersionMax')
+    const announcementAppVersionValueInput = document.getElementById('announcementAppVersionValueInput')
+    const announcementAppVersionOptions = document.getElementById('announcementAppVersionOptions')
     const announcementBundleVersionMode = document.getElementById('announcementBundleVersionMode')
-    const announcementBundleVersionExactField = document.getElementById('announcementBundleVersionExactField')
-    const announcementBundleVersionMinField = document.getElementById('announcementBundleVersionMinField')
-    const announcementBundleVersionMaxField = document.getElementById('announcementBundleVersionMaxField')
-    const announcementBundleVersionExact = document.getElementById('announcementBundleVersionExact')
-    const announcementBundleVersionMin = document.getElementById('announcementBundleVersionMin')
-    const announcementBundleVersionMax = document.getElementById('announcementBundleVersionMax')
+    const announcementBundleVersionValueInput = document.getElementById('announcementBundleVersionValueInput')
+    const announcementBundleVersionOptions = document.getElementById('announcementBundleVersionOptions')
     const announcementCtaText = document.getElementById('announcementCtaText')
     const announcementCtaUrl = document.getElementById('announcementCtaUrl')
     const announcementEnabled = document.getElementById('announcementEnabled')
@@ -806,9 +781,15 @@
     const syncGiteeReleaseWorkflowId = 'sync-gitee-release.yml'
     const defaultAnnouncementGistUrl = 'https://gist.github.com/laurensZero/0a88ab223f6e8c6cc8542401e907154c'
     const githubTokenStorageKey = 'ota_manager_github_token'
+    const maxVersionCandidateCount = 10
 
     let currentAnnouncementManifest = null
     let currentAnnouncementFileName = 'manifest.json'
+  const channelVersionSnapshot = new Map()
+    const remoteVersionCandidates = {
+      app: [],
+      bundle: []
+    }
 
     baseUrlChip.textContent = `Base: ${baseUrl.href}`
 
@@ -851,6 +832,137 @@
       if (type === 'error') announcementStatus.classList.add('publish-status--error')
     }
 
+    function compareAppVersionDesc(left, right) {
+      const normalize = (value) => String(value || '').trim().replace(/^v/i, '')
+      const leftParts = normalize(left).split(/[^0-9a-zA-Z]+/).filter(Boolean)
+      const rightParts = normalize(right).split(/[^0-9a-zA-Z]+/).filter(Boolean)
+      const length = Math.max(leftParts.length, rightParts.length)
+
+      for (let index = 0; index < length; index += 1) {
+        const leftToken = leftParts[index] || '0'
+        const rightToken = rightParts[index] || '0'
+        const leftNumber = Number(leftToken)
+        const rightNumber = Number(rightToken)
+        const leftIsNumber = Number.isFinite(leftNumber)
+        const rightIsNumber = Number.isFinite(rightNumber)
+
+        if (leftIsNumber && rightIsNumber && leftNumber !== rightNumber) {
+          return rightNumber - leftNumber
+        }
+
+        const textCompare = rightToken.localeCompare(leftToken, 'zh-CN', { sensitivity: 'base' })
+        if (textCompare !== 0) return textCompare
+      }
+
+      return 0
+    }
+
+    function compareBundleVersionDesc(left, right) {
+      const parse = (value) => {
+        const matched = String(value || '').trim().match(/(\d{8})\.(\d+)/)
+        if (!matched) return { day: 0, seq: 0 }
+        return {
+          day: Number(matched[1]),
+          seq: Number(matched[2])
+        }
+      }
+
+      const leftParsed = parse(left)
+      const rightParsed = parse(right)
+      if (leftParsed.day !== rightParsed.day) return rightParsed.day - leftParsed.day
+      if (leftParsed.seq !== rightParsed.seq) return rightParsed.seq - leftParsed.seq
+      return String(right || '').localeCompare(String(left || ''), 'zh-CN', { sensitivity: 'base' })
+    }
+
+    function extractAppVersionCandidates(rawText) {
+      const source = String(rawText || '')
+      const matches = source.match(/\bv?\d+\.\d+\.\d+(?:[-+._][0-9A-Za-z]+)*\b/g) || []
+      return matches
+        .map((entry) => String(entry || '').trim().replace(/^v/i, ''))
+        .filter(Boolean)
+    }
+
+    function extractBundleVersionCandidates(rawText) {
+      const source = String(rawText || '')
+      const matches = source.match(/\b\d{8}\.\d+\b/g) || []
+      return matches.map((entry) => String(entry || '').trim()).filter(Boolean)
+    }
+
+    async function requestGitHubApi(url, token = '') {
+      const headers = {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitHub API 请求失败（${response.status}）。`)
+      }
+
+      return response.json()
+    }
+
+    async function fetchRemoteVersionCandidates() {
+      const token = String(publishToken.value || '').trim()
+      const releasesUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases?per_page=30`
+      const runsUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/${workflowId}/runs?per_page=30`
+
+      try {
+        const [releasesPayload, runsPayload] = await Promise.all([
+          requestGitHubApi(releasesUrl, token).catch(() => []),
+          requestGitHubApi(runsUrl, token).catch(() => ({ workflow_runs: [] }))
+        ])
+
+        const appSet = new Set()
+        const bundleSet = new Set()
+
+        const releases = Array.isArray(releasesPayload) ? releasesPayload : []
+        releases.forEach((release) => {
+          const rawBlock = [
+            release?.tag_name,
+            release?.name,
+            release?.body,
+            ...(Array.isArray(release?.assets) ? release.assets.map((asset) => asset?.name) : [])
+          ].join('\n')
+
+          extractAppVersionCandidates(rawBlock).forEach((version) => appSet.add(version))
+          extractBundleVersionCandidates(rawBlock).forEach((version) => bundleSet.add(version))
+        })
+
+        const workflowRuns = Array.isArray(runsPayload?.workflow_runs) ? runsPayload.workflow_runs : []
+        workflowRuns.forEach((run) => {
+          const rawBlock = [
+            run?.name,
+            run?.display_title,
+            run?.head_branch,
+            run?.head_commit?.message
+          ].join('\n')
+
+          extractAppVersionCandidates(rawBlock).forEach((version) => appSet.add(version))
+          extractBundleVersionCandidates(rawBlock).forEach((version) => bundleSet.add(version))
+        })
+
+        remoteVersionCandidates.app = Array.from(appSet)
+          .sort(compareAppVersionDesc)
+          .slice(0, maxVersionCandidateCount)
+        remoteVersionCandidates.bundle = Array.from(bundleSet)
+          .sort(compareBundleVersionDesc)
+          .slice(0, maxVersionCandidateCount)
+      } catch {
+        remoteVersionCandidates.app = []
+        remoteVersionCandidates.bundle = []
+      }
+
+      collectVersionCandidates()
+    }
+
     function normalizeVersionRuleForForm(ruleSource, legacyExact, legacyMin, legacyMax) {
       const source = ruleSource && typeof ruleSource === 'object' ? ruleSource : {}
       const exact = String(source.exact || legacyExact || '').trim()
@@ -858,57 +970,145 @@
       const max = String(source.max || legacyMax || '').trim()
 
       if (exact) {
-        return { mode: 'exact', exact, min: '', max: '' }
-      }
-      if (min && max) {
-        return { mode: 'range', exact: '', min, max }
+        return { mode: 'exact', value: exact }
       }
       if (min) {
-        return { mode: 'gte', exact: '', min, max: '' }
+        return { mode: 'gte', value: min }
       }
       if (max) {
-        return { mode: 'lte', exact: '', min: '', max }
+        return { mode: 'lte', value: max }
       }
-      return { mode: 'any', exact: '', min: '', max: '' }
+      return { mode: 'any', value: '' }
+    }
+
+    function renderVersionOptions(target, values, labelResolver = null) {
+      if (!target) return
+      target.innerHTML = ''
+
+      const frag = document.createDocumentFragment()
+
+      values.forEach((value) => {
+        const option = document.createElement('option')
+        option.value = value
+        const label = typeof labelResolver === 'function' ? labelResolver(value) : value
+        option.label = String(label || value)
+        frag.appendChild(option)
+      })
+      target.appendChild(frag)
+    }
+
+    function collectVersionCandidates() {
+      const appSet = new Set()
+      const bundleSet = new Set()
+      const bundleChannelMap = new Map()
+
+      channelVersionSnapshot.forEach((snapshot, channelName) => {
+        ;(snapshot?.appVersions || []).forEach((value) => {
+          const normalized = String(value || '').trim()
+          if (normalized) appSet.add(normalized)
+        })
+        ;(snapshot?.bundleVersions || []).forEach((value) => {
+          const normalized = String(value || '').trim()
+          if (normalized) {
+            bundleSet.add(normalized)
+            const knownChannels = bundleChannelMap.get(normalized) || new Set()
+            knownChannels.add(channelName)
+            bundleChannelMap.set(normalized, knownChannels)
+          }
+        })
+      })
+
+      ;[
+        announcementAppVersionValueInput.value
+      ].forEach((value) => {
+        const normalized = String(value || '').trim()
+        if (normalized) appSet.add(normalized)
+      })
+
+      ;[
+        announcementBundleVersionValueInput.value
+      ].forEach((value) => {
+        const normalized = String(value || '').trim()
+        if (normalized) bundleSet.add(normalized)
+      })
+
+      channels.forEach((channelName) => {
+        const refs = cards.get(channelName)
+        if (!refs) return
+        const renderedBundleVersion = String(refs.version?.textContent || '').trim()
+        if (renderedBundleVersion && renderedBundleVersion !== '--') {
+          bundleSet.add(renderedBundleVersion)
+          const knownChannels = bundleChannelMap.get(renderedBundleVersion) || new Set()
+          knownChannels.add(channelName)
+          bundleChannelMap.set(renderedBundleVersion, knownChannels)
+        }
+      })
+
+      remoteVersionCandidates.app.forEach((value) => {
+        const normalized = String(value || '').trim()
+        if (normalized) appSet.add(normalized)
+      })
+
+      remoteVersionCandidates.bundle.forEach((value) => {
+        const normalized = String(value || '').trim()
+        if (normalized) bundleSet.add(normalized)
+      })
+
+      const appValues = Array.from(appSet)
+        .sort(compareAppVersionDesc)
+        .slice(0, maxVersionCandidateCount)
+      const bundleValues = Array.from(bundleSet)
+        .sort(compareBundleVersionDesc)
+        .slice(0, maxVersionCandidateCount)
+
+      renderVersionOptions(announcementAppVersionOptions, appValues)
+      renderVersionOptions(
+        announcementBundleVersionOptions,
+        bundleValues,
+        (value) => {
+          const channels = Array.from(bundleChannelMap.get(value) || [])
+          if (!channels.length) return value
+          return `${value}（${channels.join('/')}）`
+        }
+      )
     }
 
     function syncVersionFields(prefix) {
       const modeElement = prefix === 'app' ? announcementAppVersionMode : announcementBundleVersionMode
-      const exactField = prefix === 'app' ? announcementAppVersionExactField : announcementBundleVersionExactField
-      const minField = prefix === 'app' ? announcementAppVersionMinField : announcementBundleVersionMinField
-      const maxField = prefix === 'app' ? announcementAppVersionMaxField : announcementBundleVersionMaxField
+      const valueElement = prefix === 'app' ? announcementAppVersionValueInput : announcementBundleVersionValueInput
       const mode = String(modeElement.value || 'any').trim()
 
-      exactField.hidden = mode !== 'exact'
-      minField.hidden = !(mode === 'gte' || mode === 'range')
-      maxField.hidden = !(mode === 'lte' || mode === 'range')
+      if (mode === 'any') {
+        valueElement.value = ''
+        valueElement.disabled = true
+        valueElement.placeholder = '当前条件无需填写'
+        return
+      }
+
+      valueElement.disabled = false
+      valueElement.placeholder = '可手输或选择候选版本'
     }
 
-    function buildVersionRuleFromForm(modeElement, exactElement, minElement, maxElement, label) {
+    function buildVersionRuleFromForm(modeElement, valueElement, label) {
       const mode = String(modeElement.value || 'any').trim()
-      const exact = String(exactElement.value || '').trim()
-      const min = String(minElement.value || '').trim()
-      const max = String(maxElement.value || '').trim()
+      const value = String(valueElement.value || '').trim()
 
       if (mode === 'any') {
         return null
       }
       if (mode === 'exact') {
-        if (!exact) throw new Error(`${label} 条件选择为等于时，版本值不能为空。`)
-        return { exact }
+        if (!value) throw new Error(`${label} 条件选择为等于时，请从下拉中选择一个版本。`)
+        return { exact: value }
       }
       if (mode === 'gte') {
-        if (!min) throw new Error(`${label} 条件选择为大于等于时，最小值不能为空。`)
-        return { min }
+        if (!value) throw new Error(`${label} 条件选择为大于等于时，最小值不能为空。`)
+        return { min: value }
       }
       if (mode === 'lte') {
-        if (!max) throw new Error(`${label} 条件选择为小于等于时，最大值不能为空。`)
-        return { max }
+        if (!value) throw new Error(`${label} 条件选择为小于等于时，最大值不能为空。`)
+        return { max: value }
       }
-      if (!min || !max) {
-        throw new Error(`${label} 条件选择为区间时，最小值和最大值都不能为空。`)
-      }
-      return { min, max }
+      throw new Error(`${label} 条件无效。`)
     }
 
     function saveTokenToLocalStorage() {
@@ -921,6 +1121,7 @@
       try {
         localStorage.setItem(githubTokenStorageKey, token)
         setTokenStatus('Token 已保存到本地浏览器（localStorage）。', 'ok')
+        fetchRemoteVersionCandidates()
       } catch (error) {
         setTokenStatus(error?.message || '保存 Token 失败。', 'error')
       }
@@ -932,6 +1133,7 @@
         if (token) {
           publishToken.value = token
           setTokenStatus('已从本地恢复已保存 Token。', 'ok')
+          fetchRemoteVersionCandidates()
         }
       } catch {
         // ignore
@@ -960,6 +1162,9 @@
       } catch {
         // ignore
       }
+      remoteVersionCandidates.app = []
+      remoteVersionCandidates.bundle = []
+      collectVersionCandidates()
       setTokenStatus('已清除本地保存 Token。', 'ok')
     }
 
@@ -1059,19 +1264,16 @@
       announcementStartAt.value = String(showRule.startAt || '').trim()
       announcementEndAt.value = String(showRule.endAt || '').trim()
       announcementAppVersionMode.value = appRule.mode
-      announcementAppVersionExact.value = appRule.exact
-      announcementAppVersionMin.value = appRule.min
-      announcementAppVersionMax.value = appRule.max
+      announcementAppVersionValueInput.value = appRule.value
       announcementBundleVersionMode.value = bundleRule.mode
-      announcementBundleVersionExact.value = bundleRule.exact
-      announcementBundleVersionMin.value = bundleRule.min
-      announcementBundleVersionMax.value = bundleRule.max
+      announcementBundleVersionValueInput.value = bundleRule.value
       announcementCtaText.value = String(cta.text || '').trim()
       announcementCtaUrl.value = String(cta.url || '').trim()
       announcementEnabled.checked = item.enabled !== false
 
       syncVersionFields('app')
       syncVersionFields('bundle')
+      collectVersionCandidates()
     }
 
     function buildAnnouncementFromForm() {
@@ -1095,16 +1297,12 @@
         .filter(Boolean)
       const appVersionRule = buildVersionRuleFromForm(
         announcementAppVersionMode,
-        announcementAppVersionExact,
-        announcementAppVersionMin,
-        announcementAppVersionMax,
+        announcementAppVersionValueInput,
         'AppVersion'
       )
       const bundleVersionRule = buildVersionRuleFromForm(
         announcementBundleVersionMode,
-        announcementBundleVersionExact,
-        announcementBundleVersionMin,
-        announcementBundleVersionMax,
+        announcementBundleVersionValueInput,
         'BundleVersion'
       )
 
@@ -1196,6 +1394,7 @@
         const manifest = JSON.parse(rawContent)
         currentAnnouncementManifest = manifest
         applyAnnouncementToForm(manifest)
+        fetchRemoteVersionCandidates()
 
         announcementGistUrl.value = `https://gist.github.com/${repoOwner}/${gistId}`
         setAnnouncementStatus(`读取成功：${fileName}。你可以编辑后发布。`, 'ok')
@@ -1336,6 +1535,8 @@
       refs.history.innerHTML = ''
 
       if (payload.error) {
+        channelVersionSnapshot.delete(channel)
+        collectVersionCandidates()
         refs.state.className = statusClass('error')
         refs.state.textContent = '读取失败'
         refs.version.textContent = '--'
@@ -1375,6 +1576,14 @@
         if (!hasBundle) return
         window.open(bundleUrl, '_blank', 'noopener')
       }
+
+      const appVersions = [data?.minNativeVersion]
+      const bundleVersions = [data?.version, ...versions.map((item) => item?.version)]
+      channelVersionSnapshot.set(channel, {
+        appVersions,
+        bundleVersions
+      })
+      collectVersionCandidates()
 
       if (!versions.length) {
         refs.history.innerHTML = '<div class="history-item">暂无历史（发布后自动生成）</div>'
@@ -1708,8 +1917,12 @@
     openAnnouncementGistBtn.addEventListener('click', openAnnouncementGistPage)
     announcementAppVersionMode.addEventListener('change', () => syncVersionFields('app'))
     announcementBundleVersionMode.addEventListener('change', () => syncVersionFields('bundle'))
+    announcementAppVersionValueInput.addEventListener('input', collectVersionCandidates)
+    announcementBundleVersionValueInput.addEventListener('input', collectVersionCandidates)
     syncVersionFields('app')
     syncVersionFields('bundle')
+    collectVersionCandidates()
+    fetchRemoteVersionCandidates()
     syncGiteeBtn.addEventListener('click', triggerSyncGitee)
     syncGiteeReleaseBtn.addEventListener('click', triggerSyncGiteeRelease)
     openSyncGiteeBtn.addEventListener('click', () => openWorkflowPageById(syncGiteeWorkflowId))
