@@ -35,7 +35,7 @@
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
         :sort-mode="sortMode"
-        :sort-options="HOME_SORT_OPTIONS"
+        :sort-options="toolbarSortOptions"
         :is-sort-animating="isSortAnimating"
         :display-density="displayDensity"
         :density-modes="densityModes"
@@ -210,6 +210,13 @@ const {
   clearExpandedTimelineItem,
   restoreHomePreferences
 } = useHomePreferences(windowWidth)
+
+const timelineSortOptions = HOME_SORT_OPTIONS.filter((option) => option.value === 'acquiredAt')
+const toolbarSortOptions = computed(() => (
+  displayDensity.value === 'timeline'
+    ? (timelineSortOptions.length ? timelineSortOptions : HOME_SORT_OPTIONS)
+    : HOME_SORT_OPTIONS
+))
 
 const {
   getScrollEl,

@@ -153,8 +153,11 @@ const currentSortOption = computed(() =>
 const currentDirectionLabel = computed(() => (
   props.sortDirection === 'asc' ? currentSortOption.value.ascLabel : currentSortOption.value.descLabel
 ))
+const hasMultipleSortOptions = computed(() => props.sortOptions.length > 1)
 const sortButtonLabel = computed(() => (
-  `当前按${currentSortOption.value.label}${props.sortDirection === 'asc' ? '升序' : '降序'}，点击切换升降序，长按选择排序方式`
+  hasMultipleSortOptions.value
+    ? `当前按${currentSortOption.value.label}${props.sortDirection === 'asc' ? '升序' : '降序'}，点击切换升降序，长按选择排序方式`
+    : `当前按${currentSortOption.value.label}${props.sortDirection === 'asc' ? '升序' : '降序'}，点击切换升降序`
 ))
 const densityModeCount = computed(() => Math.max(props.densityModes.length, 1))
 const activeDensityIndex = computed(() => {
@@ -174,12 +177,14 @@ function clearSortLongPressTimer() {
 }
 
 function openSortSheet() {
+  if (!hasMultipleSortOptions.value) return
   clearSortLongPressTimer()
   suppressNextSortClick = true
   showSortSheet.value = true
 }
 
 function startSortLongPress() {
+  if (!hasMultipleSortOptions.value) return
   clearSortLongPressTimer()
   sortLongPressTimer = window.setTimeout(() => {
     sortLongPressTimer = 0
