@@ -9,7 +9,7 @@
             <div class="hero-copy">
               <p class="hero-label">Cloud Sync</p>
               <h1 class="hero-title">GitHub Gist 同步</h1>
-              <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站、预设数据和本地图片。</p>
+              <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站、充值记录、预设数据和本地图片。</p>
             </div>
             <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
           </div>
@@ -69,6 +69,10 @@
                 <span class="detail-label">Image Gist</span>
                 <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
               </div>
+              <div class="detail-row">
+                <span class="detail-label">Recharge Gist</span>
+                <span class="detail-value detail-value--mono">{{ resolvedRechargeGistId || '未创建' }}</span>
+              </div>
               <div class="detail-row detail-row--last">
                 <span class="detail-label">最近同步</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
@@ -125,6 +129,11 @@
                 <p class="stat-label">回收站</p>
                 <p class="stat-value">{{ trashCount }}</p>
                 <p class="stat-desc">云端保留的已删除数据数量。</p>
+              </article>
+              <article class="stat-card stat-card--wishlist">
+                <p class="stat-label">充值</p>
+                <p class="stat-value">{{ rechargeCount }}</p>
+                <p class="stat-desc">云端保存的充值记录总数。</p>
               </article>
               <article class="stat-card stat-card--image">
                 <p class="stat-label">图片文件</p>
@@ -253,7 +262,25 @@
             </svg>
           </button>
 
-          <button v-if="syncStore.gistId || resolvedImageGistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
+          <a v-if="rechargeGistUrl" class="entry-card" :href="rechargeGistUrl" target="_blank" rel="noopener">
+            <span class="entry-icon link-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Recharge Store</p>
+              <h3 class="entry-name">查看充值 Gist</h3>
+              <p class="entry-desc">打开独立充值 Gist，查看充值同步数据和更新时间。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </a>
+
+          <button v-if="syncStore.gistId || resolvedImageGistId || resolvedRechargeGistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
             <span class="entry-icon danger-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 6h18" />
@@ -440,6 +467,7 @@ const lastSyncDisplay = computed(() => {
 })
 
 const resolvedImageGistId = computed(() => gistInfo.value?.imageGistId || syncStore.imageGistId || '')
+const resolvedRechargeGistId = computed(() => gistInfo.value?.rechargeGistId || syncStore.rechargeGistId || '')
 
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
@@ -473,9 +501,15 @@ const imageGistUrl = computed(() => {
   return `https://gist.github.com/${resolvedImageGistId.value}`
 })
 
+const rechargeGistUrl = computed(() => {
+  if (!resolvedRechargeGistId.value) return ''
+  return `https://gist.github.com/${resolvedRechargeGistId.value}`
+})
+
 const collectionCount = computed(() => gistInfo.value?.collectionCount ?? '-')
 const wishlistCount = computed(() => gistInfo.value?.wishlistCount ?? '-')
 const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
+const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
 const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
 const imageSyncDisplay = computed(() => {
   if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
@@ -533,6 +567,7 @@ async function loadGistInfo() {
     let nextCollectionCount = 0
     let nextWishlistCount = 0
     let nextTrashCount = 0
+    let nextRechargeCount = 0
 
     if (content) {
       try {
@@ -546,11 +581,29 @@ async function loadGistInfo() {
       }
     }
 
+    const rechargeGistId = syncStore.rechargeGistId || ''
+    if (rechargeGistId) {
+      try {
+        const rechargeGist = await getGist(syncStore.token, rechargeGistId)
+        const rechargeContent = rechargeGist
+          ? await getGistFileContent(syncStore.token, rechargeGist, 'recharge-data.json')
+          : null
+        if (rechargeContent) {
+          const rechargeData = JSON.parse(rechargeContent)
+          nextRechargeCount = Array.isArray(rechargeData.recharge) ? rechargeData.recharge.length : 0
+        }
+      } catch {
+        nextRechargeCount = 0
+      }
+    }
+
     gistInfo.value = {
       collectionCount: nextCollectionCount,
       wishlistCount: nextWishlistCount,
       trashCount: nextTrashCount,
+      rechargeCount: nextRechargeCount,
       imageGistId: manifest?.imageGistId || '',
+      rechargeGistId: syncStore.rechargeGistId || '',
       imageFileCount: Number(manifest?.imageFileCount) || 0,
       imageUpdatedAt: manifest?.imageUpdatedAt || ''
     }
@@ -605,6 +658,8 @@ async function handleSync() {
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
+      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
       message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
     } else if (result.action === 'no_changes') {
       message = '数据已经是最新，无需上传'
@@ -613,6 +668,7 @@ async function handleSync() {
         const parts = []
         if (result.updatedGoods > 0) parts.push(`收藏 ${result.updatedGoods} 件`)
         if (result.updatedTrash > 0) parts.push(`回收站 ${result.updatedTrash} 条`)
+        if (result.updatedRecharge > 0) parts.push(`充值 ${result.updatedRecharge} 条`)
         message = `上传完成，${parts.join('，')}`
       } else {
         message = '已按当前本地数据重新上传'
@@ -639,6 +695,8 @@ async function handlePull() {
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
+      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
       const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
       showToast(message, 3500)
       await loadGistInfo()
@@ -660,6 +718,8 @@ async function handlePullConflict(confirm) {
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
+      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
       const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
       showToast(message, 3500)
       await loadGistInfo()
@@ -681,6 +741,8 @@ async function handleSyncConflict(useRemote) {
       if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
       if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
+      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
+      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
       const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {

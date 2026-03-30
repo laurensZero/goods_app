@@ -1,25 +1,40 @@
-﻿<template>
+<template>
   <div
     class="page home-page"
     :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking }"
     :style="HOME_MOTION_CSS_VARS"
   >
     <main ref="pageBodyRef" class="page-body">
-      <section v-if="!selectionMode" class="hero-section">
+      <section v-if="(homeMode === 'recharge' && !rechargeSelectionMode) || (homeMode !== 'recharge' && !selectionMode)" class="hero-section">
         <div class="hero-copy">
-          <p class="hero-label">Goods Archive</p>
-          <h1 class="hero-title">收藏库</h1>
+          <p class="hero-label">{{ homeMode === 'goods' ? 'Goods Archive' : 'Recharge Archive' }}</p>
+          <h1 class="hero-title">{{ homeMode === 'goods' ? '收藏库' : '充值库' }}</h1>
         </div>
-        <button class="hero-search" type="button" aria-label="搜索" @click="$router.push('/search')">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20L16.65 16.65" />
-          </svg>
-        </button>
+
+        <div class="hero-actions">
+          <button
+            v-if="homeMode === 'goods' || homeMode === 'recharge'"
+            class="hero-search"
+            type="button"
+            aria-label="搜索"
+            @click="handleHeroSearch"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20L16.65 16.65" />
+            </svg>
+          </button>
+
+          <HomeViewModeSwitch
+            v-if="!selectionMode || homeMode === 'recharge'"
+            :model-value="homeMode"
+            @update:model-value="setHomeMode"
+          />
+        </div>
       </section>
 
       <HomeSelectionHeader
-        :show="selectionMode"
+        :show="homeMode === 'goods' && selectionMode"
         :selected-count="selectedIds.size"
         :all-selected="allSelected"
         :header-style="selectionHeaderStyle"
@@ -27,76 +42,90 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <section class="summary-section">
-        <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
-      </section>
+      <Transition :name="homeModeTransitionName" mode="out-in">
+          <div v-if="homeMode === 'goods'" key="home-mode-goods">
+          <section class="summary-section">
+            <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
+          </section>
 
-      <HomeGoodsToolbar
-        :total-quantity="totalQuantity"
-        :sort-direction="sortDirection"
-        :sort-mode="sortMode"
-        :sort-options="toolbarSortOptions"
-        :is-sort-animating="isSortAnimating"
-        :display-density="displayDensity"
-        :density-modes="densityModes"
-        @toggle-sort="toggleSortDirection"
-        @set-sort-mode="setSortMode"
-        @toggle-timeline="toggleTimelineMode"
-        @set-density="setDisplayDensityWithFlip"
-      />
-
-      <Transition name="goods-view-switch" mode="out-in">
-        <GoodsCardGridSection
-          v-if="goodsList.length > 0 && displayDensity !== 'timeline'"
-          key="grid"
-          ref="goodsGridSectionRef"
-          :items="visibleGoodsList"
-          :density="displayDensity"
-          :grid-style="goodsGridStyle"
-          :after-spacer-height="visibleGoodsTailSpacerHeight"
-          :transitioning="isDensityAnimating"
-          :is-sort-animating="isSortAnimating"
-          :selection-mode="selectionMode"
-          :selected-ids="selectedIds"
-          @long-press="enterSelectionMode"
-          @toggle-select="toggleSelect"
-          @open-detail="openDetail"
-        />
-
-        <section
-          v-else-if="goodsList.length > 0"
-          key="timeline"
-          :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
-        >
-          <HomeTimelineSection
-            :year-groups="visibleTimelineYearGroups"
-            :unknown-items="timelineUnknown"
-            :show-unknown="showVisibleTimelineUnknown"
-            :active-item-id="expandedTimelineItemId"
-            :expanded-item="expandedItem"
-            :expanded-section-key="expandedSectionKey"
-            :item-index-by-id="timelineItemIndexById"
-            :unknown-section-key="TIMELINE_UNKNOWN_SECTION_KEY"
-            @toggle-item="toggleTimelineItem"
-            @open-detail="openDetail"
+          <HomeGoodsToolbar
+            :total-quantity="totalQuantity"
+            :sort-direction="sortDirection"
+            :sort-mode="sortMode"
+            :sort-options="toolbarSortOptions"
+            :is-sort-animating="isSortAnimating"
+            :display-density="displayDensity"
+            :density-modes="densityModes"
+            @toggle-sort="toggleSortDirection"
+            @set-sort-mode="setSortMode"
+            @toggle-timeline="toggleTimelineMode"
+            @set-density="setDisplayDensityWithFlip"
           />
-        </section>
 
-        <section v-else key="empty" class="empty-wrap goods-view-pane">
-          <EmptyState
-            icon="✦"
-            title="还没有收藏记录"
-            description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
-            action-text="添加第一件"
-            @action="goToAdd"
-          />
-        </section>
-      </Transition>
+          <Transition name="goods-view-switch" mode="out-in">
+            <GoodsCardGridSection
+              v-if="goodsList.length > 0 && displayDensity !== 'timeline'"
+              key="grid"
+              ref="goodsGridSectionRef"
+              :items="visibleGoodsList"
+              :density="displayDensity"
+              :grid-style="goodsGridStyle"
+              :after-spacer-height="visibleGoodsTailSpacerHeight"
+              :transitioning="isDensityAnimating"
+              :is-sort-animating="isSortAnimating"
+              :selection-mode="selectionMode"
+              :selected-ids="selectedIds"
+              @long-press="enterSelectionMode"
+              @toggle-select="toggleSelect"
+              @open-detail="openDetail"
+            />
+
+            <section
+              v-else-if="goodsList.length > 0"
+              key="timeline"
+              :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
+            >
+              <HomeTimelineSection
+                :year-groups="visibleTimelineYearGroups"
+                :unknown-items="timelineUnknown"
+                :show-unknown="showVisibleTimelineUnknown"
+                :active-item-id="expandedTimelineItemId"
+                :expanded-item="expandedItem"
+                :expanded-section-key="expandedSectionKey"
+                :item-index-by-id="timelineItemIndexById"
+                :unknown-section-key="TIMELINE_UNKNOWN_SECTION_KEY"
+                @toggle-item="toggleTimelineItem"
+                @open-detail="openDetail"
+              />
+            </section>
+
+            <section v-else key="empty" class="empty-wrap goods-view-pane">
+              <EmptyState
+                icon="✦"
+                title="还没有收藏记录"
+                description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
+                action-text="添加第一件"
+                @action="goToAdd"
+              />
+            </section>
+          </Transition>
+          </div>
+
+          <div v-else key="home-mode-recharge">
+            <RechargeContent ref="rechargeContentRef" @selection-change="handleRechargeSelectionChange" />
+          </div>
+        </Transition>
     </main>
 
     <Teleport to="body">
-      <ScrollTopButton :show="showScrollTopButton && !selectionMode && isHomeActive" @click="scrollToTop" />
-      <button v-if="!selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
+      <ScrollTopButton :show="homeMode === 'goods' && showScrollTopButton && !selectionMode && isHomeActive" @click="scrollToTop" />
+      <button v-if="homeMode === 'goods' && !selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5V19" />
+          <path d="M5 12H19" />
+        </svg>
+      </button>
+      <button v-if="homeMode === 'recharge' && isHomeActive && !rechargeSelectionMode" class="fab" type="button" :aria-label="rechargeFabLabel" @click="openRechargeAdd">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
           <path d="M5 12H19" />
@@ -105,6 +134,7 @@
     </Teleport>
 
     <AddMethodSheet
+      v-if="homeMode === 'goods'"
       v-model="showAddSheet"
       @manual="goToAdd"
       @import="handleImport"
@@ -112,9 +142,10 @@
       @taobao-import="handleTaobaoImport"
     />
 
-    <GoodsDeleteConfirm v-model:show="showDeleteConfirm" :selected-count="selectedIds.size" @confirm="confirmDelete" />
+    <GoodsDeleteConfirm v-if="homeMode === 'goods'" v-model:show="showDeleteConfirm" :selected-count="selectedIds.size" @confirm="confirmDelete" />
 
     <GoodsBatchEditSheet
+      v-if="homeMode === 'goods'"
       ref="batchEditSheetRef"
       v-model:show="showBatchEditSheet"
       :selected-count="selectedIds.size"
@@ -122,7 +153,7 @@
     />
 
     <GoodsSelectionActionBar
-      :show="selectionMode && !showBatchEditSheet"
+      :show="homeMode === 'goods' && selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
       @delete="batchDelete"
       @edit="batchEdit"
@@ -130,7 +161,6 @@
 
   </div>
 </template>
-
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
@@ -157,6 +187,8 @@ import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/HomeTimelineSection.vue'
+import HomeViewModeSwitch from '@/components/HomeViewModeSwitch.vue'
+import RechargeContent from '@/components/recharge/RechargeContent.vue'
 
 defineOptions({ name: 'HomeView' })
 
@@ -164,6 +196,11 @@ const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const batchEditSheetRef = ref(null)
+const rechargeContentRef = ref(null)
+const rechargeSelectionMode = ref(false)
+const rechargeFabLabel = '添加充值记录'
+const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
+const homeMode = ref(localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge' ? 'recharge' : 'goods')
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
 // 视口宽度，用于响应式列数计算
@@ -244,6 +281,53 @@ let topJumpMaskTimer = 0
 // 添加方式面板
 const showAddSheet = ref(false)
 const router = useRouter()
+const homeModeTransitionName = ref('home-mode-none')
+const HOME_MODE_ORDER = {
+  goods: 0,
+  recharge: 1
+}
+
+function setHomeMode(nextMode) {
+  const target = nextMode === 'recharge' ? 'recharge' : 'goods'
+  if (homeMode.value === target) return
+
+  const previousOrder = HOME_MODE_ORDER[homeMode.value] ?? 0
+  const nextOrder = HOME_MODE_ORDER[target] ?? 0
+  homeModeTransitionName.value = nextOrder >= previousOrder ? 'home-mode-forward' : 'home-mode-back'
+
+  homeMode.value = target
+  if (target === 'recharge') {
+    showAddSheet.value = false
+    showDeleteConfirm.value = false
+    showBatchEditSheet.value = false
+    exitSelectionModeQuiet()
+  }
+}
+
+watch(homeMode, (value) => {
+  localStorage.setItem(HOME_MODE_STORAGE_KEY, value)
+  window.dispatchEvent(new CustomEvent('goods-app:home-mode-change', {
+    detail: { mode: value }
+  }))
+}, { immediate: true })
+
+function handleHeroSearch() {
+  if (homeMode.value === 'goods') {
+    router.push('/search')
+    return
+  }
+
+  rechargeContentRef.value?.toggleSearch?.()
+}
+
+function openRechargeAdd() {
+  rechargeContentRef.value?.openAddMethodSheet?.()
+}
+
+function handleRechargeSelectionChange(active) {
+  rechargeSelectionMode.value = Boolean(active)
+}
+
 async function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
   homeDisplayReady.value = false
@@ -872,6 +956,13 @@ async function applyBatchEditPayload(payload) {
   gap: 14px;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .hero-copy {
   max-width: 296px;
 }
@@ -894,7 +985,6 @@ async function applyBatchEditPayload(payload) {
   .hero-search {
     width: var(--icon-button-size);
     height: var(--icon-button-size);
-    margin-top: 6px;
     border: none;
   border-radius: 50%;
   background: var(--app-glass);
@@ -948,6 +1038,50 @@ async function applyBatchEditPayload(payload) {
 .goods-view-switch-leave-to {
   opacity: 0;
   transform: translateY(12px) scale(0.992);
+}
+
+.home-mode-forward-enter-active,
+.home-mode-forward-leave-active,
+.home-mode-back-enter-active,
+.home-mode-back-leave-active {
+  transition:
+    transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 170ms ease;
+  will-change: transform, opacity;
+}
+
+.home-mode-forward-enter-from {
+  opacity: 0;
+  transform: translate3d(12px, 0, 0);
+}
+
+.home-mode-forward-leave-to {
+  opacity: 0;
+}
+
+.home-mode-back-enter-from {
+  opacity: 0;
+  transform: translate3d(-10px, 0, 0);
+}
+
+.home-mode-back-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-mode-forward-enter-active,
+  .home-mode-forward-leave-active,
+  .home-mode-back-enter-active,
+  .home-mode-back-leave-active {
+    transition: opacity 120ms ease;
+  }
+
+  .home-mode-forward-enter-from,
+  .home-mode-forward-leave-to,
+  .home-mode-back-enter-from,
+  .home-mode-back-leave-to {
+    transform: none;
+  }
 }
 
 @keyframes sort-view-refresh {

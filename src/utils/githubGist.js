@@ -132,7 +132,13 @@ export async function getGistFileContent(token, gist, filename) {
 }
 
 export function buildSyncDescription(deviceId, kind = 'data') {
-  return kind === 'image'
-    ? `goods-app-images-${deviceId}`
-    : `goods-app-sync-${deviceId}`
+  if (kind === 'image') {
+    return `goods-app-images-${deviceId}`
+  }
+
+  if (kind === 'recharge') {
+    return `goods-app-recharge-sync-${deviceId}`
+  }
+
+  return `goods-app-sync-${deviceId}`
 }

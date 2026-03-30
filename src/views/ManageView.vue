@@ -219,6 +219,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/useManageScrollRestore'
+import { useRechargeStore } from '@/composables/useRechargeStore'
 import { sanitizeGoodsItemForExport } from '@/utils/goodsImages'
 
 defineOptions({ name: 'ManageView' })
@@ -226,6 +227,7 @@ defineOptions({ name: 'ManageView' })
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
 const syncStore = useSyncStore()
+const rechargeStore = useRechargeStore()
 
 function formatSyncTime(isoString) {
   if (!isoString) return ''
@@ -455,12 +457,16 @@ async function shareBackupFile(uri) {
 async function handleExport() {
   const goodsList = await Promise.all(goodsStore.list.map((item) => sanitizeGoodsItemForExport(item)))
   const trashList = await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item)))
+  const rechargeRecords = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+  const rechargeTrash = []
 
   const data = {
-    version: 6,
+    version: 7,
     exportedAt: new Date().toISOString(),
     goods: goodsList,
     trash: trashList,
+    recharge: rechargeRecords,
+    rechargeTrash,
     presets: {
       categories: presets.categories,
       ips: presets.ips,
@@ -529,6 +535,10 @@ async function handleImport(event) {
 
     const goodsToImport = Array.isArray(data.goods) ? data.goods : []
     const trashToImport = Array.isArray(data.trash) ? data.trash : []
+    const rechargeActive = Array.isArray(data.recharge) ? data.recharge : []
+    const rechargeDeleted = Array.isArray(data.rechargeTrash) ? data.rechargeTrash : []
+    const rechargeLegacy = Array.isArray(data.rechargeRecords) ? data.rechargeRecords : []
+    const rechargeToImport = [...rechargeActive, ...rechargeDeleted, ...rechargeLegacy]
 
     const goodsAdded = goodsToImport.length > 0
       ? await goodsStore.importGoodsBackup(goodsToImport)
@@ -536,6 +546,9 @@ async function handleImport(event) {
     const trashAdded = trashToImport.length > 0
       ? await goodsStore.importTrashBackup(trashToImport)
       : 0
+    const rechargeResult = rechargeToImport.length > 0
+      ? rechargeStore.importBackup(rechargeToImport)
+      : { added: 0, updated: 0 }
 
     if (data.presets) {
       for (const category of (data.presets.categories || [])) {
@@ -556,8 +569,10 @@ async function handleImport(event) {
       goodsToImport.map((item) => item.storageLocation).filter(Boolean)
     )
 
-    if (goodsAdded > 0 || trashAdded > 0) {
-      showToast(`成功导入 ${goodsAdded} 件收藏，${trashAdded} 条回收站记录`)
+    const rechargeChanged = Number(rechargeResult.added || 0) + Number(rechargeResult.updated || 0)
+
+    if (goodsAdded > 0 || trashAdded > 0 || rechargeChanged > 0) {
+      showToast(`成功导入 ${goodsAdded} 件收藏，${trashAdded} 条回收站记录，${rechargeChanged} 条充值记录`)
       return
     }
 

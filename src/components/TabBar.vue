@@ -7,7 +7,7 @@
         <rect x="4" y="13" width="7" height="7" rx="2" />
         <rect x="13" y="13" width="7" height="7" rx="2" />
       </svg>
-      <span class="tab-label">收藏</span>
+      <span class="tab-label">{{ homeTabLabel }}</span>
     </RouterLink>
 
     <RouterLink to="/wishlist" class="tab-item" active-class="tab-item--active">
@@ -39,6 +39,39 @@
     </RouterLink>
   </nav>
 </template>
+
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+
+const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
+const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+
+const homeMode = ref(localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge' ? 'recharge' : 'goods')
+const homeTabLabel = computed(() => (homeMode.value === 'recharge' ? '充值' : '收藏'))
+
+function syncHomeMode(nextMode) {
+  homeMode.value = nextMode === 'recharge' ? 'recharge' : 'goods'
+}
+
+function handleHomeModeChange(event) {
+  syncHomeMode(event?.detail?.mode)
+}
+
+function handleStorage(event) {
+  if (event.key !== HOME_MODE_STORAGE_KEY) return
+  syncHomeMode(event.newValue)
+}
+
+onMounted(() => {
+  window.addEventListener(HOME_MODE_EVENT, handleHomeModeChange)
+  window.addEventListener('storage', handleStorage)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(HOME_MODE_EVENT, handleHomeModeChange)
+  window.removeEventListener('storage', handleStorage)
+})
+</script>
 
 <style scoped>
 .tab-bar {
@@ -101,15 +134,15 @@
 }
 
 :global(html.theme-dark) .tab-bar {
-    background: var(--app-glass-strong);
-    border-color: var(--app-glass-border);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
-  }
+  background: var(--app-glass-strong);
+  border-color: var(--app-glass-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+}
 
 :global(html.theme-dark) .tab-item--active {
-    background: #f5f5f5;
-    color: #141416;
-  }
+  background: #f5f5f5;
+  color: #141416;
+}
 </style>
 
 <style>

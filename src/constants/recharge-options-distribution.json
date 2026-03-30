@@ -1,0 +1,263 @@
+{
+  "hk4e_cn::cn_gf01": {
+    "gameBiz": "hk4e_cn",
+    "region": "cn_gf01",
+    "updatedAt": "2026-03-30T09:17:56.758550+00:00",
+    "options": [
+      {
+        "id": "yschnbeyondgem1ststalltier1",
+        "name": "事象凝核",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/e6aab780202f1d1414dbc3636778be0a_2894796973114719988.png",
+        "amount": 6.0
+      },
+      {
+        "id": "ys_chn_primogem1ststall_tier1",
+        "name": "创世结晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/07/16/0f362595da2e37a7a8fde1bb120656d2_4644189767026409730.png",
+        "amount": 6.0
+      },
+      {
+        "id": "yschnbeyondgem2ndstalltier5",
+        "name": "事象凝核",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/a70bde49a51fac22b325d0e354231185_6186578079575463116.png",
+        "amount": 30.0
+      },
+      {
+        "id": "ys_chn_primogem2ndstall_tier5",
+        "name": "创世结晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/07/16/830e247bb0cfffa5c74a04e79c0040f5_3367138545449658179.png",
+        "amount": 30.0
+      },
+      {
+        "id": "ys_chn_blessofmoon_tier5",
+        "name": "空月祝福",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2020/06/08/2da77803b9b2ffc2a2b763a59e9c125f_5219067706372136934.png",
+        "amount": 30.0
+      },
+      {
+        "id": "yschnbeyondbptierugcbp5",
+        "name": "诸界纪游",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/8b72fb1e154ffc497586ff3247f857ec_5732882836869864937.png",
+        "amount": 38.0
+      },
+      {
+        "id": "ys_chn_bp_normal_tier10",
+        "name": "珍珠纪行",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/12/20/a9da6f538fb795f6bc41b23200a13614_7130844447346461408.png",
+        "amount": 68.0
+      },
+      {
+        "id": "yschnbeyondgem3rdstalltier15",
+        "name": "事象凝核",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/0b9c44f1290055f6789810af85e59be1_8759079346187894371.png",
+        "amount": 98.0
+      },
+      {
+        "id": "ys_chn_primogem3rdstall_tier15",
+        "name": "创世结晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/07/16/dfefc92ce56e3b5615ef28d6b1119b8b_4221191085979491639.png",
+        "amount": 98.0
+      },
+      {
+        "id": "yschnbeyondbptierugcbp15",
+        "name": "诸界史诗",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/d4f818054d7c25576a7604f5e363e6ad_7407199507690008849.png",
+        "amount": 98.0
+      },
+      {
+        "id": "ys_chn_bp_extra_tier20",
+        "name": "珍珠之歌",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/12/20/8a34415d54d1a91930b16cd2f77f58ae_9151639796617043379.png",
+        "amount": 128.0
+      },
+      {
+        "id": "yschnbeyondgem4thstalltier30",
+        "name": "事象凝核",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/f465b9013260aba67fd73a5b186692de_2013423436599676270.png",
+        "amount": 198.0
+      },
+      {
+        "id": "ys_chn_primogem4thstall_tier30",
+        "name": "创世结晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/07/16/e918ecfedcb13113eb627fd944199272_2797875217837070069.png",
+        "amount": 198.0
+      },
+      {
+        "id": "yschnbeyondgem5thstalltier50",
+        "name": "事象凝核",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/49ac7507c889721777cc6fbcd3b1618b_7288778624497873035.png",
+        "amount": 328.0
+      },
+      {
+        "id": "ys_chn_primogem5thstall_tier50",
+        "name": "创世结晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2022/09/07/70e703a64e8786390ab8b7cdc35dbeeb_6358952826545947027.png",
+        "amount": 328.0
+      },
+      {
+        "id": "yschnbeyondgem6thstalltier60",
+        "name": "事象凝核",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/22/39fca6bb297f4f93aacef3985f487b3d_3897249942712395763.png",
+        "amount": 648.0
+      },
+      {
+        "id": "ys_chn_primogem6thstall_tier60",
+        "name": "创世结晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/07/16/24fa6b6190ce5da6928e431a832d85c3_2941267140185469484.png",
+        "amount": 648.0
+      }
+    ]
+  },
+  "hkrpg_cn::prod_gf_cn": {
+    "gameBiz": "hkrpg_cn",
+    "region": "prod_gf_cn",
+    "updatedAt": "2026-03-30T09:17:57.749770+00:00",
+    "options": [
+      {
+        "id": "rpgchncoin60tier1",
+        "name": "古老梦华",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/04/01/166386bd6061f28b5feb70313227f7ac_6213007974866042526.png",
+        "amount": 6.0
+      },
+      {
+        "id": "rpgchnskintier3",
+        "name": "「新潮头饰」礼盒",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2026/02/01/6e8b7efc7952fab72bdf04e07234aa4b_4043787216261763248.png",
+        "amount": 18.0
+      },
+      {
+        "id": "rpgchnmonthcardtier5",
+        "name": "列车补给凭证",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/05/23/8c7da28aa8ee6a6866dd910b51b72a55_2347111329520592020.png",
+        "amount": 30.0
+      },
+      {
+        "id": "rpgchncoin300tier5",
+        "name": "古老梦华",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/04/01/af41f14e277f5eeab648c991985011ae_6237236759770646753.png",
+        "amount": 30.0
+      },
+      {
+        "id": "rpgchnbattlepassnormaltier10",
+        "name": "无名客的荣勋",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/01/14/2bb54956e1672f78ee3ff07bfef29bc8_434004644719114646.png",
+        "amount": 68.0
+      },
+      {
+        "id": "rpgchncoin980tier15",
+        "name": "古老梦华",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2022/12/01/3aa6eac5e18c4016494ba7b2df211d62_2430537661638146953.png",
+        "amount": 98.0
+      },
+      {
+        "id": "rpgchnbattlepassdeluxetier20",
+        "name": "无名客的奖章",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/01/14/117314ff180794fbb8a193ec42434181_3788707982578187906.png",
+        "amount": 128.0
+      },
+      {
+        "id": "rpgchncoin1980tier30",
+        "name": "古老梦华",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/01/14/0cf64a1155b7c030b9a8b20f0863bfc1_654771402170895378.png",
+        "amount": 198.0
+      },
+      {
+        "id": "rpgchncoin3280tier50",
+        "name": "古老梦华",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/01/14/e931290038d5c0837f8af74bac03aea0_6134214596217122841.png",
+        "amount": 328.0
+      },
+      {
+        "id": "rpgchncoin6480tier60",
+        "name": "古老梦华",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/01/14/394214e7471ffebc31532b6b476947e9_9216925783661041933.png",
+        "amount": 648.0
+      }
+    ]
+  },
+  "bh3_cn::android01": {
+    "gameBiz": "bh3_cn",
+    "region": "android01",
+    "updatedAt": "2026-03-30T09:17:58.426576+00:00",
+    "options": []
+  },
+  "nap_cn::prod_gf_cn": {
+    "gameBiz": "nap_cn",
+    "region": "prod_gf_cn",
+    "updatedAt": "2026-03-30T09:17:59.197952+00:00",
+    "options": [
+      {
+        "id": "napchnbundle01rmb600",
+        "name": "「丽都迎新」礼盒",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/03/aba05cb1e365b50af76108713cf7bd25_6365677128377457160.png",
+        "amount": 6.0
+      },
+      {
+        "id": "napchntopup60rmb600",
+        "name": "菲林底片",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/03/9191def2f1060132f4d51f42a9073c7d_489056223114600514.png",
+        "amount": 6.0
+      },
+      {
+        "id": "napchnbundle02rmb3000",
+        "name": "「诚挚邀约」礼盒",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/65804ba4e8a6549d934eee8e84ab04ce_4553944551819016640.png",
+        "amount": 30.0
+      },
+      {
+        "id": "napchnvip30tierrmb3000",
+        "name": "绳网会员",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/03/3dda8c162c789c6570cb93d0ee718767_3385183545176737004.png",
+        "amount": 30.0
+      },
+      {
+        "id": "napchntopup300rmb3000",
+        "name": "菲林底片",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/24013b2a48105c70fc34430c6e669a95_7442873150774085986.png",
+        "amount": 30.0
+      },
+      {
+        "id": "napchnbundle03rmb6800",
+        "name": "「青睐邀约」礼盒",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/3c92dc2a8a5159c9a2fd0e75c83be8f8_8031323871799367340.png",
+        "amount": 68.0
+      },
+      {
+        "id": "napchnsharedtier1rmb9800",
+        "name": "「心籁邀约」限定礼盒",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/12/13/d51cf142a7cd9af24bc65b523c492e28_1476568996906263798.png",
+        "amount": 98.0
+      },
+      {
+        "id": "napchnbundle04rmb9800",
+        "name": "「独家邀约」礼盒",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/6126d2975b981a68b56e1a5c63c2cbf6_5219335921596472953.png",
+        "amount": 98.0
+      },
+      {
+        "id": "napchntopup980rmb9800",
+        "name": "菲林底片",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/5b32ce6c01e177ddd6baf2eada776175_2948534522517668529.png",
+        "amount": 98.0
+      },
+      {
+        "id": "napchntopup1980rmb19800",
+        "name": "菲林底片",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/acd005cb795f3207433c3fe1886bef87_4610034740710625835.png",
+        "amount": 198.0
+      },
+      {
+        "id": "napchntopup3280rmb32800",
+        "name": "菲林底片",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/fd6969fbf44efeb284f8fb5365d600d7_2521740695256086510.png",
+        "amount": 328.0
+      },
+      {
+        "id": "napchntopup6480rmb64800",
+        "name": "菲林底片",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/a3a730047f8930a6c3f0fc8e8c256c01_1627528688901719855.png",
+        "amount": 648.0
+      }
+    ]
+  }
+}
