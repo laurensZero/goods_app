@@ -205,20 +205,12 @@ const rechargeRootRef = ref(null)
 const pageBodyEl = ref(null)
 let removeAndroidBackListener = null
 let scrollListenerCleanup = null
-
-const legacyViewOptions = [
-  { value: 'records', label: '记录' },
-  { value: 'leaderboard', label: '排行' }
-]
+const GAME_ORDER = ['原神', '星穹铁道', '绝区零']
 
 const activeRecords = computed(() => rechargeStore.sortedRecords.value)
 const totalAmountText = computed(() => rechargeStore.totalAmount.value.toFixed(2))
 const latestRecord = computed(() => activeRecords.value[0] || null)
 const hasFilters = computed(() => Boolean(keyword.value.trim() || gameFilter.value))
-const legacyHasMonthCardData = computed(() => activeRecords.value.some((record) => {
-  const name = String(record?.itemName || '').trim()
-  return name === '空月祝福' || name === '列车补给凭证' || name === '绳网会员'
-}))
 
 const hasMonthCardData = computed(() => activeRecords.value.some((record) => {
   const name = String(record?.itemName || '').trim()
@@ -240,7 +232,7 @@ const viewOptions = computed(() => {
 
 const games = computed(() => {
   const set = new Set(activeRecords.value.map((item) => String(item.game || '').trim()).filter(Boolean))
-  return Array.from(set)
+  return Array.from(set).sort(compareGameOrder)
 })
 
 const filteredRecords = computed(() => {
@@ -404,6 +396,16 @@ function openAddMethodSheet() {
 
 function openMonthCardCalendar() {
   router.push('/recharge/month-cards')
+}
+
+function compareGameOrder(left, right) {
+  const leftIndex = GAME_ORDER.indexOf(left)
+  const rightIndex = GAME_ORDER.indexOf(right)
+
+  if (leftIndex >= 0 && rightIndex >= 0) return leftIndex - rightIndex
+  if (leftIndex >= 0) return -1
+  if (rightIndex >= 0) return 1
+  return left.localeCompare(right, 'zh-Hans-CN')
 }
 
 function handleViewOptionClick(value) {

@@ -73,8 +73,7 @@
               >
                 <div class="calendar-card__head">
                   <div>
-                    <p class="calendar-card__label">覆盖天数</p>
-                    <h2 class="calendar-card__title">{{ month.coverageDayCount }} 天</h2>
+                    <p class="calendar-card__label">当前月份</p>
                     <p class="calendar-card__month">{{ month.label }}</p>
                   </div>
                   <div class="calendar-card__legend">
@@ -127,9 +126,19 @@
             <div class="record-item__accent" :style="{ background: record.tint }" aria-hidden="true" />
             <div class="record-item__body">
               <div class="record-item__top">
-                <div>
-                  <p class="record-item__name">{{ record.itemName }}</p>
-                  <p class="record-item__game">{{ record.game }}</p>
+                <div class="record-item__identity">
+                  <img
+                    v-if="record.image"
+                    :src="record.image"
+                    :alt="record.itemName"
+                    class="record-item__image"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div>
+                    <p class="record-item__name">{{ record.itemName }}</p>
+                    <p class="record-item__game">{{ record.game }}</p>
+                  </div>
                 </div>
                 <p :class="['record-item__status', `record-item__status--${record.status}`]">{{ record.statusText }}</p>
               </div>
@@ -171,6 +180,12 @@ const TINTS = [
   'linear-gradient(180deg, #059669 0%, #10b981 100%)',
   'linear-gradient(180deg, #334155 0%, #0f172a 100%)'
 ]
+const GAME_ORDER = ['原神', '星穹铁道', '绝区零']
+const MONTH_CARD_IMAGE_MAP = {
+  空月祝福: 'https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2020/06/08/2da77803b9b2ffc2a2b763a59e9c125f_5219067706372136934.png',
+  列车补给凭证: 'https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/05/23/8c7da28aa8ee6a6866dd910b51b72a55_2347111329520592020.png',
+  绳网会员: 'https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/03/3dda8c162c789c6570cb93d0ee718767_3385183545176737004.png'
+}
 
 const rechargeStore = useRechargeStore()
 const selectedGame = ref('')
@@ -246,6 +261,7 @@ const allMonthCardRecords = computed(() => {
         ...record,
         startDate,
         endDate,
+        image: MONTH_CARD_IMAGE_MAP[record.itemName] || '',
         purchaseText: formatDate(record.purchaseDate),
         startText: formatDate(startDate),
         endText: formatDate(endDate),
@@ -261,7 +277,7 @@ const allMonthCardRecords = computed(() => {
 
 const gameOptions = computed(() => {
   const set = new Set(allMonthCardRecords.value.map((item) => item.game))
-  return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+  return Array.from(set).sort(compareGameOrder)
 })
 
 const scopedRecords = computed(() => {
@@ -779,6 +795,16 @@ function parseMonthKey(monthKey) {
   const [year, month] = String(monthKey).split('-').map(Number)
   return new Date(year, (month || 1) - 1, 1)
 }
+
+function compareGameOrder(left, right) {
+  const leftIndex = GAME_ORDER.indexOf(left)
+  const rightIndex = GAME_ORDER.indexOf(right)
+
+  if (leftIndex >= 0 && rightIndex >= 0) return leftIndex - rightIndex
+  if (leftIndex >= 0) return -1
+  if (rightIndex >= 0) return 1
+  return left.localeCompare(right, 'zh-Hans-CN')
+}
 </script>
 
 <style scoped>
@@ -1109,6 +1135,22 @@ function parseMonthKey(monthKey) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.record-item__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.record-item__image {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px var(--app-border);
+  flex-shrink: 0;
 }
 
 .record-item__name {

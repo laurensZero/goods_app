@@ -49,12 +49,12 @@ defineEmits(['update:modelValue'])
   padding: 0 16px;
   border: none;
   border-radius: 999px;
-  background: #e9e9ec;
+  background: color-mix(in srgb, var(--app-surface-soft) 78%, var(--app-surface));
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 22, 0.03);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-border) 84%, transparent);
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 
@@ -63,8 +63,8 @@ defineEmits(['update:modelValue'])
 }
 
 .chip--active {
-  background: #141416;
-  color: #fff;
+  background: var(--app-text);
+  color: var(--app-surface);
   box-shadow: 0 8px 18px rgba(20, 20, 22, 0.14);
 }
 </style>
