@@ -263,9 +263,9 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { parseTaobaoXlsx } from '@/utils/taobao'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
-import NavBar from '@/components/NavBar.vue'
-import AppSelect from '@/components/AppSelect.vue'
-import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
+import NavBar from '@/components/common/NavBar.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
 
 defineOptions({ name: 'TaobaoImportView' })
 

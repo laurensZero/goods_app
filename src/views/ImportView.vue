@@ -558,8 +558,8 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } 
 import { DatePicker, Popup } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
-import NavBar from '@/components/NavBar.vue'
-import AppSelect from '@/components/AppSelect.vue'
+import NavBar from '@/components/common/NavBar.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import {

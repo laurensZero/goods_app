@@ -35,7 +35,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import GoodsCard from '@/components/GoodsCard.vue'
+import GoodsCard from '@/components/goods/GoodsCard.vue'
 
 defineOptions({ name: 'GoodsCardGridSection' })
 

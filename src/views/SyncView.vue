@@ -433,7 +433,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
-import NavBar from '@/components/NavBar.vue'
+import NavBar from '@/components/common/NavBar.vue'
 
 const syncStore = useSyncStore()
 

@@ -1,4 +1,4 @@
-import { usePageScrollRestore } from '@/composables/usePageScrollRestore'
+import { usePageScrollRestore } from '@/composables/scroll/usePageScrollRestore'
 
 const MANAGE_SCROLL_STORAGE_KEY = 'manage-scroll'
 const MANAGE_SCROLL_RESTORE_PENDING_KEY = 'manage-scroll-restore-pending'

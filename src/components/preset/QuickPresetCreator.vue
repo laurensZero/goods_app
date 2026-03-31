@@ -31,7 +31,7 @@
 
 <script setup>
 import { nextTick, ref, watch } from 'vue'
-import AppSelect from '@/components/AppSelect.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },

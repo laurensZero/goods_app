@@ -92,9 +92,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
-import NavBar from '@/components/NavBar.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
+import NavBar from '@/components/common/NavBar.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 
 const store = useGoodsStore()
 const showDeleteConfirm = ref(false)

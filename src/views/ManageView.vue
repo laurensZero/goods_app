@@ -218,8 +218,8 @@ import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
-import { useManageScrollRestore } from '@/composables/useManageScrollRestore'
-import { useRechargeStore } from '@/composables/useRechargeStore'
+import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
+import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { sanitizeGoodsItemForExport } from '@/utils/goodsImages'
 
 defineOptions({ name: 'ManageView' })

@@ -136,9 +136,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import { usePresetDelete } from '@/composables/usePresetDelete'
-import NavBar from '@/components/NavBar.vue'
-import PresetDeleteConfirm from '@/components/PresetDeleteConfirm.vue'
+import { usePresetDelete } from '@/composables/preset/usePresetDelete'
+import NavBar from '@/components/common/NavBar.vue'
+import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 
 const presets = usePresetsStore()
 const store = useGoodsStore()

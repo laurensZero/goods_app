@@ -87,7 +87,7 @@
 import { ref, computed, watch } from 'vue'
 import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo'
 import { saveLocalImage } from '@/utils/localImage'
-import QuickImageEditorDialog from '@/components/QuickImageEditorDialog.vue'
+import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },

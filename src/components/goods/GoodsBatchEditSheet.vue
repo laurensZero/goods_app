@@ -203,9 +203,9 @@ import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import AppSelect from '@/components/AppSelect.vue'
-import StorageLocationInput from '@/components/StorageLocationInput.vue'
-import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
+import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },

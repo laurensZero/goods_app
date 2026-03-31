@@ -122,9 +122,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import { usePresetDelete } from '@/composables/usePresetDelete'
-import NavBar from '@/components/NavBar.vue'
-import PresetDeleteConfirm from '@/components/PresetDeleteConfirm.vue'
+import { usePresetDelete } from '@/composables/preset/usePresetDelete'
+import NavBar from '@/components/common/NavBar.vue'
+import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 
 const DEFAULT_LIST = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '毛绒', '赠品', '其他']
 

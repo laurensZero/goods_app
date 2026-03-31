@@ -112,7 +112,7 @@ import { computed, onActivated, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { formatPrice } from '@/utils/format'
-import EmptyState from '@/components/EmptyState.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 defineOptions({ name: 'TimelineView' })
 

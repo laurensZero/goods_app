@@ -44,7 +44,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatPrice } from '@/utils/format'
-import LazyCachedImage from '@/components/LazyCachedImage.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   item: { type: Object, required: true }

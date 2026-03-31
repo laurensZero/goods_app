@@ -131,7 +131,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
-import AppSelect from '@/components/AppSelect.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
 
 const GAME_LABEL_MAP = {

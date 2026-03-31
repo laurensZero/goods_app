@@ -85,10 +85,10 @@
 import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import NavBar from '@/components/NavBar.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
-import StorageLocationTreeNode from '@/components/StorageLocationTreeNode.vue'
+import NavBar from '@/components/common/NavBar.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
+import StorageLocationTreeNode from '@/components/storage/StorageLocationTreeNode.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()

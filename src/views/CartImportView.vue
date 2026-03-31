@@ -177,11 +177,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { useMihoyoCookieState } from '@/composables/useMihoyoCookieState'
+import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
-import NavBar from '@/components/NavBar.vue'
-import EmptyState from '@/components/EmptyState.vue'
+import NavBar from '@/components/common/NavBar.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 defineOptions({ name: 'CartImportView' })
 

@@ -242,9 +242,9 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
 import { Canvas, PencilBrush } from 'fabric'
-import AppSelect from '@/components/AppSelect.vue'
-import { useImageCutout } from '@/composables/useImageCutout'
-import { useImageExport } from '@/composables/useImageExport'
+import AppSelect from '@/components/common/AppSelect.vue'
+import { useImageCutout } from '@/composables/image/useImageCutout'
+import { useImageExport } from '@/composables/image/useImageExport'
 
 const props = defineProps({
   show: { type: Boolean, default: false },

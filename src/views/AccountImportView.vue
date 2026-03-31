@@ -243,10 +243,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { useMihoyoCookieState } from '@/composables/useMihoyoCookieState'
+import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
-import NavBar from '@/components/NavBar.vue'
+import NavBar from '@/components/common/NavBar.vue'
 
 defineOptions({ name: 'AccountImportView' })
 

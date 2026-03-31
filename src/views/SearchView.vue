@@ -324,7 +324,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useFilterPresetsStore } from '@/stores/filterPresets'
-import { useGoodsSelection } from '@/composables/useGoodsSelection'
+import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import {
   GOODS_FILTER_BOOLEAN_OPTIONS,
@@ -337,14 +337,14 @@ import {
   normalizeGoodsFilterConditions
 } from '@/utils/goodsFilters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
-import SearchBar from '@/components/SearchBar.vue'
-import AppSelect from '@/components/AppSelect.vue'
-import GoodsCard from '@/components/GoodsCard.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import GoodsBatchEditSheet from '@/components/GoodsBatchEditSheet.vue'
-import GoodsSelectionActionBar from '@/components/GoodsSelectionActionBar.vue'
-import GoodsDeleteConfirm from '@/components/GoodsDeleteConfirm.vue'
-import StorageLocationFilterTree from '@/components/StorageLocationFilterTree.vue'
+import SearchBar from '@/components/common/SearchBar.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import GoodsCard from '@/components/goods/GoodsCard.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
+import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
+import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
+import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()

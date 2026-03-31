@@ -1,4 +1,4 @@
-import { usePageScrollRestore } from '@/composables/usePageScrollRestore'
+import { usePageScrollRestore } from '@/composables/scroll/usePageScrollRestore'
 
 const WISHLIST_SCROLL_STORAGE_KEY = 'wishlist-scroll'
 const WISHLIST_SCROLL_RESTORE_PENDING_KEY = 'wishlist-scroll-restore-pending'

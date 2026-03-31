@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { useGoodsStore } from './goods'
 import { usePresetsStore, normalizeCharacterName } from './presets'
-import { useRechargeStore } from '@/composables/useRechargeStore'
+import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { deleteItems } from '@/utils/db'
 import {
   validateToken,

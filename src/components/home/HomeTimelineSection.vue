@@ -109,8 +109,8 @@
 
 <script setup>
 import { formatPrice } from '@/utils/format'
-import LazyCachedImage from '@/components/LazyCachedImage.vue'
-import TimelineExpandCard from '@/components/TimelineExpandCard.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import TimelineExpandCard from '@/components/home/TimelineExpandCard.vue'
 
 defineProps({
   yearGroups: { type: Array, required: true },

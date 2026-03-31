@@ -169,19 +169,19 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import SearchBar from '@/components/SearchBar.vue'
-import CategoryChips from '@/components/CategoryChips.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import SummaryCard from '@/components/SummaryCard.vue'
-import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
-import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
-import ScrollTopButton from '@/components/ScrollTopButton.vue'
+import SearchBar from '@/components/common/SearchBar.vue'
+import CategoryChips from '@/components/common/CategoryChips.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import SummaryCard from '@/components/common/SummaryCard.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
+import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
+import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import RechargeAddMethodSheet from '@/components/recharge/RechargeAddMethodSheet.vue'
 import RechargeSelectionActionBar from '@/components/recharge/RechargeSelectionActionBar.vue'
 import RecordCard from '@/components/recharge/RecordCard.vue'
 import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
-import { useGoodsSelection } from '@/composables/useGoodsSelection'
-import { useRechargeStore } from '@/composables/useRechargeStore'
+import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
+import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 
 const emit = defineEmits(['selection-change'])

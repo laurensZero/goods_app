@@ -190,8 +190,8 @@ import { getCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
-import NavBar from '@/components/NavBar.vue'
-import EmptyState from '@/components/EmptyState.vue'
+import NavBar from '@/components/common/NavBar.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()

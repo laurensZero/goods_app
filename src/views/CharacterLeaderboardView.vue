@@ -113,7 +113,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { LEADERBOARD_DIMENSION_OPTIONS, LEADERBOARD_METRIC_OPTIONS, buildLeaderboardEntries, formatLeaderboardMetricValue, getLeaderboardDimensionMeta, sortLeaderboardEntries } from '@/utils/goodsLeaderboard'
-import EmptyState from '@/components/EmptyState.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()

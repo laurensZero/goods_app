@@ -49,8 +49,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
-import AppSelect from '@/components/AppSelect.vue'
-import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 
 const props = defineProps({
   modelValue: {

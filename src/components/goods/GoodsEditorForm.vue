@@ -462,13 +462,13 @@
 import { computed } from 'vue'
 import { DatePicker, Popup } from 'vant'
 import { flushActiveInput } from '@/utils/commitActiveInput'
-import { useGoodsEditorForm } from '@/composables/useGoodsEditorForm'
-import NavBar from '@/components/NavBar.vue'
-import AppSelect from '@/components/AppSelect.vue'
-import GoodsImageManager from '@/components/GoodsImageManager.vue'
-import StorageLocationInput from '@/components/StorageLocationInput.vue'
-import QuickPresetCreator from '@/components/QuickPresetCreator.vue'
-import TagInput from '@/components/TagInput.vue'
+import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
+import NavBar from '@/components/common/NavBar.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import GoodsImageManager from '@/components/goods/GoodsImageManager.vue'
+import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
+import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
+import TagInput from '@/components/common/TagInput.vue'
 
 const props = defineProps({
   mode: {

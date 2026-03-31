@@ -86,7 +86,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import LazyCachedImage from '@/components/LazyCachedImage.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },

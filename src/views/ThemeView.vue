@@ -325,7 +325,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/constants/themes'
-import NavBar from '@/components/NavBar.vue'
+import NavBar from '@/components/common/NavBar.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
 import { Popup } from 'vant'
 

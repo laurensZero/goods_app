@@ -133,9 +133,9 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import AppSelect from '@/components/AppSelect.vue'
-import MihoyoImagePicker from '@/components/MihoyoImagePicker.vue'
-import QuickImageEditorDialog from '@/components/QuickImageEditorDialog.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
+import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 import {
   GOODS_IMAGE_KIND_OPTIONS,
   createGoodsImageId,
