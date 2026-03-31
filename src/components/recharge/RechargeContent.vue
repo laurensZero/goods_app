@@ -152,10 +152,6 @@
     @delete="deleteSelectedRecords"
   />
 
-  <Teleport to="body">
-    <ScrollTopButton :show="showScrollTopButton && !selectionMode && !showAddDialog && !showAddMethodSheet" @click="scrollToTop" />
-  </Teleport>
-
   <DangerConfirmDialog
     :show="showDeleteConfirm"
     :title="deleteConfirmTitle"
@@ -175,7 +171,6 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
-import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import RechargeAddMethodSheet from '@/components/recharge/RechargeAddMethodSheet.vue'
 import RechargeSelectionActionBar from '@/components/recharge/RechargeSelectionActionBar.vue'
 import RecordCard from '@/components/recharge/RecordCard.vue'

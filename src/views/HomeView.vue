@@ -118,7 +118,10 @@
     </main>
 
     <Teleport to="body">
-      <ScrollTopButton :show="homeMode === 'goods' && showScrollTopButton && !selectionMode && isHomeActive" @click="scrollToTop" />
+      <ScrollTopButton
+        :show="showScrollTopButton && isHomeActive && ((homeMode === 'goods' && !selectionMode) || (homeMode === 'recharge' && !rechargeSelectionMode))"
+        @click="scrollToTop"
+      />
       <button v-if="homeMode === 'goods' && !selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
