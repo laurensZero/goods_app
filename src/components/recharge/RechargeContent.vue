@@ -25,18 +25,24 @@
           <span class="section-count"> {{ viewCountText }}</span>
         </h2>
 
-        <div class="view-switch" :style="viewSwitchStyle">
-          <span class="view-switch__indicator" aria-hidden="true" />
-          <button
-            v-for="item in viewOptions"
-            :key="item.value"
-            type="button"
-            class="view-switch__item"
-            :class="{ 'view-switch__item--active': activeView === item.value }"
-            @click="activeView = item.value"
-          >
-            {{ item.label }}
+        <div class="toolbar-actions">
+          <button v-if="false" type="button" class="ghost-btn ghost-btn--link" @click="openMonthCardCalendar">
+            月卡
           </button>
+
+          <div class="view-switch" :style="viewSwitchStyle">
+            <span class="view-switch__indicator" aria-hidden="true" />
+            <button
+              v-for="item in viewOptions"
+              :key="item.value"
+              type="button"
+              class="view-switch__item"
+              :class="{ 'view-switch__item--active': activeView === item.value }"
+              @click="handleViewOptionClick(item.value)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -46,7 +52,8 @@
       <button v-if="hasFilters" type="button" class="ghost-btn" @click="resetFilters">清空</button>
     </div>
 
-    <CategoryChips v-if="games.length > 0" v-model="gameFilter" :categories="games" />
+    <CategoryChips v-if="activeView === 'records' && games.length > 0" v-model="gameFilter" :categories="games" />
+
   </section>
 
   <section v-if="hasVisibleRecords && activeView === 'leaderboard'" class="stats-section">
@@ -165,6 +172,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import SearchBar from '@/components/common/SearchBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -180,6 +188,7 @@ import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 
 const emit = defineEmits(['selection-change'])
+const router = useRouter()
 const rechargeStore = useRechargeStore()
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
@@ -197,7 +206,7 @@ const pageBodyEl = ref(null)
 let removeAndroidBackListener = null
 let scrollListenerCleanup = null
 
-const viewOptions = [
+const legacyViewOptions = [
   { value: 'records', label: '记录' },
   { value: 'leaderboard', label: '排行' }
 ]
@@ -206,6 +215,28 @@ const activeRecords = computed(() => rechargeStore.sortedRecords.value)
 const totalAmountText = computed(() => rechargeStore.totalAmount.value.toFixed(2))
 const latestRecord = computed(() => activeRecords.value[0] || null)
 const hasFilters = computed(() => Boolean(keyword.value.trim() || gameFilter.value))
+const legacyHasMonthCardData = computed(() => activeRecords.value.some((record) => {
+  const name = String(record?.itemName || '').trim()
+  return name === '空月祝福' || name === '列车补给凭证' || name === '绳网会员'
+}))
+
+const hasMonthCardData = computed(() => activeRecords.value.some((record) => {
+  const name = String(record?.itemName || '').trim()
+  return name === '空月祝福' || name === '列车补给凭证' || name === '绳网会员'
+}))
+
+const viewOptions = computed(() => {
+  const options = [
+    { value: 'records', label: '记录' },
+    { value: 'leaderboard', label: '排行' }
+  ]
+
+  if (hasMonthCardData.value) {
+    options.push({ value: 'month-card', label: '月卡' })
+  }
+
+  return options
+})
 
 const games = computed(() => {
   const set = new Set(activeRecords.value.map((item) => String(item.game || '').trim()).filter(Boolean))
@@ -311,8 +342,8 @@ const viewCountText = computed(() => (
 ))
 
 const viewSwitchStyle = computed(() => ({
-  '--view-switch-count': String(viewOptions.length),
-  '--view-switch-index': String(Math.max(viewOptions.findIndex((item) => item.value === activeView.value), 0))
+  '--view-switch-count': String(viewOptions.value.length),
+  '--view-switch-index': String(Math.max(viewOptions.value.findIndex((item) => item.value === activeView.value), 0))
 }))
 const isAddOverlayOpen = computed(() => showAddDialog.value || showAddMethodSheet.value)
 const deleteConfirmTitle = '确认删除？'
@@ -369,6 +400,19 @@ function openCreate() {
 function openAddMethodSheet() {
   editingRecord.value = null
   showAddMethodSheet.value = true
+}
+
+function openMonthCardCalendar() {
+  router.push('/recharge/month-cards')
+}
+
+function handleViewOptionClick(value) {
+  if (value === 'month-card') {
+    openMonthCardCalendar()
+    return
+  }
+
+  activeView.value = value
 }
 
 function openCreateManual() {
@@ -592,6 +636,13 @@ defineExpose({
   margin-top: 0;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .leaderboard-item__top {
   display: flex;
   align-items: flex-start;
@@ -690,6 +741,12 @@ defineExpose({
   font-size: 14px;
   font-weight: 600;
   transition: transform var(--motion-fast) var(--motion-emphasis);
+}
+
+.ghost-btn--link {
+  min-width: auto;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .stats-section {

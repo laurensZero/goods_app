@@ -77,6 +77,12 @@ const routes = [
     meta: { title: '时间线', keepAlive: true }
   },
   {
+    path: '/recharge/month-cards',
+    name: 'recharge-month-cards',
+    component: () => import('@/views/MonthCardCalendarView.vue'),
+    meta: { title: '月卡日历' }
+  },
+  {
     path: '/manage/categories',
     name: 'manage-categories',
     component: () => import('@/views/CategoryManageView.vue'),
