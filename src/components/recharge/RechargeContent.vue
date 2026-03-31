@@ -1,5 +1,6 @@
 <template>
-  <HomeSelectionHeader
+  <div ref="rechargeRootRef" class="recharge-page">
+    <HomeSelectionHeader
     :show="selectionMode"
     :selected-count="selectedIds.size"
     :all-selected="allSelected"
@@ -151,6 +152,10 @@
     @delete="deleteSelectedRecords"
   />
 
+  <Teleport to="body">
+    <ScrollTopButton :show="showScrollTopButton && !selectionMode && !showAddDialog && !showAddMethodSheet" @click="scrollToTop" />
+  </Teleport>
+
   <DangerConfirmDialog
     :show="showDeleteConfirm"
     :title="deleteConfirmTitle"
@@ -159,6 +164,7 @@
     @cancel="showDeleteConfirm = false"
     @confirm="confirmDelete"
   />
+  </div>
 </template>
 
 <script setup>
@@ -169,15 +175,18 @@ import EmptyState from '@/components/EmptyState.vue'
 import SummaryCard from '@/components/SummaryCard.vue'
 import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/HomeSelectionHeader.vue'
+import ScrollTopButton from '@/components/ScrollTopButton.vue'
 import RechargeAddMethodSheet from '@/components/recharge/RechargeAddMethodSheet.vue'
 import RechargeSelectionActionBar from '@/components/recharge/RechargeSelectionActionBar.vue'
 import RecordCard from '@/components/recharge/RecordCard.vue'
 import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/useGoodsSelection'
 import { useRechargeStore } from '@/composables/useRechargeStore'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 
 const emit = defineEmits(['selection-change'])
 const rechargeStore = useRechargeStore()
+const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
 const keyword = ref('')
 const gameFilter = ref('')
@@ -187,6 +196,11 @@ const showAddMethodSheet = ref(false)
 const editingRecord = ref(null)
 const addMode = ref('manual')
 const showDeleteConfirm = ref(false)
+const showScrollTopButton = ref(false)
+const rechargeRootRef = ref(null)
+const pageBodyEl = ref(null)
+let removeAndroidBackListener = null
+let scrollListenerCleanup = null
 
 const viewOptions = [
   { value: 'records', label: '记录' },
@@ -431,15 +445,102 @@ function syncAddScrollLock(active) {
   void active
 }
 
+function resolvePageBodyEl() {
+  const rechargeRoot = rechargeRootRef.value
+  pageBodyEl.value = rechargeRoot?.closest?.('.page-body') || document.querySelector('.page-body')
+}
+
+function readScrollTop() {
+  const pageBody = pageBodyEl.value
+  if (pageBody) return pageBody.scrollTop || 0
+  return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
+}
+
+function updateScrollTopButtonVisibility() {
+  showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
+}
+
+function bindScrollListeners() {
+  if (scrollListenerCleanup) return
+
+  resolvePageBodyEl()
+  const handleScroll = () => updateScrollTopButtonVisibility()
+  const pageBody = pageBodyEl.value
+  pageBody?.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  scrollListenerCleanup = () => {
+    pageBody?.removeEventListener('scroll', handleScroll)
+    window.removeEventListener('scroll', handleScroll)
+    scrollListenerCleanup = null
+  }
+}
+
+function unbindScrollListeners() {
+  scrollListenerCleanup?.()
+}
+
+function scrollToTop() {
+  const pageBody = pageBodyEl.value
+  if (pageBody) {
+    pageBody.scrollTop = 0
+  }
+  try { document.documentElement.scrollTop = 0 } catch {}
+  try { document.body.scrollTop = 0 } catch {}
+  try { window.scrollTo(0, 0) } catch {}
+  updateScrollTopButtonVisibility()
+}
+
+function handleAndroidBackButton(event) {
+  if (showAddDialog.value) {
+    showAddDialog.value = false
+    event.preventDefault()
+    return
+  }
+
+  if (showAddMethodSheet.value) {
+    showAddMethodSheet.value = false
+    event.preventDefault()
+    return
+  }
+
+  if (showDeleteConfirm.value) {
+    showDeleteConfirm.value = false
+    event.preventDefault()
+    return
+  }
+
+  if (selectionMode.value) {
+    exitSelectionMode()
+    event.preventDefault()
+  }
+}
+
+function bindAndroidBackButton() {
+  if (removeAndroidBackListener) return
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindAndroidBackButton() {
+  if (!removeAndroidBackListener) return
+  removeAndroidBackListener()
+  removeAndroidBackListener = null
+}
+
 onMounted(() => {
   rechargeStore.init()
   rechargeStore.clearInvalidRecords()
+  resolvePageBodyEl()
+  bindScrollListeners()
+  updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
+  bindAndroidBackButton()
 })
 
 onBeforeUnmount(() => {
   syncAddScrollLock(false)
+  unbindScrollListeners()
   window.removeEventListener('popstate', handleSelectionPopState)
+  unbindAndroidBackButton()
   emit('selection-change', false)
 })
 

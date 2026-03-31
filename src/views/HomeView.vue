@@ -908,6 +908,7 @@ async function applyBatchEditPayload(payload) {
 <style scoped>
 .home-page {
   position: relative;
+  background: var(--app-bg-gradient);
 }
 
 .home-page--top-jump .page-body {

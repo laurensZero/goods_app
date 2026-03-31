@@ -394,8 +394,9 @@ export async function fetchGoodsVariants(goodsId) {
  * @param {number} pageSize - 每页数量（默认 5）
  * @returns {Promise<Array<{goods_id, name, cover_url}>>}
  */
-export async function searchGoodsList(keyword, pageSize = 5) {
+export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
   if (!keyword) return []
+  const normalizedPage = Math.max(1, Number(page) || 1)
   const reqHeaders = {
     'Referer': 'https://www.mihoyogift.com/',
     'x-rpc-language': 'zh-cn',
@@ -403,11 +404,11 @@ export async function searchGoodsList(keyword, pageSize = 5) {
   try {
     let json
     if (Capacitor.isNativePlatform()) {
-      const url = `${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=1`
+      const url = `${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`
       const res = await CapacitorHttp.get({ url, headers: reqHeaders })
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
-      const url = `/mihoyo-api/common/homeishop/v1/search/search_goods_list?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=1`
+      const url = `/mihoyo-api/common/homeishop/v1/search/search_goods_list?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`
       const res = await fetch(url, { headers: reqHeaders })
       if (!res.ok) return []
       json = await res.json()
