@@ -59,12 +59,7 @@
 
               <div class="field-card">
                 <div class="field-grid">
-                  <div class="field field--half">
-                    <span class="field-label">活动类型</span>
-                    <AppSelect v-model="form.type" :options="typeOptions" placeholder="请选择活动类型" />
-                  </div>
-
-                  <label class="field field--full" :class="{ 'field--error': nameError }">
+                  <label class="field field--full field--tablet-half" :class="{ 'field--error': nameError }">
                     <span class="field-label">活动名称 <span class="required">*</span></span>
                     <input
                       v-model="form.name"
@@ -81,6 +76,11 @@
                     />
                     <span v-if="nameError" class="field-error">{{ nameError }}</span>
                   </label>
+
+                  <div class="field field--half">
+                    <span class="field-label">活动类型</span>
+                    <AppSelect v-model="form.type" :options="typeOptions" placeholder="请选择活动类型" />
+                  </div>
 
                   <div class="field field--full">
                     <span class="field-label">自定义标签</span>
@@ -170,6 +170,34 @@
                   <label class="field field--half">
                     <span class="field-label">门票价格（元）</span>
                     <input v-model="form.ticketPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+                  </label>
+
+                  <label v-if="form.type === 'exhibition'" class="field field--half">
+                    <span class="field-label">票种</span>
+                    <input
+                      v-model="form.ticketType"
+                      type="text"
+                      placeholder="比如：早鸟票、VIP票、普通票"
+                      @input="syncField('ticketType', $event)"
+                      @blur="syncField('ticketType', $event)"
+                      @change="syncField('ticketType', $event)"
+                      @compositionend="syncField('ticketType', $event)"
+                      @paste="syncFieldLater('ticketType', $event)"
+                    />
+                  </label>
+
+                  <label v-if="form.type === 'concert'" class="field field--half">
+                    <span class="field-label">座位</span>
+                    <input
+                      v-model="form.seatInfo"
+                      type="text"
+                      placeholder="比如：内场A区 12排 8座"
+                      @input="syncField('seatInfo', $event)"
+                      @blur="syncField('seatInfo', $event)"
+                      @change="syncField('seatInfo', $event)"
+                      @compositionend="syncField('seatInfo', $event)"
+                      @paste="syncFieldLater('seatInfo', $event)"
+                    />
                   </label>
 
                   <div class="field field--full">
@@ -322,6 +350,8 @@ const form = reactive({
   coverImage: '',
   photos: [],
   ticketPrice: '',
+  ticketType: '',
+  seatInfo: '',
   linkedGoodsIds: [],
   tags: []
 })
@@ -382,6 +412,8 @@ async function loadEditData() {
   form.coverImage = existing.coverImage || ''
   form.photos = existing.photos ? [...existing.photos] : []
   form.ticketPrice = existing.ticketPrice || ''
+  form.ticketType = existing.ticketType || ''
+  form.seatInfo = existing.seatInfo || ''
   form.linkedGoodsIds = existing.linkedGoodsIds ? [...existing.linkedGoodsIds] : []
   form.tags = existing.tags ? [...existing.tags] : []
 }
@@ -403,6 +435,13 @@ async function handleSubmit() {
 
   if (!form.endDate && form.startDate) {
     form.endDate = form.startDate
+  }
+
+  if (form.type !== 'exhibition') {
+    form.ticketType = ''
+  }
+  if (form.type !== 'concert') {
+    form.seatInfo = ''
   }
 
   const payload = { ...form }
@@ -1139,6 +1178,10 @@ onBeforeUnmount(() => {
 
   .hero-panel {
     margin-top: 4px;
+  }
+
+  .field--tablet-half {
+    grid-column: span 1;
   }
 }
 

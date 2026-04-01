@@ -664,6 +664,8 @@ export const useSyncStore = defineStore('sync', () => {
           coverImage: processedCoverImage?.uri || item.coverImage,
           coverImageData: processedCoverImage,
           photos: Array.isArray(item.photos) ? item.photos : [],
+          ticketType: String(item.ticketType || '').trim(),
+          seatInfo: String(item.seatInfo || '').trim(),
           linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
           tags: Array.isArray(item.tags) ? item.tags : []
         }
@@ -694,6 +696,8 @@ export const useSyncStore = defineStore('sync', () => {
       events: eventsStore.list.map((item) => ({
         ...item,
         photos: Array.isArray(item.photos) ? item.photos : [],
+        ticketType: String(item.ticketType || '').trim(),
+        seatInfo: String(item.seatInfo || '').trim(),
         linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
         tags: Array.isArray(item.tags) ? item.tags : []
       }))

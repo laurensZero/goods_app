@@ -1,7 +1,7 @@
 ﻿<template>
   <div
     class="page events-page"
-    :class="{ 'events-page--restoring': !eventsDisplayReady }"
+    :class="{ 'events-page--restoring': !eventsDisplayReady, 'events-page--top-jump': topJumpMasking }"
   >
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
@@ -191,6 +191,7 @@
     </main>
 
     <Teleport v-if="isEventsActive" to="body">
+      <ScrollTopButton :show="showScrollTopButton && !selectionMode" @click="scrollToTop" />
       <button
         v-if="!selectionMode"
         class="fab"
@@ -238,6 +239,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
+import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
@@ -252,6 +254,7 @@ const EVENT_VIEW_STORAGE_KEY = 'events-view-mode-v1'
 const EVENT_SORT_STORAGE_KEY = 'events-sort-direction-v1'
 const SELECTION_HEADER_HEIGHT = 64
 const SCROLL_TOP_ANCHOR_REASON = 'events:openDetail'
+const SCROLL_TOP_BUTTON_THRESHOLD = 900
 
 const router = useRouter()
 const eventsStore = useEventsStore()
@@ -260,7 +263,9 @@ const isEventsActive = ref(true)
 const eventsDisplayReady = ref(true)
 const showDeleteConfirm = ref(false)
 const showSearch = ref(false)
+const showScrollTopButton = ref(false)
 const searchKeyword = ref('')
+const topJumpMasking = ref(false)
 const sortDirection = ref(localStorage.getItem(EVENT_SORT_STORAGE_KEY) === 'asc' ? 'asc' : 'desc')
 const viewMode = ref(localStorage.getItem(EVENT_VIEW_STORAGE_KEY) === 'timeline' ? 'timeline' : 'grid')
 const selectionHeaderTop = ref(0)
@@ -268,6 +273,7 @@ let pageScrollBound = false
 let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
+let topJumpMaskTimer = 0
 
 const viewOptions = [
   { value: 'grid', label: '平铺' },
@@ -465,7 +471,36 @@ function handlePageScroll() {
     pageScrollRaf = 0
     rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
+    updateScrollTopButtonVisibility()
   })
+}
+
+function updateScrollTopButtonVisibility() {
+  showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
+}
+
+function scrollToTop() {
+  triggerTopJumpMask()
+  const scrollEl = getScrollEl?.()
+  if (scrollEl) {
+    scrollEl.scrollTop = 0
+  }
+  try { document.documentElement.scrollTop = 0 } catch {}
+  try { document.body.scrollTop = 0 } catch {}
+  try { window.scrollTo(0, 0) } catch {}
+  updateScrollTopButtonVisibility()
+  rememberCurrentScrollPosition()
+}
+
+function triggerTopJumpMask() {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+  }
+  topJumpMasking.value = true
+  topJumpMaskTimer = window.setTimeout(() => {
+    topJumpMasking.value = false
+    topJumpMaskTimer = 0
+  }, 260)
 }
 
 function bindPageScroll() {
@@ -535,6 +570,7 @@ onMounted(async () => {
   await restorePendingScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
   await nextTick()
   eventsDisplayReady.value = true
+  updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
 })
 
@@ -548,6 +584,7 @@ onActivated(async () => {
   await nextTick()
   eventsDisplayReady.value = true
   bindPageScroll()
+  updateScrollTopButtonVisibility()
 })
 
 onDeactivated(() => {
@@ -562,6 +599,10 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+    topJumpMaskTimer = 0
+  }
   cancelPendingRestore()
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)
@@ -582,6 +623,22 @@ onBeforeRouteLeave(() => {
 .events-page {
   position: relative;
   background: var(--app-bg-gradient);
+}
+
+.events-page--top-jump .page-body {
+  animation: top-jump-mask-strong 260ms ease-out;
+}
+
+@keyframes top-jump-mask-strong {
+  0% {
+    opacity: 0.72;
+    filter: saturate(88%);
+  }
+
+  100% {
+    opacity: 1;
+    filter: saturate(100%);
+  }
 }
 
 .events-page--restoring {

@@ -81,6 +81,8 @@ export const useEventsStore = defineStore('events', () => {
       coverImage: String(data.coverImage || '').trim(),
       photos: Array.isArray(data.photos) ? data.photos : [],
       ticketPrice: String(data.ticketPrice || '').trim(),
+      ticketType: String(data.ticketType || '').trim(),
+      seatInfo: String(data.seatInfo || '').trim(),
       linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
       tags: Array.isArray(data.tags) ? data.tags : [],
       createdAt: data.createdAt || now,

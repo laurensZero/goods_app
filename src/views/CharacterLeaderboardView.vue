@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page leaderboard-page">
+  <div class="page leaderboard-page" :class="{ 'leaderboard-page--top-jump': topJumpMasking }">
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
@@ -120,11 +120,15 @@
         />
       </section>
     </main>
+
+    <Teleport to="body">
+      <ScrollTopButton :show="showScrollTopButton" @click="scrollToTop" />
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -138,6 +142,7 @@ import {
 } from '@/utils/goodsLeaderboard'
 import EmptyState from '@/components/common/EmptyState.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
+import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -155,6 +160,24 @@ const presets = usePresetsStore()
 const pageBodyRef = ref(null)
 const selectedDimension = ref('character')
 const selectedMetric = ref('quantity')
+const showScrollTopButton = ref(false)
+const topJumpMasking = ref(false)
+const SCROLL_TOP_BUTTON_THRESHOLD = 900
+let pageScrollRaf = 0
+let topJumpMaskTimer = 0
+
+function updateScrollTopButtonVisibility() {
+  const top = pageBodyRef.value?.scrollTop || window.scrollY || document.documentElement.scrollTop || 0
+  showScrollTopButton.value = top >= SCROLL_TOP_BUTTON_THRESHOLD
+}
+
+function handlePageScroll() {
+  if (pageScrollRaf) return
+  pageScrollRaf = window.requestAnimationFrame(() => {
+    pageScrollRaf = 0
+    updateScrollTopButtonVisibility()
+  })
+}
 
 function resetPageScrollTop() {
   try {
@@ -167,6 +190,23 @@ function resetPageScrollTop() {
   }
 
   if (pageBodyRef.value) pageBodyRef.value.scrollTop = 0
+  updateScrollTopButtonVisibility()
+}
+
+function scrollToTop() {
+  triggerTopJumpMask()
+  resetPageScrollTop()
+}
+
+function triggerTopJumpMask() {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+  }
+  topJumpMasking.value = true
+  topJumpMaskTimer = window.setTimeout(() => {
+    topJumpMasking.value = false
+    topJumpMaskTimer = 0
+  }, 260)
 }
 
 function persistHomeMode(mode) {
@@ -203,10 +243,29 @@ onMounted(() => {
   persistCollectionTab('stats')
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+  nextTick(() => {
+    pageBodyRef.value?.addEventListener('scroll', handlePageScroll, { passive: true })
+    window.addEventListener('scroll', handlePageScroll, { passive: true })
+    updateScrollTopButtonVisibility()
+  })
 })
 
 onActivated(() => {
   persistCollectionTab('stats')
+  nextTick(updateScrollTopButtonVisibility)
+})
+
+onBeforeUnmount(() => {
+  if (topJumpMaskTimer) {
+    window.clearTimeout(topJumpMaskTimer)
+    topJumpMaskTimer = 0
+  }
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  pageBodyRef.value?.removeEventListener('scroll', handlePageScroll)
+  window.removeEventListener('scroll', handlePageScroll)
 })
 
 const characterPresetIpMap = computed(() =>
@@ -229,6 +288,22 @@ const selectedDimensionLabel = computed(() =>
 </script>
 
 <style scoped>
+.leaderboard-page--top-jump .page-body {
+  animation: top-jump-mask-strong 260ms ease-out;
+}
+
+@keyframes top-jump-mask-strong {
+  0% {
+    opacity: 0.72;
+    filter: saturate(88%);
+  }
+
+  100% {
+    opacity: 1;
+    filter: saturate(100%);
+  }
+}
+
 .page-body {
   padding-top: calc(env(safe-area-inset-top) + 20px);
 }

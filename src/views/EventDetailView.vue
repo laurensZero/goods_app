@@ -44,7 +44,7 @@
 
             <h1 class="hero-title">{{ event.name }}</h1>
 
-            <div class="hero-price">
+            <div v-if="hasTicketPrice" class="hero-price">
               <span class="hero-price__label">票务</span>
               <p class="hero-price__value">
                 <span class="hero-price__currency">¥</span>
@@ -53,51 +53,16 @@
             </div>
           </section>
 
-          <section class="info-section">
+          <section v-if="infoItems.length > 0" class="info-section">
             <div class="section-head">
               <p class="section-label">信息卡片</p>
               <h2 class="section-title">活动信息</h2>
             </div>
 
             <div class="info-card">
-              <article class="info-tile">
-                <span class="info-label">活动类型</span>
-                <strong class="info-value">{{ typeLabel }}</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">开始日期</span>
-                <strong class="info-value">{{ event.startDate || '未填写' }}</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">结束日期</span>
-                <strong class="info-value">{{ event.endDate || event.startDate || '未填写' }}</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">活动地点</span>
-                <strong class="info-value">{{ event.location || '未填写' }}</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">票价</span>
-                <strong class="info-value">¥{{ ticketPriceAmount }}</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">活动照片</span>
-                <strong class="info-value">{{ event.photos?.length || 0 }} 张</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">关联谷子</span>
-                <strong class="info-value">{{ linkedGoodsList.length }} 件</strong>
-              </article>
-
-              <article class="info-tile">
-                <span class="info-label">标签</span>
-                <strong class="info-value">{{ tagsDisplay }}</strong>
+              <article v-for="item in infoItems" :key="item.label" class="info-tile">
+                <span class="info-label">{{ item.label }}</span>
+                <strong class="info-value">{{ item.value }}</strong>
               </article>
             </div>
           </section>
@@ -233,9 +198,46 @@ const linkedGoodsList = computed(() =>
 const tagsDisplay = computed(() => (
   event.value?.tags?.length ? event.value.tags.join('、') : '未填写'
 ))
+const hasTicketPrice = computed(() => String(event.value?.ticketPrice || '').trim() !== '')
 const ticketPriceAmount = computed(() => {
   const value = Number.parseFloat(String(event.value?.ticketPrice || '').trim())
   return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : '0'
+})
+const infoItems = computed(() => {
+  if (!event.value) return []
+
+  const items = []
+  if (event.value.type) {
+    items.push({ label: '活动类型', value: typeLabel.value })
+  }
+  if (event.value.startDate) {
+    items.push({ label: '开始日期', value: event.value.startDate })
+  }
+  if (event.value.endDate && event.value.endDate !== event.value.startDate) {
+    items.push({ label: '结束日期', value: event.value.endDate })
+  }
+  if (event.value.location) {
+    items.push({ label: '活动地点', value: event.value.location })
+  }
+  if (hasTicketPrice.value) {
+    items.push({ label: '票价', value: `¥${ticketPriceAmount.value}` })
+  }
+  if (event.value.type === 'exhibition' && String(event.value.ticketType || '').trim()) {
+    items.push({ label: '票种', value: String(event.value.ticketType || '').trim() })
+  }
+  if (event.value.type === 'concert' && String(event.value.seatInfo || '').trim()) {
+    items.push({ label: '座位', value: String(event.value.seatInfo || '').trim() })
+  }
+  if (Array.isArray(event.value.photos) && event.value.photos.length > 0) {
+    items.push({ label: '活动照片', value: `${event.value.photos.length} 张` })
+  }
+  if (linkedGoodsList.value.length > 0) {
+    items.push({ label: '关联谷子', value: `${linkedGoodsList.value.length} 件` })
+  }
+  if (event.value.tags?.length) {
+    items.push({ label: '标签', value: tagsDisplay.value })
+  }
+  return items
 })
 
 async function refresh() {
