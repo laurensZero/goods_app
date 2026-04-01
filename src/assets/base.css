@@ -106,10 +106,19 @@ body.recharge-add-scroll-lock {
   scrollbar-width: none;
 }
 
+html.event-add-scroll-lock,
+body.event-add-scroll-lock {
+  overflow: hidden;
+  overscroll-behavior: none;
+  scrollbar-width: none;
+}
+
 html.detail-route-scroll-lock::-webkit-scrollbar,
 body.detail-route-scroll-lock::-webkit-scrollbar,
 html.recharge-add-scroll-lock::-webkit-scrollbar,
-body.recharge-add-scroll-lock::-webkit-scrollbar {
+body.recharge-add-scroll-lock::-webkit-scrollbar,
+html.event-add-scroll-lock::-webkit-scrollbar,
+body.event-add-scroll-lock::-webkit-scrollbar {
   display: none;
 }
 

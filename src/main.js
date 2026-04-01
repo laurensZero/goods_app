@@ -64,12 +64,13 @@ async function bootstrap() {
 
   // 从 SQLite 预加载数据，再挂载 DOM
   const store = useGoodsStore()
+  const eventsStore = useEventsStore()
   const presets = usePresetsStore()
   const filterPresets = useFilterPresetsStore()
   const theme = useThemeStore()
   try {
     await theme.init()
-    await Promise.all([store.init(), presets.init(), filterPresets.init()])
+    await Promise.all([store.init(), eventsStore.init(), presets.init(), filterPresets.init()])
     await presets.syncCharactersFromGoods(store.list)
     await presets.syncStorageLocationsFromPaths(store.storageLocations)
   } catch (e) {

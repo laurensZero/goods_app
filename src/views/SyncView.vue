@@ -171,7 +171,7 @@
             <div class="entry-body">
               <p class="entry-kicker">Push & Resolve</p>
               <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中') : '上传到云端' }}</h3>
-              <p class="entry-desc">将收藏、充值、活动等数据分别同步到对应 Gist，若发现冲突会提示你选择处理方式。</p>
+              <p class="entry-desc">将收藏、充值、活动等数据同步到 Gist，若发现冲突会提示你选择处理方式。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -450,8 +450,8 @@ const lastSyncDisplay = computed(() => {
 })
 
 const resolvedImageGistId = computed(() => gistInfo.value?.imageGistId || syncStore.imageGistId || '')
-const resolvedRechargeGistId = computed(() => gistInfo.value?.rechargeGistId || syncStore.rechargeGistId || '')
-const resolvedEventGistId = computed(() => gistInfo.value?.eventGistId || syncStore.eventGistId || '')
+const resolvedRechargeGistId = computed(() => gistInfo.value?.rechargeGistId || syncStore.gistId || '')
+const resolvedEventGistId = computed(() => gistInfo.value?.eventGistId || syncStore.gistId || '')
 
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
@@ -548,9 +548,11 @@ async function loadGistInfo() {
       return
     }
 
-    const [content, manifestContent] = await Promise.all([
+    const [content, manifestContent, rechargeContent, eventContent] = await Promise.all([
       getGistFileContent(syncStore.token, gist, 'data.json'),
-      getGistFileContent(syncStore.token, gist, 'manifest.json')
+      getGistFileContent(syncStore.token, gist, 'manifest.json'),
+      getGistFileContent(syncStore.token, gist, 'recharge-data.json'),
+      getGistFileContent(syncStore.token, gist, 'events-data.json')
     ])
     const manifest = manifestContent ? JSON.parse(manifestContent) : null
 
@@ -572,33 +574,19 @@ async function loadGistInfo() {
       }
     }
 
-    const rechargeGistId = syncStore.rechargeGistId || ''
-    if (rechargeGistId) {
+    if (rechargeContent) {
       try {
-        const rechargeGist = await getGist(syncStore.token, rechargeGistId)
-        const rechargeContent = rechargeGist
-          ? await getGistFileContent(syncStore.token, rechargeGist, 'recharge-data.json')
-          : null
-        if (rechargeContent) {
-          const rechargeData = JSON.parse(rechargeContent)
-          nextRechargeCount = Array.isArray(rechargeData.recharge) ? rechargeData.recharge.length : 0
-        }
+        const rechargeData = JSON.parse(rechargeContent)
+        nextRechargeCount = Array.isArray(rechargeData.recharge) ? rechargeData.recharge.length : 0
       } catch {
         nextRechargeCount = 0
       }
     }
 
-    const eventGistId = syncStore.eventGistId || ''
-    if (eventGistId) {
+    if (eventContent) {
       try {
-        const eventGist = await getGist(syncStore.token, eventGistId)
-        const eventContent = eventGist
-          ? await getGistFileContent(syncStore.token, eventGist, 'events-data.json')
-          : null
-        if (eventContent) {
-          const eventData = JSON.parse(eventContent)
-          nextEventCount = Array.isArray(eventData.events) ? eventData.events.length : 0
-        }
+        const eventData = JSON.parse(eventContent)
+        nextEventCount = Array.isArray(eventData.events) ? eventData.events.length : 0
       } catch {
         nextEventCount = 0
       }
@@ -611,8 +599,8 @@ async function loadGistInfo() {
       rechargeCount: nextRechargeCount,
       eventCount: nextEventCount,
       imageGistId: manifest?.imageGistId || '',
-      rechargeGistId: syncStore.rechargeGistId || '',
-      eventGistId: syncStore.eventGistId || '',
+      rechargeGistId: syncStore.gistId || '',
+      eventGistId: syncStore.gistId || '',
       imageFileCount: Number(manifest?.imageFileCount) || 0,
       imageUpdatedAt: manifest?.imageUpdatedAt || ''
     }

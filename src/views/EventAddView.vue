@@ -269,7 +269,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DatePicker, Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
@@ -282,6 +282,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
+import { usePageScrollRestore } from '@/composables/scroll/usePageScrollRestore'
 
 defineOptions({ name: 'EventAddView' })
 
@@ -291,8 +292,7 @@ const props = defineProps({
 
 const TYPE_OPTIONS = [
   { label: '展会', value: 'exhibition' },
-  { label: '市集', value: 'market' },
-  { label: '交换会', value: 'exchange' },
+  { label: '音乐会', value: 'concert' },
   { label: '其他', value: 'other' }
 ]
 
@@ -300,6 +300,14 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
+const { setWindowScrollTop } = usePageScrollRestore()
+
+const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
+
+function syncEventAddScrollLock(active) {
+  document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
+  document.body.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
+}
 
 const form = reactive({
   name: '',
@@ -494,7 +502,12 @@ function syncFieldLater(key, event) {
   syncFieldValueNextFrame(form, key, event)
 }
 
+onBeforeMount(() => {
+  setWindowScrollTop(0)
+})
+
 onMounted(async () => {
+  syncEventAddScrollLock(true)
   handleViewportResize()
   window.addEventListener('resize', handleViewportResize)
   if (!eventsStore.isReady) {
@@ -513,11 +526,8 @@ onMounted(async () => {
   isNavigatingToPicker.value = false
 })
 
-onActivated(() => {
-  isNavigatingToPicker.value = false
-})
-
 onBeforeUnmount(() => {
+  syncEventAddScrollLock(false)
   window.removeEventListener('resize', handleViewportResize)
 })
 </script>

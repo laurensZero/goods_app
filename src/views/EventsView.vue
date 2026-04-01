@@ -276,8 +276,7 @@ const viewOptions = [
 
 const EVENT_TYPE_LABELS = {
   exhibition: '展会',
-  market: '市集',
-  exchange: '交换会',
+  concert: '音乐会',
   other: '其他'
 }
 
@@ -972,25 +971,32 @@ onBeforeRouteLeave(() => {
 
 .fab {
   position: fixed;
-  right: max(20px, calc(var(--page-padding) + env(safe-area-inset-right)));
-  bottom: calc(92px + env(safe-area-inset-bottom));
-  width: 68px;
-  height: 68px;
+  right: 16px;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+  width: var(--fab-size);
+  height: var(--fab-size);
   border: none;
   border-radius: 50%;
-  background: #151619;
-  box-shadow: 0 16px 32px rgba(20, 20, 22, 0.18);
-  color: #ffffff;
+  background: var(--app-text);
+  color: var(--app-surface);
+  box-shadow: var(--app-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 60;
+  z-index: 65;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.fab:active {
+  transform: scale(0.96);
 }
 
 .fab svg {
-  width: 26px;
-  height: 26px;
-  stroke-width: 2.1;
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
 }
 
 .event-selection-action-bar {
@@ -1141,10 +1147,10 @@ onBeforeRouteLeave(() => {
   }
 
   .fab {
-    right: 18px;
-    bottom: calc(104px + env(safe-area-inset-bottom));
-    width: 60px;
-    height: 60px;
+    right: 16px;
+    bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+    width: var(--fab-size, 56px);
+    height: var(--fab-size, 56px);
   }
 }
 

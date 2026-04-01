@@ -7,16 +7,38 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
-function canvasToBlob(canvas, type = 'image/jpeg', quality = 0.92) {
-  return new Promise((resolve, reject) => {
+async function canvasToBlob(canvas, format = 'image/jpeg', quality = 0.92) {
+  return await new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('图片导出失败'))
+      if (blob) {
+        resolve(blob)
         return
       }
-      resolve(blob)
-    }, type, quality)
+      reject(new Error('Canvas 导出失败'))
+    }, format, quality)
   })
+}
+
+async function compressImageToBlob(dataUrlOrBlob, options = {}) {
+  const targetMaxBytes = Number(options.maxBytes) > 0 ? Number(options.maxBytes) : DEFAULT_TARGET_MAX_BYTES
+  const preferredFormat = options.format || 'image/jpeg'
+  const maxEdge = Number(options.maxEdge) || 2048
+
+  let inputBlob = dataUrlOrBlob
+  if (typeof dataUrlOrBlob === 'string' && dataUrlOrBlob.startsWith('data:')) {
+    const response = await fetch(dataUrlOrBlob)
+    inputBlob = await response.blob()
+  }
+
+  const picaInstance = Pica()
+  const result = await compressUnderTargetImpl(inputBlob, {
+    targetMaxBytes,
+    preferredFormat,
+    initialMaxEdge: maxEdge,
+    minMaxEdge: 800
+  }, picaInstance)
+
+  return result.blob || null
 }
 
 function fileNameWithExt(fileName = '', format = 'image/jpeg') {
@@ -101,6 +123,62 @@ async function binarySearchQuality({ canvas, format, targetMaxBytes, qLow, qHigh
   }
 }
 
+async function compressUnderTargetImpl(inputBlob, options = {}, picaInstance = Pica()) {
+  const targetMaxBytes = Number(options.targetMaxBytes) > 0 ? Number(options.targetMaxBytes) : DEFAULT_TARGET_MAX_BYTES
+  const preferredFormat = options.preferredFormat || 'image/jpeg'
+  const qualityMax = clamp(Number(options.qualityMax) || 0.92, 0.5, 1)
+  const qualityMin = clamp(Number(options.qualityMin) || 0.6, 0.3, qualityMax)
+  const qualityIterations = Math.max(3, Number(options.qualityIterations) || 6)
+
+  const initialEdge = Number(options.initialMaxEdge) || DEFAULT_EDGE_STEPS[0]
+  const minMaxEdge = Number(options.minMaxEdge) || DEFAULT_EDGE_STEPS[DEFAULT_EDGE_STEPS.length - 1]
+
+  const canvas = await decodeBlobToCanvas(inputBlob)
+  const edgeSteps = DEFAULT_EDGE_STEPS
+    .filter((edge) => edge <= initialEdge && edge >= minMaxEdge)
+  if (!edgeSteps.includes(initialEdge)) edgeSteps.unshift(initialEdge)
+  if (!edgeSteps.includes(minMaxEdge)) edgeSteps.push(minMaxEdge)
+
+  const normalizedSteps = [...new Set(edgeSteps)].sort((a, b) => b - a)
+
+  let lastResult = null
+  let lastCanvas = canvas
+
+  for (const maxEdge of normalizedSteps) {
+    const resizedCanvas = await resizeCanvasByMaxEdge(canvas, maxEdge, picaInstance)
+    lastCanvas = resizedCanvas
+
+    const result = await binarySearchQuality({
+      canvas: resizedCanvas,
+      format: preferredFormat,
+      targetMaxBytes,
+      qLow: qualityMin,
+      qHigh: qualityMax,
+      iterations: qualityIterations
+    })
+
+    if (result.bytes <= targetMaxBytes) {
+      return {
+        ...result,
+        width: resizedCanvas.width,
+        height: resizedCanvas.height,
+        underTarget: true,
+        finalMaxEdge: maxEdge
+      }
+    }
+
+    lastResult = result
+  }
+
+  return {
+    ...lastResult,
+    width: lastCanvas.width,
+    height: lastCanvas.height,
+    underTarget: false,
+    finalMaxEdge: Math.max(lastCanvas.width, lastCanvas.height)
+  }
+}
+
 export function useImageExport() {
   const picaInstance = Pica()
 
@@ -155,59 +233,7 @@ export function useImageExport() {
   }
 
   async function compressUnderTarget(inputBlob, options = {}) {
-    const targetMaxBytes = Number(options.targetMaxBytes) > 0 ? Number(options.targetMaxBytes) : DEFAULT_TARGET_MAX_BYTES
-    const preferredFormat = options.preferredFormat || 'image/jpeg'
-    const qualityMax = clamp(Number(options.qualityMax) || 0.92, 0.5, 1)
-    const qualityMin = clamp(Number(options.qualityMin) || 0.6, 0.3, qualityMax)
-    const qualityIterations = Math.max(3, Number(options.qualityIterations) || 6)
-
-    const initialEdge = Number(options.initialMaxEdge) || DEFAULT_EDGE_STEPS[0]
-    const minMaxEdge = Number(options.minMaxEdge) || DEFAULT_EDGE_STEPS[DEFAULT_EDGE_STEPS.length - 1]
-
-    const canvas = await decodeBlobToCanvas(inputBlob)
-    const edgeSteps = DEFAULT_EDGE_STEPS
-      .filter((edge) => edge <= initialEdge && edge >= minMaxEdge)
-    if (!edgeSteps.includes(initialEdge)) edgeSteps.unshift(initialEdge)
-    if (!edgeSteps.includes(minMaxEdge)) edgeSteps.push(minMaxEdge)
-
-    const normalizedSteps = [...new Set(edgeSteps)].sort((a, b) => b - a)
-
-    let lastResult = null
-    let lastCanvas = canvas
-
-    for (const maxEdge of normalizedSteps) {
-      const resizedCanvas = await resizeCanvasByMaxEdge(canvas, maxEdge, picaInstance)
-      lastCanvas = resizedCanvas
-
-      const result = await binarySearchQuality({
-        canvas: resizedCanvas,
-        format: preferredFormat,
-        targetMaxBytes,
-        qLow: qualityMin,
-        qHigh: qualityMax,
-        iterations: qualityIterations
-      })
-
-      if (result.bytes <= targetMaxBytes) {
-        return {
-          ...result,
-          width: resizedCanvas.width,
-          height: resizedCanvas.height,
-          underTarget: true,
-          finalMaxEdge: maxEdge
-        }
-      }
-
-      lastResult = result
-    }
-
-    return {
-      ...lastResult,
-      width: lastCanvas.width,
-      height: lastCanvas.height,
-      underTarget: false,
-      finalMaxEdge: Math.max(lastCanvas.width, lastCanvas.height)
-    }
+    return await compressUnderTargetImpl(inputBlob, options, picaInstance)
   }
 
   async function exportForUpload(inputBlob, options = {}) {
@@ -286,6 +312,9 @@ export function useImageExport() {
   return {
     composeWhiteBackground,
     compressUnderTarget,
+    compressImageToBlob: compressImageToBlob,
     exportForUpload
   }
 }
+
+export { compressImageToBlob }

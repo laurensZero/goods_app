@@ -234,3 +234,44 @@ export async function sanitizeGoodsItemForExport(item) {
     images
   }
 }
+
+export async function sanitizeEventForExport(event) {
+  if (!event) return null
+  const { coverImage, photos, ...rest } = event
+  
+  let processedCoverImage = ''
+  if (coverImage) {
+    const storageMode = inferGoodsImageStorageMode(coverImage)
+    if (storageMode === 'local' || storageMode === 'gist-local') {
+      const embeddedUri = await readLocalImageAsDataUrl(coverImage)
+      if (embeddedUri?.startsWith('data:image/')) {
+        processedCoverImage = embeddedUri
+      }
+    }
+    if (!processedCoverImage) {
+      processedCoverImage = coverImage
+    }
+  }
+  
+  let processedPhotos = []
+  if (photos && Array.isArray(photos)) {
+    processedPhotos = await Promise.all(photos.map(async (photo) => {
+      if (!photo?.uri) return null
+      const photoStorageMode = inferGoodsImageStorageMode(photo.uri)
+      if (photoStorageMode === 'local' || photoStorageMode === 'gist-local') {
+        const embeddedUri = await readLocalImageAsDataUrl(photo.uri)
+        if (embeddedUri?.startsWith('data:image/')) {
+          return { ...photo, uri: embeddedUri, storageMode: 'inline-local' }
+        }
+      }
+      return { ...photo, storageMode: 'remote' }
+    }))
+    processedPhotos = processedPhotos.filter(Boolean)
+  }
+  
+  return {
+    ...rest,
+    coverImage: processedCoverImage,
+    photos: processedPhotos
+  }
+}

@@ -1,21 +1,23 @@
 <template>
-  <div class="photo-grid">
-    <button
-      v-for="(photo, index) in photos"
-      :key="photo.id || index"
-      type="button"
-      class="photo-grid__item"
-      @click="$emit('preview', index)"
-    >
-      <img
-        v-if="photo.uri"
-        class="photo-grid__img"
-        :src="photo.uri"
-        :alt="photo.caption || `照片 ${index + 1}`"
-        loading="lazy"
-      />
-      <div v-else class="photo-grid__placeholder">✦</div>
-    </button>
+  <div class="photo-scroll-wrapper">
+    <div class="photo-grid">
+      <button
+        v-for="(photo, index) in photos"
+        :key="photo.id || index"
+        type="button"
+        class="photo-grid__item"
+        @click="$emit('preview', index)"
+      >
+        <img
+          v-if="photo.uri"
+          class="photo-grid__img"
+          :src="photo.uri"
+          :alt="photo.caption || `照片 ${index + 1}`"
+          loading="lazy"
+        />
+        <div v-else class="photo-grid__placeholder">✦</div>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -28,24 +30,33 @@ defineEmits(['preview'])
 </script>
 
 <style scoped>
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+.photo-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  margin: -4px;
+  padding: 4px;
 }
 
-@media (min-width: 600px) {
-  .photo-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.photo-scroll-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.photo-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .photo-grid__item {
-  aspect-ratio: 1;
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
   border: none;
   background: none;
   padding: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
@@ -72,5 +83,12 @@ defineEmits(['preview'])
   justify-content: center;
   color: var(--app-text-tertiary);
   font-size: 14px;
+}
+
+@media (min-width: 600px) {
+  .photo-grid__item {
+    width: 120px;
+    height: 120px;
+  }
 }
 </style>

@@ -34,31 +34,38 @@
         <span>{{ event.name?.trim()?.charAt(0) || '活' }}</span>
       </div>
 
-      <span v-if="event.ticketPrice" class="event-card__ticket">¥{{ event.ticketPrice }}</span>
     </div>
 
     <div class="event-card__content">
       <h3 class="event-card__title">{{ event.name || '未命名活动' }}</h3>
 
-      <div class="event-card__meta">
-        <span class="event-card__tag" :class="typeChipClass">{{ typeLabel }}</span>
-        <span class="event-card__pill">{{ dateDisplay || '待补充时间' }}</span>
-        <span v-if="event.location" class="event-card__pill">{{ event.location }}</span>
-        <span v-if="event.linkedGoodsIds?.length" class="event-card__pill">
-          {{ event.linkedGoodsIds.length }} 件关联谷子
-        </span>
-        <span v-if="event.tags?.length" class="event-card__tag">{{ event.tags[0] }}</span>
+      <div
+        ref="tagsScrollerRef"
+        class="event-card__tags-scroll"
+        :class="{ 'event-card__tags-scroll--dragging': tagsDragging }"
+        @click.stop
+        @mousedown.stop="onTagsMouseDown"
+        @touchstart.stop
+        @touchmove.stop
+        @touchend.stop
+      >
+        <span class="event-card__tag-pill" :class="typeChipClass">{{ typeLabel }}</span>
+        <span class="event-card__tag-pill">{{ dateDisplay || '待补充时间' }}</span>
+        <span v-if="event.location" class="event-card__tag-pill">{{ event.location }}</span>
+        <span v-if="event.linkedGoodsIds?.length" class="event-card__tag-pill">{{ event.linkedGoodsIds.length }} 件关联谷子</span>
+        <span v-for="tag in event.tags" :key="tag" class="event-card__tag-pill">{{ tag }}</span>
+        <span v-if="event.photos?.length" class="event-card__tag-pill">{{ event.photos.length }} 张照片</span>
       </div>
-
-      <div class="event-card__footer">
-        <span v-if="event.photos?.length" class="event-card__subtle">{{ event.photos.length }} 张照片</span>
+      
+      <div class="event-card__bottom">
+        <span v-if="event.ticketPrice" class="event-card__price">¥{{ event.ticketPrice }}</span>
       </div>
     </div>
   </article>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -68,18 +75,21 @@ const props = defineProps({
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 
+const tagsScrollerRef = ref(null)
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
 const startX = ref(0)
 const startY = ref(0)
 const gestureMoved = ref(false)
+const tagsDragging = ref(false)
 const TOUCH_TAP_THRESHOLD = 12
 const MOUSE_TAP_THRESHOLD = 6
+let tagsDragStartX = 0
+let tagsDragStartScrollLeft = 0
 
 const TYPE_MAP = {
   exhibition: { label: '展会', cls: 'type-exhibition' },
-  market: { label: '市集', cls: 'type-market' },
-  exchange: { label: '交换会', cls: 'type-exchange' },
+  concert: { label: '音乐会', cls: 'type-concert' },
   other: { label: '其他', cls: 'type-other' }
 }
 
@@ -175,6 +185,40 @@ function onMouseLeave() {
   gestureMoved.value = true
   cancelLongPress()
 }
+
+function onTagsMouseDown(event) {
+  if (event.button !== 0) return
+  const scroller = tagsScrollerRef.value
+  if (!scroller) return
+
+  tagsDragging.value = true
+  tagsDragStartX = event.clientX
+  tagsDragStartScrollLeft = scroller.scrollLeft
+  cancelLongPress()
+  gestureMoved.value = true
+
+  window.addEventListener('mousemove', onTagsMouseMove)
+  window.addEventListener('mouseup', onTagsMouseUp)
+}
+
+function onTagsMouseMove(event) {
+  const scroller = tagsScrollerRef.value
+  if (!tagsDragging.value || !scroller) return
+
+  const deltaX = event.clientX - tagsDragStartX
+  scroller.scrollLeft = tagsDragStartScrollLeft - deltaX
+}
+
+function onTagsMouseUp() {
+  tagsDragging.value = false
+  window.removeEventListener('mousemove', onTagsMouseMove)
+  window.removeEventListener('mouseup', onTagsMouseUp)
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onTagsMouseMove)
+  window.removeEventListener('mouseup', onTagsMouseUp)
+})
 </script>
 
 <style scoped>
@@ -280,33 +324,9 @@ function onMouseLeave() {
   font-weight: 700;
 }
 
-.event-card__ticket {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  background: rgba(20, 20, 22, 0.72);
-  color: #ffffff;
-}
-
 .type-exhibition {
   background: rgba(90, 120, 250, 0.16);
   color: #2d56d5;
-}
-
-.type-market {
-  background: rgba(250, 149, 90, 0.16);
-  color: #da6f1d;
-}
-
-.type-exchange {
-  background: rgba(50, 200, 140, 0.16);
-  color: #169866;
 }
 
 .type-other {
@@ -315,63 +335,87 @@ function onMouseLeave() {
 }
 
 .event-card__content {
+  position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 10px;
   padding: 16px 16px 18px;
+  min-height: 0;
 }
 
 .event-card__title {
   margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--app-text);
   font-size: 17px;
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: -0.03em;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.event-card__meta {
+.event-card__tags-scroll {
   display: flex;
-  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  touch-action: auto;
+  cursor: grab;
 }
 
-.event-card__pill,
-.event-card__tag {
+.event-card__tags-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.event-card__tags-scroll--dragging {
+  cursor: grabbing;
+}
+
+.event-card__tag-pill {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  max-width: 100%;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text-secondary);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.event-card__pill {
-  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
-  color: var(--app-text-secondary);
+.event-card__tag-pill.type-exhibition {
+  background: rgba(90, 120, 250, 0.12);
+  color: #355be0;
 }
 
-.event-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  min-height: 20px;
+.event-card__tag-pill.type-concert {
+  background: rgba(250, 149, 90, 0.14);
+  color: #d26f20;
 }
 
-.event-card__tag {
-  background: rgba(120, 100, 255, 0.1);
-  color: #7864ff;
+.event-card__tag-pill.type-other {
+  background: rgba(142, 142, 147, 0.16);
+  color: #666a74;
 }
 
-.event-card__subtle {
-  margin-left: auto;
-  color: var(--app-text-tertiary);
-  font-size: 12px;
+.event-card__bottom {
+  margin-top: auto;
+  min-height: 18px;
+}
+
+.event-card__price {
+  color: #8e8e93;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 </style>

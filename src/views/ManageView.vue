@@ -134,8 +134,8 @@
             <div class="entry-body">
               <p class="entry-kicker">数据管理</p>
               <h2 class="entry-name">导出数据</h2>
-              <p class="entry-desc">备份谷子记录、回收站和全部预设</p>
-              <p class="entry-count">{{ goodsStore.list.length }} 件收藏</p>
+              <p class="entry-desc">备份收藏、心愿、活动、充值、回收站和全部预设</p>
+              <p class="entry-count">{{ exportSummaryText }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -210,7 +210,7 @@
 </template>
 
 <script setup>
-import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
@@ -221,7 +221,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
-import { sanitizeGoodsItemForExport } from '@/utils/goodsImages'
+import { sanitizeGoodsItemForExport, sanitizeEventForExport } from '@/utils/goodsImages'
 
 defineOptions({ name: 'ManageView' })
 
@@ -230,6 +230,20 @@ const goodsStore = useGoodsStore()
 const eventsStore = useEventsStore()
 const syncStore = useSyncStore()
 const rechargeStore = useRechargeStore()
+
+const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
+const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
+const eventCount = computed(() => eventsStore.list.length)
+const rechargeCount = computed(() => rechargeStore.sortedRecords.value.length)
+const exportSummaryText = computed(() => (
+  `${collectionCount.value}件收藏 ${wishlistCount.value}件心愿 ${eventCount.value}场活动 ${rechargeCount.value}条充值`
+))
+
+async function ensureEventsReady() {
+  if (!eventsStore.isReady) {
+    await eventsStore.init()
+  }
+}
 
 function formatSyncTime(isoString) {
   if (!isoString) return ''
@@ -322,6 +336,7 @@ onMounted(() => {
 onMounted(async () => {
   const shouldMaskDisplay = shouldMaskManageDisplay()
   manageDisplayReady.value = !shouldMaskDisplay
+  await ensureEventsReady()
   await nextTick()
   bindPageScroll()
   const pendingState = getStoredScrollState()
@@ -339,6 +354,7 @@ onActivated(async () => {
   if (shouldMaskDisplay) {
     manageDisplayReady.value = false
   }
+  await ensureEventsReady()
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)
@@ -457,11 +473,12 @@ async function shareBackupFile(uri) {
 }
 
 async function handleExport() {
+  await ensureEventsReady()
   const goodsList = await Promise.all(goodsStore.list.map((item) => sanitizeGoodsItemForExport(item)))
   const trashList = await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item)))
   const rechargeRecords = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
   const rechargeTrash = []
-  const eventsList = eventsStore.list
+  const eventsList = await Promise.all(eventsStore.list.map((event) => sanitizeEventForExport(event)))
 
   const data = {
     version: 8,
@@ -530,6 +547,7 @@ function triggerImport() {
 }
 
 async function handleImport(event) {
+  await ensureEventsReady()
   const file = event.target.files?.[0]
   if (!file) return
 

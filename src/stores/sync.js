@@ -24,6 +24,7 @@ import {
   sanitizeGoodsItemForSync
 } from '@/utils/goodsImages'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
+import { compressImageToBlob } from '@/composables/image/useImageExport'
 
 const TOKEN_KEY = 'sync_github_token'
 const GIST_ID_KEY = 'sync_gist_id'
@@ -40,6 +41,7 @@ const EVENT_DATA_FILENAME = 'events-data.json'
 const MANIFEST_FILENAME = 'manifest.json'
 const IS_NATIVE = Capacitor.isNativePlatform()
 const IMAGE_FILE_PREFIX = 'goods-image__'
+const EVENT_COVER_PREFIX = 'event-cover__'
 const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024
 
 const MIME_EXTENSION_MAP = {
@@ -268,6 +270,13 @@ function buildImageFilename(item, imageEntry, mimeType) {
   return `${IMAGE_FILE_PREFIX}${itemId}__${imageId}__${updatedAt}.${extension}.txt`
 }
 
+function buildEventCoverFilename(event, mimeType) {
+  const eventId = sanitizeFilenamePart(event?.id)
+  const updatedAt = String(event?.updatedAt || 0)
+  const extension = resolveImageExtension(mimeType, event?.coverImage || '')
+  return `${EVENT_COVER_PREFIX}${eventId}__${updatedAt}.${extension}.txt`
+}
+
 function buildImageSyncStats() {
   return {
     uploadedImages: 0,
@@ -296,7 +305,16 @@ export const useSyncStore = defineStore('sync', () => {
 
   const isConfigured = computed(() => !!token.value && !!gistId.value)
 
+  async function ensureEventsStoreReady() {
+    const eventsStore = useEventsStore()
+    if (!eventsStore.isReady) {
+      await eventsStore.init()
+    }
+    return eventsStore
+  }
+
   async function init() {
+    await ensureEventsStoreReady()
     token.value = (await readKey(TOKEN_KEY)) || ''
     gistId.value = (await readKey(GIST_ID_KEY)) || ''
     imageGistId.value = (await readKey(IMAGE_GIST_ID_KEY)) || ''
@@ -342,33 +360,6 @@ export const useSyncStore = defineStore('sync', () => {
       }
     }
 
-    if (token.value && !rechargeGistId.value) {
-      try {
-        const matched = await listGists(token.value, 'goods-app-recharge-sync')
-        if (matched.length > 0) {
-          await saveRechargeGistId(matched[0].id)
-        } else {
-          const legacyMatched = await listGists(token.value, 'goods-app-sync')
-          const legacyRecharge = legacyMatched.find((gist) => gist?.files?.[RECHARGE_DATA_FILENAME])
-          if (legacyRecharge) {
-            await saveRechargeGistId(legacyRecharge.id)
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (token.value && !eventGistId.value) {
-      try {
-        const matched = await listGists(token.value, 'goods-app-events-sync')
-        if (matched.length > 0) {
-          await saveEventGistId(matched[0].id)
-        }
-      } catch {
-        // ignore
-      }
-    }
   }
 
   async function saveToken(newToken) {
@@ -463,18 +454,37 @@ export const useSyncStore = defineStore('sync', () => {
         continue
       }
 
-      const imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)
+      let imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)
       if (!imageDataUrl?.startsWith('data:image/')) {
         throw new Error(`图片读取失败：${item?.name || item?.id || '未命名条目'}`)
       }
 
-      const parsedData = parseImageDataUrl(imageDataUrl)
+      let parsedData = parseImageDataUrl(imageDataUrl)
       if (!parsedData) {
         throw new Error(`图片格式不支持：${item?.name || item?.id || '未命名条目'}`)
       }
 
       if (parsedData.fileSize > IMAGE_FILE_SIZE_LIMIT) {
-        throw new Error(`图片超过 1MB：${item?.name || item?.id || '未命名条目'}`)
+        const compressedBlob = await compressImageToBlob(imageDataUrl, {
+          maxBytes: IMAGE_FILE_SIZE_LIMIT - 1024,
+          maxEdge: 2048,
+          format: 'image/jpeg'
+        })
+        if (!compressedBlob) {
+          throw new Error(`图片压缩失败：${item?.name || item?.id || '未命名条目'}`)
+        }
+        const reader = new FileReader()
+        const compressedDataUrl = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(compressedBlob)
+        })
+        const compressedParsed = parseImageDataUrl(compressedDataUrl)
+        if (!compressedParsed) {
+          throw new Error(`图片压缩后格式无效：${item?.name || item?.id || '未命名条目'}`)
+        }
+        parsedData = compressedParsed
+        imageDataUrl = compressedDataUrl
       }
 
       const gistFileName = buildImageFilename(item, imageEntry, parsedData.mimeType)
@@ -500,6 +510,71 @@ export const useSyncStore = defineStore('sync', () => {
     }
 
     return preparedImages
+  }
+
+  async function prepareEventCoverForSync(event, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
+    if (!event?.coverImage) return null
+
+    const storageMode = inferGoodsImageStorageMode(event.coverImage)
+    if (storageMode === 'remote') {
+      return {
+        uri: event.coverImage,
+        storageMode: 'remote'
+      }
+    }
+
+    let imageDataUrl = await readLocalImageAsDataUrl(event.coverImage)
+    if (!imageDataUrl?.startsWith('data:image/')) {
+      return null
+    }
+
+    let parsedData = parseImageDataUrl(imageDataUrl)
+    if (!parsedData) {
+      return null
+    }
+
+    if (parsedData.fileSize > IMAGE_FILE_SIZE_LIMIT) {
+      const compressedBlob = await compressImageToBlob(imageDataUrl, {
+        maxBytes: IMAGE_FILE_SIZE_LIMIT - 1024,
+        maxEdge: 2048,
+        format: 'image/jpeg'
+      })
+      if (!compressedBlob) {
+        return null
+      }
+      const reader = new FileReader()
+      const compressedDataUrl = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(compressedBlob)
+      })
+      const compressedParsed = parseImageDataUrl(compressedDataUrl)
+      if (!compressedParsed) {
+        return null
+      }
+      parsedData = compressedParsed
+      imageDataUrl = compressedDataUrl
+    }
+
+    const gistFileName = buildEventCoverFilename(event, parsedData.mimeType)
+    referencedImageFiles.add(gistFileName)
+
+    if (existingImageFiles?.has(gistFileName)) {
+      imageStats.reusedImages += 1
+    } else if (imageFiles) {
+      imageFiles[gistFileName] = { content: imageDataUrl }
+      imageStats.uploadedImages += 1
+    }
+
+    imageStats.imageUpdatedAt = new Date().toISOString()
+
+    return {
+      uri: buildGistImageUri(gistFileName),
+      storageMode: 'gist-local',
+      gistFileName,
+      mimeType: parsedData.mimeType,
+      fileSize: parsedData.fileSize
+    }
   }
 
   async function buildSyncPayload({ incremental = false, existingImageGist = null } = {}) {
@@ -570,6 +645,46 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  async function buildEventSyncPayload({ existingImageGist = null } = {}) {
+    const eventsStore = await ensureEventsStoreReady()
+    const imageStats = buildImageSyncStats()
+    const imageFiles = {}
+    const referencedImageFiles = new Set()
+    const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
+
+    const events = await Promise.all(
+      eventsStore.list.map(async (item) => {
+        let processedCoverImage = null
+        if (item.coverImage) {
+          processedCoverImage = await prepareEventCoverForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+        }
+
+        return {
+          ...item,
+          coverImage: processedCoverImage?.uri || item.coverImage,
+          coverImageData: processedCoverImage,
+          photos: Array.isArray(item.photos) ? item.photos : [],
+          linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
+          tags: Array.isArray(item.tags) ? item.tags : []
+        }
+      })
+    )
+
+    imageStats.imageFileCount = referencedImageFiles.size
+
+    return {
+      eventData: {
+        version: 2,
+        updatedAt: new Date().toISOString(),
+        deviceId: deviceId.value,
+        events
+      },
+      imageStats,
+      imageFiles,
+      referencedImageFiles
+    }
+  }
+
   function buildEventSyncData() {
     const eventsStore = useEventsStore()
     return {
@@ -611,6 +726,14 @@ export const useSyncStore = defineStore('sync', () => {
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
 
     return JSON.stringify(sortObjectKeys({ recharge, rechargeTrash }))
+  }
+
+  function buildComparableEventStateFromData(data) {
+    const events = (Array.isArray(data?.events) ? data.events : [])
+      .map((item) => sortObjectKeys(item))
+      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+
+    return JSON.stringify(sortObjectKeys({ events }))
   }
 
   function buildManifest(imageStats = {}) {
@@ -655,12 +778,14 @@ export const useSyncStore = defineStore('sync', () => {
   function getLatestLocalModifiedAt() {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
+    const eventsStore = useEventsStore()
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const timestamps = [
       ...[...resolvedLocal.goodsMap.values()].map((item) => getItemTimestamp(item)),
       ...[...resolvedLocal.trashMap.values()].map((item) => getItemTimestamp(item)),
-      ...recharge.map((item) => getItemTimestamp(item))
+      ...recharge.map((item) => getItemTimestamp(item)),
+      ...(eventsStore.list || []).map((item) => Number(item?.updatedAt) || 0)
     ]
     const latest = Math.max(0, ...timestamps)
     return latest > 0 ? new Date(latest).toISOString() : ''
@@ -753,7 +878,13 @@ export const useSyncStore = defineStore('sync', () => {
       return getGist(token.value, matched[0].id)
     }
 
-    const eventData = buildEventSyncData()
+    const existingImageGist = await ensureImageGist()
+    const { eventData, imageStats, imageFiles } = await buildEventSyncPayload({ existingImageGist })
+    
+    if (Object.keys(imageFiles).length > 0) {
+      await updateGist(token.value, existingImageGist.id, imageFiles)
+    }
+
     const created = await createGist(token.value, desc, {
       [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) }
     })
@@ -795,6 +926,8 @@ export const useSyncStore = defineStore('sync', () => {
 
     const existingImageGist = await ensureImageGist()
     const { syncData, imageStats, imageFiles } = await buildSyncPayload({ existingImageGist })
+    const rechargeSyncData = buildRechargeSyncData({ incremental: false })
+    const { eventData } = await buildEventSyncPayload({ existingImageGist })
     if (Object.keys(imageFiles).length > 0) {
       await updateGist(token.value, existingImageGist.id, imageFiles)
     }
@@ -802,6 +935,8 @@ export const useSyncStore = defineStore('sync', () => {
     const manifest = buildManifest(imageStats)
     const created = await createGist(token.value, desc, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
+      [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) },
+      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) },
       [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
     })
 
@@ -875,19 +1010,72 @@ export const useSyncStore = defineStore('sync', () => {
     }))
   }
 
+  async function hydrateEventCoversWithImages(events, imageGist, imageStats) {
+    const fileCache = new Map()
+
+    return Promise.all((events || []).map(async (event) => {
+      if (!event.coverImage) return event
+
+      const storageMode = inferGoodsImageStorageMode(event.coverImage)
+      if (storageMode !== 'gist-local') return event
+
+      const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
+      if (!gistFileName) return event
+      
+      if (!imageGist) return event
+
+      try {
+        if (!fileCache.has(gistFileName)) {
+          fileCache.set(gistFileName, await getGistFileContent(token.value, imageGist, gistFileName))
+        }
+
+        const imageDataUrl = fileCache.get(gistFileName)
+        if (!String(imageDataUrl || '').startsWith('data:image/')) {
+          return event
+        }
+
+        imageStats.restoredImages += 1
+
+        return {
+          ...event,
+          coverImage: imageDataUrl,
+          coverImageData: {
+            ...event.coverImageData,
+            uri: imageDataUrl
+          }
+        }
+      } catch {
+        return event
+      }
+    }))
+  }
+
   async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null, eventGist = null) {
     const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
     if (!dataContent) throw new Error('远端数据为空')
 
     const remoteData = JSON.parse(dataContent)
-    const rechargeDataContent = rechargeGist
-      ? await getGistFileContent(token.value, rechargeGist, RECHARGE_DATA_FILENAME)
-      : null
+    const rechargeDataContent = (
+      await getGistFileContent(token.value, gist, RECHARGE_DATA_FILENAME)
+    ) || (
+      rechargeGist ? await getGistFileContent(token.value, rechargeGist, RECHARGE_DATA_FILENAME) : null
+    )
     const rechargeData = rechargeDataContent ? JSON.parse(rechargeDataContent) : null
+    const eventDataContent = (
+      await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)
+    ) || (
+      eventGist ? await getGistFileContent(token.value, eventGist, EVENT_DATA_FILENAME) : null
+    )
+    const eventData = eventDataContent ? JSON.parse(eventDataContent) : null
     const imageStats = buildImageSyncStats()
     const imageGist = await resolveRemoteImageGist(remoteManifest)
     remoteData.goods = await hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats)
     remoteData.trash = await hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats)
+    
+    if (eventData && Array.isArray(eventData.events)) {
+      eventData.events = await hydrateEventCoversWithImages(eventData.events, imageGist, imageStats)
+    }
+    
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const presets = usePresetsStore()
@@ -1012,7 +1200,11 @@ export const useSyncStore = defineStore('sync', () => {
     let eventApplyResult = { added: 0, updated: 0, total: 0 }
     if (eventData && Array.isArray(eventData.events)) {
       const eventsStore = useEventsStore()
-      eventApplyResult = await eventsStore.importEventsBackup(eventData.events)
+      eventApplyResult = {
+        ...(await eventsStore.importEventsBackup(eventData.events)),
+        total: eventData.events.length
+      }
+      await saveEventLastSyncedAt(eventData.updatedAt || remoteManifest?.lastSyncAt || new Date().toISOString())
     }
 
     return {
@@ -1022,17 +1214,20 @@ export const useSyncStore = defineStore('sync', () => {
       updatedTrash: trashToUpdate.length,
       importedRecharge: rechargeApplyResult.added,
       updatedRecharge: rechargeApplyResult.updated,
+      importedEvents: eventApplyResult.added,
+      updatedEvents: eventApplyResult.updated,
       restoredImages: imageStats.restoredImages,
       totalGoods: remoteGoods.length,
       totalTrash: remoteTrash.length,
-      totalRecharge: rechargeApplyResult.total
+      totalRecharge: rechargeApplyResult.total,
+      totalEvents: eventApplyResult.total
     }
   }
 
   function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
     const files = {}
     for (const filename of Object.keys(existingImageGist?.files || {})) {
-      if (!filename.startsWith(IMAGE_FILE_PREFIX)) continue
+      if (!filename.startsWith(IMAGE_FILE_PREFIX) && !filename.startsWith(EVENT_COVER_PREFIX)) continue
       if (referencedImageFiles.has(filename)) continue
       files[filename] = null
     }
@@ -1072,7 +1267,7 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  async function pushToRemote(existingGist = null, existingImageGist = null, existingRechargeGist = null) {
+  async function pushToRemote(existingGist = null, existingImageGist = null, existingRechargeGist = null, existingEventGist = null) {
     if (!existingGist && gistId.value) {
       await getGist(token.value, gistId.value)
     }
@@ -1081,10 +1276,13 @@ export const useSyncStore = defineStore('sync', () => {
     
     const { syncData, imageStats, imageFiles, referencedImageFiles } = await buildSyncPayload({ existingImageGist: imageGist })
     const rechargeSyncData = buildRechargeSyncData({ incremental: false })
-    const eventSyncData = buildEventSyncData()
-    const imageCleanupFiles = buildImageCleanupFiles(imageGist, referencedImageFiles)
+    const { eventData: eventSyncData, imageStats: eventImageStats, imageFiles: eventImageFiles, referencedImageFiles: eventReferencedImageFiles } = await buildEventSyncPayload({ existingImageGist: imageGist })
+    
+    const allReferencedImageFiles = new Set([...referencedImageFiles, ...eventReferencedImageFiles])
+    const imageCleanupFiles = buildImageCleanupFiles(imageGist, allReferencedImageFiles)
     const imageUpdates = {
       ...imageFiles,
+      ...eventImageFiles,
       ...imageCleanupFiles
     }
 
@@ -1092,23 +1290,34 @@ export const useSyncStore = defineStore('sync', () => {
       await updateGist(token.value, imageGist.id, imageUpdates)
     }
 
-    const manifest = buildManifest(imageStats)
+    const mergedImageStats = {
+      uploadedImages: (Number(imageStats.uploadedImages) || 0) + (Number(eventImageStats.uploadedImages) || 0),
+      reusedImages: (Number(imageStats.reusedImages) || 0) + (Number(eventImageStats.reusedImages) || 0),
+      restoredImages: (Number(imageStats.restoredImages) || 0) + (Number(eventImageStats.restoredImages) || 0),
+      imageFileCount: allReferencedImageFiles.size,
+      imageUpdatedAt: eventImageStats.imageUpdatedAt || imageStats.imageUpdatedAt || ''
+    }
+    const manifest = buildManifest(mergedImageStats)
 
     await updateGist(token.value, gistId.value, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
+      [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) },
+      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventSyncData) },
       [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
     })
 
-    await updateGist(token.value, rechargeGist.id, {
-      [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) }
-    })
+    await saveLastSyncedAt(manifest.lastSyncAt)
+    await saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
 
-    if (rechargeGist.id !== rechargeGistId.value) {
-      await saveRechargeGistId(rechargeGist.id)
+    // Migration complete: recharge/events now live as separate files in the main gist.
+    if (rechargeGistId.value && rechargeGistId.value !== gistId.value) {
+      await saveRechargeGistId('')
+    }
+    if (eventGistId.value && eventGistId.value !== gistId.value) {
+      await saveEventGistId('')
     }
 
-    await saveLastSyncedAt(manifest.lastSyncAt)
-    return imageStats
+    return { ...mergedImageStats }
   }
 
   async function buildPullConflictData(gist, remoteManifest) {
@@ -1212,14 +1421,24 @@ export const useSyncStore = defineStore('sync', () => {
     syncStatus.value = '正在同步...'
 
     try {
+      await ensureEventsStoreReady()
       const gist = await ensureGist()
       syncStatus.value = '正在检查远端数据...'
 
       const manifestContent = await getGistFileContent(token.value, gist, MANIFEST_FILENAME)
       const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
-      const existingRechargeGist = rechargeGistId.value ? await getGist(token.value, rechargeGistId.value).catch(() => null) : null;
-      const existingEventGist = eventGistId.value ? await getGist(token.value, eventGistId.value).catch(() => null) : null;
-      const rechargeDataContent = await getGistFileContent(token.value, existingRechargeGist, RECHARGE_DATA_FILENAME)
+      const existingRechargeGist = rechargeGistId.value ? await getGist(token.value, rechargeGistId.value).catch(() => null) : null
+      const existingEventGist = eventGistId.value ? await getGist(token.value, eventGistId.value).catch(() => null) : null
+      const rechargeDataContent = (
+        await getGistFileContent(token.value, gist, RECHARGE_DATA_FILENAME)
+      ) || (
+        existingRechargeGist ? await getGistFileContent(token.value, existingRechargeGist, RECHARGE_DATA_FILENAME) : null
+      )
+      const eventDataContent = (
+        await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)
+      ) || (
+        existingEventGist ? await getGistFileContent(token.value, existingEventGist, EVENT_DATA_FILENAME) : null
+      )
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
       if (remoteManifest?.imageGistId) {
         await saveImageGistId(remoteManifest.imageGistId)
@@ -1234,22 +1453,35 @@ export const useSyncStore = defineStore('sync', () => {
         recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [],
         rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : []
       }
+      const remoteEventData = eventDataContent ? JSON.parse(eventDataContent) : { events: [] }
       const existingImageGist = await getExistingImageGist(remoteManifest)
       const localPayload = await buildSyncPayload({ existingImageGist })
       const localRechargePayload = buildRechargeSyncData({ incremental: false })
+      const localEventPayload = await buildEventSyncPayload({ existingImageGist })
       const localComparableState = await buildComparableSyncStateFromData(localPayload.syncData)
       const remoteComparableState = await buildComparableSyncStateFromData(remoteData)
       const localRechargeComparableState = buildComparableRechargeStateFromData(localRechargePayload)
       const remoteRechargeComparableState = buildComparableRechargeStateFromData(remoteRechargeData)
+      const localEventComparableState = buildComparableEventStateFromData(localEventPayload.eventData)
+      const remoteEventComparableState = buildComparableEventStateFromData(remoteEventData)
       const hasDataDiff = localComparableState !== remoteComparableState
       const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
-      const pendingImageCleanup = buildImageCleanupFiles(existingImageGist, localPayload.referencedImageFiles)
-      const hasPendingImageChanges = Object.keys(localPayload.imageFiles).length > 0 || Object.keys(pendingImageCleanup).length > 0
-      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasPendingImageChanges || hasRemoteImageChanges
+      const hasEventDataDiff = localEventComparableState !== remoteEventComparableState
+      const allReferencedImageFiles = new Set([...localPayload.referencedImageFiles, ...localEventPayload.referencedImageFiles])
+      const pendingAllImageCleanup = buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
+      const hasPendingImageChanges = (
+        Object.keys(localPayload.imageFiles).length > 0
+        || Object.keys(localEventPayload.imageFiles).length > 0
+        || Object.keys(pendingAllImageCleanup).length > 0
+      )
+      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasPendingImageChanges || hasRemoteImageChanges
 
       if (!hasEffectiveDiff) {
         if (remoteManifest?.lastSyncAt) {
           await saveLastSyncedAt(remoteManifest.lastSyncAt)
+        }
+        if (remoteEventData?.updatedAt || remoteManifest?.lastSyncAt) {
+          await saveEventLastSyncedAt(remoteEventData?.updatedAt || remoteManifest.lastSyncAt)
         }
         syncStatus.value = '数据已经是最新'
         return {
@@ -1258,9 +1490,9 @@ export const useSyncStore = defineStore('sync', () => {
         }
       }
 
-      if (!hasDataDiff && !hasRechargeDataDiff && hasPendingImageChanges) {
+      if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
         syncStatus.value = '正在上传本地数据...'
-        const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist)
+        const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
         syncStatus.value = '上传完成'
         return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
       }
@@ -1288,7 +1520,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在上传本地数据...'
-      const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist)
+      const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
       syncStatus.value = '上传完成'
       return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
     } catch (error) {
@@ -1319,7 +1551,12 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在上传本地数据...'
-      const imageStats = await pushToRemote(conflictData.value.gist, null, conflictData.value.rechargeGist || null)
+      const imageStats = await pushToRemote(
+        conflictData.value.gist,
+        null,
+        conflictData.value.rechargeGist || null,
+        conflictData.value.eventGist || null
+      )
       conflictData.value = null
       syncStatus.value = '上传完成'
       return { action: 'pushed', ...imageStats }
@@ -1347,9 +1584,11 @@ export const useSyncStore = defineStore('sync', () => {
     syncStatus.value = '正在拉取...'
 
     try {
+      await ensureEventsStoreReady()
       const gist = await getGist(token.value, gistId.value)
       if (!gist) throw new Error('未找到 Gist')
-      const existingRechargeGist = await getExistingRechargeGist() || await ensureRechargeGist()
+      const existingRechargeGist = await getExistingRechargeGist()
+      const existingEventGist = eventGistId.value ? await getGist(token.value, eventGistId.value).catch(() => null) : null
 
       const manifestContent = await getGistFileContent(token.value, gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
@@ -1359,12 +1598,16 @@ export const useSyncStore = defineStore('sync', () => {
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
       const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
-      const remoteRechargeContent = await getGistFileContent(token.value, existingRechargeGist, RECHARGE_DATA_FILENAME)
+      const remoteRechargeContent = (
+        await getGistFileContent(token.value, gist, RECHARGE_DATA_FILENAME)
+      ) || (
+        existingRechargeGist ? await getGistFileContent(token.value, existingRechargeGist, RECHARGE_DATA_FILENAME) : null
+      )
       const remoteRechargeData = remoteRechargeContent ? JSON.parse(remoteRechargeContent) : { recharge: [], rechargeTrash: [] }
       const remoteEventContent = (await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)) || (existingEventGist ? await getGistFileContent(token.value, existingEventGist, EVENT_DATA_FILENAME) : null)
       const remoteEventData = remoteEventContent ? JSON.parse(remoteEventContent) : { events: [] }
-      const localEventState = JSON.stringify(buildEventSyncData())
-      const remoteEventState = JSON.stringify(remoteEventData)
+      const localEventState = buildComparableEventStateFromData(buildEventSyncData())
+      const remoteEventState = buildComparableEventStateFromData(remoteEventData)
       const hasEventContentDiff = localEventState !== remoteEventState
       const localRechargeState = buildComparableRechargeStateFromData(buildRechargeSyncData({ incremental: false }))
       const remoteRechargeState = buildComparableRechargeStateFromData(remoteRechargeData)
@@ -1395,6 +1638,7 @@ export const useSyncStore = defineStore('sync', () => {
         conflictData.value = {
           ...diff,
           rechargeGist: existingRechargeGist,
+          eventGist: existingEventGist,
           isPullOnly: true
         }
         syncStatus.value = '检测到远端数据'
@@ -1402,7 +1646,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在拉取远端数据...'
-      const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist)
+      const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist)
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
       return { action: 'pulled', ...result }

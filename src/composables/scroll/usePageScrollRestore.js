@@ -1,10 +1,10 @@
 import { nextTick } from 'vue'
 
-export function usePageScrollRestore(pageBodyRef, options) {
+export function usePageScrollRestore(pageBodyRef, options = {}) {
   const {
-    storageKey,
-    pendingKey,
-    selector
+    storageKey = 'page-scroll-state',
+    pendingKey = 'page-scroll-pending',
+    selector = '.page-body'
   } = options
 
   let savedScrollState = null
@@ -363,6 +363,7 @@ export function usePageScrollRestore(pageBodyRef, options) {
   }
 
   return {
+    setWindowScrollTop,
     getScrollEl,
     getActiveScrollSource,
     getDomScrollSnapshot,

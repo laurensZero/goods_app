@@ -184,13 +184,14 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
+import { usePageScrollRestore } from '@/composables/scroll/usePageScrollRestore'
 
 defineOptions({ name: 'EventDetailView' })
 
@@ -203,6 +204,15 @@ const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
 
+const { setWindowScrollTop } = usePageScrollRestore()
+
+const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
+
+function syncEventScrollLock(active) {
+  document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
+  document.body.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
+}
+
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
 
@@ -211,8 +221,7 @@ const event = computed(() => eventsStore.getById(eventId.value))
 
 const TYPE_MAP = {
   exhibition: { label: '展会', cls: 'type-exhibition' },
-  market: { label: '市集', cls: 'type-market' },
-  exchange: { label: '交换会', cls: 'type-exchange' },
+  concert: { label: '音乐会', cls: 'type-concert' },
   other: { label: '其他', cls: 'type-other' }
 }
 
@@ -245,11 +254,20 @@ async function refresh() {
   }
 }
 
+onBeforeMount(() => {
+  setWindowScrollTop(0)
+})
+
 onMounted(async () => {
+  syncEventScrollLock(true)
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
   await refresh()
+})
+
+onBeforeUnmount(() => {
+  syncEventScrollLock(false)
 })
 
 onActivated(refresh)
