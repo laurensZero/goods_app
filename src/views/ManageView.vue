@@ -236,7 +236,7 @@ const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWi
 const eventCount = computed(() => eventsStore.list.length)
 const rechargeCount = computed(() => rechargeStore.sortedRecords.value.length)
 const exportSummaryText = computed(() => (
-  `${collectionCount.value}件收藏 ${wishlistCount.value}件心愿 ${eventCount.value}场活动 ${rechargeCount.value}条充值`
+  `${collectionCount.value} 件收藏 ${wishlistCount.value} 件心愿 ${eventCount.value} 场活动 ${rechargeCount.value} 条充值`
 ))
 
 async function ensureEventsReady() {

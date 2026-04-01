@@ -185,7 +185,7 @@
           title="还没有活动记录"
           description="把展会、市集、交换会和线下活动整理进来，这里就会像收藏页一样排成完整档案。"
           action-text="添加第一场活动"
-          @action="router.push('/events/add')"
+          @action="goToAdd"
         />
       </section>
     </main>
@@ -196,7 +196,7 @@
         class="fab"
         type="button"
         aria-label="添加活动"
-        @click="router.push('/events/add')"
+        @click="goToAdd"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
@@ -422,7 +422,18 @@ function openDetail(id) {
     return
   }
   saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${id}`)
-  router.push(`/events/${id}`)
+  eventsDisplayReady.value = false
+  router.push(`/events/${id}`).catch(() => {
+    eventsDisplayReady.value = true
+  })
+}
+
+function goToAdd() {
+  saveScrollPosition(true, 'events:goToAdd')
+  eventsDisplayReady.value = false
+  router.push('/events/add').catch(() => {
+    eventsDisplayReady.value = true
+  })
 }
 
 function batchDelete() {
@@ -543,6 +554,9 @@ onDeactivated(() => {
   isEventsActive.value = false
   cancelPendingRestore()
   rememberCurrentScrollPosition()
+  if (readScrollTop() > 1) {
+    eventsDisplayReady.value = false
+  }
   exitSelectionModeQuiet()
   unbindPageScroll()
 })

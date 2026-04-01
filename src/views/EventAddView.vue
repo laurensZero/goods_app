@@ -1,5 +1,8 @@
 ﻿<template>
-  <div class="page event-add-page" :class="{ 'event-add-page--navigating': isNavigatingToPicker }">
+  <div
+    class="page event-add-page"
+    :class="{ 'event-add-page--navigating': isNavigatingToPicker, 'event-add-page--restoring': !pageDisplayReady }"
+  >
     <NavBar :title="isEdit ? '编辑活动' : '添加活动'" show-back />
 
     <main class="page-body">
@@ -269,7 +272,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DatePicker, Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
@@ -337,6 +340,7 @@ const showDatePicker = ref(false)
 const datePickerValue = ref([])
 const datePickerTarget = ref('start')
 const isNavigatingToPicker = ref(false)
+const pageDisplayReady = ref(false)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 const TABLET_BREAKPOINT = 900
@@ -524,6 +528,17 @@ onMounted(async () => {
     form.linkedGoodsIds = [...pickerResult]
   }
   isNavigatingToPicker.value = false
+  await nextTick()
+  pageDisplayReady.value = true
+})
+
+onActivated(async () => {
+  await nextTick()
+  pageDisplayReady.value = true
+})
+
+onDeactivated(() => {
+  pageDisplayReady.value = false
 })
 
 onBeforeUnmount(() => {
@@ -534,6 +549,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .event-add-page {
+  height: 100dvh;
+  overflow: hidden;
   background: var(--app-bg-gradient);
 }
 
@@ -541,10 +558,23 @@ onBeforeUnmount(() => {
   visibility: hidden;
 }
 
-.page-body {
+.event-add-page--restoring {
+  visibility: hidden;
+}
+
+.event-add-page .page-body {
   width: min(100%, 2048px);
   margin: 0 auto;
   padding: calc(env(safe-area-inset-top) + 16px) var(--page-padding) 120px;
+  overscroll-behavior-y: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.event-add-page .page-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .editor-shell {

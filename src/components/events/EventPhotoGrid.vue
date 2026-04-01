@@ -51,12 +51,12 @@ defineEmits(['preview'])
 
 .photo-grid__item {
   flex-shrink: 0;
-  width: 100px;
-  height: 100px;
+  width: 136px;
+  height: 136px;
   border: none;
   background: none;
   padding: 0;
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
@@ -87,8 +87,8 @@ defineEmits(['preview'])
 
 @media (min-width: 600px) {
   .photo-grid__item {
-    width: 120px;
-    height: 120px;
+    width: 156px;
+    height: 156px;
   }
 }
 </style>

@@ -184,7 +184,7 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onActivated, onBeforeMount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
@@ -205,13 +205,6 @@ const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
 
 const { setWindowScrollTop } = usePageScrollRestore()
-
-const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
-
-function syncEventScrollLock(active) {
-  document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
-  document.body.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
-}
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
@@ -259,15 +252,10 @@ onBeforeMount(() => {
 })
 
 onMounted(async () => {
-  syncEventScrollLock(true)
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
   await refresh()
-})
-
-onBeforeUnmount(() => {
-  syncEventScrollLock(false)
 })
 
 onActivated(refresh)
@@ -290,13 +278,24 @@ async function handleDelete() {
 
 <style scoped>
 .event-detail-page {
+  height: 100dvh;
+  overflow: hidden;
   background: var(--app-bg-gradient);
 }
 
-.page-body {
+.event-detail-page .page-body {
   width: min(100%, 2048px);
   margin: 0 auto;
   padding: calc(env(safe-area-inset-top) + 16px) var(--page-padding) 120px;
+  overscroll-behavior-y: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.event-detail-page .page-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .detail-shell {
@@ -351,7 +350,7 @@ async function handleDelete() {
 }
 
 .gallery-card {
-  padding: 16px;
+  padding: 12px;
   border-radius: 24px;
 }
 
@@ -378,6 +377,7 @@ async function handleDelete() {
 }
 
 .type-exhibition { background: rgba(90, 120, 250, 0.12); color: #355be0; }
+.type-concert { background: rgba(250, 149, 90, 0.14); color: #d26f20; }
 .type-market { background: rgba(250, 149, 90, 0.14); color: #d26f20; }
 .type-exchange { background: rgba(50, 200, 140, 0.14); color: #188f63; }
 .type-other { background: rgba(142, 142, 147, 0.14); color: #6a6e77; }
@@ -703,8 +703,10 @@ async function handleDelete() {
 }
 
 @media (max-width: 899px) {
-  .cover-card {
-    aspect-ratio: 16 / 10;
+  .gallery-card {
+    margin-inline: calc(var(--page-padding) * -1);
+    border-radius: 0;
+    padding-inline: var(--page-padding);
   }
 }
 
@@ -718,9 +720,4 @@ async function handleDelete() {
   }
 }
 
-@media (max-width: 420px) {
-  .info-card {
-    grid-template-columns: 1fr;
-  }
-}
 </style>
