@@ -28,7 +28,7 @@ const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 
 const route = useRoute()
 const router = useRouter()
-const homeMode = ref(localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge' ? 'recharge' : 'goods')
+const homeMode = ref('goods')
 const collectionTab = ref(readStoredCollectionTab())
 
 function readStoredCollectionTab() {
@@ -191,6 +191,10 @@ function activateTab(key) {
 }
 
 onMounted(() => {
+  if (localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge') {
+    localStorage.setItem(HOME_MODE_STORAGE_KEY, 'goods')
+  }
+  syncHomeMode('goods')
   window.addEventListener(HOME_MODE_EVENT, handleHomeModeChange)
   window.addEventListener(COLLECTION_TAB_EVENT, handleCollectionTabChange)
   window.addEventListener('storage', handleStorage)

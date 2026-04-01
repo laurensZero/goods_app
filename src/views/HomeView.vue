@@ -204,7 +204,7 @@ const rechargeSelectionMode = ref(false)
 const rechargeFabLabel = '添加充值记录'
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
-const homeMode = ref(localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge' ? 'recharge' : 'goods')
+const homeMode = ref('goods')
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
 // 视口宽度，用于响应式列数计算
@@ -633,6 +633,9 @@ onMounted(async () => {
   if (sessionId !== mountBootstrapSession) return
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
+  }
+  if (localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge') {
+    persistHomeMode('goods')
   }
   const shouldMaskDisplay = shouldMaskHomeDisplay()
   homeDisplayReady.value = !shouldMaskDisplay
