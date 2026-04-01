@@ -279,6 +279,7 @@ function buildImageSyncStats() {
 }
 
 export const useSyncStore = defineStore('sync', () => {
+
   const token = ref('')
   const gistId = ref('')
   const imageGistId = ref('')
@@ -626,14 +627,17 @@ export const useSyncStore = defineStore('sync', () => {
   function getLocalChangesSince(timestamp) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
+    const eventsStore = useEventsStore()
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const goods = [...resolvedLocal.goodsMap.values()]
     const trash = [...resolvedLocal.trashMap.values()]
     const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const events = eventsStore.list || []
 
     const updatedGoods = goods.filter((item) => getItemTimestamp(item) > timestamp).length
     const updatedTrash = trash.filter((item) => getItemTimestamp(item) > timestamp).length
     const updatedRecharge = recharge.filter((item) => getItemTimestamp(item) > timestamp).length
+    const updatedEvents = events.filter((item) => (Number(item.updatedAt) || 0) > timestamp).length
 
     return {
       updatedGoods,
@@ -642,7 +646,9 @@ export const useSyncStore = defineStore('sync', () => {
       totalGoods: goods.length,
       totalTrash: trash.length,
       totalRecharge: recharge.length,
-      hasChanges: updatedGoods > 0 || updatedTrash > 0 || updatedRecharge > 0
+      totalEvents: events.length,
+      updatedEvents,
+      hasChanges: updatedGoods > 0 || updatedTrash > 0 || updatedRecharge > 0 || updatedEvents > 0
     }
   }
 
@@ -869,7 +875,7 @@ export const useSyncStore = defineStore('sync', () => {
     }))
   }
 
-  async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null) {
+  async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null, eventGist = null) {
     const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
     if (!dataContent) throw new Error('远端数据为空')
 
@@ -1003,6 +1009,12 @@ export const useSyncStore = defineStore('sync', () => {
       ...remoteRechargeLegacy
     ].filter((item) => !item?.deleted))
 
+    let eventApplyResult = { added: 0, updated: 0, total: 0 }
+    if (eventData && Array.isArray(eventData.events)) {
+      const eventsStore = useEventsStore()
+      eventApplyResult = await eventsStore.importEventsBackup(eventData.events)
+    }
+
     return {
       importedGoods: goodsToImport.length,
       updatedGoods: goodsToUpdate.length,
@@ -1066,9 +1078,10 @@ export const useSyncStore = defineStore('sync', () => {
     }
 
     const imageGist = existingImageGist || await ensureImageGist()
-    const rechargeGist = existingRechargeGist || await ensureRechargeGist()
+    
     const { syncData, imageStats, imageFiles, referencedImageFiles } = await buildSyncPayload({ existingImageGist: imageGist })
     const rechargeSyncData = buildRechargeSyncData({ incremental: false })
+    const eventSyncData = buildEventSyncData()
     const imageCleanupFiles = buildImageCleanupFiles(imageGist, referencedImageFiles)
     const imageUpdates = {
       ...imageFiles,
@@ -1204,7 +1217,8 @@ export const useSyncStore = defineStore('sync', () => {
 
       const manifestContent = await getGistFileContent(token.value, gist, MANIFEST_FILENAME)
       const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
-      const existingRechargeGist = await getExistingRechargeGist() || await ensureRechargeGist()
+      const existingRechargeGist = rechargeGistId.value ? await getGist(token.value, rechargeGistId.value).catch(() => null) : null;
+      const existingEventGist = eventGistId.value ? await getGist(token.value, eventGistId.value).catch(() => null) : null;
       const rechargeDataContent = await getGistFileContent(token.value, existingRechargeGist, RECHARGE_DATA_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
       if (remoteManifest?.imageGistId) {
@@ -1259,14 +1273,15 @@ export const useSyncStore = defineStore('sync', () => {
             localTime: lastSyncedAt.value,
             localModifiedTime: getLatestLocalModifiedAt(),
             gist,
-            rechargeGist: existingRechargeGist
+            rechargeGist: existingRechargeGist,
+            eventGist: existingEventGist
           }
           syncStatus.value = '检测到冲突'
           return { action: 'conflict' }
         }
 
         syncStatus.value = '正在拉取远端数据...'
-        const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist)
+        const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist)
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         syncStatus.value = '拉取完成'
         return { action: 'pulled', ...result }
@@ -1296,7 +1311,7 @@ export const useSyncStore = defineStore('sync', () => {
         syncStatus.value = '正在拉取远端数据...'
         const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
         const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
-        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null)
+        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null)
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         conflictData.value = null
         syncStatus.value = '拉取完成'
@@ -1346,6 +1361,11 @@ export const useSyncStore = defineStore('sync', () => {
       const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
       const remoteRechargeContent = await getGistFileContent(token.value, existingRechargeGist, RECHARGE_DATA_FILENAME)
       const remoteRechargeData = remoteRechargeContent ? JSON.parse(remoteRechargeContent) : { recharge: [], rechargeTrash: [] }
+      const remoteEventContent = (await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)) || (existingEventGist ? await getGistFileContent(token.value, existingEventGist, EVENT_DATA_FILENAME) : null)
+      const remoteEventData = remoteEventContent ? JSON.parse(remoteEventContent) : { events: [] }
+      const localEventState = JSON.stringify(buildEventSyncData())
+      const remoteEventState = JSON.stringify(remoteEventData)
+      const hasEventContentDiff = localEventState !== remoteEventState
       const localRechargeState = buildComparableRechargeStateFromData(buildRechargeSyncData({ incremental: false }))
       const remoteRechargeState = buildComparableRechargeStateFromData(remoteRechargeData)
       const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
@@ -1359,14 +1379,14 @@ export const useSyncStore = defineStore('sync', () => {
           || diff.localOnlyTrash > 0
           || diff.updatedGoods > 0
         )
-        if (!hasContentDiff && !hasRemoteImageChanges && !hasRechargeContentDiff) {
+        if (!hasContentDiff && !hasRemoteImageChanges && !hasRechargeContentDiff && !hasEventContentDiff) {
           syncStatus.value = '数据已是最新'
           return { action: 'no_changes' }
         }
 
-        if (!hasContentDiff && (hasRemoteImageChanges || hasRechargeContentDiff)) {
+        if (!hasContentDiff && (hasRemoteImageChanges || hasRechargeContentDiff || hasEventContentDiff)) {
           syncStatus.value = '正在拉取远端数据...'
-          const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist)
+          const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist)
           await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
           syncStatus.value = '拉取完成'
           return { action: 'pulled', ...result }
@@ -1411,7 +1431,7 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = '正在拉取远端数据...'
       const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
-      const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null)
+      const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null)
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
       conflictData.value = null
@@ -1419,64 +1439,6 @@ export const useSyncStore = defineStore('sync', () => {
     } catch (error) {
       lastError.value = error.message
       syncStatus.value = '拉取失败'
-      throw error
-    } finally {
-      isSyncing.value = false
-    }
-  }
-
-  async function syncEventsOnly() {
-    if (isSyncing.value) return
-    if (!token.value) throw new Error('未配置 Token')
-
-    isSyncing.value = true
-    lastError.value = ''
-    syncStatus.value = '正在同步活动...'
-
-    try {
-      const gist = await ensureEventGist()
-      const payload = buildEventSyncData()
-      await updateGist(token.value, gist.id, {
-        [EVENT_DATA_FILENAME]: { content: JSON.stringify(payload) }
-      })
-      await saveEventLastSyncedAt(payload.updatedAt)
-      syncStatus.value = '活动同步完成'
-      return {
-        action: 'pushed',
-        totalEvents: payload.events.length
-      }
-    } catch (error) {
-      lastError.value = error.message
-      syncStatus.value = '活动同步失败'
-      throw error
-    } finally {
-      isSyncing.value = false
-    }
-  }
-
-  async function pullEventsOnly() {
-    if (isSyncing.value) return
-    if (!token.value) throw new Error('未配置 Token')
-
-    isSyncing.value = true
-    lastError.value = ''
-    syncStatus.value = '正在拉取活动...'
-
-    try {
-      const gist = await ensureEventGist()
-      const content = await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)
-      const data = content ? JSON.parse(content) : { events: [] }
-      const eventsStore = useEventsStore()
-      const result = await eventsStore.importEventsBackup(data.events || [])
-      await saveEventLastSyncedAt(data.updatedAt || new Date().toISOString())
-      syncStatus.value = '活动拉取完成'
-      return {
-        action: 'pulled',
-        ...result
-      }
-    } catch (error) {
-      lastError.value = error.message
-      syncStatus.value = '活动拉取失败'
       throw error
     } finally {
       isSyncing.value = false
@@ -1519,9 +1481,7 @@ export const useSyncStore = defineStore('sync', () => {
     saveToken,
     checkTokenValidity,
     fullSync,
-    syncEventsOnly,
     pullOnly,
-    pullEventsOnly,
     resolveConflict,
     resolvePullConflict,
     clearConflict,

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="page events-page"
     :class="{ 'events-page--restoring': !eventsDisplayReady }"
@@ -34,7 +34,7 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <section v-if="eventsStore.list.length > 0" class="summary-section">
+      <section class="summary-section">
         <article class="summary-card">
           <div class="summary-orb summary-orb--left" />
           <div class="summary-orb summary-orb--right" />
@@ -43,10 +43,7 @@
             <p class="summary-label">EVENT OVERVIEW</p>
           </div>
 
-          <p class="summary-value">
-            <span class="summary-count">{{ eventsStore.list.length }}</span>
-            <span class="summary-unit">场活动</span>
-          </p>
+          
 
           <div class="summary-metrics">
             <div class="metric-chip">
@@ -1174,3 +1171,5 @@ onBeforeRouteLeave(() => {
   }
 }
 </style>
+
+

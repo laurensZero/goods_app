@@ -69,14 +69,6 @@
                 <span class="detail-label">Image Gist</span>
                 <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
               </div>
-              <div class="detail-row">
-                <span class="detail-label">Recharge Gist</span>
-                <span class="detail-value detail-value--mono">{{ resolvedRechargeGistId || '未创建' }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Event Gist</span>
-                <span class="detail-value detail-value--mono">{{ resolvedEventGistId || '未创建' }}</span>
-              </div>
               <div class="detail-row detail-row--last">
                 <span class="detail-label">最近同步</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
@@ -253,42 +245,6 @@
               <path d="M9 6l6 6-6 6" />
             </svg>
           </a>
-
-          <a v-if="rechargeGistUrl" class="entry-card" :href="rechargeGistUrl" target="_blank" rel="noopener">
-            <span class="entry-icon link-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Recharge Store</p>
-              <h3 class="entry-name">查看充值 Gist</h3>
-              <p class="entry-desc">打开独立充值 Gist，查看充值同步数据和更新时间。</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </a>
-
-          <button type="button" class="entry-card" :disabled="!eventGistUrl" @click="openEventGist">
-            <span class="entry-icon link-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Event Store</p>
-              <h3 class="entry-name">查看活动 Gist</h3>
-              <p class="entry-desc">打开活动专用 Gist，检查活动备份文件和最近同步结果。</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
 
           <button type="button" class="entry-card" @click="openTokenDialog">
             <span class="entry-icon token-icon">
@@ -734,6 +690,8 @@ async function handleSync() {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
+      if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
+      if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
       message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
     } else if (result.action === 'no_changes') {
       message = '数据已经是最新，无需上传'
@@ -743,6 +701,7 @@ async function handleSync() {
         if (result.updatedGoods > 0) parts.push(`收藏 ${result.updatedGoods} 件`)
         if (result.updatedTrash > 0) parts.push(`回收站 ${result.updatedTrash} 条`)
         if (result.updatedRecharge > 0) parts.push(`充值 ${result.updatedRecharge} 条`)
+        if (result.updatedEvents > 0) parts.push(`活动 ${result.updatedEvents} 场`)
         message = `上传完成，${parts.join('，')}`
       } else {
         message = '已按当前本地数据重新上传'
@@ -750,9 +709,6 @@ async function handleSync() {
     } else {
       message = '上传完成'
     }
-
-    const eventResult = await syncStore.syncEventsOnly()
-    message += buildEventSyncSummary(eventResult)
 
     showToast(message, 3500)
     await loadGistInfo()
@@ -774,15 +730,13 @@ async function handlePull() {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
+        if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
+        if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
       let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
-      const eventResult = await syncStore.pullEventsOnly()
-      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'no_changes') {
       let message = '数据已经是最新'
-      const eventResult = await syncStore.pullEventsOnly()
-      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
       await loadGistInfo()
     }
@@ -803,9 +757,9 @@ async function handlePullConflict(confirm) {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
+        if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
+        if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
       let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
-      const eventResult = await syncStore.pullEventsOnly()
-      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'cancelled') {
@@ -828,13 +782,12 @@ async function handleSyncConflict(useRemote) {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
+        if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
+        if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
       let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
-      const eventResult = await syncStore.pullEventsOnly()
-      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {
-      const eventResult = await syncStore.syncEventsOnly()
-      showToast(`上传完成${buildEventSyncSummary(eventResult)}`, 3500)
+      showToast(`上传完成`, 3500)
     }
     await loadGistInfo()
   } catch (error) {
