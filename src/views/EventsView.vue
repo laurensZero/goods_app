@@ -43,7 +43,10 @@
             <p class="summary-label">EVENT OVERVIEW</p>
           </div>
 
-          
+          <p class="summary-value">
+            <span class="summary-count">{{ eventsStore.list.length }}</span>
+            <span class="summary-unit">场活动</span>
+          </p>
 
           <div class="summary-metrics">
             <div class="metric-chip">
@@ -1171,5 +1174,4 @@ onBeforeRouteLeave(() => {
   }
 }
 </style>
-
 
