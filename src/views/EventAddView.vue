@@ -675,7 +675,7 @@ onBeforeUnmount(() => {
   height: 112px;
   margin: 0 auto;
   border-radius: 30px;
-  background: color-mix(in srgb, var(--app-surface-soft) 92%, white);
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
   box-shadow: var(--app-shadow);
   display: flex;
   align-items: center;
@@ -816,7 +816,7 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   font-size: 15px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
@@ -833,8 +833,8 @@ onBeforeUnmount(() => {
 .outline-action:focus-visible,
 .media-picker:focus-visible {
   outline: none;
-  border-color: rgba(20, 20, 22, 0.2);
-  box-shadow: 0 0 0 3px rgba(20, 20, 22, 0.06);
+  border-color: color-mix(in srgb, var(--app-text) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 
 .field--error input {
@@ -850,7 +850,7 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text);
   font-size: 15px;
   text-align: left;
@@ -878,7 +878,7 @@ onBeforeUnmount(() => {
   padding: 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
   border-radius: 22px;
-  background: color-mix(in srgb, var(--app-surface-soft) 70%, white);
+  background: color-mix(in srgb, var(--app-surface-soft) 82%, var(--app-surface));
   text-align: left;
 }
 
@@ -1010,7 +1010,7 @@ onBeforeUnmount(() => {
   height: 28px;
   border: none;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--app-surface);
   color: var(--app-text-tertiary);
   font-size: 16px;
   line-height: 1;
@@ -1053,7 +1053,7 @@ onBeforeUnmount(() => {
 
 .photo-upload__add {
   border: 1px dashed color-mix(in srgb, var(--app-border) 90%, transparent);
-  background: color-mix(in srgb, var(--app-surface-soft) 76%, white);
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, var(--app-surface));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1085,8 +1085,8 @@ onBeforeUnmount(() => {
   height: 24px;
   border: none;
   border-radius: 50%;
-  background: rgba(20, 20, 22, 0.72);
-  color: #ffffff;
+  background: color-mix(in srgb, var(--app-text) 72%, transparent);
+  color: var(--app-surface);
   font-size: 14px;
 }
 
@@ -1106,8 +1106,8 @@ onBeforeUnmount(() => {
   height: var(--button-height);
   border: none;
   border-radius: 16px;
-  background: #141416;
-  color: #fff;
+  background: var(--app-text);
+  color: var(--app-surface);
   font-size: 16px;
   font-weight: 600;
   box-shadow: var(--app-shadow);
@@ -1122,7 +1122,7 @@ onBeforeUnmount(() => {
 .btn-float {
   pointer-events: auto;
   border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(20, 20, 22, 0.28);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--app-text) 28%, transparent);
 }
 
 @media (min-width: 900px) {
@@ -1171,11 +1171,6 @@ onBeforeUnmount(() => {
   .media-picker {
     align-items: flex-start;
   }
-}
-
-:global(html.theme-dark) .btn-primary {
-  background: #f5f5f7;
-  color: #141416;
 }
 
 :global(html.theme-dark) .btn-float {
