@@ -131,6 +131,38 @@ const routes = [
     meta: { title: '回收站' }
   },
   {
+    path: '/events',
+    name: 'events',
+    component: () => import('@/views/EventsView.vue'),
+    meta: { title: '活动记录', keepAlive: true }
+  },
+  {
+    path: '/events/add',
+    name: 'event-add',
+    component: () => import('@/views/EventAddView.vue'),
+    meta: { title: '添加活动' }
+  },
+  {
+    path: '/events/link-goods',
+    name: 'event-link-goods',
+    component: () => import('@/views/EventGoodsPickerView.vue'),
+    meta: { title: '选择关联谷子' }
+  },
+  {
+    path: '/events/edit/:id',
+    name: 'event-edit',
+    component: () => import('@/views/EventAddView.vue'),
+    meta: { title: '编辑活动' },
+    props: true
+  },
+  {
+    path: '/events/:id',
+    name: 'event-detail',
+    component: () => import('@/views/EventDetailView.vue'),
+    meta: { title: '活动详情' },
+    props: true
+  },
+  {
     path: '/manage/sync',
     name: 'manage-sync',
     component: () => import('@/views/SyncView.vue'),

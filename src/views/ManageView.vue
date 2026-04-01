@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page manage-page" :class="{ 'manage-page--restoring': !manageDisplayReady }">
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
@@ -216,6 +216,7 @@ import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
+import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
@@ -226,6 +227,7 @@ defineOptions({ name: 'ManageView' })
 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()
+const eventsStore = useEventsStore()
 const syncStore = useSyncStore()
 const rechargeStore = useRechargeStore()
 
@@ -459,14 +461,16 @@ async function handleExport() {
   const trashList = await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item)))
   const rechargeRecords = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
   const rechargeTrash = []
+  const eventsList = eventsStore.list
 
   const data = {
-    version: 7,
+    version: 8,
     exportedAt: new Date().toISOString(),
     goods: goodsList,
     trash: trashList,
     recharge: rechargeRecords,
     rechargeTrash,
+    events: eventsList,
     presets: {
       categories: presets.categories,
       ips: presets.ips,
@@ -539,6 +543,7 @@ async function handleImport(event) {
     const rechargeDeleted = Array.isArray(data.rechargeTrash) ? data.rechargeTrash : []
     const rechargeLegacy = Array.isArray(data.rechargeRecords) ? data.rechargeRecords : []
     const rechargeToImport = [...rechargeActive, ...rechargeDeleted, ...rechargeLegacy]
+    const eventsToImport = Array.isArray(data.events) ? data.events : []
 
     const goodsAdded = goodsToImport.length > 0
       ? await goodsStore.importGoodsBackup(goodsToImport)
@@ -570,9 +575,13 @@ async function handleImport(event) {
     )
 
     const rechargeChanged = Number(rechargeResult.added || 0) + Number(rechargeResult.updated || 0)
+    const eventResult = eventsToImport.length > 0
+      ? await eventsStore.importEventsBackup(eventsToImport)
+      : { added: 0, updated: 0 }
+    const eventsChanged = Number(eventResult.added || 0) + Number(eventResult.updated || 0)
 
-    if (goodsAdded > 0 || trashAdded > 0 || rechargeChanged > 0) {
-      showToast(`成功导入 ${goodsAdded} 件收藏，${trashAdded} 条回收站记录，${rechargeChanged} 条充值记录`)
+    if (goodsAdded > 0 || trashAdded > 0 || rechargeChanged > 0 || eventsChanged > 0) {
+      showToast(`成功导入 ${goodsAdded} 件收藏，${trashAdded} 条回收站记录，${rechargeChanged} 条充值记录，${eventResult.added} 场新活动，更新 ${eventResult.updated} 场活动`)
       return
     }
 

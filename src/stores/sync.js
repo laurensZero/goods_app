@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { useGoodsStore } from './goods'
+import { useEventsStore } from './events'
 import { usePresetsStore, normalizeCharacterName } from './presets'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { deleteItems } from '@/utils/db'
@@ -28,11 +29,14 @@ const TOKEN_KEY = 'sync_github_token'
 const GIST_ID_KEY = 'sync_gist_id'
 const IMAGE_GIST_ID_KEY = 'sync_image_gist_id'
 const RECHARGE_GIST_ID_KEY = 'sync_recharge_gist_id'
+const EVENT_GIST_ID_KEY = 'sync_event_gist_id'
 const LAST_SYNC_KEY = 'sync_last_synced_at'
+const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
 
 const DATA_FILENAME = 'data.json'
 const RECHARGE_DATA_FILENAME = 'recharge-data.json'
+const EVENT_DATA_FILENAME = 'events-data.json'
 const MANIFEST_FILENAME = 'manifest.json'
 const IS_NATIVE = Capacitor.isNativePlatform()
 const IMAGE_FILE_PREFIX = 'goods-image__'
@@ -279,7 +283,9 @@ export const useSyncStore = defineStore('sync', () => {
   const gistId = ref('')
   const imageGistId = ref('')
   const rechargeGistId = ref('')
+  const eventGistId = ref('')
   const lastSyncedAt = ref('')
+  const eventLastSyncedAt = ref('')
   const deviceId = ref('')
   const isInitialized = ref(false)
   const isSyncing = ref(false)
@@ -294,7 +300,9 @@ export const useSyncStore = defineStore('sync', () => {
     gistId.value = (await readKey(GIST_ID_KEY)) || ''
     imageGistId.value = (await readKey(IMAGE_GIST_ID_KEY)) || ''
     rechargeGistId.value = (await readKey(RECHARGE_GIST_ID_KEY)) || ''
+    eventGistId.value = (await readKey(EVENT_GIST_ID_KEY)) || ''
     lastSyncedAt.value = (await readKey(LAST_SYNC_KEY)) || ''
+    eventLastSyncedAt.value = (await readKey(EVENT_LAST_SYNC_KEY)) || ''
     deviceId.value = await readDeviceId()
     isInitialized.value = true
 
@@ -349,6 +357,17 @@ export const useSyncStore = defineStore('sync', () => {
         // ignore
       }
     }
+
+    if (token.value && !eventGistId.value) {
+      try {
+        const matched = await listGists(token.value, 'goods-app-events-sync')
+        if (matched.length > 0) {
+          await saveEventGistId(matched[0].id)
+        }
+      } catch {
+        // ignore
+      }
+    }
   }
 
   async function saveToken(newToken) {
@@ -357,11 +376,15 @@ export const useSyncStore = defineStore('sync', () => {
     gistId.value = ''
     imageGistId.value = ''
     rechargeGistId.value = ''
+    eventGistId.value = ''
     lastSyncedAt.value = ''
+    eventLastSyncedAt.value = ''
     await writeKey(GIST_ID_KEY, '')
     await writeKey(IMAGE_GIST_ID_KEY, '')
     await writeKey(RECHARGE_GIST_ID_KEY, '')
+    await writeKey(EVENT_GIST_ID_KEY, '')
     await writeKey(LAST_SYNC_KEY, '')
+    await writeKey(EVENT_LAST_SYNC_KEY, '')
   }
 
   async function saveGistId(newGistId) {
@@ -379,9 +402,19 @@ export const useSyncStore = defineStore('sync', () => {
     await writeKey(RECHARGE_GIST_ID_KEY, newRechargeGistId)
   }
 
+  async function saveEventGistId(newEventGistId) {
+    eventGistId.value = newEventGistId
+    await writeKey(EVENT_GIST_ID_KEY, newEventGistId)
+  }
+
   async function saveLastSyncedAt(timestamp) {
     lastSyncedAt.value = timestamp
     await writeKey(LAST_SYNC_KEY, timestamp)
+  }
+
+  async function saveEventLastSyncedAt(timestamp) {
+    eventLastSyncedAt.value = timestamp
+    await writeKey(EVENT_LAST_SYNC_KEY, timestamp)
   }
 
   async function checkTokenValidity() {
@@ -536,6 +569,21 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  function buildEventSyncData() {
+    const eventsStore = useEventsStore()
+    return {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      deviceId: deviceId.value,
+      events: eventsStore.list.map((item) => ({
+        ...item,
+        photos: Array.isArray(item.photos) ? item.photos : [],
+        linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
+        tags: Array.isArray(item.tags) ? item.tags : []
+      }))
+    }
+  }
+
   async function buildComparableSyncStateFromData(data) {
     const resolved = resolveGoodsTrashMaps(data?.goods || [], data?.trash || [])
     const goods = [...resolved.goodsMap.values()]
@@ -675,6 +723,36 @@ export const useSyncStore = defineStore('sync', () => {
     })
 
     await saveRechargeGistId(created.id)
+    return created
+  }
+
+  async function ensureEventGist() {
+    if (eventGistId.value) {
+      try {
+        const existing = await getGist(token.value, eventGistId.value)
+        if (existing) return existing
+        eventGistId.value = ''
+        await writeKey(EVENT_GIST_ID_KEY, '')
+      } catch (error) {
+        if (error.message.includes('401')) {
+          throw new Error('Token 无效或已过期，请重新配置')
+        }
+      }
+    }
+
+    const desc = buildSyncDescription(deviceId.value, 'events')
+    const matched = await listGists(token.value, 'goods-app-events-sync')
+    if (matched.length > 0) {
+      await saveEventGistId(matched[0].id)
+      return getGist(token.value, matched[0].id)
+    }
+
+    const eventData = buildEventSyncData()
+    const created = await createGist(token.value, desc, {
+      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) }
+    })
+
+    await saveEventGistId(created.id)
     return created
   }
 
@@ -1347,17 +1425,79 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  async function syncEventsOnly() {
+    if (isSyncing.value) return
+    if (!token.value) throw new Error('未配置 Token')
+
+    isSyncing.value = true
+    lastError.value = ''
+    syncStatus.value = '正在同步活动...'
+
+    try {
+      const gist = await ensureEventGist()
+      const payload = buildEventSyncData()
+      await updateGist(token.value, gist.id, {
+        [EVENT_DATA_FILENAME]: { content: JSON.stringify(payload) }
+      })
+      await saveEventLastSyncedAt(payload.updatedAt)
+      syncStatus.value = '活动同步完成'
+      return {
+        action: 'pushed',
+        totalEvents: payload.events.length
+      }
+    } catch (error) {
+      lastError.value = error.message
+      syncStatus.value = '活动同步失败'
+      throw error
+    } finally {
+      isSyncing.value = false
+    }
+  }
+
+  async function pullEventsOnly() {
+    if (isSyncing.value) return
+    if (!token.value) throw new Error('未配置 Token')
+
+    isSyncing.value = true
+    lastError.value = ''
+    syncStatus.value = '正在拉取活动...'
+
+    try {
+      const gist = await ensureEventGist()
+      const content = await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)
+      const data = content ? JSON.parse(content) : { events: [] }
+      const eventsStore = useEventsStore()
+      const result = await eventsStore.importEventsBackup(data.events || [])
+      await saveEventLastSyncedAt(data.updatedAt || new Date().toISOString())
+      syncStatus.value = '活动拉取完成'
+      return {
+        action: 'pulled',
+        ...result
+      }
+    } catch (error) {
+      lastError.value = error.message
+      syncStatus.value = '活动拉取失败'
+      throw error
+    } finally {
+      isSyncing.value = false
+    }
+  }
+
   async function resetConfig() {
     token.value = ''
     gistId.value = ''
     imageGistId.value = ''
     rechargeGistId.value = ''
+    eventGistId.value = ''
     lastSyncedAt.value = ''
+    eventLastSyncedAt.value = ''
     await writeKey(TOKEN_KEY, '')
     await writeKey(GIST_ID_KEY, '')
     await writeKey(IMAGE_GIST_ID_KEY, '')
     await writeKey(RECHARGE_GIST_ID_KEY, '')
+    await writeKey(EVENT_GIST_ID_KEY, '')
     await writeKey(LAST_SYNC_KEY, '')
+    await writeKey(EVENT_LAST_SYNC_KEY, '')
   }
 
   return {
@@ -1365,7 +1505,9 @@ export const useSyncStore = defineStore('sync', () => {
     gistId,
     imageGistId,
     rechargeGistId,
+    eventGistId,
     lastSyncedAt,
+    eventLastSyncedAt,
     deviceId,
     isInitialized,
     isSyncing,
@@ -1377,7 +1519,9 @@ export const useSyncStore = defineStore('sync', () => {
     saveToken,
     checkTokenValidity,
     fullSync,
+    syncEventsOnly,
     pullOnly,
+    pullEventsOnly,
     resolveConflict,
     resolvePullConflict,
     clearConflict,

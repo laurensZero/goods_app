@@ -1,74 +1,204 @@
-<template>
-  <nav class="tab-bar">
-    <RouterLink to="/home" class="tab-item" active-class="tab-item--active">
+﻿<template>
+  <nav class="tab-bar" aria-label="底部导航">
+    <button
+      v-for="tab in tabs"
+      :key="tab.key"
+      type="button"
+      class="tab-item"
+      :class="{ 'tab-item--active': isTabActive(tab.key) }"
+      :aria-current="isTabActive(tab.key) ? 'page' : undefined"
+      @click="activateTab(tab.key)"
+    >
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="4" y="5" width="7" height="7" rx="2" />
-        <rect x="13" y="5" width="7" height="7" rx="2" />
-        <rect x="4" y="13" width="7" height="7" rx="2" />
-        <rect x="13" y="13" width="7" height="7" rx="2" />
+        <path v-for="(path, index) in tab.paths" :key="index" :d="path" />
       </svg>
-      <span class="tab-label">{{ homeTabLabel }}</span>
-    </RouterLink>
-
-    <RouterLink to="/wishlist" class="tab-item" active-class="tab-item--active">
-      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 20s-6.8-4.3-9.2-8.2C.9 8.7 2 5.1 5.1 3.8c2.2-.9 4.3 0 5.6 1.7 1.3-1.7 3.4-2.6 5.6-1.7 3.1 1.3 4.2 4.9 2.3 8-2.4 3.9-9.2 8.2-9.2 8.2Z" />
-      </svg>
-      <span class="tab-label">心愿</span>
-    </RouterLink>
-
-    <RouterLink to="/leaderboard/characters" class="tab-item" active-class="tab-item--active">
-      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M6 20V11" />
-        <path d="M12 20V4" />
-        <path d="M18 20v-6" />
-      </svg>
-      <span class="tab-label">统计</span>
-    </RouterLink>
-
-    <RouterLink to="/manage" class="tab-item" active-class="tab-item--active">
-      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="9" cy="7" r="3" />
-        <circle cx="15" cy="17" r="3" />
-        <path d="M12 7h9" />
-        <path d="M3 17h8" />
-        <path d="M3 7H6" />
-        <path d="M18 17h3" />
-      </svg>
-      <span class="tab-label">管理</span>
-    </RouterLink>
+      <span class="tab-label">{{ tab.label }}</span>
+    </button>
   </nav>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
+const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 
+const route = useRoute()
+const router = useRouter()
 const homeMode = ref(localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge' ? 'recharge' : 'goods')
-const homeTabLabel = computed(() => (homeMode.value === 'recharge' ? '充值' : '收藏'))
+const collectionTab = ref(readStoredCollectionTab())
+
+function readStoredCollectionTab() {
+  const storedValue = localStorage.getItem(COLLECTION_TAB_STORAGE_KEY)
+  return storedValue === 'wishlist' || storedValue === 'stats' ? storedValue : 'goods'
+}
 
 function syncHomeMode(nextMode) {
   homeMode.value = nextMode === 'recharge' ? 'recharge' : 'goods'
 }
 
+function syncCollectionTab(nextTab) {
+  collectionTab.value = nextTab === 'wishlist' || nextTab === 'stats' ? nextTab : 'goods'
+}
+
+const firstTab = computed(() => {
+  if (collectionTab.value === 'wishlist') {
+    return {
+      key: 'collection',
+      label: '心愿',
+      paths: [
+        'M12 20s-6.8-4.3-9.2-8.2C.9 8.7 2 5.1 5.1 3.8c2.2-.9 4.3 0 5.6 1.7 1.3-1.7 3.4-2.6 5.6-1.7 3.1 1.3 4.2 4.9 2.3 8-2.4 3.9-9.2 8.2-9.2 8.2Z'
+      ]
+    }
+  }
+
+  if (collectionTab.value === 'stats') {
+    return {
+      key: 'collection',
+      label: '统计',
+      paths: [
+        'M6 20V11',
+        'M12 20V4',
+        'M18 20v-6'
+      ]
+    }
+  }
+
+  return {
+    key: 'collection',
+    label: '收藏',
+    paths: [
+      'M4 5h7v7H4z',
+      'M13 5h7v7h-7z',
+      'M4 13h7v7H4z',
+      'M13 13h7v7h-7z'
+    ]
+  }
+})
+
+const tabs = computed(() => [
+  firstTab.value,
+  {
+    key: 'events',
+    label: '活动',
+    paths: [
+      'M12 3v18',
+      'M7 8h10',
+      'M7 16h10',
+      'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z'
+    ]
+  },
+  {
+    key: 'recharge',
+    label: '充值',
+    paths: [
+      'M4 7h16',
+      'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z',
+      'M9 12h6',
+      'M12 9v6'
+    ]
+  },
+  {
+    key: 'manage',
+    label: '管理',
+    paths: [
+      'M12 3v4',
+      'M12 17v4',
+      'M4 12h4',
+      'M16 12h4',
+      'M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6Z'
+    ]
+  }
+])
+
 function handleHomeModeChange(event) {
   syncHomeMode(event?.detail?.mode)
 }
 
+function handleCollectionTabChange(event) {
+  syncCollectionTab(event?.detail?.tab)
+}
+
 function handleStorage(event) {
-  if (event.key !== HOME_MODE_STORAGE_KEY) return
-  syncHomeMode(event.newValue)
+  if (event.key === HOME_MODE_STORAGE_KEY) {
+    syncHomeMode(event.newValue)
+    return
+  }
+
+  if (event.key === COLLECTION_TAB_STORAGE_KEY) {
+    syncCollectionTab(event.newValue)
+  }
+}
+
+function persistHomeMode(mode) {
+  const normalizedMode = mode === 'recharge' ? 'recharge' : 'goods'
+  syncHomeMode(normalizedMode)
+  localStorage.setItem(HOME_MODE_STORAGE_KEY, normalizedMode)
+  window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
+    detail: { mode: normalizedMode }
+  }))
+}
+
+function isTabActive(key) {
+  if (key === 'collection') {
+    return (
+      (route.path === '/home' && homeMode.value !== 'recharge')
+      || route.path.startsWith('/wishlist')
+      || route.path.startsWith('/leaderboard')
+    )
+  }
+
+  if (key === 'recharge') return route.path === '/home' && homeMode.value === 'recharge'
+  if (key === 'events') return route.path.startsWith('/events')
+  if (key === 'manage') return route.path.startsWith('/manage')
+  return false
+}
+
+function activateTab(key) {
+  if (key === 'collection') {
+    if (collectionTab.value === 'wishlist') {
+      router.push('/wishlist')
+      return
+    }
+
+    if (collectionTab.value === 'stats') {
+      router.push('/leaderboard/characters')
+      return
+    }
+
+    persistHomeMode('goods')
+    if (route.path !== '/home') router.push('/home')
+    return
+  }
+
+  if (key === 'recharge') {
+    persistHomeMode('recharge')
+    if (route.path !== '/home') router.push('/home')
+    return
+  }
+
+  if (key === 'events') {
+    router.push('/events')
+    return
+  }
+
+  if (key === 'manage') {
+    router.push('/manage')
+  }
 }
 
 onMounted(() => {
   window.addEventListener(HOME_MODE_EVENT, handleHomeModeChange)
+  window.addEventListener(COLLECTION_TAB_EVENT, handleCollectionTabChange)
   window.addEventListener('storage', handleStorage)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener(HOME_MODE_EVENT, handleHomeModeChange)
+  window.removeEventListener(COLLECTION_TAB_EVENT, handleCollectionTabChange)
   window.removeEventListener('storage', handleStorage)
 })
 </script>
@@ -103,9 +233,10 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 6px;
   padding: 0 14px;
+  border: none;
   border-radius: 18px;
+  background: transparent;
   color: var(--app-text-tertiary);
-  text-decoration: none;
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 

@@ -17,7 +17,6 @@ const DIMENSION_CONFIG = {
     emptyLabel: '未设置角色',
     title: '角色排行',
     heroLabel: 'Character Ranking',
-    description: '按角色聚合收藏数量与花费，适合看主推和角色覆盖度。',
     getValues(item) {
       return Array.isArray(item.characters) ? item.characters : []
     },

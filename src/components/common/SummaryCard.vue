@@ -115,6 +115,7 @@ watch(isHidden, (value) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
 }
 
 .summary-label {

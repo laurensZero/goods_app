@@ -129,7 +129,12 @@ function normalizePriceValue(value) {
 }
 
 function normalizeWishlistFlag(value) {
-  return value === true || value === 1 || value === '1'
+  if (value === true || value === 1) return true
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === '1' || normalized === 'true'
+  }
+  return false
 }
 
 function resolveEffectivePriceValue(item) {

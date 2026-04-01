@@ -26,9 +26,9 @@
           </button>
 
           <HomeViewModeSwitch
-            v-if="!selectionMode || homeMode === 'recharge'"
-            :model-value="homeMode"
-            @update:model-value="setHomeMode"
+            v-if="homeMode === 'goods' && !selectionMode"
+            model-value="goods"
+            @update:model-value="switchHomeTopTab"
           />
         </div>
       </section>
@@ -203,6 +203,7 @@ const rechargeContentRef = ref(null)
 const rechargeSelectionMode = ref(false)
 const rechargeFabLabel = '添加充值记录'
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
+const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const homeMode = ref(localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge' ? 'recharge' : 'goods')
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
@@ -290,7 +291,14 @@ const HOME_MODE_ORDER = {
   recharge: 1
 }
 
-function setHomeMode(nextMode) {
+function persistHomeMode(value) {
+  localStorage.setItem(HOME_MODE_STORAGE_KEY, value)
+  window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
+    detail: { mode: value }
+  }))
+}
+
+function setHomeModeValue(nextMode) {
   const target = nextMode === 'recharge' ? 'recharge' : 'goods'
   if (homeMode.value === target) return
 
@@ -299,6 +307,7 @@ function setHomeMode(nextMode) {
   homeModeTransitionName.value = nextOrder >= previousOrder ? 'home-mode-forward' : 'home-mode-back'
 
   homeMode.value = target
+  persistHomeMode(target)
   if (target === 'recharge') {
     showAddSheet.value = false
     showDeleteConfirm.value = false
@@ -307,12 +316,36 @@ function setHomeMode(nextMode) {
   }
 }
 
-watch(homeMode, (value) => {
-  localStorage.setItem(HOME_MODE_STORAGE_KEY, value)
-  window.dispatchEvent(new CustomEvent('goods-app:home-mode-change', {
-    detail: { mode: value }
-  }))
-}, { immediate: true })
+function switchHomeTopTab(nextMode) {
+  if (nextMode === 'wishlist') {
+    saveScrollPosition(true, 'home:navigateToWishlist')
+    router.push('/wishlist')
+    return
+  }
+
+  if (nextMode === 'stats') {
+    saveScrollPosition(true, 'home:navigateToStats')
+    router.push('/leaderboard/characters')
+    return
+  }
+
+  setHomeModeValue('goods')
+}
+
+function handleExternalHomeModeChange(mode) {
+  const nextMode = mode === 'recharge' ? 'recharge' : 'goods'
+  if (homeMode.value === nextMode) return
+  setHomeModeValue(nextMode)
+}
+
+function handleHomeModeEvent(event) {
+  handleExternalHomeModeChange(event?.detail?.mode)
+}
+
+function handleHomeModeStorage(event) {
+  if (event.key !== HOME_MODE_STORAGE_KEY) return
+  handleExternalHomeModeChange(event.newValue)
+}
 
 function handleHeroSearch() {
   if (homeMode.value === 'goods') {
@@ -623,6 +656,8 @@ onMounted(async () => {
   if (sessionId !== mountBootstrapSession) return
   homeDisplayReady.value = true
   updateScrollTopButtonVisibility()
+  window.addEventListener(HOME_MODE_EVENT, handleHomeModeEvent)
+  window.addEventListener('storage', handleHomeModeStorage)
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
 })
@@ -669,6 +704,8 @@ onBeforeUnmount(() => {
     pageScrollRaf = 0
   }
   unbindSelectionHeaderScroll()
+  window.removeEventListener(HOME_MODE_EVENT, handleHomeModeEvent)
+  window.removeEventListener('storage', handleHomeModeStorage)
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * utils/db.js
  * 双轨 SQLite 实现：
  *   - 原生端（iOS / Android）：@capacitor-community/sqlite（真正的 .db 文件）
@@ -34,6 +34,25 @@ const CREATE_TABLE_SQL = `
   );
 `
 
+const CREATE_EVENTS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS events (
+    id         TEXT PRIMARY KEY NOT NULL,
+    name       TEXT NOT NULL DEFAULT '',
+    type       TEXT DEFAULT '',
+    startDate  TEXT DEFAULT '',
+    endDate    TEXT DEFAULT '',
+    location   TEXT DEFAULT '',
+    description TEXT DEFAULT '',
+    coverImage TEXT DEFAULT '',
+    photos     TEXT DEFAULT '[]',
+    ticketPrice TEXT DEFAULT '',
+    linkedGoodsIds TEXT DEFAULT '[]',
+    tags       TEXT DEFAULT '[]',
+    createdAt  INTEGER DEFAULT 0,
+    updatedAt  INTEGER DEFAULT 0
+  );
+`
+
 const MIGRATE_ADD_IP  = "ALTER TABLE goods ADD COLUMN ip TEXT DEFAULT ''"
 const MIGRATE_ADD_WISHLIST = 'ALTER TABLE goods ADD COLUMN isWishlist INTEGER DEFAULT 0'
 const MIGRATE_ADD_CHR = "ALTER TABLE goods ADD COLUMN characters TEXT DEFAULT '[]'"
@@ -53,6 +72,15 @@ let _sqlDb = null
 const IDB_NAME = 'goods_idb'
 const IDB_STORE = 'db'
 const IDB_KEY = 'goods_app'
+
+function normalizeWishlistFlag(value) {
+  if (value === true || value === 1) return true
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === '1' || normalized === 'true'
+  }
+  return false
+}
 
 function _openIDB() {
   return new Promise((resolve, reject) => {
@@ -148,9 +176,21 @@ async function _initNativeDB() {
   try { await _nativeDb.execute(MIGRATE_ADD_UPDATED_AT) } catch (e) { /* column already exists */ }
 }
 
+async function _initEventsTable() {
+  if (IS_NATIVE) {
+    if (!_nativeDb) return
+    try { await _nativeDb.execute(CREATE_EVENTS_TABLE_SQL) } catch { /* already exists */ }
+  } else {
+    if (!_sqlDb) return
+    try { _sqlDb.run(CREATE_EVENTS_TABLE_SQL) } catch { /* already exists */ }
+    await _saveBinaryToIDB(_sqlDb)
+  }
+}
+
 //  统一对外 API 
 export async function initDB() {
   if (IS_NATIVE) { await _initNativeDB() } else { await _initWebDB() }
+  await _initEventsTable()
 }
 
 export async function getItems() {
@@ -163,7 +203,7 @@ export async function getItems() {
   }
   return rows.map(r => ({
     ...r,
-    isWishlist: Boolean(Number(r.isWishlist ?? 0)),
+    isWishlist: normalizeWishlistFlag(r.isWishlist),
     characters: (() => { try { return JSON.parse(r.characters || '[]') } catch { return [] } })(),
     tags: (() => { try { return JSON.parse(r.tags || '[]') } catch { return [] } })(),
     unitAcquiredAtList: (() => { try { return JSON.parse(r.unitAcquiredAtList || '[]') } catch { return [] } })(),
@@ -190,7 +230,7 @@ export async function addItem(item) {
   const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
   const ts = updatedAt || Date.now()
   const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
+  const p = [id, name, category, ip, normalizeWishlistFlag(isWishlist) ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -220,7 +260,7 @@ export async function saveItems(items) {
       const ts = updatedAt || Date.now()
       stmts.push({
         statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
+        values: [id, name, category, ip, normalizeWishlistFlag(isWishlist) ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
       })
     }
     await _nativeDb.executeSet(stmts)
@@ -239,7 +279,7 @@ export async function saveItems(items) {
       const ts = updatedAt || Date.now()
       _sqlDb.run(
         'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, category, ip, isWishlist ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
+        [id, name, category, ip, normalizeWishlistFlag(isWishlist) ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)
@@ -260,6 +300,113 @@ export async function deleteItems(ids) {
     if (!_sqlDb) return
     for (const id of ids) {
       _sqlDb.run('DELETE FROM goods WHERE id = ?', [id])
+    }
+    await _saveBinaryToIDB(_sqlDb)
+  }
+}
+
+export async function getEvents() {
+  let rows = []
+  if (IS_NATIVE) {
+    if (!_nativeDb) return []
+    rows = (await _nativeDb.query('SELECT * FROM events ORDER BY startDate DESC')).values ?? []
+  } else {
+    if (!_sqlDb) return []
+    rows = _webQuery('SELECT * FROM events ORDER BY startDate DESC')
+  }
+  return rows.map(r => ({
+    ...r,
+    photos: (() => { try { return JSON.parse(r.photos || '[]') } catch { return [] } })(),
+    linkedGoodsIds: (() => { try { return JSON.parse(r.linkedGoodsIds || '[]') } catch { return [] } })(),
+    tags: (() => { try { return JSON.parse(r.tags || '[]') } catch { return [] } })(),
+    createdAt: Number(r.createdAt) || 0,
+    updatedAt: Number(r.updatedAt) || 0
+  }))
+}
+
+export async function addEvent(event) {
+  const {
+    id, name = '', type = '', startDate = '', endDate = '',
+    location = '', description = '', coverImage = '',
+    photos = [], ticketPrice = '', linkedGoodsIds = [], tags = [],
+    createdAt, updatedAt
+  } = event
+  const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+  const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
+  const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
+  const ts = updatedAt || Date.now()
+  const created = createdAt || ts
+  const SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, linkedGoodsStr, tagsStr, created, ts]
+  if (IS_NATIVE) {
+    if (!_nativeDb) return
+    await _nativeDb.run(SQL, p)
+  } else {
+    if (!_sqlDb) return
+    _sqlDb.run(SQL, p)
+    await _saveBinaryToIDB(_sqlDb)
+  }
+}
+
+export async function saveEvents(events) {
+  if (!events || events.length === 0) return
+  if (IS_NATIVE) {
+    if (!_nativeDb) return
+    const stmts = []
+    for (const event of events) {
+      const {
+        id, name = '', type = '', startDate = '', endDate = '',
+        location = '', description = '', coverImage = '',
+        photos = [], ticketPrice = '', linkedGoodsIds = [], tags = [],
+        createdAt, updatedAt
+      } = event
+      const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+      const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
+      const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
+      const ts = updatedAt || Date.now()
+      const created = createdAt || ts
+      stmts.push({
+        statement: 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, linkedGoodsStr, tagsStr, created, ts]
+      })
+    }
+    await _nativeDb.executeSet(stmts)
+  } else {
+    if (!_sqlDb) return
+    for (const event of events) {
+      const {
+        id, name = '', type = '', startDate = '', endDate = '',
+        location = '', description = '', coverImage = '',
+        photos = [], ticketPrice = '', linkedGoodsIds = [], tags = [],
+        createdAt, updatedAt
+      } = event
+      const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+      const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
+      const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
+      const ts = updatedAt || Date.now()
+      const created = createdAt || ts
+      _sqlDb.run(
+        'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, linkedGoodsStr, tagsStr, created, ts]
+      )
+    }
+    await _saveBinaryToIDB(_sqlDb)
+  }
+}
+
+export async function deleteEvents(ids) {
+  if (!ids || ids.length === 0) return
+  if (IS_NATIVE) {
+    if (!_nativeDb) return
+    const stmts = ids.map(id => ({
+      statement: 'DELETE FROM events WHERE id = ?',
+      values: [id]
+    }))
+    await _nativeDb.executeSet(stmts)
+  } else {
+    if (!_sqlDb) return
+    for (const id of ids) {
+      _sqlDb.run('DELETE FROM events WHERE id = ?', [id])
     }
     await _saveBinaryToIDB(_sqlDb)
   }

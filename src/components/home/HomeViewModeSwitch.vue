@@ -1,29 +1,19 @@
 <template>
-  <div class="mode-switch" role="tablist" aria-label="首页模式切换" :style="modeSwitchStyle">
+  <div class="mode-switch" role="tablist" :aria-label="ariaLabel" :style="modeSwitchStyle">
     <span class="mode-switch__indicator" aria-hidden="true" />
 
     <button
+      v-for="option in normalizedOptions"
+      :key="option.value"
       type="button"
       class="mode-switch__item"
-      :class="{ 'mode-switch__item--active': modelValue === 'goods' }"
+      :class="{ 'mode-switch__item--active': modelValue === option.value }"
       role="tab"
-      :aria-selected="modelValue === 'goods'"
-      aria-label="切换到收藏模式"
-      @click="$emit('update:modelValue', 'goods')"
+      :aria-selected="modelValue === option.value"
+      :aria-label="option.ariaLabel || option.label"
+      @click="$emit('update:modelValue', option.value)"
     >
-      收藏
-    </button>
-
-    <button
-      type="button"
-      class="mode-switch__item"
-      :class="{ 'mode-switch__item--active': modelValue === 'recharge' }"
-      role="tab"
-      :aria-selected="modelValue === 'recharge'"
-      aria-label="切换到充值模式"
-      @click="$emit('update:modelValue', 'recharge')"
-    >
-      充值
+      {{ option.label }}
     </button>
   </div>
 </template>
@@ -35,14 +25,38 @@ const props = defineProps({
   modelValue: {
     type: String,
     default: 'goods'
+  },
+  ariaLabel: {
+    type: String,
+    default: '首页内容切换'
+  },
+  options: {
+    type: Array,
+    default: () => ([
+      { value: 'goods', label: '收藏' },
+      { value: 'wishlist', label: '心愿' },
+      { value: 'stats', label: '统计' }
+    ])
   }
 })
 
 defineEmits(['update:modelValue'])
 
-const modeSwitchStyle = computed(() => ({
-  '--mode-switch-index': props.modelValue === 'recharge' ? 1 : 0
-}))
+const normalizedOptions = computed(() =>
+  props.options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    ariaLabel: option.ariaLabel || option.label
+  }))
+)
+
+const modeSwitchStyle = computed(() => {
+  const index = normalizedOptions.value.findIndex((option) => option.value === props.modelValue)
+  return {
+    '--mode-switch-index': index >= 0 ? index : 0,
+    '--mode-switch-count': normalizedOptions.value.length || 1
+  }
+})
 </script>
 
 <style scoped>
@@ -51,11 +65,11 @@ const modeSwitchStyle = computed(() => ({
   --mode-switch-pad: 4px;
   --mode-switch-height: 32px;
   --mode-switch-duration: calc(var(--home-motion-density-duration) + 80ms);
-  --mode-switch-count: 2;
+  --mode-switch-count: 3;
   --mode-switch-index: 0;
   position: relative;
   display: inline-grid;
-  grid-template-columns: repeat(var(--mode-switch-count, 2), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--mode-switch-count, 3), minmax(0, 1fr));
   gap: var(--mode-switch-gap);
   padding: var(--mode-switch-pad);
   border-radius: 999px;
@@ -69,8 +83,8 @@ const modeSwitchStyle = computed(() => ({
   left: var(--mode-switch-pad, 4px);
   height: var(--mode-switch-height, 32px);
   width: calc(
-    (100% - (var(--mode-switch-gap, 6px) * (var(--mode-switch-count, 2) - 1)) - (var(--mode-switch-pad, 4px) * 2))
-    / var(--mode-switch-count, 2)
+    (100% - (var(--mode-switch-gap, 6px) * (var(--mode-switch-count, 3) - 1)) - (var(--mode-switch-pad, 4px) * 2))
+    / var(--mode-switch-count, 3)
   );
   border-radius: 999px;
   background: #141416;

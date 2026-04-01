@@ -140,5 +140,9 @@ export function buildSyncDescription(deviceId, kind = 'data') {
     return `goods-app-recharge-sync-${deviceId}`
   }
 
+  if (kind === 'events') {
+    return `goods-app-events-sync-${deviceId}`
+  }
+
   return `goods-app-sync-${deviceId}`
 }

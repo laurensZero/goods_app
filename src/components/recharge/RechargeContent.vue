@@ -47,10 +47,12 @@
       </div>
     </div>
 
-    <div v-if="showSearchBar || keyword" class="search-row">
-      <SearchBar v-model="keyword" placeholder="搜索项目、备注或游戏" />
-      <button v-if="hasFilters" type="button" class="ghost-btn" @click="resetFilters">清空</button>
-    </div>
+    <Transition name="search-drop">
+      <div v-if="showSearchBar || keyword" class="search-row">
+        <SearchBar v-model="keyword" placeholder="搜索项目、备注或游戏" />
+        <button v-if="hasFilters" type="button" class="ghost-btn" @click="resetFilters">清空</button>
+      </div>
+    </Transition>
 
     <CategoryChips v-if="activeView === 'records' && games.length > 0" v-model="gameFilter" :categories="games" />
 
@@ -729,6 +731,17 @@ defineExpose({
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
+}
+
+.search-drop-enter-active,
+.search-drop-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.search-drop-enter-from,
+.search-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 .ghost-btn {

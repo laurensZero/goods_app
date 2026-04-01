@@ -73,6 +73,10 @@
                 <span class="detail-label">Recharge Gist</span>
                 <span class="detail-value detail-value--mono">{{ resolvedRechargeGistId || '未创建' }}</span>
               </div>
+              <div class="detail-row">
+                <span class="detail-label">Event Gist</span>
+                <span class="detail-value detail-value--mono">{{ resolvedEventGistId || '未创建' }}</span>
+              </div>
               <div class="detail-row detail-row--last">
                 <span class="detail-label">最近同步</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
@@ -125,20 +129,25 @@
                 <p class="stat-value">{{ wishlistCount }}</p>
                 <p class="stat-desc">云端当前标记为心愿单的条目。</p>
               </article>
-              <article class="stat-card stat-card--trash">
-                <p class="stat-label">回收站</p>
-                <p class="stat-value">{{ trashCount }}</p>
-                <p class="stat-desc">云端保留的已删除数据数量。</p>
-              </article>
               <article class="stat-card stat-card--wishlist">
                 <p class="stat-label">充值</p>
                 <p class="stat-value">{{ rechargeCount }}</p>
                 <p class="stat-desc">云端保存的充值记录总数。</p>
               </article>
+              <article class="stat-card stat-card--collection">
+                <p class="stat-label">活动</p>
+                <p class="stat-value">{{ eventCount }}</p>
+                <p class="stat-desc">活动专用 Gist 当前保存的活动总数。</p>
+              </article>
               <article class="stat-card stat-card--image">
                 <p class="stat-label">图片文件</p>
                 <p class="stat-value">{{ imageFileCount }}</p>
                 <p class="stat-desc">图片 Gist 当前保存的图片文件数量。</p>
+              </article>
+              <article class="stat-card stat-card--trash">
+                <p class="stat-label">回收站</p>
+                <p class="stat-value">{{ trashCount }}</p>
+                <p class="stat-desc">云端保留的已删除数据数量。</p>
               </article>
             </div>
           </article>
@@ -170,7 +179,7 @@
             <div class="entry-body">
               <p class="entry-kicker">Push & Resolve</p>
               <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中') : '上传到云端' }}</h3>
-              <p class="entry-desc">将本地数据推送到 Gist，若发现冲突会提示你选择处理方式。</p>
+              <p class="entry-desc">将收藏、充值、活动等数据分别同步到对应 Gist，若发现冲突会提示你选择处理方式。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -193,7 +202,7 @@
             <div class="entry-body">
               <p class="entry-kicker">Remote to Local</p>
               <h3 class="entry-name">拉取远端数据</h3>
-              <p class="entry-desc">把 Gist 中的最新数据合并到当前设备，不会直接覆盖本地收藏。</p>
+              <p class="entry-desc">把各个 Gist 中的最新数据合并到当前设备，不会直接覆盖本地收藏。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -245,23 +254,6 @@
             </svg>
           </a>
 
-                    <button type="button" class="entry-card" @click="openTokenDialog">
-            <span class="entry-icon token-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">GitHub Access</p>
-              <h3 class="entry-name">{{ syncStore.token ? '更换 Token' : '配置 Token' }}</h3>
-              <p class="entry-desc">保存带有 `gist` 权限的 Personal Access Token，用于创建和更新 Gist。</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-
           <a v-if="rechargeGistUrl" class="entry-card" :href="rechargeGistUrl" target="_blank" rel="noopener">
             <span class="entry-icon link-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -280,7 +272,42 @@
             </svg>
           </a>
 
-          <button v-if="syncStore.gistId || resolvedImageGistId || resolvedRechargeGistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
+          <button type="button" class="entry-card" :disabled="!eventGistUrl" @click="openEventGist">
+            <span class="entry-icon link-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Event Store</p>
+              <h3 class="entry-name">查看活动 Gist</h3>
+              <p class="entry-desc">打开活动专用 Gist，检查活动备份文件和最近同步结果。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+
+          <button type="button" class="entry-card" @click="openTokenDialog">
+            <span class="entry-icon token-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">GitHub Access</p>
+              <h3 class="entry-name">{{ syncStore.token ? '更换 Token' : '配置 Token' }}</h3>
+              <p class="entry-desc">保存带有 `gist` 权限的 Personal Access Token，用于创建和更新 Gist。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+
+          <button v-if="syncStore.gistId || resolvedImageGistId || resolvedRechargeGistId || resolvedEventGistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
             <span class="entry-icon danger-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 6h18" />
@@ -468,6 +495,7 @@ const lastSyncDisplay = computed(() => {
 
 const resolvedImageGistId = computed(() => gistInfo.value?.imageGistId || syncStore.imageGistId || '')
 const resolvedRechargeGistId = computed(() => gistInfo.value?.rechargeGistId || syncStore.rechargeGistId || '')
+const resolvedEventGistId = computed(() => gistInfo.value?.eventGistId || syncStore.eventGistId || '')
 
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
@@ -506,10 +534,16 @@ const rechargeGistUrl = computed(() => {
   return `https://gist.github.com/${resolvedRechargeGistId.value}`
 })
 
+const eventGistUrl = computed(() => {
+  if (!resolvedEventGistId.value) return ''
+  return `https://gist.github.com/${resolvedEventGistId.value}`
+})
+
 const collectionCount = computed(() => gistInfo.value?.collectionCount ?? '-')
 const wishlistCount = computed(() => gistInfo.value?.wishlistCount ?? '-')
 const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
 const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
+const eventCount = computed(() => gistInfo.value?.eventCount ?? '-')
 const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
 const imageSyncDisplay = computed(() => {
   if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
@@ -568,6 +602,7 @@ async function loadGistInfo() {
     let nextWishlistCount = 0
     let nextTrashCount = 0
     let nextRechargeCount = 0
+    let nextEventCount = 0
 
     if (content) {
       try {
@@ -597,13 +632,31 @@ async function loadGistInfo() {
       }
     }
 
+    const eventGistId = syncStore.eventGistId || ''
+    if (eventGistId) {
+      try {
+        const eventGist = await getGist(syncStore.token, eventGistId)
+        const eventContent = eventGist
+          ? await getGistFileContent(syncStore.token, eventGist, 'events-data.json')
+          : null
+        if (eventContent) {
+          const eventData = JSON.parse(eventContent)
+          nextEventCount = Array.isArray(eventData.events) ? eventData.events.length : 0
+        }
+      } catch {
+        nextEventCount = 0
+      }
+    }
+
     gistInfo.value = {
       collectionCount: nextCollectionCount,
       wishlistCount: nextWishlistCount,
       trashCount: nextTrashCount,
       rechargeCount: nextRechargeCount,
+      eventCount: nextEventCount,
       imageGistId: manifest?.imageGistId || '',
       rechargeGistId: syncStore.rechargeGistId || '',
+      eventGistId: syncStore.eventGistId || '',
       imageFileCount: Number(manifest?.imageFileCount) || 0,
       imageUpdatedAt: manifest?.imageUpdatedAt || ''
     }
@@ -628,6 +681,27 @@ async function copyText(text) {
   } catch {
     showToast('复制失败')
   }
+}
+
+function openEventGist() {
+  if (!eventGistUrl.value) {
+    showToast('还没有活动 Gist')
+    return
+  }
+  window.open(eventGistUrl.value, '_blank', 'noopener')
+}
+
+function buildEventSyncSummary(result) {
+  if (!result) return ''
+  if (result.action === 'no_changes') return ''
+  return `，活动 ${result.totalEvents ?? 0} 场`
+}
+
+function buildEventPullSummary(result) {
+  if (!result) return ''
+  const changed = Number(result.added || 0) + Number(result.updated || 0)
+  if (changed <= 0) return '，活动无更新'
+  return `，活动新增 ${result.added || 0} 场、更新 ${result.updated || 0} 场`
 }
 
 async function handleSync() {
@@ -677,6 +751,9 @@ async function handleSync() {
       message = '上传完成'
     }
 
+    const eventResult = await syncStore.syncEventsOnly()
+    message += buildEventSyncSummary(eventResult)
+
     showToast(message, 3500)
     await loadGistInfo()
   } catch (error) {
@@ -697,11 +774,17 @@ async function handlePull() {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-      const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const eventResult = await syncStore.pullEventsOnly()
+      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'no_changes') {
-      showToast('数据已经是最新')
+      let message = '数据已经是最新'
+      const eventResult = await syncStore.pullEventsOnly()
+      message += buildEventPullSummary(eventResult)
+      showToast(message, 3500)
+      await loadGistInfo()
     }
   } catch (error) {
     showToast(`拉取失败：${error.message}`)
@@ -720,7 +803,9 @@ async function handlePullConflict(confirm) {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-      const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const eventResult = await syncStore.pullEventsOnly()
+      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'cancelled') {
@@ -743,10 +828,13 @@ async function handleSyncConflict(useRemote) {
       if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
       if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
       if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-      const message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const eventResult = await syncStore.pullEventsOnly()
+      message += buildEventPullSummary(eventResult)
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {
-      showToast('上传完成')
+      const eventResult = await syncStore.syncEventsOnly()
+      showToast(`上传完成${buildEventSyncSummary(eventResult)}`, 3500)
     }
     await loadGistInfo()
   } catch (error) {

@@ -1,13 +1,24 @@
-<template>
+﻿<template>
   <div class="page leaderboard-page">
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
-        <div>
+        <div class="hero-copy">
           <p class="section-label">{{ dimensionMeta.heroLabel }}</p>
           <h1 class="section-title">数据统计</h1>
           <p class="section-desc">{{ dimensionMeta.description }}</p>
         </div>
 
+        <div class="hero-actions">
+          <span class="hero-search-placeholder" aria-hidden="true" />
+          <HomeViewModeSwitch
+            model-value="stats"
+            :options="HOME_TOP_OPTIONS"
+            @update:model-value="switchTopTab"
+          />
+        </div>
+      </section>
+
+      <section class="summary-section">
         <div class="summary-grid">
           <article class="summary-card">
             <span class="summary-kicker">统计维度</span>
@@ -61,7 +72,11 @@
       </section>
 
       <section v-if="topThree.length > 0" class="podium-section">
-        <article v-for="(entry, index) in topThree" :key="entry.key" :class="['podium-card', `podium-card--${index + 1}`]">
+        <article
+          v-for="(entry, index) in topThree"
+          :key="entry.key"
+          :class="['podium-card', `podium-card--${index + 1}`]"
+        >
           <span class="podium-rank">#{{ index + 1 }}</span>
           <p class="podium-name">{{ entry.label }}</p>
           <p v-if="entry.meta" class="podium-meta">{{ entry.meta }}</p>
@@ -90,8 +105,8 @@
               </div>
               <div class="ranking-meta">
                 <span class="ranking-chip">{{ entry.quantity }} 件</span>
-                <span class="ranking-chip">¥ {{ entry.totalValue.toFixed(2) }}</span>
-                <span class="ranking-chip">均价 ¥ {{ entry.averageUnitPrice.toFixed(2) }}</span>
+                <span class="ranking-chip">总价 ¥{{ entry.totalValue.toFixed(2) }}</span>
+                <span class="ranking-chip">均价 ¥{{ entry.averageUnitPrice.toFixed(2) }}</span>
               </div>
             </div>
           </article>
@@ -109,12 +124,32 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { LEADERBOARD_DIMENSION_OPTIONS, LEADERBOARD_METRIC_OPTIONS, buildLeaderboardEntries, formatLeaderboardMetricValue, getLeaderboardDimensionMeta, sortLeaderboardEntries } from '@/utils/goodsLeaderboard'
+import {
+  LEADERBOARD_DIMENSION_OPTIONS,
+  LEADERBOARD_METRIC_OPTIONS,
+  buildLeaderboardEntries,
+  formatLeaderboardMetricValue,
+  getLeaderboardDimensionMeta,
+  sortLeaderboardEntries
+} from '@/utils/goodsLeaderboard'
 import EmptyState from '@/components/common/EmptyState.vue'
+import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 
+const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
+const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
+const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
+const HOME_TOP_OPTIONS = [
+  { value: 'goods', label: '收藏' },
+  { value: 'wishlist', label: '心愿' },
+  { value: 'stats', label: '统计' }
+]
+
+const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const pageBodyRef = ref(null)
@@ -126,15 +161,52 @@ function resetPageScrollTop() {
     document.documentElement.scrollTop = 0
     document.body.scrollTop = 0
     window.scrollTo(0, 0)
-  } catch {
+  }
+  catch {
     // ignore scroll reset failures in non-browser contexts
   }
+
   if (pageBodyRef.value) pageBodyRef.value.scrollTop = 0
 }
 
+function persistHomeMode(mode) {
+  const normalizedMode = mode === 'recharge' ? 'recharge' : 'goods'
+  localStorage.setItem(HOME_MODE_STORAGE_KEY, normalizedMode)
+  window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
+    detail: { mode: normalizedMode }
+  }))
+}
+
+function persistCollectionTab(tab) {
+  const normalizedTab = tab === 'wishlist' || tab === 'stats' ? tab : 'goods'
+  localStorage.setItem(COLLECTION_TAB_STORAGE_KEY, normalizedTab)
+  window.dispatchEvent(new CustomEvent(COLLECTION_TAB_EVENT, {
+    detail: { tab: normalizedTab }
+  }))
+}
+
+function switchTopTab(nextMode) {
+  if (nextMode === 'goods') {
+    persistCollectionTab('goods')
+    persistHomeMode('goods')
+    router.push('/home')
+    return
+  }
+
+  if (nextMode === 'wishlist') {
+    persistCollectionTab('wishlist')
+    router.push('/wishlist')
+  }
+}
+
 onMounted(() => {
+  persistCollectionTab('stats')
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+})
+
+onActivated(() => {
+  persistCollectionTab('stats')
 })
 
 const characterPresetIpMap = computed(() =>
@@ -162,16 +234,50 @@ const selectedDimensionLabel = computed(() =>
 }
 
 .hero-section,
+.summary-section,
 .controls-section,
 .podium-section,
 .list-section {
   padding: 0 var(--page-padding);
+}
+
+.summary-section,
+.controls-section,
+.podium-section,
+.list-section {
   margin-top: var(--section-gap);
 }
 
 .hero-section {
-  display: grid;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 14px;
+}
+
+.hero-copy {
+  max-width: 320px;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.hero-search-placeholder {
+  width: var(--icon-button-size);
+  height: var(--icon-button-size);
+  margin-top: 6px;
+  flex-shrink: 0;
+  visibility: hidden;
+}
+
+.hero-actions :deep(.mode-switch) {
+  width: auto;
+  max-width: none;
 }
 
 .section-label,
@@ -404,6 +510,19 @@ const selectedDimensionLabel = computed(() =>
 }
 
 @media (max-width: 640px) {
+  .hero-copy {
+    max-width: min(54vw, 320px);
+  }
+
+  .hero-actions {
+    gap: 10px;
+  }
+
+  .hero-actions :deep(.mode-switch__item) {
+    min-width: 52px;
+    padding: 0 10px;
+  }
+
   .podium-section {
     gap: 8px;
   }

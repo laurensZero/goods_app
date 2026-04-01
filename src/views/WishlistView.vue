@@ -11,12 +11,20 @@
           <h1 class="hero-title">心愿单</h1>
         </div>
 
-        <button class="hero-search" type="button" aria-label="搜索心愿单" @click="openSearch">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20L16.65 16.65" />
-          </svg>
-        </button>
+        <div class="hero-actions">
+          <button class="hero-search" type="button" aria-label="搜索心愿单" @click="openSearch">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20L16.65 16.65" />
+            </svg>
+          </button>
+
+          <HomeViewModeSwitch
+            model-value="wishlist"
+            :options="HOME_TOP_OPTIONS"
+            @update:model-value="switchTopTab"
+          />
+        </div>
       </section>
 
       <HomeSelectionHeader
@@ -134,6 +142,7 @@ import SummaryCard from '@/components/common/SummaryCard.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
+import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
@@ -142,6 +151,13 @@ import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 
 defineOptions({ name: 'WishlistView' })
 
+const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
+const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+const HOME_TOP_OPTIONS = [
+  { value: 'goods', label: '收藏' },
+  { value: 'wishlist', label: '心愿' },
+  { value: 'stats', label: '统计' }
+]
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
 const ROW_HEIGHT_MAP = {
@@ -380,6 +396,26 @@ function openSearch() {
   router.push('/search?scope=wishlist')
 }
 
+function persistHomeMode(mode) {
+  const normalizedMode = mode === 'recharge' ? 'recharge' : 'goods'
+  localStorage.setItem(HOME_MODE_STORAGE_KEY, normalizedMode)
+  window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
+    detail: { mode: normalizedMode }
+  }))
+}
+
+function switchTopTab(nextMode) {
+  if (nextMode === 'goods') {
+    persistHomeMode('goods')
+    router.push('/home')
+    return
+  }
+
+  if (nextMode === 'stats') {
+    router.push('/leaderboard/characters')
+  }
+}
+
 function setDisplayDensityWithFlip(mode) {
   if (displayDensity.value === mode) return
   const captured = densityFlip.capture()
@@ -596,6 +632,13 @@ onBeforeRouteLeave(() => {
 
 .hero-copy {
   max-width: 320px;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .hero-label {
