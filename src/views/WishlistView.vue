@@ -153,6 +153,17 @@ defineOptions({ name: 'WishlistView' })
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
+const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
+
+function persistCollectionTab(tab) {
+  const normalizedTab = tab === 'wishlist' || tab === 'stats' ? tab : 'goods'
+  localStorage.setItem(COLLECTION_TAB_STORAGE_KEY, normalizedTab)
+  window.dispatchEvent(new CustomEvent(COLLECTION_TAB_EVENT, {
+    detail: { tab: normalizedTab }
+  }))
+}
+
 const HOME_TOP_OPTIONS = [
   { value: 'goods', label: '收藏' },
   { value: 'wishlist', label: '心愿' },
@@ -406,12 +417,14 @@ function persistHomeMode(mode) {
 
 function switchTopTab(nextMode) {
   if (nextMode === 'goods') {
+    persistCollectionTab('goods')
     persistHomeMode('goods')
     router.push('/home')
     return
   }
 
   if (nextMode === 'stats') {
+    persistCollectionTab('stats')
     router.push('/leaderboard/characters')
   }
 }
@@ -512,6 +525,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 onMounted(async () => {
+  persistCollectionTab('wishlist')
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
@@ -531,6 +545,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  persistCollectionTab('wishlist')
   isWishlistActive.value = true
   const shouldMaskDisplay = shouldMaskWishlistDisplay()
   if (shouldMaskDisplay) {

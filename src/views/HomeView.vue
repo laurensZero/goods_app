@@ -204,6 +204,17 @@ const rechargeSelectionMode = ref(false)
 const rechargeFabLabel = '添加充值记录'
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
+const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
+
+function persistCollectionTab(tab) {
+  const normalizedTab = tab === 'wishlist' || tab === 'stats' ? tab : 'goods'
+  localStorage.setItem(COLLECTION_TAB_STORAGE_KEY, normalizedTab)
+  window.dispatchEvent(new CustomEvent(COLLECTION_TAB_EVENT, {
+    detail: { tab: normalizedTab }
+  }))
+}
+
 const homeMode = ref('goods')
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
@@ -318,17 +329,20 @@ function setHomeModeValue(nextMode) {
 
 function switchHomeTopTab(nextMode) {
   if (nextMode === 'wishlist') {
+    persistCollectionTab('wishlist')
     saveScrollPosition(true, 'home:navigateToWishlist')
     router.push('/wishlist')
     return
   }
 
   if (nextMode === 'stats') {
+    persistCollectionTab('stats')
     saveScrollPosition(true, 'home:navigateToStats')
     router.push('/leaderboard/characters')
     return
   }
 
+  persistCollectionTab('goods')
   setHomeModeValue('goods')
 }
 
@@ -628,6 +642,7 @@ function shouldMaskHomeDisplay() {
 }
 
 onMounted(async () => {
+  persistCollectionTab('goods')
   const sessionId = ++mountBootstrapSession
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
@@ -666,6 +681,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  persistCollectionTab('goods')
   isHomeActive.value = true
   homeDisplayReady.value = true
   const storedState = getStoredScrollState()
