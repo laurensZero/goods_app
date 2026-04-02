@@ -1,9 +1,9 @@
 {
-  "version": "20260402.3",
-  "url": "bundle-20260402.3.zip",
-  "hash": "ed93cc8ce0793909a82a4ea241963e62ecc7e65720e0176fea1c8805b0885067",
+  "version": "20260402.4",
+  "url": "bundle-20260402.4.zip",
+  "hash": "7260ccdca0221cf529cce2c7326ed5a4b337105cfc4b669cd4bdd3f77d52c29b",
   "minNativeVersion": null,
   "notes": null,
   "updateLevel": "silent",
-  "publishedAt": "2026-04-02T09:54:33Z"
+  "publishedAt": "2026-04-02T09:57:31Z"
 }
