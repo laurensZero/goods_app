@@ -129,7 +129,7 @@
               <article class="stat-card stat-card--collection">
                 <p class="stat-label">活动</p>
                 <p class="stat-value">{{ eventCount }}</p>
-                <p class="stat-desc">活动专用 Gist 当前保存的活动总数。</p>
+                <p class="stat-desc">云端保存的活动总数。</p>
               </article>
               <article class="stat-card stat-card--image">
                 <p class="stat-label">图片文件</p>

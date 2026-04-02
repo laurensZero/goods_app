@@ -475,7 +475,7 @@ async function handleDelete() {
   gap: 8px;
   padding: 18px;
   border-radius: 20px;
-  background: color-mix(in srgb, var(--app-surface-soft) 74%, white);
+  background: var(--app-surface-soft);
 }
 
 .info-label {
