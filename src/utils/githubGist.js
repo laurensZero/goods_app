@@ -100,20 +100,15 @@ function buildFallbackRawUrl(gist, filename) {
 
 async function readRawText(url) {
   if (!url) return null
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'text/plain',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    })
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/plain'
+    }
+  })
 
-    if (!response.ok) return null
-    return await response.text()
-  } catch (error) {
-    return null
-  }
+  if (!response.ok) return null
+  return response.text()
 }
 
 export async function getGistFileContent(token, gist, filename) {
@@ -133,8 +128,7 @@ export async function getGistFileContent(token, gist, filename) {
   const fallbackText = await readRawText(buildFallbackRawUrl(gist, filename))
   if (fallbackText != null) return fallbackText
 
-  console.warn(`Gist file read failed: ${filename}, proceeding without it to avoid blocking sync.`)
-  return null
+  throw new Error(`Gist file read failed: ${filename}`)
 }
 
 export function buildSyncDescription(deviceId, kind = 'data') {

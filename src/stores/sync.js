@@ -42,7 +42,7 @@ const MANIFEST_FILENAME = 'manifest.json'
 const IS_NATIVE = Capacitor.isNativePlatform()
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
-const IMAGE_FILE_SIZE_LIMIT = 750 * 1024 // 基础大小限制为 750KB，是为了防止 base64 扩张后超过 Gist 1MB 的限制
+const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -62,55 +62,6 @@ function generateDeviceId() {
 
 function getItemTimestamp(item) {
   return Number(item?.updatedAt) || 0
-}
-
-function buildLatestItemMap(items = []) {
-  const map = new Map()
-
-  for (const item of Array.isArray(items) ? items : []) {
-    const id = String(item?.id || '').trim()
-    if (!id) continue
-
-    const existing = map.get(id)
-    if (!existing || getItemTimestamp(item) >= getItemTimestamp(existing)) {
-      map.set(id, item)
-    }
-  }
-
-  return map
-}
-
-function countRemoteDiff(localItems = [], remoteItems = []) {
-  const localMap = buildLatestItemMap(localItems)
-  const remoteMap = buildLatestItemMap(remoteItems)
-  let remoteOnly = 0
-  let localOnly = 0
-  let updated = 0
-
-  for (const [id, remoteItem] of remoteMap.entries()) {
-    const localItem = localMap.get(id)
-    if (!localItem) {
-      remoteOnly += 1
-      continue
-    }
-
-    if (getItemTimestamp(remoteItem) > getItemTimestamp(localItem)) {
-      updated += 1
-    }
-  }
-
-  for (const id of localMap.keys()) {
-    if (!remoteMap.has(id)) {
-      localOnly += 1
-    }
-  }
-
-  return {
-    remoteOnly,
-    localOnly,
-    updated,
-    remoteTotal: remoteMap.size
-  }
 }
 
 function buildComparableImageState(item) {
@@ -1013,7 +964,7 @@ export const useSyncStore = defineStore('sync', () => {
     return gist
   }
 
-  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats, failedImageNames) {
+  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats) {
     const fileCache = new Map()
 
     return Promise.all((items || []).map(async (item) => {
@@ -1038,11 +989,7 @@ export const useSyncStore = defineStore('sync', () => {
 
         const imageDataUrl = fileCache.get(gistFileName)
         if (!String(imageDataUrl || '').startsWith('data:image/')) {
-          console.warn(`远端图片缺失或加载失败：${gistFileName}，本次跳过拉取`)
-          if (failedImageNames) {
-            failedImageNames.push(item?.name || item?.id || '未命名条目')
-          }
-          return imageEntry
+          throw new Error(`远端图片缺失：${gistFileName}`)
         }
 
         imageStats.restoredImages += 1
@@ -1067,7 +1014,7 @@ export const useSyncStore = defineStore('sync', () => {
     }))
   }
 
-async function hydrateEventCoversWithImages(events, imageGist, imageStats, failedImageNames) {
+  async function hydrateEventCoversWithImages(events, imageGist, imageStats) {
     const fileCache = new Map()
 
     return Promise.all((events || []).map(async (event) => {
@@ -1078,7 +1025,7 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
 
       const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
       if (!gistFileName) return event
-
+      
       if (!imageGist) return event
 
       try {
@@ -1088,9 +1035,6 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
 
         const imageDataUrl = fileCache.get(gistFileName)
         if (!String(imageDataUrl || '').startsWith('data:image/')) {
-          if (failedImageNames) {
-            failedImageNames.push(event?.name || event?.id || '未命名活动')
-          }
           return event
         }
 
@@ -1129,14 +1073,13 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
     const eventData = eventDataContent ? JSON.parse(eventDataContent) : null
     const imageStats = buildImageSyncStats()
     const imageGist = await resolveRemoteImageGist(remoteManifest)
-    const failedImageNames = []
-    remoteData.goods = await hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats, failedImageNames)
-    remoteData.trash = await hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats, failedImageNames)
-
+    remoteData.goods = await hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats)
+    remoteData.trash = await hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats)
+    
     if (eventData && Array.isArray(eventData.events)) {
-      eventData.events = await hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, failedImageNames)
+      eventData.events = await hydrateEventCoversWithImages(eventData.events, imageGist, imageStats)
     }
-
+    
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const presets = usePresetsStore()
@@ -1281,8 +1224,7 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
       totalGoods: remoteGoods.length,
       totalTrash: remoteTrash.length,
       totalRecharge: rechargeApplyResult.total,
-      totalEvents: eventApplyResult.total,
-      failedImageNames: [...new Set(failedImageNames)]
+      totalEvents: eventApplyResult.total
     }
   }
 
@@ -1331,7 +1273,7 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
 
   async function pushToRemote(existingGist = null, existingImageGist = null, existingRechargeGist = null, existingEventGist = null) {
     if (!existingGist && gistId.value) {
-      existingGist = await getGist(token.value, gistId.value)
+      await getGist(token.value, gistId.value)
     }
 
     const imageGist = existingImageGist || await ensureImageGist()
@@ -1360,16 +1302,12 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
       imageUpdatedAt: eventImageStats.imageUpdatedAt || imageStats.imageUpdatedAt || ''
     }
     const manifest = buildManifest(mergedImageStats)
-    const nextEventContent = JSON.stringify(eventSyncData)
-    const nextManifestContent = JSON.stringify(manifest)
-    const existingEventContent = existingGist ? await getGistFileContent(token.value, existingGist, EVENT_DATA_FILENAME) : null
+
     await updateGist(token.value, gistId.value, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
       [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) },
-      ...(existingEventContent !== nextEventContent
-        ? { [EVENT_DATA_FILENAME]: { content: nextEventContent } }
-        : {}),
-      [MANIFEST_FILENAME]: { content: nextManifestContent }
+      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventSyncData) },
+      [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
     })
 
     await saveLastSyncedAt(manifest.lastSyncAt)
@@ -1386,10 +1324,8 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
     return { ...mergedImageStats }
   }
 
-  async function buildPullConflictData(gist, remoteManifest, rechargeGist = null, eventGist = null) {
+  async function buildPullConflictData(gist, remoteManifest) {
     const goodsStore = useGoodsStore()
-    const rechargeStore = useRechargeStore()
-    const eventsStore = await ensureEventsStoreReady()
     const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
@@ -1456,24 +1392,6 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
-    const remoteRechargeContent = (
-      await getGistFileContent(token.value, gist, RECHARGE_DATA_FILENAME)
-    ) || (
-      rechargeGist ? await getGistFileContent(token.value, rechargeGist, RECHARGE_DATA_FILENAME) : null
-    )
-    const remoteRechargeData = remoteRechargeContent ? JSON.parse(remoteRechargeContent) : { recharge: [], rechargeTrash: [] }
-    const remoteRecharge = Array.isArray(remoteRechargeData?.recharge) ? remoteRechargeData.recharge.filter((item) => !item?.deleted) : []
-    const localRecharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
-    const rechargeDiff = countRemoteDiff(localRecharge, remoteRecharge)
-
-    const remoteEventContent = (
-      await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)
-    ) || (
-      eventGist ? await getGistFileContent(token.value, eventGist, EVENT_DATA_FILENAME) : null
-    )
-    const remoteEventData = remoteEventContent ? JSON.parse(remoteEventContent) : { events: [] }
-    const remoteEvents = Array.isArray(remoteEventData?.events) ? remoteEventData.events : []
-    const eventDiff = countRemoteDiff(eventsStore.list || [], remoteEvents)
 
     return {
       remoteTime: remoteManifest?.lastSyncAt || '',
@@ -1489,14 +1407,6 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
       remoteOnlyCollection,
       remoteOnlyWishlist,
       remoteOnlyTrash,
-      remoteRechargeCount: rechargeDiff.remoteTotal,
-      remoteOnlyRecharge: rechargeDiff.remoteOnly,
-      localOnlyRecharge: rechargeDiff.localOnly,
-      updatedRecharge: rechargeDiff.updated,
-      remoteEventCount: eventDiff.remoteTotal,
-      remoteOnlyEvents: eventDiff.remoteOnly,
-      localOnlyEvents: eventDiff.localOnly,
-      updatedEvents: eventDiff.updated,
       localOnlyGoods,
       localOnlyCollection,
       localOnlyWishlist,
@@ -1708,7 +1618,7 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
       const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
 
       if (isRemoteFromOtherDevice) {
-        const diff = await buildPullConflictData(gist, remoteManifest, existingRechargeGist, existingEventGist)
+        const diff = await buildPullConflictData(gist, remoteManifest)
         const hasContentDiff = (
           diff.remoteOnlyGoods > 0
           || diff.remoteOnlyTrash > 0
