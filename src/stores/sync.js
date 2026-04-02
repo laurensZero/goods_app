@@ -1013,7 +1013,7 @@ export const useSyncStore = defineStore('sync', () => {
     return gist
   }
 
-  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats) {
+  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats, failedImageNames) {
     const fileCache = new Map()
 
     return Promise.all((items || []).map(async (item) => {
@@ -1039,6 +1039,9 @@ export const useSyncStore = defineStore('sync', () => {
         const imageDataUrl = fileCache.get(gistFileName)
         if (!String(imageDataUrl || '').startsWith('data:image/')) {
           console.warn(`远端图片缺失或加载失败：${gistFileName}，本次跳过拉取`)
+          if (failedImageNames) {
+            failedImageNames.push(item?.name || item?.id || '未命名条目')
+          }
           return imageEntry
         }
 
@@ -1064,7 +1067,7 @@ export const useSyncStore = defineStore('sync', () => {
     }))
   }
 
-  async function hydrateEventCoversWithImages(events, imageGist, imageStats) {
+async function hydrateEventCoversWithImages(events, imageGist, imageStats, failedImageNames) {
     const fileCache = new Map()
 
     return Promise.all((events || []).map(async (event) => {
@@ -1075,7 +1078,7 @@ export const useSyncStore = defineStore('sync', () => {
 
       const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
       if (!gistFileName) return event
-      
+
       if (!imageGist) return event
 
       try {
@@ -1085,6 +1088,9 @@ export const useSyncStore = defineStore('sync', () => {
 
         const imageDataUrl = fileCache.get(gistFileName)
         if (!String(imageDataUrl || '').startsWith('data:image/')) {
+          if (failedImageNames) {
+            failedImageNames.push(event?.name || event?.id || '未命名活动')
+          }
           return event
         }
 
@@ -1123,14 +1129,12 @@ export const useSyncStore = defineStore('sync', () => {
     const eventData = eventDataContent ? JSON.parse(eventDataContent) : null
     const imageStats = buildImageSyncStats()
     const imageGist = await resolveRemoteImageGist(remoteManifest)
-    remoteData.goods = await hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats)
-    remoteData.trash = await hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats)
-    
+    const failedImageNames = []
+    remoteData.goods = await hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats, failedImageNames)
+    remoteData.trash = await hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats, failedImageNames)
+
     if (eventData && Array.isArray(eventData.events)) {
-      eventData.events = await hydrateEventCoversWithImages(eventData.events, imageGist, imageStats)
-    }
-    
-    const goodsStore = useGoodsStore()
+      eventData.events = await hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, failedImageNames)
     const rechargeStore = useRechargeStore()
     const presets = usePresetsStore()
 
@@ -1274,7 +1278,8 @@ export const useSyncStore = defineStore('sync', () => {
       totalGoods: remoteGoods.length,
       totalTrash: remoteTrash.length,
       totalRecharge: rechargeApplyResult.total,
-      totalEvents: eventApplyResult.total
+      totalEvents: eventApplyResult.total,
+      failedImageNames: [...new Set(failedImageNames)]
     }
   }
 

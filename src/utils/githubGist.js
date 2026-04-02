@@ -100,9 +100,8 @@ function buildFallbackRawUrl(gist, filename) {
 
 async function readRawText(url) {
   if (!url) return null
-  const cacheBustedUrl = url.includes('?') ? `${url}&_cb=${Date.now()}` : `${url}?_cb=${Date.now()}`
   try {
-    const response = await fetch(cacheBustedUrl, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         Accept: 'text/plain',

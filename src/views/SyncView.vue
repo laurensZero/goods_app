@@ -715,6 +715,9 @@ async function handleSync() {
       if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
       if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
       message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      if (result.failedImageNames?.length > 0) {
+        message += `\n部分图片拉取失败: ${result.failedImageNames.join(', ')}`
+      }
     } else if (result.action === 'no_changes') {
       message = '数据已经是最新，无需上传'
     } else if (result.action === 'pushed') {
@@ -755,6 +758,9 @@ async function handlePull() {
         if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
         if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
       let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      if (result?.failedImageNames?.length > 0) {
+        message += `\n部分图片拉取失败: ${result.failedImageNames.join(', ')}`
+      }
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'no_changes') {
