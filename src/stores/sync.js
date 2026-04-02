@@ -1135,6 +1135,9 @@ async function hydrateEventCoversWithImages(events, imageGist, imageStats, faile
 
     if (eventData && Array.isArray(eventData.events)) {
       eventData.events = await hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, failedImageNames)
+    }
+
+    const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const presets = usePresetsStore()
 
