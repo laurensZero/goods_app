@@ -349,24 +349,20 @@
             </div>
             <div class="conflict-diff">
               <p class="conflict-diff-title">差异</p>
-              <div class="conflict-diff-row">
+              <div v-if="pullConflictRemoteOnlyText !== '无'" class="conflict-diff-row">
                 <span class="conflict-diff-label">远端新增</span>
                 <span class="conflict-diff-value conflict-diff-value--add">{{ pullConflictRemoteOnlyText }}</span>
               </div>
-              <div v-if="pullConflictData.updatedGoods > 0" class="conflict-diff-row">
-                <span class="conflict-diff-label">远端修改</span>
-                <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictData.updatedGoods }} 条</span>
-              </div>
-              <div v-if="pullConflictData.updatedRecharge > 0 || pullConflictData.updatedEvents > 0" class="conflict-diff-row">
+              <div v-if="pullConflictData.updatedGoods > 0 || pullConflictData.updatedRecharge > 0 || pullConflictData.updatedEvents > 0" class="conflict-diff-row">
                 <span class="conflict-diff-label">远端修改</span>
                 <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictRemoteUpdatedText }}</span>
               </div>
-              <div class="conflict-diff-row">
+              <div v-if="pullConflictLocalOnlyText !== '无'" class="conflict-diff-row">
                 <span class="conflict-diff-label">本地独有</span>
                 <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictLocalOnlyText }}</span>
               </div>
             </div>
-            <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。收藏、回收站、充值和活动都会按远端结果同步，远端已删除的数据也会从本地移除。</p>
+            <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态并覆盖本地修改。</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
@@ -509,39 +505,40 @@ const imageSyncDisplay = computed(() => {
   if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
   return formatTime(gistInfo.value.imageUpdatedAt)
 })
-const pullConflictSummaryText = computed(() => (
-  [
-    `${pullConflictData.value.remoteCollectionCount || 0} 收藏`,
-    `${pullConflictData.value.remoteWishlistCount || 0} 心愿单`,
-    `${pullConflictData.value.remoteTrashCount || 0} 回收站`,
-    `${pullConflictData.value.remoteRechargeCount || 0} 充值`,
-    `${pullConflictData.value.remoteEventCount || 0} 活动`
-  ].join('，')
-))
-const pullConflictRemoteOnlyText = computed(() => (
-  [
-    `+${pullConflictData.value.remoteOnlyCollection || 0} 收藏`,
-    `+${pullConflictData.value.remoteOnlyWishlist || 0} 心愿单`,
-    `+${pullConflictData.value.remoteOnlyTrash || 0} 回收站`,
-    `+${pullConflictData.value.remoteOnlyRecharge || 0} 充值`,
-    `+${pullConflictData.value.remoteOnlyEvents || 0} 活动`
-  ].join('，')
-))
+const pullConflictSummaryText = computed(() => {
+  const parts = []
+  if (pullConflictData.value.remoteCollectionCount) parts.push(`${pullConflictData.value.remoteCollectionCount} 收藏`)
+  if (pullConflictData.value.remoteWishlistCount) parts.push(`${pullConflictData.value.remoteWishlistCount} 心愿单`)
+  if (pullConflictData.value.remoteTrashCount) parts.push(`${pullConflictData.value.remoteTrashCount} 回收站`)
+  if (pullConflictData.value.remoteRechargeCount) parts.push(`${pullConflictData.value.remoteRechargeCount} 充值`)
+  if (pullConflictData.value.remoteEventCount) parts.push(`${pullConflictData.value.remoteEventCount} 活动`)
+  return parts.join('，') || '0 条记录'
+})
+const pullConflictRemoteOnlyText = computed(() => {
+  const parts = []
+  if (pullConflictData.value.remoteOnlyCollection) parts.push(`+${pullConflictData.value.remoteOnlyCollection} 收藏`)
+  if (pullConflictData.value.remoteOnlyWishlist) parts.push(`+${pullConflictData.value.remoteOnlyWishlist} 心愿单`)
+  if (pullConflictData.value.remoteOnlyTrash) parts.push(`+${pullConflictData.value.remoteOnlyTrash} 回收站`)
+  if (pullConflictData.value.remoteOnlyRecharge) parts.push(`+${pullConflictData.value.remoteOnlyRecharge} 充值`)
+  if (pullConflictData.value.remoteOnlyEvents) parts.push(`+${pullConflictData.value.remoteOnlyEvents} 活动`)
+  return parts.join('，') || '无'
+})
 const pullConflictRemoteUpdatedText = computed(() => (
   [
+    pullConflictData.value.updatedGoods > 0 ? `${pullConflictData.value.updatedGoods} 条物品` : '',
     pullConflictData.value.updatedRecharge > 0 ? `${pullConflictData.value.updatedRecharge} 条充值` : '',
     pullConflictData.value.updatedEvents > 0 ? `${pullConflictData.value.updatedEvents} 场活动` : ''
   ].filter(Boolean).join('，')
 ))
-const pullConflictLocalOnlyText = computed(() => (
-  [
-    `${pullConflictData.value.localOnlyCollection || 0} 收藏`,
-    `${pullConflictData.value.localOnlyWishlist || 0} 心愿单`,
-    `${pullConflictData.value.localOnlyTrash || 0} 回收站`,
-    `${pullConflictData.value.localOnlyRecharge || 0} 充值`,
-    `${pullConflictData.value.localOnlyEvents || 0} 活动`
-  ].join('，')
-))
+const pullConflictLocalOnlyText = computed(() => {
+  const parts = []
+  if (pullConflictData.value.localOnlyCollection) parts.push(`${pullConflictData.value.localOnlyCollection} 收藏`)
+  if (pullConflictData.value.localOnlyWishlist) parts.push(`${pullConflictData.value.localOnlyWishlist} 心愿单`)
+  if (pullConflictData.value.localOnlyTrash) parts.push(`${pullConflictData.value.localOnlyTrash} 回收站`)
+  if (pullConflictData.value.localOnlyRecharge) parts.push(`${pullConflictData.value.localOnlyRecharge} 充值`)
+  if (pullConflictData.value.localOnlyEvents) parts.push(`${pullConflictData.value.localOnlyEvents} 活动`)
+  return parts.join('，') || '无'
+})
 
 function resetPageScrollTop() {
   try {

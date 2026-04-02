@@ -86,7 +86,7 @@ export const useEventsStore = defineStore('events', () => {
       linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
       tags: Array.isArray(data.tags) ? data.tags : [],
       createdAt: data.createdAt || now,
-      updatedAt: now
+      updatedAt: data.updatedAt || now
     }
 
     const existingIndex = list.value.findIndex((item) => item.id === id)
@@ -101,7 +101,7 @@ export const useEventsStore = defineStore('events', () => {
     return record
   }
 
-  async function updateEventRecord(id, data) {
+  async function updateEventRecord(id, data, preserveTimestamp = false) {
     const index = list.value.findIndex((item) => item.id === id)
     if (index === -1) return null
 
@@ -109,7 +109,7 @@ export const useEventsStore = defineStore('events', () => {
       ...list.value[index],
       ...data,
       id,
-      updatedAt: Date.now()
+      updatedAt: preserveTimestamp ? (data.updatedAt || Date.now()) : Date.now()
     }
 
     triggerRef(list)
@@ -154,8 +154,8 @@ export const useEventsStore = defineStore('events', () => {
 
       const incomingUpdatedAt = Number(event.updatedAt) || 0
       const existingUpdatedAt = Number(existing.updatedAt) || 0
-      if (incomingUpdatedAt >= existingUpdatedAt) {
-        await updateEventRecord(event.id, event)
+      if (incomingUpdatedAt > existingUpdatedAt) {
+        await updateEventRecord(event.id, event, true)
         updated += 1
       }
     }
