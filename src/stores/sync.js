@@ -1038,7 +1038,8 @@ export const useSyncStore = defineStore('sync', () => {
 
         const imageDataUrl = fileCache.get(gistFileName)
         if (!String(imageDataUrl || '').startsWith('data:image/')) {
-          throw new Error(`远端图片缺失：${gistFileName}`)
+          console.warn(`远端图片缺失或加载失败：${gistFileName}，本次跳过拉取`)
+          return imageEntry
         }
 
         imageStats.restoredImages += 1
