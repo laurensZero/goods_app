@@ -64,6 +64,55 @@ function getItemTimestamp(item) {
   return Number(item?.updatedAt) || 0
 }
 
+function buildLatestItemMap(items = []) {
+  const map = new Map()
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const id = String(item?.id || '').trim()
+    if (!id) continue
+
+    const existing = map.get(id)
+    if (!existing || getItemTimestamp(item) >= getItemTimestamp(existing)) {
+      map.set(id, item)
+    }
+  }
+
+  return map
+}
+
+function countRemoteDiff(localItems = [], remoteItems = []) {
+  const localMap = buildLatestItemMap(localItems)
+  const remoteMap = buildLatestItemMap(remoteItems)
+  let remoteOnly = 0
+  let localOnly = 0
+  let updated = 0
+
+  for (const [id, remoteItem] of remoteMap.entries()) {
+    const localItem = localMap.get(id)
+    if (!localItem) {
+      remoteOnly += 1
+      continue
+    }
+
+    if (getItemTimestamp(remoteItem) > getItemTimestamp(localItem)) {
+      updated += 1
+    }
+  }
+
+  for (const id of localMap.keys()) {
+    if (!remoteMap.has(id)) {
+      localOnly += 1
+    }
+  }
+
+  return {
+    remoteOnly,
+    localOnly,
+    updated,
+    remoteTotal: remoteMap.size
+  }
+}
+
 function buildComparableImageState(item) {
   return normalizeGoodsImageList(item?.images, item?.coverImage || item?.image)
     .map((entry) => {
@@ -1273,7 +1322,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function pushToRemote(existingGist = null, existingImageGist = null, existingRechargeGist = null, existingEventGist = null) {
     if (!existingGist && gistId.value) {
-      await getGist(token.value, gistId.value)
+      existingGist = await getGist(token.value, gistId.value)
     }
 
     const imageGist = existingImageGist || await ensureImageGist()
@@ -1302,12 +1351,16 @@ export const useSyncStore = defineStore('sync', () => {
       imageUpdatedAt: eventImageStats.imageUpdatedAt || imageStats.imageUpdatedAt || ''
     }
     const manifest = buildManifest(mergedImageStats)
-
+    const nextEventContent = JSON.stringify(eventSyncData)
+    const nextManifestContent = JSON.stringify(manifest)
+    const existingEventContent = existingGist ? await getGistFileContent(token.value, existingGist, EVENT_DATA_FILENAME) : null
     await updateGist(token.value, gistId.value, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },
       [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) },
-      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventSyncData) },
-      [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
+      ...(existingEventContent !== nextEventContent
+        ? { [EVENT_DATA_FILENAME]: { content: nextEventContent } }
+        : {}),
+      [MANIFEST_FILENAME]: { content: nextManifestContent }
     })
 
     await saveLastSyncedAt(manifest.lastSyncAt)
@@ -1324,8 +1377,10 @@ export const useSyncStore = defineStore('sync', () => {
     return { ...mergedImageStats }
   }
 
-  async function buildPullConflictData(gist, remoteManifest) {
+  async function buildPullConflictData(gist, remoteManifest, rechargeGist = null, eventGist = null) {
     const goodsStore = useGoodsStore()
+    const rechargeStore = useRechargeStore()
+    const eventsStore = await ensureEventsStoreReady()
     const dataContent = await getGistFileContent(token.value, gist, DATA_FILENAME)
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
@@ -1392,6 +1447,24 @@ export const useSyncStore = defineStore('sync', () => {
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
+    const remoteRechargeContent = (
+      await getGistFileContent(token.value, gist, RECHARGE_DATA_FILENAME)
+    ) || (
+      rechargeGist ? await getGistFileContent(token.value, rechargeGist, RECHARGE_DATA_FILENAME) : null
+    )
+    const remoteRechargeData = remoteRechargeContent ? JSON.parse(remoteRechargeContent) : { recharge: [], rechargeTrash: [] }
+    const remoteRecharge = Array.isArray(remoteRechargeData?.recharge) ? remoteRechargeData.recharge.filter((item) => !item?.deleted) : []
+    const localRecharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const rechargeDiff = countRemoteDiff(localRecharge, remoteRecharge)
+
+    const remoteEventContent = (
+      await getGistFileContent(token.value, gist, EVENT_DATA_FILENAME)
+    ) || (
+      eventGist ? await getGistFileContent(token.value, eventGist, EVENT_DATA_FILENAME) : null
+    )
+    const remoteEventData = remoteEventContent ? JSON.parse(remoteEventContent) : { events: [] }
+    const remoteEvents = Array.isArray(remoteEventData?.events) ? remoteEventData.events : []
+    const eventDiff = countRemoteDiff(eventsStore.list || [], remoteEvents)
 
     return {
       remoteTime: remoteManifest?.lastSyncAt || '',
@@ -1407,6 +1480,14 @@ export const useSyncStore = defineStore('sync', () => {
       remoteOnlyCollection,
       remoteOnlyWishlist,
       remoteOnlyTrash,
+      remoteRechargeCount: rechargeDiff.remoteTotal,
+      remoteOnlyRecharge: rechargeDiff.remoteOnly,
+      localOnlyRecharge: rechargeDiff.localOnly,
+      updatedRecharge: rechargeDiff.updated,
+      remoteEventCount: eventDiff.remoteTotal,
+      remoteOnlyEvents: eventDiff.remoteOnly,
+      localOnlyEvents: eventDiff.localOnly,
+      updatedEvents: eventDiff.updated,
       localOnlyGoods,
       localOnlyCollection,
       localOnlyWishlist,
@@ -1618,7 +1699,7 @@ export const useSyncStore = defineStore('sync', () => {
       const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
 
       if (isRemoteFromOtherDevice) {
-        const diff = await buildPullConflictData(gist, remoteManifest)
+        const diff = await buildPullConflictData(gist, remoteManifest, existingRechargeGist, existingEventGist)
         const hasContentDiff = (
           diff.remoteOnlyGoods > 0
           || diff.remoteOnlyTrash > 0

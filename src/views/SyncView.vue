@@ -344,25 +344,29 @@
               </div>
               <div class="conflict-row">
                 <span class="conflict-label">远端总数</span>
-                <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站</span>
+                <span class="conflict-value">{{ pullConflictSummaryText }}</span>
               </div>
             </div>
             <div class="conflict-diff">
               <p class="conflict-diff-title">差异</p>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">远端新增</span>
-                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
+                <span class="conflict-diff-value conflict-diff-value--add">{{ pullConflictRemoteOnlyText }}</span>
               </div>
               <div v-if="pullConflictData.updatedGoods > 0" class="conflict-diff-row">
                 <span class="conflict-diff-label">远端修改</span>
                 <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictData.updatedGoods }} 条</span>
               </div>
+              <div v-if="pullConflictData.updatedRecharge > 0 || pullConflictData.updatedEvents > 0" class="conflict-diff-row">
+                <span class="conflict-diff-label">远端修改</span>
+                <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictRemoteUpdatedText }}</span>
+              </div>
               <div class="conflict-diff-row">
                 <span class="conflict-diff-label">本地独有</span>
-                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站</span>
+                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictLocalOnlyText }}</span>
               </div>
             </div>
-            <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
+            <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。收藏、回收站、充值和活动都会按远端结果同步，远端已删除的数据也会从本地移除。</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
@@ -505,6 +509,39 @@ const imageSyncDisplay = computed(() => {
   if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
   return formatTime(gistInfo.value.imageUpdatedAt)
 })
+const pullConflictSummaryText = computed(() => (
+  [
+    `${pullConflictData.value.remoteCollectionCount || 0} 收藏`,
+    `${pullConflictData.value.remoteWishlistCount || 0} 心愿单`,
+    `${pullConflictData.value.remoteTrashCount || 0} 回收站`,
+    `${pullConflictData.value.remoteRechargeCount || 0} 充值`,
+    `${pullConflictData.value.remoteEventCount || 0} 活动`
+  ].join('，')
+))
+const pullConflictRemoteOnlyText = computed(() => (
+  [
+    `+${pullConflictData.value.remoteOnlyCollection || 0} 收藏`,
+    `+${pullConflictData.value.remoteOnlyWishlist || 0} 心愿单`,
+    `+${pullConflictData.value.remoteOnlyTrash || 0} 回收站`,
+    `+${pullConflictData.value.remoteOnlyRecharge || 0} 充值`,
+    `+${pullConflictData.value.remoteOnlyEvents || 0} 活动`
+  ].join('，')
+))
+const pullConflictRemoteUpdatedText = computed(() => (
+  [
+    pullConflictData.value.updatedRecharge > 0 ? `${pullConflictData.value.updatedRecharge} 条充值` : '',
+    pullConflictData.value.updatedEvents > 0 ? `${pullConflictData.value.updatedEvents} 场活动` : ''
+  ].filter(Boolean).join('，')
+))
+const pullConflictLocalOnlyText = computed(() => (
+  [
+    `${pullConflictData.value.localOnlyCollection || 0} 收藏`,
+    `${pullConflictData.value.localOnlyWishlist || 0} 心愿单`,
+    `${pullConflictData.value.localOnlyTrash || 0} 回收站`,
+    `${pullConflictData.value.localOnlyRecharge || 0} 充值`,
+    `${pullConflictData.value.localOnlyEvents || 0} 活动`
+  ].join('，')
+))
 
 function resetPageScrollTop() {
   try {

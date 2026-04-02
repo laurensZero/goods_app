@@ -334,6 +334,7 @@ const goodsStore = useGoodsStore()
 const { setWindowScrollTop } = usePageScrollRestore()
 
 const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
+const EVENT_ADD_DRAFT_KEY = 'goods-app:event-add-draft'
 
 function syncEventAddScrollLock(active) {
   document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
@@ -384,6 +385,79 @@ const linkedGoodsList = computed(() =>
   form.linkedGoodsIds.map((id) => goodsStore.getById(id)).filter(Boolean)
 )
 
+function buildDraftPayload() {
+  return {
+    routeKey: route.fullPath,
+    mode: isEdit.value ? 'edit' : 'add',
+    editId: editId.value ? String(editId.value) : '',
+    form: {
+      name: String(form.name || ''),
+      type: String(form.type || ''),
+      startDate: String(form.startDate || ''),
+      endDate: String(form.endDate || ''),
+      location: String(form.location || ''),
+      description: String(form.description || ''),
+      coverImage: String(form.coverImage || ''),
+      photos: Array.isArray(form.photos) ? form.photos.map((item) => ({ ...item })) : [],
+      ticketPrice: String(form.ticketPrice || ''),
+      ticketType: String(form.ticketType || ''),
+      seatInfo: String(form.seatInfo || ''),
+      linkedGoodsIds: Array.isArray(form.linkedGoodsIds) ? [...form.linkedGoodsIds] : [],
+      tags: Array.isArray(form.tags) ? [...form.tags] : []
+    }
+  }
+}
+
+function applyFormSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return
+  form.name = String(snapshot.name || '')
+  form.type = String(snapshot.type || '')
+  form.startDate = String(snapshot.startDate || '')
+  form.endDate = String(snapshot.endDate || '')
+  form.location = String(snapshot.location || '')
+  form.description = String(snapshot.description || '')
+  form.coverImage = String(snapshot.coverImage || '')
+  form.photos = Array.isArray(snapshot.photos) ? snapshot.photos.map((item) => ({ ...item })) : []
+  form.ticketPrice = String(snapshot.ticketPrice || '')
+  form.ticketType = String(snapshot.ticketType || '')
+  form.seatInfo = String(snapshot.seatInfo || '')
+  form.linkedGoodsIds = Array.isArray(snapshot.linkedGoodsIds) ? [...snapshot.linkedGoodsIds] : []
+  form.tags = Array.isArray(snapshot.tags) ? [...snapshot.tags] : []
+}
+
+function saveDraftForPicker() {
+  sessionStorage.setItem(EVENT_ADD_DRAFT_KEY, JSON.stringify(buildDraftPayload()))
+}
+
+function restoreDraftFromPicker() {
+  const raw = sessionStorage.getItem(EVENT_ADD_DRAFT_KEY)
+  if (!raw) return false
+
+  sessionStorage.removeItem(EVENT_ADD_DRAFT_KEY)
+
+  try {
+    const parsed = JSON.parse(raw)
+    const mode = isEdit.value ? 'edit' : 'add'
+    const currentEditId = editId.value ? String(editId.value) : ''
+    if (parsed?.routeKey !== route.fullPath) return false
+    if (parsed?.mode !== mode) return false
+    if (String(parsed?.editId || '') !== currentEditId) return false
+    applyFormSnapshot(parsed.form)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function applyPickerSelectionResult() {
+  const pickerResult = readEventLinkedGoodsPickerResult()
+  if (pickerResult) {
+    form.linkedGoodsIds = [...pickerResult]
+    return true
+  }
+  return false
+}
+
 function handleViewportResize() {
   viewportWidth.value = window.innerWidth
 }
@@ -430,6 +504,7 @@ function validateName() {
 }
 
 async function handleSubmit() {
+  await nextTick()
   form.name = String(form.name || '').trim()
   if (!validateName()) return
 
@@ -450,6 +525,7 @@ async function handleSubmit() {
   } else {
     await eventsStore.addEventRecord(payload)
   }
+  sessionStorage.removeItem(EVENT_ADD_DRAFT_KEY)
   router.back()
 }
 
@@ -526,6 +602,7 @@ function removeLinkedGoods(id) {
 }
 
 async function openGoodsPicker() {
+  saveDraftForPicker()
   isNavigatingToPicker.value = true
   await nextTick()
   router.push({
@@ -562,16 +639,16 @@ onMounted(async () => {
     await goodsStore.refreshList()
   }
   await loadEditData()
-  const pickerResult = readEventLinkedGoodsPickerResult()
-  if (pickerResult) {
-    form.linkedGoodsIds = [...pickerResult]
-  }
+  restoreDraftFromPicker()
+  applyPickerSelectionResult()
   isNavigatingToPicker.value = false
   await nextTick()
   pageDisplayReady.value = true
 })
 
 onActivated(async () => {
+  restoreDraftFromPicker()
+  applyPickerSelectionResult()
   await nextTick()
   pageDisplayReady.value = true
 })
