@@ -553,7 +553,6 @@ const priceText = computed(() => {
 
 .goods-card--compact .card-body {
   gap: 4px;
-  flex: 0 0 auto;
 }
 
 .goods-card--standard {
@@ -574,7 +573,7 @@ const priceText = computed(() => {
 }
 
 .goods-card--compact .card-bottom-row {
-  margin-top: 0;
+  margin-top: auto;
 }
 
 .goods-card--compact .card-cover {
@@ -586,7 +585,7 @@ const priceText = computed(() => {
 }
 
 .goods-card--compact .card-name {
-  min-height: 0;
+  min-height: 2.7em; /* 保证一行时高度也占两行，严格对齐价格栏 */
 }
 
 .selection-overlay {

@@ -1115,6 +1115,12 @@
 }
 
 .picker-popup { overflow: hidden; }
+:global(.picker-popup--center.van-popup--center) {
+  width: 90%;
+  max-width: 400px;
+  border-radius: 20px !important;
+  overflow: hidden;
+}
 :deep(.picker-popup .van-picker) {
   --van-picker-background: var(--app-surface);
   --van-picker-toolbar-height: 52px;
