@@ -304,7 +304,9 @@ import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeac
 import { useRoute, useRouter } from 'vue-router'
 import { DatePicker, Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
-import { Camera } from '@capacitor/camera'
+import { pickLinkedLocalImage } from '@/utils/localImage'
+
+// ...
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
@@ -562,13 +564,10 @@ function normalizeDateParts(dateString) {
 
 async function pickCoverImage() {
   try {
-    const result = await Camera.getPhoto({
-      quality: 80,
-      allowEditing: false,
-      resultType: Capacitor.isNativePlatform() ? 'uri' : 'dataUrl',
-      source: 'photos'
-    })
-    form.coverImage = result.webPath || result.dataUrl || result.uri
+    const result = await pickLinkedLocalImage()
+    if (result?.uri) {
+      form.coverImage = result.uri
+    }
   } catch {
     // user cancelled
   }
@@ -576,18 +575,14 @@ async function pickCoverImage() {
 
 async function pickPhoto() {
   try {
-    const result = await Camera.getPhoto({
-      quality: 80,
-      allowEditing: false,
-      resultType: Capacitor.isNativePlatform() ? 'uri' : 'dataUrl',
-      source: 'photos'
-    })
-    const uri = result.webPath || result.dataUrl || result.uri
-    form.photos.push({
-      id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      uri,
-      caption: ''
-    })
+    const result = await pickLinkedLocalImage()
+    if (result?.uri) {
+      form.photos.push({
+        id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        uri: result.uri,
+        caption: ''
+      })
+    }
   } catch {
     // user cancelled
   }
