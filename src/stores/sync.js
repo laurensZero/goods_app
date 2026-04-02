@@ -42,7 +42,7 @@ const MANIFEST_FILENAME = 'manifest.json'
 const IS_NATIVE = Capacitor.isNativePlatform()
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
-const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024
+const IMAGE_FILE_SIZE_LIMIT = 750 * 1024 // 基础大小限制为 750KB，是为了防止 base64 扩张后超过 Gist 1MB 的限制
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
