@@ -482,6 +482,22 @@ async function finalizeCutoutResult(blob, meta) {
   return canvasToBlob(outputCanvas, 'image/png', 1)
 }
 
+export async function clearLocalModelAssets() {
+  if (!isNative()) return false
+  const { Filesystem, Directory } = await import('@capacitor/filesystem')
+  try {
+    await Filesystem.rmdir({
+      path: 'imgly-assets',
+      directory: Directory.Data,
+      recursive: true
+    })
+    return true
+  } catch (error) {
+    console.error('清理模型文件失败', error)
+    return false
+  }
+}
+
 export function useImageCutout() {
   function isCutoutModelReady() {
     return modelReady

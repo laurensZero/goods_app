@@ -192,6 +192,42 @@
 
       <section class="content-section">
         <div class="section-head">
+          <p class="section-label">Resource Management</p>
+          <h2 class="section-title">资源管理</h2>
+        </div>
+
+        <div class="info-grid">
+          <article class="info-card">
+            <p class="info-kicker">本地图片缓存</p>
+            <h3 class="info-value">{{ resourceSizeCacheImage }}</h3>
+            <p class="info-desc">释放由于查看商品而产生的本地图片缓存，随时可再次下载。</p>
+            <div class="update-actions" style="margin-top: 1rem;">
+              <button class="dialog-btn dialog-btn--secondary" @click="handleClearImageCache">清除图片缓存</button>
+            </div>
+          </article>
+
+          <article class="info-card">
+            <p class="info-kicker">本地抠图模型</p>
+            <h3 class="info-value">{{ resourceSizeModel }}</h3>
+            <p class="info-desc">卸载由于使用“去除背景”功能而下载的模型文件以腾出空间。</p>
+            <div class="update-actions" style="margin-top: 1rem;">
+              <button class="dialog-btn dialog-btn--secondary" @click="handleClearCutoutModel">卸载抠图模型</button>
+            </div>
+          </article>
+
+          <article class="info-card">
+            <p class="info-kicker">应用更新残留</p>
+            <h3 class="info-value">{{ resourceSizeUpdate }}</h3>
+            <p class="info-desc">清理系统热更或下载的 APK 安装包等无效残留数据。</p>
+            <div class="update-actions" style="margin-top: 1rem;">
+              <button class="dialog-btn dialog-btn--secondary" @click="handleClearUpdateCache">清除更新残留</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section">
+        <div class="section-head">
           <p class="section-label">Current Data</p>
           <h2 class="section-title">当前数据</h2>
         </div>
@@ -382,6 +418,9 @@ import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { createIssue } from '@/utils/githubIssues'
 import { validateToken } from '@/utils/githubGist'
+import { clearAllCache } from '@/utils/imageCache'
+import { clearLocalModelAssets } from '@/composables/image/useImageCutout'
+import { Filesystem, Directory } from '@capacitor/filesystem'
 import packageJson from '../../package.json'
 import capacitorConfig from '../../capacitor.config.json'
 
@@ -872,6 +911,107 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearTimeout(toastTimer)
 })
+
+// ======== 资源空间计算 ========
+const resourceSizeCacheImage = ref('--')
+const resourceSizeModel = ref('--')
+const resourceSizeUpdate = ref('--')
+
+async function calculateDirectorySize(path, directory) {
+  let total = 0
+  try {
+    const res = await Filesystem.readdir({ path, directory })
+    for (const file of res.files) {
+      if (file.type === 'directory') {
+        total += await calculateDirectorySize(`${path}/${file.name}`, directory)
+      } else {
+        total += Number(file.size) || 0
+      }
+    }
+  } catch {
+    // 忽略目录不存在的情况
+  }
+  return total
+}
+
+function formatSize(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+async function refreshResourceSizes() {
+  if (!IS_NATIVE) {
+    resourceSizeCacheImage.value = 'H5端由浏览器管理'
+    resourceSizeModel.value = 'Web 端未保存'
+    resourceSizeUpdate.value = 'Web 端未使用'
+    return
+  }
+
+  calculateDirectorySize('img-cache', Directory.Cache).then(size => {
+    resourceSizeCacheImage.value = size > 0 ? formatSize(size) : '0 B'
+  })
+  
+  calculateDirectorySize('imgly-assets', Directory.Data).then(size => {
+    resourceSizeModel.value = size > 0 ? formatSize(size) : '0 B'
+  })
+
+  calculateDirectorySize('updates', Directory.Cache).then(size => {
+    resourceSizeUpdate.value = size > 0 ? formatSize(size) : '0 B'
+  })
+}
+
+onMounted(() => {
+  refreshResourceSizes()
+})
+
+async function handleClearImageCache() {
+  try {
+    await clearAllCache()
+    showToast('图片缓存已清除')
+    refreshResourceSizes()
+  } catch (error) {
+    showToast('清除图片缓存失败')
+  }
+}
+
+async function handleClearCutoutModel() {
+  if (!IS_NATIVE) {
+    showToast('Web版未下载原生模型')
+    return
+  }
+  const ok = await clearLocalModelAssets()
+  if (ok) {
+    showToast('抠图模型已卸载')
+    refreshResourceSizes()
+  } else {
+    showToast('清理抠图模型失败')
+  }
+}
+
+async function handleClearUpdateCache() {
+  try {
+    if (IS_NATIVE) {
+      await Filesystem.rmdir({
+        path: 'updates',
+        directory: Directory.Cache,
+        recursive: true
+      })
+    }
+    const { caches } = window
+    if (caches) {
+      await caches.delete('app-update-cache')
+    }
+    showToast('应用更新缓存已清除')
+    refreshResourceSizes()
+  } catch (error) {
+    showToast('清理免责提示，或目录本来就为空。')
+  }
+}
+
+
 </script>
 
 <style scoped src="../assets/views/AboutView.css"></style>
