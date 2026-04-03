@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { CapacitorHttp, Capacitor } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { FileOpener } from '@capawesome-team/capacitor-file-opener'
@@ -201,33 +201,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     return normalized
   }
 
-  async function resolveRedirectUrlNative(initialUrl) {
-    if (!Capacitor.isNativePlatform()) return initialUrl
-
-    let currentUrl = initialUrl
-    for (let i = 0; i < 5; i++) {
-      try {
-        const response = await CapacitorHttp.request({
-          method: 'HEAD',
-          url: currentUrl,
-          disableRedirects: true
-        })
-        if ([301, 302, 303, 307, 308].includes(response.status)) {
-          const loc = response.headers?.Location || response.headers?.location
-          if (loc) {
-            currentUrl = loc.startsWith('http') ? loc : new URL(loc, currentUrl).href
-            // 获取一层重定向后立即退出，因为 s3 链接不允许 HEAD 请求且不重定向
-            break
-          }
-        }
-        break
-      } catch (err) {
-        break
-      }
-    }
-    return currentUrl
-  }
-
   function resolveDownloadErrorMessage(error) {
     const raw = String(error?.message || '').toLowerCase()
     if (
@@ -283,7 +256,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     }
 
     const asset = releaseAsset.value
-    let downloadUrl = asset?.browser_download_url
+    const downloadUrl = asset?.browser_download_url
 
     if (!downloadUrl) {
       downloadError.value = '未找到可下载的更新包。'
@@ -297,12 +270,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       const fileName = normalizePackageFilename(asset?.name)
       const filePath = `updates/${fileName}`
       const startedAt = Date.now()
-
-      // 原生 Android HttpURLConnection 跨域/跨主机重定向无法自动跟随，
-      // 会直接下载 302 响应体（空包）。因此我们尝试手动跟随重定向获取最终下载地址。
-      if (Capacitor.getPlatform() === 'android') {
-        downloadUrl = await resolveRedirectUrlNative(downloadUrl)
-      }
 
       await Filesystem.mkdir({
         path: 'updates',
@@ -334,17 +301,10 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       while (downloadAttempt < 2) {
         downloadAttempt += 1
         try {
-          // 清理可能遗留的空文件
-          await Filesystem.deleteFile({
-            path: filePath,
-            directory: Directory.Cache
-          }).catch(() => {})
-
           await Filesystem.downloadFile({
             url: downloadUrl,
             path: filePath,
             directory: Directory.Cache,
-            method: 'GET',
             progress: true,
             recursive: true
           })
