@@ -926,6 +926,11 @@ export const useSyncStore = defineStore('sync', () => {
     return latest > 0 ? new Date(latest).toISOString() : ''
   }
 
+  function getLocalChangesSinceLastSync() {
+    const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
+    return getLocalChangesSince(localSyncTime)
+  }
+
   async function ensureImageGist() {
     if (imageGistId.value) {
       try {
@@ -1837,7 +1842,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       if (remoteTime > localSyncTime || !remoteManifest) {
-        if (isRemoteFromOtherDevice && remoteManifest && localChanges.hasChanges) {
+        if (remoteManifest && localChanges.hasChanges) {
           conflictData.value = {
             remoteTime: remoteManifest.lastSyncAt,
             remoteDevice: remoteManifest.deviceId,
@@ -1991,6 +1996,19 @@ export const useSyncStore = defineStore('sync', () => {
       const localRechargeState = buildComparableRechargeStateFromData(buildRechargeSyncData({ incremental: false }))
       const remoteRechargeState = buildComparableRechargeStateFromData(remoteRechargeData)
       const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
+      const localChanges = getLocalChangesSince(localSyncTime)
+
+      if (localChanges.hasChanges) {
+        const diff = await buildPullConflictData(gist, remoteManifest)
+        conflictData.value = {
+          ...diff,
+          rechargeGist: existingRechargeGist,
+          eventGist: existingEventGist,
+          isPullOnly: true
+        }
+        syncStatus.value = '检测到远端数据'
+        return { action: 'conflict' }
+      }
 
       if (isRemoteFromOtherDevice) {
         const diff = await buildPullConflictData(gist, remoteManifest)
@@ -2108,6 +2126,7 @@ export const useSyncStore = defineStore('sync', () => {
     init,
     saveToken,
     checkTokenValidity,
+    getLocalChangesSinceLastSync,
     fullSync,
     pullOnly,
     resolveConflict,

@@ -112,6 +112,9 @@ onMounted(async () => {
   // 自动拉取
   await syncStore.init()
   if (syncStore.token && syncStore.gistId && !syncStore.isSyncing) {
+    const localChanges = syncStore.getLocalChangesSinceLastSync()
+    if (localChanges.hasChanges) return
+
     try {
       await syncStore.pullOnly()
     } catch {
