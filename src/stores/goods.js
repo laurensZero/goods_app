@@ -42,23 +42,9 @@ function parseTimelineYearMonth(value) {
   return isValidYearMonth(yearMonth) ? yearMonth : ''
 }
 
-function buildComparableImageState(item) {
-  return normalizeGoodsImageList(item?.images, item?.coverImage || item?.image)
-    .map((entry) => ({
-      id: String(entry?.id || '').trim(),
-      kind: String(entry?.kind || '').trim(),
-      label: String(entry?.label || '').trim(),
-      isPrimary: entry?.isPrimary === true,
-      source: String(entry?.gistFileName || entry?.uri || '').trim(),
-      mimeType: String(entry?.mimeType || '').trim(),
-      fileSize: Number(entry?.fileSize) > 0 ? Number(entry.fileSize) : 0
-    }))
-}
-
 function shouldApplyRemoteBackup(localItem, remoteItem) {
   if (!localItem) return true
-  if ((remoteItem?.updatedAt || 0) > (localItem?.updatedAt || 0)) return true
-  return JSON.stringify(buildComparableImageState(localItem)) !== JSON.stringify(buildComparableImageState(remoteItem))
+  return (Number(remoteItem?.updatedAt) || 0) > (Number(localItem?.updatedAt) || 0)
 }
 
 function parseNumericPrice(value) {

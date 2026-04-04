@@ -65,30 +65,9 @@ function getItemTimestamp(item) {
   return Number(item?.updatedAt) || 0
 }
 
-function buildComparableImageState(item) {
-  return normalizeGoodsImageList(item?.images, item?.coverImage || item?.image)
-    .map((entry) => {
-      const uri = String(entry?.uri || '').trim()
-      const gistFileName = String(entry?.gistFileName || parseGistImageUri(uri)).trim()
-      return {
-        id: String(entry?.id || '').trim(),
-        kind: String(entry?.kind || '').trim(),
-        label: String(entry?.label || '').trim(),
-        isPrimary: entry?.isPrimary === true,
-        source: gistFileName || uri,
-        mimeType: String(entry?.mimeType || '').trim(),
-        fileSize: Number(entry?.fileSize) > 0 ? Number(entry.fileSize) : 0
-      }
-    })
-}
-
-function hasComparableImageDiff(localItem, remoteItem) {
-  return JSON.stringify(buildComparableImageState(localItem)) !== JSON.stringify(buildComparableImageState(remoteItem))
-}
-
 function shouldApplyRemoteItem(localItem, remoteItem) {
   if (!localItem) return true
-  return getItemTimestamp(remoteItem) > getItemTimestamp(localItem) || hasComparableImageDiff(localItem, remoteItem)
+  return getItemTimestamp(remoteItem) > getItemTimestamp(localItem)
 }
 
 function hasRemoteImageChangesSince(localSyncTime, remoteManifest, currentImageGistId = '') {
