@@ -31,7 +31,7 @@ defineEmits(['back', 'toggle-all'])
 
 <style scoped>
 .selection-header-spacer {
-  height: calc(64px + env(safe-area-inset-top));
+  height: 64px;
 }
 
 .selection-header {
@@ -44,7 +44,7 @@ defineEmits(['back', 'toggle-all'])
   justify-content: space-between;
   gap: 12px;
   width: min(100vw, 430px);
-  padding: calc(env(safe-area-inset-top) + 10px) var(--page-padding) 10px;
+  padding: 10px var(--page-padding) 10px;
   border-radius: 22px;
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
