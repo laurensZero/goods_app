@@ -36,7 +36,7 @@ defineEmits(['back', 'toggle-all'])
 
 .selection-header {
   position: fixed;
-  top: max(var(--selection-header-top, 0px), env(safe-area-inset-top));
+  top: max(var(--selection-header-top, 0px), calc(env(safe-area-inset-top) - 6px));
   left: 50%;
   z-index: 70;
   display: flex;
