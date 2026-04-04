@@ -283,6 +283,83 @@
         </div>
       </section>
 
+      <section class="content-section logs-section">
+        <div class="section-head">
+          <p class="section-label">Sync Trace</p>
+          <h2 class="section-title">同步日志</h2>
+        </div>
+
+        <article class="panel-card log-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Detailed Trace</p>
+              <h3 class="panel-title">拉取 / 上传明细</h3>
+            </div>
+            <span class="panel-badge" :class="syncStore.isSyncing ? 'badge--syncing' : 'log-count-badge'">
+              {{ syncStore.isSyncing ? '记录中' : `${syncStore.syncLogs.length} 条` }}
+            </span>
+          </div>
+
+          <p class="section-note">这里会按文件和阶段分组展示同步日志。图片文件默认折叠，点开组标题就能看明细。</p>
+
+          <div v-if="groupedSyncLogs.length > 0" class="log-groups">
+            <article
+              v-for="group in groupedSyncLogs"
+              :key="group.key"
+              class="log-group"
+              :class="{ 'log-group--collapsed': !isLogGroupExpanded(group.key) }"
+            >
+              <button type="button" class="log-group-head" @click="toggleLogGroup(group.key)">
+                <div class="log-group-head__copy">
+                  <p class="log-group-title">{{ group.label }}</p>
+                  <span class="log-group-meta">{{ group.logs.length }} 条</span>
+                </div>
+
+                <div class="log-group-head__stats">
+                  <span v-if="group.totalDurationMs > 0" class="log-group-duration">{{ formatLogDuration(group.totalDurationMs) }}</span>
+                  <svg class="log-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </div>
+              </button>
+
+              <div v-show="isLogGroupExpanded(group.key)" class="log-group-body">
+                <div class="log-list">
+                  <article
+                    v-for="entry in group.logs"
+                    :key="entry.id"
+                    class="log-item"
+                    :class="`log-item--${entry.status}`"
+                  >
+                    <span class="log-dot" aria-hidden="true" />
+                    <div class="log-content">
+                      <div class="log-head">
+                        <div class="log-title-row">
+                          <p class="log-title">{{ entry.title }}</p>
+                          <span class="log-status">
+                            {{ entry.status === 'running' ? '进行中' : entry.status === 'success' ? '完成' : '失败' }}
+                          </span>
+                        </div>
+                        <span class="log-time">{{ formatLogTime(entry.timestamp) }}</span>
+                      </div>
+
+                      <div class="log-meta">
+                        <p class="log-detail">{{ entry.detail || '处理中...' }}</p>
+                        <span v-if="entry.durationMs !== null" class="log-duration">{{ formatLogDuration(entry.durationMs) }}</span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div v-else class="log-empty">
+            开始同步后，这里会显示每个文件的读取步骤和耗时。
+          </div>
+        </article>
+      </section>
+
       <Transition name="overlay-fade">
         <div v-if="showTokenDialog" class="overlay" @click.self="closeTokenDialog">
           <div class="dialog">
@@ -433,6 +510,118 @@ const isVerifyingToken = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
+const LOG_GROUP_SEQUENCE = [
+  'manifest',
+  'data',
+  'recharge-data',
+  'events-data',
+  'image-gist',
+  'recharge-gist',
+  'event-gist',
+  'image-merge',
+  'local-collection',
+  'local-recharge',
+  'local-event',
+  'update-image-gist',
+  'update-main-gist',
+  'image-file',
+  'event-cover-file',
+  'other'
+]
+const LOG_GROUP_LABELS = {
+  manifest: 'manifest.json',
+  data: 'data.json',
+  'recharge-data': 'recharge-data.json',
+  'events-data': 'events-data.json',
+  'image-gist': '图片 Gist',
+  'recharge-gist': '充值 Gist',
+  'event-gist': '活动 Gist',
+  'image-merge': '图片恢复',
+  'local-collection': '本地收藏 / 回收站',
+  'local-recharge': '本地充值',
+  'local-event': '本地活动',
+  'update-image-gist': '图片 Gist 更新',
+  'update-main-gist': '主同步 Gist 更新',
+  'image-file': '图片文件',
+  'event-cover-file': '活动封面',
+  other: '其他'
+}
+const DEFAULT_OPEN_LOG_GROUPS = []
+const expandedLogGroups = ref(new Set(DEFAULT_OPEN_LOG_GROUPS))
+
+const groupedSyncLogs = computed(() => {
+  const groupMap = new Map()
+
+  for (const entry of syncStore.syncLogs) {
+    const key = resolveLogGroupKey(entry)
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        key,
+        label: LOG_GROUP_LABELS[key] || LOG_GROUP_LABELS.other,
+        logs: []
+      })
+    }
+
+    groupMap.get(key).logs.push(entry)
+  }
+
+  const orderedGroups = []
+  for (const key of LOG_GROUP_SEQUENCE) {
+    const group = groupMap.get(key)
+    if (group) {
+      orderedGroups.push({
+        ...group,
+        totalDurationMs: group.logs.reduce((sum, log) => sum + (Number(log.durationMs) || 0), 0)
+      })
+      groupMap.delete(key)
+    }
+  }
+
+  for (const group of groupMap.values()) {
+    orderedGroups.push({
+      ...group,
+      totalDurationMs: group.logs.reduce((sum, log) => sum + (Number(log.durationMs) || 0), 0)
+    })
+  }
+
+  return orderedGroups
+})
+
+function resolveLogGroupKey(entry) {
+  const title = String(entry?.title || '')
+
+  if (title.includes('manifest.json')) return 'manifest'
+  if (title.includes('recharge-data.json')) return 'recharge-data'
+  if (title.includes('events-data.json')) return 'events-data'
+  if (title.includes('data.json')) return 'data'
+  if (title.includes('读取图片 Gist') || title.includes('检查图片 Gist')) return 'image-gist'
+  if (title.includes('检查充值 Gist')) return 'recharge-gist'
+  if (title.includes('检查活动 Gist')) return 'event-gist'
+  if (title.includes('恢复收藏图片') || title.includes('恢复回收站图片') || title.includes('恢复活动封面')) return 'image-merge'
+  if (title.includes('整理本地收藏/回收站数据')) return 'local-collection'
+  if (title.includes('整理本地充值数据')) return 'local-recharge'
+  if (title.includes('整理本地活动数据')) return 'local-event'
+  if (title.includes('更新图片 Gist')) return 'update-image-gist'
+  if (title.includes('更新主同步 Gist')) return 'update-main-gist'
+  if (title.includes('读取图片文件')) return 'image-file'
+  if (title.includes('读取活动封面文件')) return 'event-cover-file'
+
+  return String(entry?.category || 'other') || 'other'
+}
+
+function isLogGroupExpanded(key) {
+  return expandedLogGroups.value.has(key)
+}
+
+function toggleLogGroup(key) {
+  const next = new Set(expandedLogGroups.value)
+  if (next.has(key)) {
+    next.delete(key)
+  } else {
+    next.add(key)
+  }
+  expandedLogGroups.value = next
+}
 let toastTimer = null
 
 watch(() => syncStore.conflictData, (val) => {
@@ -525,6 +714,21 @@ function formatTime(isoString) {
   const date = new Date(isoString)
   const pad = (value) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function formatLogTime(isoString) {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function formatLogDuration(durationMs) {
+  const numericDuration = Number(durationMs)
+  if (!Number.isFinite(numericDuration)) return ''
+
+  const seconds = numericDuration / 1000
+  return `${seconds >= 10 ? seconds.toFixed(1) : seconds.toFixed(2)} 秒`
 }
 
 function showToast(message, duration = 2600) {
