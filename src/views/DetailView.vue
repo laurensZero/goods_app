@@ -190,7 +190,7 @@ import { getCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
-import { setWindowScrollTop } from '@/utils/scrollPosition'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
@@ -330,19 +330,7 @@ function syncDetailScrollLock(active) {
 }
 
 function resetScrollPosition() {
-  const pageBody = pageBodyRef.value
-  setWindowScrollTop(0)
-  if (!pageBody) return
-
-  pageBody.scrollTop = 0
-  window.requestAnimationFrame(() => {
-    setWindowScrollTop(0)
-    pageBody.scrollTop = 0
-  })
-  window.setTimeout(() => {
-    setWindowScrollTop(0)
-    pageBody.scrollTop = 0
-  }, 32)
+  scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
 async function prepareDetailLayout() {
@@ -404,7 +392,7 @@ async function markAsOwned() {
 }
 
 onBeforeMount(() => {
-  setWindowScrollTop(0)
+  scrollToTopAnimated(() => pageBodyRef.value, 0)
 })
 
 onMounted(async () => {
@@ -420,7 +408,7 @@ watch(
   () => props.id,
   async () => {
     activeImageId.value = ''
-    setWindowScrollTop(0)
+    scrollToTopAnimated(() => pageBodyRef.value, 0)
     await prepareDetailLayout()
   }
 )

@@ -196,6 +196,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'HomeView' })
 
@@ -858,15 +859,10 @@ function openMonthCardCalendar() {
 
 function scrollToTop() {
   triggerTopJumpMask()
-  const scrollEl = getScrollEl?.()
-  if (scrollEl) {
-    scrollEl.scrollTop = 0
-  }
-  try { document.documentElement.scrollTop = 0 } catch {}
-  try { document.body.scrollTop = 0 } catch {}
-  try { window.scrollTo(0, 0) } catch {}
-  updateScrollTopButtonVisibility()
-  rememberCurrentScrollPosition()
+  scrollToTopAnimated(getScrollEl, 260, () => {
+    updateScrollTopButtonVisibility()
+    rememberCurrentScrollPosition()
+  }, getActiveScrollSource())
 }
 
 function triggerTopJumpMask() {

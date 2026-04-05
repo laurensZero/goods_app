@@ -187,7 +187,7 @@ import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
-import { setWindowScrollTop } from '@/utils/scrollPosition'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
 const rechargeStore = useRechargeStore()
@@ -523,10 +523,7 @@ function unbindScrollListeners() {
 
 function scrollToTop() {
   const pageBody = pageBodyEl.value
-  if (pageBody) {
-    pageBody.scrollTop = 0
-  }
-  setWindowScrollTop(0)
+  scrollToTopAnimated(() => pageBody, 260)
   updateScrollTopButtonVisibility()
 }
 

@@ -493,6 +493,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
 
 const syncStore = useSyncStore()
@@ -696,17 +697,7 @@ const imageSyncDisplay = computed(() => {
 })
 
 function resetPageScrollTop() {
-  try {
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    window.scrollTo(0, 0)
-  } catch {
-    // ignore scroll reset failures in non-browser contexts
-  }
-
-  if (pageBodyRef.value) {
-    pageBodyRef.value.scrollTop = 0
-  }
+  scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
 function formatTime(isoString) {

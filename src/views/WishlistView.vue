@@ -148,6 +148,7 @@ import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -375,15 +376,10 @@ function unbindPageScroll() {
 
 function scrollToTop() {
   triggerTopJumpMask()
-  const scrollEl = getScrollEl?.()
-  if (scrollEl) {
-    scrollEl.scrollTop = 0
-  }
-  try { document.documentElement.scrollTop = 0 } catch {}
-  try { document.body.scrollTop = 0 } catch {}
-  try { window.scrollTo(0, 0) } catch {}
-  updateScrollTopButtonVisibility()
-  rememberCurrentScrollPosition()
+  scrollToTopAnimated(getScrollEl, 260, () => {
+    updateScrollTopButtonVisibility()
+    rememberCurrentScrollPosition()
+  }, getActiveScrollSource())
 }
 
 function triggerTopJumpMask() {

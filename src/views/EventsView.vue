@@ -247,6 +247,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRestore'
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventsView' })
 
@@ -481,15 +482,10 @@ function updateScrollTopButtonVisibility() {
 
 function scrollToTop() {
   triggerTopJumpMask()
-  const scrollEl = getScrollEl?.()
-  if (scrollEl) {
-    scrollEl.scrollTop = 0
-  }
-  try { document.documentElement.scrollTop = 0 } catch {}
-  try { document.body.scrollTop = 0 } catch {}
-  try { window.scrollTo(0, 0) } catch {}
-  updateScrollTopButtonVisibility()
-  rememberCurrentScrollPosition()
+  scrollToTopAnimated(getScrollEl, 260, () => {
+    updateScrollTopButtonVisibility()
+    rememberCurrentScrollPosition()
+  }, getActiveScrollSource())
 }
 
 function triggerTopJumpMask() {

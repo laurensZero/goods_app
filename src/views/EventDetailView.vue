@@ -156,7 +156,7 @@ import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
-import { usePageScrollRestore } from '@/composables/scroll/usePageScrollRestore'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventDetailView' })
 
@@ -168,8 +168,6 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
-
-const { setWindowScrollTop } = usePageScrollRestore()
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
@@ -250,7 +248,7 @@ async function refresh() {
 }
 
 onBeforeMount(() => {
-  setWindowScrollTop(0)
+  scrollToTopAnimated(() => null, 0)
 })
 
 onMounted(async () => {

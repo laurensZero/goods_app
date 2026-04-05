@@ -327,6 +327,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/constants/themes'
 import NavBar from '@/components/common/NavBar.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { Popup } from 'vant'
 
 const CUSTOM_THEME_MODES = [
@@ -689,17 +690,7 @@ function handleCustomBlurSlider(mode, event) {
 }
 
 function resetPageScrollTop() {
-  try {
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    window.scrollTo(0, 0)
-  } catch {
-    // ignore scroll reset failures in non-browser contexts
-  }
-
-  if (pageBodyRef.value) {
-    pageBodyRef.value.scrollTop = 0
-  }
+  scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
 function updateViewportWidth() {

@@ -421,6 +421,7 @@ import { validateToken } from '@/utils/githubGist'
 import { clearAllCache } from '@/utils/imageCache'
 import { clearLocalModelAssets } from '@/composables/image/useImageCutout'
 import { Filesystem, Directory } from '@capacitor/filesystem'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import packageJson from '../../package.json'
 import capacitorConfig from '../../capacitor.config.json'
 
@@ -601,17 +602,7 @@ function formatSyncTime(isoString) {
 }
 
 function resetPageScrollTop() {
-  try {
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    window.scrollTo(0, 0)
-  } catch {
-    // ignore scroll reset failures in non-browser contexts
-  }
-
-  if (pageBodyRef.value) {
-    pageBodyRef.value.scrollTop = 0
-  }
+  scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
 function showToast(message, duration = 2600) {

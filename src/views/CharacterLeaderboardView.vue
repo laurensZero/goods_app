@@ -143,6 +143,7 @@ import {
 import EmptyState from '@/components/common/EmptyState.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -180,17 +181,9 @@ function handlePageScroll() {
 }
 
 function resetPageScrollTop() {
-  try {
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-    window.scrollTo(0, 0)
-  }
-  catch {
-    // ignore scroll reset failures in non-browser contexts
-  }
-
-  if (pageBodyRef.value) pageBodyRef.value.scrollTop = 0
-  updateScrollTopButtonVisibility()
+  scrollToTopAnimated(() => pageBodyRef.value, 260, () => {
+    updateScrollTopButtonVisibility()
+  })
 }
 
 function scrollToTop() {

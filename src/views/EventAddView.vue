@@ -315,7 +315,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
-import { usePageScrollRestore } from '@/composables/scroll/usePageScrollRestore'
+import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventAddView' })
 
@@ -333,7 +333,6 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
-const { setWindowScrollTop } = usePageScrollRestore()
 
 const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
 const EVENT_ADD_DRAFT_KEY = 'goods-app:event-add-draft'
@@ -618,7 +617,7 @@ function syncFieldLater(key, event) {
 }
 
 onBeforeMount(() => {
-  setWindowScrollTop(0)
+  scrollToTopAnimated(() => null, 0)
 })
 
 onMounted(async () => {
