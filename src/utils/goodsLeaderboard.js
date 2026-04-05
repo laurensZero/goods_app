@@ -88,6 +88,53 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     const values = rawValues
       .map((value) => String(value || '').trim())
       .filter(Boolean)
+    const quantityNumber = Number(item.quantityNumber || 0)
+    const totalValueNumber = Number(item.totalValueNumber || 0)
+    const unitCharacters = Array.isArray(item.unitCharacterList)
+      ? item.unitCharacterList
+          .slice(0, quantityNumber)
+          .map((value) => String(value || '').trim())
+      : []
+    const allowedCharacterSet = values.length > 0 ? new Set(values) : null
+    const hasExactUnitCharacters = dimension === 'character'
+      && quantityNumber > 0
+      && unitCharacters.length === quantityNumber
+      && unitCharacters.every((label) => label && (!allowedCharacterSet || allowedCharacterSet.has(label)))
+
+    if (hasExactUnitCharacters) {
+      const unitValueShare = quantityNumber > 0 ? totalValueNumber / quantityNumber : 0
+      const seenLabels = new Set()
+
+      for (const label of unitCharacters) {
+        const current = map.get(label) || {
+          key: label,
+          label,
+          meta: '',
+          quantity: 0,
+          totalValue: 0,
+          itemCount: 0,
+          averageUnitPrice: 0,
+          latestAcquiredTime: 0,
+          isEmpty: false
+        }
+
+        current.quantity += 1
+        current.totalValue += unitValueShare
+        if (!seenLabels.has(label)) {
+          current.itemCount += 1
+          seenLabels.add(label)
+        }
+        current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
+
+        if (!current.meta && dimension === 'character') {
+          current.meta = String(item.ip || '').trim() || presetCharacterIpMap.get(label) || ''
+        }
+
+        map.set(label, current)
+      }
+
+      continue
+    }
 
     if (values.length === 0) {
       emptyCount += 1
@@ -111,6 +158,10 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       continue
     }
 
+    const shareFactor = dimension === 'character' && values.length > 1 ? 1 / values.length : 1
+    const quantityShare = quantityNumber * shareFactor
+    const totalValueShare = totalValueNumber * shareFactor
+
     for (const label of values) {
       const current = map.get(label) || {
         key: label,
@@ -124,8 +175,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
         isEmpty: false
       }
 
-      current.quantity += Number(item.quantityNumber || 0)
-      current.totalValue += Number(item.totalValueNumber || 0)
+      current.quantity += quantityShare
+      current.totalValue += totalValueShare
       current.itemCount += 1
       current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
 
@@ -148,6 +199,18 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     entries,
     emptyCount
   }
+}
+
+function formatQuantityValue(value) {
+  const numeric = Number(value || 0)
+  if (!Number.isFinite(numeric)) return '0'
+
+  const text = numeric
+    .toFixed(2)
+    .replace(/\.00$/, '')
+    .replace(/(\.[0-9]*?)0+$/, '$1')
+
+  return text === '-0' ? '0' : text
 }
 
 export function sortLeaderboardEntries(entries, metric, dimension) {
@@ -175,6 +238,6 @@ export function formatLeaderboardMetricValue(entry, metric) {
       return `¥ ${Number(entry.averageUnitPrice || 0).toFixed(2)}`
     case 'quantity':
     default:
-      return `${Number(entry.quantity || 0)} 件`
+      return `${formatQuantityValue(entry.quantity)} 件`
   }
 }

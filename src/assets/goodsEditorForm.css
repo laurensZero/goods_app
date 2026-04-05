@@ -178,6 +178,24 @@
   margin-top: 12px;
 }
 
+.unit-character-panel-enter-active,
+.unit-character-panel-leave-active {
+  transform-origin: top center;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.unit-character-panel-enter-from,
+.unit-character-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.unit-character-panel-enter-to,
+.unit-character-panel-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .unit-date-field {
   display: flex;
   flex-direction: column;

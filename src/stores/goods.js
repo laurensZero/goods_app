@@ -99,6 +99,15 @@ function normalizeUnitActualPriceList(list, quantity) {
   return normalized
 }
 
+function normalizeUnitCharacterList(list, quantity) {
+  const quantityNumber = parseQuantity(quantity)
+  if (quantityNumber < 2 || !Array.isArray(list) || list.length === 0) return []
+
+  return list
+    .slice(0, quantityNumber)
+    .map((value) => normalizeCharacterName(value))
+}
+
 function resolveCompleteUnitActualPriceTotal(list, quantity) {
   const quantityNumber = parseQuantity(quantity)
   if (quantityNumber < 2 || !Array.isArray(list) || list.length < quantityNumber) return ''
@@ -425,6 +434,9 @@ export const useGoodsStore = defineStore('goods', () => {
     const unitActualPriceList = normalizeWishlistFlag(data.isWishlist)
       ? []
       : normalizeUnitActualPriceList(data.unitActualPriceList || data.purchasePriceList, data.quantity)
+    const unitCharacterList = normalizeWishlistFlag(data.isWishlist)
+      ? []
+      : normalizeUnitCharacterList(data.unitCharacterList, data.quantity)
     const resolvedUnitActualPriceTotal = normalizeWishlistFlag(data.isWishlist)
       ? ''
       : resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity)
@@ -450,6 +462,7 @@ export const useGoodsStore = defineStore('goods', () => {
         ? []
         : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
       unitActualPriceList,
+      unitCharacterList,
       coverImage,
       images,
       note: stripVariantFromNote(data.note || data.notes || ''),
@@ -490,6 +503,10 @@ export const useGoodsStore = defineStore('goods', () => {
       ),
       unitActualPriceList: normalizeUnitActualPriceList(
         [...(existing.unitActualPriceList || []), ...(incoming.unitActualPriceList || [])],
+        mergedQuantity
+      ),
+      unitCharacterList: normalizeUnitCharacterList(
+        [...(existing.unitCharacterList || []), ...(incoming.unitCharacterList || [])],
         mergedQuantity
       ),
       coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),

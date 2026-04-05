@@ -196,6 +196,44 @@
               />
             </div>
 
+            <div v-if="!form.isWishlist && quantityNumber >= 2 && form.characters.length > 0" class="field">
+              <span class="field-label">逐份角色分配</span>
+
+              <div class="actual-price-block" :class="{ 'actual-price-block--open': showUnitCharacterInput }">
+                <button class="actual-price-toggle" type="button" @pointerdown="flushActiveInput" @click="showUnitCharacterInput = !showUnitCharacterInput">
+                  <span class="actual-price-toggle__copy">
+                    <span class="actual-price-toggle__title">
+                      {{ showUnitCharacterInput ? '收起逐份角色' : (hasUnitCharacterValue ? '已填写逐份角色' : '设置逐份角色') }}
+                    </span>
+                    <span class="actual-price-toggle__desc">
+                      {{ showUnitCharacterInput ? '每一份谷子对应一个角色' : (hasUnitCharacterValue ? '已保存部分逐份角色' : '可以为每一份单独指定角色') }}
+                    </span>
+                  </span>
+                  <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showUnitCharacterInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 10L12 15L17 10" />
+                  </svg>
+                </button>
+
+                <Transition name="unit-character-panel">
+                  <div v-if="showUnitCharacterInput" class="actual-price-panel">
+                    <div class="inline-actions">
+                      <span class="inline-actions__label">逐份明细</span>
+                      <button class="inline-clear-btn" type="button" @click="clearUnitCharacterList">清空</button>
+                    </div>
+
+                    <label v-for="index in quantityNumber" :key="`unit-character-${index}`" class="unit-date-field">
+                      <span class="field-label">第 {{ index }} 份角色</span>
+                      <AppSelect
+                        v-model="form.unitCharacterList[index - 1]"
+                        :options="selectedCharacterOptions"
+                        placeholder="请选择角色"
+                      />
+                    </label>
+                  </div>
+                </Transition>
+              </div>
+            </div>
+
             <div class="field">
               <span class="field-label">收纳位置</span>
               <StorageLocationInput
@@ -501,6 +539,7 @@ const {
   showActualPriceInput,
   showUnitAcquiredAtInput,
   showUnitActualPriceInput,
+  showUnitCharacterInput,
   quickCreateTarget,
   quickCategoryName,
   quickIpName,
@@ -520,6 +559,7 @@ const {
   minDate,
   maxDate,
   availableCharacters,
+  selectedCharacterOptions,
   storageLocationOptions,
   quickCharacterIpOptions,
   characterPlaceholder,
@@ -527,6 +567,7 @@ const {
   quantityNumber,
   hasUnitAcquiredAtValue,
   hasUnitActualPriceValue,
+  hasUnitCharacterValue,
   disableActualPriceInput,
   datePickerPopupPosition,
   handleSubmit,
@@ -543,6 +584,7 @@ const {
   normalizeUnitPriceValue,
   normalizeUnitPriceAt,
   clearUnitActualPriceList,
+  clearUnitCharacterList,
   syncAllUnitDatesFromPrimaryDate,
   syncAllUnitPricesFromActualPrice,
   openDatePicker,

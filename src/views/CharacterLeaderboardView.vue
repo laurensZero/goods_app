@@ -30,7 +30,7 @@
           </article>
           <article class="summary-card">
             <span class="summary-kicker">总件数</span>
-            <strong class="summary-value">{{ totalQuantity }}</strong>
+            <strong class="summary-value">{{ totalQuantityText }}</strong>
           </article>
           <article class="summary-card">
             <span class="summary-kicker">未设置项</span>
@@ -274,6 +274,7 @@ const emptyGroupCount = computed(() => leaderboardState.value.emptyCount)
 const sortedEntries = computed(() => sortLeaderboardEntries(entries.value, selectedMetric.value, selectedDimension.value))
 const topThree = computed(() => sortedEntries.value.slice(0, 3))
 const totalQuantity = computed(() => entries.value.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0))
+const totalQuantityText = computed(() => formatLeaderboardMetricValue({ quantity: totalQuantity.value }, 'quantity'))
 const dimensionMeta = computed(() => getLeaderboardDimensionMeta(selectedDimension.value))
 const selectedDimensionLabel = computed(() =>
   LEADERBOARD_DIMENSION_OPTIONS.find((item) => item.value === selectedDimension.value)?.label || '角色'

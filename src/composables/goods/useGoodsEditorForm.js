@@ -37,13 +37,15 @@ export function useGoodsEditorForm(options = {}) {
     note: '',
     quantity: 1,
     unitAcquiredAtList: [],
-    unitActualPriceList: []
+    unitActualPriceList: [],
+    unitCharacterList: []
   })
 
   const showPointsInput = ref(false)
   const showActualPriceInput = ref(false)
   const showUnitAcquiredAtInput = ref(false)
   const showUnitActualPriceInput = ref(false)
+  const showUnitCharacterInput = ref(false)
   const quickCreateTarget = ref('')
   const quickCategoryName = ref('')
   const quickIpName = ref('')
@@ -70,6 +72,12 @@ export function useGoodsEditorForm(options = {}) {
   const availableCharacters = computed(() =>
     form.ip ? presets.characters.filter((character) => character.ip === form.ip) : []
   )
+  const selectedCharacterOptions = computed(() => (
+    form.characters.map((character) => ({
+      label: character,
+      value: character
+    }))
+  ))
   const storageLocationOptions = computed(() => store.storageLocations)
   const quickCharacterIpOptions = computed(() => {
     if (form.ip) {
@@ -91,6 +99,7 @@ export function useGoodsEditorForm(options = {}) {
   const quantityNumber = computed(() => Math.max(1, Number(form.quantity) || 1))
   const hasUnitAcquiredAtValue = computed(() => form.unitAcquiredAtList.some((value) => !!String(value || '').trim()))
   const hasUnitActualPriceValue = computed(() => form.unitActualPriceList.some((value) => !!String(value || '').trim()))
+  const hasUnitCharacterValue = computed(() => form.unitCharacterList.some((value) => !!String(value || '').trim()))
   const disableActualPriceInput = computed(() => !form.isWishlist && quantityNumber.value >= 2 && showUnitActualPriceInput.value)
   const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
   const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
@@ -118,6 +127,13 @@ export function useGoodsEditorForm(options = {}) {
   )
 
   watch(
+    () => form.characters.join('\u0000'),
+    () => {
+      syncUnitCharacterListLength()
+    }
+  )
+
+  watch(
     () => form.ip,
     (ip) => {
       form.characters = form.characters.filter((name) =>
@@ -140,16 +156,20 @@ export function useGoodsEditorForm(options = {}) {
         showActualPriceInput.value = false
         showUnitAcquiredAtInput.value = false
         showUnitActualPriceInput.value = false
+        showUnitCharacterInput.value = false
         form.actualPrice = ''
         form.points = ''
         form.unitAcquiredAtList = []
         form.unitActualPriceList = []
+        form.unitCharacterList = []
         return
       }
 
       if (mode === 'add' && !form.acquiredAt && !hasCustomAcquiredAt.value) {
         form.acquiredAt = today
       }
+
+      syncUnitCharacterListLength()
     }
   )
 
@@ -158,6 +178,7 @@ export function useGoodsEditorForm(options = {}) {
     () => {
       syncUnitAcquiredAtListLength()
       syncUnitActualPriceListLength()
+      syncUnitCharacterListLength()
     },
     { immediate: true }
   )
@@ -191,16 +212,20 @@ export function useGoodsEditorForm(options = {}) {
         form.quantity = Number(item.quantity) || 1
         form.unitAcquiredAtList = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
         form.unitActualPriceList = Array.isArray(item.unitActualPriceList) ? [...item.unitActualPriceList] : []
+        form.unitCharacterList = Array.isArray(item.unitCharacterList) ? [...item.unitCharacterList] : []
         showUnitAcquiredAtInput.value = form.unitAcquiredAtList.some((value) => !!String(value || '').trim())
         showUnitActualPriceInput.value = form.unitActualPriceList.some((value) => !!String(value || '').trim())
+        showUnitCharacterInput.value = form.unitCharacterList.some((value) => !!String(value || '').trim())
         syncUnitAcquiredAtListLength()
         syncUnitActualPriceListLength()
+        syncUnitCharacterListLength()
         datePickerValue.value = toDatePickerValue(form.acquiredAt)
       }
     }
 
     syncUnitAcquiredAtListLength()
     syncUnitActualPriceListLength()
+    syncUnitCharacterListLength()
     handleViewportResize()
     window.addEventListener('resize', handleViewportResize)
     document.addEventListener('mousedown', handleClickOutside)
@@ -367,6 +392,16 @@ export function useGoodsEditorForm(options = {}) {
     showUnitActualPriceInput.value = false
   }
 
+  function normalizeUnitCharacterValue(value) {
+    const normalized = normalizeCharacterName(value)
+    return form.characters.includes(normalized) ? normalized : ''
+  }
+
+  function clearUnitCharacterList() {
+    form.unitCharacterList = []
+    showUnitCharacterInput.value = false
+  }
+
   function syncUnitAcquiredAtListLength() {
     const targetLength = quantityNumber.value
     const fallbackDate = normalizeUnitDateValue(form.acquiredAt)
@@ -398,6 +433,26 @@ export function useGoodsEditorForm(options = {}) {
 
     if (targetLength < 2) {
       showUnitActualPriceInput.value = false
+    }
+  }
+
+  function syncUnitCharacterListLength() {
+    const targetLength = quantityNumber.value
+
+    if (form.isWishlist || targetLength < 2 || form.characters.length === 0) {
+      form.unitCharacterList = []
+      showUnitCharacterInput.value = false
+      return
+    }
+
+    const fallbackCharacter = form.characters.length === 1 ? form.characters[0] : ''
+    const current = Array.isArray(form.unitCharacterList) ? [...form.unitCharacterList] : []
+    const next = Array.from({ length: targetLength }, (_, index) => normalizeUnitCharacterValue(current[index]) || fallbackCharacter)
+
+    form.unitCharacterList = next
+
+    if (targetLength < 2) {
+      showUnitCharacterInput.value = false
     }
   }
 
@@ -495,6 +550,7 @@ export function useGoodsEditorForm(options = {}) {
     showActualPriceInput,
     showUnitAcquiredAtInput,
     showUnitActualPriceInput,
+    showUnitCharacterInput,
     quickCreateTarget,
     quickCategoryName,
     quickIpName,
@@ -515,6 +571,7 @@ export function useGoodsEditorForm(options = {}) {
     minDate,
     maxDate,
     availableCharacters,
+    selectedCharacterOptions,
     storageLocationOptions,
     quickCharacterIpOptions,
     characterPlaceholder,
@@ -522,6 +579,7 @@ export function useGoodsEditorForm(options = {}) {
     quantityNumber,
     hasUnitAcquiredAtValue,
     hasUnitActualPriceValue,
+    hasUnitCharacterValue,
     disableActualPriceInput,
     isTabletViewport,
     datePickerPopupPosition,
@@ -542,8 +600,10 @@ export function useGoodsEditorForm(options = {}) {
     normalizeUnitPriceValue,
     normalizeUnitPriceAt,
     clearUnitActualPriceList,
+    clearUnitCharacterList,
     syncUnitAcquiredAtListLength,
     syncUnitActualPriceListLength,
+    syncUnitCharacterListLength,
     syncAllUnitDatesFromPrimaryDate,
     syncAllUnitPricesFromActualPrice,
     openDatePicker,
