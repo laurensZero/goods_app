@@ -1,4 +1,5 @@
 import { isStorageLocationUnderPrefix, normalizeStorageLocationValue } from '@/utils/storageLocations'
+import { validatePrice } from '@/utils/validate'
 
 const DEFAULT_SORT = 'acquiredAt_desc'
 const DEFAULT_DATE_PRESET = 'all'
@@ -49,6 +50,11 @@ function normalizeNumberLike(value) {
   if (value == null) return ''
   const text = String(value).trim()
   return text
+}
+
+function normalizePriceLike(value) {
+  if (value === '' || value == null) return ''
+  return validatePrice(value).valid ? normalizeNumberLike(value) : ''
 }
 
 function parseNumberLike(value) {
@@ -217,8 +223,8 @@ export function normalizeGoodsFilterConditions(input = {}) {
   normalized.ips = normalizeStringList(input.ips)
   normalized.characters = normalizeStringList(input.characters)
   normalized.storageLocations = normalizeStringList(input.storageLocations)
-  normalized.priceMin = normalizeNumberLike(input.priceMin)
-  normalized.priceMax = normalizeNumberLike(input.priceMax)
+  normalized.priceMin = normalizePriceLike(input.priceMin)
+  normalized.priceMax = normalizePriceLike(input.priceMax)
   normalized.acquiredPreset = normalizeDatePreset(input.acquiredPreset)
   normalized.acquiredFrom = String(input.acquiredFrom || '').trim()
   normalized.acquiredTo = String(input.acquiredTo || '').trim()

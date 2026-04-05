@@ -228,6 +228,7 @@
             <div class="edit-field">
               <span class="edit-label">价格（¥）</span>
               <input v-model="editForm.price" type="number" min="0" step="1" placeholder="0.00" class="edit-input" />
+              <p v-if="editPriceError" class="field-error field-error--block">{{ editPriceError }}</p>
             </div>
             <div class="edit-field">
               <span class="edit-label">购入日期</span>
@@ -258,7 +259,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { parseTaobaoXlsx } from '@/utils/taobao'
@@ -266,6 +267,7 @@ import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
+import { validatePrice } from '@/utils/validate'
 
 defineOptions({ name: 'TaobaoImportView' })
 
@@ -286,6 +288,7 @@ const importedTotalQty = ref(0)
 const showEditSheet = ref(false)
 const editingItem   = ref(null)
 const editMihoyoPickerRef = ref(null)
+const editPriceError = ref('')
 const editForm = reactive({
   name: '',
   ip: '',
@@ -502,6 +505,7 @@ async function doImport() {
 
 function openEdit(item) {
   editingItem.value = item
+  editPriceError.value = ''
   editForm.name          = item.name || ''
   editForm.ip            = item.ip || ''
   editForm.category      = item.category || ''
@@ -516,6 +520,14 @@ function openEdit(item) {
 
 function saveEdit() {
   if (!editingItem.value) return
+  editPriceError.value = ''
+  const priceValidation = validatePrice(editForm.price)
+
+  if (!priceValidation.valid) {
+    editPriceError.value = priceValidation.message
+    return
+  }
+
   const idx = rawGoods.value.findIndex(g => g._itemKey === editingItem.value._itemKey)
   if (idx === -1) { closeEdit(); return }
   // 如果用户填了米游铺链接并选中了某款式，使用该款式的封面图 URL
@@ -529,7 +541,7 @@ function saveEdit() {
       ? editForm.charactersText.split(',').map(s => s.trim()).filter(Boolean)
       : [],
     variant:    editForm.variant,
-    price:      editForm.price !== '' ? parseFloat(editForm.price) : rawGoods.value[idx].price,
+    price:      editForm.price !== '' ? Number(editForm.price) : rawGoods.value[idx].price,
     acquiredAt: editForm.acquiredAt,
     image:      pickedImage || editForm.image,
     note:       editForm.note,
@@ -545,7 +557,14 @@ function saveEdit() {
 function closeEdit() {
   showEditSheet.value = false
   editingItem.value = null
+  editPriceError.value = ''
 }
+
+watch(() => editForm.price, () => {
+  if (editPriceError.value) {
+    editPriceError.value = ''
+  }
+})
 </script>
 
 <style scoped src="../assets/views/TaobaoImportView.css"></style>

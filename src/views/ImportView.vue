@@ -291,6 +291,7 @@
               <label class="field">
                 <span class="field-label">{{ isWishlistMode ? '目标价格（元）' : '价格（元）' }}</span>
                 <input v-model.number="form.price" type="number" placeholder="0.00" min="0" step="1" />
+                <p v-if="formPriceError" class="parse-error">{{ formPriceError }}</p>
               </label>
               <label class="field">
                 <span class="field-label">购买渠道</span>
@@ -454,6 +455,7 @@
             <label class="field">
               <span class="field-label">价格（元）</span>
               <input v-model.number="batchEditForm.price" type="number" placeholder="0.00" min="0" step="1" />
+              <p v-if="batchEditPriceError" class="parse-error">{{ batchEditPriceError }}</p>
             </label>
             <!-- 款式选择（有 SKU 变体时显示） -->
             <div v-if="batchEditVariants.length > 0" class="field">
@@ -587,6 +589,7 @@ import {
   MIHOYO_ROLE_SHOP_CODES
 } from '@/utils/mihoyo'
 import { commitActiveInput } from '@/utils/commitActiveInput'
+import { validatePrice } from '@/utils/validate'
 
 const router = useRouter()
 const route = useRoute()
@@ -610,6 +613,7 @@ const urlInputRef = ref(null)
 const urlInput = ref('')
 const parsing = ref(false)
 const parseError = ref('')
+const formPriceError = ref('')
 const parsed = ref(false)
 const searchKeyword = ref('')
 
@@ -750,6 +754,7 @@ const batchEditForm = reactive({
   name: '', category: '', ip: '', image: '', price: '',
   notes: '', characters: [], purchaseDate: '', variant: '',
 })
+const batchEditPriceError = ref('')
 const batchEditImages = ref([])
 const batchEditBaseImages = ref([])
 const batchEditVariants = ref([])           // SKU 变体列表 { text, key, img_url, cover_url? }
@@ -1194,6 +1199,7 @@ async function handleBatchImport() {
 function openBatchEdit(idx) {
   const item = batchItems.value[idx]
   if (!item?.data) return
+  batchEditPriceError.value = ''
   editingBatchIdx.value = idx
   Object.assign(batchEditForm, {
     name: item.data.name,
@@ -1221,12 +1227,20 @@ function openBatchEdit(idx) {
 function saveBatchEdit() {
   const idx = editingBatchIdx.value
   if (idx < 0) return
+  batchEditPriceError.value = ''
+
+  const priceValidation = validatePrice(batchEditForm.price)
+  if (!priceValidation.valid) {
+    batchEditPriceError.value = priceValidation.message
+    return
+  }
+
   Object.assign(batchItems.value[idx].data, {
     name: batchEditForm.name,
     category: batchEditForm.category,
     ip: batchEditForm.ip,
     image: batchEditForm.image,
-    price: batchEditForm.price,
+    price: batchEditForm.price === '' ? '' : Number(batchEditForm.price),
     notes: batchEditForm.notes,
     characters: [...batchEditForm.characters],
     purchaseDate: batchEditForm.purchaseDate,
@@ -1330,6 +1344,18 @@ const form = reactive({
   purchaseDate: '',
   notes: '',
   characters: [],
+})
+
+watch(() => form.price, () => {
+  if (formPriceError.value) {
+    formPriceError.value = ''
+  }
+})
+
+watch(() => batchEditForm.price, () => {
+  if (batchEditPriceError.value) {
+    batchEditPriceError.value = ''
+  }
 })
 
 const preferredSearchCharacterName = computed(() =>
@@ -1689,11 +1715,19 @@ function normalizeDateParts(dateString) {
 }
 
 async function handleSave() {
+  formPriceError.value = ''
   await commitActiveInput()
   if (!form.name.trim()) {
     parseError.value = '请填写商品名称'
     return
   }
+
+  const priceValidation = validatePrice(form.price)
+  if (!priceValidation.valid) {
+    formPriceError.value = priceValidation.message
+    return
+  }
+
   try {
     // 把用户选中的角色加入预设（如果还没有的话）
     for (const charName of form.characters) {

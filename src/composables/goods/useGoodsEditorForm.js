@@ -353,7 +353,7 @@ export function useGoodsEditorForm(options = {}) {
   function normalizeUnitPriceValue(value) {
     if (value === '' || value == null) return ''
     const numeric = Number.parseFloat(String(value).trim())
-    if (!Number.isFinite(numeric) || numeric < 0) return ''
+    if (!validateNumericPrice(numeric).valid) return ''
     return `${Math.round(numeric * 100) / 100}`
   }
 

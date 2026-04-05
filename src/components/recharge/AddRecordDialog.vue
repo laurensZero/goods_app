@@ -134,6 +134,7 @@ import { DatePicker, Popup } from 'vant'
 import AppSelect from '@/components/common/AppSelect.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
+import { validatePrice } from '@/utils/validate'
 
 const GAME_LABEL_MAP = {
   hk4e_cn: '原神',
@@ -324,6 +325,13 @@ function onDateConfirm({ selectedValues }) {
 }
 
 function submit() {
+  const amountValidation = validatePrice(form.amount)
+
+  if (!amountValidation.valid) {
+    errorText.value = amountValidation.message
+    return
+  }
+
   const amountNumber = Number(form.amount)
 
   if (!form.game) {
