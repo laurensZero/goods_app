@@ -290,7 +290,7 @@
             <div class="field-card">
               <label class="field">
                 <span class="field-label">{{ isWishlistMode ? '目标价格（元）' : '价格（元）' }}</span>
-                <input v-model.number="form.price" type="number" placeholder="0.00" min="0" step="0.01" />
+                <input v-model.number="form.price" type="number" placeholder="0.00" min="0" step="1" />
               </label>
               <label class="field">
                 <span class="field-label">购买渠道</span>
@@ -453,7 +453,7 @@
             </label>
             <label class="field">
               <span class="field-label">价格（元）</span>
-              <input v-model.number="batchEditForm.price" type="number" placeholder="0.00" min="0" step="0.01" />
+              <input v-model.number="batchEditForm.price" type="number" placeholder="0.00" min="0" step="1" />
             </label>
             <!-- 款式选择（有 SKU 变体时显示） -->
             <div v-if="batchEditVariants.length > 0" class="field">

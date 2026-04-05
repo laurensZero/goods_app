@@ -227,7 +227,7 @@
             </div>
             <div class="edit-field">
               <span class="edit-label">价格（¥）</span>
-              <input v-model="editForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="edit-input" />
+              <input v-model="editForm.price" type="number" min="0" step="1" placeholder="0.00" class="edit-input" />
             </div>
             <div class="edit-field">
               <span class="edit-label">购入日期</span>

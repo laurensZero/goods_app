@@ -76,7 +76,7 @@
             <input v-model.trim="form.itemName" class="field-input" type="text" placeholder="例如：月卡 / 大月卡" />
 
             <label class="field-label">金额（元）</label>
-            <input v-model="form.amount" class="field-input" type="number" min="0" step="0.01" placeholder="请输入金额" />
+            <input v-model="form.amount" class="field-input" type="number" min="0" step="1" placeholder="请输入金额" />
           </template>
 
           <label class="field-label">日期</label>
