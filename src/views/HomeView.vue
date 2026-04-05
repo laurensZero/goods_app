@@ -232,7 +232,7 @@ const LOAD_MORE_ROWS = 4
 const LOAD_MORE_THRESHOLD_PX = 720
 const INITIAL_TIMELINE_MONTHS = 6
 const LOAD_MORE_TIMELINE_MONTHS = 4
-const TIMELINE_RESTORE_BUFFER_MONTHS = 2
+const TIMELINE_RESTORE_BUFFER_MONTHS = 3
 const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const ROW_HEIGHT_MAP = {
@@ -688,7 +688,7 @@ onMounted(async () => {
 onActivated(async () => {
   persistCollectionTab('goods')
   isHomeActive.value = true
-  homeDisplayReady.value = true
+  homeDisplayReady.value = false
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)

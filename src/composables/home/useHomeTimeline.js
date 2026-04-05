@@ -5,6 +5,18 @@ function normalizeTimelineDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
 }
 
+function parseTimelineDateTimestamp(value) {
+  const normalized = normalizeTimelineDate(value)
+  if (!normalized) return 0
+  const timestamp = Date.parse(normalized)
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function getLatestTimelineDateTimestamp(list) {
+  if (!Array.isArray(list) || list.length === 0) return 0
+  return list.reduce((latest, value) => Math.max(latest, parseTimelineDateTimestamp(value)), 0)
+}
+
 function getTimelineSourceDates(item) {
   const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
   const acquiredAt = normalizeTimelineDate(item?.acquiredAt)
@@ -57,7 +69,11 @@ function buildTimelineEntries(goodsList) {
 
     const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthDates], index) => {
       const id = monthMap.size === 1 ? item.id : `${item.id}::${yearMonth}`
-      const acquiredAt = monthDates[0] || normalizeTimelineDate(item.acquiredAt)
+      const latestDate = monthDates.reduce((latest, value) => {
+        const timestamp = parseTimelineDateTimestamp(value)
+        return timestamp > latest.timestamp ? { value: normalizeTimelineDate(value), timestamp } : latest
+      }, { value: '', timestamp: 0 })
+      const acquiredAt = latestDate.value || normalizeTimelineDate(item.acquiredAt)
 
       return {
         ...item,
@@ -70,7 +86,7 @@ function buildTimelineEntries(goodsList) {
         timelineQuantity: monthDates.length,
         priceNumber,
         totalValueNumber: priceNumber * monthDates.length,
-        timelineSortTime: acquiredAt ? Date.parse(acquiredAt) || 0 : index
+        timelineSortTime: getLatestTimelineDateTimestamp(monthDates) || parseTimelineDateTimestamp(acquiredAt) || index
       }
     })
 
@@ -86,7 +102,20 @@ export function useHomeTimeline({
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths
 }) {
-  const timelineEntries = computed(() => buildTimelineEntries(goodsList.value))
+  const timelineEntries = computed(() => (
+    buildTimelineEntries(goodsList.value).sort((a, b) => {
+      const timeDelta = (Number(b.timelineSortTime) || 0) - (Number(a.timelineSortTime) || 0)
+      if (timeDelta !== 0) return timeDelta
+
+      const monthDelta = String(b.timelineYearMonth || '').localeCompare(String(a.timelineYearMonth || ''))
+      if (monthDelta !== 0) return monthDelta
+
+      const sourceDelta = String(a.sourceId || a.id || '').localeCompare(String(b.sourceId || b.id || ''))
+      if (sourceDelta !== 0) return sourceDelta
+
+      return String(a.id || '').localeCompare(String(b.id || ''))
+    })
+  ))
 
   const timelineYearGroups = computed(() => {
     const yearGroups = []
