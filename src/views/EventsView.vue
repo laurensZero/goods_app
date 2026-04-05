@@ -438,7 +438,12 @@ function openDetail(id) {
 function goToAdd() {
   saveScrollPosition(true, 'events:goToAdd')
   eventsDisplayReady.value = false
-  router.push('/events/add').catch(() => {
+  router.push({
+    path: '/events/add',
+    query: {
+      returnTo: route.fullPath
+    }
+  }).catch(() => {
     eventsDisplayReady.value = true
   })
 }

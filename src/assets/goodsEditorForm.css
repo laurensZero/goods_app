@@ -166,7 +166,7 @@
 }
 
 .actual-price-block {
-  margin-top: 4px;
+  margin-top: 0;
   border-top: 1px solid rgba(20, 20, 22, 0.08);
   padding-top: 12px;
 }

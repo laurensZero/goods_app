@@ -282,7 +282,7 @@
 
     <Teleport to="body">
       <div class="float-footer">
-        <button class="btn-primary btn-float" type="button" @click="handleSubmit">{{ isEdit ? '保存修改' : '保存活动' }}</button>
+        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">{{ isEdit ? '保存修改' : '保存活动' }}</button>
       </div>
     </Teleport>
 
@@ -314,6 +314,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { DatePicker, Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
 import { pickLinkedLocalImage } from '@/utils/localImage'
+import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
 // ...
 import { useEventsStore } from '@/stores/events'
@@ -539,8 +540,15 @@ function validateTicketPrice() {
   return false
 }
 
+function getReturnToRoute() {
+  const value = route.query.returnTo
+  if (typeof value !== 'string') return ''
+  const trimmed = value.trim()
+  return trimmed || ''
+}
+
 async function handleSubmit() {
-  await nextTick()
+  await commitActiveInput()
   form.name = String(form.name || '').trim()
   if (!validateName()) return
   if (!validateTicketPrice()) return
@@ -563,7 +571,8 @@ async function handleSubmit() {
     await eventsStore.addEventRecord(payload)
   }
   sessionStorage.removeItem(EVENT_ADD_DRAFT_KEY)
-  router.back()
+  const fallbackTarget = isEdit.value ? `/events/${editId.value}` : '/events'
+  await router.replace(getReturnToRoute() || fallbackTarget)
 }
 
 function openDatePicker(target) {
@@ -677,6 +686,9 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  isNavigatingToPicker.value = false
+  pageDisplayReady.value = false
+  await nextTick()
   restoreDraftFromPicker()
   applyPickerSelectionResult()
   await nextTick()
@@ -1080,7 +1092,7 @@ onBeforeUnmount(() => {
 
 .linked-goods__item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 16px;
@@ -1280,11 +1292,11 @@ onBeforeUnmount(() => {
 
   .preview-column {
     position: sticky;
-    top: calc(env(safe-area-inset-top) + 20px);
+    top: 0;
   }
 
   .hero-panel {
-    margin-top: 4px;
+    margin-top: 0;
   }
 
   .field--tablet-half {

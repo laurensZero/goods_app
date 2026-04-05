@@ -445,6 +445,15 @@ export function useGoodsEditorForm(options = {}) {
       return
     }
 
+    if (form.characters.length === targetLength) {
+      const current = Array.isArray(form.unitCharacterList) ? [...form.unitCharacterList] : []
+      const hasFilledUnitCharacters = current.some((value) => !!String(value || '').trim())
+      if (!hasFilledUnitCharacters) {
+        form.unitCharacterList = [...form.characters]
+        return
+      }
+    }
+
     const fallbackCharacter = form.characters.length === 1 ? form.characters[0] : ''
     const current = Array.isArray(form.unitCharacterList) ? [...form.unitCharacterList] : []
     const next = Array.from({ length: targetLength }, (_, index) => normalizeUnitCharacterValue(current[index]) || fallbackCharacter)

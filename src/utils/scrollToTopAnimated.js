@@ -7,21 +7,6 @@ export function scrollToTopAnimated(target, duration = 260, onComplete = null, p
     : (elementStartTop > windowStartTop ? 'element' : 'window')
   const startTop = source === 'element' ? elementStartTop : windowStartTop
 
-  if (startTop <= 0) {
-    window.requestAnimationFrame(() => onComplete?.())
-    return
-  }
-
-  if (!Number.isFinite(duration) || duration <= 0) {
-    setTop(0)
-    window.requestAnimationFrame(() => onComplete?.())
-    return
-  }
-
-  const startTime = performance.now()
-
-  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
-
   const setTop = (top) => {
     if (source === 'element' && element) {
       element.scrollTop = top
@@ -33,19 +18,11 @@ export function scrollToTopAnimated(target, duration = 260, onComplete = null, p
     }
   }
 
-  const frame = (now) => {
-    const progress = Math.min(1, (now - startTime) / duration)
-    const nextTop = Math.round(startTop * (1 - easeOutCubic(progress)))
-    setTop(nextTop)
-
-    if (progress < 1) {
-      window.requestAnimationFrame(frame)
-      return
-    }
-
-    setTop(0)
+  if (startTop <= 0) {
     window.requestAnimationFrame(() => onComplete?.())
+    return
   }
 
-  window.requestAnimationFrame(frame)
+  setTop(0)
+  window.requestAnimationFrame(() => onComplete?.())
 }

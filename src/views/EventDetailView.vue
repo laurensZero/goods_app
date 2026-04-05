@@ -2,7 +2,7 @@
   <div v-if="event" class="page event-detail-page">
     <NavBar :title="event.name || '活动详情'" show-back>
       <template #right>
-        <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="router.push(`/events/edit/${event.id}`)">
+        <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="router.push({ path: `/events/edit/${event.id}`, query: { returnTo: route.fullPath } })">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
@@ -694,7 +694,7 @@ async function handleDelete() {
 
   .media-column {
     position: sticky;
-    top: calc(env(safe-area-inset-top) + 20px);
+    top: 0;
   }
 
   .info-card {
