@@ -172,7 +172,6 @@
               </div>
 
               <div v-if="!form.isWishlist && quantityNumber >= 2 && form.characters.length > 0" class="field">
-                <span class="field-label">逐份角色分配</span>
 
                 <div class="actual-price-block" :class="{ 'actual-price-block--open': showUnitCharacterInput }">
                   <button class="actual-price-toggle" type="button" @pointerdown="flushActiveInput" @click="showUnitCharacterInput = !showUnitCharacterInput">
