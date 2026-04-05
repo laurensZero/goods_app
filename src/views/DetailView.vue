@@ -190,6 +190,7 @@ import { getCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
+import { setWindowScrollTop } from '@/utils/scrollPosition'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
@@ -326,12 +327,6 @@ const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
 function syncDetailScrollLock(active) {
   document.documentElement.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, active)
   document.body.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, active)
-}
-
-function setWindowScrollTop(top = 0) {
-  try { document.documentElement.scrollTop = top } catch {}
-  try { document.body.scrollTop = top } catch {}
-  try { window.scrollTo(0, top) } catch {}
 }
 
 function resetScrollPosition() {

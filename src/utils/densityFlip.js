@@ -4,11 +4,15 @@ import { HOME_MOTION } from '@/constants/homeMotion'
 const DEFAULT_OVERSCAN_PX = 80
 const DEFAULT_MAX_ITEMS = 48
 
+function createDefaultViewportRect() {
+  return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+}
+
 function getViewportRect(getViewport) {
   if (!getViewport) {
-    return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+    return createDefaultViewportRect()
   }
-  return getViewport() || { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+  return getViewport() || createDefaultViewportRect()
 }
 
 function isRectInViewport(rect, viewport, overscan) {

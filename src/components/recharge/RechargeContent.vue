@@ -188,6 +188,7 @@ import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { setWindowScrollTop } from '@/utils/scrollPosition'
 
 const emit = defineEmits(['selection-change'])
 const router = useRouter()
@@ -527,9 +528,7 @@ function scrollToTop() {
   if (pageBody) {
     pageBody.scrollTop = 0
   }
-  try { document.documentElement.scrollTop = 0 } catch {}
-  try { document.body.scrollTop = 0 } catch {}
-  try { window.scrollTo(0, 0) } catch {}
+  setWindowScrollTop(0)
   updateScrollTopButtonVisibility()
 }
 

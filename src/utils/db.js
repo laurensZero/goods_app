@@ -108,6 +108,55 @@ function normalizeWishlistFlag(value) {
   return false
 }
 
+function prepareGoodsRecord(item) {
+  const {
+    id,
+    name = '',
+    category = '',
+    ip = '',
+    isWishlist = false,
+    characters = [],
+    tags = [],
+    storageLocation = '',
+    variant = '',
+    price = '',
+    actualPrice = '',
+    acquiredAt = '',
+    unitAcquiredAtList = [],
+    unitActualPriceList = [],
+    image = '',
+    coverImage = '',
+    images = [],
+    note = '',
+    quantity = 1,
+    points,
+    updatedAt
+  } = item
+
+  return {
+    id,
+    name,
+    category,
+    ip,
+    isWishlist: normalizeWishlistFlag(isWishlist) ? 1 : 0,
+    charsStr: JSON.stringify(Array.isArray(characters) ? characters : []),
+    tagsStr: JSON.stringify(Array.isArray(tags) ? tags : []),
+    unitDatesStr: JSON.stringify(Array.isArray(unitAcquiredAtList) ? unitAcquiredAtList : []),
+    unitPricesStr: JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : []),
+    imagesStr: JSON.stringify(Array.isArray(images) ? images : []),
+    storageLocation,
+    variant,
+    price,
+    actualPrice,
+    acquiredAt,
+    qty: Math.max(1, Number(quantity) || 1),
+    pts: points != null && points !== '' ? Number(points) : null,
+    legacyImage: getPrimaryGoodsImageUrl(images, coverImage || image),
+    note,
+    ts: updatedAt || Date.now()
+  }
+}
+
 async function runMigrationSafely(runMigration) {
   try {
     await runMigration()
@@ -239,18 +288,9 @@ export async function getItems() {
 }
 
 export async function addItem(item) {
-  const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', actualPrice = '', acquiredAt = '', unitAcquiredAtList = [], unitActualPriceList = [], image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
-  const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
-  const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
-  const unitDatesStr = JSON.stringify(Array.isArray(unitAcquiredAtList) ? unitAcquiredAtList : [])
-  const unitPricesStr = JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : [])
-  const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
-  const qty = Math.max(1, Number(quantity) || 1)
-  const pts = points != null && points !== '' ? Number(points) : null
-  const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
-  const ts = updatedAt || Date.now()
+  const record = prepareGoodsRecord(item)
   const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, category, ip, normalizeWishlistFlag(isWishlist) ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
+  const p = [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.legacyImage, record.imagesStr, record.note, record.qty, record.pts, record.ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -268,38 +308,20 @@ export async function saveItems(items) {
     if (!_nativeDb) return
     const stmts = []
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', actualPrice = '', acquiredAt = '', unitAcquiredAtList = [], unitActualPriceList = [], image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
-      const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
-      const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
-      const unitDatesStr = JSON.stringify(Array.isArray(unitAcquiredAtList) ? unitAcquiredAtList : [])
-      const unitPricesStr = JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : [])
-      const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
-      const qty = Math.max(1, Number(quantity) || 1)
-      const pts = points != null && points !== '' ? Number(points) : null
-      const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
-      const ts = updatedAt || Date.now()
+      const record = prepareGoodsRecord(item)
       stmts.push({
         statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, category, ip, normalizeWishlistFlag(isWishlist) ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
+        values: [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.legacyImage, record.imagesStr, record.note, record.qty, record.pts, record.ts]
       })
     }
     await _nativeDb.executeSet(stmts)
   } else {
     if (!_sqlDb) return
     for (const item of items) {
-      const { id, name = '', category = '', ip = '', isWishlist = false, characters = [], tags = [], storageLocation = '', variant = '', price = '', actualPrice = '', acquiredAt = '', unitAcquiredAtList = [], unitActualPriceList = [], image = '', coverImage = '', images = [], note = '', quantity = 1, points, updatedAt } = item
-      const charsStr = JSON.stringify(Array.isArray(characters) ? characters : [])
-      const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
-      const unitDatesStr = JSON.stringify(Array.isArray(unitAcquiredAtList) ? unitAcquiredAtList : [])
-      const unitPricesStr = JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : [])
-      const imagesStr = JSON.stringify(Array.isArray(images) ? images : [])
-      const qty = Math.max(1, Number(quantity) || 1)
-      const pts = points != null && points !== '' ? Number(points) : null
-      const legacyImage = getPrimaryGoodsImageUrl(images, coverImage || image)
-      const ts = updatedAt || Date.now()
+      const record = prepareGoodsRecord(item)
       _sqlDb.run(
         'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, category, ip, normalizeWishlistFlag(isWishlist) ? 1 : 0, charsStr, tagsStr, storageLocation, variant, price, actualPrice, acquiredAt, unitDatesStr, unitPricesStr, legacyImage, imagesStr, note, qty, pts, ts]
+        [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.legacyImage, record.imagesStr, record.note, record.qty, record.pts, record.ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)

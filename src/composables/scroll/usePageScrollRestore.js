@@ -1,4 +1,5 @@
 import { nextTick } from 'vue'
+import { setWindowScrollTop } from '@/utils/scrollPosition'
 
 export function usePageScrollRestore(pageBodyRef, options = {}) {
   const {
@@ -65,12 +66,6 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       windowTop,
       maxTop: Math.max(elementTop, windowTop)
     }
-  }
-
-  function setWindowScrollTop(top) {
-    try { document.documentElement.scrollTop = top } catch {}
-    try { document.body.scrollTop = top } catch {}
-    try { window.scrollTo(0, top) } catch {}
   }
 
   function clearApplyFrames() {
