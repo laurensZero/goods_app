@@ -159,10 +159,14 @@ function removeTag(tag) {
   }
 
 :global(html.theme-dark) .tag-chip {
-    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    background: rgba(201, 148, 255, 0.14);
+    color: #f1dcff;
+    box-shadow: none;
   }
 
 :global(html.theme-dark) .tag-chip__remove {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(201, 148, 255, 0.20);
+    color: #f1dcff;
   }
 </style>

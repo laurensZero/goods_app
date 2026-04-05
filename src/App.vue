@@ -32,11 +32,17 @@ import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useAppUpdateStore } from '@/stores/appUpdate'
+import { useGoodsStore } from '@/stores/goods'
+import { useEventsStore } from '@/stores/events'
+import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
 const syncStore = useSyncStore()
+const goodsStore = useGoodsStore()
+const eventsStore = useEventsStore()
+const rechargeStore = useRechargeStore()
 const announcementStore = useAnnouncementStore()
 const appUpdateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
@@ -44,6 +50,12 @@ const keepAliveViewNames = ['HomeView', 'WishlistView', 'ManageView', 'EventsVie
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const routeTransitionName = ref('route-none')
+const hasLocalData = computed(() => (
+  goodsStore.list.value.length > 0
+  || goodsStore.trashList.value.length > 0
+  || rechargeStore.records.value.length > 0
+  || eventsStore.list.value.length > 0
+))
 const tabBarTransitionName = computed(() => {
   if (routeTransitionName.value === 'route-back') return 'tabbar-back'
   if (routeTransitionName.value === 'route-forward') return 'tabbar-forward'
@@ -74,6 +86,9 @@ watch(
 async function handleVisibilityChange() {
   if (document.hidden) {
     if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
+      const localChanges = syncStore.getLocalChangesSinceLastSync()
+      if (!localChanges.hasChanges) return
+
       try {
         await syncStore.fullSync()
       } catch {
@@ -111,10 +126,7 @@ onMounted(async () => {
 
   // 自动拉取
   await syncStore.init()
-  if (syncStore.token && syncStore.gistId && !syncStore.isSyncing) {
-    const localChanges = syncStore.getLocalChangesSinceLastSync()
-    if (localChanges.hasChanges) return
-
+  if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !hasLocalData.value) {
     try {
       await syncStore.pullOnly()
     } catch {

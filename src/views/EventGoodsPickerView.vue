@@ -233,7 +233,7 @@ function setSortMode(value) {
 
 function handleBack() {
   const returnTo = String(route.query.returnTo || '').trim()
-  if (returnTo) {
+  if (returnTo && window.history.length <= 1) {
     router.replace(returnTo)
     return
   }
@@ -243,7 +243,7 @@ function handleBack() {
 function confirmSelection() {
   writeEventLinkedGoodsPickerResult([...selectedIds.value])
   const returnTo = String(route.query.returnTo || '').trim()
-  if (returnTo) {
+  if (returnTo && window.history.length <= 1) {
     router.replace(returnTo)
     return
   }

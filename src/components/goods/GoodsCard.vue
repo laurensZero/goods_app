@@ -638,24 +638,27 @@ const priceText = computed(() => {
   opacity: 0;
 }
 
-:global(html.theme-dark) .card-chip {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--app-text-secondary);
+:global(html.theme-dark .goods-card .card-chip) {
+    border: none !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
   }
 
-:global(html.theme-dark) .card-chip.char-chip {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--app-text);
+:global(html.theme-dark .goods-card .card-chip.char-chip) {
+    background: rgba(93, 226, 160, 0.08) !important;
+    color: #5de2a0 !important;
   }
 
-:global(html.theme-dark) .card-chip.ip-chip {
-    background: rgba(100, 170, 255, 0.12);
-    color: rgba(100, 170, 255, 0.9);
+:global(html.theme-dark .goods-card .card-chip.ip-chip) {
+    background: rgba(74, 122, 236, 0.12) !important;
+    color: #8ab4f8 !important;
   }
 
-:global(html.theme-dark) .card-chip.tag-chip {
-    background: rgba(201, 148, 255, 0.14);
-    color: #f1dcff;
+:global(html.theme-dark .goods-card .card-chip.tag-chip) {
+    background: rgba(201, 148, 255, 0.14) !important;
+    color: #f1dcff !important;
   }
 
 :global(html.theme-dark) .check-icon--checked {

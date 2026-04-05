@@ -249,6 +249,14 @@ onBeforeUnmount(() => {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
+:global(html.theme-dark) .app-select__value--placeholder {
+    color: rgba(245, 245, 247, 0.72) !important;
+  }
+
+:global(html.theme-dark) .app-select__arrow {
+    stroke: rgba(245, 245, 247, 0.72) !important;
+  }
+
 :global(html.theme-dark) .app-select--open .app-select__trigger,
   :global(html.theme-dark) .app-select__trigger:focus-visible {
     border-color: rgba(118, 148, 210, 0.28) !important;
@@ -259,15 +267,28 @@ onBeforeUnmount(() => {
 
 :global(html.theme-dark) .app-select__panel {
     border-color: rgba(255, 255, 255, 0.06);
-    background: rgba(24, 24, 28, 0.82);
+    background: rgba(24, 24, 28, 0.96);
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
   }
 
+:global(html.theme-dark) .app-select__option {
+    color: #f5f5f7 !important;
+  }
+
 :global(html.theme-dark) .app-select__option:hover,
   :global(html.theme-dark) .app-select__option:active,
   :global(html.theme-dark) .app-select__option--active {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.10) !important;
+    color: #f5f5f7 !important;
+  }
+
+:global(html.theme-dark) .app-select__check {
+    stroke: #f5f5f7 !important;
+  }
+
+:global(html.theme-dark) .app-select__empty {
+    color: rgba(245, 245, 247, 0.68) !important;
   }
 </style>

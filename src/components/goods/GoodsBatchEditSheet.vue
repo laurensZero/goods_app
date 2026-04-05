@@ -922,6 +922,47 @@ defineExpose({
     color: var(--app-text);
   }
 
+:global(html.theme-dark .batch-edit-sheet .app-select__value--placeholder),
+:global(html.theme-dark .batch-edit-sheet .multi-select__placeholder) {
+    color: rgba(245, 245, 247, 0.72) !important;
+    font-weight: 500;
+  }
+
+:global(html.theme-dark .batch-edit-sheet .app-select__arrow),
+:global(html.theme-dark .batch-edit-sheet .multi-select__arrow) {
+    stroke: rgba(245, 245, 247, 0.72) !important;
+  }
+
+:global(html.theme-dark .batch-edit-sheet .app-select__panel),
+:global(html.theme-dark .batch-edit-sheet .multi-select__panel) {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(24, 24, 28, 0.96) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42) !important;
+  }
+
+:global(html.theme-dark .batch-edit-sheet .app-select__option),
+:global(html.theme-dark .batch-edit-sheet .multi-select__option) {
+    color: #f5f5f7 !important;
+    font-weight: 500;
+  }
+
+:global(html.theme-dark .batch-edit-sheet .app-select__option--active),
+:global(html.theme-dark .batch-edit-sheet .multi-select__option--active) {
+    background: rgba(255, 255, 255, 0.10) !important;
+    color: #f5f5f7 !important;
+    font-weight: 600;
+  }
+
+:global(html.theme-dark .batch-edit-sheet .app-select__check),
+:global(html.theme-dark .batch-edit-sheet .multi-select__check) {
+    stroke: #f5f5f7 !important;
+  }
+
+:global(html.theme-dark .batch-edit-sheet .app-select__empty),
+:global(html.theme-dark .batch-edit-sheet .multi-select__empty) {
+    color: rgba(245, 245, 247, 0.68) !important;
+  }
+
 :global(html.theme-dark) .batch-edit-sheet__handle {
     background: rgba(255, 255, 255, 0.15);
   }
@@ -940,29 +981,43 @@ defineExpose({
 
 :global(html.theme-dark) .date-field,
   :global(html.theme-dark) .multi-select__trigger {
-    border-color: rgba(255, 255, 255, 0.07);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
   }
 
-:global(html.theme-dark) .multi-select__panel {
-    border-color: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
+:global(html.theme-dark .multi-select__panel) {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(24, 24, 28, 0.96) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42) !important;
   }
 
-:global(html.theme-dark) .multi-select__option {
-    color: var(--app-text);
+:global(html.theme-dark .multi-select__chip) {
+    border: 1px solid rgba(124, 154, 216, 0.30) !important;
+    background: #1c3558 !important;
+    color: #8ab4f8 !important;
   }
 
-:global(html.theme-dark) .multi-select__option:active {
-    background: rgba(255, 255, 255, 0.07);
+:global(html.theme-dark .multi-select__chip-remove) {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #f5f5f7 !important;
   }
 
-:global(html.theme-dark) .multi-select__option--active {
-    background: rgba(255, 255, 255, 0.08);
+:global(html.theme-dark .multi-select__option) {
+    color: #f5f5f7 !important;
   }
 
-:global(html.theme-dark) .multi-select__check {
-    stroke: var(--app-text);
+:global(html.theme-dark .multi-select__option:active) {
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+:global(html.theme-dark .multi-select__option--active) {
+    background: rgba(255, 255, 255, 0.10) !important;
+    color: #f5f5f7 !important;
+  }
+
+:global(html.theme-dark .multi-select__check) {
+    stroke: #f5f5f7 !important;
   }
 
 :global(html.theme-dark) :deep(.picker-popup.van-popup),
