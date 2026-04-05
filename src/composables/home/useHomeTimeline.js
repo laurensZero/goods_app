@@ -1,16 +1,98 @@
 import { computed } from 'vue'
 
+function normalizeTimelineDate(value) {
+  const normalized = String(value || '').trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
+}
+
+function getTimelineSourceDates(item) {
+  const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
+  const acquiredAt = normalizeTimelineDate(item?.acquiredAt)
+  const explicitDates = Array.isArray(item?.unitAcquiredAtList)
+    ? item.unitAcquiredAtList.map((value) => normalizeTimelineDate(value)).filter(Boolean)
+    : []
+
+  if (explicitDates.length === 0) {
+    if (!acquiredAt) return []
+    return Array.from({ length: quantityNumber }, () => acquiredAt)
+  }
+
+  const fallbackDate = acquiredAt || explicitDates[0]
+  return Array.from({ length: quantityNumber }, (_, index) => explicitDates[index] || fallbackDate)
+}
+
+function buildTimelineEntries(goodsList) {
+  const entries = []
+
+  for (const item of goodsList) {
+    const dates = getTimelineSourceDates(item)
+    const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
+    const priceNumber = Number(item?.priceNumber) || 0
+
+    if (dates.length === 0) {
+      entries.push({
+        ...item,
+        id: item.id,
+        sourceId: item.id,
+        quantity: quantityNumber,
+        timelineQuantity: quantityNumber,
+        unitAcquiredAtList: [],
+        acquiredAt: '',
+        timelineYearMonth: '',
+        timelineSortTime: 0,
+        priceNumber,
+        totalValueNumber: priceNumber * quantityNumber
+      })
+      continue
+    }
+
+    const monthMap = new Map()
+    for (const date of dates) {
+      const yearMonth = date.slice(0, 7)
+      if (!monthMap.has(yearMonth)) {
+        monthMap.set(yearMonth, [])
+      }
+      monthMap.get(yearMonth).push(date)
+    }
+
+    const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthDates], index) => {
+      const id = monthMap.size === 1 ? item.id : `${item.id}::${yearMonth}`
+      const acquiredAt = monthDates[0] || normalizeTimelineDate(item.acquiredAt)
+
+      return {
+        ...item,
+        id,
+        sourceId: item.id,
+        acquiredAt,
+        unitAcquiredAtList: [...monthDates],
+        quantity: monthDates.length,
+        timelineYearMonth: yearMonth,
+        timelineQuantity: monthDates.length,
+        priceNumber,
+        totalValueNumber: priceNumber * monthDates.length,
+        timelineSortTime: acquiredAt ? Date.parse(acquiredAt) || 0 : index
+      }
+    })
+
+    entries.push(...monthEntries)
+  }
+
+  return entries
+}
+
 export function useHomeTimeline({
   goodsList,
   displayDensity,
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths
 }) {
+  const timelineEntries = computed(() => buildTimelineEntries(goodsList.value))
+
   const timelineYearGroups = computed(() => {
     const yearGroups = []
     const yearMap = new Map()
 
-    for (const item of goodsList.value) {
+    for (const item of timelineEntries.value) {
       if (!item.timelineYearMonth) continue
       const yearMonth = item.timelineYearMonth
       const year = yearMonth.slice(0, 4)
@@ -42,10 +124,10 @@ export function useHomeTimeline({
       }
 
       monthGroup.items.push(item)
-      monthGroup.count += 1
-      monthGroup.totalSpend += item.priceNumber
-      yearGroup.yearCount += 1
-      yearGroup.yearTotal += item.priceNumber
+      monthGroup.count += Number(item.quantity) || 1
+      monthGroup.totalSpend += (Number(item.priceNumber) || 0) * (Number(item.quantity) || 1)
+      yearGroup.yearCount += Number(item.quantity) || 1
+      yearGroup.yearTotal += (Number(item.priceNumber) || 0) * (Number(item.quantity) || 1)
     }
 
     return yearGroups.map(({ monthMap, ...yearGroup }) => yearGroup)
@@ -74,8 +156,18 @@ export function useHomeTimeline({
   const timelineItemIndexById = computed(() => {
     const map = new Map()
 
-    goodsList.value.forEach((item, index) => {
+    timelineEntries.value.forEach((item, index) => {
       map.set(item.id, index)
+    })
+
+    return map
+  })
+
+  const timelineEntryById = computed(() => {
+    const map = new Map()
+
+    timelineEntries.value.forEach((item) => {
+      map.set(item.id, item)
     })
 
     return map
@@ -83,7 +175,7 @@ export function useHomeTimeline({
 
   const timelineUnknownItemIds = computed(() =>
     new Set(
-      goodsList.value
+      timelineEntries.value
         .filter((item) => !item.timelineYearMonth)
         .map((item) => item.id)
     )
@@ -113,7 +205,7 @@ export function useHomeTimeline({
   })
 
   const timelineUnknown = computed(() =>
-    goodsList.value.filter((item) => !item.timelineYearMonth)
+    timelineEntries.value.filter((item) => !item.timelineYearMonth)
   )
 
   const showVisibleTimelineUnknown = computed(() =>
@@ -125,6 +217,7 @@ export function useHomeTimeline({
     allTimelineMonthCount,
     timelineMonthIndexByItemId,
     timelineItemIndexById,
+    timelineEntryById,
     timelineUnknownItemIds,
     visibleTimelineYearGroups,
     timelineUnknown,

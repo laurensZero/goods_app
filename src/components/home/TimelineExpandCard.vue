@@ -29,7 +29,8 @@
         </div>
 
         <div class="tl-expand-meta">
-          <span v-if="item.acquiredAt" class="tl-expand-date">{{ item.acquiredAt }}</span>
+          <span v-if="displayAcquiredAtText" class="tl-expand-date">{{ displayAcquiredAtText }}</span>
+          <span v-if="Number(item.quantity) > 1" class="tl-expand-qty">×{{ item.quantity }}</span>
           <span v-if="displayUnitPrice !== ''" class="tl-expand-price">{{ totalPrice }}</span>
         </div>
 
@@ -60,6 +61,23 @@ const displayUnitPrice = computed(() => (
 const totalPrice = computed(() =>
   formatPrice(Number(displayUnitPrice.value || 0) * Number(props.item.quantity || 1))
 )
+
+const displayAcquiredAtText = computed(() => {
+  const list = Array.isArray(props.item.unitAcquiredAtList) ? props.item.unitAcquiredAtList : []
+  const seen = new Set()
+  const deduped = []
+
+  for (const date of list) {
+    const normalized = String(date || '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) continue
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    deduped.push(normalized)
+  }
+
+  if (deduped.length > 1) return deduped.join(' / ')
+  return String(props.item.acquiredAt || '').trim()
+})
 </script>
 
 <style scoped>
@@ -166,6 +184,16 @@ const totalPrice = computed(() =>
 .tl-expand-date {
   color: var(--app-text-tertiary);
   font-size: 12px;
+}
+
+.tl-expand-qty {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.08);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .tl-expand-price {

@@ -36,6 +36,7 @@
               :class="{ 'tl-thumb-btn--active': activeItemId === item.id }"
               @click="$emit('toggle-item', item.id)"
             >
+              <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
               <div class="tl-thumb-img-wrap">
                 <LazyCachedImage
                   v-if="item.coverImage"
@@ -52,7 +53,7 @@
             <TimelineExpandCard
               v-if="expandedItem && expandedSectionKey === monthGroup.yearMonth"
               :item="expandedItem"
-              @open-detail="$emit('open-detail', expandedItem.id)"
+              @open-detail="$emit('open-detail', expandedItem.sourceId || expandedItem.id)"
             />
           </transition>
         </div>
@@ -83,6 +84,7 @@
             :class="{ 'tl-thumb-btn--active': activeItemId === item.id }"
             @click="$emit('toggle-item', item.id)"
           >
+            <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
             <div class="tl-thumb-img-wrap">
               <LazyCachedImage
                 v-if="item.coverImage"
@@ -99,7 +101,7 @@
           <TimelineExpandCard
             v-if="expandedItem && expandedSectionKey === unknownSectionKey"
             :item="expandedItem"
-            @open-detail="$emit('open-detail', expandedItem.id)"
+            @open-detail="$emit('open-detail', expandedItem.sourceId || expandedItem.id)"
           />
         </transition>
       </div>
@@ -272,6 +274,7 @@ defineEmits(['toggle-item', 'open-detail'])
 .tl-thumb-btn {
   display: flex;
   flex-direction: column;
+  position: relative;
   border: none;
   background: none;
   padding: 0;
@@ -320,6 +323,22 @@ defineEmits(['toggle-item', 'open-detail'])
   transform: scale(1.04);
   z-index: 1;
   position: relative;
+}
+
+.tl-thumb-qty-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 3;
+  padding: 2px 5px;
+  border-radius: 7px;
+  background: rgba(20, 20, 22, 0.72);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  pointer-events: none;
+  letter-spacing: 0.02em;
 }
 
 .tl-thumb-btn--active .tl-thumb-img-wrap {

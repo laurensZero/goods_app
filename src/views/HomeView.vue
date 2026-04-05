@@ -780,6 +780,7 @@ const {
   allTimelineMonthCount,
   timelineMonthIndexByItemId,
   timelineItemIndexById,
+  timelineEntryById,
   timelineUnknownItemIds,
   visibleTimelineYearGroups,
   timelineUnknown,
@@ -890,10 +891,18 @@ function updateSelectionHeaderPosition() {
 
 // -------- 时间线内联展开 --------
 const expandedItem = computed(() =>
-  expandedTimelineItemId.value ? goodsById.value.get(expandedTimelineItemId.value) ?? null : null
+  expandedTimelineItemId.value
+    ? (displayDensity.value === 'timeline'
+        ? timelineEntryById.value.get(expandedTimelineItemId.value) ?? null
+        : goodsById.value.get(expandedTimelineItemId.value) ?? null)
+    : null
 )
 const expandedSectionKey = computed(() => {
   if (!expandedItem.value) return ''
+
+  if (displayDensity.value === 'timeline') {
+    return expandedItem.value.timelineYearMonth || TIMELINE_UNKNOWN_SECTION_KEY
+  }
 
   const yearMonth = String(expandedItem.value.acquiredAt || '').slice(0, 7)
   return /^\d{4}-\d{2}$/.test(yearMonth) ? yearMonth : TIMELINE_UNKNOWN_SECTION_KEY

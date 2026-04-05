@@ -51,7 +51,7 @@
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
             <span v-for="tag in item.tags || []" :key="tag" class="hero-chip tag-chip">#{{ tag }}</span>
-            <span v-if="item.acquiredAt" class="hero-date">{{ item.isWishlist ? '计划于' : '购入于' }} {{ item.acquiredAt }}</span>
+            <span v-if="acquiredAtDisplayText" class="hero-date">{{ item.isWishlist ? '计划于' : '购入于' }} {{ acquiredAtDisplayText }}</span>
           </div>
 
           <h1 class="hero-name">{{ item.name }}</h1>
