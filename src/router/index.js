@@ -71,12 +71,6 @@ const routes = [
     meta: { title: '管理', keepAlive: true }
   },
   {
-    path: '/timeline',
-    name: 'timeline',
-    component: () => import('@/views/TimelineView.vue'),
-    meta: { title: '时间线', keepAlive: true }
-  },
-  {
     path: '/recharge/month-cards',
     name: 'recharge-month-cards',
     component: () => import('@/views/MonthCardCalendarView.vue'),

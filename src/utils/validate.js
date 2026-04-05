@@ -35,18 +35,3 @@ export function validatePrice(price) {
   }
   return { valid: true, message: '' }
 }
-
-/**
- * 校验整个表单，返回第一条错误信息（无错则返回 null）
- * @param {{ name: string, price: string|number }} form
- * @returns {string|null}
- */
-export function validateGoodsForm(form) {
-  const nameResult = validateName(form.name)
-  if (!nameResult.valid) return nameResult.message
-
-  const priceResult = validatePrice(form.price)
-  if (!priceResult.valid) return priceResult.message
-
-  return null
-}
