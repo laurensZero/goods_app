@@ -20,7 +20,7 @@
     </div>
 
     <div class="record-thumb-wrap">
-      <img
+      <LazyCachedImage
         v-if="resolvedImage"
         :src="resolvedImage"
         :alt="record.itemName || '充值项目图片'"
@@ -48,6 +48,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
 
 const GAME_LABEL_MAP = {

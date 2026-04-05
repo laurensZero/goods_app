@@ -48,7 +48,7 @@
                   @click="form.presetOptionKey = option.value"
                 >
                   <div class="preset-card__media preset-card__media--option">
-                    <img
+                    <LazyCachedImage
                       v-if="option.image"
                       :src="option.image"
                       :alt="option.name"
@@ -132,6 +132,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { DatePicker, Popup } from 'vant'
 import AppSelect from '@/components/common/AppSelect.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
 
 const GAME_LABEL_MAP = {
