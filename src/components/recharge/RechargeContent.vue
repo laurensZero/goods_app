@@ -174,7 +174,6 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import SearchBar from '@/components/common/SearchBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -190,8 +189,7 @@ import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { setWindowScrollTop } from '@/utils/scrollPosition'
 
-const emit = defineEmits(['selection-change'])
-const router = useRouter()
+const emit = defineEmits(['selection-change', 'open-month-card'])
 const rechargeStore = useRechargeStore()
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
@@ -398,7 +396,7 @@ function openAddMethodSheet() {
 }
 
 function openMonthCardCalendar() {
-  router.push('/recharge/month-cards')
+  emit('open-month-card')
 }
 
 function compareGameOrder(left, right) {

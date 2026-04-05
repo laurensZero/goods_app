@@ -260,7 +260,7 @@ const router = useRouter()
 const eventsStore = useEventsStore()
 const pageBodyRef = ref(null)
 const isEventsActive = ref(true)
-const eventsDisplayReady = ref(true)
+const eventsDisplayReady = ref(false)
 const showDeleteConfirm = ref(false)
 const showSearch = ref(false)
 const showScrollTopButton = ref(false)
@@ -532,12 +532,6 @@ function unbindPageScroll() {
   pageScrollBound = false
 }
 
-function shouldMaskEventsDisplay() {
-  const storedTop = getStoredScrollState()?.top || 0
-  if (storedTop <= 0) return false
-  return Math.abs(readScrollTop() - storedTop) > 1
-}
-
 async function refresh() {
   await eventsStore.refreshList()
 }
@@ -563,7 +557,7 @@ onMounted(async () => {
     await eventsStore.init()
   }
 
-  eventsDisplayReady.value = !shouldMaskEventsDisplay()
+  eventsDisplayReady.value = false
   await refresh()
   await nextTick()
   bindPageScroll()
@@ -576,9 +570,7 @@ onMounted(async () => {
 
 onActivated(async () => {
   isEventsActive.value = true
-  if (shouldMaskEventsDisplay()) {
-    eventsDisplayReady.value = false
-  }
+  eventsDisplayReady.value = false
   await refresh()
   await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
   await nextTick()
@@ -614,8 +606,10 @@ onBeforeUnmount(() => {
   exitSelectionModeQuiet()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   saveScrollPosition(true, 'events:onBeforeRouteLeave')
+  eventsDisplayReady.value = false
+  await nextTick()
 })
 </script>
 

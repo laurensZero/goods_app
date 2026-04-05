@@ -172,6 +172,7 @@ const MANUAL_SCROLL_RESTORE_ROUTES = new Set([
   'home',
   'search',
   'wishlist',
+  'events',
   'detail',
   'character-leaderboard',
   'manage'

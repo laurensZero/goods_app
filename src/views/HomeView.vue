@@ -112,7 +112,11 @@
           </div>
 
           <div v-else key="home-mode-recharge">
-            <RechargeContent ref="rechargeContentRef" @selection-change="handleRechargeSelectionChange" />
+            <RechargeContent
+              ref="rechargeContentRef"
+              @selection-change="handleRechargeSelectionChange"
+              @open-month-card="openMonthCardCalendar"
+            />
           </div>
         </Transition>
     </main>
@@ -731,8 +735,10 @@ onBeforeUnmount(() => {
   rememberCurrentScrollPosition()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   saveScrollPosition(true, 'home:onBeforeRouteLeave')
+  homeDisplayReady.value = false
+  await nextTick()
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)
@@ -842,6 +848,12 @@ function openDetail(id) {
   saveScrollPosition(true, `home:openDetail:${id}`)
   primeActivatedRestoreWindow(getStoredScrollState())
   router.push(`/detail/${id}`)
+}
+
+function openMonthCardCalendar() {
+  saveScrollPosition(true, 'home:openMonthCardCalendar')
+  primeActivatedRestoreWindow(getStoredScrollState())
+  router.push('/recharge/month-cards')
 }
 
 function scrollToTop() {

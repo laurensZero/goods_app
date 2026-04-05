@@ -589,8 +589,10 @@ onBeforeUnmount(() => {
   exitSelectionModeQuiet()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   saveScrollPosition(true, 'wishlist:onBeforeRouteLeave')
+  wishlistDisplayReady.value = false
+  await nextTick()
 })
 </script>
 
