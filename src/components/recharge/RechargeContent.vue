@@ -449,7 +449,6 @@ function handleRecordClick(record) {
 function editSelectedRecord() {
   if (selectedRecords.value.length !== 1) return
   const [record] = selectedRecords.value
-  exitSelectionModeQuiet()
   openEdit(record)
 }
 

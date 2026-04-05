@@ -423,15 +423,16 @@ onBeforeUnmount(() => {
 <style scoped>
 .dialog {
   position: fixed;
-  left: 50%;
-  top: 50%;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 90;
-  width: min(100vw - 24px, 540px);
-  max-height: min(86vh, 740px);
-  transform: translate(-50%, -50%);
+  width: 100%;
+  max-height: min(90dvh, 760px);
+  transform: translateY(0);
   overflow: auto;
-  padding: 18px;
-  border-radius: 24px;
+  padding: 18px 16px max(24px, env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
   border: 1px solid var(--app-glass-border);
   background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
   box-shadow: var(--app-shadow);
@@ -764,7 +765,27 @@ onBeforeUnmount(() => {
 .dialog-pop-enter-from,
 .dialog-pop-leave-to {
   opacity: 0;
-  transform: translate(-50%, calc(-50% + 14px)) scale(0.98);
+  transform: translateY(100%);
+}
+
+@media (min-width: 900px) {
+  .dialog {
+    left: 50%;
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    width: min(100vw - 24px, 540px);
+    max-height: min(86vh, 740px);
+    transform: translate(-50%, -50%);
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .dialog-pop-enter-from,
+  .dialog-pop-leave-to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 14px)) scale(0.98);
+  }
 }
 
 @media (max-width: 520px) {
