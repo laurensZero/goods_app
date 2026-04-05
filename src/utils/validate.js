@@ -8,12 +8,15 @@
  * 校验谷子名称
  * @param {string} name
  */
-export function validateName(name) {
+export function validateName(name, options = {}) {
+  const label = options.label || '名称'
+  const maxLength = Number.isFinite(Number(options.maxLength)) ? Number(options.maxLength) : 50
+
   if (!name || !name.trim()) {
-    return { valid: false, message: '名称不能为空' }
+    return { valid: false, message: `${label}不能为空` }
   }
-  if (name.trim().length > 50) {
-    return { valid: false, message: '名称最多 50 个字符' }
+  if (name.trim().length > maxLength) {
+    return { valid: false, message: `${label}最多 ${maxLength} 个字符` }
   }
   return { valid: true, message: '' }
 }

@@ -6,6 +6,7 @@ import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
+import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 
 const NO_IP_OPTION = '__NO_IP__'
 const today = formatDate(new Date(), 'YYYY-MM-DD')
@@ -49,9 +50,11 @@ export function useGoodsEditorForm(options = {}) {
   const quickCharacterName = ref('')
   const quickCharacterIp = ref(NO_IP_OPTION)
   const nameError = ref('')
+  const priceError = ref('')
 
   const charactersFieldRef = ref(null)
   const nameInputRef = ref(null)
+  const priceInputRef = ref(null)
   const noteInputRef = ref(null)
   const showDatePicker = ref(false)
   const showUnitDatePicker = ref(false)
@@ -101,6 +104,15 @@ export function useGoodsEditorForm(options = {}) {
     (value) => {
       if (String(value || '').trim()) {
         nameError.value = ''
+      }
+    }
+  )
+
+  watch(
+    () => form.price,
+    (value) => {
+      if (validateNumericPrice(value).valid) {
+        priceError.value = ''
       }
     }
   )
@@ -207,6 +219,15 @@ export function useGoodsEditorForm(options = {}) {
     form.name = String(form.name || '').trim()
     if (!validateName()) return
 
+    const priceResult = validateNumericPrice(form.price)
+    if (!priceResult.valid) {
+      priceError.value = priceResult.message
+      priceInputRef.value?.focus?.()
+      priceInputRef.value?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      return
+    }
+    priceError.value = ''
+
     if (mode === 'edit') {
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
@@ -222,12 +243,13 @@ export function useGoodsEditorForm(options = {}) {
   }
 
   function validateName() {
-    if (form.name) {
+    const result = validateTextName(form.name, { label: '名称' })
+    if (result.valid) {
       nameError.value = ''
       return true
     }
 
-    nameError.value = '请先填写名称'
+    nameError.value = result.message
     nameInputRef.value?.focus?.()
     nameInputRef.value?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
     return false
@@ -479,8 +501,10 @@ export function useGoodsEditorForm(options = {}) {
     quickCharacterName,
     quickCharacterIp,
     nameError,
+    priceError,
     charactersFieldRef,
     nameInputRef,
+    priceInputRef,
     noteInputRef,
     showDatePicker,
     showUnitDatePicker,

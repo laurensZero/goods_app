@@ -169,7 +169,16 @@
                 <div class="field-grid">
                   <label class="field field--half">
                     <span class="field-label">门票价格（元）</span>
-                    <input v-model="form.ticketPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+                    <input
+                      v-model="form.ticketPrice"
+                      ref="ticketPriceInputRef"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      :aria-invalid="Boolean(ticketPriceError)"
+                    />
+                    <span v-if="ticketPriceError" class="field-error">{{ ticketPriceError }}</span>
                   </label>
 
                   <label v-if="form.type === 'exhibition'" class="field field--half">
@@ -312,6 +321,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { readEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
+import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
@@ -367,6 +377,8 @@ const heroTitle = computed(() => {
 
 const nameError = ref('')
 const nameInputRef = ref(null)
+const ticketPriceError = ref('')
+const ticketPriceInputRef = ref(null)
 const descInputRef = ref(null)
 const showDatePicker = ref(false)
 const datePickerValue = ref([])
@@ -472,6 +484,15 @@ watch(
   }
 )
 
+watch(
+  () => form.ticketPrice,
+  (value) => {
+    if (validateNumericPrice(value).valid) {
+      ticketPriceError.value = ''
+    }
+  }
+)
+
 async function loadEditData() {
   if (!isEdit.value) return
   const id = editId.value
@@ -494,13 +515,27 @@ async function loadEditData() {
 }
 
 function validateName() {
-  if (form.name.trim()) {
+  const result = validateTextName(form.name, { label: '活动名称' })
+  if (result.valid) {
     nameError.value = ''
     return true
   }
-  nameError.value = '请先填写活动名称'
+  nameError.value = result.message
   nameInputRef.value?.focus?.()
   nameInputRef.value?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+  return false
+}
+
+function validateTicketPrice() {
+  const result = validateNumericPrice(form.ticketPrice)
+  if (result.valid) {
+    ticketPriceError.value = ''
+    return true
+  }
+
+  ticketPriceError.value = result.message
+  ticketPriceInputRef.value?.focus?.()
+  ticketPriceInputRef.value?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
   return false
 }
 
@@ -508,6 +543,7 @@ async function handleSubmit() {
   await nextTick()
   form.name = String(form.name || '').trim()
   if (!validateName()) return
+  if (!validateTicketPrice()) return
 
   if (!form.endDate && form.startDate) {
     form.endDate = form.startDate

@@ -225,10 +225,18 @@
           </div>
 
           <div class="field-card">
-            <label class="field">
+            <label class="field" :class="{ 'field--error': priceError }">
               <span class="field-label">{{ form.isWishlist ? '目标价格（¥）' : '价格（¥）' }}</span>
               <div class="price-row">
-                <input v-model="form.price" type="number" min="0" step="0.01" placeholder="0.00" />
+                <input
+                  v-model="form.price"
+                  ref="priceInputRef"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  :aria-invalid="Boolean(priceError)"
+                />
                 <button
                   v-if="!form.isWishlist"
                   type="button"
@@ -241,6 +249,7 @@
                   </svg>
                 </button>
               </div>
+              <span v-if="priceError" class="field-error">{{ priceError }}</span>
               <div v-if="showPointsInput" class="points-input-wrap">
                 <span class="points-input-label">消耗积分</span>
                 <input v-model.number="form.points" type="number" min="0" step="1" placeholder="0" />
@@ -498,8 +507,10 @@ const {
   quickCharacterName,
   quickCharacterIp,
   nameError,
+  priceError,
   charactersFieldRef,
   nameInputRef,
+  priceInputRef,
   noteInputRef,
   showDatePicker,
   showUnitDatePicker,
