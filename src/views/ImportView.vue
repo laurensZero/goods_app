@@ -1541,9 +1541,12 @@ function detectCategory(name) {
   if (name.includes('手办') || name.includes('模型')) return '手办'
   if (name.includes('挂件') || name.includes('挂摆')) return '挂件'
   if (name.includes('徽章')) return '徽章'
-  if (name.includes('卡片') || name.includes('票卡') || name.includes('卡套') || name.includes('色纸') || name.includes('亚克力立牌')) return '卡片'
+  if (name.includes('卡片') || name.includes('票卡') || name.includes('卡套')) return '卡片'
+  if (name.includes('立牌')) return '立牌'
+  if (name.includes('色纸')) return '色纸'
+  if (name.includes('画集') || name.includes('设定集') || name.includes('画册')) return '画集'
   if (/CD|专辑/.test(name)) return 'CD/专辑'
-  if (name.includes('服饰') || name.includes('衬衫') || name.includes('针织') || name.includes('外套') || name.includes('痛包') || name.includes('斜挎包')) return '周边服饰'
+  if (name.includes('服饰') || name.includes('衬衫') || name.includes('针织') || name.includes('外套') || name.includes('痛包') || name.includes('斜挎包')) return '服饰'
   return ''
 }
 

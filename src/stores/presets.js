@@ -13,7 +13,7 @@ const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
 const STORAGE_KEY_LOC = 'goods_presets_storage_locations'
 
-const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '赠品', '其他']
+const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
 const DEFAULT_CHARACTERS = []
 const DEFAULT_STORAGE_LOCATIONS = []
