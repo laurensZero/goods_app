@@ -475,6 +475,10 @@ const props = defineProps({
     type: String,
     default: 'add'
   },
+  initialIsWishlist: {
+    type: Boolean,
+    default: false
+  },
   editId: {
     type: String,
     default: ''
@@ -537,7 +541,7 @@ const {
   syncField,
   syncFieldLater,
   closeQuickCreate
-} = useGoodsEditorForm({ mode: props.mode, editId: props.editId })
+} = useGoodsEditorForm({ mode: props.mode, editId: props.editId, initialIsWishlist: props.initialIsWishlist })
 
 const isEditMode = computed(() => props.mode === 'edit')
 const navBarTitle = computed(() => (isEditMode.value ? '编辑谷子' : '添加谷子'))
@@ -577,5 +581,5 @@ const submitButtonLabel = computed(() => {
 })
 </script>
 
-<style scoped src="../assets/goodsEditorForm.css"></style>
+<style scoped src="../../assets/goodsEditorForm.css"></style>
 

@@ -1,5 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
@@ -14,9 +14,9 @@ const TABLET_BREAKPOINT = 768
 export function useGoodsEditorForm(options = {}) {
   const mode = options.mode === 'edit' ? 'edit' : 'add'
   const editId = options.editId ?? ''
+  const initialIsWishlist = Boolean(options.initialIsWishlist)
 
   const router = useRouter()
-  const route = useRoute()
   const store = useGoodsStore()
   const presets = usePresetsStore()
 
@@ -152,7 +152,7 @@ export function useGoodsEditorForm(options = {}) {
 
   onMounted(() => {
     if (mode === 'add') {
-      form.isWishlist = route.query.mode === 'wishlist'
+      form.isWishlist = initialIsWishlist
       if (!form.isWishlist) {
         form.acquiredAt = today
       }
