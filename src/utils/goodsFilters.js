@@ -63,19 +63,21 @@ function parseDateLike(value) {
   return Number.isFinite(timestamp) ? timestamp : 0
 }
 
+function normalizeOptionValue(value, options, defaultValue) {
+  const matched = options.find((item) => item.value === value)
+  return matched?.value || defaultValue
+}
+
 function normalizeDatePreset(value) {
-  const matched = GOODS_FILTER_DATE_PRESET_OPTIONS.find((item) => item.value === value)
-  return matched?.value || DEFAULT_DATE_PRESET
+  return normalizeOptionValue(value, GOODS_FILTER_DATE_PRESET_OPTIONS, DEFAULT_DATE_PRESET)
 }
 
 function normalizeToggleValue(value) {
-  const matched = GOODS_FILTER_BOOLEAN_OPTIONS.find((item) => item.value === value)
-  return matched?.value || DEFAULT_TOGGLE
+  return normalizeOptionValue(value, GOODS_FILTER_BOOLEAN_OPTIONS, DEFAULT_TOGGLE)
 }
 
 function normalizeSortValue(value) {
-  const matched = GOODS_FILTER_SORT_OPTIONS.find((item) => item.value === value)
-  return matched?.value || DEFAULT_SORT
+  return normalizeOptionValue(value, GOODS_FILTER_SORT_OPTIONS, DEFAULT_SORT)
 }
 
 function getDatePresetFloor(datePreset) {

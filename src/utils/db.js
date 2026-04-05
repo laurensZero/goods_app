@@ -7,6 +7,7 @@
 
 import { Capacitor } from '@capacitor/core'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
+import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
 
@@ -71,6 +72,27 @@ const MIGRATE_ADD_UPDATED_AT = "ALTER TABLE goods ADD COLUMN updatedAt INTEGER D
 const MIGRATE_EVENT_ADD_TICKET_TYPE = "ALTER TABLE events ADD COLUMN ticketType TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_SEAT_INFO = "ALTER TABLE events ADD COLUMN seatInfo TEXT DEFAULT ''"
 
+const GOODS_MIGRATIONS = [
+  MIGRATE_ADD_IP,
+  MIGRATE_ADD_WISHLIST,
+  MIGRATE_ADD_CHR,
+  MIGRATE_ADD_TAGS,
+  MIGRATE_ADD_LOC,
+  MIGRATE_ADD_VAR,
+  MIGRATE_ADD_ACTUAL_PRICE,
+  MIGRATE_ADD_QTY,
+  MIGRATE_ADD_PTS,
+  MIGRATE_ADD_IMAGES,
+  MIGRATE_ADD_UNIT_DATES,
+  MIGRATE_ADD_UNIT_PRICES,
+  MIGRATE_ADD_UPDATED_AT
+]
+
+const EVENT_MIGRATIONS = [
+  MIGRATE_EVENT_ADD_TICKET_TYPE,
+  MIGRATE_EVENT_ADD_SEAT_INFO
+]
+
 //  Web 实现：sql.js + IndexedDB 
 let _sqlDb = null
 const IDB_NAME = 'goods_idb'
@@ -84,6 +106,14 @@ function normalizeWishlistFlag(value) {
     return normalized === '1' || normalized === 'true'
   }
   return false
+}
+
+async function runMigrationSafely(runMigration) {
+  try {
+    await runMigration()
+  } catch {
+    // ignore
+  }
 }
 
 function _openIDB() {
@@ -126,19 +156,9 @@ async function _initWebDB() {
   const saved = await _loadBinaryFromIDB()
   _sqlDb = saved ? new SQL.Database(saved) : new SQL.Database()
   _sqlDb.run(CREATE_TABLE_SQL)
-  try { _sqlDb.run(MIGRATE_ADD_IP) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_WISHLIST) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_CHR) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_TAGS) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_LOC) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_VAR) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_ACTUAL_PRICE) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_UNIT_DATES) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_UNIT_PRICES) } catch (e) { /* column already exists */ }
-  try { _sqlDb.run(MIGRATE_ADD_UPDATED_AT) } catch (e) { /* column already exists */ }
+  for (const migration of GOODS_MIGRATIONS) {
+    await runMigrationSafely(() => _sqlDb.run(migration))
+  }
   await _saveBinaryToIDB(_sqlDb)
 }
 
@@ -165,32 +185,24 @@ async function _initNativeDB() {
   }
   await _nativeDb.open()
   await _nativeDb.execute(CREATE_TABLE_SQL)
-  try { await _nativeDb.execute(MIGRATE_ADD_IP) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_WISHLIST) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_CHR) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_TAGS) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_LOC) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_VAR) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_ACTUAL_PRICE) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_QTY) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_PTS) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_IMAGES) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_UNIT_DATES) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_UNIT_PRICES) } catch (e) { /* column already exists */ }
-  try { await _nativeDb.execute(MIGRATE_ADD_UPDATED_AT) } catch (e) { /* column already exists */ }
+  for (const migration of GOODS_MIGRATIONS) {
+    await runMigrationSafely(() => _nativeDb.execute(migration))
+  }
 }
 
 async function _initEventsTable() {
   if (IS_NATIVE) {
     if (!_nativeDb) return
     try { await _nativeDb.execute(CREATE_EVENTS_TABLE_SQL) } catch { /* already exists */ }
-    try { await _nativeDb.execute(MIGRATE_EVENT_ADD_TICKET_TYPE) } catch { /* column already exists */ }
-    try { await _nativeDb.execute(MIGRATE_EVENT_ADD_SEAT_INFO) } catch { /* column already exists */ }
+    for (const migration of EVENT_MIGRATIONS) {
+      await runMigrationSafely(() => _nativeDb.execute(migration))
+    }
   } else {
     if (!_sqlDb) return
     try { _sqlDb.run(CREATE_EVENTS_TABLE_SQL) } catch { /* already exists */ }
-    try { _sqlDb.run(MIGRATE_EVENT_ADD_TICKET_TYPE) } catch { /* column already exists */ }
-    try { _sqlDb.run(MIGRATE_EVENT_ADD_SEAT_INFO) } catch { /* column already exists */ }
+    for (const migration of EVENT_MIGRATIONS) {
+      await runMigrationSafely(() => _sqlDb.run(migration))
+    }
     await _saveBinaryToIDB(_sqlDb)
   }
 }
@@ -212,11 +224,11 @@ export async function getItems() {
   return rows.map(r => ({
     ...r,
     isWishlist: normalizeWishlistFlag(r.isWishlist),
-    characters: (() => { try { return JSON.parse(r.characters || '[]') } catch { return [] } })(),
-    tags: (() => { try { return JSON.parse(r.tags || '[]') } catch { return [] } })(),
-    unitAcquiredAtList: (() => { try { return JSON.parse(r.unitAcquiredAtList || '[]') } catch { return [] } })(),
-    unitActualPriceList: (() => { try { return JSON.parse(r.unitActualPriceList || '[]') } catch { return [] } })(),
-    images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
+    characters: parseJsonArray(r.characters),
+    tags: parseJsonArray(r.tags),
+    unitAcquiredAtList: parseJsonArray(r.unitAcquiredAtList),
+    unitActualPriceList: parseJsonArray(r.unitActualPriceList),
+    images: parseJsonArray(r.images),
     storageLocation: String(r.storageLocation || '').trim(),
     variant: String(r.variant || '').trim(),
     actualPrice: String(r.actualPrice || '').trim(),
@@ -324,9 +336,9 @@ export async function getEvents() {
   }
   return rows.map(r => ({
     ...r,
-    photos: (() => { try { return JSON.parse(r.photos || '[]') } catch { return [] } })(),
-    linkedGoodsIds: (() => { try { return JSON.parse(r.linkedGoodsIds || '[]') } catch { return [] } })(),
-    tags: (() => { try { return JSON.parse(r.tags || '[]') } catch { return [] } })(),
+    photos: parseJsonArray(r.photos),
+    linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
+    tags: parseJsonArray(r.tags),
     createdAt: Number(r.createdAt) || 0,
     updatedAt: Number(r.updatedAt) || 0
   }))

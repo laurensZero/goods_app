@@ -3,24 +3,14 @@ import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { normalizeGoodsFilterConditions } from '@/utils/goodsFilters'
+import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const STORAGE_KEY = 'goods_filter_presets'
 const IS_NATIVE = Capacitor.isNativePlatform()
 
-function parseList(raw) {
-  if (!raw) return []
-
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 function readLocal() {
   try {
-    return parseList(localStorage.getItem(STORAGE_KEY))
+    return parseJsonArray(localStorage.getItem(STORAGE_KEY))
   } catch {
     return []
   }
@@ -38,7 +28,7 @@ async function readPersistedPresets() {
   if (IS_NATIVE) {
     try {
       const { value } = await Preferences.get({ key: STORAGE_KEY })
-      if (value !== null) return parseList(value)
+      if (value !== null) return parseJsonArray(value)
     } catch {
       // fall through to local storage
     }

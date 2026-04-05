@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed, triggerRef } from 'vue'
 import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
+import { parseJsonArray } from '@/utils/parseJsonArray'
 import {
   buildGoodsIdentityKey,
   getGoodsVariant,
@@ -168,19 +169,9 @@ function parseDeletedTime(value) {
   return Number.isFinite(timestamp) ? timestamp : 0
 }
 
-function parsePersistedList(raw) {
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 function readTrashLocal() {
   try {
-    return parsePersistedList(localStorage.getItem(TRASH_STORAGE_KEY))
+    return parseJsonArray(localStorage.getItem(TRASH_STORAGE_KEY))
   } catch {
     return []
   }
@@ -198,7 +189,7 @@ async function readPersistedTrash() {
   if (IS_NATIVE) {
     try {
       const { value } = await Preferences.get({ key: TRASH_STORAGE_KEY })
-      if (value !== null) return parsePersistedList(value)
+      if (value !== null) return parseJsonArray(value)
     } catch {
       // fall through
     }
