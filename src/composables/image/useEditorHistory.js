@@ -20,6 +20,7 @@ export function useEditorHistory() {
       cutoutPreviewUrl: state.cutoutPreviewUrl || '',
       cutoutMaskUrl: state.cutoutMaskUrl || '',
       cutoutPreparedImageUrl: state.cutoutPreparedImageUrl || '',
+      cutoutMeta: state.cutoutMeta ? JSON.parse(JSON.stringify(state.cutoutMeta)) : null,
       hasCutout: Boolean(state.hasCutout),
       timestamp: Date.now()
     }

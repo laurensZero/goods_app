@@ -199,4 +199,21 @@ function onDelete() {
   transform: translateX(-50%) translateY(100%);
   opacity: 0;
 }
+
+@media (min-width: 900px) {
+  .sheet-panel {
+    top: 50%;
+    bottom: auto;
+    width: min(calc(100vw - 64px), 420px);
+    max-height: min(80vh, 560px);
+    padding: 16px 18px 18px;
+    border-radius: 24px;
+    transform: translate(-50%, -50%);
+    overflow: auto;
+  }
+
+  .sheet-handle {
+    display: none;
+  }
+}
 </style>

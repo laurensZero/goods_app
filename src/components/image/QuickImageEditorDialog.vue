@@ -28,6 +28,25 @@
             </button>
           </div>
 
+          <div class="editor-actions editor-history-bar">
+            <button
+              type="button"
+              class="editor-btn editor-btn--ghost editor-history-btn"
+              :disabled="saving || cutoutLoading || cutoutApplyingMask || !canUndo"
+              @click="undoEditorChange"
+            >
+              撤销
+            </button>
+            <button
+              type="button"
+              class="editor-btn editor-btn--ghost editor-history-btn"
+              :disabled="saving || cutoutLoading || cutoutApplyingMask || !canRedo"
+              @click="redoEditorChange"
+            >
+              重做
+            </button>
+          </div>
+
           <div class="editor-body">
             <section ref="previewRef" class="editor-preview">
               <img ref="imageRef" :src="previewUrl" alt="编辑预览" class="editor-image" />
@@ -72,7 +91,7 @@
                       <span>亮度</span>
                       <strong>{{ formatSignedValue(brightness) }}</strong>
                     </div>
-                    <input v-model.number="brightness" type="range" min="-60" max="60" step="1" />
+                    <input v-model.number="brightness" type="range" min="-60" max="60" step="1" @change="recordEditorHistory" />
                   </label>
 
                   <label class="editor-slider">
@@ -80,7 +99,7 @@
                       <span>对比度</span>
                       <strong>{{ formatSignedValue(contrast) }}</strong>
                     </div>
-                    <input v-model.number="contrast" type="range" min="-40" max="40" step="1" />
+                    <input v-model.number="contrast" type="range" min="-40" max="40" step="1" @change="recordEditorHistory" />
                   </label>
                 </div>
               </section>
@@ -243,6 +262,7 @@ import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
 import { Canvas, PencilBrush } from 'fabric'
 import AppSelect from '@/components/common/AppSelect.vue'
+import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
 
@@ -292,6 +312,9 @@ const tabOptions = [
   { value: 'export', label: '导出设置' }
 ]
 
+const editorHistory = useEditorHistory()
+const { canUndo, canRedo } = editorHistory
+
 const brushModeActive = computed(() => !!cutoutPreparedImageUrl.value && !!cutoutMaskUrl.value)
 const brushDrawingActive = computed(() => brushModeActive.value && !!cutoutBrushMode.value)
 const brushEntryDisabled = true
@@ -317,17 +340,18 @@ let cutoutCurrentMaskBlob = null
 let cutoutOriginalMaskBlob = null
 const cutoutInputImageUrl = ref('')
 let cutoutMeta = null
+let editorSessionId = 0
+let historyRestoreDepth = 0
+let editorStateSignature = ''
+const editorSessionUrls = new Set()
 
-function revokeObjectUrl(url) {
+function trackObjectUrl(url) {
   if (url?.startsWith('blob:')) {
-    URL.revokeObjectURL(url)
+    editorSessionUrls.add(url)
   }
 }
 
 function clearCutoutSession() {
-  revokeObjectUrl(cutoutPreparedImageUrl.value)
-  revokeObjectUrl(cutoutMaskUrl.value)
-  revokeObjectUrl(cutoutInputImageUrl.value)
   cutoutPreparedImageUrl.value = ''
   cutoutMaskUrl.value = ''
   cutoutInputImageUrl.value = ''
@@ -339,6 +363,13 @@ function clearCutoutSession() {
   cutoutBrushSize.value = 28
   cutoutHasPendingStrokes.value = false
   destroyBrushCanvas()
+}
+
+function releaseEditorSessionUrls() {
+  editorSessionUrls.forEach((url) => {
+    URL.revokeObjectURL(url)
+  })
+  editorSessionUrls.clear()
 }
 
 function destroyCropper() {
@@ -355,11 +386,114 @@ function destroyBrushCanvas() {
   }
 }
 
-function revokePreviewUrl() {
-  if (previewUrl.value?.startsWith('blob:')) {
-    URL.revokeObjectURL(previewUrl.value)
+function createTrackedObjectUrl(blob) {
+  const url = URL.createObjectURL(blob)
+  trackObjectUrl(url)
+  return url
+}
+
+async function readBlobFromObjectUrl(url) {
+  if (!url) return null
+
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error('读取历史图片失败')
   }
-  previewUrl.value = ''
+
+  return await response.blob()
+}
+
+function buildEditorSnapshot() {
+  const cropData = cropper?.getData?.(true) || null
+  return {
+    brightness: Number(brightness.value) || 0,
+    contrast: Number(contrast.value) || 0,
+    flipX: Number(flipX) || 1,
+    cropData: cropData ? { ...cropData } : null,
+    rotation: Number(cropData?.rotate) || 0,
+    cutoutPreviewUrl: previewUrl.value || '',
+    cutoutMaskUrl: cutoutMaskUrl.value || '',
+    cutoutPreparedImageUrl: cutoutPreparedImageUrl.value || '',
+    cutoutMeta: cutoutMeta ? { ...cutoutMeta } : null,
+    hasCutout: Boolean(cutoutPreparedImageUrl.value && cutoutMaskUrl.value)
+  }
+}
+
+function recordEditorHistory() {
+  if (historyRestoreDepth > 0) return
+
+  const snapshot = buildEditorSnapshot()
+  const signature = JSON.stringify(snapshot)
+  if (signature === editorStateSignature) return
+
+  editorHistory.snapshot(snapshot)
+  editorStateSignature = signature
+}
+
+async function applyEditorSnapshot(snapshot) {
+  if (!snapshot) return
+
+  historyRestoreDepth += 1
+  try {
+    errorText.value = ''
+    cutoutLoading.value = false
+    cutoutApplyingMask.value = false
+    cutoutProgress.value = 0
+    saveProgress.value = 0
+    saveProgressText.value = '保存处理中...'
+
+    brightness.value = Number(snapshot.brightness) || 0
+    contrast.value = Number(snapshot.contrast) || 0
+    flipX = Number(snapshot.flipX) || 1
+
+    if (snapshot.hasCutout) {
+      destroyCropper()
+      clearCutoutSession()
+      previewUrl.value = snapshot.cutoutPreviewUrl || ''
+      cutoutPreparedImageUrl.value = snapshot.cutoutPreparedImageUrl || ''
+      cutoutMaskUrl.value = snapshot.cutoutMaskUrl || ''
+      cutoutInputImageUrl.value = snapshot.cutoutPreparedImageUrl || snapshot.cutoutPreviewUrl || ''
+      cutoutMeta = snapshot.cutoutMeta ? { ...snapshot.cutoutMeta } : null
+      cutoutPreparedBlob = await readBlobFromObjectUrl(cutoutPreparedImageUrl.value)
+      cutoutCurrentMaskBlob = await readBlobFromObjectUrl(cutoutMaskUrl.value)
+      cutoutOriginalMaskBlob = cutoutCurrentMaskBlob
+      cutoutBrushMode.value = ''
+      cutoutBrushSize.value = 28
+      cutoutHasPendingStrokes.value = false
+      destroyBrushCanvas()
+      await nextTick()
+      if (cutoutBrushMode.value) {
+        drawMaskPreview()
+        syncBrushViewport()
+      }
+    } else {
+      clearCutoutSession()
+      previewUrl.value = snapshot.cutoutPreviewUrl || ''
+      await initCropper()
+      await nextTick()
+      if (cropper && snapshot.cropData) {
+        cropper.setData(snapshot.cropData)
+      }
+      applyPreviewFilter()
+    }
+
+    await nextTick()
+    editorStateSignature = JSON.stringify(buildEditorSnapshot())
+  } finally {
+    historyRestoreDepth = Math.max(0, historyRestoreDepth - 1)
+  }
+}
+
+async function undoEditorChange() {
+  const snapshot = editorHistory.undo()
+  if (!snapshot) return
+  await applyEditorSnapshot(snapshot)
+}
+
+async function redoEditorChange() {
+  const snapshot = editorHistory.redo()
+  if (!snapshot) return
+  await applyEditorSnapshot(snapshot)
 }
 
 function isTouchLikeDevice() {
@@ -429,6 +563,9 @@ async function initCropper() {
     zoomOnWheel: false,
     toggleDragModeOnDblclick: false,
     restore: false,
+    cropend: () => {
+      recordEditorHistory()
+    },
     ready: () => {
       cropper?.setDragMode('move')
     }
@@ -624,20 +761,34 @@ function canvasToBlob(canvas, type = 'image/png', quality = 1) {
 }
 
 function openFromFile(file) {
-  revokePreviewUrl()
+  editorSessionId += 1
+  const sessionId = editorSessionId
+
+  destroyCropper()
   clearCutoutSession()
-  previewUrl.value = URL.createObjectURL(file)
+  releaseEditorSessionUrls()
+  editorHistory.reset()
+  editorStateSignature = ''
+
+  previewUrl.value = createTrackedObjectUrl(file)
   activeTab.value = 'basic'
   whiteBgEnabled.value = true
   whiteBgStyle.value = 'standard'
   brightness.value = 0
   contrast.value = 0
+  cutoutLoading.value = false
+  cutoutApplyingMask.value = false
   cutoutProgress.value = 0
   saveProgress.value = 0
   saveProgressText.value = '保存处理中...'
   errorText.value = ''
   flipX = 1
-  initCropper()
+  void initCropper()
+    .then(() => {
+      if (sessionId !== editorSessionId) return
+      recordEditorHistory()
+    })
+    .catch(() => {})
 }
 
 async function getCurrentBlob() {
@@ -671,16 +822,19 @@ async function getCurrentBlob() {
 
 function rotateLeft() {
   cropper?.rotate(-90)
+  recordEditorHistory()
 }
 
 function rotateRight() {
   cropper?.rotate(90)
+  recordEditorHistory()
 }
 
 function flipHorizontal() {
   if (!cropper) return
   flipX *= -1
   cropper.scaleX(flipX)
+  recordEditorHistory()
 }
 
 function resetCropper() {
@@ -689,6 +843,7 @@ function resetCropper() {
   brightness.value = 0
   contrast.value = 0
   applyPreviewFilter()
+  recordEditorHistory()
 }
 
 function applyPreviewFilter() {
@@ -709,8 +864,7 @@ async function runCutout() {
 
   try {
     const inputBlob = await getCurrentBlob()
-    revokeObjectUrl(cutoutInputImageUrl.value)
-    cutoutInputImageUrl.value = URL.createObjectURL(inputBlob)
+    cutoutInputImageUrl.value = createTrackedObjectUrl(inputBlob)
     const { preparedBlob, maskBlob, meta } = await createCutoutMask(inputBlob, {
       onProgress: ({ percent, text }) => {
         cutoutProgress.value = Number(percent) || 0
@@ -726,12 +880,12 @@ async function runCutout() {
     cutoutCurrentMaskBlob = maskBlob
     cutoutOriginalMaskBlob = maskBlob
     cutoutMeta = meta
-    cutoutPreparedImageUrl.value = URL.createObjectURL(preparedBlob)
-    cutoutMaskUrl.value = URL.createObjectURL(maskBlob)
+    cutoutPreparedImageUrl.value = createTrackedObjectUrl(preparedBlob)
+    cutoutMaskUrl.value = createTrackedObjectUrl(maskBlob)
 
     destroyCropper()
-    revokePreviewUrl()
-    previewUrl.value = URL.createObjectURL(cutoutBlob)
+    previewUrl.value = createTrackedObjectUrl(cutoutBlob)
+    recordEditorHistory()
   } catch (error) {
     errorText.value = error?.message || '抠图失败，请重试'
   } finally {
@@ -821,10 +975,10 @@ async function applyMaskEdits() {
     cutoutCurrentMaskBlob = await canvasToBlob(mergedCanvas, 'image/png', 1)
 
     const cutoutBlob = await applyCutoutMask(cutoutPreparedBlob, cutoutCurrentMaskBlob, cutoutMeta)
-    revokePreviewUrl()
-    previewUrl.value = URL.createObjectURL(cutoutBlob)
+    previewUrl.value = createTrackedObjectUrl(cutoutBlob)
 
     resetBrushStrokes()
+    recordEditorHistory()
   } catch (error) {
     errorText.value = error?.message || '应用画笔失败，请重试'
   } finally {
@@ -864,7 +1018,7 @@ async function handleSave() {
     emit('save', {
       ...exported,
       compressedUnder1MB: exported.underTarget,
-      previewUrl: URL.createObjectURL(exported.file)
+      previewUrl: createTrackedObjectUrl(exported.file)
     })
     emit('update:show', false)
   } catch (error) {
@@ -898,9 +1052,14 @@ watch(
     setPageScrollLock(visible)
 
     if (!visible) {
+      editorSessionId += 1
       window.removeEventListener('resize', handlePreviewResize)
       destroyCropper()
       clearCutoutSession()
+      releaseEditorSessionUrls()
+      editorHistory.reset()
+      editorStateSignature = ''
+      previewUrl.value = ''
       return
     }
 
@@ -968,7 +1127,10 @@ onBeforeUnmount(() => {
   setPageScrollLock(false)
   destroyCropper()
   clearCutoutSession()
-  revokePreviewUrl()
+  releaseEditorSessionUrls()
+  editorHistory.reset()
+  editorStateSignature = ''
+  previewUrl.value = ''
 })
 </script>
 
@@ -1192,6 +1354,14 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.editor-history-bar {
+  margin-top: -2px;
+}
+
+.editor-history-btn {
+  min-height: 38px;
 }
 
 .editor-btn {
