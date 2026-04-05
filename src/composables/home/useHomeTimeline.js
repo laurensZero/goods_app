@@ -96,25 +96,29 @@ function buildTimelineEntries(goodsList) {
   return entries
 }
 
+function compareTimelineEntries(a, b, sortDirection) {
+  const directionFactor = sortDirection === 'asc' ? 1 : -1
+  const timeDelta = (Number(a.timelineSortTime) || 0) - (Number(b.timelineSortTime) || 0)
+  if (timeDelta !== 0) return timeDelta * directionFactor
+
+  const monthDelta = String(a.timelineYearMonth || '').localeCompare(String(b.timelineYearMonth || ''))
+  if (monthDelta !== 0) return monthDelta * directionFactor
+
+  const sourceDelta = String(a.sourceId || a.id || '').localeCompare(String(b.sourceId || b.id || ''))
+  if (sourceDelta !== 0) return sourceDelta * directionFactor
+
+  return String(a.id || '').localeCompare(String(b.id || '')) * directionFactor
+}
+
 export function useHomeTimeline({
   goodsList,
   displayDensity,
+  sortDirection,
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths
 }) {
   const timelineEntries = computed(() => (
-    buildTimelineEntries(goodsList.value).sort((a, b) => {
-      const timeDelta = (Number(b.timelineSortTime) || 0) - (Number(a.timelineSortTime) || 0)
-      if (timeDelta !== 0) return timeDelta
-
-      const monthDelta = String(b.timelineYearMonth || '').localeCompare(String(a.timelineYearMonth || ''))
-      if (monthDelta !== 0) return monthDelta
-
-      const sourceDelta = String(a.sourceId || a.id || '').localeCompare(String(b.sourceId || b.id || ''))
-      if (sourceDelta !== 0) return sourceDelta
-
-      return String(a.id || '').localeCompare(String(b.id || ''))
-    })
+    buildTimelineEntries(goodsList.value).sort((a, b) => compareTimelineEntries(a, b, sortDirection.value))
   ))
 
   const timelineYearGroups = computed(() => {

@@ -788,6 +788,7 @@ const {
 } = useHomeTimeline({
   goodsList,
   displayDensity,
+  sortDirection,
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths
 })
