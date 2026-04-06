@@ -453,6 +453,8 @@ function editSelectedRecord() {
 }
 
 function saveRecord(payload) {
+  const wasEditingExistingRecord = Boolean(editingRecord.value?.id)
+
   if (editingRecord.value?.id) {
     rechargeStore.updateRecord(editingRecord.value.id, payload)
   } else {
@@ -461,6 +463,10 @@ function saveRecord(payload) {
 
   showAddDialog.value = false
   editingRecord.value = null
+
+  if (wasEditingExistingRecord && selectionMode.value) {
+    exitSelectionModeQuiet()
+  }
 }
 
 function deleteSelectedRecords() {
