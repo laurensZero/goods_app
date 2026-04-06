@@ -39,6 +39,15 @@ function writeLocalFlag(key, value) {
   }
 }
 
+function resetCutoutModelState() {
+  hasSuccessfulCutout = false
+  modelReady = false
+  preloadPromise = null
+  localAssetPreparePromise = null
+  writeLocalFlag(MODEL_READY_STORAGE_KEY, false)
+  writeLocalFlag(LOCAL_ASSET_READY_STORAGE_KEY, false)
+}
+
 function normalizeAssetPath(path) {
   return String(path || '').replace(/^\/+/, '')
 }
@@ -484,18 +493,28 @@ async function finalizeCutoutResult(blob, meta) {
 
 export async function clearLocalModelAssets() {
   if (!isNative()) return false
-  const { Filesystem, Directory } = await import('@capacitor/filesystem')
+  let importFailed = false
+
   try {
-    await Filesystem.rmdir({
-      path: 'imgly-assets',
-      directory: Directory.Data,
-      recursive: true
-    })
-    return true
+    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+
+    try {
+      await Filesystem.rmdir({
+        path: 'imgly-assets',
+        directory: Directory.Data,
+        recursive: true
+      })
+    } catch (error) {
+      console.error('清理模型文件失败', error)
+    }
   } catch (error) {
+    importFailed = true
     console.error('清理模型文件失败', error)
-    return false
+  } finally {
+    resetCutoutModelState()
   }
+
+  return !importFailed
 }
 
 export function useImageCutout() {

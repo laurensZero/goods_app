@@ -211,7 +211,13 @@
             <h3 class="info-value">{{ resourceSizeModel }}</h3>
             <p class="info-desc">卸载由于使用“去除背景”功能而下载的模型文件以腾出空间。</p>
             <div class="update-actions" style="margin-top: 1rem;">
-              <button class="dialog-btn dialog-btn--secondary" @click="handleClearCutoutModel">卸载抠图模型</button>
+              <button
+                class="dialog-btn dialog-btn--secondary"
+                :disabled="isClearingCutoutModel"
+                @click="handleClearCutoutModel"
+              >
+                {{ isClearingCutoutModel ? '卸载中...' : '卸载抠图模型' }}
+              </button>
             </div>
           </article>
 
@@ -446,6 +452,7 @@ const feedbackTitle = ref('')
 const feedbackBody = ref('')
 const feedbackError = ref('')
 const isSubmittingFeedback = ref(false)
+const isClearingCutoutModel = ref(false)
 const toastMsg = ref('')
 let toastTimer = null
 let lastToastText = ''
@@ -973,12 +980,23 @@ async function handleClearCutoutModel() {
     showToast('Web版未下载原生模型')
     return
   }
-  const ok = await clearLocalModelAssets()
-  if (ok) {
-    showToast('抠图模型已卸载')
-    refreshResourceSizes()
-  } else {
+  if (isClearingCutoutModel.value) return
+
+  isClearingCutoutModel.value = true
+
+  try {
+    const ok = await clearLocalModelAssets()
+    if (ok) {
+      showToast('抠图模型已卸载')
+    } else {
+      showToast('清理抠图模型失败')
+    }
+  } catch (error) {
+    console.error('[about] clear cutout model failed:', error)
     showToast('清理抠图模型失败')
+  } finally {
+    isClearingCutoutModel.value = false
+    refreshResourceSizes()
   }
 }
 
