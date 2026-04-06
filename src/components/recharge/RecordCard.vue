@@ -60,6 +60,7 @@ const GAME_LABEL_MAP = {
 
 const presetImageMap = (() => {
   const map = new Map()
+  const nameMap = new Map()
   const source = rechargeDistribution || {}
 
   for (const value of Object.values(source)) {
@@ -77,10 +78,15 @@ const presetImageMap = (() => {
       if (!map.has(key)) {
         map.set(key, image)
       }
+
+      const nameKey = buildImageLookupKey(gameLabel, name, 0)
+      if (!nameMap.has(nameKey)) {
+        nameMap.set(nameKey, image)
+      }
     }
   }
 
-  return map
+  return { map, nameMap }
 })()
 
 function normalizeItemName(name) {
@@ -102,7 +108,13 @@ function resolvePresetImage(record) {
   const nameRaw = String(record?.itemName || '').trim()
   const name = normalizeItemName(nameRaw)
   const amount = Number(record?.amount || 0)
-  if (!game || !name || !Number.isFinite(amount) || amount <= 0) return ''
+  if (!game || !name || !Number.isFinite(amount)) return ''
+
+  const nameKey = buildImageLookupKey(game, name, 0)
+
+  if (amount <= 0) {
+    return presetImageMap.nameMap.get(nameKey) || ''
+  }
 
   const candidates = [amount]
   const countMatch = nameRaw.match(/x(\d+)$/iu)
@@ -118,11 +130,11 @@ function resolvePresetImage(record) {
 
   for (const candidateAmount of candidates) {
     const key = buildImageLookupKey(game, name, candidateAmount)
-    const matched = presetImageMap.get(key)
+    const matched = presetImageMap.map.get(key)
     if (matched) return matched
   }
 
-  return ''
+  return presetImageMap.nameMap.get(nameKey) || ''
 }
 
 const props = defineProps({

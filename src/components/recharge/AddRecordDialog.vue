@@ -327,7 +327,7 @@ function onDateConfirm({ selectedValues }) {
 }
 
 function submit() {
-  const amountText = String(form.amount || '').trim()
+  const amountText = String(form.amount ?? '').trim()
 
   if (!amountText) {
     errorText.value = '请输入金额，再继续保存'
