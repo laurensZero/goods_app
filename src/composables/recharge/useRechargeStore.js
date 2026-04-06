@@ -34,7 +34,7 @@ function saveToStorage() {
 
 function isValidRechargeRecord(item) {
   const amount = Number(item?.amount || 0)
-  return Number.isFinite(amount) && amount > 0
+  return Number.isFinite(amount) && amount >= 0
 }
 
 function loadFromStorage() {

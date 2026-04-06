@@ -207,6 +207,13 @@ img {
   overflow: hidden;
 }
 
+.picker-popup.van-popup--center {
+  width: min(720px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
 .picker-popup .van-picker {
   --van-picker-background: var(--app-surface);
   --van-picker-toolbar-height: 52px;
@@ -239,9 +246,12 @@ img {
 body :is(
   .picker-popup.van-popup,
   .picker-popup.van-popup--bottom,
+  .picker-popup.van-popup--center,
   .theme-color-popup.van-popup,
   .theme-color-popup.van-popup--bottom,
+  .theme-color-popup.van-popup--center,
   .batch-edit-popup.van-popup,
+  .batch-edit-popup.van-popup--center,
   .sheet-panel,
   .edit-sheet,
   .dialog,
@@ -426,7 +436,8 @@ html.theme-dark .edit-page .multi-select__option--active .multi-select__check {
 }
 
 html.theme-dark .picker-popup.van-popup,
-html.theme-dark .picker-popup.van-popup--bottom {
+html.theme-dark .picker-popup.van-popup--bottom,
+html.theme-dark .picker-popup.van-popup--center {
   background: rgba(24, 24, 28, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);

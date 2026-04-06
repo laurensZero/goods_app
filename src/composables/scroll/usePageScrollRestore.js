@@ -34,6 +34,22 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
 
     return { top: snapshot.elementTop, source: 'element', snapshot }
   }
+
+  function getScrollSnapshotForPersistence() {
+    const snapshot = getDomScrollSnapshot()
+
+    if (activeScrollSource === 'element') {
+      return { top: snapshot.elementTop, source: 'element', snapshot }
+    }
+
+    if (activeScrollSource === 'window') {
+      return { top: snapshot.windowTop, source: 'window', snapshot }
+    }
+
+    // These routes scroll inside .page-body. When the source is unknown, prefer
+    // the container element so a stale window position does not overwrite it.
+    return { top: snapshot.elementTop, source: 'element', snapshot }
+  }
   function isReloadNavigation() {
     try {
       const navigationEntry = performance.getEntriesByType?.('navigation')?.[0]
@@ -167,7 +183,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   function saveScrollPosition(markPending = true, reason = 'save') {
     // Save both the numeric scrollTop and the source that produced it.
     // Losing the source is what previously caused wrong restores and broken scroll-top behavior.
-    const { top, source } = getPreferredScrollSnapshot()
+    const { top, source } = getScrollSnapshotForPersistence()
     activeScrollSource = source
     const state = {
       top,
@@ -326,7 +342,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   }
 
   function rememberCurrentScrollPosition(reason = 'remember', shouldLog = false) {
-    const { top, source } = getPreferredScrollSnapshot()
+    const { top, source } = getScrollSnapshotForPersistence()
     activeScrollSource = source
     const state = {
       top,

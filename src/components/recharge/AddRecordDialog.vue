@@ -112,6 +112,7 @@
       v-model:show="showDatePicker"
       teleport="body"
       :z-index="2000"
+      :lock-scroll="false"
       :position="datePickerPopupPosition"
       :round="!isTabletViewport"
       :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
@@ -134,6 +135,7 @@ import { DatePicker, Popup } from 'vant'
 import AppSelect from '@/components/common/AppSelect.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
+import { formatDate } from '@/utils/format'
 import { validatePrice } from '@/utils/validate'
 
 const GAME_LABEL_MAP = {
@@ -179,7 +181,7 @@ const form = reactive({
 
 const errorText = ref('')
 const showDatePicker = ref(false)
-const datePickerValue = ref(toDatePickerValue(new Date().toISOString().slice(0, 10)))
+const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 const windowWidth = ref(window.innerWidth)
 const isEditMode = computed(() => Boolean(props.record?.id))
 const isTabletViewport = computed(() => windowWidth.value >= 900)
@@ -272,7 +274,7 @@ function resetForm() {
   form.game = String(target.game || defaultPresetGame?.displayName || props.gameOptions[0] || '').trim()
   form.itemName = String(target.itemName || '').trim()
   form.amount = target.amount == null ? '' : String(target.amount)
-  form.chargedAt = String(target.chargedAt || new Date().toISOString().slice(0, 10)).trim()
+  form.chargedAt = String(target.chargedAt || formatDate(new Date(), 'YYYY-MM-DD')).trim()
   form.note = String(target.note || '').trim()
   form.image = String(target.image || '').trim()
   datePickerValue.value = toDatePickerValue(form.chargedAt)
@@ -325,14 +327,21 @@ function onDateConfirm({ selectedValues }) {
 }
 
 function submit() {
-  const amountValidation = validatePrice(form.amount)
+  const amountText = String(form.amount || '').trim()
 
-  if (!amountValidation.valid) {
-    errorText.value = amountValidation.message
+  if (!amountText) {
+    errorText.value = '请输入金额，再继续保存'
     return
   }
 
-  const amountNumber = Number(form.amount)
+  const amountValidation = validatePrice(amountText)
+
+  if (!amountValidation.valid) {
+    errorText.value = amountValidation.message.replace(/价格/g, '金额')
+    return
+  }
+
+  const amountNumber = Number(amountText)
 
   if (!form.game) {
     errorText.value = '请选择游戏，再继续保存'
@@ -341,11 +350,6 @@ function submit() {
 
   if (!form.itemName) {
     errorText.value = '请输入充值项目名称，再继续保存'
-    return
-  }
-
-  if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
-    errorText.value = '金额必须大于 0，请重新输入'
     return
   }
 
@@ -697,8 +701,8 @@ onBeforeUnmount(() => {
 }
 
 :global(.picker-popup--center.van-popup--center) {
-  width: min(560px, calc(100vw - 64px));
-  max-width: calc(100vw - 64px);
+  width: min(720px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
   border-radius: 24px;
   overflow: hidden;
 }

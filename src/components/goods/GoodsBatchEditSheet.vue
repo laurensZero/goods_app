@@ -181,9 +181,10 @@
     v-model:show="showDatePicker"
     teleport="body"
     :z-index="220"
-    position="bottom"
-    round
-    class="picker-popup"
+    :lock-scroll="false"
+    :position="datePickerPopupPosition"
+    :round="!isTablet"
+    :class="['picker-popup', { 'picker-popup--center': isTablet }]"
   >
     <DatePicker
       v-model="datePickerValue"
@@ -250,6 +251,7 @@ onMounted(() => window.addEventListener('resize', _onResize))
 onBeforeUnmount(() => window.removeEventListener('resize', _onResize))
 const isTablet = computed(() => windowWidth.value >= 900)
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
+const datePickerPopupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 
 const canSubmit = computed(() =>
   Boolean(form.markAsOwned || form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
@@ -837,6 +839,13 @@ defineExpose({
 }
 
 .picker-popup {
+  overflow: hidden;
+}
+
+:global(.picker-popup--center.van-popup--center) {
+  width: min(720px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
+  border-radius: 24px;
   overflow: hidden;
 }
 

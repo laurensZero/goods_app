@@ -1119,8 +1119,8 @@ onBeforeUnmount(() => {
 }
 
 :global(.picker-popup--center.van-popup--center) {
-  width: min(560px, calc(100vw - 64px));
-  max-width: calc(100vw - 64px);
+  width: min(720px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
   border-radius: 24px;
   overflow: hidden;
 }
