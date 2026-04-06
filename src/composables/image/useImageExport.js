@@ -54,6 +54,20 @@ function createCanvas(width, height) {
   return canvas
 }
 
+async function blobHasTransparency(inputBlob) {
+  const canvas = await decodeBlobToCanvas(inputBlob)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] < 255) {
+      return true
+    }
+  }
+
+  return false
+}
+
 async function decodeBlobToCanvas(inputBlob) {
   const bitmap = await createImageBitmap(inputBlob)
   const canvas = createCanvas(bitmap.width, bitmap.height)
@@ -241,6 +255,7 @@ export function useImageExport() {
     const reportProgress = typeof options.onProgress === 'function'
       ? options.onProgress
       : null
+    let preferredFormat = options.preferredFormat || 'image/jpeg'
 
     const emitProgress = (percent, text, stage = 'export') => {
       if (!reportProgress) return
@@ -283,12 +298,18 @@ export function useImageExport() {
         outputHeight: options.whiteBgHeight || 1200,
         fitRatio: options.whiteBgFitRatio || 0.88
       })
+      preferredFormat = 'image/jpeg'
+    } else {
+      emitProgress(30, '检查透明通道...')
+      if (await blobHasTransparency(workingBlob)) {
+        preferredFormat = options.transparentPreferredFormat || 'image/png'
+      }
     }
 
     emitProgress(60, '压缩中...')
     const result = await compressUnderTarget(workingBlob, {
       targetMaxBytes: options.targetMaxBytes || DEFAULT_TARGET_MAX_BYTES,
-      preferredFormat: options.preferredFormat || 'image/jpeg',
+      preferredFormat,
       initialMaxEdge: options.initialMaxEdge || 1600,
       minMaxEdge: options.minMaxEdge || 1024,
       qualityMax: options.qualityMax || 0.92,

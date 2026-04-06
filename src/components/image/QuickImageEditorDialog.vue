@@ -48,7 +48,10 @@
           </div>
 
           <div class="editor-body">
-            <section ref="previewRef" class="editor-preview">
+            <section
+              ref="previewRef"
+              :class="['editor-preview', whiteBgEnabled && 'editor-preview--white']"
+            >
               <img ref="imageRef" :src="previewUrl" alt="编辑预览" class="editor-image" />
               <canvas
                 v-show="cutoutBrushMode"
@@ -224,6 +227,14 @@
                     />
                   </label>
 
+                  <label v-if="whiteBgEnabled" class="editor-slider">
+                    <div class="editor-slider__head">
+                      <span>白底主体占比</span>
+                      <strong>{{ whiteBgScalePercent }}%</strong>
+                    </div>
+                    <input v-model.number="whiteBgScalePercent" type="range" min="40" max="100" step="1" />
+                  </label>
+
                   <p class="editor-hint">保存时自动压缩到 1MB 以内</p>
                 </div>
               </section>
@@ -285,6 +296,7 @@ const saveProgress = ref(0)
 const saveProgressText = ref('保存处理中...')
 const whiteBgEnabled = ref(true)
 const whiteBgStyle = ref('standard')
+const whiteBgScalePercent = ref(88)
 const brightness = ref(0)
 const contrast = ref(0)
 const errorText = ref('')
@@ -774,6 +786,7 @@ function openFromFile(file) {
   activeTab.value = 'basic'
   whiteBgEnabled.value = true
   whiteBgStyle.value = 'standard'
+  whiteBgScalePercent.value = 88
   brightness.value = 0
   contrast.value = 0
   cutoutLoading.value = false
@@ -1003,6 +1016,7 @@ async function handleSave() {
       targetMaxBytes: 1024 * 1024,
       applyWhiteBg: whiteBgEnabled.value,
       whiteBgStyle: whiteBgStyle.value,
+      whiteBgFitRatio: whiteBgScalePercent.value / 100,
       bgColor: '#ffffff',
       brightness: brightness.value,
       contrast: contrast.value,
@@ -1254,6 +1268,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.editor-preview--white {
+  background: #ffffff;
 }
 
 .editor-image {
