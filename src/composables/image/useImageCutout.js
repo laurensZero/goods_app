@@ -493,28 +493,19 @@ async function finalizeCutoutResult(blob, meta) {
 
 export async function clearLocalModelAssets() {
   if (!isNative()) return false
-  let importFailed = false
-
   try {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem')
-
-    try {
-      await Filesystem.rmdir({
-        path: 'imgly-assets',
-        directory: Directory.Data,
-        recursive: true
-      })
-    } catch (error) {
-      console.error('清理模型文件失败', error)
-    }
+    await Filesystem.rmdir({
+      path: 'imgly-assets',
+      directory: Directory.Data,
+      recursive: true
+    })
   } catch (error) {
-    importFailed = true
     console.error('清理模型文件失败', error)
   } finally {
     resetCutoutModelState()
   }
 
-  return !importFailed
+  return true
 }
 
 export function useImageCutout() {
