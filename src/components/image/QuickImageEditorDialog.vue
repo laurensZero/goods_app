@@ -207,6 +207,21 @@
                 <div class="editor-group">
                   <p class="editor-group-title">导出设置</p>
 
+                  <div class="editor-export-preview">
+                    <div class="editor-export-preview__stage">
+                      <img
+                        v-if="previewUrl"
+                        :src="previewUrl"
+                        alt="白底导出预览"
+                        class="editor-export-preview__image"
+                        :style="whiteBgPreviewImageStyle"
+                      />
+                    </div>
+                    <p class="editor-hint">
+                      {{ whiteBgEnabled ? '拖动滑杆可实时预览白底上的主体大小' : '关闭白底时将保留透明底导出' }}
+                    </p>
+                  </div>
+
                   <label class="editor-toggle">
                     <div class="editor-toggle__info">
                       <strong>自动补白底</strong>
@@ -336,6 +351,9 @@ const previewOverlayStyle = computed(() => ({
   top: `${previewRenderBox.value.top}px`,
   width: `${previewRenderBox.value.width}px`,
   height: `${previewRenderBox.value.height}px`
+}))
+const whiteBgPreviewImageStyle = computed(() => ({
+  transform: whiteBgEnabled.value ? `scale(${Math.max(0.4, Number(whiteBgScalePercent.value || 88) / 100)})` : 'scale(1)'
 }))
 
 let cropper = null
@@ -1289,7 +1307,13 @@ onBeforeUnmount(() => {
 
 .editor-preview :deep(.cropper-bg) {
   background-image: none;
-  background-color: transparent;
+  background-color: #ffffff;
+}
+
+.editor-preview :deep(.cropper-canvas),
+.editor-preview :deep(.cropper-wrap-box),
+.editor-preview :deep(.cropper-drag-box) {
+  background-color: #ffffff;
 }
 
 .editor-preview :deep(.cropper-view-box) {
@@ -1539,6 +1563,34 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 600;
   color: var(--app-text-secondary);
+}
+
+.editor-export-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editor-export-preview__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.08);
+  overflow: hidden;
+}
+
+.editor-export-preview__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform 160ms ease;
 }
 
 .editor-hint {
