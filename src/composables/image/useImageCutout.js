@@ -492,7 +492,7 @@ async function finalizeCutoutResult(blob, meta) {
 }
 
 export async function clearLocalModelAssets() {
-  if (!isNative()) return false
+  if (!Capacitor.isNativePlatform()) return false
   try {
     await Filesystem.rmdir({
       path: 'imgly-assets',
