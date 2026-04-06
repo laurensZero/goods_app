@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260406.1",
+    "url": "bundle-20260406.1.zip",
+    "hash": "4ff477bd1f4197f9b3c63c7c89de15fdbc6949cef4c767d0e4e7762a35874a89",
+    "minNativeVersion": "1.5.1",
+    "notes": null,
+    "updateLevel": "force",
+    "publishedAt": "2026-04-06T15:17:45Z"
+  },
+  {
     "version": "20260404.1",
     "url": "bundle-20260404.1.zip",
     "hash": "361cd6f9825f31207f988b2d411afb37461956cf799ef8275e3ac12e3d7eb54d",
@@ -16,14 +25,5 @@
     "notes": "image studio",
     "updateLevel": "prompt",
     "publishedAt": "2026-03-29T12:28:19Z"
-  },
-  {
-    "version": "20260327.5",
-    "url": "bundle-20260327.5.zip",
-    "hash": "eb73639eca632e6c2d258e7398456980ddc9eaf865b2b83294216e2c2243db4b",
-    "minNativeVersion": "1.3.2",
-    "notes": "公告系统\n更新级别",
-    "updateLevel": "prompt",
-    "publishedAt": "2026-03-27T14:15:33Z"
   }
 ]
