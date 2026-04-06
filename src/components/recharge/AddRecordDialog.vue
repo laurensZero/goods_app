@@ -343,6 +343,11 @@ function submit() {
 
   const amountNumber = Number(amountText)
 
+  if (amountNumber < 0) {
+    errorText.value = '金额不能为负数'
+    return
+  }
+
   if (!form.game) {
     errorText.value = '请选择游戏，再继续保存'
     return
