@@ -32,7 +32,10 @@ export async function saveLocalImage(file) {
 
 export async function pickLinkedLocalImage() {
   if (Capacitor.isNativePlatform()) {
-    const file = await pickNativeGalleryImage()
+    const file = await pickNativeGalleryImage().catch(async (error) => {
+      console.warn('[localImage] native gallery picker failed, fallback to file input', error)
+      return await pickBrowserImageFile()
+    })
     if (!file) return null
 
     const uri = await saveLocalImage(file)
@@ -55,6 +58,14 @@ export async function pickLinkedLocalImage() {
 }
 
 async function pickNativeGalleryImage() {
+  try {
+    await FilePicker.requestPermissions({
+      permissions: ['accessMediaLocation', 'readExternalStorage']
+    })
+  } catch (error) {
+    console.warn('[localImage] file picker permission request skipped', error)
+  }
+
   const result = await FilePicker.pickImages({
     limit: 1
   })
