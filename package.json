@@ -21,6 +21,7 @@
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
     "@capawesome-team/capacitor-file-opener": "^8.0.1",
+    "@capawesome/capacitor-file-picker": "^8.0.2",
     "@capgo/capacitor-updater": "^8.45.0",
     "@imgly/background-removal": "^1.7.0",
     "@vueuse/core": "^14.2.1",

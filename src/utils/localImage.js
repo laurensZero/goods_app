@@ -1,5 +1,6 @@
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
+import { FilePicker } from '@capawesome/capacitor-file-picker'
 
 const IMAGE_FOLDER = 'user-images'
 
@@ -31,19 +32,14 @@ export async function saveLocalImage(file) {
 
 export async function pickLinkedLocalImage() {
   if (Capacitor.isNativePlatform()) {
-    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
-    const photo = await Camera.getPhoto({
-      source: CameraSource.Photos,
-      resultType: CameraResultType.Uri,
-      quality: 95
-    })
+    const file = await pickNativeGalleryImage()
+    if (!file) return null
 
-    const uri = String(photo.webPath || photo.path || '').trim()
-    if (!uri) return null
+    const uri = await saveLocalImage(file)
 
     return {
       uri,
-      localPath: String(photo.path || '').trim(),
+      localPath: '',
       storageMode: 'linked-local'
     }
   }
@@ -56,6 +52,42 @@ export async function pickLinkedLocalImage() {
     localPath: '',
     storageMode: 'inline-local'
   }
+}
+
+async function pickNativeGalleryImage() {
+  const result = await FilePicker.pickImages({
+    limit: 1
+  })
+  const picked = result?.files?.[0]
+  if (!picked) return null
+
+  const fileName = String(picked.name || `image_${Date.now()}`)
+  const mimeType = String(picked.mimeType || inferImageMimeFromPath(fileName) || 'image/png')
+
+  if (picked.blob instanceof Blob) {
+    return new File([picked.blob], fileName, {
+      type: mimeType,
+      lastModified: Number(picked.modifiedAt) || Date.now()
+    })
+  }
+
+  if (picked.path) {
+    const response = await fetch(picked.path)
+    if (!response.ok) {
+      throw new Error('读取相册原图失败')
+    }
+    const blob = await response.blob()
+    return new File([blob], fileName, {
+      type: blob.type || mimeType,
+      lastModified: Number(picked.modifiedAt) || Date.now()
+    })
+  }
+
+  if (picked.data) {
+    return dataUrlToFile(`data:${mimeType};base64,${picked.data}`, fileName)
+  }
+
+  throw new Error('未读取到相册图片数据')
 }
 
 export function isLocalImageUri(uri) {
@@ -164,6 +196,27 @@ function fileToDataUrl(file) {
     reader.onload = (event) => resolve(/** @type {string} */ (event.target.result))
     reader.onerror = () => reject(new Error('Image read failed'))
     reader.readAsDataURL(file)
+  })
+}
+
+function dataUrlToFile(dataUrl, fileName = 'image.png') {
+  const match = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/)
+  if (!match) {
+    throw new Error('图片数据格式无效')
+  }
+
+  const mime = match[1]
+  const base64 = match[2]
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return new File([bytes], fileName, {
+    type: mime,
+    lastModified: Date.now()
   })
 }
 
