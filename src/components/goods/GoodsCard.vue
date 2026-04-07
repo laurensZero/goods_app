@@ -27,7 +27,10 @@
     </Transition>
 
     <div class="cover-wrap">
-      <div class="card-cover" :style="!item.coverImage ? { background: coverBg } : {}">
+      <div
+        :class="['card-cover', { 'card-cover--with-image': item.coverImage }]"
+        :style="!item.coverImage ? { background: coverBg } : {}"
+      >
         <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
@@ -398,11 +401,16 @@ const priceText = computed(() => {
   background-position: center;
 }
 
+.card-cover--with-image {
+  padding: 0;
+}
+
 .cover-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  border-radius: 10px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
   backface-visibility: hidden;
   transform: translateZ(0);
 }
@@ -563,6 +571,10 @@ const priceText = computed(() => {
   padding: 4px;
 }
 
+.goods-card--standard .card-cover--with-image {
+  padding: 0;
+}
+
 .goods-card--standard .card-body {
   gap: 4px;
 }
@@ -578,10 +590,6 @@ const priceText = computed(() => {
 
 .goods-card--compact .card-cover {
   padding: 0;
-}
-
-.goods-card--compact .cover-img {
-  border-radius: 0;
 }
 
 .goods-card--compact .card-name {
