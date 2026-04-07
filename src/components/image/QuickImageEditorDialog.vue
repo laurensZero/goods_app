@@ -1326,12 +1326,22 @@ onBeforeUnmount(() => {
 }
 
 .editor-preview :deep(.cropper-point) {
+  position: absolute;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: #ffffff;
   opacity: 1;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+}
+
+.editor-preview :deep(.cropper-point::before) {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 999px;
+  background: transparent;
 }
 
 .editor-mask-preview {
@@ -1710,6 +1720,31 @@ onBeforeUnmount(() => {
     flex: 2;
     min-height: 200px;
     max-height: 55vh;
+  }
+
+  .editor-preview :deep(.cropper-point) {
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  }
+
+  .editor-preview :deep(.cropper-point::before) {
+    inset: -14px;
+  }
+
+  .editor-preview :deep(.cropper-point.point-se),
+  .editor-preview :deep(.cropper-point.point-sw),
+  .editor-preview :deep(.cropper-point.point-ne),
+  .editor-preview :deep(.cropper-point.point-nw) {
+    width: 20px;
+    height: 20px;
+  }
+
+  .editor-preview :deep(.cropper-point.point-se::before),
+  .editor-preview :deep(.cropper-point.point-sw::before),
+  .editor-preview :deep(.cropper-point.point-ne::before),
+  .editor-preview :deep(.cropper-point.point-nw::before) {
+    inset: -16px;
   }
 
   .editor-panels {
