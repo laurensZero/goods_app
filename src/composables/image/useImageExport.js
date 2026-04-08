@@ -224,7 +224,7 @@ export function useImageExport() {
     const canvas = await decodeBlobToCanvas(inputBlob)
     const outputWidth = Math.max(1, Number(options.outputWidth) || 1200)
     const outputHeight = Math.max(1, Number(options.outputHeight) || 1200)
-    const fitRatio = clamp(Number(options.fitRatio) || 0.88, 0.5, 1)
+    const fitRatio = clamp(Number(options.fitRatio) || 0.88, 0.4, 1)
 
     const outputCanvas = createCanvas(outputWidth, outputHeight)
     const ctx = outputCanvas.getContext('2d')
@@ -233,8 +233,7 @@ export function useImageExport() {
 
     const scale = Math.min(
       (outputCanvas.width * fitRatio) / canvas.width,
-      (outputCanvas.height * fitRatio) / canvas.height,
-      1
+      (outputCanvas.height * fitRatio) / canvas.height
     )
 
     const drawWidth = Math.max(1, Math.round(canvas.width * scale))
