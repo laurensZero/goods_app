@@ -737,6 +737,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
   background: rgba(14, 18, 28, 0.38);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -879,6 +880,11 @@
   justify-content: flex-end;
   margin-top: 20px;
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  padding-top: 12px;
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--app-glass-strong) 24%);
 }
 
 .dialog-btn {
@@ -982,6 +988,7 @@
   .overlay {
     align-items: flex-end;
     padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
   .dialog {

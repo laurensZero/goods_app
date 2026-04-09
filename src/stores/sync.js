@@ -108,6 +108,16 @@ function buildComparableRecordMap(items = []) {
   return map
 }
 
+function buildTimestampRecordMap(items = []) {
+  const map = new Map()
+  for (const item of items) {
+    const id = String(item?.id || '').trim()
+    if (!id) continue
+    map.set(id, Number(item?.updatedAt) || 0)
+  }
+  return map
+}
+
 function countComparableRecordDiff(localMap, remoteMap) {
   let remoteOnly = 0
   let localOnly = 0
@@ -149,8 +159,11 @@ function buildGoodsImageReferenceMap(items = []) {
       const uri = String(imageEntry?.uri || '').trim()
       if (!imageId || !uri) continue
 
+      const storageMode = inferGoodsImageStorageMode(uri, imageEntry?.storageMode)
+      if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
+
       const gistFileName = String(imageEntry?.gistFileName || parseGistImageUri(uri) || '').trim()
-      const version = gistFileName || `${getItemTimestamp(item)}::${uri}`
+      const version = gistFileName || `${getItemTimestamp(item)}::${imageId}`
       map.set(`goods:${itemId}:${imageId}`, version)
     }
   }
@@ -166,8 +179,11 @@ function buildEventImageReferenceMap(events = []) {
     const coverImage = String(event?.coverImage || '').trim()
     if (!eventId || !coverImage) continue
 
+    const storageMode = inferGoodsImageStorageMode(coverImage, event?.coverImageData?.storageMode)
+    if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
+
     const gistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(coverImage) || '').trim()
-    const version = gistFileName || `${Number(event?.updatedAt) || 0}::${coverImage}`
+    const version = gistFileName || `${Number(event?.updatedAt) || 0}::cover`
     map.set(`event:${eventId}`, version)
   }
 
@@ -1791,8 +1807,8 @@ export const useSyncStore = defineStore('sync', () => {
       buildComparableRecordMap(remoteRechargeData.recharge || [])
     )
     const eventDiff = countComparableRecordDiff(
-      buildComparableRecordMap(localEventData.events || []),
-      buildComparableRecordMap(remoteEventData.events || [])
+      buildTimestampRecordMap(localEventData.events || []),
+      buildTimestampRecordMap(remoteEventData.events || [])
     )
     const imageDiff = countComparableRecordDiff(
       buildImageReferenceMap({
