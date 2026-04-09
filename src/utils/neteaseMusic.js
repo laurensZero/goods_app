@@ -4,6 +4,7 @@ const NETEASE_WEB_BASE = 'https://music.163.com'
 const NETEASE_REFERER = `${NETEASE_WEB_BASE}/`
 const WEB_PROXY_PREFIX = '/netease-api'
 const NETEASE_COVER_SIZE = 720
+const NETEASE_ANDROID_PACKAGES = ['com.netease.cloudmusic', 'com.hihonor.cloudmusic']
 const REQUEST_HEADERS = {
   Referer: NETEASE_REFERER
 }
@@ -82,6 +83,47 @@ function ensureSongList(payload) {
       : []
 
   return songs.map(mapSongToTrack).filter((item) => item.title)
+}
+
+function parseLyricTimeTag(rawTag) {
+  const match = String(rawTag || '').trim().match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$/)
+  if (!match) return null
+
+  const minutes = Number(match[1]) || 0
+  const seconds = Number(match[2]) || 0
+  const fractionRaw = String(match[3] || '')
+  const fraction = fractionRaw
+    ? Number(fractionRaw.padEnd(3, '0').slice(0, 3)) || 0
+    : 0
+
+  return (minutes * 60 * 1000) + (seconds * 1000) + fraction
+}
+
+function parseLrcText(text) {
+  const lines = String(text || '').split(/\r?\n/)
+  const parsed = []
+
+  for (const rawLine of lines) {
+    const line = String(rawLine || '')
+    const timeTags = [...line.matchAll(/\[(\d{1,2}:\d{2}(?:\.\d{1,3})?)\]/g)]
+    if (!timeTags.length) continue
+
+    const content = line.replace(/\[(\d{1,2}:\d{2}(?:\.\d{1,3})?)\]/g, '').trim()
+    if (!content) continue
+
+    for (const tag of timeTags) {
+      const timeMs = parseLyricTimeTag(tag[1])
+      if (timeMs == null) continue
+      parsed.push({
+        timeMs,
+        text: content
+      })
+    }
+  }
+
+  return parsed
+    .sort((left, right) => left.timeMs - right.timeMs)
+    .filter((line, index, list) => index === 0 || line.timeMs !== list[index - 1].timeMs || line.text !== list[index - 1].text)
 }
 
 function chunkArray(list, size) {
@@ -239,9 +281,50 @@ export async function fetchNeteasePlayableUrl(songId) {
   }
 }
 
+export async function fetchNeteaseLyrics(songId) {
+  const normalizedId = String(songId || '').trim()
+  if (!normalizedId) {
+    throw new Error('缺少网易云歌曲 ID')
+  }
+
+  const query = new URLSearchParams({
+    id: normalizedId,
+    lv: '-1',
+    kv: '-1',
+    tv: '-1',
+    yv: '-1',
+    rv: '-1'
+  })
+  const payload = await requestJson(`/api/song/lyric?${query.toString()}`)
+  if (Number(payload?.code) !== 200) {
+    throw new Error(payload?.message || '网易云歌词读取失败')
+  }
+
+  const rawLyric = String(payload?.lrc?.lyric || '').trim()
+  const lines = parseLrcText(rawLyric)
+
+  return {
+    rawLyric,
+    lines,
+    hasLyric: lines.length > 0
+  }
+}
+
 export function buildNeteaseSongWebUrl(songId) {
   const normalizedId = String(songId || '').trim()
   return normalizedId ? `${NETEASE_WEB_BASE}/song?id=${normalizedId}` : ''
+}
+
+function buildNeteaseSongAppUrl(songId, packageName = '') {
+  const normalizedId = String(songId || '').trim()
+  const normalizedPackageName = String(packageName || '').trim()
+  if (!normalizedId) return ''
+
+  if (normalizedPackageName) {
+    return `intent://song/${normalizedId}#Intent;scheme=orpheus;package=${normalizedPackageName};end`
+  }
+
+  return `orpheus://song/${normalizedId}`
 }
 
 export async function openNeteaseSong(songId) {
@@ -250,8 +333,13 @@ export async function openNeteaseSong(songId) {
     throw new Error('缺少网易云歌曲 ID')
   }
 
-  const appUrl = `orpheus://song/${normalizedId}`
   const webUrl = buildNeteaseSongWebUrl(normalizedId)
+  const launchUrls = Capacitor.getPlatform() === 'android'
+    ? [
+        ...NETEASE_ANDROID_PACKAGES.map((packageName) => buildNeteaseSongAppUrl(normalizedId, packageName)),
+        buildNeteaseSongAppUrl(normalizedId)
+      ]
+    : [buildNeteaseSongAppUrl(normalizedId)]
 
   if (!Capacitor.isNativePlatform()) {
     window.open(webUrl, '_blank', 'noopener,noreferrer')
@@ -259,21 +347,51 @@ export async function openNeteaseSong(songId) {
   }
 
   let handled = false
+  let launchTimer = 0
+  let fallbackTimer = 0
+
   const cancelFallback = () => {
     handled = true
+    if (launchTimer) {
+      window.clearTimeout(launchTimer)
+      launchTimer = 0
+    }
+    if (fallbackTimer) {
+      window.clearTimeout(fallbackTimer)
+      fallbackTimer = 0
+    }
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   }
   const handleVisibilityChange = () => {
     if (document.hidden) cancelFallback()
   }
+  const tryLaunchAt = (index) => {
+    if (handled) return
 
-  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
-  window.location.href = appUrl
-
-  window.setTimeout(() => {
-    if (!handled) {
+    const targetUrl = launchUrls[index]
+    if (!targetUrl) {
       cancelFallback()
       window.open(webUrl, '_blank', 'noopener,noreferrer')
+      return
     }
-  }, 900)
+
+    window.location.href = targetUrl
+
+    if (index < launchUrls.length - 1) {
+      launchTimer = window.setTimeout(() => {
+        tryLaunchAt(index + 1)
+      }, 320)
+      return
+    }
+
+    fallbackTimer = window.setTimeout(() => {
+      if (!handled) {
+        cancelFallback()
+        window.open(webUrl, '_blank', 'noopener,noreferrer')
+      }
+    }, 900)
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+  tryLaunchAt(0)
 }

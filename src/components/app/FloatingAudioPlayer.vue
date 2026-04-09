@@ -26,6 +26,8 @@
           </button>
         </div>
 
+        <p v-if="currentLyricLine" class="floating-player__lyric">{{ currentLyricLine }}</p>
+
         <div class="floating-player__progress">
           <input
             class="floating-player__slider"
@@ -109,6 +111,7 @@ const isLoading = computed(() => playerStore.isLoading)
 const lastError = computed(() => playerStore.lastError)
 const hasPrevious = computed(() => playerStore.hasPrevious)
 const hasNext = computed(() => playerStore.hasNext)
+const currentLyricLine = computed(() => playerStore.currentLyricLine)
 const effectiveCurrentTime = computed(() => (isDragging.value ? previewTime.value : (playerStore.currentTime || 0)))
 const progressPercent = computed(() => {
   const total = Number(playerStore.duration) || 0
@@ -387,6 +390,16 @@ onBeforeUnmount(() => {
 
 .floating-player__progress {
   margin-top: 10px;
+}
+
+.floating-player__lyric {
+  margin-top: 10px;
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .floating-player__slider {

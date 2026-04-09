@@ -98,6 +98,90 @@ function countWishlistSplit(items = []) {
   return { collection, wishlist }
 }
 
+function buildComparableRecordMap(items = []) {
+  const map = new Map()
+  for (const item of items) {
+    const id = String(item?.id || '').trim()
+    if (!id) continue
+    map.set(id, JSON.stringify(sortObjectKeys(item)))
+  }
+  return map
+}
+
+function countComparableRecordDiff(localMap, remoteMap) {
+  let remoteOnly = 0
+  let localOnly = 0
+  let updated = 0
+
+  for (const [id, remoteValue] of remoteMap.entries()) {
+    if (!localMap.has(id)) {
+      remoteOnly += 1
+      continue
+    }
+    if (localMap.get(id) !== remoteValue) {
+      updated += 1
+    }
+  }
+
+  for (const id of localMap.keys()) {
+    if (!remoteMap.has(id)) {
+      localOnly += 1
+    }
+  }
+
+  return {
+    remoteTotal: remoteMap.size,
+    remoteOnly,
+    localOnly,
+    updated
+  }
+}
+
+function buildGoodsImageReferenceMap(items = []) {
+  const map = new Map()
+
+  for (const item of items) {
+    const itemId = String(item?.id || '').trim()
+    if (!itemId) continue
+
+    for (const imageEntry of normalizeGoodsImageList(item?.images)) {
+      const imageId = String(imageEntry?.id || '').trim()
+      const uri = String(imageEntry?.uri || '').trim()
+      if (!imageId || !uri) continue
+
+      const gistFileName = String(imageEntry?.gistFileName || parseGistImageUri(uri) || '').trim()
+      const version = gistFileName || `${getItemTimestamp(item)}::${uri}`
+      map.set(`goods:${itemId}:${imageId}`, version)
+    }
+  }
+
+  return map
+}
+
+function buildEventImageReferenceMap(events = []) {
+  const map = new Map()
+
+  for (const event of events) {
+    const eventId = String(event?.id || '').trim()
+    const coverImage = String(event?.coverImage || '').trim()
+    if (!eventId || !coverImage) continue
+
+    const gistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(coverImage) || '').trim()
+    const version = gistFileName || `${Number(event?.updatedAt) || 0}::${coverImage}`
+    map.set(`event:${eventId}`, version)
+  }
+
+  return map
+}
+
+function buildImageReferenceMap({ goods = [], trash = [], events = [] } = {}) {
+  return new Map([
+    ...buildGoodsImageReferenceMap(goods).entries(),
+    ...buildGoodsImageReferenceMap(trash).entries(),
+    ...buildEventImageReferenceMap(events).entries()
+  ])
+}
+
 function resolveGoodsTrashMaps(goodsList = [], trashList = []) {
   const goodsMap = new Map(goodsList.map((item) => [item.id, item]))
   const trashMap = new Map(trashList.map((item) => [item.id, item]))
@@ -1595,6 +1679,8 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function buildPullConflictData(gist, remoteManifest) {
     const goodsStore = useGoodsStore()
+    const localRechargeData = buildRechargeSyncData({ incremental: false })
+    const localEventData = buildEventSyncData()
     const remoteData = await readJsonFromGistWithTrace({
       title: '读取 data.json',
       gist,
@@ -1609,6 +1695,37 @@ export const useSyncStore = defineStore('sync', () => {
         return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}`
       }
     })
+    const existingRechargeGist = await getExistingRechargeGist()
+    const existingEventGist = await getExistingEventGist()
+    const remoteRechargeData = await readJsonFromGistWithTrace({
+      title: '预检读取 recharge-data.json',
+      gist,
+      fileName: RECHARGE_DATA_FILENAME,
+      startDetail: '读取充值记录',
+      category: 'pull',
+      fallbackGist: existingRechargeGist,
+      fallbackFileName: RECHARGE_DATA_FILENAME,
+      successDetail: (parsed, source) => {
+        if (!parsed) return '未找到充值数据'
+        const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+        const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+        return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
+      }
+    }) || { recharge: [], rechargeTrash: [] }
+    const remoteEventData = await readJsonFromGistWithTrace({
+      title: '预检读取 events-data.json',
+      gist,
+      fileName: EVENT_DATA_FILENAME,
+      startDetail: '读取活动数据',
+      category: 'pull',
+      fallbackGist: existingEventGist,
+      fallbackFileName: EVENT_DATA_FILENAME,
+      successDetail: (parsed, source) => {
+        if (!parsed) return '未找到活动数据'
+        const events = Array.isArray(parsed.events) ? parsed.events : []
+        return `${source}，活动 ${events.length} 场`
+      }
+    }) || { events: [] }
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
     let remoteGoods = []
@@ -1669,6 +1786,26 @@ export const useSyncStore = defineStore('sync', () => {
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
+    const rechargeDiff = countComparableRecordDiff(
+      buildComparableRecordMap(localRechargeData.recharge || []),
+      buildComparableRecordMap(remoteRechargeData.recharge || [])
+    )
+    const eventDiff = countComparableRecordDiff(
+      buildComparableRecordMap(localEventData.events || []),
+      buildComparableRecordMap(remoteEventData.events || [])
+    )
+    const imageDiff = countComparableRecordDiff(
+      buildImageReferenceMap({
+        goods: [...resolvedLocal.goodsMap.values()],
+        trash: [...resolvedLocal.trashMap.values()],
+        events: localEventData.events || []
+      }),
+      buildImageReferenceMap({
+        goods: remoteGoods,
+        trash: remoteTrash,
+        events: remoteEventData.events || []
+      })
+    )
 
     return {
       remoteTime: remoteManifest?.lastSyncAt || '',
@@ -1684,6 +1821,18 @@ export const useSyncStore = defineStore('sync', () => {
       remoteOnlyCollection,
       remoteOnlyWishlist,
       remoteOnlyTrash,
+      remoteRechargeCount: rechargeDiff.remoteTotal,
+      remoteOnlyRecharge: rechargeDiff.remoteOnly,
+      updatedRecharge: rechargeDiff.updated,
+      localOnlyRecharge: rechargeDiff.localOnly,
+      remoteEventCount: eventDiff.remoteTotal,
+      remoteOnlyEvents: eventDiff.remoteOnly,
+      updatedEvents: eventDiff.updated,
+      localOnlyEvents: eventDiff.localOnly,
+      remoteImageCount: imageDiff.remoteTotal,
+      remoteOnlyImages: imageDiff.remoteOnly,
+      updatedImages: imageDiff.updated,
+      localOnlyImages: imageDiff.localOnly,
       localOnlyGoods,
       localOnlyCollection,
       localOnlyWishlist,

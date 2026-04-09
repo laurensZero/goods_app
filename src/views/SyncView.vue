@@ -408,38 +408,40 @@
 
       <Transition name="overlay-fade">
         <div v-if="showPullConflict" class="overlay">
-          <div class="dialog dialog--wide">
-            <h3 class="dialog-title">检测到远端数据</h3>
-            <div class="conflict-info">
-              <div class="conflict-row">
-                <span class="conflict-label">来源设备</span>
-                <span class="conflict-value">{{ pullConflictData.remoteDevice }}</span>
+          <div class="dialog dialog--wide dialog--scrollable">
+            <div class="dialog-scroll">
+              <h3 class="dialog-title">检测到远端数据</h3>
+              <div class="conflict-info">
+                <div class="conflict-row">
+                  <span class="conflict-label">来源设备</span>
+                  <span class="conflict-value">{{ pullConflictData.remoteDevice }}</span>
+                </div>
+                <div class="conflict-row">
+                  <span class="conflict-label">远端时间</span>
+                  <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
+                </div>
+                <div class="conflict-row">
+                  <span class="conflict-label">远端总数</span>
+                  <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站，{{ pullConflictData.remoteRechargeCount || 0 }} 充值，{{ pullConflictData.remoteEventCount || 0 }} 活动，{{ pullConflictData.remoteImageCount || 0 }} 图片</span>
+                </div>
               </div>
-              <div class="conflict-row">
-                <span class="conflict-label">远端时间</span>
-                <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
+              <div class="conflict-diff">
+                <p class="conflict-diff-title">差异</p>
+                <div class="conflict-diff-row">
+                  <span class="conflict-diff-label">远端新增</span>
+                  <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站，+{{ pullConflictData.remoteOnlyRecharge || 0 }} 充值，+{{ pullConflictData.remoteOnlyEvents || 0 }} 活动，+{{ pullConflictData.remoteOnlyImages || 0 }} 图片</span>
+                </div>
+                <div class="conflict-diff-row">
+                  <span class="conflict-diff-label">远端修改</span>
+                  <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictData.updatedGoods || 0 }} 条商品，{{ pullConflictData.updatedRecharge || 0 }} 条充值，{{ pullConflictData.updatedEvents || 0 }} 场活动，{{ pullConflictData.updatedImages || 0 }} 张图片</span>
+                </div>
+                <div class="conflict-diff-row">
+                  <span class="conflict-diff-label">本地独有</span>
+                  <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站，{{ pullConflictData.localOnlyRecharge || 0 }} 充值，{{ pullConflictData.localOnlyEvents || 0 }} 活动，{{ pullConflictData.localOnlyImages || 0 }} 图片</span>
+                </div>
               </div>
-              <div class="conflict-row">
-                <span class="conflict-label">远端总数</span>
-                <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站</span>
-              </div>
+              <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
             </div>
-            <div class="conflict-diff">
-              <p class="conflict-diff-title">差异</p>
-              <div class="conflict-diff-row">
-                <span class="conflict-diff-label">远端新增</span>
-                <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站</span>
-              </div>
-              <div v-if="pullConflictData.updatedGoods > 0" class="conflict-diff-row">
-                <span class="conflict-diff-label">远端修改</span>
-                <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictData.updatedGoods }} 条</span>
-              </div>
-              <div class="conflict-diff-row">
-                <span class="conflict-diff-label">本地独有</span>
-                <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站</span>
-              </div>
-            </div>
-            <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
@@ -452,24 +454,26 @@
 
       <Transition name="overlay-fade">
         <div v-if="showSyncConflict" class="overlay">
-          <div class="dialog">
-            <h3 class="dialog-title">检测到冲突</h3>
-            <p class="conflict-desc">远端存在其他设备更新的数据。下面会同时显示本地上次同步时间和本地最近修改时间。</p>
-            <div class="conflict-info">
-              <div class="conflict-row">
-                <span class="conflict-label">远端时间</span>
-                <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
+          <div class="dialog dialog--scrollable">
+            <div class="dialog-scroll">
+              <h3 class="dialog-title">检测到冲突</h3>
+              <p class="conflict-desc">远端存在其他设备更新的数据。下面会同时显示本地上次同步时间和本地最近修改时间。</p>
+              <div class="conflict-info">
+                <div class="conflict-row">
+                  <span class="conflict-label">远端时间</span>
+                  <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
+                </div>
+                <div class="conflict-row">
+                  <span class="conflict-label">本地上次同步</span>
+                  <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || '从未同步' }}</span>
+                </div>
+                <div class="conflict-row">
+                  <span class="conflict-label">本地最近修改</span>
+                  <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || '无本地改动' }}</span>
+                </div>
               </div>
-              <div class="conflict-row">
-                <span class="conflict-label">本地上次同步</span>
-                <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || '从未同步' }}</span>
-              </div>
-              <div class="conflict-row">
-                <span class="conflict-label">本地最近修改</span>
-                <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || '无本地改动' }}</span>
-              </div>
+              <p class="conflict-desc">请选择要保留哪一边的数据：</p>
             </div>
-            <p class="conflict-desc">请选择要保留哪一边的数据：</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(false)">
                 上传本地

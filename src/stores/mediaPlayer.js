@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
+import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
 
 function getTrackIdentity(track = {}) {
   return String(track?.id || track?.neteaseSongId || '').trim()
@@ -20,6 +20,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const lastError = ref('')
   const miniVisible = ref(true)
   const playableUrlCache = new Map()
+  const lyricsCache = new Map()
+  const lyricsStatus = ref('idle')
+  const lyricsLines = ref([])
   let audio = null
   let rafId = 0
 
@@ -32,6 +35,26 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const progressPercent = computed(() => `${(progressRatio.value * 100).toFixed(3)}%`)
   const hasPrevious = computed(() => currentIndex.value > 0)
   const hasNext = computed(() => currentIndex.value >= 0 && currentIndex.value < queue.value.length - 1)
+  const currentLyricLine = computed(() => {
+    const nowMs = Math.max(0, Math.round((currentTime.value || 0) * 1000))
+    const lines = Array.isArray(lyricsLines.value) ? lyricsLines.value : []
+    if (!lines.length) {
+      return lyricsStatus.value === 'loading' ? '歌词加载中...' : ''
+    }
+
+    let activeText = ''
+    for (const line of lines) {
+      if ((Number(line?.timeMs) || 0) > nowMs) break
+      activeText = String(line?.text || '').trim()
+    }
+
+    return activeText || String(lines[0]?.text || '').trim()
+  })
+
+  function resetLyrics() {
+    lyricsStatus.value = 'idle'
+    lyricsLines.value = []
+  }
 
   function ensureAudio() {
     if (audio || typeof Audio === 'undefined') return audio
@@ -127,6 +150,35 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     return result.url
   }
 
+  async function resolveLyrics(track) {
+    const trackId = getTrackIdentity(track)
+    const songId = String(track?.neteaseSongId || '').trim()
+    if (!trackId || !songId) {
+      resetLyrics()
+      return
+    }
+
+    if (lyricsCache.has(trackId)) {
+      lyricsLines.value = lyricsCache.get(trackId)
+      lyricsStatus.value = lyricsLines.value.length ? 'ready' : 'empty'
+      return
+    }
+
+    lyricsStatus.value = 'loading'
+    try {
+      const result = await fetchNeteaseLyrics(songId)
+      const nextLines = Array.isArray(result?.lines) ? result.lines : []
+      lyricsCache.set(trackId, nextLines)
+      if (currentTrackId.value !== trackId) return
+      lyricsLines.value = nextLines
+      lyricsStatus.value = nextLines.length ? 'ready' : 'empty'
+    } catch {
+      if (currentTrackId.value !== trackId) return
+      lyricsLines.value = []
+      lyricsStatus.value = 'error'
+    }
+  }
+
   async function playAtIndex(index) {
     const targetAudio = ensureAudio()
     const track = queue.value[index]
@@ -134,6 +186,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     isLoading.value = true
     lastError.value = ''
+    resetLyrics()
 
     try {
       const url = await resolvePlayableUrl(track)
@@ -143,6 +196,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       await targetAudio.play()
       currentIndex.value = index
       miniVisible.value = true
+      void resolveLyrics(track)
     } catch (error) {
       lastError.value = error?.message || '内嵌播放失败'
       throw error
@@ -242,6 +296,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     isPlaying.value = false
     isLoading.value = false
     stopProgressLoop()
+    resetLyrics()
   }
 
   function closeMiniPlayer() {
@@ -281,6 +336,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     duration,
     progressRatio,
     progressPercent,
+    lyricsStatus,
+    lyricsLines,
+    currentLyricLine,
     lastError,
     miniVisible,
     hasPrevious,

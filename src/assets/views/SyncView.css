@@ -753,8 +753,21 @@
   -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
+.dialog--scrollable {
+  display: flex;
+  flex-direction: column;
+  max-height: min(calc(100dvh - 48px), 720px);
+}
+
 .dialog--wide {
   width: min(100%, 520px);
+}
+
+.dialog-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-right: -6px;
 }
 
 .dialog-title {
@@ -849,6 +862,7 @@
   font-size: 13px;
   font-weight: 500;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .conflict-diff-value--add {
@@ -864,6 +878,7 @@
   gap: 10px;
   justify-content: flex-end;
   margin-top: 20px;
+  flex-shrink: 0;
 }
 
 .dialog-btn {
@@ -964,6 +979,20 @@
 }
 
 @media (max-width: 767px) {
+  .overlay {
+    align-items: flex-end;
+    padding: 16px;
+  }
+
+  .dialog {
+    width: min(100%, 100%);
+    padding: 20px;
+  }
+
+  .dialog--scrollable {
+    max-height: min(calc(100dvh - 32px), 85vh);
+  }
+
   .hero-head,
   .panel-head,
   .log-group-head,
