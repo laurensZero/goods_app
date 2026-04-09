@@ -430,16 +430,37 @@ async function canOpenAnyNeteaseAndroidPackage() {
   return false
 }
 
-async function tryOpenNeteaseNative(songId) {
+function getPreferredNeteaseAndroidPackages(targetApp) {
+  if (targetApp === 'honor') {
+    return ['com.hihonor.cloudmusic', 'com.netease.cloudmusic']
+  }
+  if (targetApp === 'official') {
+    return ['com.netease.cloudmusic', 'com.hihonor.cloudmusic']
+  }
+  return NETEASE_ANDROID_PACKAGES
+}
+
+async function tryOpenNeteaseNative(songId, targetApp = 'ask') {
   const launchUrls = buildNeteaseSongAppLaunchUrls(songId)
   if (!launchUrls.length) return false
 
-  for (const launchUrl of launchUrls) {
+  const packageNames = getPreferredNeteaseAndroidPackages(targetApp)
+
+  for (const packageName of packageNames) {
     try {
-      const result = await AppLauncher.openUrl({ url: launchUrl })
-      if (result?.completed) return true
+      const installed = await AppLauncher.canOpenUrl({ url: packageName })
+      if (!installed?.value) continue
     } catch {
-      // ignore and continue trying alternative deeplinks
+      continue
+    }
+
+    for (const launchUrl of launchUrls) {
+      try {
+        const result = await AppLauncher.openUrl({ url: launchUrl })
+        if (result?.completed) return true
+      } catch {
+        // ignore and continue trying alternative deeplinks
+      }
     }
   }
 
@@ -460,12 +481,13 @@ export async function openNeteaseSong(songId) {
   }
 
   if (Capacitor.getPlatform() === 'android') {
-    const openedViaNativeBridge = await openNeteaseSongNative(normalizedId)
+    const targetApp = 'ask'
+    const openedViaNativeBridge = await openNeteaseSongNative(normalizedId, targetApp)
     if (openedViaNativeBridge) return
 
     const hasInstalledNetease = await canOpenAnyNeteaseAndroidPackage()
     if (hasInstalledNetease) {
-      const opened = await tryOpenNeteaseNative(normalizedId)
+      const opened = await tryOpenNeteaseNative(normalizedId, targetApp)
       if (opened) return
     }
   } else {
