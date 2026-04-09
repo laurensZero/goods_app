@@ -112,20 +112,14 @@ public class NativeMusicBridgePlugin extends Plugin {
                 "honororpheus://song/" + songId,
                 "orpheus://song/" + songId,
                 "orpheus://song?id=" + songId,
-                "orpheus://play?songid=" + songId,
-                "https://music.163.com/song?id=" + songId,
-                "https://music.163.com/#/song?id=" + songId,
-                "https://y.music.163.com/m/song?id=" + songId
+                "orpheus://play?songid=" + songId
             };
         }
 
         return new String[] {
             "orpheus://song/" + songId,
             "orpheus://song?id=" + songId,
-            "orpheus://play?songid=" + songId,
-            "https://music.163.com/song?id=" + songId,
-            "https://music.163.com/#/song?id=" + songId,
-            "https://y.music.163.com/m/song?id=" + songId
+            "orpheus://play?songid=" + songId
         };
     }
 
