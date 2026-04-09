@@ -25,6 +25,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const lyricsLines = ref([])
   let audio = null
   let rafId = 0
+  let playRequestToken = 0
 
   const currentTrack = computed(() => queue.value[currentIndex.value] || null)
   const currentTrackId = computed(() => getTrackIdentity(currentTrack.value))
@@ -183,25 +184,32 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const targetAudio = ensureAudio()
     const track = queue.value[index]
     if (!targetAudio || !track) return
+    const trackId = getTrackIdentity(track)
+    const requestToken = ++playRequestToken
 
     isLoading.value = true
     lastError.value = ''
     resetLyrics()
+    currentIndex.value = index
 
     try {
       const url = await resolvePlayableUrl(track)
+      if (requestToken !== playRequestToken || getTrackIdentity(queue.value[index]) !== trackId) return
       if (targetAudio.src !== url) {
         targetAudio.src = url
       }
       await targetAudio.play()
-      currentIndex.value = index
+      if (requestToken !== playRequestToken) return
       miniVisible.value = true
       void resolveLyrics(track)
     } catch (error) {
+      if (requestToken !== playRequestToken) return
       lastError.value = error?.message || '内嵌播放失败'
       throw error
     } finally {
-      isLoading.value = false
+      if (requestToken === playRequestToken) {
+        isLoading.value = false
+      }
     }
   }
 
@@ -240,6 +248,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const targetAudio = ensureAudio()
     const identity = getTrackIdentity(track)
     if (!targetAudio || !identity) return
+
+    if (isLoading.value && currentTrackId.value === identity) {
+      return
+    }
 
     if (currentTrackId.value === identity && !targetAudio.paused) {
       targetAudio.pause()
@@ -288,6 +300,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
   function stopPlayback() {
     if (!audio) return
+    playRequestToken += 1
     audio.pause()
     audio.removeAttribute('src')
     audio.load()

@@ -21,6 +21,7 @@ import {
 } from '@/utils/goodsImages'
 import { restoreLocalImageFromDataUrl } from '@/utils/localImage'
 import { normalizeCharacterName } from '@/stores/presets'
+import { normalizeTracks } from '@/utils/tracks'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
@@ -465,6 +466,7 @@ export const useGoodsStore = defineStore('goods', () => {
       unitCharacterList,
       coverImage,
       images,
+      tracks: normalizeTracks(data.tracks),
       note: stripVariantFromNote(data.note || data.notes || ''),
       quantity: Math.max(1, Number(data.quantity) || 1),
       updatedAt: data.updatedAt || 0

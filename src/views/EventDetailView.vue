@@ -462,7 +462,7 @@ async function handleDelete() {
 
 .hero-price__amount {
   color: var(--app-text);
-  font-size: 42px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.05em;
 }

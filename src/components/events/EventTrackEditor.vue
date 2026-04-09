@@ -2,10 +2,10 @@
   <div class="track-editor">
     <div class="track-editor__hero">
       <div>
-        <p class="track-editor__eyebrow">Concert Setlist</p>
-        <h3 class="track-editor__title">演唱会曲目</h3>
+        <p class="track-editor__eyebrow">{{ eyebrow }}</p>
+        <h3 class="track-editor__title">{{ title }}</h3>
       </div>
-      <button type="button" class="track-editor__add" @click="addManualTrack">手动添加曲目</button>
+      <button type="button" class="track-editor__add" @click="addManualTrack">{{ addButtonText }}</button>
     </div>
 
     <div class="track-editor__panel">
@@ -39,12 +39,12 @@
         </div>
 
         <div class="track-editor__import-card">
-          <label class="track-editor__label">网易云歌单导入</label>
+          <label class="track-editor__label">网易云歌单/专辑导入</label>
           <div class="track-editor__input-row">
             <input
               v-model="playlistInput"
               type="text"
-              placeholder="粘贴歌单链接或歌单 ID"
+              placeholder="粘贴歌单/专辑链接或对应 ID"
               @keydown.enter.prevent="importPlaylist"
             />
             <button type="button" class="track-editor__action" :disabled="playlistLoading" @click="importPlaylist">
@@ -94,7 +94,7 @@
       </div>
 
       <div v-else class="track-editor__empty">
-        <p>还没有曲目。可以手动添加，也可以从网易云搜索或导入歌单。</p>
+        <p>{{ emptyText }}</p>
       </div>
     </div>
   </div>
@@ -102,12 +102,28 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { fetchNeteasePlaylistTracks, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
+import { fetchNeteaseCollectionTracks, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
 
 const props = defineProps({
   modelValue: {
     type: Array,
     default: () => []
+  },
+  eyebrow: {
+    type: String,
+    default: 'Concert Setlist'
+  },
+  title: {
+    type: String,
+    default: '演唱会曲目'
+  },
+  addButtonText: {
+    type: String,
+    default: '手动添加曲目'
+  },
+  emptyText: {
+    type: String,
+    default: '还没有曲目。可以手动添加，也可以从网易云搜索或导入歌单、专辑。'
   }
 })
 
@@ -246,7 +262,7 @@ async function importPlaylist() {
   const raw = String(playlistInput.value || '').trim()
   if (!raw) {
     playlistError.value = true
-    playlistMessage.value = '请输入网易云歌单链接或歌单 ID'
+    playlistMessage.value = '请输入网易云歌单/专辑链接或对应 ID'
     return
   }
 
@@ -254,14 +270,15 @@ async function importPlaylist() {
   playlistError.value = false
   playlistMessage.value = ''
   try {
-    const result = await fetchNeteasePlaylistTracks(raw)
+    const result = await fetchNeteaseCollectionTracks(raw)
     appendTracks(result.tracks)
-    playlistMessage.value = result.playlistName
-      ? `已从歌单《${result.playlistName}》导入 ${result.tracks.length} 首`
+    const collectionLabel = result.type === 'album' ? '专辑' : '歌单'
+    playlistMessage.value = result.name
+      ? `已从${collectionLabel}《${result.name}》导入 ${result.tracks.length} 首`
       : `已导入 ${result.tracks.length} 首曲目`
   } catch (error) {
     playlistError.value = true
-    playlistMessage.value = error?.message || '歌单导入失败'
+    playlistMessage.value = error?.message || '导入失败'
   } finally {
     playlistLoading.value = false
   }

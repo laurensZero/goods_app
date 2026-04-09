@@ -146,6 +146,15 @@
             <p class="note-body">{{ item.note }}</p>
           </article>
         </section>
+
+        <section v-if="trackList.length" class="note-section">
+          <div class="section-head">
+            <p class="section-label">音乐信息</p>
+            <h2 class="section-title">专辑曲目</h2>
+          </div>
+
+          <EventTrackList :tracks="trackList" />
+        </section>
       </section>
     </main>
 
@@ -193,6 +202,7 @@ import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import EventTrackList from '@/components/events/EventTrackList.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
@@ -200,6 +210,9 @@ const store = useGoodsStore()
 const pageBodyRef = ref(null)
 
 const item = computed(() => store.getById(props.id))
+const trackList = computed(() =>
+  (Array.isArray(item.value?.tracks) ? item.value.tracks : []).filter((entry) => entry?.title || entry?.artist || entry?.neteaseSongId)
+)
 const showDeleteDialog = ref(false)
 const activeImageId = ref('')
 

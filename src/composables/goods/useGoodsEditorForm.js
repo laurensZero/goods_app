@@ -34,6 +34,7 @@ export function useGoodsEditorForm(options = {}) {
     points: '',
     acquiredAt: '',
     images: [],
+    tracks: [],
     note: '',
     quantity: 1,
     unitAcquiredAtList: [],
@@ -208,6 +209,7 @@ export function useGoodsEditorForm(options = {}) {
         showActualPriceInput.value = hasActualPriceValue(item.actualPrice)
         form.acquiredAt = item.acquiredAt ?? ''
         form.images = item.images ? [...item.images] : []
+        form.tracks = Array.isArray(item.tracks) ? [...item.tracks] : []
         form.note = item.note ?? ''
         form.quantity = Number(item.quantity) || 1
         form.unitAcquiredAtList = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []

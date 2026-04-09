@@ -1970,6 +1970,17 @@ export const useSyncStore = defineStore('sync', () => {
       const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasPendingImageChanges || hasRemoteImageChanges
 
       if (!hasEffectiveDiff) {
+        if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
+          syncStatus.value = '正在上传本地数据...'
+          const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
+          syncStatus.value = '上传完成'
+          return {
+            action: 'pushed',
+            ...localChanges,
+            ...imageStats
+          }
+        }
+
         if (remoteManifest?.lastSyncAt) {
           await saveLastSyncedAt(remoteManifest.lastSyncAt)
         }

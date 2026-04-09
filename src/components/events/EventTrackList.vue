@@ -241,6 +241,8 @@ function playButtonLabel(track) {
 
 async function handlePlay(track) {
   if (!track?.neteaseSongId) return
+  const identity = String(track?.id || track?.neteaseSongId || '').trim()
+  if (isLoading.value && activeTrackId.value === identity) return
   errorMessage.value = ''
   try {
     await playerStore.toggleTrackPlayback(track, props.tracks)

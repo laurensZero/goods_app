@@ -455,6 +455,23 @@
             </label>
           </div>
         </section>
+
+        <section v-if="showTrackEditor" class="form-section">
+          <div class="section-head">
+            <p class="section-label">音乐信息</p>
+            <h2 class="section-title">专辑曲目</h2>
+          </div>
+
+          <div class="field-card">
+            <EventTrackEditor
+              v-model="form.tracks"
+              eyebrow="Album Tracklist"
+              title="专辑曲目"
+              add-button-text="手动添加歌曲"
+              empty-text="还没有歌曲。可以手动添加，也可以从网易云搜索或导入歌单。"
+            />
+          </div>
+        </section>
       </form>
     </main>
 
@@ -515,6 +532,7 @@ import GoodsImageManager from '@/components/goods/GoodsImageManager.vue'
 import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import TagInput from '@/components/common/TagInput.vue'
+import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 
 const props = defineProps({
   mode: {
@@ -631,6 +649,7 @@ const submitButtonLabel = computed(() => {
   if (form.isWishlist) return '保存心愿'
   return isEditMode.value ? '保存修改' : '保存谷子'
 })
+const showTrackEditor = computed(() => String(form.category || '').trim() === 'CD/专辑')
 </script>
 
 <style scoped src="../../assets/goodsEditorForm.css"></style>

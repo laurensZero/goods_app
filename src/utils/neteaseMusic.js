@@ -187,17 +187,48 @@ export async function searchNeteaseSongs(keyword, limit = 30) {
   return ensureSongList(payload)
 }
 
-export function extractNeteasePlaylistId(input) {
+function normalizeNeteaseCollectionInput(input) {
   const raw = String(input || '').trim()
+  return {
+    raw,
+    normalized: raw.replace(/#\//g, '')
+  }
+}
+
+export function extractNeteasePlaylistId(input) {
+  const { raw, normalized } = normalizeNeteaseCollectionInput(input)
   if (!raw) return ''
 
-  const directMatch = raw.match(/(?:^|[?&])id=(\d{3,})/i)
-  if (directMatch) return directMatch[1]
-
-  const pathMatch = raw.match(/playlist\/(\d{3,})/i)
+  const pathMatch = normalized.match(/playlist\/(\d{3,})/i)
   if (pathMatch) return pathMatch[1]
 
+  const directMatch = normalized.match(/(?:^|[?&])id=(\d{3,})/i)
+  if (directMatch && /(?:^|\/)playlist(?:\/|\?|$)/i.test(normalized)) return directMatch[1]
+
   return /^\d{3,}$/.test(raw) ? raw : ''
+}
+
+export function extractNeteaseAlbumId(input) {
+  const { raw, normalized } = normalizeNeteaseCollectionInput(input)
+  if (!raw) return ''
+
+  const pathMatch = normalized.match(/album\/(\d{3,})/i)
+  if (pathMatch) return pathMatch[1]
+
+  const directMatch = normalized.match(/(?:^|[?&])id=(\d{3,})/i)
+  if (directMatch && /(?:^|\/)album(?:\/|\?|$)/i.test(normalized)) return directMatch[1]
+
+  return ''
+}
+
+function detectNeteaseCollectionTarget(input) {
+  const albumId = extractNeteaseAlbumId(input)
+  if (albumId) return { type: 'album', id: albumId }
+
+  const playlistId = extractNeteasePlaylistId(input)
+  if (playlistId) return { type: 'playlist', id: playlistId }
+
+  return { type: '', id: '' }
 }
 
 export async function fetchNeteasePlaylistTracks(input) {
@@ -228,6 +259,53 @@ export async function fetchNeteasePlaylistTracks(input) {
     playlistId,
     playlistName: String(playlist.name || '').trim(),
     tracks
+  }
+}
+
+export async function fetchNeteaseAlbumTracks(input) {
+  const albumId = extractNeteaseAlbumId(input)
+  if (!albumId) {
+    throw new Error('请输入网易云专辑链接或专辑 ID')
+  }
+
+  const payload = await requestJson(`/api/v1/album/${encodeURIComponent(albumId)}`)
+  if (Number(payload?.code) !== 200) {
+    throw new Error(payload?.message || '网易云专辑读取失败')
+  }
+
+  const album = payload?.album || {}
+  const sourceSongs = Array.isArray(payload?.songs) ? payload.songs : []
+  const tracks = sourceSongs.map(mapSongToTrack).filter((item) => item.title)
+
+  return {
+    albumId,
+    albumName: String(album.name || '').trim(),
+    tracks
+  }
+}
+
+export async function fetchNeteaseCollectionTracks(input) {
+  const target = detectNeteaseCollectionTarget(input)
+  if (!target.id) {
+    throw new Error('请输入网易云歌单/专辑链接或对应 ID')
+  }
+
+  if (target.type === 'album') {
+    const result = await fetchNeteaseAlbumTracks(input)
+    return {
+      type: 'album',
+      id: result.albumId,
+      name: result.albumName,
+      tracks: result.tracks
+    }
+  }
+
+  const result = await fetchNeteasePlaylistTracks(input)
+  return {
+    type: 'playlist',
+    id: result.playlistId,
+    name: result.playlistName,
+    tracks: result.tracks
   }
 }
 

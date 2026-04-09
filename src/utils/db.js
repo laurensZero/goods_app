@@ -30,6 +30,7 @@ const CREATE_TABLE_SQL = `
     unitCharacterList TEXT DEFAULT '[]',
     image      TEXT DEFAULT '',
     images     TEXT DEFAULT '[]',
+    tracks     TEXT DEFAULT '[]',
     note       TEXT DEFAULT '',
     quantity   INTEGER DEFAULT 1,
     points     INTEGER DEFAULT NULL
@@ -71,6 +72,7 @@ const MIGRATE_ADD_IMAGES = "ALTER TABLE goods ADD COLUMN images TEXT DEFAULT '[]
 const MIGRATE_ADD_UNIT_DATES = "ALTER TABLE goods ADD COLUMN unitAcquiredAtList TEXT DEFAULT '[]'"
 const MIGRATE_ADD_UNIT_PRICES = "ALTER TABLE goods ADD COLUMN unitActualPriceList TEXT DEFAULT '[]'"
 const MIGRATE_ADD_UNIT_CHARACTERS = "ALTER TABLE goods ADD COLUMN unitCharacterList TEXT DEFAULT '[]'"
+const MIGRATE_ADD_TRACKS = "ALTER TABLE goods ADD COLUMN tracks TEXT DEFAULT '[]'"
 const MIGRATE_ADD_UPDATED_AT = "ALTER TABLE goods ADD COLUMN updatedAt INTEGER DEFAULT 0"
 const MIGRATE_EVENT_ADD_TICKET_TYPE = "ALTER TABLE events ADD COLUMN ticketType TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_SEAT_INFO = "ALTER TABLE events ADD COLUMN seatInfo TEXT DEFAULT ''"
@@ -90,6 +92,7 @@ const GOODS_MIGRATIONS = [
   MIGRATE_ADD_UNIT_DATES,
   MIGRATE_ADD_UNIT_PRICES,
   MIGRATE_ADD_UNIT_CHARACTERS,
+  MIGRATE_ADD_TRACKS,
   MIGRATE_ADD_UPDATED_AT
 ]
 
@@ -134,6 +137,7 @@ function prepareGoodsRecord(item) {
     image = '',
     coverImage = '',
     images = [],
+    tracks = [],
     note = '',
     quantity = 1,
     points,
@@ -152,6 +156,7 @@ function prepareGoodsRecord(item) {
     unitPricesStr: JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : []),
     unitCharactersStr: JSON.stringify(Array.isArray(unitCharacterList) ? unitCharacterList : []),
     imagesStr: JSON.stringify(Array.isArray(images) ? images : []),
+    tracksStr: JSON.stringify(Array.isArray(tracks) ? tracks : []),
     storageLocation,
     variant,
     price,
@@ -276,7 +281,7 @@ export async function getItems() {
     if (!_nativeDb) return []
     rows = (await _nativeDb.query('SELECT * FROM goods ORDER BY rowid DESC')).values ?? []
   } else {
-    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,note,quantity,points,updatedAt FROM goods ORDER BY rowid DESC')
+    rows = _webQuery('SELECT id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt FROM goods ORDER BY rowid DESC')
   }
   return rows.map(r => ({
     ...r,
@@ -287,6 +292,7 @@ export async function getItems() {
     unitActualPriceList: parseJsonArray(r.unitActualPriceList),
     unitCharacterList: parseJsonArray(r.unitCharacterList),
     images: parseJsonArray(r.images),
+    tracks: parseJsonArray(r.tracks),
     storageLocation: String(r.storageLocation || '').trim(),
     variant: String(r.variant || '').trim(),
     actualPrice: String(r.actualPrice || '').trim(),
@@ -298,8 +304,8 @@ export async function getItems() {
 
 export async function addItem(item) {
   const record = prepareGoodsRecord(item)
-  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.note, record.qty, record.pts, record.ts]
+  const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -319,8 +325,8 @@ export async function saveItems(items) {
     for (const item of items) {
       const record = prepareGoodsRecord(item)
       stmts.push({
-        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.note, record.qty, record.pts, record.ts]
+        statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts]
       })
     }
     await _nativeDb.executeSet(stmts)
@@ -329,8 +335,8 @@ export async function saveItems(items) {
     for (const item of items) {
       const record = prepareGoodsRecord(item)
       _sqlDb.run(
-        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.note, record.qty, record.pts, record.ts]
+        'INSERT OR REPLACE INTO goods (id,name,category,ip,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [record.id, record.name, record.category, record.ip, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)

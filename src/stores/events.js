@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents } from '@/utils/db'
+import { normalizeTracks } from '@/utils/tracks'
 
 function parseTicketPrice(value) {
   const price = Number.parseFloat(value)
@@ -14,23 +15,6 @@ function getSortDate(event) {
 function getYearMonth(dateStr) {
   if (!dateStr) return ''
   return String(dateStr).slice(0, 7)
-}
-
-function normalizeTracks(tracks) {
-  if (!Array.isArray(tracks)) return []
-
-  return tracks
-    .map((item, index) => ({
-      id: String(item?.id || `track_${Date.now()}_${index}`),
-      title: String(item?.title || '').trim(),
-      artist: String(item?.artist || '').trim(),
-      album: String(item?.album || '').trim(),
-      coverUrl: String(item?.coverUrl || '').trim(),
-      durationMs: Math.max(0, Number(item?.durationMs) || 0),
-      source: String(item?.source || (item?.neteaseSongId ? 'netease' : 'manual')).trim() || 'manual',
-      neteaseSongId: String(item?.neteaseSongId || '').trim()
-    }))
-    .filter((item) => item.title || item.artist || item.album || item.neteaseSongId)
 }
 
 export const useEventsStore = defineStore('events', () => {
