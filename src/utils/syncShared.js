@@ -211,6 +211,9 @@ function resolveImageExtension(mimeType, fallbackName = '') {
 }
 
 export function buildImageFilename(item, imageEntry, mimeType) {
+  const existingGistFileName = String(imageEntry?.gistFileName || parseGistImageUri(imageEntry?.uri) || '').trim()
+  if (existingGistFileName) return existingGistFileName
+
   const itemId = sanitizeFilenamePart(item?.id)
   const imageId = sanitizeFilenamePart(imageEntry?.id)
   const updatedAt = String(getItemTimestamp(item) || 0)
@@ -219,6 +222,9 @@ export function buildImageFilename(item, imageEntry, mimeType) {
 }
 
 export function buildEventCoverFilename(event, mimeType) {
+  const existingGistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(event?.coverImage) || '').trim()
+  if (existingGistFileName) return existingGistFileName
+
   const eventId = sanitizeFilenamePart(event?.id)
   const updatedAt = String(event?.updatedAt || 0)
   const extension = resolveImageExtension(mimeType, event?.coverImage || '')

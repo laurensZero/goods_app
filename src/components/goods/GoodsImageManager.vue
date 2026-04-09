@@ -288,7 +288,10 @@ async function handleQuickEditSave(result) {
         ...image,
         uri: localUri,
         storageMode: inferGoodsImageStorageMode(localUri),
-        localPath: ''
+        localPath: '',
+        gistFileName: '',
+        mimeType: '',
+        fileSize: 0
       }
     }))
   } catch (error) {
