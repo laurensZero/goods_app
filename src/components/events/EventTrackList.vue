@@ -32,6 +32,9 @@
           <span v-if="track.durationText" class="track-list__duration">{{ track.durationText }}</span>
         </div>
         <strong class="track-list__title">{{ track.title || '未命名曲目' }}</strong>
+      </div>
+
+      <div class="track-list__details">
         <p class="track-list__desc">
           <span v-if="track.artist">{{ track.artist }}</span>
           <span v-if="track.artist && track.album"> · </span>
@@ -296,8 +299,11 @@ function handleTrackClick(track, event) {
 }
 
 .track-list__item {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "cover copy actions"
+    "cover details details";
   gap: 14px;
   padding: 16px;
   border-radius: 20px;
@@ -313,6 +319,7 @@ function handleTrackClick(track, event) {
 }
 
 .track-list__cover-shell {
+  grid-area: cover;
   width: 84px;
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
@@ -342,8 +349,13 @@ function handleTrackClick(track, event) {
 }
 
 .track-list__copy {
+  grid-area: copy;
   min-width: 0;
-  flex: 1;
+}
+
+.track-list__details {
+  grid-area: details;
+  min-width: 0;
 }
 
 .track-list__meta {
@@ -401,9 +413,11 @@ function handleTrackClick(track, event) {
 }
 
 .track-list__actions {
+  grid-area: actions;
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  align-self: start;
 }
 
 .track-list__action {
@@ -463,7 +477,6 @@ function handleTrackClick(track, event) {
   .track-list__item {
     align-items: flex-start;
     gap: 12px;
-    display: grid;
     grid-template-columns: 56px minmax(0, 1fr) auto;
   }
 
