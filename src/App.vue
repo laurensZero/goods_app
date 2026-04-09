@@ -53,16 +53,22 @@ const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'a
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const routeTransitionName = ref('route-none')
 const hasLocalData = computed(() => (
-  goodsStore.list.value.length > 0
-  || goodsStore.trashList.value.length > 0
-  || rechargeStore.records.value.length > 0
-  || eventsStore.list.value.length > 0
+  resolveArrayValue(goodsStore.list).length > 0
+  || resolveArrayValue(goodsStore.trashList).length > 0
+  || resolveArrayValue(rechargeStore.records).length > 0
+  || resolveArrayValue(eventsStore.list).length > 0
 ))
 const tabBarTransitionName = computed(() => {
   if (routeTransitionName.value === 'route-back') return 'tabbar-back'
   if (routeTransitionName.value === 'route-forward') return 'tabbar-forward'
   return 'tabbar-none'
 })
+function resolveArrayValue(source) {
+  if (Array.isArray(source)) return source
+  if (Array.isArray(source?.value)) return source.value
+  return []
+}
+
 let pendingRouteDirection = 'forward'
 let hasMountedRoute = false
 
