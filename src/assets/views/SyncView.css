@@ -882,9 +882,8 @@
   flex-shrink: 0;
   position: sticky;
   bottom: 0;
-  padding-top: 12px;
   padding-bottom: max(env(safe-area-inset-bottom), 0px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--app-glass-strong) 24%);
+  background: transparent;
 }
 
 .dialog-btn {
@@ -1033,7 +1032,13 @@
   }
 
   .dialog-actions {
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: stretch;
+  }
+
+  .dialog-actions .dialog-btn {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 

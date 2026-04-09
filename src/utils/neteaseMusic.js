@@ -1,4 +1,5 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { AppLauncher } from '@capacitor/app-launcher'
 
 const NETEASE_WEB_BASE = 'https://music.163.com'
 const NETEASE_REFERER = `${NETEASE_WEB_BASE}/`
@@ -405,6 +406,45 @@ function buildNeteaseSongAppUrl(songId, packageName = '') {
   return `orpheus://song/${normalizedId}`
 }
 
+function buildNeteaseSongAppLaunchUrls(songId) {
+  const normalizedId = String(songId || '').trim()
+  if (!normalizedId) return []
+
+  return [
+    `orpheus://song/${normalizedId}`,
+    `orpheus://song?id=${normalizedId}`
+  ]
+}
+
+async function canOpenAnyNeteaseAndroidPackage() {
+  for (const packageName of NETEASE_ANDROID_PACKAGES) {
+    try {
+      const result = await AppLauncher.canOpenUrl({ url: packageName })
+      if (result?.value) return true
+    } catch {
+      // ignore and continue trying other package names
+    }
+  }
+
+  return false
+}
+
+async function tryOpenNeteaseNative(songId) {
+  const launchUrls = buildNeteaseSongAppLaunchUrls(songId)
+  if (!launchUrls.length) return false
+
+  for (const launchUrl of launchUrls) {
+    try {
+      const result = await AppLauncher.openUrl({ url: launchUrl })
+      if (result?.completed) return true
+    } catch {
+      // ignore and continue trying alternative deeplinks
+    }
+  }
+
+  return false
+}
+
 export async function openNeteaseSong(songId) {
   const normalizedId = String(songId || '').trim()
   if (!normalizedId) {
@@ -412,64 +452,29 @@ export async function openNeteaseSong(songId) {
   }
 
   const webUrl = buildNeteaseSongWebUrl(normalizedId)
-  const launchUrls = Capacitor.getPlatform() === 'android'
-    ? [
-        ...NETEASE_ANDROID_PACKAGES.map((packageName) => buildNeteaseSongAppUrl(normalizedId, packageName)),
-        buildNeteaseSongAppUrl(normalizedId)
-      ]
-    : [buildNeteaseSongAppUrl(normalizedId)]
 
   if (!Capacitor.isNativePlatform()) {
     window.open(webUrl, '_blank', 'noopener,noreferrer')
     return
   }
 
-  let handled = false
-  let launchTimer = 0
-  let fallbackTimer = 0
-
-  const cancelFallback = () => {
-    handled = true
-    if (launchTimer) {
-      window.clearTimeout(launchTimer)
-      launchTimer = 0
+  if (Capacitor.getPlatform() === 'android') {
+    const hasInstalledNetease = await canOpenAnyNeteaseAndroidPackage()
+    if (hasInstalledNetease) {
+      const opened = await tryOpenNeteaseNative(normalizedId)
+      if (opened) return
     }
-    if (fallbackTimer) {
-      window.clearTimeout(fallbackTimer)
-      fallbackTimer = 0
-    }
-    document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }
-  const handleVisibilityChange = () => {
-    if (document.hidden) cancelFallback()
-  }
-  const tryLaunchAt = (index) => {
-    if (handled) return
-
-    const targetUrl = launchUrls[index]
-    if (!targetUrl) {
-      cancelFallback()
-      window.open(webUrl, '_blank', 'noopener,noreferrer')
-      return
-    }
-
-    window.location.href = targetUrl
-
-    if (index < launchUrls.length - 1) {
-      launchTimer = window.setTimeout(() => {
-        tryLaunchAt(index + 1)
-      }, 320)
-      return
-    }
-
-    fallbackTimer = window.setTimeout(() => {
-      if (!handled) {
-        cancelFallback()
-        window.open(webUrl, '_blank', 'noopener,noreferrer')
+  } else {
+    try {
+      const appUrl = buildNeteaseSongAppUrl(normalizedId)
+      if (appUrl) {
+        const result = await AppLauncher.openUrl({ url: appUrl })
+        if (result?.completed) return
       }
-    }, 900)
+    } catch {
+      // fall through to web fallback
+    }
   }
 
-  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
-  tryLaunchAt(0)
+  window.open(webUrl, '_blank', 'noopener,noreferrer')
 }
