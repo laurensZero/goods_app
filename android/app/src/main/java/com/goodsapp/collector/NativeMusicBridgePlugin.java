@@ -31,17 +31,8 @@ public class NativeMusicBridgePlugin extends Plugin {
             return;
         }
 
-        String[] uris = new String[] {
-            "orpheus://song/" + songId,
-            "orpheus://song?id=" + songId,
-            "orpheus://play?songid=" + songId,
-            "https://music.163.com/song?id=" + songId,
-            "https://music.163.com/#/song?id=" + songId,
-            "https://y.music.163.com/m/song?id=" + songId
-        };
-
         PackageManager packageManager = getContext().getPackageManager();
-        LaunchCandidate[] candidates = buildLaunchCandidates(packageManager, uris);
+        LaunchCandidate[] candidates = buildLaunchCandidates(packageManager, songId);
         if (candidates.length == 0) {
             JSObject result = new JSObject();
             result.put("opened", false);
@@ -97,12 +88,12 @@ public class NativeMusicBridgePlugin extends Plugin {
         return TARGET_APP_ASK;
     }
 
-    private LaunchCandidate[] buildLaunchCandidates(PackageManager packageManager, String[] uris) {
+    private LaunchCandidate[] buildLaunchCandidates(PackageManager packageManager, String songId) {
         LaunchCandidate[] candidates = new LaunchCandidate[NETEASE_PACKAGES.length];
         int count = 0;
 
         for (String packageName : NETEASE_PACKAGES) {
-            LaunchCandidate candidate = findLaunchCandidate(packageManager, packageName, uris);
+            LaunchCandidate candidate = findLaunchCandidate(packageManager, packageName, buildUrisForPackage(packageName, songId));
             if (candidate == null) {
                 continue;
             }
@@ -113,6 +104,29 @@ public class NativeMusicBridgePlugin extends Plugin {
         LaunchCandidate[] resolved = new LaunchCandidate[count];
         System.arraycopy(candidates, 0, resolved, 0, count);
         return resolved;
+    }
+
+    private String[] buildUrisForPackage(String packageName, String songId) {
+        if ("com.hihonor.cloudmusic".equals(packageName)) {
+            return new String[] {
+                "honororpheus://song/" + songId,
+                "orpheus://song/" + songId,
+                "orpheus://song?id=" + songId,
+                "orpheus://play?songid=" + songId,
+                "https://music.163.com/song?id=" + songId,
+                "https://music.163.com/#/song?id=" + songId,
+                "https://y.music.163.com/m/song?id=" + songId
+            };
+        }
+
+        return new String[] {
+            "orpheus://song/" + songId,
+            "orpheus://song?id=" + songId,
+            "orpheus://play?songid=" + songId,
+            "https://music.163.com/song?id=" + songId,
+            "https://music.163.com/#/song?id=" + songId,
+            "https://y.music.163.com/m/song?id=" + songId
+        };
     }
 
     private LaunchCandidate findLaunchCandidate(PackageManager packageManager, String packageName, String[] uris) {
