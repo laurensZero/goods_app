@@ -1,12 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
-import {
-  addNativeMediaActionListener,
-  clearNativePlaybackNotification,
-  requestNativeNotificationPermission,
-  updateNativePlaybackNotification
-} from '@/utils/nativeMusicBridge'
 
 function getTrackIdentity(track = {}) {
   return String(track?.id || track?.neteaseSongId || '').trim()
@@ -47,9 +41,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let audio = null
   let rafId = 0
   let playRequestToken = 0
-  let nativePermissionRequested = false
-  let nativePermissionGranted = false
-  let nativeActionListenerHandle = null
 
   const currentTrack = computed(() => queue.value[currentIndex.value] || null)
   const currentTrackId = computed(() => getTrackIdentity(currentTrack.value))
@@ -164,55 +155,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         // ignore unsupported actions
       }
     }
-  }
-
-  async function ensureNativeMediaBridge() {
-    if (!nativeActionListenerHandle) {
-      nativeActionListenerHandle = await addNativeMediaActionListener((event) => {
-        const action = String(event?.action || '').trim()
-        if (action === 'previous') {
-          void playPrevious()
-          return
-        }
-        if (action === 'next') {
-          void playNext()
-          return
-        }
-        if (action === 'toggle') {
-          void togglePlayPause()
-        }
-      })
-    }
-
-    if (!nativePermissionRequested) {
-      nativePermissionRequested = true
-      nativePermissionGranted = await requestNativeNotificationPermission()
-    }
-
-    return nativePermissionGranted
-  }
-
-  async function syncNativePlaybackState() {
-    const hasPermission = await ensureNativeMediaBridge()
-    if (!hasPermission) return
-
-    const track = currentTrack.value
-    if (!track) {
-      await clearNativePlaybackNotification()
-      return
-    }
-
-    await updateNativePlaybackNotification({
-      title: String(track.title || '未命名曲目'),
-      artist: String(track.artist || ''),
-      album: String(track.album || ''),
-      artworkUrl: String(track.coverUrl || ''),
-      isPlaying: isPlaying.value,
-      hasPrevious: hasPrevious.value,
-      hasNext: hasNext.value,
-      durationMs: Math.max(0, Math.round((duration.value || 0) * 1000)),
-      positionMs: Math.max(0, Math.round((currentTime.value || 0) * 1000))
-    })
   }
 
   function ensureAudio() {
@@ -483,7 +425,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     stopProgressLoop()
     resetLyrics()
     syncMediaSessionMetadata(null)
-    void clearNativePlaybackNotification()
   }
 
   function closeMiniPlayer() {
@@ -500,20 +441,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
   watch(currentTrack, (track) => {
     syncMediaSessionMetadata(track)
-    void syncNativePlaybackState()
   }, { immediate: true })
 
   watch(isPlaying, () => {
     syncMediaSessionPlaybackState()
-    void syncNativePlaybackState()
   }, { immediate: true })
-
-  watch(
-    () => [Math.floor(currentTime.value || 0), Math.floor(duration.value || 0), hasPrevious.value, hasNext.value],
-    () => {
-      void syncNativePlaybackState()
-    }
-  )
 
   return {
     queue,
