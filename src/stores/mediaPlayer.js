@@ -10,6 +10,21 @@ function normalizeQueue(queue) {
   return (Array.isArray(queue) ? queue : []).filter((item) => getTrackIdentity(item))
 }
 
+function supportsMediaSession() {
+  return typeof navigator !== 'undefined' && 'mediaSession' in navigator
+}
+
+function buildArtworkList(track = {}) {
+  const coverUrl = String(track?.coverUrl || '').trim()
+  if (!coverUrl) return []
+
+  return [96, 128, 192, 256, 384, 512].map((size) => ({
+    src: coverUrl,
+    sizes: `${size}x${size}`,
+    type: 'image/jpeg'
+  }))
+}
+
 export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const queue = ref([])
   const currentIndex = ref(-1)
@@ -57,6 +72,91 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     lyricsLines.value = []
   }
 
+  function syncMediaSessionPlaybackState() {
+    if (!supportsMediaSession()) return
+    navigator.mediaSession.playbackState = isPlaying.value ? 'playing' : 'paused'
+  }
+
+  function syncMediaSessionPositionState() {
+    if (!supportsMediaSession() || !audio || typeof navigator.mediaSession.setPositionState !== 'function') return
+
+    const playbackDuration = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0
+    if (playbackDuration <= 0) return
+
+    navigator.mediaSession.setPositionState({
+      duration: playbackDuration,
+      playbackRate: Number(audio.playbackRate) > 0 ? Number(audio.playbackRate) : 1,
+      position: Math.min(playbackDuration, Math.max(0, Number(audio.currentTime) || 0))
+    })
+  }
+
+  function clearMediaSessionPositionState() {
+    if (!supportsMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return
+
+    try {
+      navigator.mediaSession.setPositionState()
+    } catch {
+      // ignore unsupported reset behavior
+    }
+  }
+
+  function syncMediaSessionMetadata(track = currentTrack.value) {
+    if (!supportsMediaSession()) return
+
+    if (!track) {
+      navigator.mediaSession.metadata = null
+      clearMediaSessionPositionState()
+      syncMediaSessionPlaybackState()
+      return
+    }
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: String(track.title || '未命名曲目'),
+      artist: String(track.artist || ''),
+      album: String(track.album || ''),
+      artwork: buildArtworkList(track)
+    })
+    syncMediaSessionPlaybackState()
+    syncMediaSessionPositionState()
+  }
+
+  function bindMediaSessionActions() {
+    if (!supportsMediaSession()) return
+
+    const handlers = {
+      play: () => { void togglePlayPause() },
+      pause: () => { void togglePlayPause() },
+      previoustrack: () => { void playPrevious() },
+      nexttrack: () => { void playNext() },
+      seekbackward: (details = {}) => {
+        const offset = Number(details.seekOffset) || 10
+        seekTo((audio?.currentTime || currentTime.value || 0) - offset)
+      },
+      seekforward: (details = {}) => {
+        const offset = Number(details.seekOffset) || 10
+        seekTo((audio?.currentTime || currentTime.value || 0) + offset)
+      },
+      seekto: (details = {}) => {
+        if (details.fastSeek && audio && typeof audio.fastSeek === 'function' && Number.isFinite(details.seekTime)) {
+          audio.fastSeek(details.seekTime)
+          syncCurrentTime()
+          syncMediaSessionPositionState()
+          return
+        }
+
+        seekTo(details.seekTime)
+      }
+    }
+
+    for (const [action, handler] of Object.entries(handlers)) {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler)
+      } catch {
+        // ignore unsupported actions
+      }
+    }
+  }
+
   function ensureAudio() {
     if (audio || typeof Audio === 'undefined') return audio
 
@@ -66,24 +166,34 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     audio.addEventListener('play', () => {
       isPlaying.value = true
       syncCurrentTime()
+      syncMediaSessionPlaybackState()
+      syncMediaSessionPositionState()
       startProgressLoop()
     })
 
     audio.addEventListener('pause', () => {
       isPlaying.value = false
       syncCurrentTime()
+      syncMediaSessionPlaybackState()
+      syncMediaSessionPositionState()
       stopProgressLoop()
     })
 
     audio.addEventListener('loadedmetadata', () => {
       duration.value = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0
       syncCurrentTime()
+      syncMediaSessionPositionState()
     })
 
-    audio.addEventListener('timeupdate', syncCurrentTime)
+    audio.addEventListener('timeupdate', () => {
+      syncCurrentTime()
+      syncMediaSessionPositionState()
+    })
 
     audio.addEventListener('ended', () => {
       syncCurrentTime()
+      syncMediaSessionPlaybackState()
+      syncMediaSessionPositionState()
       if (hasNext.value) {
         void playAtIndex(currentIndex.value + 1)
         return
@@ -96,8 +206,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       lastError.value = '音频播放失败'
       isLoading.value = false
       isPlaying.value = false
+      syncMediaSessionPlaybackState()
       stopProgressLoop()
     })
+
+    bindMediaSessionActions()
 
     return audio
   }
@@ -296,6 +409,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const bounded = Math.min(Math.max(0, Number(nextTime) || 0), duration.value || 0)
     targetAudio.currentTime = bounded
     currentTime.value = bounded
+    syncMediaSessionPositionState()
   }
 
   function stopPlayback() {
@@ -310,6 +424,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     isLoading.value = false
     stopProgressLoop()
     resetLyrics()
+    syncMediaSessionMetadata(null)
   }
 
   function closeMiniPlayer() {
@@ -325,17 +440,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   watch(currentTrack, (track) => {
-    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
-    if (!track) {
-      navigator.mediaSession.metadata = null
-      return
-    }
+    syncMediaSessionMetadata(track)
+  }, { immediate: true })
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: String(track.title || '未命名曲目'),
-      artist: String(track.artist || ''),
-      album: String(track.album || '')
-    })
+  watch(isPlaying, () => {
+    syncMediaSessionPlaybackState()
   }, { immediate: true })
 
   return {
