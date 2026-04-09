@@ -53,6 +53,7 @@
         <span class="event-card__tag-pill">{{ dateDisplay || '待补充时间' }}</span>
         <span v-if="event.location" class="event-card__tag-pill">{{ event.location }}</span>
         <span v-if="event.linkedGoodsIds?.length" class="event-card__tag-pill">{{ event.linkedGoodsIds.length }} 件关联谷子</span>
+        <span v-if="event.type === 'concert' && event.tracks?.length" class="event-card__tag-pill">{{ event.tracks.length }} 首曲目</span>
         <span v-for="tag in event.tags" :key="tag" class="event-card__tag-pill">{{ tag }}</span>
         <span v-if="event.photos?.length" class="event-card__tag-pill">{{ event.photos.length }} 张照片</span>
       </div>

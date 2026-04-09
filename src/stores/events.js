@@ -16,6 +16,23 @@ function getYearMonth(dateStr) {
   return String(dateStr).slice(0, 7)
 }
 
+function normalizeTracks(tracks) {
+  if (!Array.isArray(tracks)) return []
+
+  return tracks
+    .map((item, index) => ({
+      id: String(item?.id || `track_${Date.now()}_${index}`),
+      title: String(item?.title || '').trim(),
+      artist: String(item?.artist || '').trim(),
+      album: String(item?.album || '').trim(),
+      coverUrl: String(item?.coverUrl || '').trim(),
+      durationMs: Math.max(0, Number(item?.durationMs) || 0),
+      source: String(item?.source || (item?.neteaseSongId ? 'netease' : 'manual')).trim() || 'manual',
+      neteaseSongId: String(item?.neteaseSongId || '').trim()
+    }))
+    .filter((item) => item.title || item.artist || item.album || item.neteaseSongId)
+}
+
 export const useEventsStore = defineStore('events', () => {
   const list = shallowRef([])
   const isReady = ref(false)
@@ -80,6 +97,7 @@ export const useEventsStore = defineStore('events', () => {
       description: String(data.description || '').trim(),
       coverImage: String(data.coverImage || '').trim(),
       photos: Array.isArray(data.photos) ? data.photos : [],
+      tracks: normalizeTracks(data.tracks),
       ticketPrice: String(data.ticketPrice || '').trim(),
       ticketType: String(data.ticketType || '').trim(),
       seatInfo: String(data.seatInfo || '').trim(),
@@ -105,9 +123,14 @@ export const useEventsStore = defineStore('events', () => {
     const index = list.value.findIndex((item) => item.id === id)
     if (index === -1) return null
 
+    const normalizedData = {
+      ...data,
+      tracks: normalizeTracks(data?.tracks)
+    }
+
     list.value[index] = {
       ...list.value[index],
-      ...data,
+      ...normalizedData,
       id,
       updatedAt: preserveTimestamp ? (data.updatedAt || Date.now()) : Date.now()
     }

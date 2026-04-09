@@ -16,6 +16,7 @@
     <Transition :name="tabBarTransitionName">
       <TabBar v-if="showTabBar" />
     </Transition>
+    <FloatingAudioPlayer :with-tab-bar="showTabBar" />
     <AnnouncementDialog />
     <WebUpdateDialog />
     <AppUpdateDialog />
@@ -28,6 +29,7 @@ import { Capacitor } from '@capacitor/core'
 import { useRoute } from 'vue-router'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
+import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
 import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { useAnnouncementStore } from '@/stores/announcement'

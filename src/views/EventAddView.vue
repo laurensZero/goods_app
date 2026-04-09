@@ -47,6 +47,10 @@
                     <span class="metric-box__label">标签</span>
                     <strong class="metric-box__value">{{ form.tags.length }}</strong>
                   </div>
+                  <div v-if="form.type === 'concert'" class="metric-box">
+                    <span class="metric-box__label">曲目</span>
+                    <strong class="metric-box__value">{{ form.tracks.length }}</strong>
+                  </div>
                 </div>
               </article>
             </section>
@@ -156,6 +160,17 @@
                     />
                   </label>
                 </div>
+              </div>
+            </section>
+
+            <section v-if="form.type === 'concert'" class="form-section">
+              <div class="section-head">
+                <p class="section-label">Setlist</p>
+                <h2 class="section-title">演唱会曲目</h2>
+              </div>
+
+              <div class="field-card">
+                <EventTrackEditor v-model="form.tracks" />
               </div>
             </section>
 
@@ -326,6 +341,7 @@ import { validateName as validateTextName, validatePrice as validateNumericPrice
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
+import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventAddView' })
@@ -362,6 +378,7 @@ const form = reactive({
   description: '',
   coverImage: '',
   photos: [],
+  tracks: [],
   ticketPrice: '',
   ticketType: '',
   seatInfo: '',
@@ -413,6 +430,7 @@ function buildDraftPayload() {
       description: String(form.description || ''),
       coverImage: String(form.coverImage || ''),
       photos: Array.isArray(form.photos) ? form.photos.map((item) => ({ ...item })) : [],
+      tracks: Array.isArray(form.tracks) ? form.tracks.map((item) => ({ ...item })) : [],
       ticketPrice: String(form.ticketPrice || ''),
       ticketType: String(form.ticketType || ''),
       seatInfo: String(form.seatInfo || ''),
@@ -432,6 +450,7 @@ function applyFormSnapshot(snapshot) {
   form.description = String(snapshot.description || '')
   form.coverImage = String(snapshot.coverImage || '')
   form.photos = Array.isArray(snapshot.photos) ? snapshot.photos.map((item) => ({ ...item })) : []
+  form.tracks = Array.isArray(snapshot.tracks) ? snapshot.tracks.map((item) => ({ ...item })) : []
   form.ticketPrice = String(snapshot.ticketPrice || '')
   form.ticketType = String(snapshot.ticketType || '')
   form.seatInfo = String(snapshot.seatInfo || '')
@@ -508,6 +527,7 @@ async function loadEditData() {
   form.description = existing.description || ''
   form.coverImage = existing.coverImage || ''
   form.photos = existing.photos ? [...existing.photos] : []
+  form.tracks = Array.isArray(existing.tracks) ? existing.tracks.map((item) => ({ ...item })) : []
   form.ticketPrice = existing.ticketPrice || ''
   form.ticketType = existing.ticketType || ''
   form.seatInfo = existing.seatInfo || ''

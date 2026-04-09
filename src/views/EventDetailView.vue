@@ -78,6 +78,30 @@
             </article>
           </section>
 
+          <section v-if="trackList.length > 0" class="track-section">
+            <div class="section-head section-head--toggle">
+              <div>
+                <p class="section-label">Setlist</p>
+                <h2 class="section-title">演唱会曲目</h2>
+              </div>
+              <button
+                type="button"
+                class="section-toggle-btn"
+                :aria-expanded="trackSectionExpanded ? 'true' : 'false'"
+                @click="trackSectionExpanded = !trackSectionExpanded"
+              >
+                <span>{{ trackSectionExpanded ? '收起' : '展开' }}</span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" :class="{ 'section-toggle-btn__icon--expanded': trackSectionExpanded }">
+                  <path d="M6 9L12 15L18 9" />
+                </svg>
+              </button>
+            </div>
+
+            <article v-show="trackSectionExpanded" class="note-card">
+              <EventTrackList :tracks="trackList" />
+            </article>
+          </section>
+
           <section v-if="linkedGoodsList.length > 0" class="linked-section">
             <div class="section-head">
               <p class="section-label">Linked Goods</p>
@@ -156,6 +180,7 @@ import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
+import EventTrackList from '@/components/events/EventTrackList.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventDetailView' })
@@ -171,6 +196,7 @@ const goodsStore = useGoodsStore()
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
+const trackSectionExpanded = ref(true)
 
 const eventId = computed(() => props.id || route.params.id)
 const event = computed(() => eventsStore.getById(eventId.value))
@@ -192,6 +218,9 @@ const dateDisplay = computed(() => {
 })
 const linkedGoodsList = computed(() =>
   (event.value?.linkedGoodsIds || []).map((id) => goodsStore.getById(id)).filter(Boolean)
+)
+const trackList = computed(() =>
+  (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId)
 )
 const tagsDisplay = computed(() => (
   event.value?.tags?.length ? event.value.tags.join('、') : '未填写'
@@ -228,6 +257,9 @@ const infoItems = computed(() => {
   }
   if (Array.isArray(event.value.photos) && event.value.photos.length > 0) {
     items.push({ label: '活动照片', value: `${event.value.photos.length} 张` })
+  }
+  if (trackList.value.length > 0) {
+    items.push({ label: '曲目', value: `${trackList.value.length} 首` })
   }
   if (linkedGoodsList.value.length > 0) {
     items.push({ label: '关联谷子', value: `${linkedGoodsList.value.length} 件` })
@@ -437,12 +469,20 @@ async function handleDelete() {
 
 .info-section,
 .note-section,
+.track-section,
 .linked-section {
   margin-top: 18px;
 }
 
 .section-head {
   margin-bottom: 14px;
+}
+
+.section-head--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .section-label {
@@ -457,6 +497,35 @@ async function handleDelete() {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+
+.section-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.section-toggle-btn__icon--expanded {
+  transform: rotate(180deg);
+}
+
+.section-toggle-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 160ms ease;
 }
 
 .info-card {

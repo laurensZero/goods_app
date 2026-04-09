@@ -236,7 +236,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
@@ -258,6 +258,7 @@ const SCROLL_TOP_ANCHOR_REASON = 'events:openDetail'
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 
 const router = useRouter()
+const route = useRoute()
 const eventsStore = useEventsStore()
 const pageBodyRef = ref(null)
 const isEventsActive = ref(true)
@@ -314,7 +315,8 @@ const filteredEvents = computed(() => {
       event.startDate,
       event.endDate,
       EVENT_TYPE_LABELS[event.type] || '',
-      ...(Array.isArray(event.tags) ? event.tags : [])
+      ...(Array.isArray(event.tags) ? event.tags : []),
+      ...(Array.isArray(event.tracks) ? event.tracks.flatMap((track) => [track?.title, track?.artist, track?.album]) : [])
     ]
       .filter(Boolean)
       .join(' ')

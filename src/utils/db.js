@@ -50,6 +50,7 @@ const CREATE_EVENTS_TABLE_SQL = `
     ticketPrice TEXT DEFAULT '',
     ticketType TEXT DEFAULT '',
     seatInfo   TEXT DEFAULT '',
+    tracks     TEXT DEFAULT '[]',
     linkedGoodsIds TEXT DEFAULT '[]',
     tags       TEXT DEFAULT '[]',
     createdAt  INTEGER DEFAULT 0,
@@ -73,6 +74,7 @@ const MIGRATE_ADD_UNIT_CHARACTERS = "ALTER TABLE goods ADD COLUMN unitCharacterL
 const MIGRATE_ADD_UPDATED_AT = "ALTER TABLE goods ADD COLUMN updatedAt INTEGER DEFAULT 0"
 const MIGRATE_EVENT_ADD_TICKET_TYPE = "ALTER TABLE events ADD COLUMN ticketType TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_SEAT_INFO = "ALTER TABLE events ADD COLUMN seatInfo TEXT DEFAULT ''"
+const MIGRATE_EVENT_ADD_TRACKS = "ALTER TABLE events ADD COLUMN tracks TEXT DEFAULT '[]'"
 
 const GOODS_MIGRATIONS = [
   MIGRATE_ADD_IP,
@@ -93,7 +95,8 @@ const GOODS_MIGRATIONS = [
 
 const EVENT_MIGRATIONS = [
   MIGRATE_EVENT_ADD_TICKET_TYPE,
-  MIGRATE_EVENT_ADD_SEAT_INFO
+  MIGRATE_EVENT_ADD_SEAT_INFO,
+  MIGRATE_EVENT_ADD_TRACKS
 ]
 
 //  Web 实现：sql.js + IndexedDB 
@@ -365,6 +368,7 @@ export async function getEvents() {
   return rows.map(r => ({
     ...r,
     photos: parseJsonArray(r.photos),
+    tracks: parseJsonArray(r.tracks),
     linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
     tags: parseJsonArray(r.tags),
     createdAt: Number(r.createdAt) || 0,
@@ -376,16 +380,17 @@ export async function addEvent(event) {
   const {
     id, name = '', type = '', startDate = '', endDate = '',
     location = '', description = '', coverImage = '',
-    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', linkedGoodsIds = [], tags = [],
+    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
     createdAt, updatedAt
   } = event
   const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+  const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
   const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const ts = updatedAt || Date.now()
   const created = createdAt || ts
-  const SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, linkedGoodsStr, tagsStr, created, ts]
+  const SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -405,17 +410,18 @@ export async function saveEvents(events) {
       const {
         id, name = '', type = '', startDate = '', endDate = '',
         location = '', description = '', coverImage = '',
-        photos = [], ticketPrice = '', ticketType = '', seatInfo = '', linkedGoodsIds = [], tags = [],
+        photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
         createdAt, updatedAt
       } = event
       const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+      const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
       const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const ts = updatedAt || Date.now()
       const created = createdAt || ts
       stmts.push({
-        statement: 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, linkedGoodsStr, tagsStr, created, ts]
+        statement: 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
       })
     }
     await _nativeDb.executeSet(stmts)
@@ -425,17 +431,18 @@ export async function saveEvents(events) {
       const {
         id, name = '', type = '', startDate = '', endDate = '',
         location = '', description = '', coverImage = '',
-        photos = [], ticketPrice = '', ticketType = '', seatInfo = '', linkedGoodsIds = [], tags = [],
+        photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
         createdAt, updatedAt
       } = event
       const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+      const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
       const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
       const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
       const ts = updatedAt || Date.now()
       const created = createdAt || ts
       _sqlDb.run(
-        'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, linkedGoodsStr, tagsStr, created, ts]
+        'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)
