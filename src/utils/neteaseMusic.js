@@ -1,5 +1,6 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { AppLauncher } from '@capacitor/app-launcher'
+import { openNeteaseSongNative } from '@/utils/nativeMusicBridge'
 
 const NETEASE_WEB_BASE = 'https://music.163.com'
 const NETEASE_REFERER = `${NETEASE_WEB_BASE}/`
@@ -459,6 +460,9 @@ export async function openNeteaseSong(songId) {
   }
 
   if (Capacitor.getPlatform() === 'android') {
+    const openedViaNativeBridge = await openNeteaseSongNative(normalizedId)
+    if (openedViaNativeBridge) return
+
     const hasInstalledNetease = await canOpenAnyNeteaseAndroidPackage()
     if (hasInstalledNetease) {
       const opened = await tryOpenNeteaseNative(normalizedId)
