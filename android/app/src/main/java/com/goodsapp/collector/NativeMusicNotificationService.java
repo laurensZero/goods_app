@@ -106,6 +106,7 @@ public class NativeMusicNotificationService extends Service {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(TextUtils.isEmpty(title) ? "未命名曲目" : title)
             .setContentText(buildContentText(artist, album))
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setOngoing(isPlaying)

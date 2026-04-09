@@ -111,7 +111,10 @@ public class NativeMusicBridgePlugin extends Plugin {
         String[] uris = new String[] {
             "orpheus://song/" + songId,
             "orpheus://song?id=" + songId,
-            "orpheus://play?songid=" + songId
+            "orpheus://play?songid=" + songId,
+            "https://music.163.com/song?id=" + songId,
+            "https://music.163.com/#/song?id=" + songId,
+            "https://y.music.163.com/m/song?id=" + songId
         };
 
         PackageManager packageManager = getContext().getPackageManager();
@@ -129,19 +132,6 @@ public class NativeMusicBridgePlugin extends Plugin {
                     call.resolve(result);
                     return;
                 }
-            }
-
-            Intent launchIntent = packageManager.getLaunchIntentForPackage(packageName);
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(launchIntent);
-                JSObject result = new JSObject();
-                result.put("opened", true);
-                result.put("packageName", packageName);
-                result.put("uri", "");
-                result.put("fallback", "launchIntent");
-                call.resolve(result);
-                return;
             }
         }
 
