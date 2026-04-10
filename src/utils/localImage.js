@@ -58,16 +58,9 @@ export async function pickLinkedLocalImage() {
 }
 
 async function pickNativeGalleryImage() {
-  try {
-    await FilePicker.requestPermissions({
-      permissions: ['accessMediaLocation', 'readExternalStorage']
-    })
-  } catch (error) {
-    console.warn('[localImage] file picker permission request skipped', error)
-  }
-
   const result = await FilePicker.pickImages({
-    limit: 1
+    limit: 1,
+    readData: true
   })
   const picked = result?.files?.[0]
   if (!picked) return null
@@ -83,15 +76,19 @@ async function pickNativeGalleryImage() {
   }
 
   if (picked.path) {
-    const response = await fetch(picked.path)
-    if (!response.ok) {
-      throw new Error('读取相册原图失败')
+    try {
+      const response = await fetch(picked.path)
+      if (!response.ok) {
+        throw new Error('读取相册原图失败')
+      }
+      const blob = await response.blob()
+      return new File([blob], fileName, {
+        type: blob.type || mimeType,
+        lastModified: Number(picked.modifiedAt) || Date.now()
+      })
+    } catch (error) {
+      console.warn('[localImage] failed to fetch picked image path', picked.path, error)
     }
-    const blob = await response.blob()
-    return new File([blob], fileName, {
-      type: blob.type || mimeType,
-      lastModified: Number(picked.modifiedAt) || Date.now()
-    })
   }
 
   if (picked.data) {
