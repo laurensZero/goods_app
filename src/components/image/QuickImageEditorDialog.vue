@@ -53,18 +53,7 @@
               :class="['editor-preview', whiteBgEnabled && 'editor-preview--white']"
             >
               <img ref="imageRef" :src="previewUrl" alt="编辑预览" class="editor-image" />
-              <canvas
-                v-show="cutoutBrushMode"
-                ref="maskPreviewRef"
-                class="editor-mask-preview"
-                :style="previewOverlayStyle"
-              />
-              <div
-                v-show="brushDrawingActive"
-                ref="brushHostRef"
-                class="editor-brush-layer"
-                :style="previewOverlayStyle"
-              />
+
             </section>
 
             <div class="editor-panels">
@@ -132,65 +121,7 @@
                   <p class="editor-hint">建议先裁切多余边缘，再抠图</p>
                 </div>
 
-                <div v-if="brushModeActive" class="editor-group">
-                  <p class="editor-group-title">画笔修边</p>
 
-                  <div class="editor-chips">
-                    <button
-                      type="button"
-                      :class="['editor-chip', cutoutBrushMode === 'keep' && 'editor-chip--active']"
-                      :disabled="brushEntryDisabled || cutoutApplyingMask || saving"
-                      @click="cutoutBrushMode = cutoutBrushMode === 'keep' ? '' : 'keep'"
-                    >
-                      保留（绿色）
-                    </button>
-                    <button
-                      type="button"
-                      :class="['editor-chip', cutoutBrushMode === 'erase' && 'editor-chip--active']"
-                      :disabled="brushEntryDisabled || cutoutApplyingMask || saving"
-                      @click="cutoutBrushMode = cutoutBrushMode === 'erase' ? '' : 'erase'"
-                    >
-                      擦除（红色）
-                    </button>
-                  </div>
-
-                  <p v-if="brushEntryDisabled" class="editor-hint">画笔入口已临时禁用</p>
-
-                  <label v-if="cutoutBrushMode" class="editor-slider">
-                    <div class="editor-slider__head">
-                      <span>笔刷大小</span>
-                      <strong>{{ cutoutBrushSize }}</strong>
-                    </div>
-                    <input v-model.number="cutoutBrushSize" type="range" min="8" max="96" step="1" />
-                  </label>
-
-                  <div class="editor-actions">
-                    <button
-                      type="button"
-                      class="editor-btn"
-                      :disabled="!cutoutHasPendingStrokes || cutoutApplyingMask || saving"
-                      @click="applyMaskEdits"
-                    >
-                      {{ cutoutApplyingMask ? '应用中...' : '应用画笔' }}
-                    </button>
-                    <button
-                      type="button"
-                      class="editor-btn editor-btn--ghost"
-                      :disabled="!cutoutHasPendingStrokes || cutoutApplyingMask || saving"
-                      @click="undoBrushStroke"
-                    >
-                      撤销一笔
-                    </button>
-                    <button
-                      type="button"
-                      class="editor-btn editor-btn--ghost"
-                      :disabled="cutoutApplyingMask || saving"
-                      @click="resetBrushStrokes"
-                    >
-                      重置画笔
-                    </button>
-                  </div>
-                </div>
 
                 <div v-if="cutoutLoading" class="editor-progress">
                   <div class="editor-progress__head">
@@ -286,7 +217,6 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
-import { Canvas, PencilBrush } from 'fabric'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout } from '@/composables/image/useImageCutout'
@@ -301,7 +231,6 @@ const emit = defineEmits(['update:show', 'save'])
 
 const imageRef = ref(null)
 const previewRef = ref(null)
-const brushHostRef = ref(null)
 const activeTab = ref('basic')
 const cutoutLoading = ref(false)
 const cutoutLoadingText = ref('抠图处理中...')
@@ -342,8 +271,8 @@ const tabOptions = [
 const editorHistory = useEditorHistory()
 const { canUndo, canRedo } = editorHistory
 
-const brushModeActive = computed(() => !!cutoutPreparedImageUrl.value && !!cutoutMaskUrl.value)
-const brushDrawingActive = computed(() => brushModeActive.value && !!cutoutBrushMode.value)
+const brushModeActive = computed(() => false)
+const brushDrawingActive = computed(() => false)
 const brushEntryDisabled = true
 const previewRenderBox = ref({ left: 0, top: 0, width: 0, height: 0 })
 const previewOverlayStyle = computed(() => ({
@@ -357,8 +286,6 @@ const whiteBgPreviewImageStyle = computed(() => ({
 }))
 
 let cropper = null
-let brushCanvas = null
-const maskPreviewRef = ref(null)
 const previewUrl = ref('')
 let flipX = 1
 let previousHtmlOverflow = ''
@@ -392,7 +319,6 @@ function clearCutoutSession() {
   cutoutBrushMode.value = ''
   cutoutBrushSize.value = 28
   cutoutHasPendingStrokes.value = false
-  destroyBrushCanvas()
 }
 
 function releaseEditorSessionUrls() {
@@ -409,12 +335,7 @@ function destroyCropper() {
   }
 }
 
-function destroyBrushCanvas() {
-  if (brushCanvas) {
-    brushCanvas.dispose()
-    brushCanvas = null
-  }
-}
+
 
 function createTrackedObjectUrl(blob) {
   const url = URL.createObjectURL(blob)
@@ -490,12 +411,7 @@ async function applyEditorSnapshot(snapshot) {
       cutoutBrushMode.value = ''
       cutoutBrushSize.value = 28
       cutoutHasPendingStrokes.value = false
-      destroyBrushCanvas()
       await nextTick()
-      if (cutoutBrushMode.value) {
-        drawMaskPreview()
-        syncBrushViewport()
-      }
     } else {
       clearCutoutSession()
       previewUrl.value = snapshot.cutoutPreviewUrl || ''
@@ -603,144 +519,15 @@ async function initCropper() {
   applyPreviewFilter()
 }
 
-function initBrushCanvas() {
-  if (!brushHostRef.value || !cutoutPreparedBlob) return
 
-  destroyBrushCanvas()
 
-  const canvasEl = document.createElement('canvas')
-  brushHostRef.value.innerHTML = ''
-  brushHostRef.value.appendChild(canvasEl)
 
-  brushCanvas = new Canvas(canvasEl, {
-    isDrawingMode: true,
-    selection: false
-  })
 
-  loadImageFromBlob(cutoutPreparedBlob).then((img) => {
-    const w = img.naturalWidth || img.width || 1
-    const h = img.naturalHeight || img.height || 1
 
-    updatePreviewRenderBox()
-    const box = previewRenderBox.value
-    brushCanvas.setDimensions({
-      width: box.width || w,
-      height: box.height || h
-    })
-    brushCanvas.requestRenderAll()
 
-    brushCanvas.on('path:created', () => {
-      cutoutHasPendingStrokes.value = true
-    })
-    syncBrushStyle()
-  })
-}
 
-function updatePreviewRenderBox() {
-  const container = previewRef.value
-  const image = imageRef.value
-  if (!container || !image) return
 
-  const containerWidth = container.clientWidth
-  const containerHeight = container.clientHeight
-  if (!containerWidth || !containerHeight) return
 
-  const sourceWidth = image.naturalWidth || image.width || 1
-  const sourceHeight = image.naturalHeight || image.height || 1
-  const scale = Math.min(containerWidth / sourceWidth, containerHeight / sourceHeight)
-
-  const width = Math.max(1, Math.round(sourceWidth * scale))
-  const height = Math.max(1, Math.round(sourceHeight * scale))
-  const left = Math.round((containerWidth - width) / 2)
-  const top = Math.round((containerHeight - height) / 2)
-
-  previewRenderBox.value = { left, top, width, height }
-}
-
-function syncBrushViewport() {
-  if (!brushCanvas) return
-  const box = previewRenderBox.value
-  if (!box.width || !box.height) return
-
-  brushCanvas.setViewportTransform([1, 0, 0, 1, 0, 0])
-  brushCanvas.setDimensions({
-    width: box.width,
-    height: box.height
-  })
-  brushCanvas.requestRenderAll()
-}
-
-function createBrushCursor(size, color) {
-  const diameter = Math.max(8, Math.round(Number(size) || 24))
-  const radius = Math.max(3, Math.round(diameter / 2) - 1)
-  const svgSize = diameter + 4
-  const center = svgSize / 2
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="${color}" stroke-width="2"/></svg>`
-  const encoded = encodeURIComponent(svg)
-  return `url("data:image/svg+xml,${encoded}") ${Math.round(center)} ${Math.round(center)}, crosshair`
-}
-
-function syncBrushStyle() {
-  if (!brushCanvas) return
-  if (!brushCanvas.freeDrawingBrush || !(brushCanvas.freeDrawingBrush instanceof PencilBrush)) {
-    brushCanvas.freeDrawingBrush = new PencilBrush(brushCanvas)
-  }
-  const brushSize = Math.max(4, Number(cutoutBrushSize.value) || 24)
-  const brushColor = cutoutBrushMode.value === 'keep'
-    ? 'rgba(34, 197, 94, 0.5)'
-    : 'rgba(239, 68, 68, 0.5)'
-
-  brushCanvas.freeDrawingBrush.width = brushSize
-  brushCanvas.freeDrawingBrush.color = brushColor
-  brushCanvas.freeDrawingBrush.strokeLineCap = 'round'
-  brushCanvas.freeDrawingBrush.strokeLineJoin = 'round'
-  brushCanvas.freeDrawingBrush.decimate = 0.2
-  brushCanvas.freeDrawingCursor = createBrushCursor(brushSize, brushColor)
-}
-
-function drawMaskPreview() {
-  const canvas = maskPreviewRef.value
-  if (!canvas || !cutoutMaskUrl.value) return
-
-  updatePreviewRenderBox()
-  const box = previewRenderBox.value
-  if (!box.width || !box.height) return
-
-  canvas.width = box.width
-  canvas.height = box.height
-
-  const ctx = canvas.getContext('2d')
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-  const paintMaskLayer = () => {
-    const maskImg = new Image()
-    maskImg.onload = () => {
-      ctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height)
-      ctx.globalCompositeOperation = 'source-in'
-      ctx.fillStyle = cutoutBrushMode.value === 'keep'
-        ? 'rgba(34, 197, 94, 0.45)'
-        : 'rgba(239, 68, 68, 0.45)'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.globalCompositeOperation = 'source-over'
-    }
-    maskImg.src = cutoutMaskUrl.value
-  }
-
-  if (cutoutInputImageUrl.value) {
-    const sourceImg = new Image()
-    sourceImg.onload = () => {
-      ctx.save()
-      ctx.globalAlpha = 0.2
-      ctx.drawImage(sourceImg, 0, 0, canvas.width, canvas.height)
-      ctx.restore()
-      paintMaskLayer()
-    }
-    sourceImg.src = cutoutInputImageUrl.value
-    return
-  }
-
-  paintMaskLayer()
-}
 
 function loadImageFromBlob(blob) {
   return new Promise((resolve, reject) => {
@@ -926,97 +713,9 @@ async function runCutout() {
   }
 }
 
-function undoBrushStroke() {
-  if (!brushCanvas) return
-  const objects = brushCanvas.getObjects()
-  const last = objects[objects.length - 1]
-  if (!last) return
-  brushCanvas.remove(last)
-  brushCanvas.requestRenderAll()
-  cutoutHasPendingStrokes.value = brushCanvas.getObjects().length > 0
-}
 
-function resetBrushStrokes() {
-  if (!brushCanvas) return
-  const objects = brushCanvas.getObjects()
-  objects.forEach((item) => brushCanvas.remove(item))
-  brushCanvas.requestRenderAll()
-  cutoutHasPendingStrokes.value = false
-}
 
-async function applyMaskEdits() {
-  if (cutoutApplyingMask.value || !cutoutPreparedBlob || !cutoutMeta) return
-  cutoutApplyingMask.value = true
-  errorText.value = ''
 
-  try {
-    if (!brushCanvas || brushCanvas.getObjects().length === 0) return
-    const applyMode = cutoutBrushMode.value === 'erase' ? 'erase' : 'keep'
-
-    const strokeDataUrl = brushCanvas.toDataURL({
-      format: 'png',
-      multiplier: 1,
-      enableRetinaScaling: false,
-      withoutTransform: false
-    })
-
-    const strokeImg = await loadImage(strokeDataUrl)
-    const maskCanvas = createCanvas(cutoutPreparedBlob ? cutoutMeta.sourceWidth || cutoutMeta.contentWidth : 1, 1)
-
-    const tempImg = await loadImageFromBlob(cutoutPreparedBlob)
-    maskCanvas.width = tempImg.naturalWidth || tempImg.width
-    maskCanvas.height = tempImg.naturalHeight || tempImg.height
-
-    const mergedCanvas = createCanvas(maskCanvas.width, maskCanvas.height)
-    const mergedCtx = mergedCanvas.getContext('2d', { willReadFrequently: true })
-
-    const origMaskImg = await loadImageFromBlob(cutoutCurrentMaskBlob)
-    mergedCtx.drawImage(origMaskImg, 0, 0, mergedCanvas.width, mergedCanvas.height)
-
-    const strokeCanvas = createCanvas(mergedCanvas.width, mergedCanvas.height)
-    const strokeCtx = strokeCanvas.getContext('2d', { willReadFrequently: true })
-    strokeCtx.drawImage(strokeImg, 0, 0, strokeCanvas.width, strokeCanvas.height)
-
-    const mergedImage = mergedCtx.getImageData(0, 0, mergedCanvas.width, mergedCanvas.height)
-    const strokeImage = strokeCtx.getImageData(0, 0, strokeCanvas.width, strokeCanvas.height)
-    const mergedData = mergedImage.data
-    const strokeData = strokeImage.data
-
-    for (let index = 0; index < strokeData.length; index += 4) {
-      const strokeAlpha = strokeData[index + 3] / 255
-      if (strokeAlpha <= 0.001) continue
-
-      if (applyMode === 'erase') {
-        const nextAlpha = Math.max(0, 1 - strokeAlpha * 1.65)
-        mergedData[index] = Math.round(mergedData[index] * nextAlpha)
-        mergedData[index + 1] = Math.round(mergedData[index + 1] * nextAlpha)
-        mergedData[index + 2] = Math.round(mergedData[index + 2] * nextAlpha)
-        mergedData[index + 3] = Math.round(mergedData[index + 3] * nextAlpha)
-        continue
-      }
-
-      const boost = Math.min(1, strokeAlpha * 1.35)
-      mergedData[index] = Math.round(mergedData[index] + (255 - mergedData[index]) * boost)
-      mergedData[index + 1] = Math.round(mergedData[index + 1] + (255 - mergedData[index + 1]) * boost)
-      mergedData[index + 2] = Math.round(mergedData[index + 2] + (255 - mergedData[index + 2]) * boost)
-      mergedData[index + 3] = Math.round(mergedData[index + 3] + (255 - mergedData[index + 3]) * boost)
-    }
-
-    mergedCtx.putImageData(mergedImage, 0, 0)
-    cutoutCurrentMaskBlob = await canvasToBlob(mergedCanvas, 'image/png', 1)
-
-    const cutoutBlob = await applyCutoutMask(cutoutPreparedBlob, cutoutCurrentMaskBlob, cutoutMeta)
-    previewUrl.value = createTrackedObjectUrl(cutoutBlob)
-
-    resetBrushStrokes()
-    recordEditorHistory()
-  } catch (error) {
-    errorText.value = error?.message || '应用画笔失败，请重试'
-  } finally {
-    cutoutApplyingMask.value = false
-    cutoutHasPendingStrokes.value = false
-  }
-}
 
 async function handleSave() {
   if (saving.value) return
@@ -1026,9 +725,6 @@ async function handleSave() {
   errorText.value = ''
 
   try {
-    if (brushModeActive.value && cutoutHasPendingStrokes.value) {
-      await applyMaskEdits()
-    }
     const sourceBlob = await getCurrentBlob()
     const exported = await exportForUpload(sourceBlob, {
       targetMaxBytes: 1024 * 1024,
@@ -1085,7 +781,6 @@ watch(
 
     if (!visible) {
       editorSessionId += 1
-      window.removeEventListener('resize', handlePreviewResize)
       destroyCropper()
       clearCutoutSession()
       releaseEditorSessionUrls()
@@ -1094,8 +789,6 @@ watch(
       previewUrl.value = ''
       return
     }
-
-    window.addEventListener('resize', handlePreviewResize)
     if (props.sourceFile) {
       openFromFile(props.sourceFile)
     }
@@ -1115,47 +808,13 @@ watch([brightness, contrast], () => {
   applyPreviewFilter()
 })
 
-watch(
-  () => previewUrl.value,
-  () => {
-    nextTick(() => {
-      updatePreviewRenderBox()
-      if (cutoutBrushMode.value) {
-        drawMaskPreview()
-        syncBrushViewport()
-      }
-    })
-  }
-)
 
-watch([cutoutBrushMode, cutoutBrushSize], ([mode, size], [oldMode]) => {
-  if (mode && oldMode && mode !== oldMode && cutoutHasPendingStrokes.value) {
-    resetBrushStrokes()
-  }
 
-  if (mode && !brushCanvas) {
-    nextTick(() => {
-      initBrushCanvas()
-    })
-  } else {
-    syncBrushStyle()
-    syncBrushViewport()
-  }
 
-  if (mode && maskPreviewRef.value) {
-    nextTick(() => setTimeout(() => drawMaskPreview(), 100))
-  }
-})
 
-function handlePreviewResize() {
-  updatePreviewRenderBox()
-  if (!cutoutBrushMode.value) return
-  drawMaskPreview()
-  syncBrushViewport()
-}
+
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handlePreviewResize)
   setPageScrollLock(false)
   destroyCropper()
   clearCutoutSession()
