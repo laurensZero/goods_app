@@ -275,7 +275,7 @@
           </div>
         </div>
         <div class="goods-list">
-          <GoodsCard
+          <SearchGoodsCard
             v-for="item in results"
             :key="item.id"
             :item="item"
@@ -339,7 +339,7 @@ import {
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
 import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
-import GoodsCard from '@/components/goods/GoodsCard.vue'
+import SearchGoodsCard from '@/components/goods/SearchGoodsCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
