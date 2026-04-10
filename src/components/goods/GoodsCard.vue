@@ -302,7 +302,8 @@ const priceText = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 100%;
+  height: auto;
+  align-self: start;
   padding: 10px;
   border-radius: var(--radius-card);
   background: var(--app-surface);
