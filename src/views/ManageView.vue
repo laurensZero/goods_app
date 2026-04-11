@@ -123,7 +123,18 @@
         </section>
 
         <section class="hub-section section-gap">
-          <button type="button" class="entry-card" @click="handleExport">
+          <button
+            type="button"
+            class="entry-card"
+            @click="handleExportClick"
+            @touchstart.passive="startExportLongPress"
+            @touchend="cancelExportLongPress"
+            @touchcancel="cancelExportLongPress"
+            @mousedown.left="startExportLongPress"
+            @mouseup="cancelExportLongPress"
+            @mouseleave="cancelExportLongPress"
+            @contextmenu.prevent="openExportPicker"
+          >
             <span class="entry-icon export-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -134,13 +145,65 @@
             <div class="entry-body">
               <p class="entry-kicker">数据管理</p>
               <h2 class="entry-name">导出数据</h2>
-              <p class="entry-desc">备份收藏、心愿、活动、充值、回收站和全部预设</p>
+              <p class="entry-desc">长按可选择导出的数据范围</p>
               <p class="entry-count">{{ exportSummaryText }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </button>
+
+          <Popup
+            v-model:show="showExportPicker"
+            :position="exportPickerPosition"
+            :round="!isTabletViewport"
+            teleport="body"
+            :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
+          >
+            <div class="export-picker-body">
+              <div class="export-picker__handle" />
+
+              <div class="export-picker__head">
+                <div>
+                  <p class="export-picker__label">导出内容</p>
+                  <h3 class="export-picker__title">选择要导出的数据</h3>
+                </div>
+
+                <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
+                  {{ allExportSectionsSelected ? '清空' : '全选' }}
+                </button>
+              </div>
+
+              <div class="export-picker__options">
+                <button
+                  v-for="option in exportSectionOptions"
+                  :key="option.key"
+                  type="button"
+                  :class="['export-picker__option', { 'export-picker__option--active': exportSelection[option.key] }]"
+                  @click="toggleExportSection(option.key)"
+                >
+                  <div class="export-picker__option-body">
+                    <span class="export-picker__option-name">{{ option.label }}</span>
+                    <span class="export-picker__option-desc">{{ option.desc }}</span>
+                  </div>
+                  <span class="export-picker__check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+
+              <div class="export-picker__actions">
+                <button class="export-picker__action export-picker__action--ghost" type="button" @click="closeExportPicker">
+                  取消
+                </button>
+                <button class="export-picker__action" type="button" @click="confirmExportSelection">
+                  开始导出
+                </button>
+              </div>
+            </div>
+          </Popup>
 
           <button type="button" class="entry-card" @click="triggerImport">
             <span class="entry-icon import-icon">
@@ -212,6 +275,7 @@
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import { Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
@@ -239,6 +303,27 @@ const exportSummaryText = computed(() => (
   `${collectionCount.value} 件收藏 ${wishlistCount.value} 件心愿 ${eventCount.value} 场活动 ${rechargeCount.value} 条充值`
 ))
 
+const EXPORT_LONG_PRESS_DELAY_MS = 420
+const exportSectionOptions = [
+  { key: 'goods', label: '收藏', desc: '当前收藏记录' },
+  { key: 'wishlist', label: '心愿单', desc: '计划入手记录' },
+  { key: 'trash', label: '回收站', desc: '已删除但尚未清空的数据' },
+  { key: 'events', label: '活动', desc: '活动、曲目与关联谷子' },
+  { key: 'recharge', label: '充值', desc: '充值记录与回收站' },
+  { key: 'presets', label: '预设', desc: '分类、IP、角色和收纳位置' }
+]
+
+function createDefaultExportSelection() {
+  return exportSectionOptions.reduce((result, option) => {
+    result[option.key] = true
+    return result
+  }, {})
+}
+
+const windowWidth = ref(window.innerWidth)
+const isTabletViewport = computed(() => windowWidth.value >= 900)
+const exportPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+
 async function ensureEventsReady() {
   if (!eventsStore.isReady) {
     await eventsStore.init()
@@ -255,13 +340,19 @@ function formatSyncTime(isoString) {
 const pageBodyRef = ref(null)
 const importFileRef = ref(null)
 const toastMsg = ref('')
+const showExportPicker = ref(false)
+const exportSelection = ref(createDefaultExportSelection())
 const manageDisplayReady = ref(true)
 let toastTimer = null
 let pageScrollBound = false
 let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
+let exportLongPressTimer = 0
+let suppressNextExportClick = false
 const BACKUP_DIR = 'GoodsAppBackup'
+
+const allExportSectionsSelected = computed(() => exportSectionOptions.every((option) => exportSelection.value[option.key]))
 
 const {
   getScrollEl,
@@ -276,6 +367,74 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useManageScrollRestore(pageBodyRef)
+
+function openExportPicker() {
+  exportSelection.value = createDefaultExportSelection()
+  showExportPicker.value = true
+}
+
+function closeExportPicker() {
+  showExportPicker.value = false
+  suppressNextExportClick = false
+}
+
+function toggleExportSection(key) {
+  exportSelection.value = {
+    ...exportSelection.value,
+    [key]: !exportSelection.value[key]
+  }
+}
+
+function toggleExportAll() {
+  const nextValue = !allExportSectionsSelected.value
+  exportSelection.value = exportSectionOptions.reduce((result, option) => {
+    result[option.key] = nextValue
+    return result
+  }, {})
+}
+
+function startExportLongPress() {
+  if (exportLongPressTimer) {
+    window.clearTimeout(exportLongPressTimer)
+  }
+
+  exportLongPressTimer = window.setTimeout(() => {
+    suppressNextExportClick = true
+    openExportPicker()
+    exportLongPressTimer = 0
+  }, EXPORT_LONG_PRESS_DELAY_MS)
+}
+
+function cancelExportLongPress() {
+  if (exportLongPressTimer) {
+    window.clearTimeout(exportLongPressTimer)
+    exportLongPressTimer = 0
+  }
+}
+
+function handleResize() {
+  windowWidth.value = window.innerWidth
+}
+
+function handleExportClick() {
+  if (suppressNextExportClick) {
+    suppressNextExportClick = false
+    return
+  }
+
+  handleExport()
+}
+
+function confirmExportSelection() {
+  const selectedCount = exportSectionOptions.reduce((sum, option) => sum + (exportSelection.value[option.key] ? 1 : 0), 0)
+  if (selectedCount === 0) {
+    showToast('请至少选择一项导出内容')
+    return
+  }
+
+  handleExport(exportSelection.value)
+  closeExportPicker()
+}
 
 function syncVisibleGoodsCount() {}
 function syncVisibleTimelineMonthCount() {}
@@ -327,6 +486,8 @@ function unbindPageScroll() {
 }
 
 onMounted(() => {
+  handleResize()
+  window.addEventListener('resize', handleResize, { passive: true })
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
@@ -383,10 +544,20 @@ onBeforeUnmount(() => {
   unbindPageScroll()
   rememberCurrentScrollPosition()
   clearTimeout(toastTimer)
+  window.removeEventListener('resize', handleResize)
+  if (exportLongPressTimer) {
+    window.clearTimeout(exportLongPressTimer)
+    exportLongPressTimer = 0
+  }
 })
 
 onBeforeRouteLeave(() => {
   saveScrollPosition(true, 'manage:onBeforeRouteLeave')
+  if (exportLongPressTimer) {
+    window.clearTimeout(exportLongPressTimer)
+    exportLongPressTimer = 0
+  }
+  suppressNextExportClick = false
 })
 
 function showToast(message, duration = 2600) {
@@ -472,28 +643,45 @@ async function shareBackupFile(uri) {
   return true
 }
 
-async function handleExport() {
+async function handleExport(selection = null) {
   await ensureEventsReady()
-  const goodsList = await Promise.all(goodsStore.list.map((item) => sanitizeGoodsItemForExport(item)))
-  const trashList = await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item)))
-  const rechargeRecords = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
-  const rechargeTrash = []
-  const eventsList = await Promise.all(eventsStore.list.map((event) => sanitizeEventForExport(event)))
+  const selected = selection || createDefaultExportSelection()
+  const includeGoods = selected.goods !== false
+  const includeWishlist = selected.wishlist !== false
+  const includeTrash = selected.trash !== false
+  const includeEvents = selected.events !== false
+  const includeRecharge = selected.recharge !== false
+  const includePresets = selected.presets !== false
+
+  const goodsList = includeGoods
+    ? await Promise.all(goodsStore.list.filter((item) => !item?.isWishlist).map((item) => sanitizeGoodsItemForExport(item)))
+    : undefined
+  const wishlistList = includeWishlist
+    ? await Promise.all(goodsStore.list.filter((item) => item?.isWishlist).map((item) => sanitizeGoodsItemForExport(item)))
+    : undefined
+  const trashList = includeTrash ? await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item))) : undefined
+  const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) : undefined
+  const rechargeTrash = includeRecharge ? [] : undefined
+  const eventsList = includeEvents ? await Promise.all(eventsStore.list.map((event) => sanitizeEventForExport(event))) : undefined
 
   const data = {
     version: 8,
     exportedAt: new Date().toISOString(),
-    goods: goodsList,
-    trash: trashList,
-    recharge: rechargeRecords,
-    rechargeTrash,
-    events: eventsList,
-    presets: {
-      categories: presets.categories,
-      ips: presets.ips,
-      characters: presets.characters,
-      storageLocations: presets.storageLocationPaths
-    }
+    ...(includeGoods ? { goods: goodsList } : {}),
+    ...(includeWishlist ? { wishlist: wishlistList } : {}),
+    ...(includeTrash ? { trash: trashList } : {}),
+    ...(includeRecharge ? { recharge: rechargeRecords, rechargeTrash } : {}),
+    ...(includeEvents ? { events: eventsList } : {}),
+    ...(includePresets
+      ? {
+          presets: {
+            categories: presets.categories,
+            ips: presets.ips,
+            characters: presets.characters,
+            storageLocations: presets.storageLocationPaths
+          }
+        }
+      : {})
   }
   const json = JSON.stringify(data, null, 2)
   const filename = `谷子备份_${new Date().toISOString().split('T')[0]}.json`
@@ -556,15 +744,19 @@ async function handleImport(event) {
     const data = JSON.parse(text)
 
     const goodsToImport = Array.isArray(data.goods) ? data.goods : []
+    const wishlistToImport = Array.isArray(data.wishlist)
+      ? data.wishlist.map((item) => ({ ...item, isWishlist: true }))
+      : []
     const trashToImport = Array.isArray(data.trash) ? data.trash : []
     const rechargeActive = Array.isArray(data.recharge) ? data.recharge : []
     const rechargeDeleted = Array.isArray(data.rechargeTrash) ? data.rechargeTrash : []
     const rechargeLegacy = Array.isArray(data.rechargeRecords) ? data.rechargeRecords : []
     const rechargeToImport = [...rechargeActive, ...rechargeDeleted, ...rechargeLegacy]
     const eventsToImport = Array.isArray(data.events) ? data.events : []
+    const mergedGoodsToImport = [...goodsToImport, ...wishlistToImport]
 
-    const goodsAdded = goodsToImport.length > 0
-      ? await goodsStore.importGoodsBackup(goodsToImport)
+    const goodsAdded = mergedGoodsToImport.length > 0
+      ? await goodsStore.importGoodsBackup(mergedGoodsToImport)
       : 0
     const trashAdded = trashToImport.length > 0
       ? await goodsStore.importTrashBackup(trashToImport)
@@ -589,7 +781,7 @@ async function handleImport(event) {
     }
 
     await presets.syncStorageLocationsFromPaths(
-      goodsToImport.map((item) => item.storageLocation).filter(Boolean)
+      mergedGoodsToImport.map((item) => item.storageLocation).filter(Boolean)
     )
 
     const rechargeChanged = Number(rechargeResult.added || 0) + Number(rechargeResult.updated || 0)
@@ -754,6 +946,180 @@ async function handleImport(event) {
 .export-icon { background: rgba(90, 120, 250, 0.10); color: #5a78fa; }
 .import-icon { background: rgba(50, 200, 140, 0.10); color: #28c880; }
 .sync-icon { background: rgba(120, 100, 255, 0.10); color: #7864ff; }
+
+.picker-popup {
+  overflow: hidden;
+}
+
+:global(.picker-popup.van-popup),
+:global(.picker-popup.van-popup--bottom) {
+  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+}
+
+:global(.picker-popup--center.van-popup--center) {
+  width: min(520px, calc(100vw - 40px));
+  border-radius: 28px !important;
+  overflow: hidden;
+  box-shadow:
+    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
+  background-clip: padding-box;
+}
+
+.export-picker-body {
+  width: 100%;
+  margin: 0 auto;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  color: var(--app-text);
+  background: transparent;
+}
+
+:global(.picker-popup--center.van-popup--center) .export-picker-body {
+  padding: 22px;
+}
+
+.export-picker__handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 16%, transparent);
+}
+
+.export-picker__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.export-picker__label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.export-picker__title {
+  margin-top: 4px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.export-picker__toggle-all {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, transparent);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.export-picker__options {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+  border: 1px solid var(--app-border);
+}
+
+.export-picker__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text);
+  text-align: left;
+}
+
+.export-picker__option:not(:last-child) {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.export-picker__option--active {
+  background: color-mix(in srgb, var(--app-text) 4%, transparent);
+}
+
+.export-picker__option-body {
+  min-width: 0;
+}
+
+.export-picker__option-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.export-picker__option-desc {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+}
+
+.export-picker__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--app-text-secondary) 26%, transparent);
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.export-picker__option--active .export-picker__check {
+  background: var(--app-text);
+  border-color: var(--app-text);
+  color: var(--app-surface);
+}
+
+.export-picker__check svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.export-picker__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.export-picker__action {
+  height: 46px;
+  border: none;
+  border-radius: 16px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.export-picker__action--ghost {
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, transparent);
+  color: var(--app-text);
+}
 
 .entry-body {
   flex: 1;
