@@ -142,7 +142,13 @@ const inFlight = new Map()
 export async function getCachedImage(url) {
   if (!url) return ''
 
-  // 1: 内存
+  // 转换开发环境的跨域 URL 为代理路径（仅用于 fetch，缓存 key 保留原始 URL）
+  let fetchUrl = url
+  if (import.meta.env.DEV && url.includes('sdk-webstatic.mihoyo.com')) {
+    fetchUrl = url.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
+  }
+
+  // 1: 内存（用原始 URL 作为 key）
   if (memoryCache.has(url)) return memoryCache.get(url)
 
   // 防止并发请求相同 URL 导致多次 IO 和网络请求
@@ -166,14 +172,14 @@ export async function getCachedImage(url) {
     }
 
     try {
-      const response = await fetch(url)
+      const response = await fetch(fetchUrl)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
       const blob = await response.blob()
       const objectUrl = URL.createObjectURL(blob)
       setMemoryCache(url, objectUrl)
 
-      // 后台写入 Cache API 和 Capacitor FS，不阻塞返回
+      // 后台写入 Cache API 和 Capacitor FS（用原始 URL 作为 key），不阻塞返回
       putToCacheAPI(url, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
       putToCapacitorFS(url, blob)
 

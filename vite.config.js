@@ -41,6 +41,11 @@ export default defineConfig({
         headers: {
           Referer: 'https://music.163.com/'
         }
+      },
+      '/mihoyo-static': {
+        target: 'https://sdk-webstatic.mihoyo.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/mihoyo-static/, '')
       }
     }
   },
