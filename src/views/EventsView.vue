@@ -120,87 +120,13 @@
         </section>
       </Transition>
 
-      <section v-if="filteredEvents.length > 0 && viewMode === 'grid'" class="list-shell">
-        <div class="event-grid">
-          <EventCard
-            v-for="event in sortedEvents"
-            :key="event.id"
-            :event="event"
-            :selection-mode="selectionMode"
-            :selected="selectedIds.has(event.id)"
-            @long-press="enterSelectionMode"
-            @toggle-select="toggleSelect"
-            @open-detail="openDetail"
-          />
-        </div>
-      </section>
-
-      <section v-else-if="filteredEvents.length > 0" class="list-shell">
-        <template v-if="viewMode === 'timeline'">
-          <div v-for="yearGroup in groupedEventsByYear" :key="yearGroup.year || 'undated'" class="events-year-block">
-            <div v-if="!yearGroup.isUndated" class="events-year-header">
-              <span class="events-year-num">{{ yearGroup.year }}</span>
-              <span class="events-year-meta">{{ yearGroup.yearCount }} 场 / {{ formatPrice(yearGroup.yearTotal) }}</span>
-            </div>
-
-            <template v-for="(monthGroup, midx) in yearGroup.months" :key="monthGroup.yearMonth">
-              <section 
-                class="month-section month-section--timeline"
-                :class="{ 'month-section--last': midx === yearGroup.months.length - 1 }"
-              >
-                <div class="month-rail" aria-hidden="true">
-                  <div class="month-dot" />
-                  <div class="month-line" />
-                </div>
-
-                <div class="month-content">
-                  <div class="month-head">
-                    <div>
-                      <template v-if="monthGroup.isUndated">
-                        <h3 class="month-title">未设置日期</h3>
-                      </template>
-                      <template v-else>
-                        <span class="month-timeline-label">{{ monthGroup.month }} 月</span>
-                      </template>
-                    </div>
-                  </div>
-
-                  <div class="event-grid">
-                    <EventCard
-                      v-for="event in monthGroup.items"
-                      :key="event.id"
-                      :event="event"
-                      :selection-mode="selectionMode"
-                      :selected="selectedIds.has(event.id)"
-                      @long-press="enterSelectionMode"
-                      @toggle-select="toggleSelect"
-                      @open-detail="openDetail"
-                    />
-                  </div>
-                </div>
-              </section>
-            </template>
-          </div>
-        </template>
-
-        <template v-else>
-          <template v-for="group in groupedEvents" :key="group.yearMonth">
-            <section class="month-section">
-              <div class="month-head">
-                <div>
-                  <template v-if="group.isUndated">
-                    <h3 class="month-title">未设置日期</h3>
-                  </template>
-                  <template v-else>
-                    <p class="month-label">{{ group.year }} 年</p>
-                    <h3 class="month-title">{{ group.month }} 月</h3>
-                  </template>
-                </div>
-              </div>
-
+      <template v-if="filteredEvents.length > 0">
+        <Transition name="search-drop" mode="out-in">
+          <section :key="viewMode" class="list-shell">
+            <template v-if="viewMode === 'grid'">
               <div class="event-grid">
                 <EventCard
-                  v-for="event in group.items"
+                  v-for="event in sortedEvents"
                   :key="event.id"
                   :event="event"
                   :selection-mode="selectionMode"
@@ -210,10 +136,59 @@
                   @open-detail="openDetail"
                 />
               </div>
-            </section>
-          </template>
-        </template>
-      </section>
+            </template>
+
+            <template v-else>
+              <template v-for="yearGroup in groupedEventsByYear" :key="yearGroup.year || 'undated'">
+                <div class="events-year-block">
+                  <div v-if="!yearGroup.isUndated" class="events-year-header">
+                    <span class="events-year-num">{{ yearGroup.year }}</span>
+                    <span class="events-year-meta">{{ yearGroup.yearCount }} 场 / {{ formatPrice(yearGroup.yearTotal) }}</span>
+                  </div>
+
+                  <template v-for="(monthGroup, midx) in yearGroup.months" :key="monthGroup.yearMonth">
+                    <section 
+                      class="month-section month-section--timeline"
+                      :class="{ 'month-section--last': midx === yearGroup.months.length - 1 }"
+                    >
+                      <div class="month-rail" aria-hidden="true">
+                        <div class="month-dot" />
+                        <div class="month-line" />
+                      </div>
+
+                      <div class="month-content">
+                        <div class="month-head">
+                          <div>
+                            <template v-if="monthGroup.isUndated">
+                              <h3 class="month-title">未设置日期</h3>
+                            </template>
+                            <template v-else>
+                              <span class="month-timeline-label">{{ monthGroup.month }} 月</span>
+                            </template>
+                          </div>
+                        </div>
+
+                        <div class="event-grid">
+                          <EventCard
+                            v-for="event in monthGroup.items"
+                            :key="event.id"
+                            :event="event"
+                            :selection-mode="selectionMode"
+                            :selected="selectedIds.has(event.id)"
+                            @long-press="enterSelectionMode"
+                            @toggle-select="toggleSelect"
+                            @open-detail="openDetail"
+                          />
+                        </div>
+                      </div>
+                    </section>
+                  </template>
+                </div>
+              </template>
+            </template>
+          </section>
+        </Transition>
+      </template>
 
       <section v-else-if="eventsStore.list.length > 0" class="empty-wrap">
         <EmptyState
@@ -961,19 +936,12 @@ onBeforeRouteLeave(async () => {
 
 .sort-toggle__group {
   transition: opacity 180ms ease, color 180ms ease;
+  opacity: 0.54;
 }
 
 .sort-toggle__group path {
   stroke: currentColor;
   transition: stroke-width 180ms ease;
-}
-
-.sort-toggle__group--up {
-  color: #b7bcc5;
-}
-
-.sort-toggle__group--down {
-  color: #5f6570;
 }
 
 .sort-toggle__group--up path {
@@ -985,11 +953,19 @@ onBeforeRouteLeave(async () => {
 }
 
 .sort-toggle--asc .sort-toggle__group--up {
-  color: #141416;
+  opacity: 1;
 }
 
 .sort-toggle--asc .sort-toggle__group--down {
-  color: #b7bcc5;
+  opacity: 0.54;
+}
+
+.sort-toggle:not(.sort-toggle--asc) .sort-toggle__group--up {
+  opacity: 0.54;
+}
+
+.sort-toggle:not(.sort-toggle--asc) .sort-toggle__group--down {
+  opacity: 1;
 }
 
 .sort-toggle--asc .sort-toggle__group--up path {
@@ -1004,8 +980,14 @@ onBeforeRouteLeave(async () => {
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--view-switch-count, 2), minmax(0, 1fr));
-  gap: 6px;
-  padding: 6px;
+  gap: var(--view-switch-gap, 6px);
+  padding: var(--view-switch-pad, 6px);
+  --view-switch-gap: 6px;
+  --view-switch-pad: 6px;
+  --view-switch-height: 36px;
+  --view-switch-duration: calc(var(--home-motion-density-duration) + 120ms);
+  --view-switch-count: 2;
+  --view-switch-index: 0;
   border-radius: 18px;
   background: var(--app-glass);
   box-shadow: var(--app-shadow);
@@ -1013,15 +995,21 @@ onBeforeRouteLeave(async () => {
 
 .view-switch__indicator {
   position: absolute;
-  top: 6px;
-  left: 6px;
-  height: 36px;
-  width: calc((100% - 12px - (6px * (var(--view-switch-count, 2) - 1))) / var(--view-switch-count, 2));
+  top: var(--view-switch-pad, 6px);
+  left: var(--view-switch-pad, 6px);
+  height: var(--view-switch-height, 36px);
+  width: calc((100% - (var(--view-switch-gap, 6px) * (var(--view-switch-count, 2) - 1)) - (var(--view-switch-pad, 6px) * 2)) / var(--view-switch-count, 2));
   border-radius: 14px;
   background: #141416;
-  transform: translateX(calc((100% + 6px) * var(--view-switch-index, 0)));
-  transition: transform calc(var(--home-motion-density-duration) + 80ms) var(--home-motion-ease-emphasis);
-  box-shadow: 0 6px 14px rgba(20, 20, 22, 0.12);
+  transform: translateX(calc((100% + var(--view-switch-gap, 6px)) * var(--view-switch-index, 0)));
+  transition:
+    transform var(--view-switch-duration) var(--home-motion-ease-emphasis),
+    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
+    box-shadow var(--home-motion-density-duration) var(--home-motion-ease-standard);
+  box-shadow: 0 8px 18px rgba(20, 20, 22, 0.16);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .view-switch__option {
@@ -1320,8 +1308,9 @@ onBeforeRouteLeave(async () => {
     flex: 0 0 auto;
     width: 180px;
     min-width: 180px;
-    padding: 5px;
-    gap: 4px;
+    --view-switch-pad: 5px;
+    --view-switch-gap: 4px;
+    --view-switch-height: 34px;
     border-radius: 16px;
   }
 
@@ -1333,11 +1322,7 @@ onBeforeRouteLeave(async () => {
   }
 
   .view-switch__indicator {
-    top: 5px;
-    left: 5px;
-    height: 34px;
-    width: calc((100% - 10px - (4px * (var(--view-switch-count, 2) - 1))) / var(--view-switch-count, 2));
-    transform: translateX(calc((100% + 4px) * var(--view-switch-index, 0)));
+    transform: translateX(calc((100% + var(--view-switch-gap, 4px)) * var(--view-switch-index, 0)));
   }
 
   .view-switch__option {
@@ -1392,22 +1377,6 @@ onBeforeRouteLeave(async () => {
 
   .view-switch__option--active {
     color: #141416;
-  }
-
-  .sort-toggle__group--up {
-    color: #70757f;
-  }
-
-  .sort-toggle__group--down {
-    color: #f5f5f7;
-  }
-
-  .sort-toggle--asc .sort-toggle__group--up {
-    color: #f5f5f7;
-  }
-
-  .sort-toggle--asc .sort-toggle__group--down {
-    color: #70757f;
   }
 
   .month-line {

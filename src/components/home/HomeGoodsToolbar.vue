@@ -384,28 +384,19 @@ onBeforeUnmount(() => {
 .sort-toggle__icon {
   overflow: visible;
   transform-origin: center;
-  color: #6f7682;
+  color: var(--app-text-secondary);
 }
 
 .sort-toggle__group {
   transition:
     opacity 180ms ease,
     color 180ms ease;
+  opacity: 0.54;
 }
 
 .sort-toggle__group path {
   stroke: currentColor;
   transition: stroke-width 180ms ease, stroke 180ms ease;
-}
-
-.sort-toggle__group--up {
-  color: #b7bcc5;
-  opacity: 1;
-}
-
-.sort-toggle__group--down {
-  color: #5f6570;
-  opacity: 1;
 }
 
 .sort-toggle__group--up path {
@@ -432,11 +423,19 @@ onBeforeUnmount(() => {
 }
 
 .sort-toggle--asc .sort-toggle__group--up {
-  color: #141416;
+  opacity: 1;
 }
 
 .sort-toggle--asc .sort-toggle__group--down {
-  color: #b7bcc5;
+  opacity: 0.54;
+}
+
+.sort-toggle:not(.sort-toggle--asc) .sort-toggle__group--up {
+  opacity: 0.54;
+}
+
+.sort-toggle:not(.sort-toggle--asc) .sort-toggle__group--down {
+  opacity: 1;
 }
 
 .sort-toggle--asc .sort-toggle__group--up path {
@@ -671,22 +670,6 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .sort-toggle--asc {
   background: var(--app-glass);
   color: var(--app-text-secondary);
-}
-
-:global(html.theme-dark) .sort-toggle__group--up {
-  color: #70757f;
-}
-
-:global(html.theme-dark) .sort-toggle__group--down {
-  color: #f5f5f7;
-}
-
-:global(html.theme-dark) .sort-toggle--asc .sort-toggle__group--up {
-  color: #f5f5f7;
-}
-
-:global(html.theme-dark) .sort-toggle--asc .sort-toggle__group--down {
-  color: #70757f;
 }
 
 :global(html.theme-dark) .sort-sheet__dir-btn,
