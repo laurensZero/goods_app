@@ -650,8 +650,10 @@ onBeforeRouteLeave(async () => {
 .hero-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .hero-label {
@@ -672,7 +674,6 @@ onBeforeRouteLeave(async () => {
 .hero-search {
   width: var(--icon-button-size);
   height: var(--icon-button-size);
-  margin-top: 6px;
   border: none;
   border-radius: 50%;
   background: var(--app-glass);

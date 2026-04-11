@@ -333,13 +333,13 @@ const selectedDimensionLabel = computed(() =>
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .hero-search-placeholder {
   width: var(--icon-button-size);
   height: var(--icon-button-size);
-  margin-top: 6px;
   flex-shrink: 0;
   visibility: hidden;
 }

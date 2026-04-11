@@ -1037,8 +1037,10 @@ async function applyBatchEditPayload(payload) {
 .hero-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .hero-copy {
