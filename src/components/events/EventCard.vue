@@ -369,6 +369,9 @@ onBeforeUnmount(() => {
   -webkit-overflow-scrolling: touch;
   touch-action: auto;
   cursor: grab;
+  min-height: 28px;
+  align-items: center;
+  margin-top: auto;
 }
 
 .event-card__tags-scroll::-webkit-scrollbar {
@@ -408,7 +411,6 @@ onBeforeUnmount(() => {
 }
 
 .event-card__bottom {
-  margin-top: auto;
   min-height: 18px;
 }
 

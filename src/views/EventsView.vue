@@ -163,11 +163,6 @@
                         <span class="month-timeline-label">{{ monthGroup.month }} 月</span>
                       </template>
                     </div>
-
-                    <div class="month-meta">
-                      <span class="month-count">{{ monthGroup.count }} 场</span>
-                      <span v-if="monthGroup.totalTicket > 0" class="month-ticket">{{ formatPrice(monthGroup.totalTicket) }}</span>
-                    </div>
                   </div>
 
                   <div class="event-grid">
@@ -200,11 +195,6 @@
                     <p class="month-label">{{ group.year }} 年</p>
                     <h3 class="month-title">{{ group.month }} 月</h3>
                   </template>
-                </div>
-
-                <div class="month-meta">
-                  <span class="month-count">{{ group.count }} 场</span>
-                  <span v-if="group.totalTicket > 0" class="month-ticket">{{ formatPrice(group.totalTicket) }}</span>
                 </div>
               </div>
 
