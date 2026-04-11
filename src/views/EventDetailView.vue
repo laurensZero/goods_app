@@ -318,7 +318,7 @@ async function handleDelete() {
 .event-detail-page .page-body {
   width: min(100%, 2048px);
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 16px) var(--page-padding) 120px;
+  padding: min(env(safe-area-inset-top), 4px) var(--page-padding) 120px;
   overscroll-behavior-y: contain;
   -ms-overflow-style: none;
   scrollbar-width: none;
