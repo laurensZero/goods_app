@@ -119,7 +119,7 @@ function buildGoodsImageReferenceMap(items = []) {
       if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
       const gistFileName = String(imageEntry?.gistFileName || parseGistImageUri(uri) || '').trim()
-      const version = gistFileName || `${getItemTimestamp(item)}::${imageId}`
+      const version = gistFileName || uri
       map.set(`goods:${itemId}:${imageId}`, version)
     }
   }
@@ -139,7 +139,7 @@ function buildEventImageReferenceMap(events = []) {
     if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
     const gistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(coverImage) || '').trim()
-    const version = gistFileName || `${Number(event?.updatedAt) || 0}::cover`
+    const version = gistFileName || coverImage
     map.set(`event:${eventId}`, version)
   }
 
