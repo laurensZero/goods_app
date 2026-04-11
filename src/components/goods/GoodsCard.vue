@@ -460,6 +460,7 @@ const priceText = computed(() => {
 }
 
 .card-tags--hidden {
+  min-height: 0;
   max-height: 0;
   opacity: 0;
   transform: translateY(-4px);
@@ -579,9 +580,44 @@ const priceText = computed(() => {
   gap: 4px;
 }
 
+.goods-card--standard .card-tags {
+  margin-top: auto;
+  min-height: 28px;
+  align-items: center;
+}
+
 .goods-card--standard .card-name {
   font-size: 15px;
   line-height: 1.3;
+  min-height: 2.6em;
+}
+
+.goods-card--comfortable {
+  gap: 9px;
+}
+
+.goods-card--comfortable .card-cover {
+  padding: 4px;
+}
+
+.goods-card--comfortable .card-cover--with-image {
+  padding: 0;
+}
+
+.goods-card--comfortable .card-body {
+  gap: 4px;
+}
+
+.goods-card--comfortable .card-tags {
+  margin-top: auto;
+  min-height: 28px;
+  align-items: center;
+}
+
+.goods-card--comfortable .card-name {
+  font-size: 15px;
+  line-height: 1.3;
+  min-height: 2.6em;
 }
 
 .goods-card--compact .card-bottom-row {
