@@ -18,7 +18,7 @@
       </template>
     </NavBar>
 
-    <main class="page-body">
+    <main ref="pageBodyRef" class="page-body">
       <section class="detail-shell">
         <aside class="media-column">
           <section class="cover-stage">
@@ -173,17 +173,20 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onBeforeMount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onActivated, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
-import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventDetailView' })
+
+const EVENT_DETAIL_STATE_PREFIX = 'event-detail-state-v1'
+const EVENT_DETAIL_PENDING_PREFIX = 'event-detail-pending-v1'
+const EVENT_DETAIL_TRACK_KEY_PREFIX = 'event-detail-track-expanded-v1'
 
 const props = defineProps({
   id: { type: String, default: '' }
@@ -193,6 +196,7 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
+const pageBodyRef = ref(null)
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
@@ -200,6 +204,9 @@ const trackSectionExpanded = ref(true)
 
 const eventId = computed(() => props.id || route.params.id)
 const event = computed(() => eventsStore.getById(eventId.value))
+const eventStateKey = computed(() => `${EVENT_DETAIL_STATE_PREFIX}:${String(eventId.value || '')}`)
+const eventPendingKey = computed(() => `${EVENT_DETAIL_PENDING_PREFIX}:${String(eventId.value || '')}`)
+const eventTrackKey = computed(() => `${EVENT_DETAIL_TRACK_KEY_PREFIX}:${String(eventId.value || '')}`)
 
 const TYPE_MAP = {
   exhibition: { label: '展会', cls: 'type-exhibition' },
@@ -230,6 +237,64 @@ const ticketPriceAmount = computed(() => {
   const value = Number.parseFloat(String(event.value?.ticketPrice || '').trim())
   return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : '0'
 })
+
+function getStoredViewState() {
+  const raw = sessionStorage.getItem(eventStateKey.value)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    return {
+      top: Number(parsed.top) || 0
+    }
+  } catch {
+    return null
+  }
+}
+
+function getStoredTrackState() {
+  const raw = localStorage.getItem(eventTrackKey.value)
+  if (raw == null) return true
+  return raw !== '0'
+}
+
+function saveViewState() {
+  sessionStorage.setItem(
+    eventStateKey.value,
+    JSON.stringify({
+      top: Number(pageBodyRef.value?.scrollTop || 0)
+    })
+  )
+}
+
+function clearViewState() {
+  sessionStorage.removeItem(eventStateKey.value)
+  sessionStorage.removeItem(eventPendingKey.value)
+}
+
+async function restoreViewState() {
+  await nextTick()
+  const storedState = getStoredViewState()
+  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
+  trackSectionExpanded.value = getStoredTrackState()
+
+  if (!storedState || !shouldRestore) {
+    if (pageBodyRef.value) {
+      pageBodyRef.value.scrollTop = 0
+    }
+    clearViewState()
+    return
+  }
+
+  await nextTick()
+  await new Promise((resolve) => window.requestAnimationFrame(resolve))
+  if (pageBodyRef.value) {
+    pageBodyRef.value.scrollTop = storedState.top
+  }
+  sessionStorage.removeItem(eventPendingKey.value)
+}
+
 const infoItems = computed(() => {
   if (!event.value) return []
 
@@ -279,18 +344,38 @@ async function refresh() {
   }
 }
 
-onBeforeMount(() => {
-  scrollToTopAnimated(() => null, 0)
-})
-
 onMounted(async () => {
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
   await refresh()
+  await restoreViewState()
 })
 
-onActivated(refresh)
+onActivated(async () => {
+  await refresh()
+  await restoreViewState()
+})
+
+onBeforeRouteLeave((to) => {
+  if (to.name === 'detail') {
+    saveViewState()
+    sessionStorage.setItem(eventPendingKey.value, '1')
+    return
+  }
+
+  clearViewState()
+})
+
+watch(eventId, async () => {
+  previewPhotoIndex.value = -1
+  await restoreViewState()
+})
+
+watch(trackSectionExpanded, (value) => {
+  if (!eventId.value) return
+  localStorage.setItem(eventTrackKey.value, value ? '1' : '0')
+})
 
 function openPhotoPreview(index) {
   previewPhotoIndex.value = index
