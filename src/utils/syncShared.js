@@ -118,9 +118,19 @@ function buildGoodsImageReferenceMap(items = []) {
       const storageMode = inferGoodsImageStorageMode(uri, imageEntry?.storageMode)
       if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
+      // 只用图片 ID 作为版本标识，不依赖商品的 updatedAt 时间戳
+      // 这样即使商品信息改变（updatedAt 改变），图片版本也不会改变
+      // 除非图片内容本身改变（imageId 改变）
+      
       const gistFileName = String(imageEntry?.gistFileName || parseGistImageUri(uri) || '').trim()
-      const version = gistFileName || uri
-      map.set(`goods:${itemId}:${imageId}`, version)
+      if (!gistFileName) continue  // 跳过还没上传到 Gist 的图片
+
+      // 提取图片的唯一标识，不含时间戳部分
+      // 格式: goods-image__goodsId__imageId__timestamp.jpg.txt
+      // 提取: goods-image__goodsId__imageId
+      const parts = gistFileName.split('__')
+      const baseFileName = parts.slice(0, 3).join('__')  // 前三个部分不含时间戳
+      map.set(`goods:${itemId}:${imageId}`, baseFileName || imageId)
     }
   }
 
@@ -138,9 +148,43 @@ function buildEventImageReferenceMap(events = []) {
     const storageMode = inferGoodsImageStorageMode(coverImage, event?.coverImageData?.storageMode)
     if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
+    // 只用活动 ID 作为版本标识，不依赖活动的 updatedAt 时间戳
+    // 这样即使活动信息改变，封面版本也不会改变
     const gistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(coverImage) || '').trim()
-    const version = gistFileName || coverImage
-    map.set(`event:${eventId}`, version)
+    if (!gistFileName) continue  // 跳过还没上传到 Gist 的图片
+
+    // 提取活动封面的唯一标识，不含时间戳部分
+    // 格式: event-cover__eventId__timestamp.jpg.txt
+    // 提取: event-cover__eventId
+    const parts = gistFileName.split('__')
+    const baseFileName = parts.slice(0, 2).join('__')  // 前两个部分不含时间戳
+    map.set(`event:${eventId}:cover`, baseFileName || eventId)
+  }
+
+  // 处理活动的相关图片
+  for (const event of events) {
+    const eventId = String(event?.id || '').trim()
+    if (!eventId) continue
+
+    const photos = Array.isArray(event?.photos) ? event.photos : []
+    for (const photoEntry of photos) {
+      const photoId = String(photoEntry?.id || '').trim()
+      const photoUri = String(photoEntry?.uri || '').trim()
+      if (!photoId || !photoUri) continue
+
+      const storageMode = inferGoodsImageStorageMode(photoUri, photoEntry?.storageMode)
+      if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
+
+      // 只用图片 ID 作为版本标识，不依赖活动的 updatedAt 时间戳
+      const gistFileName = String(photoEntry?.gistFileName || parseGistImageUri(photoUri) || '').trim()
+      if (!gistFileName) continue  // 跳过还没上传到 Gist 的图片
+
+      // 提取图片的唯一标识，不含时间戳部分
+      // photos 的格式应该与商品图片类似或不同，这里通用提取前端标识
+      const parts = gistFileName.split('__')
+      const baseFileName = parts.slice(0, 3).join('__')  // 提取基础部分不含时间戳
+      map.set(`event:${eventId}:photo:${photoId}`, baseFileName || photoId)
+    }
   }
 
   return map
