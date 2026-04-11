@@ -58,76 +58,78 @@
 
   </section>
 
-  <section v-if="hasVisibleRecords && activeView === 'leaderboard'" class="stats-section">
-    <article class="stat-card">
-      <p class="stat-card__label">本月充值</p>
-      <p class="stat-card__value">¥{{ formatAmount(currentMonthTotal) }}</p>
-    </article>
-    <article class="stat-card">
-      <p class="stat-card__label">平均单笔</p>
-      <p class="stat-card__value">¥{{ formatAmount(averageAmount) }}</p>
-    </article>
-    <article class="stat-card">
-      <p class="stat-card__label">最高消费游戏</p>
-      <p class="stat-card__value stat-card__value--text">{{ topGameName }}</p>
-      <p class="stat-card__meta">¥{{ formatAmount(topGameAmount) }}</p>
-    </article>
-  </section>
+  <Transition name="search-drop" mode="out-in">
+    <div v-if="hasVisibleRecords" :key="activeView" class="recharge-view">
+      <section v-if="activeView === 'leaderboard'" class="stats-section">
+        <article class="stat-card">
+          <p class="stat-card__label">本月充值</p>
+          <p class="stat-card__value">¥{{ formatAmount(currentMonthTotal) }}</p>
+        </article>
+        <article class="stat-card">
+          <p class="stat-card__label">平均单笔</p>
+          <p class="stat-card__value">¥{{ formatAmount(averageAmount) }}</p>
+        </article>
+        <article class="stat-card">
+          <p class="stat-card__label">最高消费游戏</p>
+          <p class="stat-card__value stat-card__value--text">{{ topGameName }}</p>
+          <p class="stat-card__meta">¥{{ formatAmount(topGameAmount) }}</p>
+        </article>
+      </section>
 
-  <section class="content-section">
-    <template v-if="hasVisibleRecords">
-      <div v-if="activeView === 'records'" class="timeline-list">
-        <article
-          v-for="(group, index) in monthGroups"
-          :key="group.key"
-          class="timeline-month"
-          :class="{ 'timeline-month--last': index === monthGroups.length - 1 }"
-        >
-          <div class="timeline-month__rail" aria-hidden="true">
-            <div class="timeline-month__dot" />
-            <div class="timeline-month__line" />
-          </div>
+      <section class="content-section">
+        <div v-if="activeView === 'records'" class="timeline-list">
+          <article
+            v-for="(group, index) in monthGroups"
+            :key="group.key"
+            class="timeline-month"
+            :class="{ 'timeline-month--last': index === monthGroups.length - 1 }"
+          >
+            <div class="timeline-month__rail" aria-hidden="true">
+              <div class="timeline-month__dot" />
+              <div class="timeline-month__line" />
+            </div>
 
-          <div class="timeline-month__content">
-            <header class="timeline-month__head">
-              <div>
-                <p class="timeline-month__label">月份</p>
-                <h3 class="timeline-month__title">{{ group.label }}</h3>
+            <div class="timeline-month__content">
+              <header class="timeline-month__head">
+                <div>
+                  <p class="timeline-month__label">月份</p>
+                  <h3 class="timeline-month__title">{{ group.label }}</h3>
+                </div>
+                <p class="timeline-month__meta">¥{{ formatAmount(group.amount) }} · {{ group.items.length }} 笔</p>
+              </header>
+
+              <div class="record-list">
+                <RecordCard
+                  v-for="record in group.items"
+                  :key="record.id"
+                  :record="record"
+                  :selection-mode="selectionMode"
+                  :selected="selectedIds.has(record.id)"
+                  @hold="handleRecordHold"
+                  @click="handleRecordClick"
+                />
               </div>
-              <p class="timeline-month__meta">¥{{ formatAmount(group.amount) }} · {{ group.items.length }} 笔</p>
-            </header>
+            </div>
+          </article>
+        </div>
 
-            <div class="record-list">
-              <RecordCard
-                v-for="record in group.items"
-                :key="record.id"
-                :record="record"
-                :selection-mode="selectionMode"
-                :selected="selectedIds.has(record.id)"
-                @hold="handleRecordHold"
-                @click="handleRecordClick"
-              />
+        <div v-else class="leaderboard-list">
+          <article v-for="(item, index) in leaderboard" :key="item.game" class="leaderboard-item">
+            <p class="leaderboard-item__rank">#{{ index + 1 }}</p>
+            <div class="leaderboard-item__body">
+              <div class="leaderboard-item__top">
+                <p class="leaderboard-item__name">{{ item.game }}</p>
+                <p class="leaderboard-item__amount">¥{{ formatAmount(item.amount) }}</p>
+              </div>
+              <p class="leaderboard-item__meta">{{ item.count }} 笔 · 平均 ¥{{ formatAmount(item.averageAmount) }}</p>
+              <div class="leaderboard-item__track">
+                <span class="leaderboard-item__fill" :style="{ width: item.sharePercent + '%' }" />
+              </div>
             </div>
-          </div>
-        </article>
-      </div>
-
-      <div v-else class="leaderboard-list">
-        <article v-for="(item, index) in leaderboard" :key="item.game" class="leaderboard-item">
-          <p class="leaderboard-item__rank">#{{ index + 1 }}</p>
-          <div class="leaderboard-item__body">
-            <div class="leaderboard-item__top">
-              <p class="leaderboard-item__name">{{ item.game }}</p>
-              <p class="leaderboard-item__amount">¥{{ formatAmount(item.amount) }}</p>
-            </div>
-            <p class="leaderboard-item__meta">{{ item.count }} 笔 · 平均 ¥{{ formatAmount(item.averageAmount) }}</p>
-            <div class="leaderboard-item__track">
-              <span class="leaderboard-item__fill" :style="{ width: item.sharePercent + '%' }" />
-            </div>
-          </div>
-        </article>
-      </div>
-    </template>
+          </article>
+        </div>
+      </section>
+    </div>
 
     <div v-else class="empty-wrap">
       <EmptyState
@@ -138,7 +140,7 @@
         @action="hasFilters ? resetFilters() : openAddMethodSheet()"
       />
     </div>
-  </section>
+  </Transition>
 
   <AddRecordDialog
     v-model:show="showAddDialog"
