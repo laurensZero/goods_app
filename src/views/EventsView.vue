@@ -136,38 +136,92 @@
       </section>
 
       <section v-else-if="filteredEvents.length > 0" class="list-shell">
-        <template v-for="group in groupedEvents" :key="group.yearMonth">
-          <section class="month-section">
-            <div class="month-head">
-              <div>
-                <template v-if="group.isUndated">
-                  <h3 class="month-title">未设置日期</h3>
-                </template>
-                <template v-else>
-                  <p class="month-label">{{ group.year }} 年</p>
-                  <h3 class="month-title">{{ group.month }} 月</h3>
-                </template>
-              </div>
-
-              <div class="month-meta">
-                <span class="month-count">{{ group.count }} 场</span>
-                <span v-if="group.totalTicket > 0" class="month-ticket">{{ formatPrice(group.totalTicket) }}</span>
-              </div>
+        <template v-if="viewMode === 'timeline'">
+          <div v-for="yearGroup in groupedEventsByYear" :key="yearGroup.year || 'undated'" class="events-year-block">
+            <div v-if="!yearGroup.isUndated" class="events-year-header">
+              <span class="events-year-num">{{ yearGroup.year }}</span>
+              <span class="events-year-meta">{{ yearGroup.yearCount }} 场 / {{ formatPrice(yearGroup.yearTotal) }}</span>
             </div>
 
-            <div class="event-grid">
-              <EventCard
-                v-for="event in group.items"
-                :key="event.id"
-                :event="event"
-                :selection-mode="selectionMode"
-                :selected="selectedIds.has(event.id)"
-                @long-press="enterSelectionMode"
-                @toggle-select="toggleSelect"
-                @open-detail="openDetail"
-              />
-            </div>
-          </section>
+            <template v-for="(monthGroup, midx) in yearGroup.months" :key="monthGroup.yearMonth">
+              <section 
+                class="month-section month-section--timeline"
+                :class="{ 'month-section--last': midx === yearGroup.months.length - 1 }"
+              >
+                <div class="month-rail" aria-hidden="true">
+                  <div class="month-dot" />
+                  <div class="month-line" />
+                </div>
+
+                <div class="month-content">
+                  <div class="month-head">
+                    <div>
+                      <template v-if="monthGroup.isUndated">
+                        <h3 class="month-title">未设置日期</h3>
+                      </template>
+                      <template v-else>
+                        <span class="month-timeline-label">{{ monthGroup.month }} 月</span>
+                      </template>
+                    </div>
+
+                    <div class="month-meta">
+                      <span class="month-count">{{ monthGroup.count }} 场</span>
+                      <span v-if="monthGroup.totalTicket > 0" class="month-ticket">{{ formatPrice(monthGroup.totalTicket) }}</span>
+                    </div>
+                  </div>
+
+                  <div class="event-grid">
+                    <EventCard
+                      v-for="event in monthGroup.items"
+                      :key="event.id"
+                      :event="event"
+                      :selection-mode="selectionMode"
+                      :selected="selectedIds.has(event.id)"
+                      @long-press="enterSelectionMode"
+                      @toggle-select="toggleSelect"
+                      @open-detail="openDetail"
+                    />
+                  </div>
+                </div>
+              </section>
+            </template>
+          </div>
+        </template>
+
+        <template v-else>
+          <template v-for="group in groupedEvents" :key="group.yearMonth">
+            <section class="month-section">
+              <div class="month-head">
+                <div>
+                  <template v-if="group.isUndated">
+                    <h3 class="month-title">未设置日期</h3>
+                  </template>
+                  <template v-else>
+                    <p class="month-label">{{ group.year }} 年</p>
+                    <h3 class="month-title">{{ group.month }} 月</h3>
+                  </template>
+                </div>
+
+                <div class="month-meta">
+                  <span class="month-count">{{ group.count }} 场</span>
+                  <span v-if="group.totalTicket > 0" class="month-ticket">{{ formatPrice(group.totalTicket) }}</span>
+                </div>
+              </div>
+
+              <div class="event-grid">
+                <EventCard
+                  v-for="event in group.items"
+                  :key="event.id"
+                  :event="event"
+                  :selection-mode="selectionMode"
+                  :selected="selectedIds.has(event.id)"
+                  @long-press="enterSelectionMode"
+                  @toggle-select="toggleSelect"
+                  @open-detail="openDetail"
+                />
+              </div>
+            </section>
+          </template>
         </template>
       </section>
 
@@ -368,6 +422,32 @@ const groupedEvents = computed(() => {
       items
     }
   })
+})
+
+const groupedEventsByYear = computed(() => {
+  const monthGroups = groupedEvents.value
+  const yearGroupsMap = new Map()
+  const yearOrder = []
+
+  for (const monthGroup of monthGroups) {
+    const key = monthGroup.year || 'undated'
+    if (!yearGroupsMap.has(key)) {
+      yearGroupsMap.set(key, {
+        year: monthGroup.year,
+        isUndated: monthGroup.isUndated,
+        months: [],
+        yearTotal: 0,
+        yearCount: 0
+      })
+      yearOrder.push(key)
+    }
+    const yearGroup = yearGroupsMap.get(key)
+    yearGroup.months.push(monthGroup)
+    yearGroup.yearCount += monthGroup.count
+    yearGroup.yearTotal += monthGroup.totalTicket
+  }
+
+  return yearOrder.map(key => yearGroupsMap.get(key))
 })
 
 const totalLinkedGoods = computed(() =>
@@ -1103,6 +1183,99 @@ onBeforeRouteLeave(async () => {
   pointer-events: none;
 }
 
+.events-year-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.events-year-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0 10px;
+  margin-bottom: 8px;
+}
+
+.events-year-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--app-text-secondary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.events-year-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-tertiary);
+}
+
+.month-section--timeline {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 16px;
+  padding-bottom: 24px;
+}
+
+.month-section--timeline.month-section--last {
+  padding-bottom: 0;
+}
+
+.month-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.month-dot {
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: #141416;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--app-surface) 72%, transparent);
+}
+
+.month-line {
+  position: absolute;
+  top: 20px;
+  bottom: -24px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--app-text-tertiary) 28%, transparent), transparent);
+}
+
+.month-section--timeline.month-section--last .month-line {
+  display: none;
+}
+
+.month-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+.month-timeline-label {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--app-text);
+  letter-spacing: -0.03em;
+}
+
 .sel-bar-enter-active,
 .sel-bar-leave-active {
   transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
@@ -1245,6 +1418,10 @@ onBeforeRouteLeave(async () => {
 
   .sort-toggle--asc .sort-toggle__group--down {
     color: #70757f;
+  }
+
+  .month-line {
+    background: color-mix(in srgb, var(--app-text-secondary) 18%, transparent);
   }
 }
 </style>
