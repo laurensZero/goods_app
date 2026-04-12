@@ -1,9 +1,9 @@
 {
-  "version": "20260412.6",
-  "url": "bundle-20260412.6.zip",
-  "hash": "92d59239f03355cc3c2d0420fe4846e78e32916a059092d4e27cf5f7b4b9b548",
+  "version": "20260412.7",
+  "url": "bundle-20260412.7.zip",
+  "hash": "93260e12ddae41d0dd3ece21cd50ad7006b81df9c65a440defb0ef735153cf85",
   "minNativeVersion": null,
-  "notes": null,
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-12T06:40:14Z"
+  "publishedAt": "2026-04-12T07:23:22Z"
 }
