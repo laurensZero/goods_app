@@ -8,11 +8,12 @@
       @click="handleTrackClick(track, $event)"
     >
       <div class="track-list__cover-shell">
-        <img
+        <LazyCachedImage
           v-if="track.coverUrl"
           class="track-list__cover"
-          :src="track.displayCoverUrl"
+          :src="track.coverUrl"
           :alt="track.title || '曲目封面'"
+          :lazy="false"
           loading="lazy"
           decoding="async"
           referrerpolicy="no-referrer"
@@ -112,7 +113,7 @@
 import { computed, ref, watch } from 'vue'
 import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/neteaseMusic'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
-import { getCachedImage, peekCachedImage, preloadImages } from '@/utils/imageCache'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   tracks: {
@@ -125,7 +126,6 @@ const openingSongId = ref('')
 const errorMessage = ref('')
 const playerStore = useMediaPlayerStore()
 const coverMap = ref({})
-const cachedCoverMap = ref({})
 const trackTapState = ref({
   identity: '',
   timerId: 0
@@ -139,7 +139,6 @@ const normalizedTracks = computed(() =>
       ...item,
       identity: String(item?.id || songId || ''),
       coverUrl,
-      displayCoverUrl: String(cachedCoverMap.value[coverUrl] || peekCachedImage(coverUrl) || coverUrl).trim(),
       durationText: formatTrackDuration(item?.durationMs)
     }
   })
@@ -178,39 +177,6 @@ watch(
   },
   { immediate: true, deep: true }
 )
-
-watch(normalizedTracks, (tracks) => {
-  const coverUrls = tracks
-    .map((item) => String(item?.coverUrl || '').trim())
-    .filter(Boolean)
-
-  if (!coverUrls.length) return
-
-  preloadImages(coverUrls)
-
-  coverUrls.forEach(async (coverUrl) => {
-    if (cachedCoverMap.value[coverUrl]) return
-
-    const memoryHit = peekCachedImage(coverUrl)
-    if (memoryHit) {
-      cachedCoverMap.value = {
-        ...cachedCoverMap.value,
-        [coverUrl]: memoryHit
-      }
-      return
-    }
-
-    try {
-      const cachedUrl = await getCachedImage(coverUrl)
-      cachedCoverMap.value = {
-        ...cachedCoverMap.value,
-        [coverUrl]: cachedUrl
-      }
-    } catch {
-      // ignore image cache failures
-    }
-  })
-}, { immediate: true })
 
 async function handleOpen(track) {
   const songId = String(track?.neteaseSongId || '').trim()

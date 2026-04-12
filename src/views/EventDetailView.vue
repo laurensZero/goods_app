@@ -1,5 +1,5 @@
 <template>
-  <div v-if="event" class="page event-detail-page">
+  <div v-if="event" class="page event-detail-page" :class="{ 'event-detail-page--restoring': !eventDisplayReady }">
     <NavBar :title="event.name || '活动详情'" show-back>
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="router.push({ path: `/events/edit/${event.id}`, query: { returnTo: route.fullPath } })">
@@ -197,6 +197,7 @@ const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
 const pageBodyRef = ref(null)
+const eventDisplayReady = ref(true)
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
@@ -345,16 +346,20 @@ async function refresh() {
 }
 
 onMounted(async () => {
+  eventDisplayReady.value = false
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
   await refresh()
   await restoreViewState()
+  eventDisplayReady.value = true
 })
 
 onActivated(async () => {
+  eventDisplayReady.value = false
   await refresh()
   await restoreViewState()
+  eventDisplayReady.value = true
 })
 
 onBeforeRouteLeave((to) => {
@@ -368,8 +373,10 @@ onBeforeRouteLeave((to) => {
 })
 
 watch(eventId, async () => {
+  eventDisplayReady.value = false
   previewPhotoIndex.value = -1
   await restoreViewState()
+  eventDisplayReady.value = true
 })
 
 watch(trackSectionExpanded, (value) => {
@@ -398,6 +405,10 @@ async function handleDelete() {
   height: 100dvh;
   overflow: hidden;
   background: var(--app-bg-gradient);
+}
+
+.event-detail-page--restoring {
+  visibility: hidden;
 }
 
 .event-detail-page .page-body {
