@@ -127,7 +127,7 @@
             <div class="record-item__body">
               <div class="record-item__top">
                 <div class="record-item__identity">
-                  <img
+                  <LazyCachedImage
                     v-if="record.image"
                     :src="record.image"
                     :alt="record.itemName"
@@ -166,6 +166,7 @@ import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'v
 import NavBar from '@/components/common/NavBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 
 defineOptions({ name: 'MonthCardCalendarView' })
