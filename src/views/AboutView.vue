@@ -148,6 +148,10 @@
               </div>
             </div>
             <p class="update-status">{{ webUpdateStatusText }}</p>
+            <section v-if="webUpdateReleaseNotesPreview" class="update-notes">
+              <p class="update-notes__label">更新日志</p>
+              <pre class="update-notes__body">{{ webUpdateReleaseNotesPreview }}</pre>
+            </section>
             <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
             <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
               <div class="update-download-progress__head">
@@ -575,6 +579,11 @@ const webUpdateStatusText = computed(() => {
 const webUpdateCheckedAtLabel = computed(() => (
   webUpdateStore.lastCheckedAt ? formatSyncTime(webUpdateStore.lastCheckedAt) : '尚未检查'
 ))
+
+const webUpdateReleaseNotesPreview = computed(() => {
+  const raw = String(webUpdateStore.latestRelease?.notes || webUpdateStore.latestRelease?.body || '').trim()
+  return raw
+})
 
 function buildIssueBody(content) {
   const lines = [

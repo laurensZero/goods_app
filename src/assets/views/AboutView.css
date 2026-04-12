@@ -265,6 +265,30 @@
   color: #c74444;
 }
 
+.update-notes {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+}
+
+.update-notes__label {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.update-notes__body {
+  margin-top: 10px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
 .update-channel-row {
   margin-top: 12px;
   display: flex;
