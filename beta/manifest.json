@@ -1,9 +1,9 @@
 {
-  "version": "20260412.11",
-  "url": "bundle-20260412.11.zip",
-  "hash": "479de0436c1a31f15d96a7861296aec1e54c31bae55034e66ae0d7df839d7584",
+  "version": "20260412.12",
+  "url": "bundle-20260412.12.zip",
+  "hash": "3f1f885360530942c9991685158abff090503b010b054c518f91ea7a837b0c7b",
   "minNativeVersion": null,
-  "notes": "- fix: 优化批量编辑弹窗样式",
+  "notes": "- refactor: 精简代码，移除不必要的变量和事件监听器，优化组件性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-12T11:27:16Z"
+  "publishedAt": "2026-04-12T11:42:34Z"
 }

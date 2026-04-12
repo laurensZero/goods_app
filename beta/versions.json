@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260412.12",
+    "url": "bundle-20260412.12.zip",
+    "hash": "3f1f885360530942c9991685158abff090503b010b054c518f91ea7a837b0c7b",
+    "minNativeVersion": null,
+    "notes": "- refactor: 精简代码，移除不必要的变量和事件监听器，优化组件性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-12T11:42:34Z"
+  },
+  {
     "version": "20260412.11",
     "url": "bundle-20260412.11.zip",
     "hash": "479de0436c1a31f15d96a7861296aec1e54c31bae55034e66ae0d7df839d7584",
@@ -16,14 +25,5 @@
     "notes": "- feat: 重构日期选择器组件，优化日期选择体验并移除冗余代码",
     "updateLevel": "silent",
     "publishedAt": "2026-04-12T10:29:05Z"
-  },
-  {
-    "version": "20260412.9",
-    "url": "bundle-20260412.9.zip",
-    "hash": "399ccace760636640dce6f19978869dcdc5469f2757ee64ff4bff7b560ee93d3",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 GitHub 同步 token 支持，优化更新请求头处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-12T08:04:02Z"
   }
 ]
