@@ -135,6 +135,18 @@ function normalizeBundleUrl(value) {
   }
 }
 
+function normalizeChecksum(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  if (!raw) return ''
+
+  const normalized = raw.startsWith('sha256:') ? raw.slice(7) : raw
+  if (!/^[a-f0-9]{64}$/.test(normalized)) {
+    return ''
+  }
+
+  return normalized
+}
+
 function resolveBundleUrl(manifestUrl, bundleUrl) {
   const rawBundleUrl = String(bundleUrl || '').trim()
   if (!rawBundleUrl) return ''
@@ -222,6 +234,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const latestVersion = ref('')
   const latestZipUrl = ref('')
   const latestRelease = ref(null)
+  const latestBundleChecksum = ref('')
   const latestMinNativeVersion = ref('')
   const pendingBundleId = ref('')
   const pendingVersion = ref('')
@@ -341,11 +354,19 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
         latestVersion.value = normalizeVersionTag(manifest?.version || '')
         latestZipUrl.value = resolveBundleUrl(resolvedManifestUrl, manifest?.url)
+        const rawChecksum = manifest?.hash ?? manifest?.checksum ?? manifest?.sha256 ?? ''
+        const hasChecksum = String(rawChecksum || '').trim().length > 0
+        latestBundleChecksum.value = normalizeChecksum(rawChecksum)
         latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
+
+        if (hasChecksum && !latestBundleChecksum.value) {
+          throw new Error('资源清单 hash 格式无效，应为 64 位 SHA-256。')
+        }
 
         if (!latestVersion.value || !latestZipUrl.value) {
           latestVersion.value = ''
           latestZipUrl.value = ''
+          latestBundleChecksum.value = ''
           latestMinNativeVersion.value = ''
           lastStatus.value = 'missing-asset'
           return { status: 'missing-asset', manifest, source: resolvedManifestSource }
@@ -415,10 +436,15 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
-      const bundle = await CapacitorUpdater.download({
+      const downloadOptions = {
         version: latestVersion.value,
         url: latestZipUrl.value
-      })
+      }
+      if (latestBundleChecksum.value) {
+        downloadOptions.checksum = latestBundleChecksum.value
+      }
+
+      const bundle = await CapacitorUpdater.download(downloadOptions)
 
       if (!bundle?.id) {
         throw new Error('资源包下载成功但未拿到 bundle id。')
@@ -431,6 +457,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastStatus.value = 'pending'
       return true
     } catch (error) {
+      await rollbackToCurrentBundle()
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(error, '下载资源更新失败，请稍后再试。')
       return false
@@ -457,8 +484,29 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       await CapacitorUpdater.set({ id: targetBundleId })
       return true
     } catch (error) {
+      const rolledBack = await rollbackToCurrentBundle()
       lastStatus.value = 'error'
-      lastError.value = normalizeErrorMessage(error, '应用资源更新失败，请手动重启应用。')
+      lastError.value = normalizeErrorMessage(
+        error,
+        rolledBack
+          ? '应用资源更新失败，已回滚到当前稳定版本。'
+          : '应用资源更新失败，请手动重启应用。'
+      )
+      return false
+    }
+  }
+
+  async function rollbackToCurrentBundle() {
+    await init()
+    if (!supported.value) return false
+
+    const fallbackId = String(currentBundleId.value || 'builtin').trim() || 'builtin'
+    try {
+      await CapacitorUpdater.next({ id: fallbackId })
+      pendingBundleId.value = ''
+      pendingVersion.value = ''
+      return true
+    } catch {
       return false
     }
   }
@@ -490,6 +538,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersion.value = ''
     latestZipUrl.value = ''
     latestRelease.value = null
+    latestBundleChecksum.value = ''
     latestMinNativeVersion.value = ''
     resolvedSource.value = ''
     dialogVisible.value = false
@@ -508,6 +557,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersion.value = ''
     latestZipUrl.value = ''
     latestRelease.value = null
+    latestBundleChecksum.value = ''
     latestMinNativeVersion.value = ''
     resolvedSource.value = ''
     dialogVisible.value = false
