@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260412.10",
+    "url": "bundle-20260412.10.zip",
+    "hash": "d1a7489b60723174df4935b108753121dcda4e23349dc3418d5e0f17bd3746a3",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构日期选择器组件，优化日期选择体验并移除冗余代码",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-12T10:29:05Z"
+  },
+  {
     "version": "20260412.9",
     "url": "bundle-20260412.9.zip",
     "hash": "399ccace760636640dce6f19978869dcdc5469f2757ee64ff4bff7b560ee93d3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 beta 更新日志预览功能，优化用户手动发布体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-12T07:53:27Z"
-  },
-  {
-    "version": "20260412.7",
-    "url": "bundle-20260412.7.zip",
-    "hash": "93260e12ddae41d0dd3ece21cd50ad7006b81df9c65a440defb0ef735153cf85",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-12T07:23:22Z"
   }
 ]
