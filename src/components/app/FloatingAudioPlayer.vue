@@ -52,6 +52,7 @@
         <div class="floating-player__actions">
           <div ref="queuePanelRef" class="floating-player__queue">
             <button
+              ref="queueTriggerRef"
               type="button"
               class="floating-player__queue-trigger"
               :class="{ 'floating-player__queue-trigger--active': isQueuePanelOpen }"
@@ -68,31 +69,6 @@
               <span v-if="queueItems.length" class="floating-player__queue-badge">{{ queueItems.length }}</span>
             </button>
 
-            <Transition name="queue-popover">
-              <div v-if="isQueuePanelOpen" class="floating-player__queue-popover" @click.stop>
-                <div class="floating-player__queue-head">
-                  <strong>播放列表</strong>
-                  <span>{{ queueItems.length }} 首</span>
-                </div>
-
-                <div class="floating-player__queue-list">
-                  <button
-                    v-for="(track, index) in queueItems"
-                    :key="track.id || track.neteaseSongId || index"
-                    type="button"
-                    class="floating-player__queue-item"
-                    :class="{ 'floating-player__queue-item--active': index === playerStore.currentIndex }"
-                    @click="playQueueItem(track)"
-                  >
-                    <span class="floating-player__queue-index">{{ index + 1 }}</span>
-                    <span class="floating-player__queue-copy">
-                      <strong>{{ track.title || '未命名曲目' }}</strong>
-                      <span>{{ track.artist || '未知歌手' }}</span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </Transition>
           </div>
 
           <button type="button" class="floating-player__btn" :disabled="!hasPrevious" @click="playPrevious">
@@ -175,6 +151,45 @@
       </div>
     </section>
   </Transition>
+
+  <Teleport to="body">
+    <Transition name="queue-popover">
+      <div
+        v-if="isQueuePanelOpen"
+        ref="queuePopoverRef"
+        class="floating-player__queue-popover"
+        :style="queuePopoverStyle"
+        @click.stop
+      >
+        <div class="floating-player__queue-head">
+          <div class="floating-player__queue-head-copy">
+            <strong>播放列表</strong>
+            <span>当前播放队列</span>
+          </div>
+          <span class="floating-player__queue-total">{{ queueItems.length }} 首</span>
+        </div>
+
+        <div ref="queueListRef" class="floating-player__queue-list">
+          <button
+            v-for="(track, index) in queueItems"
+            :key="track.id || track.neteaseSongId || index"
+            type="button"
+            class="floating-player__queue-item"
+            :class="{ 'floating-player__queue-item--active': index === playerStore.currentIndex }"
+            :data-queue-index="index"
+            @click="playQueueItem(track)"
+          >
+            <span class="floating-player__queue-index">{{ index + 1 }}</span>
+            <span class="floating-player__queue-copy">
+              <strong>{{ track.title || '未命名曲目' }}</strong>
+              <span>{{ track.artist || '未知歌手' }}</span>
+            </span>
+            <span v-if="index === playerStore.currentIndex" class="floating-player__queue-now">播放中</span>
+          </button>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -221,6 +236,10 @@ const isVolumePanelOpen = ref(false)
 const volumePanelRef = ref(null)
 const isQueuePanelOpen = ref(false)
 const queuePanelRef = ref(null)
+const queueTriggerRef = ref(null)
+const queuePopoverRef = ref(null)
+const queueListRef = ref(null)
+const queuePopoverStyle = ref(null)
 const effectiveCurrentTime = computed(() => (isDragging.value ? previewTime.value : (playerStore.currentTime || 0)))
 const progressPercent = computed(() => {
   const total = Number(playerStore.duration) || 0
@@ -295,6 +314,36 @@ function closeQueuePanel() {
   isQueuePanelOpen.value = false
 }
 
+function updateQueuePopoverPosition() {
+  if (!isQueuePanelOpen.value || !queueTriggerRef.value) return
+
+  const triggerRect = queueTriggerRef.value.getBoundingClientRect()
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const popoverWidth = Math.min(312, Math.max(220, viewportWidth - 24))
+  const left = Math.min(
+    viewportWidth - 12 - popoverWidth,
+    Math.max(12, triggerRect.left + (triggerRect.width / 2) - (popoverWidth / 2))
+  )
+  const maxHeight = Math.min(320, Math.max(180, viewportHeight - 120))
+
+  queuePopoverStyle.value = {
+    left: `${left}px`,
+    bottom: `${Math.max(80, viewportHeight - triggerRect.top + 10)}px`,
+    width: `${popoverWidth}px`,
+    maxHeight: `${maxHeight}px`
+  }
+}
+
+function scrollActiveQueueItemIntoView() {
+  if (!isQueuePanelOpen.value || !queueListRef.value) return
+  const activeIndex = Number(playerStore.currentIndex)
+  if (!Number.isFinite(activeIndex) || activeIndex < 0) return
+  const activeItem = queueListRef.value.querySelector(`[data-queue-index="${activeIndex}"]`)
+  if (!(activeItem instanceof HTMLElement)) return
+  activeItem.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+}
+
 function toggleVolumePanel() {
   isVolumePanelOpen.value = !isVolumePanelOpen.value
 }
@@ -323,6 +372,7 @@ function handleGlobalPointerDown(event) {
 
   if (!isQueuePanelOpen.value) return
   if (queuePanelRef.value && queuePanelRef.value.contains(target)) return
+  if (queuePopoverRef.value && queuePopoverRef.value.contains(target)) return
   closeQueuePanel()
 }
 
@@ -331,6 +381,29 @@ function playQueueItem(track) {
   void playerStore.toggleTrackPlayback(track, queueItems.value)
   closeQueuePanel()
 }
+
+watch(
+  () => isQueuePanelOpen.value,
+  async (open) => {
+    if (!open) {
+      queuePopoverStyle.value = null
+      return
+    }
+    await nextTick()
+    updateQueuePopoverPosition()
+    scrollActiveQueueItemIntoView()
+  }
+)
+
+watch(
+  () => [playerStore.currentIndex, queueItems.value.length],
+  async () => {
+    if (!isQueuePanelOpen.value) return
+    await nextTick()
+    updateQueuePopoverPosition()
+    scrollActiveQueueItemIntoView()
+  }
+)
 
 onMounted(() => {
   window.addEventListener('pointerdown', handleGlobalPointerDown, true)
@@ -454,6 +527,9 @@ function handleResize() {
   if (floatingPosition.value.x == null || floatingPosition.value.y == null) return
   floatingPosition.value = clampPosition(floatingPosition.value)
   persistFloatingPosition(floatingPosition.value)
+  if (isQueuePanelOpen.value) {
+    updateQueuePopoverPosition()
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -667,66 +743,121 @@ onBeforeUnmount(() => {
 }
 
 .floating-player__queue-popover {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 10px);
-  width: min(260px, calc(100vw - 32px));
-  padding: 10px;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
+  position: fixed;
+  padding: 12px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 18%, transparent), transparent 28%),
+    color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
   border: 1px solid var(--app-glass-border);
-  box-shadow: var(--app-shadow);
-  backdrop-filter: blur(24px) saturate(135%);
-  -webkit-backdrop-filter: blur(24px) saturate(135%);
-  z-index: 3;
+  box-shadow:
+    0 18px 40px rgba(15, 18, 28, 0.18),
+    inset 0 1px 0 color-mix(in srgb, white 24%, transparent);
+  backdrop-filter: blur(26px) saturate(140%);
+  -webkit-backdrop-filter: blur(26px) saturate(140%);
+  overflow: hidden;
+  z-index: 96;
 }
 
 .floating-player__queue-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  padding: 2px 4px 8px;
   color: var(--app-text-secondary);
-  font-size: 11px;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-glass-border) 56%, transparent);
+}
+
+.floating-player__queue-head-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .floating-player__queue-head strong {
   color: var(--app-text);
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.floating-player__queue-head-copy span,
+.floating-player__queue-total {
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+
+.floating-player__queue-total {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface) 56%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 26%, transparent);
 }
 
 .floating-player__queue-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 230px;
+  gap: 2px;
+  max-height: min(276px, calc(100vh - 180px));
+  padding: 0 2px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-text) 24%, transparent) transparent;
+}
+
+.floating-player__queue-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.floating-player__queue-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 22%, transparent);
 }
 
 .floating-player__queue-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  min-height: 44px;
-  padding: 8px 10px;
+  min-height: 56px;
+  padding: 10px 12px;
   border: none;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
+  border-radius: 18px;
+  background: transparent;
   color: var(--app-text);
   text-align: left;
+  transition: background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
 
 .floating-player__queue-item--active {
-  background: color-mix(in srgb, var(--app-text) 12%, var(--app-surface-soft));
+  background: color-mix(in srgb, var(--app-surface) 82%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 36%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--app-glass-border) 40%, transparent);
+  backdrop-filter: blur(14px) saturate(122%);
+  -webkit-backdrop-filter: blur(14px) saturate(122%);
+}
+
+.floating-player__queue-item:not(.floating-player__queue-item--active) {
+  opacity: 0.94;
+}
+
+.floating-player__queue-item:hover {
+  background: color-mix(in srgb, var(--app-surface) 32%, transparent);
+}
+
+.floating-player__queue-item:active {
+  transform: scale(var(--press-scale-button, 0.98));
 }
 
 .floating-player__queue-index {
   flex-shrink: 0;
-  width: 22px;
+  width: 24px;
   color: var(--app-text-tertiary);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-align: center;
 }
@@ -735,7 +866,8 @@ onBeforeUnmount(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  flex: 1;
+  gap: 3px;
 }
 
 .floating-player__queue-copy strong,
@@ -746,13 +878,25 @@ onBeforeUnmount(() => {
 }
 
 .floating-player__queue-copy strong {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .floating-player__queue-copy span {
   color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.floating-player__queue-now {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 10%, transparent);
+  color: var(--app-text-secondary);
   font-size: 10px;
+  font-weight: 700;
 }
 
 .floating-player__btn {
