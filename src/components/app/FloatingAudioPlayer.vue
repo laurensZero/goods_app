@@ -283,6 +283,15 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => miniVisible.value,
+  (visible) => {
+    if (visible) return
+    closeQueuePanel()
+    closeVolumePanel()
+  }
+)
+
 function handleSeekInput(event) {
   isDragging.value = true
   previewTime.value = Number(event?.target?.value) || 0
@@ -371,6 +380,7 @@ function handleGlobalPointerDown(event) {
   }
 
   if (!isQueuePanelOpen.value) return
+  if (playerRef.value && playerRef.value.contains(target)) return
   if (queuePanelRef.value && queuePanelRef.value.contains(target)) return
   if (queuePopoverRef.value && queuePopoverRef.value.contains(target)) return
   closeQueuePanel()
@@ -422,6 +432,8 @@ function playNext() {
 }
 
 function closeMiniPlayer() {
+  closeQueuePanel()
+  closeVolumePanel()
   playerStore.closeMiniPlayer()
 }
 
@@ -744,6 +756,8 @@ onBeforeUnmount(() => {
 
 .floating-player__queue-popover {
   position: fixed;
+  display: flex;
+  flex-direction: column;
   padding: 12px;
   border-radius: 24px;
   background:
@@ -800,9 +814,10 @@ onBeforeUnmount(() => {
 .floating-player__queue-list {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 2px;
-  max-height: min(276px, calc(100vh - 180px));
-  padding: 0 2px;
+  padding: 0 2px 2px;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--app-text) 24%, transparent) transparent;
