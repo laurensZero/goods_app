@@ -25,6 +25,22 @@ function buildArtworkList(track = {}) {
   }))
 }
 
+function getInitialVolume() {
+  const fallbackVolume = 0.8
+
+  try {
+    const raw = localStorage.getItem('goods_media_player_volume')
+    if (raw == null || raw === '') return fallbackVolume
+
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) return fallbackVolume
+
+    return Math.min(1, Math.max(0, parsed))
+  } catch {
+    return fallbackVolume
+  }
+}
+
 export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const queue = ref([])
   const currentIndex = ref(-1)
@@ -38,6 +54,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const lyricsCache = new Map()
   const lyricsStatus = ref('idle')
   const lyricsLines = ref([])
+  const volume = ref(getInitialVolume())
+  const isMuted = ref(false)
+  const previousVolumeBeforeMute = ref(volume.value || 0.8)
   let audio = null
   let rafId = 0
   let playRequestToken = 0
@@ -67,9 +86,39 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     return activeText || String(lines[0]?.text || '').trim()
   })
 
+  const volumePercent = computed(() => Math.round((volume.value || 0) * 100))
+  const volumeStateLabel = computed(() => (isMuted.value || volumePercent.value <= 0 ? '静音' : `${volumePercent.value}%`))
+
   function resetLyrics() {
     lyricsStatus.value = 'idle'
     lyricsLines.value = []
+  }
+
+  function persistVolume(nextVolume) {
+    try {
+      localStorage.setItem('goods_media_player_volume', String(nextVolume))
+    } catch {
+      // ignore persistence errors
+    }
+  }
+
+  function applyVolume(nextVolume) {
+    const normalized = Math.min(1, Math.max(0, Number(nextVolume) || 0))
+    volume.value = normalized
+
+    if (normalized > 0) {
+      previousVolumeBeforeMute.value = normalized
+      isMuted.value = false
+      if (audio) {
+        audio.muted = false
+      }
+    }
+
+    if (audio) {
+      audio.volume = normalized
+    }
+
+    persistVolume(normalized)
   }
 
   function syncMediaSessionPlaybackState() {
@@ -162,6 +211,8 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     audio = new Audio()
     audio.preload = 'metadata'
+    audio.volume = volume.value
+    audio.muted = isMuted.value
 
     audio.addEventListener('play', () => {
       isPlaying.value = true
@@ -208,6 +259,18 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       isPlaying.value = false
       syncMediaSessionPlaybackState()
       stopProgressLoop()
+    })
+
+    audio.addEventListener('volumechange', () => {
+      const nextVolume = Number.isFinite(audio.volume) ? Math.min(1, Math.max(0, audio.volume)) : volume.value
+      if (volume.value !== nextVolume) {
+        volume.value = nextVolume
+      }
+      isMuted.value = Boolean(audio.muted)
+      if (!audio.muted && nextVolume > 0) {
+        previousVolumeBeforeMute.value = nextVolume
+      }
+      persistVolume(nextVolume)
     })
 
     bindMediaSessionActions()
@@ -412,6 +475,35 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     syncMediaSessionPositionState()
   }
 
+  function setVolume(nextVolume) {
+    ensureAudio()
+    applyVolume(nextVolume)
+  }
+
+  function adjustVolume(delta) {
+    setVolume((volume.value || 0) + delta)
+  }
+
+  function toggleMute() {
+    const targetAudio = ensureAudio()
+    if (!targetAudio) return
+
+    if (targetAudio.muted || isMuted.value) {
+      targetAudio.muted = false
+      isMuted.value = false
+      const nextVolume = volume.value > 0 ? volume.value : (previousVolumeBeforeMute.value || 0.8)
+      applyVolume(nextVolume)
+      return
+    }
+
+    if (volume.value > 0) {
+      previousVolumeBeforeMute.value = volume.value
+    }
+
+    targetAudio.muted = true
+    isMuted.value = true
+  }
+
   function stopPlayback() {
     if (!audio) return
     playRequestToken += 1
@@ -463,6 +555,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     currentLyricLine,
     lastError,
     miniVisible,
+    volume,
+    volumePercent,
+    volumeStateLabel,
+    isMuted,
     hasPrevious,
     hasNext,
     playTrack,
@@ -471,6 +567,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     playNext,
     playPrevious,
     seekTo,
+    setVolume,
+    adjustVolume,
+    toggleMute,
     closeMiniPlayer,
     showMiniPlayer,
     stopPlayback

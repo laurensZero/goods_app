@@ -50,6 +50,51 @@
         </div>
 
         <div class="floating-player__actions">
+          <div ref="queuePanelRef" class="floating-player__queue">
+            <button
+              type="button"
+              class="floating-player__queue-trigger"
+              :class="{ 'floating-player__queue-trigger--active': isQueuePanelOpen }"
+              aria-label="打开播放列表"
+              :title="`播放列表 · ${queueItems.length}`"
+              @click.stop="toggleQueuePanel"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 7H18" />
+                <path d="M6 12H18" />
+                <path d="M6 17H14" />
+                <path d="M17 17H18" />
+              </svg>
+              <span v-if="queueItems.length" class="floating-player__queue-badge">{{ queueItems.length }}</span>
+            </button>
+
+            <Transition name="queue-popover">
+              <div v-if="isQueuePanelOpen" class="floating-player__queue-popover" @click.stop>
+                <div class="floating-player__queue-head">
+                  <strong>播放列表</strong>
+                  <span>{{ queueItems.length }} 首</span>
+                </div>
+
+                <div class="floating-player__queue-list">
+                  <button
+                    v-for="(track, index) in queueItems"
+                    :key="track.id || track.neteaseSongId || index"
+                    type="button"
+                    class="floating-player__queue-item"
+                    :class="{ 'floating-player__queue-item--active': index === playerStore.currentIndex }"
+                    @click="playQueueItem(track)"
+                  >
+                    <span class="floating-player__queue-index">{{ index + 1 }}</span>
+                    <span class="floating-player__queue-copy">
+                      <strong>{{ track.title || '未命名曲目' }}</strong>
+                      <span>{{ track.artist || '未知歌手' }}</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </div>
+
           <button type="button" class="floating-player__btn" :disabled="!hasPrevious" @click="playPrevious">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M11 7L6 12L11 17" />
@@ -73,6 +118,57 @@
               <path d="M6 7L11 12L6 17" />
             </svg>
           </button>
+
+          <div ref="volumePanelRef" class="floating-player__volume">
+            <button
+              type="button"
+              class="floating-player__volume-trigger"
+              :class="{ 'floating-player__volume-trigger--active': isVolumePanelOpen }"
+              :aria-label="isVolumePanelOpen ? '收起音量调节' : '打开音量调节'"
+              :title="volumeStateLabel"
+              @click.stop="toggleVolumePanel"
+            >
+              <svg v-if="isMuted || volumePercent <= 0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 9V15H9L14 19V5L9 9H5Z" />
+                <path d="M17 9L21 15" />
+                <path d="M21 9L17 15" />
+              </svg>
+              <svg v-else-if="volumePercent < 60" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 9V15H9L14 19V5L9 9H5Z" />
+                <path d="M17 9C18.1 10.1 18.1 13.9 17 15" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 9V15H9L14 19V5L9 9H5Z" />
+                <path d="M17 9C18.1 10.1 18.1 13.9 17 15" />
+                <path d="M19.5 6.5C21.7 8.7 21.7 15.3 19.5 17.5" />
+              </svg>
+            </button>
+
+            <Transition name="volume-popover">
+              <div v-if="isVolumePanelOpen" class="floating-player__volume-popover" @click.stop>
+                <div class="floating-player__volume-head">
+                  <strong class="floating-player__volume-value">{{ volumeStateLabel }}</strong>
+                </div>
+                <div class="floating-player__volume-rail">
+                  <input
+                    class="floating-player__volume-slider"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    :value="volumeValue"
+                    :style="{ '--player-progress': volumeProgressPercent }"
+                    aria-label="调节播放器音量"
+                    @input="handleVolumeInput"
+                    @change="commitVolume"
+                    @pointerup="commitVolume"
+                    @touchend="commitVolume"
+                    @blur="commitVolume"
+                  />
+                </div>
+              </div>
+            </Transition>
+          </div>
         </div>
 
         <p v-if="lastError" class="floating-player__error">{{ lastError }}</p>
@@ -82,7 +178,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { formatTrackDuration } from '@/utils/neteaseMusic'
 
@@ -112,6 +208,19 @@ const lastError = computed(() => playerStore.lastError)
 const hasPrevious = computed(() => playerStore.hasPrevious)
 const hasNext = computed(() => playerStore.hasNext)
 const currentLyricLine = computed(() => playerStore.currentLyricLine)
+const volumePercent = computed(() => playerStore.volumePercent)
+const volumeStateLabel = computed(() => playerStore.volumeStateLabel)
+const isMuted = computed(() => playerStore.isMuted)
+const queueItems = computed(() => (Array.isArray(playerStore.queue) ? playerStore.queue : []))
+const volumeValue = computed(() => playerStore.volume)
+const volumeProgressPercent = computed(() => {
+  const nextVolume = Number(playerStore.volume) || 0
+  return `${(Math.min(1, Math.max(0, nextVolume)) * 100).toFixed(3)}%`
+})
+const isVolumePanelOpen = ref(false)
+const volumePanelRef = ref(null)
+const isQueuePanelOpen = ref(false)
+const queuePanelRef = ref(null)
 const effectiveCurrentTime = computed(() => (isDragging.value ? previewTime.value : (playerStore.currentTime || 0)))
 const progressPercent = computed(() => {
   const total = Number(playerStore.duration) || 0
@@ -173,6 +282,59 @@ function cancelSeek() {
   isDragging.value = false
   previewTime.value = Number(playerStore.currentTime) || 0
 }
+
+function toggleMute() {
+  playerStore.toggleMute()
+}
+
+function toggleQueuePanel() {
+  isQueuePanelOpen.value = !isQueuePanelOpen.value
+}
+
+function closeQueuePanel() {
+  isQueuePanelOpen.value = false
+}
+
+function toggleVolumePanel() {
+  isVolumePanelOpen.value = !isVolumePanelOpen.value
+}
+
+function closeVolumePanel() {
+  isVolumePanelOpen.value = false
+}
+
+function handleVolumeInput(event) {
+  const nextVolume = Number(event?.target?.value)
+  playerStore.setVolume(nextVolume)
+  isVolumePanelOpen.value = true
+}
+
+function commitVolume(event) {
+  handleVolumeInput(event)
+}
+
+function handleGlobalPointerDown(event) {
+  const target = event?.target
+  if (!(target instanceof HTMLElement)) return
+
+  if (isVolumePanelOpen.value && volumePanelRef.value && !volumePanelRef.value.contains(target)) {
+    closeVolumePanel()
+  }
+
+  if (!isQueuePanelOpen.value) return
+  if (queuePanelRef.value && queuePanelRef.value.contains(target)) return
+  closeQueuePanel()
+}
+
+function playQueueItem(track) {
+  if (!track) return
+  void playerStore.toggleTrackPlayback(track, queueItems.value)
+  closeQueuePanel()
+}
+
+onMounted(() => {
+  window.addEventListener('pointerdown', handleGlobalPointerDown, true)
+})
 
 function togglePlayPause() {
   void playerStore.togglePlayPause()
@@ -307,6 +469,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerup', handlePointerUp)
   window.removeEventListener('pointercancel', handlePointerUp)
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('pointerdown', handleGlobalPointerDown, true)
 })
 </script>
 
@@ -442,9 +605,154 @@ onBeforeUnmount(() => {
 
 .floating-player__actions {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 8px;
   margin-top: 10px;
+}
+
+.floating-player__queue {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.floating-player__queue-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, var(--app-surface));
+  color: var(--app-text);
+  cursor: pointer;
+  transition: transform 140ms ease, background-color 140ms ease, opacity 140ms ease;
+}
+
+.floating-player__queue-trigger--active {
+  background: color-mix(in srgb, var(--app-text) 12%, var(--app-surface-soft));
+}
+
+.floating-player__queue-trigger:active {
+  transform: scale(var(--press-scale-button, 0.96));
+}
+
+.floating-player__queue-trigger svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+
+.floating-player__queue-badge {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.floating-player__queue-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: min(260px, calc(100vw - 32px));
+  padding: 10px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
+  border: 1px solid var(--app-glass-border);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  z-index: 3;
+}
+
+.floating-player__queue-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+
+.floating-player__queue-head strong {
+  color: var(--app-text);
+  font-size: 12px;
+}
+
+.floating-player__queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 230px;
+  overflow: auto;
+}
+
+.floating-player__queue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
+  color: var(--app-text);
+  text-align: left;
+}
+
+.floating-player__queue-item--active {
+  background: color-mix(in srgb, var(--app-text) 12%, var(--app-surface-soft));
+}
+
+.floating-player__queue-index {
+  flex-shrink: 0;
+  width: 22px;
+  color: var(--app-text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.floating-player__queue-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.floating-player__queue-copy strong,
+.floating-player__queue-copy span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-player__queue-copy strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.floating-player__queue-copy span {
+  color: var(--app-text-secondary);
+  font-size: 10px;
 }
 
 .floating-player__btn {
@@ -476,6 +784,136 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
+.floating-player__volume {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-left: 2px;
+}
+
+.floating-player__volume-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, var(--app-surface));
+  color: var(--app-text);
+  cursor: pointer;
+  transition: transform 140ms ease, background-color 140ms ease, opacity 140ms ease;
+}
+
+.floating-player__volume-trigger--active {
+  background: color-mix(in srgb, var(--app-text) 12%, var(--app-surface-soft));
+}
+
+.floating-player__volume-trigger:active {
+  transform: scale(var(--press-scale-button, 0.96));
+}
+
+.floating-player__volume-trigger svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+
+.floating-player__volume-popover {
+  position: absolute;
+  right: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(50%);
+  width: 52px;
+  padding: 8px 8px 10px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
+  border: 1px solid var(--app-glass-border);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  overflow: hidden;
+  z-index: 2;
+}
+
+.floating-player__volume-head {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.floating-player__volume-value {
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.floating-player__volume-rail {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 112px;
+}
+
+.floating-player__volume-slider {
+  width: 112px;
+  margin: 0;
+  appearance: none;
+  height: 5px;
+  border-radius: 999px;
+  outline: none;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--app-text) 86%, white) 0%, color-mix(in srgb, var(--app-text) 86%, white) var(--player-progress, 0%), color-mix(in srgb, var(--app-border) 70%, transparent) var(--player-progress, 0%), color-mix(in srgb, var(--app-border) 70%, transparent) 100%);
+  transform: rotate(-90deg);
+}
+
+.floating-player__volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--app-text) 86%, white);
+  border: 2px solid var(--app-surface);
+  box-shadow: 0 3px 10px rgba(20, 20, 22, 0.24);
+}
+
+.floating-player__volume-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--app-text) 86%, white);
+  border: 2px solid var(--app-surface);
+  box-shadow: 0 3px 10px rgba(20, 20, 22, 0.24);
+}
+
+.volume-popover-enter-active,
+.volume-popover-leave-active {
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.volume-popover-enter-from,
+.volume-popover-leave-to {
+  opacity: 0;
+  transform: translateX(50%) translateY(8px) scale(0.98);
+}
+
+.queue-popover-enter-active,
+.queue-popover-leave-active {
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.queue-popover-enter-from,
+.queue-popover-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+}
+
 .floating-player-enter-active,
 .floating-player-leave-active {
   transition: opacity 180ms ease, transform 180ms ease;
@@ -490,6 +928,10 @@ onBeforeUnmount(() => {
 @media (max-width: 720px) {
   .floating-player {
     width: min(calc(100vw - 20px), 256px);
+  }
+
+  .floating-player__volume-popover {
+    right: 50%;
   }
 }
 </style>
