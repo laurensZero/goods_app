@@ -5,7 +5,7 @@
     :z-index="210"
     :position="popupPosition"
     round
-    class="batch-edit-popup"
+    :class="['batch-edit-popup', { 'batch-edit-popup--tablet': isTablet }]"
   >
     <div class="batch-edit-sheet">
       <div v-if="!isTablet" class="batch-edit-sheet__handle" />
@@ -191,6 +191,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { Popup } from 'vant'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
@@ -463,9 +464,23 @@ defineExpose({
   overflow: hidden;
 }
 
+:global(.batch-edit-popup.van-popup--bottom) {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+:global(.batch-edit-popup.van-popup--center) {
+  width: min(720px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
+  border-radius: 28px !important;
+}
+
 .batch-edit-sheet {
   display: flex;
   flex-direction: column;
+  width: 100%;
   max-height: 90dvh;
   padding: 12px 16px 0;
   background:
@@ -857,7 +872,7 @@ defineExpose({
 /* ── 平板：居中对话框样式 ── */
 @media (min-width: 900px) {
   .batch-edit-sheet {
-    width: min(90vw, 600px);
+    width: 100%;
     border-radius: 24px;
     padding-top: 24px;
   }
