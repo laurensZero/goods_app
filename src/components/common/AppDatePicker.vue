@@ -20,10 +20,8 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { DatePicker, Popup } from 'vant'
-
-const CENTER_BREAKPOINT = 900
 
 const props = defineProps({
   show: {
@@ -58,13 +56,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'update:modelValue', 'cancel', 'confirm'])
 
-const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
-const shouldCenter = computed(() => props.isTablet || viewportWidth.value >= CENTER_BREAKPOINT)
-const popupPosition = computed(() => (shouldCenter.value ? 'center' : 'bottom'))
-
-function handleResize() {
-  viewportWidth.value = window.innerWidth
-}
+const popupPosition = computed(() => (props.isTablet ? 'center' : 'bottom'))
 
 const showProxy = computed({
   get: () => props.show,
@@ -84,13 +76,4 @@ function handleCancel(event) {
 function handleConfirm(payload) {
   emit('confirm', payload)
 }
-
-onMounted(() => {
-  handleResize()
-  window.addEventListener('resize', handleResize, { passive: true })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-})
 </script>

@@ -12,11 +12,15 @@ export function useTabletViewport() {
     const height = viewportHeight.value || 0
     const shortSide = Math.min(width, height)
     const longSide = Math.max(width, height)
-    const isCoarsePointer = typeof window !== 'undefined'
-      ? (window.matchMedia?.('(pointer: coarse)')?.matches ?? true)
-      : true
+    const isMobileDevice = typeof navigator !== 'undefined'
+      ? (navigator.userAgentData?.mobile ?? /Mobile|iPhone|iPod|Windows Phone/i.test(navigator.userAgent || ''))
+      : false
 
-    return shortSide >= TABLET_MIN_SHORT_SIDE || (isCoarsePointer && longSide >= TABLET_MIN_LONG_SIDE)
+    if (isMobileDevice) {
+      return false
+    }
+
+    return shortSide >= TABLET_MIN_SHORT_SIDE && longSide >= TABLET_MIN_LONG_SIDE
   })
 
   function updateViewport() {

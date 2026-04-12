@@ -582,7 +582,19 @@ const webUpdateCheckedAtLabel = computed(() => (
 
 const webUpdateReleaseNotesPreview = computed(() => {
   const raw = String(webUpdateStore.latestRelease?.notes || webUpdateStore.latestRelease?.body || '').trim()
-  return raw
+  const currentVersion = String(webUpdateStore.currentVersion || appVersion.value || '').trim()
+  const latestVersion = String(webUpdateStore.latestVersion || '').trim()
+  const versionRange = currentVersion && latestVersion
+    ? (currentVersion !== latestVersion
+        ? `当前版本 v${currentVersion} → 最新版本 v${latestVersion}`
+        : `当前版本 v${currentVersion}`)
+    : (latestVersion
+        ? `最新版本 v${latestVersion}`
+        : currentVersion
+          ? `当前版本 v${currentVersion}`
+          : '')
+
+  return [versionRange, raw].filter(Boolean).join('\n\n')
 })
 
 function buildIssueBody(content) {
@@ -1025,7 +1037,7 @@ async function handleClearUpdateCache() {
     showToast('应用更新缓存已清除')
     refreshResourceSizes()
   } catch (error) {
-    showToast('清理免责提示，或目录本来就为空。')
+    showToast('应用更新缓存为空。')
   }
 }
 
