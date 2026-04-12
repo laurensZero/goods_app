@@ -108,32 +108,25 @@
       </section>
     </Transition>
 
-    <Popup
+    <AppDatePicker
       v-model:show="showDatePicker"
-      teleport="body"
+      v-model="datePickerValue"
       :z-index="2000"
-      :lock-scroll="false"
-      :position="datePickerPopupPosition"
-      :round="!isTabletViewport"
-      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    >
-      <DatePicker
-        v-model="datePickerValue"
-        title="选择日期"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showDatePicker = false"
-        @confirm="onDateConfirm"
-      />
-    </Popup>
+      :is-tablet="isTabletViewport"
+      title="选择日期"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onDateConfirm"
+    />
   </Teleport>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { DatePicker, Popup } from 'vant'
 import AppSelect from '@/components/common/AppSelect.vue'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { useTabletViewport } from '@/composables/useTabletViewport'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
 import { formatDate } from '@/utils/format'
 import { validatePrice } from '@/utils/validate'
@@ -182,10 +175,8 @@ const form = reactive({
 const errorText = ref('')
 const showDatePicker = ref(false)
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
-const windowWidth = ref(window.innerWidth)
 const isEditMode = computed(() => Boolean(props.record?.id))
-const isTabletViewport = computed(() => windowWidth.value >= 900)
-const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+const { isTabletViewport, updateViewport } = useTabletViewport()
 const presetGameEntries = computed(() => {
   const source = rechargeDistribution || {}
   return Object.entries(source)
@@ -310,10 +301,6 @@ function close() {
   emit('update:show', false)
 }
 
-function handleResize() {
-  windowWidth.value = window.innerWidth
-}
-
 function openDatePicker() {
   datePickerValue.value = toDatePickerValue(form.chargedAt)
   showDatePicker.value = true
@@ -421,11 +408,10 @@ function normalizeDateParts(dateString) {
 }
 
 onMounted(() => {
-  window.addEventListener('resize', handleResize, { passive: true })
+  updateViewport()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -699,61 +685,6 @@ onBeforeUnmount(() => {
   background: var(--app-overlay);
   backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
   -webkit-backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-}
-
-.picker-popup {
-  overflow: hidden;
-}
-
-:global(.picker-popup--center.van-popup--center) {
-  width: min(720px, calc(100vw - 48px)) !important;
-  max-width: calc(100vw - 48px) !important;
-  border-radius: 24px;
-  overflow: hidden;
-}
-
-:deep(.picker-popup .van-picker) {
-  --van-picker-background: var(--app-surface);
-  --van-picker-toolbar-height: 52px;
-  --van-picker-option-font-size: 17px;
-  --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: var(--app-text);
-  --van-picker-cancel-action-color: #8e8e93;
-}
-
-:deep(.picker-popup .van-picker__toolbar) {
-  padding: 0 8px;
-}
-
-:deep(.picker-popup .van-picker__title) {
-  font-weight: 600;
-}
-
-:deep(.picker-popup .van-picker-column__item) {
-  color: var(--app-text-secondary);
-}
-
-:deep(.picker-popup .van-picker-column__item--selected) {
-  color: var(--app-text);
-}
-
-:deep(.picker-popup .van-picker-column) {
-  touch-action: pan-y;
-}
-
-:global(html.theme-dark) :deep(.picker-popup.van-popup),
-:global(html.theme-dark) :deep(.picker-popup.van-popup--bottom) {
-  background: rgba(24, 24, 28, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-}
-
-:global(html.theme-dark) :deep(.picker-popup .van-picker) {
-  --van-picker-mask-color:
-    linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
-    linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
 }
 
 .dialog-fade-enter-active,

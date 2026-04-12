@@ -7,10 +7,10 @@ import { commitActiveInput } from '@/utils/commitActiveInput'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
+import { useTabletViewport } from '@/composables/useTabletViewport'
 
 const NO_IP_OPTION = '__NO_IP__'
 const today = formatDate(new Date(), 'YYYY-MM-DD')
-const TABLET_BREAKPOINT = 768
 
 export function useGoodsEditorForm(options = {}) {
   const mode = options.mode === 'edit' ? 'edit' : 'add'
@@ -68,7 +68,7 @@ export function useGoodsEditorForm(options = {}) {
   const minDate = new Date(2000, 0, 1)
   const maxDate = new Date(2100, 11, 31)
   const hasCustomAcquiredAt = ref(false)
-  const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
+  const { isTabletViewport, updateViewport } = useTabletViewport()
 
   const availableCharacters = computed(() =>
     form.ip ? presets.characters.filter((character) => character.ip === form.ip) : []
@@ -102,12 +102,7 @@ export function useGoodsEditorForm(options = {}) {
   const hasUnitActualPriceValue = computed(() => form.unitActualPriceList.some((value) => !!String(value || '').trim()))
   const hasUnitCharacterValue = computed(() => form.unitCharacterList.some((value) => !!String(value || '').trim()))
   const disableActualPriceInput = computed(() => !form.isWishlist && quantityNumber.value >= 2 && showUnitActualPriceInput.value)
-  const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
   const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-
-  function handleViewportResize() {
-    viewportWidth.value = window.innerWidth
-  }
 
   watch(
     () => form.name,
@@ -228,14 +223,12 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitAcquiredAtListLength()
     syncUnitActualPriceListLength()
     syncUnitCharacterListLength()
-    handleViewportResize()
-    window.addEventListener('resize', handleViewportResize)
+    updateViewport()
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('touchstart', handleClickOutside)
   })
 
   onBeforeUnmount(() => {
-    window.removeEventListener('resize', handleViewportResize)
     document.removeEventListener('mousedown', handleClickOutside)
     document.removeEventListener('touchstart', handleClickOutside)
   })

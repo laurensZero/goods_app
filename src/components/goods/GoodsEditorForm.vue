@@ -481,51 +481,35 @@
       </div>
     </Teleport>
 
-    <Popup
+    <AppDatePicker
       v-model:show="showDatePicker"
-      teleport="body"
+      v-model="datePickerValue"
       :z-index="2000"
-      :lock-scroll="false"
-      :position="datePickerPopupPosition"
-      :round="!isTabletViewport"
-      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    >
-      <DatePicker
-        v-model="datePickerValue"
-        title="选择购入日期"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showDatePicker = false"
-        @confirm="onDateConfirm"
-      />
-    </Popup>
+      :is-tablet="isTabletViewport"
+      title="选择购入日期"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onDateConfirm"
+    />
 
-    <Popup
+    <AppDatePicker
       v-model:show="showUnitDatePicker"
-      teleport="body"
+      v-model="unitDatePickerValue"
       :z-index="2001"
-      :lock-scroll="false"
-      :position="datePickerPopupPosition"
-      :round="!isTabletViewport"
-      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    >
-      <DatePicker
-        v-model="unitDatePickerValue"
-        title="选择逐份购入日期"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showUnitDatePicker = false"
-        @confirm="onUnitDateConfirm"
-      />
-    </Popup>
+      :is-tablet="isTabletViewport"
+      title="选择逐份购入日期"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onUnitDateConfirm"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { DatePicker, Popup } from 'vant'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import GoodsImageManager from '@/components/goods/GoodsImageManager.vue'
@@ -586,7 +570,6 @@ const {
   hasUnitActualPriceValue,
   hasUnitCharacterValue,
   disableActualPriceInput,
-  datePickerPopupPosition,
   handleSubmit,
   toggleCharPicker,
   toggleQuickCreate,

@@ -77,6 +77,63 @@ body {
   scrollbar-gutter: stable;
 }
 
+body,
+body * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+body :is(
+  input,
+  textarea,
+  select,
+  option,
+  [contenteditable='true'],
+  [contenteditable='plaintext-only'],
+  .van-field__control,
+  .van-search__input,
+  .hero-label,
+  .hero-title,
+  .hero-desc,
+  .hero-date,
+  .hero-metric__label,
+  .hero-metric__value,
+  .price-label,
+  .price-value,
+  .price-currency,
+  .price-amount,
+  .price-points,
+  .price-hint,
+  .section-label,
+  .section-title,
+  .section-desc,
+  .section-note,
+  .summary-kicker,
+  .summary-value,
+  .detail-label,
+  .detail-value,
+  .stat-label,
+  .stat-value,
+  .stat-desc,
+  .entry-kicker,
+  .entry-name,
+  .entry-desc,
+  .panel-kicker,
+  .panel-title,
+  .trash-name,
+  .trash-meta,
+  .note-body,
+  .cover-card__fallback,
+  .linked-goods-card__name
+) {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 body {
   overflow-x: hidden;
 }
@@ -207,11 +264,23 @@ img {
   overflow: hidden;
 }
 
+.picker-popup.van-popup,
+.picker-popup.van-popup--bottom {
+  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+}
+
 .picker-popup.van-popup--center {
   width: min(720px, calc(100vw - 48px)) !important;
   max-width: calc(100vw - 48px) !important;
   border-radius: 24px;
   overflow: hidden;
+  box-shadow:
+    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
+  background-clip: padding-box;
 }
 
 .picker-popup .van-picker {
@@ -221,6 +290,10 @@ img {
   --van-picker-title-font-size: 16px;
   --van-picker-confirm-action-color: var(--app-text);
   --van-picker-cancel-action-color: #8e8e93;
+}
+
+.picker-popup.van-popup--center .van-picker {
+  --van-picker-background: transparent;
 }
 
 .picker-popup .van-picker__toolbar {

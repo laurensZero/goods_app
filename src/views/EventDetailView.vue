@@ -515,6 +515,27 @@ async function handleDelete() {
   color: #7864ff;
 }
 
+.hero-chip,
+.hero-date,
+.hero-title,
+.hero-price__label,
+.hero-price__currency,
+.hero-price__amount,
+.section-label,
+.section-title,
+.info-label,
+.info-value,
+.note-body,
+.linked-goods-card__name,
+.cover-card__fallback,
+.dialog-title,
+.dialog-message {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 .hero-date {
   color: var(--app-text-tertiary);
   font-size: 13px;

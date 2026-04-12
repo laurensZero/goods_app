@@ -177,33 +177,26 @@
     </div>
   </Popup>
 
-  <Popup
+  <AppDatePicker
     v-model:show="showDatePicker"
-    teleport="body"
+    v-model="datePickerValue"
     :z-index="220"
-    :lock-scroll="false"
-    :position="datePickerPopupPosition"
-    :round="!isTablet"
-    :class="['picker-popup', { 'picker-popup--center': isTablet }]"
-  >
-    <DatePicker
-      v-model="datePickerValue"
-      title="选择购入日期"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @cancel="showDatePicker = false"
-      @confirm="onDateConfirm"
-    />
-  </Popup>
+    :is-tablet="isTablet"
+    title="选择购入日期"
+    :min-date="minDate"
+    :max-date="maxDate"
+    @confirm="onDateConfirm"
+  />
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { DatePicker, Popup } from 'vant'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
+import { useTabletViewport } from '@/composables/useTabletViewport'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
@@ -244,14 +237,9 @@ const showProxy = computed({
   set: (value) => emit('update:show', value)
 })
 
-// 平板响应式：≥ 900px 改为居中对话框
-const windowWidth = ref(window.innerWidth)
-const _onResize = () => { windowWidth.value = window.innerWidth }
-onMounted(() => window.addEventListener('resize', _onResize))
-onBeforeUnmount(() => window.removeEventListener('resize', _onResize))
-const isTablet = computed(() => windowWidth.value >= 900)
+const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
+onMounted(() => updateViewport())
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
-const datePickerPopupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 
 const canSubmit = computed(() =>
   Boolean(form.markAsOwned || form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
@@ -838,46 +826,6 @@ defineExpose({
   padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
-.picker-popup {
-  overflow: hidden;
-}
-
-:global(.picker-popup--center.van-popup--center) {
-  width: min(720px, calc(100vw - 48px)) !important;
-  max-width: calc(100vw - 48px) !important;
-  border-radius: 24px;
-  overflow: hidden;
-}
-
-:deep(.picker-popup .van-picker) {
-  --van-picker-background: var(--app-surface);
-  --van-picker-toolbar-height: 52px;
-  --van-picker-option-font-size: 17px;
-  --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: var(--app-text);
-  --van-picker-cancel-action-color: #8e8e93;
-}
-
-:deep(.picker-popup .van-picker__toolbar) {
-  padding: 0 8px;
-}
-
-:deep(.picker-popup .van-picker__title) {
-  font-weight: 600;
-}
-
-:deep(.picker-popup .van-picker-column__item) {
-  color: var(--app-text-secondary);
-}
-
-:deep(.picker-popup .van-picker-column__item--selected) {
-  color: var(--app-text);
-}
-
-:deep(.picker-popup .van-picker-column) {
-  touch-action: pan-y;
-}
-
 .confirm-btn {
   height: 48px;
   border: none;
@@ -1027,21 +975,6 @@ defineExpose({
 
 :global(html.theme-dark .multi-select__check) {
     stroke: #f5f5f7 !important;
-  }
-
-:global(html.theme-dark) :deep(.picker-popup.van-popup),
-  :global(html.theme-dark) :deep(.picker-popup.van-popup--bottom) {
-    background: rgba(24, 24, 28, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(24px) saturate(150%);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
-  }
-
-:global(html.theme-dark) :deep(.picker-popup .van-picker) {
-    --van-picker-mask-color:
-      linear-gradient(180deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0)),
-      linear-gradient(0deg, rgba(24, 24, 28, 0.92), rgba(24, 24, 28, 0));
   }
 
 :global(html.theme-dark) .confirm-btn--danger {

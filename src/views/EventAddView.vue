@@ -301,24 +301,16 @@
       </div>
     </Teleport>
 
-    <Popup
+    <AppDatePicker
       v-model:show="showDatePicker"
-      teleport="body"
+      v-model="datePickerValue"
       :z-index="2000"
-      :lock-scroll="false"
-      :position="datePickerPopupPosition"
-      :round="!isTabletViewport"
-      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    >
-      <DatePicker
-        v-model="datePickerValue"
-        :title="datePickerTarget === 'start' ? '选择开始日期' : '选择结束日期'"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showDatePicker = false"
-        @confirm="onDateConfirm"
-      />
-    </Popup>
+      :is-tablet="isTabletViewport"
+      :title="datePickerTarget === 'start' ? '选择开始日期' : '选择结束日期'"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onDateConfirm"
+    />
 
   </div>
 </template>
@@ -326,7 +318,6 @@
 <script setup>
 import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DatePicker, Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
 import { pickLinkedLocalImage } from '@/utils/localImage'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
@@ -338,7 +329,9 @@ import { formatDate } from '@/utils/format'
 import { readEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
+import { useTabletViewport } from '@/composables/useTabletViewport'
 import NavBar from '@/components/common/NavBar.vue'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
@@ -405,10 +398,7 @@ const isNavigatingToPicker = ref(false)
 const pageDisplayReady = ref(false)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
-const TABLET_BREAKPOINT = 900
-const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
-const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
-const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+const { isTabletViewport, updateViewport } = useTabletViewport()
 
 const typeOptions = TYPE_OPTIONS
 
@@ -489,10 +479,6 @@ function applyPickerSelectionResult() {
     return true
   }
   return false
-}
-
-function handleViewportResize() {
-  viewportWidth.value = window.innerWidth
 }
 
 watch(
@@ -687,8 +673,7 @@ onBeforeMount(() => {
 
 onMounted(async () => {
   syncEventAddScrollLock(true)
-  handleViewportResize()
-  window.addEventListener('resize', handleViewportResize)
+  updateViewport()
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
@@ -721,7 +706,6 @@ onDeactivated(() => {
 
 onBeforeUnmount(() => {
   syncEventAddScrollLock(false)
-  window.removeEventListener('resize', handleViewportResize)
 })
 </script>
 
@@ -1132,46 +1116,6 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
-}
-
-.picker-popup {
-  overflow: hidden;
-}
-
-:global(.picker-popup--center.van-popup--center) {
-  width: min(720px, calc(100vw - 48px)) !important;
-  max-width: calc(100vw - 48px) !important;
-  border-radius: 24px;
-  overflow: hidden;
-}
-
-:deep(.picker-popup .van-picker) {
-  --van-picker-background: var(--app-surface);
-  --van-picker-toolbar-height: 52px;
-  --van-picker-option-font-size: 17px;
-  --van-picker-title-font-size: 16px;
-  --van-picker-confirm-action-color: var(--app-text);
-  --van-picker-cancel-action-color: #8e8e93;
-}
-
-:deep(.picker-popup .van-picker__toolbar) {
-  padding: 0 8px;
-}
-
-:deep(.picker-popup .van-picker__title) {
-  font-weight: 600;
-}
-
-:deep(.picker-popup .van-picker-column__item) {
-  color: var(--app-text-secondary);
-}
-
-:deep(.picker-popup .van-picker-column__item--selected) {
-  color: var(--app-text);
-}
-
-:deep(.picker-popup .van-picker-column) {
-  touch-action: pan-y;
 }
 
 .linked-goods__name {

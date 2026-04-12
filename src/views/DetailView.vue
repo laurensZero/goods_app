@@ -640,6 +640,16 @@ function getImageKindLabel(kind) {
   font-weight: 600;
 }
 
+.hero-date,
+.hero-name,
+.info-label,
+.info-value {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 .hero-chip.ip-chip {
   background: #1c3558;
   color: #8ab4f8;
@@ -788,6 +798,10 @@ function getImageKindLabel(kind) {
   font-size: 16px;
   line-height: 1.7;
   white-space: pre-wrap;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 .dialog-overlay {

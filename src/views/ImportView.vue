@@ -530,53 +530,38 @@
     </Teleport>
 
     <!-- 日期选择器弹层（teleport 到 body 防止被 float-footer 遮挡） -->
-    <Popup 
-      v-model:show="showDatePicker" 
-      teleport="body" 
-      :z-index="2000" 
-      :lock-scroll="false"
-      :position="datePickerPopupPosition" 
-      :round="!isTabletViewport" 
-      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    >
-      <DatePicker
-        v-model="datePickerValue"
-        title="选择购买日期"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showDatePicker = false"
-        @confirm="onDateConfirm"
-      />
-    </Popup>
+    <AppDatePicker
+      v-model:show="showDatePicker"
+      v-model="datePickerValue"
+      :z-index="2000"
+      :is-tablet="isTabletViewport"
+      title="选择购买日期"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onDateConfirm"
+    />
 
     <!-- 批量编辑日期选择器（z-index 高于批量编辑面板） -->
-    <Popup 
-      v-model:show="showBatchDatePicker" 
-      teleport="body" 
-      :z-index="2100" 
-      :lock-scroll="false"
-      :position="datePickerPopupPosition" 
-      :round="!isTabletViewport" 
-      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    >
-      <DatePicker
-        v-model="batchDatePickerValue"
-        title="选择购买日期"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @cancel="showBatchDatePicker = false"
-        @confirm="onBatchDateConfirm"
-      />
-    </Popup>
+    <AppDatePicker
+      v-model:show="showBatchDatePicker"
+      v-model="batchDatePickerValue"
+      :z-index="2100"
+      :is-tablet="isTabletViewport"
+      title="选择购买日期"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onBatchDateConfirm"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { DatePicker, Popup } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
+import { useTabletViewport } from '@/composables/useTabletViewport'
 import NavBar from '@/components/common/NavBar.vue'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -619,14 +604,7 @@ const formPriceError = ref('')
 const parsed = ref(false)
 const searchKeyword = ref('')
 
-const TABLET_BREAKPOINT = 900
-const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
-const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
-const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-
-function handleResize() {
-  viewportWidth.value = window.innerWidth
-}
+const { isTabletViewport, updateViewport } = useTabletViewport()
 const searchResults = ref([])
 const searchExpanded = ref(false)
 const searching = ref(false)
@@ -1762,13 +1740,12 @@ async function handleSave() {
 onMounted(() => {
   bindSearchScrollListener()
   void reconnectSearchObserver()
-  window.addEventListener('resize', handleResize, { passive: true })
+  updateViewport()
 })
 
 onBeforeUnmount(() => {
   unbindSearchScrollListener()
   disconnectSearchObserver()
-  window.removeEventListener('resize', handleResize)
 })
 </script>
 
