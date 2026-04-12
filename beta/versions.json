@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260412.9",
+    "url": "bundle-20260412.9.zip",
+    "hash": "399ccace760636640dce6f19978869dcdc5469f2757ee64ff4bff7b560ee93d3",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 GitHub 同步 token 支持，优化更新请求头处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-12T08:04:02Z"
+  },
+  {
     "version": "20260412.8",
     "url": "bundle-20260412.8.zip",
     "hash": "d0c0a626c1ddc877aa62f596f20a2cf2f2cc7ba4f0298c170055c09281134b50",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-04-12T07:23:22Z"
-  },
-  {
-    "version": "20260412.6",
-    "url": "bundle-20260412.6.zip",
-    "hash": "92d59239f03355cc3c2d0420fe4846e78e32916a059092d4e27cf5f7b4b9b548",
-    "minNativeVersion": null,
-    "notes": null,
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-12T06:40:14Z"
   }
 ]
