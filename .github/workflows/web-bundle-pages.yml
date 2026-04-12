@@ -54,6 +54,8 @@ jobs:
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -87,8 +89,74 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE_SHA: ${{ github.event.before || '' }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+
+          generate_beta_notes() {
+            local range_from=""
+            local range_to="${GITHUB_SHA}"
+
+            if [ "${EVENT_NAME}" = "push" ] && [ -n "${EVENT_BEFORE_SHA}" ] && [ "${EVENT_BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+              range_from="${EVENT_BEFORE_SHA}"
+            else
+              range_from="$(git rev-parse HEAD^ 2>/dev/null || true)"
+            fi
+
+            if [ -z "${range_from}" ]; then
+              range_from="${range_to}"
+            fi
+
+            local range="${range_from}..${range_to}"
+            local has_notes=0
+            local notes_file
+            notes_file="$(mktemp)"
+
+            for commit in $(git rev-list --reverse "${range}" 2>/dev/null || true); do
+              local title title_lower files body
+              title="$(git log -1 --format=%s "${commit}")"
+              title_lower="$(printf '%s' "${title}" | tr '[:upper:]' '[:lower:]')"
+
+              if [[ "${title_lower}" == merge\ * ]]; then
+                continue
+              fi
+
+              if [[ "${title_lower}" == chore:* || "${title_lower}" == "chore "* || "${title_lower}" == chore\(* ]]; then
+                continue
+              fi
+
+              files="$(git diff-tree --no-commit-id --name-only -r "${commit}")"
+              if [ -z "${files}" ]; then
+                continue
+              fi
+
+              if ! printf '%s\n' "${files}" | grep -qvE '^\.github/workflows/'; then
+                continue
+              fi
+
+              printf '%s\n' "- ${title}" >> "${notes_file}"
+              body="$(git log -1 --format=%b "${commit}")"
+              if [ -n "${body}" ]; then
+                while IFS= read -r line || [ -n "${line}" ]; do
+                  if [ -n "${line}" ]; then
+                    printf '  %s\n' "${line}" >> "${notes_file}"
+                  else
+                    printf '\n' >> "${notes_file}"
+                  fi
+                done <<< "${body}"
+              fi
+              printf '\n' >> "${notes_file}"
+              has_notes=1
+            done
+
+            if [ "${has_notes}" -eq 0 ]; then
+              printf '%s\n' "- 本次 beta 更新无可用变更说明" >> "${notes_file}"
+            fi
+
+            cat "${notes_file}"
+            rm -f "${notes_file}"
+          }
 
           if [ "${EVENT_NAME}" = "push" ]; then
             CHANNEL="beta"
@@ -106,6 +174,13 @@ jobs:
           HISTORY_FILE="pages/${CHANNEL}/versions.json"
           if [ -f "ghpages/${CHANNEL}/versions.json" ]; then
             cp "ghpages/${CHANNEL}/versions.json" "${HISTORY_FILE}"
+          fi
+
+          if [ "${CHANNEL}" = "beta" ] && [ -z "${ROLLBACK_VERSION}" ]; then
+            GENERATED_NOTES="$(generate_beta_notes)"
+            if [ -n "${GENERATED_NOTES}" ]; then
+              INPUT_NOTES="${GENERATED_NOTES}"
+            fi
           fi
 
           DATE_TAG=$(TZ=Asia/Shanghai date +%Y%m%d)
