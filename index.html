@@ -537,13 +537,21 @@
           </label>
 
           <div class="field field--full">
-            <span class="field-label">默认规则：stable=prompt，beta=silent（可手动覆盖）</span>
+            <span class="field-label">默认规则：stable=prompt；beta 的 push 自动发布默认 silent，手动发布可见</span>
           </div>
 
           <label class="field field--full">
             <span class="field-label">更新说明（可选）</span>
             <textarea id="publishNotes" class="textarea" placeholder="例如：修复 OTA 激活时机与恢复入口"></textarea>
           </label>
+
+          <div class="field field--full">
+            <span class="field-label">Beta 更新日志预览</span>
+            <div class="publish-actions">
+              <button class="btn" id="generateBetaNotesBtn" type="button">生成 beta 日志</button>
+            </div>
+            <textarea id="publishNotesPreview" class="textarea" readonly placeholder="点击“生成 beta 日志”后，这里会显示最近提交摘要，便于手动发布前确认。"></textarea>
+          </div>
 
         </div>
 
@@ -733,6 +741,8 @@
     const publishMinNative = document.getElementById('publishMinNative')
     const publishUpdateLevel = document.getElementById('publishUpdateLevel')
     const publishNotes = document.getElementById('publishNotes')
+    const publishNotesPreview = document.getElementById('publishNotesPreview')
+    const generateBetaNotesBtn = document.getElementById('generateBetaNotesBtn')
     const publishToken = document.getElementById('publishToken')
     const publishBtn = document.getElementById('publishBtn')
     const saveTokenBtn = document.getElementById('saveTokenBtn')
@@ -818,11 +828,73 @@
 
     function syncPublishUpdateLevelByChannel() {
       const channel = String(publishChannel.value || 'stable').trim().toLowerCase()
-      if (channel === 'beta') {
-        publishUpdateLevel.value = 'silent'
-        return
+      if (channel === 'stable') {
+        publishUpdateLevel.value = 'prompt'
       }
-      publishUpdateLevel.value = 'prompt'
+    }
+
+    function isLikelyNonUserFacingCommitTitle(title) {
+      const lower = String(title || '').trim().toLowerCase()
+      if (!lower) return true
+      if (lower.startsWith('merge ')) return true
+      if (lower.startsWith('chore:') || lower.startsWith('chore ') || lower.startsWith('chore(')) return true
+      if (lower.includes('workflow') || lower.includes('.github/workflows')) return true
+      return false
+    }
+
+    function formatBetaNotesFromCommits(commits) {
+      const entries = Array.isArray(commits) ? commits : []
+      const lines = []
+
+      entries.forEach((commit) => {
+        const title = String(commit?.commit?.message || '').split('\n')[0].trim()
+        if (isLikelyNonUserFacingCommitTitle(title)) return
+        lines.push(`- ${title}`)
+
+        const body = String(commit?.commit?.message || '')
+          .split('\n')
+          .slice(1)
+          .map((line) => line.trimEnd())
+          .filter(Boolean)
+
+        body.forEach((line) => {
+          lines.push(`  ${line}`)
+        })
+      })
+
+      if (!lines.length) {
+        lines.push('- 本次更新无可用变更说明')
+      }
+
+      return lines.join('\n')
+    }
+
+    async function generateBetaNotesPreview() {
+      const token = String(publishToken.value || '').trim()
+      const commitsUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/commits?sha=main&per_page=30`
+
+      generateBetaNotesBtn.disabled = true
+      publishNotesPreview.value = '正在生成 beta 更新日志预览...'
+
+      try {
+        const commits = await requestGitHubApi(commitsUrl, token)
+        const preview = [
+          '最近提交预览（仅用于手动发布前确认，实际发布时仍以 workflow 生成的日志为准）',
+          '',
+          formatBetaNotesFromCommits(Array.isArray(commits) ? [...commits].reverse() : [])
+        ].join('\n')
+
+        publishNotesPreview.value = preview
+        if (!String(publishNotes.value || '').trim()) {
+          publishNotes.value = formatBetaNotesFromCommits(Array.isArray(commits) ? [...commits].reverse() : [])
+        }
+        setPublishStatus('已生成 beta 更新日志预览。', 'ok')
+      } catch (error) {
+        publishNotesPreview.value = error?.message || '生成 beta 更新日志预览失败。'
+        setPublishStatus(error?.message || '生成 beta 更新日志预览失败。', 'error')
+      } finally {
+        generateBetaNotesBtn.disabled = false
+      }
     }
 
     function setAnnouncementStatus(message, type = 'default') {
@@ -1908,6 +1980,7 @@
     refreshAllBtn.addEventListener('click', loadAllChannels)
     publishChannel.addEventListener('change', syncPublishUpdateLevelByChannel)
     publishBtn.addEventListener('click', triggerPublish)
+    generateBetaNotesBtn.addEventListener('click', generateBetaNotesPreview)
     saveTokenBtn.addEventListener('click', saveTokenToLocalStorage)
     copyTokenBtn.addEventListener('click', copyTokenToClipboard)
     clearTokenBtn.addEventListener('click', clearTokenStorageAndInput)

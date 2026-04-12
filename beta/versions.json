@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260412.8",
+    "url": "bundle-20260412.8.zip",
+    "hash": "d0c0a626c1ddc877aa62f596f20a2cf2f2cc7ba4f0298c170055c09281134b50",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 beta 更新日志预览功能，优化用户手动发布体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-12T07:53:27Z"
+  },
+  {
     "version": "20260412.7",
     "url": "bundle-20260412.7.zip",
     "hash": "93260e12ddae41d0dd3ece21cd50ad7006b81df9c65a440defb0ef735153cf85",
@@ -16,14 +25,5 @@
     "notes": null,
     "updateLevel": "silent",
     "publishedAt": "2026-04-12T06:40:14Z"
-  },
-  {
-    "version": "20260412.5",
-    "url": "bundle-20260412.5.zip",
-    "hash": "57fe2f5dc0968217aaca9d657d7ff5e91a1df625d52897d7b3af163a822354da",
-    "minNativeVersion": null,
-    "notes": null,
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-12T06:26:14Z"
   }
 ]
