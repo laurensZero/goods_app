@@ -344,13 +344,23 @@ function updateQueuePopoverPosition() {
   }
 }
 
-function scrollActiveQueueItemIntoView() {
+function scrollActiveQueueItemIntoView(options = {}) {
+  const { forceInstant = false } = options
   if (!isQueuePanelOpen.value || !queueListRef.value) return
   const activeIndex = Number(playerStore.currentIndex)
   if (!Number.isFinite(activeIndex) || activeIndex < 0) return
-  const activeItem = queueListRef.value.querySelector(`[data-queue-index="${activeIndex}"]`)
+  const listEl = queueListRef.value
+  const activeItem = listEl.querySelector(`[data-queue-index="${activeIndex}"]`)
   if (!(activeItem instanceof HTMLElement)) return
-  activeItem.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+  const targetTop = activeItem.offsetTop - ((listEl.clientHeight - activeItem.offsetHeight) / 2)
+  const maxTop = Math.max(0, listEl.scrollHeight - listEl.clientHeight)
+  const clampedTop = Math.min(maxTop, Math.max(0, targetTop))
+  const distance = Math.abs(clampedTop - listEl.scrollTop)
+  const shouldSmooth = !forceInstant && distance <= (listEl.clientHeight * 1.25)
+  listEl.scrollTo({
+    top: clampedTop,
+    behavior: shouldSmooth ? 'smooth' : 'auto'
+  })
 }
 
 function toggleVolumePanel() {
@@ -380,9 +390,12 @@ function handleGlobalPointerDown(event) {
   }
 
   if (!isQueuePanelOpen.value) return
-  if (playerRef.value && playerRef.value.contains(target)) return
   if (queuePanelRef.value && queuePanelRef.value.contains(target)) return
   if (queuePopoverRef.value && queuePopoverRef.value.contains(target)) return
+  if (playerRef.value && playerRef.value.contains(target)) {
+    closeQueuePanel()
+    return
+  }
   closeQueuePanel()
 }
 
@@ -401,7 +414,9 @@ watch(
     }
     await nextTick()
     updateQueuePopoverPosition()
-    scrollActiveQueueItemIntoView()
+    requestAnimationFrame(() => {
+      scrollActiveQueueItemIntoView({ forceInstant: true })
+    })
   }
 )
 
