@@ -2,11 +2,18 @@ const GITHUB_API_BASE = 'https://api.github.com'
 const GITEE_API_BASE = 'https://gitee.com/api/v5'
 const REQUEST_TIMEOUT_MS = 15000
 
-function buildGitHubHeaders() {
-  return {
+function buildGitHubHeaders(token = '') {
+  const headers = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   }
+
+  const authToken = String(token || '').trim()
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`
+  }
+
+  return headers
 }
 
 function buildGiteeHeaders() {
@@ -84,7 +91,12 @@ async function request(baseUrl, path, headers) {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
-      const message = error?.message || `GitHub API error: ${response.status}`
+      const message = String(error?.message || `GitHub API error: ${response.status}`).trim()
+
+      if (response.status === 403 && /rate limit exceeded/i.test(message)) {
+        throw new Error('GitHub API 访问频率受限。请切换到 Gitee 更新源，或配置 GitHub 同步 token 后重试。')
+      }
+
       throw new Error(message)
     }
 
@@ -138,7 +150,7 @@ export function compareVersions(leftVersion, rightVersion) {
   return 0
 }
 
-export async function getLatestRelease(owner, repo) {
+export async function getLatestRelease(owner, repo, token = '') {
   if (!owner || !repo) {
     throw new Error('缺少 GitHub 仓库信息，无法检查更新。')
   }
@@ -147,7 +159,7 @@ export async function getLatestRelease(owner, repo) {
     const release = await request(
       GITHUB_API_BASE,
       `/repos/${owner}/${repo}/releases/latest`,
-      buildGitHubHeaders()
+      buildGitHubHeaders(token)
     )
     return normalizeRelease(release, 'github')
   } catch (error) {

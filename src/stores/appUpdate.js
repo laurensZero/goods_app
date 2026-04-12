@@ -14,6 +14,7 @@ import {
   resolveReleaseAsset,
   resolveReleaseTargetUrl
 } from '@/utils/githubRelease'
+import { readSyncKey } from '@/utils/syncStorage'
 
 const UPDATE_REPO_NAME = 'goods_app'
 const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
@@ -21,6 +22,7 @@ const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
   gitee: 'laurenszero'
 })
 const UPDATE_SOURCE_STORAGE_KEY = 'goods_app_update_source'
+const SYNC_TOKEN_STORAGE_KEY = 'sync_github_token'
 const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
@@ -89,7 +91,8 @@ async function fetchLatestReleaseBySource(source) {
     return getLatestReleaseFromGitee(owner, UPDATE_REPO_NAME)
   }
 
-  return getLatestRelease(owner, UPDATE_REPO_NAME)
+  const token = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
+  return getLatestRelease(owner, UPDATE_REPO_NAME, token)
 }
 
 export const useAppUpdateStore = defineStore('appUpdate', () => {
