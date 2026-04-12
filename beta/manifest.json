@@ -1,9 +1,9 @@
 {
-  "version": "20260412.10",
-  "url": "bundle-20260412.10.zip",
-  "hash": "d1a7489b60723174df4935b108753121dcda4e23349dc3418d5e0f17bd3746a3",
+  "version": "20260412.11",
+  "url": "bundle-20260412.11.zip",
+  "hash": "479de0436c1a31f15d96a7861296aec1e54c31bae55034e66ae0d7df839d7584",
   "minNativeVersion": null,
-  "notes": "- feat: 重构日期选择器组件，优化日期选择体验并移除冗余代码",
+  "notes": "- fix: 优化批量编辑弹窗样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-12T10:29:05Z"
+  "publishedAt": "2026-04-12T11:27:16Z"
 }

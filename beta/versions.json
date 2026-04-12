@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260412.11",
+    "url": "bundle-20260412.11.zip",
+    "hash": "479de0436c1a31f15d96a7861296aec1e54c31bae55034e66ae0d7df839d7584",
+    "minNativeVersion": null,
+    "notes": "- fix: 优化批量编辑弹窗样式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-12T11:27:16Z"
+  },
+  {
     "version": "20260412.10",
     "url": "bundle-20260412.10.zip",
     "hash": "d1a7489b60723174df4935b108753121dcda4e23349dc3418d5e0f17bd3746a3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 GitHub 同步 token 支持，优化更新请求头处理",
     "updateLevel": "silent",
     "publishedAt": "2026-04-12T08:04:02Z"
-  },
-  {
-    "version": "20260412.8",
-    "url": "bundle-20260412.8.zip",
-    "hash": "d0c0a626c1ddc877aa62f596f20a2cf2f2cc7ba4f0298c170055c09281134b50",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 beta 更新日志预览功能，优化用户手动发布体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-12T07:53:27Z"
   }
 ]
