@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260413.3",
+    "url": "bundle-20260413.3.zip",
+    "hash": "a905d3cd25c2d00d43be08ca98b214bf0cd38050e65f5300b9bbd63d2bc1f9c8",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-13T09:35:01Z"
+  },
+  {
     "version": "20260413.2",
     "url": "bundle-20260413.2.zip",
     "hash": "54658ddff6eb8de145b06a92fae8fdc5ba8b232a2a6b023f7f7b0dd7a6b0d48e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化更新提示，使用累积版本更新说明替代原有逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T08:37:17Z"
-  },
-  {
-    "version": "20260412.12",
-    "url": "bundle-20260412.12.zip",
-    "hash": "3f1f885360530942c9991685158abff090503b010b054c518f91ea7a837b0c7b",
-    "minNativeVersion": null,
-    "notes": "- refactor: 精简代码，移除不必要的变量和事件监听器，优化组件性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-12T11:42:34Z"
   }
 ]
