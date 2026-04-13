@@ -65,9 +65,7 @@ const restartReady = ref(false)
 
 const showDialog = computed(() => webUpdateStore.dialogVisible && webUpdateStore.hasUpdate)
 const releaseNotesPreview = computed(() => {
-  const raw = String(webUpdateStore.latestRelease?.notes || webUpdateStore.latestRelease?.body || '').trim()
-  if (!raw) return ''
-  return raw
+  return String(webUpdateStore.releaseNotesPreview || '').trim()
 })
 
 function handleOverlayClick() {

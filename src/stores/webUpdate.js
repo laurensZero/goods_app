@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
+  buildReleaseNotesPreview,
   compareVersions,
   normalizeVersionTag
 } from '@/utils/githubRelease'
@@ -39,6 +40,65 @@ function parseManifestPayload(payload) {
   }
 
   throw new Error('资源清单格式无效。')
+}
+
+function buildVersionsUrl(manifestUrl) {
+  try {
+    return new URL('./versions.json', manifestUrl).href
+  } catch {
+    return ''
+  }
+}
+
+function normalizeVersionHistoryItem(item) {
+  if (!item || typeof item !== 'object') return null
+
+  const version = normalizeVersionTag(item.version || '')
+  if (!version) return null
+
+  return {
+    version,
+    notes: String(item.notes || '').trim(),
+    publishedAt: String(item.publishedAt || '').trim()
+  }
+}
+
+function buildCumulativeReleaseNotesPreview(historyItems, currentVersion, latestVersion, fallbackNotes = '') {
+  const current = normalizeVersionTag(currentVersion)
+  const latest = normalizeVersionTag(latestVersion)
+
+  if (!latest || (current && compareVersions(latest, current) <= 0)) {
+    return ''
+  }
+
+  const filtered = (Array.isArray(historyItems) ? historyItems : [])
+    .map(normalizeVersionHistoryItem)
+    .filter(Boolean)
+    .sort((left, right) => compareVersions(left.version, right.version))
+    .filter((item) => {
+      if (current && compareVersions(item.version, current) <= 0) return false
+      if (latest && compareVersions(item.version, latest) > 0) return false
+      return true
+    })
+
+  const lines = []
+  filtered.forEach((item) => {
+    lines.push(`v${item.version}`)
+    if (item.publishedAt) {
+      lines.push(`发布时间：${item.publishedAt}`)
+    }
+
+    const note = buildReleaseNotesPreview(item.notes)
+    if (note) {
+      lines.push(note)
+    }
+    lines.push('')
+  })
+
+  const cumulative = lines.join('\n').trim()
+  if (cumulative) return cumulative
+
+  return buildReleaseNotesPreview(fallbackNotes)
 }
 
 async function fetchWebManifest(url) {
@@ -93,6 +153,60 @@ async function fetchWebManifest(url) {
       throw new Error('检查资源更新超时，请稍后再试。')
     }
     throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+async function fetchWebVersions(url) {
+  if (!url) return []
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const response = await withTimeout(
+        CapacitorHttp.get({
+          url,
+          headers: {
+            Accept: 'application/json'
+          }
+        }),
+        REQUEST_TIMEOUT_MS,
+        '检查资源更新超时，请稍后再试。'
+      )
+
+      const status = Number(response?.status || 0)
+      if (status < 200 || status >= 300) {
+        return []
+      }
+
+      const payload = parseManifestPayload(response?.data)
+      return Array.isArray(payload) ? payload : []
+    } catch {
+      return []
+    }
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json'
+      },
+      cache: 'no-store',
+      signal: controller.signal
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    const payload = await response.json().catch(() => [])
+    return Array.isArray(payload) ? payload : []
+  } catch {
+    return []
   } finally {
     clearTimeout(timeoutId)
   }
@@ -234,6 +348,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const latestVersion = ref('')
   const latestZipUrl = ref('')
   const latestRelease = ref(null)
+  const latestVersions = ref([])
   const latestBundleChecksum = ref('')
   const latestMinNativeVersion = ref('')
   const pendingBundleId = ref('')
@@ -265,6 +380,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   })
   const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
   const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
+  const releaseNotesPreview = computed(() => buildCumulativeReleaseNotesPreview(
+    latestVersions.value,
+    currentVersion.value,
+    latestVersion.value,
+    latestRelease.value?.notes || latestRelease.value?.body || ''
+  ))
 
   async function notifyAppReady() {
     if (!Capacitor.isNativePlatform()) return false
@@ -358,6 +479,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const hasChecksum = String(rawChecksum || '').trim().length > 0
         latestBundleChecksum.value = normalizeChecksum(rawChecksum)
         latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
+        latestVersions.value = await fetchWebVersions(buildVersionsUrl(resolvedManifestUrl))
 
         if (hasChecksum && !latestBundleChecksum.value) {
           throw new Error('资源清单 hash 格式无效，应为 64 位 SHA-256。')
@@ -393,6 +515,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         lastStatus.value = 'latest'
         dialogVisible.value = false
         updateLevel.value = 'prompt'
+        latestVersions.value = []
         return { status: 'latest', manifest, source: resolvedManifestSource }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
@@ -538,6 +661,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersion.value = ''
     latestZipUrl.value = ''
     latestRelease.value = null
+    latestVersions.value = []
     latestBundleChecksum.value = ''
     latestMinNativeVersion.value = ''
     resolvedSource.value = ''
@@ -557,6 +681,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersion.value = ''
     latestZipUrl.value = ''
     latestRelease.value = null
+    latestVersions.value = []
     latestBundleChecksum.value = ''
     latestMinNativeVersion.value = ''
     resolvedSource.value = ''
@@ -586,10 +711,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersion,
     latestZipUrl,
     latestRelease,
+    latestVersions,
     latestMinNativeVersion,
     updateLevel,
     isForceUpdate,
     isSilentUpdate,
+    releaseNotesPreview,
     dialogVisible,
     pendingBundleId,
     pendingVersion,

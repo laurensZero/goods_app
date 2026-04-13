@@ -581,20 +581,7 @@ const webUpdateCheckedAtLabel = computed(() => (
 ))
 
 const webUpdateReleaseNotesPreview = computed(() => {
-  const raw = String(webUpdateStore.latestRelease?.notes || webUpdateStore.latestRelease?.body || '').trim()
-  const currentVersion = String(webUpdateStore.currentVersion || appVersion.value || '').trim()
-  const latestVersion = String(webUpdateStore.latestVersion || '').trim()
-  const versionRange = currentVersion && latestVersion
-    ? (currentVersion !== latestVersion
-        ? `当前版本 v${currentVersion} → 最新版本 v${latestVersion}`
-        : `当前版本 v${currentVersion}`)
-    : (latestVersion
-        ? `最新版本 v${latestVersion}`
-        : currentVersion
-          ? `当前版本 v${currentVersion}`
-          : '')
-
-  return [versionRange, raw].filter(Boolean).join('\n\n')
+  return String(webUpdateStore.releaseNotesPreview || '').trim()
 })
 
 function buildIssueBody(content) {
