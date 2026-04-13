@@ -517,6 +517,46 @@ export const useSyncStore = defineStore('sync', () => {
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
       const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
       const localChanges = getLocalChangesSince(localSyncTime)
+      const localComparableState = await buildComparableSyncStateFromData({
+        goods: goodsStore.list,
+        trash: goodsStore.trashList,
+        presets: await buildPresetsData()
+      })
+      const remoteComparableState = await buildComparableSyncStateFromData(remoteData)
+      const localRechargeComparableState = buildComparableRechargeStateFromData(buildRechargeSyncData({ incremental: false }))
+      const remoteRechargeComparableState = buildComparableRechargeStateFromData(remoteRechargeData)
+      const localEventComparableState = buildComparableEventStateFromData(buildEventSyncData())
+      const remoteEventComparableState = buildComparableEventStateFromData(remoteEventData)
+      const hasDataDiff = localComparableState !== remoteComparableState
+      const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
+      const hasEventDataDiff = localEventComparableState !== remoteEventComparableState
+      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasRemoteImageChanges
+
+      if (!hasEffectiveDiff) {
+        if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
+          syncStatus.value = '正在上传本地数据...'
+          const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
+          syncStatus.value = '上传完成'
+          return {
+            action: 'pushed',
+            ...localChanges,
+            ...imageStats
+          }
+        }
+
+        if (remoteManifest?.lastSyncAt) {
+          await saveLastSyncedAt(remoteManifest.lastSyncAt)
+        }
+        if (remoteEventData?.updatedAt || remoteManifest?.lastSyncAt) {
+          await saveEventLastSyncedAt(remoteEventData?.updatedAt || remoteManifest.lastSyncAt)
+        }
+        syncStatus.value = '数据已经是最新'
+        return {
+          action: 'no_changes',
+          ...getLocalChangesSince(remoteTime || localSyncTime)
+        }
+      }
+
       const existingImageGist = await getExistingImageGist(remoteManifest)
       const localPayload = await trackSyncStep('整理本地收藏/回收站数据', async () => buildSyncPayload({ existingImageGist }), {
         startDetail: '读取本地收藏、回收站和图片',
@@ -543,15 +583,6 @@ export const useSyncStore = defineStore('sync', () => {
           return `活动 ${eventCount} 场，图片 ${payload?.imageStats?.imageFileCount || 0} 个`
         }
       })
-      const localComparableState = await buildComparableSyncStateFromData(localPayload.syncData)
-      const remoteComparableState = await buildComparableSyncStateFromData(remoteData)
-      const localRechargeComparableState = buildComparableRechargeStateFromData(localRechargePayload)
-      const remoteRechargeComparableState = buildComparableRechargeStateFromData(remoteRechargeData)
-      const localEventComparableState = buildComparableEventStateFromData(localEventPayload.eventData)
-      const remoteEventComparableState = buildComparableEventStateFromData(remoteEventData)
-      const hasDataDiff = localComparableState !== remoteComparableState
-      const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
-      const hasEventDataDiff = localEventComparableState !== remoteEventComparableState
       const allReferencedImageFiles = new Set([...localPayload.referencedImageFiles, ...localEventPayload.referencedImageFiles])
       const pendingAllImageCleanup = buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
       const hasPendingImageChanges = (
@@ -559,32 +590,6 @@ export const useSyncStore = defineStore('sync', () => {
         || Object.keys(localEventPayload.imageFiles).length > 0
         || Object.keys(pendingAllImageCleanup).length > 0
       )
-      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasPendingImageChanges || hasRemoteImageChanges
-
-      if (!hasEffectiveDiff) {
-        if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
-          syncStatus.value = '正在上传本地数据...'
-          const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
-          syncStatus.value = '上传完成'
-          return {
-            action: 'pushed',
-            ...localChanges,
-            ...imageStats
-          }
-        }
-
-        if (remoteManifest?.lastSyncAt) {
-          await saveLastSyncedAt(remoteManifest.lastSyncAt)
-        }
-        if (remoteEventData?.updatedAt || remoteManifest?.lastSyncAt) {
-          await saveEventLastSyncedAt(remoteEventData?.updatedAt || remoteManifest.lastSyncAt)
-        }
-        syncStatus.value = '数据已经是最新'
-        return {
-          action: 'no_changes',
-          ...getLocalChangesSince(remoteTime || localSyncTime)
-        }
-      }
 
       if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
         syncStatus.value = '正在上传本地数据...'
