@@ -1,9 +1,9 @@
 {
-  "version": "20260413.7",
-  "url": "bundle-20260413.7.zip",
-  "hash": "105a2ed5e9dd7b5a94301aa3cf96694311ed11886f5e1dcd6b17fa8f282e95a9",
+  "version": "20260413.8",
+  "url": "bundle-20260413.8.zip",
+  "hash": "8e7bd433c2f2a6df3ac4e6ff374a80aff7320167dfb549dc2b63c4b504233738",
   "minNativeVersion": null,
-  "notes": "- feat: 添加选项以控制图片数据的恢复，优化同步逻辑",
+  "notes": "- feat: 添加商品和事件内容差异检测，优化数据拉取逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-13T10:51:51Z"
+  "publishedAt": "2026-04-13T11:10:00Z"
 }

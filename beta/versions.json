@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260413.8",
+    "url": "bundle-20260413.8.zip",
+    "hash": "8e7bd433c2f2a6df3ac4e6ff374a80aff7320167dfb549dc2b63c4b504233738",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加商品和事件内容差异检测，优化数据拉取逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-13T11:10:00Z"
+  },
+  {
     "version": "20260413.7",
     "url": "bundle-20260413.7.zip",
     "hash": "105a2ed5e9dd7b5a94301aa3cf96694311ed11886f5e1dcd6b17fa8f282e95a9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化数据同步逻辑，添加比较状态功能以提升数据一致性",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T09:52:03Z"
-  },
-  {
-    "version": "20260413.5",
-    "url": "bundle-20260413.5.zip",
-    "hash": "db57bcae0ff43d69591280f81433c3ce543d2390bd7bb08aa7c96d60c60fa195",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加比较记录功能，优化数据同步逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-13T09:48:35Z"
   }
 ]
