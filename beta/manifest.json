@@ -1,9 +1,9 @@
 {
-  "version": "20260413.5",
-  "url": "bundle-20260413.5.zip",
-  "hash": "db57bcae0ff43d69591280f81433c3ce543d2390bd7bb08aa7c96d60c60fa195",
+  "version": "20260413.6",
+  "url": "bundle-20260413.6.zip",
+  "hash": "a47d3fecc06787a79e430c9adedbf255ea4325edfaa3d70d02498a9079c59531",
   "minNativeVersion": null,
-  "notes": "- feat: 添加比较记录功能，优化数据同步逻辑",
+  "notes": "- feat: 优化数据同步逻辑，添加比较状态功能以提升数据一致性",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-13T09:48:35Z"
+  "publishedAt": "2026-04-13T09:52:03Z"
 }

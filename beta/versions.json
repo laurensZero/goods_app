@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260413.6",
+    "url": "bundle-20260413.6.zip",
+    "hash": "a47d3fecc06787a79e430c9adedbf255ea4325edfaa3d70d02498a9079c59531",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化数据同步逻辑，添加比较状态功能以提升数据一致性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-13T09:52:03Z"
+  },
+  {
     "version": "20260413.5",
     "url": "bundle-20260413.5.zip",
     "hash": "db57bcae0ff43d69591280f81433c3ce543d2390bd7bb08aa7c96d60c60fa195",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑\"\n  This reverts commit 93b37319f03335773b4c1a67865e663db0c53990.",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T09:38:15Z"
-  },
-  {
-    "version": "20260413.3",
-    "url": "bundle-20260413.3.zip",
-    "hash": "a905d3cd25c2d00d43be08ca98b214bf0cd38050e65f5300b9bbd63d2bc1f9c8",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-13T09:35:01Z"
   }
 ]
