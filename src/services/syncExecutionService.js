@@ -112,6 +112,7 @@ export function createSyncExecutionService({
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const presets = usePresetsStore()
+    const eventsStore = await ensureEventsStoreReady()
 
     if (remoteData.presets) {
       await presets.replacePresetsSnapshot(remoteData.presets)
@@ -126,6 +127,7 @@ export function createSyncExecutionService({
     const trashIdsToRemove = new Set()
     const localGoodsMap = new Map(goodsStore.list.map((item) => [item.id, item]))
     const localTrashMap = new Map(goodsStore.trashList.map((item) => [item.id, item]))
+    const localEventMap = new Map((eventsStore.list || []).map((item) => [item.id, item]))
 
     for (const remoteItem of remoteGoods) {
       const localItem = localGoodsMap.get(remoteItem.id)
@@ -153,14 +155,18 @@ export function createSyncExecutionService({
     }
 
     if (goodsToImport.length > 0) {
-      await goodsStore.importGoodsBackup(goodsToImport)
+      const hydratedGoodsToImport = await hydrateRemoteItemsWithImages(goodsToImport, imageGist, imageStats)
+      await goodsStore.importGoodsBackup(hydratedGoodsToImport)
       await presets.syncCharactersFromGoods(goodsToImport)
       await presets.syncStorageLocationsFromPaths(
         goodsToImport.map((item) => item.storageLocation).filter(Boolean)
       )
     }
 
-    await goodsStore.updateGoodsBackup(goodsToUpdate)
+    if (goodsToUpdate.length > 0) {
+      const hydratedGoodsToUpdate = await hydrateRemoteItemsWithImages(goodsToUpdate, imageGist, imageStats)
+      await goodsStore.updateGoodsBackup(hydratedGoodsToUpdate)
+    }
 
     const currentGoodsMap = new Map(goodsStore.list.map((item) => [item.id, item]))
     const currentTrashMap = new Map(goodsStore.trashList.map((item) => [item.id, item]))
@@ -193,11 +199,13 @@ export function createSyncExecutionService({
     }
 
     if (trashToImport.length > 0) {
-      await goodsStore.importTrashBackup(trashToImport)
+      const hydratedTrashToImport = await hydrateRemoteItemsWithImages(trashToImport, imageGist, imageStats)
+      await goodsStore.importTrashBackup(hydratedTrashToImport)
     }
 
     if (trashToUpdate.length > 0) {
-      await goodsStore.updateTrashBackup(trashToUpdate)
+      const hydratedTrashToUpdate = await hydrateRemoteItemsWithImages(trashToUpdate, imageGist, imageStats)
+      await goodsStore.updateTrashBackup(hydratedTrashToUpdate)
     }
 
     const remoteGoodsIds = new Set(remoteGoods.map((item) => item.id))
@@ -232,9 +240,17 @@ export function createSyncExecutionService({
 
     let eventApplyResult = { added: 0, updated: 0, total: 0 }
     if (eventData && Array.isArray(eventData.events)) {
-      const eventsStore = useEventsStore()
+      const eventsToApply = eventData.events.filter((remoteItem) => {
+        const localItem = localEventMap.get(remoteItem.id)
+        return !localItem || shouldApplyRemoteItem(localItem, remoteItem)
+      })
+
+      const hydratedEventsToApply = eventsToApply.length > 0
+        ? await hydrateEventCoversWithImages(eventsToApply, imageGist, imageStats)
+        : eventsToApply
+
       eventApplyResult = {
-        ...(await eventsStore.importEventsBackup(eventData.events)),
+        ...(await eventsStore.importEventsBackup(hydratedEventsToApply)),
         total: eventData.events.length
       }
       await saveEventLastSyncedAt(eventData.updatedAt || remoteManifest?.lastSyncAt || new Date().toISOString())
