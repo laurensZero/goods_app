@@ -446,6 +446,7 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       await ensureEventsStoreReady()
       const gist = await ensureGist()
+      const goodsStore = useGoodsStore()
       syncStatus.value = '正在检查远端数据...'
 
       const remoteManifest = await readJsonFromGistWithTrace({
@@ -656,10 +657,22 @@ export const useSyncStore = defineStore('sync', () => {
             return `图片 Gist ${parsed.imageGistId || '未配置'}`
           }
         })
+        const hasGoodsContentDiff = !!(
+          conflictData.value.remoteOnlyGoods > 0
+          || conflictData.value.remoteOnlyCollection > 0
+          || conflictData.value.remoteOnlyWishlist > 0
+          || conflictData.value.remoteOnlyTrash > 0
+          || conflictData.value.updatedGoods > 0
+          || conflictData.value.localOnlyGoods > 0
+          || conflictData.value.localOnlyCollection > 0
+          || conflictData.value.localOnlyWishlist > 0
+          || conflictData.value.localOnlyTrash > 0
+        )
+        const hasEventContentDiff = !!(conflictData.value.remoteOnlyEvents > 0 || conflictData.value.updatedEvents > 0 || conflictData.value.localOnlyEvents > 0)
         const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
-          hydrateGoodsImages: true,
-          hydrateTrashImages: true,
-          hydrateEventImages: true
+          hydrateGoodsImages: hasGoodsContentDiff,
+          hydrateTrashImages: hasGoodsContentDiff,
+          hydrateEventImages: hasEventContentDiff
         })
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         conflictData.value = null
@@ -769,51 +782,36 @@ export const useSyncStore = defineStore('sync', () => {
           eventGist: existingEventGist,
           isPullOnly: true
         }
-        syncStatus.value = '检测到远端数据'
-        return { action: 'conflict' }
-      }
-
-      if (isRemoteFromOtherDevice) {
-        const diff = await buildPullConflictData(gist, remoteManifest)
-        const hasContentDiff = (
-          diff.remoteOnlyGoods > 0
-          || diff.remoteOnlyTrash > 0
-          || diff.localOnlyGoods > 0
-          || diff.localOnlyTrash > 0
-          || diff.updatedGoods > 0
-        )
-        if (!hasContentDiff && !hasRechargeContentDiff && !hasEventContentDiff) {
-          syncStatus.value = '数据已是最新'
-          return { action: 'no_changes' }
-        }
-
-        if (!hasContentDiff && (hasRechargeContentDiff || hasEventContentDiff)) {
-          syncStatus.value = '正在拉取远端数据...'
-          const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-            hydrateGoodsImages: hasContentDiff,
-            hydrateTrashImages: hasContentDiff,
-            hydrateEventImages: hasEventContentDiff
-          })
-          await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-          syncStatus.value = '拉取完成'
-          return { action: 'pulled', ...result }
-        }
-
-        conflictData.value = {
-          ...diff,
-          rechargeGist: existingRechargeGist,
-          eventGist: existingEventGist,
-          isPullOnly: true
-        }
+        syncStatus.value = '正在拉取远端数据...'
         syncStatus.value = '检测到远端数据'
         return { action: 'conflict' }
       }
 
       syncStatus.value = '正在拉取远端数据...'
+      const diff = await buildPullConflictData(gist, remoteManifest)
+      const pullGoodsContentDiff = !!(
+        diff.remoteOnlyGoods > 0
+        || diff.remoteOnlyCollection > 0
+        || diff.remoteOnlyWishlist > 0
+        || diff.remoteOnlyTrash > 0
+        || diff.updatedGoods > 0
+        || diff.localOnlyGoods > 0
+        || diff.localOnlyCollection > 0
+        || diff.localOnlyWishlist > 0
+        || diff.localOnlyTrash > 0
+      )
+      const pullRechargeContentDiff = !!(diff.remoteRechargeCount > 0 || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0 || diff.localOnlyRecharge > 0)
+      const pullEventContentDiff = !!(diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0)
+
+      if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff) {
+        syncStatus.value = '数据已是最新'
+        return { action: 'no_changes' }
+      }
+
       const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-        hydrateGoodsImages: hasDataDiff,
-        hydrateTrashImages: hasDataDiff,
-        hydrateEventImages: hasEventDataDiff
+        hydrateGoodsImages: pullGoodsContentDiff,
+        hydrateTrashImages: pullGoodsContentDiff,
+        hydrateEventImages: pullEventContentDiff
       })
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
@@ -843,13 +841,23 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = '正在拉取远端数据...'
       const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
-        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
-          hydrateGoodsImages: true,
-          hydrateTrashImages: true,
-          hydrateEventImages: true
-        })
-      await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-      syncStatus.value = '拉取完成'
+      const hasGoodsContentDiff = !!(
+        conflictData.value.remoteOnlyGoods > 0
+        || conflictData.value.remoteOnlyCollection > 0
+        || conflictData.value.remoteOnlyWishlist > 0
+        || conflictData.value.remoteOnlyTrash > 0
+        || conflictData.value.updatedGoods > 0
+        || conflictData.value.localOnlyGoods > 0
+        || conflictData.value.localOnlyCollection > 0
+        || conflictData.value.localOnlyWishlist > 0
+        || conflictData.value.localOnlyTrash > 0
+      )
+      const hasEventContentDiff = !!(conflictData.value.remoteOnlyEvents > 0 || conflictData.value.updatedEvents > 0 || conflictData.value.localOnlyEvents > 0)
+      const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
+        hydrateGoodsImages: hasGoodsContentDiff,
+        hydrateTrashImages: hasGoodsContentDiff,
+        hydrateEventImages: hasEventContentDiff
+      })
       conflictData.value = null
       return { action: 'pulled', ...result }
     } catch (error) {
