@@ -1,9 +1,9 @@
 {
-  "version": "20260413.1",
-  "url": "bundle-20260413.1.zip",
-  "hash": "6abd1d85e13c013ce943ed973b33145efb08e2fea418fb696b810923d0fe24e8",
+  "version": "20260413.2",
+  "url": "bundle-20260413.2.zip",
+  "hash": "54658ddff6eb8de145b06a92fae8fdc5ba8b232a2a6b023f7f7b0dd7a6b0d48e",
   "minNativeVersion": null,
-  "notes": "- feat: 优化更新提示，使用累积版本更新说明替代原有逻辑",
+  "notes": "- feat: 添加图片数据处理和同步功能，优化事件存储结构",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-13T08:37:17Z"
+  "publishedAt": "2026-04-13T08:54:14Z"
 }
