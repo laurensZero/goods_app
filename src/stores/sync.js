@@ -22,9 +22,6 @@ import {
   buildSyncDescription
 } from '@/utils/githubGist'
 import {
-  buildComparableRecordMap,
-  buildTimestampRecordMap,
-  countComparableRecordDiff,
   countWishlistSplit,
   getItemTimestamp,
   resolveGoodsTrashMaps
@@ -59,19 +56,6 @@ function generateDeviceId() {
 function shouldApplyRemoteItem(localItem, remoteItem) {
   if (!localItem) return true
   return getItemTimestamp(remoteItem) > getItemTimestamp(localItem)
-}
-
-function hasRemoteImageChangesSince(localSyncTime, remoteManifest, currentImageGistId = '') {
-  const remoteImageGistId = String(remoteManifest?.imageGistId || '').trim()
-  if (remoteImageGistId && remoteImageGistId !== String(currentImageGistId || '').trim()) {
-    return true
-  }
-
-  const remoteImageUpdatedAt = remoteManifest?.imageUpdatedAt
-    ? new Date(remoteManifest.imageUpdatedAt).getTime()
-    : 0
-
-  return remoteImageUpdatedAt > localSyncTime
 }
 
 export const useSyncStore = defineStore('sync', () => {

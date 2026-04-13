@@ -127,7 +127,6 @@ export function createSyncExecutionService({
 
     return targetEventIds
   }
-
   async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null, eventGist = null, options = {}) {
     const shouldHydrateGoodsImages = options.hydrateGoodsImages !== false
     const shouldHydrateTrashImages = options.hydrateTrashImages !== false
