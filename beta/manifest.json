@@ -1,9 +1,9 @@
 {
-  "version": "20260412.12",
-  "url": "bundle-20260412.12.zip",
-  "hash": "3f1f885360530942c9991685158abff090503b010b054c518f91ea7a837b0c7b",
+  "version": "20260413.1",
+  "url": "bundle-20260413.1.zip",
+  "hash": "6abd1d85e13c013ce943ed973b33145efb08e2fea418fb696b810923d0fe24e8",
   "minNativeVersion": null,
-  "notes": "- refactor: 精简代码，移除不必要的变量和事件监听器，优化组件性能",
+  "notes": "- feat: 优化更新提示，使用累积版本更新说明替代原有逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-12T11:42:34Z"
+  "publishedAt": "2026-04-13T08:37:17Z"
 }
