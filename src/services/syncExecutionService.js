@@ -40,7 +40,11 @@ export function createSyncExecutionService({
     MANIFEST_FILENAME
   } = constants
 
-  async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null, eventGist = null) {
+  async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null, eventGist = null, options = {}) {
+    const shouldHydrateGoodsImages = options.hydrateGoodsImages !== false
+    const shouldHydrateTrashImages = options.hydrateTrashImages !== false
+    const shouldHydrateEventImages = options.hydrateEventImages !== false
+
     const remoteData = await readJsonFromGistWithTrace({
       title: '读取 data.json',
       gist,
@@ -126,7 +130,7 @@ export function createSyncExecutionService({
       || eventCompare.updated > 0
     )
 
-    if (!hasDataChangesBeforeImages && !hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)) {
+    if (!hasDataChangesBeforeImages) {
       if (remoteManifest?.lastSyncAt) {
         await saveLastSyncedAt(remoteManifest.lastSyncAt)
       }
@@ -154,20 +158,26 @@ export function createSyncExecutionService({
 
     const imageStats = buildImageSyncStats()
     const imageGist = await resolveRemoteImageGist(remoteManifest)
-    const goodsImageCountBefore = imageStats.restoredImages
-    remoteData.goods = await trackSyncStep('恢复收藏图片', async () => hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats), {
-      startDetail: '正在恢复收藏条目图片',
-      category: 'image',
-      successDetail: () => `恢复 ${imageStats.restoredImages - goodsImageCountBefore} 张收藏图片`
-    })
-    const trashImageCountBefore = imageStats.restoredImages
-    remoteData.trash = await trackSyncStep('恢复回收站图片', async () => hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats), {
-      startDetail: '正在恢复回收站条目图片',
-      category: 'image',
-      successDetail: () => `恢复 ${imageStats.restoredImages - trashImageCountBefore} 张回收站图片`
-    })
 
-    if (eventData && Array.isArray(eventData.events)) {
+    if (shouldHydrateGoodsImages) {
+      const goodsImageCountBefore = imageStats.restoredImages
+      remoteData.goods = await trackSyncStep('恢复收藏图片', async () => hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats), {
+        startDetail: '正在恢复收藏条目图片',
+        category: 'image',
+        successDetail: () => `恢复 ${imageStats.restoredImages - goodsImageCountBefore} 张收藏图片`
+      })
+    }
+
+    if (shouldHydrateTrashImages) {
+      const trashImageCountBefore = imageStats.restoredImages
+      remoteData.trash = await trackSyncStep('恢复回收站图片', async () => hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats), {
+        startDetail: '正在恢复回收站条目图片',
+        category: 'image',
+        successDetail: () => `恢复 ${imageStats.restoredImages - trashImageCountBefore} 张回收站图片`
+      })
+    }
+
+    if (shouldHydrateEventImages && eventData && Array.isArray(eventData.events)) {
       const eventImageCountBefore = imageStats.restoredImages
       eventData.events = await trackSyncStep('恢复活动封面', async () => hydrateEventCoversWithImages(eventData.events, imageGist, imageStats), {
         startDetail: '正在恢复活动封面图片',

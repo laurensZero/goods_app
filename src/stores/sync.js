@@ -515,7 +515,6 @@ export const useSyncStore = defineStore('sync', () => {
       const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
-      const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
       const localChanges = getLocalChangesSince(localSyncTime)
       const localComparableState = await buildComparableSyncStateFromData({
         goods: goodsStore.list,
@@ -530,7 +529,7 @@ export const useSyncStore = defineStore('sync', () => {
       const hasDataDiff = localComparableState !== remoteComparableState
       const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
       const hasEventDataDiff = localEventComparableState !== remoteEventComparableState
-      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasRemoteImageChanges
+      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff
 
       if (!hasEffectiveDiff) {
         if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
@@ -614,7 +613,11 @@ export const useSyncStore = defineStore('sync', () => {
         }
 
         syncStatus.value = '正在拉取远端数据...'
-        const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist)
+        const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
+          hydrateGoodsImages: false,
+          hydrateTrashImages: false,
+          hydrateEventImages: false
+        })
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         syncStatus.value = '拉取完成'
         return { action: 'pulled', ...result }
@@ -653,7 +656,11 @@ export const useSyncStore = defineStore('sync', () => {
             return `图片 Gist ${parsed.imageGistId || '未配置'}`
           }
         })
-        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null)
+        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
+          hydrateGoodsImages: true,
+          hydrateTrashImages: true,
+          hydrateEventImages: true
+        })
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         conflictData.value = null
         syncStatus.value = '拉取完成'
@@ -717,7 +724,6 @@ export const useSyncStore = defineStore('sync', () => {
       }
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
-      const hasRemoteImageChanges = hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)
       const remoteRechargeData = await readJsonFromGistWithTrace({
         title: '预检读取 recharge-data.json',
         gist,
@@ -776,14 +782,18 @@ export const useSyncStore = defineStore('sync', () => {
           || diff.localOnlyTrash > 0
           || diff.updatedGoods > 0
         )
-        if (!hasContentDiff && !hasRemoteImageChanges && !hasRechargeContentDiff && !hasEventContentDiff) {
+        if (!hasContentDiff && !hasRechargeContentDiff && !hasEventContentDiff) {
           syncStatus.value = '数据已是最新'
           return { action: 'no_changes' }
         }
 
-        if (!hasContentDiff && (hasRemoteImageChanges || hasRechargeContentDiff || hasEventContentDiff)) {
+        if (!hasContentDiff && (hasRechargeContentDiff || hasEventContentDiff)) {
           syncStatus.value = '正在拉取远端数据...'
-          const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist)
+          const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
+            hydrateGoodsImages: hasContentDiff,
+            hydrateTrashImages: hasContentDiff,
+            hydrateEventImages: hasEventContentDiff
+          })
           await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
           syncStatus.value = '拉取完成'
           return { action: 'pulled', ...result }
@@ -800,7 +810,11 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在拉取远端数据...'
-      const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist)
+      const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
+        hydrateGoodsImages: hasDataDiff,
+        hydrateTrashImages: hasDataDiff,
+        hydrateEventImages: hasEventDataDiff
+      })
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
       return { action: 'pulled', ...result }
@@ -829,7 +843,11 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = '正在拉取远端数据...'
       const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
       const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
-      const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null)
+        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
+          hydrateGoodsImages: true,
+          hydrateTrashImages: true,
+          hydrateEventImages: true
+        })
       await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       syncStatus.value = '拉取完成'
       conflictData.value = null
