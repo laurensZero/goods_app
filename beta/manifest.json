@@ -1,9 +1,9 @@
 {
-  "version": "20260413.9",
-  "url": "bundle-20260413.9.zip",
-  "hash": "6e14ab49061b19084eb8327f757c0148944871fc2353511acb0e9d09c9711cc9",
+  "version": "20260413.10",
+  "url": "bundle-20260413.10.zip",
+  "hash": "d7f54d360e8010cbfa409236f35036957fcba89f4df643f23f94b8cf7613defe",
   "minNativeVersion": null,
-  "notes": "- feat: 整合同步与图片处理更新",
+  "notes": "- feat: 更新事件数据导入逻辑，添加缺失项的处理和删除功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-13T11:51:04Z"
+  "publishedAt": "2026-04-13T12:34:21Z"
 }

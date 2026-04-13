@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260413.10",
+    "url": "bundle-20260413.10.zip",
+    "hash": "d7f54d360e8010cbfa409236f35036957fcba89f4df643f23f94b8cf7613defe",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新事件数据导入逻辑，添加缺失项的处理和删除功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-13T12:34:21Z"
+  },
+  {
     "version": "20260413.9",
     "url": "bundle-20260413.9.zip",
     "hash": "6e14ab49061b19084eb8327f757c0148944871fc2353511acb0e9d09c9711cc9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加商品和事件内容差异检测，优化数据拉取逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T11:10:00Z"
-  },
-  {
-    "version": "20260413.7",
-    "url": "bundle-20260413.7.zip",
-    "hash": "105a2ed5e9dd7b5a94301aa3cf96694311ed11886f5e1dcd6b17fa8f282e95a9",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加选项以控制图片数据的恢复，优化同步逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-13T10:51:51Z"
   }
 ]
