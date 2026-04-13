@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260413.7",
+    "url": "bundle-20260413.7.zip",
+    "hash": "105a2ed5e9dd7b5a94301aa3cf96694311ed11886f5e1dcd6b17fa8f282e95a9",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加选项以控制图片数据的恢复，优化同步逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-13T10:51:51Z"
+  },
+  {
     "version": "20260413.6",
     "url": "bundle-20260413.6.zip",
     "hash": "a47d3fecc06787a79e430c9adedbf255ea4325edfaa3d70d02498a9079c59531",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加比较记录功能，优化数据同步逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T09:48:35Z"
-  },
-  {
-    "version": "20260413.4",
-    "url": "bundle-20260413.4.zip",
-    "hash": "e62cd31df899ec3290a1ecb8271b48dfdbd1d1b5de59cc73d01445fb14b8d051",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑\"\n  This reverts commit 93b37319f03335773b4c1a67865e663db0c53990.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-13T09:38:15Z"
   }
 ]
