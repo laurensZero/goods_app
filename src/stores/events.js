@@ -146,13 +146,17 @@ export const useEventsStore = defineStore('events', () => {
     list.value = await getEvents()
   }
 
-  async function importEventsBackup(events) {
+  async function importEventsBackup(events, { reconcileMissing = false } = {}) {
     const incoming = Array.isArray(events) ? events : []
+    const incomingIds = new Set()
     let added = 0
     let updated = 0
+    let removed = 0
 
     for (const event of incoming) {
       if (!event?.id) continue
+
+      incomingIds.add(event.id)
 
       const existing = list.value.find((item) => item.id === event.id)
       if (!existing) {
@@ -191,7 +195,18 @@ export const useEventsStore = defineStore('events', () => {
       }
     }
 
-    return { added, updated }
+    if (reconcileMissing) {
+      const missingIds = list.value
+        .filter((item) => item?.id && !incomingIds.has(item.id))
+        .map((item) => item.id)
+
+      if (missingIds.length > 0) {
+        removed = missingIds.length
+        await removeMultipleEventRecords(missingIds)
+      }
+    }
+
+    return { added, updated, removed }
   }
 
   return {

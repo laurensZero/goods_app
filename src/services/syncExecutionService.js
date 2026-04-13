@@ -399,11 +399,11 @@ export function createSyncExecutionService({
       ...remoteRechargeLegacy
     ].filter((item) => !item?.deleted))
 
-    let eventApplyResult = { added: 0, updated: 0, total: 0 }
+    let eventApplyResult = { added: 0, updated: 0, removed: 0, total: 0 }
     if (eventData && Array.isArray(eventData.events)) {
       const eventsStore = useEventsStore()
       eventApplyResult = {
-        ...(await eventsStore.importEventsBackup(eventData.events)),
+        ...(await eventsStore.importEventsBackup(eventData.events, { reconcileMissing: true })),
         total: eventData.events.length
       }
       await saveEventLastSyncedAt(eventData.updatedAt || remoteManifest?.lastSyncAt || new Date().toISOString())
@@ -418,6 +418,7 @@ export function createSyncExecutionService({
       updatedRecharge: rechargeApplyResult.updated,
       importedEvents: eventApplyResult.added,
       updatedEvents: eventApplyResult.updated,
+      removedEvents: eventApplyResult.removed,
       restoredImages: imageStats.restoredImages,
       totalGoods: remoteGoods.length,
       totalTrash: remoteTrash.length,
