@@ -8,7 +8,7 @@ import {
   resolveGoodsTrashMaps,
   sortObjectKeys
 } from '@/utils/syncShared'
-import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
+import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
 
 export function createSyncPayloadService({
   deviceIdRef,
@@ -23,6 +23,49 @@ export function createSyncPayloadService({
   compressImageToBlob,
   imageFileSizeLimit
 }) {
+  function normalizeEventForComparison(item) {
+    const coverGistFileName = String(item?.coverImageData?.gistFileName || parseGistImageUri(item?.coverImage) || '').trim()
+    const normalizedCoverImage = coverGistFileName
+      ? buildGistImageUri(coverGistFileName)
+      : String(item?.coverImage || '').trim()
+
+    const normalizedCoverImageData = item?.coverImageData && typeof item.coverImageData === 'object'
+      ? {
+          storageMode: String(item.coverImageData.storageMode || (coverGistFileName ? 'gist-local' : '')).trim(),
+          gistFileName: coverGistFileName,
+          mimeType: String(item.coverImageData.mimeType || '').trim(),
+          fileSize: Number(item.coverImageData.fileSize) > 0 ? Number(item.coverImageData.fileSize) : 0
+        }
+      : (coverGistFileName
+          ? {
+              storageMode: 'gist-local',
+              gistFileName: coverGistFileName,
+              mimeType: '',
+              fileSize: 0
+            }
+          : null)
+
+    return {
+      ...item,
+      coverImage: normalizedCoverImage,
+      coverImageData: normalizedCoverImageData,
+      photos: normalizeGoodsImageList(Array.isArray(item?.photos) ? item.photos : []).map((photo) => {
+        const photoGistFileName = String(photo?.gistFileName || parseGistImageUri(photo?.uri) || '').trim()
+        return {
+          ...photo,
+          uri: photoGistFileName ? buildGistImageUri(photoGistFileName) : String(photo?.uri || '').trim(),
+          storageMode: String(photo?.storageMode || (photoGistFileName ? 'gist-local' : inferGoodsImageStorageMode(photo?.uri))).trim(),
+          localPath: '',
+          gistFileName: photoGistFileName
+        }
+      }),
+      ticketType: String(item?.ticketType || '').trim(),
+      seatInfo: String(item?.seatInfo || '').trim(),
+      linkedGoodsIds: Array.isArray(item?.linkedGoodsIds) ? item.linkedGoodsIds : [],
+      tags: Array.isArray(item?.tags) ? item.tags : []
+    }
+  }
+
   async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
     const normalizedImages = normalizeGoodsImageList(item?.images)
     if (normalizedImages.length === 0) return []
@@ -323,7 +366,7 @@ export function createSyncPayloadService({
 
   function buildComparableEventStateFromData(data) {
     const events = (Array.isArray(data?.events) ? data.events : [])
-      .map((item) => sortObjectKeys(item))
+      .map((item) => sortObjectKeys(normalizeEventForComparison(item)))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
 
     return JSON.stringify(sortObjectKeys({ events }))

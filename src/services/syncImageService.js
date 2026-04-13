@@ -32,10 +32,16 @@ export function createSyncImageService({
     return gist
   }
 
-  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats) {
+  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats, options = {}) {
+    const targetItemIds = options.targetItemIds instanceof Set ? options.targetItemIds : null
     const fileCache = new Map()
 
     return Promise.all((items || []).map(async (item) => {
+      const itemId = String(item?.id || '').trim()
+      if (targetItemIds && !targetItemIds.has(itemId)) {
+        return item
+      }
+
       const normalizedImages = normalizeGoodsImageList(item?.images)
       if (normalizedImages.length === 0) return item
 
@@ -90,10 +96,16 @@ export function createSyncImageService({
     }))
   }
 
-  async function hydrateEventCoversWithImages(events, imageGist, imageStats) {
+  async function hydrateEventCoversWithImages(events, imageGist, imageStats, options = {}) {
+    const targetEventIds = options.targetEventIds instanceof Set ? options.targetEventIds : null
     const fileCache = new Map()
 
     return Promise.all((events || []).map(async (event) => {
+      const eventId = String(event?.id || '').trim()
+      if (targetEventIds && !targetEventIds.has(eventId)) {
+        return event
+      }
+
       if (!event.coverImage) return event
 
       const storageMode = inferGoodsImageStorageMode(event.coverImage)
