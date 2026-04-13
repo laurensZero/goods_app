@@ -329,11 +329,11 @@ export function createSyncPayloadService({
     return JSON.stringify(sortObjectKeys({ events }))
   }
 
-  function buildManifest(imageStats = {}) {
+  function buildManifest(imageStats = {}, timestamp = new Date().toISOString()) {
     return {
       version: 1,
       deviceId: deviceIdRef.value,
-      lastSyncAt: new Date().toISOString(),
+      lastSyncAt: timestamp,
       imageGistId: imageGistIdRef.value || '',
       imageFileCount: Number(imageStats.imageFileCount) || 0,
       imageUpdatedAt: imageStats.imageUpdatedAt || ''

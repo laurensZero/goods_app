@@ -422,14 +422,14 @@
                 </div>
                 <div class="conflict-row">
                   <span class="conflict-label">远端总数</span>
-                  <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站，{{ pullConflictData.remoteRechargeCount || 0 }} 充值，{{ pullConflictData.remoteEventCount || 0 }} 活动，{{ pullConflictData.remoteImageCount || 0 }} 图片</span>
+                  <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站，{{ pullConflictData.remoteRechargeCount || 0 }} 充值，{{ pullConflictData.remoteEventCount || 0 }} 活动，{{ pullConflictData.remoteImageCount || 0 }} 张图片</span>
                 </div>
               </div>
               <div class="conflict-diff">
                 <p class="conflict-diff-title">差异</p>
                 <div class="conflict-diff-row">
                   <span class="conflict-diff-label">远端新增</span>
-                  <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站，+{{ pullConflictData.remoteOnlyRecharge || 0 }} 充值，+{{ pullConflictData.remoteOnlyEvents || 0 }} 活动，+{{ pullConflictData.remoteOnlyImages || 0 }} 图片</span>
+                  <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站，+{{ pullConflictData.remoteOnlyRecharge || 0 }} 充值，+{{ pullConflictData.remoteOnlyEvents || 0 }} 活动，+{{ pullConflictData.remoteOnlyImages || 0 }} 张图片</span>
                 </div>
                 <div class="conflict-diff-row">
                   <span class="conflict-diff-label">远端修改</span>
@@ -437,7 +437,7 @@
                 </div>
                 <div class="conflict-diff-row">
                   <span class="conflict-diff-label">本地独有</span>
-                  <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站，{{ pullConflictData.localOnlyRecharge || 0 }} 充值，{{ pullConflictData.localOnlyEvents || 0 }} 活动，{{ pullConflictData.localOnlyImages || 0 }} 图片</span>
+                  <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站，{{ pullConflictData.localOnlyRecharge || 0 }} 充值，{{ pullConflictData.localOnlyEvents || 0 }} 活动，{{ pullConflictData.localOnlyImages || 0 }} 张图片</span>
                 </div>
               </div>
               <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>

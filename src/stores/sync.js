@@ -23,7 +23,6 @@ import {
 } from '@/utils/githubGist'
 import {
   buildComparableRecordMap,
-  buildImageReferenceMap,
   buildTimestampRecordMap,
   countComparableRecordDiff,
   countWishlistSplit,

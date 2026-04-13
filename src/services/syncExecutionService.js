@@ -306,14 +306,16 @@ export function createSyncExecutionService({
       })
     }
 
+    const syncTimestamp = new Date().toISOString()
+
     const mergedImageStats = {
       uploadedImages: (Number(imageStats.uploadedImages) || 0) + (Number(eventImageStats.uploadedImages) || 0),
       reusedImages: (Number(imageStats.reusedImages) || 0) + (Number(eventImageStats.reusedImages) || 0),
       restoredImages: (Number(imageStats.restoredImages) || 0) + (Number(eventImageStats.restoredImages) || 0),
       imageFileCount: allReferencedImageFiles.size,
-      imageUpdatedAt: eventImageStats.imageUpdatedAt || imageStats.imageUpdatedAt || ''
+      imageUpdatedAt: Object.keys(imageUpdates).length > 0 ? syncTimestamp : ''
     }
-    const manifest = buildManifest(mergedImageStats)
+    const manifest = buildManifest(mergedImageStats, syncTimestamp)
 
     await trackSyncStep('更新主同步 Gist', async () => updateGist(tokenRef.value, gistIdRef.value, {
       [DATA_FILENAME]: { content: JSON.stringify(syncData) },

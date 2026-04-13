@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents } from '@/utils/db'
 import { normalizeTracks } from '@/utils/tracks'
+import { buildGistImageUri, parseGistImageUri } from '@/utils/goodsImages'
 
 function parseTicketPrice(value) {
   const price = Number.parseFloat(value)
@@ -80,6 +81,7 @@ export const useEventsStore = defineStore('events', () => {
       location: String(data.location || '').trim(),
       description: String(data.description || '').trim(),
       coverImage: String(data.coverImage || '').trim(),
+      coverImageData: data.coverImageData ? { ...data.coverImageData } : null,
       photos: Array.isArray(data.photos) ? data.photos : [],
       tracks: normalizeTracks(data.tracks),
       ticketPrice: String(data.ticketPrice || '').trim(),
@@ -161,8 +163,30 @@ export const useEventsStore = defineStore('events', () => {
 
       const incomingUpdatedAt = Number(event.updatedAt) || 0
       const existingUpdatedAt = Number(existing.updatedAt) || 0
-      if (incomingUpdatedAt > existingUpdatedAt) {
-        await updateEventRecord(event.id, event, true)
+
+      const incomingCoverFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(event?.coverImage) || '').trim()
+      const existingCoverFileName = String(existing?.coverImageData?.gistFileName || parseGistImageUri(existing?.coverImage) || '').trim()
+      const shouldBackfillCoverImageData = !!incomingCoverFileName && !existingCoverFileName
+
+      if (incomingUpdatedAt > existingUpdatedAt || shouldBackfillCoverImageData) {
+        const normalizedCoverImageData = event?.coverImageData && typeof event.coverImageData === 'object'
+          ? {
+              ...event.coverImageData,
+              uri: event.coverImageData.uri || (incomingCoverFileName ? buildGistImageUri(incomingCoverFileName) : '')
+            }
+          : (incomingCoverFileName
+              ? {
+                  uri: buildGistImageUri(incomingCoverFileName),
+                  storageMode: 'gist-local',
+                  gistFileName: incomingCoverFileName
+                }
+              : null)
+
+        await updateEventRecord(event.id, {
+          ...event,
+          coverImageData: normalizedCoverImageData || existing.coverImageData || null,
+          updatedAt: shouldBackfillCoverImageData ? existingUpdatedAt : event.updatedAt
+        }, true)
         updated += 1
       }
     }

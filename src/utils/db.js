@@ -6,7 +6,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
-import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
+import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goodsImages'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
@@ -47,6 +47,7 @@ const CREATE_EVENTS_TABLE_SQL = `
     location   TEXT DEFAULT '',
     description TEXT DEFAULT '',
     coverImage TEXT DEFAULT '',
+    coverImageData TEXT DEFAULT '{}',
     photos     TEXT DEFAULT '[]',
     ticketPrice TEXT DEFAULT '',
     ticketType TEXT DEFAULT '',
@@ -77,6 +78,7 @@ const MIGRATE_ADD_UPDATED_AT = "ALTER TABLE goods ADD COLUMN updatedAt INTEGER D
 const MIGRATE_EVENT_ADD_TICKET_TYPE = "ALTER TABLE events ADD COLUMN ticketType TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_SEAT_INFO = "ALTER TABLE events ADD COLUMN seatInfo TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_TRACKS = "ALTER TABLE events ADD COLUMN tracks TEXT DEFAULT '[]'"
+const MIGRATE_EVENT_ADD_COVER_IMAGE_DATA = "ALTER TABLE events ADD COLUMN coverImageData TEXT DEFAULT '{}'"
 
 const GOODS_MIGRATIONS = [
   MIGRATE_ADD_IP,
@@ -99,7 +101,8 @@ const GOODS_MIGRATIONS = [
 const EVENT_MIGRATIONS = [
   MIGRATE_EVENT_ADD_TICKET_TYPE,
   MIGRATE_EVENT_ADD_SEAT_INFO,
-  MIGRATE_EVENT_ADD_TRACKS
+  MIGRATE_EVENT_ADD_TRACKS,
+  MIGRATE_EVENT_ADD_COVER_IMAGE_DATA
 ]
 
 //  Web 实现：sql.js + IndexedDB 
@@ -210,6 +213,14 @@ async function _saveBinaryToIDB(db) {
       tx.onerror = () => reject(tx.error)
     })
   } catch (e) { console.warn('[DB] save to IDB failed:', e) }
+}
+
+function stringifyJsonObject(value, fallback = '{}') {
+  try {
+    return JSON.stringify(value ?? {})
+  } catch {
+    return fallback
+  }
 }
 
 async function _initWebDB() {
@@ -371,32 +382,55 @@ export async function getEvents() {
     if (!_sqlDb) return []
     rows = _webQuery('SELECT * FROM events ORDER BY startDate DESC')
   }
-  return rows.map(r => ({
-    ...r,
+  return rows.map(r => {
+    let parsedCoverImageData = null
+    try {
+      const parsed = JSON.parse(r.coverImageData || '{}')
+      parsedCoverImageData = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
+    } catch {
+      parsedCoverImageData = null
+    }
+
+    const coverImageFileName = String(parsedCoverImageData?.gistFileName || parseGistImageUri(r.coverImage) || '').trim()
+    const coverImageData = coverImageFileName
+      ? {
+          ...parsedCoverImageData,
+          uri: parsedCoverImageData?.uri || buildGistImageUri(coverImageFileName),
+          storageMode: parsedCoverImageData?.storageMode || 'gist-local',
+          gistFileName: coverImageFileName
+        }
+      : parsedCoverImageData
+
+    return {
+      ...r,
+      coverImageData,
     photos: parseJsonArray(r.photos),
     tracks: parseJsonArray(r.tracks),
     linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
     tags: parseJsonArray(r.tags),
     createdAt: Number(r.createdAt) || 0,
     updatedAt: Number(r.updatedAt) || 0
-  }))
+    }
+  })
 }
 
 export async function addEvent(event) {
   const {
     id, name = '', type = '', startDate = '', endDate = '',
     location = '', description = '', coverImage = '',
+    coverImageData = {},
     photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
     createdAt, updatedAt
   } = event
+  const coverImageDataStr = stringifyJsonObject(coverImageData)
   const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
   const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
   const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const ts = updatedAt || Date.now()
   const created = createdAt || ts
-  const SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
+  const SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  const p = [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
   if (IS_NATIVE) {
     if (!_nativeDb) return
     await _nativeDb.run(SQL, p)
@@ -415,10 +449,11 @@ export async function saveEvents(events) {
     for (const event of events) {
       const {
         id, name = '', type = '', startDate = '', endDate = '',
-        location = '', description = '', coverImage = '',
+        location = '', description = '', coverImage = '', coverImageData = {},
         photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
         createdAt, updatedAt
       } = event
+      const coverImageDataStr = stringifyJsonObject(coverImageData)
       const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
       const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
       const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
@@ -426,8 +461,8 @@ export async function saveEvents(events) {
       const ts = updatedAt || Date.now()
       const created = createdAt || ts
       stmts.push({
-        statement: 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
+        statement: 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        values: [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
       })
     }
     await _nativeDb.executeSet(stmts)
@@ -436,10 +471,11 @@ export async function saveEvents(events) {
     for (const event of events) {
       const {
         id, name = '', type = '', startDate = '', endDate = '',
-        location = '', description = '', coverImage = '',
+        location = '', description = '', coverImage = '', coverImageData = {},
         photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
         createdAt, updatedAt
       } = event
+      const coverImageDataStr = stringifyJsonObject(coverImageData)
       const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
       const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
       const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
@@ -447,8 +483,8 @@ export async function saveEvents(events) {
       const ts = updatedAt || Date.now()
       const created = createdAt || ts
       _sqlDb.run(
-        'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, type, startDate, endDate, location, description, coverImage, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
+        'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
       )
     }
     await _saveBinaryToIDB(_sqlDb)

@@ -103,7 +103,7 @@ export function countComparableRecordDiff(localMap, remoteMap) {
   }
 }
 
-function buildGoodsImageReferenceMap(items = []) {
+export function buildGoodsImageReferenceMap(items = []) {
   const map = new Map()
 
   for (const item of items) {
@@ -137,7 +137,7 @@ function buildGoodsImageReferenceMap(items = []) {
   return map
 }
 
-function buildEventImageReferenceMap(events = []) {
+export function buildEventImageReferenceMap(events = []) {
   const map = new Map()
 
   for (const event of events) {

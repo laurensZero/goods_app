@@ -184,6 +184,28 @@ export function createSyncConflictService({
       })
     )
 
+    const localImageMap = buildImageReferenceMap({
+      goods: [...resolvedLocal.goodsMap.values()],
+      trash: [...resolvedLocal.trashMap.values()],
+      events: localEventData.events || []
+    })
+    const remoteImageMap = buildImageReferenceMap({
+      goods: remoteGoods,
+      trash: remoteTrash,
+      events: remoteEventData.events || []
+    })
+    const localOnlyImageKeys = [...localImageMap.keys()].filter((key) => !remoteImageMap.has(key))
+    const remoteOnlyImageKeys = [...remoteImageMap.keys()].filter((key) => !localImageMap.has(key))
+
+    console.info('[sync][pull-conflict] image diff summary', {
+      remoteTotal: imageDiff.remoteTotal,
+      remoteOnly: imageDiff.remoteOnly,
+      localOnly: imageDiff.localOnly,
+      updated: imageDiff.updated,
+      remoteOnlyImageKeys: remoteOnlyImageKeys.slice(0, 10),
+      localOnlyImageKeys: localOnlyImageKeys.slice(0, 10)
+    })
+
     return {
       remoteTime: remoteManifest?.lastSyncAt || '',
       remoteDevice: remoteManifest?.deviceId || '',
@@ -210,6 +232,8 @@ export function createSyncConflictService({
       remoteOnlyImages: imageDiff.remoteOnly,
       updatedImages: imageDiff.updated,
       localOnlyImages: imageDiff.localOnly,
+      localOnlyImageKeys: localOnlyImageKeys.slice(0, 10),
+      remoteOnlyImageKeys: remoteOnlyImageKeys.slice(0, 10),
       localOnlyGoods,
       localOnlyCollection,
       localOnlyWishlist,
