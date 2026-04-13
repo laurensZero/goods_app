@@ -1,9 +1,9 @@
 {
-  "version": "20260413.3",
-  "url": "bundle-20260413.3.zip",
-  "hash": "a905d3cd25c2d00d43be08ca98b214bf0cd38050e65f5300b9bbd63d2bc1f9c8",
+  "version": "20260413.4",
+  "url": "bundle-20260413.4.zip",
+  "hash": "e62cd31df899ec3290a1ecb8271b48dfdbd1d1b5de59cc73d01445fb14b8d051",
   "minNativeVersion": null,
-  "notes": "- feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑",
+  "notes": "- Revert \"feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑\"\n  This reverts commit 93b37319f03335773b4c1a67865e663db0c53990.",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-13T09:35:01Z"
+  "publishedAt": "2026-04-13T09:38:15Z"
 }
