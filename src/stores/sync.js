@@ -351,6 +351,7 @@ export const useSyncStore = defineStore('sync', () => {
   } = createSyncExecutionService({
     tokenRef: token,
     gistIdRef: gistId,
+    lastSyncedAtRef: lastSyncedAt,
     rechargeGistIdRef: rechargeGistId,
     eventGistIdRef: eventGistId,
     ensureImageGist,

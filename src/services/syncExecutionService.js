@@ -1,4 +1,4 @@
-import { countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, buildImageSyncStats } from '@/utils/syncShared'
+import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 
 export function createSyncExecutionService({
   tokenRef,
@@ -18,6 +18,7 @@ export function createSyncExecutionService({
   trackSyncStep,
   getGist,
   updateGist,
+  lastSyncedAtRef,
   getExistingRechargeGist,
   getExistingEventGist,
   saveLastSyncedAt,
@@ -85,6 +86,72 @@ export function createSyncExecutionService({
         return `${source}，活动 ${events.length} 场`
       }
     })
+
+    const goodsStore = useGoodsStore()
+    const rechargeStore = useRechargeStore()
+    const presets = usePresetsStore()
+    const eventsStore = useEventsStore()
+
+    const localSyncTime = lastSyncedAtRef?.value ? new Date(lastSyncedAtRef.value).getTime() : 0
+    const localResolved = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
+    const remoteResolved = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
+    const goodsTrashCompare = countComparableRecordDiff(
+      buildComparableRecordMap([
+        ...localResolved.goodsMap.values(),
+        ...localResolved.trashMap.values()
+      ]),
+      buildComparableRecordMap([
+        ...remoteResolved.goodsMap.values(),
+        ...remoteResolved.trashMap.values()
+      ])
+    )
+    const rechargeCompare = countComparableRecordDiff(
+      buildComparableRecordMap(rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })),
+      buildComparableRecordMap(Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : [])
+    )
+    const eventCompare = countComparableRecordDiff(
+      buildComparableRecordMap(eventsStore.list || []),
+      buildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
+    )
+
+    const hasDataChangesBeforeImages = (
+      goodsTrashCompare.remoteOnly > 0
+      || goodsTrashCompare.localOnly > 0
+      || goodsTrashCompare.updated > 0
+      || rechargeCompare.remoteOnly > 0
+      || rechargeCompare.localOnly > 0
+      || rechargeCompare.updated > 0
+      || eventCompare.remoteOnly > 0
+      || eventCompare.localOnly > 0
+      || eventCompare.updated > 0
+    )
+
+    if (!hasDataChangesBeforeImages && !hasRemoteImageChangesSince(localSyncTime, remoteManifest, imageGistId.value)) {
+      if (remoteManifest?.lastSyncAt) {
+        await saveLastSyncedAt(remoteManifest.lastSyncAt)
+      }
+      if (remoteData?.updatedAt || remoteManifest?.lastSyncAt) {
+        await saveEventLastSyncedAt(remoteData?.updatedAt || remoteManifest.lastSyncAt)
+      }
+
+      return {
+        importedGoods: 0,
+        updatedGoods: 0,
+        importedTrash: 0,
+        updatedTrash: 0,
+        importedRecharge: 0,
+        updatedRecharge: 0,
+        importedEvents: 0,
+        updatedEvents: 0,
+        restoredImages: 0,
+        totalGoods: remoteResolved.goodsMap.size,
+        totalTrash: remoteResolved.trashMap.size,
+        totalRecharge: Array.isArray(rechargeData?.recharge) ? rechargeData.recharge.length : 0,
+        totalEvents: Array.isArray(eventData?.events) ? eventData.events.length : 0,
+        noChanges: true
+      }
+    }
+
     const imageStats = buildImageSyncStats()
     const imageGist = await resolveRemoteImageGist(remoteManifest)
     const goodsImageCountBefore = imageStats.restoredImages
@@ -108,10 +175,6 @@ export function createSyncExecutionService({
         successDetail: () => `恢复 ${imageStats.restoredImages - eventImageCountBefore} 张活动封面`
       })
     }
-
-    const goodsStore = useGoodsStore()
-    const rechargeStore = useRechargeStore()
-    const presets = usePresetsStore()
 
     if (remoteData.presets) {
       await presets.replacePresetsSnapshot(remoteData.presets)
