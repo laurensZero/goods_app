@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260413.5",
+    "url": "bundle-20260413.5.zip",
+    "hash": "db57bcae0ff43d69591280f81433c3ce543d2390bd7bb08aa7c96d60c60fa195",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加比较记录功能，优化数据同步逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-13T09:48:35Z"
+  },
+  {
     "version": "20260413.4",
     "url": "bundle-20260413.4.zip",
     "hash": "e62cd31df899ec3290a1ecb8271b48dfdbd1d1b5de59cc73d01445fb14b8d051",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加事件存储准备和数据处理功能，优化事件同步逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T09:35:01Z"
-  },
-  {
-    "version": "20260413.2",
-    "url": "bundle-20260413.2.zip",
-    "hash": "54658ddff6eb8de145b06a92fae8fdc5ba8b232a2a6b023f7f7b0dd7a6b0d48e",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加图片数据处理和同步功能，优化事件存储结构",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-13T08:54:14Z"
   }
 ]
