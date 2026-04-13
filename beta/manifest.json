@@ -1,9 +1,9 @@
 {
-  "version": "20260413.8",
-  "url": "bundle-20260413.8.zip",
-  "hash": "8e7bd433c2f2a6df3ac4e6ff374a80aff7320167dfb549dc2b63c4b504233738",
+  "version": "20260413.9",
+  "url": "bundle-20260413.9.zip",
+  "hash": "6e14ab49061b19084eb8327f757c0148944871fc2353511acb0e9d09c9711cc9",
   "minNativeVersion": null,
-  "notes": "- feat: 添加商品和事件内容差异检测，优化数据拉取逻辑",
+  "notes": "- feat: 整合同步与图片处理更新",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-13T11:10:00Z"
+  "publishedAt": "2026-04-13T11:51:04Z"
 }
