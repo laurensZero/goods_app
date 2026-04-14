@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.12",
+    "url": "bundle-20260414.12.zip",
+    "hash": "4016568490f33c2277a849bf9b89495b7bc1ad351de9ca6dded8ee5bd8203911",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除不必要的商品集合标签持久化逻辑，简化组件加载",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T13:59:32Z"
+  },
+  {
     "version": "20260414.11",
     "url": "bundle-20260414.11.zip",
     "hash": "23860b9e10b657ecf7f71a99e830ba94cf2d040cef5346f2aea9a68f19ecd760",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修改路由离开时的滚动位置保存逻辑，确保状态一致性",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T13:07:01Z"
-  },
-  {
-    "version": "20260414.9",
-    "url": "bundle-20260414.9.zip",
-    "hash": "8927f472bf49144b3bb28896c6d75b52841448e3bbcd0c11b5e104c7982a500c",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化路由组件加载，减少动态导入，提升性能；调整滚动状态管理，确保页面状态一致性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T12:49:47Z"
   }
 ]
