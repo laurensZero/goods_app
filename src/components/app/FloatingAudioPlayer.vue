@@ -619,8 +619,8 @@ onBeforeUnmount(() => {
   display: block;
   margin-top: 2px;
   color: var(--app-text);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -908,10 +908,16 @@ onBeforeUnmount(() => {
 }
 
 .floating-player__queue-copy strong {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.2;
-}
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+.floating-player__queue-copy span {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--app-text-secondary);
+    }
 
 .floating-player__queue-copy span {
   color: var(--app-text-secondary);
