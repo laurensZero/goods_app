@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.10",
+    "url": "bundle-20260414.10.zip",
+    "hash": "722b5a10ea5f2e10e406484548436c096d9452e6877aba5152c035fc57c86c7e",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改路由离开时的滚动位置保存逻辑，确保状态一致性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T13:07:01Z"
+  },
+  {
     "version": "20260414.9",
     "url": "bundle-20260414.9.zip",
     "hash": "8927f472bf49144b3bb28896c6d75b52841448e3bbcd0c11b5e104c7982a500c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化路由动画效果，调整过渡时间和变换属性以提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T11:42:38Z"
-  },
-  {
-    "version": "20260414.7",
-    "url": "bundle-20260414.7.zip",
-    "hash": "3c166adbfec012d3f016ffbf99a502c9d1d529bdfc10c0f6a85684e886a9784e",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新主题样式，统一背景色为应用表面色",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T11:37:47Z"
   }
 ]

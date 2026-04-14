@@ -1,9 +1,9 @@
 {
-  "version": "20260414.9",
-  "url": "bundle-20260414.9.zip",
-  "hash": "8927f472bf49144b3bb28896c6d75b52841448e3bbcd0c11b5e104c7982a500c",
+  "version": "20260414.10",
+  "url": "bundle-20260414.10.zip",
+  "hash": "722b5a10ea5f2e10e406484548436c096d9452e6877aba5152c035fc57c86c7e",
   "minNativeVersion": null,
-  "notes": "- feat: 优化路由组件加载，减少动态导入，提升性能；调整滚动状态管理，确保页面状态一致性",
+  "notes": "- feat: 修改路由离开时的滚动位置保存逻辑，确保状态一致性",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-14T12:49:47Z"
+  "publishedAt": "2026-04-14T13:07:01Z"
 }
