@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.5",
+    "url": "bundle-20260414.5.zip",
+    "hash": "def7bda8ef306d17e437172f1497b7d04466a3af4d2b4ffbe05886c3b89f11a0",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T07:15:37Z"
+  },
+  {
     "version": "20260414.4",
     "url": "bundle-20260414.4.zip",
     "hash": "76e6dfafb7e83cd1e583a2762e4b7c6692519ec85d20baa013eed7e2969f1114",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修复 MainActivity 中 onCreate 方法的格式，确保代码结构清晰",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T06:52:44Z"
-  },
-  {
-    "version": "20260414.2",
-    "url": "bundle-20260414.2.zip",
-    "hash": "dfe86dea7185751ed067586ca7174181cbf380e1f504d33ddcf8c5ea7d669ee8",
-    "minNativeVersion": null,
-    "notes": "- feat: 合并导出数据的工具函数，优化代码结构",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T06:42:41Z"
   }
 ]
