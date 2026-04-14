@@ -646,7 +646,7 @@
   transform: translateX(-50%);
   width: min(100vw, 480px);
   z-index: 90;
-  background: var(--bg-page, #fff);
+  background: var(--bg-page, var(--app-surface));
   border-radius: 24px 24px 0 0;
   padding: 12px 16px max(24px, env(safe-area-inset-bottom));
   display: flex;
