@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.4",
+    "url": "bundle-20260414.4.zip",
+    "hash": "76e6dfafb7e83cd1e583a2762e4b7c6692519ec85d20baa013eed7e2969f1114",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加局域网同步入口，支持设备间数据互传功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T07:08:58Z"
+  },
+  {
     "version": "20260414.3",
     "url": "bundle-20260414.3.zip",
     "hash": "92779f8050a3bfd9247fd5824ee1a4cac6a1724c973c62af18399b4f6f864106",
@@ -16,14 +25,5 @@
     "notes": "- feat: 合并导出数据的工具函数，优化代码结构",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T06:42:41Z"
-  },
-  {
-    "version": "20260414.1",
-    "url": "bundle-20260414.1.zip",
-    "hash": "15b3c6ce4bc157bb4923e1c0a502c0dfe9411ba09f1f7bf26b1e3239f43e36e0",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化路由动画效果，增加模糊和缩放效果；添加安全处理函数以确保导出数据的稳定性；在存储位置视图中添加删除确认组件",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T05:32:30Z"
   }
 ]

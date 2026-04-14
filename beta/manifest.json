@@ -1,9 +1,9 @@
 {
-  "version": "20260414.3",
-  "url": "bundle-20260414.3.zip",
-  "hash": "92779f8050a3bfd9247fd5824ee1a4cac6a1724c973c62af18399b4f6f864106",
+  "version": "20260414.4",
+  "url": "bundle-20260414.4.zip",
+  "hash": "76e6dfafb7e83cd1e583a2762e4b7c6692519ec85d20baa013eed7e2969f1114",
   "minNativeVersion": null,
-  "notes": "- feat: 修复 MainActivity 中 onCreate 方法的格式，确保代码结构清晰",
+  "notes": "- feat: 添加局域网同步入口，支持设备间数据互传功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-14T06:52:44Z"
+  "publishedAt": "2026-04-14T07:08:58Z"
 }
