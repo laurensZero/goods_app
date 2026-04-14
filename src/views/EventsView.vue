@@ -313,6 +313,7 @@ const {
   markScrollSource,
   readScrollTop,
   getStoredScrollState,
+  hasPendingRestore,
   saveScrollPosition,
   restorePendingScrollPosition,
   restoreActivatedScrollPosition,
@@ -476,7 +477,6 @@ function openDetail(id) {
     return
   }
   saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${id}`)
-  eventsDisplayReady.value = false
   router.push(`/events/${id}`).catch(() => {
     eventsDisplayReady.value = true
   })
@@ -484,7 +484,6 @@ function openDetail(id) {
 
 function goToAdd() {
   saveScrollPosition(true, 'events:goToAdd')
-  eventsDisplayReady.value = false
   router.push({
     path: '/events/add',
     query: {
@@ -618,8 +617,10 @@ onMounted(async () => {
 
 onActivated(async () => {
   isEventsActive.value = true
-  eventsDisplayReady.value = false
-  await refresh()
+  const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
+  if (shouldMaskDisplay) {
+    eventsDisplayReady.value = false
+  }
   await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
   await nextTick()
   eventsDisplayReady.value = true
@@ -630,9 +631,11 @@ onActivated(async () => {
 onDeactivated(() => {
   isEventsActive.value = false
   cancelPendingRestore()
-  rememberCurrentScrollPosition()
-  if (readScrollTop() > 1) {
+  if (hasPendingRestore()) {
     eventsDisplayReady.value = false
+  }
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
   unbindPageScroll()
@@ -650,14 +653,14 @@ onBeforeUnmount(() => {
   }
   unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
-  rememberCurrentScrollPosition()
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
+  }
   exitSelectionModeQuiet()
 })
 
-onBeforeRouteLeave(async () => {
+onBeforeRouteLeave(() => {
   saveScrollPosition(true, 'events:onBeforeRouteLeave')
-  eventsDisplayReady.value = false
-  await nextTick()
 })
 </script>
 

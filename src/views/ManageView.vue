@@ -359,6 +359,7 @@ const {
   getStoredScrollState,
   markScrollSource,
   readScrollTop,
+  hasPendingRestore,
   saveScrollPosition,
   restorePendingScrollPosition,
   restoreActivatedScrollPosition,
@@ -528,9 +529,11 @@ onActivated(async () => {
 
 onDeactivated(() => {
   cancelPendingRestore()
-  rememberCurrentScrollPosition()
-  if (readScrollTop() > 1) {
+  if (hasPendingRestore()) {
     manageDisplayReady.value = false
+  }
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
   }
   unbindPageScroll()
 })
@@ -542,7 +545,9 @@ onBeforeUnmount(() => {
     pageScrollRaf = 0
   }
   unbindPageScroll()
-  rememberCurrentScrollPosition()
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
+  }
   clearTimeout(toastTimer)
   window.removeEventListener('resize', handleResize)
   if (exportLongPressTimer) {

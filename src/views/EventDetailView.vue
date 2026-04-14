@@ -337,11 +337,8 @@ const infoItems = computed(() => {
 })
 
 async function refresh() {
-  await eventsStore.refreshList()
   if (!goodsStore.isReady) {
     await goodsStore.init()
-  } else {
-    await goodsStore.refreshList()
   }
 }
 
@@ -356,8 +353,10 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  eventDisplayReady.value = false
-  await refresh()
+  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
+  if (shouldRestore) {
+    eventDisplayReady.value = false
+  }
   await restoreViewState()
   eventDisplayReady.value = true
 })

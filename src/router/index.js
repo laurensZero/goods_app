@@ -1,17 +1,24 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
+import HomeView from '@/views/HomeView.vue'
+import WishlistView from '@/views/WishlistView.vue'
+import DetailView from '@/views/DetailView.vue'
+import ManageView from '@/views/ManageView.vue'
+import EventsView from '@/views/EventsView.vue'
+import EventDetailView from '@/views/EventDetailView.vue'
+
 const routes = [
   { path: '/', redirect: '/home' },
   {
     path: '/home',
     name: 'home',
-    component: () => import('@/views/HomeView.vue'),
+    component: HomeView,
     meta: { title: '我的谷子', keepAlive: true }
   },
   {
     path: '/wishlist',
     name: 'wishlist',
-    component: () => import('@/views/WishlistView.vue'),
+    component: WishlistView,
     meta: { title: '心愿单', keepAlive: true }
   },
   {
@@ -53,7 +60,7 @@ const routes = [
   {
     path: '/detail/:id',
     name: 'detail',
-    component: () => import('@/views/DetailView.vue'),
+    component: DetailView,
     meta: { title: '谷子详情' },
     props: true
   },
@@ -67,7 +74,7 @@ const routes = [
   {
     path: '/manage',
     name: 'manage',
-    component: () => import('@/views/ManageView.vue'),
+    component: ManageView,
     meta: { title: '管理', keepAlive: true }
   },
   {
@@ -127,7 +134,7 @@ const routes = [
   {
     path: '/events',
     name: 'events',
-    component: () => import('@/views/EventsView.vue'),
+    component: EventsView,
     meta: { title: '活动记录', keepAlive: true }
   },
   {
@@ -152,7 +159,7 @@ const routes = [
   {
     path: '/events/:id',
     name: 'event-detail',
-    component: () => import('@/views/EventDetailView.vue'),
+    component: EventDetailView,
     meta: { title: '活动详情' },
     props: true
   },

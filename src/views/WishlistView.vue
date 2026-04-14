@@ -230,6 +230,7 @@ const {
   markScrollSource,
   readScrollTop,
   getStoredScrollState,
+  hasPendingRestore,
   saveScrollPosition,
   applyScrollPosition,
   restorePendingScrollPosition,
@@ -442,7 +443,6 @@ function goToAdd() {
 
 async function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
-  wishlistDisplayReady.value = false
   showAddSheet.value = false
   try {
     await router.push(path)
@@ -558,9 +558,11 @@ onActivated(async () => {
 onDeactivated(() => {
   isWishlistActive.value = false
   cancelPendingRestore()
-  rememberCurrentScrollPosition()
-  if (readScrollTop() > 1) {
+  if (hasPendingRestore()) {
     wishlistDisplayReady.value = false
+  }
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
   unbindPageScroll()
@@ -581,14 +583,14 @@ onBeforeUnmount(() => {
   unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
-  rememberCurrentScrollPosition()
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
+  }
   exitSelectionModeQuiet()
 })
 
-onBeforeRouteLeave(async () => {
+onBeforeRouteLeave(() => {
   saveScrollPosition(true, 'wishlist:onBeforeRouteLeave')
-  wishlistDisplayReady.value = false
-  await nextTick()
 })
 </script>
 

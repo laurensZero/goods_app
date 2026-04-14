@@ -2,7 +2,7 @@
   <div class="app-wrapper">
     <div class="route-stage">
       <RouterView v-slot="{ Component, route: currentRoute }">
-        <Transition :name="routeTransitionName" mode="out-in">
+        <Transition :name="routeTransitionName">
           <KeepAlive v-if="Component" :include="keepAliveViewNames">
             <component
               :is="Component"
@@ -179,6 +179,9 @@ function getRouteKey(currentRoute) {
 .route-forward-leave-active,
 .route-back-enter-active,
 .route-back-leave-active {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   transition:
     transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 170ms ease;

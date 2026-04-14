@@ -192,7 +192,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { getCachedImage } from '@/utils/imageCache'
@@ -340,7 +340,9 @@ function syncDetailScrollLock(active) {
 }
 
 function resetScrollPosition() {
-  scrollToTopAnimated(() => pageBodyRef.value, 0)
+  const pageBody = pageBodyRef.value
+  if (!pageBody) return
+  pageBody.scrollTop = 0
 }
 
 async function prepareDetailLayout() {
@@ -401,10 +403,6 @@ async function markAsOwned() {
   })
 }
 
-onBeforeMount(() => {
-  scrollToTopAnimated(() => pageBodyRef.value, 0)
-})
-
 onMounted(async () => {
   syncDetailScrollLock(true)
   await prepareDetailLayout()
@@ -418,7 +416,6 @@ watch(
   () => props.id,
   async () => {
     activeImageId.value = ''
-    scrollToTopAnimated(() => pageBodyRef.value, 0)
     await prepareDetailLayout()
   }
 )

@@ -688,7 +688,9 @@ onMounted(async () => {
 onActivated(async () => {
   persistCollectionTab('goods')
   isHomeActive.value = true
-  homeDisplayReady.value = false
+  if (shouldMaskHomeDisplay()) {
+    homeDisplayReady.value = false
+  }
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)
@@ -710,7 +712,12 @@ onDeactivated(() => {
   isHomeActive.value = false
   mountBootstrapSession += 1
   cancelPendingRestore()
-  rememberCurrentScrollPosition()
+  if (hasPendingRestore()) {
+    homeDisplayReady.value = false
+  }
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
+  }
   exitSelectionModeQuiet()
   unbindSelectionHeaderScroll()
   unbindAndroidBackButton()
@@ -733,13 +740,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
-  rememberCurrentScrollPosition()
+  if (!hasPendingRestore()) {
+    rememberCurrentScrollPosition()
+  }
 })
 
-onBeforeRouteLeave(async () => {
+onBeforeRouteLeave(() => {
   saveScrollPosition(true, 'home:onBeforeRouteLeave')
-  homeDisplayReady.value = false
-  await nextTick()
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)
