@@ -180,34 +180,27 @@ function getRouteKey(currentRoute) {
 .route-back-enter-active,
 .route-back-leave-active {
   transition:
-    transform 240ms cubic-bezier(0.22, 0.8, 0.24, 1),
-    opacity 240ms ease,
-    filter 240ms ease;
+    transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 170ms ease;
   will-change: transform, opacity;
 }
 
 .route-forward-enter-from {
   opacity: 0;
-  transform: translate3d(8px, 0, 0) scale(0.985);
-  filter: blur(1px);
+  transform: translate3d(12px, 0, 0);
 }
 
 .route-forward-leave-to {
   opacity: 0;
-  transform: scale(0.992);
-  filter: blur(1px);
 }
 
 .route-back-enter-from {
   opacity: 0;
-  transform: translate3d(-8px, 0, 0) scale(0.985);
-  filter: blur(1px);
+  transform: translate3d(-10px, 0, 0);
 }
 
 .route-back-leave-to {
   opacity: 0;
-  transform: scale(0.992);
-  filter: blur(1px);
 }
 
 @media (prefers-reduced-motion: reduce) {
