@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.1",
+    "url": "bundle-20260414.1.zip",
+    "hash": "15b3c6ce4bc157bb4923e1c0a502c0dfe9411ba09f1f7bf26b1e3239f43e36e0",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化路由动画效果，增加模糊和缩放效果；添加安全处理函数以确保导出数据的稳定性；在存储位置视图中添加删除确认组件",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T05:32:30Z"
+  },
+  {
     "version": "20260413.10",
     "url": "bundle-20260413.10.zip",
     "hash": "d7f54d360e8010cbfa409236f35036957fcba89f4df643f23f94b8cf7613defe",
@@ -16,14 +25,5 @@
     "notes": "- feat: 整合同步与图片处理更新",
     "updateLevel": "silent",
     "publishedAt": "2026-04-13T11:51:04Z"
-  },
-  {
-    "version": "20260413.8",
-    "url": "bundle-20260413.8.zip",
-    "hash": "8e7bd433c2f2a6df3ac4e6ff374a80aff7320167dfb549dc2b63c4b504233738",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加商品和事件内容差异检测，优化数据拉取逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-13T11:10:00Z"
   }
 ]
