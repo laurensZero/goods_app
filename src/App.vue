@@ -12,6 +12,14 @@
           </KeepAlive>
         </Transition>
       </RouterView>
+      <Transition name="route-soft-loader-fade">
+        <div v-if="fakeLoadingVisible" class="route-soft-loader" aria-hidden="true">
+          <div class="route-soft-loader__card route-soft-loader__card--hero" />
+          <div class="route-soft-loader__grid">
+            <span v-for="index in 6" :key="`soft-loader-${index}`" class="route-soft-loader__card route-soft-loader__card--tile" />
+          </div>
+        </div>
+      </Transition>
     </div>
     <Transition :name="tabBarTransitionName">
       <TabBar v-if="showTabBar" />
@@ -52,6 +60,9 @@ const keepAliveViewNames = ['HomeView', 'WishlistView', 'ManageView', 'EventsVie
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const routeTransitionName = ref('route-none')
+const fakeLoadingVisible = ref(false)
+const MAIN_ROUTE_NAMES = new Set(['home', 'wishlist', 'events', 'manage'])
+const SOFT_LOADER_DURATION = 190
 const hasLocalData = computed(() => (
   resolveArrayValue(goodsStore.list).length > 0
   || resolveArrayValue(goodsStore.trashList).length > 0
@@ -71,6 +82,25 @@ function resolveArrayValue(source) {
 
 let pendingRouteDirection = 'forward'
 let hasMountedRoute = false
+let softLoaderTimer = 0
+let previousRouteName = String(route.name ?? '')
+
+function isMainRouteName(routeName) {
+  return MAIN_ROUTE_NAMES.has(String(routeName || ''))
+}
+
+function showSoftLoader() {
+  if (softLoaderTimer) {
+    window.clearTimeout(softLoaderTimer)
+    softLoaderTimer = 0
+  }
+
+  fakeLoadingVisible.value = true
+  softLoaderTimer = window.setTimeout(() => {
+    fakeLoadingVisible.value = false
+    softLoaderTimer = 0
+  }, SOFT_LOADER_DURATION)
+}
 
 function markBackNavigation() {
   pendingRouteDirection = 'back'
@@ -79,15 +109,26 @@ function markBackNavigation() {
 watch(
   () => route.fullPath,
   (_, previousPath) => {
+    const currentRouteName = String(route.name ?? '')
+
     if (!previousPath || !hasMountedRoute) {
       hasMountedRoute = true
       routeTransitionName.value = 'route-none'
       pendingRouteDirection = 'forward'
+      previousRouteName = currentRouteName
       return
+    }
+
+    const switchedBetweenMainScenes = isMainRouteName(previousRouteName)
+      && isMainRouteName(currentRouteName)
+      && previousRouteName !== currentRouteName
+    if (switchedBetweenMainScenes) {
+      showSoftLoader()
     }
 
     routeTransitionName.value = pendingRouteDirection === 'back' ? 'route-back' : 'route-forward'
     pendingRouteDirection = 'forward'
+    previousRouteName = currentRouteName
   }
 )
 
@@ -146,6 +187,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', markBackNavigation)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  if (softLoaderTimer) {
+    window.clearTimeout(softLoaderTimer)
+    softLoaderTimer = 0
+  }
 })
 
 function getKeepAliveKey(currentRoute) {
@@ -173,6 +218,83 @@ function getRouteKey(currentRoute) {
   backface-visibility: hidden;
   background-color: var(--app-bg);
   background: var(--app-bg-gradient);
+}
+
+.route-soft-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  padding: calc(env(safe-area-inset-top) + 16px) var(--page-padding) calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 24px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--app-bg) 56%, transparent), color-mix(in srgb, var(--app-bg) 74%, transparent)),
+    var(--app-bg-gradient);
+}
+
+.route-soft-loader__grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.route-soft-loader__card {
+  border-radius: var(--radius-card);
+  border: 1px solid var(--app-glass-border);
+  background:
+    linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--app-text) 10%, transparent) 50%, transparent 80%),
+    color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background-size: 220% 100%, 100% 100%;
+  box-shadow: var(--app-shadow);
+  animation: route-soft-loader-shimmer 680ms ease-out 1;
+}
+
+.route-soft-loader__card--hero {
+  height: 138px;
+  border-radius: var(--radius-large);
+}
+
+.route-soft-loader__card--tile {
+  height: 88px;
+}
+
+@keyframes route-soft-loader-shimmer {
+  0% {
+    background-position: 140% 0, 0 0;
+    opacity: 0.82;
+  }
+
+  100% {
+    background-position: -40% 0, 0 0;
+    opacity: 1;
+  }
+}
+
+.route-soft-loader-fade-enter-active,
+.route-soft-loader-fade-leave-active {
+  transition: opacity 140ms ease;
+}
+
+.route-soft-loader-fade-enter-from,
+.route-soft-loader-fade-leave-to {
+  opacity: 0;
+}
+
+@media (min-width: 700px) {
+  .route-soft-loader__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-soft-loader__card {
+    animation: none;
+  }
+
+  .route-soft-loader-fade-enter-active,
+  .route-soft-loader-fade-leave-active {
+    transition: opacity 100ms ease;
+  }
 }
 
 .route-forward-enter-active,
