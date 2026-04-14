@@ -557,7 +557,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
-  saveScrollPosition(true, 'manage:onBeforeRouteLeave')
+  saveScrollPosition(false, 'manage:onBeforeRouteLeave')
   if (exportLongPressTimer) {
     window.clearTimeout(exportLongPressTimer)
     exportLongPressTimer = 0

@@ -590,7 +590,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
-  saveScrollPosition(true, 'wishlist:onBeforeRouteLeave')
+  saveScrollPosition(false, 'wishlist:onBeforeRouteLeave')
 })
 </script>
 

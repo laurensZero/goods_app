@@ -660,7 +660,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
-  saveScrollPosition(true, 'events:onBeforeRouteLeave')
+  saveScrollPosition(false, 'events:onBeforeRouteLeave')
 })
 </script>
 

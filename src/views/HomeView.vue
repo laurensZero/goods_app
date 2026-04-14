@@ -368,6 +368,7 @@ function handleHomeModeStorage(event) {
 
 function handleHeroSearch() {
   if (homeMode.value === 'goods') {
+    saveScrollPosition(true, 'home:handleHeroSearch')
     router.push('/search')
     return
   }
@@ -746,7 +747,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
-  saveScrollPosition(true, 'home:onBeforeRouteLeave')
+  saveScrollPosition(false, 'home:onBeforeRouteLeave')
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)
