@@ -648,7 +648,6 @@ function shouldMaskHomeDisplay() {
 }
 
 onMounted(async () => {
-  persistCollectionTab('goods')
   const sessionId = ++mountBootstrapSession
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
@@ -687,7 +686,6 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  persistCollectionTab('goods')
   isHomeActive.value = true
   if (shouldMaskHomeDisplay()) {
     homeDisplayReady.value = false
