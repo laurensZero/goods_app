@@ -1,9 +1,9 @@
 {
-  "version": "20260414.10",
-  "url": "bundle-20260414.10.zip",
-  "hash": "722b5a10ea5f2e10e406484548436c096d9452e6877aba5152c035fc57c86c7e",
+  "version": "20260414.11",
+  "url": "bundle-20260414.11.zip",
+  "hash": "23860b9e10b657ecf7f71a99e830ba94cf2d040cef5346f2aea9a68f19ecd760",
   "minNativeVersion": null,
-  "notes": "- feat: 修改路由离开时的滚动位置保存逻辑，确保状态一致性",
+  "notes": "- feat: 添加软加载动画效果，提升路由切换时的用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-14T13:07:01Z"
+  "publishedAt": "2026-04-14T13:31:04Z"
 }

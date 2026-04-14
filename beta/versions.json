@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.11",
+    "url": "bundle-20260414.11.zip",
+    "hash": "23860b9e10b657ecf7f71a99e830ba94cf2d040cef5346f2aea9a68f19ecd760",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加软加载动画效果，提升路由切换时的用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T13:31:04Z"
+  },
+  {
     "version": "20260414.10",
     "url": "bundle-20260414.10.zip",
     "hash": "722b5a10ea5f2e10e406484548436c096d9452e6877aba5152c035fc57c86c7e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化路由组件加载，减少动态导入，提升性能；调整滚动状态管理，确保页面状态一致性",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T12:49:47Z"
-  },
-  {
-    "version": "20260414.8",
-    "url": "bundle-20260414.8.zip",
-    "hash": "793178af131c08991cb9664f7b189a6e618481cf3938f2f623a702341f449393",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化路由动画效果，调整过渡时间和变换属性以提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T11:42:38Z"
   }
 ]
