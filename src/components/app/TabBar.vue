@@ -191,10 +191,7 @@ function activateTab(key) {
 }
 
 onMounted(() => {
-  if (localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge') {
-    localStorage.setItem(HOME_MODE_STORAGE_KEY, 'goods')
-  }
-  syncHomeMode('goods')
+  syncHomeMode(localStorage.getItem(HOME_MODE_STORAGE_KEY))
   window.addEventListener(HOME_MODE_EVENT, handleHomeModeChange)
   window.addEventListener(COLLECTION_TAB_EVENT, handleCollectionTabChange)
   window.addEventListener('storage', handleStorage)

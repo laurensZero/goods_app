@@ -12,6 +12,17 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   let activeScrollSource = null
   let restoreSessionId = 0
   const applyFrameIds = new Set()
+  const applyTimeoutIds = new Set()
+  const DEBUG_SCROLL_RESTORE = import.meta.env.DEV
+
+  function debugLog(message, payload = null) {
+    if (!DEBUG_SCROLL_RESTORE) return
+    if (payload === null) {
+      console.log(`[scroll-restore:${storageKey}] ${message}`)
+      return
+    }
+    console.log(`[scroll-restore:${storageKey}] ${message}`, payload)
+  }
 
   // Guardrail:
   // Home/Wishlist do not have a stable single scroll container across all flows.
@@ -37,18 +48,10 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
 
   function getScrollSnapshotForPersistence() {
     const snapshot = getDomScrollSnapshot()
-
-    if (activeScrollSource === 'element') {
-      return { top: snapshot.elementTop, source: 'element', snapshot }
-    }
-
-    if (activeScrollSource === 'window') {
-      return { top: snapshot.windowTop, source: 'window', snapshot }
-    }
-
-    // These routes scroll inside .page-body. When the source is unknown, prefer
-    // the container element so a stale window position does not overwrite it.
-    return { top: snapshot.elementTop, source: 'element', snapshot }
+    // Persist the larger one to avoid losing position when scroll source briefly flips
+    // during route activation/deactivation.
+    const top = Math.max(snapshot.elementTop, snapshot.windowTop)
+    return { top, source: 'element', snapshot }
   }
   function isReloadNavigation() {
     try {
@@ -89,6 +92,10 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       window.cancelAnimationFrame(frameId)
     })
     applyFrameIds.clear()
+    applyTimeoutIds.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId)
+    })
+    applyTimeoutIds.clear()
   }
 
   function detectScrollSource() {
@@ -190,9 +197,11 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       source,
       ...readScrollAnchor(top)
     }
+    debugLog('saveScrollPosition', { reason, markPending, state })
     writeScrollState(state)
     if (markPending) {
       sessionStorage.setItem(pendingKey, '1')
+      debugLog('set pending restore', { pendingKey })
     }
   }
 
@@ -202,12 +211,9 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       : stateOrTop
 
     const fallbackTop = Math.max(0, Number(state?.top) || 0)
-    if (!state?.anchorId) return fallbackTop
-
-    const anchorEl = getScrollAnchors().find((el) => el.dataset.goodsId === state.anchorId)
-    if (!anchorEl) return fallbackTop
-
-    return Math.max(0, anchorEl.offsetTop + (Number(state.anchorOffset) || 0))
+    // In virtualized/reflow-heavy views, anchor offset can drift heavily after layout changes.
+    // Numeric top is the most stable source of truth for cross-page restore.
+    return fallbackTop
   }
 
   function setScrollTop(top, source = 'both') {
@@ -244,17 +250,15 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     clearApplyFrames()
     const top = resolveScrollTargetTop(stateOrTop)
     const source = typeof stateOrTop === 'object' && stateOrTop?.source === 'window' ? 'window' : 'element'
-
-    if (!setScrollTop(top, source)) {
-      setScrollTop(top, 'both')
-    }
+    debugLog('applyScrollPosition:start', { sessionId, top, source, stateOrTop })
+    setScrollTop(top, 'both')
 
     let frame = 0
     const tick = () => {
       if (sessionId !== restoreSessionId) return
       frame += 1
-      setScrollTop(top, source)
-      if (frame < 5) {
+      setScrollTop(top, 'both')
+      if (frame < 18) {
         const frameId = window.requestAnimationFrame(() => {
           applyFrameIds.delete(frameId)
           tick()
@@ -268,6 +272,20 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       tick()
     })
     applyFrameIds.add(frameId)
+
+    const settleDelays = [120, 260, 420]
+    settleDelays.forEach((delay) => {
+      const timeoutId = window.setTimeout(() => {
+        applyTimeoutIds.delete(timeoutId)
+        if (sessionId !== restoreSessionId) return
+        const currentTop = readScrollTop()
+        if (top > 80 && currentTop < Math.max(20, top * 0.4)) {
+          debugLog('applyScrollPosition:settle-reapply', { sessionId, delay, targetTop: top, currentTop })
+          setScrollTop(top, 'both')
+        }
+      }, delay)
+      applyTimeoutIds.add(timeoutId)
+    })
   }
 
   async function waitForLayout(frames = 1, sessionId = restoreSessionId) {
@@ -296,6 +314,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     const shouldRestore = sessionStorage.getItem(pendingKey) === '1'
     const storedState = readStoredScrollState()
     const storedTop = storedState?.top || 0
+    debugLog('restorePendingScrollPosition:enter', { sessionId, shouldRestore, storedState, storedTop })
 
     if (!shouldRestore) return
 
@@ -306,20 +325,24 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     if (storedTop <= 0) {
       setScrollTop(0, storedState?.source || 'both')
       sessionStorage.removeItem(pendingKey)
+      debugLog('restorePendingScrollPosition:top<=0-clear-pending', { sessionId, storedState })
       return
     }
     if (!(await waitForLayout(2, sessionId))) return
     applyScrollPosition(storedState || storedTop, sessionId)
     sessionStorage.removeItem(pendingKey)
+    debugLog('restorePendingScrollPosition:done', { sessionId, storedState, storedTop })
   }
 
   async function restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState = null) {
     const sessionId = beginRestoreSession()
     const storedState = readStoredScrollState()
     const storedTop = storedState?.top || 0
+    debugLog('restoreActivatedScrollPosition:enter', { sessionId, storedState, storedTop })
 
     if (!storedState) {
       const domTop = readScrollTop()
+      debugLog('restoreActivatedScrollPosition:no-stored-state', { sessionId, domTop })
       syncVisibleGoodsCount(domTop)
       syncVisibleTimelineMonthCount(domTop)
       return
@@ -332,6 +355,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     if (storedTop <= 0) {
       setScrollTop(0, storedState?.source || 'both')
       sessionStorage.removeItem(pendingKey)
+      debugLog('restoreActivatedScrollPosition:top<=0-clear-pending', { sessionId, storedState })
       return
     }
     if (!(await waitForLayout(2, sessionId))) return
@@ -339,6 +363,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     if (!(await waitForLayout(2, sessionId))) return
     applyScrollPosition(storedState || storedTop, sessionId)
     sessionStorage.removeItem(pendingKey)
+    debugLog('restoreActivatedScrollPosition:done', { sessionId, storedState, storedTop })
   }
 
   function rememberCurrentScrollPosition(reason = 'remember', shouldLog = false) {
@@ -350,12 +375,16 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       ...readScrollAnchor(top)
     }
     writeScrollState(state)
+    if (shouldLog || DEBUG_SCROLL_RESTORE) {
+      debugLog('rememberCurrentScrollPosition', { reason, state })
+    }
   }
 
   function clearDisplayedScrollPosition() {
     cancelPendingRestore()
     activeScrollSource = null
     setScrollTop(0, 'both')
+    debugLog('clearDisplayedScrollPosition')
   }
 
   function resetStoredScrollOnReload() {
@@ -370,6 +399,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     activeScrollSource = null
     sessionStorage.removeItem(storageKey)
     sessionStorage.removeItem(pendingKey)
+    debugLog('resetStoredScrollOnReload')
     return true
   }
 

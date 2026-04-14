@@ -350,6 +350,7 @@ let elementScrollHandler = null
 let windowScrollHandler = null
 let exportLongPressTimer = 0
 let suppressNextExportClick = false
+let isRouteLeaving = false
 const BACKUP_DIR = 'GoodsAppBackup'
 
 const allExportSectionsSelected = computed(() => exportSectionOptions.every((option) => exportSelection.value[option.key]))
@@ -496,6 +497,7 @@ onMounted(() => {
 })
 
 onMounted(async () => {
+  isRouteLeaving = false
   const shouldMaskDisplay = shouldMaskManageDisplay()
   manageDisplayReady.value = !shouldMaskDisplay
   await ensureEventsReady()
@@ -512,6 +514,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  isRouteLeaving = false
   const shouldMaskDisplay = shouldMaskManageDisplay()
   if (shouldMaskDisplay) {
     manageDisplayReady.value = false
@@ -532,7 +535,7 @@ onDeactivated(() => {
   if (hasPendingRestore()) {
     manageDisplayReady.value = false
   }
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   unbindPageScroll()
@@ -545,7 +548,7 @@ onBeforeUnmount(() => {
     pageScrollRaf = 0
   }
   unbindPageScroll()
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   clearTimeout(toastTimer)
@@ -557,6 +560,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
+  isRouteLeaving = true
   saveScrollPosition(false, 'manage:onBeforeRouteLeave')
   if (exportLongPressTimer) {
     window.clearTimeout(exportLongPressTimer)

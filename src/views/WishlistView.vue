@@ -201,6 +201,7 @@ let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
 let topJumpMaskTimer = 0
+let isRouteLeaving = false
 
 const {
   densityModes,
@@ -521,6 +522,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 onMounted(async () => {
+  isRouteLeaving = false
   persistCollectionTab('wishlist')
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
@@ -541,6 +543,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  isRouteLeaving = false
   persistCollectionTab('wishlist')
   isWishlistActive.value = true
   const shouldMaskDisplay = shouldMaskWishlistDisplay()
@@ -561,7 +564,7 @@ onDeactivated(() => {
   if (hasPendingRestore()) {
     wishlistDisplayReady.value = false
   }
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
@@ -583,13 +586,14 @@ onBeforeUnmount(() => {
   unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
 })
 
 onBeforeRouteLeave(() => {
+  isRouteLeaving = true
   saveScrollPosition(false, 'wishlist:onBeforeRouteLeave')
 })
 </script>

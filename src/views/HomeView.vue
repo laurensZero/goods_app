@@ -42,8 +42,7 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <Transition :name="homeModeTransitionName" mode="out-in">
-          <div v-if="homeMode === 'goods'" key="home-mode-goods">
+      <div v-if="homeMode === 'goods'">
           <section class="summary-section">
             <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
           </section>
@@ -109,16 +108,15 @@
               />
             </section>
           </Transition>
-          </div>
+      </div>
 
-          <div v-else key="home-mode-recharge">
-            <RechargeContent
-              ref="rechargeContentRef"
-              @selection-change="handleRechargeSelectionChange"
-              @open-month-card="openMonthCardCalendar"
-            />
-          </div>
-        </Transition>
+      <div v-else>
+        <RechargeContent
+          ref="rechargeContentRef"
+          @selection-change="handleRechargeSelectionChange"
+          @open-month-card="openMonthCardCalendar"
+        />
+      </div>
     </main>
 
     <Teleport to="body">
@@ -246,6 +244,7 @@ let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
 let mountBootstrapSession = 0
+let isRouteLeaving = false
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -301,12 +300,6 @@ let topJumpMaskTimer = 0
 // 添加方式面板
 const showAddSheet = ref(false)
 const router = useRouter()
-const homeModeTransitionName = ref('home-mode-none')
-const HOME_MODE_ORDER = {
-  goods: 0,
-  recharge: 1
-}
-
 function persistHomeMode(value) {
   localStorage.setItem(HOME_MODE_STORAGE_KEY, value)
   window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
@@ -317,10 +310,6 @@ function persistHomeMode(value) {
 function setHomeModeValue(nextMode) {
   const target = nextMode === 'recharge' ? 'recharge' : 'goods'
   if (homeMode.value === target) return
-
-  const previousOrder = HOME_MODE_ORDER[homeMode.value] ?? 0
-  const nextOrder = HOME_MODE_ORDER[target] ?? 0
-  homeModeTransitionName.value = nextOrder >= previousOrder ? 'home-mode-forward' : 'home-mode-back'
 
   homeMode.value = target
   persistHomeMode(target)
@@ -648,14 +637,12 @@ function shouldMaskHomeDisplay() {
 }
 
 onMounted(async () => {
+  isRouteLeaving = false
   const sessionId = ++mountBootstrapSession
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
-  }
-  if (localStorage.getItem(HOME_MODE_STORAGE_KEY) === 'recharge') {
-    persistHomeMode('goods')
   }
   const shouldMaskDisplay = shouldMaskHomeDisplay()
   homeDisplayReady.value = !shouldMaskDisplay
@@ -686,6 +673,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  isRouteLeaving = false
   isHomeActive.value = true
   if (shouldMaskHomeDisplay()) {
     homeDisplayReady.value = false
@@ -714,7 +702,7 @@ onDeactivated(() => {
   if (hasPendingRestore()) {
     homeDisplayReady.value = false
   }
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
@@ -739,12 +727,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
 })
 
 onBeforeRouteLeave(() => {
+  isRouteLeaving = true
   saveScrollPosition(false, 'home:onBeforeRouteLeave')
 })
 
@@ -1124,50 +1113,6 @@ async function applyBatchEditPayload(payload) {
 .goods-view-switch-leave-to {
   opacity: 0;
   transform: translateY(12px) scale(0.992);
-}
-
-.home-mode-forward-enter-active,
-.home-mode-forward-leave-active,
-.home-mode-back-enter-active,
-.home-mode-back-leave-active {
-  transition:
-    transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 170ms ease;
-  will-change: transform, opacity;
-}
-
-.home-mode-forward-enter-from {
-  opacity: 0;
-  transform: translate3d(12px, 0, 0);
-}
-
-.home-mode-forward-leave-to {
-  opacity: 0;
-}
-
-.home-mode-back-enter-from {
-  opacity: 0;
-  transform: translate3d(-10px, 0, 0);
-}
-
-.home-mode-back-leave-to {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-mode-forward-enter-active,
-  .home-mode-forward-leave-active,
-  .home-mode-back-enter-active,
-  .home-mode-back-leave-active {
-    transition: opacity 120ms ease;
-  }
-
-  .home-mode-forward-enter-from,
-  .home-mode-forward-leave-to,
-  .home-mode-back-enter-from,
-  .home-mode-back-leave-to {
-    transform: none;
-  }
 }
 
 @keyframes sort-view-refresh {

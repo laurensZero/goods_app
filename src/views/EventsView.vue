@@ -295,6 +295,7 @@ let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
 let topJumpMaskTimer = 0
+let isRouteLeaving = false
 
 const viewOptions = [
   { value: 'grid', label: '平铺' },
@@ -595,6 +596,7 @@ watch(selectionMode, async (active) => {
 })
 
 onMounted(async () => {
+  isRouteLeaving = false
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
@@ -616,6 +618,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
+  isRouteLeaving = false
   isEventsActive.value = true
   const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
   if (shouldMaskDisplay) {
@@ -634,7 +637,7 @@ onDeactivated(() => {
   if (hasPendingRestore()) {
     eventsDisplayReady.value = false
   }
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
@@ -653,13 +656,14 @@ onBeforeUnmount(() => {
   }
   unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
-  if (!hasPendingRestore()) {
+  if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
 })
 
 onBeforeRouteLeave(() => {
+  isRouteLeaving = true
   saveScrollPosition(false, 'events:onBeforeRouteLeave')
 })
 </script>
