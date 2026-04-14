@@ -132,6 +132,14 @@ function buildVariantFromSelections(selections, overrides = {}) {
   }
 }
 
+function sortVariantsDeterministically(list) {
+  return [...list].sort((a, b) => {
+    const textCompare = String(a?.text || '').localeCompare(String(b?.text || ''), 'zh-Hans-CN')
+    if (textCompare !== 0) return textCompare
+    return String(a?.key || '').localeCompare(String(b?.key || ''), 'zh-Hans-CN')
+  })
+}
+
 function buildSaleAttrVariants(rawSaleAttrs) {
   const groups = normalizeSaleAttrGroups(rawSaleAttrs)
   if (!groups.length) return []
@@ -153,7 +161,7 @@ function buildSaleAttrVariants(rawSaleAttrs) {
   }
 
   walk(0, [])
-  return variants
+  return sortVariantsDeterministically(variants)
 }
 
 function buildSkuVariantsFromDetail(detail) {
@@ -190,7 +198,7 @@ function buildSkuVariantsFromDetail(detail) {
     }))
   }
 
-  return variants.length ? variants : buildSaleAttrVariants(groups)
+  return variants.length ? sortVariantsDeterministically(variants) : buildSaleAttrVariants(groups)
 }
 
 /**

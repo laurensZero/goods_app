@@ -653,16 +653,35 @@ async function handleExport(selection = null) {
   const includeRecharge = selected.recharge !== false
   const includePresets = selected.presets !== false
 
+  const safeSanitizeGoodsItemForExport = async (item) => {
+    try {
+      return await sanitizeGoodsItemForExport(item)
+    } catch {
+      return null
+    }
+  }
+  const safeSanitizeEventForExport = async (event) => {
+    try {
+      return await sanitizeEventForExport(event)
+    } catch {
+      return null
+    }
+  }
+
   const goodsList = includeGoods
-    ? await Promise.all(goodsStore.list.filter((item) => !item?.isWishlist).map((item) => sanitizeGoodsItemForExport(item)))
+    ? (await Promise.all(goodsStore.list.filter((item) => !item?.isWishlist).map((item) => safeSanitizeGoodsItemForExport(item)))).filter(Boolean)
     : undefined
   const wishlistList = includeWishlist
-    ? await Promise.all(goodsStore.list.filter((item) => item?.isWishlist).map((item) => sanitizeGoodsItemForExport(item)))
+    ? (await Promise.all(goodsStore.list.filter((item) => item?.isWishlist).map((item) => safeSanitizeGoodsItemForExport(item)))).filter(Boolean)
     : undefined
-  const trashList = includeTrash ? await Promise.all(goodsStore.trashList.map((item) => sanitizeGoodsItemForExport(item))) : undefined
+  const trashList = includeTrash
+    ? (await Promise.all(goodsStore.trashList.map((item) => safeSanitizeGoodsItemForExport(item)))).filter(Boolean)
+    : undefined
   const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) : undefined
   const rechargeTrash = includeRecharge ? [] : undefined
-  const eventsList = includeEvents ? await Promise.all(eventsStore.list.map((event) => sanitizeEventForExport(event))) : undefined
+  const eventsList = includeEvents
+    ? (await Promise.all(eventsStore.list.map((event) => safeSanitizeEventForExport(event)))).filter(Boolean)
+    : undefined
 
   const data = {
     version: 8,

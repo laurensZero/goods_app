@@ -78,6 +78,15 @@
         />
       </section>
     </main>
+
+    <PresetDeleteConfirm
+      :show="showDeleteConfirm"
+      :name="pendingDeleteNode?.path || ''"
+      :count="affectedCount"
+      field-label="该收纳位置"
+      @cancel="cancelDeleteNode"
+      @confirm="confirmDeleteNode"
+    />
   </div>
 </template>
 
@@ -85,9 +94,11 @@
 import { computed, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { isStorageLocationUnderPrefix } from '@/utils/storageLocations'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
+import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 import StorageLocationTreeNode from '@/components/storage/StorageLocationTreeNode.vue'
 
 const store = useGoodsStore()
@@ -96,6 +107,8 @@ const presets = usePresetsStore()
 const editorMode = ref('')
 const editorNodeId = ref('')
 const editorName = ref('')
+const showDeleteConfirm = ref(false)
+const pendingDeleteNode = ref(null)
 
 const statsById = computed(() => {
   const stats = {}
@@ -131,6 +144,12 @@ const statsById = computed(() => {
 const unassignedCount = computed(() =>
   store.collectionViewList.filter((item) => !String(item.storageLocation || '').trim()).length
 )
+
+const affectedCount = computed(() => {
+  const path = pendingDeleteNode.value?.path || ''
+  if (!path) return 0
+  return store.list.filter((item) => isStorageLocationUnderPrefix(item.storageLocation, path)).length
+})
 
 const editorTargetPath = computed(() =>
   editorNodeId.value ? presets.buildStorageLocationPathById(editorNodeId.value) : ''
@@ -220,8 +239,13 @@ async function submitEditor() {
 }
 
 async function removeNode(node) {
-  const confirmed = window.confirm(`删除“${node.path}”后，使用这个位置的商品会被清空收纳位置。确定删除吗？`)
-  if (!confirmed) return
+  pendingDeleteNode.value = node
+  showDeleteConfirm.value = true
+}
+
+async function confirmDeleteNode() {
+  const node = pendingDeleteNode.value
+  if (!node) return
 
   await presets.removeStorageLocation(node.id)
   await store.clearStorageLocationPrefix(node.path)
@@ -229,6 +253,14 @@ async function removeNode(node) {
   if (editorNodeId.value === node.id) {
     resetEditor()
   }
+
+  pendingDeleteNode.value = null
+  showDeleteConfirm.value = false
+}
+
+function cancelDeleteNode() {
+  showDeleteConfirm.value = false
+  pendingDeleteNode.value = null
 }
 </script>
 

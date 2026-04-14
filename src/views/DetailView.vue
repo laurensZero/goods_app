@@ -268,9 +268,6 @@ const heroPriceHint = computed(() => {
   if (hasActualPriceValue(item.value.actualPrice) && hasPriceValue(item.value.price)) {
     parts.push(`价格 ¥${item.value.price}`)
   }
-  if (item.value.points) {
-    parts.push(`+${item.value.points}积分`)
-  }
   return parts.join(' ')
 })
 const officialPriceText = computed(() => {
