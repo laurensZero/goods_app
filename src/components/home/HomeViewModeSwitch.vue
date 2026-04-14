@@ -1,5 +1,5 @@
 <template>
-  <div class="mode-switch" role="tablist" :aria-label="ariaLabel" :style="modeSwitchStyle">
+  <div ref="modeSwitchRef" class="mode-switch" role="tablist" :aria-label="ariaLabel" :style="modeSwitchStyle">
     <span class="mode-switch__indicator" aria-hidden="true" />
 
     <button
@@ -19,7 +19,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -42,6 +42,9 @@ const props = defineProps({
 
 defineEmits(['update:modelValue'])
 
+const MODE_SWITCH_LAST_VALUE_KEY = 'goods-home-top-switch-last-value-v1'
+const modeSwitchRef = ref(null)
+
 const normalizedOptions = computed(() =>
   props.options.map((option) => ({
     value: option.value,
@@ -50,12 +53,60 @@ const normalizedOptions = computed(() =>
   }))
 )
 
-const modeSwitchStyle = computed(() => {
+const currentIndex = computed(() => {
   const index = normalizedOptions.value.findIndex((option) => option.value === props.modelValue)
+  return index >= 0 ? index : 0
+})
+
+const animatedIndex = ref(currentIndex.value)
+
+function readStoredValue() {
+  try {
+    return sessionStorage.getItem(MODE_SWITCH_LAST_VALUE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function writeStoredValue(value) {
+  try {
+    sessionStorage.setItem(MODE_SWITCH_LAST_VALUE_KEY, value)
+  } catch {
+    // ignore storage failures
+  }
+}
+
+const modeSwitchStyle = computed(() => {
   return {
-    '--mode-switch-index': index >= 0 ? index : 0,
+    '--mode-switch-index': animatedIndex.value,
     '--mode-switch-count': normalizedOptions.value.length || 1
   }
+})
+
+onMounted(() => {
+  const storedValue = readStoredValue()
+  const storedIndex = normalizedOptions.value.findIndex((option) => option.value === storedValue)
+  if (storedIndex >= 0 && storedIndex !== currentIndex.value) {
+    animatedIndex.value = storedIndex
+
+    window.requestAnimationFrame(() => {
+      // Ensure browser commits the "from" position before switching to target.
+      void modeSwitchRef.value?.offsetWidth
+      window.requestAnimationFrame(() => {
+        animatedIndex.value = currentIndex.value
+        writeStoredValue(String(props.modelValue || ''))
+      })
+    })
+    return
+  }
+
+  animatedIndex.value = currentIndex.value
+  writeStoredValue(String(props.modelValue || ''))
+})
+
+watch(currentIndex, (nextIndex) => {
+  animatedIndex.value = nextIndex
+  writeStoredValue(String(props.modelValue || ''))
 })
 </script>
 
@@ -64,7 +115,8 @@ const modeSwitchStyle = computed(() => {
   --mode-switch-gap: 6px;
   --mode-switch-pad: 4px;
   --mode-switch-height: 32px;
-  --mode-switch-duration: calc(var(--home-motion-density-duration) + 80ms);
+  --mode-switch-duration: 280ms;
+  --mode-switch-color-duration: 180ms;
   --mode-switch-count: 3;
   --mode-switch-index: 0;
   position: relative;
@@ -90,9 +142,9 @@ const modeSwitchStyle = computed(() => {
   background: #141416;
   transform: translateX(calc((100% + var(--mode-switch-gap, 6px)) * var(--mode-switch-index, 0)));
   transition:
-    transform var(--mode-switch-duration) var(--home-motion-ease-emphasis),
-    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
-    box-shadow var(--home-motion-density-duration) var(--home-motion-ease-standard);
+    transform var(--mode-switch-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    background var(--mode-switch-color-duration) ease,
+    box-shadow var(--mode-switch-color-duration) ease;
   box-shadow: 0 6px 14px rgba(20, 20, 22, 0.12);
   will-change: transform;
   pointer-events: none;
@@ -112,8 +164,8 @@ const modeSwitchStyle = computed(() => {
   font-size: 13px;
   font-weight: 600;
   transition:
-    transform var(--home-motion-density-duration) var(--home-motion-ease-standard),
-    color var(--home-motion-density-duration) var(--home-motion-ease-standard);
+    transform var(--mode-switch-color-duration) ease,
+    color var(--mode-switch-color-duration) ease;
 }
 
 .mode-switch__item:active {

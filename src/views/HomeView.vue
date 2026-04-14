@@ -550,9 +550,11 @@ function maybeLoadMoreTimelineMonths() {
 }
 
 function handlePageScroll() {
+  if (isRouteLeaving) return
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
+    if (isRouteLeaving) return
     rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
     maybeLoadMoreGoods()
@@ -735,6 +737,11 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave(() => {
   isRouteLeaving = true
   saveScrollPosition(false, 'home:onBeforeRouteLeave')
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindSelectionHeaderScroll()
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)

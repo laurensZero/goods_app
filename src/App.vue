@@ -6,6 +6,7 @@
           <component
             :is="Component"
             :key="currentRoute.meta.keepAlive ? getKeepAliveKey(currentRoute) : getRouteKey(currentRoute)"
+            class="route-scene"
           />
         </KeepAlive>
       </RouterView>
@@ -123,11 +124,33 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-.route-stage {
-  position: relative;
-  min-height: inherit;
+:global(html),
+:global(body),
+:global(#app) {
+  min-height: 100%;
   background-color: var(--app-bg);
   background: var(--app-bg-gradient);
+}
+
+.app-wrapper {
+  min-height: 100dvh;
+  background-color: var(--app-bg);
+  background: var(--app-bg-gradient);
+}
+
+.route-stage {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background-color: var(--app-bg);
+  background: var(--app-bg-gradient);
+}
+
+.route-scene {
+  min-height: 100dvh;
+  background-color: var(--app-bg);
+  background: var(--app-bg-gradient);
+  backface-visibility: hidden;
 }
 
 </style>

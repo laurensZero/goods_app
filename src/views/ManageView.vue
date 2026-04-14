@@ -448,9 +448,11 @@ function shouldMaskManageDisplay() {
 }
 
 function handlePageScroll() {
+  if (isRouteLeaving) return
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
+    if (isRouteLeaving) return
     rememberCurrentScrollPosition()
   })
 }
@@ -562,6 +564,11 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave(() => {
   isRouteLeaving = true
   saveScrollPosition(false, 'manage:onBeforeRouteLeave')
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
   if (exportLongPressTimer) {
     window.clearTimeout(exportLongPressTimer)
     exportLongPressTimer = 0

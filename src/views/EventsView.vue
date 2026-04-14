@@ -519,9 +519,11 @@ function updateSelectionHeaderPosition() {
 }
 
 function handlePageScroll() {
+  if (isRouteLeaving) return
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
+    if (isRouteLeaving) return
     rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
     updateScrollTopButtonVisibility()
@@ -665,6 +667,11 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave(() => {
   isRouteLeaving = true
   saveScrollPosition(false, 'events:onBeforeRouteLeave')
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
 })
 </script>
 

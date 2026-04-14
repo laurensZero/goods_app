@@ -48,10 +48,17 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
 
   function getScrollSnapshotForPersistence() {
     const snapshot = getDomScrollSnapshot()
-    // Persist the larger one to avoid losing position when scroll source briefly flips
-    // during route activation/deactivation.
-    const top = Math.max(snapshot.elementTop, snapshot.windowTop)
-    return { top, source: 'element', snapshot }
+
+    if (activeScrollSource === 'window') {
+      return { top: snapshot.windowTop, source: 'window', snapshot }
+    }
+
+    if (activeScrollSource === 'element') {
+      return { top: snapshot.elementTop, source: 'element', snapshot }
+    }
+
+    // Default to element for page-body based routes.
+    return { top: snapshot.elementTop, source: 'element', snapshot }
   }
   function isReloadNavigation() {
     try {

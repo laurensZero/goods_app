@@ -1,5 +1,6 @@
 ﻿<template>
-  <nav class="tab-bar" aria-label="底部导航">
+  <nav class="tab-bar" aria-label="底部导航" :style="tabBarStyle">
+    <span class="tab-bar__indicator" aria-hidden="true" />
     <button
       v-for="tab in tabs"
       :key="tab.key"
@@ -114,6 +115,26 @@ const tabs = computed(() => [
   }
 ])
 
+const activeTabKey = computed(() => {
+  if ((route.path === '/home' && homeMode.value !== 'recharge') || route.path.startsWith('/wishlist') || route.path.startsWith('/leaderboard')) {
+    return 'collection'
+  }
+  if (route.path === '/home' && homeMode.value === 'recharge') return 'recharge'
+  if (route.path.startsWith('/events')) return 'events'
+  if (route.path.startsWith('/manage')) return 'manage'
+  return 'collection'
+})
+
+const activeTabIndex = computed(() => {
+  const index = tabs.value.findIndex((tab) => tab.key === activeTabKey.value)
+  return index >= 0 ? index : 0
+})
+
+const tabBarStyle = computed(() => ({
+  '--tab-bar-count': tabs.value.length || 1,
+  '--tab-bar-index': activeTabIndex.value
+}))
+
 function handleHomeModeChange(event) {
   syncHomeMode(event?.detail?.mode)
 }
@@ -143,18 +164,7 @@ function persistHomeMode(mode) {
 }
 
 function isTabActive(key) {
-  if (key === 'collection') {
-    return (
-      (route.path === '/home' && homeMode.value !== 'recharge')
-      || route.path.startsWith('/wishlist')
-      || route.path.startsWith('/leaderboard')
-    )
-  }
-
-  if (key === 'recharge') return route.path === '/home' && homeMode.value === 'recharge'
-  if (key === 'events') return route.path.startsWith('/events')
-  if (key === 'manage') return route.path.startsWith('/manage')
-  return false
+  return activeTabKey.value === key
 }
 
 function activateTab(key) {
@@ -206,6 +216,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .tab-bar {
+  --tab-bar-gap: 6px;
+  --tab-bar-pad: 10px;
+  --tab-item-height: 56px;
   position: fixed;
   left: 50%;
   bottom: max(12px, env(safe-area-inset-bottom));
@@ -213,9 +226,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--tab-bar-gap);
   width: min(calc(100vw - 24px), 430px);
-  padding: 10px;
+  padding: var(--tab-bar-pad);
   border-radius: var(--radius-large);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
@@ -226,10 +239,29 @@ onBeforeUnmount(() => {
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
 }
 
+.tab-bar__indicator {
+  position: absolute;
+  top: var(--tab-bar-pad);
+  left: var(--tab-bar-pad);
+  width: calc(
+    (100% - (var(--tab-bar-gap) * (var(--tab-bar-count) - 1)) - (var(--tab-bar-pad) * 2))
+    / var(--tab-bar-count)
+  );
+  height: var(--tab-item-height);
+  border-radius: 18px;
+  background: #141416;
+  transform: translateX(calc((100% + var(--tab-bar-gap)) * var(--tab-bar-index)));
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .tab-item {
+  position: relative;
+  z-index: 1;
   display: flex;
-  width: 100%;
-  min-height: 56px;
+  flex: 1;
+  min-height: var(--tab-item-height);
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -242,7 +274,7 @@ onBeforeUnmount(() => {
 }
 
 .tab-item--active {
-  background: #141416;
+  background: transparent;
   color: #ffffff;
 }
 
@@ -272,6 +304,11 @@ onBeforeUnmount(() => {
 }
 
 :global(html.theme-dark) .tab-item--active {
+  background: transparent;
+  color: #141416;
+}
+
+:global(html.theme-dark) .tab-bar__indicator {
   background: #f5f5f5;
   color: #141416;
 }
