@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.9",
+    "url": "bundle-20260414.9.zip",
+    "hash": "8927f472bf49144b3bb28896c6d75b52841448e3bbcd0c11b5e104c7982a500c",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化路由组件加载，减少动态导入，提升性能；调整滚动状态管理，确保页面状态一致性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T12:49:47Z"
+  },
+  {
     "version": "20260414.8",
     "url": "bundle-20260414.8.zip",
     "hash": "793178af131c08991cb9664f7b189a6e618481cf3938f2f623a702341f449393",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新主题样式，统一背景色为应用表面色",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T11:37:47Z"
-  },
-  {
-    "version": "20260414.6",
-    "url": "bundle-20260414.6.zip",
-    "hash": "afe34f314517d31acedaebed2a096fa2b98378e09617b28e0700a15eafbffc03",
-    "minNativeVersion": null,
-    "notes": "- feat: 调整浮动播放器文本样式，修改字体大小和粗细以提升可读性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T08:58:02Z"
   }
 ]
