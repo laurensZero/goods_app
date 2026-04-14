@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.6",
+    "url": "bundle-20260414.6.zip",
+    "hash": "afe34f314517d31acedaebed2a096fa2b98378e09617b28e0700a15eafbffc03",
+    "minNativeVersion": null,
+    "notes": "- feat: 调整浮动播放器文本样式，修改字体大小和粗细以提升可读性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T08:58:02Z"
+  },
+  {
     "version": "20260414.5",
     "url": "bundle-20260414.5.zip",
     "hash": "def7bda8ef306d17e437172f1497b7d04466a3af4d2b4ffbe05886c3b89f11a0",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加局域网同步入口，支持设备间数据互传功能",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T07:08:58Z"
-  },
-  {
-    "version": "20260414.3",
-    "url": "bundle-20260414.3.zip",
-    "hash": "92779f8050a3bfd9247fd5824ee1a4cac6a1724c973c62af18399b4f6f864106",
-    "minNativeVersion": null,
-    "notes": "- feat: 修复 MainActivity 中 onCreate 方法的格式，确保代码结构清晰",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T06:52:44Z"
   }
 ]

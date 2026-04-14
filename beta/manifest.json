@@ -1,9 +1,9 @@
 {
-  "version": "20260414.5",
-  "url": "bundle-20260414.5.zip",
-  "hash": "def7bda8ef306d17e437172f1497b7d04466a3af4d2b4ffbe05886c3b89f11a0",
+  "version": "20260414.6",
+  "url": "bundle-20260414.6.zip",
+  "hash": "afe34f314517d31acedaebed2a096fa2b98378e09617b28e0700a15eafbffc03",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 调整浮动播放器文本样式，修改字体大小和粗细以提升可读性",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-14T07:15:37Z"
+  "publishedAt": "2026-04-14T08:58:02Z"
 }
