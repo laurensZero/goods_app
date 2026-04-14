@@ -1,9 +1,9 @@
 {
-  "version": "20260414.7",
-  "url": "bundle-20260414.7.zip",
-  "hash": "3c166adbfec012d3f016ffbf99a502c9d1d529bdfc10c0f6a85684e886a9784e",
+  "version": "20260414.8",
+  "url": "bundle-20260414.8.zip",
+  "hash": "793178af131c08991cb9664f7b189a6e618481cf3938f2f623a702341f449393",
   "minNativeVersion": null,
-  "notes": "- feat: 更新主题样式，统一背景色为应用表面色",
+  "notes": "- feat: 优化路由动画效果，调整过渡时间和变换属性以提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-14T11:37:47Z"
+  "publishedAt": "2026-04-14T11:42:38Z"
 }
