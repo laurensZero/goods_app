@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.13",
+    "url": "bundle-20260414.13.zip",
+    "hash": "e9f7cece7def4ddaaaa8718d6d065bd98cf75a685161c67076413ca3d8833384",
+    "minNativeVersion": null,
+    "notes": "- feat: 准备重构动画\n\n- feat: 优化路由组件和页面滚动管理，提升用户体验和状态一致性\n\n- feat: 添加视图过渡效果，优化路由切换体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T15:44:00Z"
+  },
+  {
     "version": "20260414.12",
     "url": "bundle-20260414.12.zip",
     "hash": "4016568490f33c2277a849bf9b89495b7bc1ad351de9ca6dded8ee5bd8203911",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加软加载动画效果，提升路由切换时的用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T13:31:04Z"
-  },
-  {
-    "version": "20260414.10",
-    "url": "bundle-20260414.10.zip",
-    "hash": "722b5a10ea5f2e10e406484548436c096d9452e6877aba5152c035fc57c86c7e",
-    "minNativeVersion": null,
-    "notes": "- feat: 修改路由离开时的滚动位置保存逻辑，确保状态一致性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T13:07:01Z"
   }
 ]
