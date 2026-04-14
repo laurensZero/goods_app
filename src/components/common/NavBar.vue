@@ -1,7 +1,7 @@
 <template>
   <header class="nav-bar">
     <div class="nav-bar__inner">
-      <button v-if="showBack" class="nav-back" type="button" aria-label="返回" @click="router.back()">
+      <button v-if="showBack" class="nav-back" type="button" aria-label="返回" @click="handleBackClick">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M15 18L9 12L15 6" />
         </svg>
@@ -18,6 +18,7 @@
 </template>
 
 <script setup>
+import { getCurrentInstance } from 'vue'
 import { useRouter } from 'vue-router'
 
 defineProps({
@@ -25,7 +26,18 @@ defineProps({
   showBack: { type: Boolean, default: false }
 })
 
+const emit = defineEmits(['back'])
 const router = useRouter()
+const instance = getCurrentInstance()
+
+function handleBackClick() {
+  const hasBackListener = Boolean(instance?.vnode?.props?.onBack)
+  if (hasBackListener) {
+    emit('back')
+    return
+  }
+  router.back()
+}
 </script>
 
 <style scoped>

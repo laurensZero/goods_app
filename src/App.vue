@@ -153,4 +153,50 @@ onBeforeUnmount(() => {
   backface-visibility: hidden;
 }
 
+:global(::view-transition-old(root)),
+:global(::view-transition-new(root)) {
+  animation: none;
+}
+
+:global(::view-transition-group(*)) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  isolation: isolate;
+}
+
+:global(::view-transition-old(*)),
+:global(::view-transition-new(*)) {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+:global(html[data-vt-direction='back']::view-transition-old(*)) {
+  z-index: 20;
+  animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
+}
+
+:global(html[data-vt-direction='back']::view-transition-new(root)) {
+  animation: vt-root-recover 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (min-width: 900px) {
+  :global(::view-transition-group(*)) {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes vt-root-recover {
+  from {
+    opacity: 0.94;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 </style>

@@ -201,8 +201,20 @@ const router = createRouter({
   }
 })
 
+let isPopstateNavigation = false
+window.addEventListener('popstate', () => {
+  isPopstateNavigation = true
+})
+
 router.beforeEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} - 谷子收藏` : '谷子收藏'
+  const htmlEl = document.documentElement
+  if (isPopstateNavigation) {
+    htmlEl.classList.add('is-back')
+  } else {
+    htmlEl.classList.remove('is-back')
+  }
+  isPopstateNavigation = false
 })
 
 export default router

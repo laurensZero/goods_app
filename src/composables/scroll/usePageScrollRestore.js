@@ -13,7 +13,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   let restoreSessionId = 0
   const applyFrameIds = new Set()
   const applyTimeoutIds = new Set()
-  const DEBUG_SCROLL_RESTORE = import.meta.env.DEV
+  const DEBUG_SCROLL_RESTORE = false
 
   function debugLog(message, payload = null) {
     if (!DEBUG_SCROLL_RESTORE) return

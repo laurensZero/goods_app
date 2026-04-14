@@ -168,7 +168,7 @@
 </template>
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { preloadImages } from '@/utils/imageCache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
@@ -181,6 +181,7 @@ import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityF
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
+import { runWithViewTransition } from '@/utils/viewTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -300,6 +301,7 @@ let topJumpMaskTimer = 0
 // 添加方式面板
 const showAddSheet = ref(false)
 const router = useRouter()
+const route = useRoute()
 function persistHomeMode(value) {
   localStorage.setItem(HOME_MODE_STORAGE_KEY, value)
   window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
@@ -850,9 +852,18 @@ watch(
 )
 
 function openDetail(id) {
-  saveScrollPosition(true, `home:openDetail:${id}`)
+  const payload = typeof id === 'object' && id !== null ? id : { id }
+  const goodsId = payload.id
+  saveScrollPosition(true, `home:openDetail:${goodsId}`)
   primeActivatedRestoreWindow(getStoredScrollState())
-  router.push(`/detail/${id}`)
+  runWithViewTransition(
+    () => router.push(`/detail/${goodsId}`),
+    {
+      goodsId,
+      sourceEl: payload.sourceEl || null,
+      returnPath: route.fullPath
+    }
+  )
 }
 
 function openMonthCardCalendar() {

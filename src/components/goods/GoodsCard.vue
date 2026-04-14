@@ -28,8 +28,10 @@
 
     <div class="cover-wrap">
       <div
+        ref="coverEl"
         :class="['card-cover', { 'card-cover--with-image': item.coverImage }]"
-        :style="!item.coverImage ? { background: coverBg } : {}"
+        :data-goods-hero-id="String(item.id || '')"
+        :style="coverStyle"
       >
         <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
@@ -90,6 +92,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { getActiveGoodsHeroTransitionName } from '@/utils/viewTransition'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -101,6 +104,7 @@ const props = defineProps({
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const tagsScrollerRef = ref(null)
+const coverEl = ref(null)
 
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
@@ -136,7 +140,10 @@ function handleTap() {
   if (props.selectionMode) {
     emit('toggle-select')
   } else {
-    emit('open-detail')
+    emit('open-detail', {
+      id: props.item.id,
+      sourceEl: coverEl.value
+    })
   }
 }
 
@@ -234,6 +241,16 @@ const colorMap = {
 const coverBg = computed(() => {
   const [from, to] = colorMap[props.item.category] ?? ['#2c2c2e', '#3a3a3c']
   return `linear-gradient(135deg, ${from}, ${to})`
+})
+
+const coverStyle = computed(() => {
+  const style = {
+    viewTransitionName: getActiveGoodsHeroTransitionName(props.item?.id)
+  }
+  if (!props.item.coverImage) {
+    style.background = coverBg.value
+  }
+  return style
 })
 
 const coverInitial = computed(() => (props.item.name ?? '?').trim().charAt(0).toUpperCase() || '?')

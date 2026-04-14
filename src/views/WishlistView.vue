@@ -127,7 +127,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
@@ -149,6 +149,7 @@ import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { runWithViewTransition } from '@/utils/viewTransition'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -179,6 +180,7 @@ const ROW_HEIGHT_MAP = {
 }
 
 const router = useRouter()
+const route = useRoute()
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
@@ -398,8 +400,17 @@ function triggerTopJumpMask() {
 }
 
 function openDetail(id) {
-  saveScrollPosition(true, `wishlist:openDetail:${id}`)
-  router.push(`/detail/${id}`)
+  const payload = typeof id === 'object' && id !== null ? id : { id }
+  const goodsId = payload.id
+  saveScrollPosition(true, `wishlist:openDetail:${goodsId}`)
+  runWithViewTransition(
+    () => router.push(`/detail/${goodsId}`),
+    {
+      goodsId,
+      sourceEl: payload.sourceEl || null,
+      returnPath: route.fullPath
+    }
+  )
 }
 
 function openSearch() {

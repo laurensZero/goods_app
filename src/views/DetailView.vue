@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="page detail-page">
-    <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back>
+    <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back @back="handleBackNavigation">
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑" @click="router.push('/edit/' + props.id)">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -24,7 +24,7 @@
       <section class="detail-shell">
         <section class="cover-stage">
           <div class="cover-glow" />
-          <div class="cover-card" :style="cachedImgSrc ? {} : { background: coverBg }">
+          <div ref="coverCardRef" class="cover-card" :style="coverCardStyle">
             <img v-if="cachedImgSrc" :src="cachedImgSrc" :alt="item.name" class="cover-img" />
             <div v-else class="cover-fallback">
               <span class="cover-initial">{{ coverInitial }}</span>
@@ -200,6 +200,8 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { getActiveGoodsHeroTransitionName, getPendingDetailReturnPath, runWithViewTransition } from '@/utils/viewTransition'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
@@ -208,6 +210,8 @@ const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
 const pageBodyRef = ref(null)
+const coverCardRef = ref(null)
+let removeAndroidBackListener = null
 
 const item = computed(() => store.getById(props.id))
 const trackList = computed(() =>
@@ -229,6 +233,15 @@ const colorMap = {
 const coverBg = computed(() => {
   const [from, to] = colorMap[item.value?.category] ?? ['#2c2c2e', '#3a3a3c']
   return `linear-gradient(135deg, ${from}, ${to})`
+})
+const coverCardStyle = computed(() => {
+  const style = {
+    viewTransitionName: getActiveGoodsHeroTransitionName(props.id)
+  }
+  if (!cachedImgSrc.value) {
+    style.background = coverBg.value
+  }
+  return style
 })
 
 const galleryImages = computed(() => normalizeGoodsImageList(item.value?.images))
@@ -403,13 +416,46 @@ async function markAsOwned() {
   })
 }
 
+function handleBackNavigation() {
+  const returnPath = getPendingDetailReturnPath()
+  const currentPath = router.currentRoute.value?.fullPath || ''
+  const historyBackPath = window.history?.state?.back || ''
+  const shouldUseHistoryBack = Boolean(returnPath && historyBackPath === returnPath)
+  runWithViewTransition(
+    () => {
+      if (shouldUseHistoryBack) {
+        return router.back()
+      }
+      if (returnPath && returnPath !== currentPath) {
+        return router.push(returnPath)
+      }
+      return router.back()
+    },
+    {
+      goodsId: props.id,
+      direction: 'back',
+      sourceEl: coverCardRef.value
+    }
+  )
+}
+
+function handleAndroidBackButton(event) {
+  event.preventDefault()
+  handleBackNavigation()
+}
+
 onMounted(async () => {
   syncDetailScrollLock(true)
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   await prepareDetailLayout()
 })
 
 onBeforeUnmount(() => {
   syncDetailScrollLock(false)
+  if (removeAndroidBackListener) {
+    removeAndroidBackListener()
+    removeAndroidBackListener = null
+  }
 })
 
 watch(

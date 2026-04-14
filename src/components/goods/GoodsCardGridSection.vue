@@ -21,7 +21,7 @@
         :selection-mode="selectionMode"
         @long-press="emit('long-press', item.id)"
         @toggle-select="emit('toggle-select', item.id)"
-        @open-detail="emit('open-detail', item.id)"
+        @open-detail="(payload) => emit('open-detail', payload || item.id)"
       />
       <div
         v-if="afterSpacerHeight > 0"
