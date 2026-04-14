@@ -1,9 +1,9 @@
 {
-  "version": "20260414.6",
-  "url": "bundle-20260414.6.zip",
-  "hash": "afe34f314517d31acedaebed2a096fa2b98378e09617b28e0700a15eafbffc03",
+  "version": "20260414.7",
+  "url": "bundle-20260414.7.zip",
+  "hash": "3c166adbfec012d3f016ffbf99a502c9d1d529bdfc10c0f6a85684e886a9784e",
   "minNativeVersion": null,
-  "notes": "- feat: 调整浮动播放器文本样式，修改字体大小和粗细以提升可读性",
+  "notes": "- feat: 更新主题样式，统一背景色为应用表面色",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-14T08:58:02Z"
+  "publishedAt": "2026-04-14T11:37:47Z"
 }

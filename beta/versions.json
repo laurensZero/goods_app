@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260414.7",
+    "url": "bundle-20260414.7.zip",
+    "hash": "3c166adbfec012d3f016ffbf99a502c9d1d529bdfc10c0f6a85684e886a9784e",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新主题样式，统一背景色为应用表面色",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-14T11:37:47Z"
+  },
+  {
     "version": "20260414.6",
     "url": "bundle-20260414.6.zip",
     "hash": "afe34f314517d31acedaebed2a096fa2b98378e09617b28e0700a15eafbffc03",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T07:15:37Z"
-  },
-  {
-    "version": "20260414.4",
-    "url": "bundle-20260414.4.zip",
-    "hash": "76e6dfafb7e83cd1e583a2762e4b7c6692519ec85d20baa013eed7e2969f1114",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加局域网同步入口，支持设备间数据互传功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T07:08:58Z"
   }
 ]
