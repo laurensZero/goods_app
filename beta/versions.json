@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.5",
+    "url": "bundle-20260415.5.zip",
+    "hash": "4e2b9818f50484dc80bff6ff24dd2ffc321f5c16969bb6d25742a7903c1d623c",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T07:10:23Z"
+  },
+  {
     "version": "20260415.4",
     "url": "bundle-20260415.4.zip",
     "hash": "181790da86cb72e4eb558df798531e213589941f97f8b3e16995f7f6e690f4c8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T06:23:36Z"
-  },
-  {
-    "version": "20260415.2",
-    "url": "bundle-20260415.2.zip",
-    "hash": "b71bb74e2ed1f4df2e95c761cb2a6782480e061ccf75dbcaeacd47aa3bd9a12f",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化视图切换动画，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T06:21:03Z"
   }
 ]
