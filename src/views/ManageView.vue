@@ -11,7 +11,7 @@
 
       <div class="manage-column manage-column--primary">
         <section class="hub-section">
-          <RouterLink class="entry-card" to="/manage/categories">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/categories')">
             <span class="entry-icon cat-icon">分</span>
             <div class="entry-body">
               <p class="entry-kicker">预设 / 分类</p>
@@ -22,9 +22,9 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
 
-          <RouterLink class="entry-card" to="/manage/ips">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/ips')">
             <span class="entry-icon ip-icon">IP</span>
             <div class="entry-body">
               <p class="entry-kicker">预设 / 作品</p>
@@ -35,9 +35,9 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
 
-          <RouterLink class="entry-card" to="/manage/characters">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/characters')">
             <span class="entry-icon char-icon">角</span>
             <div class="entry-body">
               <p class="entry-kicker">预设 / 角色</p>
@@ -48,11 +48,11 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
         </section>
 
         <section class="hub-section section-gap">
-          <RouterLink class="entry-card" to="/storage-locations">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/storage-locations')">
             <span class="entry-icon storage-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 7h16" />
@@ -70,13 +70,13 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
         </section>
       </div>
 
       <div class="manage-column manage-column--secondary">
         <section class="hub-section">
-          <RouterLink class="entry-card" to="/manage/theme">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/theme')">
             <span class="entry-icon theme-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="4" />
@@ -98,9 +98,9 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
 
-          <RouterLink class="entry-card" to="/trash">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/trash')">
             <span class="entry-icon trash-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 6H21" />
@@ -119,7 +119,7 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
         </section>
 
         <section class="hub-section section-gap">
@@ -225,7 +225,7 @@
 
           <input ref="importFileRef" type="file" accept=".json" hidden @change="handleImport" />
 
-          <RouterLink class="entry-card" to="/manage/sync">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/sync')">
             <span class="entry-icon sync-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21.5 2v6h-6" />
@@ -243,9 +243,9 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
 
-          <RouterLink class="entry-card" to="/manage/about">
+          <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/about')">
             <span class="entry-icon about-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" />
@@ -261,7 +261,7 @@
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </RouterLink>
+          </a>
         </section>
       </div>
 
@@ -274,7 +274,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
@@ -286,8 +286,15 @@ import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { sanitizeGoodsItemForExport, sanitizeEventForExport } from '@/utils/goodsImages'
+import { runManageForwardNavigation } from '@/utils/viewTransition'
 
 defineOptions({ name: 'ManageView' })
+
+const router = useRouter()
+
+function goManageChild(path) {
+  runManageForwardNavigation(() => router.push(path))
+}
 
 const presets = usePresetsStore()
 const goodsStore = useGoodsStore()

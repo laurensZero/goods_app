@@ -159,7 +159,7 @@ onBeforeUnmount(() => {
 }
 
 :global(::view-transition-group(*)) {
-  animation-duration: 220ms;
+  animation-duration: 160ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   isolation: isolate;
 }
@@ -177,12 +177,28 @@ onBeforeUnmount(() => {
 }
 
 :global(html[data-vt-direction='back']::view-transition-new(root)) {
-  animation: vt-root-recover 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: vt-root-recover 175ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:global(html[data-vt-manage-slide='forward']::view-transition-old(root)) {
+  animation: vt-manage-out-left 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+}
+
+:global(html[data-vt-manage-slide='forward']::view-transition-new(root)) {
+  animation: vt-manage-in-from-right 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+}
+
+:global(html[data-vt-manage-slide='back']::view-transition-old(root)) {
+  animation: vt-manage-out-right 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+}
+
+:global(html[data-vt-manage-slide='back']::view-transition-new(root)) {
+  animation: vt-manage-in-from-left 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
 @media (min-width: 900px) {
   :global(::view-transition-group(*)) {
-    animation-duration: 300ms;
+    animation-duration: 210ms;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
@@ -196,6 +212,54 @@ onBeforeUnmount(() => {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes vt-manage-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0.88;
+    transform: translateX(-12%);
+  }
+}
+
+@keyframes vt-manage-in-from-right {
+  from {
+    opacity: 0.92;
+    transform: translateX(12%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vt-manage-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0.88;
+    transform: translateX(12%);
+  }
+}
+
+@keyframes vt-manage-in-from-left {
+  from {
+    opacity: 0.92;
+    transform: translateX(-12%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 

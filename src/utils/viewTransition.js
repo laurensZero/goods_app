@@ -31,14 +31,25 @@ function clearDirectionFlag() {
   document.documentElement.classList.remove('is-back')
 }
 
+function sanitizeHeroIdSegment(id) {
+  return String(id || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
 export function buildGoodsHeroTransitionName(goodsId) {
   const normalizedId = String(goodsId || '').trim()
   if (!normalizedId) return 'none'
-  return 'product-hero'
+  return `goods-hero-${sanitizeHeroIdSegment(normalizedId)}`
+}
+
+export function buildEventHeroTransitionName(eventId) {
+  const normalizedId = String(eventId || '').trim()
+  if (!normalizedId) return 'none'
+  return `event-hero-${sanitizeHeroIdSegment(normalizedId)}`
 }
 
 let activeGoodsHeroId = ''
 const activeGoodsHeroIdRef = ref('')
+const activeEventHeroIdRef = ref('')
 let pendingDetailReturnPath = ''
 
 export function getActiveGoodsHeroTransitionName(goodsId) {
@@ -47,9 +58,24 @@ export function getActiveGoodsHeroTransitionName(goodsId) {
   return buildGoodsHeroTransitionName(normalizedId)
 }
 
+export function getActiveEventHeroTransitionName(eventId) {
+  const normalizedId = String(eventId || '').trim()
+  if (!normalizedId || normalizedId !== activeEventHeroIdRef.value) return 'none'
+  return buildEventHeroTransitionName(normalizedId)
+}
+
 function clearActiveGoodsHeroTransition() {
   activeGoodsHeroId = ''
   activeGoodsHeroIdRef.value = ''
+}
+
+function clearActiveEventHeroTransition() {
+  activeEventHeroIdRef.value = ''
+}
+
+function clearAllHeroTransitions() {
+  clearActiveGoodsHeroTransition()
+  clearActiveEventHeroTransition()
 }
 
 export function setPendingDetailReturnPath(path) {
@@ -75,9 +101,11 @@ export function runWithViewTransition(navigate, options = {}) {
   const {
     enabled = true,
     goodsId = '',
+    eventId = '',
     sourceEl = null,
     direction = 'forward',
-    returnPath = ''
+    returnPath = '',
+    manageSlide = ''
   } = options
   if (typeof navigate !== 'function') return
   if (!enabled || !canUseViewTransition()) {
@@ -86,22 +114,37 @@ export function runWithViewTransition(navigate, options = {}) {
     return
   }
 
-  const normalizedId = String(goodsId || '').trim()
+  const normalizedGoodsId = String(goodsId || '').trim()
+  const normalizedEventId = String(eventId || '').trim()
   if (direction === 'forward' && returnPath) {
     setPendingDetailReturnPath(returnPath)
   }
   const shouldUseHeroTransition = direction !== 'back'
-  const transitionName = shouldUseHeroTransition && normalizedId ? buildGoodsHeroTransitionName(normalizedId) : ''
+  let transitionName = ''
+  if (shouldUseHeroTransition) {
+    if (normalizedEventId) {
+      transitionName = buildEventHeroTransitionName(normalizedEventId)
+    } else if (normalizedGoodsId) {
+      transitionName = buildGoodsHeroTransitionName(normalizedGoodsId)
+    }
+  }
   const canTagSource = Boolean(sourceEl && transitionName)
   const shouldBindHero = Boolean(transitionName)
   if (canTagSource) {
     sourceEl.style.viewTransitionName = transitionName
   }
   if (shouldBindHero) {
-    activeGoodsHeroId = normalizedId
-    activeGoodsHeroIdRef.value = normalizedId
+    if (normalizedEventId) {
+      activeEventHeroIdRef.value = normalizedEventId
+      clearActiveGoodsHeroTransition()
+    } else if (normalizedGoodsId) {
+      activeGoodsHeroId = normalizedGoodsId
+      activeGoodsHeroIdRef.value = normalizedGoodsId
+      clearActiveEventHeroTransition()
+    }
+  } else {
+    clearAllHeroTransitions()
   }
-  else clearActiveGoodsHeroTransition()
 
   const cleanup = () => {
     if (canTagSource) {
@@ -110,10 +153,13 @@ export function runWithViewTransition(navigate, options = {}) {
     if (direction === 'back') {
       pendingDetailReturnPath = ''
     }
-    clearActiveGoodsHeroTransition()
+    clearAllHeroTransitions()
     clearDirectionFlag()
+    if (manageSlide && typeof document !== 'undefined') {
+      document.documentElement.removeAttribute('data-vt-manage-slide')
+    }
     vtLog('cleanup', {
-      goodsId: normalizedId,
+      goodsId: normalizedGoodsId,
       direction,
       hadSourceEl: canTagSource
     })
@@ -121,7 +167,7 @@ export function runWithViewTransition(navigate, options = {}) {
 
   try {
     vtLog('start', {
-      goodsId: normalizedId,
+      goodsId: normalizedGoodsId,
       direction,
       transitionName,
       canTagSource,
@@ -129,10 +175,13 @@ export function runWithViewTransition(navigate, options = {}) {
       inlineNamedCount: countInlineNamedElements(transitionName)
     })
     setDirectionFlag(direction)
+    if (manageSlide && typeof document !== 'undefined') {
+      document.documentElement.dataset.vtManageSlide = manageSlide
+    }
     const transition = document.startViewTransition(() => Promise.resolve(navigate()))
     transition.ready.then(() => {
       vtLog('ready', {
-        goodsId: normalizedId,
+        goodsId: normalizedGoodsId,
         direction,
         transitionName,
         inlineNamedCount: countInlineNamedElements(transitionName)
@@ -143,17 +192,25 @@ export function runWithViewTransition(navigate, options = {}) {
     transition.finished.finally(cleanup)
     transition.finished.then(() => {
       vtLog('finished', {
-        goodsId: normalizedId,
+        goodsId: normalizedGoodsId,
         direction,
         transitionName,
         inlineNamedCount: countInlineNamedElements(transitionName)
       })
     }).catch((error) => {
-      vtLog('finished:rejected', { goodsId: normalizedId, direction, error })
+      vtLog('finished:rejected', { goodsId: normalizedGoodsId, direction, error })
     })
   } catch {
-    vtLog('start:exception-fallback', { goodsId: normalizedId, direction })
+    vtLog('start:exception-fallback', { goodsId: normalizedGoodsId, direction })
     cleanup()
     navigate()
   }
+}
+
+export function runManageForwardNavigation(navigate) {
+  return runWithViewTransition(navigate, { direction: 'forward', manageSlide: 'forward' })
+}
+
+export function runManageBackNavigation(navigate) {
+  return runWithViewTransition(navigate, { direction: 'back', manageSlide: 'back' })
 }

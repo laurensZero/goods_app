@@ -135,6 +135,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsStore } from '@/stores/goods'
 import { sortHomeGoodsList } from '@/utils/homeSort'
 import { writeEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
+import { runWithViewTransition } from '@/utils/viewTransition'
 
 defineOptions({ name: 'EventGoodsPickerView' })
 
@@ -232,22 +233,26 @@ function setSortMode(value) {
 }
 
 function handleBack() {
-  const returnTo = String(route.query.returnTo || '').trim()
-  if (returnTo && window.history.length <= 1) {
-    router.replace(returnTo)
-    return
-  }
-  router.back()
+  runWithViewTransition(() => {
+    const returnTo = String(route.query.returnTo || '').trim()
+    if (returnTo && window.history.length <= 1) {
+      router.replace(returnTo)
+      return
+    }
+    router.back()
+  }, { direction: 'back' })
 }
 
 function confirmSelection() {
   writeEventLinkedGoodsPickerResult([...selectedIds.value])
-  const returnTo = String(route.query.returnTo || '').trim()
-  if (returnTo && window.history.length <= 1) {
-    router.replace(returnTo)
-    return
-  }
-  router.back()
+  runWithViewTransition(() => {
+    const returnTo = String(route.query.returnTo || '').trim()
+    if (returnTo && window.history.length <= 1) {
+      router.replace(returnTo)
+      return
+    }
+    router.back()
+  }, { direction: 'back' })
 }
 
 onMounted(async () => {

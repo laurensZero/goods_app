@@ -22,7 +22,12 @@
       </div>
     </Transition>
 
-    <div class="event-card__media" :class="{ 'event-card__media--empty': !event.coverImage }">
+    <div
+      ref="coverMediaRef"
+      class="event-card__media"
+      :class="{ 'event-card__media--empty': !event.coverImage }"
+      :style="coverMediaStyle"
+    >
       <img
         v-if="event.coverImage"
         class="event-card__image"
@@ -67,6 +72,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
+import { getActiveEventHeroTransitionName } from '@/utils/viewTransition'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -77,6 +83,7 @@ const props = defineProps({
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 
 const tagsScrollerRef = ref(null)
+const coverMediaRef = ref(null)
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
 const startX = ref(0)
@@ -93,6 +100,10 @@ const TYPE_MAP = {
   concert: { label: '音乐会', cls: 'type-concert' },
   other: { label: '其他', cls: 'type-other' }
 }
+
+const coverMediaStyle = computed(() => ({
+  viewTransitionName: getActiveEventHeroTransitionName(props.event?.id)
+}))
 
 const typeInfo = computed(() => TYPE_MAP[props.event.type] || TYPE_MAP.other)
 const typeLabel = computed(() => typeInfo.value.label)
@@ -132,7 +143,10 @@ function handleTap() {
     emit('toggle-select', props.event.id)
     return
   }
-  emit('open-detail', props.event.id)
+  emit('open-detail', {
+    id: props.event.id,
+    sourceEl: coverMediaRef.value
+  })
 }
 
 function onTouchStart(event) {
@@ -301,6 +315,9 @@ onBeforeUnmount(() => {
   aspect-ratio: 4 / 4.6;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
   overflow: hidden;
+  border-radius: 22px;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .event-card__media--empty {
@@ -312,6 +329,7 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: inherit;
 }
 
 .event-card__placeholder {

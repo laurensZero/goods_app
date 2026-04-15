@@ -267,6 +267,7 @@ import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRest
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { runWithViewTransition } from '@/utils/viewTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -472,15 +473,24 @@ function toggleSearch() {
   if (!showSearch.value) searchKeyword.value = ''
 }
 
-function openDetail(id) {
+function openDetail(payload) {
+  const p = typeof payload === 'object' && payload !== null ? payload : { id: payload }
+  const eventId = p.id
   if (selectionMode.value) {
-    toggleSelect(id)
+    toggleSelect(eventId)
     return
   }
-  saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${id}`)
-  router.push(`/events/${id}`).catch(() => {
-    eventsDisplayReady.value = true
-  })
+  saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${eventId}`)
+  runWithViewTransition(
+    () => router.push(`/events/${eventId}`).catch(() => {
+      eventsDisplayReady.value = true
+    }),
+    {
+      eventId,
+      sourceEl: p.sourceEl || null,
+      returnPath: route.fullPath
+    }
+  )
 }
 
 function goToAdd() {

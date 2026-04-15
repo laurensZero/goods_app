@@ -1,6 +1,6 @@
 <template>
   <div v-if="event" class="page event-detail-page" :class="{ 'event-detail-page--restoring': !eventDisplayReady }">
-    <NavBar :title="event.name || '活动详情'" show-back>
+    <NavBar :title="event.name || '活动详情'" show-back @back="handleBackNavigation">
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="router.push({ path: `/events/edit/${event.id}`, query: { returnTo: route.fullPath } })">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -22,7 +22,12 @@
       <section class="detail-shell">
         <aside class="media-column">
           <section class="cover-stage">
-            <div class="cover-card" :class="{ 'cover-card--empty': !event.coverImage }">
+            <div
+              ref="coverCardRef"
+              class="cover-card"
+              :class="{ 'cover-card--empty': !event.coverImage }"
+              :style="coverCardStyle"
+            >
               <img v-if="event.coverImage" :src="event.coverImage" :alt="event.name" class="cover-card__img" />
               <div v-else class="cover-card__fallback">{{ coverFallback }}</div>
             </div>
@@ -109,16 +114,18 @@
             </div>
 
             <div class="linked-goods-grid">
-              <RouterLink
+              <a
                 v-for="goods in linkedGoodsList"
                 :key="goods.id"
-                :to="`/detail/${goods.id}`"
+                href="#"
                 class="linked-goods-card"
+                role="link"
+                @click.prevent="openLinkedGoodsDetail(goods, $event)"
               >
                 <img v-if="goods.coverImage" :src="goods.coverImage" :alt="goods.name" class="linked-goods-card__img" />
                 <div v-else class="linked-goods-card__placeholder">{{ goods.name?.trim()?.charAt(0) || '谷' }}</div>
                 <span class="linked-goods-card__name">{{ goods.name }}</span>
-              </RouterLink>
+              </a>
             </div>
           </section>
         </section>
@@ -179,6 +186,7 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
+import { getActiveEventHeroTransitionName, getPendingDetailReturnPath, runWithViewTransition } from '@/utils/viewTransition'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 
@@ -197,6 +205,7 @@ const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
 const pageBodyRef = ref(null)
+const coverCardRef = ref(null)
 const eventDisplayReady = ref(true)
 
 const showDeleteDialog = ref(false)
@@ -219,6 +228,9 @@ const typeInfo = computed(() => TYPE_MAP[event.value?.type] || TYPE_MAP.other)
 const typeLabel = computed(() => typeInfo.value.label)
 const typeChipClass = computed(() => typeInfo.value.cls)
 const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || '活')
+const coverCardStyle = computed(() => ({
+  viewTransitionName: getActiveEventHeroTransitionName(eventId.value)
+}))
 const dateDisplay = computed(() => {
   if (!event.value?.startDate) return '未填写'
   if (!event.value.endDate || event.value.endDate === event.value.startDate) return event.value.startDate
@@ -396,6 +408,39 @@ async function handleDelete() {
   await eventsStore.removeEventRecord(event.value.id)
   showDeleteDialog.value = false
   router.replace('/events')
+}
+
+function handleBackNavigation() {
+  const returnPath = getPendingDetailReturnPath()
+  const currentPath = router.currentRoute.value?.fullPath || ''
+  const historyBackPath = window.history?.state?.back || ''
+  const shouldUseHistoryBack = Boolean(returnPath && historyBackPath === returnPath)
+  runWithViewTransition(
+    () => {
+      if (shouldUseHistoryBack) {
+        return router.back()
+      }
+      if (returnPath && returnPath !== currentPath) {
+        return router.push(returnPath)
+      }
+      return router.back()
+    },
+    {
+      direction: 'back',
+      sourceEl: coverCardRef.value
+    }
+  )
+}
+
+function openLinkedGoodsDetail(goods, domEvent) {
+  runWithViewTransition(
+    () => router.push(`/detail/${goods.id}`),
+    {
+      goodsId: goods.id,
+      sourceEl: domEvent?.currentTarget || null,
+      returnPath: route.fullPath
+    }
+  )
 }
 </script>
 

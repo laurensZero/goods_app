@@ -19,7 +19,8 @@
 
 <script setup>
 import { getCurrentInstance } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { runManageBackNavigation } from '@/utils/viewTransition'
 
 defineProps({
   title: { type: String, default: '' },
@@ -28,12 +29,24 @@ defineProps({
 
 const emit = defineEmits(['back'])
 const router = useRouter()
+const route = useRoute()
 const instance = getCurrentInstance()
+
+function isManageEntrySlideRoute(path) {
+  if (!path) return false
+  if (path === '/manage' || path === '/manage/') return false
+  if (path.startsWith('/manage/')) return true
+  return path === '/storage-locations' || path === '/trash'
+}
 
 function handleBackClick() {
   const hasBackListener = Boolean(instance?.vnode?.props?.onBack)
   if (hasBackListener) {
     emit('back')
+    return
+  }
+  if (isManageEntrySlideRoute(route.path)) {
+    runManageBackNavigation(() => router.back())
     return
   }
   router.back()
