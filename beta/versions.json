@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.6",
+    "url": "bundle-20260415.6.zip",
+    "hash": "86491c2e974d36cbf91267b3f45bb80df081d708252c94e2cf63ecedfe119c20",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加页面过渡动画设置功能，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T07:18:02Z"
+  },
+  {
     "version": "20260415.5",
     "url": "bundle-20260415.5.zip",
     "hash": "4e2b9818f50484dc80bff6ff24dd2ffc321f5c16969bb6d25742a7903c1d623c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化返回导航逻辑，简化路径选择，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T06:46:13Z"
-  },
-  {
-    "version": "20260415.3",
-    "url": "bundle-20260415.3.zip",
-    "hash": "c17017a53507437d41bc08829cdeb69e9521f5d2bbf32a89a99af2114eb9712f",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T06:23:36Z"
   }
 ]
