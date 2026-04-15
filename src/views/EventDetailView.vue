@@ -121,10 +121,17 @@
                 href="#"
                 class="linked-goods-card"
                 role="link"
+                :data-linked-goods-id="String(goods.id || '')"
                 @click.prevent="openLinkedGoodsDetail(goods, $event)"
               >
-                <img v-if="goods.coverImage" :src="goods.coverImage" :alt="goods.name" class="linked-goods-card__img" />
-                <div v-else class="linked-goods-card__placeholder">{{ goods.name?.trim()?.charAt(0) || '谷' }}</div>
+                <img
+                  v-if="goods.coverImage"
+                  :src="goods.coverImage"
+                  :alt="goods.name"
+                  class="linked-goods-card__img"
+                  :data-goods-hero-id="String(goods.id || '')"
+                />
+                <div v-else class="linked-goods-card__placeholder" :data-goods-hero-id="String(goods.id || '')">{{ goods.name?.trim()?.charAt(0) || '谷' }}</div>
                 <span class="linked-goods-card__name">{{ goods.name }}</span>
               </a>
             </div>
@@ -187,8 +194,8 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
-import { getPendingDetailReturnPath, runWithRouteTransition } from '@/utils/routeTransition'
-import { playEventHeroForward, prepareEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getPendingDetailReturnPath, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/nativeGoodsHeroTransition'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 
@@ -366,6 +373,7 @@ onMounted(async () => {
   await nextTick()
   window.requestAnimationFrame(() => {
     playEventHeroForward(eventId.value, coverCardRef.value)
+    tryPlayLinkedGoodsBackHero()
   })
 })
 
@@ -379,6 +387,7 @@ onActivated(async () => {
   await nextTick()
   window.requestAnimationFrame(() => {
     playEventHeroForward(eventId.value, coverCardRef.value)
+    tryPlayLinkedGoodsBackHero()
   })
 })
 
@@ -400,6 +409,7 @@ watch(eventId, async () => {
   await nextTick()
   window.requestAnimationFrame(() => {
     playEventHeroForward(eventId.value, coverCardRef.value)
+    tryPlayLinkedGoodsBackHero()
   })
 })
 
@@ -427,10 +437,11 @@ function handleBackNavigation() {
   const returnPath = getPendingDetailReturnPath()
   const currentPath = router.currentRoute.value?.fullPath || ''
   const historyBackPath = window.history?.state?.back || ''
+  const filteredHistoryBackPath = historyBackPath.startsWith('/detail/') ? '' : historyBackPath
   const fallbackPath = '/events'
   const targetPath = (() => {
     if (returnPath && returnPath !== currentPath) return returnPath
-    if (historyBackPath && historyBackPath !== currentPath) return historyBackPath
+    if (filteredHistoryBackPath && filteredHistoryBackPath !== currentPath) return filteredHistoryBackPath
     return fallbackPath
   })()
 
@@ -444,13 +455,45 @@ function handleBackNavigation() {
 }
 
 function openLinkedGoodsDetail(goods, domEvent) {
-  runWithRouteTransition(
-    () => router.push(`/detail/${goods.id}`),
-    {
-      goodsId: goods.id,
-      returnPath: route.fullPath
-    }
-  )
+  const cardRoot = domEvent?.currentTarget || null
+  const normalizedGoodsId = String(goods?.id || '')
+  const escapedGoodsId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(normalizedGoodsId)
+    : normalizedGoodsId.replace(/"/g, '\\"')
+  const heroSourceEl = cardRoot?.querySelector?.(`[data-goods-hero-id="${escapedGoodsId}"]`) || cardRoot
+
+  prepareGoodsHeroForward({
+    goodsId: goods.id,
+    sourceEl: heroSourceEl || null
+  })
+  setPendingDetailReturnPath(route.fullPath)
+  router.push(`/detail/${goods.id}`).catch(() => {
+    eventDisplayReady.value = true
+  })
+}
+
+function resolveLinkedGoodsCover(goodsId) {
+  const normalized = String(goodsId || '')
+  if (!normalized) return null
+  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(normalized)
+    : normalized.replace(/"/g, '\\"')
+  const rootEl = pageBodyRef.value || document
+  const cardRoot = rootEl?.querySelector?.(`[data-linked-goods-id="${escaped}"]`) || null
+  if (cardRoot) {
+    const coverInsideCard = cardRoot.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
+    if (coverInsideCard) return coverInsideCard
+  }
+  const directCover = rootEl?.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
+  if (directCover) return directCover
+  return cardRoot
+}
+
+function tryPlayLinkedGoodsBackHero() {
+  playGoodsHeroBack({
+    currentPath: route.fullPath,
+    resolveTargetEl: resolveLinkedGoodsCover
+  })
 }
 </script>
 

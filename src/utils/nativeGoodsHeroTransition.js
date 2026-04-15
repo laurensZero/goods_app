@@ -106,13 +106,17 @@ function lockBackScroll(targetEl, duration = BACK_SCROLL_LOCK_MS) {
 
 function readImageSource(el) {
   if (!el) return ''
+  if (String(el.tagName || '').toUpperCase() === 'IMG') {
+    return el.currentSrc || el.src || ''
+  }
   const img = el.querySelector('img')
   return img?.currentSrc || img?.src || ''
 }
 
 function readFallbackText(el) {
   if (!el) return ''
-  const fallback = el.querySelector('.cover-fallback, .cover-card__fallback, .event-card__placeholder, .cover-initial')
+  const selector = '.cover-fallback, .cover-card__fallback, .event-card__placeholder, .linked-goods-card__placeholder, .cover-initial'
+  const fallback = el.matches?.(selector) ? el : el.querySelector(selector)
   return String(fallback?.textContent || '').trim().slice(0, 1)
 }
 
