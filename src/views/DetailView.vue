@@ -1,5 +1,5 @@
 <template>
-  <div class="page detail-page">
+  <div class="page detail-page" :class="{ 'detail-page--entry-lock': detailEntryScrollLockActive }">
     <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back @back="handleBackNavigation">
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑" @click="router.push('/edit/' + props.id)">
@@ -350,10 +350,37 @@ const acquiredAtDisplayText = computed(() => {
 
 const cachedImgSrc = ref('')
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
+const DETAIL_ENTRY_SCROLL_LOCK_MS = 380
+const detailEntryScrollLockActive = ref(false)
+let detailEntryScrollLockTimer = 0
 
 function syncDetailScrollLock(active) {
   document.documentElement.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, active)
   document.body.classList.toggle(DETAIL_SCROLL_LOCK_CLASS, active)
+}
+
+function clearDetailEntryScrollLockTimer() {
+  if (!detailEntryScrollLockTimer) return
+  window.clearTimeout(detailEntryScrollLockTimer)
+  detailEntryScrollLockTimer = 0
+}
+
+function releaseDetailEntryScrollLock() {
+  clearDetailEntryScrollLockTimer()
+  detailEntryScrollLockActive.value = false
+}
+
+function lockDetailEntryScrollLock(duration = DETAIL_ENTRY_SCROLL_LOCK_MS) {
+  clearDetailEntryScrollLockTimer()
+  detailEntryScrollLockActive.value = true
+  if (duration <= 0) {
+    releaseDetailEntryScrollLock()
+    return
+  }
+  detailEntryScrollLockTimer = window.setTimeout(() => {
+    detailEntryScrollLockTimer = 0
+    detailEntryScrollLockActive.value = false
+  }, duration)
 }
 
 function resetScrollPosition() {
@@ -473,6 +500,7 @@ function handleAndroidBackButton(event) {
 
 onMounted(async () => {
   syncDetailScrollLock(true)
+  lockDetailEntryScrollLock()
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   await prepareDetailLayout()
   await nextTick()
@@ -482,6 +510,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  releaseDetailEntryScrollLock()
   syncDetailScrollLock(false)
   if (removeAndroidBackListener) {
     removeAndroidBackListener()
@@ -492,6 +521,7 @@ onBeforeUnmount(() => {
 watch(
   () => props.id,
   async () => {
+    lockDetailEntryScrollLock()
     activeImageId.value = ''
     await prepareDetailLayout()
     await nextTick()
@@ -517,6 +547,12 @@ function getImageKindLabel(kind) {
   overscroll-behavior-y: contain;
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.detail-page--entry-lock .page-body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .detail-page .page-body::-webkit-scrollbar {

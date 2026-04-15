@@ -1,5 +1,12 @@
 <template>
-  <div v-if="event" class="page event-detail-page" :class="{ 'event-detail-page--restoring': !eventDisplayReady }">
+  <div
+    v-if="event"
+    class="page event-detail-page"
+    :class="{
+      'event-detail-page--restoring': !eventDisplayReady,
+      'event-detail-page--entry-lock': detailEntryScrollLockActive
+    }"
+  >
     <NavBar :title="event.name || '活动详情'" show-back @back="handleBackNavigation">
       <template #right>
         <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="router.push({ path: `/events/edit/${event.id}`, query: { returnTo: route.fullPath } })">
@@ -205,6 +212,7 @@ defineOptions({ name: 'EventDetailView' })
 const EVENT_DETAIL_STATE_PREFIX = 'event-detail-state-v1'
 const EVENT_DETAIL_PENDING_PREFIX = 'event-detail-pending-v1'
 const EVENT_DETAIL_TRACK_KEY_PREFIX = 'event-detail-track-expanded-v1'
+const EVENT_DETAIL_ENTRY_SCROLL_LOCK_MS = 380
 
 const props = defineProps({
   id: { type: String, default: '' }
@@ -217,6 +225,8 @@ const goodsStore = useGoodsStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const eventDisplayReady = ref(true)
+const detailEntryScrollLockActive = ref(false)
+let detailEntryScrollLockTimer = 0
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
@@ -259,6 +269,26 @@ const ticketPriceAmount = computed(() => {
   const value = Number.parseFloat(String(event.value?.ticketPrice || '').trim())
   return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : '0'
 })
+
+function clearDetailEntryScrollLockTimer() {
+  if (!detailEntryScrollLockTimer) return
+  window.clearTimeout(detailEntryScrollLockTimer)
+  detailEntryScrollLockTimer = 0
+}
+
+function releaseDetailEntryScrollLock() {
+  clearDetailEntryScrollLockTimer()
+  detailEntryScrollLockActive.value = false
+}
+
+function lockDetailEntryScrollLock(duration = EVENT_DETAIL_ENTRY_SCROLL_LOCK_MS) {
+  clearDetailEntryScrollLockTimer()
+  detailEntryScrollLockActive.value = true
+  detailEntryScrollLockTimer = window.setTimeout(() => {
+    detailEntryScrollLockTimer = 0
+    detailEntryScrollLockActive.value = false
+  }, Math.max(0, duration))
+}
 
 function getStoredViewState() {
   const raw = sessionStorage.getItem(eventStateKey.value)
@@ -365,6 +395,7 @@ async function refresh() {
 
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+  lockDetailEntryScrollLock()
   const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
   eventDisplayReady.value = !shouldRestore
   if (!eventsStore.isReady) {
@@ -381,6 +412,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  releaseDetailEntryScrollLock()
   if (typeof removeAndroidBackListener === 'function') {
     removeAndroidBackListener()
   }
@@ -388,6 +420,7 @@ onBeforeUnmount(() => {
 })
 
 onActivated(async () => {
+  lockDetailEntryScrollLock()
   const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
   if (shouldRestore) {
     eventDisplayReady.value = false
@@ -412,6 +445,7 @@ onBeforeRouteLeave((to) => {
 })
 
 watch(eventId, async () => {
+  lockDetailEntryScrollLock()
   eventDisplayReady.value = false
   previewPhotoIndex.value = -1
   await restoreViewState()
@@ -521,6 +555,12 @@ function tryPlayLinkedGoodsBackHero() {
 
 .event-detail-page--restoring {
   visibility: hidden;
+}
+
+.event-detail-page--entry-lock .page-body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .event-detail-page .page-body {
