@@ -1,9 +1,9 @@
 {
-  "version": "20260415.3",
-  "url": "bundle-20260415.3.zip",
-  "hash": "c17017a53507437d41bc08829cdeb69e9521f5d2bbf32a89a99af2114eb9712f",
+  "version": "20260415.4",
+  "url": "bundle-20260415.4.zip",
+  "hash": "181790da86cb72e4eb558df798531e213589941f97f8b3e16995f7f6e690f4c8",
   "minNativeVersion": null,
-  "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
+  "notes": "- feat: 优化返回导航逻辑，简化路径选择，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T06:23:36Z"
+  "publishedAt": "2026-04-15T06:46:13Z"
 }
