@@ -449,9 +449,6 @@ function persistHomeMode(mode) {
 }
 
 function switchTopTab(nextMode) {
-  const tabOrder = { goods: 0, wishlist: 1, stats: 2 }
-  const currentIndex = tabOrder.wishlist
-
   if (nextMode === 'goods') {
     persistCollectionTab('goods')
     persistHomeMode('goods')
@@ -459,7 +456,7 @@ function switchTopTab(nextMode) {
     runWithRouteTransition(
       () => router.push('/home'),
       {
-        direction: tabOrder.goods >= currentIndex ? 'forward' : 'back',
+        direction: 'forward',
         preferFallback: true
       }
     )
@@ -472,7 +469,7 @@ function switchTopTab(nextMode) {
     runWithRouteTransition(
       () => router.push('/leaderboard/characters'),
       {
-        direction: tabOrder.stats >= currentIndex ? 'forward' : 'back',
+        direction: 'forward',
         preferFallback: true
       }
     )

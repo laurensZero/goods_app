@@ -1,6 +1,7 @@
 const FORWARD_DURATION_MS = 380
 const BACK_DURATION_MS = 340
 const BACK_SCROLL_LOCK_MS = 200
+const BACK_HERO_PENDING_TTL_MS = 1600
 const HERO_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
 let pendingForwardHero = null
@@ -284,6 +285,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
 
   pendingBackHero = {
     goodsId: String(goodsId),
+    preparedAt: Date.now(),
     targetPath: String(targetPath || ''),
     left: rect.left,
     top: rect.top,
@@ -297,17 +299,21 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
 }
 
 export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
-  if (!pendingBackHero) return
+  if (!pendingBackHero) return false
+  const ageMs = Date.now() - Number(pendingBackHero.preparedAt || 0)
+  if (!Number.isFinite(ageMs) || ageMs > BACK_HERO_PENDING_TTL_MS) {
+    pendingBackHero = null
+    return false
+  }
   const normalizedCurrentPath = String(currentPath || '').split('?')[0]
   const normalizedTargetPath = String(pendingBackHero.targetPath || '').split('?')[0]
-  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) return
-  if (typeof resolveTargetEl !== 'function') return
+  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) return false
+  if (typeof resolveTargetEl !== 'function') return false
 
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    pendingBackHero = null
-    return
+    return false
   }
 
   const releaseScrollLock = lockBackScroll(
@@ -328,6 +334,7 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   })
 
   pendingBackHero = null
+  return true
 }
 
 export function prepareEventHeroForward({ eventId, sourceEl }) {
@@ -378,6 +385,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
 
   pendingBackEventHero = {
     eventId: String(eventId),
+    preparedAt: Date.now(),
     targetPath: String(targetPath || ''),
     left: rect.left,
     top: rect.top,
@@ -391,17 +399,21 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
 }
 
 export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
-  if (!pendingBackEventHero) return
+  if (!pendingBackEventHero) return false
+  const ageMs = Date.now() - Number(pendingBackEventHero.preparedAt || 0)
+  if (!Number.isFinite(ageMs) || ageMs > BACK_HERO_PENDING_TTL_MS) {
+    pendingBackEventHero = null
+    return false
+  }
   const normalizedCurrentPath = String(currentPath || '').split('?')[0]
   const normalizedTargetPath = String(pendingBackEventHero.targetPath || '').split('?')[0]
-  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) return
-  if (typeof resolveTargetEl !== 'function') return
+  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) return false
+  if (typeof resolveTargetEl !== 'function') return false
 
   const targetEl = resolveTargetEl(pendingBackEventHero.eventId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    pendingBackEventHero = null
-    return
+    return false
   }
 
   const releaseScrollLock = lockBackScroll(
@@ -422,4 +434,5 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
   })
 
   pendingBackEventHero = null
+  return true
 }

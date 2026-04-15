@@ -41,7 +41,7 @@
           :root-margin="preferEagerCoverLoad ? '180px 0px' : '520px 0px'"
           class="cover-img"
         />
-        <span v-else class="cover-initial">{{ coverInitial }}</span>
+        <span v-if="!item.coverImage" class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div
         v-if="item.isWishlist"

@@ -188,7 +188,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
@@ -196,6 +196,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import { getPendingDetailReturnPath, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/nativeGoodsHeroTransition'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 
@@ -220,6 +221,7 @@ const eventDisplayReady = ref(true)
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
 const trackSectionExpanded = ref(true)
+let removeAndroidBackListener = null
 
 const eventId = computed(() => props.id || route.params.id)
 const event = computed(() => eventsStore.getById(eventId.value))
@@ -362,6 +364,7 @@ async function refresh() {
 }
 
 onMounted(async () => {
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
   eventDisplayReady.value = !shouldRestore
   if (!eventsStore.isReady) {
@@ -375,6 +378,13 @@ onMounted(async () => {
     playEventHeroForward(eventId.value, coverCardRef.value)
     tryPlayLinkedGoodsBackHero()
   })
+})
+
+onBeforeUnmount(() => {
+  if (typeof removeAndroidBackListener === 'function') {
+    removeAndroidBackListener()
+  }
+  removeAndroidBackListener = null
 })
 
 onActivated(async () => {
@@ -452,6 +462,11 @@ function handleBackNavigation() {
   })
 
   router.push(targetPath)
+}
+
+function handleAndroidBackButton(event) {
+  event.preventDefault()
+  handleBackNavigation()
 }
 
 function openLinkedGoodsDetail(goods, domEvent) {

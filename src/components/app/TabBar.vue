@@ -170,12 +170,9 @@ function isTabActive(key) {
 
 function navigateWithTransition(path, tabKey) {
   if (route.path === path) return
-  const targetIndex = tabs.value.findIndex((tab) => tab.key === tabKey)
-  const currentIndex = activeTabIndex.value
-  const direction = targetIndex >= currentIndex ? 'forward' : 'back'
   runWithRouteTransition(
     () => router.push(path),
-    { direction }
+    { direction: 'forward' }
   )
 }
 
