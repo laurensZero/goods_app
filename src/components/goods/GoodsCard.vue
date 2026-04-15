@@ -92,7 +92,6 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import { getActiveGoodsHeroTransitionName } from '@/utils/viewTransition'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -244,9 +243,7 @@ const coverBg = computed(() => {
 })
 
 const coverStyle = computed(() => {
-  const style = {
-    viewTransitionName: getActiveGoodsHeroTransitionName(props.item?.id)
-  }
+  const style = {}
   if (!props.item.coverImage) {
     style.background = coverBg.value
   }

@@ -149,7 +149,8 @@ import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -403,14 +404,35 @@ function openDetail(id) {
   const payload = typeof id === 'object' && id !== null ? id : { id }
   const goodsId = payload.id
   saveScrollPosition(true, `wishlist:openDetail:${goodsId}`)
-  runWithViewTransition(
-    () => router.push(`/detail/${goodsId}`),
-    {
-      goodsId,
-      sourceEl: payload.sourceEl || null,
-      returnPath: route.fullPath
-    }
-  )
+  prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
+  setPendingDetailReturnPath(route.fullPath)
+  router.push(`/detail/${goodsId}`).catch(() => {
+    wishlistDisplayReady.value = true
+  })
+}
+
+function resolveGoodsCardCover(goodsId) {
+  const normalized = String(goodsId || '')
+  if (!normalized) return null
+  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(normalized)
+    : normalized.replace(/"/g, '\\"')
+  const rootEl = getScrollEl() || pageBodyRef.value || document
+  const cardRoot = rootEl?.querySelector?.(`[data-goods-id="${escaped}"]`) || null
+  if (cardRoot) {
+    const coverInsideCard = cardRoot.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
+    if (coverInsideCard) return coverInsideCard
+  }
+  const directCover = rootEl?.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
+  if (directCover) return directCover
+  return cardRoot
+}
+
+function tryPlayNativeGoodsBackHero() {
+  playGoodsHeroBack({
+    currentPath: route.fullPath,
+    resolveTargetEl: resolveGoodsCardCover
+  })
 }
 
 function openSearch() {
@@ -434,9 +456,12 @@ function switchTopTab(nextMode) {
     persistCollectionTab('goods')
     persistHomeMode('goods')
     saveScrollPosition(true, 'wishlist:navigateToGoods')
-    runWithViewTransition(
+    runWithRouteTransition(
       () => router.push('/home'),
-      { direction: tabOrder.goods >= currentIndex ? 'forward' : 'back' }
+      {
+        direction: tabOrder.goods >= currentIndex ? 'forward' : 'back',
+        preferFallback: true
+      }
     )
     return
   }
@@ -444,9 +469,12 @@ function switchTopTab(nextMode) {
   if (nextMode === 'stats') {
     persistCollectionTab('stats')
     saveScrollPosition(true, 'wishlist:navigateToStats')
-    runWithViewTransition(
+    runWithRouteTransition(
       () => router.push('/leaderboard/characters'),
-      { direction: tabOrder.stats >= currentIndex ? 'forward' : 'back' }
+      {
+        direction: tabOrder.stats >= currentIndex ? 'forward' : 'back',
+        preferFallback: true
+      }
     )
   }
 }
@@ -560,6 +588,9 @@ onMounted(async () => {
   await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
+  window.requestAnimationFrame(() => {
+    tryPlayNativeGoodsBackHero()
+  })
   updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
@@ -572,6 +603,9 @@ onActivated(async () => {
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
+  window.requestAnimationFrame(() => {
+    tryPlayNativeGoodsBackHero()
+  })
   bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()

@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 import HomeView from '@/views/HomeView.vue'
+import RechargeView from '@/views/RechargeView.vue'
 import WishlistView from '@/views/WishlistView.vue'
 import DetailView from '@/views/DetailView.vue'
 import ManageView from '@/views/ManageView.vue'
@@ -14,6 +15,12 @@ const routes = [
     name: 'home',
     component: HomeView,
     meta: { title: '我的谷子', keepAlive: true }
+  },
+  {
+    path: '/recharge',
+    name: 'recharge',
+    component: RechargeView,
+    meta: { title: '充值', keepAlive: true }
   },
   {
     path: '/wishlist',
@@ -179,6 +186,7 @@ const MANUAL_SCROLL_RESTORE_ROUTES = new Set([
   'home',
   'search',
   'wishlist',
+  'recharge',
   'events',
   'detail',
   'character-leaderboard',

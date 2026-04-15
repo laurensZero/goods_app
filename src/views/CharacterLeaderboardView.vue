@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page leaderboard-page" :class="{ 'leaderboard-page--top-jump': topJumpMasking }">
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
@@ -144,7 +144,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -226,18 +226,24 @@ function switchTopTab(nextMode) {
   if (nextMode === 'goods') {
     persistCollectionTab('goods')
     persistHomeMode('goods')
-    runWithViewTransition(
+    runWithRouteTransition(
       () => router.push('/home'),
-      { direction: tabOrder.goods >= currentIndex ? 'forward' : 'back' }
+      {
+        direction: tabOrder.goods >= currentIndex ? 'forward' : 'back',
+        preferFallback: true
+      }
     )
     return
   }
 
   if (nextMode === 'wishlist') {
     persistCollectionTab('wishlist')
-    runWithViewTransition(
+    runWithRouteTransition(
       () => router.push('/wishlist'),
-      { direction: tabOrder.wishlist >= currentIndex ? 'forward' : 'back' }
+      {
+        direction: tabOrder.wishlist >= currentIndex ? 'forward' : 'back',
+        preferFallback: true
+      }
     )
   }
 }

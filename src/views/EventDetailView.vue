@@ -26,6 +26,7 @@
               ref="coverCardRef"
               class="cover-card"
               :class="{ 'cover-card--empty': !event.coverImage }"
+              :data-event-hero-id="String(eventId || '')"
               :style="coverCardStyle"
             >
               <img v-if="event.coverImage" :src="event.coverImage" :alt="event.name" class="cover-card__img" />
@@ -186,7 +187,8 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
-import { getActiveEventHeroTransitionName, getPendingDetailReturnPath, runWithViewTransition } from '@/utils/viewTransition'
+import { getPendingDetailReturnPath, runWithRouteTransition } from '@/utils/routeTransition'
+import { playEventHeroForward, prepareEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 
@@ -228,9 +230,7 @@ const typeInfo = computed(() => TYPE_MAP[event.value?.type] || TYPE_MAP.other)
 const typeLabel = computed(() => typeInfo.value.label)
 const typeChipClass = computed(() => typeInfo.value.cls)
 const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || '活')
-const coverCardStyle = computed(() => ({
-  viewTransitionName: getActiveEventHeroTransitionName(eventId.value)
-}))
+const coverCardStyle = computed(() => ({}))
 const dateDisplay = computed(() => {
   if (!event.value?.startDate) return '未填写'
   if (!event.value.endDate || event.value.endDate === event.value.startDate) return event.value.startDate
@@ -363,6 +363,10 @@ onMounted(async () => {
   await refresh()
   await restoreViewState()
   eventDisplayReady.value = true
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    playEventHeroForward(eventId.value, coverCardRef.value)
+  })
 })
 
 onActivated(async () => {
@@ -372,6 +376,10 @@ onActivated(async () => {
   }
   await restoreViewState()
   eventDisplayReady.value = true
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    playEventHeroForward(eventId.value, coverCardRef.value)
+  })
 })
 
 onBeforeRouteLeave((to) => {
@@ -389,6 +397,10 @@ watch(eventId, async () => {
   previewPhotoIndex.value = -1
   await restoreViewState()
   eventDisplayReady.value = true
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    playEventHeroForward(eventId.value, coverCardRef.value)
+  })
 })
 
 watch(trackSectionExpanded, (value) => {
@@ -422,21 +434,20 @@ function handleBackNavigation() {
     return fallbackPath
   })()
 
-  runWithViewTransition(
-    () => router.push(targetPath),
-    {
-      direction: 'back',
-      sourceEl: coverCardRef.value
-    }
-  )
+  prepareEventHeroBack({
+    eventId: eventId.value,
+    sourceEl: coverCardRef.value,
+    targetPath
+  })
+
+  router.push(targetPath)
 }
 
 function openLinkedGoodsDetail(goods, domEvent) {
-  runWithViewTransition(
+  runWithRouteTransition(
     () => router.push(`/detail/${goods.id}`),
     {
       goodsId: goods.id,
-      sourceEl: domEvent?.currentTarget || null,
       returnPath: route.fullPath
     }
   )

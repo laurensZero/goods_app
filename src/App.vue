@@ -44,7 +44,7 @@ const rechargeStore = useRechargeStore()
 const announcementStore = useAnnouncementStore()
 const appUpdateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
-const keepAliveViewNames = ['HomeView', 'WishlistView', 'ManageView', 'EventsView']
+const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'ManageView', 'EventsView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const hasLocalData = computed(() => (
@@ -153,104 +153,27 @@ body,
   backface-visibility: hidden;
 }
 
-html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='forward'] .route-scene {
-  animation: vt-fallback-page-forward 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+html[data-route-transition-fallback='1'][data-route-transition-kind='page'][data-route-transition-direction='forward'] .route-scene {
+  animation: route-fallback-page-forward 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
   will-change: transform, opacity;
 }
 
-html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='back'] .route-scene {
-  animation: vt-fallback-page-back 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+html[data-route-transition-fallback='1'][data-route-transition-kind='page'][data-route-transition-direction='back'] .route-scene {
+  animation: route-fallback-page-back 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
   will-change: transform, opacity;
 }
 
-html[data-vt-fallback='1'][data-vt-fallback-kind='detail-enter'] .route-scene {
-  animation: vt-fallback-detail-enter 220ms cubic-bezier(0.2, 0.85, 0.2, 1);
+html[data-route-transition-fallback='1'][data-route-transition-kind='detail-enter'] .route-scene {
+  animation: route-fallback-detail-enter 220ms cubic-bezier(0.2, 0.85, 0.2, 1);
   will-change: transform, opacity;
 }
 
-html[data-vt-fallback='1'][data-vt-fallback-kind='detail-back'] .route-scene {
-  animation: vt-fallback-detail-back 210ms cubic-bezier(0.2, 0.85, 0.2, 1);
+html[data-route-transition-fallback='1'][data-route-transition-kind='detail-back'] .route-scene {
+  animation: route-fallback-detail-back 210ms cubic-bezier(0.2, 0.85, 0.2, 1);
   will-change: transform, opacity;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 140ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation-fill-mode: both;
-}
-
-::view-transition-old(root) {
-  animation-name: vt-root-out;
-}
-
-::view-transition-new(root) {
-  animation-name: vt-root-in;
-}
-
-::view-transition-group(*) {
-  animation-duration: 130ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-  isolation: isolate;
-}
-
-::view-transition-old(*),
-::view-transition-new(*) {
-  will-change: transform, opacity;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-html[data-vt-direction='back']::view-transition-old(*) {
-  z-index: 20;
-  animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
-}
-
-html[data-vt-direction='back']::view-transition-new(root) {
-  animation: vt-root-recover 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-html[data-vt-manage-slide='forward']::view-transition-old(root) {
-  animation: vt-manage-out-left 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
-}
-
-html[data-vt-manage-slide='forward']::view-transition-new(root) {
-  animation: vt-manage-in-from-right 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
-}
-
-html[data-vt-manage-slide='back']::view-transition-old(root) {
-  animation: vt-manage-out-right 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
-}
-
-html[data-vt-manage-slide='back']::view-transition-new(root) {
-  animation: vt-manage-in-from-left 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
-}
-
-@media (min-width: 900px) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 180ms;
-  }
-
-  ::view-transition-group(*) {
-    animation-duration: 170ms;
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-}
-
-@keyframes vt-root-out {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  to {
-    opacity: 0.88;
-    transform: scale(0.985);
-  }
-}
-
-@keyframes vt-fallback-page-forward {
+@keyframes route-fallback-page-forward {
   from {
     opacity: 0.95;
     transform: translateX(14px);
@@ -262,7 +185,7 @@ html[data-vt-manage-slide='back']::view-transition-new(root) {
   }
 }
 
-@keyframes vt-fallback-page-back {
+@keyframes route-fallback-page-back {
   from {
     opacity: 0.95;
     transform: translateX(-14px);
@@ -274,7 +197,7 @@ html[data-vt-manage-slide='back']::view-transition-new(root) {
   }
 }
 
-@keyframes vt-fallback-detail-enter {
+@keyframes route-fallback-detail-enter {
   from {
     opacity: 0.86;
     transform: translateY(22px) scale(0.965);
@@ -286,7 +209,7 @@ html[data-vt-manage-slide='back']::view-transition-new(root) {
   }
 }
 
-@keyframes vt-fallback-detail-back {
+@keyframes route-fallback-detail-back {
   from {
     opacity: 0.9;
     transform: translateY(-14px) scale(1.01);
@@ -295,78 +218,6 @@ html[data-vt-manage-slide='back']::view-transition-new(root) {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes vt-root-in {
-  from {
-    opacity: 0.92;
-    transform: scale(1.012);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes vt-root-recover {
-  from {
-    opacity: 0.94;
-    transform: scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes vt-manage-out-left {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0.88;
-    transform: translateX(-12%);
-  }
-}
-
-@keyframes vt-manage-in-from-right {
-  from {
-    opacity: 0.92;
-    transform: translateX(12%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes vt-manage-out-right {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0.88;
-    transform: translateX(12%);
-  }
-}
-
-@keyframes vt-manage-in-from-left {
-  from {
-    opacity: 0.92;
-    transform: translateX(-12%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
   }
 }
 

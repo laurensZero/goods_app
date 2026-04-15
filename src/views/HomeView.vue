@@ -5,15 +5,14 @@
     :style="HOME_MOTION_CSS_VARS"
   >
     <main ref="pageBodyRef" class="page-body">
-      <section v-if="(homeMode === 'recharge' && !rechargeSelectionMode) || (homeMode !== 'recharge' && !selectionMode)" class="hero-section">
+      <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
-          <p class="hero-label">{{ homeMode === 'goods' ? 'Goods Archive' : 'Recharge Archive' }}</p>
-          <h1 class="hero-title">{{ homeMode === 'goods' ? '收藏库' : '充值库' }}</h1>
+          <p class="hero-label">Goods Archive</p>
+          <h1 class="hero-title">收藏库</h1>
         </div>
 
         <div class="hero-actions">
           <button
-            v-if="homeMode === 'goods' || homeMode === 'recharge'"
             class="hero-search"
             type="button"
             aria-label="搜索"
@@ -26,7 +25,7 @@
           </button>
 
           <HomeViewModeSwitch
-            v-if="homeMode === 'goods' && !selectionMode"
+            v-if="!selectionMode"
             model-value="goods"
             @update:model-value="switchHomeTopTab"
           />
@@ -34,7 +33,7 @@
       </section>
 
       <HomeSelectionHeader
-        :show="homeMode === 'goods' && selectionMode"
+        :show="selectionMode"
         :selected-count="selectedIds.size"
         :all-selected="allSelected"
         :header-style="selectionHeaderStyle"
@@ -42,95 +41,79 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <div v-if="homeMode === 'goods'">
-          <section class="summary-section">
-            <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
-          </section>
+      <section class="summary-section">
+        <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
+      </section>
 
-          <HomeGoodsToolbar
-            :total-quantity="totalQuantity"
-            :sort-direction="sortDirection"
-            :sort-mode="sortMode"
-            :sort-options="toolbarSortOptions"
-            :is-sort-animating="isSortAnimating"
-            :display-density="displayDensity"
-            :density-modes="densityModes"
-            @toggle-sort="toggleSortDirection"
-            @set-sort-mode="setSortMode"
-            @toggle-timeline="toggleTimelineMode"
-            @set-density="setDisplayDensityWithFlip"
-          />
+      <HomeGoodsToolbar
+        :total-quantity="totalQuantity"
+        :sort-direction="sortDirection"
+        :sort-mode="sortMode"
+        :sort-options="toolbarSortOptions"
+        :is-sort-animating="isSortAnimating"
+        :display-density="displayDensity"
+        :density-modes="densityModes"
+        @toggle-sort="toggleSortDirection"
+        @set-sort-mode="setSortMode"
+        @toggle-timeline="toggleTimelineMode"
+        @set-density="setDisplayDensityWithFlip"
+      />
 
-          <Transition name="goods-view-switch" mode="out-in">
-            <GoodsCardGridSection
-              v-if="goodsList.length > 0 && displayDensity !== 'timeline'"
-              key="grid"
-              ref="goodsGridSectionRef"
-              :items="visibleGoodsList"
-              :density="displayDensity"
-              :grid-style="goodsGridStyle"
-              :after-spacer-height="visibleGoodsTailSpacerHeight"
-              :transitioning="isDensityAnimating"
-              :is-sort-animating="isSortAnimating"
-              :selection-mode="selectionMode"
-              :selected-ids="selectedIds"
-              @long-press="enterSelectionMode"
-              @toggle-select="toggleSelect"
-              @open-detail="openDetail"
-            />
-
-            <section
-              v-else-if="goodsList.length > 0"
-              key="timeline"
-              :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
-            >
-              <HomeTimelineSection
-                :year-groups="visibleTimelineYearGroups"
-                :unknown-items="timelineUnknown"
-                :show-unknown="showVisibleTimelineUnknown"
-                :active-item-id="expandedTimelineItemId"
-                :expanded-item="expandedItem"
-                :expanded-section-key="expandedSectionKey"
-                :item-index-by-id="timelineItemIndexById"
-                :unknown-section-key="TIMELINE_UNKNOWN_SECTION_KEY"
-                @toggle-item="toggleTimelineItem"
-                @open-detail="openDetail"
-              />
-            </section>
-
-            <section v-else key="empty" class="empty-wrap goods-view-pane">
-              <EmptyState
-                icon="✦"
-                title="还没有收藏记录"
-                description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
-                action-text="添加第一件"
-                @action="goToAdd"
-              />
-            </section>
-          </Transition>
-      </div>
-
-      <div v-else>
-        <RechargeContent
-          ref="rechargeContentRef"
-          @selection-change="handleRechargeSelectionChange"
-          @open-month-card="openMonthCardCalendar"
+      <Transition name="goods-view-switch" mode="out-in">
+        <GoodsCardGridSection
+          v-if="goodsList.length > 0 && displayDensity !== 'timeline'"
+          key="grid"
+          ref="goodsGridSectionRef"
+          :items="visibleGoodsList"
+          :density="displayDensity"
+          :grid-style="goodsGridStyle"
+          :after-spacer-height="visibleGoodsTailSpacerHeight"
+          :transitioning="isDensityAnimating"
+          :is-sort-animating="isSortAnimating"
+          :selection-mode="selectionMode"
+          :selected-ids="selectedIds"
+          @long-press="enterSelectionMode"
+          @toggle-select="toggleSelect"
+          @open-detail="openDetail"
         />
-      </div>
+
+        <section
+          v-else-if="goodsList.length > 0"
+          key="timeline"
+          :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
+        >
+          <HomeTimelineSection
+            :year-groups="visibleTimelineYearGroups"
+            :unknown-items="timelineUnknown"
+            :show-unknown="showVisibleTimelineUnknown"
+            :active-item-id="expandedTimelineItemId"
+            :expanded-item="expandedItem"
+            :expanded-section-key="expandedSectionKey"
+            :item-index-by-id="timelineItemIndexById"
+            :unknown-section-key="TIMELINE_UNKNOWN_SECTION_KEY"
+            @toggle-item="toggleTimelineItem"
+            @open-detail="openDetail"
+          />
+        </section>
+
+        <section v-else key="empty" class="empty-wrap goods-view-pane">
+          <EmptyState
+            icon="✦"
+            title="还没有收藏记录"
+            description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
+            action-text="添加第一件"
+            @action="goToAdd"
+          />
+        </section>
+      </Transition>
     </main>
 
     <Teleport to="body">
       <ScrollTopButton
-        :show="showScrollTopButton && isHomeActive && ((homeMode === 'goods' && !selectionMode) || (homeMode === 'recharge' && !rechargeSelectionMode))"
+        :show="showScrollTopButton && isHomeActive && !selectionMode"
         @click="scrollToTop"
       />
-      <button v-if="homeMode === 'goods' && !selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 5V19" />
-          <path d="M5 12H19" />
-        </svg>
-      </button>
-      <button v-if="homeMode === 'recharge' && isHomeActive && !rechargeSelectionMode" class="fab" type="button" :aria-label="rechargeFabLabel" @click="openRechargeAdd">
+      <button v-if="!selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
           <path d="M5 12H19" />
@@ -139,7 +122,6 @@
     </Teleport>
 
     <AddMethodSheet
-      v-if="homeMode === 'goods'"
       v-model="showAddSheet"
       @manual="goToAdd"
       @import="handleImport"
@@ -147,10 +129,9 @@
       @taobao-import="handleTaobaoImport"
     />
 
-    <GoodsDeleteConfirm v-if="homeMode === 'goods'" v-model:show="showDeleteConfirm" :selected-count="selectedIds.size" @confirm="confirmDelete" />
+    <GoodsDeleteConfirm v-model:show="showDeleteConfirm" :selected-count="selectedIds.size" @confirm="confirmDelete" />
 
     <GoodsBatchEditSheet
-      v-if="homeMode === 'goods'"
       ref="batchEditSheetRef"
       v-model:show="showBatchEditSheet"
       :selected-count="selectedIds.size"
@@ -158,7 +139,7 @@
     />
 
     <GoodsSelectionActionBar
-      :show="homeMode === 'goods' && selectionMode && !showBatchEditSheet"
+      :show="selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
       @delete="batchDelete"
       @edit="batchEdit"
@@ -181,7 +162,8 @@ import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityF
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -194,7 +176,6 @@ import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
-import RechargeContent from '@/components/recharge/RechargeContent.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'HomeView' })
@@ -203,11 +184,6 @@ const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const batchEditSheetRef = ref(null)
-const rechargeContentRef = ref(null)
-const rechargeSelectionMode = ref(false)
-const rechargeFabLabel = '添加充值记录'
-const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
-const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 
@@ -219,7 +195,6 @@ function persistCollectionTab(tab) {
   }))
 }
 
-const homeMode = ref('goods')
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
 // 视口宽度，用于响应式列数计算
@@ -246,6 +221,9 @@ let elementScrollHandler = null
 let windowScrollHandler = null
 let mountBootstrapSession = 0
 let isRouteLeaving = false
+
+// 添加方式面板
+const showAddSheet = ref(false)
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -299,29 +277,8 @@ const topJumpMasking = ref(false)
 let topJumpMaskTimer = 0
 
 // 添加方式面板
-const showAddSheet = ref(false)
 const router = useRouter()
 const route = useRoute()
-function persistHomeMode(value) {
-  localStorage.setItem(HOME_MODE_STORAGE_KEY, value)
-  window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
-    detail: { mode: value }
-  }))
-}
-
-function setHomeModeValue(nextMode) {
-  const target = nextMode === 'recharge' ? 'recharge' : 'goods'
-  if (homeMode.value === target) return
-
-  homeMode.value = target
-  persistHomeMode(target)
-  if (target === 'recharge') {
-    showAddSheet.value = false
-    showDeleteConfirm.value = false
-    showBatchEditSheet.value = false
-    exitSelectionModeQuiet()
-  }
-}
 
 function switchHomeTopTab(nextMode) {
   const tabOrder = { goods: 0, wishlist: 1, stats: 2 }
@@ -330,9 +287,12 @@ function switchHomeTopTab(nextMode) {
   if (nextMode === 'wishlist') {
     persistCollectionTab('wishlist')
     saveScrollPosition(true, 'home:navigateToWishlist')
-    runWithViewTransition(
+    runWithRouteTransition(
       () => router.push('/wishlist'),
-      { direction: tabOrder.wishlist >= currentIndex ? 'forward' : 'back' }
+      {
+        direction: tabOrder.wishlist >= currentIndex ? 'forward' : 'back',
+        preferFallback: true
+      }
     )
     return
   }
@@ -340,64 +300,32 @@ function switchHomeTopTab(nextMode) {
   if (nextMode === 'stats') {
     persistCollectionTab('stats')
     saveScrollPosition(true, 'home:navigateToStats')
-    runWithViewTransition(
+    runWithRouteTransition(
       () => router.push('/leaderboard/characters'),
-      { direction: tabOrder.stats >= currentIndex ? 'forward' : 'back' }
+      {
+        direction: tabOrder.stats >= currentIndex ? 'forward' : 'back',
+        preferFallback: true
+      }
     )
     return
   }
 
   persistCollectionTab('goods')
-  setHomeModeValue('goods')
-}
-
-function handleExternalHomeModeChange(mode) {
-  const nextMode = mode === 'recharge' ? 'recharge' : 'goods'
-  if (homeMode.value === nextMode) return
-  setHomeModeValue(nextMode)
-}
-
-function handleHomeModeEvent(event) {
-  handleExternalHomeModeChange(event?.detail?.mode)
-}
-
-function handleHomeModeStorage(event) {
-  if (event.key !== HOME_MODE_STORAGE_KEY) return
-  handleExternalHomeModeChange(event.newValue)
-}
-
-function readStoredHomeMode() {
-  if (typeof localStorage === 'undefined') return 'goods'
-  const storedValue = localStorage.getItem(HOME_MODE_STORAGE_KEY)
-  return storedValue === 'recharge' ? 'recharge' : 'goods'
 }
 
 function handleHeroSearch() {
-  if (homeMode.value === 'goods') {
-    saveScrollPosition(true, 'home:handleHeroSearch')
-    runWithViewTransition(
-      () => router.push('/search'),
-      { direction: 'forward' }
-    )
-    return
-  }
-
-  rechargeContentRef.value?.toggleSearch?.()
-}
-
-function openRechargeAdd() {
-  rechargeContentRef.value?.openAddMethodSheet?.()
-}
-
-function handleRechargeSelectionChange(active) {
-  rechargeSelectionMode.value = Boolean(active)
+  saveScrollPosition(true, 'home:handleHeroSearch')
+  runWithRouteTransition(
+    () => router.push('/search'),
+    { direction: 'forward' }
+  )
 }
 
 function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
   homeDisplayReady.value = false
   showAddSheet.value = false
-  runWithViewTransition(
+  runWithRouteTransition(
     () => router.push(path).catch(() => {
       homeDisplayReady.value = true
     }),
@@ -661,7 +589,6 @@ function shouldMaskHomeDisplay() {
 onMounted(async () => {
   isRouteLeaving = false
   const sessionId = ++mountBootstrapSession
-  handleExternalHomeModeChange(readStoredHomeMode())
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
   if (didResetOnReload) {
@@ -687,9 +614,10 @@ onMounted(async () => {
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
   homeDisplayReady.value = true
+  window.requestAnimationFrame(() => {
+    tryPlayNativeGoodsBackHero()
+  })
   updateScrollTopButtonVisibility()
-  window.addEventListener(HOME_MODE_EVENT, handleHomeModeEvent)
-  window.addEventListener('storage', handleHomeModeStorage)
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
 })
@@ -697,7 +625,6 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isHomeActive.value = true
-  handleExternalHomeModeChange(readStoredHomeMode())
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)
@@ -709,6 +636,9 @@ onActivated(async () => {
   )
   await nextTick()
   homeDisplayReady.value = true
+  window.requestAnimationFrame(() => {
+    tryPlayNativeGoodsBackHero()
+  })
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
@@ -739,8 +669,6 @@ onBeforeUnmount(() => {
     pageScrollRaf = 0
   }
   unbindSelectionHeaderScroll()
-  window.removeEventListener(HOME_MODE_EVENT, handleHomeModeEvent)
-  window.removeEventListener('storage', handleHomeModeStorage)
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
@@ -869,23 +797,35 @@ function openDetail(id) {
   const goodsId = payload.id
   saveScrollPosition(true, `home:openDetail:${goodsId}`)
   primeActivatedRestoreWindow(getStoredScrollState())
-  runWithViewTransition(
-    () => router.push(`/detail/${goodsId}`),
-    {
-      goodsId,
-      sourceEl: payload.sourceEl || null,
-      returnPath: route.fullPath
-    }
-  )
+  prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
+  setPendingDetailReturnPath(route.fullPath)
+  router.push(`/detail/${goodsId}`).catch(() => {
+    homeDisplayReady.value = true
+  })
 }
 
-function openMonthCardCalendar() {
-  saveScrollPosition(true, 'home:openMonthCardCalendar')
-  primeActivatedRestoreWindow(getStoredScrollState())
-  runWithViewTransition(
-    () => router.push('/recharge/month-cards'),
-    { direction: 'forward' }
-  )
+function resolveGoodsCardCover(goodsId) {
+  const normalized = String(goodsId || '')
+  if (!normalized) return null
+  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(normalized)
+    : normalized.replace(/"/g, '\\"')
+  const rootEl = getScrollEl() || pageBodyRef.value || document
+  const cardRoot = rootEl?.querySelector?.(`[data-goods-id="${escaped}"]`) || null
+  if (cardRoot) {
+    const coverInsideCard = cardRoot.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
+    if (coverInsideCard) return coverInsideCard
+  }
+  const directCover = rootEl?.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
+  if (directCover) return directCover
+  return cardRoot
+}
+
+function tryPlayNativeGoodsBackHero() {
+  playGoodsHeroBack({
+    currentPath: route.fullPath,
+    resolveTargetEl: resolveGoodsCardCover
+  })
 }
 
 function scrollToTop() {
@@ -919,7 +859,7 @@ function updateSelectionHeaderPosition() {
   selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
 }
 
-// -------- 时间线内联展开 --------
+// -------- 閺冨爼妫跨痪鍨敶閼辨柨鐫嶅鈧?--------
 const expandedItem = computed(() =>
   expandedTimelineItemId.value
     ? (displayDensity.value === 'timeline'
@@ -1197,7 +1137,7 @@ async function applyBatchEditPayload(payload) {
   transform: scale(0.96);
 }
 
-/* ── 深色模式覆盖 ── */
+/* 閳光偓閳光偓 濞ｈ精澹婂Ο鈥崇础鐟曞棛娲?閳光偓閳光偓 */
 :global(html.theme-dark) .hero-search {
     background: var(--app-glass);
   }

@@ -318,7 +318,7 @@
 <script setup>
 import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import { Capacitor } from '@capacitor/core'
 import { pickLinkedLocalImage } from '@/utils/localImage'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
@@ -651,7 +651,7 @@ async function openGoodsPicker() {
   saveDraftForPicker()
   isNavigatingToPicker.value = true
   await nextTick()
-  runWithViewTransition(
+  runWithRouteTransition(
     () => router.push({
       name: 'event-link-goods',
       query: {

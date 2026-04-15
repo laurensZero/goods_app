@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="page events-page"
     :class="{ 'events-page--restoring': !eventsDisplayReady, 'events-page--top-jump': topJumpMasking }"
@@ -267,7 +267,8 @@ import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRest
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { prepareEventHeroForward, playEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -481,16 +482,37 @@ function openDetail(payload) {
     return
   }
   saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${eventId}`)
-  runWithViewTransition(
-    () => router.push(`/events/${eventId}`).catch(() => {
-      eventsDisplayReady.value = true
-    }),
-    {
-      eventId,
-      sourceEl: p.sourceEl || null,
-      returnPath: route.fullPath
-    }
-  )
+  prepareEventHeroForward({ eventId, sourceEl: p.sourceEl || null })
+  setPendingDetailReturnPath(route.fullPath)
+  router.push(`/events/${eventId}`).catch(() => {
+    eventsDisplayReady.value = true
+  })
+}
+
+function resolveEventCardCover(eventId) {
+  const normalized = String(eventId || '')
+  if (!normalized) return null
+  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(normalized)
+    : normalized.replace(/"/g, '\\"')
+
+  const rootEl = getScrollEl() || pageBodyRef.value || document
+  const cardRoot = rootEl?.querySelector?.(`[data-event-id="${escaped}"]`) || null
+  if (cardRoot) {
+    const coverInsideCard = cardRoot.querySelector?.(`[data-event-hero-id="${escaped}"]`) || null
+    if (coverInsideCard) return coverInsideCard
+  }
+
+  const directCover = rootEl?.querySelector?.(`[data-event-hero-id="${escaped}"]`) || null
+  if (directCover) return directCover
+  return cardRoot
+}
+
+function tryPlayEventBackHero() {
+  playEventHeroBack({
+    currentPath: route.fullPath,
+    resolveTargetEl: resolveEventCardCover
+  })
 }
 
 function goToAdd() {
@@ -632,14 +654,16 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isEventsActive.value = true
-  const isViewTransitionRunning = Boolean(document.documentElement.dataset.vtDirection)
-  const shouldMaskDisplay = !isViewTransitionRunning && Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
+  const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
   if (shouldMaskDisplay) {
     eventsDisplayReady.value = false
   }
   await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
   await nextTick()
   eventsDisplayReady.value = true
+  window.requestAnimationFrame(() => {
+    tryPlayEventBackHero()
+  })
   bindPageScroll()
   updateScrollTopButtonVisibility()
 })

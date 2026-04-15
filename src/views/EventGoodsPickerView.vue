@@ -135,7 +135,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsStore } from '@/stores/goods'
 import { sortHomeGoodsList } from '@/utils/homeSort'
 import { writeEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 
 defineOptions({ name: 'EventGoodsPickerView' })
 
@@ -233,7 +233,7 @@ function setSortMode(value) {
 }
 
 function handleBack() {
-  runWithViewTransition(() => {
+  runWithRouteTransition(() => {
     const returnTo = String(route.query.returnTo || '').trim()
     if (returnTo && window.history.length <= 1) {
       router.replace(returnTo)
@@ -245,7 +245,7 @@ function handleBack() {
 
 function confirmSelection() {
   writeEventLinkedGoodsPickerResult([...selectedIds.value])
-  runWithViewTransition(() => {
+  runWithRouteTransition(() => {
     const returnTo = String(route.query.returnTo || '').trim()
     if (returnTo && window.history.length <= 1) {
       router.replace(returnTo)

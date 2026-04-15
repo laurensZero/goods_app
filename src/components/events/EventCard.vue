@@ -2,6 +2,7 @@
   <article
     class="event-card"
     :class="{ 'event-card--selected': selected }"
+    :data-event-id="String(event.id || '')"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -26,6 +27,7 @@
       ref="coverMediaRef"
       class="event-card__media"
       :class="{ 'event-card__media--empty': !event.coverImage }"
+      :data-event-hero-id="String(event.id || '')"
       :style="coverMediaStyle"
     >
       <img
@@ -72,7 +74,6 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { getActiveEventHeroTransitionName } from '@/utils/viewTransition'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -101,9 +102,7 @@ const TYPE_MAP = {
   other: { label: '其他', cls: 'type-other' }
 }
 
-const coverMediaStyle = computed(() => ({
-  viewTransitionName: getActiveEventHeroTransitionName(props.event?.id)
-}))
+const coverMediaStyle = computed(() => ({}))
 
 const typeInfo = computed(() => TYPE_MAP[props.event.type] || TYPE_MAP.other)
 const typeLabel = computed(() => typeInfo.value.label)

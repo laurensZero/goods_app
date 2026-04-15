@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page detail-page">
     <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back @back="handleBackNavigation">
       <template #right>
@@ -200,7 +200,8 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { getActiveGoodsHeroTransitionName, getPendingDetailReturnPath, runWithViewTransition } from '@/utils/viewTransition'
+import { getPendingDetailReturnPath } from '@/utils/routeTransition'
+import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -240,9 +241,7 @@ const coverBg = computed(() => {
   return `linear-gradient(135deg, ${from}, ${to})`
 })
 const coverCardStyle = computed(() => {
-  const style = {
-    viewTransitionName: getActiveGoodsHeroTransitionName(props.id)
-  }
+  const style = {}
   if (!cachedImgSrc.value) {
     style.background = coverBg.value
   }
@@ -434,14 +433,13 @@ function handleBackNavigation() {
 
   syncCollectionContextForPath(targetPath)
 
-  runWithViewTransition(
-    () => router.push(targetPath),
-    {
-      goodsId: props.id,
-      direction: 'back',
-      sourceEl: coverCardRef.value
-    }
-  )
+  prepareGoodsHeroBack({
+    goodsId: props.id,
+    sourceEl: coverCardRef.value,
+    targetPath
+  })
+
+  router.push(targetPath)
 }
 
 function syncCollectionContextForPath(path) {
@@ -476,6 +474,10 @@ onMounted(async () => {
   syncDetailScrollLock(true)
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   await prepareDetailLayout()
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    playGoodsHeroForward(props.id, coverCardRef.value)
+  })
 })
 
 onBeforeUnmount(() => {
@@ -491,6 +493,10 @@ watch(
   async () => {
     activeImageId.value = ''
     await prepareDetailLayout()
+    await nextTick()
+    window.requestAnimationFrame(() => {
+      playGoodsHeroForward(props.id, coverCardRef.value)
+    })
   }
 )
 
@@ -968,7 +974,7 @@ function getImageKindLabel(kind) {
   opacity: 0;
 }
 
-/* ── 平板 / 大屏适配：左封面 + 右详情双栏布局 ── */
+/* 鈹€鈹€ 骞虫澘 / 澶у睆閫傞厤锛氬乏灏侀潰 + 鍙宠鎯呭弻鏍忓竷灞€ 鈹€鈹€ */
 @media (min-width: 900px) {
   .detail-shell {
     display: grid;
@@ -978,7 +984,7 @@ function getImageKindLabel(kind) {
     align-items: start;
   }
 
-  /* 封面固定在左列，粘性定位跟随滚动 */
+  /* 灏侀潰鍥哄畾鍦ㄥ乏鍒楋紝绮樻€у畾浣嶈窡闅忔粴鍔?*/
   .cover-stage {
     grid-column: 1;
     grid-row: 1 / 10;
@@ -986,14 +992,14 @@ function getImageKindLabel(kind) {
     top: 16px;
   }
 
-  /* 右列：hero / info / note 依次叠放 */
+  /* 鍙冲垪锛歨ero / info / note 渚濇鍙犳斁 */
   .hero-card,
   .info-section,
   .note-section {
     grid-column: 2;
   }
 
-  /* 信息卡扩展到 3 列 */
+  /* 淇℃伅鍗℃墿灞曞埌 3 鍒?*/
   .info-card {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

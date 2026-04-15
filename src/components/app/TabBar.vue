@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <nav class="tab-bar" aria-label="底部导航" :style="tabBarStyle">
     <span class="tab-bar__indicator" aria-hidden="true" />
     <button
@@ -21,7 +21,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { runWithViewTransition } from '@/utils/viewTransition'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -117,10 +117,10 @@ const tabs = computed(() => [
 ])
 
 const activeTabKey = computed(() => {
-  if ((route.path === '/home' && homeMode.value !== 'recharge') || route.path.startsWith('/wishlist') || route.path.startsWith('/leaderboard')) {
+  if (route.path === '/home' || route.path.startsWith('/wishlist') || route.path.startsWith('/leaderboard')) {
     return 'collection'
   }
-  if (route.path === '/home' && homeMode.value === 'recharge') return 'recharge'
+  if (route.path.startsWith('/recharge')) return 'recharge'
   if (route.path.startsWith('/events')) return 'events'
   if (route.path.startsWith('/manage')) return 'manage'
   return 'collection'
@@ -173,7 +173,7 @@ function navigateWithTransition(path, tabKey) {
   const targetIndex = tabs.value.findIndex((tab) => tab.key === tabKey)
   const currentIndex = activeTabIndex.value
   const direction = targetIndex >= currentIndex ? 'forward' : 'back'
-  runWithViewTransition(
+  runWithRouteTransition(
     () => router.push(path),
     { direction }
   )
@@ -198,7 +198,7 @@ function activateTab(key) {
 
   if (key === 'recharge') {
     persistHomeMode('recharge')
-    navigateWithTransition('/home', 'recharge')
+    navigateWithTransition('/recharge', 'recharge')
     return
   }
 

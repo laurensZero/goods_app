@@ -20,7 +20,7 @@
 <script setup>
 import { getCurrentInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { runManageBackNavigation } from '@/utils/viewTransition'
+import { runManageBackNavigation } from '@/utils/routeTransition'
 
 defineProps({
   title: { type: String, default: '' },

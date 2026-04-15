@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page manage-page" :class="{ 'manage-page--restoring': !manageDisplayReady }">
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
@@ -76,26 +76,6 @@
 
       <div class="manage-column manage-column--secondary">
         <section class="hub-section">
-          <button type="button" class="entry-card" @click="toggleViewTransitionEnabled">
-            <span class="entry-icon motion-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 7h16" />
-                <path d="M4 12h12" />
-                <path d="M4 17h8" />
-                <path d="M18.5 13.5 21 16l-2.5 2.5" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">性能优化</p>
-              <h2 class="entry-name">页面过渡动画</h2>
-              <p class="entry-desc">移动端卡顿时可关闭 View Transition</p>
-              <p class="entry-count">{{ viewTransitionDisabled ? '当前：已关闭' : '当前：已开启' }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-
           <a class="entry-card" href="#" role="link" @click.prevent="goManageChild('/manage/theme')">
             <span class="entry-icon theme-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -307,12 +287,8 @@ import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRest
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { sanitizeGoodsItemForExport, sanitizeEventForExport } from '@/utils/goodsImages'
 import {
-  getViewTransitionSettingEventName,
-  getViewTransitionSettingStorageKey,
-  isViewTransitionDisabled,
-  runManageForwardNavigation,
-  setViewTransitionDisabled
-} from '@/utils/viewTransition'
+  runManageForwardNavigation
+} from '@/utils/routeTransition'
 
 defineOptions({ name: 'ManageView' })
 
@@ -375,7 +351,6 @@ const importFileRef = ref(null)
 const toastMsg = ref('')
 const showExportPicker = ref(false)
 const exportSelection = ref(createDefaultExportSelection())
-const viewTransitionDisabled = ref(isViewTransitionDisabled())
 const manageDisplayReady = ref(true)
 let toastTimer = null
 let pageScrollBound = false
@@ -403,26 +378,6 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useManageScrollRestore(pageBodyRef)
-
-function syncViewTransitionSetting() {
-  viewTransitionDisabled.value = isViewTransitionDisabled()
-}
-
-function handleViewTransitionSettingEvent() {
-  syncViewTransitionSetting()
-}
-
-function handleViewTransitionSettingStorage(event) {
-  if (event.key !== getViewTransitionSettingStorageKey()) return
-  syncViewTransitionSetting()
-}
-
-function toggleViewTransitionEnabled() {
-  const nextDisabled = !viewTransitionDisabled.value
-  setViewTransitionDisabled(nextDisabled)
-  viewTransitionDisabled.value = nextDisabled
-  showToast(nextDisabled ? '已关闭页面过渡动画' : '已开启页面过渡动画')
-}
 
 function openExportPicker() {
   exportSelection.value = createDefaultExportSelection()
@@ -545,10 +500,7 @@ function unbindPageScroll() {
 
 onMounted(() => {
   handleResize()
-  syncViewTransitionSetting()
   window.addEventListener('resize', handleResize, { passive: true })
-  window.addEventListener(getViewTransitionSettingEventName(), handleViewTransitionSettingEvent)
-  window.addEventListener('storage', handleViewTransitionSettingStorage)
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
@@ -612,8 +564,6 @@ onBeforeUnmount(() => {
   }
   clearTimeout(toastTimer)
   window.removeEventListener('resize', handleResize)
-  window.removeEventListener(getViewTransitionSettingEventName(), handleViewTransitionSettingEvent)
-  window.removeEventListener('storage', handleViewTransitionSettingStorage)
   if (exportLongPressTimer) {
     window.clearTimeout(exportLongPressTimer)
     exportLongPressTimer = 0
