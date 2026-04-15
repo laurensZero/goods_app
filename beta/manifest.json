@@ -1,9 +1,9 @@
 {
-  "version": "20260415.11",
-  "url": "bundle-20260415.11.zip",
-  "hash": "a44ffaee73516435b0b863e054dfead655e653e17517b8b9620dce852b611030",
+  "version": "20260415.12",
+  "url": "bundle-20260415.12.zip",
+  "hash": "bd13f1606be78ce7e1bbb8b66d0bddb7173404d4473666c93ced99dec156d674",
   "minNativeVersion": null,
-  "notes": "- feat: 增强商品详情页的链接商品处理逻辑，优化页面过渡体验",
+  "notes": "- feat: 优化商品卡片和详情视图的加载逻辑，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T11:28:10Z"
+  "publishedAt": "2026-04-15T11:32:00Z"
 }
