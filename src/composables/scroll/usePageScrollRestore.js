@@ -11,8 +11,6 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   let savedScrollState = null
   let activeScrollSource = null
   let restoreSessionId = 0
-  const applyFrameIds = new Set()
-  const applyTimeoutIds = new Set()
   const DEBUG_SCROLL_RESTORE = false
 
   function debugLog(message, payload = null) {
@@ -95,14 +93,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   }
 
   function clearApplyFrames() {
-    applyFrameIds.forEach((frameId) => {
-      window.cancelAnimationFrame(frameId)
-    })
-    applyFrameIds.clear()
-    applyTimeoutIds.forEach((timeoutId) => {
-      window.clearTimeout(timeoutId)
-    })
-    applyTimeoutIds.clear()
+    // Kept for API stability. Current restore loop is session-gated and self-terminating.
   }
 
   function detectScrollSource() {
@@ -250,49 +241,39 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     return false
   }
 
-  function applyScrollPosition(stateOrTop, sessionId = restoreSessionId) {
+  async function applyScrollPosition(stateOrTop, sessionId = restoreSessionId) {
     // Restore against the recorded source first.
     // Writing to the wrong target can leave the page visually unchanged while storage says restore succeeded.
-    if (sessionId !== restoreSessionId) return
-    clearApplyFrames()
+    if (sessionId !== restoreSessionId) return false
     const top = resolveScrollTargetTop(stateOrTop)
     const source = typeof stateOrTop === 'object' && stateOrTop?.source === 'window' ? 'window' : 'element'
     debugLog('applyScrollPosition:start', { sessionId, top, source, stateOrTop })
-    setScrollTop(top, 'both')
 
-    let frame = 0
-    const tick = () => {
-      if (sessionId !== restoreSessionId) return
-      frame += 1
+    const applyTarget = () => {
       setScrollTop(top, 'both')
-      if (frame < 18) {
-        const frameId = window.requestAnimationFrame(() => {
-          applyFrameIds.delete(frameId)
-          tick()
-        })
-        applyFrameIds.add(frameId)
-      }
     }
 
-    const frameId = window.requestAnimationFrame(() => {
-      applyFrameIds.delete(frameId)
-      tick()
-    })
-    applyFrameIds.add(frameId)
+    applyTarget()
+    for (let frame = 0; frame < 4; frame += 1) {
+      if (sessionId !== restoreSessionId) return false
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      if (sessionId !== restoreSessionId) return false
+      applyTarget()
+    }
 
-    const settleDelays = [120, 260, 420]
-    settleDelays.forEach((delay) => {
-      const timeoutId = window.setTimeout(() => {
-        applyTimeoutIds.delete(timeoutId)
-        if (sessionId !== restoreSessionId) return
-        const currentTop = readScrollTop()
-        if (top > 80 && currentTop < Math.max(20, top * 0.4)) {
-          debugLog('applyScrollPosition:settle-reapply', { sessionId, delay, targetTop: top, currentTop })
-          setScrollTop(top, 'both')
-        }
-      }, delay)
-      applyTimeoutIds.add(timeoutId)
-    })
+    if (Math.abs(readScrollTop() - top) <= 1) {
+      return true
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 56))
+    if (sessionId !== restoreSessionId) return false
+    applyTarget()
+
+    await new Promise((resolve) => window.requestAnimationFrame(resolve))
+    if (sessionId !== restoreSessionId) return false
+    applyTarget()
+
+    return Math.abs(readScrollTop() - top) <= 2
   }
 
   async function waitForLayout(frames = 1, sessionId = restoreSessionId) {
@@ -335,8 +316,17 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       debugLog('restorePendingScrollPosition:top<=0-clear-pending', { sessionId, storedState })
       return
     }
+    if (Math.abs(readScrollTop() - storedTop) <= 1) {
+      sessionStorage.removeItem(pendingKey)
+      debugLog('restorePendingScrollPosition:already-at-target', { sessionId, storedTop })
+      return
+    }
     if (!(await waitForLayout(2, sessionId))) return
-    applyScrollPosition(storedState || storedTop, sessionId)
+    const didApply = await applyScrollPosition(storedState || storedTop, sessionId)
+    if (!didApply) {
+      if (!(await waitForLayout(1, sessionId))) return
+      await applyScrollPosition(storedState || storedTop, sessionId)
+    }
     sessionStorage.removeItem(pendingKey)
     debugLog('restorePendingScrollPosition:done', { sessionId, storedState, storedTop })
   }
@@ -365,10 +355,18 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       debugLog('restoreActivatedScrollPosition:top<=0-clear-pending', { sessionId, storedState })
       return
     }
+    if (Math.abs(readScrollTop() - storedTop) <= 1) {
+      sessionStorage.removeItem(pendingKey)
+      debugLog('restoreActivatedScrollPosition:already-at-target', { sessionId, storedTop })
+      return
+    }
+
     if (!(await waitForLayout(2, sessionId))) return
-    applyScrollPosition(storedState || storedTop, sessionId)
-    if (!(await waitForLayout(2, sessionId))) return
-    applyScrollPosition(storedState || storedTop, sessionId)
+    const firstPassApplied = await applyScrollPosition(storedState || storedTop, sessionId)
+    if (!firstPassApplied) {
+      if (!(await waitForLayout(1, sessionId))) return
+      await applyScrollPosition(storedState || storedTop, sessionId)
+    }
     sessionStorage.removeItem(pendingKey)
     debugLog('restoreActivatedScrollPosition:done', { sessionId, storedState, storedTop })
   }

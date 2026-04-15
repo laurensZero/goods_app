@@ -660,8 +660,7 @@ onMounted(async () => {
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
   }
-  const shouldMaskDisplay = shouldMaskHomeDisplay()
-  homeDisplayReady.value = !shouldMaskDisplay
+  homeDisplayReady.value = true
   restoreHomePreferences()
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
@@ -691,9 +690,6 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isHomeActive.value = true
-  if (shouldMaskHomeDisplay()) {
-    homeDisplayReady.value = false
-  }
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)
@@ -715,9 +711,6 @@ onDeactivated(() => {
   isHomeActive.value = false
   mountBootstrapSession += 1
   cancelPendingRestore()
-  if (hasPendingRestore()) {
-    homeDisplayReady.value = false
-  }
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
