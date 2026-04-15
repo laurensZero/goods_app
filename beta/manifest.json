@@ -1,9 +1,9 @@
 {
-  "version": "20260415.13",
-  "url": "bundle-20260415.13.zip",
-  "hash": "38f64dae00c6165341a5fa9ec0e255f51a8bb1502daab844b3b5a506a5d4acb0",
+  "version": "20260415.14",
+  "url": "bundle-20260415.14.zip",
+  "hash": "c2cb59a5c9ef128c61794a79bef0fec9012d5b3f26516da9e741057d40258a24",
   "minNativeVersion": null,
-  "notes": "- feat: 简化路由切换逻辑，统一过渡方向，提升用户体验",
+  "notes": "- feat: 增加详情页的滚动锁定逻辑，优化页面过渡体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T12:16:47Z"
+  "publishedAt": "2026-04-15T13:10:00Z"
 }

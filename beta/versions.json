@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.14",
+    "url": "bundle-20260415.14.zip",
+    "hash": "c2cb59a5c9ef128c61794a79bef0fec9012d5b3f26516da9e741057d40258a24",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加详情页的滚动锁定逻辑，优化页面过渡体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T13:10:00Z"
+  },
+  {
     "version": "20260415.13",
     "url": "bundle-20260415.13.zip",
     "hash": "38f64dae00c6165341a5fa9ec0e255f51a8bb1502daab844b3b5a506a5d4acb0",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品卡片和详情视图的加载逻辑，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T11:32:00Z"
-  },
-  {
-    "version": "20260415.11",
-    "url": "bundle-20260415.11.zip",
-    "hash": "a44ffaee73516435b0b863e054dfead655e653e17517b8b9620dce852b611030",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强商品详情页的链接商品处理逻辑，优化页面过渡体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T11:28:10Z"
   }
 ]
