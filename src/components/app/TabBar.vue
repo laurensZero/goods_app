@@ -21,6 +21,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { runWithViewTransition } from '@/utils/viewTransition'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -167,36 +168,47 @@ function isTabActive(key) {
   return activeTabKey.value === key
 }
 
+function navigateWithTransition(path, tabKey) {
+  if (route.path === path) return
+  const targetIndex = tabs.value.findIndex((tab) => tab.key === tabKey)
+  const currentIndex = activeTabIndex.value
+  const direction = targetIndex >= currentIndex ? 'forward' : 'back'
+  runWithViewTransition(
+    () => router.push(path),
+    { direction }
+  )
+}
+
 function activateTab(key) {
   if (key === 'collection') {
     if (collectionTab.value === 'wishlist') {
-      router.push('/wishlist')
+      navigateWithTransition('/wishlist', 'collection')
       return
     }
 
     if (collectionTab.value === 'stats') {
-      router.push('/leaderboard/characters')
+      navigateWithTransition('/leaderboard/characters', 'collection')
       return
     }
 
     persistHomeMode('goods')
-    if (route.path !== '/home') router.push('/home')
+    navigateWithTransition('/home', 'collection')
     return
   }
 
   if (key === 'recharge') {
     persistHomeMode('recharge')
-    if (route.path !== '/home') router.push('/home')
+    navigateWithTransition('/home', 'recharge')
     return
   }
 
   if (key === 'events') {
-    router.push('/events')
+    navigateWithTransition('/events', 'events')
     return
   }
 
   if (key === 'manage') {
-    router.push('/manage')
+    navigateWithTransition('/manage', 'manage')
   }
 }
 

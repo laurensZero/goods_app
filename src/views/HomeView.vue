@@ -324,17 +324,26 @@ function setHomeModeValue(nextMode) {
 }
 
 function switchHomeTopTab(nextMode) {
+  const tabOrder = { goods: 0, wishlist: 1, stats: 2 }
+  const currentIndex = tabOrder.goods
+
   if (nextMode === 'wishlist') {
     persistCollectionTab('wishlist')
     saveScrollPosition(true, 'home:navigateToWishlist')
-    router.push('/wishlist')
+    runWithViewTransition(
+      () => router.push('/wishlist'),
+      { direction: tabOrder.wishlist >= currentIndex ? 'forward' : 'back' }
+    )
     return
   }
 
   if (nextMode === 'stats') {
     persistCollectionTab('stats')
     saveScrollPosition(true, 'home:navigateToStats')
-    router.push('/leaderboard/characters')
+    runWithViewTransition(
+      () => router.push('/leaderboard/characters'),
+      { direction: tabOrder.stats >= currentIndex ? 'forward' : 'back' }
+    )
     return
   }
 
@@ -360,7 +369,10 @@ function handleHomeModeStorage(event) {
 function handleHeroSearch() {
   if (homeMode.value === 'goods') {
     saveScrollPosition(true, 'home:handleHeroSearch')
-    router.push('/search')
+    runWithViewTransition(
+      () => router.push('/search'),
+      { direction: 'forward' }
+    )
     return
   }
 
@@ -375,16 +387,16 @@ function handleRechargeSelectionChange(active) {
   rechargeSelectionMode.value = Boolean(active)
 }
 
-async function navigateFromAddSheet(path, reason) {
+function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
   homeDisplayReady.value = false
   showAddSheet.value = false
-  try {
-    await router.push(path)
-  }
-  catch {
-    homeDisplayReady.value = true
-  }
+  runWithViewTransition(
+    () => router.push(path).catch(() => {
+      homeDisplayReady.value = true
+    }),
+    { direction: 'forward' }
+  )
 }
 
 function handleImport() {
@@ -869,7 +881,10 @@ function openDetail(id) {
 function openMonthCardCalendar() {
   saveScrollPosition(true, 'home:openMonthCardCalendar')
   primeActivatedRestoreWindow(getStoredScrollState())
-  router.push('/recharge/month-cards')
+  runWithViewTransition(
+    () => router.push('/recharge/month-cards'),
+    { direction: 'forward' }
+  )
 }
 
 function scrollToTop() {
@@ -1018,7 +1033,8 @@ async function applyBatchEditPayload(payload) {
 }
 
 .home-page--restoring {
-  visibility: hidden;
+  opacity: 0.01;
+  pointer-events: none;
 }
 
 .page-body {

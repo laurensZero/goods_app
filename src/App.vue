@@ -155,11 +155,21 @@ onBeforeUnmount(() => {
 
 :global(::view-transition-old(root)),
 :global(::view-transition-new(root)) {
-  animation: none;
+  animation-duration: 140ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+:global(::view-transition-old(root)) {
+  animation-name: vt-root-out;
+}
+
+:global(::view-transition-new(root)) {
+  animation-name: vt-root-in;
 }
 
 :global(::view-transition-group(*)) {
-  animation-duration: 160ms;
+  animation-duration: 130ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   isolation: isolate;
 }
@@ -177,29 +187,58 @@ onBeforeUnmount(() => {
 }
 
 :global(html[data-vt-direction='back']::view-transition-new(root)) {
-  animation: vt-root-recover 175ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: vt-root-recover 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 :global(html[data-vt-manage-slide='forward']::view-transition-old(root)) {
-  animation: vt-manage-out-left 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+  animation: vt-manage-out-left 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
 :global(html[data-vt-manage-slide='forward']::view-transition-new(root)) {
-  animation: vt-manage-in-from-right 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+  animation: vt-manage-in-from-right 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
 :global(html[data-vt-manage-slide='back']::view-transition-old(root)) {
-  animation: vt-manage-out-right 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+  animation: vt-manage-out-right 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
 :global(html[data-vt-manage-slide='back']::view-transition-new(root)) {
-  animation: vt-manage-in-from-left 165ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
+  animation: vt-manage-in-from-left 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
 @media (min-width: 900px) {
+  :global(::view-transition-old(root)),
+  :global(::view-transition-new(root)) {
+    animation-duration: 180ms;
+  }
+
   :global(::view-transition-group(*)) {
-    animation-duration: 210ms;
+    animation-duration: 170ms;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes vt-root-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0.88;
+    transform: scale(0.985);
+  }
+}
+
+@keyframes vt-root-in {
+  from {
+    opacity: 0.92;
+    transform: scale(1.012);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

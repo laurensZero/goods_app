@@ -427,16 +427,27 @@ function persistHomeMode(mode) {
 }
 
 function switchTopTab(nextMode) {
+  const tabOrder = { goods: 0, wishlist: 1, stats: 2 }
+  const currentIndex = tabOrder.wishlist
+
   if (nextMode === 'goods') {
     persistCollectionTab('goods')
     persistHomeMode('goods')
-    router.push('/home')
+    saveScrollPosition(true, 'wishlist:navigateToGoods')
+    runWithViewTransition(
+      () => router.push('/home'),
+      { direction: tabOrder.goods >= currentIndex ? 'forward' : 'back' }
+    )
     return
   }
 
   if (nextMode === 'stats') {
     persistCollectionTab('stats')
-    router.push('/leaderboard/characters')
+    saveScrollPosition(true, 'wishlist:navigateToStats')
+    runWithViewTransition(
+      () => router.push('/leaderboard/characters'),
+      { direction: tabOrder.stats >= currentIndex ? 'forward' : 'back' }
+    )
   }
 }
 
@@ -638,7 +649,8 @@ onBeforeRouteLeave(() => {
 }
 
 .wishlist-page--restoring {
-  visibility: hidden;
+  opacity: 0.01;
+  pointer-events: none;
 }
 
 .page-body {

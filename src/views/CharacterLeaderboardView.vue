@@ -144,6 +144,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { runWithViewTransition } from '@/utils/viewTransition'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -219,16 +220,25 @@ function persistCollectionTab(tab) {
 }
 
 function switchTopTab(nextMode) {
+  const tabOrder = { goods: 0, wishlist: 1, stats: 2 }
+  const currentIndex = tabOrder.stats
+
   if (nextMode === 'goods') {
     persistCollectionTab('goods')
     persistHomeMode('goods')
-    router.push('/home')
+    runWithViewTransition(
+      () => router.push('/home'),
+      { direction: tabOrder.goods >= currentIndex ? 'forward' : 'back' }
+    )
     return
   }
 
   if (nextMode === 'wishlist') {
     persistCollectionTab('wishlist')
-    router.push('/wishlist')
+    runWithViewTransition(
+      () => router.push('/wishlist'),
+      { direction: tabOrder.wishlist >= currentIndex ? 'forward' : 'back' }
+    )
   }
 }
 
