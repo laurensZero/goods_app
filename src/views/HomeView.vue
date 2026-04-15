@@ -366,6 +366,12 @@ function handleHomeModeStorage(event) {
   handleExternalHomeModeChange(event.newValue)
 }
 
+function readStoredHomeMode() {
+  if (typeof localStorage === 'undefined') return 'goods'
+  const storedValue = localStorage.getItem(HOME_MODE_STORAGE_KEY)
+  return storedValue === 'recharge' ? 'recharge' : 'goods'
+}
+
 function handleHeroSearch() {
   if (homeMode.value === 'goods') {
     saveScrollPosition(true, 'home:handleHeroSearch')
@@ -655,6 +661,7 @@ function shouldMaskHomeDisplay() {
 onMounted(async () => {
   isRouteLeaving = false
   const sessionId = ++mountBootstrapSession
+  handleExternalHomeModeChange(readStoredHomeMode())
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
   if (didResetOnReload) {
@@ -690,6 +697,7 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isHomeActive.value = true
+  handleExternalHomeModeChange(readStoredHomeMode())
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)

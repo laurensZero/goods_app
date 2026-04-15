@@ -206,6 +206,11 @@ import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 
+const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
+const HOME_MODE_EVENT = 'goods-app:home-mode-change'
+const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
+const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
+
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
@@ -427,6 +432,8 @@ function handleBackNavigation() {
     return fallbackPath
   })()
 
+  syncCollectionContextForPath(targetPath)
+
   runWithViewTransition(
     () => router.push(targetPath),
     {
@@ -435,6 +442,29 @@ function handleBackNavigation() {
       sourceEl: coverCardRef.value
     }
   )
+}
+
+function syncCollectionContextForPath(path) {
+  if (typeof window === 'undefined') return
+
+  const normalizedPath = String(path || '')
+  const nextCollectionTab = normalizedPath.startsWith('/wishlist')
+    ? 'wishlist'
+    : normalizedPath.startsWith('/leaderboard')
+      ? 'stats'
+      : 'goods'
+
+  localStorage.setItem(COLLECTION_TAB_STORAGE_KEY, nextCollectionTab)
+  window.dispatchEvent(new CustomEvent(COLLECTION_TAB_EVENT, {
+    detail: { tab: nextCollectionTab }
+  }))
+
+  if (normalizedPath.startsWith('/home')) {
+    localStorage.setItem(HOME_MODE_STORAGE_KEY, 'goods')
+    window.dispatchEvent(new CustomEvent(HOME_MODE_EVENT, {
+      detail: { mode: 'goods' }
+    }))
+  }
 }
 
 function handleAndroidBackButton(event) {
