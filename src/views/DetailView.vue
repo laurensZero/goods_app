@@ -420,17 +420,15 @@ function handleBackNavigation() {
   const returnPath = getPendingDetailReturnPath()
   const currentPath = router.currentRoute.value?.fullPath || ''
   const historyBackPath = window.history?.state?.back || ''
-  const shouldUseHistoryBack = Boolean(returnPath && historyBackPath === returnPath)
+  const fallbackPath = '/home'
+  const targetPath = (() => {
+    if (returnPath && returnPath !== currentPath) return returnPath
+    if (historyBackPath && historyBackPath !== currentPath) return historyBackPath
+    return fallbackPath
+  })()
+
   runWithViewTransition(
-    () => {
-      if (shouldUseHistoryBack) {
-        return router.back()
-      }
-      if (returnPath && returnPath !== currentPath) {
-        return router.push(returnPath)
-      }
-      return router.back()
-    },
+    () => router.push(targetPath),
     {
       goodsId: props.id,
       direction: 'back',
