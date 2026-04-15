@@ -653,6 +653,10 @@ onMounted(async () => {
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
   }
+  // Handle non-reload cold starts where stale session scroll state may persist.
+  if (!didResetOnReload && !hasPendingRestore()) {
+    clearDisplayedScrollPosition()
+  }
 
   if (!eventsStore.isReady) {
     await eventsStore.init()
