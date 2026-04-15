@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.10",
+    "url": "bundle-20260415.10.zip",
+    "hash": "4f0643370dcf7fb0505f14849489715729b9f311a32d7443f270607595774b22",
+    "minNativeVersion": null,
+    "notes": "- feat: 分离Homeview和Rechargeview feat: 移除ViewTransition，重写页面切换逻辑 feat: 添加进入/退出详情页的图片动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T11:07:48Z"
+  },
+  {
     "version": "20260415.9",
     "url": "bundle-20260415.9.zip",
     "hash": "9113f86e8891b9f210d0c2e4ee47573388115cba7a1dd6045a4afd48ea9a1a82",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加页面清理脚本以移除过时的资源，优化存储管理",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T08:30:40Z"
-  },
-  {
-    "version": "20260415.7",
-    "url": "bundle-20260415.7.zip",
-    "hash": "ab19bca343fe9ac705c45ba3e37bd54166451c4259b27a0c5832dfeefbe48760",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加主页和详情页的存储和事件处理逻辑，优化用户模式切换体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T07:35:03Z"
   }
 ]
