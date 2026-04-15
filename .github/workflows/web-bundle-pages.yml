@@ -166,6 +166,12 @@ jobs:
 
           ROLLBACK_VERSION="${INPUT_ROLLBACK_VERSION// /}"
 
+          mkdir -p pages
+          if [ -d "ghpages" ]; then
+            cp -a "ghpages/." pages/
+            rm -rf "pages/.git"
+          fi
+
           mkdir -p "pages/${CHANNEL}"
           if [ -f "docs/ota-bundle-manager.html" ]; then
             cp "docs/ota-bundle-manager.html" "pages/index.html"
@@ -209,7 +215,11 @@ jobs:
           fi
 
           export HISTORY_FILE ROLLBACK_VERSION VERSION URL HASH INPUT_MIN_NATIVE INPUT_NOTES PUBLISHED_AT CHANNEL BUNDLE_NAME MODE
-            python3 scripts/prepare_pages_manifest.py >> "$GITHUB_OUTPUT"
+          python3 scripts/prepare_pages_manifest.py >> "$GITHUB_OUTPUT"
+
+          # Remove stale bundle artifacts that are no longer referenced by versions.json.
+          # This keeps gh-pages from growing indefinitely.
+          python3 scripts/prune_pages_bundles.py pages
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
@@ -217,7 +227,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./pages
-          keep_files: true
+          keep_files: false
 
       - name: Summary
         run: |
