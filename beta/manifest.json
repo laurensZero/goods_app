@@ -1,9 +1,9 @@
 {
-  "version": "20260415.1",
-  "url": "bundle-20260415.1.zip",
-  "hash": "b20d98020fd6cf58e98a011e7cc473757cbe9cc9e9e4963f5fb05d5a1e1462fc",
+  "version": "20260415.2",
+  "url": "bundle-20260415.2.zip",
+  "hash": "b71bb74e2ed1f4df2e95c761cb2a6782480e061ccf75dbcaeacd47aa3bd9a12f",
   "minNativeVersion": null,
-  "notes": "- feat: 优化视图过渡效果，增强路由切换体验",
+  "notes": "- feat: 优化视图切换动画，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T06:08:48Z"
+  "publishedAt": "2026-04-15T06:21:03Z"
 }
