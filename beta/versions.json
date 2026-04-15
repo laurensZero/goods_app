@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.7",
+    "url": "bundle-20260415.7.zip",
+    "hash": "ab19bca343fe9ac705c45ba3e37bd54166451c4259b27a0c5832dfeefbe48760",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加主页和详情页的存储和事件处理逻辑，优化用户模式切换体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T07:35:03Z"
+  },
+  {
     "version": "20260415.6",
     "url": "bundle-20260415.6.zip",
     "hash": "86491c2e974d36cbf91267b3f45bb80df081d708252c94e2cf63ecedfe119c20",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T07:10:23Z"
-  },
-  {
-    "version": "20260415.4",
-    "url": "bundle-20260415.4.zip",
-    "hash": "181790da86cb72e4eb558df798531e213589941f97f8b3e16995f7f6e690f4c8",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化返回导航逻辑，简化路径选择，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T06:46:13Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260415.6",
-  "url": "bundle-20260415.6.zip",
-  "hash": "86491c2e974d36cbf91267b3f45bb80df081d708252c94e2cf63ecedfe119c20",
+  "version": "20260415.7",
+  "url": "bundle-20260415.7.zip",
+  "hash": "ab19bca343fe9ac705c45ba3e37bd54166451c4259b27a0c5832dfeefbe48760",
   "minNativeVersion": null,
-  "notes": "- feat: 添加页面过渡动画设置功能，优化用户体验",
+  "notes": "- feat: 添加主页和详情页的存储和事件处理逻辑，优化用户模式切换体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T07:18:02Z"
+  "publishedAt": "2026-04-15T07:35:03Z"
 }
