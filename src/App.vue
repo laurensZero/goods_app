@@ -153,6 +153,26 @@ onBeforeUnmount(() => {
   backface-visibility: hidden;
 }
 
+:global(html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='forward'] .route-scene) {
+  animation: vt-fallback-page-forward 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+  will-change: transform, opacity;
+}
+
+:global(html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='back'] .route-scene) {
+  animation: vt-fallback-page-back 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+  will-change: transform, opacity;
+}
+
+:global(html[data-vt-fallback='1'][data-vt-fallback-kind='detail-enter'] .route-scene) {
+  animation: vt-fallback-detail-enter 220ms cubic-bezier(0.2, 0.85, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+:global(html[data-vt-fallback='1'][data-vt-fallback-kind='detail-back'] .route-scene) {
+  animation: vt-fallback-detail-back 210ms cubic-bezier(0.2, 0.85, 0.2, 1);
+  will-change: transform, opacity;
+}
+
 :global(::view-transition-old(root)),
 :global(::view-transition-new(root)) {
   animation-duration: 140ms;
@@ -227,6 +247,54 @@ onBeforeUnmount(() => {
   to {
     opacity: 0.88;
     transform: scale(0.985);
+  }
+}
+
+@keyframes vt-fallback-page-forward {
+  from {
+    opacity: 0.95;
+    transform: translateX(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vt-fallback-page-back {
+  from {
+    opacity: 0.95;
+    transform: translateX(-14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vt-fallback-detail-enter {
+  from {
+    opacity: 0.86;
+    transform: translateY(22px) scale(0.965);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vt-fallback-detail-back {
+  from {
+    opacity: 0.9;
+    transform: translateY(-14px) scale(1.01);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

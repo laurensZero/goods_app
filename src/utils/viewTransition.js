@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 const DEBUG_VIEW_TRANSITION = false
+const VIEW_TRANSITION_DISABLED_STORAGE_KEY = 'goods-view-transition-disabled-v1'
+const VIEW_TRANSITION_SETTING_EVENT = 'goods-app:view-transition-setting-change'
 
 function vtLog(message, payload = null) {
   if (!DEBUG_VIEW_TRANSITION) return
@@ -13,9 +15,42 @@ function vtLog(message, payload = null) {
 function canUseViewTransition() {
   if (typeof document === 'undefined') return false
   if (typeof document.startViewTransition !== 'function') return false
+  if (isViewTransitionDisabled()) return false
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
   return true
+}
+
+export function isViewTransitionDisabled() {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    return localStorage.getItem(VIEW_TRANSITION_DISABLED_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setViewTransitionDisabled(disabled) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(VIEW_TRANSITION_DISABLED_STORAGE_KEY, disabled ? '1' : '0')
+  } catch {
+    return
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(VIEW_TRANSITION_SETTING_EVENT, {
+      detail: { disabled: Boolean(disabled) }
+    }))
+  }
+}
+
+export function getViewTransitionSettingEventName() {
+  return VIEW_TRANSITION_SETTING_EVENT
+}
+
+export function getViewTransitionSettingStorageKey() {
+  return VIEW_TRANSITION_DISABLED_STORAGE_KEY
 }
 
 function setDirectionFlag(direction) {
@@ -51,6 +86,26 @@ let activeGoodsHeroId = ''
 const activeGoodsHeroIdRef = ref('')
 const activeEventHeroIdRef = ref('')
 let pendingDetailReturnPath = ''
+let fallbackAnimationTimer = 0
+
+function runFallbackRouteAnimation(direction = 'forward', kind = 'page') {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return
+  const root = document.documentElement
+  root.dataset.vtFallback = '1'
+  root.dataset.vtFallbackDirection = direction === 'back' ? 'back' : 'forward'
+  root.dataset.vtFallbackKind = kind
+
+  if (fallbackAnimationTimer) {
+    window.clearTimeout(fallbackAnimationTimer)
+  }
+
+  fallbackAnimationTimer = window.setTimeout(() => {
+    delete root.dataset.vtFallback
+    delete root.dataset.vtFallbackDirection
+    delete root.dataset.vtFallbackKind
+    fallbackAnimationTimer = 0
+  }, 1000)
+}
 
 export function getActiveGoodsHeroTransitionName(goodsId) {
   const normalizedId = String(goodsId || '').trim()
@@ -110,6 +165,14 @@ export function runWithViewTransition(navigate, options = {}) {
   if (typeof navigate !== 'function') return
   if (!enabled || !canUseViewTransition()) {
     vtLog('fallback:disabled-or-unsupported', { enabled, goodsId, direction })
+    if (isViewTransitionDisabled()) {
+      const normalizedGoodsId = String(goodsId || '').trim()
+      const normalizedEventId = String(eventId || '').trim()
+      const fallbackKind = (normalizedGoodsId || normalizedEventId)
+        ? (direction === 'back' ? 'detail-back' : 'detail-enter')
+        : 'page'
+      runFallbackRouteAnimation(direction, fallbackKind)
+    }
     navigate()
     return
   }
