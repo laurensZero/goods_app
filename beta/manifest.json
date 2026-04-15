@@ -1,9 +1,9 @@
 {
-  "version": "20260415.14",
-  "url": "bundle-20260415.14.zip",
-  "hash": "c2cb59a5c9ef128c61794a79bef0fec9012d5b3f26516da9e741057d40258a24",
+  "version": "20260415.15",
+  "url": "bundle-20260415.15.zip",
+  "hash": "1068a0c9dff7e4cfa588110183295b89d923c3dbf0632f3c14910001148b6dc2",
   "minNativeVersion": null,
-  "notes": "- feat: 增加详情页的滚动锁定逻辑，优化页面过渡体验",
+  "notes": "- feat: 处理非重载冷启动时的滚动状态，优化页面加载体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T13:10:00Z"
+  "publishedAt": "2026-04-15T13:34:55Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.15",
+    "url": "bundle-20260415.15.zip",
+    "hash": "1068a0c9dff7e4cfa588110183295b89d923c3dbf0632f3c14910001148b6dc2",
+    "minNativeVersion": null,
+    "notes": "- feat: 处理非重载冷启动时的滚动状态，优化页面加载体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T13:34:55Z"
+  },
+  {
     "version": "20260415.14",
     "url": "bundle-20260415.14.zip",
     "hash": "c2cb59a5c9ef128c61794a79bef0fec9012d5b3f26516da9e741057d40258a24",
@@ -16,14 +25,5 @@
     "notes": "- feat: 简化路由切换逻辑，统一过渡方向，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T12:16:47Z"
-  },
-  {
-    "version": "20260415.12",
-    "url": "bundle-20260415.12.zip",
-    "hash": "bd13f1606be78ce7e1bbb8b66d0bddb7173404d4473666c93ced99dec156d674",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化商品卡片和详情视图的加载逻辑，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T11:32:00Z"
   }
 ]
