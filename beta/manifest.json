@@ -1,9 +1,9 @@
 {
-  "version": "20260415.12",
-  "url": "bundle-20260415.12.zip",
-  "hash": "bd13f1606be78ce7e1bbb8b66d0bddb7173404d4473666c93ced99dec156d674",
+  "version": "20260415.13",
+  "url": "bundle-20260415.13.zip",
+  "hash": "38f64dae00c6165341a5fa9ec0e255f51a8bb1502daab844b3b5a506a5d4acb0",
   "minNativeVersion": null,
-  "notes": "- feat: 优化商品卡片和详情视图的加载逻辑，提升用户体验",
+  "notes": "- feat: 简化路由切换逻辑，统一过渡方向，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T11:32:00Z"
+  "publishedAt": "2026-04-15T12:16:47Z"
 }
