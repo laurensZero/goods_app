@@ -632,7 +632,8 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isEventsActive.value = true
-  const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
+  const isViewTransitionRunning = Boolean(document.documentElement.dataset.vtDirection)
+  const shouldMaskDisplay = !isViewTransitionRunning && Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
   if (shouldMaskDisplay) {
     eventsDisplayReady.value = false
   }
@@ -646,9 +647,6 @@ onActivated(async () => {
 onDeactivated(() => {
   isEventsActive.value = false
   cancelPendingRestore()
-  if (hasPendingRestore()) {
-    eventsDisplayReady.value = false
-  }
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }

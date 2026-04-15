@@ -355,7 +355,8 @@ async function refresh() {
 }
 
 onMounted(async () => {
-  eventDisplayReady.value = false
+  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
+  eventDisplayReady.value = !shouldRestore
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }

@@ -38,6 +38,10 @@ export function setViewTransitionDisabled(disabled) {
     return
   }
 
+  if (!disabled) {
+    clearFallbackRouteAnimation()
+  }
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(VIEW_TRANSITION_SETTING_EVENT, {
       detail: { disabled: Boolean(disabled) }
@@ -87,6 +91,19 @@ const activeGoodsHeroIdRef = ref('')
 const activeEventHeroIdRef = ref('')
 let pendingDetailReturnPath = ''
 let fallbackAnimationTimer = 0
+
+function clearFallbackRouteAnimation() {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  delete root.dataset.vtFallback
+  delete root.dataset.vtFallbackDirection
+  delete root.dataset.vtFallbackKind
+
+  if (fallbackAnimationTimer && typeof window !== 'undefined') {
+    window.clearTimeout(fallbackAnimationTimer)
+    fallbackAnimationTimer = 0
+  }
+}
 
 function runFallbackRouteAnimation(direction = 'forward', kind = 'page') {
   if (typeof document === 'undefined' || typeof window === 'undefined') return
@@ -172,10 +189,14 @@ export function runWithViewTransition(navigate, options = {}) {
         ? (direction === 'back' ? 'detail-back' : 'detail-enter')
         : 'page'
       runFallbackRouteAnimation(direction, fallbackKind)
+    } else {
+      clearFallbackRouteAnimation()
     }
     navigate()
     return
   }
+
+  clearFallbackRouteAnimation()
 
   const normalizedGoodsId = String(goodsId || '').trim()
   const normalizedEventId = String(eventId || '').trim()

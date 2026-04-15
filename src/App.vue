@@ -124,9 +124,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-:global(html),
-:global(body),
-:global(#app) {
+html,
+body,
+#app {
   min-height: 100%;
   background-color: var(--app-bg);
   background: var(--app-bg-gradient);
@@ -153,86 +153,86 @@ onBeforeUnmount(() => {
   backface-visibility: hidden;
 }
 
-:global(html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='forward'] .route-scene) {
+html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='forward'] .route-scene {
   animation: vt-fallback-page-forward 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
   will-change: transform, opacity;
 }
 
-:global(html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='back'] .route-scene) {
+html[data-vt-fallback='1'][data-vt-fallback-kind='page'][data-vt-fallback-direction='back'] .route-scene {
   animation: vt-fallback-page-back 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
   will-change: transform, opacity;
 }
 
-:global(html[data-vt-fallback='1'][data-vt-fallback-kind='detail-enter'] .route-scene) {
+html[data-vt-fallback='1'][data-vt-fallback-kind='detail-enter'] .route-scene {
   animation: vt-fallback-detail-enter 220ms cubic-bezier(0.2, 0.85, 0.2, 1);
   will-change: transform, opacity;
 }
 
-:global(html[data-vt-fallback='1'][data-vt-fallback-kind='detail-back'] .route-scene) {
+html[data-vt-fallback='1'][data-vt-fallback-kind='detail-back'] .route-scene {
   animation: vt-fallback-detail-back 210ms cubic-bezier(0.2, 0.85, 0.2, 1);
   will-change: transform, opacity;
 }
 
-:global(::view-transition-old(root)),
-:global(::view-transition-new(root)) {
+::view-transition-old(root),
+::view-transition-new(root) {
   animation-duration: 140ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   animation-fill-mode: both;
 }
 
-:global(::view-transition-old(root)) {
+::view-transition-old(root) {
   animation-name: vt-root-out;
 }
 
-:global(::view-transition-new(root)) {
+::view-transition-new(root) {
   animation-name: vt-root-in;
 }
 
-:global(::view-transition-group(*)) {
+::view-transition-group(*) {
   animation-duration: 130ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   isolation: isolate;
 }
 
-:global(::view-transition-old(*)),
-:global(::view-transition-new(*)) {
+::view-transition-old(*),
+::view-transition-new(*) {
   will-change: transform, opacity;
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
-:global(html[data-vt-direction='back']::view-transition-old(*)) {
+html[data-vt-direction='back']::view-transition-old(*) {
   z-index: 20;
   animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
 }
 
-:global(html[data-vt-direction='back']::view-transition-new(root)) {
+html[data-vt-direction='back']::view-transition-new(root) {
   animation: vt-root-recover 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-:global(html[data-vt-manage-slide='forward']::view-transition-old(root)) {
+html[data-vt-manage-slide='forward']::view-transition-old(root) {
   animation: vt-manage-out-left 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
-:global(html[data-vt-manage-slide='forward']::view-transition-new(root)) {
+html[data-vt-manage-slide='forward']::view-transition-new(root) {
   animation: vt-manage-in-from-right 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
-:global(html[data-vt-manage-slide='back']::view-transition-old(root)) {
+html[data-vt-manage-slide='back']::view-transition-old(root) {
   animation: vt-manage-out-right 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
-:global(html[data-vt-manage-slide='back']::view-transition-new(root)) {
+html[data-vt-manage-slide='back']::view-transition-new(root) {
   animation: vt-manage-in-from-left 145ms cubic-bezier(0.25, 0.8, 0.2, 1) both !important;
 }
 
 @media (min-width: 900px) {
-  :global(::view-transition-old(root)),
-  :global(::view-transition-new(root)) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation-duration: 180ms;
   }
 
-  :global(::view-transition-group(*)) {
+  ::view-transition-group(*) {
     animation-duration: 170ms;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
