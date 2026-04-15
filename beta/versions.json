@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.11",
+    "url": "bundle-20260415.11.zip",
+    "hash": "a44ffaee73516435b0b863e054dfead655e653e17517b8b9620dce852b611030",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强商品详情页的链接商品处理逻辑，优化页面过渡体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T11:28:10Z"
+  },
+  {
     "version": "20260415.10",
     "url": "bundle-20260415.10.zip",
     "hash": "4f0643370dcf7fb0505f14849489715729b9f311a32d7443f270607595774b22",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化视图过渡逻辑，简化动画处理，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T09:16:38Z"
-  },
-  {
-    "version": "20260415.8",
-    "url": "bundle-20260415.8.zip",
-    "hash": "9bbd0944aa1d72ede020314e0604797963c71fac7b92f1703256bf5ab67ca33f",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加页面清理脚本以移除过时的资源，优化存储管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T08:30:40Z"
   }
 ]

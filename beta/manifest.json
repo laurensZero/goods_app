@@ -1,9 +1,9 @@
 {
-  "version": "20260415.10",
-  "url": "bundle-20260415.10.zip",
-  "hash": "4f0643370dcf7fb0505f14849489715729b9f311a32d7443f270607595774b22",
+  "version": "20260415.11",
+  "url": "bundle-20260415.11.zip",
+  "hash": "a44ffaee73516435b0b863e054dfead655e653e17517b8b9620dce852b611030",
   "minNativeVersion": null,
-  "notes": "- feat: 分离Homeview和Rechargeview feat: 移除ViewTransition，重写页面切换逻辑 feat: 添加进入/退出详情页的图片动画",
+  "notes": "- feat: 增强商品详情页的链接商品处理逻辑，优化页面过渡体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T11:07:48Z"
+  "publishedAt": "2026-04-15T11:28:10Z"
 }
