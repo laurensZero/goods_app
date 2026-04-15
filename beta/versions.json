@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.8",
+    "url": "bundle-20260415.8.zip",
+    "hash": "9bbd0944aa1d72ede020314e0604797963c71fac7b92f1703256bf5ab67ca33f",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加页面清理脚本以移除过时的资源，优化存储管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T08:30:40Z"
+  },
+  {
     "version": "20260415.7",
     "url": "bundle-20260415.7.zip",
     "hash": "ab19bca343fe9ac705c45ba3e37bd54166451c4259b27a0c5832dfeefbe48760",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加页面过渡动画设置功能，优化用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T07:18:02Z"
-  },
-  {
-    "version": "20260415.5",
-    "url": "bundle-20260415.5.zip",
-    "hash": "4e2b9818f50484dc80bff6ff24dd2ffc321f5c16969bb6d25742a7903c1d623c",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T07:10:23Z"
   }
 ]
