@@ -67,6 +67,8 @@
           :items="visibleGoodsList"
           :density="displayDensity"
           :grid-style="goodsGridStyle"
+          :index-offset="visibleGoodsStartIndex"
+          :before-spacer-height="visibleGoodsHeadSpacerHeight"
           :after-spacer-height="visibleGoodsTailSpacerHeight"
           :transitioning="isDensityAnimating"
           :is-sort-animating="isSortAnimating"
@@ -202,7 +204,10 @@ const windowWidth = ref(window.innerWidth)
 const _onResize = () => { windowWidth.value = window.innerWidth }
 const selectionHeaderTop = ref(0)
 const INITIAL_RENDER_ROWS = 6
-const LOAD_MORE_ROWS = 4
+const GOODS_GRID_ROW_GAP = 12
+const GOODS_GRID_OVERSCAN_ROWS = 4
+const GOODS_GRID_OVERSCAN_ROWS_WIDE = 3
+const GOODS_GRID_MAX_RENDER_CARDS = 96
 const LOAD_MORE_THRESHOLD_PX = 720
 const INITIAL_TIMELINE_MONTHS = 6
 const LOAD_MORE_TIMELINE_MONTHS = 4
@@ -357,51 +362,63 @@ function getInitialVisibleCount() {
   return Math.max(getResponsiveCols(displayDensity.value) * INITIAL_RENDER_ROWS, 24)
 }
 
-function getLoadMoreStep() {
-  return Math.max(getResponsiveCols(displayDensity.value) * LOAD_MORE_ROWS, 16)
-}
-
-function estimateVisibleCountForScrollTop(scrollTop = 0, options = {}) {
-  if (displayDensity.value === 'timeline') return goodsList.value.length
-
-  const { useFlipViewport = false } = options
-  const cols = getResponsiveCols(displayDensity.value)
-  const viewportHeight = useFlipViewport
+function resolveGoodsViewportHeight(options = {}) {
+  const { useFlipViewport = false, viewportHeight = 0 } = options
+  if (Number.isFinite(viewportHeight) && viewportHeight > 0) return viewportHeight
+  return useFlipViewport
     ? getFlipViewportHeight()
     : (getScrollEl()?.clientHeight || window.innerHeight || 800)
+}
+
+function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
+  if (displayDensity.value === 'timeline') {
+    currentGoodsScrollTop.value = Math.max(0, Number(scrollTop) || 0)
+    currentGoodsViewportHeight.value = resolveGoodsViewportHeight(options)
+    visibleGoodsStartIndex.value = 0
+    visibleGoodsRenderCount.value = goodsList.value.length
+    return
+  }
+
+  const normalizedTop = Math.max(0, Number(scrollTop) || 0)
+  const viewportHeight = resolveGoodsViewportHeight(options)
+  const cols = getResponsiveCols(displayDensity.value)
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const rowsNeeded = Math.ceil((scrollTop + viewportHeight * 2) / rowHeight)
-  const estimatedCount = rowsNeeded * cols + getLoadMoreStep()
-  return Math.min(goodsList.value.length, Math.max(getInitialVisibleCount(), estimatedCount))
+  const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
+  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
+  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+  const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+  const startIndex = Math.min(goodsList.value.length, startRow * cols)
+  const remainingItems = Math.max(0, goodsList.value.length - startIndex)
+  const renderCount = Math.min(
+    remainingItems,
+    Math.min(
+      GOODS_GRID_MAX_RENDER_CARDS,
+      Math.max(cols * 4, renderRows * cols)
+    )
+  )
+
+  currentGoodsScrollTop.value = normalizedTop
+  currentGoodsViewportHeight.value = viewportHeight
+  visibleGoodsStartIndex.value = startIndex
+  visibleGoodsRenderCount.value = renderCount
 }
 
 function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
-  visibleGoodsCount.value = estimateVisibleCountForScrollTop(scrollTop, options)
+  if (displayDensity.value === 'timeline') return
+  syncVirtualGoodsViewport(scrollTop, options)
 }
 
 function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
+  if (displayDensity.value === 'timeline') return
   const viewportHeight = getFlipViewportHeight()
   const preloadTargetTop = scrollTop + viewportHeight * 2.5
-  visibleGoodsCount.value = Math.min(
-    goodsList.value.length,
-    Math.max(
-      visibleGoodsCount.value,
-      estimateVisibleCountForScrollTop(preloadTargetTop, { useFlipViewport: true }) + getLoadMoreStep()
-    )
-  )
+  syncVirtualGoodsViewport(preloadTargetTop, { useFlipViewport: true, viewportHeight })
 }
 
 function maybeLoadMoreGoods() {
   if (displayDensity.value === 'timeline') return
-  if (visibleGoodsCount.value >= goodsList.value.length) return
-
-  const el = getScrollEl()
-  if (!el) return
-
-  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
-  if (remaining > LOAD_MORE_THRESHOLD_PX) return
-
-  visibleGoodsCount.value = Math.min(goodsList.value.length, visibleGoodsCount.value + getLoadMoreStep())
+  syncVisibleGoodsCount(readScrollTop())
 }
 
 function getInitialVisibleTimelineMonths() {
@@ -474,11 +491,12 @@ function prepareRestoreState(state) {
   if (!Number.isFinite(anchorIndex) || anchorIndex < 0) return
 
   const cols = getResponsiveCols(displayDensity.value)
-  const bufferedCount = anchorIndex + cols * 3
-  visibleGoodsCount.value = Math.min(
-    goodsList.value.length,
-    Math.max(visibleGoodsCount.value, getInitialVisibleCount(), bufferedCount)
-  )
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
+  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const anchorRow = Math.floor(anchorIndex / cols)
+  const restoreTop = Math.max(0, anchorRow * rowSpan - overscanRows * rowSpan)
+  syncVisibleGoodsCount(restoreTop, { useFlipViewport: true })
 }
 
 function maybeLoadMoreTimelineMonths() {
@@ -714,12 +732,20 @@ const densityFlip = useGoodsGridDensityFlip({
   getItemCount: () => goodsList.value.length
 })
 
-const visibleGoodsCount = ref(0)
+const currentGoodsScrollTop = ref(0)
+const currentGoodsViewportHeight = ref(0)
+const visibleGoodsStartIndex = ref(0)
+const visibleGoodsRenderCount = ref(getInitialVisibleCount())
 const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
+const visibleGoodsEndIndex = computed(() => (
+  displayDensity.value === 'timeline'
+    ? goodsList.value.length
+    : Math.min(goodsList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
+))
 const visibleGoodsList = computed(() =>
   displayDensity.value === 'timeline'
     ? goodsList.value
-    : goodsList.value.slice(0, visibleGoodsCount.value || getInitialVisibleCount())
+    : goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
 )
 const {
   allTimelineMonthCount,
@@ -740,18 +766,27 @@ const {
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
+const visibleGoodsHeadSpacerHeight = computed(() => {
+  if (displayDensity.value === 'timeline') return 0
+
+  const cols = getResponsiveCols(displayDensity.value)
+  const headRows = Math.floor(visibleGoodsStartIndex.value / cols)
+  if (headRows <= 0) return 0
+
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  return headRows * rowHeight + Math.max(0, headRows - 1) * GOODS_GRID_ROW_GAP
+})
 const visibleGoodsTailSpacerHeight = computed(() => {
   if (displayDensity.value === 'timeline') return 0
 
-  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsList.value.length)
+  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsEndIndex.value)
   if (!remainingItems) return 0
 
   const cols = getResponsiveCols(displayDensity.value)
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const gap = 12
   const remainingRows = Math.ceil(remainingItems / cols)
   return remainingRows > 0
-    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * gap
+    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * GOODS_GRID_ROW_GAP
     : 0
 })
 const selectionHeaderStyle = computed(() => ({
@@ -760,7 +795,7 @@ const selectionHeaderStyle = computed(() => ({
 const preloadLeadCount = computed(() =>
   displayDensity.value === 'timeline'
     ? 6
-    : Math.max(getResponsiveCols(displayDensity.value) * 2, 8)
+    : Math.min(16, Math.max(getResponsiveCols(displayDensity.value) * 2, 10))
 )
 const preloadTargetList = computed(() =>
   (

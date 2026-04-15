@@ -172,6 +172,25 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     }
   }
 
+  function buildScrollState(top, source, includeAnchor = true) {
+    const base = {
+      top,
+      source
+    }
+    if (!includeAnchor) {
+      return {
+        ...base,
+        anchorId: '',
+        anchorIndex: -1,
+        anchorOffset: 0
+      }
+    }
+    return {
+      ...base,
+      ...readScrollAnchor(top)
+    }
+  }
+
   function writeScrollState(state) {
     savedScrollState = state
     sessionStorage.setItem(storageKey, JSON.stringify(state))
@@ -190,11 +209,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     // Losing the source is what previously caused wrong restores and broken scroll-top behavior.
     const { top, source } = getScrollSnapshotForPersistence()
     activeScrollSource = source
-    const state = {
-      top,
-      source,
-      ...readScrollAnchor(top)
-    }
+    const state = buildScrollState(top, source, true)
     debugLog('saveScrollPosition', { reason, markPending, state })
     writeScrollState(state)
     if (markPending) {
@@ -378,11 +393,9 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   function rememberCurrentScrollPosition(reason = 'remember', shouldLog = false) {
     const { top, source } = getScrollSnapshotForPersistence()
     activeScrollSource = source
-    const state = {
-      top,
-      source,
-      ...readScrollAnchor(top)
-    }
+    // High-frequency scroll updates should avoid full anchor scans.
+    // Route transitions still persist anchor data via saveScrollPosition().
+    const state = buildScrollState(top, source, false)
     writeScrollState(state)
     if (shouldLog || DEBUG_SCROLL_RESTORE) {
       debugLog('rememberCurrentScrollPosition', { reason, state })

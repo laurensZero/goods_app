@@ -200,7 +200,7 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { getPendingDetailReturnPath } from '@/utils/routeTransition'
+import { getPendingDetailReturnPath, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
@@ -427,7 +427,7 @@ function handleBackNavigation() {
   const fallbackPath = '/home'
   const targetPath = (() => {
     if (returnPath && returnPath !== currentPath) return returnPath
-    if (historyBackPath && historyBackPath !== currentPath) return historyBackPath
+    if (historyBackPath && historyBackPath !== currentPath && !historyBackPath.startsWith('/detail/')) return historyBackPath
     return fallbackPath
   })()
 
@@ -439,6 +439,7 @@ function handleBackNavigation() {
     targetPath
   })
 
+  setPendingDetailReturnPath('')
   router.push(targetPath)
 }
 

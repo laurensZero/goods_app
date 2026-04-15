@@ -8,6 +8,12 @@
       ]"
       :style="gridStyle"
     >
+      <div
+        v-if="beforeSpacerHeight > 0"
+        class="goods-list-spacer"
+        aria-hidden="true"
+        :style="{ height: `${beforeSpacerHeight}px` }"
+      />
       <GoodsCard
         v-for="(item, index) in items"
         :key="item.id"
@@ -69,6 +75,10 @@ const props = defineProps({
     default: null
   },
   indexOffset: {
+    type: Number,
+    default: 0
+  },
+  beforeSpacerHeight: {
     type: Number,
     default: 0
   },

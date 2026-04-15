@@ -33,7 +33,14 @@
         :data-goods-hero-id="String(item.id || '')"
         :style="coverStyle"
       >
-        <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
+        <LazyCachedImage
+          v-if="item.coverImage"
+          :src="item.coverImage"
+          :alt="item.name"
+          :lazy="!preferEagerCoverLoad"
+          :root-margin="preferEagerCoverLoad ? '180px 0px' : '520px 0px'"
+          class="cover-img"
+        />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div
@@ -113,6 +120,7 @@ const gestureMoved = ref(false)
 const tagsDragging = ref(false)
 const TOUCH_TAP_THRESHOLD = 12
 const MOUSE_TAP_THRESHOLD = 6
+const preferEagerCoverLoad = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '')
 let tagsDragStartX = 0
 let tagsDragStartScrollLeft = 0
 
@@ -179,6 +187,7 @@ function onMouseDown(event) {
 }
 
 function onMouseMove(event) {
+  if (!longPressTimer.value) return
   const dx = Math.abs(event.clientX - touchStartX.value)
   const dy = Math.abs(event.clientY - touchStartY.value)
   if (dx > MOUSE_TAP_THRESHOLD || dy > MOUSE_TAP_THRESHOLD) {
@@ -194,6 +203,7 @@ function onMouseUp(event) {
 }
 
 function onMouseLeave() {
+  if (!longPressTimer.value && !longPressTriggered.value) return
   gestureMoved.value = true
   cancelLongPress()
 }
@@ -349,8 +359,8 @@ const priceText = computed(() => {
 
 @media (hover: hover) {
   .goods-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.08);
+    transform: none;
+    box-shadow: var(--app-shadow);
   }
 }
 
