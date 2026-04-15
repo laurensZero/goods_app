@@ -316,6 +316,8 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       debugLog('restorePendingScrollPosition:top<=0-clear-pending', { sessionId, storedState })
       return
     }
+    // Apply target scroll immediately to avoid a visible jump at page top.
+    setScrollTop(storedTop, storedState?.source || 'both')
     if (Math.abs(readScrollTop() - storedTop) <= 1) {
       sessionStorage.removeItem(pendingKey)
       debugLog('restorePendingScrollPosition:already-at-target', { sessionId, storedTop })
@@ -355,6 +357,8 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       debugLog('restoreActivatedScrollPosition:top<=0-clear-pending', { sessionId, storedState })
       return
     }
+    // Apply target scroll immediately to avoid a visible jump at page top.
+    setScrollTop(storedTop, storedState?.source || 'both')
     if (Math.abs(readScrollTop() - storedTop) <= 1) {
       sessionStorage.removeItem(pendingKey)
       debugLog('restoreActivatedScrollPosition:already-at-target', { sessionId, storedTop })

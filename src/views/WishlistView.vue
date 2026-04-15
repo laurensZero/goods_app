@@ -552,8 +552,7 @@ onMounted(async () => {
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
   }
-  const shouldMaskDisplay = shouldMaskWishlistDisplay()
-  wishlistDisplayReady.value = !shouldMaskDisplay
+  wishlistDisplayReady.value = true
   restoreHomePreferences()
   window.addEventListener('resize', handleResize, { passive: true })
   await nextTick()
@@ -570,10 +569,6 @@ onActivated(async () => {
   isRouteLeaving = false
   persistCollectionTab('wishlist')
   isWishlistActive.value = true
-  const shouldMaskDisplay = shouldMaskWishlistDisplay()
-  if (shouldMaskDisplay) {
-    wishlistDisplayReady.value = false
-  }
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
@@ -585,9 +580,6 @@ onActivated(async () => {
 onDeactivated(() => {
   isWishlistActive.value = false
   cancelPendingRestore()
-  if (hasPendingRestore()) {
-    wishlistDisplayReady.value = false
-  }
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
