@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.1",
+    "url": "bundle-20260415.1.zip",
+    "hash": "b20d98020fd6cf58e98a011e7cc473757cbe9cc9e9e4963f5fb05d5a1e1462fc",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化视图过渡效果，增强路由切换体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T06:08:48Z"
+  },
+  {
     "version": "20260414.13",
     "url": "bundle-20260414.13.zip",
     "hash": "e9f7cece7def4ddaaaa8718d6d065bd98cf75a685161c67076413ca3d8833384",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除不必要的商品集合标签持久化逻辑，简化组件加载",
     "updateLevel": "silent",
     "publishedAt": "2026-04-14T13:59:32Z"
-  },
-  {
-    "version": "20260414.11",
-    "url": "bundle-20260414.11.zip",
-    "hash": "23860b9e10b657ecf7f71a99e830ba94cf2d040cef5346f2aea9a68f19ecd760",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加软加载动画效果，提升路由切换时的用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T13:31:04Z"
   }
 ]
