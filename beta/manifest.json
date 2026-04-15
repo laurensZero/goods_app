@@ -1,9 +1,9 @@
 {
-  "version": "20260415.2",
-  "url": "bundle-20260415.2.zip",
-  "hash": "b71bb74e2ed1f4df2e95c761cb2a6782480e061ccf75dbcaeacd47aa3bd9a12f",
+  "version": "20260415.3",
+  "url": "bundle-20260415.3.zip",
+  "hash": "c17017a53507437d41bc08829cdeb69e9521f5d2bbf32a89a99af2114eb9712f",
   "minNativeVersion": null,
-  "notes": "- feat: 优化视图切换动画，提升用户体验",
+  "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-15T06:21:03Z"
+  "publishedAt": "2026-04-15T06:23:36Z"
 }

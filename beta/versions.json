@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260415.3",
+    "url": "bundle-20260415.3.zip",
+    "hash": "c17017a53507437d41bc08829cdeb69e9521f5d2bbf32a89a99af2114eb9712f",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除视图加载时的遮罩逻辑，简化页面显示流程",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-15T06:23:36Z"
+  },
+  {
     "version": "20260415.2",
     "url": "bundle-20260415.2.zip",
     "hash": "b71bb74e2ed1f4df2e95c761cb2a6782480e061ccf75dbcaeacd47aa3bd9a12f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化视图过渡效果，增强路由切换体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-15T06:08:48Z"
-  },
-  {
-    "version": "20260414.13",
-    "url": "bundle-20260414.13.zip",
-    "hash": "e9f7cece7def4ddaaaa8718d6d065bd98cf75a685161c67076413ca3d8833384",
-    "minNativeVersion": null,
-    "notes": "- feat: 准备重构动画\n\n- feat: 优化路由组件和页面滚动管理，提升用户体验和状态一致性\n\n- feat: 添加视图过渡效果，优化路由切换体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-14T15:44:00Z"
   }
 ]
