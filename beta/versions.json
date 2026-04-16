@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.6",
+    "url": "bundle-20260416.6.zip",
+    "hash": "75310cbff1cb48c1e0905ea43dff102c1714884f214424c9b2122d596dbfc351",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T09:49:05Z"
+  },
+  {
     "version": "20260416.5",
     "url": "bundle-20260416.5.zip",
     "hash": "667fba9f3a3e46306f43d968633890ac455e7d858b55068e53f2c83353aa74c4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强局域网同步功能，优化数据导入和冲突处理逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T05:21:10Z"
-  },
-  {
-    "version": "20260416.3",
-    "url": "bundle-20260416.3.zip",
-    "hash": "c53504e69a25021926d61b731add5a716d6b46c28793b9e1fe83afb2835d0d10",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加局域网同步功能，支持从接收端导入当前快照",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T05:01:56Z"
   }
 ]
