@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.4",
+    "url": "bundle-20260416.4.zip",
+    "hash": "14ab57fd7631ebd07f2c9adc25bb05d811b5b0cddbd6670b52e17514b30e43a6",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强局域网同步功能，优化数据导入和冲突处理逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T05:21:10Z"
+  },
+  {
     "version": "20260416.3",
     "url": "bundle-20260416.3.zip",
     "hash": "c53504e69a25021926d61b731add5a716d6b46c28793b9e1fe83afb2835d0d10",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强局域网设备发现功能，支持子网扫描选项",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T03:58:06Z"
-  },
-  {
-    "version": "20260416.1",
-    "url": "bundle-20260416.1.zip",
-    "hash": "e7196b32ae8e6a00a4e63de21d70b862c330030eff0534bc71c987bf487117ab",
-    "minNativeVersion": null,
-    "notes": "- upd",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T03:48:37Z"
   }
 ]
