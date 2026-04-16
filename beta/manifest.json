@@ -1,9 +1,9 @@
 {
-  "version": "20260416.14",
-  "url": "bundle-20260416.14.zip",
-  "hash": "781a7119a8b530a79476bd143b63a033f58b0a6da9d242b4b71e00b1542cb639",
+  "version": "20260416.15",
+  "url": "bundle-20260416.15.zip",
+  "hash": "60d32db7ef3a5535bb6527461918acee872566a55c84f6f6fb3053bd230dc39e",
   "minNativeVersion": null,
-  "notes": "- feat: 使用 LazyCachedImage 组件替换图片标签，优化图片加载性能",
+  "notes": "- Revert \"feat: 使用 LazyCachedImage 组件替换图片标签，优化图片加载性能\"\n  This reverts commit 77cd753ac2296af354b976248ed30da8f3645cd7.",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T13:43:33Z"
+  "publishedAt": "2026-04-16T14:22:59Z"
 }
