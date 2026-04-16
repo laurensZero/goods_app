@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.3",
+    "url": "bundle-20260416.3.zip",
+    "hash": "c53504e69a25021926d61b731add5a716d6b46c28793b9e1fe83afb2835d0d10",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加局域网同步功能，支持从接收端导入当前快照",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T05:01:56Z"
+  },
+  {
     "version": "20260416.2",
     "url": "bundle-20260416.2.zip",
     "hash": "525869fcac04d7ea65dce11e13f190d660dfad55faf770e5f4dd9223d86166cd",
@@ -16,14 +25,5 @@
     "notes": "- upd",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T03:48:37Z"
-  },
-  {
-    "version": "20260415.15",
-    "url": "bundle-20260415.15.zip",
-    "hash": "1068a0c9dff7e4cfa588110183295b89d923c3dbf0632f3c14910001148b6dc2",
-    "minNativeVersion": null,
-    "notes": "- feat: 处理非重载冷启动时的滚动状态，优化页面加载体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-15T13:34:55Z"
   }
 ]
