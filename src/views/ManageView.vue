@@ -693,19 +693,28 @@ async function handleExport(selection = null) {
     }
   }
 
+  const sanitizeSequential = async (list, sanitizeFn) => {
+    const result = []
+    for (const item of list) {
+      const sanitized = await sanitizeFn(item)
+      if (sanitized) result.push(sanitized)
+    }
+    return result
+  }
+
   const goodsList = includeGoods
-    ? (await Promise.all(goodsStore.list.filter((item) => !item?.isWishlist).map((item) => safeSanitizeGoodsItemForExport(item)))).filter(Boolean)
+    ? await sanitizeSequential(goodsStore.list.filter((item) => !item?.isWishlist), safeSanitizeGoodsItemForExport)
     : undefined
   const wishlistList = includeWishlist
-    ? (await Promise.all(goodsStore.list.filter((item) => item?.isWishlist).map((item) => safeSanitizeGoodsItemForExport(item)))).filter(Boolean)
+    ? await sanitizeSequential(goodsStore.list.filter((item) => item?.isWishlist), safeSanitizeGoodsItemForExport)
     : undefined
   const trashList = includeTrash
-    ? (await Promise.all(goodsStore.trashList.map((item) => safeSanitizeGoodsItemForExport(item)))).filter(Boolean)
+    ? await sanitizeSequential(goodsStore.trashList, safeSanitizeGoodsItemForExport)
     : undefined
   const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) : undefined
   const rechargeTrash = includeRecharge ? [] : undefined
   const eventsList = includeEvents
-    ? (await Promise.all(eventsStore.list.map((event) => safeSanitizeEventForExport(event)))).filter(Boolean)
+    ? await sanitizeSequential(eventsStore.list, safeSanitizeEventForExport)
     : undefined
 
   const data = {
@@ -727,25 +736,30 @@ async function handleExport(selection = null) {
         }
       : {})
   }
-  const json = JSON.stringify(data, null, 2)
+  const json = JSON.stringify(data)
   const filename = `谷子备份_${new Date().toISOString().split('T')[0]}.json`
 
   try {
     if (Capacitor.isNativePlatform()) {
       const saved = await exportBackupToNative(json, filename)
-      const shareable = await exportBackupToShareCache(json, filename).catch(() => null)
+      let shared = await shareBackupFile(saved.uri).catch(() => false)
 
-      if (shareable) {
-        const shared = await shareBackupFile(shareable.uri).catch(() => false)
-        if (shared) {
-          showToast(
-            saved.visibleToUser
-              ? `已打开分享面板，并写入 文档/${saved.path}`
-              : '已打开分享面板，请选择“保存到文件”或其他目标',
-            4200
-          )
-          return
+      const shouldTryShareCacheFallback = !shared && json.length < 4 * 1024 * 1024
+      if (shouldTryShareCacheFallback) {
+        const shareable = await exportBackupToShareCache(json, filename).catch(() => null)
+        if (shareable) {
+          shared = await shareBackupFile(shareable.uri).catch(() => false)
         }
+      }
+
+      if (shared) {
+        showToast(
+          saved.visibleToUser
+            ? `已打开分享面板，并写入 文档/${saved.path}`
+            : '已打开分享面板，请选择“保存到文件”或其他目标',
+          4200
+        )
+        return
       }
 
       showToast(
