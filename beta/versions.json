@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.9",
+    "url": "bundle-20260416.9.zip",
+    "hash": "8a0ff7f12d04577753a3ec10308b11fef814ef787b82d1d8676a14fbc05588a6",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化路由过渡逻辑，增强用户导航体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T13:14:46Z"
+  },
+  {
     "version": "20260416.8",
     "url": "bundle-20260416.8.zip",
     "hash": "40295eb0dce172fa74f903e076f7cd8373edc6afd1459ea3df27c35e4fd967b6",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T10:50:01Z"
-  },
-  {
-    "version": "20260416.6",
-    "url": "bundle-20260416.6.zip",
-    "hash": "75310cbff1cb48c1e0905ea43dff102c1714884f214424c9b2122d596dbfc351",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T09:49:05Z"
   }
 ]

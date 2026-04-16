@@ -1,9 +1,9 @@
 {
-  "version": "20260416.8",
-  "url": "bundle-20260416.8.zip",
-  "hash": "40295eb0dce172fa74f903e076f7cd8373edc6afd1459ea3df27c35e4fd967b6",
+  "version": "20260416.9",
+  "url": "bundle-20260416.9.zip",
+  "hash": "8a0ff7f12d04577753a3ec10308b11fef814ef787b82d1d8676a14fbc05588a6",
   "minNativeVersion": null,
-  "notes": "- feat: 增强懒加载图片组件，添加加载和错误状态提示，优化用户体验",
+  "notes": "- feat: 优化路由过渡逻辑，增强用户导航体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T11:28:55Z"
+  "publishedAt": "2026-04-16T13:14:46Z"
 }
