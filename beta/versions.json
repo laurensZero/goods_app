@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.8",
+    "url": "bundle-20260416.8.zip",
+    "hash": "40295eb0dce172fa74f903e076f7cd8373edc6afd1459ea3df27c35e4fd967b6",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强懒加载图片组件，添加加载和错误状态提示，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T11:28:55Z"
+  },
+  {
     "version": "20260416.7",
     "url": "bundle-20260416.7.zip",
     "hash": "a70a47cd1c9dd8ed8c751b7a6c3857c794e0c52669353806648b2d55cb830d7e",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T09:49:05Z"
-  },
-  {
-    "version": "20260416.5",
-    "url": "bundle-20260416.5.zip",
-    "hash": "667fba9f3a3e46306f43d968633890ac455e7d858b55068e53f2c83353aa74c4",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T05:41:32Z"
   }
 ]
