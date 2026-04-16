@@ -441,7 +441,8 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       const devices = await discoverLanDevices({
         seedHost,
-        preferredPort
+        preferredPort,
+        allowSubnetSweep: true
       })
       lanDevices.value = devices
       lanDiscoveryStatus.value = devices.length > 0 ? 'ready' : 'failed'

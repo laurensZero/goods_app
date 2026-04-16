@@ -2,48 +2,159 @@ import { LOCAL_SYNC_API_PREFIX, LOCAL_SYNC_DEFAULT_PORT, LOCAL_SYNC_TIMEOUT } fr
 import { normalizeBaseUrl, requestGet } from './transport'
 import type { LocalSyncDevice } from './types'
 
+const KNOWN_HOSTS_KEY = 'local_sync_known_hosts_v1'
+const COMMON_GATEWAYS = [
+  '192.168.1.1',
+  '192.168.0.1',
+  '192.168.31.1',
+  '192.168.50.1',
+  '192.168.43.1',
+  '192.168.137.1',
+  '172.20.10.1',
+  '10.0.0.1'
+]
+
+function isIpv4(host: string): boolean {
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)
+}
+
+function splitHostPort(rawHost = ''): string {
+  return String(rawHost || '').trim().replace(/^https?:\/\//i, '').split('/')[0].split(':')[0]
+}
+
+function getKnownHosts(): string[] {
+  try {
+    if (typeof localStorage === 'undefined') return []
+    const raw = localStorage.getItem(KNOWN_HOSTS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.map((item) => splitHostPort(item)).filter(Boolean) : []
+  } catch {
+    return []
+  }
+}
+
+function rememberHost(host: string): void {
+  const normalized = splitHostPort(host)
+  if (!normalized) return
+  try {
+    if (typeof localStorage === 'undefined') return
+    const existing = getKnownHosts()
+    const next = [normalized, ...existing.filter((item) => item !== normalized)].slice(0, 12)
+    localStorage.setItem(KNOWN_HOSTS_KEY, JSON.stringify(next))
+  } catch {
+    // Ignore cache failures.
+  }
+}
+
+function buildNearbyCandidates(host: string): string[] {
+  if (!isIpv4(host)) return []
+  const segments = host.split('.')
+  const prefix = `${segments[0]}.${segments[1]}.${segments[2]}`
+  const tails = [1, 2, 3, 4, 5, 10, 20, 30, 50, 100, 101, 102, 150, 200]
+  return tails.map((tail) => `${prefix}.${tail}`)
+}
+
+function buildSweepCandidates(): string[] {
+  const prefixes = ['192.168.1', '192.168.0', '192.168.43', '192.168.137', '172.20.10']
+  const tails = [
+    2, 3, 4, 5, 6, 7, 8, 9, 10,
+    11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110
+  ]
+  const all: string[] = []
+  for (const prefix of prefixes) {
+    for (const tail of tails) {
+      all.push(`${prefix}.${tail}`)
+    }
+  }
+  return all
+}
+
 function buildCandidateHosts(seedHost = ''): string[] {
   const set = new Set<string>()
-  const cleaned = String(seedHost || '').trim()
+  const cleaned = splitHostPort(seedHost)
 
   if (cleaned) {
     set.add(cleaned)
+    buildNearbyCandidates(cleaned).forEach((host) => set.add(host))
   }
 
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    set.add(window.location.hostname)
+    const webHost = splitHostPort(window.location.hostname)
+    if (webHost && webHost !== 'localhost') {
+      set.add(webHost)
+      buildNearbyCandidates(webHost).forEach((host) => set.add(host))
+    }
   }
 
-  ;['192.168.1.1', '192.168.0.1', '10.0.0.1'].forEach((host) => set.add(host))
+  getKnownHosts().forEach((host) => {
+    set.add(host)
+    buildNearbyCandidates(host).forEach((candidate) => set.add(candidate))
+  })
+  COMMON_GATEWAYS.forEach((host) => set.add(host))
   return Array.from(set)
+}
+
+async function probeHost(host: string, port: number): Promise<LocalSyncDevice | null> {
+  const start = Date.now()
+  const baseUrl = normalizeBaseUrl(`${host}:${port}`)
+
+  try {
+    const result = await requestGet<{ deviceName?: string; appVersion?: string }>(
+      baseUrl,
+      `${LOCAL_SYNC_API_PREFIX}/discover`,
+      LOCAL_SYNC_TIMEOUT.discoverMs
+    )
+    rememberHost(host)
+    return {
+      host,
+      port,
+      baseUrl,
+      deviceName: result.deviceName || `设备 ${host}`,
+      appVersion: result.appVersion,
+      latencyMs: Date.now() - start
+    }
+  } catch {
+    return null
+  }
+}
+
+async function probeHostsInBatches(hosts: string[], port: number, batchSize = 16): Promise<LocalSyncDevice[]> {
+  const found: LocalSyncDevice[] = []
+
+  for (let offset = 0; offset < hosts.length; offset += batchSize) {
+    const batch = hosts.slice(offset, offset + batchSize)
+    const result = await Promise.all(batch.map((host) => probeHost(host, port)))
+    for (const item of result) {
+      if (item) found.push(item)
+    }
+  }
+
+  return found
 }
 
 export async function discoverLanDevices(options?: {
   seedHost?: string
   preferredPort?: number
+  allowSubnetSweep?: boolean
 }): Promise<LocalSyncDevice[]> {
   const port = Number(options?.preferredPort) || LOCAL_SYNC_DEFAULT_PORT
   const candidates = buildCandidateHosts(options?.seedHost)
+  let resolved = await probeHostsInBatches(candidates, port)
 
-  const checks = candidates.map(async (host) => {
-    const start = Date.now()
-    const baseUrl = normalizeBaseUrl(`${host}:${port}`)
+  if (resolved.length === 0 && options?.allowSubnetSweep) {
+    const sweepSet = new Set<string>(buildSweepCandidates())
+    candidates.forEach((host) => sweepSet.delete(host))
+    resolved = await probeHostsInBatches(Array.from(sweepSet), port, 20)
+  }
 
-    try {
-      const result = await requestGet<{ deviceName?: string; appVersion?: string }>(baseUrl, `${LOCAL_SYNC_API_PREFIX}/discover`, LOCAL_SYNC_TIMEOUT.discoverMs)
-      return {
-        host,
-        port,
-        baseUrl,
-        deviceName: result.deviceName || `设备 ${host}`,
-        appVersion: result.appVersion,
-        latencyMs: Date.now() - start
-      } as LocalSyncDevice
-    } catch {
-      return null
+  const uniqueByUrl = new Map<string, LocalSyncDevice>()
+  for (const item of resolved) {
+    if (!uniqueByUrl.has(item.baseUrl)) {
+      uniqueByUrl.set(item.baseUrl, item)
     }
-  })
+  }
 
-  const resolved = await Promise.all(checks)
-  return resolved.filter((item): item is LocalSyncDevice => !!item)
+  return Array.from(uniqueByUrl.values()).sort((a, b) => (a.latencyMs || 9999) - (b.latencyMs || 9999))
 }

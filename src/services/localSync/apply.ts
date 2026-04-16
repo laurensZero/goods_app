@@ -71,10 +71,8 @@ export async function executeLocalSyncTransfer(params: {
   }
 
   const payload = {
-    goods: params.goodsData,
-    recharge: params.rechargeData,
-    events: params.eventData,
-    senderDeviceName: params.senderDeviceName || '未知设备'
+    senderDeviceName: params.senderDeviceName || '未知设备',
+    updatedAt: params.updatedAt
   }
   const files = await Promise.all<LocalSyncFileEntry>([
     buildFileEntry('goods.json', params.goodsData, params.updatedAt),

@@ -13,8 +13,14 @@ function classifyRequestError(error: unknown): string {
   if (message.includes('AbortError') || message.includes('timeout')) {
     return LOCAL_SYNC_ERROR_HINT.timeout
   }
+  if (message.includes('413')) {
+    return '请求体过大，已被接收端拒绝。请重试，或降低单次传输负载。'
+  }
   if (message.includes('403')) {
     return LOCAL_SYNC_ERROR_HINT.forbidden
+  }
+  if (message.match(/^\d{3}\s/)) {
+    return `接收端返回错误：${message}`
   }
   return LOCAL_SYNC_ERROR_HINT.network
 }
