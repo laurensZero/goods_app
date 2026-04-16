@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.11",
+    "url": "bundle-20260416.11.zip",
+    "hash": "4359f8e2f062aa02f7be6eab665f357683389e897fd6afa97de9774a859b69df",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强图片缓存管理，添加本地存储和清理无引用图片功能，优化存储使用",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T13:24:57Z"
+  },
+  {
     "version": "20260416.10",
     "url": "bundle-20260416.10.zip",
     "hash": "3ebcfb50ee2679f0d5ae14b0096370251a80eb31958a8bf82c52b51ce233c5a8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化路由过渡逻辑，增强用户导航体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T13:14:46Z"
-  },
-  {
-    "version": "20260416.8",
-    "url": "bundle-20260416.8.zip",
-    "hash": "40295eb0dce172fa74f903e076f7cd8373edc6afd1459ea3df27c35e4fd967b6",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强懒加载图片组件，添加加载和错误状态提示，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T11:28:55Z"
   }
 ]
