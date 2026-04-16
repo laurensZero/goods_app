@@ -1,41 +1,41 @@
 <template>
-  <img
-    v-if="!showFallback"
-    ref="imageRef"
-    v-bind="attrs"
-    :class="{ 'lazy-image-element--hidden': showLoadingPlaceholder }"
-    :src="resolvedSrc || undefined"
-    :alt="alt"
-    :loading="loading"
-    :decoding="decoding"
-    :fetchpriority="fetchpriority"
-    @load="onImageLoad"
-    @error="onImageError"
-  />
-  <div
-    v-if="showLoadingPlaceholder"
-    v-bind="attrs"
-    class="lazy-image-placeholder"
-    role="status"
-    aria-live="polite"
-    aria-label="图片加载中"
-  >
-    <span class="lazy-image-placeholder__dot" aria-hidden="true" />
-    <span>加载中</span>
-  </div>
-  <div
-    v-if="showFallback"
-    v-bind="attrs"
-    class="lazy-image-fallback"
-    role="img"
-    :aria-label="alt || '图片加载失败'"
-  >
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M5.5 6.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-13Zm0 1.5h13a.5.5 0 0 1 .5.5v4.28l-2.9-2.47a1.1 1.1 0 0 0-1.42.02l-2.37 2.11-1.66-1.36a1.1 1.1 0 0 0-1.42.04L5 14.87V8.5a.5.5 0 0 1 .5-.5Zm2.9 2.35a1.05 1.05 0 1 0 0-2.1 1.05 1.05 0 0 0 0 2.1Z"
-      />
-    </svg>
-    <span>加载失败</span>
+  <div v-bind="rootAttrs" class="lazy-image-root">
+    <img
+      v-if="!showFallback"
+      ref="imageRef"
+      v-bind="imageAttrs"
+      :class="['lazy-image-element', { 'lazy-image-element--hidden': showLoadingPlaceholder }]"
+      :src="resolvedSrc || undefined"
+      :alt="alt"
+      :loading="loading"
+      :decoding="decoding"
+      :fetchpriority="fetchpriority"
+      @load="onImageLoad"
+      @error="onImageError"
+    />
+    <div
+      v-if="showLoadingPlaceholder"
+      class="lazy-image-placeholder lazy-image-layer"
+      role="status"
+      aria-live="polite"
+      aria-label="图片加载中"
+    >
+      <span class="lazy-image-placeholder__dot" aria-hidden="true" />
+      <span>加载中</span>
+    </div>
+    <div
+      v-if="showFallback"
+      class="lazy-image-fallback lazy-image-layer"
+      role="img"
+      :aria-label="alt || '图片加载失败'"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M5.5 6.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-13Zm0 1.5h13a.5.5 0 0 1 .5.5v4.28l-2.9-2.47a1.1 1.1 0 0 0-1.42.02l-2.37 2.11-1.66-1.36a1.1 1.1 0 0 0-1.42.04L5 14.87V8.5a.5.5 0 0 1 .5-.5Zm2.9 2.35a1.05 1.05 0 1 0 0-2.1 1.05 1.05 0 0 0 0 2.1Z"
+        />
+      </svg>
+      <span>加载失败</span>
+    </div>
   </div>
 </template>
 
@@ -57,6 +57,18 @@ const props = defineProps({
 })
 
 const attrs = useAttrs()
+const rootAttrs = computed(() => {
+  const { class: _class, style: _style, ...rest } = attrs
+  return {
+    ...rest,
+    class: _class,
+    style: _style
+  }
+})
+const imageAttrs = computed(() => {
+  const { class: _class, style: _style, ...rest } = attrs
+  return rest
+})
 const imageRef = ref(null)
 const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
@@ -151,6 +163,27 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.lazy-image-root {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lazy-image-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.lazy-image-element {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .lazy-image-fallback {
   display: flex;
   flex-direction: column;
@@ -166,6 +199,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .lazy-image-element--hidden {
@@ -187,6 +221,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .lazy-image-placeholder__dot {
