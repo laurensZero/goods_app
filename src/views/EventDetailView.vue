@@ -36,15 +36,7 @@
               :data-event-hero-id="String(eventId || '')"
               :style="coverCardStyle"
             >
-              <LazyCachedImage
-                v-if="event.coverImage"
-                :src="event.coverImage"
-                :alt="event.name"
-                class="cover-card__img"
-                :lazy="false"
-                loading="eager"
-                fetchpriority="high"
-              />
+              <img v-if="event.coverImage" :src="event.coverImage" :alt="event.name" class="cover-card__img" />
               <div v-else class="cover-card__fallback">{{ coverFallback }}</div>
             </div>
 
@@ -139,14 +131,12 @@
                 :data-linked-goods-id="String(goods.id || '')"
                 @click.prevent="openLinkedGoodsDetail(goods, $event)"
               >
-                <LazyCachedImage
+                <img
                   v-if="goods.coverImage"
                   :src="goods.coverImage"
                   :alt="goods.name"
                   class="linked-goods-card__img"
                   :data-goods-hero-id="String(goods.id || '')"
-                  :lazy="false"
-                  loading="eager"
                 />
                 <div v-else class="linked-goods-card__placeholder" :data-goods-hero-id="String(goods.id || '')">{{ goods.name?.trim()?.charAt(0) || '谷' }}</div>
                 <span class="linked-goods-card__name">{{ goods.name }}</span>
@@ -216,7 +206,6 @@ import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareG
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
-import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 defineOptions({ name: 'EventDetailView' })
 

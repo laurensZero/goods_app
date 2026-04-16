@@ -320,22 +320,6 @@ function onClick() {
   background: #ffffff;
 }
 
-.record-thumb.lazy-image-placeholder,
-.record-thumb.lazy-image-fallback {
-  flex-direction: row;
-  gap: 0;
-}
-
-.record-thumb.lazy-image-placeholder span,
-.record-thumb.lazy-image-fallback span {
-  display: none;
-}
-
-.record-thumb.lazy-image-placeholder .lazy-image-placeholder__dot {
-  width: 16px;
-  height: 16px;
-}
-
 .record-thumb--fallback {
   color: #ffffff;
   font-size: 24px;
