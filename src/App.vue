@@ -35,6 +35,7 @@ import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
+import { stopNativeLocalSyncReceiver } from '@/utils/nativeLocalSyncBridge'
 
 const route = useRoute()
 const syncStore = useSyncStore()
@@ -120,6 +121,9 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  void stopNativeLocalSyncReceiver().catch(() => {
+    // silent fail on shutdown receiver stop
+  })
 })
 </script>
 

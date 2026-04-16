@@ -1,6 +1,7 @@
 import { LOCAL_SYNC_API_PREFIX, LOCAL_SYNC_DEFAULT_PORT, LOCAL_SYNC_TIMEOUT } from './constants'
 import { normalizeBaseUrl, requestGet } from './transport'
 import type { LocalSyncDevice } from './types'
+import { discoverNativeLocalSyncPeers } from '@/utils/nativeLocalSyncBridge'
 
 const KNOWN_HOSTS_KEY = 'local_sync_known_hosts_v1'
 const COMMON_GATEWAYS = [
@@ -161,12 +162,28 @@ export async function discoverLanDevices(options?: {
   const port = Number(options?.preferredPort) || LOCAL_SYNC_DEFAULT_PORT
   const candidates = buildCandidateHosts(options?.seedHost)
   const deadlineAt = Date.now() + 12000
-  let resolved = await probeHostsInBatches(candidates, port, {
+  const nativePeers = await discoverNativeLocalSyncPeers(4800)
+  const nativeDevices: LocalSyncDevice[] = nativePeers
+    .map((item) => {
+      const host = splitHostPort(String(item?.host || ''))
+      const peerPort = Number(item?.port) || port
+      if (!host) return null
+      return {
+        host,
+        port: peerPort,
+        baseUrl: normalizeBaseUrl(String(item?.baseUrl || `${host}:${peerPort}`)),
+        deviceName: String(item?.deviceName || `设备 ${host}`),
+        latencyMs: 0
+      }
+    })
+    .filter(Boolean) as LocalSyncDevice[]
+
+  let resolved = [...nativeDevices, ...(await probeHostsInBatches(candidates, port, {
     batchSize: 16,
     timeoutMs: LOCAL_SYNC_TIMEOUT.discoverMs,
     stopOnFirst: false,
     deadlineAt
-  })
+  }))]
 
   if (resolved.length === 0 && options?.allowSubnetSweep) {
     const sweepSet = new Set<string>(buildSweepCandidates())

@@ -13,7 +13,7 @@ import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { discoverLanDevices } from '@/services/localSync/discovery'
 import { executeLocalSyncTransfer } from '@/services/localSync/apply'
-import { requestGet } from '@/services/localSync/transport'
+import { requestGet, requestJson } from '@/services/localSync/transport'
 import { LOCAL_SYNC_API_PREFIX, LOCAL_SYNC_DEFAULT_PORT } from '@/services/localSync/constants'
 import { deleteItems } from '@/utils/db'
 import {
@@ -36,6 +36,7 @@ import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncSto
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 import { parseGistImageUri } from '@/utils/goodsImages'
+import { startNativeLocalSyncReceiver } from '@/utils/nativeLocalSyncBridge'
 
 const TOKEN_KEY = 'sync_github_token'
 const GIST_ID_KEY = 'sync_gist_id'
@@ -195,6 +196,10 @@ export const useSyncStore = defineStore('sync', () => {
         // ignore
       }
     }
+
+    void startNativeLocalSyncReceiver().catch((error) => {
+      console.warn('[local-sync] startNativeLocalSyncReceiver failed:', error)
+    })
 
   }
 
@@ -514,6 +519,8 @@ export const useSyncStore = defineStore('sync', () => {
         updatedAt: new Date().toISOString(),
         stableSignatures,
         options: {
+          requireReceiverApproval: true,
+          waitForReceiverDecision: false,
           onProgress: (progress) => {
             lanTransferProgress.value = {
               ...progress,
@@ -523,11 +530,13 @@ export const useSyncStore = defineStore('sync', () => {
         }
       })
       lanLastSessionId.value = result.sessionId || ''
+      const totalHandled = Number(result.acceptedFiles || 0) + Number(result.skippedFiles || 0)
+      const isPending = result?.action === 'pending' || result?.status === 'pending'
       lanTransferProgress.value = {
         stage: 'done',
-        message: '局域网同步完成',
-        totalFiles: Number(result.acceptedFiles || 0) + Number(result.skippedFiles || 0),
-        completedFiles: Number(result.acceptedFiles || 0) + Number(result.skippedFiles || 0),
+        message: isPending ? '已发送，等待接收端确认写入' : (result?.message || '局域网同步完成'),
+        totalFiles: totalHandled,
+        completedFiles: totalHandled,
         currentFile: ''
       }
       return {
@@ -907,6 +916,46 @@ export const useSyncStore = defineStore('sync', () => {
     } finally {
       isLanSyncing.value = false
     }
+  }
+
+  async function listLanPendingSessions({ host = '', port = LOCAL_SYNC_DEFAULT_PORT } = {}) {
+    const targetHost = String(host || lanManualHost.value || '').trim()
+    const targetBaseUrl = resolveLanReceiverBaseUrl(targetHost, port)
+    const response = await requestGet(targetBaseUrl, `${LOCAL_SYNC_API_PREFIX}/pending`)
+    return Array.isArray(response?.sessions) ? response.sessions : []
+  }
+
+  async function approveLanPendingSession({ sessionId = '', host = '', port = LOCAL_SYNC_DEFAULT_PORT } = {}) {
+    const normalizedSessionId = String(sessionId || '').trim()
+    if (!normalizedSessionId) {
+      throw new Error('缺少 sessionId')
+    }
+
+    const targetHost = String(host || lanManualHost.value || '').trim()
+    const targetBaseUrl = resolveLanReceiverBaseUrl(targetHost, port)
+    return requestJson(targetBaseUrl, `${LOCAL_SYNC_API_PREFIX}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId: normalizedSessionId
+      })
+    })
+  }
+
+  async function rejectLanPendingSession({ sessionId = '', host = '', port = LOCAL_SYNC_DEFAULT_PORT, message = '接收端已拒绝此次写入' } = {}) {
+    const normalizedSessionId = String(sessionId || '').trim()
+    if (!normalizedSessionId) {
+      throw new Error('缺少 sessionId')
+    }
+
+    const targetHost = String(host || lanManualHost.value || '').trim()
+    const targetBaseUrl = resolveLanReceiverBaseUrl(targetHost, port)
+    return requestJson(targetBaseUrl, `${LOCAL_SYNC_API_PREFIX}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId: normalizedSessionId,
+        message: String(message || '接收端已拒绝此次写入')
+      })
+    })
   }
 
   function setLanManualHost(host) {
@@ -1420,6 +1469,9 @@ export const useSyncStore = defineStore('sync', () => {
     startLanSync,
     previewLanCurrentSnapshot,
     pullLanCurrentSnapshot,
+    listLanPendingSessions,
+    approveLanPendingSession,
+    rejectLanPendingSession,
     setLanManualHost
   }
 })

@@ -95,6 +95,56 @@ function readCurrentJsonFile(fileName) {
   }
 }
 
+function applyCommittedFiles(session) {
+  const manifestFiles = Array.isArray(session.manifest?.files) ? session.manifest.files : []
+  let acceptedFiles = 0
+  let skippedFiles = 0
+
+  for (const file of manifestFiles) {
+    const key = `${file.path}#${file.hash}`
+    const state = session.fileState[key]
+
+    if (!state || !Array.isArray(state.uploadedChunks) || state.uploadedChunks.length === 0) {
+      skippedFiles += 1
+      continue
+    }
+
+    const chunkDirectory = safeChunkDir(session.sessionId, file.hash)
+    const orderedChunks = [...state.uploadedChunks].sort((a, b) => a - b)
+    const buffers = []
+    for (const chunkIndex of orderedChunks) {
+      const chunkFilePath = path.join(chunkDirectory, `${chunkIndex}.part`)
+      if (fs.existsSync(chunkFilePath)) {
+        buffers.push(fs.readFileSync(chunkFilePath))
+      }
+    }
+
+    const merged = Buffer.concat(buffers)
+    const blobPath = blobPathByHash(file.hash)
+    fs.writeFileSync(blobPath, merged)
+    fs.writeFileSync(toCurrentDataPath(file.path), merged)
+
+    state.committed = true
+    state.updatedAt = String(file.updatedAt || '')
+    session.fileState[key] = state
+
+    if (!session.checkpoint.uploadedFiles.includes(file.path)) {
+      session.checkpoint.uploadedFiles.push(file.path)
+    }
+
+    acceptedFiles += 1
+  }
+
+  session.committedAt = new Date().toISOString()
+  session.status = 'approved'
+
+  return {
+    acceptedFiles,
+    skippedFiles,
+    committedAt: session.committedAt
+  }
+}
+
 app.get('/api/local-sync/discover', (req, res) => {
   res.json({
     deviceName: buildDeviceName(),
@@ -176,6 +226,7 @@ app.post('/api/local-sync/session', (req, res) => {
       uploadedFiles: [],
       uploadedChunks: {}
     },
+    status: 'created',
     fileState: {},
     committedAt: ''
   }
@@ -211,6 +262,7 @@ app.post('/api/local-sync/manifest', (req, res) => {
   }
 
   session.manifest = manifest
+  session.status = 'manifested'
   session.updatedAt = new Date().toISOString()
   writeJson(targetPath, session)
 
@@ -318,17 +370,70 @@ app.post('/api/local-sync/chunk', (req, res) => {
   res.json({ ok: true, uploadedChunks: state.uploadedChunks.length })
 })
 
-app.post('/api/local-sync/commit', (req, res) => {
-  const sessionId = String(req.body?.sessionId || '').trim()
-  const confirm = req.body?.confirm === true
-
+app.get('/api/local-sync/pending/:sessionId', (req, res) => {
+  const sessionId = String(req.params?.sessionId || '').trim()
   if (!sessionId) {
     res.status(400).json({ message: '缺少 sessionId' })
     return
   }
 
-  if (!confirm) {
-    res.status(400).json({ message: '需要接收端确认后才能提交' })
+  const session = readJson(sessionPath(sessionId))
+  if (!session) {
+    res.status(404).json({ message: '会话不存在，请重新建立连接' })
+    return
+  }
+
+  const status = session.status === 'rejected'
+    ? 'rejected'
+    : (session.status === 'approved' ? 'approved' : 'waiting_receiver_approval')
+
+  res.json({
+    sessionId,
+    status,
+    committedAt: session.committedAt || '',
+    message: session.statusMessage || ''
+  })
+})
+
+app.get('/api/local-sync/pending', (req, res) => {
+  const sessions = fs.readdirSync(SESSION_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+    .map((entry) => readJson(path.join(SESSION_DIR, entry.name)))
+    .filter(Boolean)
+    .map((session) => {
+      const status = session.status === 'rejected'
+        ? 'rejected'
+        : (session.status === 'approved' ? 'approved' : 'waiting_receiver_approval')
+
+      return {
+        sessionId: session.sessionId,
+        senderDeviceId: session.senderDeviceId || '',
+        senderDeviceName: session?.manifest?.payload?.senderDeviceName || '',
+        createdAt: session.createdAt || '',
+        updatedAt: session.updatedAt || '',
+        committedAt: session.committedAt || '',
+        status,
+        message: session.statusMessage || '',
+        summary: session?.manifest?.summary || {
+          goodsCount: 0,
+          trashCount: 0,
+          rechargeCount: 0,
+          eventCount: 0
+        }
+      }
+    })
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+
+  res.json({
+    sessions
+  })
+})
+
+app.post('/api/local-sync/approve', (req, res) => {
+  const sessionId = String(req.body?.sessionId || '').trim()
+
+  if (!sessionId) {
+    res.status(400).json({ message: '缺少 sessionId' })
     return
   }
 
@@ -339,53 +444,87 @@ app.post('/api/local-sync/commit', (req, res) => {
     return
   }
 
-  const manifestFiles = Array.isArray(session.manifest?.files) ? session.manifest.files : []
-  let acceptedFiles = 0
-  let skippedFiles = 0
-
-  for (const file of manifestFiles) {
-    const key = `${file.path}#${file.hash}`
-    const state = session.fileState[key]
-
-    if (!state || !Array.isArray(state.uploadedChunks) || state.uploadedChunks.length === 0) {
-      skippedFiles += 1
-      continue
-    }
-
-    const chunkDirectory = safeChunkDir(sessionId, file.hash)
-    const orderedChunks = [...state.uploadedChunks].sort((a, b) => a - b)
-    const buffers = []
-    for (const chunkIndex of orderedChunks) {
-      const chunkFilePath = path.join(chunkDirectory, `${chunkIndex}.part`)
-      if (fs.existsSync(chunkFilePath)) {
-        buffers.push(fs.readFileSync(chunkFilePath))
-      }
-    }
-
-    const merged = Buffer.concat(buffers)
-    const blobPath = blobPathByHash(file.hash)
-    fs.writeFileSync(blobPath, merged)
-    fs.writeFileSync(toCurrentDataPath(file.path), merged)
-
-    state.committed = true
-    state.updatedAt = String(file.updatedAt || '')
-    session.fileState[key] = state
-
-    if (!session.checkpoint.uploadedFiles.includes(file.path)) {
-      session.checkpoint.uploadedFiles.push(file.path)
-    }
-
-    acceptedFiles += 1
-  }
-
-  session.committedAt = new Date().toISOString()
+  const commitResult = applyCommittedFiles(session)
   writeJson(targetPath, session)
 
   res.json({
     sessionId,
-    acceptedFiles,
-    skippedFiles,
-    committedAt: session.committedAt
+    action: 'committed',
+    status: 'approved',
+    ...commitResult
+  })
+})
+
+app.post('/api/local-sync/reject', (req, res) => {
+  const sessionId = String(req.body?.sessionId || '').trim()
+  const message = String(req.body?.message || '接收端已拒绝此次写入').trim()
+
+  if (!sessionId) {
+    res.status(400).json({ message: '缺少 sessionId' })
+    return
+  }
+
+  const targetPath = sessionPath(sessionId)
+  const session = readJson(targetPath)
+  if (!session) {
+    res.status(404).json({ message: '会话不存在，请重新建立连接' })
+    return
+  }
+
+  session.status = 'rejected'
+  session.statusMessage = message
+  session.updatedAt = new Date().toISOString()
+  writeJson(targetPath, session)
+
+  res.json({
+    sessionId,
+    action: 'rejected',
+    status: 'rejected',
+    message
+  })
+})
+
+app.post('/api/local-sync/commit', (req, res) => {
+  const sessionId = String(req.body?.sessionId || '').trim()
+  const confirm = req.body?.confirm === true
+
+  if (!sessionId) {
+    res.status(400).json({ message: '缺少 sessionId' })
+    return
+  }
+
+  const targetPath = sessionPath(sessionId)
+  const session = readJson(targetPath)
+  if (!session) {
+    res.status(404).json({ message: '会话不存在，请重新建立连接' })
+    return
+  }
+
+  if (!confirm) {
+    session.status = 'pending_receiver_approval'
+    session.updatedAt = new Date().toISOString()
+    writeJson(targetPath, session)
+
+    res.json({
+      sessionId,
+      acceptedFiles: 0,
+      skippedFiles: 0,
+      committedAt: '',
+      action: 'pending',
+      status: 'waiting_receiver_approval',
+      message: '已推送完成，等待接收端确认写入'
+    })
+    return
+  }
+
+  const commitResult = applyCommittedFiles(session)
+  writeJson(targetPath, session)
+
+  res.json({
+    sessionId,
+    ...commitResult,
+    action: 'committed',
+    status: 'approved'
   })
 })
 

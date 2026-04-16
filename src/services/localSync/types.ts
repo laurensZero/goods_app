@@ -61,10 +61,22 @@ export interface LocalSyncTransferResult {
   acceptedFiles: number
   skippedFiles: number
   committedAt: string
+  action?: 'committed' | 'pending' | 'rejected'
+  status?: 'waiting_receiver_approval' | 'approved' | 'rejected'
+  message?: string
+}
+
+export interface LocalSyncPendingStatusResponse {
+  sessionId: string
+  status: 'waiting_receiver_approval' | 'approved' | 'rejected'
+  committedAt?: string
+  message?: string
 }
 
 export interface LocalSyncApplyOptions {
   timeoutMs?: number
+  requireReceiverApproval?: boolean
+  waitForReceiverDecision?: boolean
   onProgress?: (progress: LocalSyncTransferProgress) => void
   signal?: AbortSignal
 }

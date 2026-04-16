@@ -440,7 +440,7 @@
         <div v-if="showPullConflict" class="overlay">
           <div class="dialog dialog--wide dialog--scrollable">
             <div class="dialog-scroll">
-              <h3 class="dialog-title">检测到远端数据</h3>
+              <h3 class="dialog-title">{{ pullConflictTitle }}</h3>
               <div class="conflict-info">
                 <div class="conflict-row">
                   <span class="conflict-label">来源设备</span>
@@ -470,12 +470,12 @@
                   <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站，{{ pullConflictData.localOnlyRecharge || 0 }} 充值，{{ pullConflictData.localOnlyEvents || 0 }} 活动，{{ pullConflictData.localOnlyImages || 0 }} 张图片</span>
                 </div>
               </div>
-              <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
+              <p class="conflict-desc">{{ pullConflictDescription }}</p>
             </div>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
-                确认拉取
+                {{ pullConflictConfirmText }}
               </button>
             </div>
           </div>
@@ -524,8 +524,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
+import { LOCAL_SYNC_DEFAULT_PORT } from '@/services/localSync/constants'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
@@ -547,7 +548,7 @@ const isVerifyingToken = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
-const lanPendingImportTarget = ref(null)
+const lanReceiverPendingSession = ref(null)
 const showLanTransferModal = ref(false)
 const LOG_GROUP_SEQUENCE = [
   'manifest',
@@ -662,6 +663,7 @@ function toggleLogGroup(key) {
   expandedLogGroups.value = next
 }
 let toastTimer = null
+let lanPendingPollTimer = null
 
 watch(() => syncStore.conflictData, (val) => {
   if (val?.isPullOnly) {
@@ -729,6 +731,15 @@ const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
 const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
 const eventCount = computed(() => gistInfo.value?.eventCount ?? '-')
 const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
+const isLanReceiverPendingConflict = computed(() => Boolean(pullConflictData.value?.isLanReceiverPending))
+const pullConflictTitle = computed(() => (isLanReceiverPendingConflict.value ? '检测到局域网同步请求' : '检测到远端数据'))
+const pullConflictConfirmText = computed(() => (isLanReceiverPendingConflict.value ? '确认写入' : '确认拉取'))
+const pullConflictDescription = computed(() => {
+  if (isLanReceiverPendingConflict.value) {
+    return '确认写入后，当前设备会按请求内容更新本地数据；取消会拒绝本次请求。'
+  }
+  return '确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。'
+})
 const imageSyncDisplay = computed(() => {
   if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
   return formatTime(gistInfo.value.imageUpdatedAt)
@@ -959,18 +970,11 @@ async function runLanSyncByHost(host, port) {
   showLanTransferModal.value = true
   try {
     const result = await syncStore.startLanSync({ host, port })
+    if (result?.status === 'pending' || result?.action === 'pending') {
+      showToast('已发送增量包，等待接收端确认写入', 3600)
+      return
+    }
     showToast(`局域网同步完成（接收 ${result.acceptedFiles || 0}，复用 ${result.skippedFiles || 0}）`, 3600)
-
-    const resolvedTarget = {
-      host: String(host || syncStore.lanManualHost || '').trim(),
-      port: Number(port) || undefined
-    }
-    lanPendingImportTarget.value = resolvedTarget
-    pullConflictData.value = {
-      ...(await syncStore.previewLanCurrentSnapshot(resolvedTarget)),
-      isLanSnapshot: true
-    }
-    showPullConflict.value = true
   } catch (error) {
     showToast(`局域网同步失败：${error.message}`, 4200)
   }
@@ -1015,21 +1019,36 @@ async function handlePull() {
 async function handlePullConflict(confirm) {
   showPullConflict.value = false
 
-  if (pullConflictData.value?.isLanSnapshot) {
-    if (!confirm) {
-      showToast('已取消导入')
-      lanPendingImportTarget.value = null
+  if (pullConflictData.value?.isLanReceiverPending) {
+    const session = lanReceiverPendingSession.value
+    lanReceiverPendingSession.value = null
+
+    if (!session?.sessionId || !session?.host) {
+      showToast('处理失败：缺少会话信息', 3200)
       return
     }
 
-    if (!lanPendingImportTarget.value?.host) {
-      showToast('导入失败：未记录接收端地址')
-      return
-    }
-
-    showLanTransferModal.value = true
     try {
-      const result = await syncStore.pullLanCurrentSnapshot(lanPendingImportTarget.value)
+      if (!confirm) {
+        await syncStore.rejectLanPendingSession({
+          sessionId: session.sessionId,
+          host: session.host,
+          port: session.port
+        })
+        showToast('已拒绝写入请求', 3200)
+        return
+      }
+
+      showLanTransferModal.value = true
+      await syncStore.approveLanPendingSession({
+        sessionId: session.sessionId,
+        host: session.host,
+        port: session.port
+      })
+      const result = await syncStore.pullLanCurrentSnapshot({
+        host: session.host,
+        port: session.port
+      })
       const parts = []
       if (result.importedGoods > 0) parts.push(`收藏新增 ${result.importedGoods} 条`)
       if (result.updatedGoods > 0) parts.push(`收藏更新 ${result.updatedGoods} 条`)
@@ -1040,8 +1059,6 @@ async function handlePullConflict(confirm) {
       showToast(parts.length > 0 ? `导入完成，${parts.join('，')}` : '导入完成，数据已是最新', 3600)
     } catch (error) {
       showToast(`导入失败：${error.message}`, 4200)
-    } finally {
-      lanPendingImportTarget.value = null
     }
     return
   }
@@ -1066,6 +1083,81 @@ async function handlePullConflict(confirm) {
     }
   } catch (error) {
     showToast(`拉取失败：${error.message}`)
+  }
+}
+
+function buildLanPendingConflictData(session) {
+  const summary = session?.summary || {}
+  return {
+    isLanReceiverPending: true,
+    remoteDevice: session?.senderDeviceName || session?.senderDeviceId || '未知设备',
+    remoteTime: session?.updatedAt || new Date().toISOString(),
+    remoteCollectionCount: Number(summary.goodsCount || 0),
+    remoteWishlistCount: 0,
+    remoteTrashCount: Number(summary.trashCount || 0),
+    remoteRechargeCount: Number(summary.rechargeCount || 0),
+    remoteEventCount: Number(summary.eventCount || 0),
+    remoteImageCount: Number(summary.imageCount || 0),
+    remoteOnlyCollection: Number(summary.goodsCount || 0),
+    remoteOnlyWishlist: 0,
+    remoteOnlyTrash: Number(summary.trashCount || 0),
+    remoteOnlyRecharge: Number(summary.rechargeCount || 0),
+    remoteOnlyEvents: Number(summary.eventCount || 0),
+    remoteOnlyImages: Number(summary.imageCount || 0),
+    updatedGoods: 0,
+    updatedRecharge: 0,
+    updatedEvents: 0,
+    updatedImages: 0,
+    localOnlyCollection: 0,
+    localOnlyWishlist: 0,
+    localOnlyTrash: 0,
+    localOnlyRecharge: 0,
+    localOnlyEvents: 0,
+    localOnlyImages: 0
+  }
+}
+
+async function pollLanPendingSessions() {
+  if (syncStore.isLanSyncing || syncStore.isSyncing) {
+    return
+  }
+  if (showPullConflict.value && pullConflictData.value?.isLanReceiverPending) {
+    return
+  }
+
+  const hosts = [...new Set([
+    '127.0.0.1',
+    'localhost',
+    String(syncStore.lanManualHost || '').trim()
+  ].filter(Boolean))]
+
+  for (const host of hosts) {
+    try {
+      const sessions = await syncStore.listLanPendingSessions({
+        host,
+        port: LOCAL_SYNC_DEFAULT_PORT
+      })
+      const waiting = sessions.find((item) => item?.status === 'waiting_receiver_approval')
+      if (!waiting) {
+        continue
+      }
+
+      const pendingSession = {
+        ...waiting,
+        host,
+        port: LOCAL_SYNC_DEFAULT_PORT
+      }
+      if (lanReceiverPendingSession.value?.sessionId === pendingSession.sessionId && showPullConflict.value) {
+        return
+      }
+
+      lanReceiverPendingSession.value = pendingSession
+      pullConflictData.value = buildLanPendingConflictData(pendingSession)
+      showPullConflict.value = true
+      return
+    } catch {
+      // Receiver service may be unavailable on this host; continue probing.
+    }
   }
 }
 
@@ -1146,6 +1238,17 @@ onMounted(async () => {
   await syncStore.init()
   await loadGistInfo()
   await syncStore.discoverLocalDevices()
+  await pollLanPendingSessions()
+  lanPendingPollTimer = window.setInterval(() => {
+    pollLanPendingSessions()
+  }, 3000)
+})
+
+onBeforeUnmount(() => {
+  if (lanPendingPollTimer) {
+    clearInterval(lanPendingPollTimer)
+    lanPendingPollTimer = null
+  }
 })
 </script>
 

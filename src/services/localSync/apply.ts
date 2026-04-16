@@ -7,6 +7,7 @@ import type {
   LocalSyncApplyOptions,
   LocalSyncFileEntry,
   LocalSyncManifest,
+  LocalSyncPendingStatusResponse,
   LocalSyncTransferResult,
   RequiredFilesResponse
 } from './types'
@@ -81,6 +82,56 @@ async function pushFileChunks(baseUrl: string, sessionId: string, file: LocalSyn
       })
     }, LOCAL_SYNC_TIMEOUT.chunkMs)
   }
+}
+
+async function waitForReceiverDecision(
+  baseUrl: string,
+  sessionId: string,
+  timeoutMs: number,
+  onProgress?: LocalSyncApplyOptions['onProgress']
+): Promise<LocalSyncTransferResult> {
+  const startAt = Date.now()
+
+  while (Date.now() - startAt < timeoutMs) {
+    const status = await requestJson<LocalSyncPendingStatusResponse>(baseUrl, `${LOCAL_SYNC_API_PREFIX}/pending/${encodeURIComponent(sessionId)}`, {
+      method: 'GET'
+    }, 6000)
+
+    if (status.status === 'approved') {
+      return {
+        sessionId,
+        acceptedFiles: 0,
+        skippedFiles: 0,
+        committedAt: status.committedAt || new Date().toISOString(),
+        action: 'committed',
+        status: 'approved',
+        message: status.message || '接收端已确认并写入'
+      }
+    }
+
+    if (status.status === 'rejected') {
+      return {
+        sessionId,
+        acceptedFiles: 0,
+        skippedFiles: 0,
+        committedAt: status.committedAt || '',
+        action: 'rejected',
+        status: 'rejected',
+        message: status.message || '接收端已拒绝写入'
+      }
+    }
+
+    onProgress?.({
+      stage: 'commit',
+      message: '已推送完成，等待接收端确认...',
+      totalFiles: 0,
+      completedFiles: 0
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+  throw new Error('等待接收端确认超时，请在接收端完成确认后重试。')
 }
 
 export async function executeLocalSyncTransfer(params: {
@@ -182,14 +233,25 @@ export async function executeLocalSyncTransfer(params: {
     completedFiles += 1
   }
 
-  options?.onProgress?.({ stage: 'commit', message: '等待接收端确认并提交...', totalFiles: requiredResponse.required.length, completedFiles })
+  options?.onProgress?.({ stage: 'commit', message: '正在提交同步会话...', totalFiles: requiredResponse.required.length, completedFiles })
   const commit = await requestJson<LocalSyncTransferResult>(receiver.baseUrl, `${LOCAL_SYNC_API_PREFIX}/commit`, {
     method: 'POST',
     body: JSON.stringify({
       sessionId: session.sessionId,
-      confirm: true
+      confirm: options?.requireReceiverApproval === true ? false : true
     })
   }, options?.timeoutMs || LOCAL_SYNC_TIMEOUT.overallMs)
+
+  if (options?.waitForReceiverDecision === true && commit?.action === 'pending') {
+    const finalResult = await waitForReceiverDecision(
+      receiver.baseUrl,
+      session.sessionId,
+      options?.timeoutMs || LOCAL_SYNC_TIMEOUT.overallMs,
+      options?.onProgress
+    )
+    options?.onProgress?.({ stage: 'done', message: finalResult.message || '局域网同步完成', totalFiles: requiredResponse.required.length, completedFiles })
+    return finalResult
+  }
 
   options?.onProgress?.({ stage: 'done', message: '局域网同步完成', totalFiles: requiredResponse.required.length, completedFiles })
   return commit
