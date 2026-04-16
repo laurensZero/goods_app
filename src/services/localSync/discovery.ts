@@ -96,7 +96,7 @@ function buildCandidateHosts(seedHost = ''): string[] {
   return Array.from(set)
 }
 
-async function probeHost(host: string, port: number): Promise<LocalSyncDevice | null> {
+async function probeHost(host: string, port: number, timeoutMs = LOCAL_SYNC_TIMEOUT.discoverMs): Promise<LocalSyncDevice | null> {
   const start = Date.now()
   const baseUrl = normalizeBaseUrl(`${host}:${port}`)
 
@@ -104,7 +104,7 @@ async function probeHost(host: string, port: number): Promise<LocalSyncDevice | 
     const result = await requestGet<{ deviceName?: string; appVersion?: string }>(
       baseUrl,
       `${LOCAL_SYNC_API_PREFIX}/discover`,
-      LOCAL_SYNC_TIMEOUT.discoverMs
+      timeoutMs
     )
     rememberHost(host)
     return {
@@ -120,14 +120,33 @@ async function probeHost(host: string, port: number): Promise<LocalSyncDevice | 
   }
 }
 
-async function probeHostsInBatches(hosts: string[], port: number, batchSize = 16): Promise<LocalSyncDevice[]> {
+async function probeHostsInBatches(
+  hosts: string[],
+  port: number,
+  options: {
+    batchSize?: number
+    timeoutMs?: number
+    stopOnFirst?: boolean
+    deadlineAt?: number
+  } = {}
+): Promise<LocalSyncDevice[]> {
+  const batchSize = Number(options.batchSize) || 16
+  const timeoutMs = Number(options.timeoutMs) || LOCAL_SYNC_TIMEOUT.discoverMs
+  const stopOnFirst = options.stopOnFirst === true
+  const deadlineAt = Number(options.deadlineAt) || (Date.now() + 12000)
   const found: LocalSyncDevice[] = []
 
   for (let offset = 0; offset < hosts.length; offset += batchSize) {
+    if (Date.now() > deadlineAt) {
+      break
+    }
     const batch = hosts.slice(offset, offset + batchSize)
-    const result = await Promise.all(batch.map((host) => probeHost(host, port)))
+    const result = await Promise.all(batch.map((host) => probeHost(host, port, timeoutMs)))
     for (const item of result) {
       if (item) found.push(item)
+    }
+    if (stopOnFirst && found.length > 0) {
+      break
     }
   }
 
@@ -141,12 +160,23 @@ export async function discoverLanDevices(options?: {
 }): Promise<LocalSyncDevice[]> {
   const port = Number(options?.preferredPort) || LOCAL_SYNC_DEFAULT_PORT
   const candidates = buildCandidateHosts(options?.seedHost)
-  let resolved = await probeHostsInBatches(candidates, port)
+  const deadlineAt = Date.now() + 12000
+  let resolved = await probeHostsInBatches(candidates, port, {
+    batchSize: 16,
+    timeoutMs: LOCAL_SYNC_TIMEOUT.discoverMs,
+    stopOnFirst: false,
+    deadlineAt
+  })
 
   if (resolved.length === 0 && options?.allowSubnetSweep) {
     const sweepSet = new Set<string>(buildSweepCandidates())
     candidates.forEach((host) => sweepSet.delete(host))
-    resolved = await probeHostsInBatches(Array.from(sweepSet), port, 20)
+    resolved = await probeHostsInBatches(Array.from(sweepSet), port, {
+      batchSize: 24,
+      timeoutMs: 700,
+      stopOnFirst: true,
+      deadlineAt
+    })
   }
 
   const uniqueByUrl = new Map<string, LocalSyncDevice>()

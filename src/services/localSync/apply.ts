@@ -11,6 +11,42 @@ import type {
   RequiredFilesResponse
 } from './types'
 
+function normalizeTransferPayload<T extends Record<string, unknown>>(payload: T): T {
+  if (!payload || typeof payload !== 'object') return payload
+
+  const copy = { ...payload } as Record<string, unknown>
+  delete copy.updatedAt
+  delete copy.deviceId
+
+  return stabilizeValue(copy) as T
+}
+
+function stabilizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    const normalized = value.map((item) => stabilizeValue(item))
+    const canSortById = normalized.every((item) => item && typeof item === 'object' && !Array.isArray(item) && 'id' in (item as Record<string, unknown>))
+    if (!canSortById) {
+      return normalized
+    }
+    return [...normalized].sort((a, b) => {
+      const left = String((a as Record<string, unknown>).id || '')
+      const right = String((b as Record<string, unknown>).id || '')
+      return left.localeCompare(right)
+    })
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+
+  const input = value as Record<string, unknown>
+  const output: Record<string, unknown> = {}
+  for (const key of Object.keys(input).sort((a, b) => a.localeCompare(b))) {
+    output[key] = stabilizeValue(input[key])
+  }
+  return output
+}
+
 function toBase64Chunk(raw: string): string {
   if (typeof btoa === 'function') {
     return btoa(unescape(encodeURIComponent(raw)))
@@ -56,6 +92,11 @@ export async function executeLocalSyncTransfer(params: {
   rechargeData: unknown
   eventData: unknown
   updatedAt: string
+  stableSignatures?: {
+    goods?: string
+    recharge?: string
+    events?: string
+  }
   options?: LocalSyncApplyOptions
 }): Promise<LocalSyncTransferResult> {
   const { options } = params
@@ -70,23 +111,27 @@ export async function executeLocalSyncTransfer(params: {
     throw new Error('未发现可用设备。请检查双方是否在同一网络，且未开启 AP 隔离。')
   }
 
+  const normalizedGoodsData = normalizeTransferPayload((params.goodsData || {}) as Record<string, unknown>)
+  const normalizedRechargeData = normalizeTransferPayload((params.rechargeData || {}) as Record<string, unknown>)
+  const normalizedEventData = normalizeTransferPayload((params.eventData || {}) as Record<string, unknown>)
+
   const payload = {
     senderDeviceName: params.senderDeviceName || '未知设备',
     updatedAt: params.updatedAt
   }
   const files = await Promise.all<LocalSyncFileEntry>([
-    buildFileEntry('goods.json', params.goodsData, params.updatedAt),
-    buildFileEntry('recharge.json', params.rechargeData, params.updatedAt),
-    buildFileEntry('events.json', params.eventData, params.updatedAt)
+    buildFileEntry('goods.json', normalizedGoodsData, params.updatedAt, params.stableSignatures?.goods || ''),
+    buildFileEntry('recharge.json', normalizedRechargeData, params.updatedAt, params.stableSignatures?.recharge || ''),
+    buildFileEntry('events.json', normalizedEventData, params.updatedAt, params.stableSignatures?.events || '')
   ])
 
   const manifest: LocalSyncManifest = buildLocalManifest({
     deviceId: params.senderDeviceId,
     summary: {
-      goodsCount: Array.isArray((params.goodsData as { goods?: unknown[] })?.goods) ? ((params.goodsData as { goods: unknown[] }).goods.length) : 0,
-      trashCount: Array.isArray((params.goodsData as { trash?: unknown[] })?.trash) ? ((params.goodsData as { trash: unknown[] }).trash.length) : 0,
-      rechargeCount: Array.isArray((params.rechargeData as { recharge?: unknown[] })?.recharge) ? ((params.rechargeData as { recharge: unknown[] }).recharge.length) : 0,
-      eventCount: Array.isArray((params.eventData as { events?: unknown[] })?.events) ? ((params.eventData as { events: unknown[] }).events.length) : 0
+      goodsCount: Array.isArray((normalizedGoodsData as { goods?: unknown[] })?.goods) ? ((normalizedGoodsData as { goods: unknown[] }).goods.length) : 0,
+      trashCount: Array.isArray((normalizedGoodsData as { trash?: unknown[] })?.trash) ? ((normalizedGoodsData as { trash: unknown[] }).trash.length) : 0,
+      rechargeCount: Array.isArray((normalizedRechargeData as { recharge?: unknown[] })?.recharge) ? ((normalizedRechargeData as { recharge: unknown[] }).recharge.length) : 0,
+      eventCount: Array.isArray((normalizedEventData as { events?: unknown[] })?.events) ? ((normalizedEventData as { events: unknown[] }).events.length) : 0
     },
     payload,
     files
@@ -105,9 +150,9 @@ export async function executeLocalSyncTransfer(params: {
   })
 
   const fileContentMap = new Map<string, string>([
-    ['goods.json', JSON.stringify(params.goodsData)],
-    ['recharge.json', JSON.stringify(params.rechargeData)],
-    ['events.json', JSON.stringify(params.eventData)]
+    ['goods.json', JSON.stringify(normalizedGoodsData)],
+    ['recharge.json', JSON.stringify(normalizedRechargeData)],
+    ['events.json', JSON.stringify(normalizedEventData)]
   ])
 
   let completedFiles = 0

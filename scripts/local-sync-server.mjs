@@ -10,8 +10,10 @@ const ROOT_DIR = path.resolve(process.cwd(), '.local-sync-runtime')
 const SESSION_DIR = path.join(ROOT_DIR, 'sessions')
 const BLOB_DIR = path.join(ROOT_DIR, 'blobs')
 const CHUNK_DIR = path.join(ROOT_DIR, 'chunks')
+const SYNC_DATA_DIR = path.resolve(process.cwd(), '.sync-data')
+const CURRENT_DATA_DIR = path.join(SYNC_DATA_DIR, 'current')
 
-for (const dir of [ROOT_DIR, SESSION_DIR, BLOB_DIR, CHUNK_DIR]) {
+for (const dir of [ROOT_DIR, SESSION_DIR, BLOB_DIR, CHUNK_DIR, SYNC_DATA_DIR, CURRENT_DATA_DIR]) {
   fs.mkdirSync(dir, { recursive: true })
 }
 
@@ -62,11 +64,70 @@ function buildDeviceName() {
   return process.env.LOCAL_SYNC_DEVICE_NAME || os.hostname() || 'LAN Receiver'
 }
 
+function toCurrentDataPath(filePath) {
+  const normalized = String(filePath || '').replace(/\\/g, '/').replace(/^\/+/, '')
+  const safeName = normalized.split('/').filter(Boolean).join('_') || 'unknown.json'
+  return path.join(CURRENT_DATA_DIR, safeName)
+}
+
+function readCurrentJsonFile(fileName) {
+  const target = path.join(CURRENT_DATA_DIR, fileName)
+  if (!fs.existsSync(target)) {
+    return null
+  }
+
+  try {
+    const raw = fs.readFileSync(target, 'utf-8')
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 app.get('/api/local-sync/discover', (req, res) => {
   res.json({
     deviceName: buildDeviceName(),
     appVersion: '1.0.0',
     now: new Date().toISOString()
+  })
+})
+
+app.get('/api/local-sync/current', (req, res) => {
+  const files = fs.readdirSync(CURRENT_DATA_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const filePath = path.join(CURRENT_DATA_DIR, entry.name)
+      const stat = fs.statSync(filePath)
+      return {
+        name: entry.name,
+        size: stat.size,
+        updatedAt: stat.mtime.toISOString()
+      }
+    })
+
+  const payload = {
+    goods: readCurrentJsonFile('goods.json'),
+    recharge: readCurrentJsonFile('recharge.json'),
+    events: readCurrentJsonFile('events.json')
+  }
+
+  res.json({
+    dir: CURRENT_DATA_DIR,
+    files,
+    payload
+  })
+})
+
+app.get('/api/local-sync/current-content', (req, res) => {
+  const payload = {
+    goods: readCurrentJsonFile('goods.json'),
+    recharge: readCurrentJsonFile('recharge.json'),
+    events: readCurrentJsonFile('events.json')
+  }
+
+  res.json({
+    updatedAt: new Date().toISOString(),
+    payload
   })
 })
 
@@ -165,7 +226,8 @@ app.post('/api/local-sync/required-files', (req, res) => {
     const state = session.fileState[key] || {}
     const blobPath = path.join(BLOB_DIR, `${String(file.hash || '').replace(/[^a-zA-Z0-9_-]/g, '_')}.json`)
 
-    if (fs.existsSync(blobPath) && state.committed === true && state.updatedAt === file.updatedAt) {
+    // Reuse by content hash across sessions: existing blob means this content is already available.
+    if (fs.existsSync(blobPath)) {
       continue
     }
 
@@ -290,6 +352,7 @@ app.post('/api/local-sync/commit', (req, res) => {
     const merged = Buffer.concat(buffers)
     const blobPath = path.join(BLOB_DIR, `${String(file.hash || '').replace(/[^a-zA-Z0-9_-]/g, '_')}.json`)
     fs.writeFileSync(blobPath, merged)
+    fs.writeFileSync(toCurrentDataPath(file.path), merged)
 
     state.committed = true
     state.updatedAt = String(file.updatedAt || '')

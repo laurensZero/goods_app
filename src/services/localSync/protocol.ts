@@ -20,11 +20,12 @@ export async function hashText(content: string): Promise<string> {
   return `legacy_${Math.abs(hash >>> 0).toString(16)}`
 }
 
-export async function buildFileEntry(path: string, payload: unknown, updatedAt: string): Promise<LocalSyncFileEntry> {
+export async function buildFileEntry(path: string, payload: unknown, updatedAt: string, hashOverride = ''): Promise<LocalSyncFileEntry> {
   const raw = JSON.stringify(payload)
+  const resolvedHash = String(hashOverride || '').trim()
   return {
     path,
-    hash: await hashText(raw),
+    hash: resolvedHash || await hashText(raw),
     updatedAt,
     size: raw.length
   }

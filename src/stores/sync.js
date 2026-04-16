@@ -13,7 +13,8 @@ import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { discoverLanDevices } from '@/services/localSync/discovery'
 import { executeLocalSyncTransfer } from '@/services/localSync/apply'
-import { LOCAL_SYNC_DEFAULT_PORT } from '@/services/localSync/constants'
+import { requestGet } from '@/services/localSync/transport'
+import { LOCAL_SYNC_API_PREFIX, LOCAL_SYNC_DEFAULT_PORT } from '@/services/localSync/constants'
 import { deleteItems } from '@/utils/db'
 import {
   validateToken,
@@ -483,6 +484,11 @@ export const useSyncStore = defineStore('sync', () => {
       const goodsPayload = buildSyncData({ incremental: false })
       const rechargePayload = buildRechargeSyncData({ incremental: false })
       const eventPayload = buildEventSyncData()
+      const stableSignatures = {
+        goods: await buildComparableSyncStateFromData(goodsPayload),
+        recharge: buildComparableRechargeStateFromData(rechargePayload),
+        events: buildComparableEventStateFromData(eventPayload)
+      }
       const result = await executeLocalSyncTransfer({
         receiverHost: targetHost,
         receiverPort: Number(port) || LOCAL_SYNC_DEFAULT_PORT,
@@ -492,6 +498,7 @@ export const useSyncStore = defineStore('sync', () => {
         rechargeData: rechargePayload,
         eventData: eventPayload,
         updatedAt: new Date().toISOString(),
+        stableSignatures,
         options: {
           onProgress: (progress) => {
             lanTransferProgress.value = {
@@ -520,6 +527,167 @@ export const useSyncStore = defineStore('sync', () => {
         message: error.message || '局域网同步失败'
       }
       lanLastError.value = error.message || '局域网同步失败'
+      throw error
+    } finally {
+      isLanSyncing.value = false
+    }
+  }
+
+  function resolveLanReceiverBaseUrl(host, port) {
+    const trimmedHost = String(host || '').trim()
+    if (!trimmedHost) {
+      throw new Error('请先选择接收端设备，或填写接收端 IP 地址')
+    }
+
+    if (/^https?:\/\//i.test(trimmedHost)) {
+      return trimmedHost
+    }
+
+    if (trimmedHost.includes(':')) {
+      return `http://${trimmedHost}`
+    }
+
+    return `http://${trimmedHost}:${Number(port) || LOCAL_SYNC_DEFAULT_PORT}`
+  }
+
+  async function pullLanCurrentSnapshot({ host = '', port = LOCAL_SYNC_DEFAULT_PORT } = {}) {
+    if (isSyncing.value || isLanSyncing.value) {
+      return { action: 'skipped', reason: 'syncing' }
+    }
+
+    const targetHost = String(host || lanManualHost.value || '').trim()
+    const targetBaseUrl = resolveLanReceiverBaseUrl(targetHost, port)
+
+    isLanSyncing.value = true
+    lanLastError.value = ''
+    lanTransferProgress.value = {
+      stage: 'prepare',
+      message: '正在读取接收端快照...',
+      totalFiles: 3,
+      completedFiles: 0,
+      currentFile: ''
+    }
+
+    try {
+      await ensureEventsStoreReady()
+      const goodsStore = useGoodsStore()
+      const rechargeStore = useRechargeStore()
+      const eventsStore = useEventsStore()
+      const presetsStore = usePresetsStore()
+
+      if (!goodsStore.isReady) {
+        await goodsStore.init()
+      }
+      if (!rechargeStore.initialized) {
+        rechargeStore.init?.()
+      }
+      if (!presetsStore.isReady) {
+        await presetsStore.init()
+      }
+
+      lanTransferProgress.value = {
+        stage: 'manifest',
+        message: '正在从接收端拉取最新内容...',
+        totalFiles: 3,
+        completedFiles: 0,
+        currentFile: 'current-content'
+      }
+
+      const response = await requestGet(targetBaseUrl, `${LOCAL_SYNC_API_PREFIX}/current-content`)
+      const payload = response?.payload || response || {}
+      const goodsData = payload?.goods || null
+      const rechargeData = payload?.recharge || null
+      const eventData = payload?.events || null
+
+      if (!goodsData && !rechargeData && !eventData) {
+        throw new Error('接收端当前没有可导入的同步数据')
+      }
+
+      lanTransferProgress.value = {
+        stage: 'files',
+        message: '正在应用收藏和回收站...',
+        totalFiles: 3,
+        completedFiles: 0,
+        currentFile: 'goods.json'
+      }
+
+      const resolvedGoods = resolveGoodsTrashMaps(
+        Array.isArray(goodsData?.goods) ? goodsData.goods : [],
+        Array.isArray(goodsData?.trash) ? goodsData.trash : []
+      )
+      const remoteGoods = [...resolvedGoods.goodsMap.values()]
+      const remoteTrash = [...resolvedGoods.trashMap.values()]
+      const importedGoods = await goodsStore.importGoodsBackup(remoteGoods)
+      const updatedGoods = await goodsStore.updateGoodsBackup(remoteGoods)
+      const importedTrash = await goodsStore.importTrashBackup(remoteTrash)
+      const updatedTrash = await goodsStore.updateTrashBackup(remoteTrash)
+
+      if (goodsData?.presets) {
+        await presetsStore.replacePresetsSnapshot(goodsData.presets)
+      }
+
+      lanTransferProgress.value = {
+        stage: 'files',
+        message: '正在应用充值记录...',
+        totalFiles: 3,
+        completedFiles: 1,
+        currentFile: 'recharge.json'
+      }
+
+      const rechargePayload = Array.isArray(rechargeData?.recharge)
+        ? rechargeData.recharge
+        : (Array.isArray(rechargeData?.rechargeRecords) ? rechargeData.rechargeRecords : [])
+      const rechargeApplyResult = rechargeStore.importBackup(
+        rechargePayload.filter((item) => !item?.deleted)
+      )
+
+      lanTransferProgress.value = {
+        stage: 'files',
+        message: '正在应用活动数据...',
+        totalFiles: 3,
+        completedFiles: 2,
+        currentFile: 'events.json'
+      }
+
+      const eventApplyResult = await eventsStore.importEventsBackup(
+        Array.isArray(eventData?.events) ? eventData.events : [],
+        { reconcileMissing: false }
+      )
+
+      if (eventData?.updatedAt) {
+        await saveEventLastSyncedAt(eventData.updatedAt)
+      }
+
+      lanTransferProgress.value = {
+        stage: 'done',
+        message: '局域网导入完成',
+        totalFiles: 3,
+        completedFiles: 3,
+        currentFile: ''
+      }
+
+      return {
+        action: 'pulled',
+        importedGoods,
+        updatedGoods,
+        importedTrash,
+        updatedTrash,
+        importedRecharge: rechargeApplyResult?.added || 0,
+        updatedRecharge: rechargeApplyResult?.updated || 0,
+        importedEvents: eventApplyResult?.added || 0,
+        updatedEvents: eventApplyResult?.updated || 0,
+        totalGoods: remoteGoods.length,
+        totalTrash: remoteTrash.length,
+        totalRecharge: rechargeApplyResult?.total || rechargePayload.length,
+        totalEvents: Array.isArray(eventData?.events) ? eventData.events.length : 0
+      }
+    } catch (error) {
+      lanTransferProgress.value = {
+        ...lanTransferProgress.value,
+        stage: 'error',
+        message: error.message || '局域网导入失败'
+      }
+      lanLastError.value = error.message || '局域网导入失败'
       throw error
     } finally {
       isLanSyncing.value = false
@@ -1035,6 +1203,7 @@ export const useSyncStore = defineStore('sync', () => {
     resetConfig,
     discoverLocalDevices,
     startLanSync,
+    pullLanCurrentSnapshot,
     setLanManualHost
   }
 })
