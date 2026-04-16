@@ -599,9 +599,9 @@ export const useSyncStore = defineStore('sync', () => {
 
         syncStatus.value = '正在拉取远端数据...'
         const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-          hydrateGoodsImages: false,
-          hydrateTrashImages: false,
-          hydrateEventImages: false
+          hydrateGoodsImages: hasDataDiff,
+          hydrateTrashImages: hasDataDiff,
+          hydrateEventImages: hasEventDataDiff
         })
         await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
         syncStatus.value = '拉取完成'
