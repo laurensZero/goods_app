@@ -8,11 +8,12 @@
         class="photo-grid__item"
         @click="$emit('preview', index)"
       >
-        <img
+        <LazyCachedImage
           v-if="photo.uri"
           class="photo-grid__img"
           :src="photo.uri"
           :alt="photo.caption || `照片 ${index + 1}`"
+          :lazy="false"
           loading="lazy"
         />
         <div v-else class="photo-grid__placeholder">✦</div>
@@ -22,6 +23,8 @@
 </template>
 
 <script setup>
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
 defineProps({
   photos: { type: Array, default: () => [] }
 })
