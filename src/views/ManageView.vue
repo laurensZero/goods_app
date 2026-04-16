@@ -285,7 +285,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
-import { sanitizeGoodsItemForExport, sanitizeEventForExport } from '@/utils/goodsImages'
+import { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
 import {
   runManageForwardNavigation
 } from '@/utils/routeTransition'
@@ -318,13 +318,14 @@ const exportSectionOptions = [
   { key: 'wishlist', label: '心愿单', desc: '计划入手记录' },
   { key: 'trash', label: '回收站', desc: '已删除但尚未清空的数据' },
   { key: 'events', label: '活动', desc: '活动、曲目与关联谷子' },
+  { key: 'images', label: '图片', desc: '导出时内嵌本地图片（体积大、更慢）' },
   { key: 'recharge', label: '充值', desc: '充值记录与回收站' },
   { key: 'presets', label: '预设', desc: '分类、IP、角色和收纳位置' }
 ]
 
 function createDefaultExportSelection() {
   return exportSectionOptions.reduce((result, option) => {
-    result[option.key] = true
+    result[option.key] = option.key === 'images' ? false : true
     return result
   }, {})
 }
@@ -801,8 +802,10 @@ async function handleExport(selection = null) {
   const includeWishlist = selected.wishlist !== false
   const includeTrash = selected.trash !== false
   const includeEvents = selected.events !== false
+  const includeImages = selected.images === true
   const includeRecharge = selected.recharge !== false
   const includePresets = selected.presets !== false
+  const useLightweightImageExport = !includeImages
 
   const safeSanitizeGoodsItemForExport = async (item) => {
     try {
@@ -819,6 +822,28 @@ async function handleExport(selection = null) {
     }
   }
 
+  const safeSanitizeGoodsItemLight = async (item) => {
+    try {
+      return sanitizeGoodsItemForSync(item)
+    } catch {
+      return null
+    }
+  }
+
+  const safeSanitizeEventLight = async (event) => {
+    try {
+      if (!event) return null
+      const { coverImage, photos, ...rest } = event
+      return {
+        ...rest,
+        coverImage: String(coverImage || ''),
+        photos: Array.isArray(photos) ? photos.map((photo) => ({ ...photo })) : []
+      }
+    } catch {
+      return null
+    }
+  }
+
   const sanitizeSequential = async (list, sanitizeFn) => {
     const result = []
     for (const item of list) {
@@ -829,18 +854,30 @@ async function handleExport(selection = null) {
   }
 
   const goodsList = includeGoods
-    ? await sanitizeSequential(goodsStore.list.filter((item) => !item?.isWishlist), safeSanitizeGoodsItemForExport)
+    ? await sanitizeSequential(
+      goodsStore.list.filter((item) => !item?.isWishlist),
+      useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
+    )
     : undefined
   const wishlistList = includeWishlist
-    ? await sanitizeSequential(goodsStore.list.filter((item) => item?.isWishlist), safeSanitizeGoodsItemForExport)
+    ? await sanitizeSequential(
+      goodsStore.list.filter((item) => item?.isWishlist),
+      useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
+    )
     : undefined
   const trashList = includeTrash
-    ? await sanitizeSequential(goodsStore.trashList, safeSanitizeGoodsItemForExport)
+    ? await sanitizeSequential(
+      goodsStore.trashList,
+      useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
+    )
     : undefined
   const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) : undefined
   const rechargeTrash = includeRecharge ? [] : undefined
   const eventsList = includeEvents
-    ? await sanitizeSequential(eventsStore.list, safeSanitizeEventForExport)
+    ? await sanitizeSequential(
+      eventsStore.list,
+      useLightweightImageExport ? safeSanitizeEventLight : safeSanitizeEventForExport
+    )
     : undefined
 
   const data = {
@@ -881,9 +918,13 @@ async function handleExport(selection = null) {
       if (shared) {
         void pruneBackupArtifacts().catch(() => {})
         showToast(
-          saved.visibleToUser
-            ? `已打开分享面板，并写入 文档/${saved.path}`
-            : '已打开分享面板，请选择“保存到文件”或其他目标',
+          useLightweightImageExport
+            ? '已打开分享面板（轻量导出：图片未内嵌）'
+            : (
+              saved.visibleToUser
+                ? `已打开分享面板，并写入 文档/${saved.path}`
+                : '已打开分享面板，请选择“保存到文件”或其他目标'
+            ),
           4200
         )
         return
@@ -891,9 +932,13 @@ async function handleExport(selection = null) {
 
       void pruneBackupArtifacts().catch(() => {})
       showToast(
-        saved.visibleToUser
-          ? `已导出到 文档/${saved.path}`
-          : `已导出到应用目录 ${saved.path}`,
+        useLightweightImageExport
+          ? `已导出轻量备份到 ${saved.visibleToUser ? `文档/${saved.path}` : `应用目录 ${saved.path}`}`
+          : (
+            saved.visibleToUser
+              ? `已导出到 文档/${saved.path}`
+              : `已导出到应用目录 ${saved.path}`
+          ),
         4200
       )
       return
