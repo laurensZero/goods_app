@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.5",
+    "url": "bundle-20260416.5.zip",
+    "hash": "667fba9f3a3e46306f43d968633890ac455e7d858b55068e53f2c83353aa74c4",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T05:41:32Z"
+  },
+  {
     "version": "20260416.4",
     "url": "bundle-20260416.4.zip",
     "hash": "14ab57fd7631ebd07f2c9adc25bb05d811b5b0cddbd6670b52e17514b30e43a6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加局域网同步功能，支持从接收端导入当前快照",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T05:01:56Z"
-  },
-  {
-    "version": "20260416.2",
-    "url": "bundle-20260416.2.zip",
-    "hash": "525869fcac04d7ea65dce11e13f190d660dfad55faf770e5f4dd9223d86166cd",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强局域网设备发现功能，支持子网扫描选项",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T03:58:06Z"
   }
 ]
