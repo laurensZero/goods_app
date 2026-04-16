@@ -23,9 +23,12 @@ export async function hashText(content: string): Promise<string> {
 export async function buildFileEntry(path: string, payload: unknown, updatedAt: string, hashOverride = ''): Promise<LocalSyncFileEntry> {
   const raw = JSON.stringify(payload)
   const resolvedHash = String(hashOverride || '').trim()
+  const normalizedOverride = resolvedHash
+    ? await hashText(resolvedHash)
+    : ''
   return {
     path,
-    hash: resolvedHash || await hashText(raw),
+    hash: normalizedOverride || await hashText(raw),
     updatedAt,
     size: raw.length
   }

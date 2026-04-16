@@ -13,3 +13,4 @@ scripts/generate-android-icons.ps1
 scripts/build_recharge_import_file.mjs
 scripts/fetch_recharge_distribution.py
 .local-sync-runtime
+.sync-data

@@ -26,6 +26,8 @@ import {
   buildSyncDescription
 } from '@/utils/githubGist'
 import {
+  buildTimestampRecordMap,
+  countComparableRecordDiff,
   countWishlistSplit,
   getItemTimestamp,
   resolveGoodsTrashMaps
@@ -481,7 +483,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       await ensureEventsStoreReady()
-      const goodsPayload = buildSyncData({ incremental: false })
+      const goodsPayload = buildSyncData(false)
       const rechargePayload = buildRechargeSyncData({ incremental: false })
       const eventPayload = buildEventSyncData()
       const stableSignatures = {
@@ -548,6 +550,158 @@ export const useSyncStore = defineStore('sync', () => {
     }
 
     return `http://${trimmedHost}:${Number(port) || LOCAL_SYNC_DEFAULT_PORT}`
+  }
+
+  function buildRechargeComparableMap(items = []) {
+    const map = new Map()
+    for (const item of items) {
+      const key = [
+        String(item?.game || '').trim().toLowerCase(),
+        String(item?.itemName || '').trim().toLowerCase(),
+        String(item?.chargedAt || '').trim(),
+        String(item?.note || '').trim(),
+        String(Number(item?.amount || 0))
+      ].join('|')
+
+      if (!key) continue
+
+      map.set(key, JSON.stringify({
+        ...item,
+        id: '',
+        image: ''
+      }))
+    }
+    return map
+  }
+
+  async function previewLanCurrentSnapshot({ host = '', port = LOCAL_SYNC_DEFAULT_PORT } = {}) {
+    const targetHost = String(host || lanManualHost.value || '').trim()
+    const targetBaseUrl = resolveLanReceiverBaseUrl(targetHost, port)
+
+    await ensureEventsStoreReady()
+    const goodsStore = useGoodsStore()
+    const rechargeStore = useRechargeStore()
+    const eventsStore = useEventsStore()
+    if (!goodsStore.isReady) {
+      await goodsStore.init()
+    }
+
+    const response = await requestGet(targetBaseUrl, `${LOCAL_SYNC_API_PREFIX}/current-content`)
+    const payload = response?.payload || response || {}
+    const goodsData = payload?.goods || {}
+    const rechargeData = payload?.recharge || {}
+    const eventData = payload?.events || {}
+
+    const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
+    const resolvedRemote = resolveGoodsTrashMaps(
+      Array.isArray(goodsData?.goods) ? goodsData.goods : [],
+      Array.isArray(goodsData?.trash) ? goodsData.trash : []
+    )
+
+    const localGoodsMap = resolvedLocal.goodsMap
+    const localTrashMap = resolvedLocal.trashMap
+    const remoteGoods = [...resolvedRemote.goodsMap.values()]
+    const remoteTrash = [...resolvedRemote.trashMap.values()]
+    const remoteGoodsMap = new Map(remoteGoods.map((item) => [item.id, item]))
+    const remoteTrashMap = new Map(remoteTrash.map((item) => [item.id, item]))
+
+    let remoteOnlyGoods = 0
+    let remoteOnlyCollection = 0
+    let remoteOnlyWishlist = 0
+    let remoteOnlyTrash = 0
+    let localOnlyCollection = 0
+    let localOnlyWishlist = 0
+    let updatedGoods = 0
+
+    for (const remoteItem of remoteGoods) {
+      const localGoodsItem = localGoodsMap.get(remoteItem.id)
+      const localTrashItem = localTrashMap.get(remoteItem.id)
+
+      if (!localGoodsItem && !localTrashItem) {
+        remoteOnlyGoods += 1
+        if (remoteItem?.isWishlist) {
+          remoteOnlyWishlist += 1
+        } else {
+          remoteOnlyCollection += 1
+        }
+      } else if (localGoodsItem && shouldApplyRemoteItem(localGoodsItem, remoteItem)) {
+        updatedGoods += 1
+      } else if (localTrashItem && shouldApplyRemoteItem(localTrashItem, remoteItem)) {
+        updatedGoods += 1
+      }
+    }
+
+    for (const remoteItem of remoteTrash) {
+      if (!localTrashMap.has(remoteItem.id) && !localGoodsMap.has(remoteItem.id)) {
+        remoteOnlyTrash += 1
+      }
+    }
+
+    const localOnlyGoods = [...localGoodsMap.keys()].filter((id) => !remoteGoodsMap.has(id) && !remoteTrashMap.has(id)).length
+    const localOnlyTrash = [...localTrashMap.keys()].filter((id) => !remoteTrashMap.has(id) && !remoteGoodsMap.has(id)).length
+    for (const item of localGoodsMap.values()) {
+      if (remoteGoodsMap.has(item.id) || remoteTrashMap.has(item.id)) continue
+      if (item?.isWishlist) {
+        localOnlyWishlist += 1
+      } else {
+        localOnlyCollection += 1
+      }
+    }
+
+    const remoteRechargeList = Array.isArray(rechargeData?.recharge)
+      ? rechargeData.recharge
+      : (Array.isArray(rechargeData?.rechargeRecords) ? rechargeData.rechargeRecords : [])
+    const localRechargeList = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const rechargeDiff = countComparableRecordDiff(
+      buildRechargeComparableMap(localRechargeList),
+      buildRechargeComparableMap(remoteRechargeList)
+    )
+
+    const remoteEvents = Array.isArray(eventData?.events) ? eventData.events : []
+    const eventDiff = countComparableRecordDiff(
+      buildTimestampRecordMap(eventsStore.list || []),
+      buildTimestampRecordMap(remoteEvents)
+    )
+
+    const remoteCounts = countWishlistSplit(remoteGoods)
+    const remoteTimeCandidates = [
+      String(goodsData?.updatedAt || ''),
+      String(rechargeData?.updatedAt || ''),
+      String(eventData?.updatedAt || ''),
+      String(response?.updatedAt || '')
+    ].filter(Boolean)
+
+    return {
+      remoteTime: remoteTimeCandidates[0] || new Date().toISOString(),
+      remoteDevice: `${targetHost}:${Number(port) || LOCAL_SYNC_DEFAULT_PORT}`,
+      localTime: lastSyncedAt.value,
+      localModifiedTime: getLatestLocalModifiedAt(),
+      remoteGoodsCount: remoteGoods.length,
+      remoteCollectionCount: remoteCounts.collection,
+      remoteWishlistCount: remoteCounts.wishlist,
+      remoteTrashCount: remoteTrash.length,
+      remoteOnlyGoods,
+      remoteOnlyCollection,
+      remoteOnlyWishlist,
+      remoteOnlyTrash,
+      remoteRechargeCount: rechargeDiff.remoteTotal,
+      remoteOnlyRecharge: rechargeDiff.remoteOnly,
+      updatedRecharge: rechargeDiff.updated,
+      localOnlyRecharge: rechargeDiff.localOnly,
+      remoteEventCount: eventDiff.remoteTotal,
+      remoteOnlyEvents: eventDiff.remoteOnly,
+      updatedEvents: eventDiff.updated,
+      localOnlyEvents: eventDiff.localOnly,
+      remoteImageCount: 0,
+      remoteOnlyImages: 0,
+      updatedImages: 0,
+      localOnlyImages: 0,
+      localOnlyGoods,
+      localOnlyCollection,
+      localOnlyWishlist,
+      localOnlyTrash,
+      updatedGoods
+    }
   }
 
   async function pullLanCurrentSnapshot({ host = '', port = LOCAL_SYNC_DEFAULT_PORT } = {}) {
@@ -1203,6 +1357,7 @@ export const useSyncStore = defineStore('sync', () => {
     resetConfig,
     discoverLocalDevices,
     startLanSync,
+    previewLanCurrentSnapshot,
     pullLanCurrentSnapshot,
     setLanManualHost
   }

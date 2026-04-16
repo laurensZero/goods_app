@@ -50,10 +50,21 @@ function createSessionId() {
 }
 
 function safeChunkDir(sessionId, fileHash) {
-  const safeHash = String(fileHash || '').replace(/[^a-zA-Z0-9_-]/g, '_')
+  const safeHash = crypto
+    .createHash('sha256')
+    .update(String(fileHash || ''))
+    .digest('hex')
   const dir = path.join(CHUNK_DIR, `${sessionId}_${safeHash}`)
   fs.mkdirSync(dir, { recursive: true })
   return dir
+}
+
+function blobPathByHash(fileHash) {
+  const safeHash = crypto
+    .createHash('sha256')
+    .update(String(fileHash || ''))
+    .digest('hex')
+  return path.join(BLOB_DIR, `${safeHash}.json`)
 }
 
 function decodeChunk(base64Data) {
@@ -224,7 +235,7 @@ app.post('/api/local-sync/required-files', (req, res) => {
   for (const file of files) {
     const key = `${file.path}#${file.hash}`
     const state = session.fileState[key] || {}
-    const blobPath = path.join(BLOB_DIR, `${String(file.hash || '').replace(/[^a-zA-Z0-9_-]/g, '_')}.json`)
+    const blobPath = blobPathByHash(file.hash)
 
     // Reuse by content hash across sessions: existing blob means this content is already available.
     if (fs.existsSync(blobPath)) {
@@ -350,7 +361,7 @@ app.post('/api/local-sync/commit', (req, res) => {
     }
 
     const merged = Buffer.concat(buffers)
-    const blobPath = path.join(BLOB_DIR, `${String(file.hash || '').replace(/[^a-zA-Z0-9_-]/g, '_')}.json`)
+    const blobPath = blobPathByHash(file.hash)
     fs.writeFileSync(blobPath, merged)
     fs.writeFileSync(toCurrentDataPath(file.path), merged)
 

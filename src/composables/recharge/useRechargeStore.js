@@ -5,13 +5,51 @@ const STORAGE_KEY = 'goods_recharge_records_v1'
 const records = ref([])
 let initialized = false
 
+function toSafeNumber(value) {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+function buildLegacyStableId(input = {}) {
+  const seed = [
+    String(input.game || '').trim(),
+    String(input.itemName || '').trim(),
+    String(input.chargedAt || '').trim(),
+    String(input.note || '').trim(),
+    String(input.image || '').trim(),
+    String(input.updatedAt || ''),
+    String(toSafeNumber(input.amount))
+  ].join('|')
+
+  let hash = 5381
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ seed.charCodeAt(index)
+  }
+
+  return `recharge_legacy_${Math.abs(hash >>> 0).toString(36)}`
+}
+
+function buildSemanticKey(input = {}) {
+  return [
+    String(input.game || '').trim().toLowerCase(),
+    String(input.itemName || '').trim().toLowerCase(),
+    String(input.chargedAt || '').trim(),
+    String(input.note || '').trim(),
+    `${toSafeNumber(input.amount)}`
+  ].join('|')
+}
+
 function normalizeRecord(input = {}) {
   const now = Date.now()
   const amount = Number(input.amount)
   const chargedAt = String(input.chargedAt || '').trim()
+  const stableId = String(input.id || '').trim() || buildLegacyStableId({
+    ...input,
+    updatedAt: Number(input.updatedAt || now)
+  })
 
   return {
-    id: String(input.id || `recharge_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`),
+    id: stableId,
     game: String(input.game || '').trim(),
     itemName: String(input.itemName || '').trim(),
     amount: Number.isFinite(amount) ? amount : 0,
@@ -225,16 +263,27 @@ export function useRechargeStore() {
     }
 
     const currentMap = new Map(records.value.map((item) => [item.id, item]))
+    const semanticIdMap = new Map(records.value.map((item) => [buildSemanticKey(item), item.id]))
     const incomingMap = buildLatestRecordMap(list)
     let added = 0
     let updated = 0
     let skipped = 0
 
     for (const [id, incoming] of incomingMap.entries()) {
-      const existing = currentMap.get(id)
+      let existing = currentMap.get(id)
+      let existingId = existing?.id || ''
+
+      if (!existing) {
+        const semanticMatchedId = semanticIdMap.get(buildSemanticKey(incoming))
+        if (semanticMatchedId) {
+          existing = currentMap.get(semanticMatchedId)
+          existingId = semanticMatchedId
+        }
+      }
 
       if (!existing) {
         currentMap.set(id, incoming)
+        semanticIdMap.set(buildSemanticKey(incoming), id)
         added += 1
         continue
       }
@@ -244,7 +293,11 @@ export function useRechargeStore() {
       }
 
       if (Number(incoming.updatedAt || 0) >= Number(existing.updatedAt || 0)) {
-        currentMap.set(id, incoming)
+        const targetId = existingId || id
+        currentMap.set(targetId, {
+          ...incoming,
+          id: targetId
+        })
         updated += 1
       } else {
         skipped += 1

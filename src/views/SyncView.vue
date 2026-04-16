@@ -379,31 +379,6 @@
           @start-manual="handleLanManualStart"
         />
 
-        <div class="action-grid">
-          <button
-            type="button"
-            class="entry-card"
-            :disabled="syncStore.isLanSyncing || syncStore.isSyncing || !lanImportTarget"
-            @click="handleLanPullSnapshot"
-          >
-            <span class="entry-icon pull-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Receiver to Local</p>
-              <h3 class="entry-name">从接收端导入当前快照</h3>
-              <p class="entry-desc">从局域网接收端读取最新 goods/recharge/events 并直接写入本机，解决“已传输但本地不可见”。</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-        </div>
-
         <p class="section-note">局域网同步采用增量策略，按 <code>updatedAt</code> 与 <code>hash</code> 校验后仅传输 required-files 列表中的缺失数据。</p>
       </section>
 
@@ -572,6 +547,7 @@ const isVerifyingToken = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
+const lanPendingImportTarget = ref(null)
 const showLanTransferModal = ref(false)
 const LOG_GROUP_SEQUENCE = [
   'manifest',
@@ -753,22 +729,6 @@ const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
 const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
 const eventCount = computed(() => gistInfo.value?.eventCount ?? '-')
 const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
-const lanImportTarget = computed(() => {
-  if (syncStore.lanManualHost) {
-    return {
-      host: syncStore.lanManualHost,
-      port: undefined
-    }
-  }
-
-  const firstDevice = Array.isArray(syncStore.lanDevices) ? syncStore.lanDevices[0] : null
-  if (!firstDevice?.host) return null
-
-  return {
-    host: firstDevice.host,
-    port: firstDevice.port
-  }
-})
 const imageSyncDisplay = computed(() => {
   if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
   return formatTime(gistInfo.value.imageUpdatedAt)
@@ -1000,6 +960,17 @@ async function runLanSyncByHost(host, port) {
   try {
     const result = await syncStore.startLanSync({ host, port })
     showToast(`局域网同步完成（接收 ${result.acceptedFiles || 0}，复用 ${result.skippedFiles || 0}）`, 3600)
+
+    const resolvedTarget = {
+      host: String(host || syncStore.lanManualHost || '').trim(),
+      port: Number(port) || undefined
+    }
+    lanPendingImportTarget.value = resolvedTarget
+    pullConflictData.value = {
+      ...(await syncStore.previewLanCurrentSnapshot(resolvedTarget)),
+      isLanSnapshot: true
+    }
+    showPullConflict.value = true
   } catch (error) {
     showToast(`局域网同步失败：${error.message}`, 4200)
   }
@@ -1011,30 +982,6 @@ async function handleLanDeviceSelect(device) {
 
 async function handleLanManualStart() {
   await runLanSyncByHost(syncStore.lanManualHost)
-}
-
-async function handleLanPullSnapshot() {
-  if (!lanImportTarget.value) {
-    showToast('请先扫描设备或填写接收端 IP')
-    return
-  }
-
-  showLanTransferModal.value = true
-
-  try {
-    const result = await syncStore.pullLanCurrentSnapshot(lanImportTarget.value)
-    const parts = []
-    if (result.importedGoods > 0) parts.push(`收藏新增 ${result.importedGoods} 条`)
-    if (result.updatedGoods > 0) parts.push(`收藏更新 ${result.updatedGoods} 条`)
-    if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
-    if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-    if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
-    if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
-
-    showToast(parts.length > 0 ? `导入完成，${parts.join('，')}` : '导入完成，数据已是最新', 3600)
-  } catch (error) {
-    showToast(`导入失败：${error.message}`, 4200)
-  }
 }
 
 async function handlePull() {
@@ -1067,6 +1014,38 @@ async function handlePull() {
 
 async function handlePullConflict(confirm) {
   showPullConflict.value = false
+
+  if (pullConflictData.value?.isLanSnapshot) {
+    if (!confirm) {
+      showToast('已取消导入')
+      lanPendingImportTarget.value = null
+      return
+    }
+
+    if (!lanPendingImportTarget.value?.host) {
+      showToast('导入失败：未记录接收端地址')
+      return
+    }
+
+    showLanTransferModal.value = true
+    try {
+      const result = await syncStore.pullLanCurrentSnapshot(lanPendingImportTarget.value)
+      const parts = []
+      if (result.importedGoods > 0) parts.push(`收藏新增 ${result.importedGoods} 条`)
+      if (result.updatedGoods > 0) parts.push(`收藏更新 ${result.updatedGoods} 条`)
+      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
+      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
+      if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
+      if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
+      showToast(parts.length > 0 ? `导入完成，${parts.join('，')}` : '导入完成，数据已是最新', 3600)
+    } catch (error) {
+      showToast(`导入失败：${error.message}`, 4200)
+    } finally {
+      lanPendingImportTarget.value = null
+    }
+    return
+  }
+
   try {
     const result = await syncStore.resolvePullConflict(confirm)
 

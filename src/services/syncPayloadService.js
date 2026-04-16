@@ -66,6 +66,26 @@ export function createSyncPayloadService({
     }
   }
 
+  function normalizeRechargeForComparison(item) {
+    const normalized = sortObjectKeys({
+      ...item,
+      id: '',
+      image: ''
+    })
+
+    return {
+      ...normalized,
+      _semanticKey: [
+        String(normalized.game || '').trim().toLowerCase(),
+        String(normalized.itemName || '').trim().toLowerCase(),
+        String(normalized.chargedAt || '').trim(),
+        String(normalized.note || '').trim(),
+        String(Number(normalized.amount || 0)),
+        String(Number(normalized.updatedAt || 0))
+      ].join('|')
+    }
+  }
+
   async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
     const normalizedImages = normalizeGoodsImageList(item?.images)
     if (normalizedImages.length === 0) return []
@@ -355,11 +375,11 @@ export function createSyncPayloadService({
 
   function buildComparableRechargeStateFromData(data) {
     const recharge = (Array.isArray(data?.recharge) ? data.recharge : [])
-      .map((item) => sortObjectKeys(item))
-      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+      .map((item) => normalizeRechargeForComparison(item))
+      .sort((a, b) => String(a._semanticKey || '').localeCompare(String(b._semanticKey || '')))
     const rechargeTrash = (Array.isArray(data?.rechargeTrash) ? data.rechargeTrash : [])
-      .map((item) => sortObjectKeys(item))
-      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+      .map((item) => normalizeRechargeForComparison(item))
+      .sort((a, b) => String(a._semanticKey || '').localeCompare(String(b._semanticKey || '')))
 
     return JSON.stringify(sortObjectKeys({ recharge, rechargeTrash }))
   }
