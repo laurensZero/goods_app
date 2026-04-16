@@ -1,9 +1,9 @@
 {
-  "version": "20260416.1",
-  "url": "bundle-20260416.1.zip",
-  "hash": "e7196b32ae8e6a00a4e63de21d70b862c330030eff0534bc71c987bf487117ab",
+  "version": "20260416.2",
+  "url": "bundle-20260416.2.zip",
+  "hash": "525869fcac04d7ea65dce11e13f190d660dfad55faf770e5f4dd9223d86166cd",
   "minNativeVersion": null,
-  "notes": "- upd",
+  "notes": "- feat: 增强局域网设备发现功能，支持子网扫描选项",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T03:48:37Z"
+  "publishedAt": "2026-04-16T03:58:06Z"
 }
