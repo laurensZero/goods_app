@@ -6,6 +6,7 @@ import WishlistView from '@/views/WishlistView.vue'
 import DetailView from '@/views/DetailView.vue'
 import ManageView from '@/views/ManageView.vue'
 import EventsView from '@/views/EventsView.vue'
+import EventAddView from '@/views/EventAddView.vue'
 import EventDetailView from '@/views/EventDetailView.vue'
 
 const routes = [
@@ -147,7 +148,7 @@ const routes = [
   {
     path: '/events/add',
     name: 'event-add',
-    component: () => import('@/views/EventAddView.vue'),
+    component: EventAddView,
     meta: { title: '添加活动' }
   },
   {
@@ -159,7 +160,7 @@ const routes = [
   {
     path: '/events/edit/:id',
     name: 'event-edit',
-    component: () => import('@/views/EventAddView.vue'),
+    component: EventAddView,
     meta: { title: '编辑活动' },
     props: true
   },

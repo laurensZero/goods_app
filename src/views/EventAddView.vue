@@ -396,7 +396,7 @@ const showDatePicker = ref(false)
 const datePickerValue = ref([])
 const datePickerTarget = ref('start')
 const isNavigatingToPicker = ref(false)
-const pageDisplayReady = ref(false)
+const pageDisplayReady = ref(true)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 const { isTabletViewport, updateViewport } = useTabletViewport()
@@ -579,7 +579,11 @@ async function handleSubmit() {
   }
   sessionStorage.removeItem(EVENT_ADD_DRAFT_KEY)
   const fallbackTarget = isEdit.value ? `/events/${editId.value}` : '/events'
-  await router.replace(getReturnToRoute() || fallbackTarget)
+  const targetPath = getReturnToRoute() || fallbackTarget
+  runWithRouteTransition(
+    () => router.replace(targetPath),
+    { direction: 'back' }
+  )
 }
 
 function openDatePicker(target) {
@@ -675,37 +679,38 @@ onBeforeMount(() => {
   scrollToTopAnimated(() => null, 0)
 })
 
-onMounted(async () => {
+onMounted(() => {
   syncEventAddScrollLock(true)
   updateViewport()
-  if (!eventsStore.isReady) {
-    await eventsStore.init()
-  }
-  if (!goodsStore.isReady) {
-    await goodsStore.init()
-  } else {
-    await goodsStore.refreshList()
-  }
-  await loadEditData()
+
+  // Prefer instant first paint: warm stores in background instead of blocking route enter.
+  void (async () => {
+    if (!eventsStore.isReady) {
+      await eventsStore.init()
+    }
+    if (!goodsStore.isReady) {
+      await goodsStore.init()
+    }
+
+    if (isEdit.value && !String(form.name || '').trim()) {
+      await loadEditData()
+    }
+  })()
+
+  void loadEditData()
   restoreDraftFromPicker()
   applyPickerSelectionResult()
   isNavigatingToPicker.value = false
-  await nextTick()
-  pageDisplayReady.value = true
 })
 
 onActivated(async () => {
   isNavigatingToPicker.value = false
-  pageDisplayReady.value = false
-  await nextTick()
   restoreDraftFromPicker()
   applyPickerSelectionResult()
-  await nextTick()
-  pageDisplayReady.value = true
 })
 
 onDeactivated(() => {
-  pageDisplayReady.value = false
+  // keep view visible state stable; entering the page should feel instant.
 })
 
 onBeforeUnmount(() => {

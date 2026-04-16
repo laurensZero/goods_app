@@ -204,12 +204,13 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     return sessionStorage.getItem(pendingKey) === '1'
   }
 
-  function saveScrollPosition(markPending = true, reason = 'save') {
+  function saveScrollPosition(markPending = true, reason = 'save', options = {}) {
+    const includeAnchor = options.includeAnchor !== false
     // Save both the numeric scrollTop and the source that produced it.
     // Losing the source is what previously caused wrong restores and broken scroll-top behavior.
     const { top, source } = getScrollSnapshotForPersistence()
     activeScrollSource = source
-    const state = buildScrollState(top, source, true)
+    const state = buildScrollState(top, source, includeAnchor)
     debugLog('saveScrollPosition', { reason, markPending, state })
     writeScrollState(state)
     if (markPending) {

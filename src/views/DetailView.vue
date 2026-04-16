@@ -2,7 +2,7 @@
   <div class="page detail-page" :class="{ 'detail-page--entry-lock': detailEntryScrollLockActive }">
     <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back @back="handleBackNavigation">
       <template #right>
-        <button class="nav-icon-btn" type="button" aria-label="编辑" @click="router.push('/edit/' + props.id)">
+        <button class="nav-icon-btn" type="button" aria-label="编辑" @click="handleEditGoods">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20H21" />
             <path d="M16.5 3.5A2.12 2.12 0 0 1 19.5 6.5L8 18L4 19L5 15L16.5 3.5Z" />
@@ -200,7 +200,7 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { getPendingDetailReturnPath, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
@@ -427,6 +427,10 @@ const holdingDays = computed(() => {
 
 function handleDelete() {
   showDeleteDialog.value = true
+}
+
+function handleEditGoods() {
+  runWithRouteTransition(() => router.push(`/edit/${props.id}`), { direction: 'forward' })
 }
 
 function closeDeleteDialog() {

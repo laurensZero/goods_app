@@ -5,6 +5,7 @@ import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -252,14 +253,14 @@ export function useGoodsEditorForm(options = {}) {
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
         alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
-        router.replace('/home')
+        runWithRouteTransition(() => router.replace('/home'), { direction: 'back' })
         return
       }
     } else {
       await store.addGoods({ ...form })
     }
 
-    router.back()
+    runWithRouteTransition(() => router.back(), { direction: 'back' })
   }
 
   function validateName() {

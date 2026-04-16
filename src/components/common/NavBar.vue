@@ -20,7 +20,7 @@
 <script setup>
 import { getCurrentInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { runManageBackNavigation } from '@/utils/routeTransition'
+import { runManageBackNavigation, runWithRouteTransition } from '@/utils/routeTransition'
 
 defineProps({
   title: { type: String, default: '' },
@@ -49,7 +49,7 @@ function handleBackClick() {
     runManageBackNavigation(() => router.back())
     return
   }
-  router.back()
+  runWithRouteTransition(() => router.back(), { direction: 'back' })
 }
 </script>
 

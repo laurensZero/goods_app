@@ -9,7 +9,7 @@
   >
     <NavBar :title="event.name || '活动详情'" show-back @back="handleBackNavigation">
       <template #right>
-        <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="router.push({ path: `/events/edit/${event.id}`, query: { returnTo: route.fullPath } })">
+        <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="handleEditEvent">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
@@ -201,7 +201,7 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
-import { getPendingDetailReturnPath, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
@@ -475,6 +475,17 @@ async function handleDelete() {
   await eventsStore.removeEventRecord(event.value.id)
   showDeleteDialog.value = false
   router.replace('/events')
+}
+
+function handleEditEvent() {
+  if (!event.value?.id) return
+  runWithRouteTransition(
+    () => router.push({
+      path: `/events/edit/${event.value.id}`,
+      query: { returnTo: route.fullPath }
+    }),
+    { direction: 'forward' }
+  )
 }
 
 function handleBackNavigation() {

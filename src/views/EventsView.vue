@@ -534,15 +534,18 @@ function scheduleEventBackHeroRetry(attempt = 0) {
 }
 
 function goToAdd() {
-  saveScrollPosition(true, 'events:goToAdd')
-  router.push({
-    path: '/events/add',
-    query: {
-      returnTo: route.fullPath
-    }
-  }).catch(() => {
-    eventsDisplayReady.value = true
-  })
+  saveScrollPosition(true, 'events:goToAdd', { includeAnchor: false })
+  runWithRouteTransition(
+    () => router.push({
+      path: '/events/add',
+      query: {
+        returnTo: route.fullPath
+      }
+    }).catch(() => {
+      eventsDisplayReady.value = true
+    }),
+    { direction: 'forward' }
+  )
 }
 
 function batchDelete() {
