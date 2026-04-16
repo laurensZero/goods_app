@@ -1,9 +1,9 @@
 {
-  "version": "20260416.9",
-  "url": "bundle-20260416.9.zip",
-  "hash": "8a0ff7f12d04577753a3ec10308b11fef814ef787b82d1d8676a14fbc05588a6",
+  "version": "20260416.10",
+  "url": "bundle-20260416.10.zip",
+  "hash": "3ebcfb50ee2679f0d5ae14b0096370251a80eb31958a8bf82c52b51ce233c5a8",
   "minNativeVersion": null,
-  "notes": "- feat: 优化路由过渡逻辑，增强用户导航体验",
+  "notes": "- feat: 优化导出功能，使用异步处理和共享逻辑，提升性能和用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T13:14:46Z"
+  "publishedAt": "2026-04-16T13:16:47Z"
 }
