@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260416.12",
+    "url": "bundle-20260416.12.zip",
+    "hash": "6365cc0971793fc16e237ecdc7aa63a6f417a6d9867340502d88d0bd37f44a03",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强导出功能，支持轻量级图片导出选项，优化导出体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-16T13:32:54Z"
+  },
+  {
     "version": "20260416.11",
     "url": "bundle-20260416.11.zip",
     "hash": "4359f8e2f062aa02f7be6eab665f357683389e897fd6afa97de9774a859b69df",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化导出功能，使用异步处理和共享逻辑，提升性能和用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T13:16:47Z"
-  },
-  {
-    "version": "20260416.9",
-    "url": "bundle-20260416.9.zip",
-    "hash": "8a0ff7f12d04577753a3ec10308b11fef814ef787b82d1d8676a14fbc05588a6",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化路由过渡逻辑，增强用户导航体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T13:14:46Z"
   }
 ]

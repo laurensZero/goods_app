@@ -1,9 +1,9 @@
 {
-  "version": "20260416.11",
-  "url": "bundle-20260416.11.zip",
-  "hash": "4359f8e2f062aa02f7be6eab665f357683389e897fd6afa97de9774a859b69df",
+  "version": "20260416.12",
+  "url": "bundle-20260416.12.zip",
+  "hash": "6365cc0971793fc16e237ecdc7aa63a6f417a6d9867340502d88d0bd37f44a03",
   "minNativeVersion": null,
-  "notes": "- feat: 增强图片缓存管理，添加本地存储和清理无引用图片功能，优化存储使用",
+  "notes": "- feat: 增强导出功能，支持轻量级图片导出选项，优化导出体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T13:24:57Z"
+  "publishedAt": "2026-04-16T13:32:54Z"
 }
