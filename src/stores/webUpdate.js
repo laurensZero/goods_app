@@ -14,10 +14,11 @@ const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
 })
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
 const UPDATE_SOURCE_STORAGE_KEY = 'goods_web_update_source'
-const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
+const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta', 'lan-sync'])
 const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const REQUEST_TIMEOUT_MS = 15000
 const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
+const DEFAULT_UPDATE_CHANNEL = normalizeUpdateChannel(import.meta.env.VITE_WEB_UPDATE_CHANNEL || 'stable')
 
 let activeCheckPromise = null
 
@@ -295,9 +296,10 @@ function normalizeErrorMessage(error, fallback) {
 
 function readPersistedChannel() {
   try {
-    return normalizeUpdateChannel(localStorage.getItem(UPDATE_CHANNEL_STORAGE_KEY))
+    const stored = localStorage.getItem(UPDATE_CHANNEL_STORAGE_KEY)
+    return stored ? normalizeUpdateChannel(stored) : DEFAULT_UPDATE_CHANNEL
   } catch {
-    return 'stable'
+    return DEFAULT_UPDATE_CHANNEL
   }
 }
 
@@ -341,7 +343,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const supported = ref(false)
   const currentVersion = ref('')
   const currentBundleId = ref('builtin')
-  const selectedChannel = ref('stable')
+  const selectedChannel = ref(DEFAULT_UPDATE_CHANNEL)
   const selectedSource = ref('auto')
   const resolvedSource = ref('')
   const nativeVersion = ref('')

@@ -1,0 +1,229 @@
+name: Build Android APK (lan-sync)
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: 需要构建的分支或提交（默认当前分支）
+        required: false
+        default: feature/lan-sync-transfer
+        type: string
+      release_tag:
+        description: Release tag for manual release builds, for example v1.0.0
+        required: true
+        type: string
+      update_level:
+        description: App 更新级别
+        required: false
+        default: prompt
+        type: choice
+        options:
+          - prompt
+          - force
+          - silent
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Configure Android SDK path
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
+      - name: Validate signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "Missing secret: ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "Missing secret: ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "Missing secret: ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "Missing secret: ANDROID_KEY_PASSWORD"; exit 1; }
+
+      - name: Restore release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+
+      - name: Determine release tag
+        id: release_meta
+        env:
+          INPUT_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          TAG="${INPUT_RELEASE_TAG// /}"
+          if [ -z "${TAG}" ]; then
+            echo "release_tag is required" >&2
+            exit 1
+          fi
+
+          VERSION_NAME="$TAG"
+          VERSION_NAME="${VERSION_NAME#v}"
+          VERSION_NAME="${VERSION_NAME#V}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "asset_name=goods-app-lan-sync-$TAG-release.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets and sync Android project
+        env:
+          VITE_APP_VERSION: ${{ steps.release_meta.outputs.version_name }}
+          VITE_ANDROID_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
+          VITE_WEB_UPDATE_CHANNEL: lan-sync
+        run: npm run build:android
+
+      - name: Prepare Gradle wrapper
+        run: chmod +x android/gradlew
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/android/app/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
+        run: ./gradlew assembleRelease
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goods-app-lan-sync-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Generate release notes from commits
+        env:
+          INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          UPDATE_LEVEL="prompt"
+          CANDIDATE_LEVEL=$(printf '%s' "${INPUT_UPDATE_LEVEL}" | tr '[:upper:]' '[:lower:]')
+          if [[ "${CANDIDATE_LEVEL}" == "force" || "${CANDIDATE_LEVEL}" == "prompt" || "${CANDIDATE_LEVEL}" == "silent" ]]; then
+            UPDATE_LEVEL="${CANDIDATE_LEVEL}"
+          fi
+
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -Fxv "$RELEASE_TAG" | head -n 1 || true)
+          fi
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            RANGE="$PREVIOUS_TAG..$RELEASE_TAG"
+          else
+            RANGE="$RELEASE_TAG"
+          fi
+
+          echo "update_level: ${UPDATE_LEVEL}" > release-notes.md
+          echo "" >> release-notes.md
+          echo "## 更新说明" >> release-notes.md
+          echo "" >> release-notes.md
+
+          HAS_NOTES=0
+          for COMMIT in $(git rev-list --reverse "$RANGE"); do
+            TITLE=$(git log -1 --format=%s "$COMMIT")
+            TITLE_LOWER=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]')
+
+            if [[ "$TITLE_LOWER" == merge\ * ]]; then
+              continue
+            fi
+
+            if [[ "$TITLE_LOWER" == chore:* || "$TITLE_LOWER" == "chore "* || "$TITLE_LOWER" == chore\(* ]]; then
+              continue
+            fi
+
+            FILES=$(git diff-tree --no-commit-id --name-only -r "$COMMIT")
+            if [ -z "$FILES" ]; then
+              continue
+            fi
+
+            if ! echo "$FILES" | grep -qvE '^\.github/workflows/'; then
+              continue
+            fi
+
+            echo "- $TITLE" >> release-notes.md
+            BODY=$(git log -1 --format=%b "$COMMIT")
+            if [ -n "$BODY" ]; then
+              while IFS= read -r LINE || [ -n "$LINE" ]; do
+                if [ -n "$LINE" ]; then
+                  echo "  $LINE" >> release-notes.md
+                else
+                  echo "" >> release-notes.md
+                fi
+              done <<< "$BODY"
+            fi
+            echo "" >> release-notes.md
+            HAS_NOTES=1
+          done
+
+          if [ "$HAS_NOTES" -eq 0 ]; then
+            echo "- 本次更新无可用变更说明" >> release-notes.md
+          fi
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md --target "$GITHUB_SHA"
+          fi
+
+      - name: Upload APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
+        run: |
+          gh release upload "$RELEASE_TAG" "android/app/build/outputs/apk/release/app-release.apk#$RELEASE_ASSET_NAME" --clobber
+
+      - name: Trigger gitee release sync workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          gh workflow run sync-gitee-release.yml -f tag="$RELEASE_TAG"

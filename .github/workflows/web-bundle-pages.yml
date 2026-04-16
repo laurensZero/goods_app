@@ -14,6 +14,7 @@ on:
         options:
           - stable
           - beta
+          - lan-sync
       bundle_version:
         description: 资源版本（可选，不填自动生成 YYYYMMDD.N）
         required: false
