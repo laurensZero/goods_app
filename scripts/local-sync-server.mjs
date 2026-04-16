@@ -119,7 +119,8 @@ app.get('/api/local-sync/current', (req, res) => {
   const payload = {
     goods: readCurrentJsonFile('goods.json'),
     recharge: readCurrentJsonFile('recharge.json'),
-    events: readCurrentJsonFile('events.json')
+    events: readCurrentJsonFile('events.json'),
+    images: readCurrentJsonFile('lan-images.json')
   }
 
   res.json({
@@ -133,7 +134,8 @@ app.get('/api/local-sync/current-content', (req, res) => {
   const payload = {
     goods: readCurrentJsonFile('goods.json'),
     recharge: readCurrentJsonFile('recharge.json'),
-    events: readCurrentJsonFile('events.json')
+    events: readCurrentJsonFile('events.json'),
+    images: readCurrentJsonFile('lan-images.json')
   }
 
   res.json({

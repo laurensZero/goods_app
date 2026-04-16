@@ -35,6 +35,7 @@ import {
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
+import { parseGistImageUri } from '@/utils/goodsImages'
 
 const TOKEN_KEY = 'sync_github_token'
 const GIST_ID_KEY = 'sync_gist_id'
@@ -483,13 +484,23 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       await ensureEventsStoreReady()
-      const goodsPayload = buildSyncData(false)
+      const goodsPayloadBundle = await buildSyncPayload({ incremental: false })
+      const goodsPayload = goodsPayloadBundle.syncData
       const rechargePayload = buildRechargeSyncData({ incremental: false })
-      const eventPayload = buildEventSyncData()
+      const eventPayloadBundle = await buildEventSyncPayload({})
+      const eventPayload = eventPayloadBundle.eventData
+      const imagesPayload = {
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        deviceId: deviceId.value,
+        goodsImageFiles: goodsPayloadBundle.imageFiles || {},
+        eventImageFiles: eventPayloadBundle.imageFiles || {}
+      }
       const stableSignatures = {
         goods: await buildComparableSyncStateFromData(goodsPayload),
         recharge: buildComparableRechargeStateFromData(rechargePayload),
-        events: buildComparableEventStateFromData(eventPayload)
+        events: buildComparableEventStateFromData(eventPayload),
+        images: JSON.stringify(imagesPayload)
       }
       const result = await executeLocalSyncTransfer({
         receiverHost: targetHost,
@@ -499,6 +510,7 @@ export const useSyncStore = defineStore('sync', () => {
         goodsData: goodsPayload,
         rechargeData: rechargePayload,
         eventData: eventPayload,
+        imagesData: imagesPayload,
         updatedAt: new Date().toISOString(),
         stableSignatures,
         options: {
@@ -752,6 +764,7 @@ export const useSyncStore = defineStore('sync', () => {
       const goodsData = payload?.goods || null
       const rechargeData = payload?.recharge || null
       const eventData = payload?.events || null
+      const imagesData = payload?.images || null
 
       if (!goodsData && !rechargeData && !eventData) {
         throw new Error('接收端当前没有可导入的同步数据')
@@ -769,8 +782,39 @@ export const useSyncStore = defineStore('sync', () => {
         Array.isArray(goodsData?.goods) ? goodsData.goods : [],
         Array.isArray(goodsData?.trash) ? goodsData.trash : []
       )
-      const remoteGoods = [...resolvedGoods.goodsMap.values()]
-      const remoteTrash = [...resolvedGoods.trashMap.values()]
+      const goodsImageFiles = imagesData?.goodsImageFiles && typeof imagesData.goodsImageFiles === 'object'
+        ? imagesData.goodsImageFiles
+        : {}
+      const eventImageFiles = imagesData?.eventImageFiles && typeof imagesData.eventImageFiles === 'object'
+        ? imagesData.eventImageFiles
+        : {}
+
+      const hydrateGoodsItemImages = (item) => {
+        const images = Array.isArray(item?.images) ? item.images : []
+        const hydratedImages = images.map((entry) => {
+          const gistFileName = String(entry?.gistFileName || parseGistImageUri(entry?.uri) || '').trim()
+          const raw = goodsImageFiles[gistFileName]?.content
+          if (!gistFileName || typeof raw !== 'string' || !raw.startsWith('data:image/')) {
+            return entry
+          }
+
+          return {
+            ...entry,
+            uri: raw,
+            storageMode: 'inline-local',
+            localPath: '',
+            gistFileName: ''
+          }
+        })
+
+        return {
+          ...item,
+          images: hydratedImages
+        }
+      }
+
+      const remoteGoods = [...resolvedGoods.goodsMap.values()].map((item) => hydrateGoodsItemImages(item))
+      const remoteTrash = [...resolvedGoods.trashMap.values()].map((item) => hydrateGoodsItemImages(item))
       const importedGoods = await goodsStore.importGoodsBackup(remoteGoods)
       const updatedGoods = await goodsStore.updateGoodsBackup(remoteGoods)
       const importedTrash = await goodsStore.importTrashBackup(remoteTrash)
@@ -804,7 +848,24 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       const eventApplyResult = await eventsStore.importEventsBackup(
-        Array.isArray(eventData?.events) ? eventData.events : [],
+        (Array.isArray(eventData?.events) ? eventData.events : []).map((item) => {
+          const gistFileName = String(item?.coverImageData?.gistFileName || parseGistImageUri(item?.coverImage) || '').trim()
+          const raw = eventImageFiles[gistFileName]?.content
+          if (!gistFileName || typeof raw !== 'string' || !raw.startsWith('data:image/')) {
+            return item
+          }
+
+          return {
+            ...item,
+            coverImage: raw,
+            coverImageData: {
+              ...(item.coverImageData || {}),
+              uri: raw,
+              storageMode: 'inline-local',
+              gistFileName: ''
+            }
+          }
+        }),
         { reconcileMissing: false }
       )
 

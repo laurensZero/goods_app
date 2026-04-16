@@ -91,11 +91,13 @@ export async function executeLocalSyncTransfer(params: {
   goodsData: unknown
   rechargeData: unknown
   eventData: unknown
+  imagesData?: unknown
   updatedAt: string
   stableSignatures?: {
     goods?: string
     recharge?: string
     events?: string
+    images?: string
   }
   options?: LocalSyncApplyOptions
 }): Promise<LocalSyncTransferResult> {
@@ -114,6 +116,11 @@ export async function executeLocalSyncTransfer(params: {
   const normalizedGoodsData = normalizeTransferPayload((params.goodsData || {}) as Record<string, unknown>)
   const normalizedRechargeData = normalizeTransferPayload((params.rechargeData || {}) as Record<string, unknown>)
   const normalizedEventData = normalizeTransferPayload((params.eventData || {}) as Record<string, unknown>)
+  const normalizedImagesData = normalizeTransferPayload((params.imagesData || {
+    version: 1,
+    goodsImageFiles: {},
+    eventImageFiles: {}
+  }) as Record<string, unknown>)
 
   const payload = {
     senderDeviceName: params.senderDeviceName || '未知设备',
@@ -122,7 +129,8 @@ export async function executeLocalSyncTransfer(params: {
   const files = await Promise.all<LocalSyncFileEntry>([
     buildFileEntry('goods.json', normalizedGoodsData, params.updatedAt, params.stableSignatures?.goods || ''),
     buildFileEntry('recharge.json', normalizedRechargeData, params.updatedAt, params.stableSignatures?.recharge || ''),
-    buildFileEntry('events.json', normalizedEventData, params.updatedAt, params.stableSignatures?.events || '')
+    buildFileEntry('events.json', normalizedEventData, params.updatedAt, params.stableSignatures?.events || ''),
+    buildFileEntry('lan-images.json', normalizedImagesData, params.updatedAt, params.stableSignatures?.images || '')
   ])
 
   const manifest: LocalSyncManifest = buildLocalManifest({
@@ -152,7 +160,8 @@ export async function executeLocalSyncTransfer(params: {
   const fileContentMap = new Map<string, string>([
     ['goods.json', JSON.stringify(normalizedGoodsData)],
     ['recharge.json', JSON.stringify(normalizedRechargeData)],
-    ['events.json', JSON.stringify(normalizedEventData)]
+    ['events.json', JSON.stringify(normalizedEventData)],
+    ['lan-images.json', JSON.stringify(normalizedImagesData)]
   ])
 
   let completedFiles = 0
