@@ -11,6 +11,9 @@ import { createSyncExecutionService } from '@/services/syncExecutionService'
 import { createSyncGistService } from '@/services/syncGistService'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
+import { discoverLanDevices } from '@/services/localSync/discovery'
+import { executeLocalSyncTransfer } from '@/services/localSync/apply'
+import { LOCAL_SYNC_DEFAULT_PORT } from '@/services/localSync/constants'
 import { deleteItems } from '@/utils/db'
 import {
   validateToken,
@@ -73,6 +76,20 @@ export const useSyncStore = defineStore('sync', () => {
   const syncStatus = ref('')
   const lastError = ref('')
   const conflictData = ref(null)
+  const lanDiscoveryStatus = ref('idle')
+  const lanDevices = ref([])
+  const lanManualHost = ref('')
+  const lanLastError = ref('')
+  const isLanSyncing = ref(false)
+  const lanTransferProgress = ref({
+    stage: 'prepare',
+    message: '',
+    totalFiles: 0,
+    completedFiles: 0,
+    currentFile: ''
+  })
+  const lanLastSessionId = ref('')
+  const lanNeedsManualHost = computed(() => lanDiscoveryStatus.value === 'failed' && lanDevices.value.length === 0)
 
   const isConfigured = computed(() => !!token.value && !!gistId.value)
 
@@ -415,6 +432,101 @@ export const useSyncStore = defineStore('sync', () => {
   function getLocalChangesSinceLastSync() {
     const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
     return getLocalChangesSince(localSyncTime)
+  }
+
+  async function discoverLocalDevices({ seedHost = '', preferredPort = LOCAL_SYNC_DEFAULT_PORT } = {}) {
+    lanDiscoveryStatus.value = 'searching'
+    lanLastError.value = ''
+
+    try {
+      const devices = await discoverLanDevices({
+        seedHost,
+        preferredPort
+      })
+      lanDevices.value = devices
+      lanDiscoveryStatus.value = devices.length > 0 ? 'ready' : 'failed'
+      if (devices.length === 0) {
+        lanLastError.value = '未自动发现设备。你可以手动填写接收端 IP。'
+      }
+      return devices
+    } catch (error) {
+      lanDevices.value = []
+      lanDiscoveryStatus.value = 'failed'
+      lanLastError.value = error.message || '设备发现失败'
+      return []
+    }
+  }
+
+  async function startLanSync({ host = '', port = LOCAL_SYNC_DEFAULT_PORT } = {}) {
+    if (isSyncing.value || isLanSyncing.value) {
+      return { action: 'skipped', reason: 'syncing' }
+    }
+
+    const targetHost = String(host || lanManualHost.value || '').trim()
+    if (!targetHost) {
+      throw new Error('请先选择设备，或填写接收端 IP 地址')
+    }
+
+    isLanSyncing.value = true
+    lanLastError.value = ''
+    lanTransferProgress.value = {
+      stage: 'prepare',
+      message: '正在准备本地数据...',
+      totalFiles: 0,
+      completedFiles: 0,
+      currentFile: ''
+    }
+
+    try {
+      await ensureEventsStoreReady()
+      const goodsPayload = buildSyncData({ incremental: false })
+      const rechargePayload = buildRechargeSyncData({ incremental: false })
+      const eventPayload = buildEventSyncData()
+      const result = await executeLocalSyncTransfer({
+        receiverHost: targetHost,
+        receiverPort: Number(port) || LOCAL_SYNC_DEFAULT_PORT,
+        senderDeviceId: deviceId.value,
+        senderDeviceName: Capacitor.getPlatform?.() || 'unknown',
+        goodsData: goodsPayload,
+        rechargeData: rechargePayload,
+        eventData: eventPayload,
+        updatedAt: new Date().toISOString(),
+        options: {
+          onProgress: (progress) => {
+            lanTransferProgress.value = {
+              ...progress,
+              currentFile: progress.currentFile || ''
+            }
+          }
+        }
+      })
+      lanLastSessionId.value = result.sessionId || ''
+      lanTransferProgress.value = {
+        stage: 'done',
+        message: '局域网同步完成',
+        totalFiles: Number(result.acceptedFiles || 0) + Number(result.skippedFiles || 0),
+        completedFiles: Number(result.acceptedFiles || 0) + Number(result.skippedFiles || 0),
+        currentFile: ''
+      }
+      return {
+        action: 'pushed',
+        ...result
+      }
+    } catch (error) {
+      lanTransferProgress.value = {
+        ...lanTransferProgress.value,
+        stage: 'error',
+        message: error.message || '局域网同步失败'
+      }
+      lanLastError.value = error.message || '局域网同步失败'
+      throw error
+    } finally {
+      isLanSyncing.value = false
+    }
+  }
+
+  function setLanManualHost(host) {
+    lanManualHost.value = String(host || '').trim()
   }
 
   async function fullSync() {
@@ -871,6 +983,18 @@ export const useSyncStore = defineStore('sync', () => {
     lastError.value = ''
     syncStatus.value = ''
     conflictData.value = null
+    lanDiscoveryStatus.value = 'idle'
+    lanDevices.value = []
+    lanManualHost.value = ''
+    lanLastError.value = ''
+    lanTransferProgress.value = {
+      stage: 'prepare',
+      message: '',
+      totalFiles: 0,
+      completedFiles: 0,
+      currentFile: ''
+    }
+    lanLastSessionId.value = ''
     clearSyncLogs()
   }
 
@@ -889,6 +1013,14 @@ export const useSyncStore = defineStore('sync', () => {
     syncLogs,
     lastError,
     conflictData,
+    lanDiscoveryStatus,
+    lanDevices,
+    lanManualHost,
+    lanLastError,
+    isLanSyncing,
+    lanTransferProgress,
+    lanLastSessionId,
+    lanNeedsManualHost,
     isConfigured,
     init,
     saveToken,
@@ -899,6 +1031,9 @@ export const useSyncStore = defineStore('sync', () => {
     resolveConflict,
     resolvePullConflict,
     clearConflict,
-    resetConfig
+    resetConfig,
+    discoverLocalDevices,
+    startLanSync,
+    setLanManualHost
   }
 })

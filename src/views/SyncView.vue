@@ -360,6 +360,36 @@
         </article>
       </section>
 
+      <section class="content-section sync-center-section">
+        <div class="section-head">
+          <p class="section-label">Sync Center</p>
+          <h2 class="section-title">局域网同步中心</h2>
+        </div>
+
+        <SyncRadar
+          :status="syncStore.lanDiscoveryStatus"
+          :devices="syncStore.lanDevices"
+          :loading="syncStore.lanDiscoveryStatus === 'searching'"
+          :disabled="syncStore.isLanSyncing || syncStore.isSyncing"
+          :manual-host="syncStore.lanManualHost"
+          :error-message="syncStore.lanLastError"
+          @refresh="handleLanScan"
+          @select-device="handleLanDeviceSelect"
+          @update:manual-host="handleLanManualHostInput"
+          @start-manual="handleLanManualStart"
+        />
+
+        <p class="section-note">局域网同步采用增量策略，按 <code>updatedAt</code> 与 <code>hash</code> 校验后仅传输 required-files 列表中的缺失数据。</p>
+      </section>
+
+      <TransferModal
+        :show="showLanTransferModal"
+        :progress="syncStore.lanTransferProgress"
+        :session-id="syncStore.lanLastSessionId"
+        :error-message="syncStore.lanLastError"
+        @close="showLanTransferModal = false"
+      />
+
       <Transition name="overlay-fade">
         <div v-if="showTokenDialog" class="overlay" @click.self="closeTokenDialog">
           <div class="dialog">
@@ -499,6 +529,8 @@ import { useSyncStore } from '@/stores/sync'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
+import SyncRadar from '@/components/sync/SyncRadar.vue'
+import TransferModal from '@/components/sync/TransferModal.vue'
 
 const syncStore = useSyncStore()
 
@@ -515,6 +547,7 @@ const isVerifyingToken = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
+const showLanTransferModal = ref(false)
 const LOG_GROUP_SEQUENCE = [
   'manifest',
   'data',
@@ -904,6 +937,41 @@ async function handleSync() {
   }
 }
 
+async function handleLanScan() {
+  try {
+    await syncStore.discoverLocalDevices({
+      seedHost: syncStore.lanManualHost
+    })
+    if (syncStore.lanDiscoveryStatus === 'ready') {
+      showToast(`发现 ${syncStore.lanDevices.length} 台设备`, 2500)
+    }
+  } catch (error) {
+    showToast(`设备扫描失败：${error.message}`)
+  }
+}
+
+function handleLanManualHostInput(host) {
+  syncStore.setLanManualHost(host)
+}
+
+async function runLanSyncByHost(host, port) {
+  showLanTransferModal.value = true
+  try {
+    const result = await syncStore.startLanSync({ host, port })
+    showToast(`局域网同步完成（接收 ${result.acceptedFiles || 0}，复用 ${result.skippedFiles || 0}）`, 3600)
+  } catch (error) {
+    showToast(`局域网同步失败：${error.message}`, 4200)
+  }
+}
+
+async function handleLanDeviceSelect(device) {
+  await runLanSyncByHost(device.host, device.port)
+}
+
+async function handleLanManualStart() {
+  await runLanSyncByHost(syncStore.lanManualHost)
+}
+
 async function handlePull() {
   if (syncStore.isSyncing) return
 
@@ -1033,6 +1101,7 @@ onMounted(async () => {
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
   await loadGistInfo()
+  await syncStore.discoverLocalDevices()
 })
 </script>
 

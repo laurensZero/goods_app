@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "local-sync-server": "node scripts/local-sync-server.mjs",
     "icons:android": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-android-icons.ps1",
     "preview": "vite preview",
     "build:android": "npm run build && npx cap sync android",
@@ -28,6 +29,7 @@
     "@vueuse/core": "^14.2.1",
     "cropperjs": "^1.6.2",
     "fabric": "^6.9.1",
+    "express": "^4.21.2",
     "fflate": "^0.8.2",
     "pica": "^9.0.1",
     "pinia": "^2.1.0",
