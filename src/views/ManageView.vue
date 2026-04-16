@@ -339,6 +339,96 @@ async function ensureEventsReady() {
   }
 }
 
+function extractUserImagePath(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const match = text.match(/user-images\/[\w.\-]+/)
+  return match ? match[0] : ''
+}
+
+function collectReferencedUserImagePaths() {
+  const refs = new Set()
+  const collectFromImageList = (images) => {
+    if (!Array.isArray(images)) return
+    for (const image of images) {
+      if (!image) continue
+      if (typeof image === 'string') {
+        const path = extractUserImagePath(image)
+        if (path) refs.add(path)
+        continue
+      }
+
+      const uriPath = extractUserImagePath(image.uri)
+      if (uriPath) refs.add(uriPath)
+      const localPath = extractUserImagePath(image.localPath)
+      if (localPath) refs.add(localPath)
+    }
+  }
+
+  const collectFromGoodsItem = (item) => {
+    if (!item) return
+    const imagePath = extractUserImagePath(item.image)
+    if (imagePath) refs.add(imagePath)
+    const coverPath = extractUserImagePath(item.coverImage)
+    if (coverPath) refs.add(coverPath)
+    collectFromImageList(item.images)
+  }
+
+  const collectFromEvent = (event) => {
+    if (!event) return
+    const coverPath = extractUserImagePath(event.coverImage)
+    if (coverPath) refs.add(coverPath)
+    if (Array.isArray(event.photos)) {
+      for (const photo of event.photos) {
+        if (!photo) continue
+        const uriPath = extractUserImagePath(photo.uri)
+        if (uriPath) refs.add(uriPath)
+        const localPath = extractUserImagePath(photo.localPath)
+        if (localPath) refs.add(localPath)
+      }
+    }
+  }
+
+  for (const item of goodsStore.list) collectFromGoodsItem(item)
+  for (const item of goodsStore.trashList) collectFromGoodsItem(item)
+  for (const event of eventsStore.list) collectFromEvent(event)
+
+  return refs
+}
+
+function formatCompactSize(bytes) {
+  const value = Number(bytes) || 0
+  if (value <= 0) return '0 B'
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
+}
+
+async function cleanupUnreferencedLocalImages() {
+  if (!Capacitor.isNativePlatform()) return { removed: 0, bytes: 0 }
+
+  const referenced = collectReferencedUserImagePaths()
+  let removed = 0
+  let bytes = 0
+
+  try {
+    const res = await Filesystem.readdir({ path: 'user-images', directory: Directory.Data })
+    const files = (res?.files || []).filter((entry) => entry?.type !== 'directory')
+
+    for (const entry of files) {
+      const filePath = `user-images/${entry.name}`
+      if (referenced.has(filePath)) continue
+      await Filesystem.deleteFile({ path: filePath, directory: Directory.Data })
+      removed += 1
+      bytes += Number(entry.size) || 0
+    }
+  } catch {
+    // ignore when directory does not exist or platform has limitations
+  }
+
+  return { removed, bytes }
+}
+
 function formatSyncTime(isoString) {
   if (!isoString) return ''
   const d = new Date(isoString)
@@ -361,6 +451,7 @@ let exportLongPressTimer = 0
 let suppressNextExportClick = false
 let isRouteLeaving = false
 const BACKUP_DIR = 'GoodsAppBackup'
+const BACKUP_RETENTION_COUNT = 5
 
 const allExportSectionsSelected = computed(() => exportSectionOptions.every((option) => exportSelection.value[option.key]))
 
@@ -522,6 +613,12 @@ onMounted(async () => {
   await nextTick()
   manageDisplayReady.value = true
   syncStore.init()
+
+  void cleanupUnreferencedLocalImages().then(({ removed, bytes }) => {
+    if (removed > 0) {
+      showToast(`已清理 ${removed} 张无引用本地图，释放 ${formatCompactSize(bytes)}`, 3800)
+    }
+  }).catch(() => {})
 })
 
 onActivated(async () => {
@@ -668,6 +765,35 @@ async function shareBackupFile(uri) {
   return true
 }
 
+async function pruneDirectoryBackupFiles(path, directory, keepCount = BACKUP_RETENTION_COUNT) {
+  try {
+    const res = await Filesystem.readdir({ path, directory })
+    const files = (res?.files || [])
+      .filter((entry) => entry?.type !== 'directory')
+      .sort((a, b) => String(b?.name || '').localeCompare(String(a?.name || '')))
+
+    if (files.length <= keepCount) return
+
+    const stale = files.slice(keepCount)
+    for (const entry of stale) {
+      const filePath = `${path}/${entry.name}`
+      await Filesystem.deleteFile({ path: filePath, directory })
+    }
+  } catch {
+    // ignore missing directories or delete failures
+  }
+}
+
+async function pruneBackupArtifacts() {
+  if (!Capacitor.isNativePlatform()) return
+
+  await Promise.all([
+    pruneDirectoryBackupFiles(BACKUP_DIR, Directory.Documents),
+    pruneDirectoryBackupFiles('backup', Directory.Data),
+    pruneDirectoryBackupFiles('backup-share', Directory.Cache)
+  ])
+}
+
 async function handleExport(selection = null) {
   await ensureEventsReady()
   const selected = selection || createDefaultExportSelection()
@@ -753,6 +879,7 @@ async function handleExport(selection = null) {
       }
 
       if (shared) {
+        void pruneBackupArtifacts().catch(() => {})
         showToast(
           saved.visibleToUser
             ? `已打开分享面板，并写入 文档/${saved.path}`
@@ -762,6 +889,7 @@ async function handleExport(selection = null) {
         return
       }
 
+      void pruneBackupArtifacts().catch(() => {})
       showToast(
         saved.visibleToUser
           ? `已导出到 文档/${saved.path}`

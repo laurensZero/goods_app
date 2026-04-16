@@ -9,6 +9,123 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
 const CAP_FOLDER = 'img-cache'
+const NATIVE_CACHE_META_KEY = 'img-cache-lru-v1'
+const DEFAULT_NATIVE_CACHE_LIMIT_MB = 512
+
+function getNativeCacheLimitBytes() {
+  try {
+    const raw = Number(localStorage.getItem('img-cache-limit-mb'))
+    if (Number.isFinite(raw) && raw >= 32) {
+      return Math.floor(raw * 1024 * 1024)
+    }
+  } catch {
+    // ignore invalid localStorage state
+  }
+  return DEFAULT_NATIVE_CACHE_LIMIT_MB * 1024 * 1024
+}
+
+function readNativeCacheMeta() {
+  if (typeof localStorage === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem(NATIVE_CACHE_META_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function writeNativeCacheMeta(meta) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(NATIVE_CACHE_META_KEY, JSON.stringify(meta))
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+async function evictNativeCacheIfNeeded() {
+  if (!isNative()) return
+
+  const maxBytes = getNativeCacheLimitBytes()
+  let meta = readNativeCacheMeta()
+
+  let files = []
+  try {
+    const res = await Filesystem.readdir({ path: CAP_FOLDER, directory: CAP_DIR })
+    files = (res?.files || []).filter((entry) => entry?.type !== 'directory')
+  } catch {
+    writeNativeCacheMeta({})
+    return
+  }
+
+  const fileNames = new Set(files.map((entry) => entry.name))
+
+  for (const entry of files) {
+    const current = meta[entry.name] || {}
+    meta[entry.name] = {
+      size: Math.max(0, Number(current.size) || Number(entry.size) || 0),
+      lastAccess: Number(current.lastAccess) || Date.now()
+    }
+  }
+
+  for (const key of Object.keys(meta)) {
+    if (!fileNames.has(key)) {
+      delete meta[key]
+    }
+  }
+
+  let total = Object.values(meta).reduce((sum, item) => sum + (Number(item?.size) || 0), 0)
+  if (total <= maxBytes) {
+    writeNativeCacheMeta(meta)
+    return
+  }
+
+  const sorted = Object.entries(meta)
+    .sort((a, b) => (Number(a[1]?.lastAccess) || 0) - (Number(b[1]?.lastAccess) || 0))
+
+  for (const [name, info] of sorted) {
+    if (total <= maxBytes) break
+    try {
+      await Filesystem.deleteFile({
+        path: `${CAP_FOLDER}/${name}`,
+        directory: CAP_DIR
+      })
+    } catch {
+      // ignore file deletion failure
+    }
+    total -= Math.max(0, Number(info?.size) || 0)
+    delete meta[name]
+  }
+
+  writeNativeCacheMeta(meta)
+}
+
+function touchNativeCacheEntry(filename, size = null) {
+  if (!isNative()) return
+  const meta = readNativeCacheMeta()
+  const current = meta[filename] || {}
+  meta[filename] = {
+    size: size == null ? Math.max(0, Number(current.size) || 0) : Math.max(0, Number(size) || 0),
+    lastAccess: Date.now()
+  }
+  writeNativeCacheMeta(meta)
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = String(reader.result || '')
+      const commaIdx = result.indexOf(',')
+      resolve(commaIdx > -1 ? result.slice(commaIdx + 1) : result)
+    }
+    reader.onerror = () => reject(new Error('blob base64 encode failed'))
+    reader.readAsDataURL(blob)
+  })
+}
 
 // --- 平台检测 ---
 function isNative() {
@@ -95,6 +212,7 @@ async function getFromCapacitorFS(url) {
     // 将文件结果转为 Blob
     const response = await fetch(`data:application/octet-stream;base64,${result.data}`)
     const blob = await response.blob()
+    touchNativeCacheEntry(filename, blob.size)
     return URL.createObjectURL(blob)
   } catch {
     return null
@@ -115,18 +233,14 @@ async function putToCapacitorFS(url, blob) {
     }).catch(() => {})
 
     const filename = urlToFilename(url)
-    const reader = new FileReader()
-    reader.readAsDataURL(blob)
-    reader.onloadend = async () => {
-      let b64 = reader.result
-      const commaIdx = b64.indexOf(',')
-      if (commaIdx > -1) b64 = b64.slice(commaIdx + 1)
-      await Filesystem.writeFile({
-        path: `${CAP_FOLDER}/${filename}`,
-        data: b64,
-        directory: CAP_DIR
-      })
-    }
+    const b64 = await blobToBase64(blob)
+    await Filesystem.writeFile({
+      path: `${CAP_FOLDER}/${filename}`,
+      data: b64,
+      directory: CAP_DIR
+    })
+    touchNativeCacheEntry(filename, blob.size)
+    await evictNativeCacheIfNeeded()
   } catch { /* 写入失败不影响主流程 */ }
 }
 
@@ -273,6 +387,7 @@ export async function clearAllCache() {
         directory: CAP_DIR,
         recursive: true
       })
+      writeNativeCacheMeta({})
     } catch { /* ignore */ }
   }
 }
