@@ -1,9 +1,9 @@
 {
-  "version": "20260416.12",
-  "url": "bundle-20260416.12.zip",
-  "hash": "6365cc0971793fc16e237ecdc7aa63a6f417a6d9867340502d88d0bd37f44a03",
+  "version": "20260416.13",
+  "url": "bundle-20260416.13.zip",
+  "hash": "82511cb326592c40fc59e559ff4fcda99e9ea2e336857a018b4b89829c9c2bed",
   "minNativeVersion": null,
-  "notes": "- feat: 增强导出功能，支持轻量级图片导出选项，优化导出体验",
+  "notes": "- feat: 更新数据拉取逻辑，动态设置图片水合选项，优化同步体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T13:32:54Z"
+  "publishedAt": "2026-04-16T13:36:39Z"
 }
