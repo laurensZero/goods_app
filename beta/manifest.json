@@ -1,9 +1,9 @@
 {
-  "version": "20260416.13",
-  "url": "bundle-20260416.13.zip",
-  "hash": "82511cb326592c40fc59e559ff4fcda99e9ea2e336857a018b4b89829c9c2bed",
+  "version": "20260416.14",
+  "url": "bundle-20260416.14.zip",
+  "hash": "781a7119a8b530a79476bd143b63a033f58b0a6da9d242b4b71e00b1542cb639",
   "minNativeVersion": null,
-  "notes": "- feat: 更新数据拉取逻辑，动态设置图片水合选项，优化同步体验",
+  "notes": "- feat: 使用 LazyCachedImage 组件替换图片标签，优化图片加载性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-16T13:36:39Z"
+  "publishedAt": "2026-04-16T13:43:33Z"
 }
