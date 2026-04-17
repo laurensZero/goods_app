@@ -236,6 +236,8 @@ function createHeroNode(snapshot) {
     img.style.display = 'block'
     img.style.backfaceVisibility = 'hidden'
     img.style.transform = 'translateZ(0)'
+    img.style.transformOrigin = 'center center'
+    img.dataset.heroMedia = 'image'
     node.appendChild(img)
   } else {
     const text = document.createElement('span')
@@ -258,31 +260,34 @@ function shouldPreferTransformOnlyHero(direction, aspectDelta) {
   return direction === 'back' && IS_ANDROID
 }
 
-function resolveTransformOnlyTarget(snapshot, targetRect, options = {}) {
-  const preserveAspect = Boolean(options.preserveAspect)
+function resolveTransformOnlyTarget(snapshot, targetRect) {
   const scaleX = snapshot.width > 0 ? targetRect.width / snapshot.width : 1
   const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
   const normalizedScaleX = Number.isFinite(scaleX) ? scaleX : 1
   const normalizedScaleY = Number.isFinite(scaleY) ? scaleY : 1
 
-  if (!preserveAspect) {
-    return {
-      scaleX: normalizedScaleX,
-      scaleY: normalizedScaleY,
-      translateX: targetRect.left,
-      translateY: targetRect.top
-    }
+  return {
+    scaleX: normalizedScaleX,
+    scaleY: normalizedScaleY,
+    translateX: targetRect.left,
+    translateY: targetRect.top
   }
+}
 
-  const uniformScale = Math.max(normalizedScaleX, normalizedScaleY)
-  const finalWidth = snapshot.width * uniformScale
-  const finalHeight = snapshot.height * uniformScale
+function resolvePreservedAspectMediaScale(transformTarget) {
+  const outerScaleX = Number.isFinite(transformTarget?.scaleX) && transformTarget.scaleX > 0
+    ? transformTarget.scaleX
+    : 1
+  const outerScaleY = Number.isFinite(transformTarget?.scaleY) && transformTarget.scaleY > 0
+    ? transformTarget.scaleY
+    : 1
+  const uniformScale = Math.max(outerScaleX, outerScaleY)
 
   return {
-    scaleX: uniformScale,
-    scaleY: uniformScale,
-    translateX: targetRect.left - (finalWidth - targetRect.width) / 2,
-    translateY: targetRect.top - (finalHeight - targetRect.height) / 2
+    fromScaleX: 1,
+    fromScaleY: 1,
+    toScaleX: uniformScale / outerScaleX,
+    toScaleY: uniformScale / outerScaleY
   }
 }
 
@@ -311,9 +316,8 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const targetAspectRatio = targetRect.height > 0 ? targetRect.width / targetRect.height : 1
   const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
   const canUseScalePath = shouldPreferTransformOnlyHero(direction, aspectDelta)
-  const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect, {
-    preserveAspect: direction === 'back' && IS_ANDROID && aspectDelta > 0.04
-  })
+  const preserveAspectMedia = direction === 'back' && IS_ANDROID && aspectDelta > 0.04
+  const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect)
   const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
   const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
 
@@ -347,6 +351,21 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         }
       ]
 
+  const mediaEl = preserveAspectMedia ? node.querySelector('[data-hero-media="image"]') : null
+  const mediaAnimation = mediaEl
+    ? mediaEl.animate(
+        [
+          { transform: `translateZ(0) scale(${resolvePreservedAspectMediaScale(transformTarget).fromScaleX}, ${resolvePreservedAspectMediaScale(transformTarget).fromScaleY})` },
+          { transform: `translateZ(0) scale(${resolvePreservedAspectMediaScale(transformTarget).toScaleX}, ${resolvePreservedAspectMediaScale(transformTarget).toScaleY})` }
+        ],
+        {
+          duration,
+          easing,
+          fill: 'both'
+        }
+      )
+    : null
+
   const animation = node.animate(
     keyframes,
     {
@@ -356,7 +375,10 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     }
   )
 
-  return animation.finished.catch(() => {
+  return Promise.allSettled([
+    animation.finished,
+    mediaAnimation?.finished
+  ]).catch(() => {
     // ignore interruption
   }).finally(() => {
     node.remove()
