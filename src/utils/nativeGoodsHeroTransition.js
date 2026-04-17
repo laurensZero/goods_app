@@ -302,9 +302,6 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   const targetEl = options.targetEl || null
   const previousVisibility = targetEl?.style?.visibility || ''
-  if (targetEl) {
-    targetEl.style.visibility = 'hidden'
-  }
 
   const baseDuration = Number(options.duration) || FORWARD_DURATION_MS
   const direction = options.direction === 'back' ? 'back' : 'forward'
@@ -317,21 +314,34 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
   const canUseScalePath = shouldPreferTransformOnlyHero(direction, aspectDelta)
   const preserveAspectMedia = direction === 'back' && IS_ANDROID && aspectDelta > 0.04
+  const shouldCrossfadeTarget = preserveAspectMedia
   const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect)
   const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
   const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
+  const heroFadeStartOffset = shouldCrossfadeTarget ? 0.78 : 1
+  const mediaScale = preserveAspectMedia ? resolvePreservedAspectMediaScale(transformTarget) : null
 
   const keyframes = canUseScalePath
     ? [
         {
+          offset: 0,
           transform: fromTransform,
           borderRadius: `${radiusFrom}px`,
           opacity: 0.98
         },
+        ...(shouldCrossfadeTarget
+          ? [{
+              offset: heroFadeStartOffset,
+              transform: toTransform,
+              borderRadius: `${radiusTo}px`,
+              opacity: 0.98
+            }]
+          : []),
         {
+          offset: 1,
           transform: toTransform,
           borderRadius: `${radiusTo}px`,
-          opacity: 1
+          opacity: shouldCrossfadeTarget ? 0 : 1
         }
       ]
     : [
@@ -355,12 +365,35 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const mediaAnimation = mediaEl
     ? mediaEl.animate(
         [
-          { transform: `translateZ(0) scale(${resolvePreservedAspectMediaScale(transformTarget).fromScaleX}, ${resolvePreservedAspectMediaScale(transformTarget).fromScaleY})` },
-          { transform: `translateZ(0) scale(${resolvePreservedAspectMediaScale(transformTarget).toScaleX}, ${resolvePreservedAspectMediaScale(transformTarget).toScaleY})` }
+          { transform: `translateZ(0) scale(${mediaScale.fromScaleX}, ${mediaScale.fromScaleY})` },
+          { transform: `translateZ(0) scale(${mediaScale.toScaleX}, ${mediaScale.toScaleY})` }
         ],
         {
           duration,
           easing,
+          fill: 'both'
+        }
+      )
+    : null
+
+  const previousOpacity = targetEl?.style?.opacity || ''
+  if (targetEl && shouldCrossfadeTarget) {
+    targetEl.style.opacity = '0'
+  } else if (targetEl) {
+    targetEl.style.visibility = 'hidden'
+  }
+
+  const targetRevealDuration = shouldCrossfadeTarget ? Math.max(72, Math.min(120, Math.round(duration * 0.22))) : 0
+  const targetRevealAnimation = targetEl && shouldCrossfadeTarget
+    ? targetEl.animate(
+        [
+          { opacity: 0 },
+          { opacity: 1 }
+        ],
+        {
+          duration: targetRevealDuration,
+          delay: Math.max(0, duration - targetRevealDuration),
+          easing: 'linear',
           fill: 'both'
         }
       )
@@ -377,13 +410,15 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   return Promise.allSettled([
     animation.finished,
-    mediaAnimation?.finished
+    mediaAnimation?.finished,
+    targetRevealAnimation?.finished
   ]).catch(() => {
     // ignore interruption
   }).finally(() => {
     node.remove()
     if (targetEl) {
       targetEl.style.visibility = previousVisibility
+      targetEl.style.opacity = previousOpacity
     }
   })
 }
