@@ -129,6 +129,7 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
 import { formatDate } from '@/utils/format'
+import { buildRechargePresetImageMap, resolveRechargePresetImage } from '@/utils/rechargeImages'
 import { validatePrice } from '@/utils/validate'
 
 const GAME_LABEL_MAP = {
@@ -177,6 +178,7 @@ const showDatePicker = ref(false)
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 const isEditMode = computed(() => Boolean(props.record?.id))
 const { isTabletViewport, updateViewport } = useTabletViewport()
+const presetImageMap = buildRechargePresetImageMap()
 const presetGameEntries = computed(() => {
   const source = rechargeDistribution || {}
   return Object.entries(source)
@@ -278,6 +280,10 @@ function getPresetOptionValue(option, index) {
   const name = String(option?.name || '').trim()
   const amount = Number(option?.amount || 0)
   return id || `${name}::${amount.toFixed(2)}::${index}`
+}
+
+function resolvePresetImage(record) {
+  return resolveRechargePresetImage(record, presetImageMap)
 }
 
 function applyPresetOption() {

@@ -164,6 +164,29 @@ const preloadQueued = new Set()
 let preloadActiveCount = 0
 let preloadDrainScheduled = false
 
+function normalizeCacheUrl(input) {
+  const value = String(input || '').trim()
+  if (!value) return ''
+  if (/^(blob:|data:|file:|content:|capacitor:)/i.test(value)) return value
+
+  try {
+    const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost'
+    const parsed = new URL(value, base)
+    parsed.hash = ''
+    if (parsed.searchParams?.sort) parsed.searchParams.sort()
+    return parsed.toString()
+  } catch {
+    return value
+  }
+}
+
+function getCacheKeyCandidates(url) {
+  const raw = String(url || '').trim()
+  const normalized = normalizeCacheUrl(raw)
+  if (!raw) return []
+  return normalized && normalized !== raw ? [normalized, raw] : [raw]
+}
+
 // --- URL 转换逻辑 ---
 /**
  * @param {string} url
@@ -179,10 +202,13 @@ async function getFromCacheAPI(url) {
   if (!supportsCacheAPI) return null
   try {
     const cache = await caches.open(CACHE_NAME)
-    const response = await cache.match(url)
-    if (!response) return null
-    const blob = await response.blob()
-    return URL.createObjectURL(blob)
+    for (const key of getCacheKeyCandidates(url)) {
+      const response = await cache.match(key)
+      if (!response) continue
+      const blob = await response.blob()
+      return URL.createObjectURL(blob)
+    }
+    return null
   } catch {
     return null
   }
@@ -192,7 +218,7 @@ async function putToCacheAPI(url, responseClone) {
   if (!supportsCacheAPI) return
   try {
     const cache = await caches.open(CACHE_NAME)
-    await cache.put(url, responseClone)
+    await cache.put(normalizeCacheUrl(url) || url, responseClone)
   } catch { /* 容量超限等，忽略 */ }
 }
 
@@ -204,16 +230,22 @@ async function putToCacheAPI(url, responseClone) {
 async function getFromCapacitorFS(url) {
   if (!isNative()) return null
   try {
-    const filename = urlToFilename(url)
-    const result = await Filesystem.readFile({
-      path: `${CAP_FOLDER}/${filename}`,
-      directory: CAP_DIR
-    })
-    // 将文件结果转为 Blob
-    const response = await fetch(`data:application/octet-stream;base64,${result.data}`)
-    const blob = await response.blob()
-    touchNativeCacheEntry(filename, blob.size)
-    return URL.createObjectURL(blob)
+    for (const key of getCacheKeyCandidates(url)) {
+      const filename = urlToFilename(key)
+      try {
+        const result = await Filesystem.readFile({
+          path: `${CAP_FOLDER}/${filename}`,
+          directory: CAP_DIR
+        })
+        const response = await fetch(`data:application/octet-stream;base64,${result.data}`)
+        const blob = await response.blob()
+        touchNativeCacheEntry(filename, blob.size)
+        return URL.createObjectURL(blob)
+      } catch {
+        continue
+      }
+    }
+    return null
   } catch {
     return null
   }
@@ -256,32 +288,44 @@ const inFlight = new Map()
 export async function getCachedImage(url) {
   if (!url) return ''
 
+  const normalizedUrl = normalizeCacheUrl(url)
+  const cacheKeys = getCacheKeyCandidates(normalizedUrl || url)
+  const cacheKey = cacheKeys[0] || normalizedUrl || url
+
   // 转换开发环境的跨域 URL 为代理路径（仅用于 fetch，缓存 key 保留原始 URL）
-  let fetchUrl = url
-  if (import.meta.env.DEV && url.includes('sdk-webstatic.mihoyo.com')) {
-    fetchUrl = url.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
+  let fetchUrl = normalizedUrl || url
+  if (import.meta.env.DEV && fetchUrl.includes('sdk-webstatic.mihoyo.com')) {
+    fetchUrl = fetchUrl.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
   }
 
   // 1: 内存（用原始 URL 作为 key）
-  if (memoryCache.has(url)) return memoryCache.get(url)
+  for (const key of cacheKeys) {
+    if (memoryCache.has(key)) return memoryCache.get(key)
+  }
 
   // 防止并发请求相同 URL 导致多次 IO 和网络请求
-  if (inFlight.has(url)) return inFlight.get(url)
+  if (inFlight.has(cacheKey)) return inFlight.get(cacheKey)
 
   const promise = (async () => {
     // 2: Cache API (Web)
-    const cacheHit = await getFromCacheAPI(url)
+    const cacheHit = await getFromCacheAPI(cacheKey)
     if (cacheHit) {
-      setMemoryCache(url, cacheHit)
-      inFlight.delete(url)
+      setMemoryCache(cacheKey, cacheHit)
+      if (normalizedUrl && normalizedUrl !== cacheKey) {
+        setMemoryCache(url, cacheHit)
+      }
+      inFlight.delete(cacheKey)
       return cacheHit
     }
 
     // 3: Capacitor FS (Native)
-    const fsHit = await getFromCapacitorFS(url)
+    const fsHit = await getFromCapacitorFS(cacheKey)
     if (fsHit) {
-      setMemoryCache(url, fsHit)
-      inFlight.delete(url)
+      setMemoryCache(cacheKey, fsHit)
+      if (normalizedUrl && normalizedUrl !== cacheKey) {
+        setMemoryCache(url, fsHit)
+      }
+      inFlight.delete(cacheKey)
       return fsHit
     }
 
@@ -291,22 +335,28 @@ export async function getCachedImage(url) {
 
       const blob = await response.blob()
       const objectUrl = URL.createObjectURL(blob)
-      setMemoryCache(url, objectUrl)
+      setMemoryCache(cacheKey, objectUrl)
+      if (normalizedUrl && normalizedUrl !== cacheKey) {
+        setMemoryCache(url, objectUrl)
+      }
 
-      // 后台写入 Cache API 和 Capacitor FS（用原始 URL 作为 key），不阻塞返回
-      putToCacheAPI(url, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
-      putToCapacitorFS(url, blob)
+      // 后台写入 Cache API 和 Capacitor FS（用规范化后的 URL 作为 key），不阻塞返回
+      putToCacheAPI(cacheKey, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
+      putToCapacitorFS(cacheKey, blob)
 
-      inFlight.delete(url)
+      inFlight.delete(cacheKey)
       return objectUrl
     } catch {
-      setMemoryCache(url, url)
-      inFlight.delete(url)
+      setMemoryCache(cacheKey, url)
+      if (normalizedUrl && normalizedUrl !== cacheKey) {
+        setMemoryCache(url, url)
+      }
+      inFlight.delete(cacheKey)
       return url
     }
   })()
 
-  inFlight.set(url, promise)
+  inFlight.set(cacheKey, promise)
   return promise
 }
 
@@ -315,9 +365,10 @@ export async function getCachedImage(url) {
  */
 export function preloadImages(urls) {
   urls.forEach((url) => {
-    if (!url || memoryCache.has(url) || preloadQueued.has(url)) return
-    preloadQueue.push(url)
-    preloadQueued.add(url)
+    const key = normalizeCacheUrl(url)
+    if (!key || memoryCache.has(key) || preloadQueued.has(key)) return
+    preloadQueue.push(key)
+    preloadQueued.add(key)
   })
 
   schedulePreloadDrain()
@@ -331,7 +382,11 @@ export function preloadImages(urls) {
  */
 export function peekCachedImage(url) {
   if (!url) return ''
-  return memoryCache.get(url) || ''
+  for (const key of getCacheKeyCandidates(url)) {
+    const cached = memoryCache.get(key)
+    if (cached) return cached
+  }
+  return ''
 }
 
 function schedulePreloadDrain() {

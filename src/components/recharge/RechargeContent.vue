@@ -189,6 +189,8 @@ import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { collectRechargeImageUrls } from '@/utils/rechargeImages'
+import { preloadImages } from '@/utils/imageCache'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
@@ -340,6 +342,8 @@ const viewSwitchStyle = computed(() => ({
   '--view-switch-count': String(viewOptions.value.length),
   '--view-switch-index': String(Math.max(viewOptions.value.findIndex((item) => item.value === activeView.value), 0))
 }))
+
+const rechargeImageUrls = computed(() => collectRechargeImageUrls(activeRecords.value))
 const isAddOverlayOpen = computed(() => showAddDialog.value || showAddMethodSheet.value)
 const deleteConfirmTitle = '确认删除？'
 const deleteConfirmActionText = '删除'
@@ -494,6 +498,11 @@ function syncAddScrollLock(active) {
   void active
 }
 
+function syncRechargeImagePreload(urls = []) {
+  if (!Array.isArray(urls) || urls.length === 0) return
+  preloadImages(urls)
+}
+
 function resolvePageBodyEl() {
   const rechargeRoot = rechargeRootRef.value
   pageBodyEl.value = rechargeRoot?.closest?.('.page-body') || document.querySelector('.page-body')
@@ -578,6 +587,7 @@ onMounted(() => {
   updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
+  syncRechargeImagePreload(rechargeImageUrls.value)
 })
 
 onBeforeUnmount(() => {
@@ -607,6 +617,10 @@ watch(activeView, (value) => {
     exitSelectionModeQuiet()
   }
 })
+
+watch(rechargeImageUrls, (urls) => {
+  syncRechargeImagePreload(urls)
+}, { immediate: true })
 
 defineExpose({
   toggleSearch,

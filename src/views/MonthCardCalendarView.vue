@@ -168,6 +168,8 @@ import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { collectRechargeImageUrls } from '@/utils/rechargeImages'
+import { preloadImages } from '@/utils/imageCache'
 
 defineOptions({ name: 'MonthCardCalendarView' })
 
@@ -331,6 +333,14 @@ const currentMonthRecordList = computed(() => {
   return scopedRecords.value
     .filter((item) => item.startDate.getTime() <= monthEnd.getTime() && item.endDate.getTime() >= monthStart.getTime())
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+})
+
+const monthCardImageUrls = computed(() => {
+  const urls = [
+    ...Object.values(MONTH_CARD_IMAGE_MAP),
+    ...collectRechargeImageUrls(scopedRecords.value)
+  ]
+  return Array.from(new Set(urls.filter(Boolean)))
 })
 
 const longestCoverageDays = computed(() => {
@@ -662,14 +672,22 @@ watch(selectedGame, () => {
 onMounted(() => {
   window.addEventListener('resize', handleResize, { passive: true })
   refreshRecords()
+  preloadImages(monthCardImageUrls.value)
 })
 
-onActivated(refreshRecords)
+onActivated(() => {
+  refreshRecords()
+  preloadImages(monthCardImageUrls.value)
+})
 
 onBeforeUnmount(() => {
   clearCalendarAnimationTimer()
   window.removeEventListener('resize', handleResize)
 })
+
+watch(monthCardImageUrls, (urls) => {
+  preloadImages(urls)
+}, { immediate: true })
 
 function buildCoverageSegments(records) {
   if (records.length === 0) return []
