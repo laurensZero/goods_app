@@ -1,9 +1,9 @@
 {
-  "version": "20260417.1",
-  "url": "bundle-20260417.1.zip",
-  "hash": "aa59c9dcce3e07d4cdc5ba7cb9a1003bf46e699b8ced7064496ee879d02a9720",
+  "version": "20260417.2",
+  "url": "bundle-20260417.2.zip",
+  "hash": "3150707f849c03c0b1ca153f1487bec21b7a4b9179796984675c1bd81f7f5a2c",
   "minNativeVersion": null,
-  "notes": "- feat: 增强图片处理功能，添加图片预加载和解析逻辑，优化用户体验",
+  "notes": "- feat: 增加hero动画的回退逻辑，优化事件和商品视图中的动画体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-17T02:36:02Z"
+  "publishedAt": "2026-04-17T13:05:37Z"
 }

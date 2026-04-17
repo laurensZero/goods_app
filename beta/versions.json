@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260417.2",
+    "url": "bundle-20260417.2.zip",
+    "hash": "3150707f849c03c0b1ca153f1487bec21b7a4b9179796984675c1bd81f7f5a2c",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加hero动画的回退逻辑，优化事件和商品视图中的动画体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-17T13:05:37Z"
+  },
+  {
     "version": "20260417.1",
     "url": "bundle-20260417.1.zip",
     "hash": "aa59c9dcce3e07d4cdc5ba7cb9a1003bf46e699b8ced7064496ee879d02a9720",
@@ -16,14 +25,5 @@
     "notes": "- feat: 重构 LazyCachedImage 组件，优化图片加载和样式管理",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T14:51:56Z"
-  },
-  {
-    "version": "20260416.15",
-    "url": "bundle-20260416.15.zip",
-    "hash": "60d32db7ef3a5535bb6527461918acee872566a55c84f6f6fb3053bd230dc39e",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 使用 LazyCachedImage 组件替换图片标签，优化图片加载性能\"\n  This reverts commit 77cd753ac2296af354b976248ed30da8f3645cd7.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T14:22:59Z"
   }
 ]
