@@ -258,6 +258,34 @@ function shouldPreferTransformOnlyHero(direction, aspectDelta) {
   return direction === 'back' && IS_ANDROID
 }
 
+function resolveTransformOnlyTarget(snapshot, targetRect, options = {}) {
+  const preserveAspect = Boolean(options.preserveAspect)
+  const scaleX = snapshot.width > 0 ? targetRect.width / snapshot.width : 1
+  const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
+  const normalizedScaleX = Number.isFinite(scaleX) ? scaleX : 1
+  const normalizedScaleY = Number.isFinite(scaleY) ? scaleY : 1
+
+  if (!preserveAspect) {
+    return {
+      scaleX: normalizedScaleX,
+      scaleY: normalizedScaleY,
+      translateX: targetRect.left,
+      translateY: targetRect.top
+    }
+  }
+
+  const uniformScale = Math.max(normalizedScaleX, normalizedScaleY)
+  const finalWidth = snapshot.width * uniformScale
+  const finalHeight = snapshot.height * uniformScale
+
+  return {
+    scaleX: uniformScale,
+    scaleY: uniformScale,
+    translateX: targetRect.left - (finalWidth - targetRect.width) / 2,
+    translateY: targetRect.top - (finalHeight - targetRect.height) / 2
+  }
+}
+
 function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return Promise.resolve()
   if (!snapshot || !targetRect) return Promise.resolve()
@@ -283,12 +311,11 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const targetAspectRatio = targetRect.height > 0 ? targetRect.width / targetRect.height : 1
   const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
   const canUseScalePath = shouldPreferTransformOnlyHero(direction, aspectDelta)
-  const scaleX = snapshot.width > 0 ? targetRect.width / snapshot.width : 1
-  const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
-  const normalizedScaleX = Number.isFinite(scaleX) ? scaleX : 1
-  const normalizedScaleY = Number.isFinite(scaleY) ? scaleY : 1
+  const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect, {
+    preserveAspect: direction === 'back' && IS_ANDROID && aspectDelta > 0.04
+  })
   const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
-  const toTransform = `translate3d(${targetRect.left}px, ${targetRect.top}px, 0) scale(${normalizedScaleX}, ${normalizedScaleY})`
+  const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
 
   const keyframes = canUseScalePath
     ? [
