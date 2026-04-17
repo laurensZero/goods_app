@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260417.4",
+    "url": "bundle-20260417.4.zip",
+    "hash": "d4eed770c249d22e9560c2a39924c4d50a0a1f443aa342a69e9476c4c1187433",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 transform 目标解析函数，优化动画效果和保持纵横比",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-17T15:38:01Z"
+  },
+  {
     "version": "20260417.3",
     "url": "bundle-20260417.3.zip",
     "hash": "408f4fd59e78bfbade829158747d7e6111469d2e98f805230b31ed53c5a3b05a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加hero动画的回退逻辑，优化事件和商品视图中的动画体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-17T13:05:37Z"
-  },
-  {
-    "version": "20260417.1",
-    "url": "bundle-20260417.1.zip",
-    "hash": "aa59c9dcce3e07d4cdc5ba7cb9a1003bf46e699b8ced7064496ee879d02a9720",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强图片处理功能，添加图片预加载和解析逻辑，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-17T02:36:02Z"
   }
 ]
