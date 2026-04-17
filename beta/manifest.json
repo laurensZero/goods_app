@@ -1,9 +1,9 @@
 {
-  "version": "20260417.5",
-  "url": "bundle-20260417.5.zip",
-  "hash": "fa16d65c0d2b06340ccf5da027a66ff45d2532f8ad611799a0db19d2564183c7",
+  "version": "20260417.6",
+  "url": "bundle-20260417.6.zip",
+  "hash": "bff6fd530ca63b84969aba10598cb7968b067d0178b67b30ce519a2e0b1ad698",
   "minNativeVersion": null,
-  "notes": "- feat: 增强英雄动画效果，添加媒体元素的缩放动画和样式处理",
+  "notes": "- feat: 增强动画效果，添加目标元素的交叉淡出和可见性处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-17T15:41:47Z"
+  "publishedAt": "2026-04-17T15:46:21Z"
 }
