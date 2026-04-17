@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260417.1",
+    "url": "bundle-20260417.1.zip",
+    "hash": "aa59c9dcce3e07d4cdc5ba7cb9a1003bf46e699b8ced7064496ee879d02a9720",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强图片处理功能，添加图片预加载和解析逻辑，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-17T02:36:02Z"
+  },
+  {
     "version": "20260416.16",
     "url": "bundle-20260416.16.zip",
     "hash": "dd3c9e47e137265ea0428c0b21d4904506d91162c3e73838164c267878ef1d9b",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"feat: 使用 LazyCachedImage 组件替换图片标签，优化图片加载性能\"\n  This reverts commit 77cd753ac2296af354b976248ed30da8f3645cd7.",
     "updateLevel": "silent",
     "publishedAt": "2026-04-16T14:22:59Z"
-  },
-  {
-    "version": "20260416.14",
-    "url": "bundle-20260416.14.zip",
-    "hash": "781a7119a8b530a79476bd143b63a033f58b0a6da9d242b4b71e00b1542cb639",
-    "minNativeVersion": null,
-    "notes": "- feat: 使用 LazyCachedImage 组件替换图片标签，优化图片加载性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-16T13:43:33Z"
   }
 ]
