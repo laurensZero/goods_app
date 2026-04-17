@@ -618,7 +618,7 @@ function getImageKindLabel(kind) {
 .cover-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.08;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-large);
   overflow: hidden;
   box-shadow: var(--app-shadow);

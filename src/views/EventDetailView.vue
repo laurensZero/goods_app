@@ -612,7 +612,7 @@ function tryPlayLinkedGoodsBackHero() {
 
 .cover-card {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 4.6;
   border-radius: 34px;
   overflow: hidden;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
