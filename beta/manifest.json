@@ -1,9 +1,9 @@
 {
-  "version": "20260417.6",
-  "url": "bundle-20260417.6.zip",
-  "hash": "bff6fd530ca63b84969aba10598cb7968b067d0178b67b30ce519a2e0b1ad698",
+  "version": "20260417.7",
+  "url": "bundle-20260417.7.zip",
+  "hash": "15baf162acebf0a96bc734e4fffbe9fb96890582aad93d55370e34011326c280",
   "minNativeVersion": null,
-  "notes": "- feat: 增强动画效果，添加目标元素的交叉淡出和可见性处理",
+  "notes": "- feat: 调整媒体元素的纵横比，优化展示效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-17T15:46:21Z"
+  "publishedAt": "2026-04-17T15:55:08Z"
 }
