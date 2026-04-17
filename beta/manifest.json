@@ -1,9 +1,9 @@
 {
-  "version": "20260417.2",
-  "url": "bundle-20260417.2.zip",
-  "hash": "3150707f849c03c0b1ca153f1487bec21b7a4b9179796984675c1bd81f7f5a2c",
+  "version": "20260417.3",
+  "url": "bundle-20260417.3.zip",
+  "hash": "408f4fd59e78bfbade829158747d7e6111469d2e98f805230b31ed53c5a3b05a",
   "minNativeVersion": null,
-  "notes": "- feat: 增加hero动画的回退逻辑，优化事件和商品视图中的动画体验",
+  "notes": "- feat: 增强动画效果，添加对Android设备的支持，优化图像节点样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-17T13:05:37Z"
+  "publishedAt": "2026-04-17T13:56:44Z"
 }
