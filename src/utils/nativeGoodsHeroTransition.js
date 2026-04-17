@@ -1,13 +1,42 @@
 const FORWARD_DURATION_MS = 380
-const BACK_DURATION_MS = 340
+const BACK_DURATION_MS = 360
 const BACK_SCROLL_LOCK_MS = 200
-const BACK_HERO_PENDING_TTL_MS = 1600
-const HERO_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const BACK_HERO_PENDING_TTL_MS = 5000
+const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.18, 0.96, 0.28, 1)'
+const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.2, 0.9, 0.24, 1)'
+const HERO_BACK_EASING_FAR = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
 let pendingForwardHero = null
 let pendingBackHero = null
 let pendingForwardEventHero = null
 let pendingBackEventHero = null
+
+export function getHeroBackDurationMs() {
+  return BACK_DURATION_MS
+}
+
+function isPendingBackHeroValid(pendingHero, currentPath = '') {
+  if (!pendingHero) return false
+  const ageMs = Date.now() - Number(pendingHero.preparedAt || 0)
+  if (!Number.isFinite(ageMs) || ageMs > BACK_HERO_PENDING_TTL_MS) {
+    return false
+  }
+  const normalizedCurrentPath = String(currentPath || '').split('?')[0]
+  const normalizedTargetPath = String(pendingHero.targetPath || '').split('?')[0]
+  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) {
+    return false
+  }
+  return true
+}
+
+export function hasPendingGoodsHeroBack(currentPath = '') {
+  return isPendingBackHeroValid(pendingBackHero, currentPath)
+}
+
+export function hasPendingEventHeroBack(currentPath = '') {
+  return isPendingBackHeroValid(pendingBackEventHero, currentPath)
+}
 
 function isScrollable(el) {
   if (!el || typeof window === 'undefined') return false
@@ -49,8 +78,6 @@ function lockBackScroll(targetEl, duration = BACK_SCROLL_LOCK_MS) {
   const cleanups = []
 
   const lockContainer = (el) => {
-    const top = el.scrollTop
-    const left = el.scrollLeft
     const prev = {
       overflow: el.style.overflow,
       overscrollBehavior: el.style.overscrollBehavior,
@@ -61,18 +88,10 @@ function lockBackScroll(targetEl, duration = BACK_SCROLL_LOCK_MS) {
     el.style.overscrollBehavior = 'none'
     el.style.scrollBehavior = 'auto'
 
-    const keepPosition = () => {
-      if (el.scrollTop !== top) el.scrollTop = top
-      if (el.scrollLeft !== left) el.scrollLeft = left
-    }
-
-    el.addEventListener('scroll', keepPosition, { passive: true })
-
     restores.push(() => {
       el.style.overflow = prev.overflow
       el.style.overscrollBehavior = prev.overscrollBehavior
       el.style.scrollBehavior = prev.scrollBehavior
-      el.removeEventListener('scroll', keepPosition)
     })
   }
 
@@ -141,6 +160,51 @@ function readRect(el) {
   }
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function resolveHeroMotionFactors(snapshot, targetRect) {
+  if (!snapshot || !targetRect || typeof window === 'undefined') {
+    return { travel: 0, size: 0 }
+  }
+
+  const fromCenterX = Number(snapshot.left || 0) + Number(snapshot.width || 0) / 2
+  const fromCenterY = Number(snapshot.top || 0) + Number(snapshot.height || 0) / 2
+  const toCenterX = Number(targetRect.left || 0) + Number(targetRect.width || 0) / 2
+  const toCenterY = Number(targetRect.top || 0) + Number(targetRect.height || 0) / 2
+  const distance = Math.hypot(toCenterX - fromCenterX, toCenterY - fromCenterY)
+  const viewportDiagonal = Math.hypot(window.innerWidth || 1, window.innerHeight || 1) || 1
+  const travel = clamp(distance / viewportDiagonal, 0, 1)
+
+  const fromArea = Math.max(1, Number(snapshot.width || 0) * Number(snapshot.height || 0))
+  const toArea = Math.max(1, Number(targetRect.width || 0) * Number(targetRect.height || 0))
+  const areaRatio = Math.max(fromArea, toArea) / Math.min(fromArea, toArea)
+  const size = clamp(Math.log2(areaRatio) / 3, 0, 1)
+
+  return { travel, size }
+}
+
+function resolveHeroDuration(baseDuration, snapshot, targetRect) {
+  const normalizedBase = Number.isFinite(baseDuration) ? baseDuration : FORWARD_DURATION_MS
+  const { travel, size } = resolveHeroMotionFactors(snapshot, targetRect)
+  const multiplier = 0.8 + travel * 0.22 + size * 0.12
+  const value = Math.round(normalizedBase * multiplier)
+  return clamp(value, 240, 520)
+}
+
+function resolveHeroEasing(direction, snapshot, targetRect) {
+  const normalizedDirection = direction === 'back' ? 'back' : 'forward'
+  const { travel, size } = resolveHeroMotionFactors(snapshot, targetRect)
+  const intensity = travel * 0.7 + size * 0.3
+
+  if (normalizedDirection === 'back') {
+    return intensity > 0.42 ? HERO_BACK_EASING_FAR : HERO_BACK_EASING_NEAR
+  }
+
+  return intensity > 0.42 ? HERO_FORWARD_EASING_FAR : HERO_FORWARD_EASING_NEAR
+}
+
 function createHeroNode(snapshot) {
   const node = document.createElement('div')
   node.setAttribute('aria-hidden', 'true')
@@ -154,8 +218,10 @@ function createHeroNode(snapshot) {
   node.style.zIndex = '9999'
   node.style.willChange = 'transform, opacity, border-radius'
   node.style.transformOrigin = 'top left'
+  node.style.contain = 'layout paint style'
+  node.style.backfaceVisibility = 'hidden'
   node.style.borderRadius = `${snapshot.radius || 0}px`
-  node.style.boxShadow = '0 14px 36px rgba(0, 0, 0, 0.18)'
+  node.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.14)'
   node.style.background = snapshot.background || 'var(--app-surface, #fff)'
 
   if (snapshot.imageSrc) {
@@ -199,30 +265,58 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     targetEl.style.visibility = 'hidden'
   }
 
-  const duration = Number(options.duration) || FORWARD_DURATION_MS
+  const baseDuration = Number(options.duration) || FORWARD_DURATION_MS
+  const direction = options.direction === 'back' ? 'back' : 'forward'
+  const duration = resolveHeroDuration(baseDuration, snapshot, targetRect)
+  const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
+  const sourceAspectRatio = snapshot.height > 0 ? snapshot.width / snapshot.height : 1
+  const targetAspectRatio = targetRect.height > 0 ? targetRect.width / targetRect.height : 1
+  const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
+  const canUseScalePath = aspectDelta <= 0.04
+  const scaleX = snapshot.width > 0 ? targetRect.width / snapshot.width : 1
+  const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
+  const normalizedScaleX = Number.isFinite(scaleX) ? scaleX : 1
+  const normalizedScaleY = Number.isFinite(scaleY) ? scaleY : 1
+  const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
+  const toTransform = `translate3d(${targetRect.left}px, ${targetRect.top}px, 0) scale(${normalizedScaleX}, ${normalizedScaleY})`
+
+  const keyframes = canUseScalePath
+    ? [
+        {
+          transform: fromTransform,
+          borderRadius: `${radiusFrom}px`,
+          opacity: 0.98
+        },
+        {
+          transform: toTransform,
+          borderRadius: `${radiusTo}px`,
+          opacity: 1
+        }
+      ]
+    : [
+        {
+          transform: `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`,
+          width: `${snapshot.width}px`,
+          height: `${snapshot.height}px`,
+          borderRadius: `${radiusFrom}px`,
+          opacity: 0.98
+        },
+        {
+          transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`,
+          width: `${targetRect.width}px`,
+          height: `${targetRect.height}px`,
+          borderRadius: `${radiusTo}px`,
+          opacity: 1
+        }
+      ]
 
   const animation = node.animate(
-    [
-      {
-        transform: `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`,
-        width: `${snapshot.width}px`,
-        height: `${snapshot.height}px`,
-        borderRadius: `${radiusFrom}px`,
-        opacity: 0.98
-      },
-      {
-        transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`,
-        width: `${targetRect.width}px`,
-        height: `${targetRect.height}px`,
-        borderRadius: `${radiusTo}px`,
-        opacity: 1
-      }
-    ],
+    keyframes,
     {
       duration,
-      easing: HERO_EASING,
+      easing,
       fill: 'both'
     }
   )
@@ -271,6 +365,7 @@ export function playGoodsHeroForward(goodsId, targetEl) {
     readRadius(targetEl),
     {
       duration: FORWARD_DURATION_MS,
+      direction: 'forward',
       targetEl
     }
   )
@@ -300,14 +395,10 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
 
 export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   if (!pendingBackHero) return false
-  const ageMs = Date.now() - Number(pendingBackHero.preparedAt || 0)
-  if (!Number.isFinite(ageMs) || ageMs > BACK_HERO_PENDING_TTL_MS) {
+  if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
     pendingBackHero = null
     return false
   }
-  const normalizedCurrentPath = String(currentPath || '').split('?')[0]
-  const normalizedTargetPath = String(pendingBackHero.targetPath || '').split('?')[0]
-  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) return false
   if (typeof resolveTargetEl !== 'function') return false
 
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
@@ -327,6 +418,7 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
     readRadius(targetEl),
     {
       duration: BACK_DURATION_MS,
+      direction: 'back',
       targetEl
     }
   ).finally(() => {
@@ -371,6 +463,7 @@ export function playEventHeroForward(eventId, targetEl) {
     readRadius(targetEl),
     {
       duration: FORWARD_DURATION_MS,
+      direction: 'forward',
       targetEl
     }
   )
@@ -400,14 +493,10 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
 
 export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
   if (!pendingBackEventHero) return false
-  const ageMs = Date.now() - Number(pendingBackEventHero.preparedAt || 0)
-  if (!Number.isFinite(ageMs) || ageMs > BACK_HERO_PENDING_TTL_MS) {
+  if (!isPendingBackHeroValid(pendingBackEventHero, currentPath)) {
     pendingBackEventHero = null
     return false
   }
-  const normalizedCurrentPath = String(currentPath || '').split('?')[0]
-  const normalizedTargetPath = String(pendingBackEventHero.targetPath || '').split('?')[0]
-  if (normalizedTargetPath && !normalizedCurrentPath.startsWith(normalizedTargetPath)) return false
   if (typeof resolveTargetEl !== 'function') return false
 
   const targetEl = resolveTargetEl(pendingBackEventHero.eventId)
@@ -427,6 +516,7 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
     readRadius(targetEl),
     {
       duration: BACK_DURATION_MS,
+      direction: 'back',
       targetEl
     }
   ).finally(() => {

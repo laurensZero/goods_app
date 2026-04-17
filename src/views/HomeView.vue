@@ -165,7 +165,7 @@ import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
 import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -219,12 +219,16 @@ const ROW_HEIGHT_MAP = {
   standard: 272,
   compact: 236
 }
+const HOME_BACK_HERO_RETRY_MAX_FRAMES = 40
+const HOME_BACK_HERO_GUARD_TIMEOUT_MS = 620
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
 let mountBootstrapSession = 0
+let goodsBackHeroRetryRaf = 0
+let homeBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
 // 添加方式面板
@@ -641,6 +645,11 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isHomeActive.value = true
+  cancelGoodsBackHeroRetry()
+  clearHomeBackHeroDeferredRestoreTimer()
+  if (shouldMaskHomeDisplay()) {
+    homeDisplayReady.value = false
+  }
   const storedState = getStoredScrollState()
   if (storedState?.source) {
     markScrollSource(storedState.source)
@@ -652,9 +661,7 @@ onActivated(async () => {
   )
   await nextTick()
   homeDisplayReady.value = true
-  window.requestAnimationFrame(() => {
-    tryPlayNativeGoodsBackHero()
-  })
+  scheduleGoodsBackHeroRetry()
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
@@ -664,6 +671,8 @@ onActivated(async () => {
 onDeactivated(() => {
   isHomeActive.value = false
   mountBootstrapSession += 1
+  cancelGoodsBackHeroRetry()
+  clearHomeBackHeroDeferredRestoreTimer()
   cancelPendingRestore()
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
@@ -674,6 +683,8 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelGoodsBackHeroRetry()
+  clearHomeBackHeroDeferredRestoreTimer()
   if (topJumpMaskTimer) {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
@@ -855,10 +866,72 @@ function resolveGoodsCardCover(goodsId) {
 }
 
 function tryPlayNativeGoodsBackHero() {
-  playGoodsHeroBack({
+  return playGoodsHeroBack({
     currentPath: route.fullPath,
     resolveTargetEl: resolveGoodsCardCover
   })
+}
+
+function cancelGoodsBackHeroRetry() {
+  if (!goodsBackHeroRetryRaf) return
+  window.cancelAnimationFrame(goodsBackHeroRetryRaf)
+  goodsBackHeroRetryRaf = 0
+}
+
+function clearHomeBackHeroDeferredRestoreTimer() {
+  if (!homeBackHeroDeferredRestoreTimer) return
+  window.clearTimeout(homeBackHeroDeferredRestoreTimer)
+  homeBackHeroDeferredRestoreTimer = 0
+}
+
+function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
+  cancelGoodsBackHeroRetry()
+  goodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
+    goodsBackHeroRetryRaf = 0
+    const played = tryPlayNativeGoodsBackHero()
+    if (played) {
+      hooks?.onPlayed?.()
+      return
+    }
+    if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
+      hooks?.onGiveUp?.()
+      return
+    }
+    scheduleGoodsBackHeroRetry(attempt + 1, hooks)
+  })
+}
+
+function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
+  const safeRunRestore = typeof runRestore === 'function' ? runRestore : () => {}
+  const hasPendingBackHero = hasPendingGoodsHeroBack(route.fullPath)
+  if (!hasPendingBackHero) {
+    safeRunRestore()
+    return
+  }
+
+  clearHomeBackHeroDeferredRestoreTimer()
+  let settled = false
+  const settle = () => {
+    if (settled) return
+    settled = true
+    clearHomeBackHeroDeferredRestoreTimer()
+    safeRunRestore()
+  }
+
+  scheduleGoodsBackHeroRetry(0, {
+    onPlayed: () => {
+      homeBackHeroDeferredRestoreTimer = window.setTimeout(() => {
+        homeBackHeroDeferredRestoreTimer = 0
+        settle()
+      }, Math.max(0, getHeroBackDurationMs() + 24))
+    },
+    onGiveUp: settle
+  })
+
+  homeBackHeroDeferredRestoreTimer = window.setTimeout(() => {
+    homeBackHeroDeferredRestoreTimer = 0
+    settle()
+  }, HOME_BACK_HERO_GUARD_TIMEOUT_MS)
 }
 
 function scrollToTop() {

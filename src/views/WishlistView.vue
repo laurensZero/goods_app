@@ -150,7 +150,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -174,6 +174,8 @@ const HOME_TOP_OPTIONS = [
 ]
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
+const WISHLIST_BACK_HERO_RETRY_MAX_FRAMES = 40
+const WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS = 620
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
   standard: 272,
@@ -204,6 +206,8 @@ let pageScrollRaf = 0
 let elementScrollHandler = null
 let windowScrollHandler = null
 let topJumpMaskTimer = 0
+let goodsBackHeroRetryRaf = 0
+let wishlistBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
 const {
@@ -429,10 +433,72 @@ function resolveGoodsCardCover(goodsId) {
 }
 
 function tryPlayNativeGoodsBackHero() {
-  playGoodsHeroBack({
+  return playGoodsHeroBack({
     currentPath: route.fullPath,
     resolveTargetEl: resolveGoodsCardCover
   })
+}
+
+function cancelGoodsBackHeroRetry() {
+  if (!goodsBackHeroRetryRaf) return
+  window.cancelAnimationFrame(goodsBackHeroRetryRaf)
+  goodsBackHeroRetryRaf = 0
+}
+
+function clearWishlistBackHeroDeferredRestoreTimer() {
+  if (!wishlistBackHeroDeferredRestoreTimer) return
+  window.clearTimeout(wishlistBackHeroDeferredRestoreTimer)
+  wishlistBackHeroDeferredRestoreTimer = 0
+}
+
+function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
+  cancelGoodsBackHeroRetry()
+  goodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
+    goodsBackHeroRetryRaf = 0
+    const played = tryPlayNativeGoodsBackHero()
+    if (played) {
+      hooks?.onPlayed?.()
+      return
+    }
+    if (attempt + 1 >= WISHLIST_BACK_HERO_RETRY_MAX_FRAMES) {
+      hooks?.onGiveUp?.()
+      return
+    }
+    scheduleGoodsBackHeroRetry(attempt + 1, hooks)
+  })
+}
+
+function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
+  const safeRunRestore = typeof runRestore === 'function' ? runRestore : () => {}
+  const hasPendingBackHero = hasPendingGoodsHeroBack(route.fullPath)
+  if (!hasPendingBackHero) {
+    safeRunRestore()
+    return
+  }
+
+  clearWishlistBackHeroDeferredRestoreTimer()
+  let settled = false
+  const settle = () => {
+    if (settled) return
+    settled = true
+    clearWishlistBackHeroDeferredRestoreTimer()
+    safeRunRestore()
+  }
+
+  scheduleGoodsBackHeroRetry(0, {
+    onPlayed: () => {
+      wishlistBackHeroDeferredRestoreTimer = window.setTimeout(() => {
+        wishlistBackHeroDeferredRestoreTimer = 0
+        settle()
+      }, Math.max(0, getHeroBackDurationMs() + 24))
+    },
+    onGiveUp: settle
+  })
+
+  wishlistBackHeroDeferredRestoreTimer = window.setTimeout(() => {
+    wishlistBackHeroDeferredRestoreTimer = 0
+    settle()
+  }, WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS)
 }
 
 function openSearch() {
@@ -597,12 +663,15 @@ onActivated(async () => {
   isRouteLeaving = false
   persistCollectionTab('wishlist')
   isWishlistActive.value = true
+  cancelGoodsBackHeroRetry()
+  clearWishlistBackHeroDeferredRestoreTimer()
+  if (shouldMaskWishlistDisplay()) {
+    wishlistDisplayReady.value = false
+  }
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
-  window.requestAnimationFrame(() => {
-    tryPlayNativeGoodsBackHero()
-  })
+  scheduleGoodsBackHeroRetry()
   bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
@@ -610,6 +679,8 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isWishlistActive.value = false
+  cancelGoodsBackHeroRetry()
+  clearWishlistBackHeroDeferredRestoreTimer()
   cancelPendingRestore()
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
@@ -620,6 +691,8 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelGoodsBackHeroRetry()
+  clearWishlistBackHeroDeferredRestoreTimer()
   if (topJumpMaskTimer) {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0

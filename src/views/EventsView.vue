@@ -268,7 +268,7 @@ import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { prepareEventHeroForward, playEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -277,7 +277,8 @@ const EVENT_SORT_STORAGE_KEY = 'events-sort-direction-v1'
 const SELECTION_HEADER_HEIGHT = 64
 const SCROLL_TOP_ANCHOR_REASON = 'events:openDetail'
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
-const EVENT_BACK_HERO_RETRY_MAX_FRAMES = 12
+const EVENT_BACK_HERO_RETRY_MAX_FRAMES = 40
+const EVENT_BACK_HERO_GUARD_TIMEOUT_MS = 620
 
 const router = useRouter()
 const route = useRoute()
@@ -299,6 +300,7 @@ let elementScrollHandler = null
 let windowScrollHandler = null
 let topJumpMaskTimer = 0
 let eventBackHeroRetryRaf = 0
+let eventBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
 const viewOptions = [
@@ -523,14 +525,60 @@ function cancelEventBackHeroRetry() {
   eventBackHeroRetryRaf = 0
 }
 
-function scheduleEventBackHeroRetry(attempt = 0) {
+function clearEventBackHeroDeferredRestoreTimer() {
+  if (!eventBackHeroDeferredRestoreTimer) return
+  window.clearTimeout(eventBackHeroDeferredRestoreTimer)
+  eventBackHeroDeferredRestoreTimer = 0
+}
+
+function scheduleEventBackHeroRetry(attempt = 0, hooks = null) {
   cancelEventBackHeroRetry()
   eventBackHeroRetryRaf = window.requestAnimationFrame(() => {
     eventBackHeroRetryRaf = 0
     const played = tryPlayEventBackHero()
-    if (played || attempt + 1 >= EVENT_BACK_HERO_RETRY_MAX_FRAMES) return
-    scheduleEventBackHeroRetry(attempt + 1)
+    if (played) {
+      hooks?.onPlayed?.()
+      return
+    }
+    if (attempt + 1 >= EVENT_BACK_HERO_RETRY_MAX_FRAMES) {
+      hooks?.onGiveUp?.()
+      return
+    }
+    scheduleEventBackHeroRetry(attempt + 1, hooks)
   })
+}
+
+function deferActivatedRestoreAfterBackHero(runRestore) {
+  const safeRunRestore = typeof runRestore === 'function' ? runRestore : () => {}
+  const hasPendingBackHero = hasPendingEventHeroBack(route.fullPath)
+  if (!hasPendingBackHero) {
+    safeRunRestore()
+    return
+  }
+
+  clearEventBackHeroDeferredRestoreTimer()
+  let settled = false
+  const settle = () => {
+    if (settled) return
+    settled = true
+    clearEventBackHeroDeferredRestoreTimer()
+    safeRunRestore()
+  }
+
+  scheduleEventBackHeroRetry(0, {
+    onPlayed: () => {
+      eventBackHeroDeferredRestoreTimer = window.setTimeout(() => {
+        eventBackHeroDeferredRestoreTimer = 0
+        settle()
+      }, Math.max(0, getHeroBackDurationMs() + 24))
+    },
+    onGiveUp: settle
+  })
+
+  eventBackHeroDeferredRestoreTimer = window.setTimeout(() => {
+    eventBackHeroDeferredRestoreTimer = 0
+    settle()
+  }, EVENT_BACK_HERO_GUARD_TIMEOUT_MS)
 }
 
 function goToAdd() {
@@ -680,6 +728,7 @@ onActivated(async () => {
   isRouteLeaving = false
   isEventsActive.value = true
   cancelEventBackHeroRetry()
+  clearEventBackHeroDeferredRestoreTimer()
   const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
   if (shouldMaskDisplay) {
     eventsDisplayReady.value = false
@@ -695,6 +744,7 @@ onActivated(async () => {
 onDeactivated(() => {
   isEventsActive.value = false
   cancelEventBackHeroRetry()
+  clearEventBackHeroDeferredRestoreTimer()
   cancelPendingRestore()
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
@@ -705,6 +755,7 @@ onDeactivated(() => {
 
 onBeforeUnmount(() => {
   cancelEventBackHeroRetry()
+  clearEventBackHeroDeferredRestoreTimer()
   if (topJumpMaskTimer) {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
