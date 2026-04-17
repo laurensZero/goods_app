@@ -6,6 +6,7 @@ const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.18, 0.96, 0.28, 1)'
 const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.2, 0.9, 0.24, 1)'
 const HERO_BACK_EASING_FAR = 'cubic-bezier(0.16, 1, 0.3, 1)'
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
 
 let pendingForwardHero = null
 let pendingBackHero = null
@@ -233,6 +234,8 @@ function createHeroNode(snapshot) {
     img.style.height = '100%'
     img.style.objectFit = 'cover'
     img.style.display = 'block'
+    img.style.backfaceVisibility = 'hidden'
+    img.style.transform = 'translateZ(0)'
     node.appendChild(img)
   } else {
     const text = document.createElement('span')
@@ -248,6 +251,11 @@ function createHeroNode(snapshot) {
   }
 
   return node
+}
+
+function shouldPreferTransformOnlyHero(direction, aspectDelta) {
+  if (aspectDelta <= 0.04) return true
+  return direction === 'back' && IS_ANDROID
 }
 
 function animateHero(snapshot, targetRect, targetRadius, options = {}) {
@@ -274,7 +282,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const sourceAspectRatio = snapshot.height > 0 ? snapshot.width / snapshot.height : 1
   const targetAspectRatio = targetRect.height > 0 ? targetRect.width / targetRect.height : 1
   const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
-  const canUseScalePath = aspectDelta <= 0.04
+  const canUseScalePath = shouldPreferTransformOnlyHero(direction, aspectDelta)
   const scaleX = snapshot.width > 0 ? targetRect.width / snapshot.width : 1
   const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
   const normalizedScaleX = Number.isFinite(scaleX) ? scaleX : 1
