@@ -1,9 +1,9 @@
 {
-  "version": "20260417.4",
-  "url": "bundle-20260417.4.zip",
-  "hash": "d4eed770c249d22e9560c2a39924c4d50a0a1f443aa342a69e9476c4c1187433",
+  "version": "20260417.5",
+  "url": "bundle-20260417.5.zip",
+  "hash": "fa16d65c0d2b06340ccf5da027a66ff45d2532f8ad611799a0db19d2564183c7",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 transform 目标解析函数，优化动画效果和保持纵横比",
+  "notes": "- feat: 增强英雄动画效果，添加媒体元素的缩放动画和样式处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-17T15:38:01Z"
+  "publishedAt": "2026-04-17T15:41:47Z"
 }

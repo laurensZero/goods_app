@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260417.5",
+    "url": "bundle-20260417.5.zip",
+    "hash": "fa16d65c0d2b06340ccf5da027a66ff45d2532f8ad611799a0db19d2564183c7",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强英雄动画效果，添加媒体元素的缩放动画和样式处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-17T15:41:47Z"
+  },
+  {
     "version": "20260417.4",
     "url": "bundle-20260417.4.zip",
     "hash": "d4eed770c249d22e9560c2a39924c4d50a0a1f443aa342a69e9476c4c1187433",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强动画效果，添加对Android设备的支持，优化图像节点样式",
     "updateLevel": "silent",
     "publishedAt": "2026-04-17T13:56:44Z"
-  },
-  {
-    "version": "20260417.2",
-    "url": "bundle-20260417.2.zip",
-    "hash": "3150707f849c03c0b1ca153f1487bec21b7a4b9179796984675c1bd81f7f5a2c",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加hero动画的回退逻辑，优化事件和商品视图中的动画体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-17T13:05:37Z"
   }
 ]
