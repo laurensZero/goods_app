@@ -239,10 +239,41 @@ function waitForNextFrame() {
   })
 }
 
+function readElementRect(el) {
+  if (!el) return null
+  const rect = el.getBoundingClientRect()
+  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
+    return null
+  }
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height
+  }
+}
+
+function isRectStable(prevRect, nextRect, tolerance = 0.5) {
+  if (!prevRect || !nextRect) return false
+  return Math.abs(prevRect.left - nextRect.left) <= tolerance &&
+    Math.abs(prevRect.top - nextRect.top) <= tolerance &&
+    Math.abs(prevRect.width - nextRect.width) <= tolerance &&
+    Math.abs(prevRect.height - nextRect.height) <= tolerance
+}
+
+async function waitForStableHeroTarget(el, maxFrames = 6) {
+  let previousRect = null
+  for (let frame = 0; frame < maxFrames; frame += 1) {
+    await waitForNextFrame()
+    const currentRect = readElementRect(el)
+    if (isRectStable(previousRect, currentRect)) return
+    previousRect = currentRect
+  }
+}
+
 async function playEventHeroForwardWhenReady() {
   await nextTick()
-  await waitForNextFrame()
-  await waitForNextFrame()
+  await waitForStableHeroTarget(coverCardRef.value)
   playEventHeroForward(eventId.value, coverCardRef.value)
   tryPlayLinkedGoodsBackHero()
 }
