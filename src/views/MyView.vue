@@ -154,7 +154,7 @@
             </div>
             <div class="detail-row">
               <span class="detail-row__label">同步状态</span>
-              <span class="detail-row__value">{{ syncStore.syncStatus || '待同步' }}</span>
+              <span class="detail-row__value">{{ syncStore.syncStatus || (syncStore.githubLogin ? '就绪' : '未处理') }}</span>
             </div>
           </div>
 
