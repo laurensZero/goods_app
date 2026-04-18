@@ -1,9 +1,9 @@
 {
-  "version": "20260418.11",
-  "url": "bundle-20260418.11.zip",
-  "hash": "a1146e48560d8e5e200cf1618c911bc3757d59a7b08463d0d3d006b1b0ce7ae4",
+  "version": "20260418.12",
+  "url": "bundle-20260418.12.zip",
+  "hash": "531decbdb08f713fec7678dad2619199e0abc34bb9fab0804c52ab159d05837f",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 添加 CapacitorHttp 插件配置，启用 HTTP 功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T09:03:35Z"
+  "publishedAt": "2026-04-18T09:11:29Z"
 }

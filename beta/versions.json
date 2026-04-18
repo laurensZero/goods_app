@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.12",
+    "url": "bundle-20260418.12.zip",
+    "hash": "531decbdb08f713fec7678dad2619199e0abc34bb9fab0804c52ab159d05837f",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 CapacitorHttp 插件配置，启用 HTTP 功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T09:11:29Z"
+  },
+  {
     "version": "20260418.11",
     "url": "bundle-20260418.11.zip",
     "hash": "a1146e48560d8e5e200cf1618c911bc3757d59a7b08463d0d3d006b1b0ce7ae4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新myView 更新workflow",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T08:26:59Z"
-  },
-  {
-    "version": "20260418.9",
-    "url": "bundle-20260418.9.zip",
-    "hash": "6258c24618455d2c501b3f67c9b9cf4440b289581a8ad9ce6cf955a21d965f7a",
-    "minNativeVersion": null,
-    "notes": "- feat: Github OAuth “我的”界面 全选平板端设置界面",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T07:43:17Z"
   }
 ]
