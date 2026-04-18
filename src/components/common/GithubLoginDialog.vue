@@ -207,6 +207,228 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Scoped styles might be required if any specific dialog styles are not global. In SyncView they are in `.dialog-`.
-Assuming .dialog and .overlay are global. If not, we might need to copy them or let SyncView provide them globally. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  background: rgba(14, 18, 28, 0.38);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dialog {
+  width: min(100%, 420px);
+  padding: 24px;
+  overflow: hidden;
+  border-radius: var(--radius-large);
+  border: 1px solid var(--app-glass-border);
+  background: var(--app-glass-strong);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+
+.dialog--scrollable {
+  display: flex;
+  flex-direction: column;
+  max-height: min(calc(100dvh - 48px), 720px);
+}
+
+.dialog--wide {
+  width: min(100%, 520px);
+}
+
+.dialog-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 12px;
+  padding-right: 6px;
+  margin-right: -6px;
+}
+
+.dialog-title {
+  margin: 0 0 8px;
+  color: var(--app-text);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.dialog-desc {
+  margin: 0 0 16px;
+}
+
+.dialog-desc code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--app-surface-soft);
+  font-size: 13px;
+}
+
+.dialog-desc a {
+  color: var(--app-text);
+  text-decoration: underline;
+}
+
+.dialog-error {
+  margin-top: 8px;
+  color: #c74444;
+  font-size: 13px;
+}
+
+.dialog-success {
+  margin-top: 8px;
+  color: #28c880;
+  font-size: 13px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+
+.dialog-actions--wrap {
+  flex-wrap: wrap;
+}
+
+.dialog-actions--wrap .dialog-btn {
+  flex: 1 1 160px;
+}
+
+.dialog-btn {
+  min-height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dialog-btn--secondary {
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+}
+
+.dialog-btn--primary {
+  background: var(--app-text);
+  color: var(--app-bg);
+}
+
+.dialog-btn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.panel-card {
+  padding: 18px;
+  border-radius: var(--radius-large);
+  background: var(--app-surface-soft);
+}
+
+.detail-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.detail-row--last {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detail-label {
+  flex-shrink: 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.detail-value {
+  color: var(--app-text);
+  font-weight: 500;
+  text-align: right;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.detail-value--mono {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  letter-spacing: -0.01em;
+}
+
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.overlay-fade-enter-active .dialog,
+.overlay-fade-leave-active .dialog {
+  transition: transform 0.25s ease;
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
+}
+
+.overlay-fade-enter-from .dialog,
+.overlay-fade-leave-to .dialog {
+  transform: scale(0.95) translateY(8px);
+}
+
+@media (max-width: 767px) {
+  .overlay {
+    align-items: flex-end;
+    padding: 16px;
+    padding-bottom: calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));
+  }
+
+  .dialog {
+    width: min(100%, 100%);
+    padding: 20px;
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
+  }
+
+  .dialog--scrollable {
+    max-height: min(calc(100dvh - var(--tabbar-height) - 48px - env(safe-area-inset-bottom)), 78vh);
+  }
+
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detail-value {
+    text-align: left;
+  }
+
+  .dialog-actions {
+    flex-direction: row;
+    justify-content: stretch;
+    margin-inline: -20px;
+    padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
+  }
+
+  .dialog-actions .dialog-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
 </style>
