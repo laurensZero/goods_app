@@ -1,9 +1,9 @@
 {
-  "version": "20260418.17",
-  "url": "bundle-20260418.17.zip",
-  "hash": "762dff51f37d3e3a8d818a2a95df29950365c58249db0b5e1f287620d37eda72",
+  "version": "20260418.18",
+  "url": "bundle-20260418.18.zip",
+  "hash": "ea70cae92a5dbeef79d83781a871f16d2054371bac097b690cba6c22636bbfcb",
   "minNativeVersion": null,
-  "notes": "- feat: 更新反馈标题，更新验证码倒计时",
+  "notes": "- feat: 添加详细页面淡入过渡动画，优化导航体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T10:26:35Z"
+  "publishedAt": "2026-04-18T10:41:09Z"
 }

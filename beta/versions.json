@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.18",
+    "url": "bundle-20260418.18.zip",
+    "hash": "ea70cae92a5dbeef79d83781a871f16d2054371bac097b690cba6c22636bbfcb",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加详细页面淡入过渡动画，优化导航体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T10:41:09Z"
+  },
+  {
     "version": "20260418.17",
     "url": "bundle-20260418.17.zip",
     "hash": "762dff51f37d3e3a8d818a2a95df29950365c58249db0b5e1f287620d37eda72",
@@ -16,14 +25,5 @@
     "notes": "- feat: 为设置侧边栏和详细信息添加自定义滚动条样式",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T10:02:53Z"
-  },
-  {
-    "version": "20260418.15",
-    "url": "bundle-20260418.15.zip",
-    "hash": "96da53118c3d07ed2ba3729b85360f7289f1e0c40fdd73190d2d49476ff76e80",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T09:51:35Z"
   }
 ]
