@@ -1,9 +1,9 @@
 {
-  "version": "20260418.2",
-  "url": "bundle-20260418.2.zip",
-  "hash": "d505c3a0691a4af988e4a2635b3124017b9124e66c726fe37011fac1e53a2e12",
+  "version": "20260418.3",
+  "url": "bundle-20260418.3.zip",
+  "hash": "d25ec2818b6e805aad00fa260f56670771456319336faf2e1afdd0d2929e14ee",
   "minNativeVersion": null,
-  "notes": "- feat: 移除英雄节点的阴影效果，优化视觉表现",
+  "notes": "- feat: 优化英雄动画播放逻辑，确保在准备就绪后再执行",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T02:56:31Z"
+  "publishedAt": "2026-04-18T03:02:26Z"
 }
