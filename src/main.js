@@ -15,6 +15,15 @@ import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
 
+const ANDROID_ROOT_ROUTE_NAMES = new Set([
+  'home',
+  'recharge',
+  'wishlist',
+  'character-leaderboard',
+  'events',
+  'manage'
+])
+
 async function notifyUpdaterReady() {
   if (!Capacitor.isNativePlatform()) return
 
@@ -32,9 +41,9 @@ function setupAndroidBackButton() {
     if (dispatchAndroidBackButton({ canGoBack })) return
 
     const currentRoute = router.currentRoute.value
-    const isHome = currentRoute.name === 'home'
+    const isAndroidRootRoute = ANDROID_ROOT_ROUTE_NAMES.has(String(currentRoute.name || ''))
 
-    if (!isHome) {
+    if (!isAndroidRootRoute) {
       if (canGoBack || window.history.length > 1) {
         router.back()
       } else {
@@ -43,7 +52,7 @@ function setupAndroidBackButton() {
       return
     }
 
-    await CapacitorApp.exitApp()
+    await CapacitorApp.minimizeApp()
   })
 }
 

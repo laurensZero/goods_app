@@ -532,6 +532,7 @@ function handleBackNavigation() {
     if (filteredHistoryBackPath && filteredHistoryBackPath !== currentPath) return filteredHistoryBackPath
     return fallbackPath
   })()
+  const shouldUseHistoryBack = filteredHistoryBackPath === targetPath
 
   prepareEventHeroBack({
     eventId: eventId.value,
@@ -539,7 +540,14 @@ function handleBackNavigation() {
     targetPath
   })
 
-  router.push(targetPath)
+  setPendingDetailReturnPath('')
+
+  if (shouldUseHistoryBack) {
+    router.back()
+    return
+  }
+
+  router.replace(targetPath)
 }
 
 function handleAndroidBackButton(event) {

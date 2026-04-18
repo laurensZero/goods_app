@@ -505,6 +505,7 @@ function handleBackNavigation() {
     if (historyBackPath && historyBackPath !== currentPath && !historyBackPath.startsWith('/detail/')) return historyBackPath
     return fallbackPath
   })()
+  const shouldUseHistoryBack = historyBackPath === targetPath
 
   syncCollectionContextForPath(targetPath)
 
@@ -515,7 +516,13 @@ function handleBackNavigation() {
   })
 
   setPendingDetailReturnPath('')
-  router.push(targetPath)
+
+  if (shouldUseHistoryBack) {
+    router.back()
+    return
+  }
+
+  router.replace(targetPath)
 }
 
 function syncCollectionContextForPath(path) {
