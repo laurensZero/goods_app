@@ -1,9 +1,9 @@
 {
-  "version": "20260418.21",
-  "url": "bundle-20260418.21.zip",
-  "hash": "4564b8f309248bc74bdeae3a8ef1671386e877d7d16e8077a8a7953f7b7c9b1c",
+  "version": "20260418.22",
+  "url": "bundle-20260418.22.zip",
+  "hash": "7a3162f7ab2c8dbecce91ce50f37fdd8bc05d0a07960e55e7cbf438443ed40f2",
   "minNativeVersion": null,
-  "notes": "- feat: 更新同步状态显示，优化未处理和就绪状态提示",
+  "notes": "- feat: 添加智能标签建议功能，优化分类和角色推断",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T12:57:23Z"
+  "publishedAt": "2026-04-18T14:12:37Z"
 }
