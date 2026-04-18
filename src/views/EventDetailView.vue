@@ -233,6 +233,20 @@ const previewPhotoIndex = ref(-1)
 const trackSectionExpanded = ref(true)
 let removeAndroidBackListener = null
 
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve())
+  })
+}
+
+async function playEventHeroForwardWhenReady() {
+  await nextTick()
+  await waitForNextFrame()
+  await waitForNextFrame()
+  playEventHeroForward(eventId.value, coverCardRef.value)
+  tryPlayLinkedGoodsBackHero()
+}
+
 const eventId = computed(() => props.id || route.params.id)
 const event = computed(() => eventsStore.getById(eventId.value))
 const eventStateKey = computed(() => `${EVENT_DETAIL_STATE_PREFIX}:${String(eventId.value || '')}`)
@@ -404,11 +418,7 @@ onMounted(async () => {
   await refresh()
   await restoreViewState()
   eventDisplayReady.value = true
-  await nextTick()
-  window.requestAnimationFrame(() => {
-    playEventHeroForward(eventId.value, coverCardRef.value)
-    tryPlayLinkedGoodsBackHero()
-  })
+  await playEventHeroForwardWhenReady()
 })
 
 onBeforeUnmount(() => {
@@ -427,11 +437,7 @@ onActivated(async () => {
   }
   await restoreViewState()
   eventDisplayReady.value = true
-  await nextTick()
-  window.requestAnimationFrame(() => {
-    playEventHeroForward(eventId.value, coverCardRef.value)
-    tryPlayLinkedGoodsBackHero()
-  })
+  await playEventHeroForwardWhenReady()
 })
 
 onBeforeRouteLeave((to) => {
@@ -450,11 +456,7 @@ watch(eventId, async () => {
   previewPhotoIndex.value = -1
   await restoreViewState()
   eventDisplayReady.value = true
-  await nextTick()
-  window.requestAnimationFrame(() => {
-    playEventHeroForward(eventId.value, coverCardRef.value)
-    tryPlayLinkedGoodsBackHero()
-  })
+  await playEventHeroForwardWhenReady()
 })
 
 watch(trackSectionExpanded, (value) => {

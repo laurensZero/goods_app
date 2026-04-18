@@ -219,6 +219,19 @@ const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 let removeAndroidBackListener = null
 
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve())
+  })
+}
+
+async function playGoodsHeroForwardWhenReady() {
+  await nextTick()
+  await waitForNextFrame()
+  await waitForNextFrame()
+  playGoodsHeroForward(props.id, coverCardRef.value)
+}
+
 const item = computed(() => store.getById(props.id))
 const trackList = computed(() =>
   (Array.isArray(item.value?.tracks) ? item.value.tracks : []).filter((entry) => entry?.title || entry?.artist || entry?.neteaseSongId)
@@ -507,10 +520,7 @@ onMounted(async () => {
   lockDetailEntryScrollLock()
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   await prepareDetailLayout()
-  await nextTick()
-  window.requestAnimationFrame(() => {
-    playGoodsHeroForward(props.id, coverCardRef.value)
-  })
+  await playGoodsHeroForwardWhenReady()
 })
 
 onBeforeUnmount(() => {
@@ -528,10 +538,7 @@ watch(
     lockDetailEntryScrollLock()
     activeImageId.value = ''
     await prepareDetailLayout()
-    await nextTick()
-    window.requestAnimationFrame(() => {
-      playGoodsHeroForward(props.id, coverCardRef.value)
-    })
+    await playGoodsHeroForwardWhenReady()
   }
 )
 
