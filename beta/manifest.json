@@ -1,9 +1,9 @@
 {
-  "version": "20260417.7",
-  "url": "bundle-20260417.7.zip",
-  "hash": "15baf162acebf0a96bc734e4fffbe9fb96890582aad93d55370e34011326c280",
+  "version": "20260418.1",
+  "url": "bundle-20260418.1.zip",
+  "hash": "e350c1a76c0b8bb9691e31816242c60a99fa781739d4e42b3d56a98e00823051",
   "minNativeVersion": null,
-  "notes": "- feat: 调整媒体元素的纵横比，优化展示效果",
+  "notes": "- feat: 优化英雄节点创建，调整溢出处理并添加裁剪元素动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-17T15:55:08Z"
+  "publishedAt": "2026-04-18T02:53:22Z"
 }
