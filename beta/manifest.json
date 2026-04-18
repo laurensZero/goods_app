@@ -1,9 +1,9 @@
 {
-  "version": "20260418.3",
-  "url": "bundle-20260418.3.zip",
-  "hash": "d25ec2818b6e805aad00fa260f56670771456319336faf2e1afdd0d2929e14ee",
+  "version": "20260418.4",
+  "url": "bundle-20260418.4.zip",
+  "hash": "9f48834a3df02ce7bcb60773123ce52663ee6c98df0d29952990e3c4ac2fde7c",
   "minNativeVersion": null,
-  "notes": "- feat: 优化英雄动画播放逻辑，确保在准备就绪后再执行",
+  "notes": "- feat: 添加稳定性检查以优化英雄动画播放时机",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T03:02:26Z"
+  "publishedAt": "2026-04-18T03:08:03Z"
 }
