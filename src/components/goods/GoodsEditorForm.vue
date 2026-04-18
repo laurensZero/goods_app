@@ -65,6 +65,13 @@
               <span v-if="nameError" class="field-error">{{ nameError }}</span>
             </label>
 
+            <TagSuggestionPanel
+              :suggestions="tagSuggestions"
+              @apply="applySuggestion"
+              @ignore="ignoreSuggestion"
+              @apply-all="applyAllSuggestions"
+            />
+
             <div class="field">
               <span class="field-label">分类</span>
               <AppSelect v-model="form.category" :options="presets.categories" placeholder="请选择分类" />
@@ -509,6 +516,7 @@
 import { computed } from 'vue'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
+import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -517,6 +525,7 @@ import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
+import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 
 const props = defineProps({
   mode: {
@@ -595,6 +604,8 @@ const {
   syncFieldLater,
   closeQuickCreate
 } = useGoodsEditorForm({ mode: props.mode, editId: props.editId, initialIsWishlist: props.initialIsWishlist })
+
+const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
 
 const isEditMode = computed(() => props.mode === 'edit')
 const navBarTitle = computed(() => (isEditMode.value ? '编辑谷子' : '添加谷子'))

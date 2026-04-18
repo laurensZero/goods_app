@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page import-page">
     <NavBar :title="pageTitle" show-back />
 
@@ -565,6 +565,8 @@ import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
+import staticDictionaries from '@/constants/tagging-dictionaries.json'
 import {
   parseMihoyoUrl,
   isMihoyoGiftUrl,
@@ -1403,12 +1405,14 @@ const NON_CHAR_WORDS = [
   '随机', '加购', '赠品', '礼盒', '礼品', '礼包', '福袋', '特典',
   '联名', '联动', '合作', '纪念', '限定', '典藏', '豪华', '版本',
   '白色', '黑色', '红色', '蓝色', '绿色', '黄色', '粉色', '紫色', '橙色', '棕色',
-  '标准', '普通', '完整', '初始', '全部', '其他',
+  '标准', '普通', '完整', '初始', '全部', '其他', '同款', '款', '新年', '年版'
 ]
 function isLikelyCharName(name) {
   if (!name) return false
   if (name.length < 1 || name.length > 8) return false
   if (/^[A-Za-z0-9\s]+$/.test(name)) return false      // 纯英数
+  if (/^\d{4}年?$/.test(name)) return false            // 新增：2024 或 2024年
+  if (/\d+周年/.test(name)) return false               // 新增：2周年等
   if (!/[\u4e00-\u9fff]/.test(name)) return false      // 必须含汉字
   if (NON_CHAR_WORDS.some(kw => name.includes(kw))) return false
   return true
@@ -1505,6 +1509,33 @@ function autoSelectVariantByHint() {
   }
 }
 
+// ── 智能推算 ──
+function evalVariantTags(v) {
+  const combinedText = [form.name, displayVariantText(v.text)].filter(Boolean).join(' ')
+  const presetsStore = usePresetsStore()
+  const goodsStore = useGoodsStore()
+
+  const charMap = {}
+  if (goodsStore?.list?.length) {
+    goodsStore.list.forEach(item => {
+      if (item.characters && item.characters.length) {
+        const ip = item.ip || 'unknown'
+        if (!charMap[ip]) charMap[ip] = []
+        item.characters.forEach(c => {
+          if (!charMap[ip].includes(c) && !/\d{4}年?/.test(c) && !/周年/.test(c)) charMap[ip].push(c)
+        })
+      }
+    })
+  }
+
+  return getTaggingSuggestions({ name: combinedText, note: '' }, staticDictionaries, {
+    categories: presetsStore.categories || [],
+    ips: presetsStore.ips || [],
+    characters: charMap,
+    tags: []
+  })
+}
+
 // ── 用户点击款式按钮：单选 + 自动匹配 SKU 专属图 ──
 function handleVariantSelect(v) {
   if (selectedVariantKey.value === v.key) {
@@ -1523,9 +1554,31 @@ function handleVariantSelect(v) {
     const variantCharacterName = normalizeCharacterName(v.text)
     const preferredCharacterName = preferredSearchCharacterName.value
     selectedVariantName.value = variantName
-    // 默认优先使用款式里能识别出的角色名，否则回落到当前搜索角色
-    const looksLikeChar = isLikelyCharName(variantCharacterName)
-    selectedCharacterName.value = looksLikeChar ? variantCharacterName : preferredCharacterName
+
+    // 默认回落
+    let fallbackChar = preferredCharacterName
+    if (isLikelyCharName(variantCharacterName)) {
+      fallbackChar = variantCharacterName
+    }
+    
+    // 动态智能推算
+    const tagResult = evalVariantTags(v)
+    
+    // 角色推断
+    if (tagResult.characterSuggestions?.length > 0 && tagResult.characterSuggestions[0].score >= 0.4) {
+      selectedCharacterName.value = tagResult.characterSuggestions[0].value
+    } else {
+      selectedCharacterName.value = fallbackChar
+    }
+
+    // 分类推断
+    if (tagResult.categorySuggestion && tagResult.categorySuggestion.score >= 0.6) {
+      const presets = usePresetsStore()
+      const newCat = tagResult.categorySuggestion.value
+      if (!presets.categories.includes(newCat)) presets.addCategory(newCat)
+      form.category = newCat
+    }
+
     saveAsCharacter.value = Boolean(selectedCharacterName.value)
     form.characters = selectedCharacterName.value ? [selectedCharacterName.value] : []
     applySelectedVariantMedia(v)
@@ -1543,17 +1596,32 @@ function toggleSaveAsCharacter() {
 // ── 自动匹配分类（关键词）──
 function detectCategory(name) {
   if (!name) return ''
-  if (name.includes('满赠') || name.includes('赠品')) return '满赠'
-  if (name.includes('手办') || name.includes('模型')) return '手办'
-  if (name.includes('挂件') || name.includes('挂摆')) return '挂件'
-  if (name.includes('徽章')) return '徽章'
-  if (name.includes('卡片') || name.includes('票卡') || name.includes('卡套')) return '卡片'
-  if (name.includes('立牌')) return '立牌'
-  if (name.includes('色纸')) return '色纸'
-  if (name.includes('画集') || name.includes('设定集') || name.includes('画册')) return '画集'
-  if (/CD|专辑/.test(name)) return 'CD/专辑'
-  if (name.includes('服饰') || name.includes('衬衫') || name.includes('针织') || name.includes('外套') || name.includes('痛包') || name.includes('斜挎包')) return '服饰'
-  return ''
+    
+    const presetsStore = usePresetsStore()
+    const goodsStore = useGoodsStore()
+    const extractedTags = new Set()
+    const charMap = {}
+    if (goodsStore?.list?.length) {
+      goodsStore.list.forEach(item => {
+        if (item.tags && item.tags.length) item.tags.forEach(t => extractedTags.add(t))
+        if (item.characters && item.characters.length) {
+          const ip = item.ip || 'unknown'
+          if (!charMap[ip]) charMap[ip] = []
+          item.characters.forEach(c => {
+            if (!charMap[ip].includes(c)) charMap[ip].push(c)
+          })
+        }
+      })
+    }
+    const result = getTaggingSuggestions({ name, note: '' }, staticDictionaries, {
+      categories: presetsStore.categories || [], ips: presetsStore.ips || [],
+      characters: charMap, tags: Array.from(extractedTags)
+    })
+    
+    if (result.categorySuggestion && result.categorySuggestion.score >= 0.6) {
+      return result.categorySuggestion.value
+    }
+    return ''
 }
 
 async function handleParse() {
