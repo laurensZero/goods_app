@@ -231,7 +231,6 @@ function createHeroNode(snapshot) {
   clip.style.willChange = 'border-radius'
   clip.style.backfaceVisibility = 'hidden'
   clip.style.borderRadius = `${snapshot.radius || 0}px`
-  clip.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.14)'
   clip.style.background = snapshot.background || 'var(--app-surface, #fff)'
   node.appendChild(clip)
 
