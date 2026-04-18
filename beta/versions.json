@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.8",
+    "url": "bundle-20260418.8.zip",
+    "hash": "1f4ef541a351eb8215ffbb60ba5131e0104f00a118db9216934b31ba6c243896",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加清除存储滚动状态的功能，优化页面冷启动体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T05:02:26Z"
+  },
+  {
     "version": "20260418.7",
     "url": "bundle-20260418.7.zip",
     "hash": "05ce16c8c0ac04146bc88560de12ccc259187b3cbd4d51733227734b88f3a6a1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化后退导航逻辑，支持历史路径返回和目标路径替换",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T04:48:09Z"
-  },
-  {
-    "version": "20260418.5",
-    "url": "bundle-20260418.5.zip",
-    "hash": "167db06be6aadd9ec207122553de958311194bc3ea96c32ff8d2b17b8d25a990",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加清除路由过渡回退的功能，优化页面切换体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T03:11:51Z"
   }
 ]
