@@ -266,7 +266,7 @@
             </span>
             <div class="feedback-body">
               <p class="feedback-kicker">In-App Submit</p>
-              <h3 class="feedback-title">在 app 内提交反馈</h3>
+              <h3 class="feedback-title">提交反馈</h3>
               <p class="feedback-desc">填写标题和内容后，直接创建到 GitHub Issues。优先使用您的 GitHub 登录状态。</p>
             </div>
             <svg class="feedback-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">

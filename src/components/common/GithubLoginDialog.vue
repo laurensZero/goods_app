@@ -20,8 +20,8 @@
                 <span class="detail-value detail-value--mono">{{ githubVerificationUrl }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">有效期</span>
-                <span class="detail-value">{{ githubDeviceExpiresText }}</span>
+                <span class="detail-label">倒计时</span>
+                <span class="detail-value detail-value--countdown">{{ githubDeviceCountdownText }}</span>
               </div>
               <div class="detail-row detail-row--last">
                 <span class="detail-label">权限范围</span>
@@ -79,18 +79,52 @@ const githubDeviceScope = getGitHubDeviceFlowScope()
 const githubLoginStatus = ref('')
 const githubLoginError = ref('')
 const githubDeviceInfo = ref(null)
+const githubDeviceCountdownSeconds = ref(0)
 const isRequestingGithubDeviceCode = ref(false)
 const isPollingGithubLogin = ref(false)
 
 let githubLoginAbortController = null
+let githubDeviceCountdownTimer = null
 
 const githubVerificationUrl = computed(() => githubDeviceInfo.value?.verification_uri || getGitHubVerificationUrl())
 
-const githubDeviceExpiresText = computed(() => {
-  if (!githubDeviceInfo.value?.expires_in) return ''
-  const minutes = Math.floor(githubDeviceInfo.value.expires_in / 60)
-  return `${minutes} 分钟`
+const githubDeviceCountdownText = computed(() => {
+  if (!githubDeviceInfo.value) return ''
+  if (githubDeviceCountdownSeconds.value <= 0) return '已过期'
+
+  const totalSeconds = githubDeviceCountdownSeconds.value
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
+
+function stopGithubDeviceCountdown() {
+  if (githubDeviceCountdownTimer) {
+    clearInterval(githubDeviceCountdownTimer)
+    githubDeviceCountdownTimer = null
+  }
+}
+
+function startGithubDeviceCountdown(expiresInSeconds) {
+  stopGithubDeviceCountdown()
+
+  const totalSeconds = Math.max(0, Math.floor(Number(expiresInSeconds) || 0))
+  githubDeviceCountdownSeconds.value = totalSeconds
+
+  if (totalSeconds <= 0) return
+
+  githubDeviceCountdownTimer = setInterval(() => {
+    githubDeviceCountdownSeconds.value = Math.max(0, githubDeviceCountdownSeconds.value - 1)
+
+    if (githubDeviceCountdownSeconds.value <= 0) {
+      stopGithubDeviceCountdown()
+      githubLoginStatus.value = '验证码已过期，请重新开始授权。'
+      if (!githubLoginError.value) {
+        githubLoginError.value = 'GitHub 设备码已过期，请重新发起登录。'
+      }
+    }
+  }, 1000)
+}
 
 function closeDialog() {
   emit('update:modelValue', false)
@@ -102,9 +136,11 @@ function closeDialog() {
 }
 
 function resetGithubLoginState() {
+  stopGithubDeviceCountdown()
   githubLoginStatus.value = ''
   githubLoginError.value = ''
   githubDeviceInfo.value = null
+  githubDeviceCountdownSeconds.value = 0
   isRequestingGithubDeviceCode.value = false
   isPollingGithubLogin.value = false
 }
@@ -154,6 +190,7 @@ async function handleStartGithubLogin() {
   try {
     const device = await requestGitHubDeviceCode(githubOAuthClientId, githubDeviceScope, controller.signal)
     githubDeviceInfo.value = device
+    startGithubDeviceCountdown(device.expires_in)
     githubLoginStatus.value = `请将验证码 ${device.user_code} 填入授权页面`
 
     const verificationUrl = githubVerificationUrl.value
@@ -199,6 +236,7 @@ async function handleStartGithubLogin() {
 }
 
 onBeforeUnmount(() => {
+  stopGithubDeviceCountdown()
   if (githubLoginAbortController) {
     githubLoginAbortController.abort()
     githubLoginAbortController = null
@@ -365,6 +403,12 @@ onBeforeUnmount(() => {
   text-align: right;
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+
+.detail-value--countdown {
+  min-width: 64px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .detail-value--mono {
