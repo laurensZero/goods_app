@@ -249,8 +249,6 @@ defineEmits(['toggle-item', 'open-detail'])
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 240px;
 }
 
 @media (min-width: 600px) {
@@ -280,8 +278,6 @@ defineEmits(['toggle-item', 'open-detail'])
   padding: 0;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
-  content-visibility: auto;
-  contain-intrinsic-size: 132px 132px;
 }
 
 .tl-thumb-btn:active {
