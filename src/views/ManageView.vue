@@ -1643,6 +1643,21 @@ async function handleImport(event) {
   background-clip: padding-box;
 }
 
+@media (min-width: 768px) {
+  .settings-sidebar,
+  .settings-detail {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .settings-sidebar::-webkit-scrollbar,
+  .settings-detail::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
 .settings-detail__actions {
   display: flex;
   flex-wrap: wrap;
