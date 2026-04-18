@@ -1,9 +1,9 @@
 {
-  "version": "20260418.4",
-  "url": "bundle-20260418.4.zip",
-  "hash": "9f48834a3df02ce7bcb60773123ce52663ee6c98df0d29952990e3c4ac2fde7c",
+  "version": "20260418.5",
+  "url": "bundle-20260418.5.zip",
+  "hash": "167db06be6aadd9ec207122553de958311194bc3ea96c32ff8d2b17b8d25a990",
   "minNativeVersion": null,
-  "notes": "- feat: 添加稳定性检查以优化英雄动画播放时机",
+  "notes": "- feat: 添加清除路由过渡回退的功能，优化页面切换体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T03:08:03Z"
+  "publishedAt": "2026-04-18T03:11:51Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.5",
+    "url": "bundle-20260418.5.zip",
+    "hash": "167db06be6aadd9ec207122553de958311194bc3ea96c32ff8d2b17b8d25a990",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加清除路由过渡回退的功能，优化页面切换体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T03:11:51Z"
+  },
+  {
     "version": "20260418.4",
     "url": "bundle-20260418.4.zip",
     "hash": "9f48834a3df02ce7bcb60773123ce52663ee6c98df0d29952990e3c4ac2fde7c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化英雄动画播放逻辑，确保在准备就绪后再执行",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T03:02:26Z"
-  },
-  {
-    "version": "20260418.2",
-    "url": "bundle-20260418.2.zip",
-    "hash": "d505c3a0691a4af988e4a2635b3124017b9124e66c726fe37011fac1e53a2e12",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除英雄节点的阴影效果，优化视觉表现",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T02:56:31Z"
   }
 ]
