@@ -37,6 +37,10 @@ const RECHARGE_GIST_ID_KEY = 'sync_recharge_gist_id'
 const EVENT_GIST_ID_KEY = 'sync_event_gist_id'
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
+const GITHUB_LOGIN_KEY = 'sync_github_login'
+const GITHUB_AVATAR_URL_KEY = 'sync_github_avatar_url'
+const GITHUB_SCOPES_KEY = 'sync_github_scopes'
+const GITHUB_AUTH_METHOD_KEY = 'sync_github_auth_method'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
 
 const DATA_FILENAME = 'data.json'
@@ -61,6 +65,10 @@ function shouldApplyRemoteItem(localItem, remoteItem) {
 export const useSyncStore = defineStore('sync', () => {
   const { syncLogs, clearSyncLogs, trackSyncStep } = useSyncLogger()
   const token = ref('')
+  const githubLogin = ref('')
+  const githubAvatarUrl = ref('')
+  const githubScopes = ref('')
+  const githubAuthMethod = ref('')
   const gistId = ref('')
   const imageGistId = ref('')
   const rechargeGistId = ref('')
@@ -75,6 +83,33 @@ export const useSyncStore = defineStore('sync', () => {
   const conflictData = ref(null)
 
   const isConfigured = computed(() => !!token.value && !!gistId.value)
+
+  function normalizeGitHubAuthMethod(value) {
+    const normalized = String(value || '').trim().toLowerCase()
+    if (normalized === 'device-flow' || normalized === 'token') return normalized
+    return ''
+  }
+
+  async function persistGitHubMeta(meta = {}) {
+    const nextLogin = String(meta.login ?? meta.githubLogin ?? '').trim()
+    const nextAvatarUrl = String(meta.avatarUrl ?? meta.githubAvatarUrl ?? '').trim()
+    const nextScopes = String(meta.scopes ?? meta.githubScopes ?? '').trim()
+    const nextAuthMethod = normalizeGitHubAuthMethod(meta.authMethod ?? meta.githubAuthMethod ?? '')
+
+    githubLogin.value = nextLogin
+    githubAvatarUrl.value = nextAvatarUrl
+    githubScopes.value = nextScopes
+    githubAuthMethod.value = nextAuthMethod
+
+    await writeSyncKey(GITHUB_LOGIN_KEY, nextLogin)
+    await writeSyncKey(GITHUB_AVATAR_URL_KEY, nextAvatarUrl)
+    await writeSyncKey(GITHUB_SCOPES_KEY, nextScopes)
+    await writeSyncKey(GITHUB_AUTH_METHOD_KEY, nextAuthMethod)
+  }
+
+  async function clearGitHubMeta() {
+    await persistGitHubMeta({})
+  }
 
   async function readJsonFromGistWithTrace({
     title,
@@ -131,6 +166,10 @@ export const useSyncStore = defineStore('sync', () => {
   async function init() {
     await ensureEventsStoreReady()
     token.value = (await readSyncKey(TOKEN_KEY)) || ''
+    githubLogin.value = (await readSyncKey(GITHUB_LOGIN_KEY)) || ''
+    githubAvatarUrl.value = (await readSyncKey(GITHUB_AVATAR_URL_KEY)) || ''
+    githubScopes.value = (await readSyncKey(GITHUB_SCOPES_KEY)) || ''
+    githubAuthMethod.value = normalizeGitHubAuthMethod((await readSyncKey(GITHUB_AUTH_METHOD_KEY)) || '')
     gistId.value = (await readSyncKey(GIST_ID_KEY)) || ''
     imageGistId.value = (await readSyncKey(IMAGE_GIST_ID_KEY)) || ''
     rechargeGistId.value = (await readSyncKey(RECHARGE_GIST_ID_KEY)) || ''
@@ -145,6 +184,20 @@ export const useSyncStore = defineStore('sync', () => {
         const matched = await listGists(token.value, 'goods-app-sync')
         if (matched.length > 0) {
           await saveGistId(matched[0].id)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (token.value && !githubLogin.value) {
+      try {
+        const check = await validateToken(token.value)
+        if (check.valid && check.login) {
+          await persistGitHubMeta({
+            login: check.login,
+            authMethod: githubAuthMethod.value || 'token'
+          })
         }
       } catch {
         // ignore
@@ -177,7 +230,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   }
 
-    async function saveToken(newToken) {
+  async function saveToken(newToken, meta = {}) {
     token.value = newToken
     await writeSyncKey(TOKEN_KEY, newToken)
     gistId.value = ''
@@ -195,6 +248,7 @@ export const useSyncStore = defineStore('sync', () => {
     lastError.value = ''
     syncStatus.value = ''
     conflictData.value = null
+    await persistGitHubMeta(meta)
     clearSyncLogs()
   }
 
@@ -760,6 +814,34 @@ export const useSyncStore = defineStore('sync', () => {
 
       if (localChanges.hasChanges) {
         const diff = await buildPullConflictData(gist, remoteManifest)
+        const hasPullConflict = !!(
+          diff.remoteOnlyGoods > 0
+          || diff.remoteOnlyCollection > 0
+          || diff.remoteOnlyWishlist > 0
+          || diff.remoteOnlyTrash > 0
+          || diff.updatedGoods > 0
+          || diff.localOnlyGoods > 0
+          || diff.localOnlyCollection > 0
+          || diff.localOnlyWishlist > 0
+          || diff.localOnlyTrash > 0
+          || diff.remoteRechargeCount > 0
+          || diff.remoteOnlyRecharge > 0
+          || diff.updatedRecharge > 0
+          || diff.localOnlyRecharge > 0
+          || diff.remoteEventCount > 0
+          || diff.remoteOnlyEvents > 0
+          || diff.updatedEvents > 0
+          || diff.localOnlyEvents > 0
+        )
+
+        if (!hasPullConflict) {
+          if (remoteManifest?.lastSyncAt) {
+            await saveLastSyncedAt(remoteManifest.lastSyncAt)
+          }
+          syncStatus.value = '数据已是最新'
+          return { action: 'no_changes' }
+        }
+
         conflictData.value = {
           ...diff,
           rechargeGist: existingRechargeGist,
@@ -788,6 +870,9 @@ export const useSyncStore = defineStore('sync', () => {
       const pullEventContentDiff = !!(diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0)
 
       if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff) {
+        if (remoteManifest?.lastSyncAt) {
+          await saveLastSyncedAt(remoteManifest.lastSyncAt)
+        }
         syncStatus.value = '数据已是最新'
         return { action: 'no_changes' }
       }
@@ -855,6 +940,10 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function resetConfig() {
     token.value = ''
+    githubLogin.value = ''
+    githubAvatarUrl.value = ''
+    githubScopes.value = ''
+    githubAuthMethod.value = ''
     gistId.value = ''
     imageGistId.value = ''
     rechargeGistId.value = ''
@@ -868,6 +957,7 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(EVENT_GIST_ID_KEY, '')
     await writeSyncKey(LAST_SYNC_KEY, '')
     await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    await clearGitHubMeta()
     lastError.value = ''
     syncStatus.value = ''
     conflictData.value = null
@@ -876,6 +966,10 @@ export const useSyncStore = defineStore('sync', () => {
 
   return {
     token,
+    githubLogin,
+    githubAvatarUrl,
+    githubScopes,
+    githubAuthMethod,
     gistId,
     imageGistId,
     rechargeGistId,

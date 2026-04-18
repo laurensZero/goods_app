@@ -44,8 +44,8 @@ const rechargeStore = useRechargeStore()
 const announcementStore = useAnnouncementStore()
 const appUpdateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
-const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'ManageView', 'EventsView']
-const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
+const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView']
+const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-settings', 'manage-sync', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 const hasLocalData = computed(() => (
   resolveArrayValue(goodsStore.list).length > 0

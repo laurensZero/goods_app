@@ -58,6 +58,10 @@
                 <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
               </button>
               <div class="detail-row">
+                <span class="detail-label">GitHub 账号</span>
+                <span class="detail-value">{{ syncStore.githubLogin || '未登录' }}</span>
+              </div>
+              <div class="detail-row">
                 <span class="detail-label">Data Gist</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
               </div>
@@ -246,7 +250,25 @@
             </svg>
           </a>
 
-          <button type="button" class="entry-card" @click="openTokenDialog">
+          <button type="button" class="entry-card" @click="openGithubLoginDialog">
+            <span class="entry-icon token-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3a9 9 0 1 0 9 9" />
+                <path d="M12 12l4.5-4.5" />
+                <path d="M12 12h7" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">GitHub OAuth</p>
+              <h3 class="entry-name">{{ syncStore.githubLogin ? `重新登录（${syncStore.githubLogin}）` : '使用 GitHub 授权登录' }}</h3>
+              <p class="entry-desc">通过 Device Flow 完成授权，自动保存可用于同步、反馈和更新的访问令牌。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+
+          <button v-if="showManualTokenEntry" type="button" class="entry-card" @click="openTokenDialog">
             <span class="entry-icon token-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 20h9" />
@@ -255,8 +277,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">GitHub Access</p>
-              <h3 class="entry-name">{{ syncStore.token ? '更换 Token' : '配置 Token' }}</h3>
-              <p class="entry-desc">保存带有 `gist` 权限的 Personal Access Token，用于创建和更新 Gist。</p>
+              <h3 class="entry-name">{{ syncStore.token ? '手动更换 Token' : '手动配置 Token' }}</h3>
+              <p class="entry-desc">仍可手动保存带有 <code>gist</code> 权限的 Personal Access Token 作为备用方案。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -392,6 +414,56 @@
       </Transition>
 
       <Transition name="overlay-fade">
+        <div v-if="showGithubLoginDialog" class="overlay" @click.self="closeGithubLoginDialog">
+          <div class="dialog dialog--wide dialog--scrollable">
+            <div class="dialog-scroll">
+              <h3 class="dialog-title">GitHub 授权登录</h3>
+              <p class="dialog-desc">使用 Device Flow 完成授权。授权成功后会自动保存访问令牌，并同步当前 GitHub 账号信息。</p>
+
+              <div v-if="githubLoginStatus" class="dialog-success">{{ githubLoginStatus }}</div>
+              <div v-if="githubLoginError" class="dialog-error">{{ githubLoginError }}</div>
+
+              <article v-if="githubDeviceInfo" class="panel-card" style="margin-top: 16px;">
+                <div class="detail-list">
+                  <div class="detail-row">
+                    <span class="detail-label">验证码</span>
+                    <span class="detail-value detail-value--mono">{{ githubDeviceInfo.user_code }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">授权地址</span>
+                    <span class="detail-value detail-value--mono">{{ githubVerificationUrl }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">有效期</span>
+                    <span class="detail-value">{{ githubDeviceExpiresText }}</span>
+                  </div>
+                  <div class="detail-row detail-row--last">
+                    <span class="detail-label">权限范围</span>
+                    <span class="detail-value">{{ githubDeviceScope }}</span>
+                  </div>
+                </div>
+              </article>
+
+              <div class="dialog-actions dialog-actions--wrap" style="margin-top: 16px;">
+                <button class="dialog-btn dialog-btn--secondary" :disabled="!githubDeviceInfo" @click="copyText(githubDeviceInfo?.user_code || '', '验证码已复制')">复制验证码</button>
+                <button class="dialog-btn dialog-btn--secondary" :disabled="!githubVerificationUrl" @click="openGithubVerificationPage">打开授权页</button>
+              </div>
+              <div class="dialog-actions dialog-actions--wrap">
+                <button class="dialog-btn dialog-btn--secondary" @click="closeGithubLoginDialog">取消</button>
+                <button
+                  class="dialog-btn dialog-btn--primary"
+                  :disabled="isRequestingGithubDeviceCode || isPollingGithubLogin || !githubOAuthClientId"
+                  @click="handleStartGithubLogin"
+                >
+                  {{ isRequestingGithubDeviceCode ? '申请设备码...' : isPollingGithubLogin ? '等待授权中...' : '开始授权' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <Transition name="overlay-fade">
         <div v-if="showResetConfirm" class="overlay" @click.self="showResetConfirm = false">
           <div class="dialog">
             <h3 class="dialog-title">确认清除配置</h3>
@@ -494,16 +566,30 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useSyncStore } from '@/stores/sync'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
+import {
+  fetchGitHubUser,
+  getGitHubDeviceFlowScope,
+  getGitHubOAuthClientId,
+  getGitHubVerificationUrl,
+  pollGitHubAccessToken,
+  requestGitHubDeviceCode
+} from '@/utils/githubAuth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
 
 const syncStore = useSyncStore()
+const route = useRoute()
+const router = useRouter()
+const githubOAuthClientId = getGitHubOAuthClientId()
+const githubDeviceScope = getGitHubDeviceFlowScope()
 
 const pageBodyRef = ref(null)
 const showTokenDialog = ref(false)
+const showGithubLoginDialog = ref(false)
 const showResetConfirm = ref(false)
 const showPullConflict = ref(false)
 const showSyncConflict = ref(false)
@@ -512,9 +598,16 @@ const tokenInput = ref('')
 const tokenError = ref('')
 const tokenValidLogin = ref('')
 const isVerifyingToken = ref(false)
+const showManualTokenEntry = ref(false)
+const githubDeviceInfo = ref(null)
+const githubLoginStatus = ref('')
+const githubLoginError = ref('')
+const isRequestingGithubDeviceCode = ref(false)
+const isPollingGithubLogin = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
+let githubLoginAbortController = null
 const LOG_GROUP_SEQUENCE = [
   'manifest',
   'data',
@@ -650,6 +743,7 @@ const resolvedEventGistId = computed(() => gistInfo.value?.eventGistId || syncSt
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
   if (syncStore.lastError) return 'badge--error'
+  if (syncStore.githubLogin) return 'badge--success'
   if (!syncStore.token) return 'badge--warning'
   if (syncStore.gistId) return 'badge--success'
   return 'badge--warning'
@@ -658,9 +752,20 @@ const statusBadgeClass = computed(() => {
 const statusBadgeText = computed(() => {
   if (syncStore.isSyncing) return '同步中'
   if (syncStore.lastError) return '有错误'
+  if (syncStore.githubLogin) return '已登录'
   if (!syncStore.token) return '未配置'
   if (syncStore.gistId) return '已连接'
   return '待上传'
+})
+
+const githubVerificationUrl = computed(() => getGitHubVerificationUrl(githubDeviceInfo.value))
+const githubDeviceExpiresText = computed(() => {
+  if (!githubDeviceInfo.value?.expires_in) return '--'
+  const expiresIn = Number(githubDeviceInfo.value.expires_in)
+  if (!Number.isFinite(expiresIn) || expiresIn <= 0) return '--'
+  const minutes = Math.floor(expiresIn / 60)
+  const seconds = expiresIn % 60
+  return minutes > 0 ? `${minutes} 分 ${seconds} 秒` : `${seconds} 秒`
 })
 
 const tokenDisplay = computed(() => {
@@ -989,6 +1094,37 @@ function openTokenDialog() {
   showTokenDialog.value = true
 }
 
+function resetGithubLoginState() {
+  githubDeviceInfo.value = null
+  githubLoginStatus.value = ''
+  githubLoginError.value = ''
+  isRequestingGithubDeviceCode.value = false
+  isPollingGithubLogin.value = false
+}
+
+function closeGithubLoginDialog() {
+  showGithubLoginDialog.value = false
+  if (githubLoginAbortController) {
+    githubLoginAbortController.abort()
+    githubLoginAbortController = null
+  }
+  resetGithubLoginState()
+}
+
+function openGithubLoginDialog() {
+  showGithubLoginDialog.value = true
+  resetGithubLoginState()
+  if (!githubOAuthClientId) {
+    githubLoginError.value = '未配置 GitHub OAuth Client ID，请先设置 VITE_GITHUB_OAUTH_CLIENT_ID。'
+  }
+}
+
+function openGithubVerificationPage() {
+  const url = githubVerificationUrl.value
+  if (!url) return
+  window.open(url, '_blank', 'noopener')
+}
+
 function closeTokenDialog() {
   showTokenDialog.value = false
   tokenInput.value = ''
@@ -1010,7 +1146,9 @@ async function handleSaveToken() {
       return
     }
     tokenValidLogin.value = check.login
-    await syncStore.saveToken(input)
+    await syncStore.saveToken(input, { login: check.login, authMethod: 'token' })
+    await syncStore.init()
+    showManualTokenEntry.value = true
     showToast(`Token 已保存（${tokenValidLogin.value}）`)
     closeTokenDialog()
     await loadGistInfo()
@@ -1020,6 +1158,78 @@ async function handleSaveToken() {
     isVerifyingToken.value = false
   }
 }
+
+async function handleStartGithubLogin() {
+  if (isRequestingGithubDeviceCode.value || isPollingGithubLogin.value) return
+  if (!githubOAuthClientId) {
+    githubLoginError.value = '未配置 GitHub OAuth Client ID，请先设置 VITE_GITHUB_OAUTH_CLIENT_ID。'
+    return
+  }
+
+  githubLoginError.value = ''
+  githubLoginStatus.value = '正在向 GitHub 申请设备码...'
+  githubDeviceInfo.value = null
+  isRequestingGithubDeviceCode.value = true
+
+  const controller = new AbortController()
+  githubLoginAbortController = controller
+
+  try {
+    const device = await requestGitHubDeviceCode(githubOAuthClientId, githubDeviceScope, controller.signal)
+    githubDeviceInfo.value = device
+    githubLoginStatus.value = `请在 GitHub 页面输入验证码 ${device.user_code}`
+
+    const verificationUrl = githubVerificationUrl.value
+    if (verificationUrl) {
+      window.open(verificationUrl, '_blank', 'noopener')
+    }
+
+    isPollingGithubLogin.value = true
+    githubLoginStatus.value = '等待你在 GitHub 完成授权...'
+
+    const token = await pollGitHubAccessToken({
+      clientId: githubOAuthClientId,
+      deviceCode: device.device_code,
+      interval: Number(device.interval) || 5,
+      expiresIn: Number(device.expires_in) || 900,
+      signal: controller.signal
+    })
+
+    githubLoginStatus.value = '正在验证 GitHub 账号...'
+    const user = await fetchGitHubUser(token.access_token, controller.signal)
+
+    await syncStore.saveToken(token.access_token, {
+      login: user.login,
+      avatarUrl: user.avatar_url,
+      scopes: token.scope,
+      authMethod: 'device-flow'
+    })
+
+    await syncStore.init()
+
+    showToast(`GitHub 登录成功（${user.login}）`, 3200)
+    showManualTokenEntry.value = false
+    closeGithubLoginDialog()
+    await loadGistInfo()
+  } catch (error) {
+    githubLoginError.value = error?.message || 'GitHub 登录失败'
+    githubLoginStatus.value = ''
+    showManualTokenEntry.value = true
+  } finally {
+    isRequestingGithubDeviceCode.value = false
+    isPollingGithubLogin.value = false
+    if (githubLoginAbortController === controller) {
+      githubLoginAbortController = null
+    }
+  }
+}
+
+onBeforeUnmount(() => {
+  if (githubLoginAbortController) {
+    githubLoginAbortController.abort()
+    githubLoginAbortController = null
+  }
+})
 
 async function handleReset() {
   await syncStore.resetConfig()
@@ -1033,6 +1243,11 @@ onMounted(async () => {
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
   await loadGistInfo()
+
+  if (route.query.openLogin === '1') {
+    openGithubLoginDialog()
+    await router.replace({ path: route.path, query: {} })
+  }
 })
 </script>
 

@@ -884,6 +884,14 @@
   flex-shrink: 0;
 }
 
+.dialog-actions--wrap {
+  flex-wrap: wrap;
+}
+
+.dialog-actions--wrap .dialog-btn {
+  flex: 1 1 160px;
+}
+
 .dialog-btn {
   min-height: 42px;
   padding: 0 18px;

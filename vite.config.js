@@ -46,6 +46,11 @@ export default defineConfig({
         target: 'https://sdk-webstatic.mihoyo.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/mihoyo-static/, '')
+      },
+      '/github-oauth': {
+        target: 'https://github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/github-oauth/, '')
       }
     }
   },

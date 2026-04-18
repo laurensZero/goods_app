@@ -60,7 +60,7 @@ function handleBackClick() {
   z-index: 50;
   padding: calc(env(safe-area-inset-top) + 10px) var(--page-padding) 6px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--app-glass-strong) 100%, transparent) 0%, color-mix(in srgb, var(--app-glass) 82%, transparent) 70%, rgba(245, 245, 247, 0) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--app-bg) 94%, transparent) 0%, color-mix(in srgb, var(--app-bg) 82%, transparent) 72%, rgba(245, 245, 247, 0) 100%);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
@@ -82,8 +82,9 @@ function handleBackClick() {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--app-glass);
-  border: 1px solid var(--app-glass-border);
+  background: color-mix(in srgb, var(--app-surface-muted) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  background-clip: padding-box;
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   transition: transform 0.16s ease, background 0.16s ease;
@@ -100,7 +101,7 @@ function handleBackClick() {
 
 .nav-back:active {
   transform: scale(0.96);
-  background: var(--app-glass-strong);
+  background: color-mix(in srgb, var(--app-surface-muted) 78%, transparent);
 }
 
 .nav-placeholder {
@@ -123,8 +124,9 @@ function handleBackClick() {
   height: var(--icon-button-size);
   border: none;
   border-radius: 50%;
-  background: var(--app-glass);
-  border: 1px solid var(--app-glass-border);
+  background: color-mix(in srgb, var(--app-surface-muted) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  background-clip: padding-box;
   box-shadow: var(--app-shadow);
   color: var(--app-text);
   transition: transform 0.16s ease;
@@ -161,12 +163,12 @@ function handleBackClick() {
 
 :global(html.theme-dark) .nav-back,
   :global(html.theme-dark) :slotted(.add-btn) {
-    background: var(--app-glass);
-    border-color: var(--app-glass-border);
+    background: color-mix(in srgb, var(--app-surface) 18%, transparent);
+    border-color: color-mix(in srgb, var(--app-surface) 10%, transparent);
   }
 
 :global(html.theme-dark) .nav-back:active,
   :global(html.theme-dark) :slotted(.add-btn):active {
-    background: var(--app-glass-strong);
+    background: color-mix(in srgb, var(--app-surface) 26%, transparent);
   }
 </style>

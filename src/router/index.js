@@ -4,7 +4,7 @@ import HomeView from '@/views/HomeView.vue'
 import RechargeView from '@/views/RechargeView.vue'
 import WishlistView from '@/views/WishlistView.vue'
 import DetailView from '@/views/DetailView.vue'
-import ManageView from '@/views/ManageView.vue'
+import MyView from '@/views/MyView.vue'
 import EventsView from '@/views/EventsView.vue'
 import EventAddView from '@/views/EventAddView.vue'
 import EventDetailView from '@/views/EventDetailView.vue'
@@ -82,8 +82,8 @@ const routes = [
   {
     path: '/manage',
     name: 'manage',
-    component: ManageView,
-    meta: { title: '管理', keepAlive: true }
+    component: MyView,
+    meta: { title: '我的', keepAlive: true }
   },
   {
     path: '/recharge/month-cards',
@@ -116,10 +116,10 @@ const routes = [
     meta: { title: '主题与外观' }
   },
   {
-    path: '/manage/about',
-    name: 'manage-about',
-    component: () => import('@/views/AboutView.vue'),
-    meta: { title: '关于应用' }
+    path: '/manage/settings',
+    name: 'manage-settings',
+    component: () => import('@/views/ManageView.vue'),
+    meta: { title: '设置' }
   },
   {
     path: '/leaderboard/characters',
@@ -176,6 +176,12 @@ const routes = [
     name: 'manage-sync',
     component: () => import('@/views/SyncView.vue'),
     meta: { title: '云同步' }
+  },
+  {
+    path: '/manage/about',
+    name: 'manage-about',
+    component: () => import('@/views/AboutView.vue'),
+    meta: { title: '关于应用' }
   }
 ]
 

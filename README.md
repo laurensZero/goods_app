@@ -87,6 +87,19 @@ npm run open:android
 
 支持通过 GitHub Gist 在多设备间同步数据和本地图片。
 
+### GitHub 授权登录
+
+同步页已支持 GitHub Device Flow 授权登录。登录后会自动保存访问令牌，可直接复用到同步、更新检查和反馈提交。
+
+本地开发需要在环境变量中配置：
+
+- `VITE_GITHUB_OAUTH_CLIENT_ID`：GitHub OAuth App 的 Client ID
+- `VITE_GITHUB_DEVICE_FLOW_BASE`：可选，开发时可设为 `/github-oauth`；不填时项目会自动使用本地代理
+
+建议写入项目根目录的 `.env.local` 文件，例如：`VITE_GITHUB_OAUTH_CLIENT_ID=xxxx`
+
+如果未配置 `VITE_GITHUB_OAUTH_CLIENT_ID`，授权登录入口会提示无法开始登录，但手动 Token 方式仍可继续使用。
+
 **首次配置：**
 
 1. 进入「管理」页面，点击「GitHub Gist 同步」

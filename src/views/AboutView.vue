@@ -698,11 +698,16 @@ async function clearPersistedFeedbackToken() {
   }
 }
 
-function openFeedbackDialog() {
+async function openFeedbackDialog() {
   feedbackError.value = ''
   feedbackTitle.value = ''
   feedbackBody.value = ''
   showFeedbackToken.value = false
+  if (!feedbackToken.value.trim()) {
+    const persistedToken = await readPersistedFeedbackToken()
+    feedbackToken.value = persistedToken || syncStore.token || ''
+    feedbackTokenLogin.value = syncStore.githubLogin || ''
+  }
   showFeedbackDialog.value = true
 }
 
