@@ -39,9 +39,41 @@
 
           <div v-if="activeManageEntry.key === 'export'" class="settings-action-panel">
             <p class="settings-action-panel__text">{{ exportSummaryText }}</p>
-            <div class="settings-action-panel__actions">
-              <button type="button" class="detail-action detail-action--primary" @click="handleExportClick">立即导出</button>
-              <button type="button" class="detail-action" @click="openExportPicker">自定义导出</button>
+            <div class="settings-action-panel__inline-export" style="margin-top: 24px;">
+              <div class="export-picker__head">
+                <div>
+                  <p class="export-picker__label">自定义导出</p>
+                  <h3 class="export-picker__title">选择要导出的数据</h3>
+                </div>
+                <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
+                  {{ allExportSectionsSelected ? '清空' : '全选' }}
+                </button>
+              </div>
+
+              <div class="export-picker__options">
+                <button
+                  v-for="option in exportSectionOptions"
+                  :key="option.key"
+                  type="button"
+                  :class="['export-picker__option', { 'export-picker__option--active': exportSelection[option.key] }]"
+                  @click="toggleExportSection(option.key)"
+                >
+                  <div class="export-picker__option-body">
+                    <span class="export-picker__option-name">{{ option.label }}</span>
+                    <span class="export-picker__option-desc">{{ option.desc }}</span>
+                  </div>
+                  <span class="export-picker__check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+              <div class="export-picker__actions" style="margin-top: 16px;">
+                <button class="export-picker__action" type="button" @click="confirmExportSelection" style="width: 100%;">
+                  开始导出
+                </button>
+              </div>
             </div>
           </div>
 
