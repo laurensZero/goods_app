@@ -214,16 +214,26 @@ function createHeroNode(snapshot) {
   node.style.top = '0'
   node.style.width = `${snapshot.width}px`
   node.style.height = `${snapshot.height}px`
-  node.style.overflow = 'hidden'
+  node.style.overflow = 'visible'
   node.style.pointerEvents = 'none'
   node.style.zIndex = '9999'
-  node.style.willChange = 'transform, opacity, border-radius'
+  node.style.willChange = 'transform, opacity'
   node.style.transformOrigin = 'top left'
   node.style.contain = 'layout paint style'
   node.style.backfaceVisibility = 'hidden'
-  node.style.borderRadius = `${snapshot.radius || 0}px`
-  node.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.14)'
-  node.style.background = snapshot.background || 'var(--app-surface, #fff)'
+  node.style.background = 'transparent'
+
+  const clip = document.createElement('div')
+  clip.dataset.heroClip = 'true'
+  clip.style.width = '100%'
+  clip.style.height = '100%'
+  clip.style.overflow = 'hidden'
+  clip.style.willChange = 'border-radius'
+  clip.style.backfaceVisibility = 'hidden'
+  clip.style.borderRadius = `${snapshot.radius || 0}px`
+  clip.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.14)'
+  clip.style.background = snapshot.background || 'var(--app-surface, #fff)'
+  node.appendChild(clip)
 
   if (snapshot.imageSrc) {
     const img = document.createElement('img')
@@ -238,7 +248,7 @@ function createHeroNode(snapshot) {
     img.style.transform = 'translateZ(0)'
     img.style.transformOrigin = 'center center'
     img.dataset.heroMedia = 'image'
-    node.appendChild(img)
+    clip.appendChild(img)
   } else {
     const text = document.createElement('span')
     text.textContent = snapshot.fallbackText || '?'
@@ -249,7 +259,7 @@ function createHeroNode(snapshot) {
     text.style.fontSize = '28px'
     text.style.fontWeight = '700'
     text.style.color = 'rgba(255,255,255,0.92)'
-    node.appendChild(text)
+    clip.appendChild(text)
   }
 
   return node
@@ -272,6 +282,15 @@ function resolveTransformOnlyTarget(snapshot, targetRect) {
     translateX: targetRect.left,
     translateY: targetRect.top
   }
+}
+
+function resolveCompensatedRadius(radius, scaleX = 1, scaleY = 1) {
+  const normalizedRadius = Math.max(0, Number(radius) || 0)
+  const normalizedScaleX = Math.max(Math.abs(Number(scaleX) || 1), 0.0001)
+  const normalizedScaleY = Math.max(Math.abs(Number(scaleY) || 1), 0.0001)
+  const horizontalRadius = normalizedRadius / normalizedScaleX
+  const verticalRadius = normalizedRadius / normalizedScaleY
+  return `${horizontalRadius}px / ${verticalRadius}px`
 }
 
 function animateHero(snapshot, targetRect, targetRadius, options = {}) {
@@ -299,17 +318,16 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect)
   const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
   const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
+  const clipEl = node.querySelector('[data-hero-clip="true"]')
 
   const keyframes = canUseScalePath
     ? [
         {
           transform: fromTransform,
-          borderRadius: `${radiusFrom}px`,
           opacity: 0.98
         },
         {
           transform: toTransform,
-          borderRadius: `${radiusTo}px`,
           opacity: 1
         }
       ]
@@ -318,14 +336,12 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
           transform: `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`,
           width: `${snapshot.width}px`,
           height: `${snapshot.height}px`,
-          borderRadius: `${radiusFrom}px`,
           opacity: 0.98
         },
         {
           transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`,
           width: `${targetRect.width}px`,
           height: `${targetRect.height}px`,
-          borderRadius: `${radiusTo}px`,
           opacity: 1
         }
       ]
@@ -344,8 +360,36 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     }
   )
 
+  const clipAnimation = clipEl
+    ? clipEl.animate(
+        canUseScalePath
+          ? [
+              {
+                borderRadius: resolveCompensatedRadius(radiusFrom, 1, 1)
+              },
+              {
+                borderRadius: resolveCompensatedRadius(radiusTo, transformTarget.scaleX, transformTarget.scaleY)
+              }
+            ]
+          : [
+              {
+                borderRadius: `${radiusFrom}px`
+              },
+              {
+                borderRadius: `${radiusTo}px`
+              }
+            ],
+        {
+          duration,
+          easing,
+          fill: 'both'
+        }
+      )
+    : null
+
   return Promise.allSettled([
-    animation.finished
+    animation.finished,
+    clipAnimation?.finished
   ]).catch(() => {
     // ignore interruption
   }).finally(() => {
