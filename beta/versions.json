@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.16",
+    "url": "bundle-20260418.16.zip",
+    "hash": "9ca01b8aebabf47a01ba198b2df34acc70d19be4162bb51fd1564f6009cd26f1",
+    "minNativeVersion": null,
+    "notes": "- feat: 为设置侧边栏和详细信息添加自定义滚动条样式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T10:02:53Z"
+  },
+  {
     "version": "20260418.15",
     "url": "bundle-20260418.15.zip",
     "hash": "96da53118c3d07ed2ba3729b85360f7289f1e0c40fdd73190d2d49476ff76e80",
@@ -16,14 +25,5 @@
     "notes": "- feat: 提取并优化 GithubLoginDialog 组件的 CSS 样式，增强响应式设计",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T09:42:34Z"
-  },
-  {
-    "version": "20260418.13",
-    "url": "bundle-20260418.13.zip",
-    "hash": "23c259246e9e045b41ab7ba4a9236e88af80114b7391a216cf51f5986eb2ca7b",
-    "minNativeVersion": null,
-    "notes": "- feat: 重构 GitHub 登录流程，添加 GithubLoginDialog 组件，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T09:36:57Z"
   }
 ]

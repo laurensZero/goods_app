@@ -1,9 +1,9 @@
 {
-  "version": "20260418.15",
-  "url": "bundle-20260418.15.zip",
-  "hash": "96da53118c3d07ed2ba3729b85360f7289f1e0c40fdd73190d2d49476ff76e80",
+  "version": "20260418.16",
+  "url": "bundle-20260418.16.zip",
+  "hash": "9ca01b8aebabf47a01ba198b2df34acc70d19be4162bb51fd1564f6009cd26f1",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 为设置侧边栏和详细信息添加自定义滚动条样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T09:51:35Z"
+  "publishedAt": "2026-04-18T10:02:53Z"
 }
