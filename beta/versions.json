@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.2",
+    "url": "bundle-20260418.2.zip",
+    "hash": "d505c3a0691a4af988e4a2635b3124017b9124e66c726fe37011fac1e53a2e12",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除英雄节点的阴影效果，优化视觉表现",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T02:56:31Z"
+  },
+  {
     "version": "20260418.1",
     "url": "bundle-20260418.1.zip",
     "hash": "e350c1a76c0b8bb9691e31816242c60a99fa781739d4e42b3d56a98e00823051",
@@ -16,14 +25,5 @@
     "notes": "- feat: 调整媒体元素的纵横比，优化展示效果",
     "updateLevel": "silent",
     "publishedAt": "2026-04-17T15:55:08Z"
-  },
-  {
-    "version": "20260417.6",
-    "url": "bundle-20260417.6.zip",
-    "hash": "bff6fd530ca63b84969aba10598cb7968b067d0178b67b30ce519a2e0b1ad698",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强动画效果，添加目标元素的交叉淡出和可见性处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-17T15:46:21Z"
   }
 ]

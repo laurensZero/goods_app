@@ -1,9 +1,9 @@
 {
-  "version": "20260418.1",
-  "url": "bundle-20260418.1.zip",
-  "hash": "e350c1a76c0b8bb9691e31816242c60a99fa781739d4e42b3d56a98e00823051",
+  "version": "20260418.2",
+  "url": "bundle-20260418.2.zip",
+  "hash": "d505c3a0691a4af988e4a2635b3124017b9124e66c726fe37011fac1e53a2e12",
   "minNativeVersion": null,
-  "notes": "- feat: 优化英雄节点创建，调整溢出处理并添加裁剪元素动画",
+  "notes": "- feat: 移除英雄节点的阴影效果，优化视觉表现",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T02:53:22Z"
+  "publishedAt": "2026-04-18T02:56:31Z"
 }
