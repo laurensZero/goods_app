@@ -6,7 +6,6 @@ const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.18, 0.96, 0.28, 1)'
 const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.2, 0.9, 0.24, 1)'
 const HERO_BACK_EASING_FAR = 'cubic-bezier(0.16, 1, 0.3, 1)'
-const IS_ANDROID = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
 
 let pendingForwardHero = null
 let pendingBackHero = null
@@ -266,7 +265,7 @@ function createHeroNode(snapshot) {
 
 function shouldPreferTransformOnlyHero(direction, aspectDelta) {
   if (aspectDelta <= 0.04) return true
-  return direction === 'back' && IS_ANDROID
+  return direction === 'back'
 }
 
 function resolveTransformOnlyTarget(snapshot, targetRect) {
