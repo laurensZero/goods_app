@@ -1,4 +1,5 @@
 let pendingDetailReturnPath = ''
+let pendingDetailTransitionKind = ''
 let fallbackAnimationTimer = 0
 
 function clearFallbackRouteAnimation() {
@@ -42,8 +43,21 @@ export function setPendingDetailReturnPath(path) {
   pendingDetailReturnPath = normalizedPath
 }
 
+export function setPendingDetailTransitionKind(kind) {
+  const normalizedKind = String(kind || '').trim()
+  pendingDetailTransitionKind = normalizedKind
+}
+
 export function getPendingDetailReturnPath() {
   return pendingDetailReturnPath
+}
+
+export function getPendingDetailTransitionKind() {
+  return pendingDetailTransitionKind
+}
+
+export function clearPendingDetailTransitionKind() {
+  pendingDetailTransitionKind = ''
 }
 
 export function runWithRouteTransition(navigate, options = {}) {
@@ -54,17 +68,23 @@ export function runWithRouteTransition(navigate, options = {}) {
     eventId = '',
     direction = 'forward',
     returnPath = '',
-    manageSlide = ''
+    manageSlide = '',
+    detailTransitionKind = ''
   } = options
   if (typeof navigate !== 'function') return
   const normalizedGoodsId = String(goodsId || '').trim()
   const normalizedEventId = String(eventId || '').trim()
-  const fallbackKind = (normalizedGoodsId || normalizedEventId)
+  const normalizedDetailTransitionKind = String(detailTransitionKind || '').trim()
+  const fallbackKind = normalizedDetailTransitionKind
+    || ((normalizedGoodsId || normalizedEventId)
     ? (direction === 'back' ? 'detail-back' : 'detail-enter')
-    : 'page'
+    : 'page')
 
   if (direction === 'forward' && returnPath) {
     setPendingDetailReturnPath(returnPath)
+  }
+  if (normalizedDetailTransitionKind) {
+    setPendingDetailTransitionKind(normalizedDetailTransitionKind)
   }
   if (!enabled && !preferFallback) {
     clearFallbackRouteAnimation()
@@ -81,6 +101,7 @@ export function runWithRouteTransition(navigate, options = {}) {
 
   if (direction === 'back') {
     pendingDetailReturnPath = ''
+    pendingDetailTransitionKind = ''
   }
 
   if (manageSlide && typeof document !== 'undefined') {

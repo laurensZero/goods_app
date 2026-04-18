@@ -200,7 +200,7 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
@@ -258,6 +258,7 @@ async function waitForStableHeroTarget(el, maxFrames = 6) {
 }
 
 async function playGoodsHeroForwardWhenReady() {
+  if (getPendingDetailTransitionKind() === 'detail-fade') return
   await nextTick()
   await waitForStableHeroTarget(coverCardRef.value)
   playGoodsHeroForward(props.id, coverCardRef.value)
@@ -496,6 +497,7 @@ async function markAsOwned() {
 }
 
 function handleBackNavigation() {
+  const useFadeTransition = getPendingDetailTransitionKind() === 'detail-fade'
   const returnPath = getPendingDetailReturnPath()
   const currentPath = router.currentRoute.value?.fullPath || ''
   const historyBackPath = window.history?.state?.back || ''
@@ -509,13 +511,27 @@ function handleBackNavigation() {
 
   syncCollectionContextForPath(targetPath)
 
+  const navigateBack = shouldUseHistoryBack
+    ? () => router.back()
+    : () => router.replace(targetPath)
+
+  setPendingDetailReturnPath('')
+
+  if (useFadeTransition) {
+    runWithRouteTransition(navigateBack, {
+      direction: 'back',
+      preferFallback: true,
+      detailTransitionKind: 'detail-fade'
+    })
+    clearPendingDetailTransitionKind()
+    return
+  }
+
   prepareGoodsHeroBack({
     goodsId: props.id,
     sourceEl: coverCardRef.value,
     targetPath
   })
-
-  setPendingDetailReturnPath('')
 
   if (shouldUseHistoryBack) {
     router.back()

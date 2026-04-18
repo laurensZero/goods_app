@@ -173,6 +173,11 @@ html[data-route-transition-fallback='1'][data-route-transition-kind='detail-back
   will-change: transform, opacity;
 }
 
+html[data-route-transition-fallback='1'][data-route-transition-kind='detail-fade'] .route-scene {
+  animation: route-fallback-detail-fade 240ms ease-out both;
+  will-change: opacity;
+}
+
 @keyframes route-fallback-page-forward {
   from {
     opacity: 0.95;
@@ -218,6 +223,16 @@ html[data-route-transition-fallback='1'][data-route-transition-kind='detail-back
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes route-fallback-detail-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
