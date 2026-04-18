@@ -1,9 +1,9 @@
 {
-  "version": "20260418.18",
-  "url": "bundle-20260418.18.zip",
-  "hash": "ea70cae92a5dbeef79d83781a871f16d2054371bac097b690cba6c22636bbfcb",
+  "version": "20260418.19",
+  "url": "bundle-20260418.19.zip",
+  "hash": "49417589174fc89a68c7036c45a1add890d0650621c645c46053662dc5634c7c",
   "minNativeVersion": null,
-  "notes": "- feat: 添加详细页面淡入过渡动画，优化导航体验",
+  "notes": "- feat: 移除不必要的内容可见性属性，优化样式性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T10:41:09Z"
+  "publishedAt": "2026-04-18T11:52:16Z"
 }
