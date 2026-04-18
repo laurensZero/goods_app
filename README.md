@@ -100,6 +100,8 @@ npm run open:android
 
 如果未配置 `VITE_GITHUB_OAUTH_CLIENT_ID`，授权登录入口会提示无法开始登录，但手动 Token 方式仍可继续使用。
 
+如果使用 GitHub Actions 打包 Android APK，也要在仓库 Secrets 中配置同名的 `VITE_GITHUB_OAUTH_CLIENT_ID`，并由工作流在构建时注入到前端打包环境里。
+
 **首次配置：**
 
 1. 进入「管理」页面，点击「GitHub Gist 同步」
