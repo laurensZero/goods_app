@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.14",
+    "url": "bundle-20260418.14.zip",
+    "hash": "a8e280e0302d5b111b9a2baff32bca2da9795494379122d1dfebc5ba50dba8b5",
+    "minNativeVersion": null,
+    "notes": "- feat: 提取并优化 GithubLoginDialog 组件的 CSS 样式，增强响应式设计",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T09:42:34Z"
+  },
+  {
     "version": "20260418.13",
     "url": "bundle-20260418.13.zip",
     "hash": "23c259246e9e045b41ab7ba4a9236e88af80114b7391a216cf51f5986eb2ca7b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 CapacitorHttp 插件配置，启用 HTTP 功能",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T09:11:29Z"
-  },
-  {
-    "version": "20260418.11",
-    "url": "bundle-20260418.11.zip",
-    "hash": "a1146e48560d8e5e200cf1618c911bc3757d59a7b08463d0d3d006b1b0ce7ae4",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T09:03:35Z"
   }
 ]

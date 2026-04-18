@@ -1,9 +1,9 @@
 {
-  "version": "20260418.13",
-  "url": "bundle-20260418.13.zip",
-  "hash": "23c259246e9e045b41ab7ba4a9236e88af80114b7391a216cf51f5986eb2ca7b",
+  "version": "20260418.14",
+  "url": "bundle-20260418.14.zip",
+  "hash": "a8e280e0302d5b111b9a2baff32bca2da9795494379122d1dfebc5ba50dba8b5",
   "minNativeVersion": null,
-  "notes": "- feat: 重构 GitHub 登录流程，添加 GithubLoginDialog 组件，优化用户体验",
+  "notes": "- feat: 提取并优化 GithubLoginDialog 组件的 CSS 样式，增强响应式设计",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T09:36:57Z"
+  "publishedAt": "2026-04-18T09:42:34Z"
 }
