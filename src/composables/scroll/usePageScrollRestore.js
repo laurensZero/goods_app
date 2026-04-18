@@ -410,6 +410,14 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     debugLog('clearDisplayedScrollPosition')
   }
 
+  function clearStoredScrollState() {
+    savedScrollState = null
+    activeScrollSource = null
+    sessionStorage.removeItem(storageKey)
+    sessionStorage.removeItem(pendingKey)
+    debugLog('clearStoredScrollState')
+  }
+
   function resetStoredScrollOnReload() {
     if (!isReloadNavigation()) return false
     const reloadResetFlagKey = `__goods_scroll_reload_reset__:${storageKey}`
@@ -441,6 +449,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     restoreActivatedScrollPosition,
     rememberCurrentScrollPosition,
     clearDisplayedScrollPosition,
+    clearStoredScrollState,
     resetStoredScrollOnReload,
     cancelPendingRestore
   }

@@ -276,6 +276,7 @@ const {
   restoreActivatedScrollPosition,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
+  clearStoredScrollState,
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useHomeScrollRestore(pageBodyRef)
@@ -612,6 +613,10 @@ onMounted(async () => {
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
   if (didResetOnReload) {
+    clearDisplayedScrollPosition()
+  } else if (!hasPendingRestore()) {
+    // 冷启动时不复用上一次会话的滚动位置，避免 app 重启后直接回到旧的底部位置。
+    clearStoredScrollState()
     clearDisplayedScrollPosition()
   }
   homeDisplayReady.value = true
