@@ -413,55 +413,11 @@
         </div>
       </Transition>
 
-      <Transition name="overlay-fade">
-        <div v-if="showGithubLoginDialog" class="overlay" @click.self="closeGithubLoginDialog">
-          <div class="dialog dialog--wide dialog--scrollable">
-            <div class="dialog-scroll">
-              <h3 class="dialog-title">GitHub 授权登录</h3>
-              <p class="dialog-desc">使用 Device Flow 完成授权。授权成功后会自动保存访问令牌，并同步当前 GitHub 账号信息。</p>
-
-              <div v-if="githubLoginStatus" class="dialog-success">{{ githubLoginStatus }}</div>
-              <div v-if="githubLoginError" class="dialog-error">{{ githubLoginError }}</div>
-
-              <article v-if="githubDeviceInfo" class="panel-card" style="margin-top: 16px;">
-                <div class="detail-list">
-                  <div class="detail-row">
-                    <span class="detail-label">验证码</span>
-                    <span class="detail-value detail-value--mono">{{ githubDeviceInfo.user_code }}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">授权地址</span>
-                    <span class="detail-value detail-value--mono">{{ githubVerificationUrl }}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">有效期</span>
-                    <span class="detail-value">{{ githubDeviceExpiresText }}</span>
-                  </div>
-                  <div class="detail-row detail-row--last">
-                    <span class="detail-label">权限范围</span>
-                    <span class="detail-value">{{ githubDeviceScope }}</span>
-                  </div>
-                </div>
-              </article>
-
-              <div class="dialog-actions dialog-actions--wrap" style="margin-top: 16px;">
-                <button class="dialog-btn dialog-btn--secondary" :disabled="!githubDeviceInfo" @click="copyText(githubDeviceInfo?.user_code || '', '验证码已复制')">复制验证码</button>
-                <button class="dialog-btn dialog-btn--secondary" :disabled="!githubVerificationUrl" @click="openGithubVerificationPage">打开授权页</button>
-              </div>
-              <div class="dialog-actions dialog-actions--wrap">
-                <button class="dialog-btn dialog-btn--secondary" @click="closeGithubLoginDialog">取消</button>
-                <button
-                  class="dialog-btn dialog-btn--primary"
-                  :disabled="isRequestingGithubDeviceCode || isPollingGithubLogin || !githubOAuthClientId"
-                  @click="handleStartGithubLogin"
-                >
-                  {{ isRequestingGithubDeviceCode ? '申请设备码...' : isPollingGithubLogin ? '等待授权中...' : '开始授权' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
+      <GithubLoginDialog
+        v-model="showGithubLoginDialog"
+        @login-success="handleGithubLoginSuccess"
+        @toast="showToast"
+      />
 
       <Transition name="overlay-fade">
         <div v-if="showResetConfirm" class="overlay" @click.self="showResetConfirm = false">
@@ -580,6 +536,7 @@ import {
 } from '@/utils/githubAuth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
+import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
 
 const syncStore = useSyncStore()
 const route = useRoute()
@@ -1159,69 +1116,11 @@ async function handleSaveToken() {
   }
 }
 
-async function handleStartGithubLogin() {
-  if (isRequestingGithubDeviceCode.value || isPollingGithubLogin.value) return
-  if (!githubOAuthClientId) {
-    githubLoginError.value = '未配置 GitHub OAuth Client ID，请先设置 VITE_GITHUB_OAUTH_CLIENT_ID。'
-    return
-  }
-
-  githubLoginError.value = ''
-  githubLoginStatus.value = '正在向 GitHub 申请设备码...'
-  githubDeviceInfo.value = null
-  isRequestingGithubDeviceCode.value = true
-
-  const controller = new AbortController()
-  githubLoginAbortController = controller
-
-  try {
-    const device = await requestGitHubDeviceCode(githubOAuthClientId, githubDeviceScope, controller.signal)
-    githubDeviceInfo.value = device
-    githubLoginStatus.value = `请在 GitHub 页面输入验证码 ${device.user_code}`
-
-    const verificationUrl = githubVerificationUrl.value
-    if (verificationUrl) {
-      window.open(verificationUrl, '_blank', 'noopener')
-    }
-
-    isPollingGithubLogin.value = true
-    githubLoginStatus.value = '等待你在 GitHub 完成授权...'
-
-    const token = await pollGitHubAccessToken({
-      clientId: githubOAuthClientId,
-      deviceCode: device.device_code,
-      interval: Number(device.interval) || 5,
-      expiresIn: Number(device.expires_in) || 900,
-      signal: controller.signal
-    })
-
-    githubLoginStatus.value = '正在验证 GitHub 账号...'
-    const user = await fetchGitHubUser(token.access_token, controller.signal)
-
-    await syncStore.saveToken(token.access_token, {
-      login: user.login,
-      avatarUrl: user.avatar_url,
-      scopes: token.scope,
-      authMethod: 'device-flow'
-    })
-
-    await syncStore.init()
-
-    showToast(`GitHub 登录成功（${user.login}）`, 3200)
-    showManualTokenEntry.value = false
-    closeGithubLoginDialog()
-    await loadGistInfo()
-  } catch (error) {
-    githubLoginError.value = error?.message || 'GitHub 登录失败'
-    githubLoginStatus.value = ''
-    showManualTokenEntry.value = true
-  } finally {
-    isRequestingGithubDeviceCode.value = false
-    isPollingGithubLogin.value = false
-    if (githubLoginAbortController === controller) {
-      githubLoginAbortController = null
-    }
-  }
+async function handleGithubLoginSuccess(user) {
+  showToast(`GitHub 登录成功（${user.login}）`, 3200)
+  showManualTokenEntry.value = false
+  showGithubLoginDialog.value = false
+  await loadGistInfo()
 }
 
 onBeforeUnmount(() => {

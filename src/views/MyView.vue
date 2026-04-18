@@ -162,25 +162,11 @@
       </section>
     </main>
 
-    <div v-if="showLoginDialog" class="login-overlay" @click.self="closeLoginDialog">
-      <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="loginSheetTitle">
-        <h2 id="loginSheetTitle" class="login-sheet__title">GitHub 登录</h2>
-        <p class="login-sheet__desc">
-          重新登录会直接在当前页面发起授权，不会跳转到云同步。
-        </p>
-        <p v-if="githubLoginStatus" class="login-sheet__status">{{ githubLoginStatus }}</p>
-        <p v-if="githubLoginError" class="login-sheet__error">{{ githubLoginError }}</p>
-
-        <div class="login-sheet__actions">
-          <button type="button" class="login-sheet__button login-sheet__button--primary" :disabled="isGithubLoginLoading" @click="startGithubLogin">
-            {{ isGithubLoginLoading ? '正在登录...' : '开始登录' }}
-          </button>
-          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeLoginDialog">
-            取消
-          </button>
-        </div>
-      </section>
-    </div>
+    <GithubLoginDialog
+      v-model="showLoginDialog"
+      @login-success="handleGithubLoginSuccess"
+      @toast="showToast"
+    />
 
     <div v-if="showLogoutDialog" class="login-overlay" @click.self="closeLogoutDialog">
       <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
@@ -205,6 +191,7 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
@@ -232,10 +219,6 @@ const rechargeStore = useRechargeStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
-const githubLoginStatus = ref('')
-const githubLoginError = ref('')
-const isGithubLoginLoading = ref(false)
-let githubLoginAbortController = null
 
 const githubOAuthClientId = getGitHubOAuthClientId()
 
@@ -285,21 +268,6 @@ function openAbout() {
   runWithRouteTransition(() => router.push('/manage/about'), { direction: 'forward' })
 }
 
-function openLoginDialog() {
-  showLoginDialog.value = true
-  githubLoginStatus.value = ''
-  githubLoginError.value = ''
-}
-
-function closeLoginDialog() {
-  showLoginDialog.value = false
-  githubLoginStatus.value = ''
-  githubLoginError.value = ''
-  if (githubLoginAbortController) {
-    githubLoginAbortController.abort()
-    githubLoginAbortController = null
-  }
-}
 
 function openLogoutDialog() {
   showLogoutDialog.value = true
@@ -309,65 +277,22 @@ function closeLogoutDialog() {
   showLogoutDialog.value = false
 }
 
-async function startGithubLogin() {
-  if (isGithubLoginLoading.value) return
-
-  if (!githubOAuthClientId) {
-    githubLoginError.value = '未配置 GitHub OAuth Client ID。'
-    showLoginDialog.value = true
-    return
-  }
-
-  const controller = new AbortController()
-  githubLoginAbortController = controller
-  isGithubLoginLoading.value = true
-  githubLoginError.value = ''
-  githubLoginStatus.value = '正在向 GitHub 申请设备码...'
-  showLoginDialog.value = true
-
-  try {
-    const device = await requestGitHubDeviceCode(githubOAuthClientId, getGitHubDeviceFlowScope(), controller.signal)
-    githubLoginStatus.value = `请在 GitHub 页面输入验证码 ${device.user_code}`
-
-    const verificationUrl = getGitHubVerificationUrl(device)
-    if (verificationUrl) {
-      window.open(verificationUrl, '_blank', 'noopener')
-    }
-
-    githubLoginStatus.value = '等待你在 GitHub 完成授权...'
-    const token = await pollGitHubAccessToken({
-      clientId: githubOAuthClientId,
-      deviceCode: device.device_code,
-      interval: Number(device.interval) || 5,
-      expiresIn: Number(device.expires_in) || 900,
-      signal: controller.signal
-    })
-
-    githubLoginStatus.value = '正在验证 GitHub 账号...'
-    const user = await fetchGitHubUser(token.access_token, controller.signal)
-
-    await syncStore.saveToken(token.access_token, {
-      login: user.login,
-      avatarUrl: user.avatar_url,
-      scopes: token.scope,
-      authMethod: 'device-flow'
-    })
-    await syncStore.init()
-    closeLoginDialog()
-  } catch (error) {
-    githubLoginError.value = error?.message || 'GitHub 登录失败'
-    githubLoginStatus.value = ''
-  } finally {
-    isGithubLoginLoading.value = false
-    if (githubLoginAbortController === controller) {
-      githubLoginAbortController = null
-    }
+function showToast(message) {
+  // Simple fallback toast for MyView since we didn't extract a full Vant-like system
+  // We can create a simple text element or just ignore if it's less critical.
+  // Actually, we can use standard alert for copy text:
+  if (message.includes('失败')) {
+    console.error(message)
   }
 }
 
+async function handleGithubLoginSuccess(user) {
+  showToast(`GitHub 登录成功（${user.login}）`)
+  showLoginDialog.value = false
+}
+
 function handleGithubLogin() {
-  openLoginDialog()
-  void startGithubLogin()
+  showLoginDialog.value = true
 }
 
 async function handleLogout() {

@@ -257,7 +257,7 @@
           <h2 class="section-title">反馈</h2>
         </div>
 
-        <div class="feedback-grid">
+        <div class="feedback-grid feedback-grid--single">
           <button type="button" class="feedback-card" @click="openFeedbackDialog">
             <span class="feedback-icon feedback-icon--primary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -267,30 +267,12 @@
             <div class="feedback-body">
               <p class="feedback-kicker">In-App Submit</p>
               <h3 class="feedback-title">在 app 内提交反馈</h3>
-              <p class="feedback-desc">填写标题和内容后，直接创建到 GitHub Issues。token 只保存在当前设备。</p>
+              <p class="feedback-desc">填写标题和内容后，直接创建到 GitHub Issues。优先使用您的 GitHub 登录状态。</p>
             </div>
             <svg class="feedback-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </button>
-
-          <a class="feedback-card" :href="feedbackUrl" target="_blank" rel="noopener">
-            <span class="feedback-icon feedback-icon--secondary">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </span>
-            <div class="feedback-body">
-              <p class="feedback-kicker">GitHub Issues</p>
-              <h3 class="feedback-title">前往 GitHub 提反馈</h3>
-              <p class="feedback-desc">跳转到新建 issue 页面，并自动预填当前应用版本信息。</p>
-            </div>
-            <svg class="feedback-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </a>
         </div>
       </section>
     </main>
@@ -303,7 +285,7 @@
             需要一个对仓库 <code>laurensZero/goods_app</code> 具有 <code>Issues: write</code> 权限的 token。
           </p>
 
-          <label class="dialog-field">
+          <label v-if="!syncStore.token || feedbackError" class="dialog-field">
             <span class="dialog-label">GitHub Token</span>
             <div class="dialog-input-wrap">
               <input
@@ -355,11 +337,12 @@
             />
           </label>
 
-          <p v-if="feedbackTokenLogin" class="dialog-success">当前 token 已验证：{{ feedbackTokenLogin }}</p>
+          <p v-if="feedbackTokenLogin && (!syncStore.token || feedbackError)" class="dialog-success">当前 token 已验证：{{ feedbackTokenLogin }}</p>
           <p v-if="feedbackError" class="dialog-error">{{ feedbackError }}</p>
 
           <div class="dialog-actions dialog-actions--between">
             <button
+              v-if="!syncStore.token || feedbackError"
               type="button"
               class="dialog-btn dialog-btn--ghost"
               :disabled="isSubmittingFeedback || !feedbackToken.trim()"
@@ -367,6 +350,7 @@
             >
               清除已存 token
             </button>
+            <div v-else></div>
             <div class="dialog-actions__right">
               <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="isSubmittingFeedback" @click="closeFeedbackDialog">取消</button>
               <button
