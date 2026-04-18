@@ -70,6 +70,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate Secret
+        run: |
+          if [ -z "${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}" ]; then
+            echo "::error::Secret 未配置或读取为空！"
+            exit 1
+          fi
+
       - name: Build web assets and sync Android project
         env:
           VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
@@ -169,7 +176,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
+      - name: Validate Secret
+        run: |
+          if [ -z "${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}" ]; then
+            echo "::error::Secret 未配置或读取为空！"
+            exit 1
+          fi
       - name: Build web assets and sync Android project
         env:
           VITE_APP_VERSION: ${{ steps.release_meta.outputs.version_name }}
