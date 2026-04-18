@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.17",
+    "url": "bundle-20260418.17.zip",
+    "hash": "762dff51f37d3e3a8d818a2a95df29950365c58249db0b5e1f287620d37eda72",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新反馈标题，更新验证码倒计时",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T10:26:35Z"
+  },
+  {
     "version": "20260418.16",
     "url": "bundle-20260418.16.zip",
     "hash": "9ca01b8aebabf47a01ba198b2df34acc70d19be4162bb51fd1564f6009cd26f1",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T09:51:35Z"
-  },
-  {
-    "version": "20260418.14",
-    "url": "bundle-20260418.14.zip",
-    "hash": "a8e280e0302d5b111b9a2baff32bca2da9795494379122d1dfebc5ba50dba8b5",
-    "minNativeVersion": null,
-    "notes": "- feat: 提取并优化 GithubLoginDialog 组件的 CSS 样式，增强响应式设计",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T09:42:34Z"
   }
 ]
