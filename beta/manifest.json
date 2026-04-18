@@ -1,9 +1,9 @@
 {
-  "version": "20260418.14",
-  "url": "bundle-20260418.14.zip",
-  "hash": "a8e280e0302d5b111b9a2baff32bca2da9795494379122d1dfebc5ba50dba8b5",
+  "version": "20260418.15",
+  "url": "bundle-20260418.15.zip",
+  "hash": "96da53118c3d07ed2ba3729b85360f7289f1e0c40fdd73190d2d49476ff76e80",
   "minNativeVersion": null,
-  "notes": "- feat: 提取并优化 GithubLoginDialog 组件的 CSS 样式，增强响应式设计",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T09:42:34Z"
+  "publishedAt": "2026-04-18T09:51:35Z"
 }
