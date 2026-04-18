@@ -7,6 +7,9 @@
     "captureInput": false
   },
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "CapacitorUpdater": {
       "autoUpdate": false,
       "appReadyTimeout": 15000,
