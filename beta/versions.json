@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.20",
+    "url": "bundle-20260418.20.zip",
+    "hash": "38697c1cefcb76e73b2bafbfa72bf9b874c308ee753c50620ab781dc6529acfe",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化导出功能，添加自定义导出选项和全选/清空功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T12:17:29Z"
+  },
+  {
     "version": "20260418.19",
     "url": "bundle-20260418.19.zip",
     "hash": "49417589174fc89a68c7036c45a1add890d0650621c645c46053662dc5634c7c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加详细页面淡入过渡动画，优化导航体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T10:41:09Z"
-  },
-  {
-    "version": "20260418.17",
-    "url": "bundle-20260418.17.zip",
-    "hash": "762dff51f37d3e3a8d818a2a95df29950365c58249db0b5e1f287620d37eda72",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新反馈标题，更新验证码倒计时",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T10:26:35Z"
   }
 ]

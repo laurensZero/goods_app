@@ -1,9 +1,9 @@
 {
-  "version": "20260418.19",
-  "url": "bundle-20260418.19.zip",
-  "hash": "49417589174fc89a68c7036c45a1add890d0650621c645c46053662dc5634c7c",
+  "version": "20260418.20",
+  "url": "bundle-20260418.20.zip",
+  "hash": "38697c1cefcb76e73b2bafbfa72bf9b874c308ee753c50620ab781dc6529acfe",
   "minNativeVersion": null,
-  "notes": "- feat: 移除不必要的内容可见性属性，优化样式性能",
+  "notes": "- feat: 优化导出功能，添加自定义导出选项和全选/清空功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T11:52:16Z"
+  "publishedAt": "2026-04-18T12:17:29Z"
 }
