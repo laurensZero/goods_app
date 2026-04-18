@@ -1,9 +1,9 @@
 {
-  "version": "20260418.6",
-  "url": "bundle-20260418.6.zip",
-  "hash": "ee09d14216ec537744333ad0cd63677872b606fc4762585ed5e2db6dd227c45f",
+  "version": "20260418.7",
+  "url": "bundle-20260418.7.zip",
+  "hash": "05ce16c8c0ac04146bc88560de12ccc259187b3cbd4d51733227734b88f3a6a1",
   "minNativeVersion": null,
-  "notes": "- feat: 优化后退导航逻辑，支持历史路径返回和目标路径替换",
+  "notes": "- feat: 移除对 Android 设备的特定处理，简化动画逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T04:48:09Z"
+  "publishedAt": "2026-04-18T04:50:46Z"
 }

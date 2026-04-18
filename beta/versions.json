@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.7",
+    "url": "bundle-20260418.7.zip",
+    "hash": "05ce16c8c0ac04146bc88560de12ccc259187b3cbd4d51733227734b88f3a6a1",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除对 Android 设备的特定处理，简化动画逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T04:50:46Z"
+  },
+  {
     "version": "20260418.6",
     "url": "bundle-20260418.6.zip",
     "hash": "ee09d14216ec537744333ad0cd63677872b606fc4762585ed5e2db6dd227c45f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加清除路由过渡回退的功能，优化页面切换体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T03:11:51Z"
-  },
-  {
-    "version": "20260418.4",
-    "url": "bundle-20260418.4.zip",
-    "hash": "9f48834a3df02ce7bcb60773123ce52663ee6c98df0d29952990e3c4ac2fde7c",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加稳定性检查以优化英雄动画播放时机",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T03:08:03Z"
   }
 ]
