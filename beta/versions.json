@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.21",
+    "url": "bundle-20260418.21.zip",
+    "hash": "4564b8f309248bc74bdeae3a8ef1671386e877d7d16e8077a8a7953f7b7c9b1c",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新同步状态显示，优化未处理和就绪状态提示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T12:57:23Z"
+  },
+  {
     "version": "20260418.20",
     "url": "bundle-20260418.20.zip",
     "hash": "38697c1cefcb76e73b2bafbfa72bf9b874c308ee753c50620ab781dc6529acfe",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除不必要的内容可见性属性，优化样式性能",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T11:52:16Z"
-  },
-  {
-    "version": "20260418.18",
-    "url": "bundle-20260418.18.zip",
-    "hash": "ea70cae92a5dbeef79d83781a871f16d2054371bac097b690cba6c22636bbfcb",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加详细页面淡入过渡动画，优化导航体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T10:41:09Z"
   }
 ]

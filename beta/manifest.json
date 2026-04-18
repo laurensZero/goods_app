@@ -1,9 +1,9 @@
 {
-  "version": "20260418.20",
-  "url": "bundle-20260418.20.zip",
-  "hash": "38697c1cefcb76e73b2bafbfa72bf9b874c308ee753c50620ab781dc6529acfe",
+  "version": "20260418.21",
+  "url": "bundle-20260418.21.zip",
+  "hash": "4564b8f309248bc74bdeae3a8ef1671386e877d7d16e8077a8a7953f7b7c9b1c",
   "minNativeVersion": null,
-  "notes": "- feat: 优化导出功能，添加自定义导出选项和全选/清空功能",
+  "notes": "- feat: 更新同步状态显示，优化未处理和就绪状态提示",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T12:17:29Z"
+  "publishedAt": "2026-04-18T12:57:23Z"
 }
