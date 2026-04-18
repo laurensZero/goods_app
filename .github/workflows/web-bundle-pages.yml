@@ -66,6 +66,14 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Validate Secret
+        run: |
+          if [ -z "${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}" ]; then
+            echo "Error: VITE_GITHUB_OAUTH_CLIENT_ID is not set."
+            exit 1
+          fi
+          echo "VITE_GITHUB_OAUTH_CLIENT_ID=${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}" >> .env.production
+
       - name: Build web assets
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.rollback_version == '' }}
         run: npm run build
