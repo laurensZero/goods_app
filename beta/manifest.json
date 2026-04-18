@@ -1,9 +1,9 @@
 {
-  "version": "20260418.10",
-  "url": "bundle-20260418.10.zip",
-  "hash": "25f2c7ce03c421adb759ada955db4417d3e3b906cbdfe51f3d18b5478ae903bf",
+  "version": "20260418.11",
+  "url": "bundle-20260418.11.zip",
+  "hash": "a1146e48560d8e5e200cf1618c911bc3757d59a7b08463d0d3d006b1b0ce7ae4",
   "minNativeVersion": null,
-  "notes": "- feat: 更新myView 更新workflow",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-18T08:26:59Z"
+  "publishedAt": "2026-04-18T09:03:35Z"
 }

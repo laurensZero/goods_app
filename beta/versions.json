@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260418.11",
+    "url": "bundle-20260418.11.zip",
+    "hash": "a1146e48560d8e5e200cf1618c911bc3757d59a7b08463d0d3d006b1b0ce7ae4",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-18T09:03:35Z"
+  },
+  {
     "version": "20260418.10",
     "url": "bundle-20260418.10.zip",
     "hash": "25f2c7ce03c421adb759ada955db4417d3e3b906cbdfe51f3d18b5478ae903bf",
@@ -16,14 +25,5 @@
     "notes": "- feat: Github OAuth “我的”界面 全选平板端设置界面",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T07:43:17Z"
-  },
-  {
-    "version": "20260418.8",
-    "url": "bundle-20260418.8.zip",
-    "hash": "1f4ef541a351eb8215ffbb60ba5131e0104f00a118db9216934b31ba6c243896",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加清除存储滚动状态的功能，优化页面冷启动体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T05:02:26Z"
   }
 ]
