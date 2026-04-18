@@ -267,7 +267,7 @@ import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRest
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
@@ -486,6 +486,7 @@ function openDetail(payload) {
     return
   }
   saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${eventId}`)
+  clearRouteTransitionFallback()
   prepareEventHeroForward({ eventId, sourceEl: p.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
   router.push(`/events/${eventId}`).catch(() => {

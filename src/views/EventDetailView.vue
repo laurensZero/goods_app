@@ -201,7 +201,7 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
-import { getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
@@ -555,6 +555,7 @@ function openLinkedGoodsDetail(goods, domEvent) {
     : normalizedGoodsId.replace(/"/g, '\\"')
   const heroSourceEl = cardRoot?.querySelector?.(`[data-goods-hero-id="${escapedGoodsId}"]`) || cardRoot
 
+  clearRouteTransitionFallback()
   prepareGoodsHeroForward({
     goodsId: goods.id,
     sourceEl: heroSourceEl || null

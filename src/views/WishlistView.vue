@@ -149,7 +149,7 @@ import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'WishlistView' })
@@ -408,6 +408,7 @@ function openDetail(id) {
   const payload = typeof id === 'object' && id !== null ? id : { id }
   const goodsId = payload.id
   saveScrollPosition(true, `wishlist:openDetail:${goodsId}`)
+  clearRouteTransitionFallback()
   prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
   router.push(`/detail/${goodsId}`).catch(() => {

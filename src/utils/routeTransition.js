@@ -14,6 +14,10 @@ function clearFallbackRouteAnimation() {
   }
 }
 
+export function clearRouteTransitionFallback() {
+  clearFallbackRouteAnimation()
+}
+
 function runFallbackRouteAnimation(direction = 'forward', kind = 'page') {
   if (typeof document === 'undefined' || typeof window === 'undefined') return
   const root = document.documentElement

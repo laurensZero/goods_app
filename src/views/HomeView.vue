@@ -164,7 +164,7 @@ import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityF
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
-import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
@@ -841,6 +841,7 @@ function openDetail(id) {
   const goodsId = payload.id
   saveScrollPosition(true, `home:openDetail:${goodsId}`)
   primeActivatedRestoreWindow(getStoredScrollState())
+  clearRouteTransitionFallback()
   prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
   router.push(`/detail/${goodsId}`).catch(() => {
