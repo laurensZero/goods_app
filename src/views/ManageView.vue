@@ -1271,7 +1271,7 @@ async function handleImport(event) {
   z-index: 1;
   width: min(100%, 1480px);
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 12px) var(--page-padding) 120px;
+  padding: 0 var(--page-padding) 120px;
   background: transparent;
 }
 
