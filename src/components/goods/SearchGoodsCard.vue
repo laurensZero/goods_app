@@ -2,6 +2,7 @@
   <article
     class="search-goods-card"
     :class="{ 'search-goods-card--selected': selected }"
+    :data-goods-id="item.id"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -24,8 +25,10 @@
 
     <div class="cover-wrap">
       <div
+        ref="coverEl"
         :class="['card-cover', { 'card-cover--with-image': item.coverImage }]"
         :style="!item.coverImage ? { background: coverBg } : {}"
+        :data-goods-hero-id="item.id"
       >
         <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
@@ -96,11 +99,16 @@ function cancelLongPress() {
   }
 }
 
+const coverEl = ref(null)
+
 function handleTap() {
   if (props.selectionMode) {
     emit('toggle-select')
   } else {
-    emit('open-detail')
+    emit('open-detail', {
+      id: props.item.id,
+      sourceEl: coverEl.value
+    })
   }
 }
 

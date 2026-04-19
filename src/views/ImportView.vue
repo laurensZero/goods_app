@@ -1,6 +1,6 @@
 <template>
   <div class="page import-page">
-    <NavBar :title="pageTitle" show-back />
+    <NavBar :title="pageTitle" show-back @back="handleBack" />
 
     <main class="page-body">
       <section v-if="isWishlistMode" class="search-section">
@@ -561,6 +561,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import NavBar from '@/components/common/NavBar.vue'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { useGoodsStore } from '@/stores/goods'
@@ -586,6 +587,10 @@ const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? '导入心愿' : '从米游铺导入')
+
+function handleBack() {
+  runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
+}
 const urlHintText = computed(() =>
   isWishlistMode.value
     ? '先按角色搜索，或直接粘贴米游铺商品链接（支持多个，每行一个）'
@@ -1297,7 +1302,7 @@ async function saveAllBatch() {
     }
   }
   savingAll.value = false
-  router.replace(isWishlistMode.value ? '/wishlist' : '/home')
+  runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
 }
 const parsedImages = ref([])  // 当前商品可用图
 const parsedBaseImages = ref([])  // 不区分款式的基础图
@@ -1799,7 +1804,7 @@ async function handleSave() {
       characters: form.characters,
       isWishlist: isWishlistMode.value,
     })
-    router.replace(isWishlistMode.value ? '/wishlist' : '/home')
+    runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   } catch (e) {
     parseError.value = '保存失败：' + e.message
   }

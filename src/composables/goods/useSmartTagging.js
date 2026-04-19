@@ -27,19 +27,19 @@ export function useSmartTagging(form) {
   let timeoutId = null
 
   watch(
-    () => [form.name, form.note],
-    ([newName, newNote]) => {
+    () => [form.name, form.note, form.characters],
+    ([newName, newNote, newChars]) => {
       // 当发生改变时计算推荐
       if (timeoutId) clearTimeout(timeoutId)
       timeoutId = setTimeout(() => {
-        calculateSuggestions(newName, newNote)
+        calculateSuggestions(newName, newNote, newChars)
       }, 300)
     },
-    { immediate: true }
+    { immediate: true, deep: true }
   )
 
-  function calculateSuggestions(name, note) {
-    if (!name && !note) {
+  function calculateSuggestions(name, note, chars = []) {
+    if (!name && !note && (!chars || chars.length === 0)) {
       tagSuggestions.value = {
         categorySuggestion: null,
         ipSuggestion: null,
@@ -85,7 +85,7 @@ export function useSmartTagging(form) {
       tags: Array.from(extractedTags)
     }
 
-    const result = getTaggingSuggestions({ name, note }, staticDictionaries, dynamicPresets)
+    const result = getTaggingSuggestions({ name, note, chars }, staticDictionaries, dynamicPresets)
 
     // 应用那些没有被忽略且原表单字段为空的项
     if (ignoredFields.value.category || form.category) result.categorySuggestion = null

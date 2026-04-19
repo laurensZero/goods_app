@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="page add-page">
-    <NavBar :title="navBarTitle" show-back />
+    <NavBar :title="navBarTitle" show-back @back="handleBack" />
 
     <main class="page-body">
       <form class="editor-form" @submit.prevent="handleSubmit">
@@ -526,6 +526,8 @@ import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
+import { runWithRouteTransition } from '@/utils/routeTransition'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   mode: {
@@ -604,6 +606,11 @@ const {
   syncFieldLater,
   closeQuickCreate
 } = useGoodsEditorForm({ mode: props.mode, editId: props.editId, initialIsWishlist: props.initialIsWishlist })
+
+const router = useRouter()
+function handleBack() {
+  runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
+}
 
 const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
 

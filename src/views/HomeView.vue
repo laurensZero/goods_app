@@ -336,7 +336,7 @@ function navigateFromAddSheet(path, reason) {
     () => router.push(path).catch(() => {
       homeDisplayReady.value = true
     }),
-    { direction: 'forward' }
+    { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
   )
 }
 

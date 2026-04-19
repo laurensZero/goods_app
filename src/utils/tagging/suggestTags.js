@@ -129,10 +129,20 @@ function consolidateMatches(matches) {
 /**
  * 综合关联提升权重: 如果匹配出的 character 的 ip 也在匹配出的 ip 里，双方都加分
  */
-function applyRelationalBoost(ipMatches, characterMatches) {
+function applyRelationalBoost(ipMatches, characterMatches, dynamicPresets) {
   for (const charItem of characterMatches) {
-    if (charItem.ip) {
-      const ipHit = ipMatches.find(ipItem => ipItem.value === charItem.ip)
+    // 找出 dynamicPresets 里的 IP
+    let inferredIp = charItem.ip
+    if (!inferredIp && dynamicPresets?.characters) {
+      for (const [ipName, chars] of Object.entries(dynamicPresets.characters)) {
+        if (chars.includes(charItem.value)) {
+          inferredIp = ipName
+          break
+        }
+      }
+    }
+    if (inferredIp) {
+      let ipHit = ipMatches.find(ipItem => ipItem.value === inferredIp)
       if (ipHit) {
         // 角色和IP互相印证
         charItem.score += 0.4
@@ -144,6 +154,18 @@ function applyRelationalBoost(ipMatches, characterMatches) {
           ipHit.reasons.push(`角色印证提升: 包含该IP的已知角色 ${charItem.value}`)
         }
         ipHit.confidence = getConfidenceRating(ipHit.score)
+      } else {
+        // 如果原本没匹配出 IP，这里因为有明确的角色归属，强制插入一个高分 IP
+        ipHit = {
+          value: inferredIp,
+          score: Math.min(1.0, charItem.score + 0.2), // 随着角色分数浮动
+          reasons: [`被角色推断出 IP: 当前出现已知角色 ${charItem.value}`],
+          confidence: getConfidenceRating(Math.min(1.0, charItem.score + 0.2))
+        }
+        ipMatches.push(ipHit)
+        charItem.score += 0.2
+        charItem.reasons.push(`基于历史数据对应到IP: ${inferredIp}`)
+        charItem.confidence = getConfidenceRating(charItem.score)
       }
     }
   }
@@ -161,9 +183,9 @@ function applyRelationalBoost(ipMatches, characterMatches) {
  * @param {Object} dynamicPresets - { categories: [], ips: [], characters: { '<ipName>': ['char1'] }, tags: [] }
  */
 export function getTaggingSuggestions(inputContext, staticDictionaries, dynamicPresets) {
-  const { name = '', note = '' } = inputContext || {}
+  const { name = '', note = '', chars = [] } = inputContext || {}
   
-  if (!name && !note) {
+  if (!name && !note && (!chars || chars.length === 0)) {
     return {
       categorySuggestion: null,
       ipSuggestion: null,
@@ -176,6 +198,18 @@ export function getTaggingSuggestions(inputContext, staticDictionaries, dynamicP
   let normName = normalizeText(name)
   let normNote = normalizeText(note)
   const combinedText = `${normName} ${normNote}`
+
+  // 对于直接填入的角色，当做最高权重 1.5 处理
+  let manualCharacterMatches = []
+  if (chars && chars.length > 0) {
+    chars.forEach(c => {
+      manualCharacterMatches.push({
+        value: c,
+        score: 1.5,
+        reasons: ['已显式填入该角色']
+      })
+    })
+  }
 
   // 将别名替换一下？如果影响用户本意则不要替换原文，只用于匹配。
   // 注意：真实场景中可能不需要替换原文，而是扩展搜索词汇，为简单计我们可以在副本字符串中做替换 (暂略)
@@ -229,11 +263,11 @@ export function getTaggingSuggestions(inputContext, staticDictionaries, dynamicP
   // 汇总去重合计算置信度
   allCategoryMatches = consolidateMatches(allCategoryMatches)
   allIpMatches = consolidateMatches(allIpMatches)
-  allCharacterMatches = consolidateMatches(allCharacterMatches)
+  allCharacterMatches = consolidateMatches(allCharacterMatches.concat(manualCharacterMatches))
   allTagMatches = consolidateMatches(allTagMatches)
 
   // 互相验证提升比重
-  applyRelationalBoost(allIpMatches, allCharacterMatches)
+  applyRelationalBoost(allIpMatches, allCharacterMatches, dynamicPresets)
 
   return {
     // 类别选取最高置信度的一项

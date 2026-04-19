@@ -253,14 +253,16 @@ export function useGoodsEditorForm(options = {}) {
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
         alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
-        runWithRouteTransition(() => router.replace('/home'), { direction: 'back' })
+        // Should we always go to home or back?
+        // But fade is requested.
+        runWithRouteTransition(() => router.replace('/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
         return
       }
     } else {
       await store.addGoods({ ...form })
     }
 
-    runWithRouteTransition(() => router.back(), { direction: 'back' })
+    runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   }
 
   function validateName() {

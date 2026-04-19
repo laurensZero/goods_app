@@ -283,7 +283,7 @@
             :selection-mode="selectionMode"
             @long-press="enterSelectionMode(item.id)"
             @toggle-select="toggleSelect(item.id)"
-            @open-detail="openDetail(item.id)"
+            @open-detail="openDetail"
           />
         </div>
       </section>
@@ -337,6 +337,8 @@ import {
   normalizeGoodsFilterConditions
 } from '@/utils/goodsFilters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import SearchGoodsCard from '@/components/goods/SearchGoodsCard.vue'
@@ -722,8 +724,16 @@ function handleBack() {
   navigateBackToHome()
 }
 
-function openDetail(id) {
+function openDetail(payload) {
+  const id = payload?.id || payload
   persistSearchState()
+  
+  clearRouteTransitionFallback()
+  const escaped = CSS.escape(id)
+  const sourceElTarget = payload?.sourceEl || document.querySelector(`[data-goods-id="${escaped}"]`) || null
+  prepareGoodsHeroForward({ goodsId: id, sourceEl: sourceElTarget })
+  
+  setPendingDetailReturnPath(route.fullPath)
   router.push(`/detail/${id}`)
 }
 
@@ -793,6 +803,50 @@ async function applyBatchEditPayload(payload) {
   exitSelectionModeQuiet()
 }
 
+function resolveGoodsCardCover(id) {
+  const escaped = CSS.escape(id)
+  const rootEl = document.querySelector(`[data-goods-id="${escaped}"]`) || null
+  if (rootEl) {
+    const coverInsideCard = rootEl.querySelector(`[data-goods-hero-id="${escaped}"]`) || null
+    if (coverInsideCard) return coverInsideCard
+  }
+  const directCover = document.querySelector(`[data-goods-hero-id="${escaped}"]`) || null
+  if (directCover) return directCover
+  return rootEl
+}
+
+function tryPlayNativeGoodsBackHero() {
+  return playGoodsHeroBack({
+    currentPath: route.fullPath,
+    resolveTargetEl: resolveGoodsCardCover
+  })
+}
+
+let goodsBackHeroRetryRaf = null
+function scheduleGoodsBackHeroRetry() {
+  cancelGoodsBackHeroRetry()
+  let retryCount = 0
+  function retry() {
+    if (retryCount >= 8) {
+      if (hasPendingGoodsHeroBack(route.fullPath)) {
+        clearRouteTransitionFallback()
+      }
+      return
+    }
+    const played = tryPlayNativeGoodsBackHero()
+    if (played) return
+    retryCount++
+    goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
+  }
+  goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
+}
+
+function cancelGoodsBackHeroRetry() {
+  if (!goodsBackHeroRetryRaf) return
+  window.cancelAnimationFrame(goodsBackHeroRetryRaf)
+  goodsBackHeroRetryRaf = null
+}
+
 onMounted(async () => {
   restoreSearchState()
 
@@ -803,9 +857,17 @@ onMounted(async () => {
 
   window.addEventListener('popstate', handleSelectionPopState)
   bindAndroidBackButton()
+  
+  await nextTick() // 确保滚动位置和 DOM 稳定后再执行动画
+  if (hasPendingGoodsHeroBack(route.fullPath)) {
+    scheduleGoodsBackHeroRetry()
+  } else {
+    clearRouteTransitionFallback()
+  }
 })
 
 onBeforeUnmount(() => {
+  cancelGoodsBackHeroRetry()
   if (searchTimeout) clearTimeout(searchTimeout)
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()

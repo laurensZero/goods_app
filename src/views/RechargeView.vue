@@ -58,6 +58,7 @@ import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { useRechargeScrollRestore } from '@/composables/scroll/useRechargeScrollRestore'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 
 defineOptions({ name: 'RechargeView' })
 
@@ -68,6 +69,27 @@ const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const pageBodyRef = ref(null)
 const rechargeContentRef = ref(null)
 const rechargeSelectionMode = ref(false)
+let removeAndroidBackListener = null
+
+function handleAndroidBackButton(event) {
+  if (rechargeSelectionMode.value) {
+    // We can exit by mimicking the handleRechargeSelectionChange or calling what handles back.
+    // Wait, let me check how Recharge exits selection.
+    rechargeContentRef.value?.exitSelectionMode?.()
+    event.preventDefault()
+  }
+}
+
+function bindAndroidBackButton() {
+  if (removeAndroidBackListener) return
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindAndroidBackButton() {
+  if (!removeAndroidBackListener) return
+  removeAndroidBackListener()
+  removeAndroidBackListener = null
+}
 const showScrollTopButton = ref(false)
 const isRechargeActive = ref(true)
 
@@ -202,6 +224,7 @@ onMounted(async () => {
   await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   if (sessionId !== mountBootstrapSession) return
   updateScrollTopButtonVisibility()
+  bindAndroidBackButton()
 })
 
 onActivated(async () => {
@@ -217,9 +240,11 @@ onActivated(async () => {
   await nextTick()
   bindPageScroll()
   updateScrollTopButtonVisibility()
+  bindAndroidBackButton()
 })
 
 onDeactivated(() => {
+  unbindAndroidBackButton()
   isRechargeActive.value = false
   mountBootstrapSession += 1
   cancelPendingRestore()
@@ -230,6 +255,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  unbindAndroidBackButton()
   cancelPendingRestore()
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)

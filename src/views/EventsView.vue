@@ -266,6 +266,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRestore'
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
+import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
@@ -302,6 +303,25 @@ let topJumpMaskTimer = 0
 let eventBackHeroRetryRaf = 0
 let eventBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
+let removeAndroidBackListener = null
+
+function handleAndroidBackButton(event) {
+  if (selectionMode.value) {
+    exitSelectionMode()
+    event.preventDefault()
+  }
+}
+
+function bindAndroidBackButton() {
+  if (removeAndroidBackListener) return
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindAndroidBackButton() {
+  if (!removeAndroidBackListener) return
+  removeAndroidBackListener()
+  removeAndroidBackListener = null
+}
 
 const viewOptions = [
   { value: 'grid', label: '平铺' },
@@ -723,6 +743,7 @@ onMounted(async () => {
   eventsDisplayReady.value = true
   updateScrollTopButtonVisibility()
   window.addEventListener('popstate', handleSelectionPopState)
+  bindAndroidBackButton()
 })
 
 onActivated(async () => {
@@ -740,9 +761,11 @@ onActivated(async () => {
   scheduleEventBackHeroRetry()
   bindPageScroll()
   updateScrollTopButtonVisibility()
+  bindAndroidBackButton()
 })
 
 onDeactivated(() => {
+  unbindAndroidBackButton()
   isEventsActive.value = false
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
@@ -755,6 +778,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  unbindAndroidBackButton()
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
   if (topJumpMaskTimer) {

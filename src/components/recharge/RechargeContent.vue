@@ -624,7 +624,8 @@ watch(rechargeImageUrls, (urls) => {
 
 defineExpose({
   toggleSearch,
-  openAddMethodSheet
+  openAddMethodSheet,
+  exitSelectionMode
 })
 </script>
 
