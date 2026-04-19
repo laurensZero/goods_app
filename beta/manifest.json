@@ -1,9 +1,9 @@
 {
-  "version": "20260419.4",
-  "url": "bundle-20260419.4.zip",
-  "hash": "43a1a0fa83abdb8e997b542dc4654de85405eb3af2c319a9266275432d6f4ee7",
+  "version": "20260419.5",
+  "url": "bundle-20260419.5.zip",
+  "hash": "faa1677df4ba156cb845fccc6760b85f87cf1c7ef3df5e1754eb5100c7b7d1d1",
   "minNativeVersion": null,
-  "notes": "- feat: 添加盒阴影处理功能，优化动画效果",
+  "notes": "- feat: 调整过渡动画时长和缓动函数，优化动画效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-19T07:11:51Z"
+  "publishedAt": "2026-04-19T07:47:04Z"
 }

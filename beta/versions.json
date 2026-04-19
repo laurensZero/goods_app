@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260419.5",
+    "url": "bundle-20260419.5.zip",
+    "hash": "faa1677df4ba156cb845fccc6760b85f87cf1c7ef3df5e1754eb5100c7b7d1d1",
+    "minNativeVersion": null,
+    "notes": "- feat: 调整过渡动画时长和缓动函数，优化动画效果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-19T07:47:04Z"
+  },
+  {
     "version": "20260419.4",
     "url": "bundle-20260419.4.zip",
     "hash": "43a1a0fa83abdb8e997b542dc4654de85405eb3af2c319a9266275432d6f4ee7",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化动画管理",
     "updateLevel": "silent",
     "publishedAt": "2026-04-19T07:04:32Z"
-  },
-  {
-    "version": "20260419.2",
-    "url": "bundle-20260419.2.zip",
-    "hash": "5359b87be55b18e12e77ae138dfe3fcb686d10f22af87cbc921c44fff64db23f",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化设置界面顶部内边距",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-19T06:41:18Z"
   }
 ]
