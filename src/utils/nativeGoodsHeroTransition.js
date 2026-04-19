@@ -226,6 +226,23 @@ function resolveHeroEasing(direction, snapshot, targetRect) {
   return intensity > 0.42 ? HERO_FORWARD_EASING_FAR : HERO_FORWARD_EASING_NEAR
 }
 
+function readBoxShadow(el) {
+  if (!el || typeof window === 'undefined') return 'none'
+  const style = window.getComputedStyle(el)
+  return style.boxShadow || 'none'
+}
+
+function resolveCompensatedShadow(shadowStr, scaleFactor) {
+  if (!shadowStr || shadowStr === 'none') return 'none'
+  const normalizedScale = Math.max(Math.abs(Number(scaleFactor) || 1), 0.0001)
+  
+  return shadowStr.replace(/([-+]?\d*\.?\d+)px/g, (match, val) => {
+    const num = Number.parseFloat(val)
+    if (!Number.isFinite(num)) return match
+    return `${num / normalizedScale}px`
+  })
+}
+
 function createHeroNode(snapshot) {
   const node = document.createElement('div')
   node.setAttribute('aria-hidden', 'true')
@@ -239,7 +256,7 @@ function createHeroNode(snapshot) {
   node.style.zIndex = '9999'
   node.style.willChange = 'transform, opacity'
   node.style.transformOrigin = 'top left'
-  node.style.contain = 'layout paint style'
+  node.style.contain = 'layout style'
   node.style.backfaceVisibility = 'hidden'
   node.style.background = 'transparent'
 
@@ -367,6 +384,8 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       ]
 
   const previousOpacity = targetEl?.style?.opacity || ''
+  const targetBoxShadow = readBoxShadow(targetEl)
+
   if (targetEl) {
     targetEl.style.visibility = 'hidden'
   }
@@ -386,18 +405,22 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         canUseScalePath
           ? [
               {
-                borderRadius: resolveCompensatedRadius(radiusFrom, 1, 1)
+                borderRadius: resolveCompensatedRadius(radiusFrom, 1, 1),
+                boxShadow: snapshot.boxShadow || 'none'
               },
               {
-                borderRadius: resolveCompensatedRadius(radiusTo, transformTarget.scaleX, transformTarget.scaleY)
+                borderRadius: resolveCompensatedRadius(radiusTo, transformTarget.scaleX, transformTarget.scaleY),
+                boxShadow: resolveCompensatedShadow(targetBoxShadow, transformTarget.scaleX) || 'none'
               }
             ]
           : [
               {
-                borderRadius: `${radiusFrom}px`
+                borderRadius: `${radiusFrom}px`,
+                boxShadow: snapshot.boxShadow || 'none'
               },
               {
-                borderRadius: `${radiusTo}px`
+                borderRadius: `${radiusTo}px`,
+                boxShadow: targetBoxShadow || 'none'
               }
             ],
         {
@@ -447,7 +470,8 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -492,7 +516,8 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -547,7 +572,8 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -592,7 +618,8 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
