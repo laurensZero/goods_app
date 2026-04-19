@@ -12,6 +12,27 @@ let pendingBackHero = null
 let pendingForwardEventHero = null
 let pendingBackEventHero = null
 
+const activeHeroNodes = new Set()
+const activeHeroAnimations = new Set()
+
+export function cleanupAllHeroes() {
+  activeHeroAnimations.forEach(anim => {
+    try {
+      anim.cancel()
+    } catch (e) {}
+  })
+  activeHeroAnimations.clear()
+
+  activeHeroNodes.forEach(node => {
+    try {
+      if (node.parentNode) {
+        node.remove()
+      }
+    } catch (e) {}
+  })
+  activeHeroNodes.clear()
+}
+
 export function getHeroBackDurationMs() {
   return BACK_DURATION_MS
 }
@@ -299,6 +320,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   node.style.transform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`
   document.body.appendChild(node)
+  activeHeroNodes.add(node)
 
   const targetEl = options.targetEl || null
   const previousVisibility = targetEl?.style?.visibility || ''
@@ -357,6 +379,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       fill: 'both'
     }
   )
+  activeHeroAnimations.add(animation)
 
   const clipAnimation = clipEl
     ? clipEl.animate(
@@ -384,6 +407,10 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         }
       )
     : null
+  
+  if (clipAnimation) {
+    activeHeroAnimations.add(clipAnimation)
+  }
 
   return Promise.allSettled([
     animation.finished,
@@ -391,7 +418,13 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   ]).catch(() => {
     // ignore interruption
   }).finally(() => {
-    node.remove()
+    if (activeHeroNodes.has(node)) {
+      activeHeroNodes.delete(node)
+      node.remove()
+    }
+    if (activeHeroAnimations.has(animation)) activeHeroAnimations.delete(animation)
+    if (clipAnimation && activeHeroAnimations.has(clipAnimation)) activeHeroAnimations.delete(clipAnimation)
+
     if (targetEl) {
       targetEl.style.visibility = previousVisibility
       targetEl.style.opacity = previousOpacity
@@ -400,6 +433,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 }
 
 export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
+  cleanupAllHeroes()
   if (!sourceEl || !goodsId) return
   const rect = readRect(sourceEl)
   if (!rect) return
@@ -442,6 +476,7 @@ export function playGoodsHeroForward(goodsId, targetEl) {
 }
 
 export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
+  cleanupAllHeroes()
   if (!sourceEl || !goodsId) return
   const rect = readRect(sourceEl)
   if (!rect) return
@@ -498,6 +533,7 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
 }
 
 export function prepareEventHeroForward({ eventId, sourceEl }) {
+  cleanupAllHeroes()
   if (!sourceEl || !eventId) return
   const rect = readRect(sourceEl)
   if (!rect) return
@@ -540,6 +576,7 @@ export function playEventHeroForward(eventId, targetEl) {
 }
 
 export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
+  cleanupAllHeroes()
   if (!sourceEl || !eventId) return
   const rect = readRect(sourceEl)
   if (!rect) return
