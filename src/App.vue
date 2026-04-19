@@ -178,6 +178,16 @@ html[data-route-transition-fallback='1'][data-route-transition-kind='detail-fade
   will-change: opacity;
 }
 
+html[data-route-transition-fallback='1'][data-route-transition-kind='search-enter'] .route-scene {
+  animation: route-fallback-search-enter 260ms cubic-bezier(0.22, 0.9, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+html[data-route-transition-fallback='1'][data-route-transition-kind='search-back'] .route-scene {
+  animation: route-fallback-search-back 220ms cubic-bezier(0.22, 0.8, 0.22, 1);
+  will-change: transform, opacity;
+}
+
 @keyframes route-fallback-page-forward {
   from {
     opacity: 0.95;
@@ -233,6 +243,30 @@ html[data-route-transition-fallback='1'][data-route-transition-kind='detail-fade
 
   to {
     opacity: 1;
+  }
+}
+
+@keyframes route-fallback-search-enter {
+  from {
+    opacity: 0.92;
+    transform: translateX(32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes route-fallback-search-back {
+  from {
+    opacity: 0.94;
+    transform: translateX(-18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 

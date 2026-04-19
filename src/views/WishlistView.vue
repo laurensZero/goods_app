@@ -507,7 +507,14 @@ function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
 
 function openSearch() {
   saveScrollPosition(true, 'wishlist:openSearch')
-  router.push('/search?scope=wishlist')
+  runWithRouteTransition(
+    () => router.push('/search?scope=wishlist'),
+    {
+      direction: 'forward',
+      preferFallback: true,
+      detailTransitionKind: 'search-enter'
+    }
+  )
 }
 
 function persistHomeMode(mode) {

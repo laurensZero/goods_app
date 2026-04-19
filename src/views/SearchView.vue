@@ -740,12 +740,26 @@ function openDetail(payload) {
 function navigateBackToHome() {
   const previousPath = window.history.state?.back
   if (previousPath === defaultBackPath.value) {
-    router.back()
+    runWithRouteTransition(
+      () => router.back(),
+      {
+        direction: 'back',
+        preferFallback: true,
+        detailTransitionKind: 'search-back'
+      }
+    )
     return
   }
 
   if (route.fullPath !== defaultBackPath.value) {
-    router.replace(defaultBackPath.value)
+    runWithRouteTransition(
+      () => router.replace(defaultBackPath.value),
+      {
+        direction: 'back',
+        preferFallback: true,
+        detailTransitionKind: 'search-back'
+      }
+    )
   }
 }
 
@@ -861,8 +875,6 @@ onMounted(async () => {
   await nextTick() // 确保滚动位置和 DOM 稳定后再执行动画
   if (hasPendingGoodsHeroBack(route.fullPath)) {
     scheduleGoodsBackHeroRetry()
-  } else {
-    clearRouteTransitionFallback()
   }
 })
 

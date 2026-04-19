@@ -327,7 +327,11 @@ function handleHeroSearch() {
   saveScrollPosition(true, 'home:handleHeroSearch')
   runWithRouteTransition(
     () => router.push('/search'),
-    { direction: 'forward' }
+    {
+      direction: 'forward',
+      preferFallback: true,
+      detailTransitionKind: 'search-enter'
+    }
   )
 }
 
