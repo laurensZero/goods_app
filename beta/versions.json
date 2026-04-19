@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260419.3",
+    "url": "bundle-20260419.3.zip",
+    "hash": "7d48e6e3f9f8f7afd5d72e13411962e5bc76a6156362b1254176a15a5aa84d64",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化动画管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-19T07:04:32Z"
+  },
+  {
     "version": "20260419.2",
     "url": "bundle-20260419.2.zip",
     "hash": "5359b87be55b18e12e77ae138dfe3fcb686d10f22af87cbc921c44fff64db23f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化导航体验，添加后退按钮处理和路由过渡效果 优化smartTag体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-19T05:58:49Z"
-  },
-  {
-    "version": "20260418.22",
-    "url": "bundle-20260418.22.zip",
-    "hash": "7a3162f7ab2c8dbecce91ce50f37fdd8bc05d0a07960e55e7cbf438443ed40f2",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加智能标签建议功能，优化分类和角色推断",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T14:12:37Z"
   }
 ]

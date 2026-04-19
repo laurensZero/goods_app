@@ -1,9 +1,9 @@
 {
-  "version": "20260419.2",
-  "url": "bundle-20260419.2.zip",
-  "hash": "5359b87be55b18e12e77ae138dfe3fcb686d10f22af87cbc921c44fff64db23f",
+  "version": "20260419.3",
+  "url": "bundle-20260419.3.zip",
+  "hash": "7d48e6e3f9f8f7afd5d72e13411962e5bc76a6156362b1254176a15a5aa84d64",
   "minNativeVersion": null,
-  "notes": "- feat: 优化设置界面顶部内边距",
+  "notes": "- feat: 优化动画管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-19T06:41:18Z"
+  "publishedAt": "2026-04-19T07:04:32Z"
 }
