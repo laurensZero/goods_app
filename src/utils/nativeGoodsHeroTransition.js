@@ -1,11 +1,11 @@
-const FORWARD_DURATION_MS = 380
-const BACK_DURATION_MS = 360
+const FORWARD_DURATION_MS = 420
+const BACK_DURATION_MS = 380
 const BACK_SCROLL_LOCK_MS = 200
 const BACK_HERO_PENDING_TTL_MS = 5000
-const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.22, 1, 0.36, 1)'
-const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.18, 0.96, 0.28, 1)'
-const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.2, 0.9, 0.24, 1)'
-const HERO_BACK_EASING_FAR = 'cubic-bezier(0.16, 1, 0.3, 1)'
+const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
+const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.15, 0.9, 0.2, 1)'
+const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.25, 0.85, 0.3, 1)'
+const HERO_BACK_EASING_FAR = 'cubic-bezier(0.2, 0.9, 0.25, 1)'
 
 let pendingForwardHero = null
 let pendingBackHero = null
@@ -302,7 +302,7 @@ function createHeroNode(snapshot) {
 }
 
 function shouldPreferTransformOnlyHero(direction, aspectDelta) {
-  if (aspectDelta <= 0.04) return true
+  if (aspectDelta <= 0.15) return true
   return direction === 'back'
 }
 
@@ -361,7 +361,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     ? [
         {
           transform: fromTransform,
-          opacity: 0.98
+          opacity: 1
         },
         {
           transform: toTransform,
@@ -373,7 +373,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
           transform: `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`,
           width: `${snapshot.width}px`,
           height: `${snapshot.height}px`,
-          opacity: 0.98
+          opacity: 1
         },
         {
           transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`,
