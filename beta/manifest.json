@@ -1,9 +1,9 @@
 {
-  "version": "20260419.3",
-  "url": "bundle-20260419.3.zip",
-  "hash": "7d48e6e3f9f8f7afd5d72e13411962e5bc76a6156362b1254176a15a5aa84d64",
+  "version": "20260419.4",
+  "url": "bundle-20260419.4.zip",
+  "hash": "43a1a0fa83abdb8e997b542dc4654de85405eb3af2c319a9266275432d6f4ee7",
   "minNativeVersion": null,
-  "notes": "- feat: 优化动画管理",
+  "notes": "- feat: 添加盒阴影处理功能，优化动画效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-19T07:04:32Z"
+  "publishedAt": "2026-04-19T07:11:51Z"
 }
