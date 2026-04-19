@@ -60,8 +60,10 @@
       />
 
       <Transition name="goods-view-switch" mode="out-in">
+        <GoodsListSkeleton v-if="!store.isReady" key="skeleton" />
+
         <GoodsCardGridSection
-          v-if="goodsList.length > 0 && displayDensity !== 'timeline'"
+          v-else-if="goodsList.length > 0 && displayDensity !== 'timeline'"
           key="grid"
           ref="goodsGridSectionRef"
           :items="visibleGoodsList"
@@ -173,6 +175,7 @@ import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
+import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'

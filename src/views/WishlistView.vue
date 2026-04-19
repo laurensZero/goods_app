@@ -62,8 +62,10 @@
         @set-density="setDisplayDensityWithFlip"
       />
 
+      <GoodsListSkeleton v-if="!store.isReady" />
+
       <GoodsCardGridSection
-        v-if="goodsList.length > 0"
+        v-else-if="goodsList.length > 0"
         ref="goodsGridSectionRef"
         :items="goodsList"
         :density="displayDensity"
@@ -136,6 +138,7 @@ import { useDensityGridViewport } from '@/composables/home/useDensityGridViewpor
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
+import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'

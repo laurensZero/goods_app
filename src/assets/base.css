@@ -46,6 +46,56 @@
   --app-selection-text: var(--app-text);
 }
 
+/* ====================================================
+   全局动态基建 (Global Motion Baseline)
+   ==================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  /* 可点击元素的统一下压反馈 (Squish & Press) */
+  button,
+  a[role="button"],
+  [role="button"],
+  .van-button,
+  .fab,
+  .nav-btn,
+  .action-btn,
+  .hero-action {
+    transition: transform var(--motion-fast) cubic-bezier(0.25, 0.8, 0.25, 1), opacity var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
+  }
+
+  button:active:not(:disabled),
+  a[role="button"]:active,
+  [role="button"]:active:not([aria-disabled="true"]),
+  .van-button:active:not(.van-button--disabled),
+  .action-btn:active,
+  .fab:active,
+  .nav-btn:active,
+  .hero-action:active {
+    transform: scale(var(--press-scale-button, 0.96));
+    opacity: 0.9;
+  }
+
+  .card,
+  .goods-card,
+  .event-card,
+  .list-item,
+  .van-cell,
+  .tag-suggestion-panel,
+  .cover-gallery__item {
+    transition: transform var(--motion-medium) cubic-bezier(0.22, 1, 0.36, 1), box-shadow var(--motion-medium) cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  .card:active,
+  .goods-card:active,
+  .event-card:active,
+  .list-item:active,
+  .van-cell:active,
+  .tag-suggestion-panel:active,
+  .cover-gallery__item:active {
+    transform: scale(var(--press-scale-card, 0.98)) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05) !important;
+  }
+}
+
 ::selection {
   color: var(--app-selection-text);
   background: var(--app-selection-bg);
