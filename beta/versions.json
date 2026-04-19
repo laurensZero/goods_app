@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260419.2",
+    "url": "bundle-20260419.2.zip",
+    "hash": "5359b87be55b18e12e77ae138dfe3fcb686d10f22af87cbc921c44fff64db23f",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化设置界面顶部内边距",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-19T06:41:18Z"
+  },
+  {
     "version": "20260419.1",
     "url": "bundle-20260419.1.zip",
     "hash": "c6ac72f6ba917e74de49d5ad6cf57b28a836a625b671eea8eceb0828ac2d3d49",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加智能标签建议功能，优化分类和角色推断",
     "updateLevel": "silent",
     "publishedAt": "2026-04-18T14:12:37Z"
-  },
-  {
-    "version": "20260418.21",
-    "url": "bundle-20260418.21.zip",
-    "hash": "4564b8f309248bc74bdeae3a8ef1671386e877d7d16e8077a8a7953f7b7c9b1c",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新同步状态显示，优化未处理和就绪状态提示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-18T12:57:23Z"
   }
 ]

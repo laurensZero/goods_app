@@ -1,9 +1,9 @@
 {
-  "version": "20260419.1",
-  "url": "bundle-20260419.1.zip",
-  "hash": "c6ac72f6ba917e74de49d5ad6cf57b28a836a625b671eea8eceb0828ac2d3d49",
+  "version": "20260419.2",
+  "url": "bundle-20260419.2.zip",
+  "hash": "5359b87be55b18e12e77ae138dfe3fcb686d10f22af87cbc921c44fff64db23f",
   "minNativeVersion": null,
-  "notes": "- feat: 优化导航体验，添加后退按钮处理和路由过渡效果 优化smartTag体验",
+  "notes": "- feat: 优化设置界面顶部内边距",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-19T05:58:49Z"
+  "publishedAt": "2026-04-19T06:41:18Z"
 }
