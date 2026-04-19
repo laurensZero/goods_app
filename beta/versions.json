@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260419.7",
+    "url": "bundle-20260419.7.zip",
+    "hash": "e8bbcfb37ee54ef8fc92a88a9d2599426ad5e999121ff7b05acaa79106b85965",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加搜索视图的过渡动画，优化搜索体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-19T13:54:12Z"
+  },
+  {
     "version": "20260419.6",
     "url": "bundle-20260419.6.zip",
     "hash": "3c63a6b022f1c3a1a6a64261ca06c785928e510549feab603f9dcd4b3fe59381",
@@ -16,14 +25,5 @@
     "notes": "- feat: 调整过渡动画时长和缓动函数，优化动画效果",
     "updateLevel": "silent",
     "publishedAt": "2026-04-19T07:47:04Z"
-  },
-  {
-    "version": "20260419.4",
-    "url": "bundle-20260419.4.zip",
-    "hash": "43a1a0fa83abdb8e997b542dc4654de85405eb3af2c319a9266275432d6f4ee7",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加盒阴影处理功能，优化动画效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-19T07:11:51Z"
   }
 ]
