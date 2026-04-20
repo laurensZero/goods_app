@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260420.1",
+    "url": "bundle-20260420.1.zip",
+    "hash": "a1def23e65d976b0e910fe16ba07e5006c7acb3fabf234dd7513b7b8c8f603bb",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加动态 z-index 处理，优化过渡效果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-20T08:01:50Z"
+  },
+  {
     "version": "20260419.7",
     "url": "bundle-20260419.7.zip",
     "hash": "e8bbcfb37ee54ef8fc92a88a9d2599426ad5e999121ff7b05acaa79106b85965",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加商品列表骨架屏组件，优化加载体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-19T12:07:54Z"
-  },
-  {
-    "version": "20260419.5",
-    "url": "bundle-20260419.5.zip",
-    "hash": "faa1677df4ba156cb845fccc6760b85f87cf1c7ef3df5e1754eb5100c7b7d1d1",
-    "minNativeVersion": null,
-    "notes": "- feat: 调整过渡动画时长和缓动函数，优化动画效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-19T07:47:04Z"
   }
 ]
