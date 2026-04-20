@@ -6,6 +6,8 @@ const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
 const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.15, 0.9, 0.2, 1)'
 const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.25, 0.85, 0.3, 1)'
 const HERO_BACK_EASING_FAR = 'cubic-bezier(0.2, 0.9, 0.25, 1)'
+const HERO_FORWARD_OVERLAY_Z_INDEX = 48
+const HERO_BACK_OVERLAY_Z_INDEX = 58
 
 let pendingForwardHero = null
 let pendingBackHero = null
@@ -243,7 +245,7 @@ function resolveCompensatedShadow(shadowStr, scaleFactor) {
   })
 }
 
-function createHeroNode(snapshot) {
+function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   const node = document.createElement('div')
   node.setAttribute('aria-hidden', 'true')
   node.style.position = 'fixed'
@@ -253,7 +255,7 @@ function createHeroNode(snapshot) {
   node.style.height = `${snapshot.height}px`
   node.style.overflow = 'visible'
   node.style.pointerEvents = 'none'
-  node.style.zIndex = '9999'
+  node.style.zIndex = String(zIndex)
   node.style.willChange = 'transform, opacity'
   node.style.transformOrigin = 'top left'
   node.style.contain = 'layout style'
@@ -333,7 +335,12 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return Promise.resolve()
   if (!snapshot || !targetRect) return Promise.resolve()
 
-  const node = createHeroNode(snapshot)
+  const baseDuration = Number(options.duration) || FORWARD_DURATION_MS
+  const direction = options.direction === 'back' ? 'back' : 'forward'
+  const overlayZIndex = direction === 'back'
+    ? HERO_BACK_OVERLAY_Z_INDEX
+    : HERO_FORWARD_OVERLAY_Z_INDEX
+  const node = createHeroNode(snapshot, overlayZIndex)
 
   node.style.transform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`
   document.body.appendChild(node)
@@ -341,9 +348,6 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   const targetEl = options.targetEl || null
   const previousVisibility = targetEl?.style?.visibility || ''
-
-  const baseDuration = Number(options.duration) || FORWARD_DURATION_MS
-  const direction = options.direction === 'back' ? 'back' : 'forward'
   const duration = resolveHeroDuration(baseDuration, snapshot, targetRect)
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
