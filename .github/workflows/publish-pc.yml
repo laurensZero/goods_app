@@ -112,6 +112,4 @@ jobs:
           releaseName: ${{ steps.meta.outputs.publish_release == 'true' && format('goods-app {0}', steps.meta.outputs.release_tag) || '' }}
           releaseDraft: false
           prerelease: false
-          uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: goods-app-[version]-[platform]-[arch]-[bundle]
-          releaseAssetNamePattern: goods-app-[version]-[platform]-[arch]-[bundle]
+          assetNamePattern: goods-app-[version]-[platform]-[arch]-[bundle]
