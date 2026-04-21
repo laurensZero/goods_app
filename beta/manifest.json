@@ -1,9 +1,9 @@
 {
-  "version": "20260421.3",
-  "url": "bundle-20260421.3.zip",
-  "hash": "d6b353956bec8c5882d15b8604d0196be1e359133188f077749681682ac31423",
+  "version": "20260421.4",
+  "url": "bundle-20260421.4.zip",
+  "hash": "3c90f07a9034b8be05e8f3208317cdef2577b5b075492d286a0869ece09d9ed8",
   "minNativeVersion": null,
-  "notes": "- fix: 更新应用标识符为 com.goods.app，调整发布工作流的资产名称模式",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-21T13:23:32Z"
+  "publishedAt": "2026-04-21T15:27:11Z"
 }
