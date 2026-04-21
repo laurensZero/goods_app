@@ -40,6 +40,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Validate GitHub OAuth secret
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}" ]; then
+            echo "::error::Secret VITE_GITHUB_OAUTH_CLIENT_ID 未配置或为空"
+            exit 1
+          fi
+
       - name: Resolve build metadata
         id: meta
         shell: pwsh
@@ -105,6 +113,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_APP_VERSION: ${{ steps.meta.outputs.version_name }}
+          VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
         with:
           tauriScript: npm run tauri
           args: --target x86_64-pc-windows-msvc
@@ -112,4 +122,4 @@ jobs:
           releaseName: ${{ steps.meta.outputs.publish_release == 'true' && format('goods-app {0}', steps.meta.outputs.release_tag) || '' }}
           releaseDraft: false
           prerelease: false
-          assetNamePattern: goods-app-[version]-[platform]-[arch]-[bundle]
+          assetNamePattern: goods-app-[version]-[platform]-[arch][ext]
