@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260421.1",
+    "url": "bundle-20260421.1.zip",
+    "hash": "385f0532fde4e8d28f75fb189c4523ea6cebb2c9cb438971c5fea5bca0c2c845",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 tauri-action 版本至 v2，调整 tauri-cli 版本至 2.10.1",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-21T13:16:01Z"
+  },
+  {
     "version": "20260420.1",
     "url": "bundle-20260420.1.zip",
     "hash": "a1def23e65d976b0e910fe16ba07e5006c7acb3fabf234dd7513b7b8c8f603bb",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加搜索视图的过渡动画，优化搜索体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-19T13:54:12Z"
-  },
-  {
-    "version": "20260419.6",
-    "url": "bundle-20260419.6.zip",
-    "hash": "3c63a6b022f1c3a1a6a64261ca06c785928e510549feab603f9dcd4b3fe59381",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加商品列表骨架屏组件，优化加载体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-19T12:07:54Z"
   }
 ]

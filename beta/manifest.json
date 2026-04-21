@@ -1,9 +1,9 @@
 {
-  "version": "20260420.1",
-  "url": "bundle-20260420.1.zip",
-  "hash": "a1def23e65d976b0e910fe16ba07e5006c7acb3fabf234dd7513b7b8c8f603bb",
+  "version": "20260421.1",
+  "url": "bundle-20260421.1.zip",
+  "hash": "385f0532fde4e8d28f75fb189c4523ea6cebb2c9cb438971c5fea5bca0c2c845",
   "minNativeVersion": null,
-  "notes": "- feat: 添加动态 z-index 处理，优化过渡效果",
+  "notes": "- feat: 更新 tauri-action 版本至 v2，调整 tauri-cli 版本至 2.10.1",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-20T08:01:50Z"
+  "publishedAt": "2026-04-21T13:16:01Z"
 }
