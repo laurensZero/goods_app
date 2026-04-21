@@ -1,0 +1,117 @@
+name: Build and Publish PC
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 是否发布到 GitHub Release
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 发布标签（仅在发布时必填，例如 v1.0.0）
+        required: false
+        type: string
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Resolve build metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $eventName = '${{ github.event_name }}'
+          $refName = '${{ github.ref_name }}'
+          $inputTag = '${{ github.event.inputs.release_tag }}'
+          $publishInput = '${{ github.event.inputs.publish_release }}'
+
+          if ($eventName -eq 'push') {
+            $releaseTag = $refName
+            $publishRelease = 'true'
+          } else {
+            $releaseTag = $inputTag
+            $publishRelease = $publishInput.ToString().ToLower()
+          }
+
+          if ($publishRelease -eq 'true' -and [string]::IsNullOrWhiteSpace($releaseTag)) {
+            throw 'workflow_dispatch 时如果 publish_release=true，release_tag 不能为空。'
+          }
+
+          if ([string]::IsNullOrWhiteSpace($releaseTag)) {
+            $releaseTag = (Get-Content package.json | ConvertFrom-Json).version
+          }
+
+          $versionName = $releaseTag.Trim().TrimStart('v', 'V')
+
+          "release_tag=$releaseTag" >> $env:GITHUB_OUTPUT
+          "version_name=$versionName" >> $env:GITHUB_OUTPUT
+          "publish_release=$publishRelease" >> $env:GITHUB_OUTPUT
+
+      - name: Stamp build version
+        shell: pwsh
+        run: |
+          $versionName = '${{ steps.meta.outputs.version_name }}'
+
+          $tauriConfPath = 'src-tauri/tauri.conf.json'
+          $tauriConf = Get-Content $tauriConfPath -Raw | ConvertFrom-Json
+          $tauriConf.version = $versionName
+          $tauriConf | ConvertTo-Json -Depth 20 | Set-Content $tauriConfPath -Encoding utf8
+
+          $cargoPath = 'src-tauri/Cargo.toml'
+          $lines = Get-Content $cargoPath
+          $inPackage = $false
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '^\[package\]$') {
+              $inPackage = $true
+              continue
+            }
+
+            if ($inPackage -and $lines[$i] -match '^version\s*=\s*".*"$') {
+              $lines[$i] = "version = `"$versionName`""
+              break
+            }
+
+            if ($inPackage -and $lines[$i] -match '^\[') {
+              break
+            }
+          }
+          Set-Content $cargoPath $lines -Encoding utf8
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: npm run tauri
+          args: --target x86_64-pc-windows-msvc
+          tagName: ${{ steps.meta.outputs.publish_release == 'true' && steps.meta.outputs.release_tag || '' }}
+          releaseName: ${{ steps.meta.outputs.publish_release == 'true' && format('goods-app {0}', steps.meta.outputs.release_tag) || '' }}
+          releaseDraft: false
+          prerelease: false
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: goods-app-[version]-[platform]-[arch]-[bundle]
+          releaseAssetNamePattern: goods-app-[version]-[platform]-[arch]-[bundle]

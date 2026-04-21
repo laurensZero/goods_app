@@ -37,6 +37,21 @@ function normalizeUpdateSource(value) {
   return 'auto'
 }
 
+function resolveUpdateTargetPlatform() {
+  if (Capacitor.isNativePlatform()) {
+    return Capacitor.getPlatform()
+  }
+
+  const userAgent = String(navigator.userAgent || '').toLowerCase()
+  if (userAgent.includes('tauri')) {
+    if (userAgent.includes('windows')) return 'windows'
+    if (userAgent.includes('mac os') || userAgent.includes('macintosh')) return 'darwin'
+    if (userAgent.includes('linux')) return 'linux'
+  }
+
+  return 'android'
+}
+
 function readPersistedSource() {
   try {
     return normalizeUpdateSource(localStorage.getItem(UPDATE_SOURCE_STORAGE_KEY))
@@ -125,8 +140,9 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     && compareVersions(latestVersion.value, currentVersion.value) > 0
     )
   ))
-  const releaseTargetUrl = computed(() => resolveReleaseTargetUrl(latestRelease.value))
-  const releaseAsset = computed(() => resolveReleaseAsset(latestRelease.value))
+  const updateTargetPlatform = computed(() => resolveUpdateTargetPlatform())
+  const releaseTargetUrl = computed(() => resolveReleaseTargetUrl(latestRelease.value, updateTargetPlatform.value))
+  const releaseAsset = computed(() => resolveReleaseAsset(latestRelease.value, updateTargetPlatform.value))
   const supportsInAppDownload = computed(() => nativeAndroidDownloadEnabled.value || usingMockDownload.value)
   const releaseNotesPreview = computed(() => buildReleaseNotesPreview(latestRelease.value?.body))
   const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')

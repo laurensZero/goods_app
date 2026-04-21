@@ -78,6 +78,17 @@ function normalizeRelease(release, source = 'github') {
   }
 }
 
+function normalizeReleaseTarget(platform = '') {
+  const value = String(platform || '').trim().toLowerCase()
+  if (!value) return ''
+
+  if (value.includes('android')) return 'android'
+  if (value.includes('win')) return 'windows'
+  if (value.includes('mac') || value.includes('darwin') || value.includes('osx')) return 'darwin'
+  if (value.includes('linux')) return 'linux'
+  return value
+}
+
 async function request(baseUrl, path, headers) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -194,17 +205,32 @@ export async function getLatestReleaseFromGitee(owner, repo) {
   }
 }
 
-export function resolveReleaseTargetUrl(release) {
-  const preferredAsset = resolveReleaseAsset(release)
+export function resolveReleaseTargetUrl(release, platform = '') {
+  const preferredAsset = resolveReleaseAsset(release, platform)
 
   return preferredAsset?.browser_download_url || release?.html_url || ''
 }
 
-export function resolveReleaseAsset(release) {
+export function resolveReleaseAsset(release, platform = '') {
   const assets = Array.isArray(release?.assets) ? release.assets : []
-  return assets.find((asset) => /\.apk$/i.test(asset?.name || ''))
-    || assets.find((asset) => /\.aab$/i.test(asset?.name || ''))
-    || assets[0]
+  const normalizedTarget = normalizeReleaseTarget(platform)
+
+  const preferredPatterns = normalizedTarget === 'android'
+    ? [/\.(apk|aab)$/i, /\.(exe|msi|msix|zip)$/i, /\.(appimage|AppImage|deb|rpm|dmg|pkg|tar\.gz|tgz)$/i]
+    : normalizedTarget === 'windows'
+      ? [/\.(exe|msi|msix|zip)$/i, /\.(apk|aab)$/i, /\.(appimage|AppImage|deb|rpm|dmg|pkg|tar\.gz|tgz)$/i]
+      : normalizedTarget === 'darwin'
+        ? [/\.(dmg|pkg|app\.tar\.gz|tar\.gz|tgz|zip)$/i, /\.(exe|msi|msix)$/i, /\.(apk|aab)$/i]
+        : normalizedTarget === 'linux'
+          ? [/\.(appimage|AppImage|deb|rpm|tar\.gz|tgz|zip)$/i, /\.(exe|msi|msix)$/i, /\.(apk|aab)$/i]
+          : [/\.(apk|aab)$/i, /\.(exe|msi|msix|zip)$/i, /\.(appimage|AppImage|deb|rpm|dmg|pkg|tar\.gz|tgz)$/i]
+
+  for (const pattern of preferredPatterns) {
+    const match = assets.find((asset) => pattern.test(asset?.name || ''))
+    if (match) return match
+  }
+
+  return assets.find((asset) => !/\.(sig|json)$/i.test(asset?.name || '')) || assets[0]
 }
 
 export function buildReleaseNotesPreview(body, lineLimit = 0) {
