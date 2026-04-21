@@ -102,7 +102,7 @@ jobs:
           Set-Content $cargoPath $lines -Encoding utf8
 
       - name: Build and publish release
-        uses: tauri-apps/tauri-action@v2
+        uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
