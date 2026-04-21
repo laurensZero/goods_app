@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260421.3",
+    "url": "bundle-20260421.3.zip",
+    "hash": "d6b353956bec8c5882d15b8604d0196be1e359133188f077749681682ac31423",
+    "minNativeVersion": null,
+    "notes": "- fix: 更新应用标识符为 com.goods.app，调整发布工作流的资产名称模式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-21T13:23:32Z"
+  },
+  {
     "version": "20260421.2",
     "url": "bundle-20260421.2.zip",
     "hash": "cf07c65a36de21c35133b3a7bf5c1850759b8f8cbc0ad73a535118f9337d6d66",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 tauri-action 版本至 v2，调整 tauri-cli 版本至 2.10.1",
     "updateLevel": "silent",
     "publishedAt": "2026-04-21T13:16:01Z"
-  },
-  {
-    "version": "20260420.1",
-    "url": "bundle-20260420.1.zip",
-    "hash": "a1def23e65d976b0e910fe16ba07e5006c7acb3fabf234dd7513b7b8c8f603bb",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加动态 z-index 处理，优化过渡效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-20T08:01:50Z"
   }
 ]
