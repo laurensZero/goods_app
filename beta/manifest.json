@@ -1,9 +1,9 @@
 {
-  "version": "20260421.1",
-  "url": "bundle-20260421.1.zip",
-  "hash": "385f0532fde4e8d28f75fb189c4523ea6cebb2c9cb438971c5fea5bca0c2c845",
+  "version": "20260421.2",
+  "url": "bundle-20260421.2.zip",
+  "hash": "cf07c65a36de21c35133b3a7bf5c1850759b8f8cbc0ad73a535118f9337d6d66",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 tauri-action 版本至 v2，调整 tauri-cli 版本至 2.10.1",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-21T13:16:01Z"
+  "publishedAt": "2026-04-21T13:17:00Z"
 }
