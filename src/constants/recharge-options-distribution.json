@@ -126,6 +126,18 @@
         "amount": 18.0
       },
       {
+        "id": "rpg1",
+        "name": " 「超值专票」礼包",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2026/04/20/3f208fb81dac9664eab9733ae2fea630_1566717721039473559.png",
+        "amount": 1.0
+      },
+      {
+        "id": "rpg2",
+        "name": "「开拓助力」礼包",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2025/10/28/bd4ad2d12d410501365f6663b03ac1f2_4105542021982090446.png",
+        "amount": 30.0
+      },
+      {
         "id": "rpgchnmonthcardtier5",
         "name": "列车补给凭证",
         "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/05/23/8c7da28aa8ee6a6866dd910b51b72a55_2347111329520592020.png",
