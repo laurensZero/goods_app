@@ -111,6 +111,88 @@ function extractAppLocalPath(uri) {
   return match ? match[0] : null
 }
 
+export function extractManagedLocalImagePath(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  return extractAppLocalPath(text) || ''
+}
+
+export function collectManagedLocalImagePathsFromImageList(images) {
+  const refs = new Set()
+  if (!Array.isArray(images)) return refs
+
+  for (const image of images) {
+    if (!image) continue
+
+    if (typeof image === 'string') {
+      const path = extractManagedLocalImagePath(image)
+      if (path) refs.add(path)
+      continue
+    }
+
+    const uriPath = extractManagedLocalImagePath(image.uri)
+    if (uriPath) refs.add(uriPath)
+
+    const localPath = extractManagedLocalImagePath(image.localPath)
+    if (localPath) refs.add(localPath)
+  }
+
+  return refs
+}
+
+export function collectManagedLocalImagePathsFromGoodsItem(item) {
+  const refs = new Set()
+  if (!item) return refs
+
+  const imagePath = extractManagedLocalImagePath(item.image)
+  if (imagePath) refs.add(imagePath)
+
+  const coverPath = extractManagedLocalImagePath(item.coverImage)
+  if (coverPath) refs.add(coverPath)
+
+  for (const path of collectManagedLocalImagePathsFromImageList(item.images)) {
+    refs.add(path)
+  }
+
+  return refs
+}
+
+export function collectManagedLocalImagePathsFromEvent(event) {
+  const refs = new Set()
+  if (!event) return refs
+
+  const coverPath = extractManagedLocalImagePath(event.coverImage)
+  if (coverPath) refs.add(coverPath)
+
+  for (const path of collectManagedLocalImagePathsFromImageList(event.photos)) {
+    refs.add(path)
+  }
+
+  return refs
+}
+
+export async function deleteManagedLocalImages(paths) {
+  if (!Capacitor.isNativePlatform()) return 0
+
+  const targetPaths = [...new Set(Array.from(paths || []).map((path) => extractManagedLocalImagePath(path)).filter(Boolean))]
+  if (targetPaths.length === 0) return 0
+
+  let removed = 0
+  await Promise.all(targetPaths.map(async (path) => {
+    try {
+      await Filesystem.deleteFile({
+        path,
+        directory: Directory.Data
+      })
+      removed += 1
+    } catch {
+      // ignore missing files and unsupported platforms
+    }
+  }))
+
+  return removed
+}
+
 function inferImageMimeFromPath(path) {
   const ext = String(path || '').split('.').pop()?.toLowerCase()
   const mimeMap = {

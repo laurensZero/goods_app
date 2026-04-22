@@ -31,7 +31,6 @@ export function createSyncExecutionService({
   useEventsStore,
   usePresetsStore,
   shouldApplyRemoteItem,
-  deleteItems,
   constants
 }) {
   const {
@@ -357,8 +356,7 @@ export function createSyncExecutionService({
     }
 
     if (goodsIdsToDelete.size > 0) {
-      goodsStore.list = goodsStore.list.filter((item) => !goodsIdsToDelete.has(item.id))
-      await deleteItems([...goodsIdsToDelete])
+      await goodsStore.deleteGoodsPermanently(goodsIdsToDelete)
     }
 
     if (trashToImport.length > 0) {
@@ -379,9 +377,7 @@ export function createSyncExecutionService({
       .map((item) => item.id)
 
     if (localOnlyGoodsIds.length > 0) {
-      const localOnlyGoodsSet = new Set(localOnlyGoodsIds)
-      goodsStore.list = goodsStore.list.filter((item) => !localOnlyGoodsSet.has(item.id))
-      await deleteItems(localOnlyGoodsIds)
+      await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
     }
 
     if (localOnlyTrashIds.length > 0) {

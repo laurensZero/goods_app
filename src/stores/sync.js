@@ -11,7 +11,6 @@ import { createSyncExecutionService } from '@/services/syncExecutionService'
 import { createSyncGistService } from '@/services/syncGistService'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
-import { deleteItems } from '@/utils/db'
 import {
   validateToken,
   createGist,
@@ -416,7 +415,6 @@ export const useSyncStore = defineStore('sync', () => {
     useEventsStore,
     usePresetsStore,
     shouldApplyRemoteItem,
-    deleteItems,
     constants: {
       DATA_FILENAME,
       RECHARGE_DATA_FILENAME,

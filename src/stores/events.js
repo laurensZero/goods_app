@@ -3,6 +3,7 @@ import { computed, ref, shallowRef, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents } from '@/utils/db'
 import { normalizeTracks } from '@/utils/tracks'
 import { buildGistImageUri, parseGistImageUri } from '@/utils/goodsImages'
+import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/localImage'
 
 function parseTicketPrice(value) {
   const price = Number.parseFloat(value)
@@ -16,6 +17,12 @@ function getSortDate(event) {
 function getYearMonth(dateStr) {
   if (!dateStr) return ''
   return String(dateStr).slice(0, 7)
+}
+
+function diffRemovedManagedImagePaths(previousEvent, nextEvent) {
+  const previousPaths = collectManagedLocalImagePathsFromEvent(previousEvent)
+  const nextPaths = collectManagedLocalImagePathsFromEvent(nextEvent)
+  return [...previousPaths].filter((path) => !nextPaths.has(path))
 }
 
 export const useEventsStore = defineStore('events', () => {
@@ -109,20 +116,24 @@ export const useEventsStore = defineStore('events', () => {
     const index = list.value.findIndex((item) => item.id === id)
     if (index === -1) return null
 
+    const previous = list.value[index]
     const normalizedData = {
       ...data,
       tracks: normalizeTracks(data?.tracks)
     }
 
-    list.value[index] = {
-      ...list.value[index],
+    const next = {
+      ...previous,
       ...normalizedData,
       id,
       updatedAt: preserveTimestamp ? (data.updatedAt || Date.now()) : Date.now()
     }
+    const removedPaths = diffRemovedManagedImagePaths(previous, next)
+    list.value[index] = next
 
     triggerRef(list)
-    await addEvent(list.value[index])
+    await addEvent(next)
+    await deleteManagedLocalImages(removedPaths)
     return id
   }
 
@@ -132,14 +143,25 @@ export const useEventsStore = defineStore('events', () => {
 
     list.value = list.value.filter((item) => item.id !== id)
     await deleteEvents([id])
+    await deleteManagedLocalImages(collectManagedLocalImagePathsFromEvent(existing))
   }
 
   async function removeMultipleEventRecords(ids) {
     const targetIds = [...new Set(Array.from(ids || []).filter(Boolean))]
     if (targetIds.length === 0) return
 
+    const targetIdSet = new Set(targetIds)
+    const removedPaths = new Set()
+    for (const item of list.value) {
+      if (!targetIdSet.has(item.id)) continue
+      for (const path of collectManagedLocalImagePathsFromEvent(item)) {
+        removedPaths.add(path)
+      }
+    }
+
     list.value = list.value.filter((item) => !targetIds.includes(item.id))
     await deleteEvents(targetIds)
+    await deleteManagedLocalImages(removedPaths)
   }
 
   async function refreshList() {

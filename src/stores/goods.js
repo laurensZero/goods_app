@@ -19,7 +19,11 @@ import {
   getPrimaryGoodsImageUrl,
   normalizeGoodsImageList
 } from '@/utils/goodsImages'
-import { restoreLocalImageFromDataUrl } from '@/utils/localImage'
+import {
+  collectManagedLocalImagePathsFromGoodsItem,
+  deleteManagedLocalImages,
+  restoreLocalImageFromDataUrl
+} from '@/utils/localImage'
 import { normalizeCharacterName } from '@/stores/presets'
 import { normalizeTracks } from '@/utils/tracks'
 
@@ -360,6 +364,12 @@ async function restoreImportedGoodsItem(rawItem) {
   }
 }
 
+function diffRemovedManagedImagePaths(previousItem, nextItem) {
+  const previousPaths = collectManagedLocalImagePathsFromGoodsItem(previousItem)
+  const nextPaths = collectManagedLocalImagePathsFromGoodsItem(nextItem)
+  return [...previousPaths].filter((path) => !nextPaths.has(path))
+}
+
 export const useGoodsStore = defineStore('goods', () => {
   const list = shallowRef([])
   const trashList = shallowRef([])
@@ -665,9 +675,13 @@ export const useGoodsStore = defineStore('goods', () => {
     if (idx === -1) return null
 
     const imagesExplicit = Array.isArray(data?.images)
-    list.value[idx] = normalizeGoodsInput({ ...list.value[idx], ...data, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
+    const previous = list.value[idx]
+    const next = normalizeGoodsInput({ ...previous, ...data, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
+    const removedPaths = diffRemovedManagedImagePaths(previous, next)
+    list.value[idx] = next
     triggerRef(list)
-    await addItem(list.value[idx])
+    await addItem(next)
+    await deleteManagedLocalImages(removedPaths)
     return id
   }
 
@@ -675,16 +689,22 @@ export const useGoodsStore = defineStore('goods', () => {
     let changed = false
     const imagesExplicit = Array.isArray(data?.images)
     const now = Date.now()
+    const removedPaths = new Set()
 
     list.value = list.value.map((item) => {
       if (!ids.has(item.id)) return item
       changed = true
-      return normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }, item.id)
+      const next = normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }, item.id)
+      for (const path of diffRemovedManagedImagePaths(item, next)) {
+        removedPaths.add(path)
+      }
+      return next
     })
 
     if (changed) {
       const updatedItems = list.value.filter(item => ids.has(item.id))
       await saveItems(updatedItems)
+      await deleteManagedLocalImages(removedPaths)
     }
   }
 
@@ -746,17 +766,49 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   async function deleteTrashItem(id) {
+    const existing = trashList.value.find((entry) => entry.id === id)
     const next = trashList.value.filter((entry) => entry.id !== id)
     if (next.length === trashList.value.length) return
 
     trashList.value = next
     await persistTrash()
+    await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
   }
 
   async function emptyTrash() {
     if (trashList.value.length === 0) return
+    const removedPaths = new Set()
+    for (const item of trashList.value) {
+      for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
+        removedPaths.add(path)
+      }
+    }
     trashList.value = []
     await persistTrash()
+    await deleteManagedLocalImages(removedPaths)
+  }
+
+  async function deleteGoodsPermanently(ids) {
+    const targetIds = [...new Set(Array.from(ids || []).filter(Boolean))]
+    if (targetIds.length === 0) return 0
+
+    const targetIdSet = new Set(targetIds)
+    const removedPaths = new Set()
+    for (const item of list.value) {
+      if (!targetIdSet.has(item.id)) continue
+      for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
+        removedPaths.add(path)
+      }
+    }
+
+    const next = list.value.filter((item) => !targetIdSet.has(item.id))
+    if (next.length === list.value.length) return 0
+
+    list.value = next
+    triggerRef(list)
+    await deleteItems(targetIds)
+    await deleteManagedLocalImages(removedPaths)
+    return targetIds.length
   }
 
   async function replaceCategoryName(oldName, newName) {
@@ -1025,7 +1077,12 @@ export const useGoodsStore = defineStore('goods', () => {
     const existingIds = new Set(list.value.map((item) => item.id))
     const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
     const newItems = await Promise.all(
-      importableItems.map(async (item) => normalizeGoodsInput(await restoreImportedGoodsItem(item), item.id))
+      importableItems.map(async (item) => normalizeGoodsInput({
+        ...(await restoreImportedGoodsItem(item)),
+        __imagesExplicit: true,
+        image: '',
+        coverImage: ''
+      }, item.id))
     )
 
     if (newItems.length === 0) return 0
@@ -1047,26 +1104,20 @@ export const useGoodsStore = defineStore('goods', () => {
       if (!localItem || !shouldApplyRemoteBackup(localItem, remoteItem)) continue
 
       const restoredRemote = await restoreImportedGoodsItem(remoteItem)
-      const localImages = localItem.images || []
-      const remoteImages = restoredRemote.images || []
-      const remoteImageIds = new Set(remoteImages.map((image) => image.id))
-      const localOnlyImages = localImages.filter((image) => !remoteImageIds.has(image.id))
-      const mergedImages = [...remoteImages, ...localOnlyImages]
-      const finalCoverImage = localOnlyImages.some((image) => image.uri === localItem.coverImage)
-        ? localItem.coverImage
-        : restoredRemote.coverImage
-
       const normalized = normalizeGoodsInput({
         ...localItem,
         ...restoredRemote,
-        images: mergedImages,
-        coverImage: finalCoverImage,
+        __imagesExplicit: true,
+        image: '',
+        coverImage: '',
         updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
       }, remoteItem.id)
+      const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
       const idx = list.value.findIndex((item) => item.id === remoteItem.id)
       if (idx === -1) continue
       list.value[idx] = normalized
       updatedItems.push(normalized)
+      await deleteManagedLocalImages(removedPaths)
     }
 
     if (updatedItems.length > 0) {
@@ -1083,7 +1134,12 @@ export const useGoodsStore = defineStore('goods', () => {
     const existingIds = new Set(trashList.value.map((item) => item.id))
     const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
     const newItems = await Promise.all(
-      importableItems.map(async (item) => normalizeTrashItem(await restoreImportedGoodsItem(item), item.id))
+      importableItems.map(async (item) => normalizeTrashItem({
+        ...(await restoreImportedGoodsItem(item)),
+        __imagesExplicit: true,
+        image: '',
+        coverImage: ''
+      }, item.id))
     )
 
     if (newItems.length === 0) return 0
@@ -1108,10 +1164,15 @@ export const useGoodsStore = defineStore('goods', () => {
           const normalized = normalizeTrashItem({
             ...localItem,
             ...restoredRemote,
+            __imagesExplicit: true,
+            image: '',
+            coverImage: '',
             updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
           }, remoteItem.id)
+          const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
           trashList.value[idx] = normalized
           updatedItems.push(normalized)
+          await deleteManagedLocalImages(removedPaths)
         }
       }
     }
@@ -1145,6 +1206,7 @@ export const useGoodsStore = defineStore('goods', () => {
     restoreTrashItem,
     deleteTrashItem,
     emptyTrash,
+    deleteGoodsPermanently,
     replaceCategoryName,
     replaceIpName,
     replaceCharacterName,
