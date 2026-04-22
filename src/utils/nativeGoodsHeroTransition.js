@@ -16,6 +16,7 @@ let pendingBackEventHero = null
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
+const targetHeroStates = new WeakMap()
 
 export function cleanupAllHeroes() {
   activeHeroAnimations.forEach(anim => {
@@ -181,6 +182,36 @@ function readRect(el) {
     width: rect.width,
     height: rect.height
   }
+}
+
+function waitForNextFrame() {
+  if (typeof window === 'undefined') return Promise.resolve()
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve())
+  })
+}
+
+function isRectStable(prevRect, nextRect, tolerance = 0.5) {
+  if (!prevRect || !nextRect) return false
+  return Math.abs(prevRect.left - nextRect.left) <= tolerance &&
+    Math.abs(prevRect.top - nextRect.top) <= tolerance &&
+    Math.abs(prevRect.width - nextRect.width) <= tolerance &&
+    Math.abs(prevRect.height - nextRect.height) <= tolerance
+}
+
+export async function waitForStableHeroTarget(targetEl, maxFrames = 6) {
+  if (!targetEl || typeof window === 'undefined') return false
+
+  let previousRect = null
+  for (let frame = 0; frame < maxFrames; frame += 1) {
+    await waitForNextFrame()
+    const currentRect = readRect(targetEl)
+    if (!currentRect) return false
+    if (isRectStable(previousRect, currentRect)) return true
+    previousRect = currentRect
+  }
+
+  return false
 }
 
 function clamp(value, min, max) {
@@ -389,8 +420,16 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   const previousOpacity = targetEl?.style?.opacity || ''
   const targetBoxShadow = readBoxShadow(targetEl)
+  const targetState = targetEl
+    ? {
+        token: Symbol('hero-target-animation'),
+        previousVisibility,
+        previousOpacity
+      }
+    : null
 
   if (targetEl) {
+    targetHeroStates.set(targetEl, targetState)
     targetEl.style.visibility = 'hidden'
   }
 
@@ -452,9 +491,10 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     if (activeHeroAnimations.has(animation)) activeHeroAnimations.delete(animation)
     if (clipAnimation && activeHeroAnimations.has(clipAnimation)) activeHeroAnimations.delete(clipAnimation)
 
-    if (targetEl) {
-      targetEl.style.visibility = previousVisibility
-      targetEl.style.opacity = previousOpacity
+    if (targetEl && targetState && targetHeroStates.get(targetEl) === targetState) {
+      targetHeroStates.delete(targetEl)
+      targetEl.style.visibility = targetState.previousVisibility
+      targetEl.style.opacity = targetState.previousOpacity
     }
   })
 }
@@ -525,22 +565,23 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   }
 }
 
-export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
+export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, targetEl = null }) {
   if (!pendingBackHero) return false
   if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
     pendingBackHero = null
     return false
   }
-  if (typeof resolveTargetEl !== 'function') return false
 
-  const targetEl = resolveTargetEl(pendingBackHero.goodsId)
-  const targetRect = readRect(targetEl)
+  const resolvedTargetEl = targetEl || (typeof resolveTargetEl === 'function'
+    ? resolveTargetEl(pendingBackHero.goodsId)
+    : null)
+  const targetRect = readRect(resolvedTargetEl)
   if (!targetRect) {
     return false
   }
 
   const releaseScrollLock = lockBackScroll(
-    targetEl,
+    resolvedTargetEl,
     Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
   )
 
@@ -551,7 +592,7 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
     {
       duration: BACK_DURATION_MS,
       direction: 'back',
-      targetEl
+      targetEl: resolvedTargetEl
     }
   ).finally(() => {
     releaseScrollLock()
@@ -559,6 +600,23 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
 
   pendingBackHero = null
   return true
+}
+
+export async function playGoodsHeroBackWhenReady({ currentPath = '', resolveTargetEl, maxFrames = 6 } = {}) {
+  if (!pendingBackHero) return false
+  if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
+    pendingBackHero = null
+    return false
+  }
+  if (typeof resolveTargetEl !== 'function') return false
+
+  const targetEl = resolveTargetEl(pendingBackHero.goodsId)
+  if (!targetEl) return false
+
+  const isStable = await waitForStableHeroTarget(targetEl, maxFrames)
+  if (!isStable) return false
+
+  return playGoodsHeroBack({ currentPath, targetEl })
 }
 
 export function prepareEventHeroForward({ eventId, sourceEl }) {

@@ -337,7 +337,7 @@ import {
   normalizeGoodsFilterConditions
 } from '@/utils/goodsFilters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBackWhenReady } from '@/utils/nativeGoodsHeroTransition'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -378,6 +378,7 @@ const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
 
 let searchTimeout = null
+let goodsBackHeroRetryToken = 0
 let removeAndroidBackListener = null
 let savedScrollTop = 0
 
@@ -830,27 +831,33 @@ function resolveGoodsCardCover(id) {
 }
 
 function tryPlayNativeGoodsBackHero() {
-  return playGoodsHeroBack({
+  return playGoodsHeroBackWhenReady({
     currentPath: route.fullPath,
     resolveTargetEl: resolveGoodsCardCover
   })
 }
 
 let goodsBackHeroRetryRaf = null
-function scheduleGoodsBackHeroRetry() {
-  cancelGoodsBackHeroRetry()
+function scheduleGoodsBackHeroRetry(attempt = 0, token = goodsBackHeroRetryToken) {
+  if (attempt === 0) {
+    cancelGoodsBackHeroRetry()
+    token = goodsBackHeroRetryToken
+  }
   let retryCount = 0
   function retry() {
+    if (token !== goodsBackHeroRetryToken) return
     if (retryCount >= 8) {
       if (hasPendingGoodsHeroBack(route.fullPath)) {
         clearRouteTransitionFallback()
       }
       return
     }
-    const played = tryPlayNativeGoodsBackHero()
-    if (played) return
-    retryCount++
-    goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
+    void tryPlayNativeGoodsBackHero().then((played) => {
+      if (token !== goodsBackHeroRetryToken) return
+      if (played) return
+      retryCount++
+      goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
+    })
   }
   goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
 }
@@ -859,6 +866,7 @@ function cancelGoodsBackHeroRetry() {
   if (!goodsBackHeroRetryRaf) return
   window.cancelAnimationFrame(goodsBackHeroRetryRaf)
   goodsBackHeroRetryRaf = null
+  goodsBackHeroRetryToken += 1
 }
 
 onMounted(async () => {

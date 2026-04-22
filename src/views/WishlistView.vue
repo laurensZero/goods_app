@@ -153,7 +153,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBackWhenReady } from '@/utils/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -210,6 +210,7 @@ let elementScrollHandler = null
 let windowScrollHandler = null
 let topJumpMaskTimer = 0
 let goodsBackHeroRetryRaf = 0
+let goodsBackHeroRetryToken = 0
 let wishlistBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
@@ -437,7 +438,7 @@ function resolveGoodsCardCover(goodsId) {
 }
 
 function tryPlayNativeGoodsBackHero() {
-  return playGoodsHeroBack({
+  return playGoodsHeroBackWhenReady({
     currentPath: route.fullPath,
     resolveTargetEl: resolveGoodsCardCover
   })
@@ -447,6 +448,7 @@ function cancelGoodsBackHeroRetry() {
   if (!goodsBackHeroRetryRaf) return
   window.cancelAnimationFrame(goodsBackHeroRetryRaf)
   goodsBackHeroRetryRaf = 0
+  goodsBackHeroRetryToken += 1
 }
 
 function clearWishlistBackHeroDeferredRestoreTimer() {
@@ -455,20 +457,25 @@ function clearWishlistBackHeroDeferredRestoreTimer() {
   wishlistBackHeroDeferredRestoreTimer = 0
 }
 
-function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
-  cancelGoodsBackHeroRetry()
+function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null, token = goodsBackHeroRetryToken) {
+  if (attempt === 0) {
+    cancelGoodsBackHeroRetry()
+    token = goodsBackHeroRetryToken
+  }
   goodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
     goodsBackHeroRetryRaf = 0
-    const played = tryPlayNativeGoodsBackHero()
-    if (played) {
-      hooks?.onPlayed?.()
-      return
-    }
-    if (attempt + 1 >= WISHLIST_BACK_HERO_RETRY_MAX_FRAMES) {
-      hooks?.onGiveUp?.()
-      return
-    }
-    scheduleGoodsBackHeroRetry(attempt + 1, hooks)
+    void tryPlayNativeGoodsBackHero().then((played) => {
+      if (token !== goodsBackHeroRetryToken) return
+      if (played) {
+        hooks?.onPlayed?.()
+        return
+      }
+      if (attempt + 1 >= WISHLIST_BACK_HERO_RETRY_MAX_FRAMES) {
+        hooks?.onGiveUp?.()
+        return
+      }
+      scheduleGoodsBackHeroRetry(attempt + 1, hooks, token)
+    })
   })
 }
 

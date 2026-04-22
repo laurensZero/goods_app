@@ -197,6 +197,7 @@ import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { cleanupAllHeroes } from '@/utils/nativeGoodsHeroTransition'
 import {
   fetchGitHubUser,
   getGitHubDeviceFlowScope,
@@ -205,7 +206,7 @@ import {
   pollGitHubAccessToken,
   requestGitHubDeviceCode
 } from '@/utils/githubAuth'
-import { runWithRouteTransition } from '@/utils/routeTransition'
+import { clearRouteTransitionFallback, runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'MyView' })
@@ -257,14 +258,20 @@ function resetPageScrollTop() {
 }
 
 function openSync() {
+  cleanupAllHeroes()
+  clearRouteTransitionFallback()
   runWithRouteTransition(() => router.push('/manage/sync'), { direction: 'forward' })
 }
 
 function openSettings() {
+  cleanupAllHeroes()
+  clearRouteTransitionFallback()
   runWithRouteTransition(() => router.push('/manage/settings'), { direction: 'forward' })
 }
 
 function openAbout() {
+  cleanupAllHeroes()
+  clearRouteTransitionFallback()
   runWithRouteTransition(() => router.push('/manage/about'), { direction: 'forward' })
 }
 
@@ -313,12 +320,16 @@ function formatTime(isoString) {
 }
 
 onMounted(async () => {
+  cleanupAllHeroes()
+  clearRouteTransitionFallback()
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
 })
 
 onActivated(() => {
+  cleanupAllHeroes()
+  clearRouteTransitionFallback()
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
 })
