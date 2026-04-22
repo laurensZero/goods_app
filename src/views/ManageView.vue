@@ -216,10 +216,8 @@ import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
-import { cleanupAllHeroes } from '@/utils/nativeGoodsHeroTransition'
 import { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
 import {
-  clearRouteTransitionFallback,
   runManageForwardNavigation
 } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
@@ -237,8 +235,6 @@ defineOptions({ name: 'ManageView' })
 const router = useRouter()
 
 function goManageChild(path) {
-  cleanupAllHeroes()
-  clearRouteTransitionFallback()
   runManageForwardNavigation(() => router.push(path))
 }
 
@@ -823,8 +819,6 @@ onMounted(() => {
 
 onMounted(async () => {
   isRouteLeaving = false
-  cleanupAllHeroes()
-  clearRouteTransitionFallback()
   const shouldMaskDisplay = shouldMaskManageDisplay()
   manageDisplayReady.value = !shouldMaskDisplay
   await ensureEventsReady()
@@ -848,8 +842,6 @@ onMounted(async () => {
 
 onActivated(async () => {
   isRouteLeaving = false
-  cleanupAllHeroes()
-  clearRouteTransitionFallback()
   const shouldMaskDisplay = shouldMaskManageDisplay()
   if (shouldMaskDisplay) {
     manageDisplayReady.value = false

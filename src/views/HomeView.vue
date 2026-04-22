@@ -167,7 +167,7 @@ import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/homeSort'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBackWhenReady } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -231,7 +231,6 @@ let elementScrollHandler = null
 let windowScrollHandler = null
 let mountBootstrapSession = 0
 let goodsBackHeroRetryRaf = 0
-let goodsBackHeroRetryToken = 0
 let homeBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
@@ -897,7 +896,7 @@ function resolveGoodsCardCover(goodsId) {
 }
 
 function tryPlayNativeGoodsBackHero() {
-  return playGoodsHeroBackWhenReady({
+  return playGoodsHeroBack({
     currentPath: route.fullPath,
     resolveTargetEl: resolveGoodsCardCover
   })
@@ -907,7 +906,6 @@ function cancelGoodsBackHeroRetry() {
   if (!goodsBackHeroRetryRaf) return
   window.cancelAnimationFrame(goodsBackHeroRetryRaf)
   goodsBackHeroRetryRaf = 0
-  goodsBackHeroRetryToken += 1
 }
 
 function clearHomeBackHeroDeferredRestoreTimer() {
@@ -916,25 +914,20 @@ function clearHomeBackHeroDeferredRestoreTimer() {
   homeBackHeroDeferredRestoreTimer = 0
 }
 
-function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null, token = goodsBackHeroRetryToken) {
-  if (attempt === 0) {
-    cancelGoodsBackHeroRetry()
-    token = goodsBackHeroRetryToken
-  }
+function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
+  cancelGoodsBackHeroRetry()
   goodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
     goodsBackHeroRetryRaf = 0
-    void tryPlayNativeGoodsBackHero().then((played) => {
-      if (token !== goodsBackHeroRetryToken) return
-      if (played) {
-        hooks?.onPlayed?.()
-        return
-      }
-      if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
-        hooks?.onGiveUp?.()
-        return
-      }
-      scheduleGoodsBackHeroRetry(attempt + 1, hooks, token)
-    })
+    const played = tryPlayNativeGoodsBackHero()
+    if (played) {
+      hooks?.onPlayed?.()
+      return
+    }
+    if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
+      hooks?.onGiveUp?.()
+      return
+    }
+    scheduleGoodsBackHeroRetry(attempt + 1, hooks)
   })
 }
 
