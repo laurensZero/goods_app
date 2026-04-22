@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260422.1",
+    "url": "bundle-20260422.1.zip",
+    "hash": "27763c4353de16204bd73b59d8d994e2f000552590384d4d3a5a3efedb5fe55c",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 playGoodsHeroBackWhenReady 函数以确保目标元素稳定，优化返回动画逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-22T12:08:21Z"
+  },
+  {
     "version": "20260421.4",
     "url": "bundle-20260421.4.zip",
     "hash": "3c90f07a9034b8be05e8f3208317cdef2577b5b075492d286a0869ece09d9ed8",
@@ -16,14 +25,5 @@
     "notes": "- fix: 更新应用标识符为 com.goods.app，调整发布工作流的资产名称模式",
     "updateLevel": "silent",
     "publishedAt": "2026-04-21T13:23:32Z"
-  },
-  {
-    "version": "20260421.2",
-    "url": "bundle-20260421.2.zip",
-    "hash": "cf07c65a36de21c35133b3a7bf5c1850759b8f8cbc0ad73a535118f9337d6d66",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-21T13:17:00Z"
   }
 ]
