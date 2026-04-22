@@ -1,9 +1,9 @@
 {
-  "version": "20260422.1",
-  "url": "bundle-20260422.1.zip",
-  "hash": "27763c4353de16204bd73b59d8d994e2f000552590384d4d3a5a3efedb5fe55c",
+  "version": "20260422.2",
+  "url": "bundle-20260422.2.zip",
+  "hash": "2d33cf06144c54496296b0261fbcddb0eb71f4226602f5dca996716470d13e2e",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 playGoodsHeroBackWhenReady 函数以确保目标元素稳定，优化返回动画逻辑",
+  "notes": "- upd recharge",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-22T12:08:21Z"
+  "publishedAt": "2026-04-22T12:25:00Z"
 }
