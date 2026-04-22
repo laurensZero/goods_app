@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260422.3",
+    "url": "bundle-20260422.3.zip",
+    "hash": "a314abf07d5f0d4c62da86bc5990b8d84f2258c493487682aa0a78053992796a",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat: 添加 playGoodsHeroBackWhenReady 函数以确保目标元素稳定，优化返回动画逻辑\"\n  This reverts commit 91c78dc4b77196a2c79c1baf442675a003304972.",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-22T12:34:49Z"
+  },
+  {
     "version": "20260422.2",
     "url": "bundle-20260422.2.zip",
     "hash": "2d33cf06144c54496296b0261fbcddb0eb71f4226602f5dca996716470d13e2e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 playGoodsHeroBackWhenReady 函数以确保目标元素稳定，优化返回动画逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-22T12:08:21Z"
-  },
-  {
-    "version": "20260421.4",
-    "url": "bundle-20260421.4.zip",
-    "hash": "3c90f07a9034b8be05e8f3208317cdef2577b5b075492d286a0869ece09d9ed8",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-21T15:27:11Z"
   }
 ]
