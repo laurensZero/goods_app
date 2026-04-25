@@ -26,6 +26,7 @@
     "@capawesome/capacitor-file-picker": "^8.0.2",
     "@capgo/capacitor-updater": "^8.45.0",
     "@imgly/background-removal": "^1.7.0",
+    "@tauri-apps/api": "^2.10.1",
     "@vueuse/core": "^14.2.1",
     "cropperjs": "^1.6.2",
     "fabric": "^6.9.1",

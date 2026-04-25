@@ -1,7 +1,13 @@
+import { invoke } from '@tauri-apps/api/core'
+
 const GITHUB_WEB_BASE = 'https://github.com'
 const GITHUB_API_BASE = 'https://api.github.com'
 const REQUEST_TIMEOUT_MS = 30000
 const DEFAULT_GITHUB_SCOPE = 'gist public_repo read:user'
+
+function isTauriDesktop() {
+  return typeof window !== 'undefined' && typeof window.__TAURI_INTERNALS__?.invoke === 'function'
+}
 
 function resolveDeviceFlowBase() {
   const configuredBase = String(import.meta.env.VITE_GITHUB_DEVICE_FLOW_BASE || '').trim()
@@ -52,6 +58,17 @@ async function requestJson(url, options = {}) {
   }
 
   try {
+    if (isTauriDesktop()) {
+      return await invoke('github_http_request', {
+        payload: {
+          method,
+          url,
+          headers,
+          body
+        }
+      })
+    }
+
     const response = await fetch(url, {
       method,
       headers,
