@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260425.2",
+    "url": "bundle-20260425.2.zip",
+    "hash": "762bfec47915cf22d71a9d4fe788d37bd540b01fb26c1e3cadc81dfa3ec21506",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构 HTTP 请求逻辑，添加 Tauri 支持，优化 GitHub API 调用",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-25T14:39:54Z"
+  },
+  {
     "version": "20260425.1",
     "url": "bundle-20260425.1.zip",
     "hash": "030086123eaf379aac420918ef8c435e998f8319fd55064b81884fab06bdd06a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加管理本地图片路径的功能，优化商品和事件的图片处理逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-22T15:31:25Z"
-  },
-  {
-    "version": "20260422.3",
-    "url": "bundle-20260422.3.zip",
-    "hash": "a314abf07d5f0d4c62da86bc5990b8d84f2258c493487682aa0a78053992796a",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 添加 playGoodsHeroBackWhenReady 函数以确保目标元素稳定，优化返回动画逻辑\"\n  This reverts commit 91c78dc4b77196a2c79c1baf442675a003304972.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-22T12:34:49Z"
   }
 ]

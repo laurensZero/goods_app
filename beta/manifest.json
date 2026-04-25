@@ -1,9 +1,9 @@
 {
-  "version": "20260425.1",
-  "url": "bundle-20260425.1.zip",
-  "hash": "030086123eaf379aac420918ef8c435e998f8319fd55064b81884fab06bdd06a",
+  "version": "20260425.2",
+  "url": "bundle-20260425.2.zip",
+  "hash": "762bfec47915cf22d71a9d4fe788d37bd540b01fb26c1e3cadc81dfa3ec21506",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 GitHub HTTP 请求功能，支持在 Tauri 桌面应用中进行 GitHub API 调用",
+  "notes": "- feat: 重构 HTTP 请求逻辑，添加 Tauri 支持，优化 GitHub API 调用",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-25T14:28:42Z"
+  "publishedAt": "2026-04-25T14:39:54Z"
 }
