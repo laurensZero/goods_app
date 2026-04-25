@@ -1,6 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { AppLauncher } from '@capacitor/app-launcher'
 import { openNeteaseSongNative } from '@/utils/nativeMusicBridge'
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
 
 const NETEASE_WEB_BASE = 'https://music.163.com'
 const NETEASE_REFERER = `${NETEASE_WEB_BASE}/`
@@ -68,7 +69,7 @@ async function requestJson(path) {
     return typeof response.data === 'string' ? JSON.parse(response.data) : response.data
   }
 
-  const response = await fetch(`${WEB_PROXY_PREFIX}${path}`, {
+  const response = await fetchWithPlatformBridge(`${WEB_PROXY_PREFIX}${path}`, {
     headers: {}
   })
   if (!response.ok) {

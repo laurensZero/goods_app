@@ -7,6 +7,7 @@ import {
   compareVersions,
   normalizeVersionTag
 } from '@/utils/githubRelease'
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
   gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
@@ -134,7 +135,7 @@ async function fetchWebManifest(url) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithPlatformBridge(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json'
@@ -190,7 +191,7 @@ async function fetchWebVersions(url) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithPlatformBridge(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json'

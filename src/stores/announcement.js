@@ -5,6 +5,7 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
 import { compareVersions, normalizeVersionTag } from '@/utils/githubRelease'
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
 
 const ANNOUNCEMENT_BASE_BY_SOURCE = Object.freeze({
   local: '',
@@ -342,7 +343,7 @@ async function fetchAnnouncementManifest(url) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithPlatformBridge(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json'
@@ -383,7 +384,7 @@ async function fetchRawText(url) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithPlatformBridge(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json'
@@ -446,7 +447,7 @@ async function fetchAnnouncementManifestFromGistApi(gistId) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithPlatformBridge(apiUrl, {
       method: 'GET',
       headers: {
         Accept: 'application/vnd.github+json',

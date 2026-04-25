@@ -5,6 +5,7 @@
  */
 
 import { Filesystem, Directory } from '@capacitor/filesystem'
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -330,7 +331,7 @@ export async function getCachedImage(url) {
     }
 
     try {
-      const response = await fetch(fetchUrl)
+      const response = await fetchWithPlatformBridge(fetchUrl)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
       const blob = await response.blob()

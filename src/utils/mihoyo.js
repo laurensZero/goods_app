@@ -14,6 +14,7 @@
  */
 import { CapacitorHttp, Capacitor } from '@capacitor/core'
 import { normalizeGoodsVariant } from '@/utils/goodsIdentity'
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
 
 const API_BASE = 'https://api-mall.mihoyogift.com'
 const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
@@ -228,7 +229,7 @@ export async function parseMihoyoUrl(url) {
   } else {
     // Web / 浏览器开发：通过 Vite proxy（/mihoyo-api → api-mall.mihoyogift.com）
     const proxyPath = `/mihoyo-api/common/homeishop/v1/goods/get_goods_spu_detail?goods_id=${goodsId}`
-    const res = await fetch(proxyPath, { headers: reqHeaders })
+    const res = await fetchWithPlatformBridge(proxyPath, { headers: reqHeaders })
     if (!res.ok) throw new Error(`请求失败（${res.status}）`)
     json = await res.json()
   }
@@ -302,7 +303,7 @@ export async function fetchGoodsDetail(goodsId) {
       const res = await CapacitorHttp.get({ url: apiUrl, headers: reqHeaders })
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
-      const res = await fetch(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
+      const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
       if (!res.ok) return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '' }
       json = await res.json()
     }
@@ -382,7 +383,7 @@ export async function fetchGoodsVariants(goodsId) {
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
       const url = `/mihoyo-api/common/homeishop/v1/goods/get_goods_spu_detail?goods_id=${goodsId}`
-      const res = await fetch(url, { headers: reqHeaders })
+      const res = await fetchWithPlatformBridge(url, { headers: reqHeaders })
       if (!res.ok) return []
       json = await res.json()
     }
@@ -417,7 +418,7 @@ export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
       const url = `/mihoyo-api/common/homeishop/v1/search/search_goods_list?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`
-      const res = await fetch(url, { headers: reqHeaders })
+      const res = await fetchWithPlatformBridge(url, { headers: reqHeaders })
       if (!res.ok) return []
       json = await res.json()
     }
@@ -486,7 +487,7 @@ async function fetchOrderPage(cookieStr, page, limit) {
       'x-cookie-forward': encodeURIComponent(headers['Cookie'] || ''),
     }
     delete webHeaders['Cookie']
-    const res = await fetch(proxyUrl, { headers: webHeaders })
+    const res = await fetchWithPlatformBridge(proxyUrl, { headers: webHeaders })
     if (!res.ok) throw new Error(`请求失败（${res.status}）`)
     json = await res.json()
   }
@@ -533,7 +534,7 @@ export async function fetchCartList(cookieStr) {
       'x-cookie-forward': encodeURIComponent(headers['Cookie'] || ''),
     }
     delete webHeaders['Cookie']
-    const res = await fetch(API_CART_LIST.replace(API_BASE, '/mihoyo-api'), { headers: webHeaders })
+    const res = await fetchWithPlatformBridge(API_CART_LIST.replace(API_BASE, '/mihoyo-api'), { headers: webHeaders })
     if (!res.ok) throw new Error(`请求失败（${res.status}）`)
     json = await res.json()
   }
@@ -903,7 +904,7 @@ export async function fetchGoodsCategoryList(shopCode) {
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
       const url = `/mihoyo-api/common/homeishop/v1/category/get_category_list?shop_code=${encodeURIComponent(normalizedShopCode)}`
-      const res = await fetch(url, { headers: reqHeaders })
+      const res = await fetchWithPlatformBridge(url, { headers: reqHeaders })
       if (!res.ok) return []
       json = await res.json()
     }
@@ -954,7 +955,7 @@ export async function searchGoodsSpuList({
       const res = await CapacitorHttp.get({ url: `${API_GOODS_SPU_LIST}?${query.toString()}`, headers: reqHeaders })
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
-      const res = await fetch(`/mihoyo-api/common/homeishop/v1/goods/search_goods_spu_list?${query.toString()}`, { headers: reqHeaders })
+      const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/search_goods_spu_list?${query.toString()}`, { headers: reqHeaders })
       if (!res.ok) return []
       json = await res.json()
     }

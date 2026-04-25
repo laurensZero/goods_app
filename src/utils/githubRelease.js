@@ -1,3 +1,5 @@
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITEE_API_BASE = 'https://gitee.com/api/v5'
 const REQUEST_TIMEOUT_MS = 15000
@@ -94,7 +96,7 @@ async function request(baseUrl, path, headers) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetchWithPlatformBridge(`${baseUrl}${path}`, {
       method: 'GET',
       headers,
       signal: controller.signal

@@ -1,3 +1,5 @@
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+
 const GITHUB_API_BASE = 'https://api.github.com'
 const REQUEST_TIMEOUT_MS = 30000
 
@@ -25,7 +27,7 @@ async function request(method, path, token, body = null) {
   }
 
   try {
-    const response = await fetch(`${GITHUB_API_BASE}${path}`, options)
+    const response = await fetchWithPlatformBridge(`${GITHUB_API_BASE}${path}`, options)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))

@@ -1,33 +1,53 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct GithubHttpRequestPayload {
+struct NativeHttpRequestPayload {
   method: Option<String>,
   url: String,
-  headers: Option<std::collections::HashMap<String, String>>,
+  headers: Option<HashMap<String, String>>,
   body: Option<String>,
 }
 
-fn validate_github_url(url: &str) -> Result<(), String> {
-  let parsed = reqwest::Url::parse(url).map_err(|_| "无效的 GitHub 请求地址".to_string())?;
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeHttpResponsePayload {
+  status: u16,
+  headers: HashMap<String, String>,
+  body: String,
+}
+
+const ALLOWED_HTTPS_HOSTS: &[&str] = &[
+  "github.com",
+  "api.github.com",
+  "gist.githubusercontent.com",
+  "gitee.com",
+  "api-mall.mihoyogift.com",
+  "sdk-webstatic.mihoyo.com",
+  "music.163.com",
+  "laurenszero.github.io",
+];
+
+fn validate_allowed_url(url: &str) -> Result<(), String> {
+  let parsed = reqwest::Url::parse(url).map_err(|_| "无效的请求地址".to_string())?;
   let host = parsed.host_str().unwrap_or_default();
 
   if parsed.scheme() != "https" {
-    return Err("仅允许 HTTPS GitHub 请求".to_string());
+    return Err("仅允许 HTTPS 请求".to_string());
   }
 
-  if host != "github.com" && host != "api.github.com" {
-    return Err("仅允许访问 GitHub 官方域名".to_string());
+  if !ALLOWED_HTTPS_HOSTS.contains(&host) {
+    return Err(format!("当前域名不在允许列表中: {host}"));
   }
 
   Ok(())
 }
 
 #[tauri::command]
-async fn github_http_request(payload: GithubHttpRequestPayload) -> Result<Value, String> {
-  validate_github_url(&payload.url)?;
+async fn native_http_request(payload: NativeHttpRequestPayload) -> Result<NativeHttpResponsePayload, String> {
+  validate_allowed_url(&payload.url)?;
 
   let method = payload
     .method
@@ -55,15 +75,36 @@ async fn github_http_request(payload: GithubHttpRequestPayload) -> Result<Value,
   let response = request
     .send()
     .await
-    .map_err(|error| format!("GitHub 请求失败: {error}"))?;
+    .map_err(|error| format!("网络请求失败: {error}"))?;
 
   let status = response.status();
-  let payload = response
-    .json::<Value>()
+  let mut headers = HashMap::new();
+  for (key, value) in response.headers().iter() {
+    if let Ok(text) = value.to_str() {
+      headers.insert(key.as_str().to_string(), text.to_string());
+    }
+  }
+
+  let body = response
+    .text()
     .await
+    .map_err(|error| format!("读取响应失败: {error}"))?;
+
+  Ok(NativeHttpResponsePayload {
+    status: status.as_u16(),
+    headers,
+    body,
+  })
+}
+
+#[tauri::command]
+async fn github_http_request(payload: NativeHttpRequestPayload) -> Result<Value, String> {
+  let response = native_http_request(payload).await?;
+
+  let payload = serde_json::from_str::<Value>(&response.body)
     .unwrap_or_else(|_| Value::Object(Default::default()));
 
-  if !status.is_success() {
+  if response.status < 200 || response.status >= 300 {
     if let Some(message) = payload.get("error_description").and_then(|value| value.as_str()) {
       return Err(message.to_string());
     }
@@ -73,7 +114,7 @@ async fn github_http_request(payload: GithubHttpRequestPayload) -> Result<Value,
     if let Some(message) = payload.get("error").and_then(|value| value.as_str()) {
       return Err(message.to_string());
     }
-    return Err(format!("GitHub 请求失败: HTTP {}", status.as_u16()));
+    return Err(format!("GitHub 请求失败: HTTP {}", response.status));
   }
 
   Ok(payload)
@@ -82,7 +123,7 @@ async fn github_http_request(payload: GithubHttpRequestPayload) -> Result<Value,
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![github_http_request])
+    .invoke_handler(tauri::generate_handler![native_http_request, github_http_request])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

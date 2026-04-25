@@ -1,3 +1,5 @@
+import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+
 const GITHUB_API_BASE = 'https://api.github.com'
 
 function buildHeaders(token, includeContentType = true) {
@@ -31,7 +33,7 @@ async function request(method, path, token, body = null) {
   }
 
   try {
-    const response = await fetch(`${GITHUB_API_BASE}${path}`, options)
+    const response = await fetchWithPlatformBridge(`${GITHUB_API_BASE}${path}`, options)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
@@ -100,7 +102,7 @@ function buildFallbackRawUrl(gist, filename) {
 
 async function readRawText(url) {
   if (!url) return null
-  const response = await fetch(url, {
+  const response = await fetchWithPlatformBridge(url, {
     method: 'GET',
     headers: {
       Accept: 'text/plain'

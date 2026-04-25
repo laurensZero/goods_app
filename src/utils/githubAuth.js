@@ -1,13 +1,9 @@
-import { invoke } from '@tauri-apps/api/core'
+import { requestPlatformJson } from '@/utils/platformHttp'
 
 const GITHUB_WEB_BASE = 'https://github.com'
 const GITHUB_API_BASE = 'https://api.github.com'
 const REQUEST_TIMEOUT_MS = 30000
 const DEFAULT_GITHUB_SCOPE = 'gist public_repo read:user'
-
-function isTauriDesktop() {
-  return typeof window !== 'undefined' && typeof window.__TAURI_INTERNALS__?.invoke === 'function'
-}
 
 function resolveDeviceFlowBase() {
   const configuredBase = String(import.meta.env.VITE_GITHUB_DEVICE_FLOW_BASE || '').trim()
@@ -58,32 +54,18 @@ async function requestJson(url, options = {}) {
   }
 
   try {
-    if (isTauriDesktop()) {
-      return await invoke('github_http_request', {
-        payload: {
-          method,
-          url,
-          headers,
-          body
-        }
-      })
-    }
-
-    const response = await fetch(url, {
+    return await requestPlatformJson(url, {
       method,
       headers,
       body,
       signal: controller.signal
     })
-
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(normalizeErrorMessage(payload))
-    }
-    return payload
   } catch (error) {
     if (error?.name === 'AbortError') {
       throw new Error('请求超时，请检查网络连接')
+    }
+    if (error instanceof Error) {
+      throw new Error(normalizeErrorMessage({ error_description: error.message }))
     }
     throw error
   } finally {
