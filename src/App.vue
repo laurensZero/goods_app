@@ -49,6 +49,8 @@ const webUpdateStore = useWebUpdateStore()
 const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView']
 const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-settings', 'manage-sync', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
+let removeAppUrlOpenListener = null
+let removeNativeNfcListener = null
 const hasLocalData = computed(() => (
   resolveArrayValue(goodsStore.list).length > 0
   || resolveArrayValue(goodsStore.trashList).length > 0
@@ -70,6 +72,41 @@ function getRouteKey(currentRoute) {
   return currentRoute.fullPath
 }
 
+function buildNfcSearchState(storagePath) {
+  return {
+    filters: { storageLocations: [storagePath] },
+    advancedExpanded: false
+  }
+}
+
+async function navigateByStorageNfc(url) {
+  if (!url || !url.startsWith('goodsapp://storage/')) return false
+
+  let storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
+  storagePath = storagePath.replace(/\/$/, '')
+
+  const stateKey = 'searchViewState:collection'
+  const nextState = buildNfcSearchState(storagePath)
+
+  await router.push({
+    path: '/search',
+    query: {
+      scope: 'collection',
+      action: 'nfc',
+      nfc: `${Date.now()}`
+    },
+    state: {
+      [stateKey]: nextState
+    }
+  }).catch(() => {})
+
+  return true
+}
+
+async function handleIncomingAppUrl(url) {
+  await navigateByStorageNfc(url)
+}
+
 async function handleVisibilityChange() {
   if (document.hidden) {
     if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
@@ -86,44 +123,27 @@ async function handleVisibilityChange() {
 }
 
 onMounted(async () => {
-    document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
   
-    if (Capacitor.isNativePlatform()) {
-      const handleAppUrlOpen = (url) => {
-        if (!url) return
-        if (url.startsWith('goodsapp://storage/')) {
-          let storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
-          storagePath = storagePath.replace(/\/$/, '')
-          const stateKey = 'searchViewState:collection'
-          
-          const nextState = {
-            filters: { storageLocations: [storagePath] },
-            advancedExpanded: false
-          }
-  
-          router.push({
-            path: '/search',
-            query: { scope: 'collection', action: 'nfc' },
-            state: {
-              [stateKey]: nextState
-            }
-          })
-        }
-      }
-
-      // 1. Initial Launch check
-      const launchUrl = await CapApp.getLaunchUrl()
-      if (launchUrl && launchUrl.url) {
-        handleAppUrlOpen(launchUrl.url)
-      }
-
-      // 2. Listener for foreground awakes
-      CapApp.addListener('appUrlOpen', (event) => {
-        handleAppUrlOpen(event.url)
-      })
+  if (Capacitor.isNativePlatform()) {
+    const nativeNfcListener = (event) => {
+      void handleIncomingAppUrl(event?.detail?.url)
     }
+
+    window.addEventListener('goodsappNfcOpen', nativeNfcListener)
+    removeNativeNfcListener = () => window.removeEventListener('goodsappNfcOpen', nativeNfcListener)
+
+    const launchUrl = await CapApp.getLaunchUrl()
+    if (launchUrl && launchUrl.url) {
+      await handleIncomingAppUrl(launchUrl.url)
+    }
+
+    removeAppUrlOpenListener = await CapApp.addListener('appUrlOpen', (event) => {
+      void handleIncomingAppUrl(event.url)
+    })
+  }
   
-    void appUpdateStore.init()
+  void appUpdateStore.init()
   void webUpdateStore.init()
   void announcementStore.init()
   const shouldAutoCheckUpdate = !(import.meta.env.DEV && !Capacitor.isNativePlatform())
@@ -157,6 +177,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  removeNativeNfcListener?.()
+  removeNativeNfcListener = null
+  removeAppUrlOpenListener?.remove?.()
+  removeAppUrlOpenListener = null
 })
 </script>
 
