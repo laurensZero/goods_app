@@ -1,9 +1,9 @@
 {
-  "version": "20260426.7",
-  "url": "bundle-20260426.7.zip",
-  "hash": "74506519729165a93e31722f911ea63f4a2336739bb03b705747366dbb57dc99",
+  "version": "20260426.8",
+  "url": "bundle-20260426.8.zip",
+  "hash": "949665ea7930d69123a277f935e52af57ed5140b6722a19615300d295b31050c",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 onNewIntent 方法以处理新意图，确保 Capacitor 正确捕获",
+  "notes": "- feat: 添加 NFC 处理逻辑，支持通过深度链接导航到存储位置",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-26T11:54:35Z"
+  "publishedAt": "2026-04-26T12:18:13Z"
 }
