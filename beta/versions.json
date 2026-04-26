@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260426.1",
+    "url": "bundle-20260426.1.zip",
+    "hash": "fdeef5a2bc9ae8fe7db9d2a2204aee99556c70471c6bad731da7cf4062105604",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 NFC 支持，绑定 NFC 标签功能，更新相关依赖和组件",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-26T10:53:18Z"
+  },
+  {
     "version": "20260425.2",
     "url": "bundle-20260425.2.zip",
     "hash": "762bfec47915cf22d71a9d4fe788d37bd540b01fb26c1e3cadc81dfa3ec21506",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 GitHub HTTP 请求功能，支持在 Tauri 桌面应用中进行 GitHub API 调用",
     "updateLevel": "silent",
     "publishedAt": "2026-04-25T14:28:42Z"
-  },
-  {
-    "version": "20260422.4",
-    "url": "bundle-20260422.4.zip",
-    "hash": "ce12c3bb9d340ced8a30122cfe23234ab1bbb72c182b9e494a73f9ffa315236c",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加管理本地图片路径的功能，优化商品和事件的图片处理逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-22T15:31:25Z"
   }
 ]
