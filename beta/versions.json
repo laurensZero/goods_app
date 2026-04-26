@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260426.4",
+    "url": "bundle-20260426.4.zip",
+    "hash": "9c0dc6c7067480cb6373090d26e64b1f92751b21dd5437f23e0bb38a4e6da5db",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 AndroidManifest.xml，添加 NDEF 记录的 NFC 深度链接意图过滤器和通用深度链接意图过滤器",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-26T11:30:48Z"
+  },
+  {
     "version": "20260426.3",
     "url": "bundle-20260426.3.zip",
     "hash": "df4884d0e2ae030b4bbb9a5268b2232fb0af8fa9be436dd50452d124ebc1e205",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化 NFC 标签写入逻辑，添加物理标签检测监听器以提高用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-26T11:09:51Z"
-  },
-  {
-    "version": "20260426.1",
-    "url": "bundle-20260426.1.zip",
-    "hash": "fdeef5a2bc9ae8fe7db9d2a2204aee99556c70471c6bad731da7cf4062105604",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 NFC 支持，绑定 NFC 标签功能，更新相关依赖和组件",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-26T10:53:18Z"
   }
 ]
