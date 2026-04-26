@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260426.5",
+    "url": "bundle-20260426.5.zip",
+    "hash": "66079a70a75f6d38a995a904eefc5832ae546c0280c29789c1d69d80a7fb33f8",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化 appUrlOpen 处理逻辑，支持初始启动 URL 和前台唤醒事件",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-26T11:46:40Z"
+  },
+  {
     "version": "20260426.4",
     "url": "bundle-20260426.4.zip",
     "hash": "9c0dc6c7067480cb6373090d26e64b1f92751b21dd5437f23e0bb38a4e6da5db",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 NFC 写入失败的回退机制，支持不格式化标签的写入",
     "updateLevel": "silent",
     "publishedAt": "2026-04-26T11:16:32Z"
-  },
-  {
-    "version": "20260426.2",
-    "url": "bundle-20260426.2.zip",
-    "hash": "bc952788e709a69f0a8ec723ef34b1f67ec48d07d035b873772033e668256014",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化 NFC 标签写入逻辑，添加物理标签检测监听器以提高用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-26T11:09:51Z"
   }
 ]
