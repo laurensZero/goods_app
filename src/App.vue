@@ -86,32 +86,44 @@ async function handleVisibilityChange() {
 }
 
 onMounted(async () => {
-  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
-
-  if (Capacitor.isNativePlatform()) {
-    CapApp.addListener('appUrlOpen', (event) => {
-      const url = event.url || ''
-      if (url.startsWith('goodsapp://storage/')) {
-        const storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
-        const stateKey = 'searchViewState:collection'
-        
-        const nextState = {
-          filters: { storageLocations: [storagePath] },
-          advancedExpanded: true
-        }
-
-        router.push({
-          path: '/search',
-          query: { scope: 'collection', action: 'nfc' },
-          state: {
-            [stateKey]: nextState
+    document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+  
+    if (Capacitor.isNativePlatform()) {
+      const handleAppUrlOpen = (url) => {
+        if (!url) return
+        if (url.startsWith('goodsapp://storage/')) {
+          let storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
+          storagePath = storagePath.replace(/\/$/, '')
+          const stateKey = 'searchViewState:collection'
+          
+          const nextState = {
+            filters: { storageLocations: [storagePath] },
+            advancedExpanded: true
           }
-        })
+  
+          router.push({
+            path: '/search',
+            query: { scope: 'collection', action: 'nfc' },
+            state: {
+              [stateKey]: nextState
+            }
+          })
+        }
       }
-    })
-  }
 
-  void appUpdateStore.init()
+      // 1. Initial Launch check
+      const launchUrl = await CapApp.getLaunchUrl()
+      if (launchUrl && launchUrl.url) {
+        handleAppUrlOpen(launchUrl.url)
+      }
+
+      // 2. Listener for foreground awakes
+      CapApp.addListener('appUrlOpen', (event) => {
+        handleAppUrlOpen(event.url)
+      })
+    }
+  
+    void appUpdateStore.init()
   void webUpdateStore.init()
   void announcementStore.init()
   const shouldAutoCheckUpdate = !(import.meta.env.DEV && !Capacitor.isNativePlatform())
