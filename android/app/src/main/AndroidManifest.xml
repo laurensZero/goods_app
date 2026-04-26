@@ -32,11 +32,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- NFC Deep Link Intent Filter -->
+            <!-- NFC Deep Link Intent Filter for NDEF records -->
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <!-- Matches goodsapp://storage/{id} -->
+                <data android:scheme="goodsapp" android:host="storage" />
+            </intent-filter>
+            
+            <!-- General Deep Link Intent Filter for VIEW/BROWSABLE -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="goodsapp" android:host="storage" />
             </intent-filter>
 
