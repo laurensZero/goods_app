@@ -98,7 +98,7 @@ onMounted(async () => {
           
           const nextState = {
             filters: { storageLocations: [storagePath] },
-            advancedExpanded: true
+            advancedExpanded: false
           }
   
           router.push({
