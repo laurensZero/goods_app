@@ -21,8 +21,9 @@
 
 <script setup>
 import { computed, KeepAlive, onBeforeUnmount, onMounted } from 'vue'
+import { App as CapApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
@@ -37,6 +38,7 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
+const router = useRouter()
 const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
 const eventsStore = useEventsStore()
@@ -85,6 +87,29 @@ async function handleVisibilityChange() {
 
 onMounted(async () => {
   document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+
+  if (Capacitor.isNativePlatform()) {
+    CapApp.addListener('appUrlOpen', (event) => {
+      const url = event.url || ''
+      if (url.startsWith('goodsapp://storage/')) {
+        const storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
+        const stateKey = 'searchViewState:collection'
+        
+        const nextState = {
+          filters: { storageLocations: [storagePath] },
+          advancedExpanded: true
+        }
+
+        router.push({
+          path: '/search',
+          query: { scope: 'collection', action: 'nfc' },
+          state: {
+            [stateKey]: nextState
+          }
+        })
+      }
+    })
+  }
 
   void appUpdateStore.init()
   void webUpdateStore.init()

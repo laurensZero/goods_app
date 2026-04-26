@@ -32,6 +32,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- NFC Deep Link Intent Filter -->
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <!-- Matches goodsapp://storage/{id} -->
+                <data android:scheme="goodsapp" android:host="storage" />
+            </intent-filter>
+
         </activity>
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -46,6 +54,8 @@
 
     <!-- Permissions -->
 
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />

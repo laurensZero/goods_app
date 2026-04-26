@@ -64,6 +64,7 @@
             :key="node.id"
             :node="node"
             :stats-by-id="statsById"
+            @write-nfc="handleWriteNfc"
             @add-child="openCreateChild"
             @rename="openRename"
             @remove="removeNode"
@@ -78,6 +79,14 @@
         />
       </section>
     </main>
+
+    <NfcWriteDialog
+      :show="showNfcDialog"
+      :status="nfcDialogStatus"
+      :message="nfcDialogMessage"
+      :node-name="currentNfcNode?.name"
+      @cancel="cancelNfc"
+    />
 
     <PresetDeleteConfirm
       :show="showDeleteConfirm"
@@ -100,6 +109,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 import StorageLocationTreeNode from '@/components/storage/StorageLocationTreeNode.vue'
+import NfcWriteDialog from '@/components/storage/NfcWriteDialog.vue'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
@@ -109,6 +119,11 @@ const editorNodeId = ref('')
 const editorName = ref('')
 const showDeleteConfirm = ref(false)
 const pendingDeleteNode = ref(null)
+
+const showNfcDialog = ref(false)
+const nfcDialogStatus = ref('scanning')
+const nfcDialogMessage = ref('')
+const currentNfcNode = ref(null)
 
 const statsById = computed(() => {
   const stats = {}
@@ -184,6 +199,73 @@ const editorPlaceholder = computed(() => {
 const editorSubmitText = computed(() =>
   editorMode.value === 'rename' ? '保存名称' : '新增位置'
 )
+
+async function handleWriteNfc(node) {
+  const { Capacitor } = await import('@capacitor/core')
+
+  if (!Capacitor.isNativePlatform()) {
+    showNfcDialog.value = true
+    nfcDialogStatus.value = 'error'
+    nfcDialogMessage.value = '您现在正在电脑/网页端预览，NFC 需要打包到手机才能真实执行物理读写哦。'
+    currentNfcNode.value = node
+    return
+  }
+
+  const { CapacitorNfc } = await import('@capgo/capacitor-nfc')
+
+  showNfcDialog.value = true
+  nfcDialogStatus.value = 'scanning'
+  nfcDialogMessage.value = ''
+  currentNfcNode.value = node
+
+  try {
+    const isAvailable = await CapacitorNfc.isSupported()
+    if (!isAvailable.supported) {
+      nfcDialogMessage.value = '当前设备不支持 NFC 或未开启功能'
+      nfcDialogStatus.value = 'error'
+      return
+    }
+
+    try {
+      await CapacitorNfc.startScanning({
+         invalidateAfterFirstRead: false,
+         alertMessage: `靠近首饰盒 NFC 标签以将 ${node.name} 身份写入...`
+      })
+    } catch {
+       // Ignore if scanning is already active
+    }
+    
+    // NDEF URI format
+    const uri = `goodsapp://storage/${encodeURIComponent(node.path)}`
+    const uriBytes = Array.from(new TextEncoder().encode(uri))
+    const payload = [0x00, ...uriBytes]
+
+    await CapacitorNfc.write({
+      allowFormat: true,
+      records: [{
+        tnf: 0x01, // TNF_WELL_KNOWN
+        type: [0x55], // 'U'
+        id: [],
+        payload
+      }]
+    })
+
+    nfcDialogStatus.value = 'success'
+    nfcDialogMessage.value = `写入成功！\n现在只要碰一碰就自动筛选 ${node.name} 的内容。`
+    await CapacitorNfc.stopScanSession()
+  } catch (error) {
+    console.error('Nfc Write Error:', error)
+    nfcDialogStatus.value = 'error'
+    nfcDialogMessage.value = `写入被取消或失败\n${error.message || ''}`
+    try { await CapacitorNfc.stopScanSession() } catch {}
+  }
+}
+
+async function cancelNfc() {
+  showNfcDialog.value = false
+  const { CapacitorNfc } = await import('@capgo/capacitor-nfc')
+  try { await CapacitorNfc.stopScanSession() } catch {}
+}
 
 function resetEditor() {
   editorMode.value = ''

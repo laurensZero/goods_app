@@ -10,6 +10,7 @@
       </div>
 
       <div class="tree-node__actions">
+        <button type="button" class="tree-node__action tree-node__action--nfc" @click="$emit('write-nfc', node)">绑定 NFC</button>
         <button type="button" class="tree-node__action" @click="$emit('add-child', node)">新增子级</button>
         <button type="button" class="tree-node__action" @click="$emit('rename', node)">重命名</button>
         <button type="button" class="tree-node__action tree-node__action--danger" @click="$emit('remove', node)">删除</button>
@@ -22,6 +23,7 @@
         :key="child.id"
         :node="child"
         :stats-by-id="statsById"
+        @write-nfc="$emit('write-nfc', $event)"
         @add-child="$emit('add-child', $event)"
         @rename="$emit('rename', $event)"
         @remove="$emit('remove', $event)"
@@ -48,7 +50,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['add-child', 'rename', 'remove'])
+defineEmits(['write-nfc', 'add-child', 'rename', 'remove'])
 
 const stats = computed(() =>
   props.statsById[props.node.id] || { itemCount: 0, quantity: 0 }
@@ -113,6 +115,10 @@ const stats = computed(() =>
 
 .tree-node__action--danger {
   color: #c74444;
+}
+
+.tree-node__action--nfc {
+  color: var(--app-primary);
 }
 
 .tree-node__children {
