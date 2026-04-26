@@ -226,14 +226,36 @@ async function handleWriteNfc(node) {
       return
     }
 
+    nfcDialogMessage.value = '准备写入，请将手机靠近贴纸...'
+
+    let nfcScannedListener = null
+    const tagDetected = new Promise((resolve, reject) => {
+      let timeoutId = setTimeout(() => {
+        if (nfcScannedListener) nfcScannedListener.remove()
+        reject(new Error('等待超时，请重新点击绑定'))
+      }, 15000)
+
+      CapacitorNfc.addListener('nfcEvent', () => {
+        clearTimeout(timeoutId)
+        if (nfcScannedListener) nfcScannedListener.remove()
+        resolve()
+      }).then(res => {
+        nfcScannedListener = res
+      }).catch(reject)
+    })
+
     try {
       await CapacitorNfc.startScanning({
          invalidateAfterFirstRead: false,
-         alertMessage: `靠近首饰盒 NFC 标签以将 ${node.name} 身份写入...`
+         alertMessage: `靠近首饰盒 NFC 标签以将 ${node.name} 写入...`
       })
     } catch {
        // Ignore if scanning is already active
     }
+
+    // Wait until the phone physically touches a tag
+    await tagDetected
+    nfcDialogMessage.value = '已靠近标签，正在写入...'
     
     // NDEF URI format
     const uri = `goodsapp://storage/${encodeURIComponent(node.path)}`
