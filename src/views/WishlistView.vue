@@ -122,8 +122,11 @@
       :show="selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
       @delete="batchDelete"
+      @share="batchShare"
       @edit="batchEdit"
     />
+
+    <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
   </div>
 </template>
 
@@ -149,6 +152,7 @@ import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
+import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -194,6 +198,7 @@ const windowWidth = ref(window.innerWidth)
 const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
+const showShareSheet = ref(false)
 const batchEditSheetRef = ref(null)
 const isWishlistActive = ref(true)
 const wishlistDisplayReady = ref(true)
@@ -291,10 +296,15 @@ const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
 
+const selectedGoodsItems = computed(() =>
+  goodsList.value.filter((item) => selectedIds.value.has(item.id))
+)
+
 function closeSelectionOverlays() {
   showDeleteConfirm.value = false
   batchEditSheetRef.value?.close()
   showAddSheet.value = false
+  showShareSheet.value = false
 }
 
 const {
@@ -640,6 +650,11 @@ async function confirmDelete() {
 function batchEdit() {
   if (selectedIds.value.size === 0) return
   showBatchEditSheet.value = true
+}
+
+function batchShare() {
+  if (selectedIds.value.size === 0) return
+  showShareSheet.value = true
 }
 
 async function applyBatchEditPayload(payload) {

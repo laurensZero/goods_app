@@ -178,6 +178,19 @@ const routes = [
     meta: { title: '云同步' }
   },
   {
+    path: '/manage/shares',
+    name: 'manage-shares',
+    component: () => import('@/views/ShareManageView.vue'),
+    meta: { title: '管理分享' }
+  },
+  {
+    path: '/share/:gistId?',
+    name: 'share-import',
+    component: () => import('@/views/ShareImportView.vue'),
+    meta: { title: '导入分享' },
+    props: true
+  },
+  {
     path: '/manage/about',
     name: 'manage-about',
     component: () => import('@/views/AboutView.vue'),

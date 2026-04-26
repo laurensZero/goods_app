@@ -90,8 +90,8 @@
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage'].includes(activeManageEntry.key),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage'].includes(activeManageEntry.key),
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares'].includes(activeManageEntry.key),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares'].includes(activeManageEntry.key),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageEntry.key)
               }
             ]"
@@ -229,6 +229,7 @@ import ThemeView from '@/views/ThemeView.vue'
 import TrashView from '@/views/TrashView.vue'
 import SyncView from '@/views/SyncView.vue'
 import AboutView from '@/views/AboutView.vue'
+import ShareManageView from '@/views/ShareManageView.vue'
 
 defineOptions({ name: 'ManageView' })
 
@@ -433,7 +434,7 @@ const manageEntries = computed(() => ([
     kicker: '云同步',
     meta: syncMetaText.value,
     detail: '连接 GitHub 后可在多设备之间同步数据，并检查令牌、Gist 和远端状态。',
-    summary: '同步页应该更偏状态中心，而不是单次操作页，核心是看得清“现在是否安全”。',
+    summary: '同步页应该更偏状态中心，而不是单次操作页，核心是看得清”现在是否安全”。',
     recommendation: '如果已经登录，优先确认最近同步时间和授权范围是否正常。',
     primaryLabel: '打开同步中心',
     secondaryLabel: '',
@@ -444,6 +445,26 @@ const manageEntries = computed(() => ([
     stats: [
       { label: '连接状态', value: syncStore.githubLogin ? '已连接' : '未连接' },
       { label: '最近同步', value: syncStore.lastSyncedAt ? formatSyncTime(syncStore.lastSyncedAt) : '从未同步' }
+    ]
+  },
+  {
+    key: 'shares',
+    group: 'cloud',
+    title: '管理分享',
+    kicker: '云同步',
+    meta: '查看和管理已发起的分享',
+    detail: '查看所有已发起的分享记录，复制分享链接、停用或删除不再需要的分享。',
+    summary: '集中管理分享入口，避免过多无效链接散落。',
+    recommendation: '定期清理过期或不再需要的分享，保持分享列表整洁。',
+    primaryLabel: '打开分享管理',
+    secondaryLabel: '',
+    iconMode: 'svg',
+    iconClass: 'share-icon',
+    iconPaths: ['M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71', 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
+    path: '/manage/shares',
+    stats: [
+      { label: '用途', value: '管理 / 分享' },
+      { label: '依赖', value: 'GitHub Token' }
     ]
   },
   {
@@ -495,6 +516,7 @@ const manageComponentMap = {
   theme: ThemeView,
   trash: TrashView,
   sync: SyncView,
+  shares: ShareManageView,
   about: AboutView
 }
 
@@ -1380,6 +1402,7 @@ async function handleImport(event) {
 .export-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .import-icon { background: rgba(50, 200, 140, 0.12); color: #28c880; }
 .sync-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
+.share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 
 .settings-nav__copy,
 .mobile-entry__copy {
@@ -1507,7 +1530,8 @@ async function handleImport(event) {
 .settings-embedded :deep(.page-body),
 .settings-embedded :deep(.theme-page),
 .settings-embedded :deep(.sync-page),
-.settings-embedded :deep(.about-page) {
+ .settings-embedded :deep(.about-page),
+ .settings-embedded :deep(.share-manage-page) {
   min-height: auto;
   width: 100%;
   margin: 0;
@@ -1519,6 +1543,11 @@ async function handleImport(event) {
 
 .settings-embedded :deep(.page-body) {
   padding-bottom: 24px;
+}
+
+.settings-embedded :deep(.share-manage-page .page-body) {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .settings-embedded :deep(.nav-bar) {

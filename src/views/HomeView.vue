@@ -146,8 +146,11 @@
       :show="selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
       @delete="batchDelete"
+      @share="batchShare"
       @edit="batchEdit"
     />
+
+    <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
 
   </div>
 </template>
@@ -178,6 +181,7 @@ import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
+import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
@@ -1032,10 +1036,16 @@ watch(displayDensity, (v) => {
 // -------- Multi-select --------
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
+const showShareSheet = ref(false)
+
+const selectedGoodsItems = computed(() =>
+  store.collectionList.filter((item) => selectedIds.value.has(item.id))
+)
 
 function closeSelectionOverlays() {
   showDeleteConfirm.value = false
   batchEditSheetRef.value?.close()
+  showShareSheet.value = false
 }
 
 const {
@@ -1079,6 +1089,11 @@ async function confirmDelete() {
 function batchEdit() {
   if (selectedIds.value.size === 0) return
   showBatchEditSheet.value = true
+}
+
+function batchShare() {
+  if (selectedIds.value.size === 0) return
+  showShareSheet.value = true
 }
 
 async function applyBatchEditPayload(payload) {

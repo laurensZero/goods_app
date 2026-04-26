@@ -47,7 +47,7 @@ const announcementStore = useAnnouncementStore()
 const appUpdateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
 const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView']
-const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-settings', 'manage-sync', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
+const hiddenTabBarRoutes = ['detail', 'add', 'edit', 'import', 'cart-import', 'account-import', 'taobao-import', 'manage-categories', 'manage-ips', 'manage-characters', 'manage-theme', 'manage-settings', 'manage-sync', 'manage-shares', 'manage-about', 'storage-locations', 'trash', 'event-add', 'event-edit', 'event-detail']
 const showTabBar = computed(() => !hiddenTabBarRoutes.includes(String(route.name ?? '')))
 let removeAppUrlOpenListener = null
 let removeNativeNfcListener = null
@@ -103,8 +103,35 @@ async function navigateByStorageNfc(url) {
   return true
 }
 
+async function navigateByShareLink(url) {
+  if (!url || !url.startsWith('goodsapp://share/')) return false
+
+  const match = url.match(/goodsapp:\/\/share\/([a-zA-Z0-9]+)(?:\?(.*))?/)
+  if (!match) return false
+
+  const gistId = match[1]
+  if (!gistId || !/^[a-zA-Z0-9]+$/.test(gistId)) return false
+
+  const queryString = match[2] || ''
+  const query = {}
+  if (queryString) {
+    for (const part of queryString.split('&')) {
+      const [key, val] = part.split('=')
+      if (key) query[decodeURIComponent(key)] = decodeURIComponent(val || '')
+    }
+  }
+
+  await router.push({
+    path: `/share/${gistId}`,
+    query
+  }).catch(() => {})
+
+  return true
+}
+
 async function handleIncomingAppUrl(url) {
-  await navigateByStorageNfc(url)
+  if (await navigateByStorageNfc(url)) return
+  if (await navigateByShareLink(url)) return
 }
 
 async function handleVisibilityChange() {

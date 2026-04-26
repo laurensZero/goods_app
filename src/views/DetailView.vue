@@ -8,6 +8,13 @@
             <path d="M16.5 3.5A2.12 2.12 0 0 1 19.5 6.5L8 18L4 19L5 15L16.5 3.5Z" />
           </svg>
         </button>
+        <button class="nav-icon-btn" type="button" aria-label="分享" @click="showShareSheet = true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+        </button>
         <button class="nav-icon-btn danger" type="button" aria-label="删除" @click="handleDelete">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3 6H21" />
@@ -188,6 +195,8 @@
         </div>
       </div>
     </Transition>
+
+    <ShareSheet :show="showShareSheet" :goods-items="item ? [item] : []" @close="showShareSheet = false" />
   </div>
 </template>
 
@@ -206,6 +215,7 @@ import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
+import ShareSheet from '@/components/goods/ShareSheet.vue'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -269,6 +279,7 @@ const trackList = computed(() =>
   (Array.isArray(item.value?.tracks) ? item.value.tracks : []).filter((entry) => entry?.title || entry?.artist || entry?.neteaseSongId)
 )
 const showDeleteDialog = ref(false)
+const showShareSheet = ref(false)
 const activeImageId = ref('')
 
 const colorMap = {

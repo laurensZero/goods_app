@@ -235,6 +235,65 @@ export async function sanitizeGoodsItemForExport(item) {
   }
 }
 
+export async function sanitizeGoodsImagesForShare(images, fallbackImage = '') {
+  const normalizedImages = normalizeGoodsImageList(images, fallbackImage)
+  if (normalizedImages.length === 0) return []
+
+  const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
+  const shareableImages = (await Promise.all(normalizedImages.map(async (entry) => {
+    if (isExportableGoodsImage(entry)) {
+      return {
+        id: entry.id,
+        uri: entry.uri,
+        kind: entry.kind,
+        label: entry.label,
+        storageMode: 'remote',
+        isPrimary: entry.id === primaryId
+      }
+    }
+
+    const embeddedUri = await readLocalImageAsDataUrl(entry.uri)
+    if (!embeddedUri?.startsWith('data:image/')) return null
+
+    return {
+      id: entry.id,
+      uri: embeddedUri,
+      kind: entry.kind,
+      label: entry.label,
+      storageMode: 'inline-local',
+      isPrimary: entry.id === primaryId
+    }
+  }))).filter(Boolean)
+
+  if (shareableImages.length === 0) return []
+
+  const resolvedPrimaryId = shareableImages.find((entry) => entry.isPrimary)?.id || shareableImages[0].id
+  return shareableImages.map((entry) => ({
+    ...entry,
+    kind: entry.id === resolvedPrimaryId ? 'primary' : entry.kind,
+    isPrimary: entry.id === resolvedPrimaryId
+  }))
+}
+
+const SHARE_EXCLUDED_FIELDS = new Set(['tags', 'storageLocation'])
+
+export async function sanitizeGoodsItemForShare(item) {
+  const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
+  const images = await sanitizeGoodsImagesForShare(item?.images, item?.coverImage || item?.image)
+
+  const cleaned = {}
+  for (const key of Object.keys(rest)) {
+    if (!SHARE_EXCLUDED_FIELDS.has(key)) {
+      cleaned[key] = rest[key]
+    }
+  }
+
+  return {
+    ...cleaned,
+    images
+  }
+}
+
 export async function sanitizeEventForExport(event) {
   if (!event) return null
   const { coverImage, photos, ...rest } = event

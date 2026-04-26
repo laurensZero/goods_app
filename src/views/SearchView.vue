@@ -313,8 +313,11 @@
       :show="selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
       @delete="batchDelete"
+      @share="batchShare"
       @edit="batchEdit"
     />
+
+    <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
   </div>
 </template>
 
@@ -345,6 +348,7 @@ import SearchGoodsCard from '@/components/goods/SearchGoodsCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
+import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
 
@@ -374,6 +378,7 @@ const presetEditorVisible = ref(false)
 const presetDraftName = ref('')
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
+const showShareSheet = ref(false)
 const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
 
@@ -672,9 +677,14 @@ async function removePreset(id) {
   await filterPresetsStore.removePreset(id)
 }
 
+const selectedGoodsItems = computed(() =>
+  results.value.filter((item) => selectedIds.value.has(item.id))
+)
+
 function closeSelectionOverlays() {
   showDeleteConfirm.value = false
   batchEditSheetRef.value?.close()
+  showShareSheet.value = false
 }
 
 function getSearchScrollTop() {
@@ -799,6 +809,11 @@ function unbindAndroidBackButton() {
 function batchEdit() {
   if (selectedIds.value.size === 0) return
   showBatchEditSheet.value = true
+}
+
+function batchShare() {
+  if (selectedIds.value.size === 0) return
+  showShareSheet.value = true
 }
 
 function batchDelete() {
