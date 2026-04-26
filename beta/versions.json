@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260426.2",
+    "url": "bundle-20260426.2.zip",
+    "hash": "bc952788e709a69f0a8ec723ef34b1f67ec48d07d035b873772033e668256014",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化 NFC 标签写入逻辑，添加物理标签检测监听器以提高用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-26T11:09:51Z"
+  },
+  {
     "version": "20260426.1",
     "url": "bundle-20260426.1.zip",
     "hash": "fdeef5a2bc9ae8fe7db9d2a2204aee99556c70471c6bad731da7cf4062105604",
@@ -16,14 +25,5 @@
     "notes": "- feat: 重构 HTTP 请求逻辑，添加 Tauri 支持，优化 GitHub API 调用",
     "updateLevel": "silent",
     "publishedAt": "2026-04-25T14:39:54Z"
-  },
-  {
-    "version": "20260425.1",
-    "url": "bundle-20260425.1.zip",
-    "hash": "030086123eaf379aac420918ef8c435e998f8319fd55064b81884fab06bdd06a",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 GitHub HTTP 请求功能，支持在 Tauri 桌面应用中进行 GitHub API 调用",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-25T14:28:42Z"
   }
 ]
