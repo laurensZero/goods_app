@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260426.9",
+    "url": "bundle-20260426.9.zip",
+    "hash": "c1197f84876c5ee093161a5c9ee292380d0069f6149a64f11abeec152508e76b",
+    "minNativeVersion": null,
+    "notes": "- feat: 分享谷子功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-26T15:40:41Z"
+  },
+  {
     "version": "20260426.8",
     "url": "bundle-20260426.8.zip",
     "hash": "949665ea7930d69123a277f935e52af57ed5140b6722a19615300d295b31050c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 onNewIntent 方法以处理新意图，确保 Capacitor 正确捕获",
     "updateLevel": "silent",
     "publishedAt": "2026-04-26T11:54:35Z"
-  },
-  {
-    "version": "20260426.6",
-    "url": "bundle-20260426.6.zip",
-    "hash": "90998b8598c8bffb48ae211fe0cc5cf1165eced7f93be3d3de1113a2607700cd",
-    "minNativeVersion": null,
-    "notes": "- feat: 修改 advancedExpanded 默认值为 false，以优化路由状态管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-26T11:50:04Z"
   }
 ]

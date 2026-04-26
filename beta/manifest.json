@@ -1,9 +1,9 @@
 {
-  "version": "20260426.8",
-  "url": "bundle-20260426.8.zip",
-  "hash": "949665ea7930d69123a277f935e52af57ed5140b6722a19615300d295b31050c",
+  "version": "20260426.9",
+  "url": "bundle-20260426.9.zip",
+  "hash": "c1197f84876c5ee093161a5c9ee292380d0069f6149a64f11abeec152508e76b",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 NFC 处理逻辑，支持通过深度链接导航到存储位置",
+  "notes": "- feat: 分享谷子功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-26T12:18:13Z"
+  "publishedAt": "2026-04-26T15:40:41Z"
 }
