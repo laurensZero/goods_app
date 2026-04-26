@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260426.6",
+    "url": "bundle-20260426.6.zip",
+    "hash": "90998b8598c8bffb48ae211fe0cc5cf1165eced7f93be3d3de1113a2607700cd",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改 advancedExpanded 默认值为 false，以优化路由状态管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-26T11:50:04Z"
+  },
+  {
     "version": "20260426.5",
     "url": "bundle-20260426.5.zip",
     "hash": "66079a70a75f6d38a995a904eefc5832ae546c0280c29789c1d69d80a7fb33f8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 AndroidManifest.xml，添加 NDEF 记录的 NFC 深度链接意图过滤器和通用深度链接意图过滤器",
     "updateLevel": "silent",
     "publishedAt": "2026-04-26T11:30:48Z"
-  },
-  {
-    "version": "20260426.3",
-    "url": "bundle-20260426.3.zip",
-    "hash": "df4884d0e2ae030b4bbb9a5268b2232fb0af8fa9be436dd50452d124ebc1e205",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 NFC 写入失败的回退机制，支持不格式化标签的写入",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-26T11:16:32Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260426.5",
-  "url": "bundle-20260426.5.zip",
-  "hash": "66079a70a75f6d38a995a904eefc5832ae546c0280c29789c1d69d80a7fb33f8",
+  "version": "20260426.6",
+  "url": "bundle-20260426.6.zip",
+  "hash": "90998b8598c8bffb48ae211fe0cc5cf1165eced7f93be3d3de1113a2607700cd",
   "minNativeVersion": null,
-  "notes": "- feat: 优化 appUrlOpen 处理逻辑，支持初始启动 URL 和前台唤醒事件",
+  "notes": "- feat: 修改 advancedExpanded 默认值为 false，以优化路由状态管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-26T11:46:40Z"
+  "publishedAt": "2026-04-26T11:50:04Z"
 }
