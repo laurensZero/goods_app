@@ -270,6 +270,18 @@ async function handleWriteNfc(node) {
         id: [],
         payload
       }]
+    }).catch(async (e) => {
+      // Fallback for tags that might not support formatting or are already formatted
+      console.warn('NFC Write Error (with format), retrying without format:', e)
+      await CapacitorNfc.write({
+        allowFormat: false,
+        records: [{
+          tnf: 0x01,
+          type: [0x55],
+          id: [],
+          payload
+        }]
+      })
     })
 
     nfcDialogStatus.value = 'success'
