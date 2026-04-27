@@ -16,6 +16,8 @@
     <AnnouncementDialog />
     <WebUpdateDialog />
     <AppUpdateDialog />
+
+    <ClipboardDialog />
   </div>
 </template>
 
@@ -28,6 +30,7 @@ import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
 import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
+import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useAppUpdateStore } from '@/stores/appUpdate'
@@ -36,13 +39,12 @@ import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
-import { useClipboardImport } from '@/composables/useClipboardImport'
 
 const route = useRoute()
 const router = useRouter()
 const syncStore = useSyncStore()
 
-useClipboardImport()
+
 const goodsStore = useGoodsStore()
 const eventsStore = useEventsStore()
 const rechargeStore = useRechargeStore()
@@ -362,3 +364,4 @@ html[data-route-transition-fallback='1'][data-route-transition-kind='search-back
 }
 
 </style>
+
