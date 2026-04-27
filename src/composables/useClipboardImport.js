@@ -6,13 +6,13 @@ import { extractIdsFromInput } from '@/utils/shareGoods'
 
 const LAST_PROCESSED_CLIPBOARD_KEY = 'last_processed_clipboard_hash'
 
+const showPrompt = ref(false)
+const incomingGistId = ref('')
+const incomingShareId = ref('')
+const currentHash = ref('')
+
 export function useClipboardImport() {
   const router = useRouter()
-  
-  const showPrompt = ref(false)
-  const incomingGistId = ref('')
-  const incomingShareId = ref('')
-  const currentHash = ref('')
 
   const checkClipboard = async () => {
     if (showPrompt.value) return // 正在提示时不再重复检测
@@ -112,5 +112,11 @@ export function useClipboardImport() {
     if (appStateListener) appStateListener.remove()
   })
 
-  return { showPrompt, incomingGistId, incomingShareId, confirmImport, dismissImport }
+  const triggerSharePrompt = (gistId, shareId = '') => {
+    incomingGistId.value = gistId
+    incomingShareId.value = shareId
+    showPrompt.value = true
+  }
+
+  return { showPrompt, incomingGistId, incomingShareId, confirmImport, dismissImport, triggerSharePrompt }
 }

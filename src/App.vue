@@ -26,6 +26,7 @@ import { computed, KeepAlive, onBeforeUnmount, onMounted } from 'vue'
 import { App as CapApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { useRoute, useRouter } from 'vue-router'
+import { useClipboardImport } from '@/composables/useClipboardImport'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
@@ -42,6 +43,7 @@ import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
 const router = useRouter()
+const { triggerSharePrompt } = useClipboardImport()
 const syncStore = useSyncStore()
 
 
@@ -118,18 +120,9 @@ async function navigateByShareLink(url) {
   if (!gistId || !/^[a-zA-Z0-9]+$/.test(gistId)) return false
 
   const queryString = match[2] || ''
-  const query = {}
-  if (queryString) {
-    for (const part of queryString.split('&')) {
-      const [key, val] = part.split('=')
-      if (key) query[decodeURIComponent(key)] = decodeURIComponent(val || '')
-    }
-  }
+  const shareId = queryString ? new URLSearchParams(queryString).get('s') || '' : ''
 
-  await router.push({
-    path: `/share/${gistId}`,
-    query
-  }).catch(() => {})
+  triggerSharePrompt(gistId, shareId)
 
   return true
 }
