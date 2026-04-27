@@ -1,9 +1,9 @@
 {
-  "version": "20260427.8",
-  "url": "bundle-20260427.8.zip",
-  "hash": "a45de43db9f883bfd09540a28c6b4fc432d9c5d2aaac01f8f8736fd4b1b491bb",
+  "version": "20260427.9",
+  "url": "bundle-20260427.9.zip",
+  "hash": "13a2f7f163d2a6f797a3d48bad2679dc2f9eb829bffc09ee522fbb5a05451ef8",
   "minNativeVersion": null,
-  "notes": "- feat: 添加伪 IP 词缀处理，优化商品名称解析逻辑",
+  "notes": "- feat: 调整样式，优化 .hero-copy 的 flex 属性设置",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T09:15:59Z"
+  "publishedAt": "2026-04-27T09:20:32Z"
 }
