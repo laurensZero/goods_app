@@ -118,6 +118,8 @@ import { formatDate } from '@/utils/format'
 const route = useRoute()
 const router = useRouter()
 const goodsStore = useGoodsStore()
+import { extractIdsFromInput } from '@/utils/shareGoods'
+
 const presets = usePresetsStore()
 const syncStore = useSyncStore()
 
@@ -152,31 +154,6 @@ function formatSharedAt(dateStr) {
   }
 }
 
-function extractIdsFromInput(input) {
-  const trimmed = input.trim()
-  if (!trimmed) return { gistId: '', shareId: '' }
-
-  // Try deep link: goodsapp://share/<gistId>?s=<shareId>
-  const linkMatch = trimmed.match(/goodsapp:\/\/share\/([a-zA-Z0-9]+)(?:\?s=([a-zA-Z0-9]+))?/)
-  if (linkMatch) return { gistId: linkMatch[1], shareId: linkMatch[2] || '' }
-
-  // Try share landing page URL: share.html?g=<gistId>&s=<shareId>
-  const landingMatch = trimmed.match(/share\.html\?g=([a-zA-Z0-9]+)(?:&s=([a-zA-Z0-9]+))?/)
-  if (landingMatch) return { gistId: landingMatch[1], shareId: landingMatch[2] || '' }
-
-  // Try combined share code: <gistId>-<shareId> (gistId 10-40 chars, shareId 6 chars)
-  const codeMatch = trimmed.match(/^([a-zA-Z0-9]{10,40})-([a-zA-Z0-9]{6})$/)
-  if (codeMatch) return { gistId: codeMatch[1], shareId: codeMatch[2] || '' }
-
-  // Try GitHub URL
-  const urlMatch = trimmed.match(/gist\.github\.com\/[^/]+\/([a-zA-Z0-9]+)/)
-  if (urlMatch) return { gistId: urlMatch[1], shareId: '' }
-
-  // Plain gist ID (legacy, no shareId → will pick first share in gist)
-  if (/^[a-zA-Z0-9]{10,40}$/.test(trimmed)) return { gistId: trimmed, shareId: '' }
-
-  return { gistId: '', shareId: '' }
-}
 
 async function doFetch(gistIdValue, shareIdValue = '') {
   if (!gistIdValue) return

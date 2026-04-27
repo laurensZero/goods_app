@@ -361,3 +361,35 @@ export function getShareAssetFilenames(gist, filename) {
     return filename ? [filename] : []
   }
 }
+
+/**
+ * Extract gistId and shareId from any text input, such as a copied message or just the URL.
+ * Scans the first recognized URL or pattern in the text.
+ */
+export function extractIdsFromInput(input) {
+  const text = String(input || '').trim()
+  if (!text) return { gistId: '', shareId: '' }
+
+  // 1. Try deep link: goodsapp://share/<gistId>?s=<shareId>
+  const linkMatch = text.match(/goodsapp:\/\/share\/([a-zA-Z0-9]+)(?:\?s=([a-zA-Z0-9]+))?/)
+  if (linkMatch) return { gistId: linkMatch[1], shareId: linkMatch[2] || '' }
+
+  // 2. Try share landing page URL: share.html?g=<gistId>&s=<shareId>
+  const landingMatch = text.match(/share\.html\?g=([a-zA-Z0-9]+)(?:&s=([a-zA-Z0-9]+))?/)
+  if (landingMatch) return { gistId: landingMatch[1], shareId: landingMatch[2] || '' }
+
+  // 3. Try combined share code strictly or within word boundaries: <gistId>-<shareId> 
+  //   (gistId 10-40 chars, shareId 6 chars)
+  const codeMatch = text.match(/(?:^|\s)([a-zA-Z0-9]{10,40})-([a-zA-Z0-9]{6})(?:\s|$)/)
+  if (codeMatch) return { gistId: codeMatch[1], shareId: codeMatch[2] || '' }
+
+  // 4. Try GitHub URL
+  const urlMatch = text.match(/gist\.github\.com\/[^/]+\/([a-zA-Z0-9]+)/)
+  if (urlMatch) return { gistId: urlMatch[1], shareId: '' }
+
+  // 5. Plain gist ID (legacy, no shareId  will pick first share in gist)
+  // Only valid if the whole text is roughly just the ID
+  if (/^[a-zA-Z0-9]{10,40}$/.test(text)) return { gistId: text, shareId: '' }
+
+  return { gistId: '', shareId: '' }
+}

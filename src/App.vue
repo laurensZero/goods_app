@@ -36,10 +36,13 @@ import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
+import { useClipboardImport } from '@/composables/useClipboardImport'
 
 const route = useRoute()
 const router = useRouter()
 const syncStore = useSyncStore()
+
+useClipboardImport()
 const goodsStore = useGoodsStore()
 const eventsStore = useEventsStore()
 const rechargeStore = useRechargeStore()
