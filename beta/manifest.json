@@ -1,9 +1,9 @@
 {
-  "version": "20260427.3",
-  "url": "bundle-20260427.3.zip",
-  "hash": "d186e2ab371d0a7ad818ea36d284f37a6ec3e6549b58eeaddc627aee15051085",
+  "version": "20260427.4",
+  "url": "bundle-20260427.4.zip",
+  "hash": "970bf025fa9321123b0514520cadc4b76a5d986420efcea3514cc3da8bc16162",
   "minNativeVersion": null,
-  "notes": "- feat: 添加分享页面，支持通过分享链接和分享码导入",
+  "notes": "- feat: 添加 QQ/WeChat 浏览器警告提示，优化分享功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T08:06:30Z"
+  "publishedAt": "2026-04-27T08:14:43Z"
 }

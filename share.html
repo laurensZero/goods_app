@@ -42,6 +42,35 @@
       padding: 40px 28px 32px;
     }
 
+    /* QQ/WeChat in-app browser warning banner */
+    .browser-warn {
+      display: none;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .browser-warn__title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #856404;
+      margin-bottom: 4px;
+    }
+
+    .browser-warn__desc {
+      font-size: 12px;
+      color: #92600a;
+      line-height: 1.5;
+    }
+
+    body.is-qq .browser-warn,
+    body.is-wechat .browser-warn {
+      display: block;
+    }
+
     .icon {
       width: 64px;
       height: 64px;
@@ -149,11 +178,20 @@
       .subtitle, .status { color: #8e8e93; }
       .footer-text { color: #636366; }
       .footer-text code { background: rgba(255,255,255,0.08); color: #aeaeb2; }
+      .browser-warn { background: rgba(255,193,7,0.12); border-color: rgba(255,193,7,0.3); }
+      .browser-warn__title { color: #ffc107; }
+      .browser-warn__desc { color: #e0a800; }
     }
   </style>
 </head>
 <body>
   <div class="card">
+    <!-- QQ/WeChat in-app browser warning -->
+    <div class="browser-warn">
+      <p class="browser-warn__title">无法直接打开 App</p>
+      <p class="browser-warn__desc">请点击右上角 ··· 选择「在浏览器中打开」，即可自动跳转到 Goods App。</p>
+    </div>
+
     <div class="icon">
       <svg viewBox="0 0 24 24">
         <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
@@ -179,6 +217,17 @@
     </p>
   </div>
 
+  <script>
+    (function () {
+      // Detect QQ / WeChat in-app browser
+      var ua = navigator.userAgent || ''
+      if (/QQ\//i.test(ua) && !/MicroMessenger/i.test(ua)) {
+        document.body.className = 'is-qq'
+      } else if (/MicroMessenger/i.test(ua)) {
+        document.body.className = 'is-wechat'
+      }
+    })()
+  </script>
   <script>
     (function () {
       const params = new URLSearchParams(window.location.search)
