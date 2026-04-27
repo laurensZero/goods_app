@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
+import { Preferences } from '@capacitor/preferences'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -23,40 +24,7 @@ const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'events',
   'manage'
 ])
-
-async function checkAndWipeObsoleteBundles() {
-  if (!Capacitor.isNativePlatform()) return
-
-  try {
-    const info = await CapacitorApp.getInfo()
-    const currentAppVersion = `${info.version}(${info.build})`
-    const { Preferences } = await import('@capacitor/preferences')
-    const { value: storedVersion } = await Preferences.get({ key: 'last_native_app_version' })
-
-    if (storedVersion && storedVersion !== currentAppVersion) {
-      console.log(`[updater] Native app updated from ${storedVersion} to ${currentAppVersion}. Wiping obsolete bundles...`)
-      
-      // Reset to builtin bundle
-      await CapacitorUpdater.reset({ toLastSuccessful: false }).catch((e) => {
-        console.warn('[updater] Reset failed:', e)
-      })
-
-      // Explicitly delete downloaded bundles
-      const { bundles } = await CapacitorUpdater.list()
-      for (const b of bundles) {
-        if (b.id !== 'builtin') {
-          await CapacitorUpdater.delete({ id: b.id }).catch((e) => {
-            console.warn(`[updater] Failed to delete bundle ${b.id}:`, e)
-          })
-        }
-      }
-    }
-    
-    await Preferences.set({ key: 'last_native_app_version', value: currentAppVersion })
-  } catch (error) {
-    console.warn('[updater] Version check failed:', error)
-  }
-}
+const LAST_NATIVE_APP_VERSION_KEY = 'last_native_app_version'
 
 async function notifyUpdaterReady() {
   if (!Capacitor.isNativePlatform()) return
@@ -65,6 +33,47 @@ async function notifyUpdaterReady() {
     await CapacitorUpdater.notifyAppReady()
   } catch (error) {
     console.warn('[updater] notifyAppReady failed:', error)
+  }
+}
+
+async function reconcileBundlesAfterNativeUpdate() {
+  if (!Capacitor.isNativePlatform()) return
+
+  try {
+    const info = await CapacitorApp.getInfo()
+    const currentAppVersion = `${info.version}(${info.build})`
+    const { value: storedVersion } = await Preferences.get({ key: LAST_NATIVE_APP_VERSION_KEY })
+
+    if (!storedVersion) {
+      await Preferences.set({ key: LAST_NATIVE_APP_VERSION_KEY, value: currentAppVersion })
+      return
+    }
+
+    if (storedVersion === currentAppVersion) {
+      return
+    }
+
+    console.log(`[updater] Native app updated from ${storedVersion} to ${currentAppVersion}. Reconciling bundles...`)
+
+    const nextBundle = await CapacitorUpdater.getNextBundle().catch(() => null)
+    if (nextBundle?.id && nextBundle.id !== 'builtin') {
+      await CapacitorUpdater.next({ id: 'builtin' }).catch((error) => {
+        console.warn('[updater] Failed to clear next bundle after native update:', error)
+      })
+    }
+
+    const { bundles } = await CapacitorUpdater.list().catch(() => ({ bundles: [] }))
+    for (const bundle of bundles) {
+      if (bundle?.id && bundle.id !== 'builtin') {
+        await CapacitorUpdater.delete({ id: bundle.id }).catch((error) => {
+          console.warn(`[updater] Failed to delete obsolete bundle ${bundle.id}:`, error)
+        })
+      }
+    }
+
+    await Preferences.set({ key: LAST_NATIVE_APP_VERSION_KEY, value: currentAppVersion })
+  } catch (error) {
+    console.warn('[updater] Native update reconciliation failed:', error)
   }
 }
 
@@ -91,7 +100,6 @@ function setupAndroidBackButton() {
 }
 
 async function bootstrap() {
-  await checkAndWipeObsoleteBundles()
   void notifyUpdaterReady()
 
   // 初始化 SQLite（原生用 Capacitor，Web 用 sql.js）
@@ -124,6 +132,7 @@ async function bootstrap() {
   await router.isReady()
   setupAndroidBackButton()
   app.mount('#app')
+  void reconcileBundlesAfterNativeUpdate()
 }
 
 bootstrap().catch(console.error)
