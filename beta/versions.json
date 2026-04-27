@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.16",
+    "url": "bundle-20260427.16.zip",
+    "hash": "aac7c708fd869b5bfbaea1952b0d89eae78ac189e47674598d16ccfdbab66414",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T10:53:04Z"
+  },
+  {
     "version": "20260427.15",
     "url": "bundle-20260427.15.zip",
     "hash": "aca02eb47806a36280c7b1c495e991cd16c9c0e0b6e568fea4f66ed5418803dd",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 Gitee 同步工作流，优化同步逻辑，仅同步 gh-pages 分支",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T10:42:25Z"
-  },
-  {
-    "version": "20260427.13",
-    "url": "bundle-20260427.13.zip",
-    "hash": "d0dc5ae9d1fd2833e58b324dfb44bb572fbdb059016b4c24e9bd6ce074081f58",
-    "minNativeVersion": null,
-    "notes": "- feat: 重构更新通知逻辑，优化原生应用版本管理和过时包清理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T10:35:54Z"
   }
 ]

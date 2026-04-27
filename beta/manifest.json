@@ -1,9 +1,9 @@
 {
-  "version": "20260427.15",
-  "url": "bundle-20260427.15.zip",
-  "hash": "aca02eb47806a36280c7b1c495e991cd16c9c0e0b6e568fea4f66ed5418803dd",
+  "version": "20260427.16",
+  "url": "bundle-20260427.16.zip",
+  "hash": "aac7c708fd869b5bfbaea1952b0d89eae78ac189e47674598d16ccfdbab66414",
   "minNativeVersion": null,
-  "notes": "- feat: 修正 Gitee 资源清单 URL，确保正确指向",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T10:51:55Z"
+  "publishedAt": "2026-04-27T10:53:04Z"
 }
