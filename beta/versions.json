@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.14",
+    "url": "bundle-20260427.14.zip",
+    "hash": "dea0c9d3b867e5d5cfeadb2dc1994318138a4fedfd422a298abaa3c2a67f2940",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 Gitee 同步工作流，优化同步逻辑，仅同步 gh-pages 分支",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T10:42:25Z"
+  },
+  {
     "version": "20260427.13",
     "url": "bundle-20260427.13.zip",
     "hash": "d0dc5ae9d1fd2833e58b324dfb44bb572fbdb059016b4c24e9bd6ce074081f58",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化剪贴板导入功能，优化分享链接处理逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T10:29:55Z"
-  },
-  {
-    "version": "20260427.11",
-    "url": "bundle-20260427.11.zip",
-    "hash": "11492480ce9299f8979f93b6ac1d2d6d76e068cb7bc9e6b3943321adf577f6ca",
-    "minNativeVersion": null,
-    "notes": "- feat: 修改分享管理入口的描述，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T09:33:24Z"
   }
 ]
