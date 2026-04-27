@@ -325,8 +325,9 @@ export async function getShareGist(token, description) {
   try {
     const existing = await listGists(token, description)
     if (existing.length > 0) {
-      saveShareGistId(existing[0].id)
-      return existing[0]
+      const gistId = existing[0].id
+      saveShareGistId(gistId)
+      return await getGist(token, gistId)
     }
   } catch {
     // no gist found

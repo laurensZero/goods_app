@@ -92,8 +92,8 @@
 import { ref, watch } from 'vue'
 import { Share } from '@capacitor/share'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
-import { buildSharePayload, buildShareGistFiles, generateShareId } from '@/utils/shareGoods'
-import { buildShareDescription, findOrCreateShareGist } from '@/utils/githubGist'
+import { buildSharePayload, buildShareGistFiles, findMatchingShareInGist, generateShareId, toggleShareDisabled } from '@/utils/shareGoods'
+import { buildShareDescription, findOrCreateShareGist, getShareGist, updateGist } from '@/utils/githubGist'
 import { buildShareUrl } from '@/config/share'
 import { useSyncStore } from '@/stores/sync'
 
@@ -134,11 +134,32 @@ async function generateShare() {
   shareResult.value = null
 
   try {
-    const shareId = generateShareId()
     const payload = await buildSharePayload(props.goodsItems)
-    const files = buildShareGistFiles(payload, shareId)
     const token = syncStore.token || ''
+    const existingGist = token ? await getShareGist(token, buildShareDescription()) : null
+    const existingShare = findMatchingShareInGist(existingGist, payload)
 
+    if (existingGist?.id && existingShare?.shareId) {
+      if (existingShare.disabled) {
+        const newContent = toggleShareDisabled(existingGist, existingShare.filename, false)
+        if (newContent) {
+          await updateGist(token, existingGist.id, {
+            [existingShare.filename]: { content: newContent }
+          })
+        }
+      }
+
+      shareResult.value = {
+        gistId: existingGist.id,
+        shareId: existingShare.shareId,
+        code: `${existingGist.id}-${existingShare.shareId}`,
+        url: buildShareUrl(existingGist.id, existingShare.shareId)
+      }
+      return
+    }
+
+    const shareId = generateShareId()
+    const files = buildShareGistFiles(payload, shareId)
     const gist = await findOrCreateShareGist(token, buildShareDescription(), files)
 
     shareResult.value = {

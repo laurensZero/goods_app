@@ -63,6 +63,40 @@ export async function buildSharePayload(goodsItems) {
   }
 }
 
+function sortObjectKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortObjectKeys(item))
+  }
+
+  if (value && typeof value === 'object') {
+    const sorted = {}
+    for (const key of Object.keys(value).sort()) {
+      sorted[key] = sortObjectKeys(value[key])
+    }
+    return sorted
+  }
+
+  return value
+}
+
+function buildComparableSharePayload(payload) {
+  const goods = Array.isArray(payload?.goods) ? payload.goods : []
+  const normalizedGoods = goods
+    .map((item) => JSON.stringify(sortObjectKeys(item)))
+    .sort()
+    .map((item) => JSON.parse(item))
+
+  return {
+    version: payload?.version || SHARE_PAYLOAD_VERSION,
+    appId: payload?.appId || 'com.goodsapp.collector',
+    goods: normalizedGoods
+  }
+}
+
+export function getShareFingerprint(payload) {
+  return JSON.stringify(buildComparableSharePayload(payload))
+}
+
 /**
  * Validate that a payload looks like a valid share payload.
  * Returns { valid, reason }.
@@ -318,6 +352,33 @@ export function listSharesFromGist(gist) {
   // Newest first
   entries.sort((a, b) => (b.sharedAt || '').localeCompare(a.sharedAt || ''))
   return entries
+}
+
+export function findMatchingShareInGist(gist, payload) {
+  if (!gist?.files || !payload) return null
+
+  const targetFingerprint = getShareFingerprint(payload)
+
+  for (const [filename, file] of Object.entries(gist.files)) {
+    const shareId = shareIdFromFilename(filename)
+    if (!shareId) continue
+
+    const content = typeof file?.content === 'string' ? file.content : ''
+    if (!content) continue
+
+    const existingPayload = parseSharePayload(content)
+    if (!existingPayload) continue
+
+    if (getShareFingerprint(existingPayload) === targetFingerprint) {
+      return {
+        shareId,
+        filename,
+        disabled: !!existingPayload.disabled
+      }
+    }
+  }
+
+  return null
 }
 
 /**
