@@ -34,6 +34,14 @@ export function getMihoyoShopCodeByIp(ip) {
 
 export const MIHOYO_ROLE_SHOP_CODES = Object.values(MIHOYO_SHOP_CODE_BY_IP)
 
+// 常出现在【】中但不属于 IP 的词缀
+const PSEUDO_IP_SET = new Set([
+  '积分兑换', '积分', '兑换', 
+  '限定商品', '限定', 
+  '赠品', '满赠', 
+  '预售', '现货', '包邮', '周边'
+])
+
 // 从商品名称中提取 IP 和去掉前缀的商品名
 // 支持：【原神】xxx  /  「崩坏：星穹铁道」xxx
 export function parseTitleIpName(title) {
@@ -44,6 +52,9 @@ export function parseTitleIpName(title) {
   if (bracketMatch) {
     const rawIp = bracketMatch[1].split('/')[0].trim()
     const name = bracketMatch[2].trim()
+    if (PSEUDO_IP_SET.has(rawIp)) {
+      return { ip: '', name: title } // 被判定为非 IP 词，则原样保留前缀在名称中或根据实际只保留 name，这里保留 title 避免名字过短
+    }
     return { ip: rawIp, name }
   }
 
@@ -52,6 +63,9 @@ export function parseTitleIpName(title) {
   if (quoteMatch) {
     const rawIp = quoteMatch[1].split('·')[0].trim()
     const name = quoteMatch[2].trim()
+    if (PSEUDO_IP_SET.has(rawIp)) {
+      return { ip: '', name: title } // 同上保留名称
+    }
     return { ip: rawIp, name }
   }
 
