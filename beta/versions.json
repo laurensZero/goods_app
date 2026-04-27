@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.15",
+    "url": "bundle-20260427.15.zip",
+    "hash": "aca02eb47806a36280c7b1c495e991cd16c9c0e0b6e568fea4f66ed5418803dd",
+    "minNativeVersion": null,
+    "notes": "- feat: 修正 Gitee 资源清单 URL，确保正确指向",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T10:51:55Z"
+  },
+  {
     "version": "20260427.14",
     "url": "bundle-20260427.14.zip",
     "hash": "dea0c9d3b867e5d5cfeadb2dc1994318138a4fedfd422a298abaa3c2a67f2940",
@@ -16,14 +25,5 @@
     "notes": "- feat: 重构更新通知逻辑，优化原生应用版本管理和过时包清理",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T10:35:54Z"
-  },
-  {
-    "version": "20260427.12",
-    "url": "bundle-20260427.12.zip",
-    "hash": "b9f3fa31885a1690570b2ac07f2f2d89220b5f2aeddc5eecc1134be293edbf76",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化剪贴板导入功能，优化分享链接处理逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T10:29:55Z"
   }
 ]

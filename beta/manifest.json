@@ -1,9 +1,9 @@
 {
-  "version": "20260427.14",
-  "url": "bundle-20260427.14.zip",
-  "hash": "dea0c9d3b867e5d5cfeadb2dc1994318138a4fedfd422a298abaa3c2a67f2940",
+  "version": "20260427.15",
+  "url": "bundle-20260427.15.zip",
+  "hash": "aca02eb47806a36280c7b1c495e991cd16c9c0e0b6e568fea4f66ed5418803dd",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 Gitee 同步工作流，优化同步逻辑，仅同步 gh-pages 分支",
+  "notes": "- feat: 修正 Gitee 资源清单 URL，确保正确指向",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T10:42:25Z"
+  "publishedAt": "2026-04-27T10:51:55Z"
 }
