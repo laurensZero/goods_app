@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - gh-pages
-    tags:
-      - '*'
   workflow_run:
     workflows:
       - Publish Web Bundle to Pages
@@ -122,8 +120,6 @@ jobs:
 
           if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
             refspec="+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
-          elif [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "tag" ]; then
-            refspec="+refs/tags/${REF_NAME}:refs/tags/${REF_NAME}"
           elif [ "${EVENT_NAME}" = "workflow_run" ]; then
             refspec="+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
           else

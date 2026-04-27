@@ -125,8 +125,8 @@ npm run open:android
 
 仓库已提供工作流 [`.github/workflows/sync-gitee.yml`](.github/workflows/sync-gitee.yml)：
 
-- GitHub 有新提交（`main`/`tag`）时，先执行 `npm ci` + `npm run build`
-- 构建成功后自动同步所有分支（含 `gh-pages`）和标签到 Gitee
+- `gh-pages` 更新后自动同步到 Gitee
+- 仅同步 `gh-pages`，用于提供 bundle / manifest 静态资源，不再镜像整个主仓库和标签
 
 使用前需在 GitHub 仓库 Secrets 中配置：
 
