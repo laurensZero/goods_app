@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.19",
+    "url": "bundle-20260427.19.zip",
+    "hash": "a2dc528fb52bcce0e363a8f97092d640654443402e674f0b614409d63930cb39",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强分享功能，支持从 Gist 中查找匹配的分享并更新状态",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T15:18:37Z"
+  },
+  {
     "version": "20260427.18",
     "url": "bundle-20260427.18.zip",
     "hash": "f974bd366e1aa8669fa5cd8ed14d351c3b978f477a76fae72d0a027d16edcecc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化 GitHub 登录状态，调整 token 显示逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T10:59:12Z"
-  },
-  {
-    "version": "20260427.16",
-    "url": "bundle-20260427.16.zip",
-    "hash": "aac7c708fd869b5bfbaea1952b0d89eae78ac189e47674598d16ccfdbab66414",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T10:53:04Z"
   }
 ]

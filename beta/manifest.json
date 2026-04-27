@@ -1,9 +1,9 @@
 {
-  "version": "20260427.18",
-  "url": "bundle-20260427.18.zip",
-  "hash": "f974bd366e1aa8669fa5cd8ed14d351c3b978f477a76fae72d0a027d16edcecc",
+  "version": "20260427.19",
+  "url": "bundle-20260427.19.zip",
+  "hash": "a2dc528fb52bcce0e363a8f97092d640654443402e674f0b614409d63930cb39",
   "minNativeVersion": null,
-  "notes": "- fix: 修正 Gitee 资源清单 URL，确保正确指向",
+  "notes": "- feat: 增强分享功能，支持从 Gist 中查找匹配的分享并更新状态",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T11:33:01Z"
+  "publishedAt": "2026-04-27T15:18:37Z"
 }
