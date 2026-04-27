@@ -275,21 +275,12 @@ export async function sanitizeGoodsImagesForShare(images, fallbackImage = '') {
   }))
 }
 
-const SHARE_EXCLUDED_FIELDS = new Set(['tags', 'storageLocation'])
-
 export async function sanitizeGoodsItemForShare(item) {
   const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
   const images = await sanitizeGoodsImagesForShare(item?.images, item?.coverImage || item?.image)
 
-  const cleaned = {}
-  for (const key of Object.keys(rest)) {
-    if (!SHARE_EXCLUDED_FIELDS.has(key)) {
-      cleaned[key] = rest[key]
-    }
-  }
-
   return {
-    ...cleaned,
+    ...rest,
     images
   }
 }

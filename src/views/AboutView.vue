@@ -278,14 +278,17 @@
     </main>
 
     <Transition name="overlay-fade">
-      <div v-if="showFeedbackDialog" class="overlay" @click.self="closeFeedbackDialog">
-        <div class="dialog">
+        <div v-if="showFeedbackDialog" class="overlay" @click.self="closeFeedbackDialog">
+          <div class="dialog">
           <h3 class="dialog-title">提交反馈到 GitHub Issues</h3>
-          <p class="dialog-desc">
+          <p v-if="feedbackNeedsToken" class="dialog-desc">
             需要一个对仓库 <code>laurensZero/goods_app</code> 具有 <code>Issues: write</code> 权限的 token。
           </p>
+          <p v-else class="dialog-desc">
+            将使用当前登录的 GitHub 账号提交反馈。{{ syncStore.githubLogin ? `当前账号：${syncStore.githubLogin}` : '' }}
+          </p>
 
-          <label v-if="!syncStore.token || feedbackError" class="dialog-field">
+          <label v-if="feedbackNeedsToken" class="dialog-field">
             <span class="dialog-label">GitHub Token</span>
             <div class="dialog-input-wrap">
               <input
@@ -337,12 +340,12 @@
             />
           </label>
 
-          <p v-if="feedbackTokenLogin && (!syncStore.token || feedbackError)" class="dialog-success">当前 token 已验证：{{ feedbackTokenLogin }}</p>
+          <p v-if="feedbackTokenLogin && feedbackNeedsToken" class="dialog-success">当前 token 已验证：{{ feedbackTokenLogin }}</p>
           <p v-if="feedbackError" class="dialog-error">{{ feedbackError }}</p>
 
           <div class="dialog-actions dialog-actions--between">
             <button
-              v-if="!syncStore.token || feedbackError"
+              v-if="feedbackNeedsToken"
               type="button"
               class="dialog-btn dialog-btn--ghost"
               :disabled="isSubmittingFeedback || !feedbackToken.trim()"
@@ -470,11 +473,17 @@ const feedbackUrl = computed(() => {
   return `https://github.com/${FEEDBACK_REPO_OWNER}/${FEEDBACK_REPO_NAME}/issues/new?${params.toString()}`
 })
 
+const effectiveFeedbackToken = computed(() => (
+  feedbackToken.value.trim() || syncStore.token.trim()
+))
+
 const canSubmitFeedback = computed(() => (
-  feedbackToken.value.trim().length > 0
+  effectiveFeedbackToken.value.length > 0
   && feedbackTitle.value.trim().length > 0
   && feedbackBody.value.trim().length > 0
 ))
+
+const feedbackNeedsToken = computed(() => !effectiveFeedbackToken.value)
 
 const statsCards = computed(() => [
   {
@@ -720,7 +729,7 @@ async function ensureFeedbackTokenValid(token) {
 }
 
 async function submitFeedbackIssue() {
-  const token = feedbackToken.value.trim()
+  const token = effectiveFeedbackToken.value
   const title = feedbackTitle.value.trim()
   const content = feedbackBody.value.trim()
 

@@ -831,7 +831,24 @@ onMounted(() => {
   }
 
   .share-hero__stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .hero-stat-card {
+    padding: 14px 10px;
+    border-radius: 18px;
+    text-align: center;
+  }
+
+  .hero-stat-card__label {
+    font-size: 11px;
+  }
+
+  .hero-stat-card__value {
+    margin-top: 8px;
+    font-size: 24px;
   }
 
   .share-toolbar {
