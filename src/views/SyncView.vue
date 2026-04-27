@@ -24,6 +24,7 @@
               <p class="hero-metric__value hero-metric__value--mono">{{ syncStore.gistId || '未创建' }}</p>
             </div>
             <button
+              v-if="showTokenInfo"
               type="button"
               class="hero-metric hero-metric--interactive"
               :disabled="!syncStore.token"
@@ -53,7 +54,7 @@
             </div>
 
             <div class="detail-list">
-              <button type="button" class="detail-row detail-row--button" :disabled="!syncStore.token" @click="copyText(syncStore.token)">
+              <button v-if="showTokenInfo" type="button" class="detail-row detail-row--button" :disabled="!syncStore.token" @click="copyText(syncStore.token)">
                 <span class="detail-label">Token</span>
                 <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
               </button>
@@ -555,7 +556,6 @@ const tokenInput = ref('')
 const tokenError = ref('')
 const tokenValidLogin = ref('')
 const isVerifyingToken = ref(false)
-const showManualTokenEntry = ref(false)
 const githubDeviceInfo = ref(null)
 const githubLoginStatus = ref('')
 const githubLoginError = ref('')
@@ -714,6 +714,14 @@ const statusBadgeText = computed(() => {
   if (syncStore.gistId) return '已连接'
   return '待上传'
 })
+
+const isUsingGithubLogin = computed(() => (
+  !!syncStore.githubLogin && syncStore.githubAuthMethod === 'device-flow'
+))
+
+const showTokenInfo = computed(() => !isUsingGithubLogin.value)
+
+const showManualTokenEntry = computed(() => !isUsingGithubLogin.value)
 
 const githubVerificationUrl = computed(() => getGitHubVerificationUrl(githubDeviceInfo.value))
 const githubDeviceExpiresText = computed(() => {
@@ -1105,7 +1113,6 @@ async function handleSaveToken() {
     tokenValidLogin.value = check.login
     await syncStore.saveToken(input, { login: check.login, authMethod: 'token' })
     await syncStore.init()
-    showManualTokenEntry.value = true
     showToast(`Token 已保存（${tokenValidLogin.value}）`)
     closeTokenDialog()
     await loadGistInfo()
@@ -1118,7 +1125,6 @@ async function handleSaveToken() {
 
 async function handleGithubLoginSuccess(user) {
   showToast(`GitHub 登录成功（${user.login}）`, 3200)
-  showManualTokenEntry.value = false
   showGithubLoginDialog.value = false
   await loadGistInfo()
 }
