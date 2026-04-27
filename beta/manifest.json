@@ -1,9 +1,9 @@
 {
-  "version": "20260427.9",
-  "url": "bundle-20260427.9.zip",
-  "hash": "13a2f7f163d2a6f797a3d48bad2679dc2f9eb829bffc09ee522fbb5a05451ef8",
+  "version": "20260427.10",
+  "url": "bundle-20260427.10.zip",
+  "hash": "7cc1e164ef32f36c66e9cf13a6f7c6d8e1b7539f7ec6655b9b0b7dba8d890491",
   "minNativeVersion": null,
-  "notes": "- feat: 调整样式，优化 .hero-copy 的 flex 属性设置",
+  "notes": "- feat: 添加剪贴板功能，支持检测剪贴板内容并弹出导入提示框",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T09:20:32Z"
+  "publishedAt": "2026-04-27T09:30:52Z"
 }

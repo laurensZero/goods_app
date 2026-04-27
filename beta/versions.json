@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.10",
+    "url": "bundle-20260427.10.zip",
+    "hash": "7cc1e164ef32f36c66e9cf13a6f7c6d8e1b7539f7ec6655b9b0b7dba8d890491",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加剪贴板功能，支持检测剪贴板内容并弹出导入提示框",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T09:30:52Z"
+  },
+  {
     "version": "20260427.9",
     "url": "bundle-20260427.9.zip",
     "hash": "13a2f7f163d2a6f797a3d48bad2679dc2f9eb829bffc09ee522fbb5a05451ef8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加伪 IP 词缀处理，优化商品名称解析逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T09:15:59Z"
-  },
-  {
-    "version": "20260427.7",
-    "url": "bundle-20260427.7.zip",
-    "hash": "ce369e609e2f0384a0d9663cab5addb6c881dcecc0632f6912abb890d3052613",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加剪贴板检测功能，支持从剪贴板提取分享链接并导航至导入页面",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T09:15:08Z"
   }
 ]
