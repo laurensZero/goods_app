@@ -1,9 +1,9 @@
 {
-  "version": "20260427.5",
-  "url": "bundle-20260427.5.zip",
-  "hash": "c38ab86254d1a23e970e904b295fca9d520bb416f762b1528bc616d4af605d21",
+  "version": "20260427.6",
+  "url": "bundle-20260427.6.zip",
+  "hash": "ad4c86e8e0e4faa7b9d0e41c6bdd4e3e97d96bfffab2116647577738a9ae4fa5",
   "minNativeVersion": null,
-  "notes": "- feat: 添加检查和清除过时包的功能，以支持应用版本更新",
+  "notes": "- feat: 优化分享功能，调整分享项的清理逻辑，更新反馈提交界面样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T08:34:35Z"
+  "publishedAt": "2026-04-27T09:02:59Z"
 }
