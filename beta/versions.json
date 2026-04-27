@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.8",
+    "url": "bundle-20260427.8.zip",
+    "hash": "a45de43db9f883bfd09540a28c6b4fc432d9c5d2aaac01f8f8736fd4b1b491bb",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加伪 IP 词缀处理，优化商品名称解析逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T09:15:59Z"
+  },
+  {
     "version": "20260427.7",
     "url": "bundle-20260427.7.zip",
     "hash": "ce369e609e2f0384a0d9663cab5addb6c881dcecc0632f6912abb890d3052613",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化分享功能，调整分享项的清理逻辑，更新反馈提交界面样式",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T09:02:59Z"
-  },
-  {
-    "version": "20260427.5",
-    "url": "bundle-20260427.5.zip",
-    "hash": "c38ab86254d1a23e970e904b295fca9d520bb416f762b1528bc616d4af605d21",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加检查和清除过时包的功能，以支持应用版本更新",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T08:34:35Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260427.7",
-  "url": "bundle-20260427.7.zip",
-  "hash": "ce369e609e2f0384a0d9663cab5addb6c881dcecc0632f6912abb890d3052613",
+  "version": "20260427.8",
+  "url": "bundle-20260427.8.zip",
+  "hash": "a45de43db9f883bfd09540a28c6b4fc432d9c5d2aaac01f8f8736fd4b1b491bb",
   "minNativeVersion": null,
-  "notes": "- feat: 添加剪贴板检测功能，支持从剪贴板提取分享链接并导航至导入页面",
+  "notes": "- feat: 添加伪 IP 词缀处理，优化商品名称解析逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T09:15:08Z"
+  "publishedAt": "2026-04-27T09:15:59Z"
 }
