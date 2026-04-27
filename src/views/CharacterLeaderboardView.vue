@@ -338,6 +338,7 @@ const selectedDimensionLabel = computed(() =>
 }
 
 .hero-copy {
+  flex: 1;
   max-width: 320px;
 }
 
@@ -346,7 +347,7 @@ const selectedDimensionLabel = computed(() =>
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  flex: 1;
+  flex: none;
   min-width: 0;
 }
 
