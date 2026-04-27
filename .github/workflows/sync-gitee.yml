@@ -122,6 +122,8 @@ jobs:
             refspec="+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
           elif [ "${EVENT_NAME}" = "workflow_run" ]; then
             refspec="+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            refspec="+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
           else
             echo "No matching ref sync rule for event ${EVENT_NAME}, skip."
             exit 0
