@@ -1,9 +1,9 @@
 {
-  "version": "20260427.6",
-  "url": "bundle-20260427.6.zip",
-  "hash": "ad4c86e8e0e4faa7b9d0e41c6bdd4e3e97d96bfffab2116647577738a9ae4fa5",
+  "version": "20260427.7",
+  "url": "bundle-20260427.7.zip",
+  "hash": "ce369e609e2f0384a0d9663cab5addb6c881dcecc0632f6912abb890d3052613",
   "minNativeVersion": null,
-  "notes": "- feat: 优化分享功能，调整分享项的清理逻辑，更新反馈提交界面样式",
+  "notes": "- feat: 添加剪贴板检测功能，支持从剪贴板提取分享链接并导航至导入页面",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T09:02:59Z"
+  "publishedAt": "2026-04-27T09:15:08Z"
 }

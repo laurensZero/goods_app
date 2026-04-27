@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.7",
+    "url": "bundle-20260427.7.zip",
+    "hash": "ce369e609e2f0384a0d9663cab5addb6c881dcecc0632f6912abb890d3052613",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加剪贴板检测功能，支持从剪贴板提取分享链接并导航至导入页面",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T09:15:08Z"
+  },
+  {
     "version": "20260427.6",
     "url": "bundle-20260427.6.zip",
     "hash": "ad4c86e8e0e4faa7b9d0e41c6bdd4e3e97d96bfffab2116647577738a9ae4fa5",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加检查和清除过时包的功能，以支持应用版本更新",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T08:34:35Z"
-  },
-  {
-    "version": "20260427.4",
-    "url": "bundle-20260427.4.zip",
-    "hash": "970bf025fa9321123b0514520cadc4b76a5d986420efcea3514cc3da8bc16162",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 QQ/WeChat 浏览器警告提示，优化分享功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T08:14:43Z"
   }
 ]
