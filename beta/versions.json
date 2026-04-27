@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.13",
+    "url": "bundle-20260427.13.zip",
+    "hash": "d0dc5ae9d1fd2833e58b324dfb44bb572fbdb059016b4c24e9bd6ce074081f58",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构更新通知逻辑，优化原生应用版本管理和过时包清理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T10:35:54Z"
+  },
+  {
     "version": "20260427.12",
     "url": "bundle-20260427.12.zip",
     "hash": "b9f3fa31885a1690570b2ac07f2f2d89220b5f2aeddc5eecc1134be293edbf76",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修改分享管理入口的描述，优化用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T09:33:24Z"
-  },
-  {
-    "version": "20260427.10",
-    "url": "bundle-20260427.10.zip",
-    "hash": "7cc1e164ef32f36c66e9cf13a6f7c6d8e1b7539f7ec6655b9b0b7dba8d890491",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加剪贴板功能，支持检测剪贴板内容并弹出导入提示框",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T09:30:52Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260427.12",
-  "url": "bundle-20260427.12.zip",
-  "hash": "b9f3fa31885a1690570b2ac07f2f2d89220b5f2aeddc5eecc1134be293edbf76",
+  "version": "20260427.13",
+  "url": "bundle-20260427.13.zip",
+  "hash": "d0dc5ae9d1fd2833e58b324dfb44bb572fbdb059016b4c24e9bd6ce074081f58",
   "minNativeVersion": null,
-  "notes": "- feat: 优化剪贴板导入功能，优化分享链接处理逻辑",
+  "notes": "- feat: 重构更新通知逻辑，优化原生应用版本管理和过时包清理",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T10:29:55Z"
+  "publishedAt": "2026-04-27T10:35:54Z"
 }
