@@ -10,7 +10,7 @@ import {
 import { fetchWithPlatformBridge } from '@/utils/platformHttp'
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
-  gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
+  gitee: 'https://gitee.com/laurenszero/goods_app_pages/raw/gh-pages',
   github: 'https://laurenszero.github.io/goods_app'
 })
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
