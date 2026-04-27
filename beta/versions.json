@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.17",
+    "url": "bundle-20260427.17.zip",
+    "hash": "cb5c275788ba5d702930368cf9bc3d5b8f3799a5798dbc68f30e6ae374820651",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化 GitHub 登录状态，调整 token 显示逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T10:59:12Z"
+  },
+  {
     "version": "20260427.16",
     "url": "bundle-20260427.16.zip",
     "hash": "aac7c708fd869b5bfbaea1952b0d89eae78ac189e47674598d16ccfdbab66414",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修正 Gitee 资源清单 URL，确保正确指向",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T10:51:55Z"
-  },
-  {
-    "version": "20260427.14",
-    "url": "bundle-20260427.14.zip",
-    "hash": "dea0c9d3b867e5d5cfeadb2dc1994318138a4fedfd422a298abaa3c2a67f2940",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新 Gitee 同步工作流，优化同步逻辑，仅同步 gh-pages 分支",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T10:42:25Z"
   }
 ]
