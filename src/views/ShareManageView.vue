@@ -127,8 +127,8 @@
             </div>
 
             <div class="share-record__actions">
-              <button class="share-action-btn share-action-btn--primary" type="button" @click="copyShareLink(share)">
-                {{ copiedId === share.shareId ? '已复制链接' : '复制链接' }}
+              <button class="share-action-btn share-action-btn--primary" type="button" @click="shareAgain(share)">
+                {{ copiedId === share.shareId ? '已分享' : '再次分享' }}
               </button>
               <button class="share-action-btn" type="button" :disabled="togglingId === share.shareId" @click="toggleShare(share)">
                 {{ togglingId === share.shareId ? '处理中...' : share.disabled ? '重新启用' : '停用分享' }}
@@ -164,9 +164,11 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Share } from '@capacitor/share'
 import NavBar from '@/components/common/NavBar.vue'
 import { getShareGist, deleteGistFiles, updateGist } from '@/utils/githubGist'
 import { getShareAssetFilenames, listSharesFromGist, toggleShareDisabled } from '@/utils/shareGoods'
+import { buildShareUrl } from '@/config/share'
 import { formatDate } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -207,7 +209,12 @@ function formatShareDate(dateStr) {
 
 function buildShareLink(share) {
   const gistId = shareGist.value?.id || ''
-  return `goodsapp://share/${gistId}?s=${share.shareId}`
+  return buildShareUrl(gistId, share.shareId) || `goodsapp://share/${gistId}?s=${share.shareId}`
+}
+
+function shareCode(share) {
+  const gistId = shareGist.value?.id || ''
+  return share.shareId ? `${gistId}-${share.shareId}` : gistId
 }
 
 function openSync() {
@@ -254,13 +261,32 @@ async function copyGistId() {
   }, 2000)
 }
 
-async function copyShareLink(share) {
-  const success = await copyText(buildShareLink(share))
-  if (!success) return
-  copiedId.value = share.shareId
-  window.setTimeout(() => {
-    if (copiedId.value === share.shareId) copiedId.value = ''
-  }, 2000)
+async function shareAgain(share) {
+  const url = buildShareLink(share)
+  const code = shareCode(share)
+  const text = url
+    ? `来收谷子！点击链接一键导入：${url}\n分享码：${code}`
+    : `来收谷子！复制分享码到App导入：${code}`
+
+  try {
+    await Share.share({
+      title: '分享谷子',
+      text,
+      dialogTitle: '分享谷子'
+    })
+    copiedId.value = share.shareId
+    window.setTimeout(() => {
+      if (copiedId.value === share.shareId) copiedId.value = ''
+    }, 2000)
+  } catch {
+    // Share cancelled or failed; fall back to clipboard
+    if (await copyText(url || code)) {
+      copiedId.value = share.shareId
+      window.setTimeout(() => {
+        if (copiedId.value === share.shareId) copiedId.value = ''
+      }, 2000)
+    }
+  }
 }
 
 async function toggleShare(share) {
