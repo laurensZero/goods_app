@@ -184,6 +184,10 @@ jobs:
           if [ -f "docs/ota-bundle-manager.html" ]; then
             cp "docs/ota-bundle-manager.html" "pages/index.html"
           fi
+          # Copy share landing page to gh-pages
+          if [ -f "docs/share.html" ]; then
+            cp "docs/share.html" "pages/share.html"
+          fi
 
           HISTORY_FILE="pages/${CHANNEL}/versions.json"
           if [ -f "ghpages/${CHANNEL}/versions.json" ]; then

@@ -48,22 +48,22 @@
           </div>
 
           <div class="share-card">
-            <!-- Link -->
-            <div class="share-field">
-              <label class="share-field-label">分享链接</label>
+            <!-- URL (https landing page, clickable in chat apps) -->
+            <div class="share-field" v-if="shareResult.url">
+              <label class="share-field-label">分享链接（可在聊天中点击打开）</label>
               <div class="share-field-row">
-                <code class="share-field-value">{{ shareResult.link }}</code>
+                <code class="share-field-value">{{ shareResult.url }}</code>
                 <button class="share-copy-btn" type="button" @click="copyLink">
                   {{ linkCopied ? '已复制' : '复制' }}
                 </button>
               </div>
             </div>
 
-            <!-- Code -->
+            <!-- Code (always present) -->
             <div class="share-field">
               <label class="share-field-label">分享码</label>
               <div class="share-field-row">
-                <code class="share-field-value share-code">{{ shareResult.gistId }}</code>
+                <code class="share-field-value share-code">{{ shareResult.code }}</code>
                 <button class="share-copy-btn" type="button" @click="copyCode">
                   {{ codeCopied ? '已复制' : '复制' }}
                 </button>
@@ -94,6 +94,7 @@ import { Share } from '@capacitor/share'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
 import { buildSharePayload, buildShareGistFiles, generateShareId } from '@/utils/shareGoods'
 import { buildShareDescription, findOrCreateShareGist } from '@/utils/githubGist'
+import { buildShareUrl } from '@/config/share'
 import { useSyncStore } from '@/stores/sync'
 
 const props = defineProps({
@@ -143,7 +144,8 @@ async function generateShare() {
     shareResult.value = {
       gistId: gist.id,
       shareId,
-      link: `goodsapp://share/${gist.id}?s=${shareId}`
+      code: `${gist.id}-${shareId}`,
+      url: buildShareUrl(gist.id, shareId)
     }
   } catch (e) {
     error.value = e.message || '生成分享链接失败'
@@ -155,7 +157,7 @@ async function generateShare() {
 async function copyLink() {
   if (!shareResult.value) return
   try {
-    await navigator.clipboard.writeText(shareResult.value.link)
+    await navigator.clipboard.writeText(shareResult.value.url || shareResult.value.code)
     linkCopied.value = true
     setTimeout(() => { linkCopied.value = false }, 2000)
   } catch {
@@ -166,7 +168,7 @@ async function copyLink() {
 async function copyCode() {
   if (!shareResult.value) return
   try {
-    await navigator.clipboard.writeText(shareResult.value.gistId)
+    await navigator.clipboard.writeText(shareResult.value.code)
     codeCopied.value = true
     setTimeout(() => { codeCopied.value = false }, 2000)
   } catch {
@@ -176,7 +178,10 @@ async function copyCode() {
 
 async function systemShare() {
   if (!shareResult.value) return
-  const text = `来收谷子！打开链接一键导入：${shareResult.value.link}\n分享码：${shareResult.value.gistId}`
+  const { url, code } = shareResult.value
+  const text = url
+    ? `来收谷子！点击链接一键导入：${url}\n分享码：${code}`
+    : `来收谷子！复制分享码到App导入：${code}`
   try {
     await Share.share({
       title: '分享谷子',
@@ -186,7 +191,7 @@ async function systemShare() {
   } catch {
     // Share.share failed or user cancelled; fall back to clipboard
     try {
-      await navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(url || code)
     } catch {
       // clipboard write may also fail
     }
