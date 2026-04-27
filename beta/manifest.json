@@ -1,9 +1,9 @@
 {
-  "version": "20260426.9",
-  "url": "bundle-20260426.9.zip",
-  "hash": "c1197f84876c5ee093161a5c9ee292380d0069f6149a64f11abeec152508e76b",
+  "version": "20260427.1",
+  "url": "bundle-20260427.1.zip",
+  "hash": "d558293d79b8ffba30cdbf0ca1a363a31c3c756cbc80dec77fd505a21b2a79c8",
   "minNativeVersion": null,
-  "notes": "- feat: 分享谷子功能",
+  "notes": "- feat: 更新分享功能，支持通过 Capacitor 分享 API 进行分享，并添加分享码停用验证",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-26T15:40:41Z"
+  "publishedAt": "2026-04-27T07:35:21Z"
 }

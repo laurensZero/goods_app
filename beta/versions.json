@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.1",
+    "url": "bundle-20260427.1.zip",
+    "hash": "d558293d79b8ffba30cdbf0ca1a363a31c3c756cbc80dec77fd505a21b2a79c8",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新分享功能，支持通过 Capacitor 分享 API 进行分享，并添加分享码停用验证",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T07:35:21Z"
+  },
+  {
     "version": "20260426.9",
     "url": "bundle-20260426.9.zip",
     "hash": "c1197f84876c5ee093161a5c9ee292380d0069f6149a64f11abeec152508e76b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 NFC 处理逻辑，支持通过深度链接导航到存储位置",
     "updateLevel": "silent",
     "publishedAt": "2026-04-26T12:18:13Z"
-  },
-  {
-    "version": "20260426.7",
-    "url": "bundle-20260426.7.zip",
-    "hash": "74506519729165a93e31722f911ea63f4a2336739bb03b705747366dbb57dc99",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 onNewIntent 方法以处理新意图，确保 Capacitor 正确捕获",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-26T11:54:35Z"
   }
 ]
