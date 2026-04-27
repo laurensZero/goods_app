@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.11",
+    "url": "bundle-20260427.11.zip",
+    "hash": "11492480ce9299f8979f93b6ac1d2d6d76e068cb7bc9e6b3943321adf577f6ca",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改分享管理入口的描述，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T09:33:24Z"
+  },
+  {
     "version": "20260427.10",
     "url": "bundle-20260427.10.zip",
     "hash": "7cc1e164ef32f36c66e9cf13a6f7c6d8e1b7539f7ec6655b9b0b7dba8d890491",
@@ -16,14 +25,5 @@
     "notes": "- feat: 调整样式，优化 .hero-copy 的 flex 属性设置",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T09:20:32Z"
-  },
-  {
-    "version": "20260427.8",
-    "url": "bundle-20260427.8.zip",
-    "hash": "a45de43db9f883bfd09540a28c6b4fc432d9c5d2aaac01f8f8736fd4b1b491bb",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加伪 IP 词缀处理，优化商品名称解析逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T09:15:59Z"
   }
 ]
