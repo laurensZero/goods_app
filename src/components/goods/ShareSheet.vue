@@ -90,6 +90,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { Share } from '@capacitor/share'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
 import { buildSharePayload, buildShareGistFiles, generateShareId } from '@/utils/shareGoods'
 import { buildShareDescription, findOrCreateShareGist } from '@/utils/githubGist'
@@ -177,16 +178,18 @@ async function systemShare() {
   if (!shareResult.value) return
   const text = `来收谷子！打开链接一键导入：${shareResult.value.link}\n分享码：${shareResult.value.gistId}`
   try {
-    if (navigator.share) {
-      await navigator.share({
-        title: '分享谷子',
-        text
-      })
-    } else {
-      await navigator.clipboard.writeText(text)
-    }
+    await Share.share({
+      title: '分享谷子',
+      text,
+      dialogTitle: '分享谷子'
+    })
   } catch {
-    // user cancelled or not supported
+    // Share.share failed or user cancelled; fall back to clipboard
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      // clipboard write may also fail
+    }
   }
 }
 

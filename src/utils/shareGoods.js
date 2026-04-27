@@ -74,6 +74,10 @@ export function validateSharePayload(payload) {
     return { valid: false, reason: `不支持的数据版本: ${payload.version}` }
   }
 
+  if (payload.disabled) {
+    return { valid: false, reason: '该分享码已停用' }
+  }
+
   if (!Array.isArray(payload.goods) || payload.goods.length === 0) {
     return { valid: false, reason: '没有可导入的谷子数据' }
   }
