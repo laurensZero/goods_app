@@ -451,7 +451,7 @@ const manageEntries = computed(() => ([
     key: 'shares',
     group: 'cloud',
     title: '管理分享',
-    kicker: '云同步',
+    kicker: '分享',
     meta: '查看和管理已发起的分享',
     detail: '查看所有已发起的分享记录，复制分享链接、停用或删除不再需要的分享。',
     summary: '集中管理分享入口，避免过多无效链接散落。',
