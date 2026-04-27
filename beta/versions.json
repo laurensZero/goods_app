@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.18",
+    "url": "bundle-20260427.18.zip",
+    "hash": "f974bd366e1aa8669fa5cd8ed14d351c3b978f477a76fae72d0a027d16edcecc",
+    "minNativeVersion": null,
+    "notes": "- fix: 修正 Gitee 资源清单 URL，确保正确指向",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T11:33:01Z"
+  },
+  {
     "version": "20260427.17",
     "url": "bundle-20260427.17.zip",
     "hash": "cb5c275788ba5d702930368cf9bc3d5b8f3799a5798dbc68f30e6ae374820651",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T10:53:04Z"
-  },
-  {
-    "version": "20260427.15",
-    "url": "bundle-20260427.15.zip",
-    "hash": "aca02eb47806a36280c7b1c495e991cd16c9c0e0b6e568fea4f66ed5418803dd",
-    "minNativeVersion": null,
-    "notes": "- feat: 修正 Gitee 资源清单 URL，确保正确指向",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T10:51:55Z"
   }
 ]
