@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260427.5",
+    "url": "bundle-20260427.5.zip",
+    "hash": "c38ab86254d1a23e970e904b295fca9d520bb416f762b1528bc616d4af605d21",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加检查和清除过时包的功能，以支持应用版本更新",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-27T08:34:35Z"
+  },
+  {
     "version": "20260427.4",
     "url": "bundle-20260427.4.zip",
     "hash": "970bf025fa9321123b0514520cadc4b76a5d986420efcea3514cc3da8bc16162",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加分享页面，支持通过分享链接和分享码导入",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T08:06:30Z"
-  },
-  {
-    "version": "20260427.2",
-    "url": "bundle-20260427.2.zip",
-    "hash": "638ebf4a30a5bc31a32d89e429b2874e25aec239fba6df4b88b71dcf277d0872",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加分享功能，支持通过分享页面生成分享链接和分享码",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T07:56:59Z"
   }
 ]

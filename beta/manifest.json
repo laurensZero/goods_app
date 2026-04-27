@@ -1,9 +1,9 @@
 {
-  "version": "20260427.4",
-  "url": "bundle-20260427.4.zip",
-  "hash": "970bf025fa9321123b0514520cadc4b76a5d986420efcea3514cc3da8bc16162",
+  "version": "20260427.5",
+  "url": "bundle-20260427.5.zip",
+  "hash": "c38ab86254d1a23e970e904b295fca9d520bb416f762b1528bc616d4af605d21",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 QQ/WeChat 浏览器警告提示，优化分享功能",
+  "notes": "- feat: 添加检查和清除过时包的功能，以支持应用版本更新",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T08:14:43Z"
+  "publishedAt": "2026-04-27T08:34:35Z"
 }
