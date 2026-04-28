@@ -1,9 +1,9 @@
 {
-  "version": "20260428.11",
-  "url": "bundle-20260428.11.zip",
-  "hash": "18c668f1730f6a8b33150844352199c6843f1f26a1e3fa9ca9771d51c3d6f160",
+  "version": "20260428.12",
+  "url": "bundle-20260428.12.zip",
+  "hash": "6636c40b0f5b217790acc2d1776c31607c45bc582b3e2dbb13dbc33de2c4e7da",
   "minNativeVersion": null,
-  "notes": "- fix: 添加价格输入的负值防止和清理功能",
+  "notes": "- Revert \"fix: 添加图像预加载功能以优化动画性能\"\n  This reverts commit f20774b648b2a94d37731a2633c778cb1eb87927.",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T15:23:48Z"
+  "publishedAt": "2026-04-28T15:28:04Z"
 }
