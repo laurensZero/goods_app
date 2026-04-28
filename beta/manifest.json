@@ -1,9 +1,9 @@
 {
-  "version": "20260427.19",
-  "url": "bundle-20260427.19.zip",
-  "hash": "a2dc528fb52bcce0e363a8f97092d640654443402e674f0b614409d63930cb39",
+  "version": "20260428.1",
+  "url": "bundle-20260428.1.zip",
+  "hash": "bc5e6cf1d6c1e68c6637f673980d89b70e70133e9a3994fb531220a7fe983582",
   "minNativeVersion": null,
-  "notes": "- feat: 增强分享功能，支持从 Gist 中查找匹配的分享并更新状态",
+  "notes": "- feat: 优化路由过渡效果，重构相关动画逻辑并实现懒加载组件\n\n- refactor: 重构设置页",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-27T15:18:37Z"
+  "publishedAt": "2026-04-28T09:12:39Z"
 }

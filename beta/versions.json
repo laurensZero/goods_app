@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260428.1",
+    "url": "bundle-20260428.1.zip",
+    "hash": "bc5e6cf1d6c1e68c6637f673980d89b70e70133e9a3994fb531220a7fe983582",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化路由过渡效果，重构相关动画逻辑并实现懒加载组件\n\n- refactor: 重构设置页",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-28T09:12:39Z"
+  },
+  {
     "version": "20260427.19",
     "url": "bundle-20260427.19.zip",
     "hash": "a2dc528fb52bcce0e363a8f97092d640654443402e674f0b614409d63930cb39",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修正 Gitee 资源清单 URL，确保正确指向",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T11:33:01Z"
-  },
-  {
-    "version": "20260427.17",
-    "url": "bundle-20260427.17.zip",
-    "hash": "cb5c275788ba5d702930368cf9bc3d5b8f3799a5798dbc68f30e6ae374820651",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化 GitHub 登录状态，调整 token 显示逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T10:59:12Z"
   }
 ]
