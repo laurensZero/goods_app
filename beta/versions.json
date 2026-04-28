@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260428.9",
+    "url": "bundle-20260428.9.zip",
+    "hash": "0061e07bc74ea9648596469e99978630863898ca6ff2fb5f0601d9a893cf890e",
+    "minNativeVersion": null,
+    "notes": "- fix: 添加图像预加载功能以优化动画性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-28T15:16:48Z"
+  },
+  {
     "version": "20260428.8",
     "url": "bundle-20260428.8.zip",
     "hash": "c4565f8bc8d0268c8d26de52c8298ee0f913b4ff5acb457c0bec69cba2f2cf73",
@@ -16,14 +25,5 @@
     "notes": "- fix: 移除愿望列表页面恢复状态的透明度设置",
     "updateLevel": "silent",
     "publishedAt": "2026-04-28T12:58:42Z"
-  },
-  {
-    "version": "20260428.6",
-    "url": "bundle-20260428.6.zip",
-    "hash": "3ece726349386f8d8d45eec5d648eed9d0c21c9951013101291ee3b458d95ad8",
-    "minNativeVersion": null,
-    "notes": "- fix: 修正滑动方向逻辑以反映收藏、心愿和统计的子模式顺序",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-28T12:45:44Z"
   }
 ]
