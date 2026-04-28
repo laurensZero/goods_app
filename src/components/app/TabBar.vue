@@ -165,11 +165,39 @@ function isTabActive(key) {
   return activeTabKey.value === key
 }
 
+const COLLECTION_SUB_ORDER = ['/home', '/wishlist', '/leaderboard/characters']
+
+function tabIndexOf(key) {
+  return tabs.value.findIndex((t) => t.key === key)
+}
+
+function resolveSlideDirection(currentPath, targetPath, targetTabKey) {
+  const currentIndex = activeTabIndex.value
+  const targetIndex = tabIndexOf(targetTabKey)
+
+  // Different tabs: direction based on tab bar position
+  if (targetIndex !== currentIndex) {
+    return targetIndex < currentIndex ? 'back' : 'forward'
+  }
+
+  // Same tab, different sub-mode: direction based on sub-mode order
+  const fromSub = COLLECTION_SUB_ORDER.indexOf(currentPath)
+  const toSub = COLLECTION_SUB_ORDER.indexOf(targetPath)
+  if (fromSub !== -1 && toSub !== -1) {
+    return toSub < fromSub ? 'back' : 'forward'
+  }
+
+  return 'forward'
+}
+
 function navigateWithTransition(path, tabKey) {
   if (route.path === path) return
+
+  const direction = resolveSlideDirection(route.path, path, tabKey)
+
   runWithRouteTransition(
     () => router.push(path),
-    { direction: 'forward' }
+    { direction }
   )
 }
 
