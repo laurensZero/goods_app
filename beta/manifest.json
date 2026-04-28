@@ -1,9 +1,9 @@
 {
-  "version": "20260428.5",
-  "url": "bundle-20260428.5.zip",
-  "hash": "8bfe262ad697c2ab02fcc288bbf7f6adcdbb1281fd028493336db19d72519dee",
+  "version": "20260428.6",
+  "url": "bundle-20260428.6.zip",
+  "hash": "3ece726349386f8d8d45eec5d648eed9d0c21c9951013101291ee3b458d95ad8",
   "minNativeVersion": null,
-  "notes": "- Revert \"fix: 修正滑动方向逻辑，确保内容与指示器移动一致\"\n  This reverts commit 884f1155a181b388123c9cb2e08bba952c713d6a.",
+  "notes": "- fix: 修正滑动方向逻辑以反映收藏、心愿和统计的子模式顺序",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T12:41:12Z"
+  "publishedAt": "2026-04-28T12:45:44Z"
 }
