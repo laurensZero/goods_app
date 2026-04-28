@@ -180,11 +180,13 @@ function resolveSlideDirection(currentPath, targetPath, targetTabKey) {
     return targetIndex < currentIndex ? 'back' : 'forward'
   }
 
-  // Same tab, different sub-mode: direction based on sub-mode order
+  // Same tab, different sub-mode: 收藏 → 心愿 → 统计
+  // Going "deeper" (left to right) = new page comes from left = 'back'
+  // Going "back" (right to left) = new page comes from right = 'forward'
   const fromSub = COLLECTION_SUB_ORDER.indexOf(currentPath)
   const toSub = COLLECTION_SUB_ORDER.indexOf(targetPath)
   if (fromSub !== -1 && toSub !== -1) {
-    return toSub < fromSub ? 'back' : 'forward'
+    return toSub < fromSub ? 'forward' : 'back'
   }
 
   return 'forward'
