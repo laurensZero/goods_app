@@ -15,6 +15,7 @@ import { usePresetsStore } from './stores/presets'
 import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
+import { runWithRouteTransition } from './utils/routeTransition'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -88,9 +89,9 @@ function setupAndroidBackButton() {
 
     if (!isAndroidRootRoute) {
       if (canGoBack || window.history.length > 1) {
-        router.back()
+        runWithRouteTransition(() => router.back(), { direction: 'back' })
       } else {
-        await router.replace('/home')
+        runWithRouteTransition(() => router.replace('/home'), { direction: 'back' })
       }
       return
     }

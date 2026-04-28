@@ -204,32 +204,29 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
-import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
-import { Share } from '@capacitor/share'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
-import { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
-import {
-  runManageForwardNavigation
-} from '@/utils/routeTransition'
+import { runManageForwardNavigation } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
-import CategoryManageView from '@/views/CategoryManageView.vue'
-import IpManageView from '@/views/IpManageView.vue'
-import CharacterManageView from '@/views/CharacterManageView.vue'
-import StorageLocationsView from '@/views/StorageLocationsView.vue'
-import ThemeView from '@/views/ThemeView.vue'
-import TrashView from '@/views/TrashView.vue'
-import SyncView from '@/views/SyncView.vue'
-import AboutView from '@/views/AboutView.vue'
-import ShareManageView from '@/views/ShareManageView.vue'
+
+// Lazy-loaded sub-pages — only fetched when the user opens that entry
+const CategoryManageView = defineAsyncComponent(() => import('@/views/CategoryManageView.vue'))
+const IpManageView = defineAsyncComponent(() => import('@/views/IpManageView.vue'))
+const CharacterManageView = defineAsyncComponent(() => import('@/views/CharacterManageView.vue'))
+const StorageLocationsView = defineAsyncComponent(() => import('@/views/StorageLocationsView.vue'))
+const ThemeView = defineAsyncComponent(() => import('@/views/ThemeView.vue'))
+const TrashView = defineAsyncComponent(() => import('@/views/TrashView.vue'))
+const SyncView = defineAsyncComponent(() => import('@/views/SyncView.vue'))
+const AboutView = defineAsyncComponent(() => import('@/views/AboutView.vue'))
+const ShareManageView = defineAsyncComponent(() => import('@/views/ShareManageView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
@@ -618,6 +615,7 @@ function formatCompactSize(bytes) {
 async function cleanupUnreferencedLocalImages() {
   if (!Capacitor.isNativePlatform()) return { removed: 0, bytes: 0 }
 
+  const { Filesystem, Directory } = await import('@capacitor/filesystem')
   const referenced = collectReferencedUserImagePaths()
   let removed = 0
   let bytes = 0
@@ -932,6 +930,7 @@ function showToast(message, duration = 2600) {
 }
 
 async function exportBackupToNative(json, filename) {
+  const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
   const publicPath = `${BACKUP_DIR}/${filename}`
 
   try {
@@ -977,6 +976,7 @@ async function exportBackupToNative(json, filename) {
 }
 
 async function exportBackupToShareCache(json, filename) {
+  const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
   const sharePath = `backup-share/${filename}`
   const result = await Filesystem.writeFile({
     path: sharePath,
@@ -993,6 +993,7 @@ async function exportBackupToShareCache(json, filename) {
 }
 
 async function shareBackupFile(uri) {
+  const { Share } = await import('@capacitor/share')
   const canShare = await Share.canShare().catch(() => ({ value: false }))
   if (!canShare.value) return false
 
@@ -1007,6 +1008,7 @@ async function shareBackupFile(uri) {
 }
 
 async function pruneDirectoryBackupFiles(path, directory, keepCount = BACKUP_RETENTION_COUNT) {
+  const { Filesystem } = await import('@capacitor/filesystem')
   try {
     const res = await Filesystem.readdir({ path, directory })
     const files = (res?.files || [])
@@ -1028,6 +1030,7 @@ async function pruneDirectoryBackupFiles(path, directory, keepCount = BACKUP_RET
 async function pruneBackupArtifacts() {
   if (!Capacitor.isNativePlatform()) return
 
+  const { Directory } = await import('@capacitor/filesystem')
   await Promise.all([
     pruneDirectoryBackupFiles(BACKUP_DIR, Directory.Documents),
     pruneDirectoryBackupFiles('backup', Directory.Data),
@@ -1036,6 +1039,7 @@ async function pruneBackupArtifacts() {
 }
 
 async function handleExport(selection = null) {
+  const { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } = await import('@/utils/goodsImages')
   await ensureEventsReady()
   const selected = selection || createDefaultExportSelection()
   const includeGoods = selected.goods !== false

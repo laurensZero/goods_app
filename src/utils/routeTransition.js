@@ -1,51 +1,74 @@
 let pendingDetailReturnPath = ''
 let pendingDetailTransitionKind = ''
-let fallbackAnimationTimer = 0
 
-function clearFallbackRouteAnimation() {
-  if (typeof document === 'undefined') return
-  const root = document.documentElement
-  delete root.dataset.routeTransitionFallback
-  delete root.dataset.routeTransitionDirection
-  delete root.dataset.routeTransitionKind
+/* ---------- page slide transition ---------- */
 
-  if (fallbackAnimationTimer && typeof window !== 'undefined') {
-    window.clearTimeout(fallbackAnimationTimer)
-    fallbackAnimationTimer = 0
+const DURATION = 300
+const EASING = 'cubic-bezier(0.22, 0.8, 0.22, 1)'
+
+function getRouteScene() {
+  return document.querySelector('.route-scene')
+}
+
+function animateScene(scene, direction) {
+  scene.style.transition = 'none'
+  if (direction === 'back') {
+    scene.style.transform = 'translateX(-16px)'
+  } else {
+    scene.style.transform = 'translateX(20px)'
+  }
+  scene.style.opacity = '0.95'
+
+  scene.getBoundingClientRect()
+
+  scene.style.transition = `transform ${DURATION}ms ${EASING}, opacity ${DURATION}ms ${EASING}`
+  scene.style.transform = 'translateX(0)'
+  scene.style.opacity = '1'
+
+  setTimeout(() => {
+    scene.style.transition = ''
+    scene.style.transform = ''
+    scene.style.opacity = ''
+  }, DURATION + 30)
+}
+
+function runSlideTransition(navigate, direction) {
+  const result = navigate()
+
+  const schedule = () => {
+    requestAnimationFrame(() => {
+      const scene = getRouteScene()
+      if (scene) {
+        animateScene(scene, direction)
+      } else {
+        requestAnimationFrame(() => {
+          const scene = getRouteScene()
+          if (scene) animateScene(scene, direction)
+        })
+      }
+    })
+  }
+
+  // Wait for vue-router promise so async components are loaded
+  if (result && typeof result.then === 'function') {
+    result.then(schedule)
+  } else {
+    schedule()
   }
 }
+
+/* ---------- public API ---------- */
 
 export function clearRouteTransitionFallback() {
-  clearFallbackRouteAnimation()
-}
-
-function runFallbackRouteAnimation(direction = 'forward', kind = 'page') {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return
-  const root = document.documentElement
-  root.dataset.routeTransitionFallback = '1'
-  root.dataset.routeTransitionDirection = direction === 'back' ? 'back' : 'forward'
-  root.dataset.routeTransitionKind = kind
-
-  if (fallbackAnimationTimer) {
-    window.clearTimeout(fallbackAnimationTimer)
-  }
-
-  fallbackAnimationTimer = window.setTimeout(() => {
-    delete root.dataset.routeTransitionFallback
-    delete root.dataset.routeTransitionDirection
-    delete root.dataset.routeTransitionKind
-    fallbackAnimationTimer = 0
-  }, 1000)
+  // kept for backwards compatibility
 }
 
 export function setPendingDetailReturnPath(path) {
-  const normalizedPath = String(path || '').trim()
-  pendingDetailReturnPath = normalizedPath
+  pendingDetailReturnPath = String(path || '').trim()
 }
 
 export function setPendingDetailTransitionKind(kind) {
-  const normalizedKind = String(kind || '').trim()
-  pendingDetailTransitionKind = normalizedKind
+  pendingDetailTransitionKind = String(kind || '').trim()
 }
 
 export function getPendingDetailReturnPath() {
@@ -62,23 +85,15 @@ export function clearPendingDetailTransitionKind() {
 
 export function runWithRouteTransition(navigate, options = {}) {
   const {
-    enabled = true,
-    preferFallback = false,
-    goodsId = '',
-    eventId = '',
     direction = 'forward',
     returnPath = '',
     manageSlide = '',
     detailTransitionKind = ''
   } = options
+
   if (typeof navigate !== 'function') return
-  const normalizedGoodsId = String(goodsId || '').trim()
-  const normalizedEventId = String(eventId || '').trim()
+
   const normalizedDetailTransitionKind = String(detailTransitionKind || '').trim()
-  const fallbackKind = normalizedDetailTransitionKind
-    || ((normalizedGoodsId || normalizedEventId)
-    ? (direction === 'back' ? 'detail-back' : 'detail-enter')
-    : 'page')
 
   if (direction === 'forward' && returnPath) {
     setPendingDetailReturnPath(returnPath)
@@ -86,28 +101,13 @@ export function runWithRouteTransition(navigate, options = {}) {
   if (normalizedDetailTransitionKind) {
     setPendingDetailTransitionKind(normalizedDetailTransitionKind)
   }
-  if (!enabled && !preferFallback) {
-    clearFallbackRouteAnimation()
-    navigate()
-    return
-  }
 
-  if (manageSlide && typeof document !== 'undefined') {
-    document.documentElement.dataset.routeTransitionManageSlide = manageSlide
-  }
-
-  runFallbackRouteAnimation(direction, fallbackKind)
-  navigate()
+  const slideDir = manageSlide === 'back' ? 'back' : 'forward'
+  runSlideTransition(navigate, slideDir)
 
   if (direction === 'back') {
     pendingDetailReturnPath = ''
     pendingDetailTransitionKind = ''
-  }
-
-  if (manageSlide && typeof document !== 'undefined') {
-    window.setTimeout(() => {
-      document.documentElement.removeAttribute('data-route-transition-manage-slide')
-    }, 240)
   }
 }
 

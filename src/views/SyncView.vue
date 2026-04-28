@@ -523,7 +523,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSyncStore } from '@/stores/sync'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
@@ -537,7 +537,8 @@ import {
 } from '@/utils/githubAuth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import NavBar from '@/components/common/NavBar.vue'
-import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
+
+const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common/GithubLoginDialog.vue'))
 
 const syncStore = useSyncStore()
 const route = useRoute()

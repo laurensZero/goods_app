@@ -413,10 +413,6 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
-import { createIssue } from '@/utils/githubIssues'
-import { validateToken } from '@/utils/githubGist'
-import { clearAllCache } from '@/utils/imageCache'
-import { clearLocalModelAssets } from '@/composables/image/useImageCutout'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import packageJson from '../../package.json'
@@ -719,6 +715,7 @@ async function clearSavedFeedbackToken() {
 }
 
 async function ensureFeedbackTokenValid(token) {
+  const { validateToken } = await import('@/utils/githubGist')
   const check = await validateToken(token)
   if (!check.valid) {
     throw new Error('Token 无效，或没有访问 GitHub 的权限')
@@ -740,6 +737,7 @@ async function submitFeedbackIssue() {
 
   try {
     await ensureFeedbackTokenValid(token)
+    const { createIssue } = await import('@/utils/githubIssues')
     const issue = await createIssue(token, FEEDBACK_REPO_OWNER, FEEDBACK_REPO_NAME, {
       title,
       body: buildIssueBody(content)
@@ -973,6 +971,7 @@ onMounted(() => {
 
 async function handleClearImageCache() {
   try {
+    const { clearAllCache } = await import('@/utils/imageCache')
     await clearAllCache()
     showToast('图片缓存已清除')
     refreshResourceSizes()
@@ -991,6 +990,7 @@ async function handleClearCutoutModel() {
   isClearingCutoutModel.value = true
 
   try {
+    const { clearLocalModelAssets } = await import('@/composables/image/useImageCutout')
     const ok = await clearLocalModelAssets()
     if (ok) {
       showToast('抠图模型已卸载')
