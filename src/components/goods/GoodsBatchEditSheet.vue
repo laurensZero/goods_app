@@ -177,6 +177,8 @@
               inputmode="decimal"
               placeholder="留空则不修改"
               :aria-invalid="Boolean(priceError)"
+              @keydown="preventNegativeInput"
+              @input="sanitizePriceInput"
             />
             <span v-if="priceError" class="field-error">{{ priceError }}</span>
           </label>
@@ -260,12 +262,32 @@ const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
 onMounted(() => updateViewport())
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 
+function hasPriceInput(value) {
+  return value !== '' && value !== null && value !== undefined
+}
+
+function preventNegativeInput(event) {
+  if (event.key === '-') {
+    event.preventDefault()
+  }
+}
+
+function sanitizePriceInput(event) {
+  const rawValue = String(event?.target?.value ?? form.price ?? '')
+  if (!rawValue) {
+    form.price = ''
+    return
+  }
+
+  form.price = rawValue.replace(/-/g, '')
+}
+
 const canSubmit = computed(() =>
   Boolean(
     form.markAsOwned ||
     form.category ||
     form.ip ||
-    form.price ||
+    hasPriceInput(form.price) ||
     form.acquiredAt ||
     form.storageLocation ||
     form.characters.length > 0
@@ -451,7 +473,7 @@ async function apply() {
   }
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
-  if (form.price !== '') payload.price = `${Math.round(Number(form.price) * 100) / 100}`
+  if (hasPriceInput(form.price)) payload.price = `${Math.round(Number(form.price) * 100) / 100}`
   if (form.acquiredAt) payload.acquiredAt = form.acquiredAt
   if (form.storageLocation) payload.storageLocation = form.storageLocation
   if (form.characters.length > 0) payload.characters = [...form.characters]
