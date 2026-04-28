@@ -1,3 +1,5 @@
+import { getCachedImage } from '@/utils/imageCache'
+
 const FORWARD_DURATION_MS = 420
 const BACK_DURATION_MS = 380
 const BACK_SCROLL_LOCK_MS = 200
@@ -237,7 +239,7 @@ function readBoxShadow(el) {
 function resolveCompensatedShadow(shadowStr, scaleFactor) {
   if (!shadowStr || shadowStr === 'none') return 'none'
   const normalizedScale = Math.max(Math.abs(Number(scaleFactor) || 1), 0.0001)
-  
+
   return shadowStr.replace(/([-+]?\d*\.?\d+)px/g, (match, val) => {
     const num = Number.parseFloat(val)
     if (!Number.isFinite(num)) return match
@@ -277,7 +279,6 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
     const img = document.createElement('img')
     img.src = snapshot.imageSrc
     img.alt = ''
-    img.decoding = 'async'
     img.style.width = '100%'
     img.style.height = '100%'
     img.style.objectFit = 'cover'
@@ -303,11 +304,6 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   return node
 }
 
-function shouldPreferTransformOnlyHero(direction, aspectDelta) {
-  if (aspectDelta <= 0.15) return true
-  return direction === 'back'
-}
-
 function resolveTransformOnlyTarget(snapshot, targetRect) {
   const scaleX = snapshot.width > 0 ? targetRect.width / snapshot.width : 1
   const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
@@ -331,7 +327,7 @@ function resolveCompensatedRadius(radius, scaleX = 1, scaleY = 1) {
   return `${horizontalRadius}px / ${verticalRadius}px`
 }
 
-function animateHero(snapshot, targetRect, targetRadius, options = {}) {
+async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return Promise.resolve()
   if (!snapshot || !targetRect) return Promise.resolve()
 
@@ -340,101 +336,78 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const overlayZIndex = direction === 'back'
     ? HERO_BACK_OVERLAY_Z_INDEX
     : HERO_FORWARD_OVERLAY_Z_INDEX
-  const node = createHeroNode(snapshot, overlayZIndex)
-
-  node.style.transform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`
-  document.body.appendChild(node)
-  activeHeroNodes.add(node)
 
   const targetEl = options.targetEl || null
   const previousVisibility = targetEl?.style?.visibility || ''
-  const duration = resolveHeroDuration(baseDuration, snapshot, targetRect)
-  const easing = resolveHeroEasing(direction, snapshot, targetRect)
-  const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
-  const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
-  const sourceAspectRatio = snapshot.height > 0 ? snapshot.width / snapshot.height : 1
-  const targetAspectRatio = targetRect.height > 0 ? targetRect.width / targetRect.height : 1
-  const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
-  const canUseScalePath = shouldPreferTransformOnlyHero(direction, aspectDelta)
-  const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect)
-  const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
-  const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
-  const clipEl = node.querySelector('[data-hero-clip="true"]')
-
-  const keyframes = canUseScalePath
-    ? [
-        {
-          transform: fromTransform,
-          opacity: 1
-        },
-        {
-          transform: toTransform,
-          opacity: 1
-        }
-      ]
-    : [
-        {
-          transform: `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`,
-          width: `${snapshot.width}px`,
-          height: `${snapshot.height}px`,
-          opacity: 1
-        },
-        {
-          transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`,
-          width: `${targetRect.width}px`,
-          height: `${targetRect.height}px`,
-          opacity: 1
-        }
-      ]
-
   const previousOpacity = targetEl?.style?.opacity || ''
-  const targetBoxShadow = readBoxShadow(targetEl)
 
+  // Hide target immediately so there is no double-image while we prepare the hero
   if (targetEl) {
     targetEl.style.visibility = 'hidden'
   }
 
+  // Resolve image through cache so the browser decodes from memory (blob URL)
+  let resolvedImageSrc = snapshot.imageSrc || ''
+  if (resolvedImageSrc) {
+    try {
+      resolvedImageSrc = await Promise.race([
+        getCachedImage(resolvedImageSrc),
+        new Promise((resolve) => setTimeout(() => resolve(resolvedImageSrc), 200))
+      ])
+    } catch (_) {}
+  }
+
+  const node = createHeroNode({ ...snapshot, imageSrc: resolvedImageSrc }, overlayZIndex)
+  node.style.transform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`
+  document.body.appendChild(node)
+  activeHeroNodes.add(node)
+
+  // Wait for the hero image to decode so the first animation frame is not blank
+  const heroImg = node.querySelector('img[data-hero-media="image"]')
+  if (heroImg && heroImg.src) {
+    try {
+      await Promise.race([
+        heroImg.decode().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 250))
+      ])
+    } catch (_) {}
+  }
+
+  const duration = resolveHeroDuration(baseDuration, snapshot, targetRect)
+  const easing = resolveHeroEasing(direction, snapshot, targetRect)
+  const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
+  const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
+  const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect)
+  const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
+  const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
+  const clipEl = node.querySelector('[data-hero-clip="true"]')
+  const targetBoxShadow = readBoxShadow(targetEl)
+
   const animation = node.animate(
-    keyframes,
-    {
-      duration,
-      easing,
-      fill: 'both'
-    }
+    [
+      { transform: fromTransform, opacity: 1 },
+      { transform: toTransform, opacity: 1 }
+    ],
+    { duration, easing, fill: 'both' }
   )
   activeHeroAnimations.add(animation)
 
   const clipAnimation = clipEl
     ? clipEl.animate(
-        canUseScalePath
-          ? [
-              {
-                borderRadius: resolveCompensatedRadius(radiusFrom, 1, 1),
-                boxShadow: snapshot.boxShadow || 'none'
-              },
-              {
-                borderRadius: resolveCompensatedRadius(radiusTo, transformTarget.scaleX, transformTarget.scaleY),
-                boxShadow: resolveCompensatedShadow(targetBoxShadow, transformTarget.scaleX) || 'none'
-              }
-            ]
-          : [
-              {
-                borderRadius: `${radiusFrom}px`,
-                boxShadow: snapshot.boxShadow || 'none'
-              },
-              {
-                borderRadius: `${radiusTo}px`,
-                boxShadow: targetBoxShadow || 'none'
-              }
-            ],
-        {
-          duration,
-          easing,
-          fill: 'both'
-        }
+        [
+          {
+            borderRadius: resolveCompensatedRadius(radiusFrom, 1, 1),
+            boxShadow: snapshot.boxShadow || 'none'
+          },
+          {
+            borderRadius: resolveCompensatedRadius(radiusTo, transformTarget.scaleX, transformTarget.scaleY),
+            boxShadow: resolveCompensatedShadow(targetBoxShadow, transformTarget.scaleX) || 'none'
+          }
+        ],
+        { duration, easing, fill: 'both' }
       )
     : null
-  
+
   if (clipAnimation) {
     activeHeroAnimations.add(clipAnimation)
   }
@@ -465,6 +438,13 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+
+  // Start preloading the image in background so it is cached by the time animateHero runs
+  if (imageSrc) {
+    getCachedImage(imageSrc).catch(() => {})
+  }
+
   pendingForwardHero = {
     goodsId: String(goodsId),
     left: rect.left,
@@ -472,7 +452,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -509,6 +489,13 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+
+  // Start preloading the image in background so it is cached by the time animateHero runs
+  if (imageSrc) {
+    getCachedImage(imageSrc).catch(() => {})
+  }
+
   pendingBackHero = {
     goodsId: String(goodsId),
     preparedAt: Date.now(),
@@ -518,7 +505,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -567,6 +554,13 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+
+  // Start preloading the image in background so it is cached by the time animateHero runs
+  if (imageSrc) {
+    getCachedImage(imageSrc).catch(() => {})
+  }
+
   pendingForwardEventHero = {
     eventId: String(eventId),
     left: rect.left,
@@ -574,7 +568,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -611,6 +605,13 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+
+  // Start preloading the image in background so it is cached by the time animateHero runs
+  if (imageSrc) {
+    getCachedImage(imageSrc).catch(() => {})
+  }
+
   pendingBackEventHero = {
     eventId: String(eventId),
     preparedAt: Date.now(),
@@ -620,7 +621,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
