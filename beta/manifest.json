@@ -1,9 +1,9 @@
 {
-  "version": "20260428.4",
-  "url": "bundle-20260428.4.zip",
-  "hash": "4e7c5f6d299e07a46fc7a755b13f1f73932e7ab53ba077f3889374b03135aa9f",
+  "version": "20260428.5",
+  "url": "bundle-20260428.5.zip",
+  "hash": "8bfe262ad697c2ab02fcc288bbf7f6adcdbb1281fd028493336db19d72519dee",
   "minNativeVersion": null,
-  "notes": "- fix: 修正滑动方向逻辑，确保内容与指示器移动一致",
+  "notes": "- Revert \"fix: 修正滑动方向逻辑，确保内容与指示器移动一致\"\n  This reverts commit 884f1155a181b388123c9cb2e08bba952c713d6a.",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T12:32:33Z"
+  "publishedAt": "2026-04-28T12:41:12Z"
 }
