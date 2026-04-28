@@ -175,16 +175,18 @@ function resolveSlideDirection(currentPath, targetPath, targetTabKey) {
   const currentIndex = activeTabIndex.value
   const targetIndex = tabIndexOf(targetTabKey)
 
-  // Different tabs: direction based on tab bar position
+  // Different tabs: content follows indicator movement
+  // Indicator moves left → content comes from right → 'forward'
+  // Indicator moves right → content comes from left → 'back'
   if (targetIndex !== currentIndex) {
-    return targetIndex < currentIndex ? 'back' : 'forward'
+    return targetIndex < currentIndex ? 'forward' : 'back'
   }
 
   // Same tab, different sub-mode: direction based on sub-mode order
   const fromSub = COLLECTION_SUB_ORDER.indexOf(currentPath)
   const toSub = COLLECTION_SUB_ORDER.indexOf(targetPath)
   if (fromSub !== -1 && toSub !== -1) {
-    return toSub < fromSub ? 'back' : 'forward'
+    return toSub < fromSub ? 'forward' : 'back'
   }
 
   return 'forward'
