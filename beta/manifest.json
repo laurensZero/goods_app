@@ -1,9 +1,9 @@
 {
-  "version": "20260428.10",
-  "url": "bundle-20260428.10.zip",
-  "hash": "957e62bd5aee0fdea8af484be5474f1e7a37f344b558d14e38b7458475e0f102",
+  "version": "20260428.11",
+  "url": "bundle-20260428.11.zip",
+  "hash": "18c668f1730f6a8b33150844352199c6843f1f26a1e3fa9ca9771d51c3d6f160",
   "minNativeVersion": null,
-  "notes": "- feat: 批量修改价格",
+  "notes": "- fix: 添加价格输入的负值防止和清理功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T15:19:24Z"
+  "publishedAt": "2026-04-28T15:23:48Z"
 }
