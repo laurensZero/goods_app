@@ -1,9 +1,9 @@
 {
-  "version": "20260428.9",
-  "url": "bundle-20260428.9.zip",
-  "hash": "0061e07bc74ea9648596469e99978630863898ca6ff2fb5f0601d9a893cf890e",
+  "version": "20260428.10",
+  "url": "bundle-20260428.10.zip",
+  "hash": "957e62bd5aee0fdea8af484be5474f1e7a37f344b558d14e38b7458475e0f102",
   "minNativeVersion": null,
-  "notes": "- fix: 添加图像预加载功能以优化动画性能",
+  "notes": "- feat: 批量修改价格",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T15:16:48Z"
+  "publishedAt": "2026-04-28T15:19:24Z"
 }

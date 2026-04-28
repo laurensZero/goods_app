@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260428.10",
+    "url": "bundle-20260428.10.zip",
+    "hash": "957e62bd5aee0fdea8af484be5474f1e7a37f344b558d14e38b7458475e0f102",
+    "minNativeVersion": null,
+    "notes": "- feat: 批量修改价格",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-28T15:19:24Z"
+  },
+  {
     "version": "20260428.9",
     "url": "bundle-20260428.9.zip",
     "hash": "0061e07bc74ea9648596469e99978630863898ca6ff2fb5f0601d9a893cf890e",
@@ -16,14 +25,5 @@
     "notes": "- fix: 优化切换标签的滑动方向逻辑以支持不同视图模式",
     "updateLevel": "silent",
     "publishedAt": "2026-04-28T13:10:56Z"
-  },
-  {
-    "version": "20260428.7",
-    "url": "bundle-20260428.7.zip",
-    "hash": "12047bbea172db3b50bc6a68085301da5e70d5364cc124d6369e3800847b29c9",
-    "minNativeVersion": null,
-    "notes": "- fix: 移除愿望列表页面恢复状态的透明度设置",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-28T12:58:42Z"
   }
 ]
