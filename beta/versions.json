@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260428.2",
+    "url": "bundle-20260428.2.zip",
+    "hash": "b9a5aae568f540a1d378986be6650159e6937e166b0c008b0ed6a9f2dca2b971",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化路由过渡逻辑，支持动态管理滑动方向",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-28T11:56:50Z"
+  },
+  {
     "version": "20260428.1",
     "url": "bundle-20260428.1.zip",
     "hash": "bc5e6cf1d6c1e68c6637f673980d89b70e70133e9a3994fb531220a7fe983582",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强分享功能，支持从 Gist 中查找匹配的分享并更新状态",
     "updateLevel": "silent",
     "publishedAt": "2026-04-27T15:18:37Z"
-  },
-  {
-    "version": "20260427.18",
-    "url": "bundle-20260427.18.zip",
-    "hash": "f974bd366e1aa8669fa5cd8ed14d351c3b978f477a76fae72d0a027d16edcecc",
-    "minNativeVersion": null,
-    "notes": "- fix: 修正 Gitee 资源清单 URL，确保正确指向",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-27T11:33:01Z"
   }
 ]

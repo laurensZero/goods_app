@@ -1,9 +1,9 @@
 {
-  "version": "20260428.1",
-  "url": "bundle-20260428.1.zip",
-  "hash": "bc5e6cf1d6c1e68c6637f673980d89b70e70133e9a3994fb531220a7fe983582",
+  "version": "20260428.2",
+  "url": "bundle-20260428.2.zip",
+  "hash": "b9a5aae568f540a1d378986be6650159e6937e166b0c008b0ed6a9f2dca2b971",
   "minNativeVersion": null,
-  "notes": "- feat: 优化路由过渡效果，重构相关动画逻辑并实现懒加载组件\n\n- refactor: 重构设置页",
+  "notes": "- feat: 优化路由过渡逻辑，支持动态管理滑动方向",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T09:12:39Z"
+  "publishedAt": "2026-04-28T11:56:50Z"
 }
