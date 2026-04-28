@@ -102,7 +102,7 @@ export function runWithRouteTransition(navigate, options = {}) {
     setPendingDetailTransitionKind(normalizedDetailTransitionKind)
   }
 
-  const slideDir = manageSlide === 'back' ? 'back' : 'forward'
+  const slideDir = (manageSlide || direction) === 'back' ? 'back' : 'forward'
   runSlideTransition(navigate, slideDir)
 
   if (direction === 'back') {
