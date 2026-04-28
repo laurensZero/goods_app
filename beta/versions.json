@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260428.8",
+    "url": "bundle-20260428.8.zip",
+    "hash": "c4565f8bc8d0268c8d26de52c8298ee0f913b4ff5acb457c0bec69cba2f2cf73",
+    "minNativeVersion": null,
+    "notes": "- fix: 优化切换标签的滑动方向逻辑以支持不同视图模式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-28T13:10:56Z"
+  },
+  {
     "version": "20260428.7",
     "url": "bundle-20260428.7.zip",
     "hash": "12047bbea172db3b50bc6a68085301da5e70d5364cc124d6369e3800847b29c9",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修正滑动方向逻辑以反映收藏、心愿和统计的子模式顺序",
     "updateLevel": "silent",
     "publishedAt": "2026-04-28T12:45:44Z"
-  },
-  {
-    "version": "20260428.5",
-    "url": "bundle-20260428.5.zip",
-    "hash": "8bfe262ad697c2ab02fcc288bbf7f6adcdbb1281fd028493336db19d72519dee",
-    "minNativeVersion": null,
-    "notes": "- Revert \"fix: 修正滑动方向逻辑，确保内容与指示器移动一致\"\n  This reverts commit 884f1155a181b388123c9cb2e08bba952c713d6a.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-28T12:41:12Z"
   }
 ]

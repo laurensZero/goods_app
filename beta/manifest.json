@@ -1,9 +1,9 @@
 {
-  "version": "20260428.7",
-  "url": "bundle-20260428.7.zip",
-  "hash": "12047bbea172db3b50bc6a68085301da5e70d5364cc124d6369e3800847b29c9",
+  "version": "20260428.8",
+  "url": "bundle-20260428.8.zip",
+  "hash": "c4565f8bc8d0268c8d26de52c8298ee0f913b4ff5acb457c0bec69cba2f2cf73",
   "minNativeVersion": null,
-  "notes": "- fix: 移除愿望列表页面恢复状态的透明度设置",
+  "notes": "- fix: 优化切换标签的滑动方向逻辑以支持不同视图模式",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T12:58:42Z"
+  "publishedAt": "2026-04-28T13:10:56Z"
 }
