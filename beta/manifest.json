@@ -1,9 +1,9 @@
 {
-  "version": "20260428.2",
-  "url": "bundle-20260428.2.zip",
-  "hash": "b9a5aae568f540a1d378986be6650159e6937e166b0c008b0ed6a9f2dca2b971",
+  "version": "20260428.3",
+  "url": "bundle-20260428.3.zip",
+  "hash": "9fa6a9df4dcee40af79b18b04360e3fe2771e4ea22325555440b7ae348a22b0c",
   "minNativeVersion": null,
-  "notes": "- feat: 优化路由过渡逻辑，支持动态管理滑动方向",
+  "notes": "- feat: 增强导航功能，优化滑动方向逻辑以支持不同标签和子模式切换",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T11:56:50Z"
+  "publishedAt": "2026-04-28T12:12:32Z"
 }
