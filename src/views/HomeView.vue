@@ -298,13 +298,19 @@ const router = useRouter()
 const route = useRoute()
 
 function switchHomeTopTab(nextMode) {
+  const SUB_ORDER = ['/home', '/wishlist', '/leaderboard/characters']
+  const fi = SUB_ORDER.indexOf(route.path)
+  const toPath = nextMode === 'wishlist' ? '/wishlist' : nextMode === 'stats' ? '/leaderboard/characters' : '/home'
+  const ti = SUB_ORDER.indexOf(toPath)
+  const direction = (fi !== -1 && ti !== -1 && ti < fi) ? 'forward' : 'back'
+
   if (nextMode === 'wishlist') {
     persistCollectionTab('wishlist')
     saveScrollPosition(true, 'home:navigateToWishlist')
     runWithRouteTransition(
       () => router.push('/wishlist'),
       {
-        direction: 'forward',
+        direction,
         preferFallback: true
       }
     )
@@ -317,7 +323,7 @@ function switchHomeTopTab(nextMode) {
     runWithRouteTransition(
       () => router.push('/leaderboard/characters'),
       {
-        direction: 'forward',
+        direction,
         preferFallback: true
       }
     )

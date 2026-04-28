@@ -536,6 +536,12 @@ function persistHomeMode(mode) {
 }
 
 function switchTopTab(nextMode) {
+  const SUB_ORDER = ['/home', '/wishlist', '/leaderboard/characters']
+  const fi = SUB_ORDER.indexOf(route.path)
+  const toPath = nextMode === 'goods' ? '/home' : nextMode === 'stats' ? '/leaderboard/characters' : '/wishlist'
+  const ti = SUB_ORDER.indexOf(toPath)
+  const direction = (fi !== -1 && ti !== -1 && ti < fi) ? 'forward' : 'back'
+
   if (nextMode === 'goods') {
     persistCollectionTab('goods')
     persistHomeMode('goods')
@@ -543,7 +549,7 @@ function switchTopTab(nextMode) {
     runWithRouteTransition(
       () => router.push('/home'),
       {
-        direction: 'forward',
+        direction,
         preferFallback: true
       }
     )
@@ -556,7 +562,7 @@ function switchTopTab(nextMode) {
     runWithRouteTransition(
       () => router.push('/leaderboard/characters'),
       {
-        direction: 'forward',
+        direction,
         preferFallback: true
       }
     )
