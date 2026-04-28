@@ -771,7 +771,6 @@ onBeforeRouteLeave(() => {
 }
 
 .wishlist-page--restoring {
-  opacity: 0.01;
   pointer-events: none;
 }
 
