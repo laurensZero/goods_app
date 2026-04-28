@@ -165,6 +165,21 @@
               </svg>
             </button>
           </label>
+
+          <label class="field" :class="{ 'field--error': priceError }">
+            <span class="field-label">价格（¥）</span>
+            <input
+              v-model="form.price"
+              class="field-input"
+              type="number"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="留空则不修改"
+              :aria-invalid="Boolean(priceError)"
+            />
+            <span v-if="priceError" class="field-error">{{ priceError }}</span>
+          </label>
         </div>
       </section>
 
@@ -195,6 +210,7 @@ import { Popup } from 'vant'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
+import { validatePrice } from '@/utils/validate'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
@@ -223,10 +239,12 @@ const quickCategoryName = ref('')
 const quickIpName = ref('')
 const quickCharacterName = ref('')
 const quickCharacterIp = ref(NO_IP_OPTION)
+const priceError = ref('')
 const form = reactive({
   markAsOwned: false,
   category: '',
   ip: '',
+  price: '',
   acquiredAt: '',
   storageLocation: '',
   characters: []
@@ -243,7 +261,15 @@ onMounted(() => updateViewport())
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 
 const canSubmit = computed(() =>
-  Boolean(form.markAsOwned || form.category || form.ip || form.acquiredAt || form.storageLocation || form.characters.length > 0)
+  Boolean(
+    form.markAsOwned ||
+    form.category ||
+    form.ip ||
+    form.price ||
+    form.acquiredAt ||
+    form.storageLocation ||
+    form.characters.length > 0
+  ) && !priceError.value
 )
 const storageLocationOptions = computed(() => goodsStore.storageLocations)
 const quickCharacterIpOptions = computed(() => {
@@ -290,13 +316,23 @@ watch(
   }
 )
 
+watch(
+  () => form.price,
+  (value) => {
+    const validation = validatePrice(value)
+    priceError.value = validation.valid ? '' : validation.message
+  }
+)
+
 function resetForm() {
   form.markAsOwned = false
   form.category = ''
   form.ip = ''
+  form.price = ''
   form.acquiredAt = ''
   form.storageLocation = ''
   form.characters = []
+  priceError.value = ''
   closeQuickCreate()
   datePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
   closeNestedPanels()
@@ -402,6 +438,12 @@ async function apply() {
 
   await commitActiveInput()
 
+  const priceValidation = validatePrice(form.price)
+  if (!priceValidation.valid) {
+    priceError.value = priceValidation.message
+    return
+  }
+
   const payload = {}
   if (form.markAsOwned) {
     payload.isWishlist = false
@@ -409,6 +451,7 @@ async function apply() {
   }
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
+  if (form.price !== '') payload.price = `${Math.round(Number(form.price) * 100) / 100}`
   if (form.acquiredAt) payload.acquiredAt = form.acquiredAt
   if (form.storageLocation) payload.storageLocation = form.storageLocation
   if (form.characters.length > 0) payload.characters = [...form.characters]
@@ -612,6 +655,10 @@ defineExpose({
   background: var(--app-surface-soft);
 }
 
+.field--error {
+  box-shadow: inset 0 0 0 1px rgba(199, 68, 68, 0.18);
+}
+
 .field-head {
   display: flex;
   align-items: center;
@@ -637,6 +684,38 @@ defineExpose({
 
 .field-add-btn:active {
   transform: scale(0.96);
+}
+
+.field-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 16px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 16px;
+  transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
+}
+
+.field-input::placeholder {
+  color: var(--app-placeholder);
+}
+
+.field-input:focus {
+  border-color: rgba(20, 20, 22, 0.16);
+  box-shadow: 0 0 0 3px rgba(20, 20, 22, 0.04);
+  outline: none;
+}
+
+.field--error .field-input {
+  border-color: rgba(199, 68, 68, 0.38);
+}
+
+.field-error {
+  color: #c74444;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .date-field {
@@ -952,7 +1031,8 @@ defineExpose({
   }
 
 :global(html.theme-dark) .date-field,
-  :global(html.theme-dark) .multi-select__trigger {
+  :global(html.theme-dark) .multi-select__trigger,
+  :global(html.theme-dark) .field-input {
     border-color: rgba(255, 255, 255, 0.08) !important;
     background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
