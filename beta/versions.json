@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260428.7",
+    "url": "bundle-20260428.7.zip",
+    "hash": "12047bbea172db3b50bc6a68085301da5e70d5364cc124d6369e3800847b29c9",
+    "minNativeVersion": null,
+    "notes": "- fix: 移除愿望列表页面恢复状态的透明度设置",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-28T12:58:42Z"
+  },
+  {
     "version": "20260428.6",
     "url": "bundle-20260428.6.zip",
     "hash": "3ece726349386f8d8d45eec5d648eed9d0c21c9951013101291ee3b458d95ad8",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"fix: 修正滑动方向逻辑，确保内容与指示器移动一致\"\n  This reverts commit 884f1155a181b388123c9cb2e08bba952c713d6a.",
     "updateLevel": "silent",
     "publishedAt": "2026-04-28T12:41:12Z"
-  },
-  {
-    "version": "20260428.4",
-    "url": "bundle-20260428.4.zip",
-    "hash": "4e7c5f6d299e07a46fc7a755b13f1f73932e7ab53ba077f3889374b03135aa9f",
-    "minNativeVersion": null,
-    "notes": "- fix: 修正滑动方向逻辑，确保内容与指示器移动一致",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-28T12:32:33Z"
   }
 ]
