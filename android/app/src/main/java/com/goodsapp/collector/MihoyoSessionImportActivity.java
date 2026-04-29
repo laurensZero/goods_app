@@ -193,6 +193,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
             return;
         }
 
+        SessionSnapshot sessionSnapshot = captureSessionSnapshot();
         importRunning = true;
         pendingErrorMessage = "";
         actionButton.setEnabled(false);
@@ -201,7 +202,9 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
 
         executor.execute(() -> {
             try {
-                JSONObject payload = MODE_CART.equals(mode) ? fetchCartPayload() : fetchOrdersPayload();
+                JSONObject payload = MODE_CART.equals(mode)
+                    ? fetchCartPayload(sessionSnapshot)
+                    : fetchOrdersPayload(sessionSnapshot);
                 runOnUiThread(() -> completeWithPayload(payload));
             } catch (Exception error) {
                 runOnUiThread(() -> renderImportError(error));
@@ -209,16 +212,16 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         });
     }
 
-    private JSONObject fetchOrdersPayload() throws Exception {
+    private JSONObject fetchOrdersPayload(SessionSnapshot sessionSnapshot) throws Exception {
         int limit = 20;
-        JSONObject first = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=1");
+        JSONObject first = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=1", sessionSnapshot);
         JSONObject firstData = ensureSuccess(first);
         int total = firstData.optInt("count", 0);
         int totalPages = Math.min(Math.max((int) Math.ceil(total / (double) limit), 1), 10);
         JSONArray list = copyJsonArray(firstData.optJSONArray("list"));
 
         for (int page = 2; page <= totalPages; page += 1) {
-            JSONObject pageJson = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=" + page);
+            JSONObject pageJson = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=" + page, sessionSnapshot);
             JSONObject pageData = ensureSuccess(pageJson);
             JSONArray pageList = pageData.optJSONArray("list");
             if (pageList == null) continue;
@@ -235,8 +238,8 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         return payload;
     }
 
-    private JSONObject fetchCartPayload() throws Exception {
-        JSONObject json = requestJson(API_CART_LIST);
+    private JSONObject fetchCartPayload(SessionSnapshot sessionSnapshot) throws Exception {
+        JSONObject json = requestJson(API_CART_LIST, sessionSnapshot);
         JSONObject data = ensureSuccess(json);
 
         JSONObject payload = new JSONObject();
@@ -248,7 +251,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         return payload;
     }
 
-    private JSONObject requestJson(String url) throws Exception {
+    private JSONObject requestJson(String url, SessionSnapshot sessionSnapshot) throws Exception {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
@@ -262,12 +265,12 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
             connection.setRequestProperty("x-rpc-language", "zh-cn");
             connection.setRequestProperty("x-rpc-client_type", "5");
 
-            String userAgent = webView != null ? webView.getSettings().getUserAgentString() : "";
+            String userAgent = sessionSnapshot.userAgent;
             if (userAgent != null && !userAgent.trim().isEmpty()) {
                 connection.setRequestProperty("User-Agent", userAgent);
             }
 
-            String cookies = buildCookieHeader();
+            String cookies = sessionSnapshot.cookieHeader;
             if (!cookies.isEmpty()) {
                 connection.setRequestProperty("Cookie", cookies);
             }
@@ -362,6 +365,14 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         return MODE_CART.equals(rawMode) ? MODE_CART : MODE_ORDERS;
     }
 
+    private SessionSnapshot captureSessionSnapshot() {
+        String userAgent = "";
+        if (webView != null && webView.getSettings() != null) {
+            userAgent = String.valueOf(webView.getSettings().getUserAgentString());
+        }
+        return new SessionSnapshot(userAgent, buildCookieHeader());
+    }
+
     private String buildCookieHeader() {
         CookieManager cookieManager = CookieManager.getInstance();
         Map<String, String> cookieMap = new LinkedHashMap<>();
@@ -433,5 +444,15 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
     private int dp(int value) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(value * density);
+    }
+
+    private static final class SessionSnapshot {
+        final String userAgent;
+        final String cookieHeader;
+
+        SessionSnapshot(String userAgent, String cookieHeader) {
+            this.userAgent = userAgent == null ? "" : userAgent;
+            this.cookieHeader = cookieHeader == null ? "" : cookieHeader;
+        }
     }
 }
