@@ -334,7 +334,9 @@ const priceText = computed(() => {
   cursor: pointer;
   user-select: none;
   -webkit-touch-callout: none;
-  contain: layout paint style;
+  contain: paint;
+  background-clip: padding-box;
+  isolation: isolate;
   transition:
     transform 0.22s ease,
     box-shadow 0.22s ease;
@@ -421,6 +423,8 @@ const priceText = computed(() => {
   overflow: hidden;
   padding: 10px;
   border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--app-glass-border) 78%, transparent);
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
   background-size: cover;
   background-position: center;
 }
@@ -464,6 +468,7 @@ const priceText = computed(() => {
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: -0.03em;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -727,6 +732,10 @@ const priceText = computed(() => {
 :global(html.theme-dark .goods-card .card-chip.tag-chip) {
     background: rgba(201, 148, 255, 0.14) !important;
     color: #f1dcff !important;
+  }
+
+:global(html.theme-dark) .card-cover {
+    border-color: color-mix(in srgb, var(--app-glass-border) 88%, transparent);
   }
 
 :global(html.theme-dark) .check-icon--checked {
