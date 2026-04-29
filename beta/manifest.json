@@ -1,9 +1,9 @@
 {
-  "version": "20260429.5",
-  "url": "bundle-20260429.5.zip",
-  "hash": "2a8dcda3bf72d405d0c2a7319a9722565b765a0ae60736473dba55bdad643f21",
+  "version": "20260429.6",
+  "url": "bundle-20260429.6.zip",
+  "hash": "6e8f1c28d885e7825325ac6f0569a18ac0d5562b64df0d99940a5d444c432e7e",
   "minNativeVersion": null,
-  "notes": "- feat: 添加错误对话框以改善导入过程中的用户反馈",
+  "notes": "- feat: 添加会话cookie保存和错误处理以优化导入流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T08:54:02Z"
+  "publishedAt": "2026-04-29T09:18:41Z"
 }
