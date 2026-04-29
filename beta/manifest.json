@@ -1,9 +1,9 @@
 {
-  "version": "20260429.2",
-  "url": "bundle-20260429.2.zip",
-  "hash": "309aad67e6c063e86dc29ba0c85bd0f28ca040e4b7ba98eb09a8aaa2afd66477",
+  "version": "20260429.3",
+  "url": "bundle-20260429.3.zip",
+  "hash": "044bc7f208ffe5f7c6086342003459b73463689847f7371a1721dbe96c2f7fff",
   "minNativeVersion": null,
-  "notes": "- fix: 添加异常处理以防止JSON解析错误",
+  "notes": "- feat: 更新米游铺导入界面，优化UI和交互体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T08:26:13Z"
+  "publishedAt": "2026-04-29T08:38:54Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.3",
+    "url": "bundle-20260429.3.zip",
+    "hash": "044bc7f208ffe5f7c6086342003459b73463689847f7371a1721dbe96c2f7fff",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新米游铺导入界面，优化UI和交互体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T08:38:54Z"
+  },
+  {
     "version": "20260429.2",
     "url": "bundle-20260429.2.zip",
     "hash": "309aad67e6c063e86dc29ba0c85bd0f28ca040e4b7ba98eb09a8aaa2afd66477",
@@ -16,14 +25,5 @@
     "notes": "- feat: 米哈游登录自动抓取cookie",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T08:21:56Z"
-  },
-  {
-    "version": "20260428.12",
-    "url": "bundle-20260428.12.zip",
-    "hash": "6636c40b0f5b217790acc2d1776c31607c45bc582b3e2dbb13dbc33de2c4e7da",
-    "minNativeVersion": null,
-    "notes": "- Revert \"fix: 添加图像预加载功能以优化动画性能\"\n  This reverts commit f20774b648b2a94d37731a2633c778cb1eb87927.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-28T15:28:04Z"
   }
 ]
