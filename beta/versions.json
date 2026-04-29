@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.8",
+    "url": "bundle-20260429.8.zip",
+    "hash": "872cabb0f0db7270fce60d48393b87dfe9e6b83e0d8df51d098911622687341c",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化卡片样式，调整背景和边框属性以提升视觉效果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T11:14:35Z"
+  },
+  {
     "version": "20260429.7",
     "url": "bundle-20260429.7.zip",
     "hash": "8f0c71f4608d8433bace265dc4526fe9b4e4a0d54c0aefd6ab2cfbf163fd1458",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加会话cookie保存和错误处理以优化导入流程",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T09:18:41Z"
-  },
-  {
-    "version": "20260429.5",
-    "url": "bundle-20260429.5.zip",
-    "hash": "2a8dcda3bf72d405d0c2a7319a9722565b765a0ae60736473dba55bdad643f21",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加错误对话框以改善导入过程中的用户反馈",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T08:54:02Z"
   }
 ]

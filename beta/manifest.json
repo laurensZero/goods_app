@@ -1,9 +1,9 @@
 {
-  "version": "20260429.7",
-  "url": "bundle-20260429.7.zip",
-  "hash": "8f0c71f4608d8433bace265dc4526fe9b4e4a0d54c0aefd6ab2cfbf163fd1458",
+  "version": "20260429.8",
+  "url": "bundle-20260429.8.zip",
+  "hash": "872cabb0f0db7270fce60d48393b87dfe9e6b83e0d8df51d098911622687341c",
   "minNativeVersion": null,
-  "notes": "- feat: 更新用户代理设置并优化导入流程中的cookie管理",
+  "notes": "- feat: 优化卡片样式，调整背景和边框属性以提升视觉效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T09:25:55Z"
+  "publishedAt": "2026-04-29T11:14:35Z"
 }
