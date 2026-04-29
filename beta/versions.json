@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.9",
+    "url": "bundle-20260429.9.zip",
+    "hash": "f642f8dd012dce3faa42532622e9d0a925da1815a1a854a559e86be1360cde27",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加谷子动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T12:14:42Z"
+  },
+  {
     "version": "20260429.8",
     "url": "bundle-20260429.8.zip",
     "hash": "872cabb0f0db7270fce60d48393b87dfe9e6b83e0d8df51d098911622687341c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新用户代理设置并优化导入流程中的cookie管理",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T09:25:55Z"
-  },
-  {
-    "version": "20260429.6",
-    "url": "bundle-20260429.6.zip",
-    "hash": "6e8f1c28d885e7825325ac6f0569a18ac0d5562b64df0d99940a5d444c432e7e",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加会话cookie保存和错误处理以优化导入流程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T09:18:41Z"
   }
 ]
