@@ -3,7 +3,7 @@
     <NavBar :title="navBarTitle" show-back @back="handleBack" />
 
     <main class="page-body">
-      <form class="editor-form" @submit.prevent="handleSubmit">
+      <form class="editor-form" @submit.prevent="handleSubmit($event)">
         <section class="manage-hero">
           <div class="preview-stage">
             <div class="preview-glow" />
@@ -484,7 +484,7 @@
 
     <Teleport to="body">
       <div class="float-footer">
-        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">{{ submitButtonLabel }}</button>
+        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit($event)">{{ submitButtonLabel }}</button>
       </div>
     </Teleport>
 

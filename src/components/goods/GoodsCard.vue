@@ -4,8 +4,10 @@
     :class="[
       `goods-card--${density || 'comfortable'}`,
       { 'goods-card--transitioning': transitioning },
-      { 'goods-card--selected': selected }
+      { 'goods-card--selected': selected },
+      { 'goods-card--motion': Boolean(motionStyle) }
     ]"
+    :style="motionStyle || undefined"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -105,7 +107,8 @@ const props = defineProps({
   density: { type: String, default: '' },
   transitioning: { type: Boolean, default: false },
   selected: { type: Boolean, default: false },
-  selectionMode: { type: Boolean, default: false }
+  selectionMode: { type: Boolean, default: false },
+  motionStyle: { type: Object, default: null }
 })
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
@@ -340,6 +343,10 @@ const priceText = computed(() => {
   transition:
     transform 0.22s ease,
     box-shadow 0.22s ease;
+}
+
+.goods-card--motion {
+  will-change: transform, opacity;
 }
 
 .goods-card--transitioning {

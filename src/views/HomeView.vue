@@ -74,6 +74,10 @@
           :after-spacer-height="visibleGoodsTailSpacerHeight"
           :transitioning="isDensityAnimating"
           :is-sort-animating="isSortAnimating"
+          :add-motion-snapshot="addMotionSnapshot"
+          :add-motion-request="addMotionRequest"
+          :low-perf-motion="isLowPerfDevice"
+          :auto-play-motion="false"
           :selection-mode="selectionMode"
           :selected-ids="selectedIds"
           @long-press="enterSelectionMode"
@@ -152,6 +156,26 @@
 
     <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
 
+    <Teleport to="body">
+      <div v-if="addMotionOverlay" class="add-motion-layer" aria-hidden="true">
+        <div class="add-motion-ghost" :class="{ 'add-motion-ghost--active': addMotionOverlay.phase === 'end' }" :style="addMotionGhostStyle">
+          <div class="add-motion-ghost__cover">
+            <img
+              v-if="addMotionOverlay.item.coverImage"
+              :src="addMotionOverlay.item.coverImage"
+              :alt="addMotionOverlay.item.name"
+              class="add-motion-ghost__img"
+            />
+            <span v-else class="add-motion-ghost__fallback">{{ (addMotionOverlay.item.name || '').trim().charAt(0).toUpperCase() || '谷' }}</span>
+          </div>
+          <div class="add-motion-ghost__body">
+            <p class="add-motion-ghost__name">{{ addMotionOverlay.item.name }}</p>
+            <p class="add-motion-ghost__meta">新谷子已加入</p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </div>
 </template>
 <script setup>
@@ -193,8 +217,33 @@ const store = useGoodsStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const batchEditSheetRef = ref(null)
+const addMotionSnapshot = ref(null)
+const addMotionRequest = ref(null)
+const addMotionOverlay = ref(null)
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
+const ADD_MOTION_SNAPSHOT_KEY = 'goods-app:add-motion-snapshot-v1'
+const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
+let addMotionRaf = 0
+let addMotionOverlayRaf = 0
+let addMotionOverlayClearTimer = 0
+
+const addMotionGhostStyle = computed(() => {
+  const overlay = addMotionOverlay.value
+  if (!overlay) return {}
+
+  const rect = overlay.phase === 'end' ? overlay.endRect : overlay.startRect
+  const width = Math.max(56, Math.round(rect?.width || 0))
+  const height = Math.max(56, Math.round(rect?.height || 0))
+  return {
+    left: `${Math.round(rect?.left || 0)}px`,
+    top: `${Math.round(rect?.top || 0)}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    opacity: overlay.phase === 'end' ? '0' : '1',
+    transform: overlay.phase === 'end' ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(0, 0, 0) scale(0.92)'
+  }
+})
 
 function persistCollectionTab(tab) {
   const normalizedTab = tab === 'wishlist' || tab === 'stats' ? tab : 'goods'
@@ -357,6 +406,147 @@ function navigateFromAddSheet(path, reason) {
   )
 }
 
+function readSessionJson(key, { remove = false } = {}) {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    if (remove) sessionStorage.removeItem(key)
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function writeSessionJson(key, value) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // ignore
+  }
+}
+
+function clearAddMotionOverlay() {
+  if (addMotionOverlayRaf) {
+    window.cancelAnimationFrame(addMotionOverlayRaf)
+    addMotionOverlayRaf = 0
+  }
+  if (addMotionOverlayClearTimer) {
+    window.clearTimeout(addMotionOverlayClearTimer)
+    addMotionOverlayClearTimer = 0
+  }
+  addMotionOverlay.value = null
+}
+
+function resolveAddMotionTargetRect(id) {
+  const normalized = String(id || '')
+  if (!normalized) return null
+  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(normalized)
+    : normalized.replace(/"/g, '\\"')
+  const rootEl = getScrollEl() || pageBodyRef.value || document
+  const target = rootEl?.querySelector?.(`[data-goods-id="${escaped}"]`) || null
+  const rect = target?.getBoundingClientRect?.()
+  if (!rect || !rect.width || !rect.height) return null
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height
+  }
+}
+
+function getFallbackMotionTargetRect() {
+  const viewportWidth = window.innerWidth || 360
+  const viewportHeight = window.innerHeight || 640
+  return {
+    left: Math.max(16, Math.min(viewportWidth - 160, viewportWidth * 0.12)),
+    top: Math.max(120, Math.min(viewportHeight - 220, viewportHeight * 0.34)),
+    width: Math.min(320, viewportWidth - 32),
+    height: 92
+  }
+}
+
+function getAddMotionRect(payload) {
+  const rect = payload?.originRect
+  if (rect && Number.isFinite(rect.left) && Number.isFinite(rect.top) && Number.isFinite(rect.width) && Number.isFinite(rect.height)) {
+    return rect
+  }
+
+  const viewportWidth = window.innerWidth || 360
+  const viewportHeight = window.innerHeight || 640
+  return {
+    left: viewportWidth * 0.78,
+    top: viewportHeight * 0.82,
+    width: 56,
+    height: 56
+  }
+}
+
+function createAddMotionOverlay(payload) {
+  const itemId = String(payload?.id || '')
+  const item = goodsById.value.get(itemId)
+  if (!item) return false
+
+  const startRect = getAddMotionRect(payload)
+  const endRect = resolveAddMotionTargetRect(itemId) || getFallbackMotionTargetRect()
+
+  clearAddMotionOverlay()
+  addMotionOverlay.value = {
+    token: String(payload?.token || ''),
+    item,
+    phase: 'start',
+    startRect,
+    endRect
+  }
+
+  addMotionOverlayRaf = window.requestAnimationFrame(() => {
+    addMotionOverlayRaf = 0
+    if (!addMotionOverlay.value || addMotionOverlay.value.token !== String(payload?.token || '')) return
+    addMotionOverlay.value = {
+      ...addMotionOverlay.value,
+      phase: 'end'
+    }
+    addMotionOverlayClearTimer = window.setTimeout(() => {
+      clearAddMotionOverlay()
+    }, 560)
+  })
+
+  return true
+}
+
+function captureAddMotionSnapshot() {
+  if (isLowPerfDevice) return
+  const cards = goodsGridSectionRef.value?.captureVisibleItemRects?.(40) || []
+  if (!cards.length) return
+
+  writeSessionJson(ADD_MOTION_SNAPSHOT_KEY, {
+    token: Date.now(),
+    cards
+  })
+}
+
+function syncAddMotionContext() {
+  if (addMotionRaf) {
+    window.cancelAnimationFrame(addMotionRaf)
+    addMotionRaf = 0
+  }
+
+  const nextSnapshot = readSessionJson(ADD_MOTION_SNAPSHOT_KEY) || null
+  const nextRequest = readSessionJson(ADD_MOTION_REQUEST_KEY, { remove: true }) || null
+
+  addMotionSnapshot.value = nextSnapshot
+  addMotionRequest.value = nextRequest
+  if (!nextRequest) {
+    clearAddMotionOverlay()
+    return
+  }
+
+  window.requestAnimationFrame(() => {
+    createAddMotionOverlay(nextRequest)
+    goodsGridSectionRef.value?.playAddMotion?.(nextRequest)
+  })
+}
+
 function handleImport() {
   navigateFromAddSheet('/import', 'home:handleImport')
 }
@@ -370,6 +560,7 @@ function handleTaobaoImport() {
 }
 
 function goToAdd() {
+  captureAddMotionSnapshot()
   navigateFromAddSheet('/add', 'home:goToAdd')
 }
 
@@ -656,6 +847,7 @@ onMounted(async () => {
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
   homeDisplayReady.value = true
+  syncAddMotionContext()
   window.requestAnimationFrame(() => {
     tryPlayNativeGoodsBackHero()
   })
@@ -682,6 +874,7 @@ onActivated(async () => {
     prepareRestoreState
   )
   await nextTick()
+  syncAddMotionContext()
   homeDisplayReady.value = true
   scheduleGoodsBackHeroRetry()
   bindSelectionHeaderScroll()
@@ -705,6 +898,11 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  if (addMotionRaf) {
+    window.cancelAnimationFrame(addMotionRaf)
+    addMotionRaf = 0
+  }
+  clearAddMotionOverlay()
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
   if (topJumpMaskTimer) {
@@ -1245,6 +1443,127 @@ async function applyBatchEditPayload(payload) {
 .goods-view-switch-leave-to {
   opacity: 0;
   transform: translateY(12px) scale(0.992);
+}
+
+.add-motion-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.add-motion-ripple {
+  position: fixed;
+  border-radius: 22px;
+  border: 2px solid color-mix(in srgb, var(--app-text) 28%, transparent);
+  box-shadow:
+    0 0 0 0 color-mix(in srgb, var(--app-text) 18%, transparent),
+    0 0 24px color-mix(in srgb, var(--app-text) 26%, transparent);
+  transform: translate3d(0, 0, 0) scale(0.72);
+  opacity: 0.9;
+  animation: add-motion-ripple 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.add-motion-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--app-glass) 78%, transparent), transparent 58%),
+    color-mix(in srgb, var(--app-surface) 84%, var(--app-glass));
+  border: 1px solid color-mix(in srgb, var(--app-glass-border) 84%, transparent);
+  box-shadow:
+    0 22px 46px rgba(0, 0, 0, 0.2),
+    0 0 0 1px color-mix(in srgb, var(--app-text) 6%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  overflow: hidden;
+  will-change: left, top, width, height, transform, opacity;
+  transition:
+    left 560ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 560ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 560ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 560ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+
+.add-motion-ghost--active {
+  opacity: 0;
+}
+
+.add-motion-ghost__cover {
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--app-surface-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-glass-border) 60%, transparent);
+  flex-shrink: 0;
+}
+
+.add-motion-ghost__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.add-motion-ghost__fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.add-motion-ghost__body {
+  min-width: 0;
+}
+
+.add-motion-ghost__name {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.add-motion-ghost__meta {
+  margin: 4px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+@keyframes add-motion-ripple {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.72);
+    opacity: 0.92;
+  }
+
+  70% {
+    transform: translate3d(0, 0, 0) scale(1.08);
+    opacity: 0.35;
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.22);
+    opacity: 0;
+  }
 }
 
 @keyframes sort-view-refresh {

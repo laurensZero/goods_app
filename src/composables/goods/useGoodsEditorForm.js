@@ -10,6 +10,8 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 
+const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
+
 const NO_IP_OPTION = '__NO_IP__'
 const today = formatDate(new Date(), 'YYYY-MM-DD')
 
@@ -234,7 +236,37 @@ export function useGoodsEditorForm(options = {}) {
     document.removeEventListener('touchstart', handleClickOutside)
   })
 
-  async function handleSubmit() {
+  function getSubmitOriginRect(event) {
+    const target = event?.submitter || event?.currentTarget || event?.target
+    if (!target?.getBoundingClientRect) return null
+
+    const rect = target.getBoundingClientRect()
+    if (!rect.width || !rect.height) return null
+
+    return {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
+    }
+  }
+
+  function writeAddMotionRequest(itemId, event) {
+    const originRect = getSubmitOriginRect(event)
+    if (!itemId) return
+
+    try {
+      sessionStorage.setItem(ADD_MOTION_REQUEST_KEY, JSON.stringify({
+        token: Date.now(),
+        id: String(itemId),
+        originRect
+      }))
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleSubmit(event) {
     await commitActiveInput()
     syncDomFields()
     form.name = String(form.name || '').trim()
@@ -259,7 +291,12 @@ export function useGoodsEditorForm(options = {}) {
         return
       }
     } else {
-      await store.addGoods({ ...form })
+      const motionId = String(Date.now())
+      const addPromise = store.addGoods({ ...form, id: motionId })
+      writeAddMotionRequest(motionId, event)
+      runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
+      void addPromise.catch(() => {})
+      return
     }
 
     runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
