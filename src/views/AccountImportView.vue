@@ -434,7 +434,13 @@ const mergedAllGoods = computed(() => {
 
 // ── Actions ────────────────────────────────────────────────────
 onMounted(async () => {
-  if (canUseNativeImport) return
+  if (canUseNativeImport) {
+    // Plugin 内部自动管理 cookie 持久化：
+    // - 有已保存的 cookie → 直接 HTTP 调 API，不打开 WebView
+    // - cookie 过期或没有 → 打开 WebView 让用户登录
+    await startFetch({ silentCookieExpired: true })
+    return
+  }
 
   await initializeCookieState()
 

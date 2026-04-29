@@ -323,7 +323,10 @@ function isShopPartiallySelected(group) {
 }
 
 onMounted(async () => {
-  if (canUseNativeImport) return
+  if (canUseNativeImport) {
+    await startFetch({ silentCookieExpired: true })
+    return
+  }
 
   await initializeCookieState()
 

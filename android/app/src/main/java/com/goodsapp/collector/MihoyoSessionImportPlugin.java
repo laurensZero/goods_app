@@ -176,7 +176,7 @@ public class MihoyoSessionImportPlugin extends Plugin {
             connection.setRequestProperty("Origin", WEB_REFERER.substring(0, WEB_REFERER.length() - 1));
             connection.setRequestProperty("x-rpc-language", "zh-cn");
             connection.setRequestProperty("x-rpc-client_type", "5");
-            connection.setRequestProperty("User-Agent", "GoodsAppMihoyoImport/1.1");
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36 GoodsAppMihoyoImport/1.1");
             connection.setRequestProperty("Cookie", cookie);
 
             int status = connection.getResponseCode();
