@@ -1,9 +1,9 @@
 {
-  "version": "20260429.1",
-  "url": "bundle-20260429.1.zip",
-  "hash": "3019869cddd9df1697bd957c7e0c5bb8b3b8509a30a9cdcdbf7d6d7ccc062c8a",
+  "version": "20260429.2",
+  "url": "bundle-20260429.2.zip",
+  "hash": "309aad67e6c063e86dc29ba0c85bd0f28ca040e4b7ba98eb09a8aaa2afd66477",
   "minNativeVersion": null,
-  "notes": "- feat: 米哈游登录自动抓取cookie",
+  "notes": "- fix: 添加异常处理以防止JSON解析错误",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T08:21:56Z"
+  "publishedAt": "2026-04-29T08:26:13Z"
 }

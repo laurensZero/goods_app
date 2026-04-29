@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.2",
+    "url": "bundle-20260429.2.zip",
+    "hash": "309aad67e6c063e86dc29ba0c85bd0f28ca040e4b7ba98eb09a8aaa2afd66477",
+    "minNativeVersion": null,
+    "notes": "- fix: 添加异常处理以防止JSON解析错误",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T08:26:13Z"
+  },
+  {
     "version": "20260429.1",
     "url": "bundle-20260429.1.zip",
     "hash": "3019869cddd9df1697bd957c7e0c5bb8b3b8509a30a9cdcdbf7d6d7ccc062c8a",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"fix: 添加图像预加载功能以优化动画性能\"\n  This reverts commit f20774b648b2a94d37731a2633c778cb1eb87927.",
     "updateLevel": "silent",
     "publishedAt": "2026-04-28T15:28:04Z"
-  },
-  {
-    "version": "20260428.11",
-    "url": "bundle-20260428.11.zip",
-    "hash": "18c668f1730f6a8b33150844352199c6843f1f26a1e3fa9ca9771d51c3d6f160",
-    "minNativeVersion": null,
-    "notes": "- fix: 添加价格输入的负值防止和清理功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-28T15:23:48Z"
   }
 ]
