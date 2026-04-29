@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.7",
+    "url": "bundle-20260429.7.zip",
+    "hash": "8f0c71f4608d8433bace265dc4526fe9b4e4a0d54c0aefd6ab2cfbf163fd1458",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新用户代理设置并优化导入流程中的cookie管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T09:25:55Z"
+  },
+  {
     "version": "20260429.6",
     "url": "bundle-20260429.6.zip",
     "hash": "6e8f1c28d885e7825325ac6f0569a18ac0d5562b64df0d99940a5d444c432e7e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加错误对话框以改善导入过程中的用户反馈",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T08:54:02Z"
-  },
-  {
-    "version": "20260429.4",
-    "url": "bundle-20260429.4.zip",
-    "hash": "d72f3f560b24ff95be572e708aeb53040af0ecb3a49d66699cf1fca04a097316",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加会话快照功能以支持请求中的用户代理和Cookie",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T08:45:01Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260429.6",
-  "url": "bundle-20260429.6.zip",
-  "hash": "6e8f1c28d885e7825325ac6f0569a18ac0d5562b64df0d99940a5d444c432e7e",
+  "version": "20260429.7",
+  "url": "bundle-20260429.7.zip",
+  "hash": "8f0c71f4608d8433bace265dc4526fe9b4e4a0d54c0aefd6ab2cfbf163fd1458",
   "minNativeVersion": null,
-  "notes": "- feat: 添加会话cookie保存和错误处理以优化导入流程",
+  "notes": "- feat: 更新用户代理设置并优化导入流程中的cookie管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T09:18:41Z"
+  "publishedAt": "2026-04-29T09:25:55Z"
 }
