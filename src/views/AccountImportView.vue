@@ -1,6 +1,20 @@
 <template>
   <div class="page account-import-page">
     <NavBar title="账号批量导入" show-back />
+    <Transition name="overlay-fade">
+      <div v-if="showErrorDialog" class="overlay" @click.self="closeErrorDialog">
+        <div class="dialog import-error-dialog" role="alertdialog" aria-modal="true">
+          <p class="dialog-label">Import Notice</p>
+          <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
+          <p class="dialog-desc">{{ errorDialogMessage }}</p>
+          <div class="dialog-actions">
+            <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
+              知道了
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <main class="page-body">
 
@@ -252,7 +266,6 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { showDialog } from 'vant'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
@@ -290,14 +303,18 @@ const cappedWarning = ref(false)
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
 const canUseNativeImport = canUseNativeMihoyoImport()
+const showErrorDialog = ref(false)
+const errorDialogTitle = ref('')
+const errorDialogMessage = ref('')
 
-function showImportDialog(title, message) {
-  return showDialog({
-    title,
-    message: String(message || '').trim() || '发生未知错误',
-    theme: 'round-button',
-    confirmButtonText: '知道了',
-  })
+function openErrorDialog(title, message) {
+  errorDialogTitle.value = title
+  errorDialogMessage.value = String(message || '').trim() || '发生未知错误'
+  showErrorDialog.value = true
+}
+
+function closeErrorDialog() {
+  showErrorDialog.value = false
 }
 
 // 已导入的商品键（名称 + 款式），直接按当前收藏实时计算
@@ -442,7 +459,7 @@ const startFetch = async (options = {}) => {
       selectedSet.value = new Set()
       step.value = 'orders'
     } catch (err) {
-      await showImportDialog('获取订单失败', err?.message || '请确认已在米游铺完成登录后重试。')
+      openErrorDialog('获取订单失败', err?.message || '请确认已在米游铺完成登录后重试。')
       step.value = 'cookie'
     }
     return
@@ -471,12 +488,12 @@ const startFetch = async (options = {}) => {
     if (cookieExpired) {
       step.value = 'cookie'
       if (!silentCookieExpired) {
-        await showImportDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
+        openErrorDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
       }
       return
     }
 
-    await showImportDialog('获取订单失败', err?.message || '请稍后重试。')
+    openErrorDialog('获取订单失败', err?.message || '请稍后重试。')
     step.value = 'cookie'
   }
 }

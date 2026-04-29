@@ -1,6 +1,20 @@
 <template>
   <div class="page cart-import-page">
     <NavBar :title="pageTitle" show-back />
+    <Transition name="overlay-fade">
+      <div v-if="showErrorDialog" class="overlay" @click.self="closeErrorDialog">
+        <div class="dialog import-error-dialog" role="alertdialog" aria-modal="true">
+          <p class="dialog-label">Import Notice</p>
+          <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
+          <p class="dialog-desc">{{ errorDialogMessage }}</p>
+          <div class="dialog-actions">
+            <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
+              知道了
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <main class="page-body">
       <Transition name="step-fade" mode="out-in">
@@ -185,7 +199,6 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { showDialog } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -227,14 +240,18 @@ const selectedSet = ref(new Set())
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
 const canUseNativeImport = canUseNativeMihoyoImport()
+const showErrorDialog = ref(false)
+const errorDialogTitle = ref('')
+const errorDialogMessage = ref('')
 
-function showImportDialog(title, message) {
-  return showDialog({
-    title,
-    message: String(message || '').trim() || '发生未知错误',
-    theme: 'round-button',
-    confirmButtonText: '知道了',
-  })
+function openErrorDialog(title, message) {
+  errorDialogTitle.value = title
+  errorDialogMessage.value = String(message || '').trim() || '发生未知错误'
+  showErrorDialog.value = true
+}
+
+function closeErrorDialog() {
+  showErrorDialog.value = false
 }
 
 const importedItemKeys = computed(() =>
@@ -326,7 +343,7 @@ const startFetch = async (options = {}) => {
       selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
       step.value = 'list'
     } catch (error) {
-      await showImportDialog('读取购物车失败', error?.message || '请确认已在米游铺完成登录后重试。')
+      openErrorDialog('读取购物车失败', error?.message || '请确认已在米游铺完成登录后重试。')
       step.value = 'cookie'
     }
     return
@@ -345,12 +362,12 @@ const startFetch = async (options = {}) => {
     if (cookieExpired) {
       step.value = 'cookie'
       if (!silentCookieExpired) {
-        await showImportDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
+        openErrorDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
       }
       return
     }
 
-    await showImportDialog('读取购物车失败', error?.message || '请稍后重试。')
+    openErrorDialog('读取购物车失败', error?.message || '请稍后重试。')
     step.value = 'cookie'
   }
 }
@@ -413,6 +430,92 @@ async function doImport() {
 <style scoped>
 .cart-import-page {
   min-height: 100dvh;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(14, 18, 28, 0.38);
+  backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
+  -webkit-backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
+}
+
+.import-error-dialog {
+  width: min(100%, 420px);
+  padding: 24px;
+  border-radius: var(--radius-large);
+  border: 1px solid var(--app-glass-border);
+  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
+  box-shadow: var(--app-shadow);
+}
+
+.dialog-label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dialog-title {
+  margin: 6px 0 0;
+  color: var(--app-text);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.dialog-desc {
+  margin-top: 12px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.dialog-btn {
+  min-height: 42px;
+  min-width: 120px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dialog-btn--primary {
+  background: var(--app-text);
+  color: var(--app-bg);
+}
+
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.overlay-fade-enter-active .dialog,
+.overlay-fade-leave-active .dialog {
+  transition: transform 0.25s ease;
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
+}
+
+.overlay-fade-enter-from .dialog,
+.overlay-fade-leave-to .dialog {
+  transform: scale(0.95) translateY(8px);
 }
 
 .page-body {

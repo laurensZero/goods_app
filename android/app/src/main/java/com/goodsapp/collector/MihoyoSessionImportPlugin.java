@@ -48,20 +48,20 @@ public class MihoyoSessionImportPlugin extends Plugin {
 
         Intent data = result.getData();
         String errorMessage = data != null ? data.getStringExtra(MihoyoSessionImportActivity.EXTRA_ERROR_MESSAGE) : "";
-        String resultJson = data != null ? data.getStringExtra(MihoyoSessionImportActivity.EXTRA_RESULT_JSON) : "";
+        String resultKey = data != null ? data.getStringExtra(MihoyoSessionImportActivity.EXTRA_RESULT_KEY) : "";
 
         if (result.getResultCode() != Activity.RESULT_OK) {
             call.reject((errorMessage == null || errorMessage.trim().isEmpty()) ? "已取消导入" : errorMessage.trim());
             return;
         }
 
-        if (resultJson == null || resultJson.trim().isEmpty()) {
+        JSONObject payload = MihoyoSessionImportResultStore.take(resultKey);
+        if (payload == null) {
             call.reject("导入结果为空");
             return;
         }
 
         try {
-            JSONObject payload = new JSONObject(resultJson);
             JSObject response = new JSObject();
             response.put("mode", payload.optString("mode", ""));
             response.put("capped", payload.optBoolean("capped", false));

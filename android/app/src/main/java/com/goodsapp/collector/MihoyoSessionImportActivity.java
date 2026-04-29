@@ -39,7 +39,7 @@ import java.util.concurrent.Executors;
 
 public class MihoyoSessionImportActivity extends AppCompatActivity {
     public static final String EXTRA_MODE = "mode";
-    public static final String EXTRA_RESULT_JSON = "resultJson";
+    public static final String EXTRA_RESULT_KEY = "resultKey";
     public static final String EXTRA_ERROR_MESSAGE = "errorMessage";
 
     public static final String MODE_ORDERS = "orders";
@@ -319,7 +319,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
 
         Intent data = new Intent();
-        data.putExtra(EXTRA_RESULT_JSON, payload.toString());
+        data.putExtra(EXTRA_RESULT_KEY, MihoyoSessionImportResultStore.put(payload));
         setResult(Activity.RESULT_OK, data);
         finish();
     }
