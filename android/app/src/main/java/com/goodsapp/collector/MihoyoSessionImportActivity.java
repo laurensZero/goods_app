@@ -2,7 +2,9 @@ package com.goodsapp.collector;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
@@ -32,8 +34,12 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,6 +50,10 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
 
     public static final String MODE_ORDERS = "orders";
     public static final String MODE_CART = "cart";
+
+    static final String COOKIE_PREFS_NAME = "mihoyo_native_session";
+    static final String COOKIE_PREFS_KEY_COOKIE = "cookie";
+    static final String COOKIE_PREFS_KEY_UPDATED_AT = "updated_at";
 
     private static final String HOME_URL = "https://mihoyogift.com/m/";
     private static final String WEB_REFERER = "https://mihoyogift.com/";
@@ -165,6 +175,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 syncCookieStore();
+                saveCurrentSessionCookie();
                 progressBar.setVisibility(View.GONE);
             }
 
@@ -205,9 +216,9 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
                 JSONObject payload = MODE_CART.equals(mode)
                     ? fetchCartPayload(sessionSnapshot)
                     : fetchOrdersPayload(sessionSnapshot);
-                runOnUiThread(() -> completeWithPayload(payload));
+                runOnUiThread(() -> completeWithPayload(payload, sessionSnapshot));
             } catch (Exception error) {
-                runOnUiThread(() -> renderImportError(error));
+                runOnUiThread(() -> renderImportError(error, sessionSnapshot));
             }
         });
     }
@@ -311,12 +322,14 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         return target;
     }
 
-    private void completeWithPayload(JSONObject payload) {
+    private void completeWithPayload(JSONObject payload, SessionSnapshot session) {
         importRunning = false;
         pendingErrorMessage = "";
         actionButton.setEnabled(true);
         actionButton.setText("继续导入");
         setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
+
+        saveSessionCookie(session);
 
         Intent data = new Intent();
         data.putExtra(EXTRA_RESULT_KEY, MihoyoSessionImportResultStore.put(payload));
@@ -324,13 +337,48 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         finish();
     }
 
-    private void renderImportError(Exception error) {
+    private void saveCurrentSessionCookie() {
+        SessionSnapshot session = captureSessionSnapshot();
+        saveSessionCookie(session);
+    }
+
+    private void saveSessionCookie(SessionSnapshot session) {
+        String cookie = session != null ? session.cookieHeader : "";
+        if (cookie.isEmpty()) return;
+
+        SharedPreferences prefs = getSharedPreferences(COOKIE_PREFS_NAME, Context.MODE_PRIVATE);
+        SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        prefs.edit()
+            .putString(COOKIE_PREFS_KEY_COOKIE, cookie)
+            .putString(COOKIE_PREFS_KEY_UPDATED_AT, isoFormat.format(new Date()))
+            .apply();
+    }
+
+    static boolean isCookieExpiredError(String errorMessage) {
+        if (errorMessage == null || errorMessage.trim().isEmpty()) return false;
+        String lower = errorMessage.toLowerCase(Locale.US);
+        return lower.contains("cookie") || lower.contains("token") || lower.contains("ltoken")
+            || lower.contains("login") || lower.contains("account") || lower.contains("auth")
+            || lower.contains("unauthorized") || lower.contains("forbidden")
+            || lower.contains("401") || lower.contains("403");
+    }
+
+    private void renderImportError(Exception error, SessionSnapshot session) {
         importRunning = false;
-        pendingErrorMessage = buildErrorMessage(error);
+        String message = buildErrorMessage(error);
+        pendingErrorMessage = message;
         actionButton.setEnabled(true);
         actionButton.setText("重试导入");
         progressBar.setVisibility(View.GONE);
-        setHintMessage("导入失败：" + pendingErrorMessage + "。请确认当前账号已登录，再点一次重试。", true);
+
+        // Save cookie even on error if it looks like a valid session (non-auth error)
+        // so the Plugin can try it directly next time
+        if (session != null && !session.cookieHeader.isEmpty() && !isCookieExpiredError(message)) {
+            saveSessionCookie(session);
+        }
+
+        setHintMessage("导入失败：" + message + "。请确认当前账号已登录，再点一次重试。", true);
     }
 
     private String buildErrorMessage(Exception error) {
