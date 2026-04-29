@@ -14,6 +14,7 @@ import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 @CapacitorPlugin(name = "MihoyoSessionImport")
@@ -81,7 +82,13 @@ public class MihoyoSessionImportPlugin extends Plugin {
         for (int index = 0; index < array.length(); index += 1) {
             Object value = array.opt(index);
             if (value instanceof JSONObject) {
-                items.put(JSObject.fromJSONObject((JSONObject) value));
+                try {
+                    items.put(JSObject.fromJSONObject((JSONObject) value));
+                } catch (JSONException error) {
+                    JSObject wrapped = new JSObject();
+                    wrapped.put("raw", value.toString());
+                    items.put(wrapped);
+                }
             } else {
                 JSObject wrapped = new JSObject();
                 wrapped.put("value", value);
