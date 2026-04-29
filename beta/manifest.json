@@ -1,9 +1,9 @@
 {
-  "version": "20260429.9",
-  "url": "bundle-20260429.9.zip",
-  "hash": "f642f8dd012dce3faa42532622e9d0a925da1815a1a854a559e86be1360cde27",
+  "version": "20260429.10",
+  "url": "bundle-20260429.10.zip",
+  "hash": "378fc9b6c68f41e28f3b3552017a1d1fdaf3efea34f28be10971db11e0299539",
   "minNativeVersion": null,
-  "notes": "- feat: 添加谷子动画",
+  "notes": "- feat: 添加预览媒体引用并优化返回动画效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T12:14:42Z"
+  "publishedAt": "2026-04-29T15:28:55Z"
 }
