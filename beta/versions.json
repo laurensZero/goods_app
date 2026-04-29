@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.5",
+    "url": "bundle-20260429.5.zip",
+    "hash": "2a8dcda3bf72d405d0c2a7319a9722565b765a0ae60736473dba55bdad643f21",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加错误对话框以改善导入过程中的用户反馈",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T08:54:02Z"
+  },
+  {
     "version": "20260429.4",
     "url": "bundle-20260429.4.zip",
     "hash": "d72f3f560b24ff95be572e708aeb53040af0ecb3a49d66699cf1fca04a097316",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新米游铺导入界面，优化UI和交互体验",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T08:38:54Z"
-  },
-  {
-    "version": "20260429.2",
-    "url": "bundle-20260429.2.zip",
-    "hash": "309aad67e6c063e86dc29ba0c85bd0f28ca040e4b7ba98eb09a8aaa2afd66477",
-    "minNativeVersion": null,
-    "notes": "- fix: 添加异常处理以防止JSON解析错误",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T08:26:13Z"
   }
 ]
