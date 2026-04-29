@@ -14,18 +14,29 @@
               </svg>
             </div>
             <div class="info-body">
-              <p class="info-title">如何获取 Cookie</p>
-              <ol class="info-steps">
-                <li>在浏览器中打开 `mihoyogift.com` 并登录</li>
-                <li>按 `F12` 打开开发者工具，切到 `Network`</li>
-                <li>刷新页面或进入购物车，点开任意请求</li>
-                <li>在 `Request Headers` 里复制完整 `Cookie`</li>
-                <li>粘贴到下方后读取购物车内容</li>
-              </ol>
+              <template v-if="canUseNativeImport">
+                <p class="info-title">App 内登录米游铺</p>
+                <ol class="info-steps">
+                  <li>点击下方按钮，打开米游铺登录页</li>
+                  <li>在 App 内完成登录</li>
+                  <li>登录完成后点击右上角“继续导入”</li>
+                  <li>App 会自动读取购物车并进入下一步</li>
+                </ol>
+              </template>
+              <template v-else>
+                <p class="info-title">如何获取 Cookie</p>
+                <ol class="info-steps">
+                  <li>在浏览器中打开 `mihoyogift.com` 并登录</li>
+                  <li>按 `F12` 打开开发者工具，切到 `Network`</li>
+                  <li>刷新页面或进入购物车，点开任意请求</li>
+                  <li>在 `Request Headers` 里复制完整 `Cookie`</li>
+                  <li>粘贴到下方后读取购物车内容</li>
+                </ol>
+              </template>
             </div>
           </div>
 
-          <div class="field-group">
+          <div v-if="!canUseNativeImport" class="field-group">
             <label class="field-label" for="cookie-input">粘贴 Cookie</label>
             <textarea
               id="cookie-input"
@@ -40,7 +51,7 @@
             </p>
           </div>
 
-          <div class="cookie-actions">
+          <div v-if="!canUseNativeImport" class="cookie-actions">
             <label class="remember-row">
               <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
               <span>保存 Cookie，下次自动尝试</span>
@@ -49,10 +60,10 @@
               清除已保存
             </button>
           </div>
-          <p v-if="cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
+          <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
 
-          <button class="primary-btn" type="button" :disabled="!cookieValid" @click="startFetch">
-            读取购物车
+          <button class="primary-btn" type="button" :disabled="!canUseNativeImport && !cookieValid" @click="startFetch">
+            {{ canUseNativeImport ? '登录并读取购物车' : '读取购物车' }}
           </button>
         </section>
 
@@ -178,6 +189,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
+import { canUseNativeMihoyoImport, importMihoyoCartWithSession } from '@/utils/mihoyoNativeImport'
 import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
 import NavBar from '@/components/common/NavBar.vue'
@@ -213,6 +225,7 @@ const rawGroups = ref([])
 const selectedSet = ref(new Set())
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
+const canUseNativeImport = canUseNativeMihoyoImport()
 
 const importedItemKeys = computed(() =>
   new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
@@ -283,6 +296,8 @@ function isShopPartiallySelected(group) {
 }
 
 onMounted(async () => {
+  if (canUseNativeImport) return
+
   await initializeCookieState()
 
   if (!canAutoSubmitSavedCookie.value) return
@@ -311,6 +326,21 @@ async function legacyStartFetch() {
 */
 
 const startFetch = async (options = {}) => {
+  if (canUseNativeImport) {
+    step.value = 'loading'
+
+    try {
+      const { list = [] } = await importMihoyoCartWithSession()
+      rawGroups.value = Array.isArray(list) ? list : []
+      selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+      step.value = 'list'
+    } catch (error) {
+      alert(`读取购物车失败：${error.message}`)
+      step.value = 'cookie'
+    }
+    return
+  }
+
   const { silentCookieExpired = false } = options
   step.value = 'loading'
 

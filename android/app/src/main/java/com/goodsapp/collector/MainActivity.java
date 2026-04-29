@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeMusicBridgePlugin.class);
+        registerPlugin(MihoyoSessionImportPlugin.class);
 
         Intent normalizedIntent = normalizeNfcIntent(getIntent());
         if (normalizedIntent != null) {

@@ -16,18 +16,29 @@
               </svg>
             </div>
             <div class="info-body">
-              <p class="info-title">如何获取 Cookie？</p>
-              <ol class="info-steps">
-                <li>在浏览器中打开 <strong>mihoyogift.com</strong> 并登录</li>
-                <li>按 <kbd>F12</kbd> 打开开发者工具 → Network 标签</li>
-                <li>随便点击一下页面，在请求列表中找到任意请求</li>
-                <li>在 Request Headers 中找到 <strong>Cookie</strong> 字段</li>
-                <li>复制整行 Cookie 值粘贴到下方</li>
-              </ol>
+              <template v-if="canUseNativeImport">
+                <p class="info-title">App 内登录米游铺</p>
+                <ol class="info-steps">
+                  <li>点击下方按钮，打开米游铺登录页</li>
+                  <li>在 App 内完成登录</li>
+                  <li>登录完成后点击右上角“继续导入”</li>
+                  <li>App 会自动读取订单并进入下一步</li>
+                </ol>
+              </template>
+              <template v-else>
+                <p class="info-title">如何获取 Cookie？</p>
+                <ol class="info-steps">
+                  <li>在浏览器中打开 <strong>mihoyogift.com</strong> 并登录</li>
+                  <li>按 <kbd>F12</kbd> 打开开发者工具 → Network 标签</li>
+                  <li>随便点击一下页面，在请求列表中找到任意请求</li>
+                  <li>在 Request Headers 中找到 <strong>Cookie</strong> 字段</li>
+                  <li>复制整行 Cookie 值粘贴到下方</li>
+                </ol>
+              </template>
             </div>
           </div>
 
-          <div class="field-group">
+          <div v-if="!canUseNativeImport" class="field-group">
             <label class="field-label" for="cookie-input">粘贴 Cookie</label>
             <textarea
               id="cookie-input"
@@ -42,7 +53,7 @@
             </p>
           </div>
 
-          <div class="cookie-actions">
+          <div v-if="!canUseNativeImport" class="cookie-actions">
             <label class="remember-row">
               <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
               <span>保存 Cookie，下次自动尝试</span>
@@ -51,15 +62,15 @@
               清除已保存
             </button>
           </div>
-          <p v-if="cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
+          <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
 
           <button
             class="primary-btn"
             type="button"
-            :disabled="!cookieValid"
+            :disabled="!canUseNativeImport && !cookieValid"
             @click="startFetch"
           >
-            开始获取订单
+            {{ canUseNativeImport ? '登录并获取订单' : '开始获取订单' }}
           </button>
         </section>
 
@@ -244,6 +255,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
+import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyoNativeImport'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
 import NavBar from '@/components/common/NavBar.vue'
@@ -276,6 +288,7 @@ const selectedSet = ref(new Set()) // 已选择的商品 _itemKey
 const cappedWarning = ref(false)
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
+const canUseNativeImport = canUseNativeMihoyoImport()
 
 // 已导入的商品键（名称 + 款式），直接按当前收藏实时计算
 function _itemImportKey(item) {
@@ -394,6 +407,8 @@ const mergedAllGoods = computed(() => {
 
 // ── Actions ────────────────────────────────────────────────────
 onMounted(async () => {
+  if (canUseNativeImport) return
+
   await initializeCookieState()
 
   if (!canAutoSubmitSavedCookie.value) return
@@ -434,6 +449,26 @@ async function legacyStartFetch(options = {}) {
 */
 
 const startFetch = async (options = {}) => {
+  if (canUseNativeImport) {
+    step.value = 'loading'
+    loadedCount.value = 0
+    totalCount.value = 0
+
+    try {
+      const { list = [], capped = false, total = 0 } = await importMihoyoOrdersWithSession()
+      rawOrders.value = Array.isArray(list) ? list : []
+      cappedWarning.value = Boolean(capped)
+      loadedCount.value = rawOrders.value.length
+      totalCount.value = Number(total) || rawOrders.value.length
+      selectedSet.value = new Set()
+      step.value = 'orders'
+    } catch (err) {
+      alert(`获取订单失败：${err.message}`)
+      step.value = 'cookie'
+    }
+    return
+  }
+
   const { silentCookieExpired = false } = options
   step.value = 'loading'
   loadedCount.value = 0
