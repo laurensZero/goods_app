@@ -1,9 +1,9 @@
 {
-  "version": "20260428.12",
-  "url": "bundle-20260428.12.zip",
-  "hash": "6636c40b0f5b217790acc2d1776c31607c45bc582b3e2dbb13dbc33de2c4e7da",
+  "version": "20260429.1",
+  "url": "bundle-20260429.1.zip",
+  "hash": "3019869cddd9df1697bd957c7e0c5bb8b3b8509a30a9cdcdbf7d6d7ccc062c8a",
   "minNativeVersion": null,
-  "notes": "- Revert \"fix: 添加图像预加载功能以优化动画性能\"\n  This reverts commit f20774b648b2a94d37731a2633c778cb1eb87927.",
+  "notes": "- feat: 米哈游登录自动抓取cookie",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-28T15:28:04Z"
+  "publishedAt": "2026-04-29T08:21:56Z"
 }
