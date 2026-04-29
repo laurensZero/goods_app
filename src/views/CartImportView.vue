@@ -185,6 +185,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { showDialog } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -226,6 +227,15 @@ const selectedSet = ref(new Set())
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
 const canUseNativeImport = canUseNativeMihoyoImport()
+
+function showImportDialog(title, message) {
+  return showDialog({
+    title,
+    message: String(message || '').trim() || '发生未知错误',
+    theme: 'round-button',
+    confirmButtonText: '知道了',
+  })
+}
 
 const importedItemKeys = computed(() =>
   new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
@@ -306,25 +316,6 @@ onMounted(async () => {
   await startFetch({ silentCookieExpired: true })
 })
 
-/*
-async function legacyStartFetch() {
-  step.value = 'loading'
-  try {
-    rawGroups.value = await fetchCartList(cookieInput.value.trim())
-    await persistCookieAfterSuccess()
-    selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
-    step.value = 'list'
-  } catch (error) {
-    alert(`读取购物车失败：${error.message}`)
-    const cookieExpired = await handleCookieFailure(error)
-    if (cookieExpired) {
-      alert('已保存的 Cookie 可能已失效，请更新后重试。')
-    }
-    step.value = 'cookie'
-  }
-}
-*/
-
 const startFetch = async (options = {}) => {
   if (canUseNativeImport) {
     step.value = 'loading'
@@ -335,7 +326,7 @@ const startFetch = async (options = {}) => {
       selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
       step.value = 'list'
     } catch (error) {
-      alert(`读取购物车失败：${error.message}`)
+      await showImportDialog('读取购物车失败', error?.message || '请确认已在米游铺完成登录后重试。')
       step.value = 'cookie'
     }
     return
@@ -354,12 +345,12 @@ const startFetch = async (options = {}) => {
     if (cookieExpired) {
       step.value = 'cookie'
       if (!silentCookieExpired) {
-        alert('已保存的 Cookie 可能已失效，请重新输入并更新。')
+        await showImportDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
       }
       return
     }
 
-    alert(`读取购物车失败：${error.message}`)
+    await showImportDialog('读取购物车失败', error?.message || '请稍后重试。')
     step.value = 'cookie'
   }
 }

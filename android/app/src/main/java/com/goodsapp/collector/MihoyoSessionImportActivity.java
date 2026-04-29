@@ -8,7 +8,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.CookieManager;
-import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -21,9 +20,22 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
-import org.json.JSONTokener;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MihoyoSessionImportActivity extends AppCompatActivity {
     public static final String EXTRA_MODE = "mode";
@@ -33,8 +45,16 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
     public static final String MODE_ORDERS = "orders";
     public static final String MODE_CART = "cart";
 
-    private static final String HOME_URL = "https://www.mihoyogift.com/m/";
+    private static final String HOME_URL = "https://mihoyogift.com/m/";
+    private static final String WEB_REFERER = "https://mihoyogift.com/";
+    private static final String WEB_REFERER_WWW = "https://www.mihoyogift.com/";
+    private static final String API_BASE = "https://api-mall.mihoyogift.com";
+    private static final String API_ORDER_LIST = API_BASE + "/common/homeishop/v1/order/order_list";
+    private static final String API_CART_LIST = API_BASE + "/common/homeishop/v2/shop_car/get_shop_car_list";
 
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    private View topBar;
     private WebView webView;
     private ProgressBar progressBar;
     private TextView titleView;
@@ -42,6 +62,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
     private Button actionButton;
     private String mode = MODE_ORDERS;
     private boolean importRunning = false;
+    private String pendingErrorMessage = "";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -50,14 +71,17 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
 
         mode = normalizeMode(getIntent() != null ? getIntent().getStringExtra(EXTRA_MODE) : null);
 
+        topBar = findViewById(R.id.mihoyo_top_bar);
         titleView = findViewById(R.id.mihoyo_title);
         hintView = findViewById(R.id.mihoyo_hint);
         progressBar = findViewById(R.id.mihoyo_progress);
         actionButton = findViewById(R.id.mihoyo_action_button);
         webView = findViewById(R.id.mihoyo_webview);
 
+        applyWindowInsets();
+
         titleView.setText(MODE_CART.equals(mode) ? "登录米游铺并读取购物车" : "登录米游铺并读取订单");
-        hintView.setText("登录完成后点击右上角“继续导入”。登录态会保留在 App 内，下次可继续复用。");
+        setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
 
         findViewById(R.id.mihoyo_close_button).setOnClickListener((view) -> cancelWithMessage("已取消导入"));
         actionButton.setOnClickListener((view) -> runImport());
@@ -96,6 +120,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        executor.shutdownNow();
         if (webView != null) {
             webView.stopLoading();
             webView.destroy();
@@ -121,7 +146,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         settings.setSupportMultipleWindows(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        settings.setUserAgentString(settings.getUserAgentString() + " GoodsAppMihoyoImport/1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " GoodsAppMihoyoImport/1.1");
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -150,59 +175,180 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         });
     }
 
+    private void applyWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(topBar, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            view.setPadding(
+                view.getPaddingLeft(),
+                dp(10) + systemBars.top,
+                view.getPaddingRight(),
+                view.getPaddingBottom()
+            );
+            return insets;
+        });
+    }
+
     private void runImport() {
         if (importRunning) {
             return;
         }
 
         importRunning = true;
+        pendingErrorMessage = "";
         actionButton.setEnabled(false);
-        actionButton.setText("正在导入...");
-        hintView.setText("正在读取米游铺数据，请稍候…");
+        actionButton.setText("正在导入");
+        setHintMessage("正在读取米游铺数据，请稍候…", false);
 
-        webView.evaluateJavascript(buildImportScript(mode), new ValueCallback<String>() {
-            @Override
-            public void onReceiveValue(String value) {
-                importRunning = false;
-                actionButton.setEnabled(true);
-                actionButton.setText("继续导入");
-                hintView.setText("登录完成后点击右上角“继续导入”。登录态会保留在 App 内，下次可继续复用。");
-                handleScriptResult(value);
+        executor.execute(() -> {
+            try {
+                JSONObject payload = MODE_CART.equals(mode) ? fetchCartPayload() : fetchOrdersPayload();
+                runOnUiThread(() -> completeWithPayload(payload));
+            } catch (Exception error) {
+                runOnUiThread(() -> renderImportError(error));
             }
         });
     }
 
-    private void handleScriptResult(String rawValue) {
-        try {
-            Object decoded = new JSONTokener(rawValue == null ? "null" : rawValue).nextValue();
-            String jsonText = decoded instanceof String ? (String) decoded : String.valueOf(decoded);
-            JSONObject result = new JSONObject(jsonText);
-            boolean ok = result.optBoolean("ok", false);
-            if (!ok) {
-                cancelWithMessage(result.optString("error", "读取米游铺数据失败"));
-                return;
-            }
+    private JSONObject fetchOrdersPayload() throws Exception {
+        int limit = 20;
+        JSONObject first = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=1");
+        JSONObject firstData = ensureSuccess(first);
+        int total = firstData.optInt("count", 0);
+        int totalPages = Math.min(Math.max((int) Math.ceil(total / (double) limit), 1), 10);
+        JSONArray list = copyJsonArray(firstData.optJSONArray("list"));
 
-            JSONObject payload = result.optJSONObject("payload");
-            if (payload == null) {
-                cancelWithMessage("米游铺返回的数据为空");
-                return;
+        for (int page = 2; page <= totalPages; page += 1) {
+            JSONObject pageJson = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=" + page);
+            JSONObject pageData = ensureSuccess(pageJson);
+            JSONArray pageList = pageData.optJSONArray("list");
+            if (pageList == null) continue;
+            for (int index = 0; index < pageList.length(); index += 1) {
+                list.put(pageList.opt(index));
             }
-
-            Intent data = new Intent();
-            data.putExtra(EXTRA_RESULT_JSON, payload.toString());
-            setResult(Activity.RESULT_OK, data);
-            finish();
-        } catch (Exception error) {
-            cancelWithMessage("处理米游铺返回结果失败: " + error.getMessage());
         }
+
+        JSONObject payload = new JSONObject();
+        payload.put("mode", MODE_ORDERS);
+        payload.put("list", list);
+        payload.put("total", total);
+        payload.put("capped", total > list.length());
+        return payload;
+    }
+
+    private JSONObject fetchCartPayload() throws Exception {
+        JSONObject json = requestJson(API_CART_LIST);
+        JSONObject data = ensureSuccess(json);
+
+        JSONObject payload = new JSONObject();
+        JSONArray list = copyJsonArray(data.optJSONArray("list"));
+        payload.put("mode", MODE_CART);
+        payload.put("list", list);
+        payload.put("total", list.length());
+        payload.put("capped", false);
+        return payload;
+    }
+
+    private JSONObject requestJson(String url) throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(20000);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("Accept", "application/json, text/plain, */*");
+            connection.setRequestProperty("Referer", WEB_REFERER);
+            connection.setRequestProperty("Origin", WEB_REFERER.substring(0, WEB_REFERER.length() - 1));
+            connection.setRequestProperty("x-rpc-language", "zh-cn");
+            connection.setRequestProperty("x-rpc-client_type", "5");
+
+            String userAgent = webView != null ? webView.getSettings().getUserAgentString() : "";
+            if (userAgent != null && !userAgent.trim().isEmpty()) {
+                connection.setRequestProperty("User-Agent", userAgent);
+            }
+
+            String cookies = buildCookieHeader();
+            if (!cookies.isEmpty()) {
+                connection.setRequestProperty("Cookie", cookies);
+            }
+
+            int status = connection.getResponseCode();
+            String body = readResponseBody(status >= 200 && status < 400 ? connection.getInputStream() : connection.getErrorStream());
+            if (status < 200 || status >= 300) {
+                throw new IllegalStateException(extractHttpError(status, body));
+            }
+
+            return new JSONObject(body);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private JSONObject ensureSuccess(JSONObject json) throws Exception {
+        int retcode = json.optInt("retcode", -1);
+        if (retcode != 0) {
+            String message = json.optString("message", "").trim();
+            throw new IllegalStateException(message.isEmpty() ? "接口错误 " + retcode : message);
+        }
+        JSONObject data = json.optJSONObject("data");
+        return data != null ? data : new JSONObject();
+    }
+
+    private JSONArray copyJsonArray(JSONArray source) {
+        JSONArray target = new JSONArray();
+        if (source == null) {
+            return target;
+        }
+
+        for (int index = 0; index < source.length(); index += 1) {
+            target.put(source.opt(index));
+        }
+        return target;
+    }
+
+    private void completeWithPayload(JSONObject payload) {
+        importRunning = false;
+        pendingErrorMessage = "";
+        actionButton.setEnabled(true);
+        actionButton.setText("继续导入");
+        setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
+
+        Intent data = new Intent();
+        data.putExtra(EXTRA_RESULT_JSON, payload.toString());
+        setResult(Activity.RESULT_OK, data);
+        finish();
+    }
+
+    private void renderImportError(Exception error) {
+        importRunning = false;
+        pendingErrorMessage = buildErrorMessage(error);
+        actionButton.setEnabled(true);
+        actionButton.setText("重试导入");
+        progressBar.setVisibility(View.GONE);
+        setHintMessage("导入失败：" + pendingErrorMessage + "。请确认当前账号已登录，再点一次重试。", true);
+    }
+
+    private String buildErrorMessage(Exception error) {
+        String message = error != null ? String.valueOf(error.getMessage()) : "";
+        if (message == null || message.trim().isEmpty()) {
+            return "读取米游铺数据失败";
+        }
+        return message.trim();
     }
 
     private void cancelWithMessage(String message) {
         Intent data = new Intent();
-        data.putExtra(EXTRA_ERROR_MESSAGE, message);
+        String resolvedMessage = (pendingErrorMessage == null || pendingErrorMessage.trim().isEmpty()) ? message : pendingErrorMessage;
+        data.putExtra(EXTRA_ERROR_MESSAGE, resolvedMessage);
         setResult(Activity.RESULT_CANCELED, data);
         finish();
+    }
+
+    private void setHintMessage(String message, boolean isError) {
+        hintView.setText(message);
+        hintView.setTextColor(isError ? 0xFFB42318 : 0xFF5F6570);
     }
 
     private void syncCookieStore() {
@@ -216,50 +362,76 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         return MODE_CART.equals(rawMode) ? MODE_CART : MODE_ORDERS;
     }
 
-    private String buildImportScript(String importMode) {
-        String apiScript = MODE_CART.equals(importMode) ? buildCartScript() : buildOrdersScript();
-        return "(async function() {"
-            + "try {"
-            + "const result = await (async function() {" + apiScript + "})();"
-            + "return JSON.stringify({ ok: true, payload: result });"
-            + "} catch (error) {"
-            + "const message = (error && (error.message || error.toString())) || '读取米游铺数据失败';"
-            + "return JSON.stringify({ ok: false, error: String(message) });"
-            + "}"
-            + "})()";
+    private String buildCookieHeader() {
+        CookieManager cookieManager = CookieManager.getInstance();
+        Map<String, String> cookieMap = new LinkedHashMap<>();
+        appendCookies(cookieMap, cookieManager.getCookie(WEB_REFERER));
+        appendCookies(cookieMap, cookieManager.getCookie(WEB_REFERER_WWW));
+        appendCookies(cookieMap, cookieManager.getCookie(HOME_URL));
+        appendCookies(cookieMap, cookieManager.getCookie(API_BASE));
+
+        StringBuilder builder = new StringBuilder();
+        for (Map.Entry<String, String> entry : cookieMap.entrySet()) {
+            if (builder.length() > 0) {
+                builder.append("; ");
+            }
+            builder.append(entry.getKey()).append("=").append(entry.getValue());
+        }
+        return builder.toString();
     }
 
-    private String buildOrdersScript() {
-        return ""
-            + "const API = 'https://api-mall.mihoyogift.com/common/homeishop/v1/order/order_list';"
-            + "const headers = { 'x-rpc-language': 'zh-cn', 'x-rpc-client_type': '5' };"
-            + "const limit = 20;"
-            + "const fetchPage = async (page) => {"
-            + "  const response = await fetch(API + '?limit=' + limit + '&page=' + page, { credentials: 'include', headers });"
-            + "  const json = await response.json();"
-            + "  if (!response.ok) throw new Error('请求失败（' + response.status + '）');"
-            + "  if (json.retcode !== 0) throw new Error(json.message || ('接口错误 ' + json.retcode));"
-            + "  return json.data || {};"
-            + "};"
-            + "const first = await fetchPage(1);"
-            + "const total = Number(first.count || 0);"
-            + "const totalPages = Math.min(Math.ceil(total / limit) || 1, 10);"
-            + "let list = Array.isArray(first.list) ? first.list.slice() : [];"
-            + "for (let page = 2; page <= totalPages; page += 1) {"
-            + "  const data = await fetchPage(page);"
-            + "  if (Array.isArray(data.list)) list = list.concat(data.list);"
-            + "}"
-            + "return { mode: 'orders', list, total, capped: total > list.length };";
+    private void appendCookies(Map<String, String> target, String rawCookies) {
+        if (rawCookies == null || rawCookies.trim().isEmpty()) {
+            return;
+        }
+
+        String[] parts = rawCookies.split(";");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            int separator = trimmed.indexOf('=');
+            if (separator <= 0) {
+                continue;
+            }
+
+            String key = trimmed.substring(0, separator).trim();
+            String value = trimmed.substring(separator + 1).trim();
+            if (!key.isEmpty() && !value.isEmpty()) {
+                target.put(key, value);
+            }
+        }
     }
 
-    private String buildCartScript() {
-        return ""
-            + "const API = 'https://api-mall.mihoyogift.com/common/homeishop/v2/shop_car/get_shop_car_list';"
-            + "const headers = { 'x-rpc-language': 'zh-cn', 'x-rpc-client_type': '5' };"
-            + "const response = await fetch(API, { credentials: 'include', headers });"
-            + "const json = await response.json();"
-            + "if (!response.ok) throw new Error('请求失败（' + response.status + '）');"
-            + "if (json.retcode !== 0) throw new Error(json.message || ('接口错误 ' + json.retcode));"
-            + "return { mode: 'cart', list: ((json.data || {}).list || []), total: (((json.data || {}).list || []).length), capped: false };";
+    private String readResponseBody(InputStream stream) throws Exception {
+        if (stream == null) {
+            return "";
+        }
+
+        try (InputStream input = stream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
+        }
+    }
+
+    private String extractHttpError(int status, String body) {
+        try {
+            JSONObject json = new JSONObject(body);
+            String message = json.optString("message", "").trim();
+            if (!message.isEmpty()) {
+                return message;
+            }
+        } catch (Exception ignored) {
+            // ignore
+        }
+
+        return "请求失败（" + status + "）";
+    }
+
+    private int dp(int value) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(value * density);
     }
 }

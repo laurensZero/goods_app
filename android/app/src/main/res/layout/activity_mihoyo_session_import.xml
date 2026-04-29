@@ -2,31 +2,34 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0B1220"
+    android:background="#F5F5F7"
+    android:fitsSystemWindows="true"
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/mihoyo_top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#111827"
-        android:elevation="6dp"
+        android:background="#F5F5F7"
         android:gravity="center_vertical"
-        android:minHeight="56dp"
+        android:minHeight="64dp"
         android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="12dp"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
         android:paddingBottom="8dp">
 
         <Button
             android:id="@+id/mihoyo_close_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:backgroundTint="#374151"
-            android:minHeight="40dp"
+            android:background="@drawable/bg_mihoyo_button_secondary"
+            android:elevation="0dp"
+            android:minHeight="42dp"
+            android:minWidth="72dp"
             android:text="关闭"
             android:textAllCaps="false"
-            android:textColor="#F9FAFB" />
+            android:textColor="#141416" />
 
         <TextView
             android:id="@+id/mihoyo_title"
@@ -38,16 +41,18 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:text="登录米游铺并读取订单"
-            android:textColor="#F9FAFB"
-            android:textSize="16sp"
+            android:textColor="#141416"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <Button
             android:id="@+id/mihoyo_action_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:backgroundTint="#2563EB"
-            android:minHeight="40dp"
+            android:background="@drawable/bg_mihoyo_button_primary"
+            android:elevation="0dp"
+            android:minHeight="42dp"
+            android:minWidth="96dp"
             android:text="继续导入"
             android:textAllCaps="false"
             android:textColor="#FFFFFF" />
@@ -57,13 +62,13 @@
         android:id="@+id/mihoyo_hint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#111827"
+        android:background="#F5F5F7"
         android:paddingStart="12dp"
         android:paddingTop="0dp"
         android:paddingEnd="12dp"
-        android:paddingBottom="10dp"
+        android:paddingBottom="12dp"
         android:text="登录完成后点击右上角“继续导入”。登录态会保留在 App 内，下次可继续复用。"
-        android:textColor="#CBD5E1"
+        android:textColor="#5F6570"
         android:textSize="12sp" />
 
     <ProgressBar
@@ -74,12 +79,20 @@
         android:indeterminate="false"
         android:max="100"
         android:progress="0"
-        android:progressTint="#60A5FA" />
+        android:progressTint="#141416" />
 
-    <WebView
-        android:id="@+id/mihoyo_webview"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="#FFFFFF" />
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_mihoyo_surface"
+        android:clipToOutline="true">
+
+        <WebView
+            android:id="@+id/mihoyo_webview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#FFFFFF" />
+    </FrameLayout>
 </LinearLayout>
