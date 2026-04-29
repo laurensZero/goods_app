@@ -9,6 +9,7 @@ import { runWithRouteTransition } from '@/utils/routeTransition'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
+import { prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 
 const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
 
@@ -19,6 +20,7 @@ export function useGoodsEditorForm(options = {}) {
   const mode = options.mode === 'edit' ? 'edit' : 'add'
   const editId = options.editId ?? ''
   const initialIsWishlist = Boolean(options.initialIsWishlist)
+  const getMotionSourceEl = typeof options.getMotionSourceEl === 'function' ? options.getMotionSourceEl : null
 
   const router = useRouter()
   const store = useGoodsStore()
@@ -290,6 +292,12 @@ export function useGoodsEditorForm(options = {}) {
         runWithRouteTransition(() => router.replace('/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
         return
       }
+
+      prepareGoodsHeroBack({
+        goodsId: editId,
+        sourceEl: getMotionSourceEl?.(),
+        targetPath: `/detail/${editId}`
+      })
     } else {
       const motionId = String(Date.now())
       const addPromise = store.addGoods({ ...form, id: motionId })

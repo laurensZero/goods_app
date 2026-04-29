@@ -505,6 +505,16 @@ async function markAsOwned() {
     isWishlist: false,
     acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
   })
+
+  const targetPath = '/home'
+  syncCollectionContextForPath(targetPath)
+  prepareGoodsHeroBack({
+    goodsId: props.id,
+    sourceEl: coverCardRef.value,
+    targetPath
+  })
+
+  runWithRouteTransition(() => router.replace(targetPath), { direction: 'back' })
 }
 
 function handleBackNavigation() {

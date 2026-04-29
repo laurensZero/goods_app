@@ -7,7 +7,7 @@
         <section class="manage-hero">
           <div class="preview-stage">
             <div class="preview-glow" />
-            <div class="preview-media" :class="{ 'preview-media--empty': !primaryPreviewImage }">
+            <div ref="previewMediaRef" class="preview-media" :class="{ 'preview-media--empty': !primaryPreviewImage }">
               <img v-if="primaryPreviewImage" :src="primaryPreviewImage" :alt="form.name || '预览图'" class="preview-image" />
               <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || '谷' }}</span>
             </div>
@@ -513,7 +513,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
@@ -527,6 +527,7 @@ import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import { prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
@@ -543,6 +544,8 @@ const props = defineProps({
     default: ''
   }
 })
+
+const previewMediaRef = ref(null)
 
 const {
   presets,
@@ -605,7 +608,12 @@ const {
   syncField,
   syncFieldLater,
   closeQuickCreate
-} = useGoodsEditorForm({ mode: props.mode, editId: props.editId, initialIsWishlist: props.initialIsWishlist })
+} = useGoodsEditorForm({
+  mode: props.mode,
+  editId: props.editId,
+  initialIsWishlist: props.initialIsWishlist,
+  getMotionSourceEl: () => previewMediaRef.value
+})
 
 const router = useRouter()
 function handleBack() {
