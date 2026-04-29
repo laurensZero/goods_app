@@ -5,7 +5,7 @@ import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
-import { runWithRouteTransition } from '@/utils/routeTransition'
+import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -73,6 +73,7 @@ export function useGoodsEditorForm(options = {}) {
   const minDate = new Date(2000, 0, 1)
   const maxDate = new Date(2100, 11, 31)
   const hasCustomAcquiredAt = ref(false)
+  const originalIsWishlist = ref(null)
   const { isTabletViewport, updateViewport } = useTabletViewport()
 
   const availableCharacters = computed(() =>
@@ -195,6 +196,7 @@ export function useGoodsEditorForm(options = {}) {
     if (mode === 'edit') {
       const item = store.getById(editId)
       if (item) {
+        originalIsWishlist.value = Boolean(item.isWishlist)
         form.name = item.name ?? ''
         form.category = item.category ?? ''
         form.ip = item.ip ?? ''
@@ -298,6 +300,10 @@ export function useGoodsEditorForm(options = {}) {
         sourceEl: getMotionSourceEl?.(),
         targetPath: `/detail/${editId}`
       })
+
+      if (originalIsWishlist.value != null && originalIsWishlist.value !== form.isWishlist) {
+        setPendingDetailReturnPath(form.isWishlist ? '/wishlist' : '/home')
+      }
     } else {
       const motionId = String(Date.now())
       const addPromise = store.addGoods({ ...form, id: motionId })
