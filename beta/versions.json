@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.4",
+    "url": "bundle-20260429.4.zip",
+    "hash": "d72f3f560b24ff95be572e708aeb53040af0ecb3a49d66699cf1fca04a097316",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加会话快照功能以支持请求中的用户代理和Cookie",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T08:45:01Z"
+  },
+  {
     "version": "20260429.3",
     "url": "bundle-20260429.3.zip",
     "hash": "044bc7f208ffe5f7c6086342003459b73463689847f7371a1721dbe96c2f7fff",
@@ -16,14 +25,5 @@
     "notes": "- fix: 添加异常处理以防止JSON解析错误",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T08:26:13Z"
-  },
-  {
-    "version": "20260429.1",
-    "url": "bundle-20260429.1.zip",
-    "hash": "3019869cddd9df1697bd957c7e0c5bb8b3b8509a30a9cdcdbf7d6d7ccc062c8a",
-    "minNativeVersion": null,
-    "notes": "- feat: 米哈游登录自动抓取cookie",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T08:21:56Z"
   }
 ]

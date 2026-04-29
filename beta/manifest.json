@@ -1,9 +1,9 @@
 {
-  "version": "20260429.3",
-  "url": "bundle-20260429.3.zip",
-  "hash": "044bc7f208ffe5f7c6086342003459b73463689847f7371a1721dbe96c2f7fff",
+  "version": "20260429.4",
+  "url": "bundle-20260429.4.zip",
+  "hash": "d72f3f560b24ff95be572e708aeb53040af0ecb3a49d66699cf1fca04a097316",
   "minNativeVersion": null,
-  "notes": "- feat: 更新米游铺导入界面，优化UI和交互体验",
+  "notes": "- feat: 添加会话快照功能以支持请求中的用户代理和Cookie",
   "updateLevel": "silent",
-  "publishedAt": "2026-04-29T08:38:54Z"
+  "publishedAt": "2026-04-29T08:45:01Z"
 }
