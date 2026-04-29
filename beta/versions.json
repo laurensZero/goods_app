@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260429.11",
+    "url": "bundle-20260429.11.zip",
+    "hash": "29a09bf48d171933d7778f151c40769d8ee3394a92f436c989fa03bf5492b94b",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加原始愿望清单状态处理及返回路径设置",
+    "updateLevel": "silent",
+    "publishedAt": "2026-04-29T15:36:05Z"
+  },
+  {
     "version": "20260429.10",
     "url": "bundle-20260429.10.zip",
     "hash": "378fc9b6c68f41e28f3b3552017a1d1fdaf3efea34f28be10971db11e0299539",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加谷子动画",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T12:14:42Z"
-  },
-  {
-    "version": "20260429.8",
-    "url": "bundle-20260429.8.zip",
-    "hash": "872cabb0f0db7270fce60d48393b87dfe9e6b83e0d8df51d098911622687341c",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化卡片样式，调整背景和边框属性以提升视觉效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T11:14:35Z"
   }
 ]
