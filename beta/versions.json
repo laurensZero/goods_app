@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260502.1",
+    "url": "bundle-20260502.1.zip",
+    "hash": "a8757c8bea9738a6d5d73cd9b8079caffac75e33d481334b4c0fc5a4fc63f472",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化事件日期处理逻辑，添加事件标签和关联商品字段",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-02T04:49:40Z"
+  },
+  {
     "version": "20260429.11",
     "url": "bundle-20260429.11.zip",
     "hash": "29a09bf48d171933d7778f151c40769d8ee3394a92f436c989fa03bf5492b94b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加预览媒体引用并优化返回动画效果",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T15:28:55Z"
-  },
-  {
-    "version": "20260429.9",
-    "url": "bundle-20260429.9.zip",
-    "hash": "f642f8dd012dce3faa42532622e9d0a925da1815a1a854a559e86be1360cde27",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加谷子动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T12:14:42Z"
   }
 ]
