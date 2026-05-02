@@ -344,12 +344,13 @@
 
 .btn-parse {
   flex-shrink: 0;
-  height: 40px;
+  min-width: 80px;
+  min-height: 46px;
   padding: 0 18px;
   border: none;
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--app-text);
-  color: #fff;
+  color: var(--app-surface);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -357,11 +358,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 62px;
 }
 
 .btn-parse:disabled {
-  opacity: 0.36;
+  opacity: 1;
+  background: color-mix(in srgb, var(--app-text) 24%, var(--app-surface-soft));
+  color: var(--app-text-tertiary);
+  cursor: not-allowed;
 }
 
 .btn-parse:not(:disabled):active {
@@ -376,8 +379,8 @@
 .parse-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -1406,15 +1409,6 @@
 :global(html.theme-dark) .batch-edit-save {
     background: #f5f5f7;
     color: #141416;
-  }
-
-:global(html.theme-dark) .btn-parse {
-    color: #141416;
-  }
-
-:global(html.theme-dark) .parse-spinner {
-    border-color: rgba(20, 20, 22, 0.30);
-    border-top-color: #141416;
   }
 
 :global(html.theme-dark) .btn-primary {

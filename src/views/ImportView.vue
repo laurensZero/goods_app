@@ -3,11 +3,11 @@
     <NavBar :title="pageTitle" show-back @back="handleBack" />
 
     <main class="page-body">
-      <section v-if="isWishlistMode" class="search-section">
+      <section class="search-section">
         <div class="search-card">
           <div class="search-head">
-            <p class="search-label">心愿快捷搜索</p>
-            <h2 class="search-title">按角色查米游铺周边</h2>
+            <p class="search-label">{{ quickSearchLabel }}</p>
+            <h2 class="search-title">{{ quickSearchTitle }}</h2>
           </div>
 
           <div class="search-row">
@@ -15,7 +15,7 @@
               v-model="searchKeyword"
               type="text"
               class="search-input"
-              placeholder="例如：芙宁娜、流萤、安比"
+              :placeholder="quickSearchPlaceholder"
               @keydown.enter.prevent="handleGoodsSearch"
             />
             <button class="search-btn" type="button" :disabled="searching" @click="handleGoodsSearch">
@@ -587,6 +587,13 @@ const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? '导入心愿' : '从米游铺导入')
+const quickSearchLabel = computed(() => isWishlistMode.value ? '心愿快捷搜索' : '米游铺快捷搜索')
+const quickSearchTitle = computed(() => isWishlistMode.value ? '按角色查米游铺周边' : '按关键词查米游铺周边')
+const quickSearchPlaceholder = computed(() => (
+  isWishlistMode.value
+    ? '例如：芙宁娜、流萤、安比'
+    : '例如：芙宁娜、徽章、立牌'
+))
 
 function handleBack() {
   runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
@@ -594,14 +601,14 @@ function handleBack() {
 const urlHintText = computed(() =>
   isWishlistMode.value
     ? '先按角色搜索，或直接粘贴米游铺商品链接（支持多个，每行一个）'
-    : '粘贴米游铺商品链接（支持多个，每行一个）'
+    : '先按关键词搜索，或直接粘贴米游铺商品链接（支持多个，每行一个）'
 )
 const urlPlaceholder = computed(() =>
   isWishlistMode.value
     ? '搜索后会自动填入，也可手动粘贴米游铺商品链接'
     : 'https://www.mihoyogift.com/goods/...或多条链接，每行一个'
 )
-const parseButtonText = computed(() => isWishlistMode.value ? '解析心愿' : '解析')
+const parseButtonText = computed(() => '解析')
 
 const urlInputRef = ref(null)
 const urlInput = ref('')
@@ -643,8 +650,7 @@ const visibleSearchResults = computed(() => (
 ))
 
 const showSearchToggle = computed(() => (
-  isWishlistMode.value
-  && searchResults.value.length > SEARCH_RESULTS_COLLAPSED_COUNT
+  searchResults.value.length > SEARCH_RESULTS_COLLAPSED_COUNT
 ))
 const searchHasMore = computed(() => searchSession.hasMore)
 const showSearchLoadMoreStatus = computed(() => (
