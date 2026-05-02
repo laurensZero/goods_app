@@ -11,7 +11,11 @@ function parseTicketPrice(value) {
 }
 
 function getSortDate(event) {
-  return String(event?.startDate || event?.createdAt || '').slice(0, 10)
+  if (event?.startDate) return event.startDate
+  if (!event || !event.createdAt) return '0000-00-00'
+  const d = new Date(event.createdAt)
+  if (Number.isNaN(d.getTime())) return '0000-00-00'
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function getYearMonth(dateStr) {
@@ -108,7 +112,7 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     triggerRef(list)
-    await addEvent(record)
+      await addEvent(record)
     return record
   }
 

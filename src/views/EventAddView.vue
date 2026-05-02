@@ -572,10 +572,17 @@ async function handleSubmit() {
   }
 
   const payload = { ...form }
+  let addedRecord = null
   if (isEdit.value) {
     await eventsStore.updateEventRecord(editId.value, payload)
   } else {
-    await eventsStore.addEventRecord(payload)
+    addedRecord = await eventsStore.addEventRecord(payload)
+    // 确保列表页面能立刻看到新增项：刷新 store 列表以同步来源数据库
+    try {
+      await eventsStore.refreshList()
+    } catch (e) {
+      // ignore
+    }
   }
   sessionStorage.removeItem(EVENT_ADD_DRAFT_KEY)
   const fallbackTarget = isEdit.value ? `/events/${editId.value}` : '/events'

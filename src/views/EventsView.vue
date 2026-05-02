@@ -373,22 +373,33 @@ const filteredEvents = computed(() => {
   })
 })
 
-const sortedEvents = computed(() =>
-  [...filteredEvents.value].sort((left, right) => {
-    const leftDate = String(left?.startDate || left?.createdAt || '')
-    const rightDate = String(right?.startDate || right?.createdAt || '')
-    return sortDirection.value === 'asc'
-      ? leftDate.localeCompare(rightDate)
-      : rightDate.localeCompare(leftDate)
+const sortedEvents = computed(() => {
+  return [...filteredEvents.value].sort((left, right) => {
+    const getEvtTime = (evt) => {
+      if (evt?.startDate) {
+        const d = new Date(evt.startDate.replace(/-/g, '/'))
+        if (!Number.isNaN(d.getTime())) return d.getTime()
+      }
+      return evt?.createdAt || 0
+    }
+    const tA = getEvtTime(left)
+    const tB = getEvtTime(right)
+    return sortDirection.value === 'asc' ? tA - tB : tB - tA
   })
-)
+})
 
 const groupedEvents = computed(() => {
   const grouped = {}
 
   for (const event of sortedEvents.value) {
-    const sourceDate = String(event?.startDate || event?.createdAt || '').slice(0, 10)
-    const yearMonth = sourceDate ? sourceDate.slice(0, 7) : 'undated'
+    let sourceDate = event?.startDate || ''
+    if (!sourceDate && event?.createdAt) {
+      const d = new Date(event.createdAt)
+      if (!Number.isNaN(d.getTime())) {
+        sourceDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      }
+    }
+    const yearMonth = sourceDate ? String(sourceDate).slice(0, 7) : 'undated'
     const key = /^\d{4}-\d{2}$/.test(yearMonth) ? yearMonth : 'undated'
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(event)
