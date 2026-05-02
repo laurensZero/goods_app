@@ -143,10 +143,13 @@
           </div>
 
           <div class="field">
-            <span class="field-label">收纳位置</span>
+            <div class="field-head">
+              <span class="field-label">收纳位置</span>
+            </div>
             <StorageLocationInput
               v-model="form.storageLocation"
               :options="storageLocationOptions"
+              :quick-create="true"
               placeholder="留空则不修改"
             />
           </div>

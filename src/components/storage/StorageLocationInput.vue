@@ -20,18 +20,31 @@
       </div>
     </div>
 
-    <button
-      v-if="quickCreate"
-      type="button"
-      class="storage-location-create-btn"
-      @click="toggleQuickCreate"
-    >
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M8 3V13" />
-        <path d="M3 8H13" />
-      </svg>
-      {{ quickCreateButtonText }}
-    </button>
+    <div v-if="quickCreate" class="storage-location-create-actions">
+      <button
+        type="button"
+        class="storage-location-create-btn"
+        @click="openQuickCreate('root')"
+      >
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 3V13" />
+          <path d="M3 8H13" />
+        </svg>
+        新建第一层位置
+      </button>
+      <button
+        v-if="deepestSelectedId"
+        type="button"
+        class="storage-location-create-btn storage-location-create-btn--secondary"
+        @click="openQuickCreate('child')"
+      >
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 3V13" />
+          <path d="M3 8H13" />
+        </svg>
+        {{ quickCreateButtonText }}
+      </button>
+    </div>
 
     <QuickPresetCreator
       v-if="quickCreate && showQuickCreate"
@@ -77,6 +90,7 @@ const presets = usePresetsStore()
 
 const selectedIds = ref([])
 const showQuickCreate = ref(false)
+const quickCreateParentMode = ref('child')
 const quickCreateName = ref('')
 
 const deepestSelectedId = computed(() => {
@@ -188,6 +202,11 @@ function toggleQuickCreate() {
   }
 }
 
+function openQuickCreate(mode) {
+  quickCreateParentMode.value = mode
+  showQuickCreate.value = true
+}
+
 function closeQuickCreate() {
   showQuickCreate.value = false
   quickCreateName.value = ''
@@ -197,10 +216,13 @@ async function submitQuickCreate() {
   const name = String(quickCreateName.value || '').trim()
   if (!name) return
 
-  const node = await presets.addStorageLocation(name, deepestSelectedId.value)
+  const parentId = quickCreateParentMode.value === 'root' ? '' : deepestSelectedId.value
+  const node = await presets.addStorageLocation(name, parentId)
   if (!node) return
 
-  const nextIds = [...selectedIds.value.filter(Boolean), node.id]
+  const nextIds = quickCreateParentMode.value === 'root'
+    ? [node.id]
+    : [...selectedIds.value.filter(Boolean), node.id]
   selectedIds.value = nextIds
   emitCurrentPath(nextIds)
   closeQuickCreate()
@@ -274,7 +296,17 @@ async function submitQuickCreate() {
   stroke-linecap: round;
 }
 
+.storage-location-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.storage-location-create-btn--secondary {
+  color: var(--app-text-secondary);
+}
+
 :global(html.theme-dark) .storage-location-summary {
-    background: rgba(255, 255, 255, 0.05);
-  }
+  background: rgba(255, 255, 255, 0.05);
+}
 </style>
