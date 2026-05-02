@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260502.2",
+    "url": "bundle-20260502.2.zip",
+    "hash": "3ce1a6da734b6c20c525560f60a11e45761de0c16784ba5839f0d4313a27c467",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化米游铺搜索\n  Co-authored-by: Copilot <copilot@github.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-02T08:46:33Z"
+  },
+  {
     "version": "20260502.1",
     "url": "bundle-20260502.1.zip",
     "hash": "a8757c8bea9738a6d5d73cd9b8079caffac75e33d481334b4c0fc5a4fc63f472",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加原始愿望清单状态处理及返回路径设置",
     "updateLevel": "silent",
     "publishedAt": "2026-04-29T15:36:05Z"
-  },
-  {
-    "version": "20260429.10",
-    "url": "bundle-20260429.10.zip",
-    "hash": "378fc9b6c68f41e28f3b3552017a1d1fdaf3efea34f28be10971db11e0299539",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加预览媒体引用并优化返回动画效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-04-29T15:28:55Z"
   }
 ]
