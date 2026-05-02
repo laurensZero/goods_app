@@ -39,27 +39,31 @@
           <div class="summary-orb summary-orb--left" />
           <div class="summary-orb summary-orb--right" />
 
-          <div class="summary-head">
-            <p class="summary-label">EVENT OVERVIEW</p>
-          </div>
+          <div class="summary-layout">
+            <div class="summary-main">
+              <div class="summary-head">
+                <p class="summary-label">EVENT OVERVIEW</p>
+              </div>
 
-          <p class="summary-value">
-            <span class="summary-count">{{ eventsStore.list.length }}</span>
-            <span class="summary-unit">场活动</span>
-          </p>
+              <p class="summary-value">
+                <span class="summary-count">{{ eventsStore.list.length }}</span>
+                <span class="summary-unit">场活动</span>
+              </p>
+            </div>
 
-          <div class="summary-metrics">
-            <div class="metric-chip">
-              <span class="metric-chip__label">票务总额</span>
-              <strong>{{ formatPrice(eventsStore.totalTicketAll) }}</strong>
-            </div>
-            <div class="metric-chip">
-              <span class="metric-chip__label">关联谷子</span>
-              <strong>{{ totalLinkedGoods }}</strong>
-            </div>
-            <div class="metric-chip">
-              <span class="metric-chip__label">活动照片</span>
-              <strong>{{ totalPhotos }}</strong>
+            <div class="summary-metrics">
+              <div class="metric-chip">
+                <span class="metric-chip__label">票务总额</span>
+                <strong>{{ formatPrice(eventsStore.totalTicketAll) }}</strong>
+              </div>
+              <div class="metric-chip">
+                <span class="metric-chip__label">关联谷子</span>
+                <strong>{{ totalLinkedGoods }}</strong>
+              </div>
+              <div class="metric-chip">
+                <span class="metric-chip__label">活动照片</span>
+                <strong>{{ totalPhotos }}</strong>
+              </div>
             </div>
           </div>
         </article>
@@ -944,13 +948,11 @@ onBeforeRouteLeave(() => {
 .summary-card {
   position: relative;
   overflow: hidden;
-  min-height: 164px;
   padding: 24px;
   border-radius: var(--radius-large);
   color: var(--summary-card-text);
   background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--summary-card-text) 14%, transparent), transparent 26%),
-    radial-gradient(circle at bottom right, color-mix(in srgb, var(--summary-card-text) 9%, transparent), transparent 22%),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 34%),
     var(--summary-card-gradient);
   box-shadow: var(--app-shadow);
 }
@@ -964,17 +966,17 @@ onBeforeRouteLeave(() => {
 }
 
 .summary-orb--left {
-  top: -38px;
-  left: -20px;
-  width: 136px;
-  height: 136px;
+  top: -44px;
+  left: -36px;
+  width: 160px;
+  height: 160px;
 }
 
 .summary-orb--right {
-  right: -42px;
-  bottom: -46px;
-  width: 160px;
-  height: 160px;
+  right: -18px;
+  bottom: -32px;
+  width: 120px;
+  height: 120px;
 }
 
 .summary-head,
@@ -999,7 +1001,7 @@ onBeforeRouteLeave(() => {
 }
 
 .summary-value {
-  margin: 16px 0 0;
+  margin: 22px 0 0;
   font-size: 0;
 }
 
@@ -1020,27 +1022,52 @@ onBeforeRouteLeave(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 0;
 }
 
 .metric-chip {
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--summary-card-text) 8%, transparent);
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .metric-chip__label {
   display: block;
-  color: color-mix(in srgb, var(--summary-card-text) 62%, transparent);
+  color: var(--summary-card-label);
   font-size: 12px;
+  line-height: 1.2;
 }
 
 .metric-chip strong {
   display: block;
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--summary-card-text);
   font-size: 18px;
   font-weight: 700;
+}
+
+.summary-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.summary-main {
+  min-width: 0;
+}
+
+.summary-card ::selection {
+  color: var(--summary-card-text);
+  background: color-mix(in srgb, var(--summary-card-text) 24%, transparent);
+}
+
+.summary-card ::-moz-selection {
+  color: var(--summary-card-text);
+  background: color-mix(in srgb, var(--summary-card-text) 24%, transparent);
 }
 
 .toolbar-section {
@@ -1433,12 +1460,35 @@ onBeforeRouteLeave(() => {
 
 @media (max-width: 899px) {
   .summary-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .event-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+}
+
+@media (min-width: 900px) {
+  .summary-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr);
+    align-items: center;
+    gap: 22px;
+  }
+
+  .summary-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 0;
+  }
+
+  .metric-chip {
+    padding: 12px 14px;
+  }
+
+  .metric-chip strong {
+    font-size: 16px;
   }
 }
 

@@ -42,7 +42,7 @@
       />
 
       <section class="summary-section">
-        <SummaryCard :total-value="totalValue" :total-count="goodsList.length" />
+        <SummaryCard :total-value="totalValue" :total-count="goodsList.length" :trend-items="goodsList" trend-date-field="acquiredAt" />
       </section>
 
       <HomeGoodsToolbar

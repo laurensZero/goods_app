@@ -42,6 +42,7 @@
           storage-key="goods-app:wishlist-total-value-hidden"
           :total-value="totalValue"
           :total-count="baseGoodsList.length"
+          :trend-items="baseGoodsList"
         />
       </section>
 
