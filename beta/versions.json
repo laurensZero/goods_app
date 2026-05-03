@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260503.4",
+    "url": "bundle-20260503.4.zip",
+    "hash": "9a27a94d492a3d49856dc28b8c763bf0e2c41116f022d75b0e339c9854efef6c",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 NFC 安卓读取模式标志到 NFC 写入功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-03T15:15:58Z"
+  },
+  {
     "version": "20260503.3",
     "url": "bundle-20260503.3.zip",
     "hash": "4ddafab6c369fd5199169442f4426631d7cd428c08b4f8b0a4fc6451bdd5066f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化备注功能，添加 Markdown 检测和复制功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-03T05:12:49Z"
-  },
-  {
-    "version": "20260503.1",
-    "url": "bundle-20260503.1.zip",
-    "hash": "f73dd6ae4fb0db71c97ff0baf037e851b921e84a78ea0c7e777ab46912c373f3",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加标签输入功能到批量编辑表单，优化数据管理\n\n- feat: 添加 Markdown 支持，优化备注输入和预览功能\n  Co-authored-by: Copilot <copilot@github.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-03T03:21:06Z"
   }
 ]
