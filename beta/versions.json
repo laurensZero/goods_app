@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260503.1",
+    "url": "bundle-20260503.1.zip",
+    "hash": "f73dd6ae4fb0db71c97ff0baf037e851b921e84a78ea0c7e777ab46912c373f3",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加标签输入功能到批量编辑表单，优化数据管理\n\n- feat: 添加 Markdown 支持，优化备注输入和预览功能\n  Co-authored-by: Copilot <copilot@github.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-03T03:21:06Z"
+  },
+  {
     "version": "20260502.4",
     "url": "bundle-20260502.4.zip",
     "hash": "79d24a8acec7c7542aa6ebc33f496e78d5d28a0b0077d57b8fb4f87380c7c806",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化收纳位置创建功能，支持新建第一层位置和子位置",
     "updateLevel": "silent",
     "publishedAt": "2026-05-02T11:29:23Z"
-  },
-  {
-    "version": "20260502.2",
-    "url": "bundle-20260502.2.zip",
-    "hash": "3ce1a6da734b6c20c525560f60a11e45761de0c16784ba5839f0d4313a27c467",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化米游铺搜索\n  Co-authored-by: Copilot <copilot@github.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-02T08:46:33Z"
   }
 ]
