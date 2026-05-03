@@ -289,19 +289,19 @@ async function handleWriteNfc(node) {
 
     nfcDialogStatus.value = 'success'
     nfcDialogMessage.value = `写入成功！\n现在只要碰一碰就自动筛选 ${node.name} 的内容。`
-    await CapacitorNfc.stopScanSession()
+    await CapacitorNfc.stopScanning()
   } catch (error) {
     console.error('Nfc Write Error:', error)
     nfcDialogStatus.value = 'error'
     nfcDialogMessage.value = `写入被取消或失败\n${error.message || ''}`
-    try { await CapacitorNfc.stopScanSession() } catch {}
+    try { await CapacitorNfc.stopScanning() } catch {}
   }
 }
 
 async function cancelNfc() {
   showNfcDialog.value = false
   const { CapacitorNfc } = await import('@capgo/capacitor-nfc')
-  try { await CapacitorNfc.stopScanSession() } catch {}
+  try { await CapacitorNfc.stopScanning() } catch {}
 }
 
 function resetEditor() {
