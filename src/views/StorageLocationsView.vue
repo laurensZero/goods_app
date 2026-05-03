@@ -200,6 +200,8 @@ const editorSubmitText = computed(() =>
   editorMode.value === 'rename' ? '保存名称' : '新增位置'
 )
 
+const NFC_ANDROID_READER_MODE_FLAGS = 0x01 | 0x02 | 0x04 | 0x08 | 0x100
+
 async function handleWriteNfc(node) {
   const { Capacitor } = await import('@capacitor/core')
 
@@ -247,7 +249,8 @@ async function handleWriteNfc(node) {
     try {
       await CapacitorNfc.startScanning({
          invalidateAfterFirstRead: false,
-         alertMessage: `靠近首饰盒 NFC 标签以将 ${node.name} 写入...`
+        alertMessage: `靠近首饰盒 NFC 标签以将 ${node.name} 写入...`,
+        androidReaderModeFlags: NFC_ANDROID_READER_MODE_FLAGS
       })
     } catch {
        // Ignore if scanning is already active
