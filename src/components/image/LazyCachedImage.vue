@@ -67,7 +67,13 @@ const rootAttrs = computed(() => {
 })
 const imageAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
-  return rest
+  // forward class and style also to the actual <img> element so callers
+  // (e.g. cover-img) can style the image itself instead of only the wrapper
+  return {
+    ...rest,
+    class: _class,
+    style: _style
+  }
 })
 const imageRef = ref(null)
 const resolvedSrc = ref('')
@@ -182,6 +188,15 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* When wrapper receives utility classes like `cover-img`, forward
+   display behavior to the actual <img> so callers can control
+   object-fit via wrapper class without reaching into the child. */
+.lazy-image-root.cover-img .lazy-image-element {
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
 }
 
 .lazy-image-fallback {

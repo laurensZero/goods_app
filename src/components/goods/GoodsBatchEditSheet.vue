@@ -142,6 +142,11 @@
             />
           </div>
 
+          <label class="field">
+            <span class="field-label">标签</span>
+            <TagInput v-model="form.tags" placeholder="留空则不修改" />
+          </label>
+
           <div class="field">
             <div class="field-head">
               <span class="field-label">收纳位置</span>
@@ -222,6 +227,7 @@ import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
+import TagInput from '@/components/common/TagInput.vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -252,7 +258,8 @@ const form = reactive({
   price: '',
   acquiredAt: '',
   storageLocation: '',
-  characters: []
+  characters: [],
+  tags: []
 })
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 
@@ -293,7 +300,8 @@ const canSubmit = computed(() =>
     hasPriceInput(form.price) ||
     form.acquiredAt ||
     form.storageLocation ||
-    form.characters.length > 0
+    form.characters.length > 0 ||
+    form.tags.length > 0
   ) && !priceError.value
 )
 const storageLocationOptions = computed(() => goodsStore.storageLocations)
@@ -357,6 +365,7 @@ function resetForm() {
   form.acquiredAt = ''
   form.storageLocation = ''
   form.characters = []
+  form.tags = []
   priceError.value = ''
   closeQuickCreate()
   datePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
@@ -480,6 +489,7 @@ async function apply() {
   if (form.acquiredAt) payload.acquiredAt = form.acquiredAt
   if (form.storageLocation) payload.storageLocation = form.storageLocation
   if (form.characters.length > 0) payload.characters = [...form.characters]
+  if (form.tags.length > 0) payload.tags = [...form.tags]
   if (Object.keys(payload).length === 0) return
 
   emit('apply', payload)
