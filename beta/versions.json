@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260503.3",
+    "url": "bundle-20260503.3.zip",
+    "hash": "4ddafab6c369fd5199169442f4426631d7cd428c08b4f8b0a4fc6451bdd5066f",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加标签输入功能到批量编辑表单，支持标签替换功能\n  Co-authored-by: Copilot <copilot@github.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-03T05:39:34Z"
+  },
+  {
     "version": "20260503.2",
     "url": "bundle-20260503.2.zip",
     "hash": "ccb430f277ee4fc0196bd94a4fbe60eb02ae5a176f50de78fce96aa700ddb6c3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加标签输入功能到批量编辑表单，优化数据管理\n\n- feat: 添加 Markdown 支持，优化备注输入和预览功能\n  Co-authored-by: Copilot <copilot@github.com>",
     "updateLevel": "silent",
     "publishedAt": "2026-05-03T03:21:06Z"
-  },
-  {
-    "version": "20260502.4",
-    "url": "bundle-20260502.4.zip",
-    "hash": "79d24a8acec7c7542aa6ebc33f496e78d5d28a0b0077d57b8fb4f87380c7c806",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加趋势数据支持到多个视图，优化数据展示\n  Co-authored-by: Copilot <copilot@github.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-02T12:54:57Z"
   }
 ]
