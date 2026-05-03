@@ -1,9 +1,9 @@
 {
-  "version": "20260503.5",
-  "url": "bundle-20260503.5.zip",
-  "hash": "28e4e34a245ed78d1e9d0611d96a0c5ae2bdff8cbfdb245b18adb106eff2749d",
+  "version": "20260503.6",
+  "url": "bundle-20260503.6.zip",
+  "hash": "b477dd1a5720834f6d99380130c6b1da01371fdaa2b37998d332c97f8da0797b",
   "minNativeVersion": null,
-  "notes": "- feat: 修改 NFC 功能，更新停止扫描方法以提高稳定性",
+  "notes": "- feat: 添加 NFC 写入功能的 Android 应用记录，提升应用启动可靠性\n  Co-authored-by: Copilot <copilot@github.com>",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-03T15:25:03Z"
+  "publishedAt": "2026-05-03T15:36:26Z"
 }
