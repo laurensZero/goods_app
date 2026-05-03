@@ -72,7 +72,7 @@ public class MihoyoSessionImportPlugin extends Plugin {
             } catch (Exception error) {
                 String message = error.getMessage() != null ? error.getMessage() : "";
                 if (MihoyoSessionImportActivity.isCookieExpiredError(message)) {
-                    // Cookie expired — clear it, then launch WebView for re-login
+                    // Cookie expired or unauthenticated — clear it, then launch WebView for re-login
                     clearSavedCookie();
                     new Handler(Looper.getMainLooper()).post(() -> launchImport(call, mode));
                 } else {

@@ -360,6 +360,7 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         String lower = errorMessage.toLowerCase(Locale.US);
         return lower.contains("cookie") || lower.contains("token") || lower.contains("ltoken")
             || lower.contains("login") || lower.contains("account") || lower.contains("auth")
+            || lower.contains("未登录")
             || lower.contains("unauthorized") || lower.contains("forbidden")
             || lower.contains("401") || lower.contains("403");
     }

@@ -520,6 +520,10 @@
               <span class="field-label">备注</span>
               <input v-model="batchEditForm.notes" type="text" placeholder="可填写款式、编号等" />
             </label>
+            <label class="field">
+              <span class="field-label">标签</span>
+              <TagInput v-model="batchEditForm.tags" placeholder="例如：生日谷、待出、收藏" />
+            </label>
           </div>
           <div class="batch-edit-actions">
             <button class="batch-edit-cancel" type="button" @click="editingBatchIdx = -1">取消</button>
@@ -564,6 +568,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
+import TagInput from '@/components/common/TagInput.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
@@ -745,7 +750,7 @@ const batchParsing = ref(false)
 const editingBatchIdx = ref(-1)
 const batchEditForm = reactive({
   name: '', category: '', ip: '', image: '', price: '',
-  notes: '', characters: [], purchaseDate: '', variant: '',
+  notes: '', tags: [], characters: [], purchaseDate: '', variant: '',
 })
 const batchEditPriceError = ref('')
 const batchEditImages = ref([])
@@ -1201,6 +1206,7 @@ function openBatchEdit(idx) {
     image: item.data.image,
     price: item.data.price,
     notes: item.data.notes,
+    tags: Array.isArray(item.data.tags) ? [...item.data.tags] : [],
     characters: [...item.data.characters],
     purchaseDate: item.data.purchaseDate,
     variant: item.data.variant || '',
@@ -1235,6 +1241,7 @@ function saveBatchEdit() {
     image: batchEditForm.image,
     price: batchEditForm.price === '' ? '' : Number(batchEditForm.price),
     notes: batchEditForm.notes,
+    tags: [...batchEditForm.tags],
     characters: [...batchEditForm.characters],
     purchaseDate: batchEditForm.purchaseDate,
     variant: batchEditForm.variant,
@@ -1297,6 +1304,7 @@ async function saveAllBatch() {
         source: '米游铺',
         purchaseDate: item.data.purchaseDate,
         notes: item.data.notes,
+        tags: Array.isArray(item.data.tags) ? item.data.tags : [],
         characters: item.data.characters,
         variant: item.data.variant || undefined,
         isWishlist: isWishlistMode.value,
