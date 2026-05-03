@@ -144,12 +144,12 @@
         </section>
 
         <section v-if="item.note" class="note-section">
-          <div class="section-head section-head--split">
+            <div class="section-head section-head--split">
             <div>
               <p class="section-label">附加信息</p>
               <h2 class="section-title">备注</h2>
             </div>
-            <button class="section-head__copy" type="button" @click="copyNoteMarkdown">复制 markdown</button>
+            <button v-if="isNoteMarkdown" class="section-head__copy" type="button" @click="copyNoteMarkdown">复制 markdown</button>
           </div>
 
           <article class="note-card">
@@ -212,7 +212,7 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { renderMarkdown } from '@/utils/markdown'
+import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
@@ -339,6 +339,7 @@ const heroPriceLabel = computed(() => {
 })
 const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
 const noteHtml = computed(() => renderMarkdown(item.value?.note || ''))
+const isNoteMarkdown = computed(() => detectMarkdownContent(item.value?.note || ''))
 
 async function copyNoteMarkdown() {
   const text = String(item.value?.note || '').trim()
