@@ -201,6 +201,8 @@ const editorSubmitText = computed(() =>
 )
 
 const NFC_ANDROID_READER_MODE_FLAGS = 0x01 | 0x02 | 0x04 | 0x08 | 0x100
+const NFC_ANDROID_AAR_TYPE = 'android.com:pkg'
+const NFC_APP_PACKAGE_NAME = 'com.goodsapp.collector'
 
 async function handleWriteNfc(node) {
   const { Capacitor } = await import('@capacitor/core')
@@ -260,30 +262,33 @@ async function handleWriteNfc(node) {
     await tagDetected
     nfcDialogMessage.value = '已靠近标签，正在写入...'
     
-    // NDEF URI format
+    // Write URI + Android Application Record to improve app launch reliability.
+    const encoder = new TextEncoder()
     const uri = `goodsapp://storage/${encodeURIComponent(node.path)}`
-    const uriBytes = Array.from(new TextEncoder().encode(uri))
-    const payload = [0x00, ...uriBytes]
+    const uriPayload = [0x00, ...Array.from(encoder.encode(uri))]
+    const aarType = Array.from(encoder.encode(NFC_ANDROID_AAR_TYPE))
+    const packagePayload = Array.from(encoder.encode(NFC_APP_PACKAGE_NAME))
+    const records = [{
+      tnf: 0x01, // TNF_WELL_KNOWN
+      type: [0x55], // 'U'
+      id: [],
+      payload: uriPayload
+    }, {
+      tnf: 0x04, // TNF_EXTERNAL_TYPE
+      type: aarType,
+      id: [],
+      payload: packagePayload
+    }]
 
     await CapacitorNfc.write({
       allowFormat: true,
-      records: [{
-        tnf: 0x01, // TNF_WELL_KNOWN
-        type: [0x55], // 'U'
-        id: [],
-        payload
-      }]
+      records
     }).catch(async (e) => {
-      // Fallback for tags that might not support formatting or are already formatted
+      // Fallback for tags that might not support formatting or are already formatted.
       console.warn('NFC Write Error (with format), retrying without format:', e)
       await CapacitorNfc.write({
         allowFormat: false,
-        records: [{
-          tnf: 0x01,
-          type: [0x55],
-          id: [],
-          payload
-        }]
+        records
       })
     })
 
