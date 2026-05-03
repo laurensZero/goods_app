@@ -144,13 +144,16 @@
         </section>
 
         <section v-if="item.note" class="note-section">
-          <div class="section-head">
-            <p class="section-label">附加信息</p>
-            <h2 class="section-title">备注</h2>
+          <div class="section-head section-head--split">
+            <div>
+              <p class="section-label">附加信息</p>
+              <h2 class="section-title">备注</h2>
+            </div>
+            <button class="section-head__copy" type="button" @click="copyNoteMarkdown">复制 markdown</button>
           </div>
 
           <article class="note-card">
-            <p class="note-body">{{ item.note }}</p>
+            <div class="note-body note-body--markdown" v-html="noteHtml" />
           </article>
         </section>
 
@@ -209,6 +212,7 @@ import { formatDate } from '@/utils/format'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { renderMarkdown } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
@@ -334,6 +338,18 @@ const heroPriceLabel = computed(() => {
   return hasActualPriceValue(item.value.actualPrice) ? '入手价' : '价格'
 })
 const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
+const noteHtml = computed(() => renderMarkdown(item.value?.note || ''))
+
+async function copyNoteMarkdown() {
+  const text = String(item.value?.note || '').trim()
+  if (!text) return
+
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // 在某些环境下剪贴板可能不可用，静默失败
+  }
+}
 const heroPriceHint = computed(() => {
   if (!item.value || item.value.isWishlist) return ''
   if (unitActualPriceAmountText.value) return ''
@@ -999,6 +1015,121 @@ function getImageKindLabel(kind) {
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
+}
+
+.note-body--markdown {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.note-body--markdown :deep(> :first-child) {
+  margin-top: 0;
+}
+
+.note-body--markdown :deep(> :last-child) {
+  margin-bottom: 0;
+}
+
+.note-body--markdown :deep(p),
+.note-body--markdown :deep(ul),
+.note-body--markdown :deep(ol),
+.note-body--markdown :deep(blockquote),
+.note-body--markdown :deep(pre),
+.note-body--markdown :deep(h1),
+.note-body--markdown :deep(h2),
+.note-body--markdown :deep(h3),
+.note-body--markdown :deep(h4),
+.note-body--markdown :deep(h5),
+.note-body--markdown :deep(h6),
+.note-body--markdown :deep(hr) {
+  margin: 0 0 12px;
+}
+
+.note-body--markdown :deep(h1),
+.note-body--markdown :deep(h2),
+.note-body--markdown :deep(h3),
+.note-body--markdown :deep(h4),
+.note-body--markdown :deep(h5),
+.note-body--markdown :deep(h6) {
+  color: var(--app-text);
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.note-body--markdown :deep(h1) { font-size: 22px; }
+.note-body--markdown :deep(h2) { font-size: 20px; }
+.note-body--markdown :deep(h3) { font-size: 18px; }
+.note-body--markdown :deep(h4) { font-size: 17px; }
+.note-body--markdown :deep(h5),
+.note-body--markdown :deep(h6) { font-size: 16px; }
+
+.note-body--markdown :deep(p) {
+  white-space: pre-wrap;
+}
+
+.note-body--markdown :deep(ul),
+.note-body--markdown :deep(ol) {
+  padding-left: 22px;
+}
+
+.note-body--markdown :deep(ul) {
+  list-style: disc;
+  list-style-position: outside;
+}
+
+.note-body--markdown :deep(ol) {
+  list-style: decimal;
+  list-style-position: outside;
+}
+
+.note-body--markdown :deep(li) {
+  display: list-item;
+}
+
+.note-body--markdown :deep(li.task-list-item) {
+  list-style: none;
+}
+
+.note-body--markdown :deep(li + li) {
+  margin-top: 6px;
+}
+
+.note-body--markdown :deep(blockquote) {
+  padding: 10px 14px;
+  border-left: 3px solid rgba(20, 20, 22, 0.14);
+  border-radius: 0 12px 12px 0;
+  background: rgba(20, 20, 22, 0.04);
+  color: var(--app-text-secondary);
+}
+
+.note-body--markdown :deep(pre) {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(20, 20, 22, 0.06);
+  overflow-x: auto;
+}
+
+.note-body--markdown :deep(code) {
+  padding: 0.15em 0.35em;
+  border-radius: 6px;
+  background: rgba(20, 20, 22, 0.08);
+  font-size: 0.95em;
+}
+
+.note-body--markdown :deep(pre code) {
+  padding: 0;
+  background: transparent;
+}
+
+.note-body--markdown :deep(hr) {
+  border: none;
+  border-top: 1px solid rgba(20, 20, 22, 0.12);
+}
+
+.note-body--markdown :deep(a) {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .dialog-overlay {

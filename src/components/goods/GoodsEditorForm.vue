@@ -451,6 +451,7 @@
               <textarea
                 v-model="form.note"
                 ref="noteInputRef"
+                class="markdown-textarea"
                 rows="5"
                 placeholder="来源、编号、状态等..."
                 @input="syncField('note', $event)"
@@ -460,6 +461,7 @@
                 @paste="syncFieldLater('note', $event)"
               ></textarea>
             </label>
+            <MarkdownPreviewCard :content="form.note" title="实时预览" />
           </div>
         </section>
 
@@ -513,13 +515,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
+import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import GoodsImageManager from '@/components/goods/GoodsImageManager.vue'
 import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
@@ -529,6 +532,7 @@ import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { useRouter } from 'vue-router'
+import { resizeTextarea } from '@/utils/textarea'
 
 const props = defineProps({
   mode: {
@@ -659,6 +663,15 @@ const submitButtonLabel = computed(() => {
   return isEditMode.value ? '保存修改' : '保存谷子'
 })
 const showTrackEditor = computed(() => String(form.category || '').trim() === 'CD/专辑')
+
+watch(
+  () => form.note,
+  async () => {
+    await nextTick()
+    resizeTextarea(noteInputRef.value)
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped src="../../assets/goodsEditorForm.css"></style>

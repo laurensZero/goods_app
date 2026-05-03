@@ -236,8 +236,56 @@ textarea {
   font: inherit;
 }
 
+textarea.markdown-textarea {
+  resize: none;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+textarea.markdown-textarea::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+textarea.markdown-textarea::-webkit-resizer {
+  display: none;
+}
+
 button {
   cursor: pointer;
+}
+
+/* Ensure section header copy/action buttons display consistently */
+.section-head__copy,
+button.section-head__copy {
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 12px;
+}
+
+.section-head--split {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-head__copy,
+button.section-head__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:global(html.theme-dark) .section-head__copy,
+:global(html.theme-dark) button.section-head__copy {
+  color: rgba(255, 255, 255, 0.86);
 }
 
 a {

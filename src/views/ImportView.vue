@@ -323,8 +323,15 @@
             <div class="field-card">
               <label class="field">
                 <span class="field-label">备注</span>
-                <textarea v-model="form.notes" placeholder="可以填写款式、编号等补充说明…" rows="3" />
+                <textarea
+                  ref="notesTextareaRef"
+                  v-model="form.notes"
+                  class="markdown-textarea"
+                  placeholder="支持 markdown，可填写来源、状态、链接等补充说明…"
+                  rows="3"
+                />
               </label>
+              <MarkdownPreviewCard :content="form.notes" title="实时预览" />
             </div>
           </section>
         </div>
@@ -518,12 +525,19 @@
             </label>
             <label class="field">
               <span class="field-label">备注</span>
-              <input v-model="batchEditForm.notes" type="text" placeholder="可填写款式、编号等" />
+              <textarea
+                ref="batchNotesTextareaRef"
+                v-model="batchEditForm.notes"
+                class="markdown-textarea"
+                rows="4"
+                placeholder="支持 markdown，例如：\n- 来源\n- 状态\n- [链接](https://example.com)"
+              />
             </label>
             <label class="field">
               <span class="field-label">标签</span>
               <TagInput v-model="batchEditForm.tags" placeholder="例如：生日谷、待出、收藏" />
             </label>
+            <MarkdownPreviewCard :content="batchEditForm.notes" title="实时预览" />
           </div>
           <div class="batch-edit-actions">
             <button class="batch-edit-cancel" type="button" @click="editingBatchIdx = -1">取消</button>
@@ -568,6 +582,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
+import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -585,6 +600,7 @@ import {
 } from '@/utils/mihoyo'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { validatePrice } from '@/utils/validate'
+import { resizeTextarea } from '@/utils/textarea'
 
 const router = useRouter()
 const route = useRoute()
@@ -617,6 +633,8 @@ const parseButtonText = computed(() => '解析')
 
 const urlInputRef = ref(null)
 const urlInput = ref('')
+const notesTextareaRef = ref(null)
+const batchNotesTextareaRef = ref(null)
 const parsing = ref(false)
 const parseError = ref('')
 const formPriceError = ref('')
@@ -780,6 +798,25 @@ watch(isWishlistMode, (active) => {
     resetSearchSession()
   }
 }, { immediate: true })
+
+watch(
+  () => form.notes,
+  async () => {
+    await nextTick()
+    resizeTextarea(notesTextareaRef.value)
+  },
+  { immediate: true }
+)
+
+watch(
+  [editingBatchIdx, () => batchEditForm.notes],
+  async () => {
+    if (editingBatchIdx.value < 0) return
+    await nextTick()
+    resizeTextarea(batchNotesTextareaRef.value)
+  },
+  { immediate: true }
+)
 
 watch(searchKeyword, (value) => {
   if (value.trim() !== selectedSearchCharacter.value) {
