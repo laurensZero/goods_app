@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.17",
+    "url": "bundle-20260504.17.zip",
+    "hash": "6bc729e450cc4a7e262b92b9e5ea9d611e0cbb52b4a0a687e0347ecdd870afdc",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat: 添加条形码扫描功能，集成 ML Kit 扫描器并优化扫码逻辑\"\n  This reverts commit 6ededffa0ab60e450c0e6c470f42ab9e1961d6f2.",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T14:43:12Z"
+  },
+  {
     "version": "20260504.16",
     "url": "bundle-20260504.16.zip",
     "hash": "0f9a9d2df0a32646fc1e35631cd0a0662d25d8a2bcc346745b355d6a781449b8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化海报保存逻辑，调整文件存储路径和样式，增强用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T14:08:12Z"
-  },
-  {
-    "version": "20260504.14",
-    "url": "bundle-20260504.14.zip",
-    "hash": "5ec2316446fc3afcfc525c78a623378863eb2ade915b94113f1760db8b6a5ae5",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除实际价格的处理逻辑，优化多项商品价格范围的计算",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T13:52:21Z"
   }
 ]
