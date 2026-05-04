@@ -639,6 +639,8 @@ onMounted(async () => {
 })
 
 onActivated(() => {
+  scanning.value = false
+  scanError.value = ''
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
 })

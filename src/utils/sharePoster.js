@@ -504,7 +504,7 @@ export async function buildSharePosterDataUrl({ goodsItems, shareUrl, shareCode 
   const qrDataUrl = await QRCode.toDataURL(qrTarget, {
     width: 360,
     margin: 3,
-    errorCorrectionLevel: 'Q',
+    errorCorrectionLevel: 'H',
     color: {
       dark: '#000000',
       light: '#ffffff'
@@ -541,6 +541,29 @@ export async function buildSharePosterDataUrl({ goodsItems, shareUrl, shareCode 
   const qrBoxY = 1230
   drawRoundedCard(ctx, qrBoxX - 18, qrBoxY - 18, qrBoxSize + 36, qrBoxSize + 36, 24, '#ffffff', 'rgba(15, 23, 42, 0.12)')
   ctx.drawImage(qrImage, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize)
+
+  // Center logo on QR code
+  if (logoImg) {
+    const qrCenterX = qrBoxX + qrBoxSize / 2
+    const qrCenterY = qrBoxY + qrBoxSize / 2
+    const qrLogoSize = 60
+    const qrLogoX = qrCenterX - qrLogoSize / 2
+    const qrLogoY = qrCenterY - qrLogoSize / 2
+
+    // White background behind logo
+    ctx.save()
+    ctx.fillStyle = '#ffffff'
+    clipRoundedRect(ctx, qrLogoX - 4, qrLogoY - 4, qrLogoSize + 8, qrLogoSize + 8, 14)
+    ctx.fill()
+    ctx.restore()
+
+    // Logo image
+    ctx.save()
+    clipRoundedRect(ctx, qrLogoX, qrLogoY, qrLogoSize, qrLogoSize, 12)
+    ctx.clip()
+    ctx.drawImage(logoImg, qrLogoX, qrLogoY, qrLogoSize, qrLogoSize)
+    ctx.restore()
+  }
 
   drawTextLine(ctx, '分享码', 126, 1442, {
     font: '600 23px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
