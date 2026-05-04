@@ -23,10 +23,6 @@ function safePriceText(item) {
     return '心愿单'
   }
 
-  if (item.actualPrice !== undefined && item.actualPrice !== null && item.actualPrice !== '') {
-    return `到手 ${formatPrice(item.actualPrice)}`
-  }
-
   if (item.price !== undefined && item.price !== null && item.price !== '') {
     return formatPrice(item.price)
   }
@@ -67,10 +63,10 @@ function buildMultiItemMeta(goodsItems) {
     }
   }
 
-  // Price range
+  // Price range (use listing price only)
   const prices = goodsItems
     .map((item) => {
-      const p = item.actualPrice || item.price
+      const p = item.price
       return p ? Number.parseFloat(p) : NaN
     })
     .filter((p) => Number.isFinite(p))
