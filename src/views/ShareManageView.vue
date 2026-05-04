@@ -170,7 +170,7 @@ import { Share } from '@capacitor/share'
 import NavBar from '@/components/common/NavBar.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import { getShareGist, deleteGistFiles, updateGist } from '@/utils/githubGist'
-import { getShareAssetFilenames, listSharesFromGist, toggleShareDisabled } from '@/utils/shareGoods'
+import { extractSharePayloadFromGist, getShareAssetFilenames, listSharesFromGist, toggleShareDisabled } from '@/utils/shareGoods'
 import { buildShareUrl } from '@/config/share'
 import { formatDate } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
@@ -267,23 +267,35 @@ async function copyGistId() {
   }, 2000)
 }
 
-function shareAgain(share) {
-  // open ShareSheet and prefill with existing share info so user can choose link or image
-  const item = {
-    name: share.firstGoodsName || '未命名',
-    images: share.coverUri ? [{ uri: share.coverUri, isPrimary: true }] : []
-  }
-  shareSheetItems.value = [item]
+async function shareAgain(share) {
   const gistId = shareGist.value?.id || ''
+
+  // Fetch full share payload so multi-item shares show all goods in poster
+  let loadedItems = []
+  try {
+    const payload = extractSharePayloadFromGist(shareGist.value, share.shareId)
+    if (payload?.goods?.length) {
+      loadedItems = payload.goods
+    }
+  } catch {
+    // ignore, fall back to summary data
+  }
+
+  if (loadedItems.length === 0) {
+    loadedItems = [{
+      name: share.firstGoodsName || '未命名',
+      images: share.coverUri ? [{ uri: share.coverUri, isPrimary: true }] : []
+    }]
+  }
+
+  shareSheetItems.value = loadedItems
   shareInitial.value = {
     gistId,
     shareId: share.shareId,
     code: `${gistId}-${share.shareId}`,
     url: buildShareLink(share)
   }
-  // ensure reactive open occurs after state updates
   void nextTick().then(() => { showShareSheet.value = true })
-  // mark as copied state to reflect feedback when ShareSheet completes; keep it simple
   copiedId.value = share.shareId
   window.setTimeout(() => { if (copiedId.value === share.shareId) copiedId.value = '' }, 2000)
 }

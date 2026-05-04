@@ -183,206 +183,108 @@ function loadImage(url) {
   })
 }
 
-async function drawThumbGrid(ctx, goodsItems = [], gridLeft = 120, gridTop = 1120) {
-  const count = Math.min(goodsItems.length, 4)
-  const gap = 18
-  const thumbSize = 220
+async function drawOverlayBadge(ctx, x, y, w, h, radius, extra) {
+  ctx.save()
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.68)'
+  clipRoundedRect(ctx, x, y, w, h, radius)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'
+  ctx.fillRect(x, y, w, h)
+  ctx.fillStyle = '#ffffff'
+  ctx.font = '700 36px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(`+${extra}`, x + w / 2, y + h / 2 - 4)
+  ctx.font = '500 18px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif'
+  ctx.fillText('件', x + w / 2, y + h / 2 + 22)
+  ctx.restore()
+}
 
-  for (let i = 0; i < count; i++) {
-    const col = i % 2
-    const row = Math.floor(i / 2)
-    const x = gridLeft + col * (thumbSize + gap)
-    const y = gridTop + row * (thumbSize + gap)
+async function drawGoodsThumb(ctx, item, x, y, w, h, radius) {
+  drawRoundedCard(ctx, x, y, w, h, radius, '#ffffff', 'rgba(15, 23, 42, 0.06)')
 
-    const item = goodsItems[i] || {}
-    const cover = getPrimaryGoodsImageUrl(item?.images, item?.coverImage || item?.image || '')
-
-    drawRoundedCard(ctx, x, y, thumbSize, thumbSize, 22, '#f8fafc')
-
-    if (!cover) {
-      ctx.save()
-      ctx.fillStyle = '#9ca3af'
-      ctx.font = '600 46px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), x + thumbSize / 2, y + thumbSize / 2)
-      ctx.restore()
-      continue
-    }
-
-    try {
-      const img = await loadImage(cover)
-      const ratio = Math.max(thumbSize / img.width, thumbSize / img.height)
-      const drawW = img.width * ratio
-      const drawH = img.height * ratio
-      const drawX = x + (thumbSize - drawW) / 2
-      const drawY = y + (thumbSize - drawH) / 2
-
-      ctx.save()
-      clipRoundedRect(ctx, x, y, thumbSize, thumbSize, 22)
-      ctx.clip()
-      ctx.drawImage(img, drawX, drawY, drawW, drawH)
-      ctx.restore()
-    } catch (err) {
-      ctx.save()
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '600 46px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), x + thumbSize / 2, y + thumbSize / 2)
-      ctx.restore()
-    }
-  }
-
-  if (goodsItems.length > 4) {
-    const x = gridLeft + thumbSize + gap
-    const y = gridTop + thumbSize + gap
-    drawRoundedCard(ctx, x, y, thumbSize, thumbSize, 22, 'rgba(15, 23, 42, 0.72)')
+  const cover = getPrimaryGoodsImageUrl(item?.images, item?.coverImage || item?.image || '')
+  if (!cover) {
     ctx.save()
-    ctx.fillStyle = '#ffffff'
-    ctx.font = '700 46px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif'
+    ctx.fillStyle = '#d1d5db'
+    ctx.font = `600 ${Math.floor(h / 3)}px "PingFang SC", "Microsoft YaHei", sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(`+${goodsItems.length - 4}`, x + thumbSize / 2, y + thumbSize / 2)
+    ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), x + w / 2, y + h / 2)
+    ctx.restore()
+    return
+  }
+
+  try {
+    const img = await loadImage(cover)
+    const ratio = Math.max(w / img.width, h / img.height)
+    const drawW = img.width * ratio
+    const drawH = img.height * ratio
+    const drawX = x + (w - drawW) / 2
+    const drawY = y + (h - drawH) / 2
+
+    ctx.save()
+    clipRoundedRect(ctx, x, y, w, h, radius)
+    ctx.clip()
+    ctx.drawImage(img, drawX, drawY, drawW, drawH)
+    ctx.restore()
+  } catch {
+    ctx.save()
+    ctx.fillStyle = '#d1d5db'
+    ctx.font = `600 ${Math.floor(h / 3)}px "PingFang SC", "Microsoft YaHei", sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), x + w / 2, y + h / 2)
     ctx.restore()
   }
 }
 
 async function drawHeroGrid(ctx, goodsItems = [], x = 120, y = 228, w = 840, h = 840) {
-  // draw thumbnails in the hero area; special-case 2 items to avoid large empty gaps
-  const count = Math.min(goodsItems.length, 4)
-  const gap = 18
+  const gap = 16
+  const total = goodsItems.length
 
-  if (count === 2) {
-    // render two large images side-by-side filling the hero height
+  if (total === 2) {
     const thumbW = Math.floor((w - gap) / 2)
-    const thumbH = h
     for (let i = 0; i < 2; i++) {
-      const tx = x + i * (thumbW + gap)
-      const ty = y
-      const item = goodsItems[i] || {}
-      const cover = getPrimaryGoodsImageUrl(item?.images, item?.coverImage || item?.image || '')
-
-      drawRoundedCard(ctx, tx, ty, thumbW, thumbH, 20, '#ffffff')
-
-      if (!cover) {
-        ctx.save()
-        ctx.fillStyle = '#9ca3af'
-        ctx.font = '600 48px "PingFang SC", "Microsoft YaHei", sans-serif'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), tx + thumbW / 2, ty + thumbH / 2)
-        ctx.restore()
-        continue
-      }
-
-      try {
-        const img = await loadImage(cover)
-        const ratio = Math.max(thumbW / img.width, thumbH / img.height)
-        const drawW = img.width * ratio
-        const drawH = img.height * ratio
-        const drawX = tx + (thumbW - drawW) / 2
-        const drawY = ty + (thumbH - drawH) / 2
-
-        ctx.save()
-        clipRoundedRect(ctx, tx, ty, thumbW, thumbH, 20)
-        ctx.clip()
-        ctx.drawImage(img, drawX, drawY, drawW, drawH)
-        ctx.restore()
-      } catch (err) {
-        ctx.save()
-        ctx.fillStyle = '#6b7280'
-        ctx.font = '600 48px "PingFang SC", "Microsoft YaHei", sans-serif'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), tx + thumbW / 2, ty + thumbH / 2)
-        ctx.restore()
-      }
+      await drawGoodsThumb(ctx, goodsItems[i], x + i * (thumbW + gap), y, thumbW, h, 20)
     }
-    if (goodsItems.length > 2) {
-      // if more than 2, draw remaining in a small grid below or overlay; keep simple: draw +N on bottom-right
-      const extra = goodsItems.length - 2
-      if (extra > 0) {
-        const tx = x + w - Math.floor((w - gap) / 2) - 0
-        const ty = y + h - Math.floor(h / 4) - 0
-        ctx.save()
-        ctx.fillStyle = 'rgba(0,0,0,0.36)'
-        clipRoundedRect(ctx, tx, ty, Math.floor((w - gap) / 2), Math.floor(h / 4), 12)
-        ctx.fill()
-        ctx.fillStyle = '#fff'
-        ctx.font = '600 28px "PingFang SC", "Microsoft YaHei", sans-serif'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(`+${extra}`, tx + Math.floor((w - gap) / 4), ty + Math.floor(h / 8))
-        ctx.restore()
-      }
+    if (total > 2) {
+      await drawOverlayBadge(ctx, x + thumbW + gap, y + h - 120, thumbW, 120, 14, total - 2)
     }
     return
   }
 
-  // fallback: 2x2 grid for 3-4 items
+  if (total === 3) {
+    const leftW = Math.floor((w - gap) * 0.56)
+    const rightW = w - leftW - gap
+    const rightH = Math.floor((h - gap) / 2)
+
+    await drawGoodsThumb(ctx, goodsItems[0], x, y, leftW, h, 20)
+    await drawGoodsThumb(ctx, goodsItems[1], x + leftW + gap, y, rightW, rightH, 16)
+    await drawGoodsThumb(ctx, goodsItems[2], x + leftW + gap, y + rightH + gap, rightW, rightH, 16)
+    return
+  }
+
+  // 2x2 grid for 4+ items
   const cols = 2
   const thumbW = Math.floor((w - gap) / 2)
   const thumbH = Math.floor((h - gap) / 2)
-  for (let i = 0; i < count; i++) {
+  const showCount = Math.min(total, 4)
+
+  for (let i = 0; i < showCount; i++) {
     const col = i % cols
     const row = Math.floor(i / cols)
     const tx = x + col * (thumbW + gap)
     const ty = y + row * (thumbH + gap)
-
-    const item = goodsItems[i] || {}
-    const cover = getPrimaryGoodsImageUrl(item?.images, item?.coverImage || item?.image || '')
-
-    drawRoundedCard(ctx, tx, ty, thumbW, thumbH, 20, '#ffffff')
-
-    if (!cover) {
-      ctx.save()
-      ctx.fillStyle = '#9ca3af'
-      ctx.font = '600 36px "PingFang SC", "Microsoft YaHei", sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), tx + thumbW / 2, ty + thumbH / 2)
-      ctx.restore()
-      continue
-    }
-
-    try {
-      const img = await loadImage(cover)
-      const ratio = Math.max(thumbW / img.width, thumbH / img.height)
-      const drawW = img.width * ratio
-      const drawH = img.height * ratio
-      const drawX = tx + (thumbW - drawW) / 2
-      const drawY = ty + (thumbH - drawH) / 2
-
-      ctx.save()
-      clipRoundedRect(ctx, tx, ty, thumbW, thumbH, 20)
-      ctx.clip()
-      ctx.drawImage(img, drawX, drawY, drawW, drawH)
-      ctx.restore()
-    } catch (err) {
-      ctx.save()
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '600 36px "PingFang SC", "Microsoft YaHei", sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText((item?.name || '?').charAt(0).toUpperCase(), tx + thumbW / 2, ty + thumbH / 2)
-      ctx.restore()
-    }
+    await drawGoodsThumb(ctx, goodsItems[i], tx, ty, thumbW, thumbH, 20)
   }
 
-  if (goodsItems.length > 4) {
-    const xLast = x + cols * (thumbW + gap) - (thumbW + gap)
-    const yLast = y + Math.floor(h / 2)
-    ctx.save()
-    ctx.fillStyle = 'rgba(0,0,0,0.48)'
-    clipRoundedRect(ctx, xLast, yLast, thumbW, thumbH, 20)
-    ctx.fill()
-    ctx.fillStyle = '#ffffff'
-    ctx.font = '700 36px "PingFang SC", "Microsoft YaHei", sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(`+${goodsItems.length - 4}`, xLast + thumbW / 2, yLast + thumbH / 2)
-    ctx.restore()
+  if (total > 4) {
+    const lastCol = (showCount - 1) % cols
+    const lastRow = Math.floor((showCount - 1) / cols)
+    const bx = x + lastCol * (thumbW + gap)
+    const by = y + lastRow * (thumbH + gap)
+    await drawOverlayBadge(ctx, bx, by, thumbW, thumbH, 20, total - 4)
   }
 }
 
