@@ -15,3 +15,4 @@ scripts/fetch_recharge_distribution.py
 .claude/
 .tmp/
 !docs/share.html
+CLAUDE.md

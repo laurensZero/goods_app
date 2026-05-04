@@ -18,13 +18,11 @@ function clipRoundedRect(ctx, x, y, width, height, radius) {
 
 function safePriceText(item) {
   if (!item) return ''
-  // Wishlist handling
   if (item.isWishlist) {
     if (item.price !== undefined && item.price !== null && item.price !== '') return `目标 ${formatPrice(item.price)}`
     return '心愿单'
   }
 
-  // Prefer actualPrice when available
   if (item.actualPrice !== undefined && item.actualPrice !== null && item.actualPrice !== '') {
     return `到手 ${formatPrice(item.actualPrice)}`
   }
@@ -34,6 +32,62 @@ function safePriceText(item) {
   }
 
   return ''
+}
+
+/**
+ * Build a descriptive meta line for multi-item shares.
+ * Summarises common IP, category, and price range across items.
+ */
+function buildMultiItemMeta(goodsItems) {
+  const parts = [`${goodsItems.length} 件`]
+
+  // Common IP: if all items share one IP, show it; otherwise show count
+  const ips = [...new Set(goodsItems.map((item) => item.ip).filter(Boolean))]
+  if (ips.length === 1) {
+    parts.push(ips[0])
+  } else if (ips.length > 1) {
+    parts.push(`${ips.length} 个 IP`)
+  }
+
+  // Common category
+  const cats = [...new Set(goodsItems.map((item) => item.category).filter(Boolean))]
+  if (cats.length === 1) {
+    parts.push(cats[0])
+  }
+
+  // Common characters (only if ALL items share exactly the same set)
+  const allChars = goodsItems
+    .map((item) => (Array.isArray(item.characters) ? item.characters.filter(Boolean) : []))
+    .filter((arr) => arr.length > 0)
+  if (allChars.length === goodsItems.length) {
+    const firstChars = JSON.stringify([...allChars[0]].sort())
+    const allSame = allChars.every((chars) => JSON.stringify([...chars].sort()) === firstChars)
+    if (allSame && allChars[0].length > 0) {
+      parts.push(allChars[0].join('、'))
+    }
+  }
+
+  // Price range
+  const prices = goodsItems
+    .map((item) => {
+      const p = item.actualPrice || item.price
+      return p ? Number.parseFloat(p) : NaN
+    })
+    .filter((p) => Number.isFinite(p))
+
+  if (prices.length > 1) {
+    const min = Math.min(...prices)
+    const max = Math.max(...prices)
+    if (min === max) {
+      parts.push(formatPrice(min))
+    } else {
+      parts.push(`${formatPrice(min)}~${formatPrice(max)}`)
+    }
+  } else if (prices.length === 1) {
+    parts.push(formatPrice(prices[0]))
+  }
+
+  return parts.join(' · ')
 }
 
 function drawRoundedCard(ctx, x, y, width, height, radius, fillStyle, strokeStyle = '') {
@@ -446,8 +500,9 @@ export async function buildSharePosterDataUrl({ goodsItems, shareUrl, shareCode 
     font: '700 38px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
     color: '#0f172a'
   })
-  const priceText = goodsItems.length > 1 ? `${goodsItems.length} 件` : safePriceText(firstItem)
-  const metaText = goodsItems.length > 1 ? `${goodsItems.length} 件 · 多件分享` : [firstItem?.ip, firstItem?.category, firstItem?.variant, priceText].filter(Boolean).join(' · ')
+  const metaText = goodsItems.length > 1
+    ? buildMultiItemMeta(goodsItems)
+    : [firstItem?.ip, firstItem?.category, firstItem?.variant, safePriceText(firstItem)].filter(Boolean).join(' · ')
   if (metaText) {
     drawMultilineText(ctx, metaText, 126, 1382, 470, 30, {
       maxLines: 2,

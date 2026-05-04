@@ -73,7 +73,18 @@ function sortObjectKeys(value) {
     for (const key of Object.keys(value).sort()) {
       sorted[key] = sortObjectKeys(value[key])
     }
+    // Normalise storageMode so that inline-local (new payload) and
+    // gist-inline (stored payload) compare equal in fingerprints.
+    if (sorted.storageMode === 'inline-local' || sorted.storageMode === 'gist-inline') {
+      sorted.storageMode = 'local'
+    }
     return sorted
+  }
+
+  // Normalise ephemeral image URIs so that new payloads (data: URIs) and
+  // stored payloads (__gist_img__ refs) produce the same fingerprint.
+  if (typeof value === 'string' && (value.startsWith('data:') || value.startsWith('__gist_img__'))) {
+    return ''
   }
 
   return value
