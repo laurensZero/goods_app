@@ -1,9 +1,9 @@
 {
-  "version": "20260504.1",
-  "url": "bundle-20260504.1.zip",
-  "hash": "51985d6a97ed6ea311fa9864f3ec9f375339466b79436973fa51002288555f70",
+  "version": "20260504.2",
+  "url": "bundle-20260504.2.zip",
+  "hash": "dfcced6b76ba9fab38a3f5c8a4f7bdeadb39f0306cbfbd79fc3568eb58532d83",
   "minNativeVersion": null,
-  "notes": "- feat: 优化高级筛选组件样式，增强布局和间距",
+  "notes": "- feat: 更新处理传入应用 URL 的逻辑，支持一次性 NFC 跳转",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T03:57:31Z"
+  "publishedAt": "2026-05-04T04:38:32Z"
 }
