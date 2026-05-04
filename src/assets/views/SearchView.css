@@ -111,13 +111,32 @@
 
 .advanced-toggle {
   width: 100%;
-  padding: 16px 18px;
+  padding: 18px;
   border: none;
   border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
   text-align: left;
   transition: transform 0.14s ease, opacity 0.16s ease;
+}
+
+.advanced-toggle__inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.advanced-toggle__hero {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.advanced-toggle__hero .section-label,
+.advanced-toggle__hero .section-title,
+.advanced-toggle__hero .advanced-summary {
+  margin: 0;
 }
 
 .advanced-toggle:active {
@@ -189,8 +208,9 @@
 .advanced-summary {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .advanced-toggle__count {

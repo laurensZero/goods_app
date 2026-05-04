@@ -39,8 +39,8 @@
             :aria-expanded="advancedExpanded"
             @click="advancedExpanded = !advancedExpanded"
           >
-            <div class="section-head section-head--compact section-head--no-margin">
-              <div class="section-head__copy">
+            <div class="advanced-toggle__inner">
+              <div class="advanced-toggle__hero">
                 <p class="section-label">高级筛选</p>
                 <h1 class="section-title section-title--sub section-title--tight">高级筛选</h1>
                 <div class="advanced-summary">
