@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.1",
+    "url": "bundle-20260504.1.zip",
+    "hash": "51985d6a97ed6ea311fa9864f3ec9f375339466b79436973fa51002288555f70",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化高级筛选组件样式，增强布局和间距",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T03:57:31Z"
+  },
+  {
     "version": "20260503.6",
     "url": "bundle-20260503.6.zip",
     "hash": "b477dd1a5720834f6d99380130c6b1da01371fdaa2b37998d332c97f8da0797b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修改 NFC 功能，更新停止扫描方法以提高稳定性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-03T15:25:03Z"
-  },
-  {
-    "version": "20260503.4",
-    "url": "bundle-20260503.4.zip",
-    "hash": "9a27a94d492a3d49856dc28b8c763bf0e2c41116f022d75b0e339c9854efef6c",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 NFC 安卓读取模式标志到 NFC 写入功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-03T15:15:58Z"
   }
 ]
