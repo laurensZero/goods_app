@@ -261,6 +261,7 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
@@ -386,7 +387,10 @@ async function decodeQrFromImageElement(image) {
   return String(result?.data || '').trim()
 }
 
+let scannerBusy = false
+
 async function decodeQrFromVideoFrame() {
+  if (scannerBusy) return ''
   const video = scannerVideoRef.value
   const canvas = scannerCanvasRef.value
   if (!video || !canvas || video.readyState < 2) return ''
@@ -395,25 +399,31 @@ async function decodeQrFromVideoFrame() {
   const vh = video.videoHeight
   if (!vw || !vh) return ''
 
-  // Capture a smaller region around center to improve performance
-  const size = Math.min(vw, vh)
-  const sx = Math.floor((vw - size) / 2)
-  const sy = Math.floor((vh - size) / 2)
+  scannerBusy = true
 
-  const outSize = 800
-  canvas.width = outSize
-  canvas.height = outSize
+  try {
+    const size = Math.min(vw, vh)
+    const sx = Math.floor((vw - size) / 2)
+    const sy = Math.floor((vh - size) / 2)
 
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  if (!ctx) return ''
+    // Lower resolution = faster decoding, less memory
+    const outSize = 400
+    canvas.width = outSize
+    canvas.height = outSize
 
-  ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize)
-  const imageData = ctx.getImageData(0, 0, outSize, outSize)
-  const result = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: 'attemptBoth'
-  })
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return ''
 
-  return String(result?.data || '').trim()
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize)
+    const imageData = ctx.getImageData(0, 0, outSize, outSize)
+    const result = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    })
+
+    return String(result?.data || '').trim()
+  } finally {
+    scannerBusy = false
+  }
 }
 
 async function onScannerQRFound(text) {
@@ -454,7 +464,7 @@ function startScannerLoop() {
     } catch {
       // skip frame errors
     }
-  }, 200)
+  }, 400)
 }
 
 function stopScannerLoop() {
@@ -482,67 +492,101 @@ function closeScanner() {
 async function openScanner() {
   scanning.value = true
   scanError.value = ''
-  scannerResolved = false
-  showScanner.value = true
 
-  // Wait for DOM to render the video element
-  await new Promise((resolve) => setTimeout(resolve, 100))
-
+  // Try native ML Kit scanner first (industry standard)
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
-      audio: false
-    })
-    scannerStream = stream
-    if (scannerVideoRef.value) {
-      scannerVideoRef.value.srcObject = stream
-      // video @playing event will call onScannerVideoReady → startScannerLoop
+    const { camera } = await BarcodeScanner.checkPermissions()
+    if (camera === 'denied') {
+      const { camera: newPerm } = await BarcodeScanner.requestPermissions()
+      if (newPerm !== 'granted') throw new Error('camera denied')
     }
-    scannerHint.value = '将二维码放入框内，即可自动扫描'
-  } catch {
-    // Fallback: if getUserMedia fails (e.g. no permission), use native camera
-    closeScanner()
-    try {
-      const photo = await Camera.getPhoto({
-        source: CameraSource.Prompt,
-        resultType: CameraResultType.Uri,
-        quality: 92,
-        promptLabelHeader: '扫码导入',
-        promptLabelPhoto: '从相册选择',
-        promptLabelPicture: '拍摄二维码'
-      })
 
-      const src = String(photo?.webPath || photo?.path || '').trim()
-      if (!src) { scanning.value = false; return }
+    await BarcodeScanner.removeAllListeners()
+    BarcodeScanner.addListener('barcodeScanned', async (result) => {
+      const text = result.barcode?.displayValue || ''
+      if (!text) return
 
-      const image = await loadImageFromSrc(src)
-      const text = await decodeQrFromImageElement(image)
-
-      if (!text) {
-        scanError.value = '未识别到二维码，请重试或手动输入分享码'
-        scanning.value = false
-        return
-      }
+      // Prevent duplicate triggers
+      await BarcodeScanner.removeAllListeners()
+      await BarcodeScanner.stopScan()
 
       const { gistId, shareId } = extractIdsFromInput(text)
+      scanning.value = false
+
       if (!gistId) {
         scanError.value = '二维码内容不是有效的分享码'
-        scanning.value = false
         return
       }
 
       const query = shareId ? { s: shareId } : {}
-      scanning.value = false
       runWithRouteTransition(
         () => router.push({ name: 'share-import', params: { gistId }, query }),
         { direction: 'forward' }
       )
-    } catch (e2) {
-      const message = String(e2?.message || '')
-      if (!message || !/cancel|canceled|cancelled/i.test(message)) {
-        scanError.value = e2?.message || '扫码失败，请稍后重试'
+    })
+
+    await BarcodeScanner.startScan()
+  } catch {
+    // Fallback: ML Kit unavailable → use custom camera + jsQR approach
+    scannerResolved = false
+    showScanner.value = true
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false
+      })
+      scannerStream = stream
+      if (scannerVideoRef.value) {
+        scannerVideoRef.value.srcObject = stream
       }
-      scanning.value = false
+      scannerHint.value = '将二维码放入框内，即可自动扫描'
+    } catch {
+      closeScanner()
+      try {
+        const photo = await Camera.getPhoto({
+          source: CameraSource.Prompt,
+          resultType: CameraResultType.Uri,
+          quality: 92,
+          promptLabelHeader: '扫码导入',
+          promptLabelPhoto: '从相册选择',
+          promptLabelPicture: '拍摄二维码'
+        })
+
+        const src = String(photo?.webPath || photo?.path || '').trim()
+        if (!src) { scanning.value = false; return }
+
+        const image = await loadImageFromSrc(src)
+        const text = await decodeQrFromImageElement(image)
+
+        if (!text) {
+          scanError.value = '未识别到二维码，请重试或手动输入分享码'
+          scanning.value = false
+          return
+        }
+
+        const { gistId, shareId } = extractIdsFromInput(text)
+        if (!gistId) {
+          scanError.value = '二维码内容不是有效的分享码'
+          scanning.value = false
+          return
+        }
+
+        const query = shareId ? { s: shareId } : {}
+        scanning.value = false
+        runWithRouteTransition(
+          () => router.push({ name: 'share-import', params: { gistId }, query }),
+          { direction: 'forward' }
+        )
+      } catch (e2) {
+        const message = String(e2?.message || '')
+        if (!message || !/cancel|canceled|cancelled/i.test(message)) {
+          scanError.value = e2?.message || '扫码失败，请稍后重试'
+        }
+        scanning.value = false
+      }
     }
   }
 }
