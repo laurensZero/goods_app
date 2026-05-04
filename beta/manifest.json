@@ -1,9 +1,9 @@
 {
-  "version": "20260504.6",
-  "url": "bundle-20260504.6.zip",
-  "hash": "4c06f3ff65178a60dd18516fad72dac2f16e2c6f55d7b4f54493e65717fe00bc",
+  "version": "20260504.7",
+  "url": "bundle-20260504.7.zip",
+  "hash": "bb94d8f170b67b871d3efaa8505972562deba69f273a9ac7cb01d03d1b51d7a9",
   "minNativeVersion": null,
-  "notes": "- feat: 添加下载区域和平台检测，优化二维码扫描体验",
+  "notes": "- feat: 更新二维码生成的错误修正级别为'H'，并在二维码中心添加logo",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T12:25:32Z"
+  "publishedAt": "2026-05-04T12:34:22Z"
 }
