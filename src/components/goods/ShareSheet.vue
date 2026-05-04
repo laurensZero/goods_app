@@ -113,9 +113,24 @@
               loading="lazy"
             />
 
-            <button class="sheet-share-btn sheet-share-btn--sub" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
-              {{ posterShared ? '已处理' : '分享图片' }}
-            </button>
+            <div class="poster-actions">
+              <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="savePosterImage">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {{ posterSaved ? '已保存' : '保存图片' }}
+              </button>
+              <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                  <polyline points="16 6 12 2 8 6" />
+                  <line x1="12" y1="2" x2="12" y2="15" />
+                </svg>
+                {{ posterShared ? '已分享' : '分享图片' }}
+              </button>
+            </div>
           </div>
 
           <button v-if="shareMode === 'link'" class="sheet-share-btn" type="button" @click="systemShare">
@@ -175,6 +190,7 @@ const codeCopied = ref(false)
 const posterGenerating = ref(false)
 const posterDataUrl = ref('')
 const posterError = ref('')
+const posterSaved = ref(false)
 const posterShared = ref(false)
 
 function getGoodsCover(item) {
@@ -238,6 +254,53 @@ async function downloadPoster(dataUrl) {
   document.body.appendChild(anchor)
   anchor.click()
   document.body.removeChild(anchor)
+}
+
+async function savePosterImage() {
+  if (!shareResult.value) return
+
+  const dataUrl = await ensurePoster()
+  if (!dataUrl) return
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const base64 = dataUrlToBase64(dataUrl)
+      const filename = buildPosterFilename()
+
+      // Write to external Pictures directory so gallery can find it
+      try {
+        await Filesystem.writeFile({
+          path: `Pictures/GoodsApp/${filename}`,
+          data: base64,
+          directory: Directory.External,
+          recursive: true
+        })
+      } catch {
+        // Fallback: scoped storage prevents direct external write, use cache + getUri
+        await Filesystem.writeFile({
+          path: `share-poster/${filename}`,
+          data: base64,
+          directory: Directory.Cache,
+          recursive: true
+        })
+      }
+    } else {
+      await downloadPoster(dataUrl)
+    }
+
+    posterSaved.value = true
+    window.setTimeout(() => {
+      posterSaved.value = false
+    }, 2000)
+  } catch {
+    if (!Capacitor.isNativePlatform()) {
+      await downloadPoster(dataUrl)
+    }
+    posterSaved.value = true
+    window.setTimeout(() => {
+      posterSaved.value = false
+    }, 2000)
+  }
 }
 
 async function sharePosterImage() {
@@ -383,6 +446,7 @@ watch(() => props.show, (val) => {
     shareMode.value = 'link'
     posterDataUrl.value = ''
     posterError.value = ''
+    posterSaved.value = false
     posterShared.value = false
     // if initialShare was provided by caller (e.g. ShareManage), use it
     if (props.initialShare) {
@@ -397,6 +461,7 @@ watch(() => props.show, (val) => {
     error.value = ''
     posterDataUrl.value = ''
     posterError.value = ''
+    posterSaved.value = false
     posterShared.value = false
   }
 })
@@ -769,6 +834,42 @@ watch(() => shareResult.value?.code, (value) => {
   border-radius: 14px;
   margin-bottom: 0;
   background: color-mix(in srgb, var(--app-text) 92%, #ffffff);
+}
+
+.poster-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.poster-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  transition: background 0.16s ease;
+}
+
+.poster-action-btn:active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.poster-action-btn:disabled {
+  opacity: 0.45;
+}
+
+.poster-action-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
 }
 
 .sheet-share-btn:active {
