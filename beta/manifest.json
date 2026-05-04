@@ -1,9 +1,9 @@
 {
-  "version": "20260504.10",
-  "url": "bundle-20260504.10.zip",
-  "hash": "2648446411e899395ab141f644ca3c962cf9375616862d61198b213a3a72c3ed",
+  "version": "20260504.11",
+  "url": "bundle-20260504.11.zip",
+  "hash": "eb53c0b6e29b8a1ce1c69ebbf5565011e296330147ba0ab83fee9a97f043b1a9",
   "minNativeVersion": null,
-  "notes": "- feat: 优化下载按钮状态和提示信息，增强用户体验",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T12:53:19Z"
+  "publishedAt": "2026-05-04T12:59:35Z"
 }

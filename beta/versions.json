@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.11",
+    "url": "bundle-20260504.11.zip",
+    "hash": "eb53c0b6e29b8a1ce1c69ebbf5565011e296330147ba0ab83fee9a97f043b1a9",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T12:59:35Z"
+  },
+  {
     "version": "20260504.10",
     "url": "bundle-20260504.10.zip",
     "hash": "2648446411e899395ab141f644ca3c962cf9375616862d61198b213a3a72c3ed",
@@ -16,14 +25,5 @@
     "notes": "- feat: 动态获取最新 Android APK 下载链接，优化下载提示信息",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T12:46:53Z"
-  },
-  {
-    "version": "20260504.8",
-    "url": "bundle-20260504.8.zip",
-    "hash": "69317d031f8c38103bd0a9872cdc5b1f30cec46d07a500584ee432f7026261c9",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化应用打开检测逻辑，增强未检测到应用时的提示信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T12:36:40Z"
   }
 ]
