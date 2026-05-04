@@ -1,9 +1,9 @@
 {
-  "version": "20260504.13",
-  "url": "bundle-20260504.13.zip",
-  "hash": "6d2f6731a608055acb54992e0c7b55dcb76eb5a28c412d11f093e37bf041a5ec",
+  "version": "20260504.14",
+  "url": "bundle-20260504.14.zip",
+  "hash": "5ec2316446fc3afcfc525c78a623378863eb2ade915b94113f1760db8b6a5ae5",
   "minNativeVersion": null,
-  "notes": "- feat: 添加海报保存功能，优化分享图片的用户体验",
+  "notes": "- feat: 移除实际价格的处理逻辑，优化多项商品价格范围的计算",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T13:47:24Z"
+  "publishedAt": "2026-05-04T13:52:21Z"
 }
