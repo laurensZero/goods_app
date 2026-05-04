@@ -313,7 +313,10 @@
       var isIOS = /iphone|ipad|ipod/i.test(ua)
 
       if (isAndroid) {
-        downloadHint.textContent = '正在获取最新版本...'
+        downloadBtn.textContent = '正在获取下载地址...'
+        downloadBtn.style.opacity = '0.55'
+        downloadBtn.style.pointerEvents = 'none'
+        downloadHint.textContent = '正在连接...'
       } else if (isIOS) {
         downloadHint.textContent = 'iOS 版本即将推出，敬请期待'
         downloadBtn.textContent = 'iOS 版本开发中'
@@ -323,31 +326,51 @@
         downloadHint.textContent = '请在手机端打开并下载安装'
       }
 
+      // Prevent navigating to # before real URL is loaded
+      downloadBtn.addEventListener('click', function (e) {
+        if (!downloadBtn.href || downloadBtn.href === '#' || downloadBtn.href.endsWith('#')) {
+          e.preventDefault()
+        }
+      })
+
       // Fetch latest APK download URL from GitHub Releases API
       function fetchLatestApkUrl() {
         if (!isAndroid) return
         fetch('https://api.github.com/repos/laurenszero/goods_app/releases/latest')
-          .then(function (res) { return res.json() })
+          .then(function (res) {
+            if (!res.ok) throw new Error('API rate limited')
+            return res.json()
+          })
           .then(function (release) {
             var assets = release.assets || []
             for (var i = 0; i < assets.length; i++) {
               if (/\.apk$/i.test(assets[i].name)) {
                 downloadBtn.href = assets[i].browser_download_url
+                downloadBtn.textContent = '下载 Goods App'
+                downloadBtn.style.opacity = '1'
+                downloadBtn.style.pointerEvents = 'auto'
                 downloadHint.textContent = '支持 Android 8.0 及以上系统 · ' + assets[i].name
                 return
               }
             }
-            // Fallback: no APK found, link to releases page
+            // No APK in assets — link to releases page
             downloadBtn.href = release.html_url || 'https://github.com/laurenszero/goods_app/releases'
+            downloadBtn.textContent = '查看下载页面'
+            downloadBtn.style.opacity = '1'
+            downloadBtn.style.pointerEvents = 'auto'
             downloadHint.textContent = '支持 Android 8.0 及以上系统'
           })
           .catch(function () {
-            // Fallback on network error
+            // API failed — use direct-download-friendly URL as best-effort
             downloadBtn.href = 'https://github.com/laurenszero/goods_app/releases/latest'
+            downloadBtn.textContent = '下载 Goods App'
+            downloadBtn.style.opacity = '1'
+            downloadBtn.style.pointerEvents = 'auto'
             downloadHint.textContent = '支持 Android 8.0 及以上系统'
           })
       }
 
+      // Pre-fetch APK URL immediately so download button is ready if needed
       fetchLatestApkUrl()
 
       // Track if the page was hidden (app successfully opened and took focus)
