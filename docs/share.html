@@ -170,6 +170,46 @@
       user-select: all;
     }
 
+    /* Download section */
+    .download-section {
+      margin-bottom: 16px;
+    }
+
+    .download-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0 14px;
+    }
+
+    .download-divider::before,
+    .download-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(142,142,147,0.24);
+    }
+
+    .download-divider span {
+      font-size: 12px;
+      color: #8e8e93;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .btn-download {
+      background: linear-gradient(135deg, #3F86F7, #5BA0FF) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 16px rgba(63,134,247,0.32);
+    }
+
+    .download-hint {
+      font-size: 12px;
+      color: #8e8e93;
+      margin-top: 8px;
+      text-align: center;
+    }
+
     @media (prefers-color-scheme: dark) {
       body { background: #141416; }
       .card { background: #1c1c1e; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
@@ -181,6 +221,8 @@
       .browser-warn { background: rgba(255,193,7,0.12); border-color: rgba(255,193,7,0.3); }
       .browser-warn__title { color: #ffc107; }
       .browser-warn__desc { color: #e0a800; }
+      .download-divider::before,
+      .download-divider::after { background: rgba(255,255,255,0.12); }
     }
   </style>
 </head>
@@ -211,6 +253,19 @@
       打开 Goods App
     </a>
     <p class="status" id="msg"></p>
+    <div class="download-section" id="download-section" style="display:none">
+      <div class="download-divider"><span>未安装 App？</span></div>
+      <a id="download-btn" class="btn btn-download" href="#" target="_blank" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        下载 Goods App
+      </a>
+      <p class="download-hint" id="download-hint"></p>
+    </div>
     <p class="footer-text">
       如果无法打开，请复制分享码手动导入：<br />
       <code id="share-code"></code>
@@ -248,6 +303,29 @@
       document.getElementById('open-btn').href = deepLink
 
       var msgEl = document.getElementById('msg')
+      var downloadSection = document.getElementById('download-section')
+      var downloadBtn = document.getElementById('download-btn')
+      var downloadHint = document.getElementById('download-hint')
+
+      // Platform detection
+      var ua = (navigator.userAgent || '').toLowerCase()
+      var isAndroid = /android/i.test(ua)
+      var isIOS = /iphone|ipad|ipod/i.test(ua)
+
+      // Download URL — Android APK from GitHub Releases
+      var DOWNLOAD_URL = 'https://github.com/laurenszero/goods_app/releases/latest'
+      if (isAndroid) {
+        downloadHint.textContent = '支持 Android 8.0 及以上系统'
+      } else if (isIOS) {
+        downloadHint.textContent = 'iOS 版本即将推出，敬请期待'
+        downloadBtn.textContent = 'iOS 版本开发中'
+        downloadBtn.style.opacity = '0.6'
+        downloadBtn.style.pointerEvents = 'none'
+      } else {
+        downloadHint.textContent = '请在手机端打开并下载安装'
+      }
+
+      downloadBtn.href = DOWNLOAD_URL
 
       // Helper: check if app opened successfully
       var hiddenAt = 0
@@ -276,8 +354,9 @@
             msgEl.textContent = '已跳转到 App'
             msgEl.className = 'status success'
           } else {
-            msgEl.textContent = '未检测到 App，请手动打开或复制分享码'
+            msgEl.textContent = '未检测到 App，请下载安装后重新扫码'
             msgEl.className = 'status error'
+            downloadSection.style.display = 'block'
           }
         }, 2500)
       }

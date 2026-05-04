@@ -198,13 +198,15 @@
               <video
                 ref="scannerVideoRef"
                 class="scanner-video"
+                :class="{ 'is-ready': scannerReady }"
                 autoplay
                 playsinline
                 muted
+                @playing="onScannerVideoReady"
               />
               <canvas ref="scannerCanvasRef" class="scanner-canvas" />
 
-              <div class="scanner-frame">
+              <div v-if="scannerReady" class="scanner-frame">
                 <span class="scanner-corner scanner-corner--tl" />
                 <span class="scanner-corner scanner-corner--tr" />
                 <span class="scanner-corner scanner-corner--bl" />
@@ -338,12 +340,18 @@ function openSettings() {
 const scanning = ref(false)
 const scanError = ref('')
 const showScanner = ref(false)
+const scannerReady = ref(false)
 const scannerVideoRef = ref(null)
 const scannerCanvasRef = ref(null)
 const scannerHint = ref('将二维码放入框内，即可自动扫描')
 let scannerStream = null
 let scannerTimer = 0
 let scannerResolved = false
+
+function onScannerVideoReady() {
+  scannerReady.value = true
+  startScannerLoop()
+}
 
 function loadImageFromSrc(src) {
   return new Promise((resolve, reject) => {
@@ -466,6 +474,7 @@ function stopScanner() {
 
 function closeScanner() {
   stopScanner()
+  scannerReady.value = false
   showScanner.value = false
   scanning.value = false
 }
@@ -487,9 +496,9 @@ async function openScanner() {
     scannerStream = stream
     if (scannerVideoRef.value) {
       scannerVideoRef.value.srcObject = stream
+      // video @playing event will call onScannerVideoReady → startScannerLoop
     }
     scannerHint.value = '将二维码放入框内，即可自动扫描'
-    startScannerLoop()
   } catch {
     // Fallback: if getUserMedia fails (e.g. no permission), use native camera
     closeScanner()
@@ -1379,6 +1388,12 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.scanner-video.is-ready {
+  opacity: 1;
 }
 
 .scanner-canvas {

@@ -416,13 +416,33 @@ export async function buildSharePosterDataUrl({ goodsItems, shareUrl, shareCode 
   ctx.fillStyle = glowA
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT)
 
-  const glowB = ctx.createRadialGradient(920, 1380, 80, 920, 1380, 520)
+  const glowB = ctx.createRadialGradient(920, 1240, 80, 920, 1240, 520)
   glowB.addColorStop(0, 'rgba(14, 165, 233, 0.12)')
   glowB.addColorStop(1, 'rgba(14, 165, 233, 0)')
   ctx.fillStyle = glowB
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT)
 
   drawRoundedCard(ctx, 34, 34, POSTER_WIDTH - 68, POSTER_HEIGHT - 68, 44, 'rgba(255, 255, 255, 0.52)', 'rgba(15, 23, 42, 0.08)')
+
+  // App logo — top-right corner
+  let logoImg = null
+  try {
+    logoImg = await loadImage('/favicon.svg')
+  } catch {
+    // logo not available, continue without it
+  }
+
+  if (logoImg) {
+    const logoSize = 76
+    const logoX = POSTER_WIDTH - 84 - logoSize
+    const logoY = 72
+    drawRoundedCard(ctx, logoX - 5, logoY - 5, logoSize + 10, logoSize + 10, 20, 'rgba(255,255,255,0.85)', 'rgba(15, 23, 42, 0.06)')
+    ctx.save()
+    clipRoundedRect(ctx, logoX, logoY, logoSize, logoSize, 17)
+    ctx.clip()
+    ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize)
+    ctx.restore()
+  }
 
   drawTextLine(ctx, '扫码导入到 Goods App', 84, 124, {
     font: '700 42px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
@@ -492,11 +512,11 @@ export async function buildSharePosterDataUrl({ goodsItems, shareUrl, shareCode 
   })
   const qrImage = await loadImage(qrDataUrl)
 
-  drawRoundedCard(ctx, 84, 1260, POSTER_WIDTH - 168, 390, 34, 'rgba(255,255,255,0.82)', 'rgba(15, 23, 42, 0.08)')
+  drawRoundedCard(ctx, 84, 1120, POSTER_WIDTH - 168, 440, 34, 'rgba(255,255,255,0.82)', 'rgba(15, 23, 42, 0.08)')
 
   const titleText = goodsItems.length > 1 ? `${String(firstItem?.name || '未命名谷子')} 等 ${goodsItems.length} 件` : String(firstItem?.name || '未命名谷子')
-  drawMultilineText(ctx, titleText, 126, 1328, 490, 40, {
-    maxLines: 1,
+  drawMultilineText(ctx, titleText, 126, 1188, 520, 40, {
+    maxLines: 2,
     font: '700 38px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
     color: '#0f172a'
   })
@@ -504,29 +524,29 @@ export async function buildSharePosterDataUrl({ goodsItems, shareUrl, shareCode 
     ? buildMultiItemMeta(goodsItems)
     : [firstItem?.ip, firstItem?.category, firstItem?.variant, safePriceText(firstItem)].filter(Boolean).join(' · ')
   if (metaText) {
-    drawMultilineText(ctx, metaText, 126, 1382, 470, 30, {
+    drawMultilineText(ctx, metaText, 126, 1268, 470, 30, {
       maxLines: 2,
       font: '500 24px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
       color: '#64748b'
     })
   }
 
-  drawTextLine(ctx, '扫码导入到 Goods App', 126, 1442, {
+  drawTextLine(ctx, '扫码导入到 Goods App', 126, 1332, {
     font: '700 24px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
     color: '#0f172a'
   })
 
   const qrBoxSize = 286
   const qrBoxX = POSTER_WIDTH - 126 - qrBoxSize
-  const qrBoxY = 1330
+  const qrBoxY = 1230
   drawRoundedCard(ctx, qrBoxX - 18, qrBoxY - 18, qrBoxSize + 36, qrBoxSize + 36, 24, '#ffffff', 'rgba(15, 23, 42, 0.12)')
   ctx.drawImage(qrImage, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize)
 
-  drawTextLine(ctx, '分享码', 126, 1542, {
+  drawTextLine(ctx, '分享码', 126, 1442, {
     font: '600 23px "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif',
     color: '#64748b'
   })
-  drawMultilineText(ctx, shareCode || '-', 126, 1580, 470, 36, {
+  drawMultilineText(ctx, shareCode || '-', 126, 1480, 470, 36, {
     maxLines: 2,
     font: '700 30px "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace',
     color: '#0f172a'
