@@ -128,8 +128,15 @@ async function navigateByShareLink(url) {
 }
 
 async function handleIncomingAppUrl(url) {
-  if (await navigateByStorageNfc(url)) return
-  if (await navigateByShareLink(url)) return
+  if (await navigateByStorageNfc(url)) return true
+  if (await navigateByShareLink(url)) return true
+  return false
+}
+
+function isOneShotNfcSearchRoute(currentRoute) {
+  if (!currentRoute) return false
+  if (String(currentRoute.path || '') !== '/search') return false
+  return String(currentRoute.query?.action || '').toLowerCase() === 'nfc'
 }
 
 async function handleVisibilityChange() {
@@ -151,6 +158,8 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
   
   if (Capacitor.isNativePlatform()) {
+    let handledStartupExternalUrl = false
+
     const nativeNfcListener = (event) => {
       void handleIncomingAppUrl(event?.detail?.url)
     }
@@ -160,7 +169,12 @@ onMounted(async () => {
 
     const launchUrl = await CapApp.getLaunchUrl()
     if (launchUrl && launchUrl.url) {
-      await handleIncomingAppUrl(launchUrl.url)
+      handledStartupExternalUrl = await handleIncomingAppUrl(launchUrl.url)
+    }
+
+    // NFC 跳转是一次性动作：普通冷启动时不应重复停留在带 action=nfc 的搜索页。
+    if (!handledStartupExternalUrl && isOneShotNfcSearchRoute(route)) {
+      await router.replace('/home').catch(() => {})
     }
 
     removeAppUrlOpenListener = await CapApp.addListener('appUrlOpen', (event) => {
