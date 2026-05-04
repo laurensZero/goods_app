@@ -266,21 +266,22 @@ async function savePosterImage() {
     if (Capacitor.isNativePlatform()) {
       const base64 = dataUrlToBase64(dataUrl)
       const filename = buildPosterFilename()
+      const folder = 'Pictures/GoodsApp'
 
-      // Write to external Pictures directory so gallery can find it
+      // ExternalStorage → shared public storage root, visible to gallery
       try {
         await Filesystem.writeFile({
-          path: `Pictures/GoodsApp/${filename}`,
+          path: `${folder}/${filename}`,
           data: base64,
-          directory: Directory.External,
+          directory: Directory.ExternalStorage,
           recursive: true
         })
       } catch {
-        // Fallback: scoped storage prevents direct external write, use cache + getUri
+        // Fallback: Documents app-private but accessible via file manager
         await Filesystem.writeFile({
-          path: `share-poster/${filename}`,
+          path: `GoodsApp/${filename}`,
           data: base64,
-          directory: Directory.Cache,
+          directory: Directory.Documents,
           recursive: true
         })
       }
@@ -491,6 +492,8 @@ watch(() => shareResult.value?.code, (value) => {
   bottom: 0;
   transform: translateX(-50%);
   width: min(100vw, 480px);
+  max-height: 90dvh;
+  overflow-y: auto;
   z-index: 90;
   background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
   border: 1px solid var(--app-glass-border);
@@ -803,6 +806,8 @@ watch(() => shareResult.value?.code, (value) => {
 
 .poster-preview {
   width: 100%;
+  max-height: 50dvh;
+  object-fit: contain;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
   display: block;
@@ -937,8 +942,6 @@ watch(() => shareResult.value?.code, (value) => {
     top: 50%;
     transform: translateX(-50%) translateY(-50%);
     border-radius: 24px;
-    max-height: 90dvh;
-    overflow-y: auto;
   }
 
   .sheet-handle {
