@@ -1,9 +1,9 @@
 {
-  "version": "20260504.14",
-  "url": "bundle-20260504.14.zip",
-  "hash": "5ec2316446fc3afcfc525c78a623378863eb2ade915b94113f1760db8b6a5ae5",
+  "version": "20260504.15",
+  "url": "bundle-20260504.15.zip",
+  "hash": "4940236520b7d7eb53dc6acad86f18667fa05519aa50b21fe77fd400acad7bf9",
   "minNativeVersion": null,
-  "notes": "- feat: 移除实际价格的处理逻辑，优化多项商品价格范围的计算",
+  "notes": "- feat: 优化海报保存逻辑，调整文件存储路径和样式，增强用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T13:52:21Z"
+  "publishedAt": "2026-05-04T14:08:12Z"
 }
