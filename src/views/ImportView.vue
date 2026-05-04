@@ -799,25 +799,6 @@ watch(isWishlistMode, (active) => {
   }
 }, { immediate: true })
 
-watch(
-  () => form.notes,
-  async () => {
-    await nextTick()
-    resizeTextarea(notesTextareaRef.value)
-  },
-  { immediate: true }
-)
-
-watch(
-  [editingBatchIdx, () => batchEditForm.notes],
-  async () => {
-    if (editingBatchIdx.value < 0) return
-    await nextTick()
-    resizeTextarea(batchNotesTextareaRef.value)
-  },
-  { immediate: true }
-)
-
 watch(searchKeyword, (value) => {
   if (value.trim() !== selectedSearchCharacter.value) {
     selectedSearchCharacter.value = ''
@@ -1395,6 +1376,25 @@ watch(() => batchEditForm.price, () => {
     batchEditPriceError.value = ''
   }
 })
+
+watch(
+  () => form.notes,
+  async () => {
+    await nextTick()
+    resizeTextarea(notesTextareaRef.value)
+  },
+  { immediate: true }
+)
+
+watch(
+  [editingBatchIdx, () => batchEditForm.notes],
+  async () => {
+    if (editingBatchIdx.value < 0) return
+    await nextTick()
+    resizeTextarea(batchNotesTextareaRef.value)
+  },
+  { immediate: true }
+)
 
 const preferredSearchCharacterName = computed(() =>
   normalizeSearchHintText(selectedSearchCharacter.value || searchKeyword.value)

@@ -7,12 +7,21 @@
           <h1 class="hero-title">我的</h1>
         </div>
         <div class="hero-actions">
-          <button type="button" class="toolbar-scan" aria-label="扫码导入" @click="openScanner">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
+          <button type="button" class="toolbar-scan" aria-label="扫码导入" :disabled="scanning" @click="openScanner">
+            <span v-if="scanning" class="toolbar-scan-spinner" />
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="6" height="6" x="3" y="3" rx="1" />
+              <rect width="6" height="6" x="15" y="3" rx="1" />
+              <rect width="6" height="6" x="3" y="15" rx="1" />
+              <path d="M21 15v3a2 2 0 0 1-2 2h-3" />
+              <path d="M21 21v.01" />
+              <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+              <path d="M3 12h.01" />
+              <path d="M12 3h.01" />
+              <path d="M12 16v.01" />
+              <path d="M16 12h1" />
+              <path d="M21 12v.01" />
+              <path d="M12 21v-1" />
             </svg>
           </button>
           <button type="button" class="toolbar-settings" aria-label="打开设置" @click="openSettings">
@@ -22,6 +31,7 @@
             </svg>
           </button>
         </div>
+        <p v-if="scanError" class="scan-toast" role="alert">{{ scanError }}</p>
       </section>
 
       <section class="account-hero">
@@ -170,6 +180,56 @@
       </section>
     </main>
 
+    <!-- Scanner overlay -->
+    <Teleport to="body">
+      <Transition name="scanner-fade">
+        <div v-if="showScanner" class="scanner-overlay" @click.self="closeScanner">
+          <div class="scanner-dialog" @click.stop>
+            <div class="scanner-dialog__head">
+              <h2 class="scanner-dialog__title">扫描二维码</h2>
+              <button class="scanner-dialog__close" type="button" aria-label="关闭" @click="closeScanner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="scanner-viewport">
+              <video
+                ref="scannerVideoRef"
+                class="scanner-video"
+                autoplay
+                playsinline
+                muted
+              />
+              <canvas ref="scannerCanvasRef" class="scanner-canvas" />
+
+              <div class="scanner-frame">
+                <span class="scanner-corner scanner-corner--tl" />
+                <span class="scanner-corner scanner-corner--tr" />
+                <span class="scanner-corner scanner-corner--bl" />
+                <span class="scanner-corner scanner-corner--br" />
+                <span class="scanner-line" />
+              </div>
+            </div>
+
+            <p class="scanner-hint">{{ scannerHint }}</p>
+
+            <div class="scanner-dialog__foot">
+              <button class="scanner-foot-btn" type="button" @click="handleScannerGallery">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+                <span>从相册选择</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <GithubLoginDialog
       v-model="showLoginDialog"
       @login-success="handleGithubLoginSuccess"
@@ -199,7 +259,10 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
+import jsQR from 'jsqr'
 import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
+import { extractIdsFromInput } from '@/utils/shareGoods'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
@@ -272,8 +335,244 @@ function openSettings() {
   runWithRouteTransition(() => router.push('/manage/settings'), { direction: 'forward' })
 }
 
-function openScanner() {
-  runWithRouteTransition(() => router.push('/share-import'), { direction: 'forward' })
+const scanning = ref(false)
+const scanError = ref('')
+const showScanner = ref(false)
+const scannerVideoRef = ref(null)
+const scannerCanvasRef = ref(null)
+const scannerHint = ref('将二维码放入框内，即可自动扫描')
+let scannerStream = null
+let scannerTimer = 0
+let scannerResolved = false
+
+function loadImageFromSrc(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.decoding = 'async'
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('二维码图片加载失败'))
+    img.src = src
+  })
+}
+
+async function decodeQrFromImageElement(image) {
+  const maxEdge = 1600
+  const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+  const width = Math.max(1, Math.floor(image.width * scale))
+  const height = Math.max(1, Math.floor(image.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return ''
+
+  ctx.drawImage(image, 0, 0, width, height)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const result = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'attemptBoth'
+  })
+
+  return String(result?.data || '').trim()
+}
+
+async function decodeQrFromVideoFrame() {
+  const video = scannerVideoRef.value
+  const canvas = scannerCanvasRef.value
+  if (!video || !canvas || video.readyState < 2) return ''
+
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  if (!vw || !vh) return ''
+
+  // Capture a smaller region around center to improve performance
+  const size = Math.min(vw, vh)
+  const sx = Math.floor((vw - size) / 2)
+  const sy = Math.floor((vh - size) / 2)
+
+  const outSize = 800
+  canvas.width = outSize
+  canvas.height = outSize
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return ''
+
+  ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize)
+  const imageData = ctx.getImageData(0, 0, outSize, outSize)
+  const result = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'attemptBoth'
+  })
+
+  return String(result?.data || '').trim()
+}
+
+async function onScannerQRFound(text) {
+  if (scannerResolved) return
+  scannerResolved = true
+
+  const { gistId, shareId } = extractIdsFromInput(text)
+  stopScanner()
+
+  if (!gistId) {
+    scannerHint.value = '未识别到有效分享码，请重试'
+    setTimeout(() => {
+      scannerResolved = false
+      scannerHint.value = '将二维码放入框内，即可自动扫描'
+      startScannerLoop()
+    }, 1500)
+    return
+  }
+
+  const query = shareId ? { s: shareId } : {}
+  showScanner.value = false
+  scanError.value = ''
+  runWithRouteTransition(
+    () => router.push({ name: 'share-import', params: { gistId }, query }),
+    { direction: 'forward' }
+  )
+}
+
+function startScannerLoop() {
+  stopScannerLoop()
+  scannerTimer = window.setInterval(async () => {
+    if (scannerResolved) return
+    try {
+      const text = await decodeQrFromVideoFrame()
+      if (text) {
+        await onScannerQRFound(text)
+      }
+    } catch {
+      // skip frame errors
+    }
+  }, 200)
+}
+
+function stopScannerLoop() {
+  if (scannerTimer) {
+    clearInterval(scannerTimer)
+    scannerTimer = 0
+  }
+}
+
+function stopScanner() {
+  stopScannerLoop()
+  if (scannerStream) {
+    scannerStream.getTracks().forEach((track) => track.stop())
+    scannerStream = null
+  }
+}
+
+function closeScanner() {
+  stopScanner()
+  showScanner.value = false
+  scanning.value = false
+}
+
+async function openScanner() {
+  scanning.value = true
+  scanError.value = ''
+  scannerResolved = false
+  showScanner.value = true
+
+  // Wait for DOM to render the video element
+  await new Promise((resolve) => setTimeout(resolve, 100))
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false
+    })
+    scannerStream = stream
+    if (scannerVideoRef.value) {
+      scannerVideoRef.value.srcObject = stream
+    }
+    scannerHint.value = '将二维码放入框内，即可自动扫描'
+    startScannerLoop()
+  } catch {
+    // Fallback: if getUserMedia fails (e.g. no permission), use native camera
+    closeScanner()
+    try {
+      const photo = await Camera.getPhoto({
+        source: CameraSource.Prompt,
+        resultType: CameraResultType.Uri,
+        quality: 92,
+        promptLabelHeader: '扫码导入',
+        promptLabelPhoto: '从相册选择',
+        promptLabelPicture: '拍摄二维码'
+      })
+
+      const src = String(photo?.webPath || photo?.path || '').trim()
+      if (!src) { scanning.value = false; return }
+
+      const image = await loadImageFromSrc(src)
+      const text = await decodeQrFromImageElement(image)
+
+      if (!text) {
+        scanError.value = '未识别到二维码，请重试或手动输入分享码'
+        scanning.value = false
+        return
+      }
+
+      const { gistId, shareId } = extractIdsFromInput(text)
+      if (!gistId) {
+        scanError.value = '二维码内容不是有效的分享码'
+        scanning.value = false
+        return
+      }
+
+      const query = shareId ? { s: shareId } : {}
+      scanning.value = false
+      runWithRouteTransition(
+        () => router.push({ name: 'share-import', params: { gistId }, query }),
+        { direction: 'forward' }
+      )
+    } catch (e2) {
+      const message = String(e2?.message || '')
+      if (!message || !/cancel|canceled|cancelled/i.test(message)) {
+        scanError.value = e2?.message || '扫码失败，请稍后重试'
+      }
+      scanning.value = false
+    }
+  }
+}
+
+async function handleScannerGallery() {
+  if (scannerResolved) return
+  stopScannerLoop()
+
+  try {
+    const photo = await Camera.getPhoto({
+      source: CameraSource.Photos,
+      resultType: CameraResultType.Uri,
+      quality: 92,
+      promptLabelHeader: '从相册选择二维码'
+    })
+
+    const src = String(photo?.webPath || photo?.path || '').trim()
+    if (!src) { startScannerLoop(); return }
+
+    const image = await loadImageFromSrc(src)
+    const text = await decodeQrFromImageElement(image)
+
+    if (text) {
+      await onScannerQRFound(text)
+    } else {
+      scannerHint.value = '未识别到二维码，请重试'
+      setTimeout(() => {
+        scannerResolved = false
+        scannerHint.value = '将二维码放入框内，即可自动扫描'
+        startScannerLoop()
+      }, 1500)
+    }
+  } catch (e) {
+    const message = String(e?.message || '')
+    if (!message || !/cancel|canceled|cancelled/i.test(message)) {
+      scanError.value = e?.message || '读取相册失败'
+    }
+    startScannerLoop()
+  }
 }
 
 function openAbout() {
@@ -447,7 +746,7 @@ onBeforeUnmount(() => {
   width: 18px;
   height: 18px;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1003,5 +1302,206 @@ onBeforeUnmount(() => {
     margin: 0 auto;
     border-radius: 24px;
   }
+}
+
+/* ── Scanner overlay (glass dialog) ── */
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--app-overlay);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.scanner-dialog {
+  width: 100%;
+  max-width: 360px;
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
+  border: 1px solid var(--app-glass-border);
+  box-shadow:
+    0 24px 56px color-mix(in srgb, var(--app-text) 16%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--app-text) 5%, transparent);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.scanner-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 0;
+}
+
+.scanner-dialog__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--app-text);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.scanner-dialog__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text-secondary);
+}
+
+.scanner-dialog__close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.scanner-viewport {
+  position: relative;
+  margin: 16px 20px;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0f0f10;
+}
+
+.scanner-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scanner-frame {
+  position: absolute;
+  inset: 8px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-color: rgba(255, 255, 255, 0.86);
+  border-style: solid;
+}
+
+.scanner-corner--tl { top: 0; left: 0; border-width: 2.5px 0 0 2.5px; border-radius: 4px 0 0 0; }
+.scanner-corner--tr { top: 0; right: 0; border-width: 2.5px 2.5px 0 0; border-radius: 0 4px 0 0; }
+.scanner-corner--bl { bottom: 0; left: 0; border-width: 0 0 2.5px 2.5px; border-radius: 0 0 0 4px; }
+.scanner-corner--br { bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; border-radius: 0 0 4px 0; }
+
+.scanner-line {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 12px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, #5ba0ff, transparent);
+  animation: scanner-line-sweep 2.6s ease-in-out infinite;
+}
+
+@keyframes scanner-line-sweep {
+  0%   { top: 12px;  opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { top: calc(100% - 16px); opacity: 0; }
+}
+
+.scanner-hint {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  margin: 0 20px 4px;
+}
+
+.scanner-dialog__foot {
+  padding: 12px 20px 20px;
+}
+
+.scanner-foot-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  transition: background 0.16s ease;
+}
+
+.scanner-foot-btn:active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.scanner-foot-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+}
+
+/* scan toast */
+.scan-toast {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #e53e3e;
+  text-align: right;
+}
+
+/* scan spinner */
+.toolbar-scan-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(142, 142, 147, 0.25);
+  border-top-color: var(--app-text);
+  border-radius: 50%;
+  animation: scan-spin 0.7s linear infinite;
+}
+
+@keyframes scan-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* scanner transition */
+.scanner-fade-enter-active,
+.scanner-fade-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.scanner-fade-enter-from,
+.scanner-fade-leave-to {
+  opacity: 0;
+}
+
+:global(html.theme-dark) .scanner-dialog {
+  background: color-mix(in srgb, var(--app-glass-strong) 96%, var(--app-surface));
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 </style>

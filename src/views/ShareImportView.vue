@@ -31,13 +31,46 @@
                 {{ fetching ? '获取中' : '获取' }}
               </button>
             </div>
-            <div class="input-actions">
-              <button class="btn-scan" type="button" :disabled="fetching || scanning" @click="handleScan">
-                {{ scanning ? '扫描中...' : '扫码二维码导入' }}
-              </button>
-            </div>
             <p v-if="fetchError" class="fetch-error">{{ fetchError }}</p>
           </div>
+        </div>
+
+        <div class="qr-divider"><span>或</span></div>
+
+        <div class="qr-scanner-card">
+          <div class="qr-frame">
+            <span class="qr-frame-corner qr-frame-corner--tl" />
+            <span class="qr-frame-corner qr-frame-corner--tr" />
+            <span class="qr-frame-corner qr-frame-corner--bl" />
+            <span class="qr-frame-corner qr-frame-corner--br" />
+            <svg class="qr-frame-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.2" />
+              <rect x="14" y="3" width="7" height="7" rx="1.2" />
+              <rect x="3" y="14" width="7" height="7" rx="1.2" />
+              <rect x="14" y="14" width="7" height="7" rx="1.2" />
+            </svg>
+            <p class="qr-frame-hint">{{ scanning ? '正在识别...' : '将二维码对准框内' }}</p>
+          </div>
+          <div class="qr-actions">
+            <button class="btn-qr btn-qr--camera" type="button" :disabled="fetching || scanning" @click="handleScan('camera')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M23 19a2 2 0 0 1-2 2h-2" /><path d="M15 21h-2" /><path d="M5 21H3a2 2 0 0 1-2-2v-2" />
+                <path d="M1 15v-2" /><path d="M1 9V7a2 2 0 0 1 2-2h2" /><path d="M9 3h2" />
+                <path d="M15 3h2a2 2 0 0 1 2 2v2" /><path d="M21 9v2" />
+                <circle cx="12" cy="12" r="3.5" />
+              </svg>
+              <span>拍照扫描</span>
+            </button>
+            <button class="btn-qr btn-qr--gallery" type="button" :disabled="fetching || scanning" @click="handleScan('gallery')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+              <span>从相册选择</span>
+            </button>
+          </div>
+          <p v-if="scanError" class="fetch-error">{{ scanError }}</p>
         </div>
       </section>
 
