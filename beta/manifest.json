@@ -1,9 +1,9 @@
 {
-  "version": "20260504.2",
-  "url": "bundle-20260504.2.zip",
-  "hash": "dfcced6b76ba9fab38a3f5c8a4f7bdeadb39f0306cbfbd79fc3568eb58532d83",
+  "version": "20260504.3",
+  "url": "bundle-20260504.3.zip",
+  "hash": "1ae972e29ad0d2645bf184d394f6660ae409d210bcb56bde405ee95906f209ca",
   "minNativeVersion": null,
-  "notes": "- feat: 更新处理传入应用 URL 的逻辑，支持一次性 NFC 跳转",
+  "notes": "- feat: 图片形式分享\n  Co-authored-by: Copilot <copilot@github.com>",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T04:38:32Z"
+  "publishedAt": "2026-05-04T10:34:10Z"
 }

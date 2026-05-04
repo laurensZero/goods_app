@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.3",
+    "url": "bundle-20260504.3.zip",
+    "hash": "1ae972e29ad0d2645bf184d394f6660ae409d210bcb56bde405ee95906f209ca",
+    "minNativeVersion": null,
+    "notes": "- feat: 图片形式分享\n  Co-authored-by: Copilot <copilot@github.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T10:34:10Z"
+  },
+  {
     "version": "20260504.2",
     "url": "bundle-20260504.2.zip",
     "hash": "dfcced6b76ba9fab38a3f5c8a4f7bdeadb39f0306cbfbd79fc3568eb58532d83",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化高级筛选组件样式，增强布局和间距",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T03:57:31Z"
-  },
-  {
-    "version": "20260503.6",
-    "url": "bundle-20260503.6.zip",
-    "hash": "b477dd1a5720834f6d99380130c6b1da01371fdaa2b37998d332c97f8da0797b",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 NFC 写入功能的 Android 应用记录，提升应用启动可靠性\n  Co-authored-by: Copilot <copilot@github.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-03T15:36:26Z"
   }
 ]
