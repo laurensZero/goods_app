@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.12",
+    "url": "bundle-20260504.12.zip",
+    "hash": "da9ae5fd3b79a6981076d853b2a191bf7a1372bf9de70baa7488cae38723b267",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化分享功能，支持多项分享时加载完整商品信息",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T13:26:02Z"
+  },
+  {
     "version": "20260504.11",
     "url": "bundle-20260504.11.zip",
     "hash": "eb53c0b6e29b8a1ce1c69ebbf5565011e296330147ba0ab83fee9a97f043b1a9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化下载按钮状态和提示信息，增强用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T12:53:19Z"
-  },
-  {
-    "version": "20260504.9",
-    "url": "bundle-20260504.9.zip",
-    "hash": "a2e0068067fc3af26c90d5113c0a99822b9f8afd25b185ee311eea394379b8c5",
-    "minNativeVersion": null,
-    "notes": "- feat: 动态获取最新 Android APK 下载链接，优化下载提示信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T12:46:53Z"
   }
 ]

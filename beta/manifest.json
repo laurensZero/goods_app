@@ -1,9 +1,9 @@
 {
-  "version": "20260504.11",
-  "url": "bundle-20260504.11.zip",
-  "hash": "eb53c0b6e29b8a1ce1c69ebbf5565011e296330147ba0ab83fee9a97f043b1a9",
+  "version": "20260504.12",
+  "url": "bundle-20260504.12.zip",
+  "hash": "da9ae5fd3b79a6981076d853b2a191bf7a1372bf9de70baa7488cae38723b267",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 优化分享功能，支持多项分享时加载完整商品信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T12:59:35Z"
+  "publishedAt": "2026-05-04T13:26:02Z"
 }
