@@ -1,9 +1,9 @@
 {
-  "version": "20260504.8",
-  "url": "bundle-20260504.8.zip",
-  "hash": "69317d031f8c38103bd0a9872cdc5b1f30cec46d07a500584ee432f7026261c9",
+  "version": "20260504.9",
+  "url": "bundle-20260504.9.zip",
+  "hash": "a2e0068067fc3af26c90d5113c0a99822b9f8afd25b185ee311eea394379b8c5",
   "minNativeVersion": null,
-  "notes": "- feat: 优化应用打开检测逻辑，增强未检测到应用时的提示信息",
+  "notes": "- feat: 动态获取最新 Android APK 下载链接，优化下载提示信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T12:36:40Z"
+  "publishedAt": "2026-05-04T12:46:53Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.9",
+    "url": "bundle-20260504.9.zip",
+    "hash": "a2e0068067fc3af26c90d5113c0a99822b9f8afd25b185ee311eea394379b8c5",
+    "minNativeVersion": null,
+    "notes": "- feat: 动态获取最新 Android APK 下载链接，优化下载提示信息",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T12:46:53Z"
+  },
+  {
     "version": "20260504.8",
     "url": "bundle-20260504.8.zip",
     "hash": "69317d031f8c38103bd0a9872cdc5b1f30cec46d07a500584ee432f7026261c9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新二维码生成的错误修正级别为'H'，并在二维码中心添加logo",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T12:34:22Z"
-  },
-  {
-    "version": "20260504.6",
-    "url": "bundle-20260504.6.zip",
-    "hash": "4c06f3ff65178a60dd18516fad72dac2f16e2c6f55d7b4f54493e65717fe00bc",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加下载区域和平台检测，优化二维码扫描体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T12:25:32Z"
   }
 ]
