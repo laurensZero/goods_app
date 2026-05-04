@@ -10,6 +10,29 @@
 
         <p class="sheet-title">分享{{ goodsItems.length > 1 ? ` ${goodsItems.length} 件` : '' }}谷子</p>
 
+        <div v-if="shareResult" class="share-mode-switch" role="tablist" aria-label="分享形式切换">
+          <button
+            type="button"
+            class="share-mode-tab"
+            :class="{ active: shareMode === 'link' }"
+            role="tab"
+            :aria-selected="shareMode === 'link'"
+            @click="shareMode = 'link'"
+          >
+            链接分享
+          </button>
+          <button
+            type="button"
+            class="share-mode-tab"
+            :class="{ active: shareMode === 'image' }"
+            role="tab"
+            :aria-selected="shareMode === 'image'"
+            @click="shareMode = 'image'"
+          >
+            图片分享
+          </button>
+        </div>
+
         <!-- Loading -->
         <div v-if="loading" class="sheet-loading">
           <span class="load-spinner" />
@@ -47,7 +70,7 @@
             <p class="preview-name">{{ goodsItems[0]?.name }}{{ goodsItems.length > 1 ? ` 等 ${goodsItems.length} 件` : '' }}</p>
           </div>
 
-          <div class="share-card">
+          <div v-if="shareMode === 'link'" class="share-card">
             <!-- URL (https landing page, clickable in chat apps) -->
             <div class="share-field" v-if="shareResult.url">
               <label class="share-field-label">分享链接（可在聊天中点击打开）</label>
@@ -71,8 +94,31 @@
             </div>
           </div>
 
-          <!-- System share -->
-          <button class="sheet-share-btn" type="button" @click="systemShare">
+          <div v-else class="poster-card">
+            <div class="poster-head">
+              <p class="poster-title">二维码分享图</p>
+              <button class="poster-generate-btn" type="button" :disabled="posterGenerating" @click="regeneratePoster">
+                {{ posterGenerating ? '生成中...' : (posterDataUrl ? '重新生成' : '生成图片') }}
+              </button>
+            </div>
+
+            <div v-if="posterGenerating" class="poster-loading">正在绘制二维码海报...</div>
+            <p v-else-if="posterError" class="poster-error">{{ posterError }}</p>
+
+            <img
+              v-else-if="posterDataUrl"
+              :src="posterDataUrl"
+              class="poster-preview"
+              alt="分享二维码海报"
+              loading="lazy"
+            />
+
+            <button class="sheet-share-btn sheet-share-btn--sub" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
+              {{ posterShared ? '已处理' : '分享图片' }}
+            </button>
+          </div>
+
+          <button v-if="shareMode === 'link'" class="sheet-share-btn" type="button" @click="systemShare">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
               <polyline points="16 6 12 2 8 6" />
@@ -90,12 +136,15 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
+import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
 import { buildSharePayload, buildShareGistFiles, findMatchingShareInGist, generateShareId, toggleShareDisabled } from '@/utils/shareGoods'
 import { buildShareDescription, findOrCreateShareGist, getShareGist, updateGist } from '@/utils/githubGist'
 import { buildShareUrl } from '@/config/share'
 import { useSyncStore } from '@/stores/sync'
+import { buildSharePosterDataUrl } from '@/utils/sharePoster'
 
 const props = defineProps({
   show: {
@@ -105,6 +154,11 @@ const props = defineProps({
   goodsItems: {
     type: Array,
     default: () => []
+  },
+  // optional initial share object: { url, code, gistId, shareId }
+  initialShare: {
+    type: Object,
+    default: null
   }
 })
 
@@ -115,8 +169,13 @@ const syncStore = useSyncStore()
 const loading = ref(false)
 const error = ref('')
 const shareResult = ref(null)
+const shareMode = ref('link')
 const linkCopied = ref(false)
 const codeCopied = ref(false)
+const posterGenerating = ref(false)
+const posterDataUrl = ref('')
+const posterError = ref('')
+const posterShared = ref(false)
 
 function getGoodsCover(item) {
   return getPrimaryGoodsImageUrl(item?.images, item?.coverImage || item?.image || '')
@@ -124,6 +183,103 @@ function getGoodsCover(item) {
 
 function handleClose() {
   emit('close')
+}
+
+function currentShareTarget() {
+  if (!shareResult.value) return ''
+  const { url, gistId, shareId, code } = shareResult.value
+  return url || (gistId ? `goodsapp://share/${gistId}?s=${shareId || ''}` : code)
+}
+
+function buildPosterFilename() {
+  const id = shareResult.value?.shareId || 'share'
+  return `goods_share_${id}_${Date.now()}.png`
+}
+
+function dataUrlToBase64(dataUrl) {
+  const value = String(dataUrl || '')
+  const marker = value.indexOf(',')
+  return marker >= 0 ? value.slice(marker + 1) : ''
+}
+
+async function ensurePoster() {
+  if (!shareResult.value) return ''
+  if (posterDataUrl.value) return posterDataUrl.value
+
+  posterGenerating.value = true
+  posterError.value = ''
+
+  try {
+    const nextDataUrl = await buildSharePosterDataUrl({
+      goodsItems: props.goodsItems,
+      shareUrl: shareResult.value.url,
+      shareCode: shareResult.value.code
+    })
+    posterDataUrl.value = nextDataUrl
+    return nextDataUrl
+  } catch (e) {
+    posterError.value = e?.message || '生成分享图片失败'
+    return ''
+  } finally {
+    posterGenerating.value = false
+  }
+}
+
+async function regeneratePoster() {
+  posterDataUrl.value = ''
+  await ensurePoster()
+}
+
+async function downloadPoster(dataUrl) {
+  if (!dataUrl) return
+  const anchor = document.createElement('a')
+  anchor.href = dataUrl
+  anchor.download = buildPosterFilename()
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+}
+
+async function sharePosterImage() {
+  if (!shareResult.value) return
+
+  const dataUrl = await ensurePoster()
+  if (!dataUrl) return
+
+  const target = currentShareTarget()
+  const text = target
+    ? `来收谷子！扫码图片二维码即可导入\n${target}`
+    : `来收谷子！分享码：${shareResult.value.code}`
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const path = `share-poster/${buildPosterFilename()}`
+      await Filesystem.writeFile({
+        path,
+        data: dataUrlToBase64(dataUrl),
+        directory: Directory.Cache,
+        recursive: true
+      })
+      const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
+      await Share.share({
+        title: '分享谷子二维码',
+        text,
+        dialogTitle: '分享谷子二维码',
+        files: [uri]
+      })
+    } else {
+      await downloadPoster(dataUrl)
+    }
+
+    posterShared.value = true
+    window.setTimeout(() => {
+      posterShared.value = false
+    }, 2000)
+  } catch {
+    if (!Capacitor.isNativePlatform()) {
+      await downloadPoster(dataUrl)
+    }
+  }
 }
 
 async function generateShare() {
@@ -199,9 +355,10 @@ async function copyCode() {
 
 async function systemShare() {
   if (!shareResult.value) return
-  const { url, code } = shareResult.value
-  const text = url
-    ? `来收谷子！点击链接一键导入：${url}\n分享码：${code}`
+  const { code } = shareResult.value
+  const target = currentShareTarget()
+  const text = target
+    ? `来收谷子！点击链接一键导入：${target}\n分享码：${code}`
     : `来收谷子！复制分享码到App导入：${code}`
   try {
     await Share.share({
@@ -212,7 +369,7 @@ async function systemShare() {
   } catch {
     // Share.share failed or user cancelled; fall back to clipboard
     try {
-      await navigator.clipboard.writeText(url || code)
+      await navigator.clipboard.writeText(target || code)
     } catch {
       // clipboard write may also fail
     }
@@ -223,11 +380,31 @@ watch(() => props.show, (val) => {
   if (val) {
     linkCopied.value = false
     codeCopied.value = false
-    generateShare()
+    shareMode.value = 'link'
+    posterDataUrl.value = ''
+    posterError.value = ''
+    posterShared.value = false
+    // if initialShare was provided by caller (e.g. ShareManage), use it
+    if (props.initialShare) {
+      shareResult.value = props.initialShare
+      void ensurePoster()
+    } else {
+      generateShare()
+    }
   } else {
-    shareResult.value = null
+    // clear only transient state; keep shareResult if it is from initialShare
+    if (!props.initialShare) shareResult.value = null
     error.value = ''
+    posterDataUrl.value = ''
+    posterError.value = ''
+    posterShared.value = false
   }
+})
+
+watch(() => shareResult.value?.code, (value) => {
+  if (!value || !props.show) return
+  if (posterDataUrl.value || posterGenerating.value) return
+  void ensurePoster()
 })
 </script>
 
@@ -277,6 +454,32 @@ watch(() => props.show, (val) => {
   color: var(--app-text-tertiary, #8e8e93);
   text-align: center;
   margin: 0 0 14px;
+}
+
+.share-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  margin: 0 0 12px;
+  background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
+  border-radius: 16px;
+}
+
+.share-mode-tab {
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-tertiary, #8e8e93);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.share-mode-tab.active {
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 /* Loading */
@@ -481,6 +684,66 @@ watch(() => props.show, (val) => {
   transform: scale(0.97);
 }
 
+.poster-card {
+  background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.poster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.poster-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+}
+
+.poster-generate-btn {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-surface);
+  background: var(--app-text);
+}
+
+.poster-generate-btn:disabled {
+  opacity: 0.45;
+}
+
+.poster-loading,
+.poster-error {
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+.poster-loading {
+  color: var(--app-text-tertiary, #8e8e93);
+}
+
+.poster-error {
+  color: var(--app-danger, #e53e3e);
+}
+
+.poster-preview {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
+  display: block;
+  margin-bottom: 10px;
+}
+
 /* System share button */
 .sheet-share-btn {
   height: 54px;
@@ -498,6 +761,14 @@ watch(() => props.show, (val) => {
   gap: 8px;
   margin-bottom: 10px;
   transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.sheet-share-btn--sub {
+  height: 46px;
+  font-size: 14px;
+  border-radius: 14px;
+  margin-bottom: 0;
+  background: color-mix(in srgb, var(--app-text) 92%, #ffffff);
 }
 
 .sheet-share-btn:active {
@@ -593,6 +864,7 @@ watch(() => props.show, (val) => {
 
 :global(html.theme-dark) .share-preview,
 :global(html.theme-dark) .share-card,
+:global(html.theme-dark) .poster-card,
 :global(html.theme-dark) .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }

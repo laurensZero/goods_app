@@ -7,6 +7,14 @@
           <h1 class="hero-title">我的</h1>
         </div>
         <div class="hero-actions">
+          <button type="button" class="toolbar-scan" aria-label="扫码导入" @click="openScanner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </button>
           <button type="button" class="toolbar-settings" aria-label="打开设置" @click="openSettings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
@@ -264,6 +272,10 @@ function openSettings() {
   runWithRouteTransition(() => router.push('/manage/settings'), { direction: 'forward' })
 }
 
+function openScanner() {
+  runWithRouteTransition(() => router.push('/share-import'), { direction: 'forward' })
+}
+
 function openAbout() {
   runWithRouteTransition(() => router.push('/manage/about'), { direction: 'forward' })
 }
@@ -413,6 +425,34 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-settings:active {
+  transform: scale(0.96);
+}
+
+.toolbar-scan {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-button-size, 40px);
+  height: var(--icon-button-size, 40px);
+  border: none;
+  border-radius: 50%;
+  background: var(--app-glass);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  transition: transform 0.16s ease, background 0.16s ease;
+  flex-shrink: 0;
+}
+
+.toolbar-scan svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-scan:active {
   transform: scale(0.96);
 }
 

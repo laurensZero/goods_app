@@ -31,6 +31,11 @@
                 {{ fetching ? '获取中' : '获取' }}
               </button>
             </div>
+            <div class="input-actions">
+              <button class="btn-scan" type="button" :disabled="fetching || scanning" @click="handleScan">
+                {{ scanning ? '扫描中...' : '扫码二维码导入' }}
+              </button>
+            </div>
             <p v-if="fetchError" class="fetch-error">{{ fetchError }}</p>
           </div>
         </div>
@@ -105,6 +110,8 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
+import jsQR from 'jsqr'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import { getPublicGist } from '@/utils/githubGist'
@@ -130,6 +137,7 @@ const codeInputRef = ref(null)
 const codeInput = ref('')
 const fetching = ref(false)
 const fetchError = ref('')
+const scanning = ref(false)
 const payload = ref(null)
 const importing = ref(false)
 const importedIndexes = ref(new Set())
@@ -196,6 +204,76 @@ async function handleFetch() {
     return
   }
   await doFetch(id, sid)
+}
+
+function loadImageFromSrc(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.decoding = 'async'
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('二维码图片加载失败'))
+    img.src = src
+  })
+}
+
+async function decodeQrTextFromImage(src) {
+  const image = await loadImageFromSrc(src)
+  const maxEdge = 1600
+  const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+  const width = Math.max(1, Math.floor(image.width * scale))
+  const height = Math.max(1, Math.floor(image.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) throw new Error('当前设备不支持扫码识别')
+
+  ctx.drawImage(image, 0, 0, width, height)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const result = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'attemptBoth'
+  })
+
+  return String(result?.data || '').trim()
+}
+
+async function handleScan() {
+  scanning.value = true
+  fetchError.value = ''
+
+  try {
+    const photo = await Camera.getPhoto({
+      source: CameraSource.Prompt,
+      resultType: CameraResultType.Uri,
+      quality: 92,
+      promptLabelHeader: '扫码导入',
+      promptLabelPhoto: '从相册选择',
+      promptLabelPicture: '拍摄二维码'
+    })
+
+    const src = String(photo?.webPath || photo?.path || '').trim()
+    if (!src) throw new Error('未获取到二维码图片')
+
+    const text = await decodeQrTextFromImage(src)
+    if (!text) {
+      fetchError.value = '未识别到二维码，请重试或手动输入'
+      return
+    }
+
+    codeInput.value = text
+    await handleFetch()
+  } catch (e) {
+    const message = String(e?.message || '')
+    if (message && /cancel|canceled|cancelled/i.test(message)) {
+      return
+    }
+    fetchError.value = e?.message || '扫码失败，请稍后重试'
+  } finally {
+    scanning.value = false
+  }
 }
 
 async function handleImport() {
@@ -379,6 +457,25 @@ onMounted(async () => {
 
 .btn-fetch:disabled {
   opacity: 0.4;
+}
+
+.input-actions {
+  margin-top: 8px;
+}
+
+.btn-scan {
+  width: 100%;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface-soft) 78%, var(--app-surface));
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-scan:disabled {
+  opacity: 0.45;
 }
 
 .fetch-error {
@@ -630,6 +727,10 @@ onMounted(async () => {
 
 :global(html.theme-dark) .code-input {
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
+}
+
+:global(html.theme-dark) .btn-scan {
+  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
 }
 
 :global(html.theme-dark) .btn-fetch,

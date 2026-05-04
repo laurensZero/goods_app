@@ -142,6 +142,8 @@
       </section>
     </main>
 
+    <ShareSheet :show="showShareSheet" :goods-items="shareSheetItems" :initial-share="shareInitial" @close="showShareSheet = false" />
+
     <Teleport to="body">
       <Transition name="sheet-backdrop">
         <div v-if="deleteTarget" class="confirm-backdrop" @click="deleteTarget = null" />
@@ -162,10 +164,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Share } from '@capacitor/share'
 import NavBar from '@/components/common/NavBar.vue'
+import ShareSheet from '@/components/goods/ShareSheet.vue'
 import { getShareGist, deleteGistFiles, updateGist } from '@/utils/githubGist'
 import { getShareAssetFilenames, listSharesFromGist, toggleShareDisabled } from '@/utils/shareGoods'
 import { buildShareUrl } from '@/config/share'
@@ -186,6 +189,9 @@ const gistCopied = ref(false)
 const togglingId = ref('')
 const deletingId = ref('')
 const deleteTarget = ref(null)
+const showShareSheet = ref(false)
+const shareSheetItems = ref([])
+const shareInitial = ref(null)
 
 const stats = computed(() => {
   const total = shares.value.length
@@ -261,32 +267,25 @@ async function copyGistId() {
   }, 2000)
 }
 
-async function shareAgain(share) {
-  const url = buildShareLink(share)
-  const code = shareCode(share)
-  const text = url
-    ? `来收谷子！点击链接一键导入：${url}\n分享码：${code}`
-    : `来收谷子！复制分享码到App导入：${code}`
-
-  try {
-    await Share.share({
-      title: '分享谷子',
-      text,
-      dialogTitle: '分享谷子'
-    })
-    copiedId.value = share.shareId
-    window.setTimeout(() => {
-      if (copiedId.value === share.shareId) copiedId.value = ''
-    }, 2000)
-  } catch {
-    // Share cancelled or failed; fall back to clipboard
-    if (await copyText(url || code)) {
-      copiedId.value = share.shareId
-      window.setTimeout(() => {
-        if (copiedId.value === share.shareId) copiedId.value = ''
-      }, 2000)
-    }
+function shareAgain(share) {
+  // open ShareSheet and prefill with existing share info so user can choose link or image
+  const item = {
+    name: share.firstGoodsName || '未命名',
+    images: share.coverUri ? [{ uri: share.coverUri, isPrimary: true }] : []
   }
+  shareSheetItems.value = [item]
+  const gistId = shareGist.value?.id || ''
+  shareInitial.value = {
+    gistId,
+    shareId: share.shareId,
+    code: `${gistId}-${share.shareId}`,
+    url: buildShareLink(share)
+  }
+  // ensure reactive open occurs after state updates
+  void nextTick().then(() => { showShareSheet.value = true })
+  // mark as copied state to reflect feedback when ShareSheet completes; keep it simple
+  copiedId.value = share.shareId
+  window.setTimeout(() => { if (copiedId.value === share.shareId) copiedId.value = '' }, 2000)
 }
 
 async function toggleShare(share) {
