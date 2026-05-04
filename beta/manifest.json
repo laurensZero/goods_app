@@ -1,9 +1,9 @@
 {
-  "version": "20260504.4",
-  "url": "bundle-20260504.4.zip",
-  "hash": "1c6e6491bbf6b4e823ddb4df8b3f2c032f21f4c06f37d8f48c9b02b1d362493d",
+  "version": "20260504.5",
+  "url": "bundle-20260504.5.zip",
+  "hash": "d6c2b6500d26197170f37596e3e7bad0148c569b0f858ef8f06c9a56ae25d069",
   "minNativeVersion": null,
-  "notes": "- feat: 增强分享功能，规范存储模式和图像 URI 处理，优化多项分享元数据构建",
+  "notes": "- feat: 添加二维码扫描功能，优化扫码导入体验，支持相机和相册选择",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T11:03:57Z"
+  "publishedAt": "2026-05-04T11:25:47Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260504.5",
+    "url": "bundle-20260504.5.zip",
+    "hash": "d6c2b6500d26197170f37596e3e7bad0148c569b0f858ef8f06c9a56ae25d069",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加二维码扫描功能，优化扫码导入体验，支持相机和相册选择",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-04T11:25:47Z"
+  },
+  {
     "version": "20260504.4",
     "url": "bundle-20260504.4.zip",
     "hash": "1c6e6491bbf6b4e823ddb4df8b3f2c032f21f4c06f37d8f48c9b02b1d362493d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 图片形式分享\n  Co-authored-by: Copilot <copilot@github.com>",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T10:34:10Z"
-  },
-  {
-    "version": "20260504.2",
-    "url": "bundle-20260504.2.zip",
-    "hash": "dfcced6b76ba9fab38a3f5c8a4f7bdeadb39f0306cbfbd79fc3568eb58532d83",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新处理传入应用 URL 的逻辑，支持一次性 NFC 跳转",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T04:38:32Z"
   }
 ]
