@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.0.1",
-    "@capacitor-mlkit/barcode-scanning": "^8.0.1",
     "@capacitor/android": "^8.2.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/app-launcher": "^8.0.1",
