@@ -1,9 +1,9 @@
 {
-  "version": "20260504.3",
-  "url": "bundle-20260504.3.zip",
-  "hash": "1ae972e29ad0d2645bf184d394f6660ae409d210bcb56bde405ee95906f209ca",
+  "version": "20260504.4",
+  "url": "bundle-20260504.4.zip",
+  "hash": "1c6e6491bbf6b4e823ddb4df8b3f2c032f21f4c06f37d8f48c9b02b1d362493d",
   "minNativeVersion": null,
-  "notes": "- feat: 图片形式分享\n  Co-authored-by: Copilot <copilot@github.com>",
+  "notes": "- feat: 增强分享功能，规范存储模式和图像 URI 处理，优化多项分享元数据构建",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T10:34:10Z"
+  "publishedAt": "2026-05-04T11:03:57Z"
 }
