@@ -11,6 +11,7 @@
         <p class="sheet-title">分享{{ goodsItems.length > 1 ? ` ${goodsItems.length} 件` : '' }}谷子</p>
 
         <div v-if="shareResult" class="share-mode-switch" role="tablist" aria-label="分享形式切换">
+          <div class="share-mode-indicator" :class="{ right: shareMode === 'image' }" />
           <button
             type="button"
             class="share-mode-tab"
@@ -37,6 +38,12 @@
         <div v-if="loading" class="sheet-loading">
           <span class="load-spinner" />
           <p class="load-text">正在生成分享链接...</p>
+        </div>
+
+        <!-- Not logged in -->
+        <div v-else-if="noToken" class="sheet-error">
+          <p class="error-text">分享需要登录 GitHub 账号，将谷子数据保存到 Gist 后生成链接。</p>
+          <button class="sheet-retry-btn sheet-retry-btn--primary" type="button" @click="goToLogin">前往登录</button>
         </div>
 
         <!-- Error -->
@@ -70,77 +77,81 @@
             <p class="preview-name">{{ goodsItems[0]?.name }}{{ goodsItems.length > 1 ? ` 等 ${goodsItems.length} 件` : '' }}</p>
           </div>
 
-          <div v-if="shareMode === 'link'" class="share-card">
-            <!-- URL (https landing page, clickable in chat apps) -->
-            <div class="share-field" v-if="shareResult.url">
-              <label class="share-field-label">分享链接（可在聊天中点击打开）</label>
-              <div class="share-field-row">
-                <code class="share-field-value">{{ shareResult.url }}</code>
-                <button class="share-copy-btn" type="button" @click="copyLink">
-                  {{ linkCopied ? '已复制' : '复制' }}
-                </button>
+          <Transition name="mode-fade" mode="out-in">
+            <div v-if="shareMode === 'link'" key="link">
+              <div class="share-card">
+                <!-- URL (https landing page, clickable in chat apps) -->
+                <div class="share-field" v-if="shareResult.url">
+                  <label class="share-field-label">分享链接（可在聊天中点击打开）</label>
+                  <div class="share-field-row">
+                    <code class="share-field-value">{{ shareResult.url }}</code>
+                    <button class="share-copy-btn" type="button" @click="copyLink">
+                      {{ linkCopied ? '已复制' : '复制' }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Code (always present) -->
+                <div class="share-field">
+                  <label class="share-field-label">分享码</label>
+                  <div class="share-field-row">
+                    <code class="share-field-value share-code">{{ shareResult.code }}</code>
+                    <button class="share-copy-btn" type="button" @click="copyCode">
+                      {{ codeCopied ? '已复制' : '复制' }}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <!-- Code (always present) -->
-            <div class="share-field">
-              <label class="share-field-label">分享码</label>
-              <div class="share-field-row">
-                <code class="share-field-value share-code">{{ shareResult.code }}</code>
-                <button class="share-copy-btn" type="button" @click="copyCode">
-                  {{ codeCopied ? '已复制' : '复制' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="poster-card">
-            <div class="poster-head">
-              <p class="poster-title">二维码分享图</p>
-              <button class="poster-generate-btn" type="button" :disabled="posterGenerating" @click="regeneratePoster">
-                {{ posterGenerating ? '生成中...' : (posterDataUrl ? '重新生成' : '生成图片') }}
-              </button>
-            </div>
-
-            <div v-if="posterGenerating" class="poster-loading">正在绘制二维码海报...</div>
-            <p v-else-if="posterError" class="poster-error">{{ posterError }}</p>
-
-            <img
-              v-else-if="posterDataUrl"
-              :src="posterDataUrl"
-              class="poster-preview"
-              alt="分享二维码海报"
-              loading="lazy"
-            />
-
-            <div class="poster-actions">
-              <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="savePosterImage">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                {{ posterSaved ? '已保存' : '保存图片' }}
-              </button>
-              <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <button class="sheet-share-btn" type="button" @click="systemShare">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
                   <polyline points="16 6 12 2 8 6" />
                   <line x1="12" y1="2" x2="12" y2="15" />
                 </svg>
-                {{ posterShared ? '已分享' : '分享图片' }}
+                分享到其他应用
               </button>
             </div>
-          </div>
 
-          <button v-if="shareMode === 'link'" class="sheet-share-btn" type="button" @click="systemShare">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
-            分享到其他应用
-          </button>
+            <div v-else key="image" class="poster-card">
+              <div class="poster-head">
+                <p class="poster-title">二维码分享图</p>
+                <button class="poster-generate-btn" type="button" :disabled="posterGenerating" @click="regeneratePoster">
+                  {{ posterGenerating ? '生成中...' : (posterDataUrl ? '重新生成' : '生成图片') }}
+                </button>
+              </div>
+
+              <div v-if="posterGenerating" class="poster-loading">正在绘制二维码海报...</div>
+              <p v-else-if="posterError" class="poster-error">{{ posterError }}</p>
+
+              <img
+                v-else-if="posterDataUrl"
+                :src="posterDataUrl"
+                class="poster-preview"
+                alt="分享二维码海报"
+                loading="lazy"
+              />
+
+              <div class="poster-actions">
+                <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="savePosterImage">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  {{ posterSaved ? '已保存' : '保存图片' }}
+                </button>
+                <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  {{ posterShared ? '已分享' : '分享图片' }}
+                </button>
+              </div>
+            </div>
+          </Transition>
         </template>
 
         <button class="sheet-cancel" type="button" @click="handleClose">关闭</button>
@@ -151,6 +162,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
@@ -179,10 +191,12 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+const router = useRouter()
 const syncStore = useSyncStore()
 
 const loading = ref(false)
 const error = ref('')
+const noToken = ref(false)
 const shareResult = ref(null)
 const shareMode = ref('link')
 const linkCopied = ref(false)
@@ -199,6 +213,11 @@ function getGoodsCover(item) {
 
 function handleClose() {
   emit('close')
+}
+
+function goToLogin() {
+  emit('close')
+  router.push('/manage/sync')
 }
 
 function currentShareTarget() {
@@ -351,11 +370,18 @@ async function generateShare() {
 
   loading.value = true
   error.value = ''
+  noToken.value = false
   shareResult.value = null
+
+  if (!syncStore.token) {
+    noToken.value = true
+    loading.value = false
+    return
+  }
 
   try {
     const payload = await buildSharePayload(props.goodsItems)
-    const token = syncStore.token || ''
+    const token = syncStore.token
     const existingGist = token ? await getShareGist(token, buildShareDescription()) : null
     const existingShare = findMatchingShareInGist(existingGist, payload)
 
@@ -447,6 +473,7 @@ watch(() => props.show, (val) => {
     shareMode.value = 'link'
     posterDataUrl.value = ''
     posterError.value = ''
+    noToken.value = false
     posterSaved.value = false
     posterShared.value = false
     // if initialShare was provided by caller (e.g. ShareManage), use it
@@ -460,6 +487,7 @@ watch(() => props.show, (val) => {
     // clear only transient state; keep shareResult if it is from initialShare
     if (!props.initialShare) shareResult.value = null
     error.value = ''
+    noToken.value = false
     posterDataUrl.value = ''
     posterError.value = ''
     posterSaved.value = false
@@ -527,6 +555,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .share-mode-switch {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -535,9 +564,28 @@ watch(() => shareResult.value?.code, (value) => {
   background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
   border-radius: 16px;
+  isolation: isolate;
+}
+
+.share-mode-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(50% - 10px);
+  height: 40px;
+  border-radius: 12px;
+  background: var(--app-text);
+  transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+  z-index: 0;
+}
+
+.share-mode-indicator.right {
+  transform: translateX(calc(100% + 8px));
 }
 
 .share-mode-tab {
+  position: relative;
+  z-index: 1;
   height: 40px;
   border: none;
   border-radius: 12px;
@@ -545,10 +593,11 @@ watch(() => shareResult.value?.code, (value) => {
   color: var(--app-text-tertiary, #8e8e93);
   font-size: 14px;
   font-weight: 600;
+  transition: color 0.2s ease;
 }
 
 .share-mode-tab.active {
-  background: var(--app-text);
+  background: transparent;
   color: var(--app-surface);
 }
 
@@ -936,6 +985,25 @@ watch(() => shareResult.value?.code, (value) => {
 .sheet-slide-leave-to {
   transform: translateX(-50%) translateY(100%);
   opacity: 0.6;
+}
+
+/* Mode switch content transition */
+.mode-fade-enter-active {
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+.mode-fade-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.mode-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.mode-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 /* Tablet */
