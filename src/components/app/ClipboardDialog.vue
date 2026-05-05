@@ -13,33 +13,33 @@
         </div>
 
         <!-- 正在加载 -->
-        <div v-if="shareFetching" class="share-loading">
+        <div v-if="fetching" class="share-loading">
           <span class="share-spinner" />
           <p class="share-loading-text">正在获取分享内容...</p>
         </div>
 
         <!-- 获取失败 -->
-        <div v-else-if="shareError" class="share-error-box">
-          <p class="share-error-desc">{{ shareError }}</p>
+        <div v-else-if="fetchError" class="share-error-box">
+          <p class="share-error-desc">{{ fetchError }}</p>
           <div class="share-error-actions">
             <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">忽略</button>
-            <button class="sheet-btn sheet-btn--retry" type="button" @click="doFetch">重试</button>
+            <button class="sheet-btn sheet-btn--retry" type="button" @click="retryFetch">重试</button>
           </div>
         </div>
 
         <!-- 解析结果预览 & 导入 -->
-        <template v-else-if="sharePayload">
+        <template v-else-if="payload">
           <div class="share-preview-head">
-            <p class="share-preview-count">共 {{ sharePayload.goods?.length || 0 }} 件</p>
-            <p v-if="sharePayload.sharedAt" class="share-preview-date">{{ formatSharedAt(sharePayload.sharedAt) }}</p>
+            <p class="share-preview-count">共 {{ payload.goods?.length || 0 }} 件</p>
+            <p v-if="payload.sharedAt" class="share-preview-date">{{ formatSharedAt(payload.sharedAt) }}</p>
           </div>
 
           <div class="share-goods-list">
             <div
-              v-for="(item, idx) in sharePayload.goods"
+              v-for="(item, idx) in payload.goods"
               :key="idx"
               class="share-goods-card"
-              :class="{ 'share-goods-card--imported': shareImportedIndexes.has(idx) }"
+              :class="{ 'share-goods-card--imported': importedIndexes.has(idx) }"
             >
               <div class="share-goods-thumb">
                 <img
@@ -56,22 +56,47 @@
                   <span v-if="item.ip" class="share-meta-tag share-meta-tag--ip">{{ item.ip }}</span>
                   <span v-if="item.category" class="share-meta-tag">{{ item.category }}</span>
                   <span v-if="item.variant" class="share-meta-tag">{{ item.variant }}</span>
-                  <span v-if="item.price" class="share-meta-tag share-meta-tag--price">¥{{ item.price }}</span>
+                  <span v-if="item.price" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
+                  <span v-if="item.actualPrice" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.actualPrice, item.actualPriceCurrency || item.currency) }}</span>
                   <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
                 </div>
               </div>
-              <span v-if="shareImportedIndexes.has(idx)" class="share-imported-badge">已导入</span>
+              <span v-if="importedIndexes.has(idx)" class="share-imported-badge">已导入</span>
             </div>
+          </div>
+
+          <div class="import-target-switch" role="tablist" aria-label="导入目标">
+            <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
+            <button
+              type="button"
+              class="import-target-tab"
+              :class="{ active: importTarget === 'collection' }"
+              role="tab"
+              :aria-selected="importTarget === 'collection'"
+              @click="importTarget = 'collection'"
+            >
+              导入收藏
+            </button>
+            <button
+              type="button"
+              class="import-target-tab"
+              :class="{ active: importTarget === 'wishlist' }"
+              role="tab"
+              :aria-selected="importTarget === 'wishlist'"
+              @click="importTarget = 'wishlist'"
+            >
+              导入心愿
+            </button>
           </div>
 
           <div class="share-actions-footer">
             <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">取消</button>
-            <button 
-              class="sheet-btn sheet-btn--confirm" 
-              :disabled="shareImporting || shareRemainingCount === 0" 
+            <button
+              class="sheet-btn sheet-btn--confirm"
+              :disabled="importing || remainingCount === 0"
               @click="handleImport"
             >
-              {{ shareImporting ? '导入中...' : `导入全部 (${shareRemainingCount})` }}
+              {{ importing ? '导入中...' : `导入全部 (${remainingCount})` }}
             </button>
           </div>
         </template>
@@ -81,153 +106,47 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { watch } from 'vue'
 import { useClipboardImport } from '@/composables/useClipboardImport'
-import { getPublicGist } from '@/utils/githubGist'
-import { validateSharePayload, extractSharePayloadFromGist } from '@/utils/shareGoods'
-import { useGoodsStore } from '@/stores/goods'
-import { usePresetsStore } from '@/stores/presets'
-import { useSyncStore } from '@/stores/sync'
-import { formatDate } from '@/utils/format'
+import { useShareImport } from '@/composables/share/useShareImport'
+import { formatCurrency } from '@/utils/format'
 
 const { showPrompt, incomingGistId, incomingShareId, dismissImport } = useClipboardImport()
 
-const goodsStore = useGoodsStore()
-const presets = usePresetsStore()
-const syncStore = useSyncStore()
-
-const shareFetching = ref(false)
-const shareError = ref('')
-const sharePayload = ref(null)
-const shareImporting = ref(false)
-const shareImportedIndexes = ref(new Set())
-
-const shareRemainingCount = computed(() => {
-  if (!sharePayload.value) return 0
-  return sharePayload.value.goods.filter((_, i) => !shareImportedIndexes.value.has(i)).length
+const {
+  fetching,
+  fetchError,
+  payload,
+  importing,
+  importedIndexes,
+  importTarget,
+  remainingCount,
+  doFetch,
+  handleImport: doImport,
+  getItemCover,
+  formatSharedAt,
+  resetState
+} = useShareImport({
+  onImportError(itemName, err) {
+    alert(`导入 "${itemName}" 失败: ` + err.message)
+  },
+  onAllImported: dismissImport
 })
+
+function retryFetch() {
+  doFetch(incomingGistId.value, incomingShareId.value)
+}
+
+function handleImport() {
+  doImport()
+}
 
 watch(showPrompt, (newVal) => {
   if (newVal) {
-    // Reset state and fetch
-    shareError.value = ''
-    sharePayload.value = null
-    shareImporting.value = false
-    shareImportedIndexes.value = new Set()
-    
-    if (incomingGistId.value) {
-      doFetch()
-    } else {
-      shareError.value = '无效的分享数据'
-    }
+    resetState()
+    doFetch(incomingGistId.value, incomingShareId.value)
   }
 })
-
-async function doFetch() {
-  shareFetching.value = true
-  shareError.value = ''
-  sharePayload.value = null
-
-  try {
-    const gist = await getPublicGist(incomingGistId.value, syncStore.token || '')
-    if (!gist) {
-      shareError.value = '未找到该分享，请检查分享是否已取消'
-      return
-    }
-
-    const data = extractSharePayloadFromGist(gist, incomingShareId.value)
-    if (!data) {
-      shareError.value = '分享数据无效或已过期'
-      return
-    }
-
-    const validation = validateSharePayload(data)
-    if (!validation.valid) {
-      shareError.value = validation.reason
-      return
-    }
-
-    sharePayload.value = data
-  } catch (e) {
-    shareError.value = e.message || '获取分享数据失败，请检查网络'
-  } finally {
-    shareFetching.value = false
-  }
-}
-
-async function handleImport() {
-  if (!sharePayload.value) return
-
-  shareImporting.value = true
-
-  for (let i = 0; i < sharePayload.value.goods.length; i++) {
-    if (shareImportedIndexes.value.has(i)) continue
-
-    try {
-      const item = sharePayload.value.goods[i]
-
-      if (item.ip && !presets.ips.includes(item.ip)) {
-        presets.addIp(item.ip)
-      }
-      if (item.category && !presets.categories.includes(item.category)) {
-        presets.addCategory(item.category)
-      }
-      if (item.characters?.length) {
-        for (const ch of item.characters) {
-          const exists = presets.characters.some(c =>
-            (typeof c === 'string' ? c : c.name) === ch
-          )
-          if (!exists) {
-            presets.addCharacter(ch, item.ip || '')
-          }
-        }
-      }
-
-      await goodsStore.addGoods({
-        name: item.name,
-        category: item.category || '',
-        ip: item.ip || '',
-        characters: item.characters || [],
-        variant: item.variant || '',
-        price: item.price,
-        actualPrice: item.actualPrice,
-        quantity: item.quantity || 1,
-        source: item.source || '',
-        images: item.images || [],
-        note: item.note || '',
-        purchaseDate: item.purchaseDate || Date.now(),
-        isWishlist: false
-      })
-
-      shareImportedIndexes.value.add(i)
-    } catch (err) {
-      console.error('导入商品失败', err)
-      alert(`导入 "${sharePayload.value.goods[i].name}" 失败: ` + err.message)
-      break
-    }
-  }
-
-  shareImporting.value = false
-
-  if (shareImportedIndexes.value.size === sharePayload.value.goods.length) {
-    dismissImport() // 关闭并在 useClipboardImport 记录 processed hash
-  }
-}
-
-function getItemCover(item) {
-  const images = item.images || []
-  const primary = images.find((img) => img.isPrimary)
-  return primary?.uri || images[0]?.uri || ''
-}
-
-function formatSharedAt(dateStr) {
-  if (!dateStr) return ''
-  try {
-    return formatDate(new Date(dateStr), 'YYYY-MM-DD HH:mm')
-  } catch {
-    return dateStr
-  }
-}
 </script>
 
 <style scoped>
@@ -471,6 +390,54 @@ function formatSharedAt(dateStr) {
   padding: 3px 8px;
   border-radius: 6px;
   background: rgba(40, 200, 128, 0.1);
+}
+
+/* 导入目标切换 */
+.import-target-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  margin: 0 0 12px;
+  background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
+  border-radius: 16px;
+  isolation: isolate;
+  flex-shrink: 0;
+}
+
+.import-target-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(50% - 10px);
+  height: 40px;
+  border-radius: 12px;
+  background: var(--app-text);
+  transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+  z-index: 0;
+}
+
+.import-target-indicator.right {
+  transform: translateX(calc(100% + 8px));
+}
+
+.import-target-tab {
+  position: relative;
+  z-index: 1;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-tertiary, #8e8e93);
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.import-target-tab.active {
+  color: var(--app-surface);
 }
 
 /* 底部按钮 */

@@ -114,6 +114,7 @@
                   <span v-if="item.category" class="meta-tag">{{ item.category }}</span>
                   <span v-if="item.variant" class="meta-tag">{{ item.variant }}</span>
                   <span v-if="item.price" class="meta-tag meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
+                  <span v-if="item.actualPrice" class="meta-tag meta-tag--price">{{ formatCurrency(item.actualPrice, item.actualPriceCurrency || item.currency) }}</span>
                   <span v-if="item.quantity > 1" class="meta-tag">x{{ item.quantity }}</span>
                 </div>
                 <div v-if="item.characters?.length" class="goods-characters">
@@ -133,6 +134,29 @@
     <!-- Import button -->
     <Teleport to="body">
       <div v-if="payload && !fetching && remainingCount > 0" class="float-footer">
+        <div class="import-target-switch" role="tablist" aria-label="导入目标">
+          <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
+          <button
+            type="button"
+            class="import-target-tab"
+            :class="{ active: importTarget === 'collection' }"
+            role="tab"
+            :aria-selected="importTarget === 'collection'"
+            @click="importTarget = 'collection'"
+          >
+            导入收藏
+          </button>
+          <button
+            type="button"
+            class="import-target-tab"
+            :class="{ active: importTarget === 'wishlist' }"
+            role="tab"
+            :aria-selected="importTarget === 'wishlist'"
+            @click="importTarget = 'wishlist'"
+          >
+            导入心愿
+          </button>
+        </div>
         <button class="btn-primary btn-float" :disabled="importing" @click="handleImport">
           {{ importing ? '导入中...' : `导入全部 (${remainingCount})` }}
         </button>
@@ -147,88 +171,41 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
-import { getPublicGist } from '@/utils/githubGist'
-import { validateSharePayload, extractSharePayloadFromGist } from '@/utils/shareGoods'
-import { useGoodsStore } from '@/stores/goods'
-import { usePresetsStore } from '@/stores/presets'
-import { useSyncStore } from '@/stores/sync'
+import { useShareImport } from '@/composables/share/useShareImport'
+import { extractIdsFromInput } from '@/utils/shareGoods'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { formatDate, formatCurrency } from '@/utils/format'
+import { formatCurrency } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
-const goodsStore = useGoodsStore()
-import { extractIdsFromInput } from '@/utils/shareGoods'
 
-const presets = usePresetsStore()
-const syncStore = useSyncStore()
+const {
+  fetching,
+  fetchError,
+  payload,
+  importing,
+  importedIndexes,
+  importTarget,
+  remainingCount,
+  doFetch,
+  handleImport,
+  getItemCover,
+  formatSharedAt
+} = useShareImport({
+  onAllImported() {
+    runWithRouteTransition(() => router.replace('/home'), {
+      direction: 'back',
+      fallbackTransitionKind: 'detail-fade'
+    })
+  }
+})
 
 const gistId = computed(() => String(route.params.gistId || '').trim())
 const shareId = computed(() => String(route.query.s || '').trim())
 
 const codeInputRef = ref(null)
 const codeInput = ref('')
-const fetching = ref(false)
-const fetchError = ref('')
 const scanning = ref(false)
-const payload = ref(null)
-const importing = ref(false)
-const importedIndexes = ref(new Set())
-
-const remainingCount = computed(() => {
-  if (!payload.value) return 0
-  return payload.value.goods.filter((_, i) => !importedIndexes.value.has(i)).length
-})
-
-function getItemCover(item) {
-  const images = item.images || []
-  const primary = images.find((img) => img.isPrimary)
-  return primary?.uri || images[0]?.uri || ''
-}
-
-function formatSharedAt(dateStr) {
-  if (!dateStr) return ''
-  try {
-    return formatDate(new Date(dateStr), 'YYYY-MM-DD HH:mm')
-  } catch {
-    return dateStr
-  }
-}
-
-
-async function doFetch(gistIdValue, shareIdValue = '') {
-  if (!gistIdValue) return
-
-  fetching.value = true
-  fetchError.value = ''
-  payload.value = null
-
-  try {
-    const gist = await getPublicGist(gistIdValue, syncStore.token || '')
-    if (!gist) {
-      fetchError.value = '未找到该分享，请检查分享码是否正确'
-      return
-    }
-
-    const data = extractSharePayloadFromGist(gist, shareIdValue)
-    if (!data) {
-      fetchError.value = '分享数据无效或已过期'
-      return
-    }
-
-    const validation = validateSharePayload(data)
-    if (!validation.valid) {
-      fetchError.value = validation.reason
-      return
-    }
-
-    payload.value = data
-  } catch (e) {
-    fetchError.value = e.message || '获取分享数据失败，请检查网络'
-  } finally {
-    fetching.value = false
-  }
-}
 
 async function handleFetch() {
   const { gistId: id, shareId: sid } = extractIdsFromInput(codeInput.value)
@@ -306,72 +283,6 @@ async function handleScan() {
     fetchError.value = e?.message || '扫码失败，请稍后重试'
   } finally {
     scanning.value = false
-  }
-}
-
-async function handleImport() {
-  if (!payload.value) return
-
-  importing.value = true
-  const remaining = payload.value.goods.filter((_, i) => !importedIndexes.value.has(i))
-
-  for (let i = 0; i < payload.value.goods.length; i++) {
-    if (importedIndexes.value.has(i)) continue
-
-    try {
-      const item = payload.value.goods[i]
-
-      // Auto-add IP and category to presets
-      if (item.ip && !presets.ips.includes(item.ip)) {
-        presets.addIp(item.ip)
-      }
-      if (item.category && !presets.categories.includes(item.category)) {
-        presets.addCategory(item.category)
-      }
-      // Auto-add characters
-      if (item.characters?.length) {
-        for (const ch of item.characters) {
-          const exists = presets.characters.some(c =>
-            (typeof c === 'string' ? c : c.name) === ch
-          )
-          if (!exists) {
-            presets.addCharacter(ch, item.ip || '')
-          }
-        }
-      }
-
-      await goodsStore.addGoods({
-        name: item.name,
-        category: item.category || '',
-        ip: item.ip || '',
-        characters: item.characters || [],
-        variant: item.variant || '',
-        price: item.price,
-        actualPrice: item.actualPrice,
-        currency: item.currency || 'CNY',
-        actualPriceCurrency: item.actualPriceCurrency || 'CNY',
-        acquiredAt: item.acquiredAt,
-        note: item.note || '',
-        quantity: item.quantity || 1,
-        tracks: item.tracks || [],
-        images: item.images || [],
-        isWishlist: item.isWishlist || false
-      })
-
-      importedIndexes.value = new Set([...importedIndexes.value, i])
-    } catch {
-      // skip failed imports
-    }
-  }
-
-  importing.value = false
-
-  if (importedIndexes.value.size === payload.value.goods.length) {
-    // All imported, go back
-    runWithRouteTransition(() => router.replace('/home'), {
-      direction: 'back',
-      fallbackTransitionKind: 'detail-fade'
-    })
   }
 }
 
@@ -687,6 +598,53 @@ onMounted(async () => {
   padding: 4px 10px;
   border-radius: 8px;
   background: rgba(40, 200, 128, 0.1);
+}
+
+/* 导入目标切换 */
+.import-target-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
+  border-radius: 16px;
+  isolation: isolate;
+}
+
+.import-target-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(50% - 10px);
+  height: 40px;
+  border-radius: 12px;
+  background: var(--app-text);
+  transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+  z-index: 0;
+}
+
+.import-target-indicator.right {
+  transform: translateX(calc(100% + 8px));
+}
+
+.import-target-tab {
+  position: relative;
+  z-index: 1;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-tertiary, #8e8e93);
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.import-target-tab.active {
+  color: var(--app-surface);
 }
 
 /* Float footer */

@@ -276,7 +276,7 @@ export async function sanitizeGoodsImagesForShare(images, fallbackImage = '') {
 }
 
 export async function sanitizeGoodsItemForShare(item) {
-  const { image: _legacyImage, coverImage: _coverImage, ...rest } = item || {}
+  const { image: _legacyImage, coverImage: _coverImage, isWishlist: _isWishlist, ...rest } = item || {}
   const images = await sanitizeGoodsImagesForShare(item?.images, item?.coverImage || item?.image)
 
   return {
