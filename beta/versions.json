@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260505.5",
+    "url": "bundle-20260505.5.zip",
+    "hash": "ccac0811e4cf55a2be925aeac305e37af0abb274af7a0838637978995da5761b",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化分享导入逻辑，支持导入目标切换和价格格式化",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-05T09:47:55Z"
+  },
+  {
     "version": "20260505.4",
     "url": "bundle-20260505.4.zip",
     "hash": "935a13c792d4a4678f9b7ca36b3bfbb1f93a76bbb410dc7e020b2f4f3f9680b7",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加分享模式切换动画",
     "updateLevel": "silent",
     "publishedAt": "2026-05-05T07:52:08Z"
-  },
-  {
-    "version": "20260505.2",
-    "url": "bundle-20260505.2.zip",
-    "hash": "355ae0f8e520ea4eab8bf042fca58a44f6a643072a6d5bfc39c77e9d7c09097f",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新分享海报逻辑，支持多种货币格式化和价格范围显示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-05T06:08:12Z"
   }
 ]
