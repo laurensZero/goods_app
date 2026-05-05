@@ -1,9 +1,9 @@
 {
-  "version": "20260505.1",
-  "url": "bundle-20260505.1.zip",
-  "hash": "5ce5f42c7f98cde161481c89cff4880fe695524b31aa423c69a8ea92a8f3ea48",
+  "version": "20260505.2",
+  "url": "bundle-20260505.2.zip",
+  "hash": "355ae0f8e520ea4eab8bf042fca58a44f6a643072a6d5bfc39c77e9d7c09097f",
   "minNativeVersion": null,
-  "notes": "- feat: 优化二维码解码性能，调整视频帧处理逻辑和分辨率设置\n\n- feat: 添加货币支持，优化价格显示和汇率转换逻辑\n  Co-authored-by: Copilot <copilot@github.com>",
+  "notes": "- feat: 更新分享海报逻辑，支持多种货币格式化和价格范围显示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-05T05:12:34Z"
+  "publishedAt": "2026-05-05T06:08:12Z"
 }
