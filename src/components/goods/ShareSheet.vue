@@ -495,6 +495,8 @@ watch(() => shareResult.value?.code, (value) => {
   max-height: 90dvh;
   overflow-y: auto;
   z-index: 90;
+  display: flex;
+  flex-direction: column;
   background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
   border: 1px solid var(--app-glass-border);
   box-shadow:
@@ -896,10 +898,11 @@ watch(() => shareResult.value?.code, (value) => {
 .sheet-cancel {
   height: 54px;
   width: 100%;
-  border: none;
+  margin-top: 12px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
   border-radius: 18px;
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
-  border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
   font-size: 16px;
   font-weight: 600;
   color: var(--app-text, #141416);

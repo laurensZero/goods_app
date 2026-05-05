@@ -1,6 +1,7 @@
 import QRCode from 'qrcode'
 import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
-import { formatPrice } from '@/utils/format'
+import { formatCurrency } from '@/utils/format'
+import { CURRENCY_MAP } from '@/constants/currencies'
 
 const POSTER_WIDTH = 1080
 const POSTER_HEIGHT = 1720
@@ -18,13 +19,14 @@ function clipRoundedRect(ctx, x, y, width, height, radius) {
 
 function safePriceText(item) {
   if (!item) return ''
+  const currency = item.currency || 'CNY'
   if (item.isWishlist) {
-    if (item.price !== undefined && item.price !== null && item.price !== '') return `目标 ${formatPrice(item.price)}`
+    if (item.price !== undefined && item.price !== null && item.price !== '') return `目标 ${formatCurrency(item.price, currency)}`
     return '心愿单'
   }
 
   if (item.price !== undefined && item.price !== null && item.price !== '') {
-    return formatPrice(item.price)
+    return formatCurrency(item.price, currency)
   }
 
   return ''
@@ -63,24 +65,32 @@ function buildMultiItemMeta(goodsItems) {
     }
   }
 
-  // Price range (use listing price only)
-  const prices = goodsItems
+  // Price range (use listing price only, with currency awareness)
+  const priceEntries = goodsItems
     .map((item) => {
       const p = item.price
-      return p ? Number.parseFloat(p) : NaN
+      if (!p) return null
+      const num = Number.parseFloat(p)
+      if (!Number.isFinite(num)) return null
+      return { num, currency: item.currency || 'CNY' }
     })
-    .filter((p) => Number.isFinite(p))
+    .filter(Boolean)
 
-  if (prices.length > 1) {
-    const min = Math.min(...prices)
-    const max = Math.max(...prices)
-    if (min === max) {
-      parts.push(formatPrice(min))
-    } else {
-      parts.push(`${formatPrice(min)}~${formatPrice(max)}`)
+  if (priceEntries.length > 1) {
+    // If all items share the same currency, format with it
+    const currencies = [...new Set(priceEntries.map((e) => e.currency))]
+    if (currencies.length === 1) {
+      const nums = priceEntries.map((e) => e.num)
+      const min = Math.min(...nums)
+      const max = Math.max(...nums)
+      if (min === max) {
+        parts.push(formatCurrency(min, currencies[0]))
+      } else {
+        parts.push(`${formatCurrency(min, currencies[0])}~${formatCurrency(max, currencies[0])}`)
+      }
     }
-  } else if (prices.length === 1) {
-    parts.push(formatPrice(prices[0]))
+  } else if (priceEntries.length === 1) {
+    parts.push(formatCurrency(priceEntries[0].num, priceEntries[0].currency))
   }
 
   return parts.join(' · ')
