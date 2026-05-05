@@ -386,7 +386,10 @@ async function decodeQrFromImageElement(image) {
   return String(result?.data || '').trim()
 }
 
+let scannerBusy = false
+
 async function decodeQrFromVideoFrame() {
+  if (scannerBusy) return ''
   const video = scannerVideoRef.value
   const canvas = scannerCanvasRef.value
   if (!video || !canvas || video.readyState < 2) return ''
@@ -395,25 +398,34 @@ async function decodeQrFromVideoFrame() {
   const vh = video.videoHeight
   if (!vw || !vh) return ''
 
-  // Capture a smaller region around center to improve performance
-  const size = Math.min(vw, vh)
-  const sx = Math.floor((vw - size) / 2)
-  const sy = Math.floor((vh - size) / 2)
+  scannerBusy = true
 
-  const outSize = 800
-  canvas.width = outSize
-  canvas.height = outSize
+  try {
+    // Capture a smaller region around center to improve performance
+    const size = Math.min(vw, vh)
+    const sx = Math.floor((vw - size) / 2)
+    const sy = Math.floor((vh - size) / 2)
 
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  if (!ctx) return ''
+    // Lower resolution = faster decoding, less GC pressure
+    const outSize = 320
+    canvas.width = outSize
+    canvas.height = outSize
 
-  ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize)
-  const imageData = ctx.getImageData(0, 0, outSize, outSize)
-  const result = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: 'attemptBoth'
-  })
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return ''
 
-  return String(result?.data || '').trim()
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize)
+    const imageData = ctx.getImageData(0, 0, outSize, outSize)
+
+    // dontInvert is much faster — QR codes are always dark-on-light in our use case
+    const result = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    })
+
+    return String(result?.data || '').trim()
+  } finally {
+    scannerBusy = false
+  }
 }
 
 async function onScannerQRFound(text) {
@@ -454,7 +466,7 @@ function startScannerLoop() {
     } catch {
       // skip frame errors
     }
-  }, 200)
+  }, 300)
 }
 
 function stopScannerLoop() {
