@@ -1,9 +1,9 @@
 {
-  "version": "20260505.2",
-  "url": "bundle-20260505.2.zip",
-  "hash": "355ae0f8e520ea4eab8bf042fca58a44f6a643072a6d5bfc39c77e9d7c09097f",
+  "version": "20260505.3",
+  "url": "bundle-20260505.3.zip",
+  "hash": "b1807347d93a78a63bed03e1bb8ce72f3dd72106b84473352fd71ecde01e0d12",
   "minNativeVersion": null,
-  "notes": "- feat: 更新分享海报逻辑，支持多种货币格式化和价格范围显示",
+  "notes": "- feat: 添加分享模式切换动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-05T06:08:12Z"
+  "publishedAt": "2026-05-05T07:52:08Z"
 }

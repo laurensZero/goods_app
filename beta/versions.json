@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260505.3",
+    "url": "bundle-20260505.3.zip",
+    "hash": "b1807347d93a78a63bed03e1bb8ce72f3dd72106b84473352fd71ecde01e0d12",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加分享模式切换动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-05T07:52:08Z"
+  },
+  {
     "version": "20260505.2",
     "url": "bundle-20260505.2.zip",
     "hash": "355ae0f8e520ea4eab8bf042fca58a44f6a643072a6d5bfc39c77e9d7c09097f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化二维码解码性能，调整视频帧处理逻辑和分辨率设置\n\n- feat: 添加货币支持，优化价格显示和汇率转换逻辑\n  Co-authored-by: Copilot <copilot@github.com>",
     "updateLevel": "silent",
     "publishedAt": "2026-05-05T05:12:34Z"
-  },
-  {
-    "version": "20260504.17",
-    "url": "bundle-20260504.17.zip",
-    "hash": "6bc729e450cc4a7e262b92b9e5ea9d611e0cbb52b4a0a687e0347ecdd870afdc",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 添加条形码扫描功能，集成 ML Kit 扫描器并优化扫码逻辑\"\n  This reverts commit 6ededffa0ab60e450c0e6c470f42ab9e1961d6f2.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T14:43:12Z"
   }
 ]
