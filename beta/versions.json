@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260505.1",
+    "url": "bundle-20260505.1.zip",
+    "hash": "5ce5f42c7f98cde161481c89cff4880fe695524b31aa423c69a8ea92a8f3ea48",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化二维码解码性能，调整视频帧处理逻辑和分辨率设置\n\n- feat: 添加货币支持，优化价格显示和汇率转换逻辑\n  Co-authored-by: Copilot <copilot@github.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-05T05:12:34Z"
+  },
+  {
     "version": "20260504.17",
     "url": "bundle-20260504.17.zip",
     "hash": "6bc729e450cc4a7e262b92b9e5ea9d611e0cbb52b4a0a687e0347ecdd870afdc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加条形码扫描功能，集成 ML Kit 扫描器并优化扫码逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-04T14:35:53Z"
-  },
-  {
-    "version": "20260504.15",
-    "url": "bundle-20260504.15.zip",
-    "hash": "4940236520b7d7eb53dc6acad86f18667fa05519aa50b21fe77fd400acad7bf9",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化海报保存逻辑，调整文件存储路径和样式，增强用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-04T14:08:12Z"
   }
 ]

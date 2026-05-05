@@ -1,9 +1,9 @@
 {
-  "version": "20260504.17",
-  "url": "bundle-20260504.17.zip",
-  "hash": "6bc729e450cc4a7e262b92b9e5ea9d611e0cbb52b4a0a687e0347ecdd870afdc",
+  "version": "20260505.1",
+  "url": "bundle-20260505.1.zip",
+  "hash": "5ce5f42c7f98cde161481c89cff4880fe695524b31aa423c69a8ea92a8f3ea48",
   "minNativeVersion": null,
-  "notes": "- Revert \"feat: 添加条形码扫描功能，集成 ML Kit 扫描器并优化扫码逻辑\"\n  This reverts commit 6ededffa0ab60e450c0e6c470f42ab9e1961d6f2.",
+  "notes": "- feat: 优化二维码解码性能，调整视频帧处理逻辑和分辨率设置\n\n- feat: 添加货币支持，优化价格显示和汇率转换逻辑\n  Co-authored-by: Copilot <copilot@github.com>",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-04T14:43:12Z"
+  "publishedAt": "2026-05-05T05:12:34Z"
 }
