@@ -39,7 +39,7 @@ function buildTimelineEntries(goodsList) {
   for (const item of goodsList) {
     const dates = getTimelineSourceDates(item)
     const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
-    const priceNumber = Number(item?.priceNumber) || 0
+    const priceNumber = Number(item?.priceCNYNumber) || 0
 
     if (dates.length === 0) {
       entries.push({
@@ -158,9 +158,9 @@ export function useHomeTimeline({
 
       monthGroup.items.push(item)
       monthGroup.count += Number(item.quantity) || 1
-      monthGroup.totalSpend += (Number(item.priceNumber) || 0) * (Number(item.quantity) || 1)
+      monthGroup.totalSpend += (Number(item.priceCNYNumber) || 0) * (Number(item.quantity) || 1)
       yearGroup.yearCount += Number(item.quantity) || 1
-      yearGroup.yearTotal += (Number(item.priceNumber) || 0) * (Number(item.quantity) || 1)
+      yearGroup.yearTotal += (Number(item.priceCNYNumber) || 0) * (Number(item.quantity) || 1)
     }
 
     return yearGroups.map(({ monthMap, ...yearGroup }) => yearGroup)

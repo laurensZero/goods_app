@@ -14,6 +14,7 @@ import { useEventsStore } from './stores/events'
 import { usePresetsStore } from './stores/presets'
 import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
+import { useExchangeRateStore } from './stores/exchangeRate'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 
@@ -121,9 +122,10 @@ async function bootstrap() {
   const presets = usePresetsStore()
   const filterPresets = useFilterPresetsStore()
   const theme = useThemeStore()
+  const exchangeRate = useExchangeRateStore()
   try {
     await theme.init()
-    await Promise.all([store.init(), eventsStore.init(), presets.init(), filterPresets.init()])
+    await Promise.all([store.init(), eventsStore.init(), presets.init(), filterPresets.init(), exchangeRate.init()])
     await presets.syncCharactersFromGoods(store.list)
     await presets.syncStorageLocationsFromPaths(store.storageLocations)
   } catch (e) {

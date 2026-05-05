@@ -36,8 +36,40 @@ export function formatDate(date, pattern = 'YYYY-MM-DD') {
  * formatPrice(99)     // '¥99.00'
  * formatPrice(1888.8) // '¥1888.80'
  */
+import { CURRENCY_MAP, DEFAULT_CURRENCY } from '@/constants/currencies'
+
 export function formatPrice(price) {
   const num = parseFloat(price)
   if (isNaN(num)) return '—'
   return `¥${num.toFixed(2)}`
+}
+
+/**
+ * 格式化带币种符号的价格
+ * @param {number|string} amount
+ * @param {string} currencyCode 如 'CNY', 'USD', 'JPY'
+ * @returns {string} 如 '¥1280.00' / '$19.99' / '¥5800'
+ */
+export function formatCurrency(amount, currencyCode = DEFAULT_CURRENCY) {
+  const num = parseFloat(amount)
+  if (isNaN(num)) return '—'
+  const info = CURRENCY_MAP[currencyCode] || CURRENCY_MAP[DEFAULT_CURRENCY]
+  const formatted = Number.isInteger(num) ? String(num) : num.toFixed(2)
+  return `${info.symbol}${formatted}`
+}
+
+/**
+ * 返回换算为 CNY 的展示文本（非 CNY 币种时）
+ * @param {number|string} amount 原始金额
+ * @param {string} currencyCode 原始币种
+ * @param {Function} convertToCNY 汇率换算函数 (amount, currency) => number
+ * @returns {string} '≈ ¥123.45' 或 ''（CNY 时）
+ */
+export function formatCNYConverted(amount, currencyCode, convertToCNY) {
+  if (!currencyCode || currencyCode === 'CNY') return ''
+  const num = parseFloat(amount)
+  if (isNaN(num) || num <= 0) return ''
+  const cny = convertToCNY(num, currencyCode)
+  if (!cny || cny <= 0) return ''
+  return `≈ ¥${cny.toFixed(2)}`
 }

@@ -30,6 +30,7 @@ export function useGoodsEditorForm(options = {}) {
     name: '',
     category: '',
     ip: '',
+    goodsId: '',
     isWishlist: false,
     characters: [],
     tags: [],
@@ -44,7 +45,9 @@ export function useGoodsEditorForm(options = {}) {
     quantity: 1,
     unitAcquiredAtList: [],
     unitActualPriceList: [],
-    unitCharacterList: []
+    unitCharacterList: [],
+    currency: 'CNY',
+    actualPriceCurrency: 'CNY'
   })
 
   const showPointsInput = ref(false)
@@ -206,6 +209,8 @@ export function useGoodsEditorForm(options = {}) {
         form.storageLocation = item.storageLocation ?? ''
         form.price = item.price ?? ''
         form.actualPrice = item.actualPrice ?? ''
+        form.currency = item.currency || 'CNY'
+        form.actualPriceCurrency = item.actualPriceCurrency || 'CNY'
         form.points = item.points ?? ''
         showPointsInput.value = !!item.points
         showActualPriceInput.value = hasActualPriceValue(item.actualPrice)

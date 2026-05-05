@@ -125,6 +125,18 @@
   font-weight: 600;
 }
 
+.currency-select {
+  width: 135px;
+  flex-shrink: 0;
+}
+
+.currency-select .app-select__trigger {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
 .field-add-btn {
   display: inline-flex;
   align-items: center;

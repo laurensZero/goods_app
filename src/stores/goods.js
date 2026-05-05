@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed, triggerRef } from 'vue'
 import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 import {
   buildGoodsIdentityKey,
@@ -386,12 +387,14 @@ export const useGoodsStore = defineStore('goods', () => {
         .filter(Boolean)
     )].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
   )
-  const viewList = computed(() =>
-    list.value.map((item) => {
+  const viewList = computed(() => {
+    const exchangeRate = useExchangeRateStore()
+    return list.value.map((item) => {
       const quantityNumber = parseQuantity(item.quantity)
       const officialPriceNumber = parseNumericPrice(item.price)
       const actualPriceNumber = parseNumericPrice(item.actualPrice)
       const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
+      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
 
       return {
         ...item,
@@ -403,20 +406,23 @@ export const useGoodsStore = defineStore('goods', () => {
         officialPriceNumber,
         actualPriceNumber,
         effectivePriceNumber,
+        priceCNYNumber,
         quantityNumber,
-        totalValueNumber: effectivePriceNumber * quantityNumber
+        totalValueNumber: priceCNYNumber * quantityNumber
       }
     })
-  )
+  })
   const collectionViewList = computed(() => viewList.value.filter((item) => !item.isWishlist))
   const wishlistViewList = computed(() => viewList.value.filter((item) => item.isWishlist))
-  const trashViewList = computed(() =>
-    [...trashList.value]
+  const trashViewList = computed(() => {
+    const exchangeRate = useExchangeRateStore()
+    return [...trashList.value]
       .map((item) => {
         const quantityNumber = parseQuantity(item.quantity)
         const officialPriceNumber = parseNumericPrice(item.price)
         const actualPriceNumber = parseNumericPrice(item.actualPrice)
         const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
+        const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
 
         return {
           ...item,
@@ -426,12 +432,13 @@ export const useGoodsStore = defineStore('goods', () => {
           officialPriceNumber,
           actualPriceNumber,
           effectivePriceNumber,
+          priceCNYNumber,
           quantityNumber,
-          totalValueNumber: effectivePriceNumber * quantityNumber
+          totalValueNumber: priceCNYNumber * quantityNumber
         }
       })
       .sort((a, b) => b.deletedTime - a.deletedTime || b.acquiredTime - a.acquiredTime)
-  )
+  })
 
   function normalizeGoodsInput(data, fallbackId = '') {
     const variant = getGoodsVariant(data)
@@ -460,6 +467,7 @@ export const useGoodsStore = defineStore('goods', () => {
       name: normalizeGoodsName(data.name),
       category: String(data.category || '').trim(),
       ip: String(data.ip || '').trim(),
+      goodsId: String(data.goodsId || data.goods_id || '').trim(),
       isWishlist: normalizeWishlistFlag(data.isWishlist),
       characters: normalizeCharacterList(data.characters),
       tags: normalizeTagList(data.tags),
@@ -479,7 +487,9 @@ export const useGoodsStore = defineStore('goods', () => {
       tracks: normalizeTracks(data.tracks),
       note: stripVariantFromNote(data.note || data.notes || ''),
       quantity: Math.max(1, Number(data.quantity) || 1),
-      updatedAt: data.updatedAt || 0
+      updatedAt: data.updatedAt || 0,
+      currency: String(data.currency || '').trim() || 'CNY',
+      actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY'
     }
   }
 

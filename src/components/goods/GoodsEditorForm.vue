@@ -270,7 +270,7 @@
 
           <div class="field-card">
             <label class="field" :class="{ 'field--error': priceError }">
-              <span class="field-label">{{ form.isWishlist ? '目标价格（¥）' : '价格（¥）' }}</span>
+              <span class="field-label">{{ form.isWishlist ? '目标价格' : '价格' }}</span>
               <div class="price-row">
                 <input
                   v-model="form.price"
@@ -281,6 +281,7 @@
                   placeholder="0.00"
                   :aria-invalid="Boolean(priceError)"
                 />
+                <AppSelect v-model="form.currency" :options="currencyOptions" placeholder="币种" class="currency-select" />
                 <button
                   v-if="!form.isWishlist"
                   type="button"
@@ -314,18 +315,21 @@
                 </button>
 
                 <div v-if="showActualPriceInput" class="actual-price-panel">
-                  <span class="field-label">入手价（¥）</span>
-                  <input
-                    v-model="form.actualPrice"
-                    :class="{ 'actual-price-input--disabled': disableActualPriceInput }"
-                    :disabled="disableActualPriceInput"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="0.00"
-                    @blur="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
-                    @change="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
-                  />
+                  <span class="field-label">入手价</span>
+                  <div class="price-row">
+                    <input
+                      v-model="form.actualPrice"
+                      :class="{ 'actual-price-input--disabled': disableActualPriceInput }"
+                      :disabled="disableActualPriceInput"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="0.00"
+                      @blur="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
+                      @change="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
+                    />
+                    <AppSelect v-model="form.actualPriceCurrency" :options="currencyOptions" placeholder="币种" class="currency-select" />
+                  </div>
 
                   <template v-if="quantityNumber >= 2">
                     <div class="actual-price-block" :class="{ 'actual-price-block--open': showUnitActualPriceInput }">
@@ -533,6 +537,7 @@ import { runWithRouteTransition } from '@/utils/routeTransition'
 import { prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { useRouter } from 'vue-router'
 import { resizeTextarea } from '@/utils/textarea'
+import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
 
 const props = defineProps({
   mode: {
@@ -588,6 +593,7 @@ const {
   hasUnitActualPriceValue,
   hasUnitCharacterValue,
   disableActualPriceInput,
+  isTabletViewport,
   handleSubmit,
   toggleCharPicker,
   toggleQuickCreate,
@@ -663,6 +669,10 @@ const submitButtonLabel = computed(() => {
   return isEditMode.value ? '保存修改' : '保存谷子'
 })
 const showTrackEditor = computed(() => String(form.category || '').trim() === 'CD/专辑')
+const currencyOptions = computed(() =>
+  CURRENCIES.map((c) => ({ label: `${c.symbol} ${c.name}`, value: c.code }))
+)
+const currencySymbol = computed(() => CURRENCY_MAP[form.currency]?.symbol || '¥')
 
 watch(
   () => form.note,

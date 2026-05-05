@@ -174,6 +174,14 @@
               <span class="detail-row__label">同步状态</span>
               <span class="detail-row__value">{{ syncStore.syncStatus || (syncStore.githubLogin ? '就绪' : '未处理') }}</span>
             </div>
+            <div class="detail-row detail-row--clickable" @click="refreshExchangeRates">
+              <span class="detail-row__label">汇率更新</span>
+              <span class="detail-row__value" :class="{ 'detail-row__value--error': exchangeRateStore.error }">
+                <template v-if="exchangeRateStore.loading">更新中...</template>
+                <template v-else-if="exchangeRateStore.error">{{ exchangeRateStore.error }}</template>
+                <template v-else>{{ exchangeRateLastUpdatedText }}</template>
+              </span>
+            </div>
           </div>
 
         </aside>
@@ -270,6 +278,7 @@ import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
 import {
   fetchGitHubUser,
   getGitHubDeviceFlowScope,
@@ -285,6 +294,7 @@ defineOptions({ name: 'MyView' })
 
 const router = useRouter()
 const syncStore = useSyncStore()
+const exchangeRateStore = useExchangeRateStore()
 const goodsStore = useGoodsStore()
 const eventsStore = useEventsStore()
 const presetsStore = usePresetsStore()
@@ -324,6 +334,16 @@ const syncSummaryText = computed(() => {
   if (syncStore.githubLogin) return '已连接 GitHub，建议完成一次同步以建立远端基线。'
   return '还没有建立同步基线，登录 GitHub 后可在多设备之间同步收藏数据。'
 })
+
+const exchangeRateLastUpdatedText = computed(() => {
+  if (!exchangeRateStore.lastUpdated) return '尚未获取'
+  return `最近更新 ${formatTime(exchangeRateStore.lastUpdated)}`
+})
+
+async function refreshExchangeRates() {
+  if (exchangeRateStore.loading) return
+  await exchangeRateStore.fetchRates()
+}
 
 function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
@@ -1143,6 +1163,24 @@ onBeforeUnmount(() => {
 
 .detail-row:last-child {
   border-bottom: none;
+}
+
+.detail-row--clickable {
+  cursor: pointer;
+  transition: background 0.16s ease;
+  border-radius: 8px;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.detail-row--clickable:active {
+  background: color-mix(in srgb, var(--app-text) 4%, transparent);
+}
+
+.detail-row__value--error {
+  color: #e53e3e;
+  font-size: 12px;
 }
 
 .detail-row__value {

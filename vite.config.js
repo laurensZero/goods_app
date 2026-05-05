@@ -51,6 +51,11 @@ export default defineConfig({
         target: 'https://github.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-oauth/, '')
+      },
+      '/exchange-rate-api': {
+        target: 'https://api.frankfurter.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/exchange-rate-api/, '')
       }
     }
   },

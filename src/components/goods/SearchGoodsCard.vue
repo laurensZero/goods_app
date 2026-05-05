@@ -62,6 +62,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { CURRENCY_MAP } from '@/constants/currencies'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -204,13 +205,14 @@ function hasPriceValue(value) {
 }
 
 const priceText = computed(() => {
+  const sym = CURRENCY_MAP[props.item.currency]?.symbol || '¥'
   if (props.item.isWishlist) {
-    return hasPriceValue(props.item.price) ? `目标 ¥${props.item.price}` : '心愿单'
+    return hasPriceValue(props.item.price) ? `目标 ${sym}${props.item.price}` : '心愿单'
   }
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
-    return `到手 ¥${props.item.actualPrice}`
+    return `到手 ${sym}${props.item.actualPrice}`
   }
-  return hasPriceValue(props.item.price) ? `¥${props.item.price}` : '¥—'
+  return hasPriceValue(props.item.price) ? `${sym}${props.item.price}` : `${sym}—`
 })
 </script>
 

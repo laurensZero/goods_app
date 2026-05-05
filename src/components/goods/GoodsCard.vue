@@ -90,6 +90,7 @@
       <div class="card-bottom-row">
         <span class="card-price">
           {{ priceText }}
+          <span v-if="priceCNYHint" class="card-price-cny">{{ priceCNYHint }}</span>
           <span v-if="showPoints" class="card-price-points">+{{ item.points }}积分</span>
         </span>
         <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">持有 {{ holdingDays }} 天</span>
@@ -101,6 +102,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
+import { CURRENCY_MAP } from '@/constants/currencies'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -289,12 +292,13 @@ const unitActualPriceText = computed(() => {
   const quantity = Math.max(1, Number(props.item.quantity) || 1)
   if (quantity < 2 || props.item.isWishlist) return ''
 
+  const sym = CURRENCY_MAP[props.item.actualPriceCurrency]?.symbol || '¥'
   const list = Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList : []
   const normalized = list
     .map((value) => {
       const numeric = Number.parseFloat(String(value || '').trim())
       if (!Number.isFinite(numeric) || numeric < 0) return ''
-      return `¥${Math.round(numeric * 100) / 100}`
+      return `${sym}${Math.round(numeric * 100) / 100}`
     })
     .filter(Boolean)
 
@@ -306,9 +310,16 @@ function hasPriceValue(value) {
   return value !== '' && value != null
 }
 
+const exchangeRate = useExchangeRateStore()
+const itemCurrencySymbol = computed(() => CURRENCY_MAP[props.item.currency]?.symbol || '¥')
+const actualPriceCurrencySymbol = computed(() => CURRENCY_MAP[props.item.actualPriceCurrency]?.symbol || '¥')
+
 const priceText = computed(() => {
+  const sym = itemCurrencySymbol.value
+  const apSym = actualPriceCurrencySymbol.value
+
   if (props.item.isWishlist) {
-    return hasPriceValue(props.item.price) ? `目标 ¥${props.item.price}` : '心愿单'
+    return hasPriceValue(props.item.price) ? `目标 ${sym}${props.item.price}` : '心愿单'
   }
 
   if (unitActualPriceText.value) {
@@ -316,10 +327,22 @@ const priceText = computed(() => {
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
-    return `到手 ¥${props.item.actualPrice}`
+    return `到手 ${apSym}${props.item.actualPrice}`
   }
 
-  return hasPriceValue(props.item.price) ? `¥${props.item.price}` : '¥—'
+  return hasPriceValue(props.item.price) ? `${sym}${props.item.price}` : `${sym}—`
+})
+
+const priceCNYHint = computed(() => {
+  const useActual = props.item.actualPrice !== '' && props.item.actualPrice != null
+  const rawPrice = useActual ? props.item.actualPrice : props.item.price
+  const currency = useActual ? (props.item.actualPriceCurrency || 'CNY') : (props.item.currency || 'CNY')
+  if (currency === 'CNY') return ''
+  const num = parseFloat(rawPrice)
+  if (isNaN(num) || num <= 0) return ''
+  const cny = exchangeRate.convertToCNY(num, currency)
+  if (!cny || cny <= 0) return ''
+  return `≈ ¥${cny.toFixed(2)}`
 })
 </script>
 
@@ -565,6 +588,12 @@ const priceText = computed(() => {
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;
+}
+
+.card-price-cny {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .card-price-points {

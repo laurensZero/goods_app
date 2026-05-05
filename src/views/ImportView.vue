@@ -1168,6 +1168,7 @@ async function handleBatchImport() {
         name: result.name?.trim() || '',
         category: detectedCat || '',
         ip: result.ip || '',
+        goodsId: result.goodsId || '',
         image: allImgs[0] || '',
         price: result.price != null ? String(result.price) : '',
         notes: '',
@@ -1317,6 +1318,7 @@ async function saveAllBatch() {
         name: item.data.name?.trim() || '',
         category: item.data.category,
         ip: item.data.ip,
+        goodsId: item.data.goodsId || '',
         image: item.data.image,
         price: item.data.price === '' ? null : Number(item.data.price),
         source: '米游铺',
@@ -1357,6 +1359,7 @@ const form = reactive({
   name: '',
   category: '',
   ip: '',
+  goodsId: '',
   image: '',
   price: '',
   source: '米游铺',
@@ -1707,6 +1710,7 @@ async function handleParse() {
     form.name = result.name || ''
     form.image = result.image || ''
     form.price = result.price != null ? result.price : ''
+    form.goodsId = result.goodsId || ''
 
     // 收集所有可用图（去重，去掉 OSS resize 参数）
     const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
@@ -1846,6 +1850,7 @@ async function handleSave() {
       name: form.name.trim(),
       category: form.category,
       ip: form.ip,
+      goodsId: form.goodsId || '',
       variant: selectedVariantName.value,
       image: form.image,
       price: form.price === '' ? null : Number(form.price),

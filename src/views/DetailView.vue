@@ -66,11 +66,11 @@
           <div class="hero-price">
             <span class="price-label">{{ heroPriceLabel }}</span>
             <p class="price-value">
-              <span class="price-currency">¥</span>
+              <span class="price-currency">{{ heroPriceCurrencySymbol }}</span>
               <span class="price-amount">{{ heroPriceAmount }}</span>
               <span v-if="showHeroPointsInline" class="price-points">+{{ item.points }}积分</span>
+              <span v-if="heroPriceCNYHint" class="price-cny-hint">{{ heroPriceCNYHint }}</span>
             </p>
-            <p v-if="heroPriceHint" class="price-hint">{{ heroPriceHint }}</p>
           </div>
 
           <button v-if="item.isWishlist" class="hero-action-btn" type="button" @click="markAsOwned">
@@ -209,6 +209,8 @@ import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { getCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
+import { CURRENCY_MAP } from '@/constants/currencies'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goodsImages'
 import { getGoodsVariant } from '@/utils/goodsIdentity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -229,6 +231,7 @@ const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
+const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 let removeAndroidBackListener = null
@@ -351,18 +354,42 @@ async function copyNoteMarkdown() {
     // 在某些环境下剪贴板可能不可用，静默失败
   }
 }
-const heroPriceHint = computed(() => {
-  if (!item.value || item.value.isWishlist) return ''
+const itemCurrency = computed(() => (item.value?.currency || 'CNY'))
+const itemCurrencySymbol = computed(() => CURRENCY_MAP[itemCurrency.value]?.symbol || '¥')
+const actualPriceCurrencySymbol = computed(() => CURRENCY_MAP[item.value?.actualPriceCurrency]?.symbol || '¥')
+const heroPriceCurrencySymbol = computed(() => itemCurrencySymbol.value)
+const heroPriceCNYHint = computed(() => {
+  const it = item.value
+  if (!it) return ''
   if (unitActualPriceAmountText.value) return ''
-  const parts = []
-  if (hasActualPriceValue(item.value.actualPrice) && hasPriceValue(item.value.price)) {
-    parts.push(`价格 ¥${item.value.price}`)
-  }
-  return parts.join(' ')
+
+  const useActual = !it.isWishlist && it.actualPrice !== '' && it.actualPrice != null
+  const rawPrice = useActual ? it.actualPrice : it.price
+  const currency = useActual ? (it.actualPriceCurrency || 'CNY') : (it.currency || 'CNY')
+  if (currency === 'CNY') return ''
+  const num = parseFloat(rawPrice)
+  if (isNaN(num) || num <= 0) return ''
+  const cny = exchangeRate.convertToCNY(num, currency)
+  if (!cny || cny <= 0) return ''
+  return `≈ ¥${cny.toFixed(2)}`
 })
 const officialPriceText = computed(() => {
   if (!hasPriceValue(item.value?.price)) return '未填写'
-  return item.value.points ? `¥${item.value.price} +${item.value.points}积分` : `¥${item.value.price}`
+  const sym = itemCurrencySymbol.value
+  const cnyHint = officialPriceCNYHint.value
+  const text = item.value.points ? `${sym}${item.value.price} +${item.value.points}积分` : `${sym}${item.value.price}`
+  return cnyHint ? `${text} ${cnyHint}` : text
+})
+const officialPriceCNYHint = computed(() => {
+  const it = item.value
+  if (!it) return ''
+  const currency = it.currency || 'CNY'
+  if (currency === 'CNY') return ''
+  const num = parseFloat(it.price)
+  if (isNaN(num) || num <= 0) return ''
+  const cny = exchangeRate.convertToCNY(num, currency)
+  if (!cny || cny <= 0) return ''
+  return `≈ ¥${cny.toFixed(2)}`
 })
 const showOfficialPriceTile = computed(() => !item.value?.isWishlist && hasPriceValue(item.value?.price))
 const unitActualPriceAmountText = computed(() => {
@@ -383,12 +410,26 @@ const unitActualPriceAmountText = computed(() => {
 })
 const unitActualPriceText = computed(() => {
   if (!unitActualPriceAmountText.value) return ''
-  return unitActualPriceAmountText.value.split(' / ').map((value) => `¥${value}`).join(' / ')
+  const sym = actualPriceCurrencySymbol.value
+  return unitActualPriceAmountText.value.split(' / ').map((value) => `${sym}${value}`).join(' / ')
 })
 const actualPriceDisplayText = computed(() => {
   if (unitActualPriceText.value) return unitActualPriceText.value
-  if (hasActualPriceValue(item.value?.actualPrice)) return `¥${item.value.actualPrice}`
-  return '未填写'
+  const sym = actualPriceCurrencySymbol.value
+  const cnyHint = actualPriceCNYHint.value
+  const text = hasActualPriceValue(item.value?.actualPrice) ? `${sym}${item.value.actualPrice}` : '未填写'
+  return (text !== '未填写' && cnyHint) ? `${text} ${cnyHint}` : text
+})
+const actualPriceCNYHint = computed(() => {
+  const it = item.value
+  if (!it) return ''
+  const currency = it.actualPriceCurrency || 'CNY'
+  if (currency === 'CNY' || unitActualPriceAmountText.value) return ''
+  const num = parseFloat(it.actualPrice)
+  if (isNaN(num) || num <= 0) return ''
+  const cny = exchangeRate.convertToCNY(num, currency)
+  if (!cny || cny <= 0) return ''
+  return `≈ ¥${cny.toFixed(2)}`
 })
 const showActualPriceTile = computed(() => !item.value?.isWishlist && (hasActualPriceValue(item.value?.actualPrice) || !!unitActualPriceText.value))
 const unitAcquiredAtText = computed(() => {
@@ -949,6 +990,13 @@ function getImageKindLabel(kind) {
   margin-bottom: 3px;
 }
 
+.price-cny-hint {
+  margin-left: 8px;
+  color: var(--app-text-tertiary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .price-hint {
   margin: 6px 0 0;
   color: var(--app-text-tertiary);
@@ -1000,6 +1048,14 @@ function getImageKindLabel(kind) {
   font-weight: 600;
   line-height: 1.4;
   word-break: break-word;
+}
+
+.info-cny-hint {
+  display: block;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 2px;
 }
 
 .note-card {
