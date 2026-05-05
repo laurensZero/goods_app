@@ -113,7 +113,7 @@
                   <span v-if="item.ip" class="meta-tag ip-tag">{{ item.ip }}</span>
                   <span v-if="item.category" class="meta-tag">{{ item.category }}</span>
                   <span v-if="item.variant" class="meta-tag">{{ item.variant }}</span>
-                  <span v-if="item.price" class="meta-tag meta-tag--price">¥{{ item.price }}</span>
+                  <span v-if="item.price" class="meta-tag meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
                   <span v-if="item.quantity > 1" class="meta-tag">x{{ item.quantity }}</span>
                 </div>
                 <div v-if="item.characters?.length" class="goods-characters">
@@ -153,7 +153,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatCurrency } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -348,6 +348,8 @@ async function handleImport() {
         variant: item.variant || '',
         price: item.price,
         actualPrice: item.actualPrice,
+        currency: item.currency || 'CNY',
+        actualPriceCurrency: item.actualPriceCurrency || 'CNY',
         acquiredAt: item.acquiredAt,
         note: item.note || '',
         quantity: item.quantity || 1,
