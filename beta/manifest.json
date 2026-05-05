@@ -1,9 +1,9 @@
 {
-  "version": "20260505.3",
-  "url": "bundle-20260505.3.zip",
-  "hash": "b1807347d93a78a63bed03e1bb8ce72f3dd72106b84473352fd71ecde01e0d12",
+  "version": "20260505.4",
+  "url": "bundle-20260505.4.zip",
+  "hash": "935a13c792d4a4678f9b7ca36b3bfbb1f93a76bbb410dc7e020b2f4f3f9680b7",
   "minNativeVersion": null,
-  "notes": "- feat: 添加分享模式切换动画",
+  "notes": "- feat: 优化分享导入价格显示，支持货币格式化和默认货币设置",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-05T07:52:08Z"
+  "publishedAt": "2026-05-05T08:44:23Z"
 }

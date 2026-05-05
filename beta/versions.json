@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260505.4",
+    "url": "bundle-20260505.4.zip",
+    "hash": "935a13c792d4a4678f9b7ca36b3bfbb1f93a76bbb410dc7e020b2f4f3f9680b7",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化分享导入价格显示，支持货币格式化和默认货币设置",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-05T08:44:23Z"
+  },
+  {
     "version": "20260505.3",
     "url": "bundle-20260505.3.zip",
     "hash": "b1807347d93a78a63bed03e1bb8ce72f3dd72106b84473352fd71ecde01e0d12",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新分享海报逻辑，支持多种货币格式化和价格范围显示",
     "updateLevel": "silent",
     "publishedAt": "2026-05-05T06:08:12Z"
-  },
-  {
-    "version": "20260505.1",
-    "url": "bundle-20260505.1.zip",
-    "hash": "5ce5f42c7f98cde161481c89cff4880fe695524b31aa423c69a8ea92a8f3ea48",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化二维码解码性能，调整视频帧处理逻辑和分辨率设置\n\n- feat: 添加货币支持，优化价格显示和汇率转换逻辑\n  Co-authored-by: Copilot <copilot@github.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-05T05:12:34Z"
   }
 ]
