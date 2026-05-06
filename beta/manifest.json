@@ -1,9 +1,9 @@
 {
-  "version": "20260506.4",
-  "url": "bundle-20260506.4.zip",
-  "hash": "1f302468c3da3e00ecfa2a64616c46a19a799fc5bc81cde03bdc11cb7ebe9671",
+  "version": "20260506.5",
+  "url": "bundle-20260506.5.zip",
+  "hash": "946e0f5d8125b187f06974b843e735ad9dc5ee5e9ee90696169e19556067be18",
   "minNativeVersion": null,
-  "notes": "- feat: 调整对话框按钮组的间距，优化垂直和水平间距设置",
+  "notes": "- feat: 修改谷子添加navbar\n\n- feat: 修改活动添加navbar\n\n- feat: 优化活动添加视图，调整指标框布局",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-06T12:38:05Z"
+  "publishedAt": "2026-05-06T13:47:18Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260506.5",
+    "url": "bundle-20260506.5.zip",
+    "hash": "946e0f5d8125b187f06974b843e735ad9dc5ee5e9ee90696169e19556067be18",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改谷子添加navbar\n\n- feat: 修改活动添加navbar\n\n- feat: 优化活动添加视图，调整指标框布局",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-06T13:47:18Z"
+  },
+  {
     "version": "20260506.4",
     "url": "bundle-20260506.4.zip",
     "hash": "1f302468c3da3e00ecfa2a64616c46a19a799fc5bc81cde03bdc11cb7ebe9671",
@@ -16,14 +25,5 @@
     "notes": "- feat: 实现心愿商品列表虚拟化，优化渲染性能和滚动体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-06T10:55:12Z"
-  },
-  {
-    "version": "20260506.2",
-    "url": "bundle-20260506.2.zip",
-    "hash": "55588215276270f9185f39337a9e0e2563bce981dbaf47a9ad6fdaec962a5c90",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加对话框按钮组之间的间距",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-06T10:39:10Z"
   }
 ]
