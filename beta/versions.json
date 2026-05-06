@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260506.3",
+    "url": "bundle-20260506.3.zip",
+    "hash": "8790f4a5be1f4bc2edbeafad906bd58932d6a306a6e491f6c1d7c224062faee5",
+    "minNativeVersion": null,
+    "notes": "- feat: 实现心愿商品列表虚拟化，优化渲染性能和滚动体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-06T10:55:12Z"
+  },
+  {
     "version": "20260506.2",
     "url": "bundle-20260506.2.zip",
     "hash": "55588215276270f9185f39337a9e0e2563bce981dbaf47a9ad6fdaec962a5c90",
@@ -16,14 +25,5 @@
     "notes": "- feat: 支持修改/添加款式",
     "updateLevel": "silent",
     "publishedAt": "2026-05-06T07:25:26Z"
-  },
-  {
-    "version": "20260505.5",
-    "url": "bundle-20260505.5.zip",
-    "hash": "ccac0811e4cf55a2be925aeac305e37af0abb274af7a0838637978995da5761b",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化分享导入逻辑，支持导入目标切换和价格格式化",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-05T09:47:55Z"
   }
 ]
