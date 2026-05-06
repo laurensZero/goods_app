@@ -1,9 +1,9 @@
 {
-  "version": "20260506.3",
-  "url": "bundle-20260506.3.zip",
-  "hash": "8790f4a5be1f4bc2edbeafad906bd58932d6a306a6e491f6c1d7c224062faee5",
+  "version": "20260506.4",
+  "url": "bundle-20260506.4.zip",
+  "hash": "1f302468c3da3e00ecfa2a64616c46a19a799fc5bc81cde03bdc11cb7ebe9671",
   "minNativeVersion": null,
-  "notes": "- feat: 实现心愿商品列表虚拟化，优化渲染性能和滚动体验",
+  "notes": "- feat: 调整对话框按钮组的间距，优化垂直和水平间距设置",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-06T10:55:12Z"
+  "publishedAt": "2026-05-06T12:38:05Z"
 }
