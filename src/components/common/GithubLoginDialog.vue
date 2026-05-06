@@ -470,6 +470,10 @@ onBeforeUnmount(() => {
     padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
   }
 
+  .dialog-actions + .dialog-actions {
+    margin-top: 4px;
+  }
+
   .dialog-actions .dialog-btn {
     flex: 1 1 0;
     min-width: 0;
