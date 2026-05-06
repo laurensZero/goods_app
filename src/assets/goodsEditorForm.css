@@ -17,20 +17,20 @@
   gap: 16px;
 }
 
-.form-tabs,
-.form-tab-nav {
-  position: sticky;
-  top: 0;
-  z-index: 40;
+.form-main {
+  min-width: 0;
 }
 
 .form-tab-nav {
-  width: 100%;
-  padding: 6px var(--page-padding) 12px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--app-bg) 94%, transparent) 0%, color-mix(in srgb, var(--app-bg) 82%, transparent) 72%, rgba(245, 245, 247, 0) 100%);
-  backdrop-filter: blur(20px) saturate(135%);
-  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  margin-bottom: 16px;
+}
+
+/* NavBar 跟随页面滚动 */
+.page.add-page :deep(.nav-bar) {
+  position: relative;
+  top: auto;
+  z-index: 12;
+  margin-bottom: 12px;
 }
 
 :deep(.tab-nav) {
@@ -41,7 +41,7 @@
   min-width: 100%;
   margin-inline: auto;
   padding: 8px;
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(20, 20, 22, 0.06);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.78);
@@ -49,6 +49,12 @@
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   scrollbar-width: none;
+}
+
+:global(html.theme-dark) :deep(.tab-nav) {
+  border-color: rgba(245, 245, 247, 0.08);
+  background: rgba(28, 28, 30, 0.68);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
 }
 
 :deep(.tab-nav::-webkit-scrollbar) {
@@ -81,6 +87,12 @@
   background: linear-gradient(135deg, rgba(20, 20, 22, 0.95), rgba(48, 48, 56, 0.92));
   color: #fff;
   box-shadow: 0 10px 24px rgba(20, 20, 22, 0.18);
+}
+
+:global(html.theme-dark) :deep(.tab-nav__item--active) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(200, 200, 208, 0.76));
+  color: #141416;
+  box-shadow: 0 10px 24px rgba(255, 255, 255, 0.12);
 }
 
 :deep(.tab-nav__label) {
@@ -746,7 +758,7 @@
     top: 16px;
   }
 
-  .form-section {
+  .form-main {
     grid-column: 2;
   }
 

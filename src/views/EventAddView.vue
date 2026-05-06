@@ -1021,7 +1021,7 @@ onBeforeUnmount(() => {
   min-width: 100%;
   margin-inline: auto;
   padding: 8px;
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(20, 20, 22, 0.06);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.78);
@@ -1029,6 +1029,12 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   scrollbar-width: none;
+}
+
+:global(html.theme-dark) :deep(.tab-nav) {
+  border-color: rgba(245, 245, 247, 0.08);
+  background: rgba(28, 28, 30, 0.68);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
 }
 
 :deep(.tab-nav::-webkit-scrollbar) {
@@ -1057,6 +1063,12 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, rgba(20, 20, 22, 0.95), rgba(48, 48, 56, 0.92));
   color: #fff;
   box-shadow: 0 10px 24px rgba(20, 20, 22, 0.18);
+}
+
+:global(html.theme-dark) :deep(.tab-nav__item--active) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(200, 200, 208, 0.76));
+  color: #141416;
+  box-shadow: 0 10px 24px rgba(255, 255, 255, 0.12);
 }
 
 :deep(.tab-nav__badge) {

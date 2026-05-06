@@ -1,8 +1,8 @@
 ﻿<template>
   <div class="page add-page">
-    <NavBar :title="navBarTitle" show-back @back="handleBack" />
-
     <main class="page-body">
+      <NavBar :title="navBarTitle" show-back @back="handleBack" />
+
       <form ref="formRootRef" class="editor-form" @submit.prevent="handleFormSubmit($event)">
         <section class="manage-hero">
           <div class="preview-stage">
@@ -20,11 +20,12 @@
           </article>
         </section>
 
-        <FormTabNav v-model="activeTab" :tabs="tabItems" class="form-tab-nav" />
+        <section class="form-main">
+          <FormTabNav v-model="activeTab" :tabs="tabItems" class="form-tab-nav" />
 
-        <section class="form-section form-section--tabs">
-          <div class="form-tab-content">
-            <section v-show="activeTab === 'basic'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'basic' }">
+          <section class="form-section form-section--tabs">
+            <div class="form-tab-content">
+              <section v-show="activeTab === 'basic'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'basic' }">
               <div class="section-head">
                 <p class="section-label">基础信息</p>
                 <h2 class="section-title">商品资料</h2>
@@ -259,7 +260,7 @@
               </div>
             </section>
 
-            <section v-show="activeTab === 'location'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'location' }">
+              <section v-show="activeTab === 'location'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'location' }">
               <div class="section-head">
                 <p class="section-label">收纳信息</p>
                 <h2 class="section-title">位置</h2>
@@ -278,7 +279,7 @@
               </div>
             </section>
 
-            <section v-show="activeTab === 'images'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'images' }">
+              <section v-show="activeTab === 'images'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'images' }">
               <div class="section-head">
                 <p class="section-label">视觉资料</p>
                 <h2 class="section-title">图片</h2>
@@ -292,7 +293,7 @@
               </div>
             </section>
 
-            <section v-show="activeTab === 'price'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'price' }">
+              <section v-show="activeTab === 'price'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'price' }">
               <div class="section-head">
                 <p class="section-label">{{ form.isWishlist ? '目标信息' : '购入信息' }}</p>
                 <h2 class="section-title">{{ form.isWishlist ? '预算与时间' : '价格与时间' }}</h2>
@@ -475,7 +476,7 @@
               </div>
             </section>
 
-            <section v-show="activeTab === 'notes'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'notes' }">
+              <section v-show="activeTab === 'notes'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'notes' }">
               <div class="section-head">
                 <p class="section-label">附加信息</p>
                 <h2 class="section-title">备注</h2>
@@ -501,7 +502,7 @@
               </div>
             </section>
 
-            <section v-if="showTrackEditor" v-show="activeTab === 'music'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'music' }">
+              <section v-if="showTrackEditor" v-show="activeTab === 'music'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'music' }">
               <div class="section-head">
                 <p class="section-label">音乐信息</p>
                 <h2 class="section-title">专辑曲目</h2>
@@ -516,8 +517,9 @@
                   empty-text="还没有歌曲。可以手动添加，也可以从网易云搜索或导入歌单。"
                 />
               </div>
-            </section>
-          </div>
+              </section>
+            </div>
+          </section>
         </section>
       </form>
     </main>
