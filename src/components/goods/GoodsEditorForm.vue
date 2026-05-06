@@ -65,6 +65,15 @@
               <span v-if="nameError" class="field-error">{{ nameError }}</span>
             </label>
 
+            <label class="field">
+              <span class="field-label">款式</span>
+              <input
+                v-model="form.variant"
+                type="text"
+                placeholder="例如：盲抽 A 款 / 初版"
+              />
+            </label>
+
             <TagSuggestionPanel
               :suggestions="tagSuggestions"
               @apply="applySuggestion"

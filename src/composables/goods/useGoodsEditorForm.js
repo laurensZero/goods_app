@@ -28,6 +28,7 @@ export function useGoodsEditorForm(options = {}) {
 
   const form = reactive({
     name: '',
+    variant: '',
     category: '',
     ip: '',
     goodsId: '',
@@ -201,6 +202,7 @@ export function useGoodsEditorForm(options = {}) {
       if (item) {
         originalIsWishlist.value = Boolean(item.isWishlist)
         form.name = item.name ?? ''
+        form.variant = item.variant ?? ''
         form.category = item.category ?? ''
         form.ip = item.ip ?? ''
         form.isWishlist = Boolean(item.isWishlist)
