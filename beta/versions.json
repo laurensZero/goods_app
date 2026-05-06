@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260506.2",
+    "url": "bundle-20260506.2.zip",
+    "hash": "55588215276270f9185f39337a9e0e2563bce981dbaf47a9ad6fdaec962a5c90",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加对话框按钮组之间的间距",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-06T10:39:10Z"
+  },
+  {
     "version": "20260506.1",
     "url": "bundle-20260506.1.zip",
     "hash": "a0550caabef95c9504dacf6bd2cd26bfc2098409e4b86853df1c8f12a8472616",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化分享导入逻辑，支持导入目标切换和价格格式化",
     "updateLevel": "silent",
     "publishedAt": "2026-05-05T09:47:55Z"
-  },
-  {
-    "version": "20260505.4",
-    "url": "bundle-20260505.4.zip",
-    "hash": "935a13c792d4a4678f9b7ca36b3bfbb1f93a76bbb410dc7e020b2f4f3f9680b7",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化分享导入价格显示，支持货币格式化和默认货币设置",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-05T08:44:23Z"
   }
 ]

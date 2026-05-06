@@ -1,9 +1,9 @@
 {
-  "version": "20260506.1",
-  "url": "bundle-20260506.1.zip",
-  "hash": "a0550caabef95c9504dacf6bd2cd26bfc2098409e4b86853df1c8f12a8472616",
+  "version": "20260506.2",
+  "url": "bundle-20260506.2.zip",
+  "hash": "55588215276270f9185f39337a9e0e2563bce981dbaf47a9ad6fdaec962a5c90",
   "minNativeVersion": null,
-  "notes": "- feat: 支持修改/添加款式",
+  "notes": "- feat: 增加对话框按钮组之间的间距",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-06T07:25:26Z"
+  "publishedAt": "2026-05-06T10:39:10Z"
 }
