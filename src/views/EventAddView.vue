@@ -1016,25 +1016,24 @@ onBeforeUnmount(() => {
 :deep(.tab-nav) {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  width: max-content;
-  min-width: 100%;
-  margin-inline: auto;
+  align-items: center;
+  width: 100%;
   padding: 8px;
-  overflow-x: hidden;
-  border: 1px solid rgba(20, 20, 22, 0.06);
+  border: 1px solid color-mix(in srgb, var(--app-text) 6%, transparent);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 12px 30px rgba(20, 20, 22, 0.08);
+  background: color-mix(in srgb, var(--app-surface) 78%, transparent);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--app-text) 8%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   scrollbar-width: none;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-:global(html.theme-dark) :deep(.tab-nav) {
-  border-color: rgba(245, 245, 247, 0.08);
-  background: rgba(28, 28, 30, 0.68);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+:deep(.tab-nav__scroll) {
+  display: flex;
+  gap: 10px;
+  width: max-content;
 }
 
 :deep(.tab-nav::-webkit-scrollbar) {
@@ -1060,15 +1059,9 @@ onBeforeUnmount(() => {
 }
 
 :deep(.tab-nav__item--active) {
-  background: linear-gradient(135deg, rgba(20, 20, 22, 0.95), rgba(48, 48, 56, 0.92));
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(20, 20, 22, 0.18);
-}
-
-:global(html.theme-dark) :deep(.tab-nav__item--active) {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(200, 200, 208, 0.76));
-  color: #141416;
-  box-shadow: 0 10px 24px rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--app-text) 95%, transparent), color-mix(in srgb, var(--app-text) 18%, #303038));
+  color: var(--app-surface);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--app-text) 18%, transparent);
 }
 
 :deep(.tab-nav__badge) {
@@ -1504,14 +1497,5 @@ onBeforeUnmount(() => {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
 }
 
-:global(html.theme-dark) :deep(.tab-nav) {
-  border-color: rgba(255, 255, 255, 0.06);
-  background: rgba(24, 24, 28, 0.76);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
-}
 
-:global(html.theme-dark) :deep(.tab-nav__item--active) {
-  background: linear-gradient(135deg, rgba(245, 245, 247, 0.94), rgba(222, 222, 230, 0.88));
-  color: #141416;
-}
 </style>
