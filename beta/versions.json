@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260506.1",
+    "url": "bundle-20260506.1.zip",
+    "hash": "a0550caabef95c9504dacf6bd2cd26bfc2098409e4b86853df1c8f12a8472616",
+    "minNativeVersion": null,
+    "notes": "- feat: 支持修改/添加款式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-06T07:25:26Z"
+  },
+  {
     "version": "20260505.5",
     "url": "bundle-20260505.5.zip",
     "hash": "ccac0811e4cf55a2be925aeac305e37af0abb274af7a0838637978995da5761b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化分享导入价格显示，支持货币格式化和默认货币设置",
     "updateLevel": "silent",
     "publishedAt": "2026-05-05T08:44:23Z"
-  },
-  {
-    "version": "20260505.3",
-    "url": "bundle-20260505.3.zip",
-    "hash": "b1807347d93a78a63bed03e1bb8ce72f3dd72106b84473352fd71ecde01e0d12",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加分享模式切换动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-05T07:52:08Z"
   }
 ]
