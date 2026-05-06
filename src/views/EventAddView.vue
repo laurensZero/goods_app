@@ -39,18 +39,14 @@
                       <span class="metric-box__label">关联谷子</span>
                       <strong class="metric-box__value">{{ linkedGoodsList.length }}</strong>
                     </div>
-                    <div class="metric-box">
-                      <span class="metric-box__label">活动照片</span>
-                      <strong class="metric-box__value">{{ form.photos.length }}</strong>
-                    </div>
-                    <div class="metric-box">
-                      <span class="metric-box__label">标签</span>
-                      <strong class="metric-box__value">{{ form.tags.length }}</strong>
-                    </div>
-                    <div v-if="form.type === 'concert'" class="metric-box">
-                      <span class="metric-box__label">曲目</span>
-                      <strong class="metric-box__value">{{ form.tracks.length }}</strong>
-                    </div>
+                  <div class="metric-box">
+                    <span class="metric-box__label">活动照片</span>
+                    <strong class="metric-box__value">{{ form.photos.length }}</strong>
+                  </div>
+                  <div v-if="form.type === 'concert'" class="metric-box">
+                    <span class="metric-box__label">曲目</span>
+                    <strong class="metric-box__value">{{ form.tracks.length }}</strong>
+                  </div>
                   </div>
                 </article>
               </section>
