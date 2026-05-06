@@ -1,9 +1,9 @@
 {
-  "version": "20260506.5",
-  "url": "bundle-20260506.5.zip",
-  "hash": "946e0f5d8125b187f06974b843e735ad9dc5ee5e9ee90696169e19556067be18",
+  "version": "20260506.6",
+  "url": "bundle-20260506.6.zip",
+  "hash": "58cb7d9a4fd7271954dec607ba791d2497061f591eebb01403e2fa3fc509c8f3",
   "minNativeVersion": null,
-  "notes": "- feat: 修改谷子添加navbar\n\n- feat: 修改活动添加navbar\n\n- feat: 优化活动添加视图，调整指标框布局",
+  "notes": "- feat: 优化表单和导航栏样式，调整滚动行为和背景效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-06T13:47:18Z"
+  "publishedAt": "2026-05-06T14:39:44Z"
 }
