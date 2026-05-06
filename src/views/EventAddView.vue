@@ -29,268 +29,274 @@
             </div>
           </aside>
 
-          <section class="form-column">
-            <section class="hero-panel">
-              <article class="hero-panel__card">
-                <p class="hero-panel__label">{{ isEdit ? 'EDIT EVENT' : 'NEW EVENT' }}</p>
-                <h2 class="hero-panel__title">{{ heroTitle }}</h2>
-                <div class="hero-panel__metrics">
-                  <div class="metric-box">
-                    <span class="metric-box__label">关联谷子</span>
-                    <strong class="metric-box__value">{{ linkedGoodsList.length }}</strong>
-                  </div>
-                  <div class="metric-box">
-                    <span class="metric-box__label">活动照片</span>
-                    <strong class="metric-box__value">{{ form.photos.length }}</strong>
-                  </div>
-                  <div class="metric-box">
-                    <span class="metric-box__label">标签</span>
-                    <strong class="metric-box__value">{{ form.tags.length }}</strong>
-                  </div>
-                  <div v-if="form.type === 'concert'" class="metric-box">
-                    <span class="metric-box__label">曲目</span>
-                    <strong class="metric-box__value">{{ form.tracks.length }}</strong>
-                  </div>
-                </div>
-              </article>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <p class="section-label">Basics</p>
-                <h2 class="section-title">基础信息</h2>
-              </div>
-
-              <div class="field-card">
-                <div class="field-grid">
-                  <label class="field field--full field--tablet-half" :class="{ 'field--error': nameError }">
-                    <span class="field-label">活动名称 <span class="required">*</span></span>
-                    <input
-                      v-model="form.name"
-                      ref="nameInputRef"
-                      type="text"
-                      placeholder="比如：CP30 同人展、谷子交换会"
-                      required
-                      :aria-invalid="Boolean(nameError)"
-                      @input="syncField('name', $event)"
-                      @blur="syncField('name', $event)"
-                      @change="syncField('name', $event)"
-                      @compositionend="syncField('name', $event)"
-                      @paste="syncFieldLater('name', $event)"
-                    />
-                    <span v-if="nameError" class="field-error">{{ nameError }}</span>
-                  </label>
-
-                  <div class="field field--half">
-                    <span class="field-label">活动类型</span>
-                    <AppSelect v-model="form.type" :options="typeOptions" placeholder="请选择活动类型" />
-                  </div>
-
-                  <div class="field field--full">
-                    <span class="field-label">自定义标签</span>
-                    <TagInput v-model="form.tags" placeholder="例如：首发、限定、签售" />
-                  </div>
-
-                  <div class="field field--full">
-                    <span class="field-label">活动封面</span>
-                    <button type="button" class="media-picker" @click="pickCoverImage">
-                      <div class="media-picker__preview" :class="{ 'media-picker__preview--empty': !form.coverImage }">
-                        <img v-if="form.coverImage" :src="form.coverImage" alt="活动封面" />
-                        <span v-else>封面</span>
-                      </div>
-                      <div class="media-picker__copy">
-                        <strong>{{ form.coverImage ? '更换封面' : '选择封面' }}</strong>
-                        <span>建议使用海报、门票、现场图或者最能代表这场活动的一张照片。</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <p class="section-label">Schedule</p>
-                <h2 class="section-title">时间和地点</h2>
-              </div>
-
-              <div class="field-card">
-                <div class="field-grid">
-                  <label class="field field--half">
-                    <span class="field-label">开始日期</span>
-                    <button class="date-field" type="button" @click="openDatePicker('start')">
-                      <span :class="{ 'date-field__value--placeholder': !form.startDate }">
-                        {{ form.startDate || '请选择日期' }}
-                      </span>
-                      <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="16" rx="3" />
-                        <path d="M8 3V7" />
-                        <path d="M16 3V7" />
-                        <path d="M3 10H21" />
-                      </svg>
-                    </button>
-                  </label>
-
-                  <label class="field field--half">
-                    <span class="field-label">结束日期</span>
-                    <button class="date-field" type="button" @click="openDatePicker('end')">
-                      <span :class="{ 'date-field__value--placeholder': !form.endDate }">
-                        {{ form.endDate || (form.startDate || '默认与开始日期一致') }}
-                      </span>
-                      <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="16" rx="3" />
-                        <path d="M8 3V7" />
-                        <path d="M16 3V7" />
-                        <path d="M3 10H21" />
-                      </svg>
-                    </button>
-                  </label>
-
-                  <label class="field field--full">
-                    <span class="field-label">活动地点</span>
-                    <input
-                      v-model="form.location"
-                      type="text"
-                      placeholder="比如：上海新国际博览中心"
-                      @input="syncField('location', $event)"
-                      @blur="syncField('location', $event)"
-                      @change="syncField('location', $event)"
-                      @compositionend="syncField('location', $event)"
-                      @paste="syncFieldLater('location', $event)"
-                    />
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section v-if="form.type === 'concert'" class="form-section">
-              <div class="section-head">
-                <p class="section-label">Setlist</p>
-                <h2 class="section-title">演唱会曲目</h2>
-              </div>
-
-              <div class="field-card">
-                <EventTrackEditor v-model="form.tracks" />
-              </div>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <p class="section-label">Ticket & Goods</p>
-                <h2 class="section-title">票务和关联谷子</h2>
-              </div>
-
-              <div class="field-card">
-                <div class="field-grid">
-                  <label class="field field--half">
-                    <span class="field-label">门票价格（元）</span>
-                    <input
-                      v-model="form.ticketPrice"
-                      ref="ticketPriceInputRef"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="0.00"
-                      :aria-invalid="Boolean(ticketPriceError)"
-                    />
-                    <span v-if="ticketPriceError" class="field-error">{{ ticketPriceError }}</span>
-                  </label>
-
-                  <label v-if="form.type === 'exhibition'" class="field field--half">
-                    <span class="field-label">票种</span>
-                    <input
-                      v-model="form.ticketType"
-                      type="text"
-                      placeholder="比如：早鸟票、VIP票、普通票"
-                      @input="syncField('ticketType', $event)"
-                      @blur="syncField('ticketType', $event)"
-                      @change="syncField('ticketType', $event)"
-                      @compositionend="syncField('ticketType', $event)"
-                      @paste="syncFieldLater('ticketType', $event)"
-                    />
-                  </label>
-
-                  <label v-if="form.type === 'concert'" class="field field--half">
-                    <span class="field-label">座位</span>
-                    <input
-                      v-model="form.seatInfo"
-                      type="text"
-                      placeholder="比如：内场A区 12排 8座"
-                      @input="syncField('seatInfo', $event)"
-                      @blur="syncField('seatInfo', $event)"
-                      @change="syncField('seatInfo', $event)"
-                      @compositionend="syncField('seatInfo', $event)"
-                      @paste="syncFieldLater('seatInfo', $event)"
-                    />
-                  </label>
-
-                  <div class="field field--full">
-                    <span class="field-label">关联谷子</span>
-
-                    <div v-if="linkedGoodsList.length > 0" class="linked-goods">
-                      <div v-for="goods in linkedGoodsList" :key="goods.id" class="linked-goods__item">
-                        <img v-if="goods.coverImage" :src="goods.coverImage" :alt="goods.name" class="linked-goods__thumb" />
-                        <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || '谷' }}</div>
-                        <span class="linked-goods__name">{{ goods.name }}</span>
-                        <button type="button" class="linked-goods__remove" @click="removeLinkedGoods(goods.id)">×</button>
-                      </div>
+            <section class="form-column">
+              <section class="hero-panel">
+                <article class="hero-panel__card">
+                  <p class="hero-panel__label">{{ isEdit ? 'EDIT EVENT' : 'NEW EVENT' }}</p>
+                  <h2 class="hero-panel__title">{{ heroTitle }}</h2>
+                  <div class="hero-panel__metrics">
+                    <div class="metric-box">
+                      <span class="metric-box__label">关联谷子</span>
+                      <strong class="metric-box__value">{{ linkedGoodsList.length }}</strong>
                     </div>
-
-                    <button type="button" class="outline-action" @click="openGoodsPicker">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M12 5V19" />
-                        <path d="M5 12H19" />
-                      </svg>
-                      <span>{{ linkedGoodsList.length > 0 ? '继续添加关联谷子' : '选择关联谷子' }}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <p class="section-label">Gallery & Notes</p>
-                <h2 class="section-title">照片和备注</h2>
-              </div>
-
-              <div class="field-card">
-                <div class="field-grid">
-                  <div class="field field--full">
-                    <span class="field-label">活动照片</span>
-                    <div class="photo-upload-grid">
-                      <button type="button" class="photo-upload__add" @click="pickPhoto">
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M12 5V19" />
-                          <path d="M5 12H19" />
-                        </svg>
-                      </button>
-
-                      <div v-for="(photo, index) in form.photos" :key="photo.id || index" class="photo-upload__item">
-                        <img :src="photo.uri" :alt="photo.caption || `照片 ${index + 1}`" />
-                        <button type="button" class="photo-upload__remove" @click="removePhoto(index)">×</button>
-                      </div>
+                    <div class="metric-box">
+                      <span class="metric-box__label">活动照片</span>
+                      <strong class="metric-box__value">{{ form.photos.length }}</strong>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-box__label">标签</span>
+                      <strong class="metric-box__value">{{ form.tags.length }}</strong>
+                    </div>
+                    <div v-if="form.type === 'concert'" class="metric-box">
+                      <span class="metric-box__label">曲目</span>
+                      <strong class="metric-box__value">{{ form.tracks.length }}</strong>
                     </div>
                   </div>
+                </article>
+              </section>
 
-                  <label class="field field--full field--textarea">
-                    <span class="field-label">备注</span>
-                    <textarea
-                      v-model="form.description"
-                      ref="descInputRef"
-                      rows="5"
-                      placeholder="记录一下这场活动的感受、收获、排队情况，或者下次还想补的东西。"
-                      @input="syncField('description', $event)"
-                      @blur="syncField('description', $event)"
-                      @change="syncField('description', $event)"
-                      @compositionend="syncField('description', $event)"
-                      @paste="syncFieldLater('description', $event)"
-                    ></textarea>
-                  </label>
+              <section class="form-section form-section--tabs">
+                <FormTabNav v-model="activeTab" :tabs="tabItems" class="form-tab-nav" />
+
+                <div class="form-tab-content">
+                  <section v-show="activeTab === 'basic'" class="tab-panel">
+                    <div class="section-head">
+                      <p class="section-label">Basics</p>
+                      <h2 class="section-title">基础信息</h2>
+                    </div>
+
+                    <div class="field-card">
+                      <div class="field-grid">
+                        <label class="field field--full field--tablet-half" :class="{ 'field--error': nameError }">
+                          <span class="field-label">活动名称 <span class="required">*</span></span>
+                          <input
+                            v-model="form.name"
+                            ref="nameInputRef"
+                            type="text"
+                            placeholder="比如：CP30 同人展、谷子交换会"
+                            required
+                            :aria-invalid="Boolean(nameError)"
+                            @input="syncField('name', $event)"
+                            @blur="syncField('name', $event)"
+                            @change="syncField('name', $event)"
+                            @compositionend="syncField('name', $event)"
+                            @paste="syncFieldLater('name', $event)"
+                          />
+                          <span v-if="nameError" class="field-error">{{ nameError }}</span>
+                        </label>
+
+                        <div class="field field--half">
+                          <span class="field-label">活动类型</span>
+                          <AppSelect v-model="form.type" :options="typeOptions" placeholder="请选择活动类型" />
+                        </div>
+
+                        <div class="field field--full">
+                          <span class="field-label">自定义标签</span>
+                          <TagInput v-model="form.tags" placeholder="例如：首发、限定、签售" />
+                        </div>
+
+                        <div class="field field--full">
+                          <span class="field-label">活动封面</span>
+                          <button type="button" class="media-picker" @click="pickCoverImage">
+                            <div class="media-picker__preview" :class="{ 'media-picker__preview--empty': !form.coverImage }">
+                              <img v-if="form.coverImage" :src="form.coverImage" alt="活动封面" />
+                              <span v-else>封面</span>
+                            </div>
+                            <div class="media-picker__copy">
+                              <strong>{{ form.coverImage ? '更换封面' : '选择封面' }}</strong>
+                              <span>建议使用海报、门票、现场图或者最能代表这场活动的一张照片。</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section v-show="activeTab === 'schedule'" class="tab-panel">
+                    <div class="section-head">
+                      <p class="section-label">Schedule</p>
+                      <h2 class="section-title">时间和地点</h2>
+                    </div>
+
+                    <div class="field-card">
+                      <div class="field-grid">
+                        <label class="field field--half">
+                          <span class="field-label">开始日期</span>
+                          <button class="date-field" type="button" @click="openDatePicker('start')">
+                            <span :class="{ 'date-field__value--placeholder': !form.startDate }">
+                              {{ form.startDate || '请选择日期' }}
+                            </span>
+                            <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <rect x="3" y="5" width="18" height="16" rx="3" />
+                              <path d="M8 3V7" />
+                              <path d="M16 3V7" />
+                              <path d="M3 10H21" />
+                            </svg>
+                          </button>
+                        </label>
+
+                        <label class="field field--half">
+                          <span class="field-label">结束日期</span>
+                          <button class="date-field" type="button" @click="openDatePicker('end')">
+                            <span :class="{ 'date-field__value--placeholder': !form.endDate }">
+                              {{ form.endDate || (form.startDate || '默认与开始日期一致') }}
+                            </span>
+                            <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <rect x="3" y="5" width="18" height="16" rx="3" />
+                              <path d="M8 3V7" />
+                              <path d="M16 3V7" />
+                              <path d="M3 10H21" />
+                            </svg>
+                          </button>
+                        </label>
+
+                        <label class="field field--full">
+                          <span class="field-label">活动地点</span>
+                          <input
+                            v-model="form.location"
+                            type="text"
+                            placeholder="比如：上海新国际博览中心"
+                            @input="syncField('location', $event)"
+                            @blur="syncField('location', $event)"
+                            @change="syncField('location', $event)"
+                            @compositionend="syncField('location', $event)"
+                            @paste="syncFieldLater('location', $event)"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section v-show="activeTab === 'ticket'" class="tab-panel">
+                    <div class="section-head">
+                      <p class="section-label">Ticket & Goods</p>
+                      <h2 class="section-title">票务和关联谷子</h2>
+                    </div>
+
+                    <div class="field-card">
+                      <div class="field-grid">
+                        <label class="field field--half" :class="{ 'field--error': ticketPriceError }">
+                          <span class="field-label">门票价格（元）</span>
+                          <input
+                            v-model="form.ticketPrice"
+                            ref="ticketPriceInputRef"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0.00"
+                            :aria-invalid="Boolean(ticketPriceError)"
+                          />
+                          <span v-if="ticketPriceError" class="field-error">{{ ticketPriceError }}</span>
+                        </label>
+
+                        <label v-if="form.type === 'exhibition'" class="field field--half">
+                          <span class="field-label">票种</span>
+                          <input
+                            v-model="form.ticketType"
+                            type="text"
+                            placeholder="比如：早鸟票、VIP票、普通票"
+                            @input="syncField('ticketType', $event)"
+                            @blur="syncField('ticketType', $event)"
+                            @change="syncField('ticketType', $event)"
+                            @compositionend="syncField('ticketType', $event)"
+                            @paste="syncFieldLater('ticketType', $event)"
+                          />
+                        </label>
+
+                        <label v-if="form.type === 'concert'" class="field field--half">
+                          <span class="field-label">座位</span>
+                          <input
+                            v-model="form.seatInfo"
+                            type="text"
+                            placeholder="比如：内场A区 12排 8座"
+                            @input="syncField('seatInfo', $event)"
+                            @blur="syncField('seatInfo', $event)"
+                            @change="syncField('seatInfo', $event)"
+                            @compositionend="syncField('seatInfo', $event)"
+                            @paste="syncFieldLater('seatInfo', $event)"
+                          />
+                        </label>
+
+                        <div class="field field--full">
+                          <span class="field-label">关联谷子</span>
+
+                          <div v-if="linkedGoodsList.length > 0" class="linked-goods">
+                            <div v-for="goods in linkedGoodsList" :key="goods.id" class="linked-goods__item">
+                              <img v-if="goods.coverImage" :src="goods.coverImage" :alt="goods.name" class="linked-goods__thumb" />
+                              <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || '谷' }}</div>
+                              <span class="linked-goods__name">{{ goods.name }}</span>
+                              <button type="button" class="linked-goods__remove" @click="removeLinkedGoods(goods.id)">×</button>
+                            </div>
+                          </div>
+
+                          <button type="button" class="outline-action" @click="openGoodsPicker">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M12 5V19" />
+                              <path d="M5 12H19" />
+                            </svg>
+                            <span>{{ linkedGoodsList.length > 0 ? '继续添加关联谷子' : '选择关联谷子' }}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section v-show="activeTab === 'gallery'" class="tab-panel">
+                    <div class="section-head">
+                      <p class="section-label">Gallery & Notes</p>
+                      <h2 class="section-title">照片和备注</h2>
+                    </div>
+
+                    <div class="field-card">
+                      <div class="field-grid">
+                        <div class="field field--full">
+                          <span class="field-label">活动照片</span>
+                          <div class="photo-upload-grid">
+                            <button type="button" class="photo-upload__add" @click="pickPhoto">
+                              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 5V19" />
+                                <path d="M5 12H19" />
+                              </svg>
+                            </button>
+
+                            <div v-for="(photo, index) in form.photos" :key="photo.id || index" class="photo-upload__item">
+                              <img :src="photo.uri" :alt="photo.caption || `照片 ${index + 1}`" />
+                              <button type="button" class="photo-upload__remove" @click="removePhoto(index)">×</button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <label class="field field--full field--textarea">
+                          <span class="field-label">备注</span>
+                          <textarea
+                            v-model="form.description"
+                            ref="descInputRef"
+                            rows="5"
+                            placeholder="记录一下这场活动的感受、收获、排队情况，或者下次还想补的东西。"
+                            @input="syncField('description', $event)"
+                            @blur="syncField('description', $event)"
+                            @change="syncField('description', $event)"
+                            @compositionend="syncField('description', $event)"
+                            @paste="syncFieldLater('description', $event)"
+                          ></textarea>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section v-if="form.type === 'concert'" v-show="activeTab === 'music'" class="tab-panel">
+                    <div class="section-head">
+                      <p class="section-label">Setlist</p>
+                      <h2 class="section-title">演唱会曲目</h2>
+                    </div>
+
+                    <div class="field-card">
+                      <EventTrackEditor v-model="form.tracks" />
+                    </div>
+                  </section>
                 </div>
-              </div>
+              </section>
             </section>
-          </section>
         </section>
       </form>
     </main>
@@ -336,6 +342,7 @@ import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
+import FormTabNav from '@/components/goods/FormTabNav.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventAddView' })
@@ -357,6 +364,7 @@ const goodsStore = useGoodsStore()
 
 const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
 const EVENT_ADD_DRAFT_KEY = 'goods-app:event-add-draft'
+const EVENT_TAB_STORAGE_KEY = 'goods-app:event-editor-active-tab'
 
 function syncEventAddScrollLock(active) {
   document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
@@ -402,10 +410,35 @@ const maxDate = new Date(2100, 11, 31)
 const { isTabletViewport, updateViewport } = useTabletViewport()
 
 const typeOptions = TYPE_OPTIONS
+const activeTab = ref('basic')
+const tabItems = computed(() => {
+  const items = [
+    { key: 'basic', label: '基础', badge: Boolean(nameError.value || !String(form.name || '').trim()) },
+    { key: 'schedule', label: '时间地点' },
+    { key: 'ticket', label: '票务', badge: Boolean(ticketPriceError.value) },
+    { key: 'gallery', label: '照片备注' }
+  ]
+
+  if (form.type === 'concert') {
+    items.push({ key: 'music', label: '曲目' })
+  }
+
+  return items
+})
 
 const linkedGoodsList = computed(() =>
   form.linkedGoodsIds.map((id) => goodsStore.getById(id)).filter(Boolean)
 )
+
+function setActiveTab(tabKey, options = {}) {
+  if (!tabItems.value.some((item) => item.key === tabKey)) return
+  activeTab.value = tabKey
+  if (options.scroll === false) return
+  nextTick(() => {
+    const scrollRoot = document.querySelector('.event-add-page .page-body')
+    scrollToTopAnimated(() => scrollRoot, 220)
+  })
+}
 
 function buildDraftPayload() {
   return {
@@ -500,6 +533,33 @@ watch(
   }
 )
 
+watch(
+  () => form.type,
+  () => {
+    if (form.type !== 'concert' && activeTab.value === 'music') {
+      activeTab.value = 'basic'
+    }
+  }
+)
+
+watch(
+  tabItems,
+  (items) => {
+    if (!items.some((item) => item.key === activeTab.value)) {
+      activeTab.value = items[0]?.key || 'basic'
+    }
+  },
+  { immediate: true }
+)
+
+watch(activeTab, (value) => {
+  try {
+    sessionStorage.setItem(EVENT_TAB_STORAGE_KEY, value)
+  } catch {
+    // ignore
+  }
+})
+
 async function loadEditData() {
   if (!isEdit.value) return
   const id = editId.value
@@ -557,8 +617,14 @@ function getReturnToRoute() {
 async function handleSubmit() {
   await commitActiveInput()
   form.name = String(form.name || '').trim()
-  if (!validateName()) return
-  if (!validateTicketPrice()) return
+  if (!validateName()) {
+    setActiveTab('basic', { scroll: false })
+    return
+  }
+  if (!validateTicketPrice()) {
+    setActiveTab('ticket', { scroll: false })
+    return
+  }
 
   if (!form.endDate && form.startDate) {
     form.endDate = form.startDate
@@ -684,6 +750,12 @@ function syncFieldLater(key, event) {
 
 onBeforeMount(() => {
   scrollToTopAnimated(() => null, 0)
+  try {
+    const savedTab = sessionStorage.getItem(EVENT_TAB_STORAGE_KEY)
+    if (savedTab) activeTab.value = savedTab
+  } catch {
+    // ignore
+  }
 })
 
 onMounted(() => {
@@ -931,6 +1003,97 @@ onBeforeUnmount(() => {
 
 .form-section {
   margin-top: 18px;
+}
+
+.form-section--tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-tab-nav {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+}
+
+:deep(.tab-nav) {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: max-content;
+  min-width: 100%;
+  margin-inline: auto;
+  padding: 8px;
+  overflow-x: auto;
+  border: 1px solid rgba(20, 20, 22, 0.06);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 30px rgba(20, 20, 22, 0.08);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  scrollbar-width: none;
+}
+
+:deep(.tab-nav::-webkit-scrollbar) {
+  display: none;
+}
+
+:deep(.tab-nav__item) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: max-content;
+  min-height: 42px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+:deep(.tab-nav__item--active) {
+  background: linear-gradient(135deg, rgba(20, 20, 22, 0.95), rgba(48, 48, 56, 0.92));
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(20, 20, 22, 0.18);
+}
+
+:deep(.tab-nav__badge) {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(199, 68, 68, 0.12);
+}
+
+:deep(.tab-nav__item--active .tab-nav__badge) {
+  background: #ff9f8f;
+  box-shadow: 0 0 0 4px rgba(255, 159, 143, 0.18);
+}
+
+.form-tab-content {
+  position: relative;
+}
+
+.tab-panel {
+  animation: tab-panel-enter 0.22s ease;
+}
+
+@keyframes tab-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .section-head {
@@ -1279,6 +1442,20 @@ onBeforeUnmount(() => {
     margin-top: 0;
   }
 
+  .form-tab-nav {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  :deep(.tab-nav) {
+    overflow-x: visible;
+  }
+
+  :deep(.tab-nav__item) {
+    min-width: 132px;
+  }
+
   .field--tablet-half {
     grid-column: span 1;
   }
@@ -1317,5 +1494,16 @@ onBeforeUnmount(() => {
 
 :global(html.theme-dark) .btn-float {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+}
+
+:global(html.theme-dark) :deep(.tab-nav) {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(24, 24, 28, 0.76);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
+}
+
+:global(html.theme-dark) :deep(.tab-nav__item--active) {
+  background: linear-gradient(135deg, rgba(245, 245, 247, 0.94), rgba(222, 222, 230, 0.88));
+  color: #141416;
 }
 </style>
