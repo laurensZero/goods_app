@@ -68,9 +68,12 @@
       <GoodsCardGridSection
         v-else-if="goodsList.length > 0"
         ref="goodsGridSectionRef"
-        :items="goodsList"
+        :items="visibleGoodsList"
         :density="displayDensity"
         :grid-style="goodsGridStyle"
+        :index-offset="visibleGoodsStartIndex"
+        :before-spacer-height="visibleGoodsHeadSpacerHeight"
+        :after-spacer-height="visibleGoodsTailSpacerHeight"
         :transitioning="isDensityAnimating"
         :is-sort-animating="isSortAnimating"
         :selection-mode="selectionMode"
@@ -184,6 +187,11 @@ const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
 const WISHLIST_BACK_HERO_RETRY_MAX_FRAMES = 40
 const WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS = 620
+const INITIAL_RENDER_ROWS = 6
+const GOODS_GRID_ROW_GAP = 12
+const GOODS_GRID_OVERSCAN_ROWS = 4
+const GOODS_GRID_OVERSCAN_ROWS_WIDE = 3
+const GOODS_GRID_MAX_RENDER_CARDS = 96
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
   standard: 272,
@@ -266,7 +274,26 @@ const totalValue = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
 ))
 
+function getInitialVisibleCount() {
+  return Math.max(getResponsiveCols(displayDensity.value) * INITIAL_RENDER_ROWS, 24)
+}
+
+const visibleGoodsStartIndex = ref(0)
+const visibleGoodsRenderCount = ref(getInitialVisibleCount())
+const shouldVirtualizeGoodsList = computed(() => goodsList.value.length > GOODS_GRID_MAX_RENDER_CARDS)
+const visibleGoodsEndIndex = computed(() =>
+  shouldVirtualizeGoodsList.value
+    ? Math.min(goodsList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
+    : goodsList.value.length
+)
+
 const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
+const visibleGoodsList = computed(() =>
+  shouldVirtualizeGoodsList.value
+    ? goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
+    : goodsList.value
+)
+
 const isAndroid = /Android/i.test(navigator.userAgent || '')
 const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
 const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
@@ -296,6 +323,29 @@ const densityFlip = useGoodsGridDensityFlip({
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
+
+const visibleGoodsHeadSpacerHeight = computed(() => {
+  if (!shouldVirtualizeGoodsList.value) return 0
+  const cols = getResponsiveCols(displayDensity.value)
+  const headRows = Math.floor(visibleGoodsStartIndex.value / cols)
+  if (headRows <= 0) return 0
+
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  return headRows * rowHeight + Math.max(0, headRows - 1) * GOODS_GRID_ROW_GAP
+})
+
+const visibleGoodsTailSpacerHeight = computed(() => {
+  if (!shouldVirtualizeGoodsList.value) return 0
+  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsEndIndex.value)
+  if (!remainingItems) return 0
+
+  const cols = getResponsiveCols(displayDensity.value)
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  const remainingRows = Math.ceil(remainingItems / cols)
+  return remainingRows > 0
+    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * GOODS_GRID_ROW_GAP
+    : 0
+})
 
 const selectedGoodsItems = computed(() =>
   goodsList.value.filter((item) => selectedIds.value.has(item.id))
@@ -335,8 +385,56 @@ watch(selectionMode, async (active) => {
   updateSelectionHeaderPosition()
 })
 
-function syncVisibleGoodsCount() {}
+function resolveGoodsViewportHeight(options = {}) {
+  const { useFlipViewport = false, viewportHeight = 0 } = options
+  if (Number.isFinite(viewportHeight) && viewportHeight > 0) return viewportHeight
+  return useFlipViewport
+    ? getFlipViewportHeight()
+    : (getScrollEl()?.clientHeight || window.innerHeight || 800)
+}
+
+function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
+  if (!shouldVirtualizeGoodsList.value) {
+    visibleGoodsStartIndex.value = 0
+    visibleGoodsRenderCount.value = goodsList.value.length
+    return
+  }
+
+  const normalizedTop = Math.max(0, Number(scrollTop) || 0)
+  const viewportHeight = resolveGoodsViewportHeight(options)
+  const cols = getResponsiveCols(displayDensity.value)
+  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
+  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
+  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+  const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+  const startIndex = Math.min(goodsList.value.length, startRow * cols)
+  const remainingItems = Math.max(0, goodsList.value.length - startIndex)
+  const renderCount = Math.min(
+    remainingItems,
+    Math.min(
+      GOODS_GRID_MAX_RENDER_CARDS,
+      Math.max(cols * 4, renderRows * cols)
+    )
+  )
+
+  visibleGoodsStartIndex.value = startIndex
+  visibleGoodsRenderCount.value = renderCount
+}
+
+function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
+  syncVirtualGoodsViewport(scrollTop, options)
+}
 function syncVisibleTimelineMonthCount() {}
+
+watch(
+  [() => goodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
+  () => {
+    syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
+  },
+  { immediate: true }
+)
 
 function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
@@ -365,6 +463,7 @@ function handlePageScroll() {
     pageScrollRaf = 0
     if (isRouteLeaving) return
     rememberCurrentScrollPosition()
+    syncVisibleGoodsCount(readScrollTop())
     if (selectionMode.value) updateSelectionHeaderPosition()
     updateScrollTopButtonVisibility()
   })
@@ -680,6 +779,7 @@ onMounted(async () => {
   restoreHomePreferences()
   window.addEventListener('resize', handleResize, { passive: true })
   await nextTick()
+  syncVisibleGoodsCount()
   bindPageScroll()
   await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
