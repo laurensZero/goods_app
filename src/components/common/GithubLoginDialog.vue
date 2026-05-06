@@ -327,9 +327,11 @@ onBeforeUnmount(() => {
 
 .dialog-actions {
   display: flex;
-  gap: 10px;
+  /* use explicit row/column gaps so we can tune vertical spacing separately */
+  column-gap: 10px;
+  row-gap: 8px;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 12px;
   flex-shrink: 0;
 }
 
@@ -468,6 +470,7 @@ onBeforeUnmount(() => {
     justify-content: stretch;
     margin-inline: -20px;
     padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
+    row-gap: 6px;
   }
 
   .dialog-actions + .dialog-actions {
