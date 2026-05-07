@@ -341,6 +341,7 @@ const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
 const topJumpMasking = ref(false)
 let topJumpMaskTimer = 0
+let lastDetailNavigationTime = 0
 
 // 添加方式面板
 const router = useRouter()
@@ -1057,6 +1058,13 @@ watch(
 )
 
 function openDetail(id) {
+  // 防止快速连续点击导致的多次导航
+  const now = Date.now()
+  if (now - lastDetailNavigationTime < 320) {
+    return
+  }
+  lastDetailNavigationTime = now
+  
   const payload = typeof id === 'object' && id !== null ? id : { id }
   const goodsId = payload.id
   saveScrollPosition(true, `home:openDetail:${goodsId}`)
