@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260507.2",
+    "url": "bundle-20260507.2.zip",
+    "hash": "dd4ee484ce94a1fb1c06d75174c8d3f51c2061bde325ed05b9b14a942a6ee4eb",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加防止快速连续点击导致的多次导航机制",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-07T07:41:02Z"
+  },
+  {
     "version": "20260507.1",
     "url": "bundle-20260507.1.zip",
     "hash": "0b22d4aedea8cd3842bfa8199c95ce0c5c7b8f3005c284e3b528c42501a77aeb",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化标签导航样式，调整滚动行为和背景效果",
     "updateLevel": "silent",
     "publishedAt": "2026-05-06T14:52:50Z"
-  },
-  {
-    "version": "20260506.6",
-    "url": "bundle-20260506.6.zip",
-    "hash": "58cb7d9a4fd7271954dec607ba791d2497061f591eebb01403e2fa3fc509c8f3",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化表单和导航栏样式，调整滚动行为和背景效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-06T14:39:44Z"
   }
 ]
