@@ -360,7 +360,6 @@ const goodsStore = useGoodsStore()
 
 const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
 const EVENT_ADD_DRAFT_KEY = 'goods-app:event-add-draft'
-const EVENT_TAB_STORAGE_KEY = 'goods-app:event-editor-active-tab'
 
 function syncEventAddScrollLock(active) {
   document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
@@ -548,13 +547,7 @@ watch(
   { immediate: true }
 )
 
-watch(activeTab, (value) => {
-  try {
-    sessionStorage.setItem(EVENT_TAB_STORAGE_KEY, value)
-  } catch {
-    // ignore
-  }
-})
+// Do not persist event editor tab to sessionStorage; always default to 'basic'.
 
 async function loadEditData() {
   if (!isEdit.value) return
@@ -747,8 +740,9 @@ function syncFieldLater(key, event) {
 onBeforeMount(() => {
   scrollToTopAnimated(() => null, 0)
   try {
-    const savedTab = sessionStorage.getItem(EVENT_TAB_STORAGE_KEY)
-    if (savedTab) activeTab.value = savedTab
+    // Always default to 'basic' when entering event add/edit so the
+    // user starts at 基础信息 instead of restoring a previously selected tab.
+    activeTab.value = 'basic'
   } catch {
     // ignore
   }

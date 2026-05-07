@@ -594,7 +594,6 @@ const props = defineProps({
 
 const previewMediaRef = ref(null)
 const formRootRef = ref(null)
-const TAB_STORAGE_KEY = 'goods-editor-active-tab'
 
 const {
   presets,
@@ -810,13 +809,7 @@ watch(showTrackEditor, (visible) => {
   }
 })
 
-watch(activeTab, (value) => {
-  try {
-    sessionStorage.setItem(TAB_STORAGE_KEY, value)
-  } catch {
-    // ignore
-  }
-})
+// Do not persist editor tab to sessionStorage for goods editor.
 
 watch(
   () => form.note,
@@ -837,9 +830,12 @@ watch(
   { immediate: true }
 )
 
+// Always default to 'basic' when adding or editing so entering editor
+// always lands on 基础信息. Do not restore previously selected tab.
 try {
-  const savedTab = sessionStorage.getItem(TAB_STORAGE_KEY)
-  if (savedTab) activeTab.value = savedTab
+  if (props.mode === 'add' || props.mode === 'edit') {
+    activeTab.value = 'basic'
+  }
 } catch {
   // ignore
 }
