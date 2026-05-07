@@ -308,6 +308,7 @@ let eventBackHeroRetryRaf = 0
 let eventBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 let removeAndroidBackListener = null
+let lastDetailNavigationTime = 0
 
 function handleAndroidBackButton(event) {
   if (selectionMode.value) {
@@ -514,6 +515,13 @@ function toggleSearch() {
 }
 
 function openDetail(payload) {
+  // 防止快速连续点击导致的多次导航
+  const now = Date.now()
+  if (now - lastDetailNavigationTime < 320) {
+    return
+  }
+  lastDetailNavigationTime = now
+  
   const p = typeof payload === 'object' && payload !== null ? payload : { id: payload }
   const eventId = p.id
   if (selectionMode.value) {
