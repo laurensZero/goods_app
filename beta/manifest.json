@@ -1,9 +1,9 @@
 {
-  "version": "20260507.2",
-  "url": "bundle-20260507.2.zip",
-  "hash": "dd4ee484ce94a1fb1c06d75174c8d3f51c2061bde325ed05b9b14a942a6ee4eb",
+  "version": "20260507.3",
+  "url": "bundle-20260507.3.zip",
+  "hash": "ce64710cce0324cc6974bbd32154e6367ba2cf3caf8d8a1351dffb51729f132a",
   "minNativeVersion": null,
-  "notes": "- feat: 添加防止快速连续点击导致的多次导航机制",
+  "notes": "- feat: 移除编辑器标签的会话存储，默认始终显示基础信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-07T07:41:02Z"
+  "publishedAt": "2026-05-07T08:11:23Z"
 }
