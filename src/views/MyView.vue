@@ -50,7 +50,7 @@
                 <span class="status-pill" :class="syncStore.githubLogin ? 'status-pill--online' : 'status-pill--idle'">
                   {{ syncStore.githubLogin ? '已连接 GitHub' : '未连接 GitHub' }}
                 </span>
-                <span class="status-pill status-pill--soft">{{ syncStore.githubAuthMethod || '未设置登录方式' }}</span>
+                <span v-if="showAuthMethod" class="status-pill status-pill--soft">{{ syncStore.githubAuthMethod || '未设置登录方式' }}</span>
                 <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? `上次同步 ${formatTime(syncStore.lastSyncedAt)}` : '尚未同步' }}</span>
               </div>
             </div>
@@ -154,7 +154,7 @@
               <span class="detail-row__label">GitHub 用户</span>
               <span class="detail-row__value">{{ syncStore.githubLogin || '未登录' }}</span>
             </div>
-            <div class="detail-row">
+            <div v-if="!isUsingGithubLogin" class="detail-row">
               <span class="detail-row__label">同步令牌</span>
               <span class="detail-row__value detail-row__value--mono">{{ tokenDisplay }}</span>
             </div>
@@ -316,6 +316,14 @@ const tokenDisplay = computed(() => {
   const token = syncStore.token
   return `${token.slice(0, 4)}...${token.slice(-4)}`
 })
+
+const isUsingGithubLogin = computed(() => (
+  !!syncStore.githubLogin && syncStore.githubAuthMethod === 'device-flow'
+))
+
+const showAuthMethod = computed(() => (
+  !!syncStore.githubAuthMethod && syncStore.githubAuthMethod !== 'device-flow'
+))
 
 const syncHeadlineText = computed(() => {
   if (syncStore.githubLogin) return '已连接'
