@@ -28,7 +28,7 @@ const DIMENSION_CONFIG = {
     emptyLabel: '未设置 IP',
     title: 'IP 排行',
     heroLabel: 'IP Ranking',
-    description: '快速看哪个 IP 收藏最多、投入最高。',
+    description: '',
     getValues(item) {
       return item.ip ? [item.ip] : []
     }
@@ -37,7 +37,7 @@ const DIMENSION_CONFIG = {
     emptyLabel: '未分类',
     title: '分类排行',
     heroLabel: 'Category Ranking',
-    description: '看各品类占比，适合判断收藏结构。',
+    description: '',
     getValues(item) {
       return item.category ? [item.category] : []
     }
@@ -46,7 +46,7 @@ const DIMENSION_CONFIG = {
     emptyLabel: '未设置位置',
     title: '存放位置排行',
     heroLabel: 'Storage Ranking',
-    description: '统计每个收纳位置的承载量，方便整理收纳。',
+    description: '',
     getValues(item) {
       return item.storageLocation ? [item.storageLocation] : []
     }
@@ -55,7 +55,7 @@ const DIMENSION_CONFIG = {
     emptyLabel: '未记录日期',
     title: '月度购入排行',
     heroLabel: 'Monthly Ranking',
-    description: '按购入月份看件数和花费变化，方便回看入谷节奏。',
+    description: '',
     getValues(item) {
       return item.timelineYearMonth ? [item.timelineYearMonth] : []
     }
