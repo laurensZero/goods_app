@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260508.2",
+    "url": "bundle-20260508.2.zip",
+    "hash": "4ee36c928e688afe719607c5efe43181af75dba01a1b5876aedda53e644a812c",
+    "minNativeVersion": null,
+    "notes": "- feat: 调整商品导入逻辑，售罄状态不再影响有效性判断",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-08T10:45:30Z"
+  },
+  {
     "version": "20260508.1",
     "url": "bundle-20260508.1.zip",
     "hash": "d715648f93c8a1fd8d9e8f9754eda0c31a20b3d445d79cd01973807680bfd67d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除编辑器标签的会话存储，默认始终显示基础信息",
     "updateLevel": "silent",
     "publishedAt": "2026-05-07T08:11:23Z"
-  },
-  {
-    "version": "20260507.2",
-    "url": "bundle-20260507.2.zip",
-    "hash": "dd4ee484ce94a1fb1c06d75174c8d3f51c2061bde325ed05b9b14a942a6ee4eb",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加防止快速连续点击导致的多次导航机制",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-07T07:41:02Z"
   }
 ]
