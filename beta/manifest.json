@@ -1,9 +1,9 @@
 {
-  "version": "20260507.3",
-  "url": "bundle-20260507.3.zip",
-  "hash": "ce64710cce0324cc6974bbd32154e6367ba2cf3caf8d8a1351dffb51729f132a",
+  "version": "20260508.1",
+  "url": "bundle-20260508.1.zip",
+  "hash": "d715648f93c8a1fd8d9e8f9754eda0c31a20b3d445d79cd01973807680bfd67d",
   "minNativeVersion": null,
-  "notes": "- feat: 移除编辑器标签的会话存储，默认始终显示基础信息",
+  "notes": "- feat: 清空排行榜维度描述信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-07T08:11:23Z"
+  "publishedAt": "2026-05-08T10:35:10Z"
 }
