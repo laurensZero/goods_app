@@ -1,9 +1,9 @@
 {
-  "version": "20260508.2",
-  "url": "bundle-20260508.2.zip",
-  "hash": "4ee36c928e688afe719607c5efe43181af75dba01a1b5876aedda53e644a812c",
+  "version": "20260508.3",
+  "url": "bundle-20260508.3.zip",
+  "hash": "5ff9e0ef62651c52ce6781c234bdc379ff67c3c3c987d8975d8b5d6ed98eb45c",
   "minNativeVersion": null,
-  "notes": "- feat: 调整商品导入逻辑，售罄状态不再影响有效性判断",
+  "notes": "- feat: 优化账号信息展示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-08T10:45:30Z"
+  "publishedAt": "2026-05-08T10:50:51Z"
 }

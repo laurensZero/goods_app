@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260508.3",
+    "url": "bundle-20260508.3.zip",
+    "hash": "5ff9e0ef62651c52ce6781c234bdc379ff67c3c3c987d8975d8b5d6ed98eb45c",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化账号信息展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-08T10:50:51Z"
+  },
+  {
     "version": "20260508.2",
     "url": "bundle-20260508.2.zip",
     "hash": "4ee36c928e688afe719607c5efe43181af75dba01a1b5876aedda53e644a812c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 清空排行榜维度描述信息",
     "updateLevel": "silent",
     "publishedAt": "2026-05-08T10:35:10Z"
-  },
-  {
-    "version": "20260507.3",
-    "url": "bundle-20260507.3.zip",
-    "hash": "ce64710cce0324cc6974bbd32154e6367ba2cf3caf8d8a1351dffb51729f132a",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除编辑器标签的会话存储，默认始终显示基础信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-07T08:11:23Z"
   }
 ]
