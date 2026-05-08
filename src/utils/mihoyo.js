@@ -896,7 +896,8 @@ function cartItemToGoods(shop, item, index = 0) {
     _shopCode: String(shop?.shop_code || shop?.shopCode || ''),
     _shopName: String(shop?.shop_name || shop?.shopName || ''),
     _soldOut: Number(item.sold_out_status || 0) !== 0,
-    _isEffective: item.is_effect !== false && Number(item.sold_out_status || 0) === 0 && Number(item.quantity || 1) > 0,
+    // 不再以售罄状态阻止导入：售罄仅作为一种导入信息，而不是不可导入的判断依据
+    _isEffective: item.is_effect !== false && Number(item.quantity || 1) > 0,
     _reason: String(item.noneffecttive_reason || ''),
   }
 }

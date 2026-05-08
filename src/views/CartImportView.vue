@@ -265,13 +265,8 @@ const processedGroups = computed(() =>
       for (const item of cartShopToGoodsList(group)) {
         const normalizedItem = { ...item }
 
-        if (isWishlistMode.value && !normalizedItem._soldOut) {
-          normalizedItem._isEffective = true
-          normalizedItem._reason = ''
-        } else if (isWishlistMode.value && normalizedItem._soldOut && !String(normalizedItem._reason || '').trim()) {
-          normalizedItem._reason = '商品已售罄'
-        }
-
+        // 不再把售罄视为不可导入；售罄仅作为信息保留在 `._soldOut`
+        // `_isEffective` 的判定已在 `cartItemToGoods` 中调整为忽略售罄字段
         const key = buildGoodsIdentityKey(normalizedItem)
         if (map.has(key)) {
           const existing = map.get(key)
