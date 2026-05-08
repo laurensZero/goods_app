@@ -2,7 +2,7 @@
   <div class="image-manager">
     <div class="image-manager__composer">
       <div class="image-manager__topline">
-        <p class="image-manager__subtext">主图、局部图和开箱图统一管理，本地图仅当前设备可见。</p>
+        <p class="image-manager__subtext">主图、局部图和开箱图统一管理。</p>
         <span v-if="images.length" class="image-manager__count">{{ images.length }} 张</span>
       </div>
 
