@@ -1,9 +1,9 @@
 {
-  "version": "20260508.3",
-  "url": "bundle-20260508.3.zip",
-  "hash": "5ff9e0ef62651c52ce6781c234bdc379ff67c3c3c987d8975d8b5d6ed98eb45c",
+  "version": "20260508.4",
+  "url": "bundle-20260508.4.zip",
+  "hash": "c17ed8a68a5ab11164a26234ae4183ddf006435f981023b957a2485ed8de48f5",
   "minNativeVersion": null,
-  "notes": "- feat: 优化账号信息展示",
+  "notes": "- feat: 更新图片管理说明文本",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-08T10:50:51Z"
+  "publishedAt": "2026-05-08T13:14:40Z"
 }

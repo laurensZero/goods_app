@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260508.4",
+    "url": "bundle-20260508.4.zip",
+    "hash": "c17ed8a68a5ab11164a26234ae4183ddf006435f981023b957a2485ed8de48f5",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新图片管理说明文本",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-08T13:14:40Z"
+  },
+  {
     "version": "20260508.3",
     "url": "bundle-20260508.3.zip",
     "hash": "5ff9e0ef62651c52ce6781c234bdc379ff67c3c3c987d8975d8b5d6ed98eb45c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 调整商品导入逻辑，售罄状态不再影响有效性判断",
     "updateLevel": "silent",
     "publishedAt": "2026-05-08T10:45:30Z"
-  },
-  {
-    "version": "20260508.1",
-    "url": "bundle-20260508.1.zip",
-    "hash": "d715648f93c8a1fd8d9e8f9754eda0c31a20b3d445d79cd01973807680bfd67d",
-    "minNativeVersion": null,
-    "notes": "- feat: 清空排行榜维度描述信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-08T10:35:10Z"
   }
 ]
