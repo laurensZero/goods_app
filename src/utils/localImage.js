@@ -88,7 +88,7 @@ export async function pickLinkedLocalImage() {
 async function pickNativeGalleryImages(limit) {
   const result = await FilePicker.pickImages({
     limit: limit || 99,
-    readData: true
+    readData: false
   })
   const files = result?.files || []
   const out = []
@@ -96,16 +96,10 @@ async function pickNativeGalleryImages(limit) {
     if (!picked) continue
     const fileName = String(picked.name || `image_${Date.now()}`)
     const mimeType = String(picked.mimeType || inferImageMimeFromPath(fileName) || 'image/png')
-    if (picked.blob instanceof Blob) {
-      out.push(new File([picked.blob], fileName, {
-        type: mimeType,
-        lastModified: Number(picked.modifiedAt) || Date.now()
-      }))
-    } else if (picked.data) {
-      out.push(dataUrlToFile(`data:${mimeType};base64,${picked.data}`, fileName))
-    } else if (picked.path) {
+    if (picked.path) {
       try {
-        const response = await fetch(picked.path)
+        const convertedPath = Capacitor.convertFileSrc(picked.path)
+        const response = await fetch(convertedPath)
         if (!response.ok) throw new Error('读取相册原图失败')
         const blob = await response.blob()
         out.push(new File([blob], fileName, {
@@ -113,8 +107,15 @@ async function pickNativeGalleryImages(limit) {
           lastModified: Number(picked.modifiedAt) || Date.now()
         }))
       } catch (e) {
-        console.warn('[localImage] failed to read picked path', e)
+        console.warn('[localImage] failed to read picked path', picked.path, e)
       }
+    } else if (picked.blob instanceof Blob) {
+      out.push(new File([picked.blob], fileName, {
+        type: mimeType,
+        lastModified: Number(picked.modifiedAt) || Date.now()
+      }))
+    } else if (picked.data) {
+      out.push(dataUrlToFile(`data:${mimeType};base64,${picked.data}`, fileName))
     }
   }
   return out

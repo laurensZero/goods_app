@@ -1133,8 +1133,8 @@
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 51px;
+  height: 31px;
   flex-shrink: 0;
 }
 
@@ -1151,25 +1151,29 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--app-border, #ccc);
-  transition: 0.3s;
-  border-radius: 24px;
+  background-color: var(--app-surface-muted, #e5e5ea);
+  transition: background-color 0.25s ease;
+  border-radius: 31px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .toggle-slider::before {
   position: absolute;
   content: '';
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.3s;
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 50%;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background-color: var(--app-primary, #07c160);
+  background-color: #34c759;
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
@@ -1177,8 +1181,18 @@
 }
 
 .toggle-switch input:disabled + .toggle-slider {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+}
+
+:global(html.theme-dark) .toggle-slider {
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+:global(html.theme-dark) .toggle-slider::before {
+  background-color: #f5f5f7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .detail-value--warning {

@@ -78,7 +78,9 @@ const presetsStore = usePresetsStore()
 const goodsStore = useGoodsStore()
 
 const cards = ref([])
+const isWishlist = ref(false)
 const defaults = ref({ ip: '', category: '', price: '' })
+const today = new Date().toISOString().slice(0, 10)
 const showDefaults = ref(false)
 const saving = ref(false)
 
@@ -96,6 +98,7 @@ function makeCard(imageUri) {
 }
 
 onMounted(() => {
+  isWishlist.value = history.state?.isWishlist === true
   const raw = history.state?.batchImages
   if (raw) {
     try {
@@ -172,9 +175,10 @@ async function handleSave() {
         .map((s) => s.trim())
         .filter(Boolean),
       price: card.price,
-      isWishlist: false,
+      isWishlist: isWishlist.value,
       quantity: 1,
-      collectStatus: '已入库',
+      collectStatus: isWishlist.value ? '' : '已入库',
+      acquiredAt: isWishlist.value ? '' : today,
       images: [
         {
           id: createGoodsImageId(),

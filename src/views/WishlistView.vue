@@ -708,7 +708,7 @@ async function handleBatchAdd() {
   saveScrollPosition(true, 'wishlist:handleBatchAdd')
   wishlistDisplayReady.value = false
   try {
-    await router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images) } })
+    await router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images), isWishlist: true } })
   } catch {
     wishlistDisplayReady.value = true
   }
