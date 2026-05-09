@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.13",
+    "url": "bundle-20260509.13.zip",
+    "hash": "588291bd9a19c56eb22b235cdcebf37c40043f2f36597163c70356b246553ce9",
+    "minNativeVersion": null,
+    "notes": "- fix: 修复搜索虚拟化列表",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T13:07:22Z"
+  },
+  {
     "version": "20260509.12",
     "url": "bundle-20260509.12.zip",
     "hash": "c7dafb5468735e40052d2c6e9595469773d9832472c1adef32769489e048e5ff",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加排除特定状态的商品总值和数量计算逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T12:05:54Z"
-  },
-  {
-    "version": "20260509.10",
-    "url": "bundle-20260509.10.zip",
-    "hash": "9a8caecc1f0f5faa74c77783a41e542122007ad0fea414c50ae8789a2e827840",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新收集状态选项",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T12:03:19Z"
   }
 ]

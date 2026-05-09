@@ -1,9 +1,9 @@
 {
-  "version": "20260509.12",
-  "url": "bundle-20260509.12.zip",
-  "hash": "c7dafb5468735e40052d2c6e9595469773d9832472c1adef32769489e048e5ff",
+  "version": "20260509.13",
+  "url": "bundle-20260509.13.zip",
+  "hash": "588291bd9a19c56eb22b235cdcebf37c40043f2f36597163c70356b246553ce9",
   "minNativeVersion": null,
-  "notes": "- feat: 重构商品列表展示逻辑，优化滚动性能和布局",
+  "notes": "- fix: 修复搜索虚拟化列表",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T12:48:53Z"
+  "publishedAt": "2026-05-09T13:07:22Z"
 }
