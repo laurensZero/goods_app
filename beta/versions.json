@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.8",
+    "url": "bundle-20260509.8.zip",
+    "hash": "fbb63d846b6c7a6c8d5f06ea8c567c8139c815ac90db87e325d433530a258733",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改本地图库图片选择限制",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T11:21:35Z"
+  },
+  {
     "version": "20260509.7",
     "url": "bundle-20260509.7.zip",
     "hash": "d91efa4293d4a4c927cbb0ddcf37f94db6562cb05b8627760683dfeb9899b8ed",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化本地图片选择逻辑，增强错误处理和默认选择限制",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T11:09:34Z"
-  },
-  {
-    "version": "20260509.5",
-    "url": "bundle-20260509.5.zip",
-    "hash": "3d5bc611f9c0c2bc013a17d4d5493f470b05fa1a0d4638b09d076f4195fde59f",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加批量添加功能，支持选择多张图片并快速创建多个商品",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T10:41:33Z"
   }
 ]

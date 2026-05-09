@@ -1,9 +1,9 @@
 {
-  "version": "20260509.7",
-  "url": "bundle-20260509.7.zip",
-  "hash": "d91efa4293d4a4c927cbb0ddcf37f94db6562cb05b8627760683dfeb9899b8ed",
+  "version": "20260509.8",
+  "url": "bundle-20260509.8.zip",
+  "hash": "fbb63d846b6c7a6c8d5f06ea8c567c8139c815ac90db87e325d433530a258733",
   "minNativeVersion": null,
-  "notes": "- bug fix",
+  "notes": "- feat: 修改本地图库图片选择限制",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T11:18:14Z"
+  "publishedAt": "2026-05-09T11:21:35Z"
 }
