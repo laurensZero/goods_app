@@ -87,7 +87,7 @@ export async function pickLinkedLocalImage() {
 
 async function pickNativeGalleryImages(limit) {
   const result = await FilePicker.pickImages({
-    limit: limit || 99,
+    limit: limit || 0,
     readData: false
   })
   const files = result?.files || []
