@@ -1,9 +1,9 @@
 {
-  "version": "20260509.6",
-  "url": "bundle-20260509.6.zip",
-  "hash": "975cae89e68c93ccff678ef9e0fba0b3e935c38a7a7086d220220504a53a5484",
+  "version": "20260509.7",
+  "url": "bundle-20260509.7.zip",
+  "hash": "d91efa4293d4a4c927cbb0ddcf37f94db6562cb05b8627760683dfeb9899b8ed",
   "minNativeVersion": null,
-  "notes": "- feat: 优化本地图片选择逻辑，增强错误处理和默认选择限制",
+  "notes": "- bug fix",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T11:09:34Z"
+  "publishedAt": "2026-05-09T11:18:14Z"
 }

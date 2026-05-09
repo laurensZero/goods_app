@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.7",
+    "url": "bundle-20260509.7.zip",
+    "hash": "d91efa4293d4a4c927cbb0ddcf37f94db6562cb05b8627760683dfeb9899b8ed",
+    "minNativeVersion": null,
+    "notes": "- bug fix",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T11:18:14Z"
+  },
+  {
     "version": "20260509.6",
     "url": "bundle-20260509.6.zip",
     "hash": "975cae89e68c93ccff678ef9e0fba0b3e935c38a7a7086d220220504a53a5484",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加批量添加功能，支持选择多张图片并快速创建多个商品",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T10:41:33Z"
-  },
-  {
-    "version": "20260509.4",
-    "url": "bundle-20260509.4.zip",
-    "hash": "ebb47938524b2e9c2d505818c818c3e9603a0a5e036116889021c084e30ca7f8",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图片 Gist 上传逻辑，支持并发处理和批量上传",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T08:42:32Z"
   }
 ]
