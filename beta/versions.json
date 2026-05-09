@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.9",
+    "url": "bundle-20260509.9.zip",
+    "hash": "dfd71d628898ff922955c42469da7256457bafedaac801001f6067cee5d2d86f",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化搜索视图和批量添加功能，增强选择模式下的头部显示和样式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T11:56:24Z"
+  },
+  {
     "version": "20260509.8",
     "url": "bundle-20260509.8.zip",
     "hash": "fbb63d846b6c7a6c8d5f06ea8c567c8139c815ac90db87e325d433530a258733",
@@ -16,14 +25,5 @@
     "notes": "- bug fix",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T11:18:14Z"
-  },
-  {
-    "version": "20260509.6",
-    "url": "bundle-20260509.6.zip",
-    "hash": "975cae89e68c93ccff678ef9e0fba0b3e935c38a7a7086d220220504a53a5484",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化本地图片选择逻辑，增强错误处理和默认选择限制",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T11:09:34Z"
   }
 ]
