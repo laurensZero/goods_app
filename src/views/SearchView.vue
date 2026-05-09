@@ -286,17 +286,26 @@
             <p v-if="activePresetName" class="section-desc section-desc--compact">当前方案：{{ activePresetName }}</p>
           </div>
         </div>
-        <div class="goods-list">
-          <SearchGoodsCard
-            v-for="item in results"
-            :key="item.id"
-            :item="item"
-            :selected="selectedIds.has(item.id)"
-            :selection-mode="selectionMode"
-            @long-press="enterSelectionMode(item.id)"
-            @toggle-select="toggleSelect(item.id)"
-            @open-detail="openDetail"
-          />
+        <div class="goods-list-container">
+          <div v-if="beforeSpacerHeight > 0" :style="{ height: beforeSpacerHeight + 'px' }"></div>
+          <div
+            v-for="row in visibleRows"
+            :key="row.startIndex"
+            class="goods-row"
+          >
+            <SearchGoodsCard
+              v-for="item in row.items"
+              :key="item.id"
+              :item="item"
+              :data-goods-id="item.id"
+              :selected="selectedIds.has(item.id)"
+              :selection-mode="selectionMode"
+              @long-press="enterSelectionMode(item.id)"
+              @toggle-select="toggleSelect(item.id)"
+              @open-detail="openDetail"
+            />
+          </div>
+          <div v-if="afterSpacerHeight > 0" :style="{ height: afterSpacerHeight + 'px' }"></div>
         </div>
       </section>
 
@@ -405,6 +414,7 @@ const selectionHeaderStyle = computed(() => ({
 let searchTimeout = null
 let removeAndroidBackListener = null
 let savedScrollTop = 0
+let isRestoringSearchState = false
 
 const searchPresets = computed(() => filterPresetsStore.getPresetsByScope(searchScope.value))
 
@@ -544,6 +554,95 @@ const isFiltering = computed(() => activeFilterCount.value > 0)
 const results = computed(() => (
   isFiltering.value ? applyGoodsFilters(sourceList.value, effectiveFilters.value) : []
 ))
+
+const SEARCH_ROW_GAP = 12
+const SEARCH_OVERSCAN_ROWS = 8
+const SEARCH_OVERSCAN_ROWS_WIDE = 6
+const SEARCH_MAX_RENDER_CARDS = 128
+const SEARCH_INITIAL_RENDER_ROWS = 6
+const SEARCH_ESTIMATED_ROW_HEIGHT = 340
+
+function getSearchCols() {
+  const w = window.innerWidth
+  if (w >= 1200) return 5
+  if (w >= 900) return 4
+  if (w >= 600) return 3
+  return 2
+}
+
+const measuredRowHeight = ref(0)
+
+function getRowHeight() {
+  return measuredRowHeight.value || SEARCH_ESTIMATED_ROW_HEIGHT
+}
+function getRowSpan() {
+  return getRowHeight() + SEARCH_ROW_GAP
+}
+
+let pageScrollRaf = 0
+const visibleStartRow = ref(0)
+const visibleRenderRows = ref(SEARCH_INITIAL_RENDER_ROWS)
+
+const resultRows = computed(() => {
+  const cols = getSearchCols()
+  const list = results.value
+  const rows = []
+  for (let i = 0; i < list.length; i += cols) {
+    rows.push({ startIndex: i, items: list.slice(i, i + cols) })
+  }
+  return rows
+})
+
+const visibleEndRow = computed(() => (
+  Math.min(resultRows.value.length, visibleStartRow.value + visibleRenderRows.value)
+))
+const visibleRows = computed(() => resultRows.value.slice(visibleStartRow.value, visibleEndRow.value))
+const beforeSpacerHeight = computed(() => visibleStartRow.value * getRowSpan())
+const afterSpacerHeight = computed(() => Math.max(0, (resultRows.value.length - visibleEndRow.value) * getRowSpan()))
+
+function syncSearchViewport(scrollTop = 0) {
+  const normalizedTop = Math.max(0, Number(scrollTop) || 0)
+  const vpHeight = pageBodyRef.value?.clientHeight || window.innerHeight || 800
+  const cols = getSearchCols()
+  const rowSpan = getRowSpan()
+  const overscanRows = cols >= 5 ? SEARCH_OVERSCAN_ROWS_WIDE : SEARCH_OVERSCAN_ROWS
+  const viewportRows = Math.max(1, Math.ceil(vpHeight / rowSpan))
+  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+  const renderRows = Math.min(
+    Math.max(SEARCH_INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2),
+    Math.ceil(SEARCH_MAX_RENDER_CARDS / cols)
+  )
+  visibleStartRow.value = startRow
+  visibleRenderRows.value = renderRows
+}
+
+function measureRowHeight() {
+  const container = pageBodyRef.value?.querySelector('.goods-list-container')
+  const firstRow = container?.querySelector('.goods-row')
+  if (firstRow) {
+    const h = firstRow.getBoundingClientRect().height
+    if (h > 50) measuredRowHeight.value = h
+  }
+}
+
+function handleSearchScroll() {
+  if (pageScrollRaf) return
+  pageScrollRaf = window.requestAnimationFrame(() => {
+    pageScrollRaf = 0
+    syncSearchViewport(pageBodyRef.value?.scrollTop || window.scrollY || 0)
+  })
+}
+
+watch(resultRows, () => {
+  if (isRestoringSearchState) return
+  visibleStartRow.value = 0
+  if (pageBodyRef.value) pageBodyRef.value.scrollTop = 0
+  nextTick(() => {
+    measureRowHeight()
+    syncSearchViewport(0)
+  })
+})
+
 const canSavePreset = computed(() => presetDraftName.value.trim().length > 0 && activeFilterCount.value > 0)
 const emptyDesc = computed(() => (
   debouncedKeyword.value
@@ -926,18 +1025,27 @@ function onSelectionScroll() {
 }
 
 onMounted(async () => {
+  isRestoringSearchState = true
   restoreSearchState()
-
-  if (savedScrollTop > 0) {
-    await nextTick()
-    restoreSearchScrollTop(savedScrollTop)
-  }
+  syncSearchViewport(0)
+  await nextTick()
+  measureRowHeight()
+  isRestoringSearchState = false
 
   window.addEventListener('popstate', handleSelectionPopState)
   window.addEventListener('scroll', onSelectionScroll, { passive: true })
+  window.addEventListener('scroll', handleSearchScroll, { passive: true })
+  pageBodyRef.value?.addEventListener('scroll', handleSearchScroll, { passive: true })
   bindAndroidBackButton()
-  
-  await nextTick() // 确保滚动位置和 DOM 稳定后再执行动画
+
+  if (savedScrollTop > 0) {
+    restoreSearchScrollTop(savedScrollTop)
+    setTimeout(() => {
+      syncSearchViewport(savedScrollTop)
+      nextTick(() => measureRowHeight())
+    }, 160)
+  }
+
   if (hasPendingGoodsHeroBack(route.fullPath)) {
     scheduleGoodsBackHeroRetry()
   }
@@ -948,6 +1056,8 @@ onBeforeUnmount(() => {
   if (searchTimeout) clearTimeout(searchTimeout)
   window.removeEventListener('popstate', handleSelectionPopState)
   window.removeEventListener('scroll', onSelectionScroll)
+  window.removeEventListener('scroll', handleSearchScroll)
+  pageBodyRef.value?.removeEventListener('scroll', handleSearchScroll)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
 })
