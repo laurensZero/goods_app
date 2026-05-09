@@ -1,6 +1,8 @@
 import { computed } from 'vue'
 import { sortHomeGoodsList } from '@/utils/homeSort'
 
+const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+
 export function useHomeGoodsList(store, sortMode, sortDirection) {
   const listData = computed(() => {
     const items = sortHomeGoodsList(store.collectionViewList, sortMode.value, sortDirection.value)
@@ -8,8 +10,10 @@ export function useHomeGoodsList(store, sortMode, sortDirection) {
     let totalQty = 0
 
     for (let i = 0; i < items.length; i++) {
-        totalVal += items[i].totalValueNumber
-        totalQty += items[i].quantityNumber
+        if (!EXCLUDED_VALUE_STATUSES.has(items[i].collectStatus)) {
+          totalVal += items[i].totalValueNumber
+          totalQty += items[i].quantityNumber
+        }
     }
 
     const byId = new Map()
