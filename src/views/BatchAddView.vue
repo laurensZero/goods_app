@@ -177,7 +177,7 @@ async function handleSave() {
       price: card.price,
       isWishlist: isWishlist.value,
       quantity: 1,
-      collectStatus: isWishlist.value ? '' : '已入库',
+      collectStatus: isWishlist.value ? '' : '已拥有',
       acquiredAt: isWishlist.value ? '' : today,
       images: [
         {

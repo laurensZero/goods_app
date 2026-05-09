@@ -139,11 +139,11 @@ function normalizeWishlistFlag(value) {
   return false
 }
 
-const VALID_COLLECT_STATUSES = new Set(['定金', '在途', '尾款', '已入库', '未发货'])
+const VALID_COLLECT_STATUSES = new Set(['待发货', '待补款', '待补邮', '已拥有', '丢失', '已赠出', '想出', '已出', '在售'])
 
 function normalizeCollectStatus(value) {
   const str = String(value || '').trim()
-  return VALID_COLLECT_STATUSES.has(str) ? str : '已入库'
+  return VALID_COLLECT_STATUSES.has(str) ? str : '已拥有'
 }
 
 function resolveEffectivePriceValue(item) {

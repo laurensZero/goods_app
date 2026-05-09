@@ -49,7 +49,7 @@ export function useGoodsEditorForm(options = {}) {
     unitCharacterList: [],
     currency: 'CNY',
     actualPriceCurrency: 'CNY',
-    collectStatus: '已入库',
+    collectStatus: '已拥有',
     shippingFee: ''
   })
 
@@ -215,7 +215,7 @@ export function useGoodsEditorForm(options = {}) {
         form.actualPrice = item.actualPrice ?? ''
         form.currency = item.currency || 'CNY'
         form.actualPriceCurrency = item.actualPriceCurrency || 'CNY'
-        form.collectStatus = item.collectStatus || '已入库'
+        form.collectStatus = item.collectStatus || '已拥有'
         form.shippingFee = item.shippingFee ?? ''
         form.points = item.points ?? ''
         showPointsInput.value = !!item.points

@@ -37,7 +37,7 @@ const CREATE_TABLE_SQL = `
     points     INTEGER DEFAULT NULL,
     currency   TEXT DEFAULT 'CNY',
     actualPriceCurrency TEXT DEFAULT 'CNY',
-    collectStatus TEXT DEFAULT '已入库',
+    collectStatus TEXT DEFAULT '已拥有',
     shippingFee TEXT DEFAULT ''
   );
 `
@@ -83,7 +83,7 @@ const MIGRATE_ADD_TRACKS = "ALTER TABLE goods ADD COLUMN tracks TEXT DEFAULT '[]
 const MIGRATE_ADD_UPDATED_AT = "ALTER TABLE goods ADD COLUMN updatedAt INTEGER DEFAULT 0"
 const MIGRATE_ADD_CURRENCY = "ALTER TABLE goods ADD COLUMN currency TEXT DEFAULT 'CNY'"
 const MIGRATE_ADD_ACTUAL_PRICE_CURRENCY = "ALTER TABLE goods ADD COLUMN actualPriceCurrency TEXT DEFAULT 'CNY'"
-const MIGRATE_ADD_COLLECT_STATUS = "ALTER TABLE goods ADD COLUMN collectStatus TEXT DEFAULT '已入库'"
+const MIGRATE_ADD_COLLECT_STATUS = "ALTER TABLE goods ADD COLUMN collectStatus TEXT DEFAULT '已拥有'"
 const MIGRATE_ADD_SHIPPING_FEE = "ALTER TABLE goods ADD COLUMN shippingFee TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_TICKET_TYPE = "ALTER TABLE events ADD COLUMN ticketType TEXT DEFAULT ''"
 const MIGRATE_EVENT_ADD_SEAT_INFO = "ALTER TABLE events ADD COLUMN seatInfo TEXT DEFAULT ''"
@@ -167,7 +167,7 @@ function prepareGoodsRecord(item) {
     updatedAt,
     currency = 'CNY',
     actualPriceCurrency = 'CNY',
-    collectStatus = '已入库',
+    collectStatus = '已拥有',
     shippingFee = ''
   } = item
 
@@ -197,7 +197,7 @@ function prepareGoodsRecord(item) {
     legacyImage: getPrimaryGoodsImageUrl(images, coverImage || image),
     note,
     ts: updatedAt || Date.now(),
-    collectStatus: String(collectStatus || '已入库'),
+    collectStatus: String(collectStatus || '已拥有'),
     shippingFee: String(shippingFee || '')
   }
 }

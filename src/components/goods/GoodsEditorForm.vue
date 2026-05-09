@@ -731,11 +731,15 @@ const currencyOptions = computed(() =>
   CURRENCIES.map((c) => ({ label: `${c.symbol} ${c.name}`, value: c.code }))
 )
 const collectStatusOptions = [
-  { label: '定金', value: '定金' },
-  { label: '在途', value: '在途' },
-  { label: '尾款', value: '尾款' },
-  { label: '已入库', value: '已入库' },
-  { label: '未发货', value: '未发货' }
+  { label: '待发货', value: '待发货' },
+  { label: '待补款', value: '待补款' },
+  { label: '待补邮', value: '待补邮' },
+  { label: '已拥有', value: '已拥有' },
+  { label: '丢失', value: '丢失' },
+  { label: '已赠出', value: '已赠出' },
+  { label: '想出', value: '想出' },
+  { label: '已出', value: '已出' },
+  { label: '在售', value: '在售' }
 ]
 const currencySymbol = computed(() => CURRENCY_MAP[form.currency]?.symbol || '¥')
 const activeTab = ref('basic')
