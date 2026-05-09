@@ -509,40 +509,52 @@ export function createSyncExecutionService({
       }
 
       const BATCH_SIZE = 30
+      const MAX_CONCURRENT = 3
       const entries = Object.entries(imageUpdates)
       const totalBatches = Math.ceil(entries.length / BATCH_SIZE)
 
+      // 分批
+      const batches = []
       for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-        const batch = entries.slice(i, i + BATCH_SIZE)
-        const batchNum = Math.floor(i / BATCH_SIZE) + 1
-        const batchObj = Object.fromEntries(batch)
-
-        await trackSyncStep(`更新图片 Gist (${batchNum}/${totalBatches})`, async () => {
-          let encryptedBatch = batchObj
-          if (encryptionEnabledRef?.value && ensureEncryptionKey) {
-            try {
-              const key = await ensureEncryptionKey()
-              if (key) {
-                encryptedBatch = {}
-                for (const [fileName, fileObj] of batch) {
-                  if (fileObj.content && typeof fileObj.content === 'string') {
-                    encryptedBatch[fileName] = { content: await encrypt(fileObj.content, key) }
-                  } else {
-                    encryptedBatch[fileName] = fileObj
-                  }
-                }
-              }
-            } catch (e) {
-              console.warn('图片加密失败，以明文上传:', e)
-            }
-          }
-          return updateGist(tokenRef.value, imageGist.id, encryptedBatch)
-        }, {
-          startDetail: `上传第 ${batchNum}/${totalBatches} 批图片`,
-          category: 'image',
-          successDetail: () => `第 ${batchNum} 批已上传`
+        batches.push({
+          batch: entries.slice(i, i + BATCH_SIZE),
+          batchNum: Math.floor(i / BATCH_SIZE) + 1
         })
       }
+
+      // 并发上传
+      await trackSyncStep(`上传图片 Gist (${totalBatches} 批并发)`, async () => {
+        for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
+          const chunk = batches.slice(i, i + MAX_CONCURRENT)
+          await Promise.all(chunk.map(async ({ batch, batchNum }) => {
+            const batchObj = Object.fromEntries(batch)
+            let encryptedBatch = batchObj
+            if (encryptionEnabledRef?.value && ensureEncryptionKey) {
+              try {
+                const key = await ensureEncryptionKey()
+                if (key) {
+                  encryptedBatch = {}
+                  for (const [fileName, fileObj] of batch) {
+                    if (fileObj.content && typeof fileObj.content === 'string') {
+                      encryptedBatch[fileName] = { content: await encrypt(fileObj.content, key) }
+                    } else {
+                      encryptedBatch[fileName] = fileObj
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('图片加密失败，以明文上传:', e)
+              }
+            }
+            return updateGist(tokenRef.value, imageGist.id, encryptedBatch)
+          }))
+        }
+        return `${totalBatches} 批已全部上传`
+      }, {
+        startDetail: `并发上传 ${totalBatches} 批图片（每批 ${BATCH_SIZE} 张，并发 ${MAX_CONCURRENT}）`,
+        category: 'image',
+        successDetail: () => `图片 Gist 已更新`
+      })
     }
 
     const syncTimestamp = new Date().toISOString()
