@@ -1,4 +1,5 @@
 import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goodsImages'
+import { decrypt, isEncrypted } from '@/utils/cryptoManager'
 
 export function createSyncImageService({
   tokenRef,
@@ -8,7 +9,9 @@ export function createSyncImageService({
   getGist,
   getGistFileContent,
   imageFilePrefix,
-  eventCoverPrefix
+  eventCoverPrefix,
+  encryptionEnabledRef = null,
+  ensureEncryptionKey = null
 }) {
   async function resolveRemoteImageGist(remoteManifest) {
     const remoteImageGistId = String(remoteManifest?.imageGistId || imageGistIdRef.value || '').trim()
@@ -59,7 +62,17 @@ export function createSyncImageService({
 
         if (!fileCache.has(gistFileName)) {
           const imageDataUrl = await trackSyncStep(`读取图片文件 ${gistFileName}`, async () => {
-            const fetched = await getGistFileContent(tokenRef.value, imageGist, gistFileName)
+            let fetched = await getGistFileContent(tokenRef.value, imageGist, gistFileName)
+
+            if (isEncrypted(fetched)) {
+              console.log(`[图片解密] ${gistFileName} 检测到加密`)
+              const key = ensureEncryptionKey ? await ensureEncryptionKey() : null
+              if (key) {
+                fetched = await decrypt(fetched, key)
+                console.log(`[图片解密] ${gistFileName} 解密成功`)
+              }
+            }
+
             if (!String(fetched || '').startsWith('data:image/')) {
               throw new Error(`远端图片缺失：${gistFileName}`)
             }

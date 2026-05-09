@@ -74,6 +74,28 @@
                 <span class="detail-label">Image Gist</span>
                 <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
               </div>
+              <div class="detail-row">
+                <span class="detail-label">同步密码</span>
+                <input
+                  type="password"
+                  class="password-input"
+                  :value="syncStore.syncPassword"
+                  placeholder="设置加密密码"
+                  @change="handlePasswordChange"
+                />
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">端到端加密</span>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    :checked="syncStore.encryptionEnabled"
+                    :disabled="!syncStore.githubLogin || !syncStore.syncPassword"
+                    @change="handleEncryptionToggle"
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
               <div class="detail-row detail-row--last">
                 <span class="detail-label">最近同步</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
@@ -818,56 +840,15 @@ async function loadGistInfo() {
       return
     }
 
-    const [content, manifestContent, rechargeContent, eventContent] = await Promise.all([
-      getGistFileContent(syncStore.token, gist, 'data.json'),
-      getGistFileContent(syncStore.token, gist, 'manifest.json'),
-      getGistFileContent(syncStore.token, gist, 'recharge-data.json'),
-      getGistFileContent(syncStore.token, gist, 'events-data.json')
-    ])
+    const manifestContent = await getGistFileContent(syncStore.token, gist, 'manifest.json')
     const manifest = manifestContent ? JSON.parse(manifestContent) : null
 
-    let nextCollectionCount = 0
-    let nextWishlistCount = 0
-    let nextTrashCount = 0
-    let nextRechargeCount = 0
-    let nextEventCount = 0
-
-    if (content) {
-      try {
-        const data = JSON.parse(content)
-        const goods = Array.isArray(data.goods) ? data.goods : []
-        nextCollectionCount = goods.filter((item) => !item.isWishlist).length
-        nextWishlistCount = goods.filter((item) => item.isWishlist).length
-        nextTrashCount = Array.isArray(data.trash) ? data.trash.length : 0
-      } catch {
-        // ignore parse error
-      }
-    }
-
-    if (rechargeContent) {
-      try {
-        const rechargeData = JSON.parse(rechargeContent)
-        nextRechargeCount = Array.isArray(rechargeData.recharge) ? rechargeData.recharge.length : 0
-      } catch {
-        nextRechargeCount = 0
-      }
-    }
-
-    if (eventContent) {
-      try {
-        const eventData = JSON.parse(eventContent)
-        nextEventCount = Array.isArray(eventData.events) ? eventData.events.length : 0
-      } catch {
-        nextEventCount = 0
-      }
-    }
-
     gistInfo.value = {
-      collectionCount: nextCollectionCount,
-      wishlistCount: nextWishlistCount,
-      trashCount: nextTrashCount,
-      rechargeCount: nextRechargeCount,
-      eventCount: nextEventCount,
+      collectionCount: Number(manifest?.collectionCount) || 0,
+      wishlistCount: Number(manifest?.wishlistCount) || 0,
+      trashCount: Number(manifest?.trashCount) || 0,
+      rechargeCount: Number(manifest?.rechargeCount) || 0,
+      eventCount: Number(manifest?.eventCount) || 0,
       imageGistId: manifest?.imageGistId || '',
       rechargeGistId: syncStore.gistId || '',
       eventGistId: syncStore.gistId || '',
@@ -885,6 +866,25 @@ function buildImageSyncText(result) {
   if (result?.reusedImages > 0) parts.push(`复用 ${result.reusedImages} 张图片`)
   if (result?.restoredImages > 0) parts.push(`恢复 ${result.restoredImages} 张图片`)
   return parts.join('，')
+}
+
+async function handlePasswordChange(event) {
+  const password = event.target.value
+  try {
+    await syncStore.setSyncPassword(password)
+  } catch (e) {
+    console.error('设置密码失败:', e)
+  }
+}
+
+async function handleEncryptionToggle(event) {
+  const enabled = event.target.checked
+  try {
+    await syncStore.setEncryptionEnabled(enabled)
+  } catch (e) {
+    console.error('切换加密状态失败:', e)
+    event.target.checked = !enabled
+  }
 }
 
 async function copyText(text) {
@@ -1112,7 +1112,7 @@ async function handleSaveToken() {
       return
     }
     tokenValidLogin.value = check.login
-    await syncStore.saveToken(input, { login: check.login, authMethod: 'token' })
+    await syncStore.saveToken(input, { login: check.login, userId: check.userId, authMethod: 'token' })
     await syncStore.init()
     showToast(`Token 已保存（${tokenValidLogin.value}）`)
     closeTokenDialog()

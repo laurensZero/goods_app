@@ -73,29 +73,29 @@ export function base64urlDecode (str) {
  * @param {string} username - GitHub 用户名
  * @returns {Promise<CryptoKey>} AES-256-GCM 密钥
  */
-export async function deriveKey (token, username) {
+export async function deriveKey (password, userId) {
   if (!isWebCryptoAvailable()) {
     throw new Error('deriveKey: 当前环境不支持 Web Crypto API')
   }
-  if (typeof token !== 'string' || token.length === 0) {
-    throw new Error('deriveKey: token 必须为非空字符串')
+  if (typeof password !== 'string' || password.length === 0) {
+    throw new Error('deriveKey: password 必须为非空字符串')
   }
-  if (typeof username !== 'string' || username.length === 0) {
-    throw new Error('deriveKey: username 必须为非空字符串')
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error('deriveKey: userId 必须为非空字符串')
   }
 
   const encoder = new TextEncoder()
 
-  // 将 token 导入为 HKDF 的原始密钥材料
+  // 使用 password + userId 派生密钥
   const keyMaterial = await globalThis.crypto.subtle.importKey(
     'raw',
-    encoder.encode(token),
+    encoder.encode(password + ':' + userId),
     'HKDF',
     false,
     ['deriveKey']
   )
 
-  const salt = encoder.encode('goods-app-encryption:' + username)
+  const salt = encoder.encode('goods-app-salt-v1')
   const info = encoder.encode('gist-encryption-key')
 
   // 通过 HKDF-SHA256 派生 AES-256-GCM 密钥
@@ -124,15 +124,12 @@ export async function encrypt (data, key) {
   if (!isWebCryptoAvailable()) {
     throw new Error('encrypt: 当前环境不支持 Web Crypto API')
   }
-  if (typeof data !== 'string') {
-    throw new Error('encrypt: data 必须为字符串')
-  }
   if (!(key instanceof CryptoKey)) {
     throw new Error('encrypt: key 必须为 CryptoKey 实例')
   }
 
   const encoder = new TextEncoder()
-  const plaintext = encoder.encode(data)
+  const plaintext = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data))
 
   // 随机生成 12 字节 nonce
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12))

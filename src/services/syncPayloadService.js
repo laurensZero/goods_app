@@ -372,14 +372,19 @@ export function createSyncPayloadService({
     return JSON.stringify(sortObjectKeys({ events }))
   }
 
-  function buildManifest(imageStats = {}, timestamp = new Date().toISOString()) {
+  function buildManifest(imageStats = {}, timestamp = new Date().toISOString(), counts = {}) {
     return {
       version: 1,
       deviceId: deviceIdRef.value,
       lastSyncAt: timestamp,
       imageGistId: imageGistIdRef.value || '',
       imageFileCount: Number(imageStats.imageFileCount) || 0,
-      imageUpdatedAt: imageStats.imageUpdatedAt || ''
+      imageUpdatedAt: imageStats.imageUpdatedAt || '',
+      collectionCount: Number(counts.collectionCount) || 0,
+      wishlistCount: Number(counts.wishlistCount) || 0,
+      trashCount: Number(counts.trashCount) || 0,
+      rechargeCount: Number(counts.rechargeCount) || 0,
+      eventCount: Number(counts.eventCount) || 0
     }
   }
 

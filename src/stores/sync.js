@@ -26,6 +26,7 @@ import {
   resolveGoodsTrashMaps
 } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
+import { deriveKey, isEncrypted, decrypt, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 
@@ -37,10 +38,13 @@ const EVENT_GIST_ID_KEY = 'sync_event_gist_id'
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
 const GITHUB_LOGIN_KEY = 'sync_github_login'
+const GITHUB_USER_ID_KEY = 'sync_github_user_id'
 const GITHUB_AVATAR_URL_KEY = 'sync_github_avatar_url'
+const SYNC_PASSWORD_KEY = 'sync_password'
 const GITHUB_SCOPES_KEY = 'sync_github_scopes'
 const GITHUB_AUTH_METHOD_KEY = 'sync_github_auth_method'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
+const ENCRYPTION_ENABLED_KEY = 'sync_encryption_enabled'
 
 const DATA_FILENAME = 'data.json'
 const RECHARGE_DATA_FILENAME = 'recharge-data.json'
@@ -65,6 +69,7 @@ export const useSyncStore = defineStore('sync', () => {
   const { syncLogs, clearSyncLogs, trackSyncStep } = useSyncLogger()
   const token = ref('')
   const githubLogin = ref('')
+  const githubUserId = ref('')
   const githubAvatarUrl = ref('')
   const githubScopes = ref('')
   const githubAuthMethod = ref('')
@@ -75,6 +80,9 @@ export const useSyncStore = defineStore('sync', () => {
   const lastSyncedAt = ref('')
   const eventLastSyncedAt = ref('')
   const deviceId = ref('')
+  const encryptionEnabled = ref(false)
+  const encryptionKey = ref(null)
+  const syncPassword = ref('')
   const isInitialized = ref(false)
   const isSyncing = ref(false)
   const syncStatus = ref('')
@@ -91,16 +99,19 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function persistGitHubMeta(meta = {}) {
     const nextLogin = String(meta.login ?? meta.githubLogin ?? '').trim()
+    const nextUserId = String(meta.userId ?? meta.githubUserId ?? '').trim()
     const nextAvatarUrl = String(meta.avatarUrl ?? meta.githubAvatarUrl ?? '').trim()
     const nextScopes = String(meta.scopes ?? meta.githubScopes ?? '').trim()
     const nextAuthMethod = normalizeGitHubAuthMethod(meta.authMethod ?? meta.githubAuthMethod ?? '')
 
     githubLogin.value = nextLogin
+    githubUserId.value = nextUserId
     githubAvatarUrl.value = nextAvatarUrl
     githubScopes.value = nextScopes
     githubAuthMethod.value = nextAuthMethod
 
     await writeSyncKey(GITHUB_LOGIN_KEY, nextLogin)
+    await writeSyncKey(GITHUB_USER_ID_KEY, nextUserId)
     await writeSyncKey(GITHUB_AVATAR_URL_KEY, nextAvatarUrl)
     await writeSyncKey(GITHUB_SCOPES_KEY, nextScopes)
     await writeSyncKey(GITHUB_AUTH_METHOD_KEY, nextAuthMethod)
@@ -138,8 +149,22 @@ export const useSyncStore = defineStore('sync', () => {
         return null
       }
 
+      let parsed
+      if (isEncrypted(content)) {
+        console.log(`[解密] ${fileName} 检测到加密数据`)
+        const key = await ensureEncryptionKey()
+        if (!key) {
+          throw new Error('检测到加密数据，但加密密钥未初始化。请重新登录 GitHub 或禁用加密。')
+        }
+        const decrypted = await decrypt(content, key)
+        parsed = JSON.parse(decrypted)
+        console.log(`[解密] ${fileName} 解密成功`)
+      } else {
+        parsed = JSON.parse(content)
+      }
+
       return {
-        parsed: JSON.parse(content),
+        parsed,
         source
       }
     }, {
@@ -162,11 +187,43 @@ export const useSyncStore = defineStore('sync', () => {
     return eventsStore
   }
 
+  async function setEncryptionEnabled(enabled) {
+    console.log('[setEncryptionEnabled] enabled:', enabled, 'password:', syncPassword.value ? '已设置' : '空', 'userId:', githubUserId.value || '空')
+    encryptionEnabled.value = !!enabled
+    await writeSyncKey(ENCRYPTION_ENABLED_KEY, enabled ? '1' : '')
+    if (!enabled) {
+      encryptionKey.value = null
+    }
+  }
+
+  async function setSyncPassword(password) {
+    console.log('[setSyncPassword] 设置密码:', password ? '已设置' : '空')
+    syncPassword.value = password
+    await writeSyncKey(SYNC_PASSWORD_KEY, password)
+    encryptionKey.value = null
+  }
+
+  async function ensureEncryptionKey() {
+    console.log('[ensureEncryptionKey] password:', syncPassword.value ? '已设置' : '空', 'userId:', githubUserId.value || '空')
+    if (encryptionKey.value) return encryptionKey.value
+    if (!syncPassword.value || !githubUserId.value) return null
+    if (!isWebCryptoAvailable()) return null
+    encryptionKey.value = await deriveKey(syncPassword.value, githubUserId.value)
+    console.log('[ensureEncryptionKey] 密钥已生成')
+    return encryptionKey.value
+  }
+
+  function clearEncryptionKey() {
+    encryptionKey.value = null
+  }
+
   async function init() {
     await ensureEventsStoreReady()
     token.value = (await readSyncKey(TOKEN_KEY)) || ''
     githubLogin.value = (await readSyncKey(GITHUB_LOGIN_KEY)) || ''
+    githubUserId.value = (await readSyncKey(GITHUB_USER_ID_KEY)) || ''
     githubAvatarUrl.value = (await readSyncKey(GITHUB_AVATAR_URL_KEY)) || ''
+    syncPassword.value = (await readSyncKey(SYNC_PASSWORD_KEY)) || ''
     githubScopes.value = (await readSyncKey(GITHUB_SCOPES_KEY)) || ''
     githubAuthMethod.value = normalizeGitHubAuthMethod((await readSyncKey(GITHUB_AUTH_METHOD_KEY)) || '')
     gistId.value = (await readSyncKey(GIST_ID_KEY)) || ''
@@ -176,6 +233,15 @@ export const useSyncStore = defineStore('sync', () => {
     lastSyncedAt.value = (await readSyncKey(LAST_SYNC_KEY)) || ''
     eventLastSyncedAt.value = (await readSyncKey(EVENT_LAST_SYNC_KEY)) || ''
     deviceId.value = await readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId)
+    encryptionEnabled.value = (await readSyncKey(ENCRYPTION_ENABLED_KEY)) === '1'
+    if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
+      try {
+        await ensureEncryptionKey()
+      } catch (e) {
+        console.warn('加密密钥初始化失败:', e)
+        encryptionEnabled.value = false
+      }
+    }
     isInitialized.value = true
 
     if (token.value && !gistId.value) {
@@ -195,8 +261,22 @@ export const useSyncStore = defineStore('sync', () => {
         if (check.valid && check.login) {
           await persistGitHubMeta({
             login: check.login,
+            userId: check.userId,
             authMethod: githubAuthMethod.value || 'token'
           })
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // 如果已有登录信息但没有用户 ID，补充获取
+    if (token.value && githubLogin.value && !githubUserId.value) {
+      try {
+        const check = await validateToken(token.value)
+        if (check.valid && check.userId) {
+          githubUserId.value = check.userId
+          await writeSyncKey(GITHUB_USER_ID_KEY, check.userId)
         }
       } catch {
         // ignore
@@ -231,6 +311,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function saveToken(newToken, meta = {}) {
     token.value = newToken
+    clearEncryptionKey()
     await writeSyncKey(TOKEN_KEY, newToken)
     gistId.value = ''
     imageGistId.value = ''
@@ -362,7 +443,9 @@ export const useSyncStore = defineStore('sync', () => {
     getGist,
     getGistFileContent,
     imageFilePrefix: IMAGE_FILE_PREFIX,
-    eventCoverPrefix: EVENT_COVER_PREFIX
+    eventCoverPrefix: EVENT_COVER_PREFIX,
+    encryptionEnabledRef: encryptionEnabled,
+    ensureEncryptionKey
   })
 
   const {
@@ -420,7 +503,9 @@ export const useSyncStore = defineStore('sync', () => {
       RECHARGE_DATA_FILENAME,
       EVENT_DATA_FILENAME,
       MANIFEST_FILENAME
-    }
+    },
+    encryptionEnabledRef: encryptionEnabled,
+    ensureEncryptionKey
   })
 
   async function checkTokenValidity() {
@@ -991,6 +1076,12 @@ export const useSyncStore = defineStore('sync', () => {
     resolveConflict,
     resolvePullConflict,
     clearConflict,
-    resetConfig
+    resetConfig,
+    encryptionEnabled,
+    setEncryptionEnabled,
+    ensureEncryptionKey,
+    syncPassword,
+    setSyncPassword,
+    githubUserId
   }
 })

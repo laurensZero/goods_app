@@ -56,9 +56,9 @@ async function request(method, path, token, body = null) {
 export async function validateToken(token) {
   try {
     const user = await request('GET', '/user', token)
-    return { valid: true, login: user.login }
+    return { valid: true, login: user.login, userId: String(user.id) }
   } catch {
-    return { valid: false, login: '' }
+    return { valid: false, login: '', userId: '' }
   }
 }
 

@@ -214,6 +214,7 @@ async function handleStartGithubLogin() {
 
     await syncStore.saveToken(token.access_token, {
       login: user.login,
+      userId: String(user.id),
       avatarUrl: user.avatar_url,
       scopes: token.scope,
       authMethod: 'device-flow'
