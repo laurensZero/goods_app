@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.1",
+    "url": "bundle-20260509.1.zip",
+    "hash": "08299754e6577d5214f9ee4244d9d68f6124b96c5d52b032127e1cc7316b903c",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加收藏状态和邮费字段，优化商品编辑和展示逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T05:03:02Z"
+  },
+  {
     "version": "20260508.4",
     "url": "bundle-20260508.4.zip",
     "hash": "c17ed8a68a5ab11164a26234ae4183ddf006435f981023b957a2485ed8de48f5",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化账号信息展示",
     "updateLevel": "silent",
     "publishedAt": "2026-05-08T10:50:51Z"
-  },
-  {
-    "version": "20260508.2",
-    "url": "bundle-20260508.2.zip",
-    "hash": "4ee36c928e688afe719607c5efe43181af75dba01a1b5876aedda53e644a812c",
-    "minNativeVersion": null,
-    "notes": "- feat: 调整商品导入逻辑，售罄状态不再影响有效性判断",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-08T10:45:30Z"
   }
 ]
