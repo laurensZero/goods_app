@@ -36,6 +36,14 @@ export const GOODS_FILTER_BOOLEAN_OPTIONS = [
   { label: '无', value: 'no' }
 ]
 
+export const GOODS_FILTER_COLLECT_STATUS_OPTIONS = [
+  { label: '定金', value: '定金' },
+  { label: '在途', value: '在途' },
+  { label: '尾款', value: '尾款' },
+  { label: '已入库', value: '已入库' },
+  { label: '未发货', value: '未发货' }
+]
+
 function normalizeStringList(list) {
   if (!Array.isArray(list)) return []
 
@@ -210,6 +218,7 @@ export function createDefaultGoodsFilters(overrides = {}) {
     acquiredTo: '',
     hasImage: DEFAULT_TOGGLE,
     hasNote: DEFAULT_TOGGLE,
+    collectStatuses: [],
     sortBy: DEFAULT_SORT,
     ...overrides
   }
@@ -230,6 +239,7 @@ export function normalizeGoodsFilterConditions(input = {}) {
   normalized.acquiredTo = String(input.acquiredTo || '').trim()
   normalized.hasImage = normalizeToggleValue(input.hasImage)
   normalized.hasNote = normalizeToggleValue(input.hasNote)
+  normalized.collectStatuses = normalizeStringList(input.collectStatuses)
   normalized.sortBy = normalizeSortValue(input.sortBy)
 
   return normalized
@@ -254,6 +264,7 @@ export function countActiveGoodsFilters(input, options = {}) {
   if (filters.acquiredPreset !== DEFAULT_DATE_PRESET) count += 1
   if (filters.hasImage !== DEFAULT_TOGGLE) count += 1
   if (filters.hasNote !== DEFAULT_TOGGLE) count += 1
+  if (filters.collectStatuses.length) count += 1
   if (filters.sortBy !== DEFAULT_SORT) count += 1
 
   return count
@@ -298,6 +309,11 @@ export function applyGoodsFilters(list, input) {
     const hasNote = Boolean(String(item.note || '').trim())
     if (filters.hasNote === 'yes' && !hasNote) return false
     if (filters.hasNote === 'no' && hasNote) return false
+
+    if (filters.collectStatuses.length) {
+      const itemStatus = String(item.collectStatus || '').trim()
+      if (!filters.collectStatuses.includes(itemStatus)) return false
+    }
 
     return true
   })

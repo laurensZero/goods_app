@@ -20,7 +20,9 @@ const EXCLUDED_KEYS = new Set([
   '_imagesExplicit',
   '__imagesExplicit',
   'quantity',
-  'note'
+  'note',
+  'collectStatus',
+  'shippingFee'
 ])
 
 /**

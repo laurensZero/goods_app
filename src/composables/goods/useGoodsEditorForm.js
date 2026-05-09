@@ -48,7 +48,9 @@ export function useGoodsEditorForm(options = {}) {
     unitActualPriceList: [],
     unitCharacterList: [],
     currency: 'CNY',
-    actualPriceCurrency: 'CNY'
+    actualPriceCurrency: 'CNY',
+    collectStatus: '已入库',
+    shippingFee: ''
   })
 
   const showPointsInput = ref(false)
@@ -213,6 +215,8 @@ export function useGoodsEditorForm(options = {}) {
         form.actualPrice = item.actualPrice ?? ''
         form.currency = item.currency || 'CNY'
         form.actualPriceCurrency = item.actualPriceCurrency || 'CNY'
+        form.collectStatus = item.collectStatus || '已入库'
+        form.shippingFee = item.shippingFee ?? ''
         form.points = item.points ?? ''
         showPointsInput.value = !!item.points
         showActualPriceInput.value = hasActualPriceValue(item.actualPrice)

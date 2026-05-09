@@ -147,6 +147,11 @@
             <TagInput v-model="form.tags" placeholder="留空则不修改" />
           </label>
 
+          <label class="field">
+            <span class="field-label">收藏状态</span>
+            <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" placeholder="留空则不修改" />
+          </label>
+
           <div class="field">
             <div class="field-head">
               <span class="field-label">收纳位置</span>
@@ -189,6 +194,21 @@
               @input="sanitizePriceInput"
             />
             <span v-if="priceError" class="field-error">{{ priceError }}</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label">邮费（¥）</span>
+            <input
+              v-model="form.shippingFee"
+              class="field-input"
+              type="number"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="留空则不修改"
+              @keydown="preventNegativeInput"
+              @input="sanitizeShippingFeeInput"
+            />
           </label>
         </div>
       </section>
@@ -259,8 +279,17 @@ const form = reactive({
   acquiredAt: '',
   storageLocation: '',
   characters: [],
-  tags: []
+  tags: [],
+  collectStatus: '',
+  shippingFee: ''
 })
+const collectStatusOptions = [
+  { label: '定金', value: '定金' },
+  { label: '在途', value: '在途' },
+  { label: '尾款', value: '尾款' },
+  { label: '已入库', value: '已入库' },
+  { label: '未发货', value: '未发货' }
+]
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 
 const showProxy = computed({
@@ -292,6 +321,16 @@ function sanitizePriceInput(event) {
   form.price = rawValue.replace(/-/g, '')
 }
 
+function sanitizeShippingFeeInput(event) {
+  const rawValue = String(event?.target?.value ?? form.shippingFee ?? '')
+  if (!rawValue) {
+    form.shippingFee = ''
+    return
+  }
+
+  form.shippingFee = rawValue.replace(/-/g, '')
+}
+
 const canSubmit = computed(() =>
   Boolean(
     form.markAsOwned ||
@@ -301,7 +340,9 @@ const canSubmit = computed(() =>
     form.acquiredAt ||
     form.storageLocation ||
     form.characters.length > 0 ||
-    form.tags.length > 0
+    form.tags.length > 0 ||
+    form.collectStatus ||
+    hasPriceInput(form.shippingFee)
   ) && !priceError.value
 )
 const storageLocationOptions = computed(() => goodsStore.storageLocations)
@@ -366,6 +407,8 @@ function resetForm() {
   form.storageLocation = ''
   form.characters = []
   form.tags = []
+  form.collectStatus = ''
+  form.shippingFee = ''
   priceError.value = ''
   closeQuickCreate()
   datePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
@@ -490,6 +533,8 @@ async function apply() {
   if (form.storageLocation) payload.storageLocation = form.storageLocation
   if (form.characters.length > 0) payload.characters = [...form.characters]
   if (form.tags.length > 0) payload.tags = [...form.tags]
+  if (form.collectStatus) payload.collectStatus = form.collectStatus
+  if (hasPriceInput(form.shippingFee)) payload.shippingFee = `${Math.round(Number(form.shippingFee) * 100) / 100}`
   if (Object.keys(payload).length === 0) return
 
   emit('apply', payload)

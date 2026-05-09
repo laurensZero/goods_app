@@ -163,6 +163,21 @@
                   </div>
                 </div>
 
+                <div v-if="searchScope === 'collection'" class="field-block">
+                  <label class="field-label">收藏状态</label>
+                  <div class="chip-wrap">
+                    <button
+                      v-for="option in GOODS_FILTER_COLLECT_STATUS_OPTIONS"
+                      :key="option.value"
+                      type="button"
+                      :class="['chip', { 'chip--active': filters.collectStatuses.includes(option.value) }]"
+                      @click="toggleFilterValue('collectStatuses', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
                 <div class="field-block">
                   <label class="field-label">购入时间</label>
                   <div class="chip-wrap">
@@ -331,6 +346,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import {
   GOODS_FILTER_BOOLEAN_OPTIONS,
+  GOODS_FILTER_COLLECT_STATUS_OPTIONS,
   GOODS_FILTER_DATE_PRESET_OPTIONS,
   GOODS_FILTER_SORT_OPTIONS,
   GOODS_FILTER_SPECIAL_VALUES,

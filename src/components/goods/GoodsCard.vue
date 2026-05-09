@@ -327,7 +327,10 @@ const priceText = computed(() => {
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
-    return `到手 ${apSym}${props.item.actualPrice}`
+    const base = Number(props.item.actualPrice) || 0
+    const shipping = Number(props.item.shippingFee) || 0
+    const total = base + shipping
+    return `到手 ${apSym}${total}`
   }
 
   return hasPriceValue(props.item.price) ? `${sym}${props.item.price}` : `${sym}—`
@@ -335,7 +338,9 @@ const priceText = computed(() => {
 
 const priceCNYHint = computed(() => {
   const useActual = props.item.actualPrice !== '' && props.item.actualPrice != null
-  const rawPrice = useActual ? props.item.actualPrice : props.item.price
+  const rawPrice = useActual
+    ? (Number(props.item.actualPrice) || 0) + (Number(props.item.shippingFee) || 0)
+    : props.item.price
   const currency = useActual ? (props.item.actualPriceCurrency || 'CNY') : (props.item.currency || 'CNY')
   if (currency === 'CNY') return ''
   const num = parseFloat(rawPrice)

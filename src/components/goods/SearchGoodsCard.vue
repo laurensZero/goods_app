@@ -192,6 +192,7 @@ const holdingDays = computed(() => {
 
 const chips = computed(() => {
   const next = []
+  if (!props.item.isWishlist && props.item.collectStatus) next.push({ key: `collectStatus:${props.item.collectStatus}`, label: props.item.collectStatus, className: 'collect-status-chip' })
   if (props.item.category) next.push({ key: `category:${props.item.category}`, label: props.item.category, className: '' })
   if (props.item.ip) next.push({ key: `ip:${props.item.ip}`, label: props.item.ip, className: 'ip-chip' })
   return next
@@ -347,6 +348,11 @@ const priceText = computed(() => {
 .card-chip.ip-chip {
   background: rgba(28, 53, 88, 0.1);
   color: #1c3558;
+}
+
+.card-chip.collect-status-chip {
+  background: rgba(45, 74, 30, 0.12);
+  color: #2d4a1e;
 }
 
 .card-bottom-row {

@@ -139,13 +139,22 @@ function normalizeWishlistFlag(value) {
   return false
 }
 
+const VALID_COLLECT_STATUSES = new Set(['定金', '在途', '尾款', '已入库', '未发货'])
+
+function normalizeCollectStatus(value) {
+  const str = String(value || '').trim()
+  return VALID_COLLECT_STATUSES.has(str) ? str : '已入库'
+}
+
 function resolveEffectivePriceValue(item) {
   if (normalizeWishlistFlag(item?.isWishlist)) {
     return item?.price
   }
 
   if (item?.actualPrice !== '' && item?.actualPrice != null) {
-    return item.actualPrice
+    const base = Number(item.actualPrice) || 0
+    const shipping = Number(item.shippingFee) || 0
+    return String(base + shipping)
   }
 
   return item?.price
@@ -489,7 +498,9 @@ export const useGoodsStore = defineStore('goods', () => {
       quantity: Math.max(1, Number(data.quantity) || 1),
       updatedAt: data.updatedAt || 0,
       currency: String(data.currency || '').trim() || 'CNY',
-      actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY'
+      actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY',
+      collectStatus: normalizeCollectStatus(data.collectStatus),
+      shippingFee: String(data.shippingFee || '').trim()
     }
   }
 
@@ -534,6 +545,8 @@ export const useGoodsStore = defineStore('goods', () => {
       coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
       images,
       note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
+      collectStatus: existing.collectStatus || incoming.collectStatus,
+      shippingFee: existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee,
       quantity: mergedQuantity,
       updatedAt: Date.now()
     }

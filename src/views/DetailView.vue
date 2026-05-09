@@ -54,6 +54,7 @@
         <section class="hero-card">
           <div class="hero-meta">
             <span v-if="item.isWishlist" class="hero-chip wish-chip">心愿单</span>
+            <span v-if="!item.isWishlist && item.collectStatus" class="hero-chip collect-status-chip">{{ item.collectStatus }}</span>
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
@@ -118,6 +119,11 @@
             <article v-if="showActualPriceTile" class="info-tile">
               <span class="info-label">入手价</span>
               <strong class="info-value">{{ actualPriceDisplayText }}</strong>
+            </article>
+
+            <article v-if="!item.isWishlist && hasShippingFee" class="info-tile">
+              <span class="info-label">邮费</span>
+              <strong class="info-value">{{ actualPriceCurrencySymbol }}{{ item.shippingFee }}</strong>
             </article>
 
             <article v-if="item.storageLocation" class="info-tile">
@@ -432,6 +438,10 @@ const actualPriceCNYHint = computed(() => {
   return `≈ ¥${cny.toFixed(2)}`
 })
 const showActualPriceTile = computed(() => !item.value?.isWishlist && (hasActualPriceValue(item.value?.actualPrice) || !!unitActualPriceText.value))
+const hasShippingFee = computed(() => {
+  const val = item.value?.shippingFee
+  return val !== '' && val != null && Number(val) > 0
+})
 const unitAcquiredAtText = computed(() => {
   const quantity = Number(item.value?.quantity) || 1
   if (quantity < 2) return ''
@@ -925,6 +935,11 @@ function getImageKindLabel(kind) {
   color: #f1dcff;
 }
 
+.hero-chip.collect-status-chip {
+  background: #2d4a1e;
+  color: #a8e06c;
+}
+
 .hero-date {
   color: var(--app-text-tertiary);
   font-size: 13px;
@@ -1348,6 +1363,11 @@ function getImageKindLabel(kind) {
 :global(html.theme-dark) .hero-chip.tag-chip {
     background: rgba(201, 148, 255, 0.18);
     color: #f1dcff;
+  }
+
+:global(html.theme-dark) .hero-chip.collect-status-chip {
+    background: rgba(168, 224, 108, 0.18);
+    color: #a8e06c;
   }
 
 :global(html.theme-dark) .nav-icon-btn {

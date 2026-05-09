@@ -52,6 +52,11 @@
                   </div>
                 </div>
 
+                <div v-if="!form.isWishlist" class="field">
+                  <span class="field-label">收藏状态</span>
+                  <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" placeholder="请选择状态" />
+                </div>
+
                 <label class="field" :class="{ 'field--error': nameError }">
                   <span class="field-label">名称 <span class="required">*</span></span>
                   <input
@@ -346,19 +351,33 @@
                     </button>
 
                     <div v-if="showActualPriceInput" class="actual-price-panel">
-                      <span class="field-label">入手价</span>
-                      <div class="price-row">
-                        <input
-                          v-model="form.actualPrice"
-                          :class="{ 'actual-price-input--disabled': disableActualPriceInput }"
-                          :disabled="disableActualPriceInput"
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="0.00"
-                          @blur="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
-                          @change="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
-                        />
+                      <div class="price-row price-row--labeled">
+                        <label class="price-row__field">
+                          <span class="field-label">入手价</span>
+                          <input
+                            v-model="form.actualPrice"
+                            :class="{ 'actual-price-input--disabled': disableActualPriceInput }"
+                            :disabled="disableActualPriceInput"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0.00"
+                            @blur="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
+                            @change="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
+                          />
+                        </label>
+                        <label class="price-row__field price-row__field--small">
+                          <span class="field-label">邮费</span>
+                          <input
+                            v-model="form.shippingFee"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0.00"
+                            @blur="form.shippingFee = normalizeUnitPriceValue(form.shippingFee)"
+                            @change="form.shippingFee = normalizeUnitPriceValue(form.shippingFee)"
+                          />
+                        </label>
                         <AppSelect v-model="form.actualPriceCurrency" :options="currencyOptions" placeholder="币种" class="currency-select" />
                       </div>
 
@@ -711,6 +730,13 @@ const showTrackEditor = computed(() => String(form.category || '').trim() === 'C
 const currencyOptions = computed(() =>
   CURRENCIES.map((c) => ({ label: `${c.symbol} ${c.name}`, value: c.code }))
 )
+const collectStatusOptions = [
+  { label: '定金', value: '定金' },
+  { label: '在途', value: '在途' },
+  { label: '尾款', value: '尾款' },
+  { label: '已入库', value: '已入库' },
+  { label: '未发货', value: '未发货' }
+]
 const currencySymbol = computed(() => CURRENCY_MAP[form.currency]?.symbol || '¥')
 const activeTab = ref('basic')
 const tabItems = computed(() => {
