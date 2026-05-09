@@ -1,9 +1,9 @@
 {
-  "version": "20260509.13",
-  "url": "bundle-20260509.13.zip",
-  "hash": "588291bd9a19c56eb22b235cdcebf37c40043f2f36597163c70356b246553ce9",
+  "version": "20260509.14",
+  "url": "bundle-20260509.14.zip",
+  "hash": "5bb0d4a268a973a02f87bb88074a9b3b04bd353d519f16c45e1a2a72306f37d8",
   "minNativeVersion": null,
-  "notes": "- fix: 修复搜索虚拟化列表",
+  "notes": "- feat: 更新密码输入框提示文本，增强用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T13:07:22Z"
+  "publishedAt": "2026-05-09T15:26:57Z"
 }

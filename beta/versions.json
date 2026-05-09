@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.14",
+    "url": "bundle-20260509.14.zip",
+    "hash": "5bb0d4a268a973a02f87bb88074a9b3b04bd353d519f16c45e1a2a72306f37d8",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新密码输入框提示文本，增强用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T15:26:57Z"
+  },
+  {
     "version": "20260509.13",
     "url": "bundle-20260509.13.zip",
     "hash": "588291bd9a19c56eb22b235cdcebf37c40043f2f36597163c70356b246553ce9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 重构商品列表展示逻辑，优化滚动性能和布局",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T12:48:53Z"
-  },
-  {
-    "version": "20260509.11",
-    "url": "bundle-20260509.11.zip",
-    "hash": "75f5119ef79c73752947ca6d687101977a0f80e6ef7443d4acf8317e1a0c4f07",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加排除特定状态的商品总值和数量计算逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T12:05:54Z"
   }
 ]
