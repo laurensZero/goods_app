@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page search-page">
+  <div :class="['page', 'search-page', { 'search-page--restoring': !searchDisplayReady }]">
     <header v-show="!selectionMode" class="search-header">
       <button class="icon-btn" type="button" aria-label="返回" @click="handleBack">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -406,6 +406,7 @@ const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
 const selectionHeaderTop = ref(0)
 const SELECTION_HEADER_HEIGHT = 64
+const searchDisplayReady = ref(!hasPendingGoodsHeroBack(route.fullPath))
 
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
@@ -1027,25 +1028,31 @@ function onSelectionScroll() {
 onMounted(async () => {
   isRestoringSearchState = true
   restoreSearchState()
+
+  // 1. 先渲染 scroll=0 的内容
   syncSearchViewport(0)
   await nextTick()
   measureRowHeight()
-  isRestoringSearchState = false
 
+  // 2. 绑定滚动监听
   window.addEventListener('popstate', handleSelectionPopState)
   window.addEventListener('scroll', onSelectionScroll, { passive: true })
   window.addEventListener('scroll', handleSearchScroll, { passive: true })
   pageBodyRef.value?.addEventListener('scroll', handleSearchScroll, { passive: true })
   bindAndroidBackButton()
 
+  // 3. 应用滚动位置，等布局稳定后重新同步
   if (savedScrollTop > 0) {
     restoreSearchScrollTop(savedScrollTop)
-    setTimeout(() => {
-      syncSearchViewport(savedScrollTop)
-      nextTick(() => measureRowHeight())
-    }, 160)
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    syncSearchViewport(savedScrollTop)
+    await nextTick()
+    measureRowHeight()
   }
+  isRestoringSearchState = false
+  searchDisplayReady.value = true
 
+  // 4. 一切就绪后再播 hero 动画
   if (hasPendingGoodsHeroBack(route.fullPath)) {
     scheduleGoodsBackHeroRetry()
   }

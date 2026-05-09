@@ -3,6 +3,11 @@
   overflow-x: hidden;
 }
 
+.search-page--restoring {
+  opacity: 0.01;
+  pointer-events: none;
+}
+
 .search-controls--selection {
   /* keep visible during selection mode */
 }
