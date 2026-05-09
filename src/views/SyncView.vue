@@ -80,7 +80,7 @@
                   type="password"
                   class="password-input"
                   :value="syncStore.syncPassword"
-                  placeholder="设置加密密码"
+                  placeholder="请输入加密/解密密码"
                   @change="handlePasswordChange"
                 />
               </div>
