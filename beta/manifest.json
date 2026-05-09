@@ -1,9 +1,9 @@
 {
-  "version": "20260509.2",
-  "url": "bundle-20260509.2.zip",
-  "hash": "411c3f1b490c612913cbed76eb46b25265d019ebf9672cd4a5a27ab7258a3ab3",
+  "version": "20260509.3",
+  "url": "bundle-20260509.3.zip",
+  "hash": "8d2312568d27f6eed17e917ad2b9bcd9688a1bea482adcb8a59dc7b19c96dbdb",
   "minNativeVersion": null,
-  "notes": "- feat: 添加加密管理器模块 (cryptoManager.js)\n  Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+  "notes": "- feat: 添加端到端加密功能，支持数据加密和解密",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T05:20:09Z"
+  "publishedAt": "2026-05-09T08:41:30Z"
 }
