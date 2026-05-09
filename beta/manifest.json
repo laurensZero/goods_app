@@ -1,9 +1,9 @@
 {
-  "version": "20260509.10",
-  "url": "bundle-20260509.10.zip",
-  "hash": "9a8caecc1f0f5faa74c77783a41e542122007ad0fea414c50ae8789a2e827840",
+  "version": "20260509.11",
+  "url": "bundle-20260509.11.zip",
+  "hash": "75f5119ef79c73752947ca6d687101977a0f80e6ef7443d4acf8317e1a0c4f07",
   "minNativeVersion": null,
-  "notes": "- feat: 更新收集状态选项",
+  "notes": "- feat: 增加排除特定状态的商品总值和数量计算逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T12:03:19Z"
+  "publishedAt": "2026-05-09T12:05:54Z"
 }
