@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.10",
+    "url": "bundle-20260509.10.zip",
+    "hash": "9a8caecc1f0f5faa74c77783a41e542122007ad0fea414c50ae8789a2e827840",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新收集状态选项",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T12:03:19Z"
+  },
+  {
     "version": "20260509.9",
     "url": "bundle-20260509.9.zip",
     "hash": "dfd71d628898ff922955c42469da7256457bafedaac801001f6067cee5d2d86f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修改本地图库图片选择限制",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T11:21:35Z"
-  },
-  {
-    "version": "20260509.7",
-    "url": "bundle-20260509.7.zip",
-    "hash": "d91efa4293d4a4c927cbb0ddcf37f94db6562cb05b8627760683dfeb9899b8ed",
-    "minNativeVersion": null,
-    "notes": "- bug fix",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T11:18:14Z"
   }
 ]
