@@ -109,6 +109,7 @@
       v-model="showAddSheet"
       :show-taobao-import="false"
       @manual="goToManualAdd"
+      @batch-add="handleBatchAdd"
       @import="goToImport"
     />
 
@@ -150,6 +151,7 @@ import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
+import { pickLinkedLocalImages } from '@/utils/localImage'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
@@ -697,6 +699,19 @@ async function navigateFromAddSheet(path, reason) {
 
 function goToManualAdd() {
   navigateFromAddSheet('/add?mode=wishlist', 'wishlist:goToManualAdd')
+}
+
+async function handleBatchAdd() {
+  showAddSheet.value = false
+  const images = await pickLinkedLocalImages()
+  if (!images.length) return
+  saveScrollPosition(true, 'wishlist:handleBatchAdd')
+  wishlistDisplayReady.value = false
+  try {
+    await router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images) } })
+  } catch {
+    wishlistDisplayReady.value = true
+  }
 }
 
 function goToImport() {

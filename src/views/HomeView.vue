@@ -132,6 +132,7 @@
     <AddMethodSheet
       v-model="showAddSheet"
       @manual="goToAdd"
+      @batch-add="handleBatchAdd"
       @import="handleImport"
       @account-import="handleAccountImport"
       @taobao-import="handleTaobaoImport"
@@ -201,6 +202,7 @@ import SummaryCard from '@/components/common/SummaryCard.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
+import { pickLinkedLocalImages } from '@/utils/localImage'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
@@ -558,6 +560,20 @@ function handleAccountImport() {
 
 function handleTaobaoImport() {
   navigateFromAddSheet('/taobao-import', 'home:handleTaobaoImport')
+}
+
+async function handleBatchAdd() {
+  showAddSheet.value = false
+  const images = await pickLinkedLocalImages()
+  if (!images.length) return
+  saveScrollPosition(true, 'home:handleBatchAdd')
+  homeDisplayReady.value = false
+  runWithRouteTransition(
+    () => router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images) } }).catch(() => {
+      homeDisplayReady.value = true
+    }),
+    { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
+  )
 }
 
 function goToAdd() {

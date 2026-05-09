@@ -30,6 +30,35 @@ export async function saveLocalImage(file) {
   return Capacitor.convertFileSrc(uri)
 }
 
+export async function pickLinkedLocalImages(limit) {
+  if (Capacitor.isNativePlatform()) {
+    const files = await pickNativeGalleryImages(limit).catch(async (error) => {
+      console.warn('[localImage] native multi-pick failed, fallback to browser', error)
+      const f = await pickBrowserImageFiles()
+      return limit ? f.slice(0, limit) : f
+    })
+    if (!files.length) return []
+    const results = []
+    for (const file of files) {
+      const uri = await saveLocalImage(file)
+      results.push({ uri, localPath: '', storageMode: 'linked-local' })
+    }
+    return results
+  }
+
+  const files = await pickBrowserImageFiles()
+  if (!files.length) return []
+  const results = []
+  for (const file of files) {
+    results.push({
+      uri: await fileToDataUrl(file),
+      localPath: '',
+      storageMode: 'inline-local'
+    })
+  }
+  return results
+}
+
 export async function pickLinkedLocalImage() {
   if (Capacitor.isNativePlatform()) {
     const file = await pickNativeGalleryImage().catch(async (error) => {
@@ -55,6 +84,44 @@ export async function pickLinkedLocalImage() {
     localPath: '',
     storageMode: 'inline-local'
   }
+}
+
+async function pickNativeGalleryImages(limit) {
+  const result = await FilePicker.pickImages({
+    limit: limit || 0,
+    readData: true
+  })
+  const files = result?.files || []
+  const out = []
+  for (const picked of files) {
+    if (!picked) continue
+    const fileName = String(picked.name || `image_${Date.now()}`)
+    const mimeType = String(picked.mimeType || inferImageMimeFromPath(fileName) || 'image/png')
+    let file
+    if (picked.blob instanceof Blob) {
+      file = new File([picked.blob], fileName, {
+        type: mimeType,
+        lastModified: Number(picked.modifiedAt) || Date.now()
+      })
+    } else if (picked.path) {
+      try {
+        const response = await fetch(picked.path)
+        if (!response.ok) throw new Error('读取相册原图失败')
+        const blob = await response.blob()
+        file = new File([blob], fileName, {
+          type: blob.type || mimeType,
+          lastModified: Number(picked.modifiedAt) || Date.now()
+        })
+      } catch (e) {
+        console.warn('[localImage] failed to read picked path', e)
+        continue
+      }
+    } else if (picked.data) {
+      file = dataUrlToFile(`data:${mimeType};base64,${picked.data}`, fileName)
+    }
+    if (file) out.push(file)
+  }
+  return out
 }
 
 async function pickNativeGalleryImage() {
@@ -329,6 +396,23 @@ function pickBrowserImageFile() {
       const file = input.files?.[0] || null
       input.remove()
       resolve(file)
+    }, { once: true })
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
+function pickBrowserImageFiles() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.multiple = true
+    input.style.display = 'none'
+    input.addEventListener('change', () => {
+      const files = input.files ? Array.from(input.files) : []
+      input.remove()
+      resolve(files)
     }, { once: true })
     document.body.appendChild(input)
     input.click()

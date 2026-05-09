@@ -42,6 +42,12 @@ const routes = [
     meta: { title: '添加谷子' }
   },
   {
+    path: '/batch-add',
+    name: 'batch-add',
+    component: () => import('@/views/BatchAddView.vue'),
+    meta: { title: '批量添加' }
+  },
+  {
     path: '/import',
     name: 'import',
     component: () => import('@/views/ImportView.vue'),

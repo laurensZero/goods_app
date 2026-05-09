@@ -38,6 +38,28 @@
 
             <div class="sheet-divider" />
 
+            <!-- 批量添加 -->
+            <button class="sheet-option" type="button" @click="onBatchAdd">
+              <span class="option-icon option-icon--batch">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  <path d="M17.5 14v7M14 17.5h7" />
+                </svg>
+              </span>
+              <div class="option-body">
+                <p class="option-title">批量添加</p>
+                <p class="option-desc">选择多张图片，快速创建多个谷子</p>
+              </div>
+              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+
+            <div class="sheet-divider" />
+
             <!-- 从米游铺导入 -->
             <button class="sheet-option" type="button" @click="onImport">
               <span class="option-icon option-icon--import">
@@ -221,7 +243,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'manual', 'import', 'account-import', 'taobao-import'])
+const emit = defineEmits(['update:modelValue', 'manual', 'batch-add', 'import', 'account-import', 'taobao-import'])
 
 // ---- view state ----
 const view = ref('options')
@@ -275,6 +297,10 @@ function close() {
 
 function onManual() {
   emit('manual')
+}
+
+function onBatchAdd() {
+  emit('batch-add')
 }
 
 function onImport() {
@@ -422,6 +448,16 @@ function onTaobaoImport() {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.option-icon--batch {
+  background: rgba(175, 82, 222, 0.12);
+}
+
+.option-icon--batch svg {
+  width: 22px;
+  height: 22px;
+  stroke: #af52de;
 }
 
 .option-icon--taobao {
