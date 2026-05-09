@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260509.4",
+    "url": "bundle-20260509.4.zip",
+    "hash": "ebb47938524b2e9c2d505818c818c3e9603a0a5e036116889021c084e30ca7f8",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化图片 Gist 上传逻辑，支持并发处理和批量上传",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-09T08:42:32Z"
+  },
+  {
     "version": "20260509.3",
     "url": "bundle-20260509.3.zip",
     "hash": "8d2312568d27f6eed17e917ad2b9bcd9688a1bea482adcb8a59dc7b19c96dbdb",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加加密管理器模块 (cryptoManager.js)\n  Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T05:20:09Z"
-  },
-  {
-    "version": "20260509.1",
-    "url": "bundle-20260509.1.zip",
-    "hash": "08299754e6577d5214f9ee4244d9d68f6124b96c5d52b032127e1cc7316b903c",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加收藏状态和邮费字段，优化商品编辑和展示逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T05:03:02Z"
   }
 ]

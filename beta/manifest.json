@@ -1,9 +1,9 @@
 {
-  "version": "20260509.3",
-  "url": "bundle-20260509.3.zip",
-  "hash": "8d2312568d27f6eed17e917ad2b9bcd9688a1bea482adcb8a59dc7b19c96dbdb",
+  "version": "20260509.4",
+  "url": "bundle-20260509.4.zip",
+  "hash": "ebb47938524b2e9c2d505818c818c3e9603a0a5e036116889021c084e30ca7f8",
   "minNativeVersion": null,
-  "notes": "- feat: 添加端到端加密功能，支持数据加密和解密",
+  "notes": "- feat: 优化图片 Gist 上传逻辑，支持并发处理和批量上传",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-09T08:41:30Z"
+  "publishedAt": "2026-05-09T08:42:32Z"
 }
