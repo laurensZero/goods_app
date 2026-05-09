@@ -32,10 +32,9 @@ export async function saveLocalImage(file) {
 
 export async function pickLinkedLocalImages(limit) {
   if (Capacitor.isNativePlatform()) {
-    const files = await pickNativeGalleryImages(limit).catch(async (error) => {
-      console.warn('[localImage] native multi-pick failed, fallback to browser', error)
-      const f = await pickBrowserImageFiles()
-      return limit ? f.slice(0, limit) : f
+    const files = await pickNativeGalleryImages(limit).catch((error) => {
+      console.warn('[localImage] native multi-pick failed', error)
+      return []
     })
     if (!files.length) return []
     const results = []
@@ -88,7 +87,7 @@ export async function pickLinkedLocalImage() {
 
 async function pickNativeGalleryImages(limit) {
   const result = await FilePicker.pickImages({
-    limit: limit || 0,
+    limit: limit || 99,
     readData: true
   })
   const files = result?.files || []
@@ -97,29 +96,26 @@ async function pickNativeGalleryImages(limit) {
     if (!picked) continue
     const fileName = String(picked.name || `image_${Date.now()}`)
     const mimeType = String(picked.mimeType || inferImageMimeFromPath(fileName) || 'image/png')
-    let file
     if (picked.blob instanceof Blob) {
-      file = new File([picked.blob], fileName, {
+      out.push(new File([picked.blob], fileName, {
         type: mimeType,
         lastModified: Number(picked.modifiedAt) || Date.now()
-      })
+      }))
+    } else if (picked.data) {
+      out.push(dataUrlToFile(`data:${mimeType};base64,${picked.data}`, fileName))
     } else if (picked.path) {
       try {
         const response = await fetch(picked.path)
         if (!response.ok) throw new Error('读取相册原图失败')
         const blob = await response.blob()
-        file = new File([blob], fileName, {
+        out.push(new File([blob], fileName, {
           type: blob.type || mimeType,
           lastModified: Number(picked.modifiedAt) || Date.now()
-        })
+        }))
       } catch (e) {
         console.warn('[localImage] failed to read picked path', e)
-        continue
       }
-    } else if (picked.data) {
-      file = dataUrlToFile(`data:${mimeType};base64,${picked.data}`, fileName)
     }
-    if (file) out.push(file)
   }
   return out
 }
