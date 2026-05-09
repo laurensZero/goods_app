@@ -355,6 +355,24 @@ const priceText = computed(() => {
   color: #2d4a1e;
 }
 
+:global(html.theme-dark .search-goods-card .card-chip) {
+  border: none !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+:global(html.theme-dark .search-goods-card .card-chip.ip-chip) {
+  background: rgba(74, 122, 236, 0.12) !important;
+  color: #8ab4f8 !important;
+}
+
+:global(html.theme-dark .search-goods-card .card-chip.collect-status-chip) {
+  background: rgba(93, 226, 160, 0.08) !important;
+  color: #5de2a0 !important;
+}
+
 .card-bottom-row {
   display: flex;
   align-items: center;

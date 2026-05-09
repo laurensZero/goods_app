@@ -189,7 +189,7 @@ async function handleSave() {
       ]
     }))
     await goodsStore.addMultipleGoods(items)
-    router.replace('/')
+    router.replace(isWishlist.value ? '/wishlist' : '/')
   } catch (e) {
     console.error('[BatchAddView] save failed', e)
   } finally {

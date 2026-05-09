@@ -4,12 +4,10 @@
 }
 
 .search-controls--selection {
-  visibility: hidden;
-  pointer-events: none;
+  /* keep visible during selection mode */
 }
 
-.search-header,
-.selection-header {
+.search-header {
   position: sticky;
   top: 0;
   z-index: 50;
@@ -67,17 +65,9 @@
   transform: scale(0.96);
 }
 
-.header-search,
-.selection-title {
+.header-search {
   flex: 1;
   min-width: 0;
-}
-
-.selection-title {
-  text-align: center;
-  color: var(--app-text);
-  font-size: 16px;
-  font-weight: 600;
 }
 
 .content-section {
@@ -449,8 +439,7 @@
   }
 }
 
-:global(html.theme-dark) .search-header,
-  :global(html.theme-dark) .selection-header {
+:global(html.theme-dark) .search-header {
     background: linear-gradient(180deg, rgba(18, 18, 22, 0.82) 0%, rgba(18, 18, 22, 0.56) 72%, rgba(15, 15, 16, 0) 100%);
   }
 

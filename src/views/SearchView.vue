@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="page search-page">
-    <header v-if="!selectionMode" class="search-header">
+    <header v-show="!selectionMode" class="search-header">
       <button class="icon-btn" type="button" aria-label="返回" @click="handleBack">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M15 18L9 12L15 6" />
@@ -14,17 +14,14 @@
       />
     </header>
 
-    <header v-else class="selection-header">
-      <button class="icon-btn" type="button" aria-label="退出多选" @click="exitSelectionMode">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M15 18L9 12L15 6" />
-        </svg>
-      </button>
-      <span class="selection-title">已选择 {{ selectedIds.size }} 项</span>
-      <button class="ghost-btn" type="button" @click="toggleSelectAll">
-        {{ allSelected ? '取消全选' : '全选' }}
-      </button>
-    </header>
+    <HomeSelectionHeader
+      :show="selectionMode"
+      :selected-count="selectedIds.size"
+      :all-selected="allSelected"
+      :header-style="selectionHeaderStyle"
+      @back="exitSelectionMode"
+      @toggle-all="toggleSelectAll"
+    />
 
     <main ref="pageBodyRef" class="page-body">
       <div
@@ -362,6 +359,7 @@ import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import SearchGoodsCard from '@/components/goods/SearchGoodsCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
@@ -397,6 +395,12 @@ const showBatchEditSheet = ref(false)
 const showShareSheet = ref(false)
 const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
+const selectionHeaderTop = ref(0)
+const SELECTION_HEADER_HEIGHT = 64
+
+const selectionHeaderStyle = computed(() => ({
+  '--selection-header-top': `${selectionHeaderTop.value}px`
+}))
 
 let searchTimeout = null
 let removeAndroidBackListener = null
@@ -709,6 +713,17 @@ function getSearchScrollTop() {
   return elTop > 0 ? elTop : winTop
 }
 
+function updateSelectionHeaderPosition() {
+  const spacer = pageBodyRef.value?.querySelector?.('.selection-header-spacer')
+  if (!spacer) {
+    selectionHeaderTop.value = 0
+    return
+  }
+  const rect = spacer.getBoundingClientRect()
+  const maxTop = Math.max(0, window.innerHeight - SELECTION_HEADER_HEIGHT)
+  selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
+}
+
 function restoreSearchScrollTop(top) {
   if (top == null || top <= 0) return
 
@@ -739,6 +754,14 @@ const {
   onExit: closeSelectionOverlays,
   getScrollTop: getSearchScrollTop,
   restoreScrollTop: restoreSearchScrollTop
+})
+
+watch(selectionMode, (active) => {
+  if (active) {
+    nextTick(() => updateSelectionHeaderPosition())
+  } else {
+    selectionHeaderTop.value = 0
+  }
 })
 
 function handleBack() {
@@ -892,6 +915,16 @@ function cancelGoodsBackHeroRetry() {
   goodsBackHeroRetryRaf = null
 }
 
+let selectionScrollRaf = 0
+
+function onSelectionScroll() {
+  if (selectionScrollRaf) return
+  selectionScrollRaf = window.requestAnimationFrame(() => {
+    selectionScrollRaf = 0
+    if (selectionMode.value) updateSelectionHeaderPosition()
+  })
+}
+
 onMounted(async () => {
   restoreSearchState()
 
@@ -901,6 +934,7 @@ onMounted(async () => {
   }
 
   window.addEventListener('popstate', handleSelectionPopState)
+  window.addEventListener('scroll', onSelectionScroll, { passive: true })
   bindAndroidBackButton()
   
   await nextTick() // 确保滚动位置和 DOM 稳定后再执行动画
@@ -913,6 +947,7 @@ onBeforeUnmount(() => {
   cancelGoodsBackHeroRetry()
   if (searchTimeout) clearTimeout(searchTimeout)
   window.removeEventListener('popstate', handleSelectionPopState)
+  window.removeEventListener('scroll', onSelectionScroll)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
 })
