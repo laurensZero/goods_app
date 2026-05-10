@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.15",
+    "url": "bundle-20260510.15.zip",
+    "hash": "6fac0901a783651b6a69f0dcf65266dabb5889f16eb34fe4f17be7060fb8ffce",
+    "minNativeVersion": null,
+    "notes": "- feat(rechargeStore): 初始化充值存储",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T12:06:09Z"
+  },
+  {
     "version": "20260510.14",
     "url": "bundle-20260510.14.zip",
     "hash": "584229d84e20f5d27cc1583f69a79574fa3a201b3af4a25fa31ade1b00b069ff",
@@ -16,14 +25,5 @@
     "notes": "- fear(sync): 同步错误处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T10:33:13Z"
-  },
-  {
-    "version": "20260510.12",
-    "url": "bundle-20260510.12.zip",
-    "hash": "aed811c98256ea8efe38f603d10533048592d12059323814a4eb6dd6eb9a616b",
-    "minNativeVersion": null,
-    "notes": "- fix(goodsCard): 增加对物品状态“丢失”的处理逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-10T09:54:06Z"
   }
 ]

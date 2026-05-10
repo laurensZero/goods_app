@@ -1,9 +1,9 @@
 {
-  "version": "20260510.14",
-  "url": "bundle-20260510.14.zip",
-  "hash": "584229d84e20f5d27cc1583f69a79574fa3a201b3af4a25fa31ade1b00b069ff",
+  "version": "20260510.15",
+  "url": "bundle-20260510.15.zip",
+  "hash": "6fac0901a783651b6a69f0dcf65266dabb5889f16eb34fe4f17be7060fb8ffce",
   "minNativeVersion": null,
-  "notes": "- fix: 更新充值存储路径，优化代码结构",
+  "notes": "- feat(rechargeStore): 初始化充值存储",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T10:50:44Z"
+  "publishedAt": "2026-05-10T12:06:09Z"
 }
