@@ -1,75 +1,18 @@
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
-
-const IS_NATIVE = Capacitor.isNativePlatform()
+import { readPersisted, writePersisted } from '@/utils/platformStorage'
 
 export async function readSyncKey(key) {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key })
-      if (value !== null) return value
-    } catch {
-      // fall through
-    }
-  }
-
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
+  return readPersisted(key)
 }
 
 export async function writeSyncKey(key, value) {
-  try {
-    localStorage.setItem(key, value ?? '')
-  } catch {
-    // ignore
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key, value: value ?? '' })
-  } catch {
-    // ignore
-  }
+  await writePersisted(key, value ?? '')
 }
 
 export async function readOrCreateDeviceId(key, generateDeviceId) {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key })
-      if (value) return value
-    } catch {
-      // fall through
-    }
-  }
-
-  let id = ''
-  try {
-    id = localStorage.getItem(key) || ''
-  } catch {
-    id = ''
-  }
-
+  let id = await readPersisted(key)
   if (id) return id
 
   id = generateDeviceId()
-
-  try {
-    localStorage.setItem(key, id)
-  } catch {
-    // ignore
-  }
-
-  if (IS_NATIVE) {
-    try {
-      await Preferences.set({ key, value: id })
-    } catch {
-      // ignore
-    }
-  }
-
+  await writePersisted(key, id)
   return id
 }

@@ -1,12 +1,10 @@
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
+import { readPersisted, writePersisted } from '@/utils/platformStorage'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
 const CHARACTERS_MIGRATION_KEY = 'goods_characters_normalized_v1'
 const VARIANT_MIGRATION_KEY = 'goods_variant_normalized_v2'
-const IS_NATIVE = Capacitor.isNativePlatform()
 
 //  Trash persistence
 
@@ -27,31 +25,14 @@ function writeTrashLocal(list) {
 }
 
 async function readPersistedTrash() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: TRASH_STORAGE_KEY })
-      if (value !== null) return parseJsonArray(value)
-    } catch {
-      // fall through
-    }
-  }
-
+  const value = await readPersisted(TRASH_STORAGE_KEY)
+  if (value !== null) return parseJsonArray(value)
   return readTrashLocal()
 }
 
 async function writePersistedTrash(list) {
   writeTrashLocal(list)
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({
-      key: TRASH_STORAGE_KEY,
-      value: JSON.stringify(list)
-    })
-  } catch {
-    // ignore
-  }
+  await writePersisted(TRASH_STORAGE_KEY, JSON.stringify(list))
 }
 
 //  Migration flags
@@ -65,14 +46,8 @@ function _readFlagLocal(key) {
 }
 
 async function _readFlag(key) {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key })
-      return value === '1'
-    } catch {
-      return false
-    }
-  }
+  const value = await readPersisted(key)
+  if (value !== null) return value === '1'
   return _readFlagLocal(key)
 }
 
@@ -82,14 +57,7 @@ async function _writeFlag(key) {
   } catch {
     // ignore
   }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key, value: '1' })
-  } catch {
-    // ignore
-  }
+  await writePersisted(key, '1')
 }
 
 function readImagesMigrationFlag() { return _readFlag(IMAGES_MIGRATION_KEY) }

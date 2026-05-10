@@ -1,8 +1,10 @@
 /**
  * utils/db.js
- * 双轨 SQLite 实现：
- *   - 原生端（iOS / Android）：@capacitor-community/sqlite（真正的 .db 文件）
- *   - Web 端（浏览器开发 / PWA）：sql.js 直接驱动 + IndexedDB 持久化
+ * 统一 SQLite 数据访问层
+ *
+ * 底层通过 adapter 模式屏蔽平台差异：
+ *   - 原生端（iOS / Android）：@capacitor-community/sqlite
+ *   - Web 端（浏览器 / PWA）：sql.js + IndexedDB
  *
  * 迁移系统：
  *   - 使用 _schema_version 表记录当前数据库版本
@@ -13,8 +15,11 @@
 import { Capacitor } from '@capacitor/core'
 import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goodsImages'
 import { parseJsonArray } from '@/utils/parseJsonArray'
+import { createNativeAdapter } from '@/utils/dbNativeAdapter'
+import { createWebAdapter } from '@/utils/dbWebAdapter'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
+const db = IS_NATIVE ? createNativeAdapter() : createWebAdapter()
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS goods (
@@ -105,11 +110,7 @@ const MIGRATIONS = [
 
 const SCHEMA_VERSION = MIGRATIONS.length
 
-//  Web 实现：sql.js + IndexedDB
-let _sqlDb = null
-const IDB_NAME = 'goods_idb'
-const IDB_STORE = 'db'
-const IDB_KEY = 'goods_app'
+//  纯业务辅助函数
 
 function normalizeWishlistFlag(value) {
   if (value === true || value === 1) return true
@@ -183,26 +184,45 @@ function prepareGoodsRecord(item) {
   }
 }
 
-//  迁移辅助函数
+function stringifyJsonObject(value, fallback = '{}') {
+  try {
+    return JSON.stringify(value ?? {})
+  } catch {
+    return fallback
+  }
+}
+
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+
+function goodsRecordToValues(record) {
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
+}
+
+const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+
+function prepareEventValues(event) {
+  const {
+    id, name = '', type = '', startDate = '', endDate = '',
+    location = '', description = '', coverImage = '',
+    coverImageData = {},
+    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
+    createdAt, updatedAt
+  } = event
+  const coverImageDataStr = stringifyJsonObject(coverImageData)
+  const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+  const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
+  const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
+  const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
+  const ts = updatedAt || Date.now()
+  const created = createdAt || ts
+  return [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
+}
+
+//  迁移系统
 
 function _parseAlterTable(sql) {
   const m = sql.match(/^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)/i)
   return m ? { table: m[1], column: m[2] } : null
-}
-
-function _escapeIdent(name) {
-  return name.replace(/[^a-zA-Z0-9_]/g, '')
-}
-
-async function _getNativeTableColumns(tableName) {
-  const result = await _nativeDb.query(`PRAGMA table_info(${_escapeIdent(tableName)})`)
-  return new Set((result.values ?? []).map(row => row[1]))
-}
-
-function _getWebTableColumns(tableName) {
-  const result = _sqlDb.exec(`PRAGMA table_info(${_escapeIdent(tableName)})`)
-  if (!result.length) return new Set()
-  return new Set(result[0].values.map(row => row[1]))
 }
 
 function _parseSqliteError(e) {
@@ -212,25 +232,27 @@ function _parseSqliteError(e) {
   }
 }
 
-async function _runMigrations(runSql, getVersion, setVersion) {
-  const current = await getVersion()
+async function _getSchemaVersion() {
+  try {
+    const rows = await db.query('SELECT version FROM _schema_version ORDER BY version DESC LIMIT 1')
+    return rows.length ? rows[0].version : 0
+  } catch {
+    return 0
+  }
+}
+
+async function _runMigrations() {
+  const current = await _getSchemaVersion()
   const pending = MIGRATIONS.filter(m => m.version > current)
   if (pending.length === 0) return
 
   for (const migration of pending) {
-    // 幂等保护：解析 ALTER TABLE 并检查列是否已存在
     const info = _parseAlterTable(migration.sql)
     if (info) {
       try {
-        let columns
-        if (IS_NATIVE) {
-          columns = await _getNativeTableColumns(info.table)
-        } else {
-          columns = _getWebTableColumns(info.table)
-        }
+        const columns = await db.getTableColumns(info.table)
         if (columns.has(info.column)) {
-          // 列已存在，跳过但记录版本
-          await setVersion(migration.version)
+          await db.run('UPDATE _schema_version SET version = ?', [migration.version])
           continue
         }
       } catch {
@@ -239,13 +261,12 @@ async function _runMigrations(runSql, getVersion, setVersion) {
     }
 
     try {
-      await runSql(migration.sql)
-      await setVersion(migration.version)
+      await db.run(migration.sql)
+      await db.run('UPDATE _schema_version SET version = ?', [migration.version])
     } catch (e) {
       const { isDuplicateColumn } = _parseSqliteError(e)
       if (isDuplicateColumn) {
-        // 列已存在（原生端 PRAGMA 不可用时的兜底），记录版本继续
-        await setVersion(migration.version)
+        await db.run('UPDATE _schema_version SET version = ?', [migration.version])
       } else {
         console.error(`[DB] Migration v${migration.version} failed:`, e)
         throw e
@@ -254,143 +275,24 @@ async function _runMigrations(runSql, getVersion, setVersion) {
   }
 }
 
-function _openIDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, 1)
-    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE)
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
-}
-
-async function _loadBinaryFromIDB() {
-  try {
-    const db = await _openIDB()
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readonly')
-      const get = tx.objectStore(IDB_STORE).get(IDB_KEY)
-      get.onsuccess = () => resolve(get.result ?? null)
-      get.onerror = () => reject(get.error)
-    })
-  } catch { return null }
-}
-
-async function _saveBinaryToIDB(db) {
-  try {
-    const data = db.export()
-    const idb = await _openIDB()
-    await new Promise((resolve, reject) => {
-      const tx = idb.transaction(IDB_STORE, 'readwrite')
-      tx.objectStore(IDB_STORE).put(data, IDB_KEY)
-      tx.oncomplete = resolve
-      tx.onerror = () => reject(tx.error)
-    })
-  } catch (e) { console.warn('[DB] save to IDB failed:', e) }
-}
-
-function stringifyJsonObject(value, fallback = '{}') {
-  try {
-    return JSON.stringify(value ?? {})
-  } catch {
-    return fallback
-  }
-}
-
-async function _initWebDB() {
-  const { default: initSqlJs } = await import('sql.js')
-  const SQL = await initSqlJs({ locateFile: () => '/assets/sql-wasm.wasm' })
-  const saved = await _loadBinaryFromIDB()
-  _sqlDb = saved ? new SQL.Database(saved) : new SQL.Database()
-  _sqlDb.run(CREATE_TABLE_SQL)
-  _sqlDb.run(CREATE_EVENTS_TABLE_SQL)
-  _sqlDb.run(CREATE_VERSION_TABLE_SQL)
-
-  await _runMigrations(
-    (sql) => { _sqlDb.run(sql) },
-    () => _getWebSchemaVersion(),
-    (v) => { _sqlDb.run('UPDATE _schema_version SET version = ?', [v]) }
-  )
-
-  // 首次初始化版本表（表刚创建时无数据）
-  const ver = _getWebSchemaVersion()
-  if (ver === 0) {
-    _sqlDb.run(INIT_VERSION_SQL, [SCHEMA_VERSION])
-  }
-
-  await _saveBinaryToIDB(_sqlDb)
-}
-
-function _getWebSchemaVersion() {
-  try {
-    const result = _sqlDb.exec('SELECT version FROM _schema_version ORDER BY version DESC LIMIT 1')
-    return result.length ? result[0].values[0][0] : 0
-  } catch {
-    return 0
-  }
-}
-
-function _webQuery(sql, params = []) {
-  if (!_sqlDb) return []
-  const result = _sqlDb.exec(sql, params)
-  if (!result.length) return []
-  const { columns, values } = result[0]
-  return values.map(row => Object.fromEntries(columns.map((col, i) => [col, row[i] ?? ''])))
-}
-
-//  原生实现：@capacitor-community/sqlite
-let _nativeDb = null
-
-async function _getNativeSchemaVersion() {
-  try {
-    const result = await _nativeDb.query('SELECT version FROM _schema_version ORDER BY version DESC LIMIT 1')
-    return result.values?.length ? result.values[0][0] : 0
-  } catch {
-    return 0
-  }
-}
-
-async function _initNativeDB() {
-  const { CapacitorSQLite, SQLiteConnection } = await import('@capacitor-community/sqlite')
-  const sqlite = new SQLiteConnection(CapacitorSQLite)
-  const consistency = await sqlite.checkConnectionsConsistency()
-  const isConn = (await sqlite.isConnection('goods_app', false)).result
-  if (consistency.result && isConn) {
-    _nativeDb = await sqlite.retrieveConnection('goods_app', false)
-  } else {
-    _nativeDb = await sqlite.createConnection('goods_app', false, 'no-encryption', 1, false)
-  }
-  await _nativeDb.open()
-  await _nativeDb.execute(CREATE_TABLE_SQL)
-  await _nativeDb.execute(CREATE_EVENTS_TABLE_SQL)
-  await _nativeDb.execute(CREATE_VERSION_TABLE_SQL)
-
-  await _runMigrations(
-    (sql) => _nativeDb.execute(sql),
-    () => _getNativeSchemaVersion(),
-    async (v) => { await _nativeDb.run('UPDATE _schema_version SET version = ?', [v]) }
-  )
-
-  // 首次初始化版本表
-  const ver = await _getNativeSchemaVersion()
-  if (ver === 0) {
-    await _nativeDb.run(INIT_VERSION_SQL, [SCHEMA_VERSION])
-  }
-}
-
 //  统一对外 API
+
 export async function initDB() {
-  if (IS_NATIVE) { await _initNativeDB() } else { await _initWebDB() }
+  await db.open()
+  await db.execute(CREATE_TABLE_SQL)
+  await db.execute(CREATE_EVENTS_TABLE_SQL)
+  await db.execute(CREATE_VERSION_TABLE_SQL)
+  await _runMigrations()
+
+  const ver = await _getSchemaVersion()
+  if (ver === 0) {
+    await db.run(INIT_VERSION_SQL, [SCHEMA_VERSION])
+  }
 }
 
 export async function getItems() {
   try {
-    let rows = []
-    if (IS_NATIVE) {
-      if (!_nativeDb) return []
-      rows = (await _nativeDb.query('SELECT * FROM goods ORDER BY rowid DESC')).values ?? []
-    } else {
-      rows = _webQuery('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
-    }
+    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
       isWishlist: normalizeWishlistFlag(r.isWishlist),
@@ -420,16 +322,7 @@ export async function getItems() {
 export async function addItem(item) {
   try {
     const record = prepareGoodsRecord(item)
-    const SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-    const p = [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
-    if (IS_NATIVE) {
-      if (!_nativeDb) return
-      await _nativeDb.run(SQL, p)
-    } else {
-      if (!_sqlDb) return
-      _sqlDb.run(SQL, p)
-      await _saveBinaryToIDB(_sqlDb)
-    }
+    await db.run(GOODS_INSERT_SQL, goodsRecordToValues(record))
   } catch (e) {
     console.error('[db] addItem failed:', e)
     throw e
@@ -439,28 +332,11 @@ export async function addItem(item) {
 export async function saveItems(items) {
   if (!items || items.length === 0) return
   try {
-    if (IS_NATIVE) {
-      if (!_nativeDb) return
-      const stmts = []
-      for (const item of items) {
-        const record = prepareGoodsRecord(item)
-        stmts.push({
-          statement: 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          values: [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
-        })
-      }
-      await _nativeDb.executeSet(stmts)
-    } else {
-      if (!_sqlDb) return
-      for (const item of items) {
-        const record = prepareGoodsRecord(item)
-        _sqlDb.run(
-          'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
-        )
-      }
-      await _saveBinaryToIDB(_sqlDb)
-    }
+    const stmts = items.map(item => {
+      const record = prepareGoodsRecord(item)
+      return { statement: GOODS_INSERT_SQL, values: goodsRecordToValues(record) }
+    })
+    await db.executeSet(stmts)
   } catch (e) {
     console.error('[db] saveItems failed:', e)
     throw e
@@ -470,20 +346,11 @@ export async function saveItems(items) {
 export async function deleteItems(ids) {
   if (!ids || ids.length === 0) return
   try {
-    if (IS_NATIVE) {
-      if (!_nativeDb) return
-      const stmts = ids.map(id => ({
-        statement: 'DELETE FROM goods WHERE id = ?',
-        values: [id]
-      }))
-      await _nativeDb.executeSet(stmts)
-    } else {
-      if (!_sqlDb) return
-      for (const id of ids) {
-        _sqlDb.run('DELETE FROM goods WHERE id = ?', [id])
-      }
-      await _saveBinaryToIDB(_sqlDb)
-    }
+    const stmts = ids.map(id => ({
+      statement: 'DELETE FROM goods WHERE id = ?',
+      values: [id]
+    }))
+    await db.executeSet(stmts)
   } catch (e) {
     console.error('[db] deleteItems failed:', e)
     throw e
@@ -492,44 +359,37 @@ export async function deleteItems(ids) {
 
 export async function getEvents() {
   try {
-    let rows = []
-    if (IS_NATIVE) {
-      if (!_nativeDb) return []
-      rows = (await _nativeDb.query('SELECT * FROM events ORDER BY startDate DESC')).values ?? []
-    } else {
-      if (!_sqlDb) return []
-      rows = _webQuery('SELECT * FROM events ORDER BY startDate DESC')
-    }
+    const rows = await db.query('SELECT * FROM events ORDER BY startDate DESC')
     return rows.map(r => {
-    let parsedCoverImageData = null
-    try {
-      const parsed = JSON.parse(r.coverImageData || '{}')
-      parsedCoverImageData = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
-    } catch {
-      parsedCoverImageData = null
-    }
+      let parsedCoverImageData = null
+      try {
+        const parsed = JSON.parse(r.coverImageData || '{}')
+        parsedCoverImageData = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
+      } catch {
+        parsedCoverImageData = null
+      }
 
-    const coverImageFileName = String(parsedCoverImageData?.gistFileName || parseGistImageUri(r.coverImage) || '').trim()
-    const coverImageData = coverImageFileName
-      ? {
-          ...parsedCoverImageData,
-          uri: parsedCoverImageData?.uri || buildGistImageUri(coverImageFileName),
-          storageMode: parsedCoverImageData?.storageMode || 'gist-local',
-          gistFileName: coverImageFileName
-        }
-      : parsedCoverImageData
+      const coverImageFileName = String(parsedCoverImageData?.gistFileName || parseGistImageUri(r.coverImage) || '').trim()
+      const coverImageData = coverImageFileName
+        ? {
+            ...parsedCoverImageData,
+            uri: parsedCoverImageData?.uri || buildGistImageUri(coverImageFileName),
+            storageMode: parsedCoverImageData?.storageMode || 'gist-local',
+            gistFileName: coverImageFileName
+          }
+        : parsedCoverImageData
 
-    return {
-      ...r,
-      coverImageData,
-    photos: parseJsonArray(r.photos),
-    tracks: parseJsonArray(r.tracks),
-    linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
-    tags: parseJsonArray(r.tags),
-    createdAt: Number(r.createdAt) || 0,
-    updatedAt: Number(r.updatedAt) || 0
-    }
-  })
+      return {
+        ...r,
+        coverImageData,
+        photos: parseJsonArray(r.photos),
+        tracks: parseJsonArray(r.tracks),
+        linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
+        tags: parseJsonArray(r.tags),
+        createdAt: Number(r.createdAt) || 0,
+        updatedAt: Number(r.updatedAt) || 0
+      }
+    })
   } catch (e) {
     console.error('[db] getEvents failed:', e)
     throw e
@@ -537,96 +397,38 @@ export async function getEvents() {
 }
 
 export async function addEvent(event) {
-  const {
-    id, name = '', type = '', startDate = '', endDate = '',
-    location = '', description = '', coverImage = '',
-    coverImageData = {},
-    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
-    createdAt, updatedAt
-  } = event
-  const coverImageDataStr = stringifyJsonObject(coverImageData)
-  const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
-  const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
-  const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
-  const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
-  const ts = updatedAt || Date.now()
-  const created = createdAt || ts
-  const SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-  const p = [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
-  if (IS_NATIVE) {
-    if (!_nativeDb) return
-    await _nativeDb.run(SQL, p)
-  } else {
-    if (!_sqlDb) return
-    _sqlDb.run(SQL, p)
-    await _saveBinaryToIDB(_sqlDb)
+  try {
+    await db.run(EVENTS_INSERT_SQL, prepareEventValues(event))
+  } catch (e) {
+    console.error('[db] addEvent failed:', e)
+    throw e
   }
 }
 
 export async function saveEvents(events) {
   if (!events || events.length === 0) return
-  if (IS_NATIVE) {
-    if (!_nativeDb) return
-    const stmts = []
-    for (const event of events) {
-      const {
-        id, name = '', type = '', startDate = '', endDate = '',
-        location = '', description = '', coverImage = '', coverImageData = {},
-        photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
-        createdAt, updatedAt
-      } = event
-      const coverImageDataStr = stringifyJsonObject(coverImageData)
-      const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
-      const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
-      const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
-      const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
-      const ts = updatedAt || Date.now()
-      const created = createdAt || ts
-      stmts.push({
-        statement: 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        values: [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
-      })
-    }
-    await _nativeDb.executeSet(stmts)
-  } else {
-    if (!_sqlDb) return
-    for (const event of events) {
-      const {
-        id, name = '', type = '', startDate = '', endDate = '',
-        location = '', description = '', coverImage = '', coverImageData = {},
-        photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
-        createdAt, updatedAt
-      } = event
-      const coverImageDataStr = stringifyJsonObject(coverImageData)
-      const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
-      const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
-      const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
-      const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
-      const ts = updatedAt || Date.now()
-      const created = createdAt || ts
-      _sqlDb.run(
-        'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
-      )
-    }
-    await _saveBinaryToIDB(_sqlDb)
+  try {
+    const stmts = events.map(event => ({
+      statement: EVENTS_INSERT_SQL,
+      values: prepareEventValues(event)
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] saveEvents failed:', e)
+    throw e
   }
 }
 
 export async function deleteEvents(ids) {
   if (!ids || ids.length === 0) return
-  if (IS_NATIVE) {
-    if (!_nativeDb) return
+  try {
     const stmts = ids.map(id => ({
       statement: 'DELETE FROM events WHERE id = ?',
       values: [id]
     }))
-    await _nativeDb.executeSet(stmts)
-  } else {
-    if (!_sqlDb) return
-    for (const id of ids) {
-      _sqlDb.run('DELETE FROM events WHERE id = ?', [id])
-    }
-    await _saveBinaryToIDB(_sqlDb)
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] deleteEvents failed:', e)
+    throw e
   }
 }

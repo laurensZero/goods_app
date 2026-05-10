@@ -1,7 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
+import { readPersisted, writePersisted } from '@/utils/platformStorage'
 import {
   APPEARANCE_PREFERENCES,
   getThemeAppearance,
@@ -14,7 +13,6 @@ const STORAGE_KEY_THEME_ID = 'goods_theme_id'
 const STORAGE_KEY_APPEARANCE = 'goods_theme_appearance'
 const STORAGE_KEY_CUSTOM_COLORS = 'goods_custom_theme_colors'
 const STORAGE_KEY_CUSTOM_EFFECTS = 'goods_custom_theme_effects'
-const IS_NATIVE = Capacitor.isNativePlatform()
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
 const CUSTOM_THEME_MODES = ['light', 'dark']
 const CUSTOM_THEME_KEYS = ['bg', 'surface', 'text', 'primary']
@@ -242,43 +240,6 @@ function buildCustomThemeTokens(modeColors, appearance, modeEffects = DEFAULT_CU
 
 export { buildCustomThemeTokens }
 
-function readLocal(key, fallback) {
-  try {
-    const value = localStorage.getItem(key)
-    return value === null ? fallback : value
-  } catch {
-    return fallback
-  }
-}
-
-async function readPersistedValue(key, fallback) {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key })
-      if (value !== null) return value
-    } catch {
-      // ignore and fall back to localStorage
-    }
-  }
-
-  return readLocal(key, fallback)
-}
-
-async function writePersistedValue(key, value) {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // ignore
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key, value })
-  } catch {
-    // ignore
-  }
-}
 
 export const useThemeStore = defineStore('theme', () => {
   const themeId = ref(THEME_IDS.mist)
@@ -380,10 +341,10 @@ export const useThemeStore = defineStore('theme', () => {
     bindSystemListener()
 
     const [storedThemeId, storedAppearance, storedCustomColors, storedCustomEffects] = await Promise.all([
-      readPersistedValue(STORAGE_KEY_THEME_ID, THEME_IDS.mist),
-      readPersistedValue(STORAGE_KEY_APPEARANCE, APPEARANCE_PREFERENCES.system),
-      readPersistedValue(STORAGE_KEY_CUSTOM_COLORS, null),
-      readPersistedValue(STORAGE_KEY_CUSTOM_EFFECTS, null)
+      readPersisted(STORAGE_KEY_THEME_ID, THEME_IDS.mist),
+      readPersisted(STORAGE_KEY_APPEARANCE, APPEARANCE_PREFERENCES.system),
+      readPersisted(STORAGE_KEY_CUSTOM_COLORS, null),
+      readPersisted(STORAGE_KEY_CUSTOM_EFFECTS, null)
     ])
 
     if (storedCustomColors) {
@@ -416,7 +377,7 @@ export const useThemeStore = defineStore('theme', () => {
   async function setTheme(nextThemeId) {
     themeId.value = getThemeDefinition(nextThemeId).id
     applyTheme()
-    await writePersistedValue(STORAGE_KEY_THEME_ID, themeId.value)
+    await writePersisted(STORAGE_KEY_THEME_ID, themeId.value)
   }
 
   async function setAppearancePreference(nextPreference) {
@@ -425,7 +386,7 @@ export const useThemeStore = defineStore('theme', () => {
       : APPEARANCE_PREFERENCES.system
 
     applyTheme()
-    await writePersistedValue(STORAGE_KEY_APPEARANCE, appearancePreference.value)
+    await writePersisted(STORAGE_KEY_APPEARANCE, appearancePreference.value)
   }
 
   async function updateCustomColors(mode, colors) {
@@ -445,7 +406,7 @@ export const useThemeStore = defineStore('theme', () => {
     if (themeId.value === 'custom') {
       applyTheme()
     }
-    await writePersistedValue(STORAGE_KEY_CUSTOM_COLORS, JSON.stringify(customColors.value))
+    await writePersisted(STORAGE_KEY_CUSTOM_COLORS, JSON.stringify(customColors.value))
   }
 
   async function updateCustomEffects(mode, effects) {
@@ -466,7 +427,7 @@ export const useThemeStore = defineStore('theme', () => {
       applyTheme()
     }
 
-    await writePersistedValue(STORAGE_KEY_CUSTOM_EFFECTS, JSON.stringify(customEffects.value))
+    await writePersisted(STORAGE_KEY_CUSTOM_EFFECTS, JSON.stringify(customEffects.value))
   }
 
   async function resetCustomColors(mode = null) {
@@ -490,8 +451,8 @@ export const useThemeStore = defineStore('theme', () => {
       applyTheme()
     }
 
-    await writePersistedValue(STORAGE_KEY_CUSTOM_COLORS, JSON.stringify(customColors.value))
-    await writePersistedValue(STORAGE_KEY_CUSTOM_EFFECTS, JSON.stringify(customEffects.value))
+    await writePersisted(STORAGE_KEY_CUSTOM_COLORS, JSON.stringify(customColors.value))
+    await writePersisted(STORAGE_KEY_CUSTOM_EFFECTS, JSON.stringify(customEffects.value))
   }
 
   function teardown() {

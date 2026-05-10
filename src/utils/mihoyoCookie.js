@@ -1,8 +1,6 @@
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
+import { readPersisted, writePersisted, removePersisted } from '@/utils/platformStorage'
 
 const STORAGE_KEY = 'mihoyo_cookie_state'
-const IS_NATIVE = Capacitor.isNativePlatform()
 
 function getDefaultState() {
   return {
@@ -47,15 +45,14 @@ function writeLocalState(state) {
 }
 
 export async function loadMihoyoCookieState() {
-  if (IS_NATIVE) {
+  const value = await readPersisted(STORAGE_KEY)
+  if (value) {
     try {
-      const { value } = await Preferences.get({ key: STORAGE_KEY })
-      if (value) return normalizeState(JSON.parse(value))
+      return normalizeState(JSON.parse(value))
     } catch {
       // fall through
     }
   }
-
   return readLocalState()
 }
 
@@ -74,18 +71,7 @@ export async function saveMihoyoCookie(cookie) {
   }
 
   writeLocalState(nextState)
-
-  if (IS_NATIVE) {
-    try {
-      await Preferences.set({
-        key: STORAGE_KEY,
-        value: JSON.stringify(nextState)
-      })
-    } catch {
-      // ignore
-    }
-  }
-
+  await writePersisted(STORAGE_KEY, JSON.stringify(nextState))
   return nextState
 }
 
@@ -105,18 +91,7 @@ export async function markMihoyoCookieInvalid(cookie, reason = '') {
   }
 
   writeLocalState(nextState)
-
-  if (IS_NATIVE) {
-    try {
-      await Preferences.set({
-        key: STORAGE_KEY,
-        value: JSON.stringify(nextState)
-      })
-    } catch {
-      // ignore
-    }
-  }
-
+  await writePersisted(STORAGE_KEY, JSON.stringify(nextState))
   return nextState
 }
 
@@ -126,12 +101,5 @@ export async function clearMihoyoCookieState() {
   } catch {
     // ignore
   }
-
-  if (IS_NATIVE) {
-    try {
-      await Preferences.remove({ key: STORAGE_KEY })
-    } catch {
-      // ignore
-    }
-  }
+  await removePersisted(STORAGE_KEY)
 }

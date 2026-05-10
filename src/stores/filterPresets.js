@@ -1,55 +1,18 @@
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { readPersisted, writePersisted } from '@/utils/platformStorage'
 import { normalizeGoodsFilterConditions } from '@/utils/goodsFilters'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const STORAGE_KEY = 'goods_filter_presets'
-const IS_NATIVE = Capacitor.isNativePlatform()
-
-function readLocal() {
-  try {
-    return parseJsonArray(localStorage.getItem(STORAGE_KEY))
-  } catch {
-    return []
-  }
-}
-
-function writeLocal(list) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
-  } catch {
-    // ignore
-  }
-}
 
 async function readPersistedPresets() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: STORAGE_KEY })
-      if (value !== null) return parseJsonArray(value)
-    } catch {
-      // fall through to local storage
-    }
-  }
-
-  return readLocal()
+  const value = await readPersisted(STORAGE_KEY)
+  return parseJsonArray(value)
 }
 
 async function writePersistedPresets(list) {
-  writeLocal(list)
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({
-      key: STORAGE_KEY,
-      value: JSON.stringify(list)
-    })
-  } catch {
-    // ignore
-  }
+  await writePersisted(STORAGE_KEY, JSON.stringify(list))
 }
 
 function normalizePresetScope(scope) {

@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
+import { readPersisted, writePersisted } from '@/utils/platformStorage'
 import {
   buildStorageLocationPath,
   normalizeStorageLocationValue,
@@ -17,7 +16,6 @@ const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '�
 const DEFAULT_IPS = []
 const DEFAULT_CHARACTERS = []
 const DEFAULT_STORAGE_LOCATIONS = []
-const IS_NATIVE = Capacitor.isNativePlatform()
 
 function cloneList(list) {
   return JSON.parse(JSON.stringify(list))
@@ -32,48 +30,13 @@ function parseList(raw, defaults) {
   }
 }
 
-function readLocal(key, defaults) {
-  try {
-    return parseList(localStorage.getItem(key), defaults)
-  } catch {
-    return cloneList(defaults)
-  }
-}
-
-function writeLocal(key, list) {
-  try {
-    localStorage.setItem(key, JSON.stringify(list))
-  } catch {
-    // ignore
-  }
-}
-
 async function readPersistedList(key, defaults) {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key })
-      if (value !== null) return parseList(value, defaults)
-    } catch {
-      // fall through to localStorage
-    }
-  }
-
-  return readLocal(key, defaults)
+  const value = await readPersisted(key)
+  return parseList(value, defaults)
 }
 
 async function writePersistedList(key, list) {
-  writeLocal(key, list)
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({
-      key,
-      value: JSON.stringify(list)
-    })
-  } catch {
-    // ignore
-  }
+  await writePersisted(key, JSON.stringify(list))
 }
 
 function migrateCharacters(list) {

@@ -404,8 +404,8 @@
 
 <script setup>
 import { Capacitor } from '@capacitor/core'
+import { readPersisted, writePersisted, removePersisted } from '@/utils/platformStorage'
 import { App as CapacitorApp } from '@capacitor/app'
-import { Preferences } from '@capacitor/preferences'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
 import { useAppUpdateStore } from '@/stores/appUpdate'
@@ -639,52 +639,15 @@ async function copyText(text, successMessage = '已复制') {
 }
 
 async function readPersistedFeedbackToken() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: FEEDBACK_TOKEN_KEY })
-      if (value !== null) return value
-    } catch {
-      // fall through to localStorage
-    }
-  }
-
-  try {
-    return localStorage.getItem(FEEDBACK_TOKEN_KEY) || ''
-  } catch {
-    return ''
-  }
+  return (await readPersisted(FEEDBACK_TOKEN_KEY)) || ''
 }
 
 async function writePersistedFeedbackToken(value) {
-  try {
-    localStorage.setItem(FEEDBACK_TOKEN_KEY, value)
-  } catch {
-    // ignore localStorage failures
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key: FEEDBACK_TOKEN_KEY, value })
-  } catch {
-    // ignore preference failures
-  }
+  await writePersisted(FEEDBACK_TOKEN_KEY, value)
 }
 
 async function clearPersistedFeedbackToken() {
-  try {
-    localStorage.removeItem(FEEDBACK_TOKEN_KEY)
-  } catch {
-    // ignore localStorage failures
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.remove({ key: FEEDBACK_TOKEN_KEY })
-  } catch {
-    // ignore preference failures
-  }
+  await removePersisted(FEEDBACK_TOKEN_KEY)
 }
 
 async function openFeedbackDialog() {
