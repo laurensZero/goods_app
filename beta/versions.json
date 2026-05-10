@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.7",
+    "url": "bundle-20260510.7.zip",
+    "hash": "a29f4e0b234bb19e2ebae6ca2f9c5cbb51b96c090fc482b53a20e795b2439e4e",
+    "minNativeVersion": null,
+    "notes": "- feat: 调整z-index值，增强元素层级关系",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T07:19:23Z"
+  },
+  {
     "version": "20260510.6",
     "url": "bundle-20260510.6.zip",
     "hash": "7397b71b823312b585d1512770512a1e4db7d967d6f6b191569228993fd23d11",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新样式，修复输入框和卡片的最小宽度，优化布局",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T06:52:23Z"
-  },
-  {
-    "version": "20260510.4",
-    "url": "bundle-20260510.4.zip",
-    "hash": "bb3e79f8fb791a507813766e0d4ad73a8e3c2e8ca4677adf1955da502fc0af4f",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新页面样式，优化导航栏和表单布局，增强用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-10T05:08:47Z"
   }
 ]

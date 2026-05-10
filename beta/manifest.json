@@ -1,9 +1,9 @@
 {
-  "version": "20260510.6",
-  "url": "bundle-20260510.6.zip",
-  "hash": "7397b71b823312b585d1512770512a1e4db7d967d6f6b191569228993fd23d11",
+  "version": "20260510.7",
+  "url": "bundle-20260510.7.zip",
+  "hash": "a29f4e0b234bb19e2ebae6ca2f9c5cbb51b96c090fc482b53a20e795b2439e4e",
   "minNativeVersion": null,
-  "notes": "- feat: 更新样式，修复卡片和按钮的最小宽度，增加溢出处理",
+  "notes": "- feat: 调整z-index值，增强元素层级关系",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T07:07:20Z"
+  "publishedAt": "2026-05-10T07:19:23Z"
 }
