@@ -5,6 +5,7 @@
       `goods-card--${density || 'comfortable'}`,
       { 'goods-card--transitioning': transitioning },
       { 'goods-card--selected': selected },
+      { 'goods-card--exited': item.collectStatus === '已出' || item.collectStatus === '已赠出' },
       { 'goods-card--motion': Boolean(motionStyle) }
     ]"
     :style="motionStyle || undefined"
@@ -740,6 +741,14 @@ const priceCNYHint = computed(() => {
 
 .goods-card--selected {
   filter: brightness(0.88);
+}
+
+.goods-card--exited {
+  opacity: 0.5;
+}
+
+.goods-card--exited .card-cover {
+  filter: grayscale(0.6);
 }
 
 .sel-overlay-enter-active,

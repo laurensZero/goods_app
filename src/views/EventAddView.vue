@@ -410,7 +410,7 @@ const tabItems = computed(() => {
   const items = [
     { key: 'basic', label: '基础', badge: Boolean(nameError.value || !String(form.name || '').trim()) },
     { key: 'schedule', label: '时间地点' },
-    { key: 'ticket', label: '票务', badge: Boolean(ticketPriceError.value) },
+    { key: 'ticket', label: '票务与谷子', badge: Boolean(ticketPriceError.value) },
     { key: 'gallery', label: '照片备注' }
   ]
 
@@ -775,7 +775,9 @@ onMounted(() => {
 onActivated(async () => {
   isNavigatingToPicker.value = false
   restoreDraftFromPicker()
-  applyPickerSelectionResult()
+  if (applyPickerSelectionResult()) {
+    setActiveTab('ticket', { scroll: false })
+  }
 })
 
 onDeactivated(() => {
@@ -1266,6 +1268,17 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
   margin-bottom: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.linked-goods::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .linked-goods__item {

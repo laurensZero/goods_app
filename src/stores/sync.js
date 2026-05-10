@@ -219,21 +219,56 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function init() {
     await ensureEventsStoreReady()
-    token.value = (await readSyncKey(TOKEN_KEY)) || ''
-    githubLogin.value = (await readSyncKey(GITHUB_LOGIN_KEY)) || ''
-    githubUserId.value = (await readSyncKey(GITHUB_USER_ID_KEY)) || ''
-    githubAvatarUrl.value = (await readSyncKey(GITHUB_AVATAR_URL_KEY)) || ''
-    syncPassword.value = (await readSyncKey(SYNC_PASSWORD_KEY)) || ''
-    githubScopes.value = (await readSyncKey(GITHUB_SCOPES_KEY)) || ''
-    githubAuthMethod.value = normalizeGitHubAuthMethod((await readSyncKey(GITHUB_AUTH_METHOD_KEY)) || '')
-    gistId.value = (await readSyncKey(GIST_ID_KEY)) || ''
-    imageGistId.value = (await readSyncKey(IMAGE_GIST_ID_KEY)) || ''
-    rechargeGistId.value = (await readSyncKey(RECHARGE_GIST_ID_KEY)) || ''
-    eventGistId.value = (await readSyncKey(EVENT_GIST_ID_KEY)) || ''
-    lastSyncedAt.value = (await readSyncKey(LAST_SYNC_KEY)) || ''
-    eventLastSyncedAt.value = (await readSyncKey(EVENT_LAST_SYNC_KEY)) || ''
-    deviceId.value = await readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId)
-    encryptionEnabled.value = (await readSyncKey(ENCRYPTION_ENABLED_KEY)) === '1'
+
+    const [
+      tokenVal,
+      loginVal,
+      userIdVal,
+      avatarVal,
+      passwordVal,
+      scopesVal,
+      authMethodVal,
+      gistIdVal,
+      imageGistIdVal,
+      rechargeGistIdVal,
+      eventGistIdVal,
+      lastSyncedAtVal,
+      eventLastSyncedAtVal,
+      deviceIdVal,
+      encryptionEnabledVal
+    ] = await Promise.all([
+      readSyncKey(TOKEN_KEY),
+      readSyncKey(GITHUB_LOGIN_KEY),
+      readSyncKey(GITHUB_USER_ID_KEY),
+      readSyncKey(GITHUB_AVATAR_URL_KEY),
+      readSyncKey(SYNC_PASSWORD_KEY),
+      readSyncKey(GITHUB_SCOPES_KEY),
+      readSyncKey(GITHUB_AUTH_METHOD_KEY),
+      readSyncKey(GIST_ID_KEY),
+      readSyncKey(IMAGE_GIST_ID_KEY),
+      readSyncKey(RECHARGE_GIST_ID_KEY),
+      readSyncKey(EVENT_GIST_ID_KEY),
+      readSyncKey(LAST_SYNC_KEY),
+      readSyncKey(EVENT_LAST_SYNC_KEY),
+      readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
+      readSyncKey(ENCRYPTION_ENABLED_KEY)
+    ])
+
+    token.value = tokenVal || ''
+    githubLogin.value = loginVal || ''
+    githubUserId.value = userIdVal || ''
+    githubAvatarUrl.value = avatarVal || ''
+    syncPassword.value = passwordVal || ''
+    githubScopes.value = scopesVal || ''
+    githubAuthMethod.value = normalizeGitHubAuthMethod(authMethodVal || '')
+    gistId.value = gistIdVal || ''
+    imageGistId.value = imageGistIdVal || ''
+    rechargeGistId.value = rechargeGistIdVal || ''
+    eventGistId.value = eventGistIdVal || ''
+    lastSyncedAt.value = lastSyncedAtVal || ''
+    eventLastSyncedAt.value = eventLastSyncedAtVal || ''
+    deviceId.value = deviceIdVal
+    encryptionEnabled.value = encryptionEnabledVal === '1'
     if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
       try {
         await ensureEncryptionKey()
@@ -837,56 +872,61 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       await ensureEventsStoreReady()
-      const gist = await getGist(token.value, gistId.value)
+      const [gist, existingRechargeGist, existingEventGist] = await Promise.all([
+        getGist(token.value, gistId.value),
+        getExistingRechargeGist(),
+        getExistingEventGist()
+      ])
       if (!gist) throw new Error('未找到 Gist')
-      const existingRechargeGist = await getExistingRechargeGist()
-      const existingEventGist = await getExistingEventGist()
 
-      const remoteManifest = await readJsonFromGistWithTrace({
-        title: '读取 manifest.json',
-        gist,
-        fileName: MANIFEST_FILENAME,
-        startDetail: '检查远端同步摘要',
-        category: 'pull',
-        successDetail: (parsed) => {
-          if (!parsed) return '未找到 manifest'
-          return `图片 Gist ${parsed.imageGistId || '未配置'}`
-        }
-      })
+      const [remoteManifest, remoteRechargeData, remoteEventData] = await Promise.all([
+        readJsonFromGistWithTrace({
+          title: '读取 manifest.json',
+          gist,
+          fileName: MANIFEST_FILENAME,
+          startDetail: '检查远端同步摘要',
+          category: 'pull',
+          successDetail: (parsed) => {
+            if (!parsed) return '未找到 manifest'
+            return `图片 Gist ${parsed.imageGistId || '未配置'}`
+          }
+        }),
+        readJsonFromGistWithTrace({
+          title: '预检读取 recharge-data.json',
+          gist,
+          fileName: RECHARGE_DATA_FILENAME,
+          startDetail: '读取充值记录',
+          category: 'pull',
+          fallbackGist: existingRechargeGist,
+          fallbackFileName: RECHARGE_DATA_FILENAME,
+          successDetail: (parsed, source) => {
+            if (!parsed) return '未找到充值数据'
+            const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+            const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+            return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
+          }
+        }).then((result) => result || { recharge: [], rechargeTrash: [] }),
+        readJsonFromGistWithTrace({
+          title: '预检读取 events-data.json',
+          gist,
+          fileName: EVENT_DATA_FILENAME,
+          startDetail: '读取活动数据',
+          category: 'pull',
+          fallbackGist: existingEventGist,
+          fallbackFileName: EVENT_DATA_FILENAME,
+          successDetail: (parsed, source) => {
+            if (!parsed) return '未找到活动数据'
+            const events = Array.isArray(parsed.events) ? parsed.events : []
+            return `${source}，活动 ${events.length} 场`
+          }
+        }).then((result) => result || { events: [] })
+      ])
+
       if (remoteManifest?.imageGistId) {
         await saveImageGistId(remoteManifest.imageGistId)
       }
       const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
       const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
-      const remoteRechargeData = await readJsonFromGistWithTrace({
-        title: '预检读取 recharge-data.json',
-        gist,
-        fileName: RECHARGE_DATA_FILENAME,
-        startDetail: '读取充值记录',
-        category: 'pull',
-        fallbackGist: existingRechargeGist,
-        fallbackFileName: RECHARGE_DATA_FILENAME,
-        successDetail: (parsed, source) => {
-          if (!parsed) return '未找到充值数据'
-          const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-          const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-          return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
-        }
-      }) || { recharge: [], rechargeTrash: [] }
-      const remoteEventData = await readJsonFromGistWithTrace({
-        title: '预检读取 events-data.json',
-        gist,
-        fileName: EVENT_DATA_FILENAME,
-        startDetail: '读取活动数据',
-        category: 'pull',
-        fallbackGist: existingEventGist,
-        fallbackFileName: EVENT_DATA_FILENAME,
-        successDetail: (parsed, source) => {
-          if (!parsed) return '未找到活动数据'
-          const events = Array.isArray(parsed.events) ? parsed.events : []
-          return `${source}，活动 ${events.length} 场`
-        }
-      }) || { events: [] }
       const localEventState = buildComparableEventStateFromData(buildEventSyncData())
       const remoteEventState = buildComparableEventStateFromData(remoteEventData)
       const hasEventContentDiff = localEventState !== remoteEventState
