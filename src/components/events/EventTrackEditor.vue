@@ -345,6 +345,7 @@ async function importPlaylist() {
 .track-editor__import-card,
 .track-editor__item,
 .track-editor__empty {
+  min-width: 0;
   border: 1px solid color-mix(in srgb, var(--app-border) 86%, transparent);
   border-radius: 22px;
   background: color-mix(in srgb, var(--app-surface-soft) 76%, var(--app-surface));
@@ -371,6 +372,7 @@ async function importPlaylist() {
 
 .track-editor input {
   width: 100%;
+  max-width: 100%;
   min-height: var(--input-height);
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
@@ -489,6 +491,7 @@ async function importPlaylist() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .track-editor__empty {
