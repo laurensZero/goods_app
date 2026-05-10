@@ -1,9 +1,9 @@
 {
-  "version": "20260510.11",
-  "url": "bundle-20260510.11.zip",
-  "hash": "132e1d5b037e89c16e880ad5db580a71a36c43786d7528acb827f98a800140db",
+  "version": "20260510.12",
+  "url": "bundle-20260510.12.zip",
+  "hash": "aed811c98256ea8efe38f603d10533048592d12059323814a4eb6dd6eb9a616b",
   "minNativeVersion": null,
-  "notes": "- fix(db): 优化查询方法，增强对不同返回格式的处理",
+  "notes": "- fix(goodsCard): 增加对物品状态“丢失”的处理逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T09:32:46Z"
+  "publishedAt": "2026-05-10T09:54:06Z"
 }
