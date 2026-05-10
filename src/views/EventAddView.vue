@@ -3,9 +3,8 @@
     class="page event-add-page"
     :class="{ 'event-add-page--navigating': isNavigatingToPicker, 'event-add-page--restoring': !pageDisplayReady }"
   >
-    <NavBar :title="isEdit ? '编辑活动' : '添加活动'" show-back />
-
     <main class="page-body">
+      <NavBar :title="isEdit ? '编辑活动' : '添加活动'" show-back />
       <form class="editor-form" @submit.prevent="handleSubmit">
         <section class="editor-shell">
           <aside class="preview-column">
@@ -805,12 +804,16 @@ onBeforeUnmount(() => {
 }
 
 .event-add-page .page-body {
-  width: min(100%, 2048px);
-  margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 16px) var(--page-padding) 120px;
+  padding: 0 0 120px;
   overscroll-behavior-y: contain;
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.editor-form {
+  width: min(100%, 2048px);
+  margin: 0 auto;
+  padding: 0 var(--page-padding);
 }
 
 .event-add-page .page-body::-webkit-scrollbar {

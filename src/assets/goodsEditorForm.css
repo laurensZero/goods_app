@@ -25,11 +25,15 @@
   margin-bottom: 16px;
 }
 
-/* NavBar 跟随页面滚动 */
+.page.add-page {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .page.add-page :deep(.nav-bar) {
-  position: relative;
-  top: auto;
-  z-index: 12;
+  position: sticky;
+  top: 0;
+  z-index: 50;
   margin-bottom: 12px;
 }
 
