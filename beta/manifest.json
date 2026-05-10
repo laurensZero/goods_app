@@ -1,9 +1,9 @@
 {
-  "version": "20260510.10",
-  "url": "bundle-20260510.10.zip",
-  "hash": "87cf875733d767dfbc928e143d3918594d01c3b118accec649a081d267f6c8be",
+  "version": "20260510.11",
+  "url": "bundle-20260510.11.zip",
+  "hash": "132e1d5b037e89c16e880ad5db580a71a36c43786d7528acb827f98a800140db",
   "minNativeVersion": null,
-  "notes": "- refactor(db): 延迟加载数据库适配器以优化性能",
+  "notes": "- fix(db): 优化查询方法，增强对不同返回格式的处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T09:27:05Z"
+  "publishedAt": "2026-05-10T09:32:46Z"
 }
