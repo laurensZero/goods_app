@@ -291,6 +291,8 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
   }
 
+  init()
+
   return {
     records,
     isReady,
