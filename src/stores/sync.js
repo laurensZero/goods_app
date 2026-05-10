@@ -8,17 +8,13 @@ import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
 import { createSyncExecutionService } from '@/services/syncExecutionService'
-import { createSyncGistService } from '@/services/syncGistService'
+import { createGistBackendAdapter } from '@/services/gistBackendAdapter'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import {
   validateToken,
-  createGist,
   getGist,
-  updateGist,
-  listGists,
-  getGistFileContent,
-  buildSyncDescription
+  listGists
 } from '@/utils/githubGist'
 import {
   countWishlistSplit,
@@ -26,7 +22,7 @@ import {
   resolveGoodsTrashMaps
 } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
-import { deriveKey, isEncrypted, decrypt, isWebCryptoAvailable } from '@/utils/cryptoManager'
+import { deriveKey, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 
@@ -121,70 +117,8 @@ export const useSyncStore = defineStore('sync', () => {
     await persistGitHubMeta({})
   }
 
-  async function readJsonFromGistWithTrace({
-    title,
-    gist,
-    fileName,
-    startDetail = '',
-    category = '',
-    required = false,
-    missingMessage = '',
-    fallbackGist = null,
-    fallbackFileName = fileName,
-    successDetail = null
-  }) {
-    const result = await trackSyncStep(title, async () => {
-      let content = await getGistFileContent(token.value, gist, fileName)
-      let source = '主 Gist'
-
-      if (!content && fallbackGist) {
-        content = await getGistFileContent(token.value, fallbackGist, fallbackFileName)
-        source = '备用 Gist'
-      }
-
-      if (!content) {
-        if (required) {
-          throw new Error(missingMessage || `未找到 ${fileName}`)
-        }
-        return null
-      }
-
-      let parsed
-      if (isEncrypted(content)) {
-        console.log(`[解密] ${fileName} 检测到加密数据`)
-        const key = await ensureEncryptionKey()
-        if (!key) {
-          throw new Error('检测到加密数据，但加密密钥未初始化。请重新登录 GitHub 或禁用加密。')
-        }
-        const decrypted = await decrypt(content, key)
-        try {
-          parsed = JSON.parse(decrypted)
-        } catch (e) {
-          throw new Error(`${fileName} 解密后 JSON 解析失败: ${e.message}`)
-        }
-        console.log(`[解密] ${fileName} 解密成功`)
-      } else {
-        try {
-          parsed = JSON.parse(content)
-        } catch (e) {
-          throw new Error(`${fileName} JSON 解析失败: ${e.message}`)
-        }
-      }
-
-      return {
-        parsed,
-        source
-      }
-    }, {
-      startDetail,
-      category,
-      successDetail: (value) => {
-        if (!successDetail) return ''
-        return successDetail(value?.parsed ?? null, value?.source || '主 Gist')
-      }
-    })
-
-    return result?.parsed ?? null
+  async function readJsonFromGistWithTrace(opts) {
+    return backend.readJson(opts)
   }
 
   async function ensureEventsStoreReady() {
@@ -329,8 +263,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (token.value && gistId.value && !imageGistId.value) {
       try {
         const gist = await getGist(token.value, gistId.value)
-        const manifestContent = gist ? await getGistFileContent(token.value, gist, MANIFEST_FILENAME) : null
-        const manifest = manifestContent ? JSON.parse(manifestContent) : null
+        const manifest = gist ? await backend.getManifest(gist) : null
         if (manifest?.imageGistId) {
           await saveImageGistId(manifest.imageGistId)
         }
@@ -429,21 +362,15 @@ export const useSyncStore = defineStore('sync', () => {
     imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
   })
 
-  const {
-    ensureImageGist,
-    ensureRechargeGist,
-    ensureEventGist,
-    ensureGist,
-    getExistingImageGist,
-    getExistingRechargeGist,
-    getExistingEventGist
-  } = createSyncGistService({
+  const backend = createGistBackendAdapter({
     tokenRef: token,
     gistIdRef: gistId,
     imageGistIdRef: imageGistId,
     rechargeGistIdRef: rechargeGistId,
     eventGistIdRef: eventGistId,
     deviceIdRef: deviceId,
+    encryptionEnabledRef: encryptionEnabled,
+    ensureEncryptionKey,
     constants: {
       GIST_ID_KEY,
       IMAGE_GIST_ID_KEY,
@@ -454,24 +381,16 @@ export const useSyncStore = defineStore('sync', () => {
       EVENT_DATA_FILENAME,
       MANIFEST_FILENAME
     },
-    trackSyncStep,
-    createGist,
-    getGist,
-    updateGist,
-    listGists,
-    getGistFileContent,
-    buildSyncDescription,
-    writeSyncKey,
-    saveGistId,
-    saveImageGistId,
-    saveRechargeGistId,
-    saveEventGistId,
-    saveLastSyncedAt,
-    buildSyncPayload,
-    buildRechargeSyncData,
-    buildEventSyncPayload,
-    buildManifest
+    trackSyncStep
   })
+
+  const ensureImageGist = () => backend.ensureImageGist()
+  const ensureRechargeGist = () => backend.ensureRechargeGist(buildRechargeSyncData)
+  const ensureEventGist = () => backend.ensureEventGist(buildEventSyncPayload)
+  const ensureGist = () => backend.ensureDataGist({ buildSyncPayload, buildRechargeSyncData, buildEventSyncPayload, buildManifest })
+  const getExistingImageGist = (manifest) => backend.getExistingImageGist(manifest)
+  const getExistingRechargeGist = () => backend.getExistingRechargeGist()
+  const getExistingEventGist = () => backend.getExistingEventGist()
 
   const {
     resolveRemoteImageGist,
@@ -479,22 +398,17 @@ export const useSyncStore = defineStore('sync', () => {
     hydrateEventCoversWithImages,
     buildImageCleanupFiles
   } = createSyncImageService({
-    tokenRef: token,
-    imageGistIdRef: imageGistId,
-    saveImageGistId,
+    backend,
     trackSyncStep,
-    getGist,
-    getGistFileContent,
     imageFilePrefix: IMAGE_FILE_PREFIX,
-    eventCoverPrefix: EVENT_COVER_PREFIX,
-    encryptionEnabledRef: encryptionEnabled,
-    ensureEncryptionKey
+    eventCoverPrefix: EVENT_COVER_PREFIX
   })
 
   const {
     getLocalChangesSince,
     buildPullConflictData
   } = createSyncConflictService({
+    backend,
     lastSyncedAtRef: lastSyncedAt,
     useGoodsStore,
     useRechargeStore,
@@ -502,7 +416,6 @@ export const useSyncStore = defineStore('sync', () => {
     shouldApplyRemoteItem,
     getExistingRechargeGist,
     getExistingEventGist,
-    readJsonFromGistWithTrace,
     buildRechargeSyncData,
     buildEventSyncData,
     getLatestLocalModifiedAt
@@ -512,8 +425,7 @@ export const useSyncStore = defineStore('sync', () => {
     pullFromRemote,
     pushToRemote
   } = createSyncExecutionService({
-    tokenRef: token,
-    gistIdRef: gistId,
+    backend,
     lastSyncedAtRef: lastSyncedAt,
     rechargeGistIdRef: rechargeGistId,
     eventGistIdRef: eventGistId,
@@ -526,10 +438,7 @@ export const useSyncStore = defineStore('sync', () => {
     buildRechargeSyncData,
     buildEventSyncPayload,
     buildManifest,
-    readJsonFromGistWithTrace,
     trackSyncStep,
-    getGist,
-    updateGist,
     getExistingRechargeGist,
     getExistingEventGist,
     saveLastSyncedAt,
@@ -546,9 +455,7 @@ export const useSyncStore = defineStore('sync', () => {
       RECHARGE_DATA_FILENAME,
       EVENT_DATA_FILENAME,
       MANIFEST_FILENAME
-    },
-    encryptionEnabledRef: encryptionEnabled,
-    ensureEncryptionKey
+    }
   })
 
   async function checkTokenValidity() {
@@ -1039,8 +946,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       syncStatus.value = '正在拉取远端数据...'
-      const manifestContent = await getGistFileContent(token.value, conflictData.value.gist, MANIFEST_FILENAME)
-      const remoteManifest = manifestContent ? JSON.parse(manifestContent) : null
+      const remoteManifest = await backend.getManifest(conflictData.value.gist)
       const hasGoodsContentDiff = !!(
         conflictData.value.remoteOnlyGoods > 0
         || conflictData.value.remoteOnlyCollection > 0

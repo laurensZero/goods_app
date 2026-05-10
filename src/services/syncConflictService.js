@@ -9,6 +9,7 @@ import {
 } from '@/utils/syncShared'
 
 export function createSyncConflictService({
+  backend,
   lastSyncedAtRef,
   useGoodsStore,
   useRechargeStore,
@@ -16,7 +17,6 @@ export function createSyncConflictService({
   shouldApplyRemoteItem,
   getExistingRechargeGist,
   getExistingEventGist,
-  readJsonFromGistWithTrace,
   buildRechargeSyncData,
   buildEventSyncData,
   getLatestLocalModifiedAt
@@ -55,7 +55,7 @@ export function createSyncConflictService({
     const eventsStore = useEventsStore()
     const existingRechargeGist = await getExistingRechargeGist()
     const existingEventGist = await getExistingEventGist()
-    const remoteData = await readJsonFromGistWithTrace({
+    const remoteData = await backend.readJson({
       title: '预检读取 data.json',
       gist,
       fileName: 'data.json',
@@ -70,7 +70,7 @@ export function createSyncConflictService({
       }
     })
     const localRechargeData = buildRechargeSyncData({ incremental: false })
-    const remoteRechargeData = await readJsonFromGistWithTrace({
+    const remoteRechargeData = await backend.readJson({
       title: '预检读取 recharge-data.json',
       gist,
       fileName: 'recharge-data.json',
@@ -89,7 +89,7 @@ export function createSyncConflictService({
       rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
     }
     const localEventData = buildEventSyncData()
-    const remoteEventData = await readJsonFromGistWithTrace({
+    const remoteEventData = await backend.readJson({
       title: '预检读取 events-data.json',
       gist,
       fileName: 'events-data.json',

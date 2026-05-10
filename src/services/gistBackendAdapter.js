@@ -1,28 +1,26 @@
-export function createSyncGistService({
+import { createSyncBackendAdapter } from './syncBackendAdapter'
+import {
+  createGist,
+  getGist,
+  updateGist,
+  listGists,
+  getGistFileContent,
+  buildSyncDescription
+} from '@/utils/githubGist'
+import { encrypt, decrypt, isEncrypted } from '@/utils/cryptoManager'
+import { readSyncKey, writeSyncKey } from '@/utils/syncStorage'
+
+export function createGistBackendAdapter({
   tokenRef,
   gistIdRef,
   imageGistIdRef,
   rechargeGistIdRef,
   eventGistIdRef,
   deviceIdRef,
+  encryptionEnabledRef,
+  ensureEncryptionKey,
   constants,
-  trackSyncStep,
-  createGist,
-  getGist,
-  updateGist,
-  listGists,
-  getGistFileContent,
-  buildSyncDescription,
-  writeSyncKey,
-  saveGistId,
-  saveImageGistId,
-  saveRechargeGistId,
-  saveEventGistId,
-  saveLastSyncedAt,
-  buildSyncPayload,
-  buildRechargeSyncData,
-  buildEventSyncPayload,
-  buildManifest
+  trackSyncStep
 }) {
   const {
     GIST_ID_KEY,
@@ -35,11 +33,39 @@ export function createSyncGistService({
     MANIFEST_FILENAME
   } = constants
 
+  // ── Persistence helpers ──
+
+  async function saveGistId(id) {
+    gistIdRef.value = id
+    await writeSyncKey(GIST_ID_KEY, id)
+  }
+
+  async function saveImageGistId(id) {
+    imageGistIdRef.value = id
+    await writeSyncKey(IMAGE_GIST_ID_KEY, id)
+  }
+
+  async function saveRechargeGistId(id) {
+    rechargeGistIdRef.value = id
+    await writeSyncKey(RECHARGE_GIST_ID_KEY, id)
+  }
+
+  async function saveEventGistId(id) {
+    eventGistIdRef.value = id
+    await writeSyncKey(EVENT_GIST_ID_KEY, id)
+  }
+
+  async function writeSyncKeyVal(key, value) {
+    await writeSyncKey(key, value)
+  }
+
   function ensureAuthorized(error) {
     if (String(error?.message || '').includes('401')) {
       throw new Error('Token 无效或已过期，请重新配置')
     }
   }
+
+  // ── Gist lifecycle (absorbed from syncGistService) ──
 
   async function ensureImageGist() {
     if (imageGistIdRef.value) {
@@ -47,7 +73,7 @@ export function createSyncGistService({
         const existing = await getGist(tokenRef.value, imageGistIdRef.value)
         if (existing) return existing
         imageGistIdRef.value = ''
-        await writeSyncKey(IMAGE_GIST_ID_KEY, '')
+        await writeSyncKeyVal(IMAGE_GIST_ID_KEY, '')
       } catch (error) {
         ensureAuthorized(error)
       }
@@ -80,13 +106,13 @@ export function createSyncGistService({
     return created
   }
 
-  async function ensureRechargeGist() {
+  async function ensureRechargeGist(buildRechargeSyncData) {
     if (rechargeGistIdRef.value) {
       try {
         const existing = await getGist(tokenRef.value, rechargeGistIdRef.value)
         if (existing) return existing
         rechargeGistIdRef.value = ''
-        await writeSyncKey(RECHARGE_GIST_ID_KEY, '')
+        await writeSyncKeyVal(RECHARGE_GIST_ID_KEY, '')
       } catch (error) {
         ensureAuthorized(error)
       }
@@ -133,13 +159,13 @@ export function createSyncGistService({
     return created
   }
 
-  async function ensureEventGist() {
+  async function ensureEventGist(buildEventSyncPayload) {
     if (eventGistIdRef.value) {
       try {
         const existing = await getGist(tokenRef.value, eventGistIdRef.value)
         if (existing) return existing
         eventGistIdRef.value = ''
-        await writeSyncKey(EVENT_GIST_ID_KEY, '')
+        await writeSyncKeyVal(EVENT_GIST_ID_KEY, '')
       } catch (error) {
         ensureAuthorized(error)
       }
@@ -192,13 +218,13 @@ export function createSyncGistService({
     return created
   }
 
-  async function ensureGist() {
+  async function ensureDataGist({ buildSyncPayload, buildRechargeSyncData, buildEventSyncPayload, buildManifest }) {
     if (gistIdRef.value) {
       try {
         const existing = await getGist(tokenRef.value, gistIdRef.value)
         if (existing) return existing
         gistIdRef.value = ''
-        await writeSyncKey(GIST_ID_KEY, '')
+        await writeSyncKeyVal(GIST_ID_KEY, '')
       } catch (error) {
         ensureAuthorized(error)
       }
@@ -209,7 +235,7 @@ export function createSyncGistService({
     try {
       matched = await listGists(tokenRef.value, 'goods-app-sync')
     } catch (e) {
-      console.error('[sync] ensureGist: listGists failed:', e)
+      console.error('[sync] ensureDataGist: listGists failed:', e)
       throw e
     }
     if (matched.length > 0) {
@@ -231,7 +257,7 @@ export function createSyncGistService({
     try {
       existingImageGist = await ensureImageGist()
     } catch (e) {
-      console.error('[sync] ensureGist: ensureImageGist failed:', e)
+      console.error('[sync] ensureDataGist: ensureImageGist failed:', e)
       throw e
     }
 
@@ -245,7 +271,7 @@ export function createSyncGistService({
       const eventPayload = await buildEventSyncPayload({ existingImageGist })
       eventData = eventPayload.eventData
     } catch (e) {
-      console.error('[sync] ensureGist: buildSyncPayload failed:', e)
+      console.error('[sync] ensureDataGist: buildSyncPayload failed:', e)
       throw e
     }
 
@@ -253,7 +279,7 @@ export function createSyncGistService({
       try {
         await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
       } catch (e) {
-        console.error('[sync] ensureGist: updateGist (images) failed:', e)
+        console.error('[sync] ensureDataGist: updateGist (images) failed:', e)
         throw e
       }
     }
@@ -268,19 +294,20 @@ export function createSyncGistService({
         [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
       })
     } catch (e) {
-      console.error('[sync] ensureGist: createGist failed:', e)
+      console.error('[sync] ensureDataGist: createGist failed:', e)
       throw e
     }
 
     try {
       await saveGistId(created.id)
-      await saveLastSyncedAt(manifest.lastSyncAt)
     } catch (e) {
-      console.error('[sync] ensureGist: saveGistId/saveLastSyncedAt failed:', e)
+      console.error('[sync] ensureDataGist: saveGistId failed:', e)
       throw e
     }
     return created
   }
+
+  // ── Existing Gist lookups (absorbed from syncGistService) ──
 
   async function getExistingImageGist(remoteManifest = null) {
     const remoteImageGistId = String(remoteManifest?.imageGistId || imageGistIdRef.value || '').trim()
@@ -345,13 +372,196 @@ export function createSyncGistService({
     }
   }
 
-  return {
+  // ── Read operations (absorbed from syncStore.readJsonFromGistWithTrace) ──
+
+  async function readJson({
+    title,
+    gist,
+    fileName,
+    startDetail = '',
+    category = '',
+    required = false,
+    missingMessage = '',
+    fallbackGist = null,
+    fallbackFileName = fileName,
+    successDetail = null
+  }) {
+    const result = await trackSyncStep(title, async () => {
+      let content = await getGistFileContent(tokenRef.value, gist, fileName)
+      let source = '主 Gist'
+
+      if (!content && fallbackGist) {
+        content = await getGistFileContent(tokenRef.value, fallbackGist, fallbackFileName)
+        source = '备用 Gist'
+      }
+
+      if (!content) {
+        if (required) {
+          throw new Error(missingMessage || `未找到 ${fileName}`)
+        }
+        return null
+      }
+
+      let parsed
+      if (isEncrypted(content)) {
+        console.log(`[解密] ${fileName} 检测到加密数据`)
+        const key = await ensureEncryptionKey()
+        if (!key) {
+          throw new Error('检测到加密数据，但加密密钥未初始化。请重新登录 GitHub 或禁用加密。')
+        }
+        const decrypted = await decrypt(content, key)
+        try {
+          parsed = JSON.parse(decrypted)
+        } catch (e) {
+          throw new Error(`${fileName} 解密后 JSON 解析失败: ${e.message}`)
+        }
+        console.log(`[解密] ${fileName} 解密成功`)
+      } else {
+        try {
+          parsed = JSON.parse(content)
+        } catch (e) {
+          throw new Error(`${fileName} JSON 解析失败: ${e.message}`)
+        }
+      }
+
+      return {
+        parsed,
+        source
+      }
+    }, {
+      startDetail,
+      category,
+      successDetail: (value) => {
+        if (!successDetail) return ''
+        return successDetail(value?.parsed ?? null, value?.source || '主 Gist')
+      }
+    })
+
+    return result?.parsed ?? null
+  }
+
+  async function readImage(gist, fileName) {
+    const content = await getGistFileContent(tokenRef.value, gist, fileName)
+    if (!content) return null
+
+    if (isEncrypted(content)) {
+      const key = ensureEncryptionKey ? await ensureEncryptionKey() : null
+      if (key) {
+        return await decrypt(content, key)
+      }
+    }
+    return content
+  }
+
+  // ── Write operations (absorbed from syncExecutionService) ──
+
+  async function writeData(gistId, dataMap) {
+    const encryptedMap = {}
+    for (const [fileName, content] of Object.entries(dataMap)) {
+      encryptedMap[fileName] = await encryptContentIfNeeded(content, fileName)
+    }
+    return updateGist(tokenRef.value, gistId, encryptedMap)
+  }
+
+  async function writeImages(gistId, imageFiles) {
+    if (!imageFiles || Object.keys(imageFiles).length === 0) return
+
+    const BATCH_SIZE = 30
+    const MAX_CONCURRENT = 3
+    const entries = Object.entries(imageFiles)
+    const totalBatches = Math.ceil(entries.length / BATCH_SIZE)
+
+    const batches = []
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      batches.push({
+        batch: entries.slice(i, i + BATCH_SIZE),
+        batchNum: Math.floor(i / BATCH_SIZE) + 1
+      })
+    }
+
+    await trackSyncStep(`上传图片 Gist (${totalBatches} 批并发)`, async () => {
+      for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
+        const chunk = batches.slice(i, i + MAX_CONCURRENT)
+        const results = await Promise.allSettled(chunk.map(async ({ batch }) => {
+          let encryptedBatch = Object.fromEntries(batch)
+          if (encryptionEnabledRef?.value && ensureEncryptionKey) {
+            try {
+              const key = await ensureEncryptionKey()
+              if (key) {
+                encryptedBatch = {}
+                for (const [fileName, fileObj] of batch) {
+                  if (fileObj.content && typeof fileObj.content === 'string') {
+                    encryptedBatch[fileName] = { content: await encrypt(fileObj.content, key) }
+                  } else {
+                    encryptedBatch[fileName] = fileObj
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('图片加密失败，以明文上传:', e)
+            }
+          }
+          return updateGist(tokenRef.value, gistId, encryptedBatch)
+        }))
+        const failures = results.filter(r => r.status === 'rejected')
+        if (failures.length > 0) {
+          console.error(`[sync] ${failures.length}/${chunk.length} image batch(es) failed:`, failures.map(r => r.reason))
+        }
+      }
+      return `${totalBatches} 批已全部上传`
+    }, {
+      startDetail: `并发上传 ${totalBatches} 批图片（每批 ${BATCH_SIZE} 张，并发 ${MAX_CONCURRENT}）`,
+      category: 'image',
+      successDetail: () => '图片 Gist 已更新'
+    })
+  }
+
+  async function getManifest(gist) {
+    try {
+      const content = await getGistFileContent(tokenRef.value, gist, MANIFEST_FILENAME)
+      return content ? JSON.parse(content) : null
+    } catch {
+      return null
+    }
+  }
+
+  function isEncryptionEnabled() {
+    return !!(encryptionEnabledRef?.value)
+  }
+
+  function getDataGistId() {
+    return gistIdRef.value
+  }
+
+  // ── Internal helpers ──
+
+  async function encryptContentIfNeeded(data, fileName = '') {
+    if (!encryptionEnabledRef?.value || !ensureEncryptionKey) return JSON.stringify(data)
+    try {
+      const key = await ensureEncryptionKey()
+      if (!key) return JSON.stringify(data)
+      console.log(`[加密] ${fileName} 已加密`)
+      return await encrypt(data, key)
+    } catch (e) {
+      console.warn('加密失败，以明文上传:', e)
+      return JSON.stringify(data)
+    }
+  }
+
+  return createSyncBackendAdapter({
+    ensureDataGist,
     ensureImageGist,
     ensureRechargeGist,
     ensureEventGist,
-    ensureGist,
     getExistingImageGist,
     getExistingRechargeGist,
-    getExistingEventGist
-  }
+    getExistingEventGist,
+    readJson,
+    readImage,
+    writeData,
+    writeImages,
+    getManifest,
+    isEncryptionEnabled,
+    getDataGistId
+  })
 }

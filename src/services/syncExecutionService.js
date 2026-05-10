@@ -1,10 +1,8 @@
 import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { parseGistImageUri } from '@/utils/goodsImages'
-import { encrypt, isEncrypted } from '@/utils/cryptoManager'
 
 export function createSyncExecutionService({
-  tokenRef,
-  gistIdRef,
+  backend,
   rechargeGistIdRef,
   eventGistIdRef,
   ensureImageGist,
@@ -16,10 +14,7 @@ export function createSyncExecutionService({
   buildRechargeSyncData,
   buildEventSyncPayload,
   buildManifest,
-  readJsonFromGistWithTrace,
   trackSyncStep,
-  getGist,
-  updateGist,
   lastSyncedAtRef,
   getExistingRechargeGist,
   getExistingEventGist,
@@ -32,9 +27,7 @@ export function createSyncExecutionService({
   useEventsStore,
   usePresetsStore,
   shouldApplyRemoteItem,
-  constants,
-  encryptionEnabledRef = null,
-  ensureEncryptionKey = null
+  constants
 }) {
   const {
     DATA_FILENAME,
@@ -42,19 +35,6 @@ export function createSyncExecutionService({
     EVENT_DATA_FILENAME,
     MANIFEST_FILENAME
   } = constants
-
-  async function encryptContentIfNeeded(data, fileName = '') {
-    if (!encryptionEnabledRef?.value || !ensureEncryptionKey) return JSON.stringify(data)
-    try {
-      const key = await ensureEncryptionKey()
-      if (!key) return JSON.stringify(data)
-      console.log(`[加密] ${fileName} 已加密`)
-      return await encrypt(data, key)
-    } catch (e) {
-      console.warn('加密失败，以明文上传:', e)
-      return JSON.stringify(data)
-    }
-  }
 
   function resolveCoverGistFileName(event) {
     return String(event?.coverImageData?.gistFileName || parseGistImageUri(event?.coverImage) || '').trim()
@@ -142,12 +122,13 @@ export function createSyncExecutionService({
 
     return targetEventIds
   }
+
   async function pullFromRemote(gist, remoteManifest = null, rechargeGist = null, eventGist = null, options = {}) {
     const shouldHydrateGoodsImages = options.hydrateGoodsImages !== false
     const shouldHydrateTrashImages = options.hydrateTrashImages !== false
     const shouldHydrateEventImages = options.hydrateEventImages !== false
 
-    const remoteData = await readJsonFromGistWithTrace({
+    const remoteData = await backend.readJson({
       title: '读取 data.json',
       gist,
       fileName: DATA_FILENAME,
@@ -163,7 +144,7 @@ export function createSyncExecutionService({
         return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}`
       }
     }) || { goods: [], trash: [], presets: {} }
-    const rechargeData = await readJsonFromGistWithTrace({
+    const rechargeData = await backend.readJson({
       title: '正式拉取 recharge-data.json',
       gist,
       fileName: RECHARGE_DATA_FILENAME,
@@ -178,7 +159,7 @@ export function createSyncExecutionService({
         return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
       }
     })
-    const eventData = await readJsonFromGistWithTrace({
+    const eventData = await backend.readJson({
       title: '正式拉取 events-data.json',
       gist,
       fileName: EVENT_DATA_FILENAME,
@@ -440,22 +421,17 @@ export function createSyncExecutionService({
   }
 
   async function pushToRemote(existingGist = null, existingImageGist = null, existingRechargeGist = null, existingEventGist = null) {
-    if (!existingGist && gistIdRef.value) {
-      await getGist(tokenRef.value, gistIdRef.value)
-    }
-
     let imageGist = existingImageGist || await ensureImageGist()
 
     // 检查云端图片加密状态是否与本地设置一致
-    const currentEncryptionEnabled = encryptionEnabledRef?.value || false
     if (imageGist?.files) {
       const firstFileName = Object.keys(imageGist.files).find(f => f !== 'README.md')
       if (firstFileName) {
         await trackSyncStep('检查图片加密状态', async () => {
           const cloudContent = imageGist.files[firstFileName]?.content || ''
-          // 如果内容以 data:image/ 开头则是明文，否则视为加密
           const cloudIsPlaintext = cloudContent.startsWith('data:image/')
           const cloudIsEncrypted = !cloudIsPlaintext && cloudContent.length > 0
+          const currentEncryptionEnabled = backend.isEncryptionEnabled()
           if (cloudIsEncrypted !== currentEncryptionEnabled) {
             imageGist = null
             return `状态不一致（本地${currentEncryptionEnabled ? '加密' : '明文'}，云端${cloudIsEncrypted ? '加密' : '明文'}），触发重传`
@@ -507,58 +483,7 @@ export function createSyncExecutionService({
       if (!imageGist) {
         imageGist = await ensureImageGist()
       }
-
-      const BATCH_SIZE = 30
-      const MAX_CONCURRENT = 3
-      const entries = Object.entries(imageUpdates)
-      const totalBatches = Math.ceil(entries.length / BATCH_SIZE)
-
-      // 分批
-      const batches = []
-      for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-        batches.push({
-          batch: entries.slice(i, i + BATCH_SIZE),
-          batchNum: Math.floor(i / BATCH_SIZE) + 1
-        })
-      }
-
-      // 并发上传
-      await trackSyncStep(`上传图片 Gist (${totalBatches} 批并发)`, async () => {
-        for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
-          const chunk = batches.slice(i, i + MAX_CONCURRENT)
-          const results = await Promise.allSettled(chunk.map(async ({ batch, batchNum }) => {
-            const batchObj = Object.fromEntries(batch)
-            let encryptedBatch = batchObj
-            if (encryptionEnabledRef?.value && ensureEncryptionKey) {
-              try {
-                const key = await ensureEncryptionKey()
-                if (key) {
-                  encryptedBatch = {}
-                  for (const [fileName, fileObj] of batch) {
-                    if (fileObj.content && typeof fileObj.content === 'string') {
-                      encryptedBatch[fileName] = { content: await encrypt(fileObj.content, key) }
-                    } else {
-                      encryptedBatch[fileName] = fileObj
-                    }
-                  }
-                }
-              } catch (e) {
-                console.warn('图片加密失败，以明文上传:', e)
-              }
-            }
-            return updateGist(tokenRef.value, imageGist.id, encryptedBatch)
-          }))
-          const failures = results.filter(r => r.status === 'rejected')
-          if (failures.length > 0) {
-            console.error(`[sync] ${failures.length}/${chunk.length} image batch(es) failed:`, failures.map(r => r.reason))
-          }
-        }
-        return `${totalBatches} 批已全部上传`
-      }, {
-        startDetail: `并发上传 ${totalBatches} 批图片（每批 ${BATCH_SIZE} 张，并发 ${MAX_CONCURRENT}）`,
-        category: 'image',
-        successDetail: () => `图片 Gist 已更新`
-      })
+      await backend.writeImages(imageGist.id, imageUpdates)
     }
 
     const syncTimestamp = new Date().toISOString()
@@ -580,14 +505,11 @@ export function createSyncExecutionService({
     const manifest = buildManifest(mergedImageStats, syncTimestamp, counts)
 
     await trackSyncStep('更新主同步 Gist', async () => {
-      const dataContent = await encryptContentIfNeeded(syncData, 'data.json')
-      const rechargeContent = await encryptContentIfNeeded(rechargeSyncData, 'recharge-data.json')
-      const eventContent = await encryptContentIfNeeded(eventSyncData, 'events-data.json')
-      return updateGist(tokenRef.value, gistIdRef.value, {
-        [DATA_FILENAME]: { content: dataContent },
-        [RECHARGE_DATA_FILENAME]: { content: rechargeContent },
-        [EVENT_DATA_FILENAME]: { content: eventContent },
-        [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
+      await backend.writeData(existingGist?.id || backend.getDataGistId(), {
+        [DATA_FILENAME]: { content: syncData },
+        [RECHARGE_DATA_FILENAME]: { content: rechargeSyncData },
+        [EVENT_DATA_FILENAME]: { content: eventSyncData },
+        [MANIFEST_FILENAME]: { content: manifest }
       })
     }, {
       startDetail: '上传 data.json / recharge-data.json / events-data.json / manifest.json',
@@ -598,10 +520,11 @@ export function createSyncExecutionService({
     await saveLastSyncedAt(manifest.lastSyncAt)
     await saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
 
-    if (rechargeGistIdRef.value && rechargeGistIdRef.value !== gistIdRef.value) {
+    const dataGistId = backend.getDataGistId()
+    if (rechargeGistIdRef.value && rechargeGistIdRef.value !== dataGistId) {
       await saveRechargeGistId('')
     }
-    if (eventGistIdRef.value && eventGistIdRef.value !== gistIdRef.value) {
+    if (eventGistIdRef.value && eventGistIdRef.value !== dataGistId) {
       await saveEventGistId('')
     }
 

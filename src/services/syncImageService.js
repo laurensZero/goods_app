@@ -1,38 +1,13 @@
 import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goodsImages'
-import { decrypt, isEncrypted } from '@/utils/cryptoManager'
 
 export function createSyncImageService({
-  tokenRef,
-  imageGistIdRef,
-  saveImageGistId,
+  backend,
   trackSyncStep,
-  getGist,
-  getGistFileContent,
   imageFilePrefix,
-  eventCoverPrefix,
-  encryptionEnabledRef = null,
-  ensureEncryptionKey = null
+  eventCoverPrefix
 }) {
   async function resolveRemoteImageGist(remoteManifest) {
-    const remoteImageGistId = String(remoteManifest?.imageGistId || imageGistIdRef.value || '').trim()
-    if (!remoteImageGistId) return null
-    if (remoteImageGistId !== imageGistIdRef.value) {
-      await saveImageGistId(remoteImageGistId)
-    }
-
-    const gist = await trackSyncStep('读取图片 Gist', async () => {
-      const fetched = await getGist(tokenRef.value, remoteImageGistId)
-      if (!fetched) {
-        throw new Error('未找到图片 Gist')
-      }
-      return fetched
-    }, {
-      startDetail: `Gist ${remoteImageGistId}`,
-      category: 'image',
-      successDetail: () => `已连接 ${remoteImageGistId}`
-    })
-
-    return gist
+    return backend.getExistingImageGist(remoteManifest)
   }
 
   async function hydrateRemoteItemsWithImages(items, imageGist, imageStats, options = {}) {
@@ -63,16 +38,7 @@ export function createSyncImageService({
 
           if (!fileCache.has(gistFileName)) {
             const imageDataUrl = await trackSyncStep(`读取图片文件 ${gistFileName}`, async () => {
-              let fetched = await getGistFileContent(tokenRef.value, imageGist, gistFileName)
-
-              if (isEncrypted(fetched)) {
-                console.log(`[图片解密] ${gistFileName} 检测到加密`)
-                const key = ensureEncryptionKey ? await ensureEncryptionKey() : null
-                if (key) {
-                  fetched = await decrypt(fetched, key)
-                  console.log(`[图片解密] ${gistFileName} 解密成功`)
-                }
-              }
+              const fetched = await backend.readImage(imageGist, gistFileName)
 
               if (!String(fetched || '').startsWith('data:image/')) {
                 throw new Error(`远端图片缺失：${gistFileName}`)
@@ -137,7 +103,7 @@ export function createSyncImageService({
       try {
         if (!fileCache.has(gistFileName)) {
           const imageDataUrl = await trackSyncStep(`读取活动封面文件 ${gistFileName}`, async () => {
-            const fetched = await getGistFileContent(tokenRef.value, imageGist, gistFileName)
+            const fetched = await backend.readImage(imageGist, gistFileName)
             if (!String(fetched || '').startsWith('data:image/')) {
               throw new Error(`远端活动封面缺失：${gistFileName}`)
             }
