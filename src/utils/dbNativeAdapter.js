@@ -29,10 +29,15 @@ export function createNativeAdapter() {
 
     async query(sql, params = []) {
       const result = await _db.query(sql, params)
+      const rows = result.values ?? []
+      if (rows.length === 0) return []
+      // Capacitor SQLite 可能返回对象数组或位置数组
+      // 如果第一行已经是对象，直接返回
+      if (typeof rows[0] === 'object' && !Array.isArray(rows[0])) return rows
+      // 否则用 columns 做位置映射
       const cols = result.columns ?? []
-      return (result.values ?? []).map(row =>
-        Object.fromEntries(cols.map((col, i) => [col, row[i]]))
-      )
+      if (cols.length === 0) return rows
+      return rows.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])))
     },
 
     async getTableColumns(tableName) {
