@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
-import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useRechargeStore } from '@/stores/recharge'
 
 const BACKUP_DIR = 'GoodsAppBackup'
 const BACKUP_RETENTION_COUNT = 5

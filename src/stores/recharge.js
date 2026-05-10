@@ -1,9 +1,8 @@
+// @ts-check
+import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'
-
-const records = ref([])
-let initialized = false
 
 function normalizeRecord(input = {}) {
   const now = Date.now()
@@ -23,46 +22,9 @@ function normalizeRecord(input = {}) {
   }
 }
 
-function saveToStorage() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records.value))
-  }
-  catch (error) {
-    console.error('[recharge] save failed:', error)
-  }
-}
-
 function isValidRechargeRecord(item) {
   const amount = Number(item?.amount || 0)
   return Number.isFinite(amount) && amount >= 0
-}
-
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
-      records.value = []
-      return
-    }
-
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      records.value = []
-      return
-    }
-
-    const normalized = parsed.map((item) => normalizeRecord(item))
-    const valid = normalized.filter((item) => isValidRechargeRecord(item) && !item.deleted)
-    records.value = valid
-
-    if (valid.length !== normalized.length) {
-      saveToStorage()
-    }
-  }
-  catch (error) {
-    console.error('[recharge] load failed:', error)
-    records.value = []
-  }
 }
 
 function sortByDateDesc(list) {
@@ -110,10 +72,9 @@ function buildLatestRecordMap(list = []) {
   return map
 }
 
-export function useRechargeStore() {
-  if (!initialized) {
-    init()
-  }
+export const useRechargeStore = defineStore('recharge', () => {
+  const records = ref([])
+  const isReady = ref(false)
 
   const activeRecords = computed(() => records.value.filter((item) => !item.deleted))
   const deletedRecords = computed(() => records.value.filter((item) => item.deleted))
@@ -134,10 +95,47 @@ export function useRechargeStore() {
     }))
   })
 
+  function saveToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records.value))
+    }
+    catch (error) {
+      console.error('[recharge] save failed:', error)
+    }
+  }
+
+  function loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (!raw) {
+        records.value = []
+        return
+      }
+
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        records.value = []
+        return
+      }
+
+      const normalized = parsed.map((item) => normalizeRecord(item))
+      const valid = normalized.filter((item) => isValidRechargeRecord(item) && !item.deleted)
+      records.value = valid
+
+      if (valid.length !== normalized.length) {
+        saveToStorage()
+      }
+    }
+    catch (error) {
+      console.error('[recharge] load failed:', error)
+      records.value = []
+    }
+  }
+
   function init() {
-    if (initialized) return
-    initialized = true
+    if (isReady.value) return
     loadFromStorage()
+    isReady.value = true
   }
 
   function addRecord(data = {}) {
@@ -192,7 +190,7 @@ export function useRechargeStore() {
     return permanentDelete(records.value[index].id)
   }
 
-  function restoreRecord(id) {
+  function restoreRecord() {
     return false
   }
 
@@ -295,6 +293,7 @@ export function useRechargeStore() {
 
   return {
     records,
+    isReady,
     activeRecords,
     deletedRecords,
     sortedRecords,
@@ -311,4 +310,4 @@ export function useRechargeStore() {
     importBackup,
     replaceBackup
   }
-}
+})

@@ -3,7 +3,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
-import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useRechargeStore } from '@/stores/recharge'
 
 function formatSyncTime(isoString) {
   if (!isoString) return ''
@@ -22,7 +22,7 @@ export function useManageEntries() {
   const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
   const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
   const eventCount = computed(() => eventsStore.list.length)
-  const rechargeCount = computed(() => rechargeStore.sortedRecords.value.length)
+  const rechargeCount = computed(() => rechargeStore.sortedRecords.length)
 
   const exportSummaryText = computed(() =>
     `${collectionCount.value} 件收藏 ${wishlistCount.value} 件心愿 ${eventCount.value} 场活动 ${rechargeCount.value} 条充值`

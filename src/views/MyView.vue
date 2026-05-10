@@ -277,7 +277,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
-import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useRechargeStore } from '@/stores/recharge'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import {
   fetchGitHubUser,
@@ -308,7 +308,7 @@ const githubOAuthClientId = getGitHubOAuthClientId()
 const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
 const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
 const eventCount = computed(() => eventsStore.list.length)
-const rechargeCount = computed(() => rechargeStore.sortedRecords.value.length)
+const rechargeCount = computed(() => rechargeStore.sortedRecords.length)
 
 const avatarInitial = computed(() => (syncStore.githubLogin ? syncStore.githubLogin.slice(0, 1).toUpperCase() : 'G'))
 const tokenDisplay = computed(() => {

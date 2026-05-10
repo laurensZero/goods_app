@@ -37,7 +37,7 @@ import { useAnnouncementStore } from '@/stores/announcement'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
-import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useRechargeStore } from '@/stores/recharge'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
 

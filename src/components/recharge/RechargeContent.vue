@@ -189,7 +189,7 @@ import RechargeSelectionActionBar from '@/components/recharge/RechargeSelectionA
 import RecordCard from '@/components/recharge/RecordCard.vue'
 import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
-import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useRechargeStore } from '@/stores/recharge'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/imageCache'
@@ -214,8 +214,8 @@ let removeAndroidBackListener = null
 let scrollListenerCleanup = null
 const GAME_ORDER = ['原神', '星穹铁道', '绝区零']
 
-const activeRecords = computed(() => rechargeStore.sortedRecords.value)
-const totalAmountText = computed(() => rechargeStore.totalAmount.value.toFixed(2))
+const activeRecords = computed(() => rechargeStore.sortedRecords)
+const totalAmountText = computed(() => rechargeStore.totalAmount.toFixed(2))
 const latestRecord = computed(() => activeRecords.value[0] || null)
 const hasFilters = computed(() => Boolean(keyword.value.trim() || gameFilter.value))
 
@@ -278,7 +278,7 @@ const currentMonthCount = computed(() => currentMonthSummary.value.count)
 
 const averageAmount = computed(() => {
   if (activeRecords.value.length === 0) return 0
-  return rechargeStore.totalAmount.value / activeRecords.value.length
+  return rechargeStore.totalAmount / activeRecords.value.length
 })
 
 const leaderboard = computed(() => {

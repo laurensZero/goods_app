@@ -167,7 +167,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
+import { useRechargeStore } from '@/stores/recharge'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/imageCache'
 
@@ -222,7 +222,7 @@ const isTabletViewport = computed(() => windowWidth.value >= 900)
 const allMonthCardRecords = computed(() => {
   const grouped = new Map()
 
-  for (const raw of rechargeStore.sortedRecords.value) {
+  for (const raw of rechargeStore.sortedRecords) {
     const itemName = String(raw?.itemName || '').trim()
     const game = String(raw?.game || '').trim()
     const chargedAt = String(raw?.chargedAt || '').trim()
