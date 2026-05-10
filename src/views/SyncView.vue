@@ -328,6 +328,59 @@
         </div>
       </section>
 
+      <Transition name="error-slide">
+        <section v-if="syncStore.syncPhase" class="content-section error-section">
+          <article class="error-card">
+            <div class="error-card__head">
+              <span class="error-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </span>
+              <div class="error-card__copy">
+                <p class="error-card__label">Sync Error</p>
+                <h3 class="error-card__title">同步失败</h3>
+              </div>
+              <button type="button" class="error-card__dismiss" @click="clearSyncError" aria-label="关闭">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="error-card__body">
+              <div class="error-card__row">
+                <span class="error-card__key">失败阶段</span>
+                <span class="error-card__val">{{ syncPhaseName }}</span>
+              </div>
+              <div class="error-card__row">
+                <span class="error-card__key">失败原因</span>
+                <span class="error-card__val">{{ syncCauseName }}</span>
+              </div>
+              <div class="error-card__row">
+                <span class="error-card__key">错误信息</span>
+                <span class="error-card__val error-card__val--detail">{{ syncStore.lastError }}</span>
+              </div>
+            </div>
+
+            <div class="error-card__footer">
+              <p class="error-card__suggestion">{{ syncStore.syncSuggestion }}</p>
+              <button
+                v-if="syncStore.syncCause === 'auth'"
+                type="button"
+                class="error-card__action"
+                @click="openGithubLoginDialog"
+              >
+                重新登录
+              </button>
+            </div>
+          </article>
+        </section>
+      </Transition>
+
       <section class="content-section logs-section">
         <div class="section-head">
           <p class="section-label">Sync Trace</p>
@@ -548,6 +601,11 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSyncStore } from '@/stores/sync'
+import {
+  PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_DIFF,
+  PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA,
+  CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
+} from '@/services/syncError'
 import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
 import {
   fetchGitHubUser,
@@ -737,6 +795,37 @@ const statusBadgeText = computed(() => {
   if (syncStore.gistId) return '已连接'
   return '待上传'
 })
+
+const PHASE_NAME_MAP = {
+  [PHASE_ENSURE_GIST]: '初始化同步空间',
+  [PHASE_READ_MANIFEST]: '读取同步摘要',
+  [PHASE_READ_REMOTE]: '读取云端数据',
+  [PHASE_DIFF]: '对比数据差异',
+  [PHASE_PULL]: '拉取云端数据',
+  [PHASE_PUSH]: '上传本地数据',
+  [PHASE_UPLOAD_IMAGES]: '上传图片',
+  [PHASE_WRITE_DATA]: '写入数据文件'
+}
+
+const CAUSE_NAME_MAP = {
+  [CAUSE_NETWORK]: '网络异常',
+  [CAUSE_RATE_LIMIT]: '请求过于频繁',
+  [CAUSE_AUTH]: '认证失败',
+  [CAUSE_SERVER]: '服务端异常',
+  [CAUSE_DATA_FORMAT]: '数据格式错误',
+  [CAUSE_UNKNOWN]: '未知错误'
+}
+
+const syncPhaseName = computed(() => PHASE_NAME_MAP[syncStore.syncPhase] || syncStore.syncPhase || '')
+const syncCauseName = computed(() => CAUSE_NAME_MAP[syncStore.syncCause] || syncStore.syncCause || '')
+
+function clearSyncError() {
+  syncStore.syncPhase = null
+  syncStore.syncCause = null
+  syncStore.syncSuggestion = null
+  syncStore.lastError = ''
+  syncStore.syncStatus = ''
+}
 
 const isUsingGithubLogin = computed(() => (
   !!syncStore.githubLogin && syncStore.githubAuthMethod === 'device-flow'
@@ -971,7 +1060,7 @@ async function handleSync() {
     showToast(message, 3500)
     await loadGistInfo()
   } catch (error) {
-    showToast(`上传失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || `上传失败：${error.message}`)
   }
 }
 
@@ -999,7 +1088,7 @@ async function handlePull() {
       await loadGistInfo()
     }
   } catch (error) {
-    showToast(`拉取失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || `拉取失败：${error.message}`)
   }
 }
 
@@ -1024,7 +1113,7 @@ async function handlePullConflict(confirm) {
       showToast('已取消拉取')
     }
   } catch (error) {
-    showToast(`拉取失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || `拉取失败：${error.message}`)
   }
 }
 
@@ -1049,7 +1138,7 @@ async function handleSyncConflict(useRemote) {
     }
     await loadGistInfo()
   } catch (error) {
-    showToast(useRemote ? `拉取失败：${error.message}` : `上传失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || (useRemote ? `拉取失败：${error.message}` : `上传失败：${error.message}`))
   }
 }
 

@@ -9,6 +9,7 @@ import {
 } from '@/utils/githubGist'
 import { encrypt, decrypt, isEncrypted } from '@/utils/cryptoManager'
 import { readSyncKey, writeSyncKey } from '@/utils/syncStorage'
+import { withRetry } from './syncRetry'
 
 export function createGistBackendAdapter({
   tokenRef,
@@ -387,11 +388,11 @@ export function createGistBackendAdapter({
     successDetail = null
   }) {
     const result = await trackSyncStep(title, async () => {
-      let content = await getGistFileContent(tokenRef.value, gist, fileName)
+      let content = await withRetry(() => getGistFileContent(tokenRef.value, gist, fileName))
       let source = '主 Gist'
 
       if (!content && fallbackGist) {
-        content = await getGistFileContent(tokenRef.value, fallbackGist, fallbackFileName)
+        content = await withRetry(() => getGistFileContent(tokenRef.value, fallbackGist, fallbackFileName))
         source = '备用 Gist'
       }
 
@@ -441,7 +442,7 @@ export function createGistBackendAdapter({
   }
 
   async function readImage(gist, fileName) {
-    const content = await getGistFileContent(tokenRef.value, gist, fileName)
+    const content = await withRetry(() => getGistFileContent(tokenRef.value, gist, fileName))
     if (!content) return null
 
     if (isEncrypted(content)) {
@@ -465,7 +466,7 @@ export function createGistBackendAdapter({
         processedMap[fileName] = { content: await encryptContentIfNeeded(entry.content, fileName) }
       }
     }
-    return updateGist(tokenRef.value, gistId, processedMap)
+    return withRetry(() => updateGist(tokenRef.value, gistId, processedMap))
   }
 
   async function writeImages(gistId, imageFiles) {
@@ -508,7 +509,7 @@ export function createGistBackendAdapter({
               console.warn('图片加密失败，以明文上传:', e)
             }
           }
-          return updateGist(tokenRef.value, gistId, encryptedBatch)
+          return withRetry(() => updateGist(tokenRef.value, gistId, encryptedBatch))
         }))
         const failures = results.filter(r => r.status === 'rejected')
         if (failures.length > 0) {
@@ -525,7 +526,7 @@ export function createGistBackendAdapter({
 
   async function getManifest(gist) {
     try {
-      const content = await getGistFileContent(tokenRef.value, gist, MANIFEST_FILENAME)
+      const content = await withRetry(() => getGistFileContent(tokenRef.value, gist, MANIFEST_FILENAME))
       return content ? JSON.parse(content) : null
     } catch {
       return null

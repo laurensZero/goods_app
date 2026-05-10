@@ -1,5 +1,6 @@
 import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { parseGistImageUri } from '@/utils/goodsImages'
+import { wrapSyncError, PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA } from './syncError'
 
 /**
  * Stateless sync orchestrator. All sync logic lives here.
@@ -349,7 +350,8 @@ export function createSyncOrchestrator({
 
     if (Object.keys(imageUpdates).length > 0) {
       if (!imageGist) imageGist = await backend.ensureImageGist()
-      await backend.writeImages(imageGist.id, imageUpdates)
+      try { await backend.writeImages(imageGist.id, imageUpdates) }
+      catch (e) { wrapSyncError(e, PHASE_UPLOAD_IMAGES) }
     }
 
     const syncTimestamp = new Date().toISOString()
@@ -369,15 +371,17 @@ export function createSyncOrchestrator({
     }
     const manifest = payload.buildManifest(mergedImageStats, syncTimestamp, counts)
 
-    await trackSyncStep('更新主同步 Gist', () =>
-      backend.writeData(existingGist?.id || backend.getDataGistId(), {
-        [DATA_FILENAME]: { content: syncData },
-        [RECHARGE_DATA_FILENAME]: { content: rechargeSyncData },
-        [EVENT_DATA_FILENAME]: { content: eventSyncData },
-        [MANIFEST_FILENAME]: { content: manifest }
-      }),
-      { startDetail: '上传 data.json / recharge-data.json / events-data.json / manifest.json', category: 'sync', successDetail: () => '主同步 Gist 已更新' }
-    )
+    try {
+      await trackSyncStep('更新主同步 Gist', () =>
+        backend.writeData(existingGist?.id || backend.getDataGistId(), {
+          [DATA_FILENAME]: { content: syncData },
+          [RECHARGE_DATA_FILENAME]: { content: rechargeSyncData },
+          [EVENT_DATA_FILENAME]: { content: eventSyncData },
+          [MANIFEST_FILENAME]: { content: manifest }
+        }),
+        { startDetail: '上传 data.json / recharge-data.json / events-data.json / manifest.json', category: 'sync', successDetail: () => '主同步 Gist 已更新' }
+      )
+    } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
 
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
@@ -393,45 +397,55 @@ export function createSyncOrchestrator({
 
   async function fullSync(ctx) {
     await ctx.ensureEventsStoreReady()
-    const gist = await backend.ensureDataGist({
-      buildSyncPayload: payload.buildSyncPayload,
-      buildRechargeSyncData: payload.buildRechargeSyncData,
-      buildEventSyncPayload: payload.buildEventSyncPayload,
-      buildManifest: payload.buildManifest
-    })
 
-    const remoteManifest = await readJson({
-      title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME,
-      startDetail: '检查远端同步摘要', category: 'pull',
-      successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
-    })
+    let gist
+    try {
+      gist = await backend.ensureDataGist({
+        buildSyncPayload: payload.buildSyncPayload,
+        buildRechargeSyncData: payload.buildRechargeSyncData,
+        buildEventSyncPayload: payload.buildEventSyncPayload,
+        buildManifest: payload.buildManifest
+      })
+    } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
+
+    let remoteManifest
+    try {
+      remoteManifest = await readJson({
+        title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME,
+        startDetail: '检查远端同步摘要', category: 'pull',
+        successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
+      })
+    } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
     const existingRechargeGist = await backend.getExistingRechargeGist()
     const existingEventGist = await backend.getExistingEventGist()
     const existingImageGist = await backend.getExistingImageGist(remoteManifest)
 
-    const remoteData = await readJson({
-      title: '读取 data.json', gist, fileName: DATA_FILENAME,
-      startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
-      successDetail: (parsed) => {
-        if (!parsed) return '未找到远端主数据'
-        const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
-        return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${(parsed.trash || []).length}`
-      }
-    }) || { goods: [], trash: [], presets: {} }
+    let remoteData, remoteRechargeData, remoteEventData
+    try {
+      remoteData = await readJson({
+        title: '读取 data.json', gist, fileName: DATA_FILENAME,
+        startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
+        successDetail: (parsed) => {
+          if (!parsed) return '未找到远端主数据'
+          const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
+          return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${(parsed.trash || []).length}`
+        }
+      }) || { goods: [], trash: [], presets: {} }
 
-    const remoteRechargeData = await readJson({
-      title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME,
-      startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-      successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
-    }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
+      remoteRechargeData = await readJson({
+        title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME,
+        startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+        successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+      }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
 
-    const remoteEventData = await readJson({
-      title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME,
-      startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-      successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
-    }) || { events: [] }
+      remoteEventData = await readJson({
+        title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME,
+        startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
+        successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+      }) || { events: [] }
+    } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
 
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
@@ -453,7 +467,9 @@ export function createSyncOrchestrator({
 
     if (!hasEffectiveDiff) {
       if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
-        const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx)
+        let imageStats
+        try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
+        catch (e) { wrapSyncError(e, PHASE_PUSH) }
         return { action: 'pushed', statusMessage: '上传完成', ...localChanges, ...imageStats }
       }
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -480,7 +496,9 @@ export function createSyncOrchestrator({
     )
 
     if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
-      const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx)
+      let imageStats
+      try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
+      catch (e) { wrapSyncError(e, PHASE_PUSH) }
       return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
     }
 
@@ -495,14 +513,19 @@ export function createSyncOrchestrator({
           }
         }
       }
-      const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-        hydrateGoodsImages: hasDataDiff, hydrateTrashImages: hasDataDiff, hydrateEventImages: hasEventDataDiff
-      }, ctx)
+      let result
+      try {
+        result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
+          hydrateGoodsImages: hasDataDiff, hydrateTrashImages: hasDataDiff, hydrateEventImages: hasEventDataDiff
+        }, ctx)
+      } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       return { action: 'pulled', statusMessage: '拉取完成', ...result }
     }
 
-    const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx)
+    let imageStats
+    try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
+    catch (e) { wrapSyncError(e, PHASE_PUSH) }
     return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
   }
 
@@ -510,25 +533,31 @@ export function createSyncOrchestrator({
 
   async function pullOnly(ctx) {
     await ctx.ensureEventsStoreReady()
-    const [gist, existingRechargeGist, existingEventGist] = await Promise.all([
-      backend.getDataGist(),
-      backend.getExistingRechargeGist(),
-      backend.getExistingEventGist()
-    ])
+    let gist, existingRechargeGist, existingEventGist
+    try {
+      [gist, existingRechargeGist, existingEventGist] = await Promise.all([
+        backend.getDataGist(),
+        backend.getExistingRechargeGist(),
+        backend.getExistingEventGist()
+      ])
+    } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
     if (!gist) throw new Error('未找到 Gist')
 
-    const [remoteManifest, remoteRechargeData, remoteEventData] = await Promise.all([
-      readJson({ title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
-        successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest' }),
-      readJson({ title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
-        fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-        successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
-      }).then((result) => result || { recharge: [], rechargeTrash: [] }),
-      readJson({ title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
-        fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-        successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
-      }).then((result) => result || { events: [] })
-    ])
+    let remoteManifest, remoteRechargeData, remoteEventData
+    try {
+      [remoteManifest, remoteRechargeData, remoteEventData] = await Promise.all([
+        readJson({ title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
+          successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest' }),
+        readJson({ title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
+          fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+          successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+        }).then((result) => result || { recharge: [], rechargeTrash: [] }),
+        readJson({ title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
+          fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
+          successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+        }).then((result) => result || { events: [] })
+      ])
+    } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
 
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
@@ -572,9 +601,12 @@ export function createSyncOrchestrator({
       return { action: 'no_changes', statusMessage: '数据已是最新' }
     }
 
-    const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-      hydrateGoodsImages: pullGoodsContentDiff, hydrateTrashImages: pullGoodsContentDiff, hydrateEventImages: pullEventContentDiff
-    }, ctx)
+    let result
+    try {
+      result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
+        hydrateGoodsImages: pullGoodsContentDiff, hydrateTrashImages: pullGoodsContentDiff, hydrateEventImages: pullEventContentDiff
+      }, ctx)
+    } catch (e) { wrapSyncError(e, PHASE_PULL) }
     await ctx.saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
     return { action: 'pulled', statusMessage: '拉取完成', ...result }
   }
@@ -583,25 +615,33 @@ export function createSyncOrchestrator({
 
   async function resolveConflict(ctx, useRemote) {
     if (useRemote) {
-      const remoteManifest = await readJson({
-        title: '读取 manifest.json', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
-        startDetail: '读取冲突远端摘要', category: 'pull',
-        successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
-      })
+      let remoteManifest
+      try {
+        remoteManifest = await readJson({
+          title: '读取 manifest.json', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
+          startDetail: '读取冲突远端摘要', category: 'pull',
+          successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
+        })
+      } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
       const hasGoodsContentDiff = !!(
         ctx.conflictData.remoteOnlyGoods > 0 || ctx.conflictData.remoteOnlyCollection > 0 || ctx.conflictData.remoteOnlyWishlist > 0
         || ctx.conflictData.remoteOnlyTrash > 0 || ctx.conflictData.updatedGoods > 0 || ctx.conflictData.localOnlyGoods > 0
         || ctx.conflictData.localOnlyCollection > 0 || ctx.conflictData.localOnlyWishlist > 0 || ctx.conflictData.localOnlyTrash > 0
       )
       const hasEventContentDiff = !!(ctx.conflictData.remoteOnlyEvents > 0 || ctx.conflictData.updatedEvents > 0 || ctx.conflictData.localOnlyEvents > 0)
-      const result = await pullFromRemote(ctx.conflictData.gist, remoteManifest, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, {
-        hydrateGoodsImages: hasGoodsContentDiff, hydrateTrashImages: hasGoodsContentDiff, hydrateEventImages: hasEventContentDiff
-      }, ctx)
+      let result
+      try {
+        result = await pullFromRemote(ctx.conflictData.gist, remoteManifest, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, {
+          hydrateGoodsImages: hasGoodsContentDiff, hydrateTrashImages: hasGoodsContentDiff, hydrateEventImages: hasEventContentDiff
+        }, ctx)
+      } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
       return { action: 'pulled', statusMessage: '拉取完成', ...result }
     }
 
-    const imageStats = await pushToRemote(ctx.conflictData.gist, null, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, ctx)
+    let imageStats
+    try { imageStats = await pushToRemote(ctx.conflictData.gist, null, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, ctx) }
+    catch (e) { wrapSyncError(e, PHASE_PUSH) }
     return { action: 'pushed', statusMessage: '上传完成', ...imageStats }
   }
 
@@ -610,16 +650,21 @@ export function createSyncOrchestrator({
   async function resolvePullConflict(ctx, confirm) {
     if (!confirm) return { action: 'cancelled', statusMessage: '已取消' }
 
-    const remoteManifest = await backend.getManifest(ctx.conflictData.gist)
+    let remoteManifest
+    try { remoteManifest = await backend.getManifest(ctx.conflictData.gist) }
+    catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     const hasGoodsContentDiff = !!(
       ctx.conflictData.remoteOnlyGoods > 0 || ctx.conflictData.remoteOnlyCollection > 0 || ctx.conflictData.remoteOnlyWishlist > 0
       || ctx.conflictData.remoteOnlyTrash > 0 || ctx.conflictData.updatedGoods > 0 || ctx.conflictData.localOnlyGoods > 0
       || ctx.conflictData.localOnlyCollection > 0 || ctx.conflictData.localOnlyWishlist > 0 || ctx.conflictData.localOnlyTrash > 0
     )
     const hasEventContentDiff = !!(ctx.conflictData.remoteOnlyEvents > 0 || ctx.conflictData.updatedEvents > 0 || ctx.conflictData.localOnlyEvents > 0)
-    const result = await pullFromRemote(ctx.conflictData.gist, remoteManifest, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, {
-      hydrateGoodsImages: hasGoodsContentDiff, hydrateTrashImages: hasGoodsContentDiff, hydrateEventImages: hasEventContentDiff
-    }, ctx)
+    let result
+    try {
+      result = await pullFromRemote(ctx.conflictData.gist, remoteManifest, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, {
+        hydrateGoodsImages: hasGoodsContentDiff, hydrateTrashImages: hasGoodsContentDiff, hydrateEventImages: hasEventContentDiff
+      }, ctx)
+    } catch (e) { wrapSyncError(e, PHASE_PULL) }
     return { action: 'pulled', statusMessage: '拉取完成', ...result }
   }
 

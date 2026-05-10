@@ -14,6 +14,7 @@ import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { validateToken, getGist, listGists } from '@/utils/githubGist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
+import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
 import { deriveKey, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
@@ -75,6 +76,9 @@ export const useSyncStore = defineStore('sync', () => {
   const isSyncing = ref(false)
   const syncStatus = ref('')
   const lastError = ref('')
+  const syncPhase = ref(null)
+  const syncCause = ref(null)
+  const syncSuggestion = ref(null)
   const conflictData = ref(null)
 
   const isConfigured = computed(() => !!token.value && !!gistId.value)
@@ -346,6 +350,7 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(RECHARGE_GIST_ID_KEY, ''); await writeSyncKey(EVENT_GIST_ID_KEY, '')
     await writeSyncKey(LAST_SYNC_KEY, ''); await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
+    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     await persistGitHubMeta(meta)
     clearSyncLogs()
   }
@@ -359,6 +364,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     if (!token.value) throw new Error('未配置 Token')
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
+    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在同步...'
     try {
       const result = await orchestrator.fullSync(buildSyncContext())
@@ -366,7 +372,16 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = result.statusMessage || '同步完成'
       return result
     } catch (error) {
-      lastError.value = error.message; syncStatus.value = '同步失败'; throw error
+      if (error instanceof SyncError) {
+        lastError.value = error.message
+        syncStatus.value = buildSyncErrorStatus(error)
+        syncPhase.value = error.phase
+        syncCause.value = error.cause
+        syncSuggestion.value = error.suggestion
+      } else {
+        lastError.value = error.message; syncStatus.value = '同步失败'
+      }
+      throw error
     } finally { isSyncing.value = false }
   }
 
@@ -375,6 +390,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (!token.value) throw new Error('未配置 Token')
     if (!gistId.value) throw new Error('未找到 Gist')
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
+    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在拉取...'
     try {
       const result = await orchestrator.pullOnly(buildSyncContext())
@@ -382,13 +398,23 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = result.statusMessage || '拉取完成'
       return result
     } catch (error) {
-      lastError.value = error.message; syncStatus.value = '拉取失败'; throw error
+      if (error instanceof SyncError) {
+        lastError.value = error.message
+        syncStatus.value = buildSyncErrorStatus(error)
+        syncPhase.value = error.phase
+        syncCause.value = error.cause
+        syncSuggestion.value = error.suggestion
+      } else {
+        lastError.value = error.message; syncStatus.value = '拉取失败'
+      }
+      throw error
     } finally { isSyncing.value = false }
   }
 
   async function resolveConflict(useRemote) {
     if (!conflictData.value) return
     isSyncing.value = true; syncStatus.value = '正在解决冲突...'
+    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
       const result = await orchestrator.resolveConflict(ctx, useRemote)
@@ -396,13 +422,23 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = result.statusMessage || '冲突已解决'
       return result
     } catch (error) {
-      lastError.value = error.message; syncStatus.value = '同步失败'; throw error
+      if (error instanceof SyncError) {
+        lastError.value = error.message
+        syncStatus.value = buildSyncErrorStatus(error)
+        syncPhase.value = error.phase
+        syncCause.value = error.cause
+        syncSuggestion.value = error.suggestion
+      } else {
+        lastError.value = error.message; syncStatus.value = '同步失败'
+      }
+      throw error
     } finally { isSyncing.value = false }
   }
 
   async function resolvePullConflict(confirm) {
     if (!conflictData.value?.isPullOnly) return
     isSyncing.value = true; syncStatus.value = '正在拉取...'
+    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
       if (!confirm) { syncStatus.value = '已取消'; conflictData.value = null; return { action: 'cancelled' } }
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
@@ -411,7 +447,16 @@ export const useSyncStore = defineStore('sync', () => {
       syncStatus.value = result.statusMessage || '拉取完成'
       return result
     } catch (error) {
-      lastError.value = error.message; syncStatus.value = '拉取失败'; throw error
+      if (error instanceof SyncError) {
+        lastError.value = error.message
+        syncStatus.value = buildSyncErrorStatus(error)
+        syncPhase.value = error.phase
+        syncCause.value = error.cause
+        syncSuggestion.value = error.suggestion
+      } else {
+        lastError.value = error.message; syncStatus.value = '拉取失败'
+      }
+      throw error
     } finally { isSyncing.value = false }
   }
 
@@ -428,6 +473,7 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(LAST_SYNC_KEY, ''); await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
     await clearGitHubMeta()
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
+    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs()
   }
 
@@ -435,7 +481,7 @@ export const useSyncStore = defineStore('sync', () => {
     token, githubLogin, githubAvatarUrl, githubScopes, githubAuthMethod,
     gistId, imageGistId, rechargeGistId, eventGistId,
     lastSyncedAt, eventLastSyncedAt, deviceId,
-    isInitialized, isSyncing, syncStatus, syncLogs, lastError, conflictData,
+    isInitialized, isSyncing, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, conflictData,
     isConfigured, init, saveToken, checkTokenValidity,
     getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
     clearConflict, resetConfig,
