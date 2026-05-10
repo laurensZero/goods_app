@@ -1,384 +1,59 @@
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed, triggerRef } from 'vue'
 import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
-import { parseJsonArray } from '@/utils/parseJsonArray'
-import {
-  buildGoodsIdentityKey,
-  getGoodsVariant,
-  normalizeGoodsName,
-  stripVariantFromNote
-} from '@/utils/goodsIdentity'
-import {
-  isStorageLocationUnderPrefix,
-  normalizeStorageLocationValue,
-  replaceStorageLocationPrefix as replaceStorageLocationPathPrefix
-} from '@/utils/storageLocations'
-import {
-  getPrimaryGoodsImageUrl,
-  normalizeGoodsImageList
-} from '@/utils/goodsImages'
+import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
+import { normalizeStorageLocationValue } from '@/utils/storageLocations'
 import {
   collectManagedLocalImagePathsFromGoodsItem,
-  deleteManagedLocalImages,
-  restoreLocalImageFromDataUrl
+  deleteManagedLocalImages
 } from '@/utils/localImage'
-import { normalizeCharacterName } from '@/stores/presets'
-import { normalizeTracks } from '@/utils/tracks'
-
-const TRASH_STORAGE_KEY = 'goods_trash_items'
-const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
-const CHARACTERS_MIGRATION_KEY = 'goods_characters_normalized_v1'
-const VARIANT_MIGRATION_KEY = 'goods_variant_normalized_v2'
-const IS_NATIVE = Capacitor.isNativePlatform()
-
-function isValidYearMonth(value) {
-  return /^\d{4}-\d{2}$/.test(value)
-}
-
-function parseAcquiredTime(value) {
-  if (!value) return 0
-  const timestamp = Date.parse(String(value))
-  return Number.isFinite(timestamp) ? timestamp : 0
-}
-
-function parseTimelineYearMonth(value) {
-  const yearMonth = String(value || '').slice(0, 7)
-  return isValidYearMonth(yearMonth) ? yearMonth : ''
-}
-
-function shouldApplyRemoteBackup(localItem, remoteItem) {
-  if (!localItem) return true
-  return (Number(remoteItem?.updatedAt) || 0) > (Number(localItem?.updatedAt) || 0)
-}
-
-function parseNumericPrice(value) {
-  const price = Number.parseFloat(value)
-  return Number.isFinite(price) ? price : 0
-}
-
-function parseQuantity(value) {
-  return Math.max(1, Number(value) || 1)
-}
-
-function normalizeSingleDateValue(value) {
-  const normalized = String(value || '').trim()
-  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
-}
-
-function normalizeUnitAcquiredAtList(list, quantity) {
-  const quantityNumber = parseQuantity(quantity)
-  if (quantityNumber < 2 || !Array.isArray(list)) return []
-
-  const normalized = list
-    .slice(0, quantityNumber)
-    .map((value) => normalizeSingleDateValue(value))
-
-  while (normalized.length > 0 && !normalized[normalized.length - 1]) {
-    normalized.pop()
-  }
-
-  return normalized
-}
-
-function normalizeUnitPriceValue(value) {
-  if (value === '' || value == null) return ''
-  const numeric = Number.parseFloat(String(value).trim())
-  if (!Number.isFinite(numeric) || numeric < 0) return ''
-  return `${Math.round(numeric * 100) / 100}`
-}
-
-function normalizeUnitActualPriceList(list, quantity) {
-  const quantityNumber = parseQuantity(quantity)
-  if (quantityNumber < 2 || !Array.isArray(list)) return []
-
-  const normalized = list
-    .slice(0, quantityNumber)
-    .map((value) => normalizeUnitPriceValue(value))
-
-  while (normalized.length > 0 && !normalized[normalized.length - 1]) {
-    normalized.pop()
-  }
-
-  return normalized
-}
-
-function normalizeUnitCharacterList(list, quantity) {
-  const quantityNumber = parseQuantity(quantity)
-  if (quantityNumber < 2 || !Array.isArray(list) || list.length === 0) return []
-
-  return list
-    .slice(0, quantityNumber)
-    .map((value) => normalizeCharacterName(value))
-}
-
-function resolveCompleteUnitActualPriceTotal(list, quantity) {
-  const quantityNumber = parseQuantity(quantity)
-  if (quantityNumber < 2 || !Array.isArray(list) || list.length < quantityNumber) return ''
-
-  const prices = list.slice(0, quantityNumber).map((value) => Number.parseFloat(value))
-  if (prices.some((value) => !Number.isFinite(value) || value < 0)) return ''
-
-  const total = prices.reduce((sum, value) => sum + value, 0)
-  return `${Math.round(total * 100) / 100}`
-}
-
-function normalizePriceValue(value) {
-  if (value === '' || value == null) return ''
-  return value
-}
-
-function normalizeWishlistFlag(value) {
-  if (value === true || value === 1) return true
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase()
-    return normalized === '1' || normalized === 'true'
-  }
-  return false
-}
-
-const VALID_COLLECT_STATUSES = new Set(['待发货', '待补款', '待补邮', '已拥有', '丢失', '已赠出', '想出', '已出', '在售'])
-
-function normalizeCollectStatus(value) {
-  const str = String(value || '').trim()
-  return VALID_COLLECT_STATUSES.has(str) ? str : '已拥有'
-}
-
-function resolveEffectivePriceValue(item) {
-  if (normalizeWishlistFlag(item?.isWishlist)) {
-    return item?.price
-  }
-
-  if (item?.actualPrice !== '' && item?.actualPrice != null) {
-    const base = Number(item.actualPrice) || 0
-    const shipping = Number(item.shippingFee) || 0
-    return String(base + shipping)
-  }
-
-  return item?.price
-}
-
-function normalizeCharacterList(list) {
-  if (!Array.isArray(list)) return []
-  return [...new Set(
-    list
-      .map((name) => normalizeCharacterName(name))
-      .filter(Boolean)
-  )]
-}
-
-function normalizeTagList(list) {
-  if (!Array.isArray(list)) return []
-  return [...new Set(
-    list
-      .map((tag) => String(tag || '').trim())
-      .filter(Boolean)
-  )]
-}
-
-function mergeGoodsImages(existingImages, incomingImages, existingImage = '', incomingImage = '') {
-  const merged = normalizeGoodsImageList(
-    [...normalizeGoodsImageList(existingImages, existingImage), ...normalizeGoodsImageList(incomingImages, incomingImage)],
-    existingImage || incomingImage
-  )
-
-  return merged.length > 0 ? merged : normalizeGoodsImageList([], existingImage || incomingImage)
-}
-
-function parseDeletedTime(value) {
-  if (!value) return 0
-  const timestamp = Date.parse(String(value))
-  return Number.isFinite(timestamp) ? timestamp : 0
-}
-
-function readTrashLocal() {
-  try {
-    return parseJsonArray(localStorage.getItem(TRASH_STORAGE_KEY))
-  } catch {
-    return []
-  }
-}
-
-function writeTrashLocal(list) {
-  try {
-    localStorage.setItem(TRASH_STORAGE_KEY, JSON.stringify(list))
-  } catch {
-    // ignore
-  }
-}
-
-async function readPersistedTrash() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: TRASH_STORAGE_KEY })
-      if (value !== null) return parseJsonArray(value)
-    } catch {
-      // fall through
-    }
-  }
-
-  return readTrashLocal()
-}
-
-async function writePersistedTrash(list) {
-  writeTrashLocal(list)
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({
-      key: TRASH_STORAGE_KEY,
-      value: JSON.stringify(list)
-    })
-  } catch {
-    // ignore
-  }
-}
-
-function readImagesMigrationFlagLocal() {
-  try {
-    return localStorage.getItem(IMAGES_MIGRATION_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-async function readImagesMigrationFlag() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: IMAGES_MIGRATION_KEY })
-      return value === '1'
-    } catch {
-      return false
-    }
-  }
-
-  return readImagesMigrationFlagLocal()
-}
-
-async function writeImagesMigrationFlag() {
-  try {
-    localStorage.setItem(IMAGES_MIGRATION_KEY, '1')
-  } catch {
-    // ignore
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key: IMAGES_MIGRATION_KEY, value: '1' })
-  } catch {
-    // ignore
-  }
-}
-
-function readCharactersMigrationFlagLocal() {
-  try {
-    return localStorage.getItem(CHARACTERS_MIGRATION_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-async function readCharactersMigrationFlag() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: CHARACTERS_MIGRATION_KEY })
-      return value === '1'
-    } catch {
-      return false
-    }
-  }
-
-  return readCharactersMigrationFlagLocal()
-}
-
-async function writeCharactersMigrationFlag() {
-  try {
-    localStorage.setItem(CHARACTERS_MIGRATION_KEY, '1')
-  } catch {
-    // ignore
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key: CHARACTERS_MIGRATION_KEY, value: '1' })
-  } catch {
-    // ignore
-  }
-}
-
-function readVariantMigrationFlagLocal() {
-  try {
-    return localStorage.getItem(VARIANT_MIGRATION_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-async function readVariantMigrationFlag() {
-  if (IS_NATIVE) {
-    try {
-      const { value } = await Preferences.get({ key: VARIANT_MIGRATION_KEY })
-      return value === '1'
-    } catch {
-      return false
-    }
-  }
-
-  return readVariantMigrationFlagLocal()
-}
-
-async function writeVariantMigrationFlag() {
-  try {
-    localStorage.setItem(VARIANT_MIGRATION_KEY, '1')
-  } catch {
-    // ignore
-  }
-
-  if (!IS_NATIVE) return
-
-  try {
-    await Preferences.set({ key: VARIANT_MIGRATION_KEY, value: '1' })
-  } catch {
-    // ignore
-  }
-}
-
-async function restoreImportedGoodsItem(rawItem) {
-  const normalizedImages = normalizeGoodsImageList(rawItem?.images, rawItem?.coverImage || rawItem?.image)
-  if (normalizedImages.length === 0) return rawItem
-
-  const restoredImages = await Promise.all(normalizedImages.map(async (entry) => {
-    if (!String(entry.uri || '').startsWith('data:image/')) return entry
-
-    return {
-      ...entry,
-      uri: await restoreLocalImageFromDataUrl(entry.uri),
-      storageMode: '',
-      localPath: ''
-    }
-  }))
-
-  const images = normalizeGoodsImageList(restoredImages)
-  const coverImage = getPrimaryGoodsImageUrl(images, rawItem?.coverImage || rawItem?.image)
-
-  return {
-    ...rawItem,
-    image: coverImage,
-    coverImage,
-    images
-  }
-}
-
-function diffRemovedManagedImagePaths(previousItem, nextItem) {
-  const previousPaths = collectManagedLocalImagePathsFromGoodsItem(previousItem)
-  const nextPaths = collectManagedLocalImagePathsFromGoodsItem(nextItem)
-  return [...previousPaths].filter((path) => !nextPaths.has(path))
-}
+import {
+  parseAcquiredTime,
+  parseTimelineYearMonth,
+  parseNumericPrice,
+  parseQuantity,
+  parseDeletedTime,
+  normalizeWishlistFlag,
+  resolveEffectivePriceValue,
+  normalizeGoodsInput,
+  normalizeTrashItem,
+  mergeGoodsRecord,
+  diffRemovedManagedImagePaths
+} from '@/stores/goodsHelpers'
+import {
+  readPersistedTrash,
+  writePersistedTrash,
+  readImagesMigrationFlag,
+  writeImagesMigrationFlag,
+  readCharactersMigrationFlag,
+  writeCharactersMigrationFlag,
+  readVariantMigrationFlag,
+  writeVariantMigrationFlag
+} from '@/stores/goodsPersistence'
+import {
+  normalizeExistingCharacters,
+  normalizeExistingVariants,
+  backfillLegacyImages
+} from '@/stores/goodsMigrations'
+import {
+  replaceCategoryName as _replaceCategoryName,
+  replaceIpName as _replaceIpName,
+  replaceCharacterName as _replaceCharacterName,
+  syncCharacterIp as _syncCharacterIp
+} from '@/stores/goodsBatchRename'
+import {
+  addMultipleGoods as _addMultipleGoods,
+  refreshList as _refreshList,
+  importGoodsBackup as _importGoodsBackup,
+  updateGoodsBackup as _updateGoodsBackup,
+  importTrashBackup as _importTrashBackup,
+  updateTrashBackup as _updateTrashBackup
+} from '@/stores/goodsSync'
+import {
+  replaceStorageLocationPrefix as _replaceStorageLocationPrefix,
+  clearStorageLocationPrefix as _clearStorageLocationPrefix
+} from '@/stores/goodsStorageOps'
 
 export const useGoodsStore = defineStore('goods', () => {
   const list = shallowRef([])
@@ -449,109 +124,6 @@ export const useGoodsStore = defineStore('goods', () => {
       .sort((a, b) => b.deletedTime - a.deletedTime || b.acquiredTime - a.acquiredTime)
   })
 
-  function normalizeGoodsInput(data, fallbackId = '') {
-    const variant = getGoodsVariant(data)
-    const hasImagesArray = Array.isArray(data?.images)
-    const imagesExplicit = data?.__imagesExplicit === true && hasImagesArray
-    const shouldUseImagesArray = imagesExplicit || (hasImagesArray && data.images.length > 0)
-    const fallbackImage = imagesExplicit ? '' : (data.image || data.coverImage)
-    const images = normalizeGoodsImageList(shouldUseImagesArray ? data.images : undefined, fallbackImage)
-    const coverImage = getPrimaryGoodsImageUrl(images, fallbackImage)
-
-    const unitActualPriceList = normalizeWishlistFlag(data.isWishlist)
-      ? []
-      : normalizeUnitActualPriceList(data.unitActualPriceList || data.purchasePriceList, data.quantity)
-    const unitCharacterList = normalizeWishlistFlag(data.isWishlist)
-      ? []
-      : normalizeUnitCharacterList(data.unitCharacterList, data.quantity)
-    const resolvedUnitActualPriceTotal = normalizeWishlistFlag(data.isWishlist)
-      ? ''
-      : resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity)
-    const normalizedActualPrice = normalizeWishlistFlag(data.isWishlist)
-      ? ''
-      : (resolvedUnitActualPriceTotal || normalizePriceValue(data.actualPrice))
-
-    return {
-      id: data.id || fallbackId,
-      name: normalizeGoodsName(data.name),
-      category: String(data.category || '').trim(),
-      ip: String(data.ip || '').trim(),
-      goodsId: String(data.goodsId || data.goods_id || '').trim(),
-      isWishlist: normalizeWishlistFlag(data.isWishlist),
-      characters: normalizeCharacterList(data.characters),
-      tags: normalizeTagList(data.tags),
-      storageLocation: normalizeStorageLocationValue(data.storageLocation || data.location || ''),
-      variant,
-      price: normalizePriceValue(data.price),
-      actualPrice: normalizedActualPrice,
-      points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
-      acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
-      unitAcquiredAtList: normalizeWishlistFlag(data.isWishlist)
-        ? []
-        : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
-      unitActualPriceList,
-      unitCharacterList,
-      coverImage,
-      images,
-      tracks: normalizeTracks(data.tracks),
-      note: stripVariantFromNote(data.note || data.notes || ''),
-      quantity: Math.max(1, Number(data.quantity) || 1),
-      updatedAt: data.updatedAt || 0,
-      currency: String(data.currency || '').trim() || 'CNY',
-      actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY',
-      collectStatus: normalizeCollectStatus(data.collectStatus),
-      shippingFee: String(data.shippingFee || '').trim()
-    }
-  }
-
-  function normalizeTrashItem(data, fallbackId = '') {
-    return {
-      ...normalizeGoodsInput(data, fallbackId),
-      deletedAt: String(data.deletedAt || new Date().toISOString()).trim()
-    }
-  }
-
-  function mergeGoodsRecord(existing, incoming) {
-    const variant = getGoodsVariant(existing) || getGoodsVariant(incoming)
-    const images = mergeGoodsImages(existing.images, incoming.images, existing.coverImage, incoming.coverImage)
-    const mergedQuantity = Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1)
-
-    return {
-      ...existing,
-      name: existing.name || incoming.name,
-      category: existing.category || incoming.category,
-      ip: existing.ip || incoming.ip,
-      isWishlist: normalizeWishlistFlag(existing.isWishlist),
-      characters: existing.characters?.length ? existing.characters : incoming.characters,
-      tags: normalizeTagList([...(existing.tags || []), ...(incoming.tags || [])]),
-      storageLocation: existing.storageLocation || incoming.storageLocation,
-      variant,
-      price: existing.price === '' || existing.price == null ? incoming.price : existing.price,
-      actualPrice: existing.actualPrice === '' || existing.actualPrice == null ? incoming.actualPrice : existing.actualPrice,
-      points: existing.points ?? incoming.points,
-      acquiredAt: existing.acquiredAt || incoming.acquiredAt,
-      unitAcquiredAtList: normalizeUnitAcquiredAtList(
-        [...(existing.unitAcquiredAtList || []), ...(incoming.unitAcquiredAtList || [])],
-        mergedQuantity
-      ),
-      unitActualPriceList: normalizeUnitActualPriceList(
-        [...(existing.unitActualPriceList || []), ...(incoming.unitActualPriceList || [])],
-        mergedQuantity
-      ),
-      unitCharacterList: normalizeUnitCharacterList(
-        [...(existing.unitCharacterList || []), ...(incoming.unitCharacterList || [])],
-        mergedQuantity
-      ),
-      coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
-      images,
-      note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
-      collectStatus: existing.collectStatus || incoming.collectStatus,
-      shippingFee: existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee,
-      quantity: mergedQuantity,
-      updatedAt: Date.now()
-    }
-  }
-
   async function persistTrash() {
     await writePersistedTrash(trashList.value)
   }
@@ -571,7 +143,7 @@ export const useGoodsStore = defineStore('goods', () => {
     }
     try {
       if (!(await readImagesMigrationFlag())) {
-        await backfillLegacyImages()
+        await backfillLegacyImages(list)
         await writeImagesMigrationFlag()
       }
     } catch (e) {
@@ -579,7 +151,7 @@ export const useGoodsStore = defineStore('goods', () => {
     }
     try {
       if (!(await readCharactersMigrationFlag())) {
-        await normalizeExistingCharacters()
+        await normalizeExistingCharacters(list, trashList, persistTrash)
         await writeCharactersMigrationFlag()
       }
     } catch (e) {
@@ -587,7 +159,7 @@ export const useGoodsStore = defineStore('goods', () => {
     }
     try {
       if (!(await readVariantMigrationFlag())) {
-        await normalizeExistingVariants()
+        await normalizeExistingVariants(list, trashList, persistTrash)
         await writeVariantMigrationFlag()
       }
     } catch (e) {
@@ -596,102 +168,7 @@ export const useGoodsStore = defineStore('goods', () => {
     isReady.value = true
   }
 
-  async function normalizeExistingCharacters() {
-    const updates = []
-    list.value = list.value.map((item) => {
-      const normalizedCharacters = normalizeCharacterList(item.characters)
-      if (JSON.stringify(normalizedCharacters) === JSON.stringify(item.characters)) return item
-      const next = { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
-      updates.push(next)
-      return next
-    })
-
-    let trashChanged = false
-    trashList.value = trashList.value.map((item) => {
-      const normalizedCharacters = normalizeCharacterList(item.characters)
-      if (JSON.stringify(normalizedCharacters) === JSON.stringify(item.characters)) return item
-      trashChanged = true
-      return { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
-    })
-
-    if (updates.length > 0) {
-      triggerRef(list)
-      await saveItems(updates)
-    }
-    if (trashChanged) {
-      triggerRef(trashList)
-      await persistTrash()
-    }
-  }
-
-  async function normalizeExistingVariants() {
-    const now = Date.now()
-    let listChanged = false
-    const mergedList = []
-    const mergedKeyToIndex = new Map()
-    const removedIds = new Set()
-
-    list.value.forEach((item) => {
-      const normalized = normalizeGoodsInput(item, item.id)
-      const unchanged = JSON.stringify(normalized) === JSON.stringify(item)
-      const next = unchanged ? item : { ...normalized, updatedAt: now }
-      if (!unchanged) listChanged = true
-
-      const key = `${next.isWishlist ? 1 : 0}::${buildGoodsIdentityKey(next)}`
-      if (mergedKeyToIndex.has(key)) {
-        const existingIndex = mergedKeyToIndex.get(key)
-        mergedList[existingIndex] = { ...mergeGoodsRecord(mergedList[existingIndex], next), updatedAt: now }
-        removedIds.add(next.id)
-        listChanged = true
-        return
-      }
-
-      mergedKeyToIndex.set(key, mergedList.length)
-      mergedList.push(next)
-    })
-
-    let trashChanged = false
-    trashList.value = trashList.value.map((item) => {
-      const normalized = normalizeTrashItem(item, item.id)
-      if (JSON.stringify(normalized) === JSON.stringify(item)) return item
-      const next = { ...normalized, updatedAt: now }
-      trashChanged = true
-      return next
-    })
-
-    if (listChanged) {
-      list.value = mergedList
-      triggerRef(list)
-      await saveItems(mergedList)
-      if (removedIds.size > 0) {
-        await deleteItems(Array.from(removedIds))
-      }
-    }
-    if (trashChanged) {
-      triggerRef(trashList)
-      await persistTrash()
-    }
-  }
-
-  async function backfillLegacyImages() {
-    const updates = []
-    list.value = list.value.map((item) => {
-      if (Array.isArray(item.images) && item.images.length > 0) return item
-      const legacyCover = String(item.coverImage || '').trim()
-      if (!legacyCover) return item
-      const images = normalizeGoodsImageList(undefined, legacyCover)
-      if (images.length === 0) return item
-      const coverImage = getPrimaryGoodsImageUrl(images, legacyCover)
-      const next = { ...item, images, coverImage }
-      updates.push(next)
-      return next
-    })
-
-    if (updates.length > 0) {
-      triggerRef(list)
-      await saveItems(updates)
-    }
-  }
+  //  CRUD
 
   async function addGoods(data) {
     const imagesExplicit = Array.isArray(data?.images)
@@ -772,6 +249,8 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     }
   }
+
+  //  Trash
 
   async function removeGoods(id) {
     const item = list.value.find((entry) => entry.id === id)
@@ -906,377 +385,54 @@ export const useGoodsStore = defineStore('goods', () => {
     return targetIds.length
   }
 
-  async function replaceCategoryName(oldName, newName) {
-    const previous = String(oldName || '').trim()
-    const next = String(newName || '').trim()
-    if (!previous || !next || previous === next) return
+  //  Delegated to sub-modules
 
-    let listChanged = false
-    let trashChanged = false
-    const now = Date.now()
-
-    list.value = list.value.map((item) => {
-      if (item.category !== previous) return item
-      listChanged = true
-      return {
-        ...item,
-        category: next,
-        updatedAt: now
-      }
-    })
-
-    trashList.value = trashList.value.map((item) => {
-      if (item.category !== previous) return item
-      trashChanged = true
-      return {
-        ...item,
-        category: next,
-        updatedAt: now
-      }
-    })
-
-    const updatedItems = list.value.filter(item => item.category === next)
-
-    await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
-      trashChanged ? persistTrash() : Promise.resolve()
-    ])
+  function replaceCategoryName(oldName, newName) {
+    return _replaceCategoryName(oldName, newName, list, trashList, persistTrash)
   }
 
-  async function replaceIpName(oldName, newName) {
-    const previous = String(oldName || '').trim()
-    const next = String(newName || '').trim()
-    if (!previous || !next || previous === next) return
-
-    let listChanged = false
-    let trashChanged = false
-    const now = Date.now()
-
-    list.value = list.value.map((item) => {
-      if (item.ip !== previous) return item
-      listChanged = true
-      return {
-        ...item,
-        ip: next,
-        updatedAt: now
-      }
-    })
-
-    trashList.value = trashList.value.map((item) => {
-      if (item.ip !== previous) return item
-      trashChanged = true
-      return {
-        ...item,
-        ip: next,
-        updatedAt: now
-      }
-    })
-
-    const updatedItems = list.value.filter(item => item.ip === next)
-
-    await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
-      trashChanged ? persistTrash() : Promise.resolve()
-    ])
+  function replaceIpName(oldName, newName) {
+    return _replaceIpName(oldName, newName, list, trashList, persistTrash)
   }
 
-  async function replaceCharacterName(oldName, newName) {
-    const previous = normalizeCharacterName(oldName)
-    const next = normalizeCharacterName(newName)
-    if (!previous || !next || previous === next) return
-
-    let listChanged = false
-    let trashChanged = false
-    const now = Date.now()
-
-    list.value = list.value.map((item) => {
-      if (!item.characters?.includes(previous)) return item
-      listChanged = true
-      return {
-        ...item,
-        characters: normalizeCharacterList(
-          item.characters.map((character) => (character === previous ? next : character))
-        ),
-        updatedAt: now
-      }
-    })
-
-    trashList.value = trashList.value.map((item) => {
-      if (!item.characters?.includes(previous)) return item
-      trashChanged = true
-      return {
-        ...item,
-        characters: normalizeCharacterList(
-          item.characters.map((character) => (character === previous ? next : character))
-        ),
-        updatedAt: now
-      }
-    })
-
-    const updatedItems = list.value.filter(item => item.characters?.includes(next))
-
-    await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
-      trashChanged ? persistTrash() : Promise.resolve()
-    ])
+  function replaceCharacterName(oldName, newName) {
+    return _replaceCharacterName(oldName, newName, list, trashList, persistTrash)
   }
 
-  async function syncCharacterIp(name, nextIp, previousIp = '') {
-    const characterName = normalizeCharacterName(name)
-    const currentIp = String(previousIp || '').trim()
-    const targetIp = String(nextIp || '').trim()
-    if (!characterName || currentIp === targetIp) return
-
-    let listChanged = false
-    let trashChanged = false
-    const now = Date.now()
-
-    const shouldSyncItem = (item) => {
-      if (!item.characters?.includes(characterName)) return false
-      const itemIp = String(item.ip || '').trim()
-      return itemIp === currentIp || (!itemIp && targetIp)
-    }
-
-    list.value = list.value.map((item) => {
-      if (!shouldSyncItem(item)) return item
-      listChanged = true
-      return {
-        ...item,
-        ip: targetIp,
-        updatedAt: now
-      }
-    })
-
-    trashList.value = trashList.value.map((item) => {
-      if (!shouldSyncItem(item)) return item
-      trashChanged = true
-      return {
-        ...item,
-        ip: targetIp,
-        updatedAt: now
-      }
-    })
-
-    const updatedItems = list.value.filter(item => {
-      if (!item.characters?.includes(characterName)) return false
-      return item.ip === targetIp
-    })
-
-    await Promise.all([
-      listChanged ? saveItems(updatedItems) : Promise.resolve(),
-      trashChanged ? persistTrash() : Promise.resolve()
-    ])
+  function syncCharacterIp(name, nextIp, previousIp = '') {
+    return _syncCharacterIp(name, nextIp, previousIp, list, trashList, persistTrash)
   }
 
-  async function replaceStorageLocationPrefix(oldPrefix, newPrefix) {
-    const normalizedOldPrefix = normalizeStorageLocationValue(oldPrefix)
-    const normalizedNewPrefix = normalizeStorageLocationValue(newPrefix)
-    if (!normalizedOldPrefix || normalizedOldPrefix === normalizedNewPrefix) return
-
-    let changed = false
-    const now = Date.now()
-    list.value = list.value.map((item) => {
-      const nextLocation = replaceStorageLocationPathPrefix(
-        item.storageLocation,
-        normalizedOldPrefix,
-        normalizedNewPrefix
-      )
-
-      if (nextLocation === item.storageLocation) return item
-      changed = true
-      return {
-        ...item,
-        storageLocation: nextLocation,
-        updatedAt: now
-      }
-    })
-
-    if (changed) {
-      const updatedItems = list.value.filter(item => isStorageLocationUnderPrefix(item.storageLocation, normalizedNewPrefix) || item.storageLocation === normalizedNewPrefix)
-      await saveItems(updatedItems)
-    }
+  function replaceStorageLocationPrefix(oldPrefix, newPrefix) {
+    return _replaceStorageLocationPrefix(oldPrefix, newPrefix, list)
   }
 
-  async function clearStorageLocationPrefix(prefix) {
-    const normalizedPrefix = normalizeStorageLocationValue(prefix)
-    if (!normalizedPrefix) return
-
-    let changed = false
-    const now = Date.now()
-    list.value = list.value.map((item) => {
-      if (!isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix)) {
-        return item
-      }
-
-      changed = true
-      return {
-        ...item,
-        storageLocation: '',
-        updatedAt: now
-      }
-    })
-
-    if (changed) {
-      const updatedItems = list.value.filter(item => item.storageLocation === '' && !isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix))
-      await saveItems(updatedItems)
-    }
+  function clearStorageLocationPrefix(prefix) {
+    return _clearStorageLocationPrefix(prefix, list)
   }
 
-  async function addMultipleGoods(items) {
-    const now = Date.now()
-    const existingItems = [...list.value]
-    const buildScopedKey = (item) => `${item.isWishlist ? 1 : 0}::${buildGoodsIdentityKey(item)}`
-    const existingKeyToIndex = new Map(
-      existingItems.map((item, index) => [buildScopedKey(item), index])
-    )
-    const newItems = []
-    const newKeyToIndex = new Map()
-    const changedExistingIds = new Set()
-
-    items.forEach((rawItem, index) => {
-      const clean = Object.fromEntries(
-        Object.entries(rawItem).filter(([key]) => !key.startsWith('_'))
-      )
-      const normalized = normalizeGoodsInput(clean, String(now + index))
-      const key = buildScopedKey(normalized)
-
-      if (existingKeyToIndex.has(key)) {
-        const existingIndex = existingKeyToIndex.get(key)
-        existingItems[existingIndex] = mergeGoodsRecord(existingItems[existingIndex], normalized)
-        changedExistingIds.add(existingItems[existingIndex].id)
-        return
-      }
-
-      if (newKeyToIndex.has(key)) {
-        const newIndex = newKeyToIndex.get(key)
-        newItems[newIndex] = mergeGoodsRecord(newItems[newIndex], normalized)
-        return
-      }
-
-      newKeyToIndex.set(key, newItems.length)
-      newItems.push(normalized)
-    })
-
-    list.value = [...newItems, ...existingItems]
-    await saveItems([
-      ...newItems,
-      ...existingItems.filter((item) => changedExistingIds.has(item.id))
-    ])
+  function addMultipleGoods(items) {
+    return _addMultipleGoods(items, list)
   }
 
-  async function refreshList() {
-    list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
+  function refreshList() {
+    return _refreshList(list)
   }
 
-  async function importGoodsBackup(items) {
-    const existingIds = new Set(list.value.map((item) => item.id))
-    const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
-    const newItems = await Promise.all(
-      importableItems.map(async (item) => normalizeGoodsInput({
-        ...(await restoreImportedGoodsItem(item)),
-        __imagesExplicit: true,
-        image: '',
-        coverImage: ''
-      }, item.id))
-    )
-
-    if (newItems.length === 0) return 0
-
-    list.value = [...newItems, ...list.value]
-
-    await saveItems(newItems)
-    return newItems.length
+  function importGoodsBackup(items) {
+    return _importGoodsBackup(items, list)
   }
 
-  async function updateGoodsBackup(items) {
-    if (!Array.isArray(items) || items.length === 0) return 0
-
-    const existingMap = new Map(list.value.map((item) => [item.id, item]))
-    const updatedItems = []
-
-    for (const remoteItem of items) {
-      const localItem = existingMap.get(remoteItem.id)
-      if (!localItem || !shouldApplyRemoteBackup(localItem, remoteItem)) continue
-
-      const restoredRemote = await restoreImportedGoodsItem(remoteItem)
-      const normalized = normalizeGoodsInput({
-        ...localItem,
-        ...restoredRemote,
-        __imagesExplicit: true,
-        image: '',
-        coverImage: '',
-        updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
-      }, remoteItem.id)
-      const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
-      const idx = list.value.findIndex((item) => item.id === remoteItem.id)
-      if (idx === -1) continue
-      list.value[idx] = normalized
-      updatedItems.push(normalized)
-      await deleteManagedLocalImages(removedPaths)
-    }
-
-    if (updatedItems.length > 0) {
-      triggerRef(list)
-      await saveItems(updatedItems)
-    }
-
-    return updatedItems.length
+  function updateGoodsBackup(items) {
+    return _updateGoodsBackup(items, list)
   }
 
-  async function importTrashBackup(items) {
-    if (!Array.isArray(items) || items.length === 0) return 0
-
-    const existingIds = new Set(trashList.value.map((item) => item.id))
-    const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
-    const newItems = await Promise.all(
-      importableItems.map(async (item) => normalizeTrashItem({
-        ...(await restoreImportedGoodsItem(item)),
-        __imagesExplicit: true,
-        image: '',
-        coverImage: ''
-      }, item.id))
-    )
-
-    if (newItems.length === 0) return 0
-
-    trashList.value = [...newItems, ...trashList.value]
-    await persistTrash()
-    return newItems.length
+  function importTrashBackup(items) {
+    return _importTrashBackup(items, trashList)
   }
 
-  async function updateTrashBackup(items) {
-    if (!Array.isArray(items) || items.length === 0) return 0
-
-    const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
-    const updatedItems = []
-
-    for (const remoteItem of items) {
-      const localItem = existingMap.get(remoteItem.id)
-      if (localItem && shouldApplyRemoteBackup(localItem, remoteItem)) {
-        const idx = trashList.value.findIndex(g => g.id === remoteItem.id)
-        if (idx !== -1) {
-          const restoredRemote = await restoreImportedGoodsItem(remoteItem)
-          const normalized = normalizeTrashItem({
-            ...localItem,
-            ...restoredRemote,
-            __imagesExplicit: true,
-            image: '',
-            coverImage: '',
-            updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
-          }, remoteItem.id)
-          const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
-          trashList.value[idx] = normalized
-          updatedItems.push(normalized)
-          await deleteManagedLocalImages(removedPaths)
-        }
-      }
-    }
-
-    if (updatedItems.length > 0) {
-      triggerRef(trashList)
-      await persistTrash()
-    }
-    return updatedItems.length
+  function updateTrashBackup(items) {
+    return _updateTrashBackup(items, trashList)
   }
 
   return {
