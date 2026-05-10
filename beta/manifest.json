@@ -1,9 +1,9 @@
 {
-  "version": "20260510.5",
-  "url": "bundle-20260510.5.zip",
-  "hash": "d6d410b9d6c32302d29f85633906b8f1863f45db4e1c814a0b1b59d11b73132e",
+  "version": "20260510.6",
+  "url": "bundle-20260510.6.zip",
+  "hash": "7397b71b823312b585d1512770512a1e4db7d967d6f6b191569228993fd23d11",
   "minNativeVersion": null,
-  "notes": "- feat: 更新样式，修复输入框和卡片的最小宽度，优化布局",
+  "notes": "- feat: 更新样式，修复卡片和按钮的最小宽度，增加溢出处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T06:52:23Z"
+  "publishedAt": "2026-05-10T07:07:20Z"
 }
