@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.13",
+    "url": "bundle-20260510.13.zip",
+    "hash": "6c908ab72027d139bad928c098978f8e1a297830ff8f0d1f1dd965e10549767c",
+    "minNativeVersion": null,
+    "notes": "- fear(sync): 同步错误处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T10:33:13Z"
+  },
+  {
     "version": "20260510.12",
     "url": "bundle-20260510.12.zip",
     "hash": "aed811c98256ea8efe38f603d10533048592d12059323814a4eb6dd6eb9a616b",
@@ -16,14 +25,5 @@
     "notes": "- fix(db): 优化查询方法，增强对不同返回格式的处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T09:32:46Z"
-  },
-  {
-    "version": "20260510.10",
-    "url": "bundle-20260510.10.zip",
-    "hash": "87cf875733d767dfbc928e143d3918594d01c3b118accec649a081d267f6c8be",
-    "minNativeVersion": null,
-    "notes": "- refactor(db): 延迟加载数据库适配器以优化性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-10T09:27:05Z"
   }
 ]
