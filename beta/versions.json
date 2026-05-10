@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.10",
+    "url": "bundle-20260510.10.zip",
+    "hash": "87cf875733d767dfbc928e143d3918594d01c3b118accec649a081d267f6c8be",
+    "minNativeVersion": null,
+    "notes": "- refactor(db): 延迟加载数据库适配器以优化性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T09:27:05Z"
+  },
+  {
     "version": "20260510.9",
     "url": "bundle-20260510.9.zip",
     "hash": "0cb1d4860f186ff6d0d7baccf1b54a72c614c6c0ea00d6452d48073df50669c9",
@@ -16,14 +25,5 @@
     "notes": "- fix: 增加更多错误处理\n\n- feat: 实现数据库迁移系统，增加版本控制和列存在检查\n\n- feat: 修复webdev收藏状态+邮费",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T07:57:33Z"
-  },
-  {
-    "version": "20260510.7",
-    "url": "bundle-20260510.7.zip",
-    "hash": "a29f4e0b234bb19e2ebae6ca2f9c5cbb51b96c090fc482b53a20e795b2439e4e",
-    "minNativeVersion": null,
-    "notes": "- feat: 调整z-index值，增强元素层级关系",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-10T07:19:23Z"
   }
 ]
