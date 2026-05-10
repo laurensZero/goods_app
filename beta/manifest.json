@@ -1,9 +1,9 @@
 {
-  "version": "20260510.8",
-  "url": "bundle-20260510.8.zip",
-  "hash": "aa98c8289c646ae29f265ef61017432fb54956e7b2f92c96e684fe2eb8d119db",
+  "version": "20260510.9",
+  "url": "bundle-20260510.9.zip",
+  "hash": "0cb1d4860f186ff6d0d7baccf1b54a72c614c6c0ea00d6452d48073df50669c9",
   "minNativeVersion": null,
-  "notes": "- fix: 增加更多错误处理\n\n- feat: 实现数据库迁移系统，增加版本控制和列存在检查\n\n- feat: 修复webdev收藏状态+邮费",
+  "notes": "- feat: 拆分goods.js 便于维护\n\n- refactor: 重构gist云同步\n\n- feat(sync): 重构云同步 即将支持其他云同步\n\n- feat(router): 重构路由配置，拆分为多个模块以提高可维护性\n\n- refactor: 统一不同平台的分支代码\n\n- fix(neteaseMusic): 增强请求响应处理，捕获JSON解析错误并抛出异常\n\n- feat: 添加 TypeScript 支持并更新相关类型定义",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T07:57:33Z"
+  "publishedAt": "2026-05-10T09:19:00Z"
 }
