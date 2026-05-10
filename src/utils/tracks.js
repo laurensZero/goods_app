@@ -1,7 +1,14 @@
+// @ts-check
+
+/** @returns {string} */
 function buildTrackId(index = 0) {
   return `track_${Date.now()}_${index}`
 }
 
+/**
+ * @param {unknown} tracks
+ * @returns {import('@/types/models').TrackItem[]}
+ */
 export function normalizeTracks(tracks) {
   if (!Array.isArray(tracks)) return []
 

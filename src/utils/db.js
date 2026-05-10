@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * utils/db.js
  * 统一 SQLite 数据访问层
@@ -112,6 +113,10 @@ const SCHEMA_VERSION = MIGRATIONS.length
 
 //  纯业务辅助函数
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function normalizeWishlistFlag(value) {
   if (value === true || value === 1) return true
   if (typeof value === 'string') {
@@ -121,6 +126,10 @@ function normalizeWishlistFlag(value) {
   return false
 }
 
+/**
+ * @param {Partial<import('@/types/models').GoodsItem> & { image?: string }} item
+ * @returns {Record<string, any>}
+ */
 function prepareGoodsRecord(item) {
   const {
     id,
@@ -175,7 +184,7 @@ function prepareGoodsRecord(item) {
     currency,
     actualPriceCurrency,
     qty: Math.max(1, Number(quantity) || 1),
-    pts: points != null && points !== '' ? Number(points) : null,
+    pts: points != null && /** @type {any} */ (points) !== '' ? Number(points) : null,
     legacyImage: getPrimaryGoodsImageUrl(images, coverImage || image),
     note,
     ts: updatedAt || Date.now(),
@@ -277,6 +286,7 @@ async function _runMigrations() {
 
 //  统一对外 API
 
+/** @returns {Promise<void>} */
 export async function initDB() {
   await db.open()
   await db.execute(CREATE_TABLE_SQL)
@@ -290,6 +300,7 @@ export async function initDB() {
   }
 }
 
+/** @returns {Promise<import('@/types/models').GoodsItem[]>} */
 export async function getItems() {
   try {
     const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
@@ -319,6 +330,7 @@ export async function getItems() {
   }
 }
 
+/** @param {Partial<import('@/types/models').GoodsItem>} item */
 export async function addItem(item) {
   try {
     const record = prepareGoodsRecord(item)
@@ -329,6 +341,7 @@ export async function addItem(item) {
   }
 }
 
+/** @param {Partial<import('@/types/models').GoodsItem>[]} items */
 export async function saveItems(items) {
   if (!items || items.length === 0) return
   try {
@@ -343,6 +356,7 @@ export async function saveItems(items) {
   }
 }
 
+/** @param {string[]} ids */
 export async function deleteItems(ids) {
   if (!ids || ids.length === 0) return
   try {
@@ -357,6 +371,7 @@ export async function deleteItems(ids) {
   }
 }
 
+/** @returns {Promise<import('@/types/models').EventItem[]>} */
 export async function getEvents() {
   try {
     const rows = await db.query('SELECT * FROM events ORDER BY startDate DESC')
@@ -396,6 +411,7 @@ export async function getEvents() {
   }
 }
 
+/** @param {Partial<import('@/types/models').EventItem>} event */
 export async function addEvent(event) {
   try {
     await db.run(EVENTS_INSERT_SQL, prepareEventValues(event))
@@ -405,6 +421,7 @@ export async function addEvent(event) {
   }
 }
 
+/** @param {Partial<import('@/types/models').EventItem>[]} events */
 export async function saveEvents(events) {
   if (!events || events.length === 0) return
   try {
@@ -419,6 +436,7 @@ export async function saveEvents(events) {
   }
 }
 
+/** @param {string[]} ids */
 export async function deleteEvents(ids) {
   if (!ids || ids.length === 0) return
   try {

@@ -1,3 +1,4 @@
+// @ts-check
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents } from '@/utils/db'
@@ -30,6 +31,7 @@ function diffRemovedManagedImagePaths(previousEvent, nextEvent) {
 }
 
 export const useEventsStore = defineStore('events', () => {
+  /** @type {import('vue').ShallowRef<import('@/types/models').EventItem[]>} */
   const list = shallowRef([])
   const isReady = ref(false)
 

@@ -1,3 +1,4 @@
+// @ts-check
 import {
   buildGoodsIdentityKey,
   getGoodsVariant,
@@ -207,6 +208,11 @@ function diffRemovedManagedImagePaths(previousItem, nextItem) {
   return [...previousPaths].filter((path) => !nextPaths.has(path))
 }
 
+/**
+ * @param {Record<string, any>} data
+ * @param {string} fallbackId
+ * @returns {import('@/types/models').GoodsItem}
+ */
 function normalizeGoodsInput(data, fallbackId = '') {
   const variant = getGoodsVariant(data)
   const hasImagesArray = Array.isArray(data?.images)
@@ -262,6 +268,11 @@ function normalizeGoodsInput(data, fallbackId = '') {
   }
 }
 
+/**
+ * @param {Record<string, any>} data
+ * @param {string} fallbackId
+ * @returns {import('@/types/models').TrashGoodsItem}
+ */
 function normalizeTrashItem(data, fallbackId = '') {
   return {
     ...normalizeGoodsInput(data, fallbackId),
@@ -269,6 +280,11 @@ function normalizeTrashItem(data, fallbackId = '') {
   }
 }
 
+/**
+ * @param {import('@/types/models').GoodsItem} existing
+ * @param {import('@/types/models').GoodsItem} incoming
+ * @returns {import('@/types/models').GoodsItem}
+ */
 function mergeGoodsRecord(existing, incoming) {
   const variant = getGoodsVariant(existing) || getGoodsVariant(incoming)
   const images = mergeGoodsImages(existing.images, incoming.images, existing.coverImage, incoming.coverImage)

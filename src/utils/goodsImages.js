@@ -1,3 +1,4 @@
+// @ts-check
 import { isLocalImageUri, readLocalImageAsDataUrl } from '@/utils/localImage'
 
 export const GOODS_IMAGE_KIND_OPTIONS = [
@@ -61,6 +62,11 @@ export function isExportableGoodsImage(entry) {
   return storageMode === 'remote'
 }
 
+/**
+ * @param {Partial<import('@/types/models').GoodsImage> & { url?: string, image?: string }} entry
+ * @param {number} fallbackIndex
+ * @returns {import('@/types/models').GoodsImage | null}
+ */
 export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   if (!entry) return null
 
@@ -87,6 +93,11 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   }
 }
 
+/**
+ * @param {unknown} rawImages
+ * @param {string} fallbackImage
+ * @returns {import('@/types/models').GoodsImage[]}
+ */
 export function normalizeGoodsImageList(rawImages, fallbackImage = '') {
   const sourceList = Array.isArray(rawImages)
     ? rawImages
@@ -120,11 +131,21 @@ export function normalizeGoodsImageList(rawImages, fallbackImage = '') {
   }))
 }
 
+/**
+ * @param {unknown} images
+ * @param {string} fallbackImage
+ * @returns {import('@/types/models').GoodsImage | null}
+ */
 export function getPrimaryGoodsImage(images, fallbackImage = '') {
   const normalized = normalizeGoodsImageList(images, fallbackImage)
   return normalized.find((entry) => entry.isPrimary) || normalized[0] || null
 }
 
+/**
+ * @param {unknown} images
+ * @param {string} fallbackImage
+ * @returns {string}
+ */
 export function getPrimaryGoodsImageUrl(images, fallbackImage = '') {
   return getPrimaryGoodsImage(images, fallbackImage)?.uri || String(fallbackImage || '').trim()
 }

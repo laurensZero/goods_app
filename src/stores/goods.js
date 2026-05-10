@@ -1,3 +1,4 @@
+// @ts-check
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed, triggerRef } from 'vue'
 import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
@@ -56,7 +57,9 @@ import {
 } from '@/stores/goodsStorageOps'
 
 export const useGoodsStore = defineStore('goods', () => {
+  /** @type {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} */
   const list = shallowRef([])
+  /** @type {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} */
   const trashList = shallowRef([])
   const isReady = ref(false)
 

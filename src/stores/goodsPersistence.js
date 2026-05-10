@@ -1,3 +1,4 @@
+// @ts-check
 import { readPersisted, writePersisted } from '@/utils/platformStorage'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 
