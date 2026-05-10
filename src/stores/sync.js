@@ -7,20 +7,12 @@ import { usePresetsStore, normalizeCharacterName } from './presets'
 import { useRechargeStore } from '@/composables/recharge/useRechargeStore'
 import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
-import { createSyncExecutionService } from '@/services/syncExecutionService'
+import { createSyncOrchestrator } from '@/services/syncOrchestrator'
 import { createGistBackendAdapter } from '@/services/gistBackendAdapter'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
-import {
-  validateToken,
-  getGist,
-  listGists
-} from '@/utils/githubGist'
-import {
-  countWishlistSplit,
-  getItemTimestamp,
-  resolveGoodsTrashMaps
-} from '@/utils/syncShared'
+import { validateToken, getGist, listGists } from '@/utils/githubGist'
+import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
 import { deriveKey, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
@@ -117,41 +109,29 @@ export const useSyncStore = defineStore('sync', () => {
     await persistGitHubMeta({})
   }
 
-  async function readJsonFromGistWithTrace(opts) {
-    return backend.readJson(opts)
-  }
-
   async function ensureEventsStoreReady() {
     const eventsStore = useEventsStore()
-    if (!eventsStore.isReady) {
-      await eventsStore.init()
-    }
+    if (!eventsStore.isReady) await eventsStore.init()
     return eventsStore
   }
 
   async function setEncryptionEnabled(enabled) {
-    console.log('[setEncryptionEnabled] enabled:', enabled, 'password:', syncPassword.value ? '已设置' : '空', 'userId:', githubUserId.value || '空')
     encryptionEnabled.value = !!enabled
     await writeSyncKey(ENCRYPTION_ENABLED_KEY, enabled ? '1' : '')
-    if (!enabled) {
-      encryptionKey.value = null
-    }
+    if (!enabled) encryptionKey.value = null
   }
 
   async function setSyncPassword(password) {
-    console.log('[setSyncPassword] 设置密码:', password ? '已设置' : '空')
     syncPassword.value = password
     await writeSyncKey(SYNC_PASSWORD_KEY, password)
     encryptionKey.value = null
   }
 
   async function ensureEncryptionKey() {
-    console.log('[ensureEncryptionKey] password:', syncPassword.value ? '已设置' : '空', 'userId:', githubUserId.value || '空')
     if (encryptionKey.value) return encryptionKey.value
     if (!syncPassword.value || !githubUserId.value) return null
     if (!isWebCryptoAvailable()) return null
     encryptionKey.value = await deriveKey(syncPassword.value, githubUserId.value)
-    console.log('[ensureEncryptionKey] 密钥已生成')
     return encryptionKey.value
   }
 
@@ -159,154 +139,7 @@ export const useSyncStore = defineStore('sync', () => {
     encryptionKey.value = null
   }
 
-  async function init() {
-    await ensureEventsStoreReady()
-
-    const [
-      tokenVal,
-      loginVal,
-      userIdVal,
-      avatarVal,
-      passwordVal,
-      scopesVal,
-      authMethodVal,
-      gistIdVal,
-      imageGistIdVal,
-      rechargeGistIdVal,
-      eventGistIdVal,
-      lastSyncedAtVal,
-      eventLastSyncedAtVal,
-      deviceIdVal,
-      encryptionEnabledVal
-    ] = await Promise.all([
-      readSyncKey(TOKEN_KEY),
-      readSyncKey(GITHUB_LOGIN_KEY),
-      readSyncKey(GITHUB_USER_ID_KEY),
-      readSyncKey(GITHUB_AVATAR_URL_KEY),
-      readSyncKey(SYNC_PASSWORD_KEY),
-      readSyncKey(GITHUB_SCOPES_KEY),
-      readSyncKey(GITHUB_AUTH_METHOD_KEY),
-      readSyncKey(GIST_ID_KEY),
-      readSyncKey(IMAGE_GIST_ID_KEY),
-      readSyncKey(RECHARGE_GIST_ID_KEY),
-      readSyncKey(EVENT_GIST_ID_KEY),
-      readSyncKey(LAST_SYNC_KEY),
-      readSyncKey(EVENT_LAST_SYNC_KEY),
-      readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
-      readSyncKey(ENCRYPTION_ENABLED_KEY)
-    ])
-
-    token.value = tokenVal || ''
-    githubLogin.value = loginVal || ''
-    githubUserId.value = userIdVal || ''
-    githubAvatarUrl.value = avatarVal || ''
-    syncPassword.value = passwordVal || ''
-    githubScopes.value = scopesVal || ''
-    githubAuthMethod.value = normalizeGitHubAuthMethod(authMethodVal || '')
-    gistId.value = gistIdVal || ''
-    imageGistId.value = imageGistIdVal || ''
-    rechargeGistId.value = rechargeGistIdVal || ''
-    eventGistId.value = eventGistIdVal || ''
-    lastSyncedAt.value = lastSyncedAtVal || ''
-    eventLastSyncedAt.value = eventLastSyncedAtVal || ''
-    deviceId.value = deviceIdVal
-    encryptionEnabled.value = encryptionEnabledVal === '1'
-    if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
-      try {
-        await ensureEncryptionKey()
-      } catch (e) {
-        console.warn('加密密钥初始化失败:', e)
-        encryptionEnabled.value = false
-      }
-    }
-    isInitialized.value = true
-
-    if (token.value && !gistId.value) {
-      try {
-        const matched = await listGists(token.value, 'goods-app-sync')
-        if (matched.length > 0) {
-          await saveGistId(matched[0].id)
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (token.value && !githubLogin.value) {
-      try {
-        const check = await validateToken(token.value)
-        if (check.valid && check.login) {
-          await persistGitHubMeta({
-            login: check.login,
-            userId: check.userId,
-            authMethod: githubAuthMethod.value || 'token'
-          })
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    // 如果已有登录信息但没有用户 ID，补充获取
-    if (token.value && githubLogin.value && !githubUserId.value) {
-      try {
-        const check = await validateToken(token.value)
-        if (check.valid && check.userId) {
-          githubUserId.value = check.userId
-          await writeSyncKey(GITHUB_USER_ID_KEY, check.userId)
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (token.value && gistId.value && !imageGistId.value) {
-      try {
-        const gist = await getGist(token.value, gistId.value)
-        const manifest = gist ? await backend.getManifest(gist) : null
-        if (manifest?.imageGistId) {
-          await saveImageGistId(manifest.imageGistId)
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (token.value && !imageGistId.value) {
-      try {
-        const matched = await listGists(token.value, 'goods-app-images')
-        if (matched.length > 0) {
-          await saveImageGistId(matched[0].id)
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-  }
-
-  async function saveToken(newToken, meta = {}) {
-    token.value = newToken
-    clearEncryptionKey()
-    await writeSyncKey(TOKEN_KEY, newToken)
-    gistId.value = ''
-    imageGistId.value = ''
-    rechargeGistId.value = ''
-    eventGistId.value = ''
-    lastSyncedAt.value = ''
-    eventLastSyncedAt.value = ''
-    await writeSyncKey(GIST_ID_KEY, '')
-    await writeSyncKey(IMAGE_GIST_ID_KEY, '')
-    await writeSyncKey(RECHARGE_GIST_ID_KEY, '')
-    await writeSyncKey(EVENT_GIST_ID_KEY, '')
-    await writeSyncKey(LAST_SYNC_KEY, '')
-    await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
-    lastError.value = ''
-    syncStatus.value = ''
-    conflictData.value = null
-    await persistGitHubMeta(meta)
-    clearSyncLogs()
-  }
+  // ── Persistence helpers ──
 
   async function saveGistId(newGistId) {
     gistId.value = newGistId
@@ -338,130 +171,51 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(EVENT_LAST_SYNC_KEY, timestamp)
   }
 
+  // ── Service wiring ──
+
   const {
-    buildSyncPayload,
-    buildSyncData,
-    buildRechargeSyncData,
-    buildEventSyncPayload,
-    buildEventSyncData,
-    buildComparableSyncStateFromData,
-    buildComparableRechargeStateFromData,
-    buildComparableEventStateFromData,
-    buildManifest
+    buildSyncPayload, buildSyncData, buildRechargeSyncData,
+    buildEventSyncPayload, buildEventSyncData,
+    buildComparableSyncStateFromData, buildComparableRechargeStateFromData,
+    buildComparableEventStateFromData, buildManifest
   } = createSyncPayloadService({
-    deviceIdRef: deviceId,
-    imageGistIdRef: imageGistId,
-    lastSyncedAtRef: lastSyncedAt,
-    buildPresetsData,
-    ensureEventsStoreReady,
-    useGoodsStore,
-    useRechargeStore,
-    useEventsStore,
-    readLocalImageAsDataUrl,
-    compressImageToBlob,
-    imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
+    deviceIdRef: deviceId, imageGistIdRef: imageGistId, lastSyncedAtRef: lastSyncedAt,
+    buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore,
+    readLocalImageAsDataUrl, compressImageToBlob, imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
   })
 
   const backend = createGistBackendAdapter({
-    tokenRef: token,
-    gistIdRef: gistId,
-    imageGistIdRef: imageGistId,
-    rechargeGistIdRef: rechargeGistId,
-    eventGistIdRef: eventGistId,
-    deviceIdRef: deviceId,
-    encryptionEnabledRef: encryptionEnabled,
-    ensureEncryptionKey,
-    constants: {
-      GIST_ID_KEY,
-      IMAGE_GIST_ID_KEY,
-      RECHARGE_GIST_ID_KEY,
-      EVENT_GIST_ID_KEY,
-      DATA_FILENAME,
-      RECHARGE_DATA_FILENAME,
-      EVENT_DATA_FILENAME,
-      MANIFEST_FILENAME
-    },
+    tokenRef: token, gistIdRef: gistId, imageGistIdRef: imageGistId,
+    rechargeGistIdRef: rechargeGistId, eventGistIdRef: eventGistId,
+    deviceIdRef: deviceId, encryptionEnabledRef: encryptionEnabled, ensureEncryptionKey,
+    constants: { GIST_ID_KEY, IMAGE_GIST_ID_KEY, RECHARGE_GIST_ID_KEY, EVENT_GIST_ID_KEY, DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME },
     trackSyncStep
   })
 
-  const ensureImageGist = () => backend.ensureImageGist()
-  const ensureRechargeGist = () => backend.ensureRechargeGist(buildRechargeSyncData)
-  const ensureEventGist = () => backend.ensureEventGist(buildEventSyncPayload)
-  const ensureGist = () => backend.ensureDataGist({ buildSyncPayload, buildRechargeSyncData, buildEventSyncPayload, buildManifest })
-  const getExistingImageGist = (manifest) => backend.getExistingImageGist(manifest)
-  const getExistingRechargeGist = () => backend.getExistingRechargeGist()
-  const getExistingEventGist = () => backend.getExistingEventGist()
-
-  const {
-    resolveRemoteImageGist,
-    hydrateRemoteItemsWithImages,
-    hydrateEventCoversWithImages,
-    buildImageCleanupFiles
-  } = createSyncImageService({
-    backend,
-    trackSyncStep,
-    imageFilePrefix: IMAGE_FILE_PREFIX,
-    eventCoverPrefix: EVENT_COVER_PREFIX
+  const imageService = createSyncImageService({
+    backend, trackSyncStep, imageFilePrefix: IMAGE_FILE_PREFIX, eventCoverPrefix: EVENT_COVER_PREFIX
   })
 
-  const {
-    getLocalChangesSince,
-    buildPullConflictData
-  } = createSyncConflictService({
-    backend,
-    lastSyncedAtRef: lastSyncedAt,
-    useGoodsStore,
-    useRechargeStore,
-    useEventsStore,
-    shouldApplyRemoteItem,
-    getExistingRechargeGist,
-    getExistingEventGist,
-    buildRechargeSyncData,
-    buildEventSyncData,
-    getLatestLocalModifiedAt
+  const conflictService = createSyncConflictService({
+    backend, lastSyncedAtRef: lastSyncedAt, useGoodsStore, useRechargeStore, useEventsStore,
+    shouldApplyRemoteItem, getExistingRechargeGist: () => backend.getExistingRechargeGist(),
+    getExistingEventGist: () => backend.getExistingEventGist(),
+    buildRechargeSyncData, buildEventSyncData, getLatestLocalModifiedAt
   })
 
-  const {
-    pullFromRemote,
-    pushToRemote
-  } = createSyncExecutionService({
-    backend,
-    lastSyncedAtRef: lastSyncedAt,
-    rechargeGistIdRef: rechargeGistId,
-    eventGistIdRef: eventGistId,
-    ensureImageGist,
-    resolveRemoteImageGist,
-    hydrateRemoteItemsWithImages,
-    hydrateEventCoversWithImages,
-    buildImageCleanupFiles,
-    buildSyncPayload,
-    buildRechargeSyncData,
-    buildEventSyncPayload,
-    buildManifest,
-    trackSyncStep,
-    getExistingRechargeGist,
-    getExistingEventGist,
-    saveLastSyncedAt,
-    saveEventLastSyncedAt,
-    saveRechargeGistId,
-    saveEventGistId,
-    useGoodsStore,
-    useRechargeStore,
-    useEventsStore,
-    usePresetsStore,
-    shouldApplyRemoteItem,
-    constants: {
-      DATA_FILENAME,
-      RECHARGE_DATA_FILENAME,
-      EVENT_DATA_FILENAME,
-      MANIFEST_FILENAME
-    }
-  })
-
-  async function checkTokenValidity() {
-    if (!token.value) return { valid: false, login: '' }
-    return validateToken(token.value)
+  const payloadService = {
+    buildSyncPayload, buildRechargeSyncData, buildEventSyncPayload, buildManifest,
+    buildSyncData, buildEventSyncData,
+    buildComparableSyncStateFromData, buildComparableRechargeStateFromData, buildComparableEventStateFromData
   }
+
+  const orchestrator = createSyncOrchestrator({
+    backend, payload: payloadService, image: imageService, conflict: conflictService,
+    useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, trackSyncStep,
+    constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME }
+  })
+
+  // ── Helpers ──
 
   async function buildPresetsData() {
     const presets = usePresetsStore()
@@ -469,16 +223,10 @@ export const useSyncStore = defineStore('sync', () => {
       categories: [...presets.categories],
       ips: [...presets.ips],
       characters: presets.characters
-        .map((item) => ({
-          ...item,
-          name: normalizeCharacterName(item?.name || ''),
-          ip: String(item?.ip || '').trim()
-        }))
+        .map((item) => ({ ...item, name: normalizeCharacterName(item?.name || ''), ip: String(item?.ip || '').trim() }))
         .filter((item) => item.name),
       storageLocations: presets.storageLocations.map((item) => ({
-        id: String(item?.id || '').trim(),
-        name: String(item?.name || '').trim(),
-        parentId: String(item?.parentId || '').trim()
+        id: String(item?.id || '').trim(), name: String(item?.name || '').trim(), parentId: String(item?.parentId || '').trim()
       }))
     }
   }
@@ -501,541 +249,196 @@ export const useSyncStore = defineStore('sync', () => {
 
   function getLocalChangesSinceLastSync() {
     const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
-    return getLocalChangesSince(localSyncTime)
+    return conflictService.getLocalChangesSince(localSyncTime)
+  }
+
+  function buildSyncContext() {
+    return {
+      token: token.value, gistId: gistId.value, deviceId: deviceId.value,
+      lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
+      rechargeGistId: rechargeGistId.value, eventGistId: eventGistId.value,
+      saveLastSyncedAt, saveEventLastSyncedAt, saveImageGistId,
+      saveRechargeGistId, saveEventGistId,
+      getLatestLocalModifiedAt, buildPresetsData, ensureEventsStoreReady,
+      shouldApplyRemoteItem
+    }
+  }
+
+  // ── Init ──
+
+  async function init() {
+    await ensureEventsStoreReady()
+
+    const [tokenVal, loginVal, userIdVal, avatarVal, passwordVal, scopesVal, authMethodVal,
+      gistIdVal, imageGistIdVal, rechargeGistIdVal, eventGistIdVal,
+      lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal, encryptionEnabledVal
+    ] = await Promise.all([
+      readSyncKey(TOKEN_KEY), readSyncKey(GITHUB_LOGIN_KEY), readSyncKey(GITHUB_USER_ID_KEY),
+      readSyncKey(GITHUB_AVATAR_URL_KEY), readSyncKey(SYNC_PASSWORD_KEY), readSyncKey(GITHUB_SCOPES_KEY),
+      readSyncKey(GITHUB_AUTH_METHOD_KEY), readSyncKey(GIST_ID_KEY), readSyncKey(IMAGE_GIST_ID_KEY),
+      readSyncKey(RECHARGE_GIST_ID_KEY), readSyncKey(EVENT_GIST_ID_KEY), readSyncKey(LAST_SYNC_KEY),
+      readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
+      readSyncKey(ENCRYPTION_ENABLED_KEY)
+    ])
+
+    token.value = tokenVal || ''
+    githubLogin.value = loginVal || ''
+    githubUserId.value = userIdVal || ''
+    githubAvatarUrl.value = avatarVal || ''
+    syncPassword.value = passwordVal || ''
+    githubScopes.value = scopesVal || ''
+    githubAuthMethod.value = normalizeGitHubAuthMethod(authMethodVal || '')
+    gistId.value = gistIdVal || ''
+    imageGistId.value = imageGistIdVal || ''
+    rechargeGistId.value = rechargeGistIdVal || ''
+    eventGistId.value = eventGistIdVal || ''
+    lastSyncedAt.value = lastSyncedAtVal || ''
+    eventLastSyncedAt.value = eventLastSyncedAtVal || ''
+    deviceId.value = deviceIdVal
+    encryptionEnabled.value = encryptionEnabledVal === '1'
+    if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
+      try { await ensureEncryptionKey() } catch { encryptionEnabled.value = false }
+    }
+    isInitialized.value = true
+
+    if (token.value && !gistId.value) {
+      try {
+        const matched = await listGists(token.value, 'goods-app-sync')
+        if (matched.length > 0) await saveGistId(matched[0].id)
+      } catch { /* ignore */ }
+    }
+    if (token.value && !githubLogin.value) {
+      try {
+        const check = await validateToken(token.value)
+        if (check.valid && check.login) await persistGitHubMeta({ login: check.login, userId: check.userId, authMethod: githubAuthMethod.value || 'token' })
+      } catch { /* ignore */ }
+    }
+    if (token.value && githubLogin.value && !githubUserId.value) {
+      try {
+        const check = await validateToken(token.value)
+        if (check.valid && check.userId) { githubUserId.value = check.userId; await writeSyncKey(GITHUB_USER_ID_KEY, check.userId) }
+      } catch { /* ignore */ }
+    }
+    if (token.value && gistId.value && !imageGistId.value) {
+      try {
+        const gist = await getGist(token.value, gistId.value)
+        const manifest = gist ? await backend.getManifest(gist) : null
+        if (manifest?.imageGistId) await saveImageGistId(manifest.imageGistId)
+      } catch { /* ignore */ }
+    }
+    if (token.value && !imageGistId.value) {
+      try {
+        const matched = await listGists(token.value, 'goods-app-images')
+        if (matched.length > 0) await saveImageGistId(matched[0].id)
+      } catch { /* ignore */ }
+    }
+  }
+
+  // ── Public API ──
+
+  async function saveToken(newToken, meta = {}) {
+    token.value = newToken
+    clearEncryptionKey()
+    await writeSyncKey(TOKEN_KEY, newToken)
+    gistId.value = ''; imageGistId.value = ''; rechargeGistId.value = ''; eventGistId.value = ''
+    lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
+    await writeSyncKey(GIST_ID_KEY, ''); await writeSyncKey(IMAGE_GIST_ID_KEY, '')
+    await writeSyncKey(RECHARGE_GIST_ID_KEY, ''); await writeSyncKey(EVENT_GIST_ID_KEY, '')
+    await writeSyncKey(LAST_SYNC_KEY, ''); await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    lastError.value = ''; syncStatus.value = ''; conflictData.value = null
+    await persistGitHubMeta(meta)
+    clearSyncLogs()
+  }
+
+  async function checkTokenValidity() {
+    if (!token.value) return { valid: false, login: '' }
+    return validateToken(token.value)
   }
 
   async function fullSync() {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     if (!token.value) throw new Error('未配置 Token')
-
-    isSyncing.value = true
-    lastError.value = ''
-    conflictData.value = null
-    clearSyncLogs()
-    syncStatus.value = '正在同步...'
-
+    isSyncing.value = true; lastError.value = ''; conflictData.value = null
+    clearSyncLogs(); syncStatus.value = '正在同步...'
     try {
-      await ensureEventsStoreReady()
-      const gist = await ensureGist()
-      const goodsStore = useGoodsStore()
-      syncStatus.value = '正在检查远端数据...'
-
-      const remoteManifest = await readJsonFromGistWithTrace({
-        title: '读取 manifest.json',
-        gist,
-        fileName: MANIFEST_FILENAME,
-        startDetail: '检查远端同步摘要',
-        category: 'pull',
-        successDetail: (parsed) => {
-          if (!parsed) return '未找到 manifest'
-          return `图片 Gist ${parsed.imageGistId || '未配置'}`
-        }
-      })
-      if (remoteManifest?.imageGistId) {
-        await saveImageGistId(remoteManifest.imageGistId)
-      }
-      const existingRechargeGist = await getExistingRechargeGist()
-      const existingEventGist = await getExistingEventGist()
-      const existingImageGist = await getExistingImageGist(remoteManifest)
-      const remoteData = await readJsonFromGistWithTrace({
-        title: '读取 data.json',
-        gist,
-        fileName: DATA_FILENAME,
-        startDetail: '读取收藏、心愿单和回收站',
-        category: 'pull',
-        required: true,
-        missingMessage: '远端数据为空',
-        successDetail: (parsed) => {
-          if (!parsed) return '未找到远端主数据'
-          const goods = Array.isArray(parsed.goods) ? parsed.goods : []
-          const trash = Array.isArray(parsed.trash) ? parsed.trash : []
-          const counts = countWishlistSplit(goods)
-          return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}`
-        }
-      }) || { goods: [], trash: [], presets: {} }
-      const remoteRechargeData = await readJsonFromGistWithTrace({
-        title: '预检读取 recharge-data.json',
-        gist,
-        fileName: RECHARGE_DATA_FILENAME,
-        startDetail: '读取充值记录',
-        category: 'pull',
-        fallbackGist: existingRechargeGist,
-        fallbackFileName: RECHARGE_DATA_FILENAME,
-        successDetail: (parsed, source) => {
-          if (!parsed) return '未找到充值数据'
-          const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-          const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-          return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
-        }
-      }) || {
-        recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [],
-        rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : []
-      }
-      const remoteEventData = await readJsonFromGistWithTrace({
-        title: '预检读取 events-data.json',
-        gist,
-        fileName: EVENT_DATA_FILENAME,
-        startDetail: '读取活动数据',
-        category: 'pull',
-        fallbackGist: existingEventGist,
-        fallbackFileName: EVENT_DATA_FILENAME,
-        successDetail: (parsed, source) => {
-          if (!parsed) return '未找到活动数据'
-          const events = Array.isArray(parsed.events) ? parsed.events : []
-          return `${source}，活动 ${events.length} 场`
-        }
-      }) || { events: [] }
-      const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
-      const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
-      const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
-      const localChanges = getLocalChangesSince(localSyncTime)
-      const localComparableState = await buildComparableSyncStateFromData({
-        goods: goodsStore.list,
-        trash: goodsStore.trashList,
-        presets: await buildPresetsData()
-      })
-      const remoteComparableState = await buildComparableSyncStateFromData(remoteData)
-      const localRechargeComparableState = buildComparableRechargeStateFromData(buildRechargeSyncData({ incremental: false }))
-      const remoteRechargeComparableState = buildComparableRechargeStateFromData(remoteRechargeData)
-      const localEventComparableState = buildComparableEventStateFromData(buildEventSyncData())
-      const remoteEventComparableState = buildComparableEventStateFromData(remoteEventData)
-      const hasDataDiff = localComparableState !== remoteComparableState
-      const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
-      const hasEventDataDiff = localEventComparableState !== remoteEventComparableState
-      const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff
-
-      if (!hasEffectiveDiff) {
-        if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
-          syncStatus.value = '正在上传本地数据...'
-          const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
-          syncStatus.value = '上传完成'
-          return {
-            action: 'pushed',
-            ...localChanges,
-            ...imageStats
-          }
-        }
-
-        if (remoteManifest?.lastSyncAt) {
-          await saveLastSyncedAt(remoteManifest.lastSyncAt)
-        }
-        if (remoteEventData?.updatedAt || remoteManifest?.lastSyncAt) {
-          await saveEventLastSyncedAt(remoteEventData?.updatedAt || remoteManifest.lastSyncAt)
-        }
-        syncStatus.value = '数据已经是最新'
-        return {
-          action: 'no_changes',
-          ...getLocalChangesSince(remoteTime || localSyncTime)
-        }
-      }
-
-      const localPayload = await trackSyncStep('整理本地收藏/回收站数据', async () => buildSyncPayload({ existingImageGist }), {
-        startDetail: '读取本地收藏、回收站和图片',
-        category: 'local',
-        successDetail: (payload) => {
-          const goodsCount = Array.isArray(payload?.syncData?.goods) ? payload.syncData.goods.length : 0
-          const trashCount = Array.isArray(payload?.syncData?.trash) ? payload.syncData.trash.length : 0
-          return `收藏 ${goodsCount}，回收站 ${trashCount}，图片 ${payload?.imageStats?.imageFileCount || 0} 个`
-        }
-      })
-      const localRechargePayload = await trackSyncStep('整理本地充值数据', async () => buildRechargeSyncData({ incremental: false }), {
-        startDetail: '读取本地充值记录',
-        category: 'local',
-        successDetail: (payload) => {
-          const rechargeCount = Array.isArray(payload?.recharge) ? payload.recharge.length : 0
-          return `充值 ${rechargeCount} 条`
-        }
-      })
-      const localEventPayload = await trackSyncStep('整理本地活动数据', async () => buildEventSyncPayload({ existingImageGist }), {
-        startDetail: '读取本地活动和封面图片',
-        category: 'local',
-        successDetail: (payload) => {
-          const eventCount = Array.isArray(payload?.eventData?.events) ? payload.eventData.events.length : 0
-          return `活动 ${eventCount} 场，图片 ${payload?.imageStats?.imageFileCount || 0} 个`
-        }
-      })
-      const allReferencedImageFiles = new Set([...localPayload.referencedImageFiles, ...localEventPayload.referencedImageFiles])
-      const pendingAllImageCleanup = buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
-      const hasPendingImageChanges = (
-        Object.keys(localPayload.imageFiles).length > 0
-        || Object.keys(localEventPayload.imageFiles).length > 0
-        || Object.keys(pendingAllImageCleanup).length > 0
-      )
-
-      if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
-        syncStatus.value = '正在上传本地数据...'
-        const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
-        syncStatus.value = '上传完成'
-        return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
-      }
-
-      if (remoteTime > localSyncTime || !remoteManifest) {
-        if (remoteManifest && localChanges.hasChanges) {
-          conflictData.value = {
-            remoteTime: remoteManifest.lastSyncAt,
-            remoteDevice: remoteManifest.deviceId,
-            localTime: lastSyncedAt.value,
-            localModifiedTime: getLatestLocalModifiedAt(),
-            gist,
-            rechargeGist: existingRechargeGist,
-            eventGist: existingEventGist
-          }
-          syncStatus.value = '检测到冲突'
-          return { action: 'conflict' }
-        }
-
-        syncStatus.value = '正在拉取远端数据...'
-        const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-          hydrateGoodsImages: hasDataDiff,
-          hydrateTrashImages: hasDataDiff,
-          hydrateEventImages: hasEventDataDiff
-        })
-        await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-        syncStatus.value = '拉取完成'
-        return { action: 'pulled', ...result }
-      }
-
-      syncStatus.value = '正在上传本地数据...'
-      const imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist)
-      syncStatus.value = '上传完成'
-      return { action: 'pushed', ...getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
+      const result = await orchestrator.fullSync(buildSyncContext())
+      if (result.conflictData) conflictData.value = result.conflictData
+      syncStatus.value = result.statusMessage || '同步完成'
+      return result
     } catch (error) {
-      lastError.value = error.message
-      syncStatus.value = '同步失败'
-      throw error
-    } finally {
-      isSyncing.value = false
-    }
-  }
-
-  async function resolveConflict(useRemote) {
-    if (!conflictData.value) return
-
-    isSyncing.value = true
-    syncStatus.value = '正在解决冲突...'
-
-    try {
-      if (useRemote) {
-        syncStatus.value = '正在拉取远端数据...'
-        const remoteManifest = await readJsonFromGistWithTrace({
-          title: '读取 manifest.json',
-          gist: conflictData.value.gist,
-          fileName: MANIFEST_FILENAME,
-          startDetail: '读取冲突远端摘要',
-          category: 'pull',
-          successDetail: (parsed) => {
-            if (!parsed) return '未找到 manifest'
-            return `图片 Gist ${parsed.imageGistId || '未配置'}`
-          }
-        })
-        const hasGoodsContentDiff = !!(
-          conflictData.value.remoteOnlyGoods > 0
-          || conflictData.value.remoteOnlyCollection > 0
-          || conflictData.value.remoteOnlyWishlist > 0
-          || conflictData.value.remoteOnlyTrash > 0
-          || conflictData.value.updatedGoods > 0
-          || conflictData.value.localOnlyGoods > 0
-          || conflictData.value.localOnlyCollection > 0
-          || conflictData.value.localOnlyWishlist > 0
-          || conflictData.value.localOnlyTrash > 0
-        )
-        const hasEventContentDiff = !!(conflictData.value.remoteOnlyEvents > 0 || conflictData.value.updatedEvents > 0 || conflictData.value.localOnlyEvents > 0)
-        const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
-          hydrateGoodsImages: hasGoodsContentDiff,
-          hydrateTrashImages: hasGoodsContentDiff,
-          hydrateEventImages: hasEventContentDiff
-        })
-        await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-        conflictData.value = null
-        syncStatus.value = '拉取完成'
-        return { action: 'pulled', ...result }
-      }
-
-      syncStatus.value = '正在上传本地数据...'
-      const imageStats = await pushToRemote(
-        conflictData.value.gist,
-        null,
-        conflictData.value.rechargeGist || null,
-        conflictData.value.eventGist || null
-      )
-      conflictData.value = null
-      syncStatus.value = '上传完成'
-      return { action: 'pushed', ...imageStats }
-    } catch (error) {
-      lastError.value = error.message
-      syncStatus.value = '同步失败'
-      throw error
-    } finally {
-      isSyncing.value = false
-    }
-  }
-
-  function clearConflict() {
-    conflictData.value = null
+      lastError.value = error.message; syncStatus.value = '同步失败'; throw error
+    } finally { isSyncing.value = false }
   }
 
   async function pullOnly() {
     if (isSyncing.value) return
     if (!token.value) throw new Error('未配置 Token')
     if (!gistId.value) throw new Error('未找到 Gist')
-
-    isSyncing.value = true
-    lastError.value = ''
-    conflictData.value = null
-    clearSyncLogs()
-    syncStatus.value = '正在拉取...'
-
+    isSyncing.value = true; lastError.value = ''; conflictData.value = null
+    clearSyncLogs(); syncStatus.value = '正在拉取...'
     try {
-      await ensureEventsStoreReady()
-      const [gist, existingRechargeGist, existingEventGist] = await Promise.all([
-        getGist(token.value, gistId.value),
-        getExistingRechargeGist(),
-        getExistingEventGist()
-      ])
-      if (!gist) throw new Error('未找到 Gist')
-
-      const [remoteManifest, remoteRechargeData, remoteEventData] = await Promise.all([
-        readJsonFromGistWithTrace({
-          title: '读取 manifest.json',
-          gist,
-          fileName: MANIFEST_FILENAME,
-          startDetail: '检查远端同步摘要',
-          category: 'pull',
-          successDetail: (parsed) => {
-            if (!parsed) return '未找到 manifest'
-            return `图片 Gist ${parsed.imageGistId || '未配置'}`
-          }
-        }),
-        readJsonFromGistWithTrace({
-          title: '预检读取 recharge-data.json',
-          gist,
-          fileName: RECHARGE_DATA_FILENAME,
-          startDetail: '读取充值记录',
-          category: 'pull',
-          fallbackGist: existingRechargeGist,
-          fallbackFileName: RECHARGE_DATA_FILENAME,
-          successDetail: (parsed, source) => {
-            if (!parsed) return '未找到充值数据'
-            const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-            const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-            return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
-          }
-        }).then((result) => result || { recharge: [], rechargeTrash: [] }),
-        readJsonFromGistWithTrace({
-          title: '预检读取 events-data.json',
-          gist,
-          fileName: EVENT_DATA_FILENAME,
-          startDetail: '读取活动数据',
-          category: 'pull',
-          fallbackGist: existingEventGist,
-          fallbackFileName: EVENT_DATA_FILENAME,
-          successDetail: (parsed, source) => {
-            if (!parsed) return '未找到活动数据'
-            const events = Array.isArray(parsed.events) ? parsed.events : []
-            return `${source}，活动 ${events.length} 场`
-          }
-        }).then((result) => result || { events: [] })
-      ])
-
-      if (remoteManifest?.imageGistId) {
-        await saveImageGistId(remoteManifest.imageGistId)
-      }
-      const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== deviceId.value)
-      const localSyncTime = lastSyncedAt.value ? new Date(lastSyncedAt.value).getTime() : 0
-      const localEventState = buildComparableEventStateFromData(buildEventSyncData())
-      const remoteEventState = buildComparableEventStateFromData(remoteEventData)
-      const hasEventContentDiff = localEventState !== remoteEventState
-      const localRechargeState = buildComparableRechargeStateFromData(buildRechargeSyncData({ incremental: false }))
-      const remoteRechargeState = buildComparableRechargeStateFromData(remoteRechargeData)
-      const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
-      const localChanges = getLocalChangesSince(localSyncTime)
-
-      if (localChanges.hasChanges) {
-        const diff = await buildPullConflictData(gist, remoteManifest)
-        const hasPullConflict = !!(
-          diff.remoteOnlyGoods > 0
-          || diff.remoteOnlyCollection > 0
-          || diff.remoteOnlyWishlist > 0
-          || diff.remoteOnlyTrash > 0
-          || diff.updatedGoods > 0
-          || diff.localOnlyGoods > 0
-          || diff.localOnlyCollection > 0
-          || diff.localOnlyWishlist > 0
-          || diff.localOnlyTrash > 0
-          || diff.remoteRechargeCount > 0
-          || diff.remoteOnlyRecharge > 0
-          || diff.updatedRecharge > 0
-          || diff.localOnlyRecharge > 0
-          || diff.remoteEventCount > 0
-          || diff.remoteOnlyEvents > 0
-          || diff.updatedEvents > 0
-          || diff.localOnlyEvents > 0
-        )
-
-        if (!hasPullConflict) {
-          if (remoteManifest?.lastSyncAt) {
-            await saveLastSyncedAt(remoteManifest.lastSyncAt)
-          }
-          syncStatus.value = '数据已是最新'
-          return { action: 'no_changes' }
-        }
-
-        conflictData.value = {
-          ...diff,
-          rechargeGist: existingRechargeGist,
-          eventGist: existingEventGist,
-          isPullOnly: true
-        }
-        syncStatus.value = '正在拉取远端数据...'
-        syncStatus.value = '检测到远端数据'
-        return { action: 'conflict' }
-      }
-
-      syncStatus.value = '正在拉取远端数据...'
-      const diff = await buildPullConflictData(gist, remoteManifest)
-      const pullGoodsContentDiff = !!(
-        diff.remoteOnlyGoods > 0
-        || diff.remoteOnlyCollection > 0
-        || diff.remoteOnlyWishlist > 0
-        || diff.remoteOnlyTrash > 0
-        || diff.updatedGoods > 0
-        || diff.localOnlyGoods > 0
-        || diff.localOnlyCollection > 0
-        || diff.localOnlyWishlist > 0
-        || diff.localOnlyTrash > 0
-      )
-      const pullRechargeContentDiff = !!(diff.remoteRechargeCount > 0 || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0 || diff.localOnlyRecharge > 0)
-      const pullEventContentDiff = !!(diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0)
-
-      if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff) {
-        if (remoteManifest?.lastSyncAt) {
-          await saveLastSyncedAt(remoteManifest.lastSyncAt)
-        }
-        syncStatus.value = '数据已是最新'
-        return { action: 'no_changes' }
-      }
-
-      const result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-        hydrateGoodsImages: pullGoodsContentDiff,
-        hydrateTrashImages: pullGoodsContentDiff,
-        hydrateEventImages: pullEventContentDiff
-      })
-      await saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-      syncStatus.value = '拉取完成'
-      return { action: 'pulled', ...result }
+      const result = await orchestrator.pullOnly(buildSyncContext())
+      if (result.conflictData) conflictData.value = result.conflictData
+      syncStatus.value = result.statusMessage || '拉取完成'
+      return result
     } catch (error) {
-      lastError.value = error.message
-      syncStatus.value = '拉取失败'
-      throw error
-    } finally {
-      isSyncing.value = false
-    }
+      lastError.value = error.message; syncStatus.value = '拉取失败'; throw error
+    } finally { isSyncing.value = false }
+  }
+
+  async function resolveConflict(useRemote) {
+    if (!conflictData.value) return
+    isSyncing.value = true; syncStatus.value = '正在解决冲突...'
+    try {
+      const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
+      const result = await orchestrator.resolveConflict(ctx, useRemote)
+      conflictData.value = null
+      syncStatus.value = result.statusMessage || '冲突已解决'
+      return result
+    } catch (error) {
+      lastError.value = error.message; syncStatus.value = '同步失败'; throw error
+    } finally { isSyncing.value = false }
   }
 
   async function resolvePullConflict(confirm) {
     if (!conflictData.value?.isPullOnly) return
-
-    isSyncing.value = true
-    syncStatus.value = '正在拉取...'
-
+    isSyncing.value = true; syncStatus.value = '正在拉取...'
     try {
-      if (!confirm) {
-        syncStatus.value = '已取消'
-        conflictData.value = null
-        return { action: 'cancelled' }
-      }
-
-      syncStatus.value = '正在拉取远端数据...'
-      const remoteManifest = await backend.getManifest(conflictData.value.gist)
-      const hasGoodsContentDiff = !!(
-        conflictData.value.remoteOnlyGoods > 0
-        || conflictData.value.remoteOnlyCollection > 0
-        || conflictData.value.remoteOnlyWishlist > 0
-        || conflictData.value.remoteOnlyTrash > 0
-        || conflictData.value.updatedGoods > 0
-        || conflictData.value.localOnlyGoods > 0
-        || conflictData.value.localOnlyCollection > 0
-        || conflictData.value.localOnlyWishlist > 0
-        || conflictData.value.localOnlyTrash > 0
-      )
-      const hasEventContentDiff = !!(conflictData.value.remoteOnlyEvents > 0 || conflictData.value.updatedEvents > 0 || conflictData.value.localOnlyEvents > 0)
-      const result = await pullFromRemote(conflictData.value.gist, remoteManifest, conflictData.value.rechargeGist || null, conflictData.value.eventGist || null, {
-        hydrateGoodsImages: hasGoodsContentDiff,
-        hydrateTrashImages: hasGoodsContentDiff,
-        hydrateEventImages: hasEventContentDiff
-      })
+      if (!confirm) { syncStatus.value = '已取消'; conflictData.value = null; return { action: 'cancelled' } }
+      const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
+      const result = await orchestrator.resolvePullConflict(ctx, confirm)
       conflictData.value = null
-      return { action: 'pulled', ...result }
+      syncStatus.value = result.statusMessage || '拉取完成'
+      return result
     } catch (error) {
-      lastError.value = error.message
-      syncStatus.value = '拉取失败'
-      throw error
-    } finally {
-      isSyncing.value = false
-    }
+      lastError.value = error.message; syncStatus.value = '拉取失败'; throw error
+    } finally { isSyncing.value = false }
+  }
+
+  function clearConflict() {
+    conflictData.value = null
   }
 
   async function resetConfig() {
-    token.value = ''
-    githubLogin.value = ''
-    githubAvatarUrl.value = ''
-    githubScopes.value = ''
-    githubAuthMethod.value = ''
-    gistId.value = ''
-    imageGistId.value = ''
-    rechargeGistId.value = ''
-    eventGistId.value = ''
-    lastSyncedAt.value = ''
-    eventLastSyncedAt.value = ''
-    await writeSyncKey(TOKEN_KEY, '')
-    await writeSyncKey(GIST_ID_KEY, '')
-    await writeSyncKey(IMAGE_GIST_ID_KEY, '')
-    await writeSyncKey(RECHARGE_GIST_ID_KEY, '')
-    await writeSyncKey(EVENT_GIST_ID_KEY, '')
-    await writeSyncKey(LAST_SYNC_KEY, '')
-    await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    token.value = ''; githubLogin.value = ''; githubAvatarUrl.value = ''; githubScopes.value = ''; githubAuthMethod.value = ''
+    gistId.value = ''; imageGistId.value = ''; rechargeGistId.value = ''; eventGistId.value = ''
+    lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
+    await writeSyncKey(TOKEN_KEY, ''); await writeSyncKey(GIST_ID_KEY, ''); await writeSyncKey(IMAGE_GIST_ID_KEY, '')
+    await writeSyncKey(RECHARGE_GIST_ID_KEY, ''); await writeSyncKey(EVENT_GIST_ID_KEY, '')
+    await writeSyncKey(LAST_SYNC_KEY, ''); await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
     await clearGitHubMeta()
-    lastError.value = ''
-    syncStatus.value = ''
-    conflictData.value = null
+    lastError.value = ''; syncStatus.value = ''; conflictData.value = null
     clearSyncLogs()
   }
 
   return {
-    token,
-    githubLogin,
-    githubAvatarUrl,
-    githubScopes,
-    githubAuthMethod,
-    gistId,
-    imageGistId,
-    rechargeGistId,
-    eventGistId,
-    lastSyncedAt,
-    eventLastSyncedAt,
-    deviceId,
-    isInitialized,
-    isSyncing,
-    syncStatus,
-    syncLogs,
-    lastError,
-    conflictData,
-    isConfigured,
-    init,
-    saveToken,
-    checkTokenValidity,
-    getLocalChangesSinceLastSync,
-    fullSync,
-    pullOnly,
-    resolveConflict,
-    resolvePullConflict,
-    clearConflict,
-    resetConfig,
-    encryptionEnabled,
-    setEncryptionEnabled,
-    ensureEncryptionKey,
-    syncPassword,
-    setSyncPassword,
-    githubUserId
+    token, githubLogin, githubAvatarUrl, githubScopes, githubAuthMethod,
+    gistId, imageGistId, rechargeGistId, eventGistId,
+    lastSyncedAt, eventLastSyncedAt, deviceId,
+    isInitialized, isSyncing, syncStatus, syncLogs, lastError, conflictData,
+    isConfigured, init, saveToken, checkTokenValidity,
+    getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
+    clearConflict, resetConfig,
+    encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId
   }
 })

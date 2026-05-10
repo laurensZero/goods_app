@@ -86,6 +86,17 @@ export function createSyncPayloadService({
         continue
       }
 
+      if (storageMode === 'gist-local') {
+        const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
+        if (gistFileName) referencedImageFiles.add(gistFileName)
+        preparedImages.push({
+          ...imageEntry,
+          storageMode: 'gist-local',
+          gistFileName
+        })
+        continue
+      }
+
       let imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)
       if (!imageDataUrl?.startsWith('data:image/')) {
         throw new Error(`图片读取失败：${item?.name || item?.id || '未命名条目'}`)
@@ -152,6 +163,18 @@ export function createSyncPayloadService({
       return {
         uri: event.coverImage,
         storageMode: 'remote'
+      }
+    }
+
+    if (storageMode === 'gist-local') {
+      const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
+      if (gistFileName) referencedImageFiles.add(gistFileName)
+      return {
+        uri: event.coverImage,
+        storageMode: 'gist-local',
+        gistFileName,
+        mimeType: event.coverImageData?.mimeType || '',
+        fileSize: event.coverImageData?.fileSize || 0
       }
     }
 

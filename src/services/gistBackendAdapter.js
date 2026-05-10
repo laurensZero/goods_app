@@ -456,11 +456,16 @@ export function createGistBackendAdapter({
   // ── Write operations (absorbed from syncExecutionService) ──
 
   async function writeData(gistId, dataMap) {
-    const encryptedMap = {}
-    for (const [fileName, content] of Object.entries(dataMap)) {
-      encryptedMap[fileName] = await encryptContentIfNeeded(content, fileName)
+    const processedMap = {}
+    for (const [fileName, entry] of Object.entries(dataMap)) {
+      if (fileName === MANIFEST_FILENAME) {
+        // manifest.json must always be plaintext — sync reads it before decryption
+        processedMap[fileName] = { content: JSON.stringify(entry.content) }
+      } else {
+        processedMap[fileName] = { content: await encryptContentIfNeeded(entry.content, fileName) }
+      }
     }
-    return updateGist(tokenRef.value, gistId, encryptedMap)
+    return updateGist(tokenRef.value, gistId, processedMap)
   }
 
   async function writeImages(gistId, imageFiles) {
@@ -490,7 +495,9 @@ export function createGistBackendAdapter({
               if (key) {
                 encryptedBatch = {}
                 for (const [fileName, fileObj] of batch) {
-                  if (fileObj.content && typeof fileObj.content === 'string') {
+                  if (!fileObj) {
+                    encryptedBatch[fileName] = null
+                  } else if (fileObj.content && typeof fileObj.content === 'string') {
                     encryptedBatch[fileName] = { content: await encrypt(fileObj.content, key) }
                   } else {
                     encryptedBatch[fileName] = fileObj
@@ -533,6 +540,11 @@ export function createGistBackendAdapter({
     return gistIdRef.value
   }
 
+  async function getDataGist() {
+    if (!gistIdRef.value) return null
+    return getGist(tokenRef.value, gistIdRef.value)
+  }
+
   // ── Internal helpers ──
 
   async function encryptContentIfNeeded(data, fileName = '') {
@@ -562,6 +574,7 @@ export function createGistBackendAdapter({
     writeImages,
     getManifest,
     isEncryptionEnabled,
-    getDataGistId
+    getDataGistId,
+    getDataGist
   })
 }
