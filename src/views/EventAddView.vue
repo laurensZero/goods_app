@@ -1105,7 +1105,6 @@ onBeforeUnmount(() => {
 .field-card {
   padding: 18px;
   border-radius: 28px;
-  overflow: hidden;
 }
 
 .field-grid {
@@ -1118,6 +1117,12 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+}
+
+.field input,
+.field textarea {
+  max-width: 100%;
 }
 
 .field--half {
