@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.3",
+    "url": "bundle-20260510.3.zip",
+    "hash": "a346e0b8aa9d0491811cbe0578e6db9f4bf9523ecdc7675deb46f6f095f73304",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新字段卡片样式，修复溢出问题并优化输入框宽度",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T04:53:52Z"
+  },
+  {
     "version": "20260510.2",
     "url": "bundle-20260510.2.zip",
     "hash": "422702eb512260ac13cd5a79b2b5bafbfd5c6bf54b3d86d47950ef22b4cffb91",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新商品卡片样式以支持已出和已赠出状态，增强用户体验 feat: 优化同步逻辑，使用 Promise.all 提升性能 fix: 更新事件添加视图中的票务标签，增加可读性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T03:54:28Z"
-  },
-  {
-    "version": "20260509.14",
-    "url": "bundle-20260509.14.zip",
-    "hash": "5bb0d4a268a973a02f87bb88074a9b3b04bd353d519f16c45e1a2a72306f37d8",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新密码输入框提示文本，增强用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T15:26:57Z"
   }
 ]

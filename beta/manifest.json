@@ -1,9 +1,9 @@
 {
-  "version": "20260510.2",
-  "url": "bundle-20260510.2.zip",
-  "hash": "422702eb512260ac13cd5a79b2b5bafbfd5c6bf54b3d86d47950ef22b4cffb91",
+  "version": "20260510.3",
+  "url": "bundle-20260510.3.zip",
+  "hash": "a346e0b8aa9d0491811cbe0578e6db9f4bf9523ecdc7675deb46f6f095f73304",
   "minNativeVersion": null,
-  "notes": "- feat: 更新事件添加视图样式，增加字段卡片溢出隐藏处理",
+  "notes": "- feat: 更新字段卡片样式，修复溢出问题并优化输入框宽度",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T04:45:39Z"
+  "publishedAt": "2026-05-10T04:53:52Z"
 }
