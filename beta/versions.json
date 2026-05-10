@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.1",
+    "url": "bundle-20260510.1.zip",
+    "hash": "113ddc6be9ff0d77a0209929b649f98dd9e96c789f2c54d18c16bc8825ed5c9d",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新商品卡片样式以支持已出和已赠出状态，增强用户体验 feat: 优化同步逻辑，使用 Promise.all 提升性能 fix: 更新事件添加视图中的票务标签，增加可读性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T03:54:28Z"
+  },
+  {
     "version": "20260509.14",
     "url": "bundle-20260509.14.zip",
     "hash": "5bb0d4a268a973a02f87bb88074a9b3b04bd353d519f16c45e1a2a72306f37d8",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复搜索虚拟化列表",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T13:07:22Z"
-  },
-  {
-    "version": "20260509.12",
-    "url": "bundle-20260509.12.zip",
-    "hash": "c7dafb5468735e40052d2c6e9595469773d9832472c1adef32769489e048e5ff",
-    "minNativeVersion": null,
-    "notes": "- feat: 重构商品列表展示逻辑，优化滚动性能和布局",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T12:48:53Z"
   }
 ]
