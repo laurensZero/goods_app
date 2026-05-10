@@ -1,9 +1,9 @@
 {
-  "version": "20260510.1",
-  "url": "bundle-20260510.1.zip",
-  "hash": "113ddc6be9ff0d77a0209929b649f98dd9e96c789f2c54d18c16bc8825ed5c9d",
+  "version": "20260510.2",
+  "url": "bundle-20260510.2.zip",
+  "hash": "422702eb512260ac13cd5a79b2b5bafbfd5c6bf54b3d86d47950ef22b4cffb91",
   "minNativeVersion": null,
-  "notes": "- feat: 更新商品卡片样式以支持已出和已赠出状态，增强用户体验 feat: 优化同步逻辑，使用 Promise.all 提升性能 fix: 更新事件添加视图中的票务标签，增加可读性",
+  "notes": "- feat: 更新事件添加视图样式，增加字段卡片溢出隐藏处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T03:54:28Z"
+  "publishedAt": "2026-05-10T04:45:39Z"
 }

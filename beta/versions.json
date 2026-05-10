@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.2",
+    "url": "bundle-20260510.2.zip",
+    "hash": "422702eb512260ac13cd5a79b2b5bafbfd5c6bf54b3d86d47950ef22b4cffb91",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新事件添加视图样式，增加字段卡片溢出隐藏处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T04:45:39Z"
+  },
+  {
     "version": "20260510.1",
     "url": "bundle-20260510.1.zip",
     "hash": "113ddc6be9ff0d77a0209929b649f98dd9e96c789f2c54d18c16bc8825ed5c9d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新密码输入框提示文本，增强用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-09T15:26:57Z"
-  },
-  {
-    "version": "20260509.13",
-    "url": "bundle-20260509.13.zip",
-    "hash": "588291bd9a19c56eb22b235cdcebf37c40043f2f36597163c70356b246553ce9",
-    "minNativeVersion": null,
-    "notes": "- fix: 修复搜索虚拟化列表",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-09T13:07:22Z"
   }
 ]
