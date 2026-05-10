@@ -66,7 +66,14 @@ async function requestJson(path) {
       url: `${NETEASE_WEB_BASE}${path}`,
       headers: REQUEST_HEADERS
     })
-    return typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+    if (typeof response.data === 'string') {
+      try {
+        return JSON.parse(response.data)
+      } catch {
+        throw new Error('网易云音乐接口返回的数据格式异常')
+      }
+    }
+    return response.data
   }
 
   const response = await fetchWithPlatformBridge(`${WEB_PROXY_PREFIX}${path}`, {
