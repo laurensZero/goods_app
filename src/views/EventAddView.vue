@@ -1105,6 +1105,7 @@ onBeforeUnmount(() => {
 .field-card {
   padding: 18px;
   border-radius: 28px;
+  overflow: hidden;
 }
 
 .field-grid {
