@@ -16,11 +16,23 @@
 import { Capacitor } from '@capacitor/core'
 import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goodsImages'
 import { parseJsonArray } from '@/utils/parseJsonArray'
-import { createNativeAdapter } from '@/utils/dbNativeAdapter'
-import { createWebAdapter } from '@/utils/dbWebAdapter'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
-const db = IS_NATIVE ? createNativeAdapter() : createWebAdapter()
+
+/** @type {any} */
+let db = null
+
+async function getDb() {
+  if (db) return db
+  if (IS_NATIVE) {
+    const { createNativeAdapter } = await import('@/utils/dbNativeAdapter')
+    db = createNativeAdapter()
+  } else {
+    const { createWebAdapter } = await import('@/utils/dbWebAdapter')
+    db = createWebAdapter()
+  }
+  return db
+}
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS goods (
@@ -288,6 +300,7 @@ async function _runMigrations() {
 
 /** @returns {Promise<void>} */
 export async function initDB() {
+  db = await getDb()
   await db.open()
   await db.execute(CREATE_TABLE_SQL)
   await db.execute(CREATE_EVENTS_TABLE_SQL)

@@ -1,10 +1,9 @@
-import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite'
-
 export function createNativeAdapter() {
   let _db = null
 
   return {
     async open() {
+      const { CapacitorSQLite, SQLiteConnection } = await import('@capacitor-community/sqlite')
       const sqlite = new SQLiteConnection(CapacitorSQLite)
       const consistency = await sqlite.checkConnectionsConsistency()
       const isConn = (await sqlite.isConnection('goods_app', false)).result
