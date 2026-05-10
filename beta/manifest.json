@@ -1,9 +1,9 @@
 {
-  "version": "20260510.13",
-  "url": "bundle-20260510.13.zip",
-  "hash": "6c908ab72027d139bad928c098978f8e1a297830ff8f0d1f1dd965e10549767c",
+  "version": "20260510.14",
+  "url": "bundle-20260510.14.zip",
+  "hash": "584229d84e20f5d27cc1583f69a79574fa3a201b3af4a25fa31ade1b00b069ff",
   "minNativeVersion": null,
-  "notes": "- fear(sync): 同步错误处理",
+  "notes": "- fix: 更新充值存储路径，优化代码结构",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T10:33:13Z"
+  "publishedAt": "2026-05-10T10:50:44Z"
 }
