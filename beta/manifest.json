@@ -1,9 +1,9 @@
 {
-  "version": "20260510.4",
-  "url": "bundle-20260510.4.zip",
-  "hash": "bb3e79f8fb791a507813766e0d4ad73a8e3c2e8ca4677adf1955da502fc0af4f",
+  "version": "20260510.5",
+  "url": "bundle-20260510.5.zip",
+  "hash": "d6d410b9d6c32302d29f85633906b8f1863f45db4e1c814a0b1b59d11b73132e",
   "minNativeVersion": null,
-  "notes": "- feat: 更新页面样式，优化导航栏和表单布局，增强用户体验",
+  "notes": "- feat: 更新样式，修复输入框和卡片的最小宽度，优化布局",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T05:08:47Z"
+  "publishedAt": "2026-05-10T06:52:23Z"
 }

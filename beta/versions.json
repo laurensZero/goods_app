@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260510.5",
+    "url": "bundle-20260510.5.zip",
+    "hash": "d6d410b9d6c32302d29f85633906b8f1863f45db4e1c814a0b1b59d11b73132e",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新样式，修复输入框和卡片的最小宽度，优化布局",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-10T06:52:23Z"
+  },
+  {
     "version": "20260510.4",
     "url": "bundle-20260510.4.zip",
     "hash": "bb3e79f8fb791a507813766e0d4ad73a8e3c2e8ca4677adf1955da502fc0af4f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新字段卡片样式，修复溢出问题并优化输入框宽度",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T04:53:52Z"
-  },
-  {
-    "version": "20260510.2",
-    "url": "bundle-20260510.2.zip",
-    "hash": "422702eb512260ac13cd5a79b2b5bafbfd5c6bf54b3d86d47950ef22b4cffb91",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新事件添加视图样式，增加字段卡片溢出隐藏处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-10T04:45:39Z"
   }
 ]
