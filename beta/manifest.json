@@ -1,9 +1,9 @@
 {
-  "version": "20260510.7",
-  "url": "bundle-20260510.7.zip",
-  "hash": "a29f4e0b234bb19e2ebae6ca2f9c5cbb51b96c090fc482b53a20e795b2439e4e",
+  "version": "20260510.8",
+  "url": "bundle-20260510.8.zip",
+  "hash": "aa98c8289c646ae29f265ef61017432fb54956e7b2f92c96e684fe2eb8d119db",
   "minNativeVersion": null,
-  "notes": "- feat: 调整z-index值，增强元素层级关系",
+  "notes": "- fix: 增加更多错误处理\n\n- feat: 实现数据库迁移系统，增加版本控制和列存在检查\n\n- feat: 修复webdev收藏状态+邮费",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-10T07:19:23Z"
+  "publishedAt": "2026-05-10T07:57:33Z"
 }
