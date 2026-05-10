@@ -5,7 +5,7 @@
       `goods-card--${density || 'comfortable'}`,
       { 'goods-card--transitioning': transitioning },
       { 'goods-card--selected': selected },
-      { 'goods-card--exited': item.collectStatus === '已出' || item.collectStatus === '已赠出' },
+      { 'goods-card--exited': item.collectStatus === '已出' || item.collectStatus === '已赠出' || item.collectStatus === '丢失' },
       { 'goods-card--motion': Boolean(motionStyle) }
     ]"
     :style="motionStyle || undefined"
