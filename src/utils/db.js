@@ -389,7 +389,7 @@ export async function getItems() {
       if (!_nativeDb) return []
       rows = (await _nativeDb.query('SELECT * FROM goods ORDER BY rowid DESC')).values ?? []
     } else {
-      rows = _webQuery('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt FROM goods ORDER BY rowid DESC')
+      rows = _webQuery('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
     }
     return rows.map(r => ({
       ...r,
