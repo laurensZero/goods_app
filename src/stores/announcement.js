@@ -140,7 +140,11 @@ function parseManifestPayload(payload) {
   }
 
   if (typeof payload === 'string') {
-    return JSON.parse(payload)
+    try {
+      return JSON.parse(payload)
+    } catch (e) {
+      throw new Error(`公告配置 JSON 解析失败: ${e.message}`)
+    }
   }
 
   throw new Error('公告配置格式无效。')

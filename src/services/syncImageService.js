@@ -40,71 +40,76 @@ export function createSyncImageService({
     const fileCache = new Map()
 
     return Promise.all((items || []).map(async (item) => {
-      const itemId = String(item?.id || '').trim()
-      if (targetItemIds && !targetItemIds.has(itemId)) {
-        return item
-      }
-
-      const normalizedImages = normalizeGoodsImageList(item?.images)
-      if (normalizedImages.length === 0) return item
-
-      const hydratedImages = await Promise.all(normalizedImages.map(async (imageEntry) => {
-        const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
-        if (storageMode !== 'gist-local') return imageEntry
-
-        const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
-        if (!gistFileName) {
-          throw new Error(`图片引用无效：${item?.name || item?.id || '未命名条目'}`)
-        }
-        if (!imageGist) {
-          throw new Error('远端数据包含图片引用，但未找到图片 Gist')
+      try {
+        const itemId = String(item?.id || '').trim()
+        if (targetItemIds && !targetItemIds.has(itemId)) {
+          return item
         }
 
-        if (!fileCache.has(gistFileName)) {
-          const imageDataUrl = await trackSyncStep(`读取图片文件 ${gistFileName}`, async () => {
-            let fetched = await getGistFileContent(tokenRef.value, imageGist, gistFileName)
+        const normalizedImages = normalizeGoodsImageList(item?.images)
+        if (normalizedImages.length === 0) return item
 
-            if (isEncrypted(fetched)) {
-              console.log(`[图片解密] ${gistFileName} 检测到加密`)
-              const key = ensureEncryptionKey ? await ensureEncryptionKey() : null
-              if (key) {
-                fetched = await decrypt(fetched, key)
-                console.log(`[图片解密] ${gistFileName} 解密成功`)
+        const hydratedImages = await Promise.all(normalizedImages.map(async (imageEntry) => {
+          const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
+          if (storageMode !== 'gist-local') return imageEntry
+
+          const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
+          if (!gistFileName) {
+            throw new Error(`图片引用无效：${item?.name || item?.id || '未命名条目'}`)
+          }
+          if (!imageGist) {
+            throw new Error('远端数据包含图片引用，但未找到图片 Gist')
+          }
+
+          if (!fileCache.has(gistFileName)) {
+            const imageDataUrl = await trackSyncStep(`读取图片文件 ${gistFileName}`, async () => {
+              let fetched = await getGistFileContent(tokenRef.value, imageGist, gistFileName)
+
+              if (isEncrypted(fetched)) {
+                console.log(`[图片解密] ${gistFileName} 检测到加密`)
+                const key = ensureEncryptionKey ? await ensureEncryptionKey() : null
+                if (key) {
+                  fetched = await decrypt(fetched, key)
+                  console.log(`[图片解密] ${gistFileName} 解密成功`)
+                }
               }
-            }
 
-            if (!String(fetched || '').startsWith('data:image/')) {
-              throw new Error(`远端图片缺失：${gistFileName}`)
-            }
-            return fetched
-          }, {
-            startDetail: item?.name ? `条目：${item.name}` : '正在恢复图片',
-            category: 'image',
-            successDetail: () => `已恢复条目 ${item?.name || item?.id || gistFileName} 的图片`
-          })
-          fileCache.set(gistFileName, imageDataUrl)
-        }
+              if (!String(fetched || '').startsWith('data:image/')) {
+                throw new Error(`远端图片缺失：${gistFileName}`)
+              }
+              return fetched
+            }, {
+              startDetail: item?.name ? `条目：${item.name}` : '正在恢复图片',
+              category: 'image',
+              successDetail: () => `已恢复条目 ${item?.name || item?.id || gistFileName} 的图片`
+            })
+            fileCache.set(gistFileName, imageDataUrl)
+          }
 
-        const imageDataUrl = fileCache.get(gistFileName)
+          const imageDataUrl = fileCache.get(gistFileName)
 
-        imageStats.restoredImages += 1
+          imageStats.restoredImages += 1
+
+          return {
+            ...imageEntry,
+            uri: imageDataUrl,
+            storageMode: 'gist-local',
+            gistFileName
+          }
+        }))
+
+        const primaryImage = hydratedImages.find((entry) => entry.isPrimary) || hydratedImages[0] || null
+        const coverImage = primaryImage?.uri || String(item?.coverImage || item?.image || '').trim()
 
         return {
-          ...imageEntry,
-          uri: imageDataUrl,
-          storageMode: 'gist-local',
-          gistFileName
+          ...item,
+          image: coverImage,
+          coverImage,
+          images: hydratedImages
         }
-      }))
-
-      const primaryImage = hydratedImages.find((entry) => entry.isPrimary) || hydratedImages[0] || null
-      const coverImage = primaryImage?.uri || String(item?.coverImage || item?.image || '').trim()
-
-      return {
-        ...item,
-        image: coverImage,
-        coverImage,
-        images: hydratedImages
+      } catch (e) {
+        console.warn(`[sync] hydrateRemoteItemsWithImages: item ${item?.id || '?'} failed, keeping original:`, e)
+        return item
       }
     }))
   }

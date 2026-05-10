@@ -132,7 +132,11 @@ async function bootstrap() {
     console.error('[bootstrap] store init failed:', e)
   }
 
-  await router.isReady()
+  try {
+    await router.isReady()
+  } catch (e) {
+    console.error('[bootstrap] router.isReady failed:', e)
+  }
   setupAndroidBackButton()
   app.mount('#app')
   void reconcileBundlesAfterNativeUpdate()

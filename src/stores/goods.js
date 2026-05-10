@@ -557,19 +557,41 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   async function init() {
-    list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
-    trashList.value = (await readPersistedTrash()).map((item) => normalizeTrashItem(item, item.id))
-    if (!(await readImagesMigrationFlag())) {
-      await backfillLegacyImages()
-      await writeImagesMigrationFlag()
+    try {
+      list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
+    } catch (e) {
+      console.error('[goods] init: getItems failed, starting with empty list:', e)
+      list.value = []
     }
-    if (!(await readCharactersMigrationFlag())) {
-      await normalizeExistingCharacters()
-      await writeCharactersMigrationFlag()
+    try {
+      trashList.value = (await readPersistedTrash()).map((item) => normalizeTrashItem(item, item.id))
+    } catch (e) {
+      console.error('[goods] init: readPersistedTrash failed, starting with empty trash:', e)
+      trashList.value = []
     }
-    if (!(await readVariantMigrationFlag())) {
-      await normalizeExistingVariants()
-      await writeVariantMigrationFlag()
+    try {
+      if (!(await readImagesMigrationFlag())) {
+        await backfillLegacyImages()
+        await writeImagesMigrationFlag()
+      }
+    } catch (e) {
+      console.warn('[goods] init: images migration failed:', e)
+    }
+    try {
+      if (!(await readCharactersMigrationFlag())) {
+        await normalizeExistingCharacters()
+        await writeCharactersMigrationFlag()
+      }
+    } catch (e) {
+      console.warn('[goods] init: characters migration failed:', e)
+    }
+    try {
+      if (!(await readVariantMigrationFlag())) {
+        await normalizeExistingVariants()
+        await writeVariantMigrationFlag()
+      }
+    } catch (e) {
+      console.warn('[goods] init: variants migration failed:', e)
     }
     isReady.value = true
   }
@@ -683,13 +705,23 @@ export const useGoodsStore = defineStore('goods', () => {
     if (existingIndex !== -1) {
       list.value[existingIndex] = mergeGoodsRecord(list.value[existingIndex], incoming)
     triggerRef(list)
-      await addItem(list.value[existingIndex])
+      try {
+        await addItem(list.value[existingIndex])
+      } catch (e) {
+        console.error('[goods] addGoods (merge) DB write failed:', e)
+        throw e
+      }
       return list.value[existingIndex]
     }
 
     list.value.unshift(incoming)
     triggerRef(list)
-    await addItem(incoming)
+    try {
+      await addItem(incoming)
+    } catch (e) {
+      console.error('[goods] addGoods DB write failed:', e)
+      throw e
+    }
     return incoming
   }
 
@@ -703,8 +735,13 @@ export const useGoodsStore = defineStore('goods', () => {
     const removedPaths = diffRemovedManagedImagePaths(previous, next)
     list.value[idx] = next
     triggerRef(list)
-    await addItem(next)
-    await deleteManagedLocalImages(removedPaths)
+    try {
+      await addItem(next)
+      await deleteManagedLocalImages(removedPaths)
+    } catch (e) {
+      console.error('[goods] updateGoods DB write failed:', e)
+      throw e
+    }
     return id
   }
 
@@ -726,8 +763,13 @@ export const useGoodsStore = defineStore('goods', () => {
 
     if (changed) {
       const updatedItems = list.value.filter(item => ids.has(item.id))
-      await saveItems(updatedItems)
-      await deleteManagedLocalImages(removedPaths)
+      try {
+        await saveItems(updatedItems)
+        await deleteManagedLocalImages(removedPaths)
+      } catch (e) {
+        console.error('[goods] updateMultipleGoods DB write failed:', e)
+        throw e
+      }
     }
   }
 
@@ -743,10 +785,15 @@ export const useGoodsStore = defineStore('goods', () => {
     }, item.id))
     triggerRef(trashList)
     list.value = list.value.filter((entry) => entry.id !== id)
-    await Promise.all([
-      deleteItems([id]),
-      persistTrash()
-    ])
+    try {
+      await Promise.all([
+        deleteItems([id]),
+        persistTrash()
+      ])
+    } catch (e) {
+      console.error('[goods] removeGoods DB write failed:', e)
+      throw e
+    }
   }
 
   async function removeMultipleGoods(ids) {
@@ -763,10 +810,15 @@ export const useGoodsStore = defineStore('goods', () => {
 
     trashList.value = [...removedItems, ...trashList.value]
     list.value = list.value.filter((item) => !ids.has(item.id))
-    await Promise.all([
-      deleteItems(Array.from(ids)),
-      persistTrash()
-    ])
+    try {
+      await Promise.all([
+        deleteItems(Array.from(ids)),
+        persistTrash()
+      ])
+    } catch (e) {
+      console.error('[goods] removeMultipleGoods DB write failed:', e)
+      throw e
+    }
   }
 
   async function restoreTrashItem(id) {
@@ -781,10 +833,15 @@ export const useGoodsStore = defineStore('goods', () => {
     list.value.unshift(restored)
     triggerRef(list)
     trashList.value = trashList.value.filter((entry) => entry.id !== id)
-    await Promise.all([
-      addItem(restored),
-      persistTrash()
-    ])
+    try {
+      await Promise.all([
+        addItem(restored),
+        persistTrash()
+      ])
+    } catch (e) {
+      console.error('[goods] restoreTrashItem DB write failed:', e)
+      throw e
+    }
     return restored
   }
 
@@ -794,8 +851,13 @@ export const useGoodsStore = defineStore('goods', () => {
     if (next.length === trashList.value.length) return
 
     trashList.value = next
-    await persistTrash()
-    await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
+    try {
+      await persistTrash()
+      await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
+    } catch (e) {
+      console.error('[goods] deleteTrashItem DB write failed:', e)
+      throw e
+    }
   }
 
   async function emptyTrash() {
@@ -807,8 +869,13 @@ export const useGoodsStore = defineStore('goods', () => {
       }
     }
     trashList.value = []
-    await persistTrash()
-    await deleteManagedLocalImages(removedPaths)
+    try {
+      await persistTrash()
+      await deleteManagedLocalImages(removedPaths)
+    } catch (e) {
+      console.error('[goods] emptyTrash DB write failed:', e)
+      throw e
+    }
   }
 
   async function deleteGoodsPermanently(ids) {
@@ -829,8 +896,13 @@ export const useGoodsStore = defineStore('goods', () => {
 
     list.value = next
     triggerRef(list)
-    await deleteItems(targetIds)
-    await deleteManagedLocalImages(removedPaths)
+    try {
+      await deleteItems(targetIds)
+      await deleteManagedLocalImages(removedPaths)
+    } catch (e) {
+      console.error('[goods] deleteGoodsPermanently DB write failed:', e)
+      throw e
+    }
     return targetIds.length
   }
 

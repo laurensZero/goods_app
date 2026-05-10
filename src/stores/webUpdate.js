@@ -37,7 +37,11 @@ function parseManifestPayload(payload) {
   }
 
   if (typeof payload === 'string') {
-    return JSON.parse(payload)
+    try {
+      return JSON.parse(payload)
+    } catch (e) {
+      throw new Error(`资源清单 JSON 解析失败: ${e.message}`)
+    }
   }
 
   throw new Error('资源清单格式无效。')

@@ -157,10 +157,18 @@ export const useSyncStore = defineStore('sync', () => {
           throw new Error('检测到加密数据，但加密密钥未初始化。请重新登录 GitHub 或禁用加密。')
         }
         const decrypted = await decrypt(content, key)
-        parsed = JSON.parse(decrypted)
+        try {
+          parsed = JSON.parse(decrypted)
+        } catch (e) {
+          throw new Error(`${fileName} 解密后 JSON 解析失败: ${e.message}`)
+        }
         console.log(`[解密] ${fileName} 解密成功`)
       } else {
-        parsed = JSON.parse(content)
+        try {
+          parsed = JSON.parse(content)
+        } catch (e) {
+          throw new Error(`${fileName} JSON 解析失败: ${e.message}`)
+        }
       }
 
       return {

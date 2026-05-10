@@ -76,7 +76,12 @@ export const useEventsStore = defineStore('events', () => {
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))
 
   async function init() {
-    list.value = await getEvents()
+    try {
+      list.value = await getEvents()
+    } catch (e) {
+      console.error('[events] init: getEvents failed, starting with empty list:', e)
+      list.value = []
+    }
     isReady.value = true
   }
 
@@ -112,7 +117,12 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     triggerRef(list)
+    try {
       await addEvent(record)
+    } catch (e) {
+      console.error('[events] addEventRecord DB write failed:', e)
+      throw e
+    }
     return record
   }
 
@@ -136,8 +146,13 @@ export const useEventsStore = defineStore('events', () => {
     list.value[index] = next
 
     triggerRef(list)
-    await addEvent(next)
-    await deleteManagedLocalImages(removedPaths)
+    try {
+      await addEvent(next)
+      await deleteManagedLocalImages(removedPaths)
+    } catch (e) {
+      console.error('[events] updateEventRecord DB write failed:', e)
+      throw e
+    }
     return id
   }
 
@@ -146,8 +161,13 @@ export const useEventsStore = defineStore('events', () => {
     if (!existing) return
 
     list.value = list.value.filter((item) => item.id !== id)
-    await deleteEvents([id])
-    await deleteManagedLocalImages(collectManagedLocalImagePathsFromEvent(existing))
+    try {
+      await deleteEvents([id])
+      await deleteManagedLocalImages(collectManagedLocalImagePathsFromEvent(existing))
+    } catch (e) {
+      console.error('[events] removeEventRecord DB write failed:', e)
+      throw e
+    }
   }
 
   async function removeMultipleEventRecords(ids) {
@@ -164,12 +184,22 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     list.value = list.value.filter((item) => !targetIds.includes(item.id))
-    await deleteEvents(targetIds)
-    await deleteManagedLocalImages(removedPaths)
+    try {
+      await deleteEvents(targetIds)
+      await deleteManagedLocalImages(removedPaths)
+    } catch (e) {
+      console.error('[events] removeMultipleEventRecords DB write failed:', e)
+      throw e
+    }
   }
 
   async function refreshList() {
-    list.value = await getEvents()
+    try {
+      list.value = await getEvents()
+    } catch (e) {
+      console.error('[events] refreshList failed:', e)
+      throw e
+    }
   }
 
   async function importEventsBackup(events, { reconcileMissing = false } = {}) {

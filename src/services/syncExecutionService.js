@@ -526,7 +526,7 @@ export function createSyncExecutionService({
       await trackSyncStep(`上传图片 Gist (${totalBatches} 批并发)`, async () => {
         for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
           const chunk = batches.slice(i, i + MAX_CONCURRENT)
-          await Promise.all(chunk.map(async ({ batch, batchNum }) => {
+          const results = await Promise.allSettled(chunk.map(async ({ batch, batchNum }) => {
             const batchObj = Object.fromEntries(batch)
             let encryptedBatch = batchObj
             if (encryptionEnabledRef?.value && ensureEncryptionKey) {
@@ -548,6 +548,10 @@ export function createSyncExecutionService({
             }
             return updateGist(tokenRef.value, imageGist.id, encryptedBatch)
           }))
+          const failures = results.filter(r => r.status === 'rejected')
+          if (failures.length > 0) {
+            console.error(`[sync] ${failures.length}/${chunk.length} image batch(es) failed:`, failures.map(r => r.reason))
+          }
         }
         return `${totalBatches} 批已全部上传`
       }, {

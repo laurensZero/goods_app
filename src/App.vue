@@ -167,9 +167,13 @@ onMounted(async () => {
     window.addEventListener('goodsappNfcOpen', nativeNfcListener)
     removeNativeNfcListener = () => window.removeEventListener('goodsappNfcOpen', nativeNfcListener)
 
-    const launchUrl = await CapApp.getLaunchUrl()
-    if (launchUrl && launchUrl.url) {
-      handledStartupExternalUrl = await handleIncomingAppUrl(launchUrl.url)
+    try {
+      const launchUrl = await CapApp.getLaunchUrl()
+      if (launchUrl && launchUrl.url) {
+        handledStartupExternalUrl = await handleIncomingAppUrl(launchUrl.url)
+      }
+    } catch (e) {
+      console.warn('[app] getLaunchUrl failed:', e)
     }
 
     // NFC 跳转是一次性动作：普通冷启动时不应重复停留在带 action=nfc 的搜索页。
@@ -177,9 +181,13 @@ onMounted(async () => {
       await router.replace('/home').catch(() => {})
     }
 
-    removeAppUrlOpenListener = await CapApp.addListener('appUrlOpen', (event) => {
-      void handleIncomingAppUrl(event.url)
-    })
+    try {
+      removeAppUrlOpenListener = await CapApp.addListener('appUrlOpen', (event) => {
+        void handleIncomingAppUrl(event.url)
+      })
+    } catch (e) {
+      console.warn('[app] addListener appUrlOpen failed:', e)
+    }
   }
   
   void appUpdateStore.init()
@@ -204,7 +212,11 @@ onMounted(async () => {
   })
 
   // 自动拉取
-  await syncStore.init()
+  try {
+    await syncStore.init()
+  } catch (e) {
+    console.error('[app] syncStore.init failed:', e)
+  }
   if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !hasLocalData.value) {
     try {
       await syncStore.pullOnly()

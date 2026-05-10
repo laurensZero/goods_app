@@ -54,15 +54,27 @@ export function createSyncGistService({
     }
 
     const desc = buildSyncDescription(deviceIdRef.value, 'image')
-    const matched = await listGists(tokenRef.value, 'goods-app-images')
+    let matched
+    try {
+      matched = await listGists(tokenRef.value, 'goods-app-images')
+    } catch (e) {
+      console.error('[sync] ensureImageGist: listGists failed:', e)
+      throw e
+    }
     if (matched.length > 0) {
       await saveImageGistId(matched[0].id)
       return getGist(tokenRef.value, matched[0].id)
     }
 
-    const created = await createGist(tokenRef.value, desc, {
-      'README.md': { content: '# goods-app image store\n\nThis gist stores synced local images.' }
-    })
+    let created
+    try {
+      created = await createGist(tokenRef.value, desc, {
+        'README.md': { content: '# goods-app image store\n\nThis gist stores synced local images.' }
+      })
+    } catch (e) {
+      console.error('[sync] ensureImageGist: createGist failed:', e)
+      throw e
+    }
 
     await saveImageGistId(created.id)
     return created
@@ -81,23 +93,41 @@ export function createSyncGistService({
     }
 
     const desc = buildSyncDescription(deviceIdRef.value, 'recharge')
-    const matched = await listGists(tokenRef.value, 'goods-app-recharge-sync')
+    let matched
+    try {
+      matched = await listGists(tokenRef.value, 'goods-app-recharge-sync')
+    } catch (e) {
+      console.error('[sync] ensureRechargeGist: listGists failed:', e)
+      throw e
+    }
     if (matched.length > 0) {
       await saveRechargeGistId(matched[0].id)
       return getGist(tokenRef.value, matched[0].id)
     }
 
-    const legacyCandidates = await listGists(tokenRef.value, 'goods-app-sync')
+    let legacyCandidates
+    try {
+      legacyCandidates = await listGists(tokenRef.value, 'goods-app-sync')
+    } catch (e) {
+      console.error('[sync] ensureRechargeGist: listGists (legacy) failed:', e)
+      throw e
+    }
     const legacyMatch = legacyCandidates.find((gist) => gist?.files?.[RECHARGE_DATA_FILENAME])
     if (legacyMatch) {
       await saveRechargeGistId(legacyMatch.id)
       return getGist(tokenRef.value, legacyMatch.id)
     }
 
-    const rechargeData = buildRechargeSyncData({ incremental: false })
-    const created = await createGist(tokenRef.value, desc, {
-      [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeData) }
-    })
+    let rechargeData, created
+    try {
+      rechargeData = buildRechargeSyncData({ incremental: false })
+      created = await createGist(tokenRef.value, desc, {
+        [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeData) }
+      })
+    } catch (e) {
+      console.error('[sync] ensureRechargeGist: createGist failed:', e)
+      throw e
+    }
 
     await saveRechargeGistId(created.id)
     return created
@@ -116,22 +146,47 @@ export function createSyncGistService({
     }
 
     const desc = buildSyncDescription(deviceIdRef.value, 'events')
-    const matched = await listGists(tokenRef.value, 'goods-app-events-sync')
+    let matched
+    try {
+      matched = await listGists(tokenRef.value, 'goods-app-events-sync')
+    } catch (e) {
+      console.error('[sync] ensureEventGist: listGists failed:', e)
+      throw e
+    }
     if (matched.length > 0) {
       await saveEventGistId(matched[0].id)
       return getGist(tokenRef.value, matched[0].id)
     }
 
-    const existingImageGist = await ensureImageGist()
-    const { eventData, imageFiles } = await buildEventSyncPayload({ existingImageGist })
-
-    if (Object.keys(imageFiles).length > 0) {
-      await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
+    let existingImageGist, eventData, imageFiles
+    try {
+      existingImageGist = await ensureImageGist()
+      const payload = await buildEventSyncPayload({ existingImageGist })
+      eventData = payload.eventData
+      imageFiles = payload.imageFiles
+    } catch (e) {
+      console.error('[sync] ensureEventGist: buildEventSyncPayload failed:', e)
+      throw e
     }
 
-    const created = await createGist(tokenRef.value, desc, {
-      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) }
-    })
+    if (Object.keys(imageFiles).length > 0) {
+      try {
+        await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
+      } catch (e) {
+        console.error('[sync] ensureEventGist: updateGist (images) failed:', e)
+        throw e
+      }
+    }
+
+    let created
+    try {
+      created = await createGist(tokenRef.value, desc, {
+        [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) }
+      })
+    } catch (e) {
+      console.error('[sync] ensureEventGist: createGist failed:', e)
+      throw e
+    }
 
     await saveEventGistId(created.id)
     return created
@@ -150,7 +205,13 @@ export function createSyncGistService({
     }
 
     const desc = buildSyncDescription(deviceIdRef.value)
-    const matched = await listGists(tokenRef.value, 'goods-app-sync')
+    let matched
+    try {
+      matched = await listGists(tokenRef.value, 'goods-app-sync')
+    } catch (e) {
+      console.error('[sync] ensureGist: listGists failed:', e)
+      throw e
+    }
     if (matched.length > 0) {
       await saveGistId(matched[0].id)
       const existing = await getGist(tokenRef.value, matched[0].id)
@@ -166,24 +227,58 @@ export function createSyncGistService({
       return existing
     }
 
-    const existingImageGist = await ensureImageGist()
-    const { syncData, imageStats, imageFiles } = await buildSyncPayload({ existingImageGist })
-    const rechargeSyncData = buildRechargeSyncData({ incremental: false })
-    const { eventData } = await buildEventSyncPayload({ existingImageGist })
-    if (Object.keys(imageFiles).length > 0) {
-      await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
+    let existingImageGist
+    try {
+      existingImageGist = await ensureImageGist()
+    } catch (e) {
+      console.error('[sync] ensureGist: ensureImageGist failed:', e)
+      throw e
     }
 
-    const manifest = buildManifest(imageStats)
-    const created = await createGist(tokenRef.value, desc, {
-      [DATA_FILENAME]: { content: JSON.stringify(syncData) },
-      [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) },
-      [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) },
-      [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
-    })
+    let syncData, imageStats, imageFiles, rechargeSyncData, eventData
+    try {
+      const payload = await buildSyncPayload({ existingImageGist })
+      syncData = payload.syncData
+      imageStats = payload.imageStats
+      imageFiles = payload.imageFiles
+      rechargeSyncData = buildRechargeSyncData({ incremental: false })
+      const eventPayload = await buildEventSyncPayload({ existingImageGist })
+      eventData = eventPayload.eventData
+    } catch (e) {
+      console.error('[sync] ensureGist: buildSyncPayload failed:', e)
+      throw e
+    }
 
-    await saveGistId(created.id)
-    await saveLastSyncedAt(manifest.lastSyncAt)
+    if (Object.keys(imageFiles).length > 0) {
+      try {
+        await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
+      } catch (e) {
+        console.error('[sync] ensureGist: updateGist (images) failed:', e)
+        throw e
+      }
+    }
+
+    let manifest, created
+    try {
+      manifest = buildManifest(imageStats)
+      created = await createGist(tokenRef.value, desc, {
+        [DATA_FILENAME]: { content: JSON.stringify(syncData) },
+        [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeSyncData) },
+        [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) },
+        [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
+      })
+    } catch (e) {
+      console.error('[sync] ensureGist: createGist failed:', e)
+      throw e
+    }
+
+    try {
+      await saveGistId(created.id)
+      await saveLastSyncedAt(manifest.lastSyncAt)
+    } catch (e) {
+      console.error('[sync] ensureGist: saveGistId/saveLastSyncedAt failed:', e)
+      throw e
+    }
     return created
   }
 

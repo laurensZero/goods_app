@@ -87,7 +87,12 @@ function createNativeResponse({ status = 0, headers = {}, body = '', url = '' })
     },
     async json() {
       if (!body) return {}
-      return JSON.parse(body)
+      try {
+        return JSON.parse(body)
+      } catch (e) {
+        console.error('[platformHttp] JSON parse failed:', e)
+        throw new Error(`响应 JSON 解析失败: ${e.message}`)
+      }
     },
     async text() {
       return String(body || '')
