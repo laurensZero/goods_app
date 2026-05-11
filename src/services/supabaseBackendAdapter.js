@@ -23,12 +23,26 @@ export function createSupabaseBackendAdapter({
   const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'tracks', 'linkedGoodsIds', 'tags']
   const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image']
 
+  // snake_case SELECT column lists — excludes auto-generated columns (e.g. created_at)
+  // that would cause comparison diffs between local and remote data
+  const GOODS_SELECT_COLS = 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, unit_acquired_at_list, unit_actual_price_list, unit_character_list, image, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, trashed, updated_at'
+  const RECHARGE_SELECT_COLS = 'id, game, item_name, amount, charged_at, note, deleted, updated_at'
+  const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, tracks, linked_goods_ids, tags, updated_at, created_at'
+
   function pickCols(item, allowed) {
     const result = {}
     for (const key of allowed) {
       if (item[key] !== undefined) result[key] = item[key]
     }
     return result
+  }
+
+  // Normalize Supabase TIMESTAMPTZ string to ms timestamp (matches local data format)
+  function normalizeTimestamp(val) {
+    if (val == null || val === '') return Date.now()
+    if (typeof val === 'number') return val
+    const ms = new Date(val).getTime()
+    return Number.isFinite(ms) ? ms : Date.now()
   }
 
   function safeParseJsonArray(value) {
@@ -145,18 +159,25 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'data.json') {
         const [goodsRes, trashRes, presetsRes] = await Promise.all([
-          withRetry(() => db.from('goods').select('*').eq('trashed', 0)),
-          withRetry(() => db.from('goods').select('*').eq('trashed', 1)),
+          withRetry(() => db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 0)),
+          withRetry(() => db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 1)),
           withRetry(() => db.from('sync_presets').select('*').eq('id', 'default').limit(1))
         ])
         if (goodsRes.error) throw new Error(`读取 goods 失败: ${goodsRes.error.message}`)
         if (trashRes.error) throw new Error(`读取 trash 失败: ${trashRes.error.message}`)
 
+        const normalizeGoodsRows = (rows) => rows.map((row) => {
+          const item = toCamelCase(row)
+          item.updatedAt = normalizeTimestamp(item.updatedAt)
+          delete item.trashed
+          return item
+        })
+
         const presets = presetsRes.data && presetsRes.data.length > 0 ? toCamelCase(presetsRes.data[0]) : { categories: '[]', ips: '[]', characters: '[]', storageLocations: '[]' }
         return {
           parsed: {
-            goods: mapRowsToCamelCase(goodsRes.data || []),
-            trash: mapRowsToCamelCase(trashRes.data || []),
+            goods: normalizeGoodsRows(goodsRes.data || []),
+            trash: normalizeGoodsRows(trashRes.data || []),
             presets: {
               categories: safeParseJsonArray(presets.categories),
               ips: safeParseJsonArray(presets.ips),
@@ -170,22 +191,34 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'recharge-data.json') {
         const { data, error } = await withRetry(() =>
-          db.from('recharge_records').select('*').eq('deleted', 0)
+          db.from('recharge_records').select(RECHARGE_SELECT_COLS).eq('deleted', 0)
         )
         if (error) throw new Error(`读取 recharge 失败: ${error.message}`)
+        const recharge = (data || []).map((row) => {
+          const item = toCamelCase(row)
+          item.updatedAt = normalizeTimestamp(item.updatedAt)
+          item.deleted = Boolean(item.deleted)
+          return item
+        })
         return {
-          parsed: { recharge: mapRowsToCamelCase(data || []), rechargeTrash: [] },
+          parsed: { recharge, rechargeTrash: [] },
           source: 'Supabase'
         }
       }
 
       if (fileName === 'events-data.json') {
         const { data, error } = await withRetry(() =>
-          db.from('events').select('*')
+          db.from('events').select(EVENT_SELECT_COLS)
         )
         if (error) throw new Error(`读取 events 失败: ${error.message}`)
+        const events = (data || []).map((row) => {
+          const item = toCamelCase(row)
+          item.updatedAt = normalizeTimestamp(item.updatedAt)
+          if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+          return item
+        })
         return {
-          parsed: { events: mapRowsToCamelCase(data || []) },
+          parsed: { events },
           source: 'Supabase'
         }
       }

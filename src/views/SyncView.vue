@@ -1427,6 +1427,11 @@ onMounted(async () => {
   gap: 12px;
   margin-bottom: 12px;
 }
+@media (max-width: 767px) {
+  .backend-grid {
+    flex-direction: column;
+  }
+}
 .backend-card {
   flex: 1 1 0;
   text-align: left;
@@ -1454,29 +1459,7 @@ onMounted(async () => {
   font: inherit;
 }
 
-/* Simple modal/dialog styles used by this view */
-.overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.35);
-  z-index: 1200;
-}
-.dialog {
-  width: 92%;
-  max-width: 520px;
-  background: var(--card-bg, #fff);
-  border-radius: 8px;
-  padding: 18px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.12);
-}
-.dialog-title { margin: 0 0 8px 0; font-size: 18px }
-.dialog-desc { margin: 0 0 16px 0; color: #444 }
-.dialog-actions { display:flex; gap:8px; justify-content:flex-end }
-.dialog-btn { padding:8px 12px; border-radius:6px; border:none }
-.dialog-btn--secondary { background:#f3f4f6 }
-.dialog-btn--primary { background:var(--color-primary,#3b82f6); color:#fff }
+/* Dialog overrides: align z-index with this view's layering */
+.overlay { z-index: 1200 }
 </style>
 
