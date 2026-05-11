@@ -31,6 +31,52 @@ export function createSupabaseBackendAdapter({
     return result
   }
 
+  function safeParseJsonArray(value) {
+    if (Array.isArray(value)) return value
+    if (typeof value !== 'string' || !value.trim()) return []
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  function isBucketNotFoundError(error) {
+    const message = String(error?.message || '').toLowerCase()
+    return message.includes('not found') || message.includes('does not exist') || message.includes('no such bucket')
+  }
+
+  function isBucketAlreadyExistsError(error) {
+    const message = String(error?.message || '').toLowerCase()
+    return message.includes('already exists') || message.includes('duplicate')
+  }
+
+  function normalizeBucketName(bucketLike) {
+    if (typeof bucketLike === 'string' && bucketLike.trim()) return bucketLike.trim()
+    if (bucketLike && typeof bucketLike === 'object') {
+      const candidate = bucketLike.id || bucketLike.bucket || bucketLike.bucketName || bucketLike.name || bucketLike.imageBucket || bucketLike.imageGistId
+      if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
+    }
+    return 'goods-images'
+  }
+
+  function normalizeId(value) {
+    return String(value ?? '')
+  }
+
+  async function deleteRowsByIds(db, tableName, ids) {
+    if (!ids || ids.length === 0) return
+    const chunkSize = 500
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize)
+      const { error } = await withRetry(() =>
+        db.from(tableName).delete().in('id', chunk)
+      )
+      if (error) throw new Error(`删除 ${tableName} 旧记录失败: ${error.message}`)
+    }
+  }
+
   // ── Ensure operations (no-op for Supabase, tables are pre-created) ──
 
   async function ensureDataGist() {
@@ -39,14 +85,19 @@ export function createSupabaseBackendAdapter({
 
   async function ensureImageGist() {
     const db = getDb()
-    const { data, error } = await db.storage.getBucket('goods-images')
-    if (error && !error.message.includes('not found')) {
-      const { error: createError } = await db.storage.createBucket('goods-images', { public: true })
-      if (createError && !createError.message.includes('already exists')) {
-        console.warn('[supabase] createBucket warning:', createError.message)
-      }
+    const bucketName = 'goods-images'
+    const { data, error } = await db.storage.getBucket(bucketName)
+    if (data) return { id: bucketName }
+
+    if (error && !isBucketNotFoundError(error)) {
+      throw new Error(`读取 bucket 失败: ${error.message}`)
     }
-    return { id: 'goods-images' }
+
+    const { error: createError } = await db.storage.createBucket(bucketName, { public: true })
+    if (createError && !isBucketAlreadyExistsError(createError)) {
+      throw new Error(`创建 bucket 失败: ${createError.message}`)
+    }
+    return { id: bucketName }
   }
 
   async function ensureRechargeGist() {
@@ -107,10 +158,10 @@ export function createSupabaseBackendAdapter({
             goods: mapRowsToCamelCase(goodsRes.data || []),
             trash: mapRowsToCamelCase(trashRes.data || []),
             presets: {
-              categories: JSON.parse(presets.categories || '[]'),
-              ips: JSON.parse(presets.ips || '[]'),
-              characters: JSON.parse(presets.characters || '[]'),
-              storageLocations: JSON.parse(presets.storageLocations || '[]')
+              categories: safeParseJsonArray(presets.categories),
+              ips: safeParseJsonArray(presets.ips),
+              characters: safeParseJsonArray(presets.characters),
+              storageLocations: safeParseJsonArray(presets.storageLocations)
             }
           },
           source: 'Supabase'
@@ -170,9 +221,10 @@ export function createSupabaseBackendAdapter({
 
   async function readImage(bucket, filePath) {
     const db = getDb()
+    const bucketName = normalizeBucketName(bucket)
     const storagePath = toStoragePath(filePath)
     const { data, error } = await withRetry(() =>
-      db.storage.from(bucket).download(storagePath)
+      db.storage.from(bucketName).download(storagePath)
     )
     if (error || !data) return null
     return new Promise((resolve) => {
@@ -214,34 +266,51 @@ export function createSupabaseBackendAdapter({
         const goods = Array.isArray(content.goods) ? content.goods : []
         const trash = Array.isArray(content.trash) ? content.trash : []
 
-        if (goods.length > 0) {
-          const rows = goods.map(item => toSnakeCase({
-            ...pickCols(item, GOODS_COLS),
-            isWishlist: item.isWishlist ? 1 : 0,
-            trashed: 0,
-            quantity: Number(item.quantity) || 1,
-            points: item.points != null ? Number(item.points) : null,
-            updatedAt: toTimestamp(item.updatedAt)
-          }))
+        const goodsRows = goods.map(item => toSnakeCase({
+          ...pickCols(item, GOODS_COLS),
+          isWishlist: item.isWishlist ? 1 : 0,
+          trashed: 0,
+          quantity: Number(item.quantity) || 1,
+          points: item.points != null ? Number(item.points) : null,
+          updatedAt: toTimestamp(item.updatedAt)
+        }))
+        const trashRows = trash.map(item => toSnakeCase({
+          ...pickCols(item, GOODS_COLS),
+          isWishlist: item.isWishlist ? 1 : 0,
+          trashed: 1,
+          quantity: Number(item.quantity) || 1,
+          points: item.points != null ? Number(item.points) : null,
+          updatedAt: toTimestamp(item.updatedAt)
+        }))
+        const mergedRows = [...goodsRows, ...trashRows]
+
+        if (mergedRows.length > 0) {
           const { error } = await withRetry(() =>
-            db.from('goods').upsert(rows, { onConflict: 'id' })
+            db.from('goods').upsert(mergedRows, { onConflict: 'id' })
           )
-          if (error) throw new Error(`写入 goods 失败: ${error.message}`)
+          if (error) throw new Error(`写入 data.json 失败: ${error.message}`)
         }
 
-        if (trash.length > 0) {
-          const rows = trash.map(item => toSnakeCase({
-            ...pickCols(item, GOODS_COLS),
-            isWishlist: item.isWishlist ? 1 : 0,
-            trashed: 1,
-            quantity: Number(item.quantity) || 1,
-            points: item.points != null ? Number(item.points) : null,
-            updatedAt: toTimestamp(item.updatedAt)
-          }))
+        const incomingIdSet = new Set(
+          mergedRows
+            .map((row) => row.id)
+            .filter((id) => id !== undefined && id !== null && id !== '')
+            .map(normalizeId)
+        )
+        if (incomingIdSet.size === 0) {
           const { error } = await withRetry(() =>
-            db.from('goods').upsert(rows, { onConflict: 'id' })
+            db.from('goods').delete().neq('id', '')
           )
-          if (error) throw new Error(`写入 trash 失败: ${error.message}`)
+          if (error) throw new Error(`清空 goods 失败: ${error.message}`)
+        } else {
+          const { data: existingRows, error: existingError } = await withRetry(() =>
+            db.from('goods').select('id')
+          )
+          if (existingError) throw new Error(`读取 goods 现有记录失败: ${existingError.message}`)
+          const staleIds = (existingRows || [])
+            .map((row) => row.id)
+            .filter((id) => !incomingIdSet.has(normalizeId(id)))
+          await deleteRowsByIds(db, 'goods', staleIds)
         }
 
         if (content.presets) {
@@ -262,33 +331,86 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'recharge-data.json') {
         const recharge = Array.isArray(content.recharge) ? content.recharge : []
-        if (recharge.length > 0) {
-          const rows = recharge.map(item => toSnakeCase({
-            ...pickCols(item, RECHARGE_COLS),
-            amount: Number(item.amount) || 0,
-            deleted: item.deleted ? 1 : 0,
-            updatedAt: toTimestamp(item.updatedAt)
-          }))
+        const rechargeTrash = Array.isArray(content.rechargeTrash) ? content.rechargeTrash : []
+        const rechargeRows = recharge.map(item => toSnakeCase({
+          ...pickCols(item, RECHARGE_COLS),
+          amount: Number(item.amount) || 0,
+          deleted: 0,
+          updatedAt: toTimestamp(item.updatedAt)
+        }))
+        const rechargeTrashRows = rechargeTrash.map(item => toSnakeCase({
+          ...pickCols(item, RECHARGE_COLS),
+          amount: Number(item.amount) || 0,
+          deleted: 1,
+          updatedAt: toTimestamp(item.updatedAt)
+        }))
+        const mergedRows = [...rechargeRows, ...rechargeTrashRows]
+
+        if (mergedRows.length > 0) {
           const { error } = await withRetry(() =>
-            db.from('recharge_records').upsert(rows, { onConflict: 'id' })
+            db.from('recharge_records').upsert(mergedRows, { onConflict: 'id' })
           )
           if (error) throw new Error(`写入 recharge 失败: ${error.message}`)
+        }
+
+        const incomingIdSet = new Set(
+          mergedRows
+            .map((row) => row.id)
+            .filter((id) => id !== undefined && id !== null && id !== '')
+            .map(normalizeId)
+        )
+        if (incomingIdSet.size === 0) {
+          const { error } = await withRetry(() =>
+            db.from('recharge_records').delete().neq('id', '')
+          )
+          if (error) throw new Error(`清空 recharge_records 失败: ${error.message}`)
+        } else {
+          const { data: existingRows, error: existingError } = await withRetry(() =>
+            db.from('recharge_records').select('id')
+          )
+          if (existingError) throw new Error(`读取 recharge 现有记录失败: ${existingError.message}`)
+          const staleIds = (existingRows || [])
+            .map((row) => row.id)
+            .filter((id) => !incomingIdSet.has(normalizeId(id)))
+          await deleteRowsByIds(db, 'recharge_records', staleIds)
         }
         continue
       }
 
       if (fileName === 'events-data.json') {
         const events = Array.isArray(content.events) ? content.events : []
-        if (events.length > 0) {
-          const rows = events.map(item => toSnakeCase({
-            ...pickCols(item, EVENT_COLS),
-            updatedAt: toTimestamp(item.updatedAt),
-            createdAt: toTimestamp(item.createdAt)
-          }))
+        const rows = events.map(item => toSnakeCase({
+          ...pickCols(item, EVENT_COLS),
+          updatedAt: toTimestamp(item.updatedAt),
+          createdAt: toTimestamp(item.createdAt)
+        }))
+        if (rows.length > 0) {
           const { error } = await withRetry(() =>
             db.from('events').upsert(rows, { onConflict: 'id' })
           )
           if (error) throw new Error(`写入 events 失败: ${error.message}`)
+        }
+
+        const incomingIdSet = new Set(
+          rows
+            .map((row) => row.id)
+            .filter((id) => id !== undefined && id !== null && id !== '')
+            .map(normalizeId)
+        )
+        if (incomingIdSet.size === 0) {
+          const { error } = await withRetry(() =>
+            db.from('events').delete().neq('id', '')
+          )
+          if (error) throw new Error(`清空 events 失败: ${error.message}`)
+        } else {
+          const { data: existingRows, error: existingError } = await withRetry(() =>
+            db.from('events').select('id')
+          )
+          if (existingError) throw new Error(`读取 events 现有记录失败: ${existingError.message}`)
+          const staleIds = (existingRows || [])
+            .map((row) => row.id)
+            .filter((id) => !incomingIdSet.has(normalizeId(id)))
+          await deleteRowsByIds(db, 'events', staleIds)
         }
         continue
       }

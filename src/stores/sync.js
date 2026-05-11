@@ -89,7 +89,12 @@ export const useSyncStore = defineStore('sync', () => {
   const syncSuggestion = ref(null)
   const conflictData = ref(null)
 
-  const isConfigured = computed(() => !!token.value && !!gistId.value)
+  const isConfigured = computed(() => {
+    if (syncBackend.value === 'supabase') {
+      return !!supabaseUrl.value && !!supabaseAnonKey.value
+    }
+    return !!token.value && !!gistId.value
+  })
 
   function normalizeGitHubAuthMethod(value) {
     const normalized = String(value || '').trim().toLowerCase()
@@ -198,8 +203,25 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(SYNC_BACKEND_KEY, backend)
   }
 
+  function isSupabaseMode() {
+    return syncBackend.value === 'supabase'
+  }
+
+  function ensureBackendReady() {
+    if (isSupabaseMode()) {
+      if (!supabaseUrl.value || !supabaseAnonKey.value) {
+        throw new Error('未配置 Supabase URL 或 Anon Key')
+      }
+      return
+    }
+    if (!token.value) {
+      throw new Error('未配置 Token')
+    }
+  }
+
   function getCurrentBackend() {
     if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
+      initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
       return createSupabaseBackendAdapter({ trackSyncStep })
     }
     return backend
@@ -226,14 +248,26 @@ export const useSyncStore = defineStore('sync', () => {
     trackSyncStep
   })
 
+  let activeBackend = backend
+
   const imageService = createSyncImageService({
-    backend, trackSyncStep, imageFilePrefix: IMAGE_FILE_PREFIX, eventCoverPrefix: EVENT_COVER_PREFIX
+    backend,
+    getBackend: () => activeBackend,
+    trackSyncStep,
+    imageFilePrefix: IMAGE_FILE_PREFIX,
+    eventCoverPrefix: EVENT_COVER_PREFIX
   })
 
   const conflictService = createSyncConflictService({
-    backend, lastSyncedAtRef: lastSyncedAt, useGoodsStore, useRechargeStore, useEventsStore,
-    shouldApplyRemoteItem, getExistingRechargeGist: () => backend.getExistingRechargeGist(),
-    getExistingEventGist: () => backend.getExistingEventGist(),
+    backend,
+    getBackend: () => activeBackend,
+    lastSyncedAtRef: lastSyncedAt,
+    useGoodsStore,
+    useRechargeStore,
+    useEventsStore,
+    shouldApplyRemoteItem,
+    getExistingRechargeGist: () => activeBackend.getExistingRechargeGist(),
+    getExistingEventGist: () => activeBackend.getExistingEventGist(),
     buildRechargeSyncData, buildEventSyncData, getLatestLocalModifiedAt
   })
 
@@ -287,8 +321,9 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function buildSyncContext() {
+    activeBackend = getCurrentBackend()
     return {
-      backend: getCurrentBackend(),
+      backend: activeBackend,
       token: token.value, gistId: gistId.value, deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
       rechargeGistId: rechargeGistId.value, eventGistId: eventGistId.value,
@@ -407,7 +442,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function fullSync() {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
-    if (!token.value) throw new Error('未配置 Token')
+    ensureBackendReady()
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在同步...'
@@ -432,8 +467,8 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function pullOnly() {
     if (isSyncing.value) return
-    if (!token.value) throw new Error('未配置 Token')
-    if (!gistId.value) throw new Error('未找到 Gist')
+    ensureBackendReady()
+    if (!isSupabaseMode() && !gistId.value) throw new Error('未找到 Gist')
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在拉取...'

@@ -67,7 +67,8 @@ export function createSyncPayloadService({
   }
 
   async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
-    const normalizedImages = normalizeGoodsImageList(item?.images)
+    // Include legacy single-image fields so old records can still upload local images.
+    const normalizedImages = normalizeGoodsImageList(item?.images, item?.coverImage || item?.image || '')
     if (normalizedImages.length === 0) return []
 
     const preparedImages = []
