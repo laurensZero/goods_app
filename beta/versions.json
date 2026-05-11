@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260511.5",
+    "url": "bundle-20260511.5.zip",
+    "hash": "277b1500e0e8e9af8519999b1a0ebb84294ddb313e79287b8a148432e6d9b9d9",
+    "minNativeVersion": null,
+    "notes": "- feat(detail): 优化图片缓存逻辑，添加即时缓存检查",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-11T15:28:46Z"
+  },
+  {
     "version": "20260511.4",
     "url": "bundle-20260511.4.zip",
     "hash": "510db6658ead759d555864ef00da5aa3f1b201272a7878774f6bfb34cb8a7b54",
@@ -16,14 +25,5 @@
     "notes": "- feat(sync): 重构Supabase URL和Key输入对话框，优化用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-11T14:51:22Z"
-  },
-  {
-    "version": "20260511.2",
-    "url": "bundle-20260511.2.zip",
-    "hash": "43559f0dd493620ec4e71aed37c88cf9c586fbe45d1d647bc2fee4d73c867d0f",
-    "minNativeVersion": null,
-    "notes": "- feat(sync); 添加supabase同步源\n\n- feat(sync): 增强同步服务，支持动态后端解析和错误处理\n\n- feat(sync): 更新同步后端选择界面\n\n- feat(sync): 添加选择列和时间戳归一化功能，优化数据同步",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-11T14:47:30Z"
   }
 ]

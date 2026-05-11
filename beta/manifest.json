@@ -1,9 +1,9 @@
 {
-  "version": "20260511.4",
-  "url": "bundle-20260511.4.zip",
-  "hash": "510db6658ead759d555864ef00da5aa3f1b201272a7878774f6bfb34cb8a7b54",
+  "version": "20260511.5",
+  "url": "bundle-20260511.5.zip",
+  "hash": "277b1500e0e8e9af8519999b1a0ebb84294ddb313e79287b8a148432e6d9b9d9",
   "minNativeVersion": null,
-  "notes": "- feat(sync): 添加Supabase密钥输入提示和后端切换确认功能，优化用户交互",
+  "notes": "- feat(detail): 优化图片缓存逻辑，添加即时缓存检查",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-11T14:57:26Z"
+  "publishedAt": "2026-05-11T15:28:46Z"
 }
