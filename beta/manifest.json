@@ -1,9 +1,9 @@
 {
-  "version": "20260511.3",
-  "url": "bundle-20260511.3.zip",
-  "hash": "4ca2bb576a17994f933f775d954a0b17a62c28860f01b77c35de90b1e247736a",
+  "version": "20260511.4",
+  "url": "bundle-20260511.4.zip",
+  "hash": "510db6658ead759d555864ef00da5aa3f1b201272a7878774f6bfb34cb8a7b54",
   "minNativeVersion": null,
-  "notes": "- feat(sync): 重构Supabase URL和Key输入对话框，优化用户体验",
+  "notes": "- feat(sync): 添加Supabase密钥输入提示和后端切换确认功能，优化用户交互",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-11T14:51:22Z"
+  "publishedAt": "2026-05-11T14:57:26Z"
 }

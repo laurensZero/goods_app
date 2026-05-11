@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260511.4",
+    "url": "bundle-20260511.4.zip",
+    "hash": "510db6658ead759d555864ef00da5aa3f1b201272a7878774f6bfb34cb8a7b54",
+    "minNativeVersion": null,
+    "notes": "- feat(sync): 添加Supabase密钥输入提示和后端切换确认功能，优化用户交互",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-11T14:57:26Z"
+  },
+  {
     "version": "20260511.3",
     "url": "bundle-20260511.3.zip",
     "hash": "4ca2bb576a17994f933f775d954a0b17a62c28860f01b77c35de90b1e247736a",
@@ -16,14 +25,5 @@
     "notes": "- feat(sync); 添加supabase同步源\n\n- feat(sync): 增强同步服务，支持动态后端解析和错误处理\n\n- feat(sync): 更新同步后端选择界面\n\n- feat(sync): 添加选择列和时间戳归一化功能，优化数据同步",
     "updateLevel": "silent",
     "publishedAt": "2026-05-11T14:47:30Z"
-  },
-  {
-    "version": "20260511.1",
-    "url": "bundle-20260511.1.zip",
-    "hash": "b6f4682aef6e5011f6041e50e90183f2170b44a39f32fabcfe32cfa61119786f",
-    "minNativeVersion": null,
-    "notes": "- refactor(goodsImport): 合并订单号提取相关提交，简化导入流程\n\n- feat(recharge): 将充值相关操作改为异步，优化数据库交互",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-11T13:17:06Z"
   }
 ]
