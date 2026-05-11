@@ -11,6 +11,7 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
+import { normalizeGoodsImageList } from '@/utils/goodsImages'
 
 async function persistTrash(trashList) {
   await writePersistedTrash(trashList.value)
@@ -173,11 +174,57 @@ async function updateTrashBackup(items, trashList) {
   return updatedItems.length
 }
 
+/**
+ * After push: update local image entries so future syncs can dedup.
+ * @param {Map<string, Map<number, object>>} preparedImagesByItemId - itemId -> (imageIndex -> preparedEntry)
+ * @param {import('vue').Ref<Array>} list
+ * @param {import('vue').Ref<Array>} trashList
+ */
+async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
+  if (!preparedImagesByItemId || preparedImagesByItemId.size === 0) return
+
+  const allLists = [list, trashList]
+  const updatedItems = []
+
+  for (const listRef of allLists) {
+    for (let i = 0; i < listRef.value.length; i++) {
+      const item = listRef.value[i]
+      const preparedMap = preparedImagesByItemId.get(item.id)
+      if (!preparedMap) continue
+
+      const images = normalizeGoodsImageList(item.images)
+      let changed = false
+      for (const [idx, prepared] of preparedMap) {
+        if (idx >= 0 && idx < images.length && prepared.gistFileName) {
+          images[idx] = {
+            ...images[idx],
+            uri: prepared.uri || `gist-image://${prepared.gistFileName}`,
+            storageMode: 'gist-local',
+            gistFileName: prepared.gistFileName
+          }
+          changed = true
+        }
+      }
+      if (changed) {
+        listRef.value[i] = { ...item, images }
+        updatedItems.push(listRef.value[i])
+      }
+    }
+  }
+
+  if (updatedItems.length > 0) {
+    triggerRef(list)
+    triggerRef(trashList)
+    await saveItems(updatedItems)
+  }
+}
+
 export {
   addMultipleGoods,
   refreshList,
   importGoodsBackup,
   updateGoodsBackup,
   importTrashBackup,
-  updateTrashBackup
+  updateTrashBackup,
+  markImagesAsRemote
 }

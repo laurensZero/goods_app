@@ -10,6 +10,7 @@ import {
 
 export function createSyncConflictService({
   backend,
+  getBackend,
   lastSyncedAtRef,
   useGoodsStore,
   useRechargeStore,
@@ -21,6 +22,10 @@ export function createSyncConflictService({
   buildEventSyncData,
   getLatestLocalModifiedAt
 }) {
+  function resolveBackend() {
+    return typeof getBackend === 'function' ? (getBackend() || backend) : backend
+  }
+
   function getLocalChangesSince(timestamp) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
@@ -53,9 +58,14 @@ export function createSyncConflictService({
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
-    const existingRechargeGist = await getExistingRechargeGist()
-    const existingEventGist = await getExistingEventGist()
-    const remoteData = await backend.readJson({
+    const currentBackend = resolveBackend()
+    const existingRechargeGist = getExistingRechargeGist
+      ? await getExistingRechargeGist()
+      : await currentBackend.getExistingRechargeGist()
+    const existingEventGist = getExistingEventGist
+      ? await getExistingEventGist()
+      : await currentBackend.getExistingEventGist()
+    const remoteData = await currentBackend.readJson({
       title: '预检读取 data.json',
       gist,
       fileName: 'data.json',
@@ -70,7 +80,7 @@ export function createSyncConflictService({
       }
     })
     const localRechargeData = buildRechargeSyncData({ incremental: false })
-    const remoteRechargeData = await backend.readJson({
+    const remoteRechargeData = await currentBackend.readJson({
       title: '预检读取 recharge-data.json',
       gist,
       fileName: 'recharge-data.json',
@@ -89,7 +99,7 @@ export function createSyncConflictService({
       rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
     }
     const localEventData = buildEventSyncData()
-    const remoteEventData = await backend.readJson({
+    const remoteEventData = await currentBackend.readJson({
       title: '预检读取 events-data.json',
       gist,
       fileName: 'events-data.json',
