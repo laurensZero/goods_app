@@ -269,6 +269,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
+import { Capacitor } from '@capacitor/core'
 import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyoNativeImport'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
 import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
@@ -456,6 +457,14 @@ const startFetch = async (options = {}) => {
     loadedCount.value = 0
     totalCount.value = 0
 
+    let progressHandle = null
+    if (Capacitor.isNativePlatform()) {
+      progressHandle = await Capacitor.addListener('MihoyoSessionImport', 'importProgress', (event) => {
+        loadedCount.value = event.loaded ?? loadedCount.value
+        totalCount.value = event.total ?? totalCount.value
+      })
+    }
+
     try {
       const { list = [], capped = false, total = 0 } = await importMihoyoOrdersWithSession()
       rawOrders.value = Array.isArray(list) ? list : []
@@ -467,6 +476,8 @@ const startFetch = async (options = {}) => {
     } catch (err) {
       openErrorDialog('获取订单失败', err?.message || '请确认已在米游铺完成登录后重试。')
       step.value = 'cookie'
+    } finally {
+      progressHandle?.remove()
     }
     return
   }

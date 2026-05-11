@@ -132,6 +132,11 @@ public class MihoyoSessionImportPlugin extends Plugin {
         int totalPages = Math.min(Math.max((int) Math.ceil(total / (double) limit), 1), 10);
         JSONArray list = copyJsonArray(firstData.optJSONArray("list"));
 
+        JSObject progressInit = new JSObject();
+        progressInit.put("loaded", list.length());
+        progressInit.put("total", total);
+        notifyListeners("importProgress", progressInit);
+
         for (int page = 2; page <= totalPages; page += 1) {
             JSONObject pageJson = requestJson(API_ORDER_LIST + "?limit=" + limit + "&page=" + page, cookie);
             JSONObject pageData = ensureSuccess(pageJson);
@@ -140,6 +145,10 @@ public class MihoyoSessionImportPlugin extends Plugin {
             for (int index = 0; index < pageList.length(); index += 1) {
                 list.put(pageList.opt(index));
             }
+            JSObject progress = new JSObject();
+            progress.put("loaded", list.length());
+            progress.put("total", total);
+            notifyListeners("importProgress", progress);
         }
 
         JSONObject payload = new JSONObject();

@@ -320,7 +320,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       const trashAdded = trashToImport.length > 0
         ? await goodsStore.importTrashBackup(trashToImport) : 0
       const rechargeResult = rechargeToImport.length > 0
-        ? rechargeStore.importBackup(rechargeToImport) : { added: 0, updated: 0 }
+        ? await rechargeStore.importBackup(rechargeToImport) : { added: 0, updated: 0 }
 
       if (data.presets) {
         for (const category of (data.presets.categories || [])) {
