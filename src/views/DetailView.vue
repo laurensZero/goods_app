@@ -213,7 +213,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { getCachedImage } from '@/utils/imageCache'
+import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -521,7 +521,10 @@ async function prepareDetailLayout() {
 watch(
   () => activeImage.value?.uri,
   async (url) => {
-    cachedImgSrc.value = url ? await getCachedImage(url) : ''
+    if (!url) { cachedImgSrc.value = ''; return }
+    const instant = peekCachedImage(url)
+    if (instant) cachedImgSrc.value = instant
+    cachedImgSrc.value = await getCachedImage(url)
   },
   { immediate: true }
 )
