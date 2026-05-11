@@ -392,8 +392,8 @@ function handleResize() {
   windowWidth.value = window.innerWidth
 }
 
-function refreshRecords() {
-  rechargeStore.init()
+async function refreshRecords() {
+  await rechargeStore.init()
   rechargeStore.clearInvalidRecords()
   if (selectedGame.value && !gameOptions.value.includes(selectedGame.value)) {
     selectedGame.value = ''

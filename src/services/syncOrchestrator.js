@@ -28,10 +28,15 @@ export function createSyncOrchestrator({
     MANIFEST_FILENAME
   } = constants
 
+  // ── Dynamic backend selection ──
+  // Set by public entry points (fullSync/pullOnly/resolveConflict/resolvePullConflict)
+  // to allow ctx.backend to override the closure-injected backend.
+  let activeBackend = backend
+
   // ── Internal: read JSON from Gist with logging + decryption ──
 
   async function readJson(opts) {
-    return backend.readJson(opts)
+    return activeBackend.readJson(opts)
   }
 
   // ── Internal: pull from remote ──
@@ -283,14 +288,18 @@ export function createSyncOrchestrator({
 
     const remoteGoodsIds = new Set(remoteGoods.map((item) => item.id))
     const remoteTrashIds = new Set(remoteTrash.map((item) => item.id))
-    const localOnlyGoodsIds = goodsStore.list.filter((item) => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id)).map((item) => item.id)
-    const localOnlyTrashIds = goodsStore.trashList.filter((item) => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id)).map((item) => item.id)
-    if (localOnlyGoodsIds.length > 0) await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
-    if (localOnlyTrashIds.length > 0) { for (const id of localOnlyTrashIds) await goodsStore.deleteTrashItem(id) }
+    // Safety: don't delete local items if remote is completely empty (prevents data loss on first sync or read errors)
+    const hasAnyRemoteData = remoteGoodsIds.size > 0 || remoteTrashIds.size > 0
+    if (hasAnyRemoteData) {
+      const localOnlyGoodsIds = goodsStore.list.filter((item) => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id)).map((item) => item.id)
+      const localOnlyTrashIds = goodsStore.trashList.filter((item) => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id)).map((item) => item.id)
+      if (localOnlyGoodsIds.length > 0) await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
+      if (localOnlyTrashIds.length > 0) { for (const id of localOnlyTrashIds) await goodsStore.deleteTrashItem(id) }
+    }
 
     const remoteRecharge = Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []
     const remoteRechargeLegacy = Array.isArray(remoteData.rechargeRecords) ? remoteData.rechargeRecords : []
-    const rechargeApplyResult = rechargeStore.replaceBackup([...remoteRecharge, ...remoteRechargeLegacy].filter((item) => !item?.deleted))
+    const rechargeApplyResult = await rechargeStore.replaceBackup([...remoteRecharge, ...remoteRechargeLegacy].filter((item) => !item?.deleted))
 
     let eventApplyResult = { added: 0, updated: 0, removed: 0, total: 0 }
     if (eventData && Array.isArray(eventData.events)) {
@@ -313,7 +322,7 @@ export function createSyncOrchestrator({
   // ── Internal: push to remote ──
 
   async function pushToRemote(existingGist, existingImageGist, existingRechargeGist, existingEventGist, ctx) {
-    let imageGist = existingImageGist || await backend.ensureImageGist()
+    let imageGist = existingImageGist || await activeBackend.ensureImageGist()
 
     if (imageGist?.files) {
       const firstFileName = Object.keys(imageGist.files).find(f => f !== 'README.md')
@@ -322,11 +331,11 @@ export function createSyncOrchestrator({
           const cloudContent = imageGist.files[firstFileName]?.content || ''
           const cloudIsPlaintext = cloudContent.startsWith('data:image/')
           const cloudIsEncrypted = !cloudIsPlaintext && cloudContent.length > 0
-          if (cloudIsEncrypted !== backend.isEncryptionEnabled()) {
+          if (cloudIsEncrypted !== activeBackend.isEncryptionEnabled()) {
             imageGist = null
-            return `状态不一致（本地${backend.isEncryptionEnabled() ? '加密' : '明文'}，云端${cloudIsEncrypted ? '加密' : '明文'}），触发重传`
+            return `状态不一致（本地${activeBackend.isEncryptionEnabled() ? '加密' : '明文'}，云端${cloudIsEncrypted ? '加密' : '明文'}），触发重传`
           }
-          return `状态一致（${backend.isEncryptionEnabled() ? '加密' : '明文'}），无需重传`
+          return `状态一致（${activeBackend.isEncryptionEnabled() ? '加密' : '明文'}），无需重传`
         }, { startDetail: '对比本地和云端加密状态', category: 'image', successDetail: (msg) => msg })
       }
     }
@@ -349,8 +358,8 @@ export function createSyncOrchestrator({
     const imageUpdates = { ...imageFiles, ...eventImageFiles, ...imageCleanupFiles }
 
     if (Object.keys(imageUpdates).length > 0) {
-      if (!imageGist) imageGist = await backend.ensureImageGist()
-      try { await backend.writeImages(imageGist.id, imageUpdates) }
+      if (!imageGist) imageGist = await activeBackend.ensureImageGist()
+      try { await activeBackend.writeImages(imageGist.id, imageUpdates) }
       catch (e) { wrapSyncError(e, PHASE_UPLOAD_IMAGES) }
     }
 
@@ -373,7 +382,7 @@ export function createSyncOrchestrator({
 
     try {
       await trackSyncStep('更新主同步 Gist', () =>
-        backend.writeData(existingGist?.id || backend.getDataGistId(), {
+        activeBackend.writeData(existingGist?.id || activeBackend.getDataGistId(), {
           [DATA_FILENAME]: { content: syncData },
           [RECHARGE_DATA_FILENAME]: { content: rechargeSyncData },
           [EVENT_DATA_FILENAME]: { content: eventSyncData },
@@ -386,7 +395,7 @@ export function createSyncOrchestrator({
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
 
-    const dataGistId = backend.getDataGistId()
+    const dataGistId = activeBackend.getDataGistId()
     if (ctx.rechargeGistId && ctx.rechargeGistId !== dataGistId) await ctx.saveRechargeGistId('')
     if (ctx.eventGistId && ctx.eventGistId !== dataGistId) await ctx.saveEventGistId('')
 
@@ -396,11 +405,12 @@ export function createSyncOrchestrator({
   // ── Public: fullSync ──
 
   async function fullSync(ctx) {
+    activeBackend = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
 
     let gist
     try {
-      gist = await backend.ensureDataGist({
+      gist = await activeBackend.ensureDataGist({
         buildSyncPayload: payload.buildSyncPayload,
         buildRechargeSyncData: payload.buildRechargeSyncData,
         buildEventSyncPayload: payload.buildEventSyncPayload,
@@ -418,9 +428,9 @@ export function createSyncOrchestrator({
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
-    const existingRechargeGist = await backend.getExistingRechargeGist()
-    const existingEventGist = await backend.getExistingEventGist()
-    const existingImageGist = await backend.getExistingImageGist(remoteManifest)
+    const existingRechargeGist = await activeBackend.getExistingRechargeGist()
+    const existingEventGist = await activeBackend.getExistingEventGist()
+    const existingImageGist = await activeBackend.getExistingImageGist(remoteManifest)
 
     let remoteData, remoteRechargeData, remoteEventData
     try {
@@ -503,7 +513,14 @@ export function createSyncOrchestrator({
     }
 
     if (remoteTime > localSyncTime || !remoteManifest) {
-      if (remoteManifest && localChanges.hasChanges) {
+      // No manifest on remote = first sync, push local data instead of pulling empty remote
+      if (!remoteManifest) {
+        let imageStats
+        try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
+        catch (e) { wrapSyncError(e, PHASE_PUSH) }
+        return { action: 'pushed', statusMessage: '首次上传到 Supabase', ...conflict.getLocalChangesSince(localSyncTime), ...imageStats }
+      }
+      if (localChanges.hasChanges) {
         return {
           action: 'conflict', statusMessage: '检测到冲突',
           conflictData: {
@@ -519,7 +536,7 @@ export function createSyncOrchestrator({
           hydrateGoodsImages: hasDataDiff, hydrateTrashImages: hasDataDiff, hydrateEventImages: hasEventDataDiff
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
-      await ctx.saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
+      await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       return { action: 'pulled', statusMessage: '拉取完成', ...result }
     }
 
@@ -532,13 +549,14 @@ export function createSyncOrchestrator({
   // ── Public: pullOnly ──
 
   async function pullOnly(ctx) {
+    activeBackend = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
     let gist, existingRechargeGist, existingEventGist
     try {
       [gist, existingRechargeGist, existingEventGist] = await Promise.all([
-        backend.getDataGist(),
-        backend.getExistingRechargeGist(),
-        backend.getExistingEventGist()
+        activeBackend.getDataGist(),
+        activeBackend.getExistingRechargeGist(),
+        activeBackend.getExistingEventGist()
       ])
     } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
     if (!gist) throw new Error('未找到 Gist')
@@ -570,6 +588,11 @@ export function createSyncOrchestrator({
     const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
+    // No manifest on remote = nothing to pull, don't delete local data
+    if (!remoteManifest) {
+      return { action: 'no_changes', statusMessage: '远端无数据，跳过拉取' }
+    }
+
     if (localChanges.hasChanges) {
       const diff = await conflict.buildPullConflictData(gist, remoteManifest)
       const hasPullConflict = !!(
@@ -579,7 +602,7 @@ export function createSyncOrchestrator({
         || diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0
       )
       if (!hasPullConflict) {
-        if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+        if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
         return { action: 'no_changes', statusMessage: '数据已是最新' }
       }
       return {
@@ -597,7 +620,7 @@ export function createSyncOrchestrator({
     const pullEventContentDiff = !!(diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0)
 
     if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff) {
-      if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+      if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       return { action: 'no_changes', statusMessage: '数据已是最新' }
     }
 
@@ -607,13 +630,14 @@ export function createSyncOrchestrator({
         hydrateGoodsImages: pullGoodsContentDiff, hydrateTrashImages: pullGoodsContentDiff, hydrateEventImages: pullEventContentDiff
       }, ctx)
     } catch (e) { wrapSyncError(e, PHASE_PULL) }
-    await ctx.saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
+    await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
     return { action: 'pulled', statusMessage: '拉取完成', ...result }
   }
 
   // ── Public: resolveConflict ──
 
   async function resolveConflict(ctx, useRemote) {
+    activeBackend = ctx.backend || backend
     if (useRemote) {
       let remoteManifest
       try {
@@ -648,10 +672,11 @@ export function createSyncOrchestrator({
   // ── Public: resolvePullConflict ──
 
   async function resolvePullConflict(ctx, confirm) {
+    activeBackend = ctx.backend || backend
     if (!confirm) return { action: 'cancelled', statusMessage: '已取消' }
 
     let remoteManifest
-    try { remoteManifest = await backend.getManifest(ctx.conflictData.gist) }
+    try { remoteManifest = await activeBackend.getManifest(ctx.conflictData.gist) }
     catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     const hasGoodsContentDiff = !!(
       ctx.conflictData.remoteOnlyGoods > 0 || ctx.conflictData.remoteOnlyCollection > 0 || ctx.conflictData.remoteOnlyWishlist > 0

@@ -15,6 +15,7 @@ import { usePresetsStore } from './stores/presets'
 import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
 import { useExchangeRateStore } from './stores/exchangeRate'
+import { useRechargeStore } from './stores/recharge'
 import { dispatchAndroidBackButton } from './utils/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 
@@ -119,13 +120,14 @@ async function bootstrap() {
   // 从 SQLite 预加载数据，再挂载 DOM
   const store = useGoodsStore()
   const eventsStore = useEventsStore()
+  const rechargeStore = useRechargeStore()
   const presets = usePresetsStore()
   const filterPresets = useFilterPresetsStore()
   const theme = useThemeStore()
   const exchangeRate = useExchangeRateStore()
   try {
     await theme.init()
-    await Promise.all([store.init(), eventsStore.init(), presets.init(), filterPresets.init(), exchangeRate.init()])
+    await Promise.all([store.init(), eventsStore.init(), rechargeStore.init(), presets.init(), filterPresets.init(), exchangeRate.init()])
     await presets.syncCharactersFromGoods(store.list)
     await presets.syncStorageLocationsFromPaths(store.storageLocations)
   } catch (e) {

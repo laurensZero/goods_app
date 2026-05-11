@@ -460,13 +460,13 @@ function editSelectedRecord() {
   openEdit(record)
 }
 
-function saveRecord(payload) {
+async function saveRecord(payload) {
   const wasEditingExistingRecord = Boolean(editingRecord.value?.id)
 
   if (editingRecord.value?.id) {
-    rechargeStore.updateRecord(editingRecord.value.id, payload)
+    await rechargeStore.updateRecord(editingRecord.value.id, payload)
   } else {
-    rechargeStore.addRecord(payload)
+    await rechargeStore.addRecord(payload)
   }
 
   showAddDialog.value = false
@@ -482,14 +482,14 @@ function deleteSelectedRecords() {
   showDeleteConfirm.value = true
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (selectedIds.value.size === 0) {
     showDeleteConfirm.value = false
     return
   }
 
   for (const id of selectedIds.value) {
-    rechargeStore.permanentDelete(id)
+    await rechargeStore.permanentDelete(id)
   }
 
   showDeleteConfirm.value = false
@@ -581,8 +581,8 @@ function unbindAndroidBackButton() {
   removeAndroidBackListener = null
 }
 
-onMounted(() => {
-  rechargeStore.init()
+onMounted(async () => {
+  await rechargeStore.init()
   rechargeStore.clearInvalidRecords()
   resolvePageBodyEl()
   bindScrollListeners()

@@ -88,6 +88,20 @@ const CREATE_EVENTS_TABLE_SQL = `
   );
 `
 
+const CREATE_RECHARGE_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS recharge_records (
+    id         TEXT PRIMARY KEY NOT NULL,
+    game       TEXT DEFAULT '',
+    itemName   TEXT DEFAULT '',
+    amount     REAL DEFAULT 0,
+    chargedAt  TEXT DEFAULT '',
+    note       TEXT DEFAULT '',
+    image      TEXT DEFAULT '',
+    deleted    INTEGER DEFAULT 0,
+    updatedAt  INTEGER DEFAULT 0
+  );
+`
+
 //  版本化数据库迁移
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
 const INIT_VERSION_SQL = 'INSERT INTO _schema_version (version) VALUES (?)'
@@ -221,6 +235,22 @@ function goodsRecordToValues(record) {
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
+const RECHARGE_INSERT_SQL = 'INSERT OR REPLACE INTO recharge_records (id,game,itemName,amount,chargedAt,note,image,deleted,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)'
+
+function prepareRechargeRecord(record) {
+  return [
+    record.id,
+    record.game || '',
+    record.itemName || '',
+    Number(record.amount) || 0,
+    record.chargedAt || '',
+    record.note || '',
+    record.image || '',
+    record.deleted ? 1 : 0,
+    record.updatedAt || Date.now()
+  ]
+}
+
 function prepareEventValues(event) {
   const {
     id, name = '', type = '', startDate = '', endDate = '',
@@ -304,6 +334,7 @@ export async function initDB() {
   await db.open()
   await db.execute(CREATE_TABLE_SQL)
   await db.execute(CREATE_EVENTS_TABLE_SQL)
+  await db.execute(CREATE_RECHARGE_TABLE_SQL)
   await db.execute(CREATE_VERSION_TABLE_SQL)
   await _runMigrations()
 
@@ -460,6 +491,62 @@ export async function deleteEvents(ids) {
     await db.executeSet(stmts)
   } catch (e) {
     console.error('[db] deleteEvents failed:', e)
+    throw e
+  }
+}
+
+/** @returns {Promise<Array>} */
+export async function getRechargeRecords() {
+  try {
+    const rows = await db.query('SELECT * FROM recharge_records ORDER BY updatedAt DESC')
+    return rows.map(r => ({
+      ...r,
+      amount: Number(r.amount) || 0,
+      deleted: Boolean(r.deleted),
+      updatedAt: Number(r.updatedAt) || 0
+    }))
+  } catch (e) {
+    console.error('[db] getRechargeRecords failed:', e)
+    throw e
+  }
+}
+
+/** @param {object} record */
+export async function addRechargeRecord(record) {
+  try {
+    await db.run(RECHARGE_INSERT_SQL, prepareRechargeRecord(record))
+  } catch (e) {
+    console.error('[db] addRechargeRecord failed:', e)
+    throw e
+  }
+}
+
+/** @param {object[]} records */
+export async function saveRechargeRecords(records) {
+  if (!records || records.length === 0) return
+  try {
+    const stmts = records.map(record => ({
+      statement: RECHARGE_INSERT_SQL,
+      values: prepareRechargeRecord(record)
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] saveRechargeRecords failed:', e)
+    throw e
+  }
+}
+
+/** @param {string[]} ids */
+export async function deleteRechargeRecords(ids) {
+  if (!ids || ids.length === 0) return
+  try {
+    const stmts = ids.map(id => ({
+      statement: 'DELETE FROM recharge_records WHERE id = ?',
+      values: [id]
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] deleteRechargeRecords failed:', e)
     throw e
   }
 }
