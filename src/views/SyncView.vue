@@ -653,16 +653,44 @@
       </Transition>
 
       <!-- Supabase URL 输入对话框 -->
-      <van-dialog v-model:show="showSupabaseUrlDialog" title="Supabase 项目 URL" show-cancel-button
-        @confirm="handleSaveSupabaseUrl">
-        <van-field v-model="supabaseUrlInput" placeholder="https://xxxxx.supabase.co" label="URL" />
-      </van-dialog>
+      <Transition name="overlay-fade">
+        <div v-if="showSupabaseUrlDialog" class="overlay" @click.self="showSupabaseUrlDialog = false">
+          <div class="dialog">
+            <h3 class="dialog-title">Supabase 项目 URL</h3>
+            <input
+              v-model="supabaseUrlInput"
+              class="dialog-input"
+              type="url"
+              placeholder="https://xxxxx.supabase.co"
+              autocomplete="off"
+            />
+            <div class="dialog-actions">
+              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseUrlDialog = false">取消</button>
+              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseUrlInput.trim()" @click="handleSaveSupabaseUrl">保存</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Supabase Key 输入对话框 -->
-      <van-dialog v-model:show="showSupabaseKeyDialog" title="Supabase Anon Key" show-cancel-button
-        @confirm="handleSaveSupabaseKey">
-        <van-field v-model="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1NiIs..." label="Key" />
-      </van-dialog>
+      <Transition name="overlay-fade">
+        <div v-if="showSupabaseKeyDialog" class="overlay" @click.self="showSupabaseKeyDialog = false">
+          <div class="dialog">
+            <h3 class="dialog-title">Supabase Anon Key</h3>
+            <input
+              v-model="supabaseKeyInput"
+              class="dialog-input"
+              type="text"
+              placeholder="eyJhbGciOiJIUzI1NiIs..."
+              autocomplete="off"
+            />
+            <div class="dialog-actions">
+              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseKeyDialog = false">取消</button>
+              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseKeyInput.trim()" @click="handleSaveSupabaseKey">保存</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <Transition name="toast-fade">
         <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
