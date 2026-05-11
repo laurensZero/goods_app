@@ -1404,6 +1404,11 @@ async function handleSaveSupabaseUrl() {
   if (!url) return
   await syncStore.saveSupabaseConfig(url, syncStore.supabaseAnonKey)
   showSupabaseUrlDialog.value = false
+  // If key is also missing and we're in a backend switch flow, prompt for key next
+  if (!syncStore.supabaseAnonKey && pendingBackend.value === 'supabase') {
+    supabaseKeyInput.value = ''
+    showSupabaseKeyDialog.value = true
+  }
 }
 
 async function handleSaveSupabaseKey() {
@@ -1411,6 +1416,10 @@ async function handleSaveSupabaseKey() {
   if (!key) return
   await syncStore.saveSupabaseConfig(syncStore.supabaseUrl, key)
   showSupabaseKeyDialog.value = false
+  // If we were in a backend switch flow and both config values are now set, confirm the switch
+  if (pendingBackend.value === 'supabase' && syncStore.supabaseUrl && syncStore.supabaseAnonKey) {
+    showBackendConfirm.value = true
+  }
 }
 
 async function handleTestSupabase() {
@@ -1464,13 +1473,17 @@ onMounted(async () => {
   flex: 1 1 0;
   text-align: left;
   transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
-  border: 1px solid var(--border-color, #e6e6e6);
-  background: var(--card-bg, #fff);
+  border: 1px solid var(--app-glass-border);
+  background: var(--app-surface);
+  color: var(--app-text);
 }
 .backend-card--active {
   border-color: var(--color-primary, #3b82f6);
   box-shadow: 0 6px 18px rgba(59,130,246,0.12);
   transform: translateY(-2px);
+}
+:global(html.theme-dark) .backend-card--active {
+  box-shadow: 0 6px 18px rgba(59,130,246,0.22);
 }
 .backend-card .entry-icon {
   width: 48px;
