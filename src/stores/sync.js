@@ -16,7 +16,7 @@ import { validateToken, getGist, listGists } from '@/utils/githubGist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
-import { initSupabaseClient, testSupabaseConnection } from '@/utils/supabaseClient'
+import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient } from '@/utils/supabaseClient'
 import { deriveKey, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
@@ -199,6 +199,15 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   async function setSyncBackend(backend) {
+    // initialize or clear supabase client on backend switch
+    if (backend === 'supabase') {
+      if (supabaseUrl.value && supabaseAnonKey.value) {
+        try { initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value) } catch (e) { console.warn('[sync] initSupabaseClient failed on setSyncBackend:', e.message) }
+      }
+    } else {
+      try { clearSupabaseClient() } catch (e) { /* ignore */ }
+    }
+
     syncBackend.value = backend
     await writeSyncKey(SYNC_BACKEND_KEY, backend)
   }

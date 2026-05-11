@@ -403,9 +403,13 @@ export function createSyncPayloadService({
       lastSyncAt: timestamp,
       imageGistId: imageGistIdRef.value || '',
       imageFileCount: Number(imageStats.imageFileCount) || 0,
+      // backward-compatible fields for Supabase adapter
+      imageCount: Number(imageStats.imageFileCount) || 0,
       imageUpdatedAt: imageStats.imageUpdatedAt || '',
       collectionCount: Number(counts.collectionCount) || 0,
       wishlistCount: Number(counts.wishlistCount) || 0,
+      // total goods count (collection + wishlist) for Supabase compatibility
+      goodsCount: Number(counts.collectionCount || 0) + Number(counts.wishlistCount || 0),
       trashCount: Number(counts.trashCount) || 0,
       rechargeCount: Number(counts.rechargeCount) || 0,
       eventCount: Number(counts.eventCount) || 0

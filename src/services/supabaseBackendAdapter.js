@@ -244,16 +244,23 @@ export function createSupabaseBackendAdapter({
       const content = entry.content
 
       if (fileName === 'manifest.json') {
+        // accept either object or JSON string
+        let manifestContent = content
+        if (typeof manifestContent === 'string') {
+          try { manifestContent = JSON.parse(manifestContent) } catch { manifestContent = {} }
+        }
+        const imageCountVal = Number(manifestContent.imageCount || manifestContent.imageFileCount || 0)
+        const goodsCountVal = Number(manifestContent.goodsCount || ((manifestContent.collectionCount || 0) + (manifestContent.wishlistCount || 0)) || 0)
         const manifestRow = toSnakeCase({
           id: 'default',
-          syncedAt: content.lastSyncAt || new Date().toISOString(),
-          deviceId: content.deviceId || '',
-          imageCount: content.imageCount || 0,
-          goodsCount: content.goodsCount || 0,
-          trashCount: content.trashCount || 0,
-          rechargeCount: content.rechargeCount || 0,
-          eventCount: content.eventCount || 0,
-          imageBucket: content.imageGistId || 'goods-images'
+          syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
+          deviceId: manifestContent.deviceId || '',
+          imageCount: imageCountVal,
+          goodsCount: goodsCountVal,
+          trashCount: manifestContent.trashCount || 0,
+          rechargeCount: manifestContent.rechargeCount || 0,
+          eventCount: manifestContent.eventCount || 0,
+          imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images'
         })
         const { error } = await withRetry(() =>
           db.from('sync_manifest').upsert(manifestRow)
