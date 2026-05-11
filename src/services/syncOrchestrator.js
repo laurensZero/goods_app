@@ -392,6 +392,27 @@ export function createSyncOrchestrator({
       )
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
 
+    // Update local image entries so future syncs can dedup
+    const goodsStore = useGoodsStore()
+    const preparedImagesByItemId = new Map()
+    for (const item of [...syncData.goods, ...syncData.trash]) {
+      const images = item.images
+      if (!Array.isArray(images)) continue
+      const imageMap = new Map()
+      for (let i = 0; i < images.length; i++) {
+        if (images[i]?.gistFileName) {
+          const entry = { ...images[i] }
+          // Use public URL for Supabase, fallback to gist-image:// for Gist
+          if (activeBackend.getImagePublicUrl) {
+            entry.uri = activeBackend.getImagePublicUrl(entry.gistFileName)
+          }
+          imageMap.set(i, entry)
+        }
+      }
+      if (imageMap.size > 0) preparedImagesByItemId.set(item.id, imageMap)
+    }
+    await goodsStore.markImagesAsRemote(preparedImagesByItemId)
+
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
 

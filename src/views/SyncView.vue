@@ -8,7 +8,7 @@
           <div class="hero-head">
             <div class="hero-copy">
               <p class="hero-label">Cloud Sync</p>
-              <h1 class="hero-title">GitHub Gist 同步</h1>
+              <h1 class="hero-title">{{ syncBackendLabel }} 同步</h1>
               <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站、充值记录、预设数据和本地图片。</p>
             </div>
             <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
@@ -20,11 +20,11 @@
               <p class="hero-metric__value">{{ lastSyncDisplay }}</p>
             </div>
             <div class="hero-metric">
-              <p class="hero-metric__label">远端 Gist</p>
-              <p class="hero-metric__value hero-metric__value--mono">{{ syncStore.gistId || '未创建' }}</p>
+              <p class="hero-metric__label">{{ remoteIdLabel }}</p>
+              <p class="hero-metric__value hero-metric__value--mono">{{ remoteIdDisplay }}</p>
             </div>
             <button
-              v-if="showTokenInfo"
+              v-if="syncStore.syncBackend === 'gist' && showTokenInfo"
               type="button"
               class="hero-metric hero-metric--interactive"
               :disabled="!syncStore.token"
@@ -36,6 +36,19 @@
           </div>
         </article>
       </section>
+
+      <Transition name="overlay-fade">
+        <div v-if="showBackendConfirm" class="overlay" @click.self="cancelChooseBackend">
+          <div class="dialog">
+            <h3 class="dialog-title">切换同步后端</h3>
+            <p class="dialog-desc">确定要切换同步后端为 <strong>{{ pendingBackend === 'supabase' ? 'Supabase' : 'GitHub Gist' }}</strong> 吗？切换可能需要重新配置连接信息。</p>
+            <div class="dialog-actions">
+              <button class="dialog-btn dialog-btn--secondary" @click="cancelChooseBackend">取消</button>
+              <button class="dialog-btn dialog-btn--primary" @click="confirmChooseBackend">确认切换</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <section class="content-section overview-section">
         <div class="section-head">
@@ -54,48 +67,41 @@
             </div>
 
             <div class="detail-list">
-              <button v-if="showTokenInfo" type="button" class="detail-row detail-row--button" :disabled="!syncStore.token" @click="copyText(syncStore.token)">
-                <span class="detail-label">Token</span>
-                <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
-              </button>
-              <div class="detail-row">
-                <span class="detail-label">GitHub 账号</span>
-                <span class="detail-value">{{ syncStore.githubLogin || '未登录' }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Data Gist</span>
-                <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
-              </div>
+              <template v-if="syncStore.syncBackend === 'gist'">
+                <button v-if="showTokenInfo" type="button" class="detail-row detail-row--button" :disabled="!syncStore.token" @click="copyText(syncStore.token)">
+                  <span class="detail-label">Token</span>
+                  <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
+                </button>
+                <div class="detail-row">
+                  <span class="detail-label">GitHub 账号</span>
+                  <span class="detail-value">{{ syncStore.githubLogin || '未登录' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Data Gist</span>
+                  <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Image Gist</span>
+                  <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
+                </div>
+              </template>
+
+              <template v-else-if="syncStore.syncBackend === 'supabase'">
+                <div class="detail-row">
+                  <span class="detail-label">Supabase 项目 URL</span>
+                  <button type="button" class="detail-value detail-value--mono detail-value--link" @click="openSupabaseUrlDialog">{{ supabaseUrlDisplay }}</button>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Anon Key</span>
+                  <button type="button" class="detail-value detail-value--mono detail-value--link" @click="openSupabaseKeyDialog">{{ supabaseKeyDisplay }}</button>
+                </div>
+              </template>
+
               <div class="detail-row">
                 <span class="detail-label">设备 ID</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
               </div>
-              <div class="detail-row">
-                <span class="detail-label">Image Gist</span>
-                <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">同步密码</span>
-                <input
-                  type="password"
-                  class="password-input"
-                  :value="syncStore.syncPassword"
-                  placeholder="请输入加密/解密密码"
-                  @change="handlePasswordChange"
-                />
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">端到端加密</span>
-                <label class="toggle-switch">
-                  <input
-                    type="checkbox"
-                    :checked="syncStore.encryptionEnabled"
-                    :disabled="!syncStore.githubLogin || !syncStore.syncPassword"
-                    @change="handleEncryptionToggle"
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
+
               <div class="detail-row detail-row--last">
                 <span class="detail-label">最近同步</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
@@ -183,7 +189,7 @@
           <button
             type="button"
             class="entry-card"
-            :disabled="syncStore.isSyncing || !syncStore.token"
+            :disabled="syncStore.isSyncing || !syncStore.isConfigured"
             @click="handleSync"
           >
             <span class="entry-icon sync-icon">
@@ -197,8 +203,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Push & Resolve</p>
-              <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中') : '上传到云端' }}</h3>
-              <p class="entry-desc">将收藏、充值、活动等数据同步到 Gist，若发现冲突会提示你选择处理方式。</p>
+              <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中') : '上传到远端后端' }}</h3>
+              <p class="entry-desc">将收藏、充值、活动等数据同步到远端后端，若发现冲突会提示你选择处理方式。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -208,7 +214,7 @@
           <button
             type="button"
             class="entry-card"
-            :disabled="syncStore.isSyncing || !syncStore.gistId"
+            :disabled="syncStore.isSyncing || !syncStore.isConfigured"
             @click="handlePull"
           >
             <span class="entry-icon pull-icon">
@@ -221,7 +227,7 @@
             <div class="entry-body">
               <p class="entry-kicker">Remote to Local</p>
               <h3 class="entry-name">拉取远端数据</h3>
-              <p class="entry-desc">把各个 Gist 中的最新数据合并到当前设备，不会直接覆盖本地收藏。</p>
+              <p class="entry-desc">把远端的最新数据合并到当前设备，不会直接覆盖本地收藏。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -230,7 +236,63 @@
         </div>
       </section>
 
-      <section class="content-section config-section">
+      <!-- 后端选择 -->
+      <section class="content-section">
+        <div class="section-head">
+          <p class="section-label">Backend</p>
+          <h2 class="section-title">同步后端</h2>
+        </div>
+
+        <div class="backend-grid">
+          <button
+            type="button"
+            class="entry-card backend-card"
+            :class="{ 'backend-card--active': syncStore.syncBackend === 'gist' }"
+            @click="chooseBackend('gist')"
+          >
+            <span class="entry-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.57.11.78-.25.78-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.67 1.25 3.32.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.47.11-3.07 0 0 .97-.31 3.18 1.18a11.04 11.04 0 0 1 2.9-.39c.99 0 1.98.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.62 1.6.23 2.78.11 3.07.73.81 1.18 1.84 1.18 3.1 0 4.44-2.69 5.4-5.25 5.68.41.36.77 1.08.77 2.18 0 1.58-.01 2.85-.01 3.24 0 .31.2.67.79.55A11.52 11.52 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">GitHub Gist</p>
+              <h3 class="entry-name">使用 GitHub Gist 存储</h3>
+              <p class="entry-desc">借助 GitHub 进行跨设备同步，支持端到端加密与历史版本。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="entry-card backend-card"
+            :class="{ 'backend-card--active': syncStore.syncBackend === 'supabase' }"
+            @click="chooseBackend('supabase')"
+          >
+            <span class="entry-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <path d="M16 11.37A4 4 0 0 1 13.63 16" />
+                <path d="M12 7v.01" />
+              </svg>
+            </span>
+            <div class="entry-body">
+              <p class="entry-kicker">Supabase</p>
+              <h3 class="entry-name">使用 Supabase 存储</h3>
+              <p class="entry-desc">将数据与图片保存在你自己的 Supabase 项目，可节省 Gist 空间。</p>
+            </div>
+            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Supabase 配置已移除：URL/Key 与测试连接不在此显示 -->
+      </section>
+
+      <section v-if="syncStore.syncBackend === 'gist'" class="content-section config-section">
         <div class="section-head">
           <p class="section-label">Config</p>
           <h2 class="section-title">配置与维护</h2>
@@ -590,6 +652,18 @@
         </div>
       </Transition>
 
+      <!-- Supabase URL 输入对话框 -->
+      <van-dialog v-model:show="showSupabaseUrlDialog" title="Supabase 项目 URL" show-cancel-button
+        @confirm="handleSaveSupabaseUrl">
+        <van-field v-model="supabaseUrlInput" placeholder="https://xxxxx.supabase.co" label="URL" />
+      </van-dialog>
+
+      <!-- Supabase Key 输入对话框 -->
+      <van-dialog v-model:show="showSupabaseKeyDialog" title="Supabase Anon Key" show-cancel-button
+        @confirm="handleSaveSupabaseKey">
+        <van-field v-model="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1NiIs..." label="Key" />
+      </van-dialog>
+
       <Transition name="toast-fade">
         <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
       </Transition>
@@ -616,6 +690,8 @@ import {
   requestGitHubDeviceCode
 } from '@/utils/githubAuth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { showSuccessToast, showFailToast } from 'vant'
+import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
 
 const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common/GithubLoginDialog.vue'))
@@ -645,6 +721,11 @@ const isPollingGithubLogin = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
+const showSupabaseUrlDialog = ref(false)
+const showSupabaseKeyDialog = ref(false)
+const supabaseUrlInput = ref('')
+const supabaseKeyInput = ref('')
+const isTestingSupabase = ref(false)
 let githubLoginAbortController = null
 const LOG_GROUP_SEQUENCE = [
   'manifest',
@@ -849,6 +930,12 @@ const tokenDisplay = computed(() => {
   if (!syncStore.token) return '未配置'
   const token = syncStore.token
   return `${token.slice(0, 4)}...${token.slice(-4)}`
+})
+
+const remoteIdLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase 项目' : '远端 Gist')
+const remoteIdDisplay = computed(() => {
+  if (syncStore.syncBackend === 'supabase') return syncStore.supabaseUrl || '未配置'
+  return syncStore.gistId || '未创建'
 })
 
 const gistUrl = computed(() => {
@@ -1233,6 +1320,91 @@ async function handleReset() {
   showToast('配置已清除')
 }
 
+// ── Supabase 后端配置 ──────────────────────────────────
+const syncBackendLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase' : 'GitHub Gist')
+const supabaseUrlDisplay = computed(() => syncStore.supabaseUrl || '未配置')
+const supabaseKeyDisplay = computed(() => syncStore.supabaseAnonKey ? '***' + syncStore.supabaseAnonKey.slice(-6) : '未配置')
+
+const selectedBackend = computed({
+  get: () => syncStore.syncBackend,
+  set: async (val) => {
+    if (val === syncStore.syncBackend) return
+    // selection is handled via confirm dialog; setter kept for reactivity
+    syncStore.syncBackend = val
+  }
+})
+
+const showBackendConfirm = ref(false)
+const pendingBackend = ref('')
+
+function chooseBackend(val) {
+  if (val === syncStore.syncBackend) return
+  // If user chooses Supabase but config missing, open URL dialog first
+  if (val === 'supabase' && (!syncStore.supabaseUrl || !syncStore.supabaseAnonKey)) {
+    showSupabaseUrlDialog.value = true
+    pendingBackend.value = val
+    return
+  }
+  pendingBackend.value = val
+  showBackendConfirm.value = true
+}
+
+async function confirmChooseBackend() {
+  showBackendConfirm.value = false
+  if (!pendingBackend.value) return
+  await syncStore.setSyncBackend(pendingBackend.value)
+  pendingBackend.value = ''
+}
+
+function cancelChooseBackend() {
+  showBackendConfirm.value = false
+  pendingBackend.value = ''
+}
+
+function openSupabaseUrlDialog() {
+  supabaseUrlInput.value = syncStore.supabaseUrl || ''
+  showSupabaseUrlDialog.value = true
+}
+
+function openSupabaseKeyDialog() {
+  supabaseKeyInput.value = syncStore.supabaseAnonKey || ''
+  showSupabaseKeyDialog.value = true
+}
+
+async function handleSaveSupabaseUrl() {
+  const url = supabaseUrlInput.value.trim()
+  if (!url) return
+  await syncStore.saveSupabaseConfig(url, syncStore.supabaseAnonKey)
+  showSupabaseUrlDialog.value = false
+}
+
+async function handleSaveSupabaseKey() {
+  const key = supabaseKeyInput.value.trim()
+  if (!key) return
+  await syncStore.saveSupabaseConfig(syncStore.supabaseUrl, key)
+  showSupabaseKeyDialog.value = false
+}
+
+async function handleTestSupabase() {
+  if (!syncStore.supabaseUrl || !syncStore.supabaseAnonKey) {
+    showToast('请先配置 URL 和 Key')
+    return
+  }
+  isTestingSupabase.value = true
+  try {
+    const result = await syncStore.testSupabaseConnection(syncStore.supabaseUrl, syncStore.supabaseAnonKey)
+    if (result.ok) {
+      showSuccessToast('连接成功')
+    } else {
+      showFailToast(result.error || '连接失败')
+    }
+  } catch (e) {
+    showFailToast(e.message || '连接失败')
+  } finally {
+    isTestingSupabase.value = false
+  }
+}
+
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
@@ -1247,3 +1419,47 @@ onMounted(async () => {
 </script>
 
 <style scoped src="../assets/views/SyncView.css"></style>
+
+<style scoped>
+/* Backend selection grid and card highlight */
+.backend-grid {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 767px) {
+  .backend-grid {
+    flex-direction: column;
+  }
+}
+.backend-card {
+  flex: 1 1 0;
+  text-align: left;
+  transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+  border: 1px solid var(--border-color, #e6e6e6);
+  background: var(--card-bg, #fff);
+}
+.backend-card--active {
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 6px 18px rgba(59,130,246,0.12);
+  transform: translateY(-2px);
+}
+.backend-card .entry-icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.detail-value--link {
+  background: transparent;
+  border: none;
+  color: var(--color-primary, #3b82f6);
+  padding: 0;
+  font: inherit;
+}
+
+/* Dialog overrides: align z-index with this view's layering */
+.overlay { z-index: 1200 }
+</style>
+

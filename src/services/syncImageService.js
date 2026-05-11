@@ -2,12 +2,17 @@ import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri 
 
 export function createSyncImageService({
   backend,
+  getBackend,
   trackSyncStep,
   imageFilePrefix,
   eventCoverPrefix
 }) {
+  function resolveBackend() {
+    return typeof getBackend === 'function' ? (getBackend() || backend) : backend
+  }
+
   async function resolveRemoteImageGist(remoteManifest) {
-    return backend.getExistingImageGist(remoteManifest)
+    return resolveBackend().getExistingImageGist(remoteManifest)
   }
 
   async function hydrateRemoteItemsWithImages(items, imageGist, imageStats, options = {}) {
@@ -38,7 +43,7 @@ export function createSyncImageService({
 
           if (!fileCache.has(gistFileName)) {
             const imageDataUrl = await trackSyncStep(`读取图片文件 ${gistFileName}`, async () => {
-              const fetched = await backend.readImage(imageGist, gistFileName)
+              const fetched = await resolveBackend().readImage(imageGist, gistFileName)
 
               if (!String(fetched || '').startsWith('data:image/')) {
                 throw new Error(`远端图片缺失：${gistFileName}`)
@@ -103,7 +108,7 @@ export function createSyncImageService({
       try {
         if (!fileCache.has(gistFileName)) {
           const imageDataUrl = await trackSyncStep(`读取活动封面文件 ${gistFileName}`, async () => {
-            const fetched = await backend.readImage(imageGist, gistFileName)
+            const fetched = await resolveBackend().readImage(imageGist, gistFileName)
             if (!String(fetched || '').startsWith('data:image/')) {
               throw new Error(`远端活动封面缺失：${gistFileName}`)
             }
@@ -135,6 +140,13 @@ export function createSyncImageService({
   }
 
   function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
+    const currentBackend = resolveBackend()
+    // Supabase uses public URLs for synced images, so local items no longer retain gist-local references.
+    // Deleting based on current references would incorrectly remove valid cloud images on the next sync.
+    if (typeof currentBackend?.getImagePublicUrl === 'function') {
+      return {}
+    }
+
     const files = {}
     for (const filename of Object.keys(existingImageGist?.files || {})) {
       if (!filename.startsWith(imageFilePrefix) && !filename.startsWith(eventCoverPrefix)) continue
