@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260511.1",
+    "url": "bundle-20260511.1.zip",
+    "hash": "b6f4682aef6e5011f6041e50e90183f2170b44a39f32fabcfe32cfa61119786f",
+    "minNativeVersion": null,
+    "notes": "- refactor(goodsImport): 合并订单号提取相关提交，简化导入流程\n\n- feat(recharge): 将充值相关操作改为异步，优化数据库交互",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-11T13:17:06Z"
+  },
+  {
     "version": "20260510.15",
     "url": "bundle-20260510.15.zip",
     "hash": "6fac0901a783651b6a69f0dcf65266dabb5889f16eb34fe4f17be7060fb8ffce",
@@ -16,14 +25,5 @@
     "notes": "- fix: 更新充值存储路径，优化代码结构",
     "updateLevel": "silent",
     "publishedAt": "2026-05-10T10:50:44Z"
-  },
-  {
-    "version": "20260510.13",
-    "url": "bundle-20260510.13.zip",
-    "hash": "6c908ab72027d139bad928c098978f8e1a297830ff8f0d1f1dd965e10549767c",
-    "minNativeVersion": null,
-    "notes": "- fear(sync): 同步错误处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-10T10:33:13Z"
   }
 ]
