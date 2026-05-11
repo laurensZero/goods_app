@@ -9,12 +9,14 @@ import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
 import { createSyncOrchestrator } from '@/services/syncOrchestrator'
 import { createGistBackendAdapter } from '@/services/gistBackendAdapter'
+import { createSupabaseBackendAdapter } from '@/services/supabaseBackendAdapter'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { validateToken, getGist, listGists } from '@/utils/githubGist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
+import { initSupabaseClient, testSupabaseConnection } from '@/utils/supabaseClient'
 import { deriveKey, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
@@ -34,6 +36,9 @@ const GITHUB_SCOPES_KEY = 'sync_github_scopes'
 const GITHUB_AUTH_METHOD_KEY = 'sync_github_auth_method'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
 const ENCRYPTION_ENABLED_KEY = 'sync_encryption_enabled'
+const SUPABASE_URL_KEY = 'sync_supabase_url'
+const SUPABASE_ANON_KEY_KEY = 'sync_supabase_anon_key'
+const SYNC_BACKEND_KEY = 'sync_backend'
 
 const DATA_FILENAME = 'data.json'
 const RECHARGE_DATA_FILENAME = 'recharge-data.json'
@@ -72,6 +77,9 @@ export const useSyncStore = defineStore('sync', () => {
   const encryptionEnabled = ref(false)
   const encryptionKey = ref(null)
   const syncPassword = ref('')
+  const syncBackend = ref('gist')
+  const supabaseUrl = ref('')
+  const supabaseAnonKey = ref('')
   const isInitialized = ref(false)
   const isSyncing = ref(false)
   const syncStatus = ref('')
@@ -175,6 +183,28 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(EVENT_LAST_SYNC_KEY, timestamp)
   }
 
+  async function saveSupabaseConfig(url, anonKey) {
+    supabaseUrl.value = url
+    supabaseAnonKey.value = anonKey
+    await writeSyncKey(SUPABASE_URL_KEY, url)
+    await writeSyncKey(SUPABASE_ANON_KEY_KEY, anonKey)
+    if (url && anonKey) {
+      initSupabaseClient(url, anonKey)
+    }
+  }
+
+  async function setSyncBackend(backend) {
+    syncBackend.value = backend
+    await writeSyncKey(SYNC_BACKEND_KEY, backend)
+  }
+
+  function getCurrentBackend() {
+    if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
+      return createSupabaseBackendAdapter({ trackSyncStep })
+    }
+    return backend
+  }
+
   // ── Service wiring ──
 
   const {
@@ -258,6 +288,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   function buildSyncContext() {
     return {
+      backend: getCurrentBackend(),
       token: token.value, gistId: gistId.value, deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
       rechargeGistId: rechargeGistId.value, eventGistId: eventGistId.value,
@@ -275,14 +306,16 @@ export const useSyncStore = defineStore('sync', () => {
 
     const [tokenVal, loginVal, userIdVal, avatarVal, passwordVal, scopesVal, authMethodVal,
       gistIdVal, imageGistIdVal, rechargeGistIdVal, eventGistIdVal,
-      lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal, encryptionEnabledVal
+      lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal, encryptionEnabledVal,
+      syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal
     ] = await Promise.all([
       readSyncKey(TOKEN_KEY), readSyncKey(GITHUB_LOGIN_KEY), readSyncKey(GITHUB_USER_ID_KEY),
       readSyncKey(GITHUB_AVATAR_URL_KEY), readSyncKey(SYNC_PASSWORD_KEY), readSyncKey(GITHUB_SCOPES_KEY),
       readSyncKey(GITHUB_AUTH_METHOD_KEY), readSyncKey(GIST_ID_KEY), readSyncKey(IMAGE_GIST_ID_KEY),
       readSyncKey(RECHARGE_GIST_ID_KEY), readSyncKey(EVENT_GIST_ID_KEY), readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
-      readSyncKey(ENCRYPTION_ENABLED_KEY)
+      readSyncKey(ENCRYPTION_ENABLED_KEY),
+      readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY)
     ])
 
     token.value = tokenVal || ''
@@ -300,6 +333,18 @@ export const useSyncStore = defineStore('sync', () => {
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
     deviceId.value = deviceIdVal
     encryptionEnabled.value = encryptionEnabledVal === '1'
+    syncBackend.value = syncBackendVal || 'gist'
+    supabaseUrl.value = supabaseUrlVal || ''
+    supabaseAnonKey.value = supabaseAnonKeyVal || ''
+
+    if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
+      try {
+        initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
+      } catch (e) {
+        console.warn('[sync] Supabase client init failed:', e.message)
+      }
+    }
+
     if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
       try { await ensureEncryptionKey() } catch { encryptionEnabled.value = false }
     }
@@ -485,6 +530,8 @@ export const useSyncStore = defineStore('sync', () => {
     isConfigured, init, saveToken, checkTokenValidity,
     getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
     clearConflict, resetConfig,
-    encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId
+    encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
+    syncBackend, supabaseUrl, supabaseAnonKey,
+    saveSupabaseConfig, setSyncBackend, testSupabaseConnection
   }
 })

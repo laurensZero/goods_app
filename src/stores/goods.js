@@ -49,7 +49,8 @@ import {
   importGoodsBackup as _importGoodsBackup,
   updateGoodsBackup as _updateGoodsBackup,
   importTrashBackup as _importTrashBackup,
-  updateTrashBackup as _updateTrashBackup
+  updateTrashBackup as _updateTrashBackup,
+  markImagesAsRemote as _markImagesAsRemote
 } from '@/stores/goodsSync'
 import {
   replaceStorageLocationPrefix as _replaceStorageLocationPrefix,
@@ -438,6 +439,10 @@ export const useGoodsStore = defineStore('goods', () => {
     return _updateTrashBackup(items, trashList)
   }
 
+  function markImagesAsRemote(preparedImagesByItemId) {
+    return _markImagesAsRemote(preparedImagesByItemId, list, trashList)
+  }
+
   return {
     list,
     trashList,
@@ -472,6 +477,7 @@ export const useGoodsStore = defineStore('goods', () => {
     updateGoodsBackup,
     importTrashBackup,
     updateTrashBackup,
+    markImagesAsRemote,
     refreshList
   }
 })

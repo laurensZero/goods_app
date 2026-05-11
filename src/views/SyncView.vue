@@ -230,6 +230,35 @@
         </div>
       </section>
 
+      <!-- 后端选择 -->
+      <section class="content-section">
+        <div class="section-head">
+          <p class="section-label">Backend</p>
+          <h2 class="section-title">同步后端</h2>
+        </div>
+
+        <van-cell-group inset>
+          <van-cell title="当前后端" :value="syncBackendLabel" />
+          <van-cell>
+            <van-radio-group v-model="selectedBackend" direction="horizontal">
+              <van-radio name="gist">GitHub Gist</van-radio>
+              <van-radio name="supabase">Supabase</van-radio>
+            </van-radio-group>
+          </van-cell>
+        </van-cell-group>
+
+        <!-- Supabase 配置 -->
+        <van-cell-group v-if="syncStore.syncBackend === 'supabase'" inset>
+          <van-cell title="项目 URL" :value="supabaseUrlDisplay" is-link @click="openSupabaseUrlDialog" />
+          <van-cell title="Anon Key" :value="supabaseKeyDisplay" is-link @click="openSupabaseKeyDialog" />
+          <van-cell>
+            <van-button type="primary" size="small" block :loading="isTestingSupabase" @click="handleTestSupabase">
+              测试连接
+            </van-button>
+          </van-cell>
+        </van-cell-group>
+      </section>
+
       <section class="content-section config-section">
         <div class="section-head">
           <p class="section-label">Config</p>
@@ -590,6 +619,18 @@
         </div>
       </Transition>
 
+      <!-- Supabase URL 输入对话框 -->
+      <van-dialog v-model:show="showSupabaseUrlDialog" title="Supabase 项目 URL" show-cancel-button
+        @confirm="handleSaveSupabaseUrl">
+        <van-field v-model="supabaseUrlInput" placeholder="https://xxxxx.supabase.co" label="URL" />
+      </van-dialog>
+
+      <!-- Supabase Key 输入对话框 -->
+      <van-dialog v-model:show="showSupabaseKeyDialog" title="Supabase Anon Key" show-cancel-button
+        @confirm="handleSaveSupabaseKey">
+        <van-field v-model="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1NiIs..." label="Key" />
+      </van-dialog>
+
       <Transition name="toast-fade">
         <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
       </Transition>
@@ -616,6 +657,8 @@ import {
   requestGitHubDeviceCode
 } from '@/utils/githubAuth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { showSuccessToast, showFailToast } from 'vant'
+import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
 
 const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common/GithubLoginDialog.vue'))
@@ -645,6 +688,11 @@ const isPollingGithubLogin = ref(false)
 const toastMsg = ref('')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
+const showSupabaseUrlDialog = ref(false)
+const showSupabaseKeyDialog = ref(false)
+const supabaseUrlInput = ref('')
+const supabaseKeyInput = ref('')
+const isTestingSupabase = ref(false)
 let githubLoginAbortController = null
 const LOG_GROUP_SEQUENCE = [
   'manifest',
@@ -1231,6 +1279,60 @@ async function handleReset() {
   gistInfo.value = null
   showResetConfirm.value = false
   showToast('配置已清除')
+}
+
+// ── Supabase 后端配置 ──────────────────────────────────
+const syncBackendLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase' : 'GitHub Gist')
+const supabaseUrlDisplay = computed(() => syncStore.supabaseUrl || '未配置')
+const supabaseKeyDisplay = computed(() => syncStore.supabaseAnonKey ? '***' + syncStore.supabaseAnonKey.slice(-6) : '未配置')
+
+const selectedBackend = computed({
+  get: () => syncStore.syncBackend,
+  set: async (val) => { await syncStore.setSyncBackend(val) }
+})
+
+function openSupabaseUrlDialog() {
+  supabaseUrlInput.value = syncStore.supabaseUrl || ''
+  showSupabaseUrlDialog.value = true
+}
+
+function openSupabaseKeyDialog() {
+  supabaseKeyInput.value = syncStore.supabaseAnonKey || ''
+  showSupabaseKeyDialog.value = true
+}
+
+async function handleSaveSupabaseUrl() {
+  const url = supabaseUrlInput.value.trim()
+  if (!url) return
+  await syncStore.saveSupabaseConfig(url, syncStore.supabaseAnonKey)
+  showSupabaseUrlDialog.value = false
+}
+
+async function handleSaveSupabaseKey() {
+  const key = supabaseKeyInput.value.trim()
+  if (!key) return
+  await syncStore.saveSupabaseConfig(syncStore.supabaseUrl, key)
+  showSupabaseKeyDialog.value = false
+}
+
+async function handleTestSupabase() {
+  if (!syncStore.supabaseUrl || !syncStore.supabaseAnonKey) {
+    showToast('请先配置 URL 和 Key')
+    return
+  }
+  isTestingSupabase.value = true
+  try {
+    const result = await syncStore.testSupabaseConnection(syncStore.supabaseUrl, syncStore.supabaseAnonKey)
+    if (result.ok) {
+      showSuccessToast('连接成功')
+    } else {
+      showFailToast(result.error || '连接失败')
+    }
+  } catch (e) {
+    showFailToast(e.message || '连接失败')
+  } finally {
+    isTestingSupabase.value = false
+  }
 }
 
 onMounted(async () => {
