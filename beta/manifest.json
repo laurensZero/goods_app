@@ -1,9 +1,9 @@
 {
-  "version": "20260512.8",
-  "url": "bundle-20260512.8.zip",
-  "hash": "7d17a31798633d3fbb31b54151aa3c4c68f387fa08a7364def5769ef4ae60a0b",
+  "version": "20260512.9",
+  "url": "bundle-20260512.9.zip",
+  "hash": "4ec1b641b453a646677bc79b7350d215fd315bdfca5690a2df1c322f817088a6",
   "minNativeVersion": null,
-  "notes": "- feat(recharge): 优化充值记录处理逻辑，支持已删除记录的导入和管理",
+  "notes": "- feat(sync): 添加对 syncBackend 变化的监听，优化订阅和取消订阅逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T10:10:55Z"
+  "publishedAt": "2026-05-12T10:20:59Z"
 }
