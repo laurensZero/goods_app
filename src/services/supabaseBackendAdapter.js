@@ -5,7 +5,8 @@ import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/syncColumn
 import { withRetry } from './syncRetry'
 
 export function createSupabaseBackendAdapter({
-  trackSyncStep
+  trackSyncStep,
+  deviceIdRef
 }) {
   function getDb() {
     return getSupabaseClient()
@@ -19,7 +20,7 @@ export function createSupabaseBackendAdapter({
   }
 
   // Allowed columns per table (camelCase) — filters out extra fields from sync payload
-  const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'image', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee']
+  const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'image', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'syncedBy']
   const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'tracks', 'linkedGoodsIds', 'tags']
   const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image']
 
@@ -306,13 +307,15 @@ export function createSupabaseBackendAdapter({
         const goods = Array.isArray(content.goods) ? content.goods : []
         const trash = Array.isArray(content.trash) ? content.trash : []
 
+        const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
         const goodsRows = goods.map(item => toSnakeCase({
           ...pickCols(item, GOODS_COLS),
           isWishlist: item.isWishlist ? 1 : 0,
           trashed: 0,
           quantity: Number(item.quantity) || 1,
           points: item.points != null ? Number(item.points) : null,
-          updatedAt: toTimestamp(item.updatedAt)
+          updatedAt: toTimestamp(item.updatedAt),
+          syncedBy: currentDeviceId
         }))
         const trashRows = trash.map(item => toSnakeCase({
           ...pickCols(item, GOODS_COLS),
@@ -320,7 +323,8 @@ export function createSupabaseBackendAdapter({
           trashed: 1,
           quantity: Number(item.quantity) || 1,
           points: item.points != null ? Number(item.points) : null,
-          updatedAt: toTimestamp(item.updatedAt)
+          updatedAt: toTimestamp(item.updatedAt),
+          syncedBy: currentDeviceId
         }))
         const mergedRows = [...goodsRows, ...trashRows]
 

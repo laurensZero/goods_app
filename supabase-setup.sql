@@ -90,6 +90,12 @@ CREATE TABLE IF NOT EXISTS sync_presets (
   storage_locations JSONB DEFAULT '[]'
 );
 
+-- Realtime: synced_by 列（标记写入设备，用于过滤自己的 Realtime 事件）
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+
+-- 启用 Realtime（goods 表）
+ALTER PUBLICATION supabase_realtime ADD TABLE goods;
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_goods_updated_at ON goods(updated_at);
 CREATE INDEX IF NOT EXISTS idx_events_updated_at ON events(updated_at);

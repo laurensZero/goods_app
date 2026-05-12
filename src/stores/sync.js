@@ -82,6 +82,7 @@ export const useSyncStore = defineStore('sync', () => {
   const supabaseAnonKey = ref('')
   const isInitialized = ref(false)
   const isSyncing = ref(false)
+  const isPulling = ref(false)
   const syncStatus = ref('')
   const lastError = ref('')
   const syncPhase = ref(null)
@@ -231,7 +232,7 @@ export const useSyncStore = defineStore('sync', () => {
   function getCurrentBackend() {
     if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
       initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
-      return createSupabaseBackendAdapter({ trackSyncStep })
+      return createSupabaseBackendAdapter({ trackSyncStep, deviceIdRef: () => deviceId.value })
     }
     return backend
   }
@@ -427,6 +428,23 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  // ── Auto-push (Realtime) ──
+
+  let autoPushTimer = null
+
+  function autoPushGoods() {
+    if (!isSupabaseMode()) return
+    if (isPulling.value || isSyncing.value) return
+    if (autoPushTimer) clearTimeout(autoPushTimer)
+    autoPushTimer = setTimeout(async () => {
+      try {
+        await fullSync()
+      } catch {
+        // 静默忽略，下次编辑或手动同步会覆盖
+      }
+    }, 2000)
+  }
+
   // ── Public API ──
 
   async function saveToken(newToken, meta = {}) {
@@ -478,7 +496,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (isSyncing.value) return
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error('未找到 Gist')
-    isSyncing.value = true; lastError.value = ''; conflictData.value = null
+    isSyncing.value = true; isPulling.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在拉取...'
     try {
@@ -497,7 +515,7 @@ export const useSyncStore = defineStore('sync', () => {
         lastError.value = error.message; syncStatus.value = '拉取失败'
       }
       throw error
-    } finally { isSyncing.value = false }
+    } finally { isPulling.value = false; isSyncing.value = false }
   }
 
   async function resolveConflict(useRemote) {
@@ -570,9 +588,10 @@ export const useSyncStore = defineStore('sync', () => {
     token, githubLogin, githubAvatarUrl, githubScopes, githubAuthMethod,
     gistId, imageGistId, rechargeGistId, eventGistId,
     lastSyncedAt, eventLastSyncedAt, deviceId,
-    isInitialized, isSyncing, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, conflictData,
+    isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, conflictData,
     isConfigured, init, saveToken, checkTokenValidity,
     getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
+    autoPushGoods,
     clearConflict, resetConfig,
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
     syncBackend, supabaseUrl, supabaseAnonKey,
