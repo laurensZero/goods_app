@@ -1,28 +1,10 @@
 // @ts-check
 import { defineStore } from 'pinia'
-import { ref, shallowRef, computed, triggerRef } from 'vue'
-import { getItems, addItem, saveItems, deleteItems } from '@/utils/db'
-import { useExchangeRateStore } from '@/stores/exchangeRate'
-import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
+import { ref, shallowRef, computed } from 'vue'
+import { getItems } from '@/utils/db'
 import { normalizeStorageLocationValue } from '@/utils/storageLocations'
-import {
-  collectManagedLocalImagePathsFromGoodsItem,
-  deleteManagedLocalImages
-} from '@/utils/localImage'
 import { useSyncStore } from '@/stores/sync'
-import {
-  parseAcquiredTime,
-  parseTimelineYearMonth,
-  parseNumericPrice,
-  parseQuantity,
-  parseDeletedTime,
-  normalizeWishlistFlag,
-  resolveEffectivePriceValue,
-  normalizeGoodsInput,
-  normalizeTrashItem,
-  mergeGoodsRecord,
-  diffRemovedManagedImagePaths
-} from '@/stores/goodsHelpers'
+import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goodsHelpers'
 import {
   readPersistedTrash,
   writePersistedTrash,
@@ -57,6 +39,12 @@ import {
   replaceStorageLocationPrefix as _replaceStorageLocationPrefix,
   clearStorageLocationPrefix as _clearStorageLocationPrefix
 } from '@/stores/goodsStorageOps'
+import {
+  createViewList,
+  createTrashViewList,
+  createFilteredViewLists
+} from '@/stores/goodsViewList'
+import * as crud from '@/stores/goodsCrud'
 
 export const useGoodsStore = defineStore('goods', () => {
   /** @type {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} */
@@ -64,6 +52,8 @@ export const useGoodsStore = defineStore('goods', () => {
   /** @type {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} */
   const trashList = shallowRef([])
   const isReady = ref(false)
+
+  //  Computed getters
 
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))
   const getTrashById = computed(() => (id) => trashList.value.find((item) => item.id === id))
@@ -76,97 +66,26 @@ export const useGoodsStore = defineStore('goods', () => {
         .filter(Boolean)
     )].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
   )
-  /** @type {Map<string, {viewItem: object, srcItem: object}>} */
-  let _viewCache = new Map()
-  let _cachedRatesRef = null
-  const viewList = computed(() => {
-    const exchangeRate = useExchangeRateStore()
-    const ratesRef = exchangeRate.rates
-    const ratesChanged = ratesRef !== _cachedRatesRef
-    _cachedRatesRef = ratesRef
 
-    const newCache = new Map()
-    const result = list.value.map((item) => {
-      const cached = _viewCache.get(item.id)
-      if (cached && cached.srcItem === item && !ratesChanged) {
-        newCache.set(item.id, cached)
-        return cached.viewItem
-      }
+  //  View enrichment
 
-      const quantityNumber = parseQuantity(item.quantity)
-      const officialPriceNumber = parseNumericPrice(item.price)
-      const actualPriceNumber = parseNumericPrice(item.actualPrice)
-      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
-      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+  const viewList = createViewList(list)
+  const { collectionViewList, wishlistViewList } = createFilteredViewLists(viewList)
+  const trashViewList = createTrashViewList(trashList)
 
-      const viewItem = {
-        ...item,
-        isWishlist: normalizeWishlistFlag(item.isWishlist),
-        sortId: String(item.id),
-        acquiredTime: parseAcquiredTime(item.acquiredAt),
-        timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
-        priceNumber: effectivePriceNumber,
-        officialPriceNumber,
-        actualPriceNumber,
-        effectivePriceNumber,
-        priceCNYNumber,
-        quantityNumber,
-        totalValueNumber: priceCNYNumber * quantityNumber
-      }
-      newCache.set(item.id, { viewItem, srcItem: item })
-      return viewItem
-    })
-    _viewCache = newCache
-    return result
-  })
-  const collectionViewList = computed(() => viewList.value.filter((item) => !item.isWishlist))
-  const wishlistViewList = computed(() => viewList.value.filter((item) => item.isWishlist))
-
-  /** @type {Map<string, {viewItem: object, srcItem: object}>} */
-  let _trashViewCache = new Map()
-  let _trashCachedRatesRef = null
-  const trashViewList = computed(() => {
-    const exchangeRate = useExchangeRateStore()
-    const ratesRef = exchangeRate.rates
-    const ratesChanged = ratesRef !== _trashCachedRatesRef
-    _trashCachedRatesRef = ratesRef
-
-    const newCache = new Map()
-    const mapped = trashList.value.map((item) => {
-      const cached = _trashViewCache.get(item.id)
-      if (cached && cached.srcItem === item && !ratesChanged) {
-        newCache.set(item.id, cached)
-        return cached.viewItem
-      }
-
-      const quantityNumber = parseQuantity(item.quantity)
-      const officialPriceNumber = parseNumericPrice(item.price)
-      const actualPriceNumber = parseNumericPrice(item.actualPrice)
-      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
-      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
-
-      const viewItem = {
-        ...item,
-        deletedTime: parseDeletedTime(item.deletedAt),
-        acquiredTime: parseAcquiredTime(item.acquiredAt),
-        priceNumber: effectivePriceNumber,
-        officialPriceNumber,
-        actualPriceNumber,
-        effectivePriceNumber,
-        priceCNYNumber,
-        quantityNumber,
-        totalValueNumber: priceCNYNumber * quantityNumber
-      }
-      newCache.set(item.id, { viewItem, srcItem: item })
-      return viewItem
-    })
-    _trashViewCache = newCache
-    return mapped.sort((a, b) => b.deletedTime - a.deletedTime || b.acquiredTime - a.acquiredTime)
-  })
+  //  Persistence
 
   async function persistTrash() {
     await writePersistedTrash(trashList.value)
   }
+
+  //  Sync helper
+
+  function autoPushGoods() {
+    useSyncStore().autoPushGoods()
+  }
+
+  //  Init
 
   async function init() {
     try {
@@ -208,229 +127,17 @@ export const useGoodsStore = defineStore('goods', () => {
     isReady.value = true
   }
 
-  //  CRUD
+  //  CRUD wrappers
 
-  async function addGoods(data) {
-    const imagesExplicit = Array.isArray(data?.images)
-    const now = Date.now()
-    const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now))
-    const key = buildGoodsIdentityKey(incoming)
-    const existingIndex = list.value.findIndex((item) =>
-      item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
-    )
-
-    if (existingIndex !== -1) {
-      list.value[existingIndex] = mergeGoodsRecord(list.value[existingIndex], incoming)
-    triggerRef(list)
-      try {
-        await addItem(list.value[existingIndex])
-      } catch (e) {
-        console.error('[goods] addGoods (merge) DB write failed:', e)
-        throw e
-      }
-      useSyncStore().autoPushGoods()
-      return list.value[existingIndex]
-    }
-
-    list.value.unshift(incoming)
-    triggerRef(list)
-    try {
-      await addItem(incoming)
-    } catch (e) {
-      console.error('[goods] addGoods DB write failed:', e)
-      throw e
-    }
-    useSyncStore().autoPushGoods()
-    return incoming
-  }
-
-  async function updateGoods(id, data) {
-    const idx = list.value.findIndex((item) => item.id === id)
-    if (idx === -1) return null
-
-    const imagesExplicit = Array.isArray(data?.images)
-    const previous = list.value[idx]
-    const next = normalizeGoodsInput({ ...previous, ...data, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
-    const removedPaths = diffRemovedManagedImagePaths(previous, next)
-    list.value[idx] = next
-    triggerRef(list)
-    try {
-      await addItem(next)
-      await deleteManagedLocalImages(removedPaths)
-    } catch (e) {
-      console.error('[goods] updateGoods DB write failed:', e)
-      throw e
-    }
-    useSyncStore().autoPushGoods()
-    return id
-  }
-
-  async function updateMultipleGoods(ids, data) {
-    let changed = false
-    const imagesExplicit = Array.isArray(data?.images)
-    const now = Date.now()
-    const removedPaths = new Set()
-
-    list.value = list.value.map((item) => {
-      if (!ids.has(item.id)) return item
-      changed = true
-      const next = normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }, item.id)
-      for (const path of diffRemovedManagedImagePaths(item, next)) {
-        removedPaths.add(path)
-      }
-      return next
-    })
-
-    if (changed) {
-      const updatedItems = list.value.filter(item => ids.has(item.id))
-      try {
-        await saveItems(updatedItems)
-        await deleteManagedLocalImages(removedPaths)
-      } catch (e) {
-        console.error('[goods] updateMultipleGoods DB write failed:', e)
-        throw e
-      }
-      useSyncStore().autoPushGoods()
-    }
-  }
-
-  //  Trash
-
-  async function removeGoods(id) {
-    const item = list.value.find((entry) => entry.id === id)
-    if (!item) return
-
-    const now = Date.now()
-    trashList.value.unshift(normalizeTrashItem({
-      ...item,
-      updatedAt: now,
-      deletedAt: new Date(now).toISOString()
-    }, item.id))
-    triggerRef(trashList)
-    list.value = list.value.filter((entry) => entry.id !== id)
-    try {
-      await Promise.all([
-        deleteItems([id]),
-        persistTrash()
-      ])
-    } catch (e) {
-      console.error('[goods] removeGoods DB write failed:', e)
-      throw e
-    }
-    useSyncStore().autoPushGoods()
-  }
-
-  async function removeMultipleGoods(ids) {
-    const now = Date.now()
-    const removedItems = list.value
-      .filter((item) => ids.has(item.id))
-      .map((item) => normalizeTrashItem({
-        ...item,
-        updatedAt: now,
-        deletedAt: new Date(now).toISOString()
-      }, item.id))
-
-    if (removedItems.length === 0) return
-
-    trashList.value = [...removedItems, ...trashList.value]
-    list.value = list.value.filter((item) => !ids.has(item.id))
-    try {
-      await Promise.all([
-        deleteItems(Array.from(ids)),
-        persistTrash()
-      ])
-    } catch (e) {
-      console.error('[goods] removeMultipleGoods DB write failed:', e)
-      throw e
-    }
-    useSyncStore().autoPushGoods()
-  }
-
-  async function restoreTrashItem(id) {
-    const item = trashList.value.find((entry) => entry.id === id)
-    if (!item) return null
-
-    const restored = normalizeGoodsInput({ ...item, updatedAt: Date.now() }, item.id)
-    if (list.value.some((entry) => entry.id === restored.id)) {
-      restored.id = String(Date.now())
-    }
-
-    list.value.unshift(restored)
-    triggerRef(list)
-    trashList.value = trashList.value.filter((entry) => entry.id !== id)
-    try {
-      await Promise.all([
-        addItem(restored),
-        persistTrash()
-      ])
-    } catch (e) {
-      console.error('[goods] restoreTrashItem DB write failed:', e)
-      throw e
-    }
-    useSyncStore().autoPushGoods()
-    return restored
-  }
-
-  async function deleteTrashItem(id) {
-    const existing = trashList.value.find((entry) => entry.id === id)
-    const next = trashList.value.filter((entry) => entry.id !== id)
-    if (next.length === trashList.value.length) return
-
-    trashList.value = next
-    try {
-      await persistTrash()
-      await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
-    } catch (e) {
-      console.error('[goods] deleteTrashItem DB write failed:', e)
-      throw e
-    }
-  }
-
-  async function emptyTrash() {
-    if (trashList.value.length === 0) return
-    const removedPaths = new Set()
-    for (const item of trashList.value) {
-      for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
-        removedPaths.add(path)
-      }
-    }
-    trashList.value = []
-    try {
-      await persistTrash()
-      await deleteManagedLocalImages(removedPaths)
-    } catch (e) {
-      console.error('[goods] emptyTrash DB write failed:', e)
-      throw e
-    }
-  }
-
-  async function deleteGoodsPermanently(ids) {
-    const targetIds = [...new Set(Array.from(ids || []).filter(Boolean))]
-    if (targetIds.length === 0) return 0
-
-    const targetIdSet = new Set(targetIds)
-    const removedPaths = new Set()
-    for (const item of list.value) {
-      if (!targetIdSet.has(item.id)) continue
-      for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
-        removedPaths.add(path)
-      }
-    }
-
-    const next = list.value.filter((item) => !targetIdSet.has(item.id))
-    if (next.length === list.value.length) return 0
-
-    list.value = next
-    triggerRef(list)
-    try {
-      await deleteItems(targetIds)
-      await deleteManagedLocalImages(removedPaths)
-    } catch (e) {
-      console.error('[goods] deleteGoodsPermanently DB write failed:', e)
-      throw e
-    }
-    return targetIds.length
-  }
+  function addGoods(data) { return crud.addGoods(data, list, autoPushGoods) }
+  function updateGoods(id, data) { return crud.updateGoods(id, data, list, autoPushGoods) }
+  function updateMultipleGoods(ids, data) { return crud.updateMultipleGoods(ids, data, list, autoPushGoods) }
+  function removeGoods(id) { return crud.removeGoods(id, list, trashList, persistTrash, autoPushGoods) }
+  function removeMultipleGoods(ids) { return crud.removeMultipleGoods(ids, list, trashList, persistTrash, autoPushGoods) }
+  function restoreTrashItem(id) { return crud.restoreTrashItem(id, list, trashList, persistTrash, autoPushGoods) }
+  function deleteTrashItem(id) { return crud.deleteTrashItem(id, trashList, persistTrash) }
+  function emptyTrash() { return crud.emptyTrash(trashList, persistTrash) }
+  function deleteGoodsPermanently(ids) { return crud.deleteGoodsPermanently(ids, list) }
 
   //  Delegated to sub-modules
 

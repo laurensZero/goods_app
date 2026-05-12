@@ -258,7 +258,7 @@
             <div class="entry-body">
               <p class="entry-kicker">GitHub Gist</p>
               <h3 class="entry-name">使用 GitHub Gist 存储</h3>
-              <p class="entry-desc">借助 GitHub 进行跨设备同步，支持端到端加密与历史版本，配置简单</p>
+              <p class="entry-desc">借助 GitHub 进行跨设备同步，支持端到端加密与历史版本，配置简单。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
