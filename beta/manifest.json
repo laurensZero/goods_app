@@ -1,9 +1,9 @@
 {
-  "version": "20260512.7",
-  "url": "bundle-20260512.7.zip",
-  "hash": "2c0e61f78c856abd5ff74b5b6fdc738f5163bdb099f5f5a6d684478d8f020c90",
+  "version": "20260512.8",
+  "url": "bundle-20260512.8.zip",
+  "hash": "7d17a31798633d3fbb31b54151aa3c4c68f387fa08a7364def5769ef4ae60a0b",
   "minNativeVersion": null,
-  "notes": "- feat(sync): 更新同步相关描述，统一术语为“云同步”",
+  "notes": "- feat(recharge): 优化充值记录处理逻辑，支持已删除记录的导入和管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T09:22:27Z"
+  "publishedAt": "2026-05-12T10:10:55Z"
 }
