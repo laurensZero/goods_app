@@ -69,7 +69,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  View enrichment
 
-  const viewList = createViewList(list)
+  const { viewList } = createViewList(list)
   const { collectionViewList, wishlistViewList } = createFilteredViewLists(viewList)
   const trashViewList = createTrashViewList(trashList)
 
