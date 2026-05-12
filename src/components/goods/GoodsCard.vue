@@ -55,7 +55,7 @@
       </div>
       <div
         v-if="!item.isWishlist && (item.collectStatus === '待发货' || item.collectStatus === '待补款' || item.collectStatus === '待补邮')"
-        class="pending-badge"
+        :class="['pending-badge', { 'pending-badge--compact': density === 'compact' }]"
       >
         {{ item.collectStatus }}
       </div>
@@ -456,6 +456,14 @@ const priceCNYHint = computed(() => {
   letter-spacing: 0.02em;
   box-shadow: 0 6px 14px var(--app-pending-shadow);
   pointer-events: none;
+}
+
+.pending-badge--compact {
+  top: -6px;
+  left: -6px;
+  padding: 2px 7px;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .qty-badge {
