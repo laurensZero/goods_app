@@ -1,9 +1,9 @@
 {
-  "version": "20260512.6",
-  "url": "bundle-20260512.6.zip",
-  "hash": "ef7c0f28f5e8d080772dc260878b0e85345ffdd221719a32d1ca4a2bf025b6b2",
+  "version": "20260512.7",
+  "url": "bundle-20260512.7.zip",
+  "hash": "2c0e61f78c856abd5ff74b5b6fdc738f5163bdb099f5f5a6d684478d8f020c90",
   "minNativeVersion": null,
-  "notes": "- feat(sync): 添加 synced_by 列到数据库表，优化设备标识和数据同步",
+  "notes": "- feat(sync): 更新同步相关描述，统一术语为“云同步”",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T08:47:28Z"
+  "publishedAt": "2026-05-12T09:22:27Z"
 }
