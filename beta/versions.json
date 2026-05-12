@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.12",
+    "url": "bundle-20260512.12.zip",
+    "hash": "1c3d4baafc9663276ecaa9c91945ea0b5152417859274293354f0b14634acb3e",
+    "minNativeVersion": null,
+    "notes": "- feat(sync): 优化可见性变化处理，增加防抖机制以减少频繁的同步请求",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T11:03:18Z"
+  },
+  {
     "version": "20260512.11",
     "url": "bundle-20260512.11.zip",
     "hash": "5aca7412fd3167b79ebc300cc410ba4af862cf2c55f7ce8dbf098cb5e6c54220",
@@ -16,14 +25,5 @@
     "notes": "- feat(recharge): 优化充值记录处理，过滤已删除记录并调整导入逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T10:32:15Z"
-  },
-  {
-    "version": "20260512.9",
-    "url": "bundle-20260512.9.zip",
-    "hash": "4ec1b641b453a646677bc79b7350d215fd315bdfca5690a2df1c322f817088a6",
-    "minNativeVersion": null,
-    "notes": "- feat(sync): 添加对 syncBackend 变化的监听，优化订阅和取消订阅逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T10:20:59Z"
   }
 ]
