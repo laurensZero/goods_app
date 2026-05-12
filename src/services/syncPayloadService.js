@@ -287,7 +287,7 @@ export function createSyncPayloadService({
   function buildRechargeSyncData({ incremental = false } = {}) {
     const rechargeStore = useRechargeStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
-    const allRecords = rechargeStore.exportBackup({ includeDeleted: true, stripImage: true })
+    const allRecords = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const records = incremental
       ? allRecords.filter((item) => !lastSyncTime || getItemTimestamp(item) > lastSyncTime)
       : allRecords
@@ -296,8 +296,8 @@ export function createSyncPayloadService({
       version: 1,
       updatedAt: new Date().toISOString(),
       deviceId: deviceIdRef.value,
-      recharge: records.filter((r) => !r.deleted),
-      rechargeTrash: records.filter((r) => r.deleted)
+      recharge: records,
+      rechargeTrash: []
     }
   }
 
