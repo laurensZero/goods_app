@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
-import { IS_NATIVE } from '@/utils/platform'
 import { Preferences } from '@capacitor/preferences'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { createPinia } from 'pinia'
@@ -31,7 +30,7 @@ const ANDROID_ROOT_ROUTE_NAMES = new Set([
 const LAST_NATIVE_APP_VERSION_KEY = 'last_native_app_version'
 
 async function notifyUpdaterReady() {
-  if (!IS_NATIVE) return
+  if (!Capacitor.isNativePlatform()) return
 
   try {
     await CapacitorUpdater.notifyAppReady()
@@ -41,7 +40,7 @@ async function notifyUpdaterReady() {
 }
 
 async function reconcileBundlesAfterNativeUpdate() {
-  if (!IS_NATIVE) return
+  if (!Capacitor.isNativePlatform()) return
 
   try {
     const info = await CapacitorApp.getInfo()

@@ -405,7 +405,6 @@
 <script setup>
 import { Capacitor } from '@capacitor/core'
 import { readPersisted, writePersisted, removePersisted } from '@/utils/platformStorage'
-import { IS_NATIVE } from '@/utils/platform'
 import { App as CapacitorApp } from '@capacitor/app'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
@@ -422,6 +421,7 @@ import capacitorConfig from '../../capacitor.config.json'
 const FEEDBACK_TOKEN_KEY = 'goods_feedback_github_token'
 const FEEDBACK_REPO_OWNER = 'laurensZero'
 const FEEDBACK_REPO_NAME = 'goods_app'
+const IS_NATIVE = Capacitor.isNativePlatform()
 
 const goodsStore = useGoodsStore()
 const presetsStore = usePresetsStore()

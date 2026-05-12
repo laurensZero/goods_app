@@ -13,26 +13,24 @@
  *   - 只执行版本号高于当前版本的迁移
  */
 
+import { Capacitor } from '@capacitor/core'
 import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goodsImages'
 import { parseJsonArray } from '@/utils/parseJsonArray'
-import { createAdapter } from '@dbAdapter'
 
-/**
- * @typedef {Object} DatabaseAdapter
- * @property {() => Promise<void>} open
- * @property {(sql: string) => Promise<void>} execute
- * @property {(sql: string, params?: any[]) => Promise<void>} run
- * @property {(stmts: {statement: string, values: any[]}[]) => Promise<void>} executeSet
- * @property {(sql: string, params?: any[]) => Promise<any[]>} query
- * @property {(tableName: string) => Promise<Set<string>>} getTableColumns
- */
+const IS_NATIVE = Capacitor.isNativePlatform()
 
-/** @type {DatabaseAdapter | null} */
+/** @type {any} */
 let db = null
 
 async function getDb() {
   if (db) return db
-  db = createAdapter()
+  if (IS_NATIVE) {
+    const { createNativeAdapter } = await import('@/utils/dbNativeAdapter')
+    db = createNativeAdapter()
+  } else {
+    const { createWebAdapter } = await import('@/utils/dbWebAdapter')
+    db = createWebAdapter()
+  }
   return db
 }
 
