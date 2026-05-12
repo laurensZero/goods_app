@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.11",
+    "url": "bundle-20260512.11.zip",
+    "hash": "5aca7412fd3167b79ebc300cc410ba4af862cf2c55f7ce8dbf098cb5e6c54220",
+    "minNativeVersion": null,
+    "notes": "- feat(goods): 重构商品管理逻辑，优化视图生成和CRUD操作",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T10:59:35Z"
+  },
+  {
     "version": "20260512.10",
     "url": "bundle-20260512.10.zip",
     "hash": "a253ad3f982099e207a28fa93ce904c7da9ac3310e4f952d00d6fcfbcaa863c4",
@@ -16,14 +25,5 @@
     "notes": "- feat(sync): 添加对 syncBackend 变化的监听，优化订阅和取消订阅逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T10:20:59Z"
-  },
-  {
-    "version": "20260512.8",
-    "url": "bundle-20260512.8.zip",
-    "hash": "7d17a31798633d3fbb31b54151aa3c4c68f387fa08a7364def5769ef4ae60a0b",
-    "minNativeVersion": null,
-    "notes": "- feat(recharge): 优化充值记录处理逻辑，支持已删除记录的导入和管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T10:10:55Z"
   }
 ]
