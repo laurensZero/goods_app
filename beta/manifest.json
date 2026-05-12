@@ -1,9 +1,9 @@
 {
-  "version": "20260512.14",
-  "url": "bundle-20260512.14.zip",
-  "hash": "9ac00ee1c7f0735b55634710ecd5f5c0564782d5cab7d4283dfe94a94268481f",
+  "version": "20260512.15",
+  "url": "bundle-20260512.15.zip",
+  "hash": "bc99ba64c0edbc5983e8b153efadfc109efdbb3571638e2a43746fcaa39303b1",
   "minNativeVersion": null,
-  "notes": "- feat(goods): 优化待发货状态的样式，增加紧凑模式支持",
+  "notes": "- feat(goods): 优化视图列表生成逻辑，增加增量观察者以提高性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T11:20:43Z"
+  "publishedAt": "2026-05-12T13:09:25Z"
 }
