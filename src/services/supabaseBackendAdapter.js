@@ -192,17 +192,20 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'recharge-data.json') {
         const { data, error } = await withRetry(() =>
-          db.from('recharge_records').select(RECHARGE_SELECT_COLS).eq('deleted', 0)
+          db.from('recharge_records').select(RECHARGE_SELECT_COLS)
         )
         if (error) throw new Error(`读取 recharge 失败: ${error.message}`)
-        const recharge = (data || []).map((row) => {
+        const allItems = (data || []).map((row) => {
           const item = toCamelCase(row)
           item.updatedAt = normalizeTimestamp(item.updatedAt)
           item.deleted = Boolean(item.deleted)
           return item
         })
         return {
-          parsed: { recharge, rechargeTrash: [] },
+          parsed: {
+            recharge: allItems.filter((r) => !r.deleted),
+            rechargeTrash: allItems.filter((r) => r.deleted)
+          },
           source: 'Supabase'
         }
       }

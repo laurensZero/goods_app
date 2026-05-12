@@ -101,7 +101,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       const rows = await getRechargeRecords()
       const normalized = rows.map((item) => normalizeRecord(item))
-      const valid = normalized.filter((item) => isValidRechargeRecord(item) && !item.deleted)
+      const valid = normalized.filter((item) => isValidRechargeRecord(item) || item.deleted)
       records.value = valid
     } catch (error) {
       console.error('[recharge] load from DB failed:', error)
@@ -200,16 +200,17 @@ export const useRechargeStore = defineStore('recharge', () => {
   }
 
   async function permanentDelete(id) {
-    const next = records.value.filter((item) => item.id !== id)
-    if (next.length === records.value.length) return false
-    await deleteRechargeRecords([id])
-    records.value = next
+    const target = records.value.find((item) => item.id === id)
+    if (!target) return false
+    target.deleted = true
+    target.updatedAt = Date.now()
+    await saveRechargeRecords([target])
     useSyncStore().autoPushGoods()
     return true
   }
 
   async function clearInvalidRecords() {
-    const next = records.value.filter((item) => isValidRechargeRecord(item) && !item.deleted)
+    const next = records.value.filter((item) => isValidRechargeRecord(item) || item.deleted)
     if (next.length === records.value.length) return 0
     const removed = records.value.length - next.length
     const removedIds = records.value
@@ -230,14 +231,27 @@ export const useRechargeStore = defineStore('recharge', () => {
 
   async function importBackup(list = []) {
     if (!Array.isArray(list) || list.length === 0) {
-      return { added: 0, updated: 0, skipped: 0, total: records.value.length }
+      return { added: 0, updated: 0, deleted: 0, skipped: 0, total: records.value.length }
     }
 
     const currentMap = new Map(records.value.map((item) => [item.id, item]))
     const incomingMap = buildLatestRecordMap(list)
     let added = 0
     let updated = 0
+    let deleted = 0
     let skipped = 0
+
+    // 处理墓碑：远端标记为删除的记录，从本地移除
+    for (const item of list) {
+      const normalized = normalizeRecord(item)
+      if (!normalized.deleted) continue
+      const id = normalized.id
+      const existing = currentMap.get(id)
+      if (existing && Number(normalized.updatedAt || 0) >= Number(existing.updatedAt || 0)) {
+        currentMap.delete(id)
+        deleted += 1
+      }
+    }
 
     for (const [id, incoming] of incomingMap.entries()) {
       const existing = currentMap.get(id)
@@ -260,14 +274,14 @@ export const useRechargeStore = defineStore('recharge', () => {
       }
     }
 
-    if (added === 0 && updated === 0) {
-      return { added, updated, skipped, total: records.value.length }
+    if (added === 0 && updated === 0 && deleted === 0) {
+      return { added, updated, deleted, skipped, total: records.value.length }
     }
 
     const merged = Array.from(currentMap.values())
     await saveRechargeRecords(merged)
     records.value = merged
-    return { added, updated, skipped, total: records.value.length }
+    return { added, updated, deleted, skipped, total: records.value.length }
   }
 
   async function replaceBackup(list = []) {
