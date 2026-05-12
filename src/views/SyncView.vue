@@ -258,7 +258,7 @@
             <div class="entry-body">
               <p class="entry-kicker">GitHub Gist</p>
               <h3 class="entry-name">使用 GitHub Gist 存储</h3>
-              <p class="entry-desc">借助 GitHub 进行跨设备同步，支持端到端加密与历史版本。</p>
+              <p class="entry-desc">借助 GitHub 进行跨设备同步，支持端到端加密与历史版本，配置简单</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -281,7 +281,7 @@
             <div class="entry-body">
               <p class="entry-kicker">Supabase</p>
               <h3 class="entry-name">使用 Supabase 存储</h3>
-              <p class="entry-desc">将数据与图片保存在你自己的 Supabase 项目，可节省 Gist 空间。</p>
+              <p class="entry-desc">将数据与图片保存在你自己的 Supabase 项目，可以进行实时同步，但配置较繁琐。</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
