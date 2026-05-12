@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.3",
+    "url": "bundle-20260512.3.zip",
+    "hash": "34735d9c0f0329e8d32692d9a1ce0ff05e562102bcc1e3bd9b44d3e78609f094",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat(platform): 引入平台常量，优化数据库适配器选择逻辑\"\n  This reverts commit 8c46a30053e31707a570dfd01771f72fd0da8bb1.",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T07:54:00Z"
+  },
+  {
     "version": "20260512.2",
     "url": "bundle-20260512.2.zip",
     "hash": "58b5e96325b2d381e39e6621d89634502518b58eec9b37b30057259761d48faf",
@@ -16,14 +25,5 @@
     "notes": "- feat(sync): 添加实时同步功能，优化数据推送与拉取逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T07:36:02Z"
-  },
-  {
-    "version": "20260511.5",
-    "url": "bundle-20260511.5.zip",
-    "hash": "277b1500e0e8e9af8519999b1a0ebb84294ddb313e79287b8a148432e6d9b9d9",
-    "minNativeVersion": null,
-    "notes": "- feat(detail): 优化图片缓存逻辑，添加即时缓存检查",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-11T15:28:46Z"
   }
 ]
