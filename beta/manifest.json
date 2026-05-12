@@ -1,9 +1,9 @@
 {
-  "version": "20260512.15",
-  "url": "bundle-20260512.15.zip",
-  "hash": "bc99ba64c0edbc5983e8b153efadfc109efdbb3571638e2a43746fcaa39303b1",
+  "version": "20260512.16",
+  "url": "bundle-20260512.16.zip",
+  "hash": "666f0fe516df876521234709f2819873173fa9ad66ec35d00a9437d0eafeeaa9",
   "minNativeVersion": null,
-  "notes": "- feat(goods): 优化视图列表生成逻辑，增加增量观察者以提高性能",
+  "notes": "- feat(tabs): 为各个视图添加显示底部导航栏的标识",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T13:09:25Z"
+  "publishedAt": "2026-05-12T13:14:48Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.16",
+    "url": "bundle-20260512.16.zip",
+    "hash": "666f0fe516df876521234709f2819873173fa9ad66ec35d00a9437d0eafeeaa9",
+    "minNativeVersion": null,
+    "notes": "- feat(tabs): 为各个视图添加显示底部导航栏的标识",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T13:14:48Z"
+  },
+  {
     "version": "20260512.15",
     "url": "bundle-20260512.15.zip",
     "hash": "bc99ba64c0edbc5983e8b153efadfc109efdbb3571638e2a43746fcaa39303b1",
@@ -16,14 +25,5 @@
     "notes": "- feat(goods): 优化待发货状态的样式，增加紧凑模式支持",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T11:20:43Z"
-  },
-  {
-    "version": "20260512.13",
-    "url": "bundle-20260512.13.zip",
-    "hash": "4272bbfa06a2ad456f005a0ba807a1022b4d8018cc5ad75ef19fdc2a0e070b19",
-    "minNativeVersion": null,
-    "notes": "- feat(goods): 添加待发货状态的标识和样式，优化商品卡片展示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T11:14:37Z"
   }
 ]
