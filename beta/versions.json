@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.19",
+    "url": "bundle-20260512.19.zip",
+    "hash": "c6a06c6b8b3f45171dedb058560e4953b9e4485d0cb107a96ca2c0f1d12fc947",
+    "minNativeVersion": null,
+    "notes": "- feat(migrations): 在后台启动迁移，优化数据迁移逻辑\n\n- feat(sync): 引入同步相关常量，优化版本管理与文件名配置\n\n- fix(view-list): 修正观察者参数顺序，提升代码可读性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T13:55:01Z"
+  },
+  {
     "version": "20260512.18",
     "url": "bundle-20260512.18.zip",
     "hash": "c47e87ec25da296f1fd58b64bd1be97549d5a6308cfe63f58dcca17a5d22af5e",
@@ -16,14 +25,5 @@
     "notes": "- feat(sync): 添加同步通知功能，优化用户反馈体验\n\n- fix(sync): 优化冲突检测逻辑，简化代码结构",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T13:35:05Z"
-  },
-  {
-    "version": "20260512.16",
-    "url": "bundle-20260512.16.zip",
-    "hash": "666f0fe516df876521234709f2819873173fa9ad66ec35d00a9437d0eafeeaa9",
-    "minNativeVersion": null,
-    "notes": "- feat(tabs): 为各个视图添加显示底部导航栏的标识",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T13:14:48Z"
   }
 ]

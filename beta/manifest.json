@@ -1,9 +1,9 @@
 {
-  "version": "20260512.18",
-  "url": "bundle-20260512.18.zip",
-  "hash": "c47e87ec25da296f1fd58b64bd1be97549d5a6308cfe63f58dcca17a5d22af5e",
+  "version": "20260512.19",
+  "url": "bundle-20260512.19.zip",
+  "hash": "c6a06c6b8b3f45171dedb058560e4953b9e4485d0cb107a96ca2c0f1d12fc947",
   "minNativeVersion": null,
-  "notes": "- feat(mihoyo): 优化分类推断逻辑，使用关键词数组简化代码",
+  "notes": "- feat(migrations): 在后台启动迁移，优化数据迁移逻辑\n\n- feat(sync): 引入同步相关常量，优化版本管理与文件名配置\n\n- fix(view-list): 修正观察者参数顺序，提升代码可读性",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T13:41:49Z"
+  "publishedAt": "2026-05-12T13:55:01Z"
 }
