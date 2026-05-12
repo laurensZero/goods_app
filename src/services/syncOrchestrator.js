@@ -299,7 +299,7 @@ export function createSyncOrchestrator({
 
     const remoteRecharge = Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []
     const remoteRechargeLegacy = Array.isArray(remoteData.rechargeRecords) ? remoteData.rechargeRecords : []
-    const rechargeApplyResult = await rechargeStore.replaceBackup([...remoteRecharge, ...remoteRechargeLegacy].filter((item) => !item?.deleted))
+    const rechargeApplyResult = await rechargeStore.importBackup([...remoteRecharge, ...remoteRechargeLegacy])
 
     let eventApplyResult = { added: 0, updated: 0, removed: 0, total: 0 }
     if (eventData && Array.isArray(eventData.events)) {
