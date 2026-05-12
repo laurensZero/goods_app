@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.2",
+    "url": "bundle-20260512.2.zip",
+    "hash": "58b5e96325b2d381e39e6621d89634502518b58eec9b37b30057259761d48faf",
+    "minNativeVersion": null,
+    "notes": "- feat(platform): 引入平台常量，优化数据库适配器选择逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T07:46:00Z"
+  },
+  {
     "version": "20260512.1",
     "url": "bundle-20260512.1.zip",
     "hash": "20dd422e4cd2a4aaaea2fbd847a6f512c66b34436f98f6ecf9a8aa3cf713b0cc",
@@ -16,14 +25,5 @@
     "notes": "- feat(detail): 优化图片缓存逻辑，添加即时缓存检查",
     "updateLevel": "silent",
     "publishedAt": "2026-05-11T15:28:46Z"
-  },
-  {
-    "version": "20260511.4",
-    "url": "bundle-20260511.4.zip",
-    "hash": "510db6658ead759d555864ef00da5aa3f1b201272a7878774f6bfb34cb8a7b54",
-    "minNativeVersion": null,
-    "notes": "- feat(sync): 添加Supabase密钥输入提示和后端切换确认功能，优化用户交互",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-11T14:57:26Z"
   }
 ]
