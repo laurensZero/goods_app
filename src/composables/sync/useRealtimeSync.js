@@ -1,4 +1,4 @@
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { getSupabaseClient } from '@/utils/supabaseClient'
 
 /**
@@ -65,6 +65,15 @@ export function useRealtimeSync({ syncStore }) {
     }
   }
 
+  // syncStore.init() 完成后 isSupabaseMode() 才可靠，用 watcher 延迟订阅
+  watch(() => syncStore.syncBackend, (backend) => {
+    if (backend === 'supabase') {
+      subscribe()
+    } else {
+      unsubscribe()
+    }
+  })
+
   async function handleVisibilityChange() {
     if (document.hidden) return
     // 回到前台时做一次 catch-up pull
@@ -74,6 +83,7 @@ export function useRealtimeSync({ syncStore }) {
   }
 
   onMounted(() => {
+    // init 已完成时直接订阅，否则等 watcher 触发
     if (syncStore.isSupabaseMode()) {
       subscribe()
     }
