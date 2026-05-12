@@ -562,38 +562,42 @@ export async function fetchCartList(cookieStr) {
  * @param {Object} order - API 返回的单个订单对象
  * @returns {Object|null}
  */
+const CATEGORY_KEYWORDS = [
+  { keywords: ['满赠', '赠品'], category: '满赠' },
+  { keywords: ['手办'], category: '手办' },
+  { keywords: ['立牌', '亚克力'], category: '立牌' },
+  { keywords: ['挂件', '挂饰', '吊件', '钥匙扣'], category: '挂件' },
+  { keywords: ['徽章', '马口铁', '胸章', 'Pin', 'pin'], category: '徽章' },
+  { keywords: ['明信片'], category: '明信片' },
+  { keywords: ['卡片', '随机卡', '收藏卡', '可换卡', '卡组'], category: '卡片' },
+  { keywords: ['CD', '专辑', '唱片', 'OST'], category: 'CD/专辑' },
+  { keywords: ['色纸', '签板'], category: '色纸' },
+  { keywords: ['上衣', 'T恤', '衬衫', '外套', '卫衣', '服饰'], category: '服饰' },
+  { keywords: ['镭射票', '镭射'], category: '镭射票' },
+]
+
 /** 从商品名关键词推断分类 */
 export function parseCategoryFromName(name) {
   if (!name) return ''
-  if (name.includes('满赠') || name.includes('赠品')) return '满赠'
-  if (name.includes('手办')) return '手办'
-  if (name.includes('立牌') || name.includes('亚克力')) return '立牌'
-  if (name.includes('挂件') || name.includes('挂饰') || name.includes('吊件') || name.includes('钥匙扣')) return '挂件'
-  if (name.includes('徽章') || name.includes('马口铁') || name.includes('胸章') ||
-      name.includes('Pin') || name.includes('pin')) return '徽章'
-  if (name.includes('明信片')) return '明信片'
-  if (name.includes('卡片') || name.includes('随机卡') || name.includes('收藏卡') ||
-      name.includes('可换卡') || name.includes('卡组')) return '卡片'
-  if (name.includes('CD') || name.includes('专辑') || name.includes('唱片') ||
-      name.includes('OST')) return 'CD/专辑'
-  if (name.includes('色纸') || name.includes('签板')) return '色纸'
-  if (name.includes('上衣') || name.includes('T恤') || name.includes('衬衫') ||
-      name.includes('外套') || name.includes('卫衣') || name.includes('服饰')) return '服饰'
-  if (name.includes('镭射票') || name.includes('镭射')) return '镭射票'
-  return ''
+  const match = CATEGORY_KEYWORDS.find(({ keywords }) => keywords.some((keyword) => name.includes(keyword)))
+  return match?.category || ''
 }
 
 /** 从店铺名推断 IP（比从商品名解析更稳定） */
+const SHOP_IP_KEYWORDS = [
+  { keywords: ['原神万有铺子'], ip: '原神' },
+  { keywords: ['货全杂货铺'], ip: '崩坏：星穹铁道' },
+  { keywords: ['绝区零'], ip: '绝区零' },
+  { keywords: ['空港集市'], ip: '崩坏3' },
+  { keywords: ['未名商城'], ip: '未定事件簿' },
+  { keywords: ['千羽万事屋'], ip: '崩坏学园2nd' },
+  { keywords: ['别野百货'], ip: '米游社周边' },
+]
+
 function shopToIp(shopName) {
   if (!shopName) return ''
-  if (shopName.includes('原神万有铺子')) return '原神'
-  if (shopName.includes('货全杂货铺')) return '崩坏：星穹铁道'
-  if (shopName.includes('绝区零')) return '绝区零'
-  if (shopName.includes('空港集市')) return '崩坏3'
-  if (shopName.includes('未名商城')) return '未定事件簿'
-  if (shopName.includes('千羽万事屋')) return '崩坏学园2nd'
-  if (shopName.includes('别野百货')) return '米游社周边'
-  return ''
+  const match = SHOP_IP_KEYWORDS.find(({ keywords }) => keywords.some((keyword) => shopName.includes(keyword)))
+  return match?.ip || ''
 }
 
 /** 去除 sku 属性值中的所有括号前缀（角色名等应为纯文本）
