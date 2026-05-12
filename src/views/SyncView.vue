@@ -2,6 +2,13 @@
   <div class="page sync-page">
     <NavBar title="云同步" show-back />
 
+    <Transition name="toast-fade">
+      <div v-if="syncNoticeText" class="sync-notice" :class="`sync-notice--${syncNoticeLevel}`" role="alert">
+        <span class="sync-notice__title">同步{{ syncNoticeLevel === 'error' ? '失败' : '提示' }}</span>
+        <span class="sync-notice__body">{{ syncNoticeText }}</span>
+      </div>
+    </Transition>
+
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section hero-section--sync">
         <article class="hero-card">
@@ -747,6 +754,8 @@ const githubLoginError = ref('')
 const isRequestingGithubDeviceCode = ref(false)
 const isPollingGithubLogin = ref(false)
 const toastMsg = ref('')
+const syncNoticeText = computed(() => syncStore.syncNotice?.message || '')
+const syncNoticeLevel = computed(() => syncStore.syncNotice?.level || 'error')
 const gistInfo = ref(null)
 const pullConflictData = ref({})
 const showSupabaseUrlDialog = ref(false)
@@ -1498,6 +1507,39 @@ onMounted(async () => {
   color: var(--color-primary, #3b82f6);
   padding: 0;
   font: inherit;
+}
+
+.sync-notice {
+  margin: 12px 16px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  display: grid;
+  gap: 4px;
+  background: color-mix(in srgb, var(--app-surface) 88%, #fff);
+  border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.sync-notice--error {
+  border-color: color-mix(in srgb, #dc2626 28%, transparent);
+  background: color-mix(in srgb, #dc2626 10%, var(--app-surface));
+}
+
+.sync-notice--info {
+  border-color: color-mix(in srgb, #2563eb 24%, transparent);
+  background: color-mix(in srgb, #2563eb 10%, var(--app-surface));
+}
+
+.sync-notice__title {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sync-notice__body {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Dialog overrides: align z-index with this view's layering */

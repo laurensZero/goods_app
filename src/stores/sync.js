@@ -12,6 +12,7 @@ import { createGistBackendAdapter } from '@/services/gistBackendAdapter'
 import { createSupabaseBackendAdapter } from '@/services/supabaseBackendAdapter'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
+import { withRetry } from '@/services/syncRetry'
 import { validateToken, getGist, listGists } from '@/utils/githubGist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/syncShared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/syncStorage'
@@ -88,6 +89,7 @@ export const useSyncStore = defineStore('sync', () => {
   const syncPhase = ref(null)
   const syncCause = ref(null)
   const syncSuggestion = ref(null)
+  const syncNotice = ref(null)
   const conflictData = ref(null)
 
   const isConfigured = computed(() => {
@@ -227,6 +229,29 @@ export const useSyncStore = defineStore('sync', () => {
     if (!token.value) {
       throw new Error('未配置 Token')
     }
+  }
+
+  function publishSyncNotice({ source = 'manual', level = 'error', message = '' } = {}) {
+    syncNotice.value = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      source,
+      level,
+      message: String(message || '').trim()
+    }
+  }
+
+  function applySyncError(error, fallbackStatus) {
+    if (error instanceof SyncError) {
+      lastError.value = error.message
+      syncStatus.value = buildSyncErrorStatus(error)
+      syncPhase.value = error.phase
+      syncCause.value = error.cause
+      syncSuggestion.value = error.suggestion
+      return
+    }
+
+    lastError.value = error?.message || fallbackStatus
+    syncStatus.value = fallbackStatus
   }
 
   function getCurrentBackend() {
@@ -438,9 +463,13 @@ export const useSyncStore = defineStore('sync', () => {
     if (autoPushTimer) clearTimeout(autoPushTimer)
     autoPushTimer = setTimeout(async () => {
       try {
-        await fullSync()
-      } catch {
-        // 静默忽略，下次编辑或手动同步会覆盖
+        await fullSync({ source: 'auto' })
+      } catch (error) {
+        publishSyncNotice({
+          source: 'auto',
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || error?.message || '自动同步失败，请稍后重试'
+        })
       }
     }, 2000)
   }
@@ -467,32 +496,34 @@ export const useSyncStore = defineStore('sync', () => {
     return validateToken(token.value)
   }
 
-  async function fullSync() {
+  async function fullSync({ source = 'manual', maxRetries = 1 } = {}) {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     ensureBackendReady()
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在同步...'
     try {
-      const result = await orchestrator.fullSync(buildSyncContext())
+      const result = await withRetry(
+        () => orchestrator.fullSync(buildSyncContext()),
+        { maxRetries, baseDelay: 1200 }
+      )
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = result.statusMessage || '同步完成'
       return result
     } catch (error) {
-      if (error instanceof SyncError) {
-        lastError.value = error.message
-        syncStatus.value = buildSyncErrorStatus(error)
-        syncPhase.value = error.phase
-        syncCause.value = error.cause
-        syncSuggestion.value = error.suggestion
-      } else {
-        lastError.value = error.message; syncStatus.value = '同步失败'
+      applySyncError(error, '同步失败')
+      if (source !== 'manual') {
+        publishSyncNotice({
+          source,
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || error?.message || '同步失败'
+        })
       }
       throw error
     } finally { isSyncing.value = false }
   }
 
-  async function pullOnly({ silent = false } = {}) {
+  async function pullOnly({ silent = false, source = 'manual', maxRetries = 1 } = {}) {
     if (isSyncing.value) return
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error('未找到 Gist')
@@ -501,68 +532,74 @@ export const useSyncStore = defineStore('sync', () => {
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在拉取...'
     try {
-      const result = await orchestrator.pullOnly(buildSyncContext(), { silent })
+      const result = await withRetry(
+        () => orchestrator.pullOnly(buildSyncContext(), { silent }),
+        { maxRetries, baseDelay: 1200 }
+      )
       if (!silent && result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = result.statusMessage || '拉取完成'
       return result
     } catch (error) {
-      if (error instanceof SyncError) {
-        lastError.value = error.message
-        syncStatus.value = buildSyncErrorStatus(error)
-        syncPhase.value = error.phase
-        syncCause.value = error.cause
-        syncSuggestion.value = error.suggestion
-      } else {
-        lastError.value = error.message; syncStatus.value = '拉取失败'
+      applySyncError(error, '拉取失败')
+      if (source !== 'manual') {
+        publishSyncNotice({
+          source,
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || error?.message || '拉取失败'
+        })
       }
       throw error
     } finally { isPulling.value = false; isSyncing.value = false }
   }
 
-  async function resolveConflict(useRemote) {
+  async function resolveConflict(useRemote, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value) return
     isSyncing.value = true; syncStatus.value = '正在解决冲突...'
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
-      const result = await orchestrator.resolveConflict(ctx, useRemote)
+      const result = await withRetry(
+        () => orchestrator.resolveConflict(ctx, useRemote),
+        { maxRetries, baseDelay: 1200 }
+      )
       conflictData.value = null
       syncStatus.value = result.statusMessage || '冲突已解决'
       return result
     } catch (error) {
-      if (error instanceof SyncError) {
-        lastError.value = error.message
-        syncStatus.value = buildSyncErrorStatus(error)
-        syncPhase.value = error.phase
-        syncCause.value = error.cause
-        syncSuggestion.value = error.suggestion
-      } else {
-        lastError.value = error.message; syncStatus.value = '同步失败'
+      applySyncError(error, '同步失败')
+      if (source !== 'manual') {
+        publishSyncNotice({
+          source,
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || error?.message || '同步失败'
+        })
       }
       throw error
     } finally { isSyncing.value = false }
   }
 
-  async function resolvePullConflict(confirm) {
+  async function resolvePullConflict(confirm, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value?.isPullOnly) return
     isSyncing.value = true; syncStatus.value = '正在拉取...'
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
       if (!confirm) { syncStatus.value = '已取消'; conflictData.value = null; return { action: 'cancelled' } }
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
-      const result = await orchestrator.resolvePullConflict(ctx, confirm)
+      const result = await withRetry(
+        () => orchestrator.resolvePullConflict(ctx, confirm),
+        { maxRetries, baseDelay: 1200 }
+      )
       conflictData.value = null
       syncStatus.value = result.statusMessage || '拉取完成'
       return result
     } catch (error) {
-      if (error instanceof SyncError) {
-        lastError.value = error.message
-        syncStatus.value = buildSyncErrorStatus(error)
-        syncPhase.value = error.phase
-        syncCause.value = error.cause
-        syncSuggestion.value = error.suggestion
-      } else {
-        lastError.value = error.message; syncStatus.value = '拉取失败'
+      applySyncError(error, '拉取失败')
+      if (source !== 'manual') {
+        publishSyncNotice({
+          source,
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || error?.message || '拉取失败'
+        })
       }
       throw error
     } finally { isSyncing.value = false }
@@ -589,7 +626,7 @@ export const useSyncStore = defineStore('sync', () => {
     token, githubLogin, githubAvatarUrl, githubScopes, githubAuthMethod,
     gistId, imageGistId, rechargeGistId, eventGistId,
     lastSyncedAt, eventLastSyncedAt, deviceId,
-    isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, conflictData,
+    isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData,
     isConfigured, init, saveToken, checkTokenValidity,
     getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
     autoPushGoods,
