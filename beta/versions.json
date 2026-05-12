@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.13",
+    "url": "bundle-20260512.13.zip",
+    "hash": "4272bbfa06a2ad456f005a0ba807a1022b4d8018cc5ad75ef19fdc2a0e070b19",
+    "minNativeVersion": null,
+    "notes": "- feat(goods): 添加待发货状态的标识和样式，优化商品卡片展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T11:14:37Z"
+  },
+  {
     "version": "20260512.12",
     "url": "bundle-20260512.12.zip",
     "hash": "1c3d4baafc9663276ecaa9c91945ea0b5152417859274293354f0b14634acb3e",
@@ -16,14 +25,5 @@
     "notes": "- feat(goods): 重构商品管理逻辑，优化视图生成和CRUD操作",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T10:59:35Z"
-  },
-  {
-    "version": "20260512.10",
-    "url": "bundle-20260512.10.zip",
-    "hash": "a253ad3f982099e207a28fa93ce904c7da9ac3310e4f952d00d6fcfbcaa863c4",
-    "minNativeVersion": null,
-    "notes": "- feat(recharge): 优化充值记录处理，过滤已删除记录并调整导入逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T10:32:15Z"
   }
 ]

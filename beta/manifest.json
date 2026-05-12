@@ -1,9 +1,9 @@
 {
-  "version": "20260512.12",
-  "url": "bundle-20260512.12.zip",
-  "hash": "1c3d4baafc9663276ecaa9c91945ea0b5152417859274293354f0b14634acb3e",
+  "version": "20260512.13",
+  "url": "bundle-20260512.13.zip",
+  "hash": "4272bbfa06a2ad456f005a0ba807a1022b4d8018cc5ad75ef19fdc2a0e070b19",
   "minNativeVersion": null,
-  "notes": "- feat(sync): 优化可见性变化处理，增加防抖机制以减少频繁的同步请求",
+  "notes": "- feat(goods): 添加待发货状态的标识和样式，优化商品卡片展示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T11:03:18Z"
+  "publishedAt": "2026-05-12T11:14:37Z"
 }
