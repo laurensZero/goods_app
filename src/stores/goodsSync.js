@@ -12,6 +12,7 @@ import {
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
 import { normalizeGoodsImageList } from '@/utils/goodsImages'
+import { isLocalImageUri } from '@/utils/localImage'
 
 async function persistTrash(trashList) {
   await writePersistedTrash(trashList.value)
@@ -196,11 +197,20 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
       let changed = false
       for (const [idx, prepared] of preparedMap) {
         if (idx >= 0 && idx < images.length && prepared.gistFileName) {
+          const currentUri = String(images[idx]?.uri || '').trim()
+          const keepLocalUri = !!currentUri && (
+            currentUri.startsWith('blob:')
+            || currentUri.startsWith('data:image/')
+            || isLocalImageUri(currentUri)
+          )
           images[idx] = {
             ...images[idx],
-            uri: prepared.uri || `gist-image://${prepared.gistFileName}`,
+            // Preserve local URI for offline display, but keep gist metadata for dedup/upload decisions.
+            uri: keepLocalUri ? currentUri : (prepared.uri || `gist-image://${prepared.gistFileName}`),
             storageMode: 'gist-local',
-            gistFileName: prepared.gistFileName
+            gistFileName: prepared.gistFileName,
+            mimeType: prepared.mimeType || images[idx]?.mimeType || '',
+            fileSize: Number(prepared.fileSize) > 0 ? Number(prepared.fileSize) : (Number(images[idx]?.fileSize) || 0)
           }
           changed = true
         }
