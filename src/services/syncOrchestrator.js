@@ -641,8 +641,7 @@ export function createSyncOrchestrator({
       const hasPullConflict = !!(
         diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
         || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
-        || diff.remoteRechargeCount > 0 || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0 || diff.localOnlyRecharge > 0
-        || diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0
+        || hasRechargeContentDiff || hasEventContentDiff
       )
       if (!hasPullConflict) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -659,8 +658,8 @@ export function createSyncOrchestrator({
       diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
       || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
     )
-    const pullRechargeContentDiff = !!(diff.remoteRechargeCount > 0 || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0 || diff.localOnlyRecharge > 0)
-    const pullEventContentDiff = !!(diff.remoteEventCount > 0 || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0 || diff.localOnlyEvents > 0)
+    const pullRechargeContentDiff = hasRechargeContentDiff
+    const pullEventContentDiff = hasEventContentDiff
 
     if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff) {
       if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
