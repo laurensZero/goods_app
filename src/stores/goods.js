@@ -76,16 +76,30 @@ export const useGoodsStore = defineStore('goods', () => {
         .filter(Boolean)
     )].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
   )
+  /** @type {Map<string, {viewItem: object, srcItem: object}>} */
+  let _viewCache = new Map()
+  let _cachedRatesRef = null
   const viewList = computed(() => {
     const exchangeRate = useExchangeRateStore()
-    return list.value.map((item) => {
+    const ratesRef = exchangeRate.rates
+    const ratesChanged = ratesRef !== _cachedRatesRef
+    _cachedRatesRef = ratesRef
+
+    const newCache = new Map()
+    const result = list.value.map((item) => {
+      const cached = _viewCache.get(item.id)
+      if (cached && cached.srcItem === item && !ratesChanged) {
+        newCache.set(item.id, cached)
+        return cached.viewItem
+      }
+
       const quantityNumber = parseQuantity(item.quantity)
       const officialPriceNumber = parseNumericPrice(item.price)
       const actualPriceNumber = parseNumericPrice(item.actualPrice)
       const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
       const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
 
-      return {
+      const viewItem = {
         ...item,
         isWishlist: normalizeWishlistFlag(item.isWishlist),
         sortId: String(item.id),
@@ -99,34 +113,55 @@ export const useGoodsStore = defineStore('goods', () => {
         quantityNumber,
         totalValueNumber: priceCNYNumber * quantityNumber
       }
+      newCache.set(item.id, { viewItem, srcItem: item })
+      return viewItem
     })
+    _viewCache = newCache
+    return result
   })
   const collectionViewList = computed(() => viewList.value.filter((item) => !item.isWishlist))
   const wishlistViewList = computed(() => viewList.value.filter((item) => item.isWishlist))
+
+  /** @type {Map<string, {viewItem: object, srcItem: object}>} */
+  let _trashViewCache = new Map()
+  let _trashCachedRatesRef = null
   const trashViewList = computed(() => {
     const exchangeRate = useExchangeRateStore()
-    return [...trashList.value]
-      .map((item) => {
-        const quantityNumber = parseQuantity(item.quantity)
-        const officialPriceNumber = parseNumericPrice(item.price)
-        const actualPriceNumber = parseNumericPrice(item.actualPrice)
-        const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
-        const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+    const ratesRef = exchangeRate.rates
+    const ratesChanged = ratesRef !== _trashCachedRatesRef
+    _trashCachedRatesRef = ratesRef
 
-        return {
-          ...item,
-          deletedTime: parseDeletedTime(item.deletedAt),
-          acquiredTime: parseAcquiredTime(item.acquiredAt),
-          priceNumber: effectivePriceNumber,
-          officialPriceNumber,
-          actualPriceNumber,
-          effectivePriceNumber,
-          priceCNYNumber,
-          quantityNumber,
-          totalValueNumber: priceCNYNumber * quantityNumber
-        }
-      })
-      .sort((a, b) => b.deletedTime - a.deletedTime || b.acquiredTime - a.acquiredTime)
+    const newCache = new Map()
+    const mapped = trashList.value.map((item) => {
+      const cached = _trashViewCache.get(item.id)
+      if (cached && cached.srcItem === item && !ratesChanged) {
+        newCache.set(item.id, cached)
+        return cached.viewItem
+      }
+
+      const quantityNumber = parseQuantity(item.quantity)
+      const officialPriceNumber = parseNumericPrice(item.price)
+      const actualPriceNumber = parseNumericPrice(item.actualPrice)
+      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
+      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+
+      const viewItem = {
+        ...item,
+        deletedTime: parseDeletedTime(item.deletedAt),
+        acquiredTime: parseAcquiredTime(item.acquiredAt),
+        priceNumber: effectivePriceNumber,
+        officialPriceNumber,
+        actualPriceNumber,
+        effectivePriceNumber,
+        priceCNYNumber,
+        quantityNumber,
+        totalValueNumber: priceCNYNumber * quantityNumber
+      }
+      newCache.set(item.id, { viewItem, srcItem: item })
+      return viewItem
+    })
+    _trashViewCache = newCache
+    return mapped.sort((a, b) => b.deletedTime - a.deletedTime || b.acquiredTime - a.acquiredTime)
   })
 
   async function persistTrash() {
