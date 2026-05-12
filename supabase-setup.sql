@@ -92,9 +92,13 @@ CREATE TABLE IF NOT EXISTS sync_presets (
 
 -- Realtime: synced_by 列（标记写入设备，用于过滤自己的 Realtime 事件）
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 
--- 启用 Realtime（goods 表）
+-- 启用 Realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE goods;
+ALTER PUBLICATION supabase_realtime ADD TABLE events;
+ALTER PUBLICATION supabase_realtime ADD TABLE recharge_records;
 
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_goods_updated_at ON goods(updated_at);

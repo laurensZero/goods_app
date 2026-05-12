@@ -492,16 +492,17 @@ export const useSyncStore = defineStore('sync', () => {
     } finally { isSyncing.value = false }
   }
 
-  async function pullOnly() {
+  async function pullOnly({ silent = false } = {}) {
     if (isSyncing.value) return
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error('未找到 Gist')
-    isSyncing.value = true; isPulling.value = true; lastError.value = ''; conflictData.value = null
+    isSyncing.value = true; isPulling.value = true; lastError.value = ''
+    if (!silent) conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在拉取...'
     try {
-      const result = await orchestrator.pullOnly(buildSyncContext())
-      if (result.conflictData) conflictData.value = result.conflictData
+      const result = await orchestrator.pullOnly(buildSyncContext(), { silent })
+      if (!silent && result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = result.statusMessage || '拉取完成'
       return result
     } catch (error) {

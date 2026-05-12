@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db'
+import { useSyncStore } from '@/stores/sync'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'
 
@@ -147,6 +148,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
     await addRechargeRecord(next)
     records.value.unshift(next)
+    useSyncStore().autoPushGoods()
     return next
   }
 
@@ -167,6 +169,7 @@ export const useRechargeStore = defineStore('recharge', () => {
 
     await addRechargeRecord(next)
     records.value[index] = next
+    useSyncStore().autoPushGoods()
     return true
   }
 
@@ -201,6 +204,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     if (next.length === records.value.length) return false
     await deleteRechargeRecords([id])
     records.value = next
+    useSyncStore().autoPushGoods()
     return true
   }
 

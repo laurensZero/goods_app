@@ -5,6 +5,7 @@ import { addEvent, deleteEvents, getEvents } from '@/utils/db'
 import { normalizeTracks } from '@/utils/tracks'
 import { buildGistImageUri, parseGistImageUri } from '@/utils/goodsImages'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/localImage'
+import { useSyncStore } from '@/stores/sync'
 
 function parseTicketPrice(value) {
   const price = Number.parseFloat(value)
@@ -125,6 +126,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] addEventRecord DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
     return record
   }
 
@@ -155,6 +157,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] updateEventRecord DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
     return id
   }
 
@@ -170,6 +173,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] removeEventRecord DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
   }
 
   async function removeMultipleEventRecords(ids) {
@@ -193,6 +197,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] removeMultipleEventRecords DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
   }
 
   async function refreshList() {

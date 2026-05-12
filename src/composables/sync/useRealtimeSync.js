@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/utils/supabaseClient'
 
 /**
  * Supabase Realtime 订阅 composable
- * 监听 goods 表的变更，过滤自己的写入，触发 pullOnly
+ * 监听 goods/events/recharge_records 表的变更，过滤自己的写入，触发 pullOnly
  */
 export function useRealtimeSync({ syncStore }) {
   const channel = ref(null)
@@ -20,7 +20,7 @@ export function useRealtimeSync({ syncStore }) {
     pullDebounceTimer = setTimeout(async () => {
       if (syncStore.isSyncing || syncStore.isPulling) return
       try {
-        await syncStore.pullOnly()
+        await syncStore.pullOnly({ silent: true })
       } catch {
         // silent fail
       }
@@ -35,16 +35,18 @@ export function useRealtimeSync({ syncStore }) {
       const db = getSupabaseClient()
       if (!db) return
 
-      channel.value = db
-        .channel('goods-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'goods' }, handleRemoteChange)
-        .subscribe((status) => {
+      const tables = ['goods', 'events', 'recharge_records']
+      let builder = db.channel('data-realtime')
+      for (const table of tables) {
+        builder = builder.on('postgres_changes', { event: '*', schema: 'public', table }, handleRemoteChange)
+      }
+      channel.value = builder.subscribe((status) => {
           isConnected.value = status === 'SUBSCRIBED'
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             // Supabase 会自动重连，重连成功后做一次 catch-up pull
             setTimeout(async () => {
               if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
-                try { await syncStore.pullOnly() } catch { /* ignore */ }
+                try { await syncStore.pullOnly({ silent: true }) } catch { /* ignore */ }
               }
             }, 3000)
           }

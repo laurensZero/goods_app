@@ -21,8 +21,8 @@ export function createSupabaseBackendAdapter({
 
   // Allowed columns per table (camelCase) — filters out extra fields from sync payload
   const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'image', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'syncedBy']
-  const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'tracks', 'linkedGoodsIds', 'tags']
-  const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image']
+  const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'tracks', 'linkedGoodsIds', 'tags', 'syncedBy']
+  const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'syncedBy']
 
   // snake_case SELECT column lists — excludes auto-generated columns (e.g. created_at)
   // that would cause comparison diffs between local and remote data
@@ -374,19 +374,22 @@ export function createSupabaseBackendAdapter({
       }
 
       if (fileName === 'recharge-data.json') {
+        const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
         const recharge = Array.isArray(content.recharge) ? content.recharge : []
         const rechargeTrash = Array.isArray(content.rechargeTrash) ? content.rechargeTrash : []
         const rechargeRows = recharge.map(item => toSnakeCase({
           ...pickCols(item, RECHARGE_COLS),
           amount: Number(item.amount) || 0,
           deleted: 0,
-          updatedAt: toTimestamp(item.updatedAt)
+          updatedAt: toTimestamp(item.updatedAt),
+          syncedBy: currentDeviceId
         }))
         const rechargeTrashRows = rechargeTrash.map(item => toSnakeCase({
           ...pickCols(item, RECHARGE_COLS),
           amount: Number(item.amount) || 0,
           deleted: 1,
-          updatedAt: toTimestamp(item.updatedAt)
+          updatedAt: toTimestamp(item.updatedAt),
+          syncedBy: currentDeviceId
         }))
         const mergedRows = [...rechargeRows, ...rechargeTrashRows]
 
@@ -422,11 +425,13 @@ export function createSupabaseBackendAdapter({
       }
 
       if (fileName === 'events-data.json') {
+        const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
         const events = Array.isArray(content.events) ? content.events : []
         const rows = events.map(item => toSnakeCase({
           ...pickCols(item, EVENT_COLS),
           updatedAt: toTimestamp(item.updatedAt),
-          createdAt: toTimestamp(item.createdAt)
+          createdAt: toTimestamp(item.createdAt),
+          syncedBy: currentDeviceId
         }))
         if (rows.length > 0) {
           const { error } = await withRetry(() =>
