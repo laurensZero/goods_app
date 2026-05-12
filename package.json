@@ -9,7 +9,7 @@
     "tauri": "tauri",
     "icons:android": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-android-icons.ps1",
     "preview": "vite preview",
-    "build:android": "npm run build && npx cap sync android",
+    "build:android": "vite build --mode native && npx cap sync android",
     "open:android": "npx cap open android"
   },
   "dependencies": {

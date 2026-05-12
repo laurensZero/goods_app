@@ -3,14 +3,24 @@ import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const isNative = mode === 'native'
+  return {
   plugins: [vue()],
   // Capacitor 打包时从 file:// 协议加载，必须用相对路径
   base: './',
+  define: {
+    __PLATFORM__: JSON.stringify(isNative ? 'native' : 'web')
+  },
   resolve: {
     alias: {
       // @ 指向 src，方便路径引用
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // 编译时根据 mode 选择数据库适配器，tree-shaking 自动排除未使用的适配器
+      '@dbAdapter': fileURLToPath(new URL(
+        isNative ? './src/utils/dbNativeAdapter.js' : './src/utils/dbWebAdapter.js',
+        import.meta.url
+      ))
     }
   },
   server: {
@@ -65,10 +75,10 @@ export default defineConfig({
         manualChunks: {
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'ui-library': ['vant'],
-          'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences'],
-          'db-engine': ['@capacitor-community/sqlite', 'sql.js']
+          'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences']
         }
       }
     }
+  }
   }
 })
