@@ -56,8 +56,11 @@ export function useRealtimeSync({ syncStore }) {
     }
   }
 
+  let visibilityDebounceTimer = null
+
   function unsubscribe() {
     if (pullDebounceTimer) { clearTimeout(pullDebounceTimer); pullDebounceTimer = null }
+    if (visibilityDebounceTimer) { clearTimeout(visibilityDebounceTimer); visibilityDebounceTimer = null }
     if (channel.value) {
       channel.value.unsubscribe()
       channel.value = null
@@ -76,10 +79,12 @@ export function useRealtimeSync({ syncStore }) {
 
   async function handleVisibilityChange() {
     if (document.hidden) return
-    // 回到前台时做一次 catch-up pull
-    if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
-      try { await syncStore.pullOnly() } catch { /* ignore */ }
-    }
+    if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
+    visibilityDebounceTimer = setTimeout(async () => {
+      if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
+        try { await syncStore.pullOnly() } catch { /* ignore */ }
+      }
+    }, 5000)
   }
 
   onMounted(() => {
