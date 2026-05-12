@@ -36,7 +36,7 @@ async function _saveBinaryToIDB(sqlDb) {
   } catch (e) { console.warn('[DB] save to IDB failed:', e) }
 }
 
-export function createAdapter() {
+export function createWebAdapter() {
   let _db = null
 
   return {
