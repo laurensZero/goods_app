@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.18",
+    "url": "bundle-20260512.18.zip",
+    "hash": "c47e87ec25da296f1fd58b64bd1be97549d5a6308cfe63f58dcca17a5d22af5e",
+    "minNativeVersion": null,
+    "notes": "- feat(mihoyo): 优化分类推断逻辑，使用关键词数组简化代码",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T13:41:49Z"
+  },
+  {
     "version": "20260512.17",
     "url": "bundle-20260512.17.zip",
     "hash": "affca95a7dd2be3ef6907fecd14d938969fa2e16caba77a5fff1a5ba495d74bd",
@@ -16,14 +25,5 @@
     "notes": "- feat(tabs): 为各个视图添加显示底部导航栏的标识",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T13:14:48Z"
-  },
-  {
-    "version": "20260512.15",
-    "url": "bundle-20260512.15.zip",
-    "hash": "bc99ba64c0edbc5983e8b153efadfc109efdbb3571638e2a43746fcaa39303b1",
-    "minNativeVersion": null,
-    "notes": "- feat(goods): 优化视图列表生成逻辑，增加增量观察者以提高性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T13:09:25Z"
   }
 ]
