@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.14",
+    "url": "bundle-20260512.14.zip",
+    "hash": "9ac00ee1c7f0735b55634710ecd5f5c0564782d5cab7d4283dfe94a94268481f",
+    "minNativeVersion": null,
+    "notes": "- feat(goods): 优化待发货状态的样式，增加紧凑模式支持",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T11:20:43Z"
+  },
+  {
     "version": "20260512.13",
     "url": "bundle-20260512.13.zip",
     "hash": "4272bbfa06a2ad456f005a0ba807a1022b4d8018cc5ad75ef19fdc2a0e070b19",
@@ -16,14 +25,5 @@
     "notes": "- feat(sync): 优化可见性变化处理，增加防抖机制以减少频繁的同步请求",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T11:03:18Z"
-  },
-  {
-    "version": "20260512.11",
-    "url": "bundle-20260512.11.zip",
-    "hash": "5aca7412fd3167b79ebc300cc410ba4af862cf2c55f7ce8dbf098cb5e6c54220",
-    "minNativeVersion": null,
-    "notes": "- feat(goods): 重构商品管理逻辑，优化视图生成和CRUD操作",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T10:59:35Z"
   }
 ]
