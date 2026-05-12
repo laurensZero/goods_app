@@ -52,7 +52,7 @@ export function createViewList(list) {
   const viewMap = ref(new Map())
   const viewOrder = ref([])
 
-  watch(list, (prevList, newList) => {
+  watch(list, (newList, oldList) => {
     const exchangeRate = useExchangeRateStore()
     const ratesRef = exchangeRate.rates
     const ratesChanged = ratesRef !== cachedRatesRef
@@ -69,7 +69,7 @@ export function createViewList(list) {
       newMap.set(item.id, { viewItem, srcItem: item })
     }
 
-    for (const item of prevList) {
+    for (const item of oldList) {
       if (!newList.some((i) => i.id === item.id)) {
         changed = true
         newMap.delete(item.id)
@@ -118,7 +118,7 @@ export function createTrashViewList(trashList) {
   const viewMap = ref(new Map())
   const viewOrder = ref([])
 
-  watch(trashList, (prevList, newList) => {
+  watch(trashList, (newList, oldList) => {
     const exchangeRate = useExchangeRateStore()
     const ratesRef = exchangeRate.rates
     const ratesChanged = ratesRef !== trashCachedRatesRef
@@ -151,7 +151,7 @@ export function createTrashViewList(trashList) {
       newMap.set(item.id, { viewItem, srcItem: item })
     }
 
-    for (const item of prevList) {
+    for (const item of oldList) {
       if (!newList.some((i) => i.id === item.id)) {
         changed = true
         newMap.delete(item.id)
