@@ -1,9 +1,9 @@
 {
-  "version": "20260512.19",
-  "url": "bundle-20260512.19.zip",
-  "hash": "c6a06c6b8b3f45171dedb058560e4953b9e4485d0cb107a96ca2c0f1d12fc947",
+  "version": "20260512.20",
+  "url": "bundle-20260512.20.zip",
+  "hash": "fe5fd6289ca5d18d497d461929c4811afbe891965930d0e99c4b20b1337a9856",
   "minNativeVersion": null,
-  "notes": "- feat(migrations): 在后台启动迁移，优化数据迁移逻辑\n\n- feat(sync): 引入同步相关常量，优化版本管理与文件名配置\n\n- fix(view-list): 修正观察者参数顺序，提升代码可读性",
+  "notes": "- feat(mark-images): 增强本地图片URI处理，优化离线显示与元数据管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T13:55:01Z"
+  "publishedAt": "2026-05-12T15:28:39Z"
 }
