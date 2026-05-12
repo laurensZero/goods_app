@@ -44,6 +44,10 @@
   --press-scale-card: 0.98;
   --app-selection-bg: color-mix(in srgb, var(--app-text) 18%, transparent);
   --app-selection-text: var(--app-text);
+  --app-pending: #0e74e9;
+  --app-pending-bg: rgba(14, 116, 233, 0.9);
+  --app-pending-shadow: rgba(14, 116, 233, 0.2);
+  --app-pending-border: rgba(14, 116, 233, 0.7);
 }
 
 /* ====================================================
@@ -531,6 +535,10 @@ html.theme-dark {
   --app-glass-strong: rgba(24, 24, 28, 0.78);
   --app-glass-border: rgba(255, 255, 255, 0.10);
   --app-overlay: rgba(0, 0, 0, 0.36);
+  --app-pending: #3b9aff;
+  --app-pending-bg: rgba(59, 154, 255, 0.88);
+  --app-pending-shadow: rgba(59, 154, 255, 0.25);
+  --app-pending-border: rgba(59, 154, 255, 0.6);
 }
 
 html.theme-dark,
