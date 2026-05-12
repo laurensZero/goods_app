@@ -8,18 +8,30 @@
  *   - Web 端（浏览器 / PWA）：sql.js + IndexedDB
  *
  * 迁移系统：
- *   - 使用 _schema_version 表记录当前数据库版本
- *   - 每次迁移执行前检查列是否已存在（幂等保护）
- *   - 只执行版本号高于当前版本的迁移
+ *   - 迁移定义在 migrations.js 中，格式 { version, description, up(db) }
+ *   - 使用 _schema_version 表记录当前版本号
+ *   - 每个迁移函数必须幂等
+ *   - 遗留数据库 (version > LATEST_VERSION) 自动重置到 0
  */
 
 import { Capacitor } from '@capacitor/core'
 import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goodsImages'
 import { parseJsonArray } from '@/utils/parseJsonArray'
+import { MIGRATIONS } from './migrations'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
 
-/** @type {any} */
+/**
+ * @typedef {Object} DatabaseAdapter
+ * @property {() => Promise<void>} open
+ * @property {(sql: string) => Promise<void>} execute
+ * @property {(sql: string, params?: any[]) => Promise<void>} run
+ * @property {(stmts: {statement: string, values: any[]}[]) => Promise<void>} executeSet
+ * @property {(sql: string, params?: any[]) => Promise<any[]>} query
+ * @property {(tableName: string) => Promise<Set<string>>} getTableColumns
+ */
+
+/** @type {DatabaseAdapter | null} */
 let db = null
 
 async function getDb() {
@@ -61,7 +73,8 @@ const CREATE_TABLE_SQL = `
     currency   TEXT DEFAULT 'CNY',
     actualPriceCurrency TEXT DEFAULT 'CNY',
     collectStatus TEXT DEFAULT '已拥有',
-    shippingFee TEXT DEFAULT ''
+    shippingFee TEXT DEFAULT '',
+    updatedAt  INTEGER DEFAULT 0
   );
 `
 
@@ -102,40 +115,8 @@ const CREATE_RECHARGE_TABLE_SQL = `
   );
 `
 
-//  版本化数据库迁移
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
-const INIT_VERSION_SQL = 'INSERT INTO _schema_version (version) VALUES (?)'
-
-const MIGRATIONS = [
-  { version: 1,  sql: "ALTER TABLE goods ADD COLUMN ip TEXT DEFAULT ''" },
-  { version: 2,  sql: "ALTER TABLE goods ADD COLUMN goodsId TEXT DEFAULT ''" },
-  { version: 3,  sql: "ALTER TABLE goods ADD COLUMN isWishlist INTEGER DEFAULT 0" },
-  { version: 4,  sql: "ALTER TABLE goods ADD COLUMN characters TEXT DEFAULT '[]'" },
-  { version: 5,  sql: "ALTER TABLE goods ADD COLUMN tags TEXT DEFAULT '[]'" },
-  { version: 6,  sql: "ALTER TABLE goods ADD COLUMN storageLocation TEXT DEFAULT ''" },
-  { version: 7,  sql: "ALTER TABLE goods ADD COLUMN variant TEXT DEFAULT ''" },
-  { version: 8,  sql: "ALTER TABLE goods ADD COLUMN actualPrice TEXT DEFAULT ''" },
-  { version: 9,  sql: "ALTER TABLE goods ADD COLUMN quantity INTEGER DEFAULT 1" },
-  { version: 10, sql: "ALTER TABLE goods ADD COLUMN points INTEGER DEFAULT NULL" },
-  { version: 11, sql: "ALTER TABLE goods ADD COLUMN images TEXT DEFAULT '[]'" },
-  { version: 12, sql: "ALTER TABLE goods ADD COLUMN unitAcquiredAtList TEXT DEFAULT '[]'" },
-  { version: 13, sql: "ALTER TABLE goods ADD COLUMN unitActualPriceList TEXT DEFAULT '[]'" },
-  { version: 14, sql: "ALTER TABLE goods ADD COLUMN unitCharacterList TEXT DEFAULT '[]'" },
-  { version: 15, sql: "ALTER TABLE goods ADD COLUMN tracks TEXT DEFAULT '[]'" },
-  { version: 16, sql: "ALTER TABLE goods ADD COLUMN updatedAt INTEGER DEFAULT 0" },
-  { version: 17, sql: "ALTER TABLE goods ADD COLUMN currency TEXT DEFAULT 'CNY'" },
-  { version: 18, sql: "ALTER TABLE goods ADD COLUMN actualPriceCurrency TEXT DEFAULT 'CNY'" },
-  { version: 19, sql: "ALTER TABLE goods ADD COLUMN collectStatus TEXT DEFAULT '已拥有'" },
-  { version: 20, sql: "ALTER TABLE goods ADD COLUMN shippingFee TEXT DEFAULT ''" },
-  { version: 21, sql: "ALTER TABLE events ADD COLUMN ticketType TEXT DEFAULT ''" },
-  { version: 22, sql: "ALTER TABLE events ADD COLUMN seatInfo TEXT DEFAULT ''" },
-  { version: 23, sql: "ALTER TABLE events ADD COLUMN tracks TEXT DEFAULT '[]'" },
-  { version: 24, sql: "ALTER TABLE events ADD COLUMN linkedGoodsIds TEXT DEFAULT '[]'" },
-  { version: 25, sql: "ALTER TABLE events ADD COLUMN tags TEXT DEFAULT '[]'" },
-  { version: 26, sql: "ALTER TABLE events ADD COLUMN coverImageData TEXT DEFAULT '{}'" },
-]
-
-const SCHEMA_VERSION = MIGRATIONS.length
+const LATEST_VERSION = MIGRATIONS.length
 
 //  纯业务辅助函数
 
@@ -269,23 +250,9 @@ function prepareEventValues(event) {
   return [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
 }
 
-//  迁移系统
-
-function _parseAlterTable(sql) {
-  const m = sql.match(/^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)/i)
-  return m ? { table: m[1], column: m[2] } : null
-}
-
-function _parseSqliteError(e) {
-  const msg = String(e?.message || e || '').toLowerCase()
-  return {
-    isDuplicateColumn: msg.includes('duplicate column') || msg.includes('already exists'),
-  }
-}
-
 async function _getSchemaVersion() {
   try {
-    const rows = await db.query('SELECT version FROM _schema_version ORDER BY version DESC LIMIT 1')
+    const rows = await db.query('SELECT version FROM _schema_version LIMIT 1')
     return rows.length ? rows[0].version : 0
   } catch {
     return 0
@@ -298,30 +265,12 @@ async function _runMigrations() {
   if (pending.length === 0) return
 
   for (const migration of pending) {
-    const info = _parseAlterTable(migration.sql)
-    if (info) {
-      try {
-        const columns = await db.getTableColumns(info.table)
-        if (columns.has(info.column)) {
-          await db.run('UPDATE _schema_version SET version = ?', [migration.version])
-          continue
-        }
-      } catch {
-        // PRAGMA 失败时继续尝试迁移
-      }
-    }
-
     try {
-      await db.run(migration.sql)
+      await migration.up(db)
       await db.run('UPDATE _schema_version SET version = ?', [migration.version])
     } catch (e) {
-      const { isDuplicateColumn } = _parseSqliteError(e)
-      if (isDuplicateColumn) {
-        await db.run('UPDATE _schema_version SET version = ?', [migration.version])
-      } else {
-        console.error(`[DB] Migration v${migration.version} failed:`, e)
-        throw e
-      }
+      console.error(`[DB] Migration v${migration.version} (${migration.description}) failed:`, e)
+      throw e
     }
   }
 }
@@ -332,16 +281,21 @@ async function _runMigrations() {
 export async function initDB() {
   db = await getDb()
   await db.open()
+
   await db.execute(CREATE_TABLE_SQL)
   await db.execute(CREATE_EVENTS_TABLE_SQL)
   await db.execute(CREATE_RECHARGE_TABLE_SQL)
   await db.execute(CREATE_VERSION_TABLE_SQL)
-  await _runMigrations()
 
-  const ver = await _getSchemaVersion()
-  if (ver === 0) {
-    await db.run(INIT_VERSION_SQL, [SCHEMA_VERSION])
+  const currentVersion = await _getSchemaVersion()
+  if (currentVersion === 0) {
+    await db.run('INSERT OR IGNORE INTO _schema_version (version) VALUES (0)')
+  } else if (currentVersion > LATEST_VERSION) {
+    // 遗留数据库 (version 26) → 重置到 0 让新迁移跑
+    await db.run('UPDATE _schema_version SET version = 0')
   }
+
+  await _runMigrations()
 }
 
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
