@@ -85,6 +85,49 @@ export const useGoodsStore = defineStore('goods', () => {
     useSyncStore().autoPushGoods()
   }
 
+  let migrationPromise = null
+
+  function startMigrationsInBackground() {
+    if (migrationPromise) return migrationPromise
+    migrationPromise = (async () => {
+      const [imagesMigrated, charactersMigrated, variantsMigrated] = await Promise.all([
+        readImagesMigrationFlag().catch(() => false),
+        readCharactersMigrationFlag().catch(() => false),
+        readVariantMigrationFlag().catch(() => false)
+      ])
+
+      if (!imagesMigrated) {
+        try {
+          await backfillLegacyImages(list)
+          await writeImagesMigrationFlag()
+        } catch (e) {
+          console.warn('[goods] init: images migration failed:', e)
+        }
+      }
+
+      if (!charactersMigrated) {
+        try {
+          await normalizeExistingCharacters(list, trashList, persistTrash)
+          await writeCharactersMigrationFlag()
+        } catch (e) {
+          console.warn('[goods] init: characters migration failed:', e)
+        }
+      }
+
+      if (!variantsMigrated) {
+        try {
+          await normalizeExistingVariants(list, trashList, persistTrash)
+          await writeVariantMigrationFlag()
+        } catch (e) {
+          console.warn('[goods] init: variants migration failed:', e)
+        }
+      }
+    })().finally(() => {
+      migrationPromise = null
+    })
+    return migrationPromise
+  }
+
   //  Init
 
   async function init() {
@@ -100,31 +143,8 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] init: readPersistedTrash failed, starting with empty trash:', e)
       trashList.value = []
     }
-    try {
-      if (!(await readImagesMigrationFlag())) {
-        await backfillLegacyImages(list)
-        await writeImagesMigrationFlag()
-      }
-    } catch (e) {
-      console.warn('[goods] init: images migration failed:', e)
-    }
-    try {
-      if (!(await readCharactersMigrationFlag())) {
-        await normalizeExistingCharacters(list, trashList, persistTrash)
-        await writeCharactersMigrationFlag()
-      }
-    } catch (e) {
-      console.warn('[goods] init: characters migration failed:', e)
-    }
-    try {
-      if (!(await readVariantMigrationFlag())) {
-        await normalizeExistingVariants(list, trashList, persistTrash)
-        await writeVariantMigrationFlag()
-      }
-    } catch (e) {
-      console.warn('[goods] init: variants migration failed:', e)
-    }
     isReady.value = true
+    void startMigrationsInBackground()
   }
 
   //  CRUD wrappers
