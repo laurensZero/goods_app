@@ -1,9 +1,9 @@
 {
-  "version": "20260512.4",
-  "url": "bundle-20260512.4.zip",
-  "hash": "78e6f962edaff29030036853120f36b5e04d699ce6700532f39f68903f04f24e",
+  "version": "20260512.5",
+  "url": "bundle-20260512.5.zip",
+  "hash": "8d8fd0652beb4c93b413ed4b80ffc4f187b14c4ff330ed44ce125c85b06da74f",
   "minNativeVersion": null,
-  "notes": "- feat(goods): 优化商品和垃圾商品视图缓存逻辑，提升性能",
+  "notes": "- feat(sync): 添加 isSupabaseMode 到同步存储导出\n\n- feat(migrations): 添加数据库迁移定义，确保所有列存在",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T08:01:42Z"
+  "publishedAt": "2026-05-12T08:15:36Z"
 }
