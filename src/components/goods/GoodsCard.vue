@@ -5,6 +5,7 @@
       `goods-card--${density || 'comfortable'}`,
       { 'goods-card--transitioning': transitioning },
       { 'goods-card--selected': selected },
+      { 'goods-card--pending': item.collectStatus === '待发货' || item.collectStatus === '待补款' || item.collectStatus === '待补邮' },
       { 'goods-card--exited': item.collectStatus === '已出' || item.collectStatus === '已赠出' || item.collectStatus === '丢失' },
       { 'goods-card--motion': Boolean(motionStyle) }
     ]"
@@ -51,6 +52,12 @@
         :class="['wishlist-badge', { 'wishlist-badge--compact': density === 'compact' }]"
       >
         心愿
+      </div>
+      <div
+        v-if="!item.isWishlist && (item.collectStatus === '待发货' || item.collectStatus === '待补款' || item.collectStatus === '待补邮')"
+        class="pending-badge"
+      >
+        {{ item.collectStatus }}
       </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
     </div>
@@ -434,6 +441,23 @@ const priceCNYHint = computed(() => {
   box-shadow: 0 4px 10px rgba(211, 61, 87, 0.16);
 }
 
+.pending-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--app-pending-bg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 14px var(--app-pending-shadow);
+  pointer-events: none;
+}
+
 .qty-badge {
   position: absolute;
   bottom: 7px;
@@ -749,6 +773,10 @@ const priceCNYHint = computed(() => {
 
 .goods-card--exited .card-cover {
   filter: grayscale(0.6);
+}
+
+.goods-card--pending {
+  border-left: 3px solid var(--app-pending-border);
 }
 
 .sel-overlay-enter-active,
