@@ -220,7 +220,7 @@ onMounted(async () => {
   }
   if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !hasLocalData.value) {
     try {
-      await syncStore.pullOnly()
+      await syncStore.pullOnly({ silent: true })
     } catch {
       // silent fail on startup pull
     }

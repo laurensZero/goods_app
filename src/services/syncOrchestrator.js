@@ -569,7 +569,7 @@ export function createSyncOrchestrator({
 
   // ── Public: pullOnly ──
 
-  async function pullOnly(ctx) {
+  async function pullOnly(ctx, { silent = false } = {}) {
     activeBackend = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
     let gist, existingRechargeGist, existingEventGist
@@ -612,6 +612,28 @@ export function createSyncOrchestrator({
     // No manifest on remote = nothing to pull, don't delete local data
     if (!remoteManifest) {
       return { action: 'no_changes', statusMessage: '远端无数据，跳过拉取' }
+    }
+
+    // Silent 模式（Realtime/visibilitychange 触发）：跳过冲突弹窗，直接拉取
+    if (silent) {
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest)
+      const hasAnyDiff = !!(
+        diff.remoteOnlyGoods > 0 || diff.updatedGoods > 0 || diff.localOnlyGoods > 0
+        || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0
+        || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0
+      )
+      if (!hasAnyDiff) {
+        if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+        return { action: 'no_changes', statusMessage: '数据已是最新' }
+      }
+      let result
+      try {
+        result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
+          hydrateGoodsImages: true, hydrateTrashImages: true, hydrateEventImages: true
+        }, ctx)
+      } catch (e) { wrapSyncError(e, PHASE_PULL) }
+      await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+      return { action: 'pulled', statusMessage: '同步完成', ...result }
     }
 
     if (localChanges.hasChanges) {

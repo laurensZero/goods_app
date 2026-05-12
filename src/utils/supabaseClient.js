@@ -9,10 +9,18 @@ let supabase = null
  * @param {string} anonKey - Supabase Anon Key
  * @returns {import('@supabase/supabase-js').SupabaseClient}
  */
+let _initUrl = ''
+let _initKey = ''
+
 export function initSupabaseClient(url, anonKey) {
   if (!url || !anonKey) {
     throw new Error('Supabase URL 和 Anon Key 不能为空')
   }
+  if (supabase && _initUrl === url && _initKey === anonKey) {
+    return supabase
+  }
+  _initUrl = url
+  _initKey = anonKey
   supabase = createClient(url, anonKey, {
     auth: {
       autoRefreshToken: false,
