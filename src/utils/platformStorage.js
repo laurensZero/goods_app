@@ -1,7 +1,5 @@
-import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
-
-const IS_NATIVE = Capacitor.isNativePlatform()
+import { IS_NATIVE } from '@/utils/platform'
 
 export async function readPersisted(key, fallback = null) {
   if (IS_NATIVE) {

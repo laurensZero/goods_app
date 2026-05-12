@@ -1,4 +1,4 @@
-export function createNativeAdapter() {
+export function createAdapter() {
   let _db = null
 
   return {
