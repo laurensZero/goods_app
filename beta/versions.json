@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.4",
+    "url": "bundle-20260512.4.zip",
+    "hash": "78e6f962edaff29030036853120f36b5e04d699ce6700532f39f68903f04f24e",
+    "minNativeVersion": null,
+    "notes": "- feat(goods): 优化商品和垃圾商品视图缓存逻辑，提升性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T08:01:42Z"
+  },
+  {
     "version": "20260512.3",
     "url": "bundle-20260512.3.zip",
     "hash": "34735d9c0f0329e8d32692d9a1ce0ff05e562102bcc1e3bd9b44d3e78609f094",
@@ -16,14 +25,5 @@
     "notes": "- feat(platform): 引入平台常量，优化数据库适配器选择逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T07:46:00Z"
-  },
-  {
-    "version": "20260512.1",
-    "url": "bundle-20260512.1.zip",
-    "hash": "20dd422e4cd2a4aaaea2fbd847a6f512c66b34436f98f6ecf9a8aa3cf713b0cc",
-    "minNativeVersion": null,
-    "notes": "- feat(sync): 添加实时同步功能，优化数据推送与拉取逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T07:36:02Z"
   }
 ]
