@@ -1,9 +1,9 @@
 {
-  "version": "20260511.5",
-  "url": "bundle-20260511.5.zip",
-  "hash": "277b1500e0e8e9af8519999b1a0ebb84294ddb313e79287b8a148432e6d9b9d9",
+  "version": "20260512.1",
+  "url": "bundle-20260512.1.zip",
+  "hash": "20dd422e4cd2a4aaaea2fbd847a6f512c66b34436f98f6ecf9a8aa3cf713b0cc",
   "minNativeVersion": null,
-  "notes": "- feat(detail): 优化图片缓存逻辑，添加即时缓存检查",
+  "notes": "- feat(sync): 添加实时同步功能，优化数据推送与拉取逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-11T15:28:46Z"
+  "publishedAt": "2026-05-12T07:36:02Z"
 }
