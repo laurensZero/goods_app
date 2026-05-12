@@ -21,6 +21,15 @@ import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient } from 
 import { deriveKey, isWebCryptoAvailable } from '@/utils/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
+import {
+  DATA_FILENAME,
+  RECHARGE_DATA_FILENAME,
+  EVENT_DATA_FILENAME,
+  MANIFEST_FILENAME,
+  IMAGE_FILE_PREFIX,
+  EVENT_COVER_PREFIX,
+  IMAGE_FILE_SIZE_LIMIT
+} from '@/constants/syncConstants'
 
 const TOKEN_KEY = 'sync_github_token'
 const GIST_ID_KEY = 'sync_gist_id'
@@ -41,14 +50,7 @@ const SUPABASE_URL_KEY = 'sync_supabase_url'
 const SUPABASE_ANON_KEY_KEY = 'sync_supabase_anon_key'
 const SYNC_BACKEND_KEY = 'sync_backend'
 
-const DATA_FILENAME = 'data.json'
-const RECHARGE_DATA_FILENAME = 'recharge-data.json'
-const EVENT_DATA_FILENAME = 'events-data.json'
-const MANIFEST_FILENAME = 'manifest.json'
 const IS_NATIVE = Capacitor.isNativePlatform()
-const IMAGE_FILE_PREFIX = 'goods-image__'
-const EVENT_COVER_PREFIX = 'event-cover__'
-const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024
 
 function generateDeviceId() {
   const platform = IS_NATIVE ? 'native' : 'web'

@@ -9,6 +9,13 @@ import {
   sortObjectKeys
 } from '@/utils/syncShared'
 import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
+import {
+  SYNC_PAYLOAD_VERSION,
+  RECHARGE_PAYLOAD_VERSION,
+  EVENT_PAYLOAD_VERSION,
+  EVENT_DATA_VERSION,
+  MANIFEST_VERSION
+} from '@/constants/syncConstants'
 
 export function createSyncPayloadService({
   deviceIdRef,
@@ -266,7 +273,7 @@ export function createSyncPayloadService({
 
     return {
       syncData: {
-        version: 6,
+        version: SYNC_PAYLOAD_VERSION,
         updatedAt: new Date().toISOString(),
         deviceId: deviceIdRef.value,
         goods,
@@ -293,7 +300,7 @@ export function createSyncPayloadService({
       : allRecords
 
     return {
-      version: 1,
+      version: RECHARGE_PAYLOAD_VERSION,
       updatedAt: new Date().toISOString(),
       deviceId: deviceIdRef.value,
       recharge: records,
@@ -332,7 +339,7 @@ export function createSyncPayloadService({
 
     return {
       eventData: {
-        version: 2,
+        version: EVENT_PAYLOAD_VERSION,
         updatedAt: new Date().toISOString(),
         deviceId: deviceIdRef.value,
         events
@@ -346,7 +353,7 @@ export function createSyncPayloadService({
   function buildEventSyncData() {
     const eventsStore = useEventsStore()
     return {
-      version: 1,
+      version: EVENT_DATA_VERSION,
       updatedAt: new Date().toISOString(),
       deviceId: deviceIdRef.value,
       events: eventsStore.list.map((item) => ({
@@ -398,7 +405,7 @@ export function createSyncPayloadService({
 
   function buildManifest(imageStats = {}, timestamp = new Date().toISOString(), counts = {}) {
     return {
-      version: 1,
+      version: MANIFEST_VERSION,
       deviceId: deviceIdRef.value,
       lastSyncAt: timestamp,
       imageGistId: imageGistIdRef.value || '',
