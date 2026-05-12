@@ -1,9 +1,9 @@
 {
-  "version": "20260512.16",
-  "url": "bundle-20260512.16.zip",
-  "hash": "666f0fe516df876521234709f2819873173fa9ad66ec35d00a9437d0eafeeaa9",
+  "version": "20260512.17",
+  "url": "bundle-20260512.17.zip",
+  "hash": "affca95a7dd2be3ef6907fecd14d938969fa2e16caba77a5fff1a5ba495d74bd",
   "minNativeVersion": null,
-  "notes": "- feat(tabs): 为各个视图添加显示底部导航栏的标识",
+  "notes": "- feat(sync): 添加同步通知功能，优化用户反馈体验\n\n- fix(sync): 优化冲突检测逻辑，简化代码结构",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T13:14:48Z"
+  "publishedAt": "2026-05-12T13:35:05Z"
 }
