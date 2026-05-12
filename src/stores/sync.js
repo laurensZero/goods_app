@@ -595,6 +595,6 @@ export const useSyncStore = defineStore('sync', () => {
     clearConflict, resetConfig,
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
     syncBackend, supabaseUrl, supabaseAnonKey,
-    saveSupabaseConfig, setSyncBackend, testSupabaseConnection
+    saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode
   }
 })
