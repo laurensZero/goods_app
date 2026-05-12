@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260512.6",
+    "url": "bundle-20260512.6.zip",
+    "hash": "ef7c0f28f5e8d080772dc260878b0e85345ffdd221719a32d1ca4a2bf025b6b2",
+    "minNativeVersion": null,
+    "notes": "- feat(sync): 添加 synced_by 列到数据库表，优化设备标识和数据同步",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-12T08:47:28Z"
+  },
+  {
     "version": "20260512.5",
     "url": "bundle-20260512.5.zip",
     "hash": "8d8fd0652beb4c93b413ed4b80ffc4f187b14c4ff330ed44ce125c85b06da74f",
@@ -16,14 +25,5 @@
     "notes": "- feat(goods): 优化商品和垃圾商品视图缓存逻辑，提升性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T08:01:42Z"
-  },
-  {
-    "version": "20260512.3",
-    "url": "bundle-20260512.3.zip",
-    "hash": "34735d9c0f0329e8d32692d9a1ce0ff05e562102bcc1e3bd9b44d3e78609f094",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat(platform): 引入平台常量，优化数据库适配器选择逻辑\"\n  This reverts commit 8c46a30053e31707a570dfd01771f72fd0da8bb1.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T07:54:00Z"
   }
 ]
