@@ -9,6 +9,7 @@ import {
   collectManagedLocalImagePathsFromGoodsItem,
   deleteManagedLocalImages
 } from '@/utils/localImage'
+import { useSyncStore } from '@/stores/sync'
 import {
   parseAcquiredTime,
   parseTimelineYearMonth,
@@ -192,6 +193,7 @@ export const useGoodsStore = defineStore('goods', () => {
         console.error('[goods] addGoods (merge) DB write failed:', e)
         throw e
       }
+      useSyncStore().autoPushGoods()
       return list.value[existingIndex]
     }
 
@@ -203,6 +205,7 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] addGoods DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
     return incoming
   }
 
@@ -223,6 +226,7 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] updateGoods DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
     return id
   }
 
@@ -251,6 +255,7 @@ export const useGoodsStore = defineStore('goods', () => {
         console.error('[goods] updateMultipleGoods DB write failed:', e)
         throw e
       }
+      useSyncStore().autoPushGoods()
     }
   }
 
@@ -277,6 +282,7 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] removeGoods DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
   }
 
   async function removeMultipleGoods(ids) {
@@ -302,6 +308,7 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] removeMultipleGoods DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
   }
 
   async function restoreTrashItem(id) {
@@ -325,6 +332,7 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] restoreTrashItem DB write failed:', e)
       throw e
     }
+    useSyncStore().autoPushGoods()
     return restored
   }
 

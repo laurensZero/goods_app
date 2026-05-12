@@ -40,12 +40,13 @@ import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/stores/recharge'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
+import { useRealtimeSync } from '@/composables/sync/useRealtimeSync'
 
 const route = useRoute()
 const router = useRouter()
 const { triggerSharePrompt } = useClipboardImport()
 const syncStore = useSyncStore()
-
+useRealtimeSync({ syncStore })
 
 const goodsStore = useGoodsStore()
 const eventsStore = useEventsStore()

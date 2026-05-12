@@ -25,6 +25,7 @@ const CAMEL_TO_SNAKE = {
   chargedAt: 'charged_at',
   updatedAt: 'updated_at',
   createdAt: 'created_at',
+  syncedBy: 'synced_by',
   // sync_manifest
   deviceId: 'device_id',
   syncedAt: 'synced_at',
