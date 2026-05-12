@@ -381,14 +381,14 @@ export function createSyncOrchestrator({
     const manifest = payload.buildManifest(mergedImageStats, syncTimestamp, counts)
 
     try {
-      await trackSyncStep('更新主同步 Gist', () =>
+      await trackSyncStep('更新远端数据', () =>
         activeBackend.writeData(existingGist?.id || activeBackend.getDataGistId(), {
           [DATA_FILENAME]: { content: syncData },
           [RECHARGE_DATA_FILENAME]: { content: rechargeSyncData },
           [EVENT_DATA_FILENAME]: { content: eventSyncData },
           [MANIFEST_FILENAME]: { content: manifest }
         }),
-        { startDetail: '上传 data.json / recharge-data.json / events-data.json / manifest.json', category: 'sync', successDetail: () => '主同步 Gist 已更新' }
+        { startDetail: '上传 data.json / recharge-data.json / events-data.json / manifest.json', category: 'sync', successDetail: () => '远端数据已更新' }
       )
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
 
@@ -444,7 +444,7 @@ export function createSyncOrchestrator({
       remoteManifest = await readJson({
         title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME,
         startDetail: '检查远端同步摘要', category: 'pull',
-        successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
+        successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
       })
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
@@ -580,13 +580,13 @@ export function createSyncOrchestrator({
         activeBackend.getExistingEventGist()
       ])
     } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
-    if (!gist) throw new Error('未找到 Gist')
+    if (!gist) throw new Error('未找到远端数据')
 
     let remoteManifest, remoteRechargeData, remoteEventData
     try {
       [remoteManifest, remoteRechargeData, remoteEventData] = await Promise.all([
         readJson({ title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
-          successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest' }),
+          successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' }),
         readJson({ title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
           fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
           successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
@@ -687,7 +687,7 @@ export function createSyncOrchestrator({
         remoteManifest = await readJson({
           title: '读取 manifest.json', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
           startDetail: '读取冲突远端摘要', category: 'pull',
-          successDetail: (parsed) => parsed ? `图片 Gist ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
+          successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
         })
       } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
       const hasGoodsContentDiff = !!(
