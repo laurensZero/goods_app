@@ -137,7 +137,7 @@ export function useManageEntries() {
       stats: [{ label: '支持格式', value: 'JSON 备份' }, { label: '适用场景', value: '迁移 / 恢复' }]
     },
     {
-      key: 'sync', group: 'cloud', title: 'GitHub Gist 同步', kicker: '云同步',
+      key: 'sync', group: 'cloud', title: '云同步', kicker: '云同步',
       meta: syncMetaText.value,
       detail: '连接 GitHub 后可在多设备之间同步数据，并检查令牌、Gist 和远端状态。',
       summary: '同步页应该更偏状态中心，而不是单次操作页，核心是看得清"现在是否安全"。',

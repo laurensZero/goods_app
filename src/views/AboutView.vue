@@ -510,7 +510,7 @@ const statsCards = computed(() => [
   {
     label: '同步状态',
     value: syncStore.lastSyncedAt ? '已配置' : '未同步',
-    desc: syncStore.lastSyncedAt ? `最近同步：${formatSyncTime(syncStore.lastSyncedAt)}` : '可在管理页中配置 GitHub Gist 同步。'
+    desc: syncStore.lastSyncedAt ? `最近同步：${formatSyncTime(syncStore.lastSyncedAt)}` : '可在设置页中配置云同步。'
   }
 ])
 

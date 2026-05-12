@@ -38,7 +38,7 @@ export function createSyncImageService({
             throw new Error(`图片引用无效：${item?.name || item?.id || '未命名条目'}`)
           }
           if (!imageGist) {
-            throw new Error('远端数据包含图片引用，但未找到图片 Gist')
+            throw new Error('远端数据包含图片引用，但未找到图片存储')
           }
 
           if (!fileCache.has(gistFileName)) {
