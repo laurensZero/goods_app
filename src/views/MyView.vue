@@ -272,7 +272,7 @@ import { useRouter } from 'vue-router'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
-import { extractIdsFromInput } from '@/utils/shareGoods'
+import { extractIdsFromInput } from '@/utils/share/goods'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
@@ -286,7 +286,7 @@ import {
   getGitHubVerificationUrl,
   pollGitHubAccessToken,
   requestGitHubDeviceCode
-} from '@/utils/githubAuth'
+} from '@/utils/github/auth'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 

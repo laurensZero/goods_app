@@ -1,5 +1,5 @@
 // @ts-check
-import { readPersisted, writePersisted } from '@/utils/platformStorage'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const TRASH_STORAGE_KEY = 'goods_trash_items'

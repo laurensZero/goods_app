@@ -715,7 +715,7 @@ import {
   PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA,
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
 } from '@/services/syncError'
-import { validateToken, getGist, getGistFileContent } from '@/utils/githubGist'
+import { validateToken, getGist, getGistFileContent } from '@/utils/github/gist'
 import {
   fetchGitHubUser,
   getGitHubDeviceFlowScope,
@@ -723,7 +723,7 @@ import {
   getGitHubVerificationUrl,
   pollGitHubAccessToken,
   requestGitHubDeviceCode
-} from '@/utils/githubAuth'
+} from '@/utils/github/auth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { showSuccessToast, showFailToast } from 'vant'
 import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'

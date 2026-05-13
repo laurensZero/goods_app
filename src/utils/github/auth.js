@@ -1,4 +1,4 @@
-import { requestPlatformJson } from '@/utils/platformHttp'
+import { requestPlatformJson } from '@/utils/platform/http'
 
 const GITHUB_WEB_BASE = 'https://github.com'
 const GITHUB_API_BASE = 'https://api.github.com'

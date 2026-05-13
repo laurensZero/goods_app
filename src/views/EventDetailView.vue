@@ -205,11 +205,11 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/nativeGoodsHeroTransition'
-import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
-import { preloadImages } from '@/utils/imageCache'
+import { preloadImages } from '@/utils/image/cache'
 
 defineOptions({ name: 'EventDetailView' })
 

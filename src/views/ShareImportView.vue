@@ -172,7 +172,7 @@ import jsQR from 'jsqr'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import { useShareImport } from '@/composables/share/useShareImport'
-import { extractIdsFromInput } from '@/utils/shareGoods'
+import { extractIdsFromInput } from '@/utils/share/goods'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { formatCurrency } from '@/utils/format'
 

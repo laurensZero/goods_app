@@ -190,9 +190,9 @@ import RecordCard from '@/components/recharge/RecordCard.vue'
 import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useRechargeStore } from '@/stores/recharge'
-import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
-import { preloadImages } from '@/utils/imageCache'
+import { preloadImages } from '@/utils/image/cache'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])

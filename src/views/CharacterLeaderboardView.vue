@@ -139,7 +139,7 @@ import {
   formatLeaderboardMetricValue,
   getLeaderboardDimensionMeta,
   sortLeaderboardEntries
-} from '@/utils/goodsLeaderboard'
+} from '@/utils/goods/leaderboard'
 import EmptyState from '@/components/common/EmptyState.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'

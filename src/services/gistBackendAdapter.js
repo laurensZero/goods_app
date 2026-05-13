@@ -6,9 +6,9 @@ import {
   listGists,
   getGistFileContent,
   buildSyncDescription
-} from '@/utils/githubGist'
-import { encrypt, decrypt, isEncrypted } from '@/utils/cryptoManager'
-import { readSyncKey, writeSyncKey } from '@/utils/syncStorage'
+} from '@/utils/github/gist'
+import { encrypt, decrypt, isEncrypted } from '@/utils/sync/cryptoManager'
+import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { withRetry } from './syncRetry'
 
 export function createGistBackendAdapter({

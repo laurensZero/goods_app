@@ -2,7 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Clipboard } from '@capacitor/clipboard'
 import { App as CapacitorApp } from '@capacitor/app'
-import { extractIdsFromInput } from '@/utils/shareGoods'
+import { extractIdsFromInput } from '@/utils/share/goods'
 
 const LAST_PROCESSED_CLIPBOARD_KEY = 'last_processed_clipboard_hash'
 

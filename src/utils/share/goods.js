@@ -1,4 +1,4 @@
-import { sanitizeGoodsItemForShare } from '@/utils/goodsImages'
+import { sanitizeGoodsItemForShare } from '@/utils/goods/images'
 
 const SHARE_PAYLOAD_VERSION = 1
 

@@ -1,5 +1,5 @@
 import QRCode from 'qrcode'
-import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
+import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { formatCurrency } from '@/utils/format'
 import { CURRENCY_MAP } from '@/constants/currencies'
 

@@ -270,10 +270,10 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRestore'
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
-import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 

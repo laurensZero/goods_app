@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { readPersisted, writePersisted } from '@/utils/platformStorage'
-import { normalizeGoodsFilterConditions } from '@/utils/goodsFilters'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
+import { normalizeGoodsFilterConditions } from '@/utils/goods/filters'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 
 const STORAGE_KEY = 'goods_filter_presets'

@@ -270,9 +270,9 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { Capacitor } from '@capacitor/core'
-import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyoNativeImport'
-import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo'
-import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
+import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
+import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo/index'
+import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
 
 defineOptions({ name: 'AccountImportView' })

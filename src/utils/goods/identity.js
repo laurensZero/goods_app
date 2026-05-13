@@ -92,7 +92,7 @@ export function getGoodsVariant(item) {
   return ''
 }
 
-import { getPrimaryGoodsImageUrl } from '@/utils/goodsImages'
+import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 
 export function buildGoodsIdentityKey(item) {
   const name = normalizeGoodsName(item?.name)

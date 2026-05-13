@@ -169,7 +169,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useRechargeStore } from '@/stores/recharge'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
-import { preloadImages } from '@/utils/imageCache'
+import { preloadImages } from '@/utils/image/cache'
 
 defineOptions({ name: 'MonthCardCalendarView' })
 

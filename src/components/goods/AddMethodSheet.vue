@@ -229,7 +229,7 @@
 <script setup>
 import { ref, nextTick, watch } from 'vue'
 import { useShareImport } from '@/composables/share/useShareImport'
-import { extractIdsFromInput } from '@/utils/shareGoods'
+import { extractIdsFromInput } from '@/utils/share/goods'
 import { formatCurrency } from '@/utils/format'
 
 const props = defineProps({

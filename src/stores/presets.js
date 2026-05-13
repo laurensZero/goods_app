@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { readPersisted, writePersisted } from '@/utils/platformStorage'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import {
   buildStorageLocationPath,
   normalizeStorageLocationValue,

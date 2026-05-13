@@ -15,7 +15,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
-import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goodsImages'
+import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goods/images'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 import { MIGRATIONS } from './migrations'
 
@@ -37,10 +37,10 @@ let db = null
 async function getDb() {
   if (db) return db
   if (IS_NATIVE) {
-    const { createNativeAdapter } = await import('@/utils/dbNativeAdapter')
+    const { createNativeAdapter } = await import('@/utils/db/nativeAdapter')
     db = createNativeAdapter()
   } else {
-    const { createWebAdapter } = await import('@/utils/dbWebAdapter')
+    const { createWebAdapter } = await import('@/utils/db/webAdapter')
     db = createWebAdapter()
   }
   return db

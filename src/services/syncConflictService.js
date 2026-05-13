@@ -6,7 +6,7 @@ import {
   countWishlistSplit,
   getItemTimestamp,
   resolveGoodsTrashMaps
-} from '@/utils/syncShared'
+} from '@/utils/sync/shared'
 
 export function createSyncConflictService({
   backend,

@@ -1,6 +1,6 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
-import { normalizeHomeSortMode } from '@/utils/homeSort'
+import { normalizeHomeSortMode } from '@/utils/goods/homeSort'
 
 const DEFAULT_STORAGE_KEYS = {
   displayMode: 'goods-app:home-display-mode',

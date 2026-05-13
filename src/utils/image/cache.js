@@ -5,7 +5,7 @@
  */
 
 import { Filesystem, Directory } from '@capacitor/filesystem'
-import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache

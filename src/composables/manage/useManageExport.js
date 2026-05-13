@@ -356,7 +356,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
   }
 
   async function handleExport(selection = null) {
-    const { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } = await import('@/utils/goodsImages')
+    const { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } = await import('@/utils/goods/images')
     await ensureEventsReady()
     const selected = selection || createDefaultExportSelection()
     const includeGoods = selected.goods !== false

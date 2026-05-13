@@ -1,11 +1,11 @@
 import { computed, ref } from 'vue'
-import { isMihoyoCookieExpiredError, validateMihoyoCookie } from '@/utils/mihoyo'
+import { isMihoyoCookieExpiredError, validateMihoyoCookie } from '@/utils/mihoyo/index'
 import {
   clearMihoyoCookieState,
   loadMihoyoCookieState,
   markMihoyoCookieInvalid,
   saveMihoyoCookie
-} from '@/utils/mihoyoCookie'
+} from '@/utils/mihoyo/cookie'
 
 const COOKIE_EXPIRED_MESSAGE = '已保存的 Cookie 可能已失效，请重新输入并更新。'
 

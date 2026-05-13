@@ -85,8 +85,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo'
-import { saveLocalImage } from '@/utils/localImage'
+import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
+import { saveLocalImage } from '@/utils/image/localImage'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 
 const props = defineProps({

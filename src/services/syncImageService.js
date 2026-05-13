@@ -1,4 +1,4 @@
-import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goodsImages'
+import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
 
 export function createSyncImageService({
   backend,

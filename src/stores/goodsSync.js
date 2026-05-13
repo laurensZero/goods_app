@@ -1,6 +1,6 @@
-import { getItems, saveItems } from '@/utils/db'
-import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
-import { deleteManagedLocalImages } from '@/utils/localImage'
+import { getItems, saveItems } from '@/utils/db/index'
+import { buildGoodsIdentityKey } from '@/utils/goods/identity'
+import { deleteManagedLocalImages } from '@/utils/image/localImage'
 import { triggerRef } from 'vue'
 import {
   normalizeGoodsInput,
@@ -11,8 +11,8 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
-import { normalizeGoodsImageList } from '@/utils/goodsImages'
-import { isLocalImageUri } from '@/utils/localImage'
+import { normalizeGoodsImageList } from '@/utils/goods/images'
+import { isLocalImageUri } from '@/utils/image/localImage'
 
 async function persistTrash(trashList) {
   await writePersistedTrash(trashList.value)

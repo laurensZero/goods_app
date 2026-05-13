@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { readPersisted, writePersisted } from '@/utils/platformStorage'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import {
   APPEARANCE_PREFERENCES,
   getThemeAppearance,
