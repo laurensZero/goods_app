@@ -1,9 +1,9 @@
 {
-  "version": "20260513.1",
-  "url": "bundle-20260513.1.zip",
-  "hash": "8395a155dc22c07ed30de75b59ff0f4a1ecad437b08aa2b745a9c1855564eb4a",
+  "version": "20260513.2",
+  "url": "bundle-20260513.2.zip",
+  "hash": "8c403fd44a15372f065e676aa9739aa1f276c8a8d7bb83493c65cc3e3962c4db",
   "minNativeVersion": null,
-  "notes": "- feat(GoodsCard): 添加根元素引用并实现交叉观察者以优化重绘性能",
+  "notes": "- feat(GoodsCardGridSection): 添加交叉观察者以优化卡片重绘性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-13T08:40:19Z"
+  "publishedAt": "2026-05-13T08:43:20Z"
 }

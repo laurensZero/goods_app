@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.2",
+    "url": "bundle-20260513.2.zip",
+    "hash": "8c403fd44a15372f065e676aa9739aa1f276c8a8d7bb83493c65cc3e3962c4db",
+    "minNativeVersion": null,
+    "notes": "- feat(GoodsCardGridSection): 添加交叉观察者以优化卡片重绘性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T08:43:20Z"
+  },
+  {
     "version": "20260513.1",
     "url": "bundle-20260513.1.zip",
     "hash": "8395a155dc22c07ed30de75b59ff0f4a1ecad437b08aa2b745a9c1855564eb4a",
@@ -16,14 +25,5 @@
     "notes": "- feat(mark-images): 增强本地图片URI处理，优化离线显示与元数据管理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-12T15:28:39Z"
-  },
-  {
-    "version": "20260512.19",
-    "url": "bundle-20260512.19.zip",
-    "hash": "c6a06c6b8b3f45171dedb058560e4953b9e4485d0cb107a96ca2c0f1d12fc947",
-    "minNativeVersion": null,
-    "notes": "- feat(migrations): 在后台启动迁移，优化数据迁移逻辑\n\n- feat(sync): 引入同步相关常量，优化版本管理与文件名配置\n\n- fix(view-list): 修正观察者参数顺序，提升代码可读性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T13:55:01Z"
   }
 ]
