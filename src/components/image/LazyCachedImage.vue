@@ -41,7 +41,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
+import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
 

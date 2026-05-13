@@ -404,7 +404,7 @@
 
 <script setup>
 import { Capacitor } from '@capacitor/core'
-import { readPersisted, writePersisted, removePersisted } from '@/utils/platformStorage'
+import { readPersisted, writePersisted, removePersisted } from '@/utils/platform/storage'
 import { App as CapacitorApp } from '@capacitor/app'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
@@ -678,7 +678,7 @@ async function clearSavedFeedbackToken() {
 }
 
 async function ensureFeedbackTokenValid(token) {
-  const { validateToken } = await import('@/utils/githubGist')
+  const { validateToken } = await import('@/utils/github/gist')
   const check = await validateToken(token)
   if (!check.valid) {
     throw new Error('Token 无效，或没有访问 GitHub 的权限')
@@ -700,7 +700,7 @@ async function submitFeedbackIssue() {
 
   try {
     await ensureFeedbackTokenValid(token)
-    const { createIssue } = await import('@/utils/githubIssues')
+    const { createIssue } = await import('@/utils/github/issues')
     const issue = await createIssue(token, FEEDBACK_REPO_OWNER, FEEDBACK_REPO_NAME, {
       title,
       body: buildIssueBody(content)
@@ -934,7 +934,7 @@ onMounted(() => {
 
 async function handleClearImageCache() {
   try {
-    const { clearAllCache } = await import('@/utils/imageCache')
+    const { clearAllCache } = await import('@/utils/image/cache')
     await clearAllCache()
     showToast('图片缓存已清除')
     refreshResourceSizes()

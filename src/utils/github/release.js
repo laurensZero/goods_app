@@ -1,4 +1,4 @@
-import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITEE_API_BASE = 'https://gitee.com/api/v5'

@@ -349,7 +349,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useFilterPresetsStore } from '@/stores/filterPresets'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
-import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import {
   GOODS_FILTER_BOOLEAN_OPTIONS,
   GOODS_FILTER_COLLECT_STATUS_OPTIONS,
@@ -360,9 +360,9 @@ import {
   countActiveGoodsFilters,
   createDefaultGoodsFilters,
   normalizeGoodsFilterConditions
-} from '@/utils/goodsFilters'
+} from '@/utils/goods/filters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'

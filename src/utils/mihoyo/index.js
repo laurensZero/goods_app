@@ -13,8 +13,8 @@
  *   - 浏览器 / Web：使用 fetch，跨域会被拦截（开发阶段正常，APK 内正常）
  */
 import { CapacitorHttp, Capacitor } from '@capacitor/core'
-import { normalizeGoodsVariant } from '@/utils/goodsIdentity'
-import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+import { normalizeGoodsVariant } from '@/utils/goods/identity'
+import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const API_BASE = 'https://api-mall.mihoyogift.com'
 const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`

@@ -1,7 +1,7 @@
 // @ts-check
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed } from 'vue'
-import { getItems } from '@/utils/db'
+import { getItems } from '@/utils/db/index'
 import { normalizeStorageLocationValue } from '@/utils/storageLocations'
 import { useSyncStore } from '@/stores/sync'
 import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goodsHelpers'

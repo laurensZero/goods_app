@@ -60,7 +60,7 @@ import {
   getGitHubVerificationUrl,
   pollGitHubAccessToken,
   requestGitHubDeviceCode
-} from '@/utils/githubAuth'
+} from '@/utils/github/auth'
 
 const props = defineProps({
   modelValue: {

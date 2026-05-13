@@ -133,7 +133,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsStore } from '@/stores/goods'
-import { sortHomeGoodsList } from '@/utils/homeSort'
+import { sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { writeEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 

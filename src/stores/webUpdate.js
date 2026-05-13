@@ -6,8 +6,8 @@ import {
   buildReleaseNotesPreview,
   compareVersions,
   normalizeVersionTag
-} from '@/utils/githubRelease'
-import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+} from '@/utils/github/release'
+import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
   gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',

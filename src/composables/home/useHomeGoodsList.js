@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { sortHomeGoodsList } from '@/utils/homeSort'
+import { sortHomeGoodsList } from '@/utils/goods/homeSort'
 
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
 

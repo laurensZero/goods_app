@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { getPublicGist } from '@/utils/githubGist'
-import { validateSharePayload, extractSharePayloadFromGist } from '@/utils/shareGoods'
+import { getPublicGist } from '@/utils/github/gist'
+import { validateSharePayload, extractSharePayloadFromGist } from '@/utils/share/goods'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'

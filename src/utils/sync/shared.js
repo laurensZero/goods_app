@@ -2,7 +2,7 @@ import {
   inferGoodsImageStorageMode,
   normalizeGoodsImageList,
   parseGistImageUri
-} from '@/utils/goodsImages'
+} from '@/utils/goods/images'
 
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'

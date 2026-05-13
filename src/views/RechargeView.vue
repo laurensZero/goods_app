@@ -58,7 +58,7 @@ import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { useRechargeScrollRestore } from '@/composables/scroll/useRechargeScrollRestore'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 
 defineOptions({ name: 'RechargeView' })
 

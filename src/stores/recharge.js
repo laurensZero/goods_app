@@ -1,7 +1,7 @@
 // @ts-check
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db'
+import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db/index'
 import { useSyncStore } from '@/stores/sync'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'

@@ -10,7 +10,7 @@
  * 多件订单：首行有 A-K，后续子行只有 E-K（继承上一行的订单信息）
  */
 import { unzipSync, strFromU8 } from 'fflate'
-import { parseTitleIpName, parseCategoryFromName, cleanGoodsName } from './mihoyo.js'
+import { parseTitleIpName, parseCategoryFromName, cleanGoodsName } from '@/utils/mihoyo/index'
 
 // ── XML 解析 ──────────────────────────────────────────────────────────────────
 

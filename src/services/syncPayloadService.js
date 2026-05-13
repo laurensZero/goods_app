@@ -7,8 +7,8 @@ import {
   parseImageDataUrl,
   resolveGoodsTrashMaps,
   sortObjectKeys
-} from '@/utils/syncShared'
-import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri, sanitizeGoodsItemForSync } from '@/utils/goodsImages'
+} from '@/utils/sync/shared'
+import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri, sanitizeGoodsItemForSync } from '@/utils/goods/images'
 import {
   SYNC_PAYLOAD_VERSION,
   RECHARGE_PAYLOAD_VERSION,

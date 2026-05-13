@@ -1,11 +1,11 @@
 // @ts-check
 import { triggerRef } from 'vue'
-import { addItem, saveItems, deleteItems } from '@/utils/db'
-import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
+import { addItem, saveItems, deleteItems } from '@/utils/db/index'
+import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import {
   collectManagedLocalImagePathsFromGoodsItem,
   deleteManagedLocalImages
-} from '@/utils/localImage'
+} from '@/utils/image/localImage'
 import {
   normalizeGoodsInput,
   normalizeTrashItem,

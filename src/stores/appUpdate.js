@@ -13,8 +13,8 @@ import {
   normalizeVersionTag,
   resolveReleaseAsset,
   resolveReleaseTargetUrl
-} from '@/utils/githubRelease'
-import { readSyncKey } from '@/utils/syncStorage'
+} from '@/utils/github/release'
+import { readSyncKey } from '@/utils/sync/storage'
 
 const UPDATE_REPO_NAME = 'goods_app'
 const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({

@@ -1,4 +1,4 @@
-import { readPersisted, writePersisted, removePersisted } from '@/utils/platformStorage'
+import { readPersisted, writePersisted, removePersisted } from '@/utils/platform/storage'
 
 const STORAGE_KEY = 'mihoyo_cookie_state'
 

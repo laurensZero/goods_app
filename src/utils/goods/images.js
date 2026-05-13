@@ -1,5 +1,5 @@
 // @ts-check
-import { isLocalImageUri, readLocalImageAsDataUrl } from '@/utils/localImage'
+import { isLocalImageUri, readLocalImageAsDataUrl } from '@/utils/image/localImage'
 
 export const GOODS_IMAGE_KIND_OPTIONS = [
   { value: 'primary', label: '主图' },

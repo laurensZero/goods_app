@@ -597,7 +597,7 @@ import {
   searchGoodsSpuList,
   getMihoyoShopCodeByIp,
   MIHOYO_ROLE_SHOP_CODES
-} from '@/utils/mihoyo'
+} from '@/utils/mihoyo/index'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { validatePrice } from '@/utils/validate'
 import { resizeTextarea } from '@/utils/textarea'

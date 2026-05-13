@@ -152,8 +152,8 @@ import {
   createGoodsImageId,
   inferGoodsImageStorageMode,
   normalizeGoodsImageList
-} from '@/utils/goodsImages'
-import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/localImage'
+} from '@/utils/goods/images'
+import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },

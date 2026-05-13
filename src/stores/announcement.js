@@ -4,8 +4,8 @@ import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
-import { compareVersions, normalizeVersionTag } from '@/utils/githubRelease'
-import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+import { compareVersions, normalizeVersionTag } from '@/utils/github/release'
+import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const ANNOUNCEMENT_BASE_BY_SOURCE = Object.freeze({
   local: '',

@@ -1,4 +1,4 @@
-import { saveItems } from '@/utils/db'
+import { saveItems } from '@/utils/db/index'
 import {
   isStorageLocationUnderPrefix,
   normalizeStorageLocationValue,

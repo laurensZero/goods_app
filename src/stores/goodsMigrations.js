@@ -1,7 +1,7 @@
 import { triggerRef } from 'vue'
-import { saveItems, deleteItems } from '@/utils/db'
-import { buildGoodsIdentityKey } from '@/utils/goodsIdentity'
-import { getPrimaryGoodsImageUrl, normalizeGoodsImageList } from '@/utils/goodsImages'
+import { saveItems, deleteItems } from '@/utils/db/index'
+import { buildGoodsIdentityKey } from '@/utils/goods/identity'
+import { getPrimaryGoodsImageUrl, normalizeGoodsImageList } from '@/utils/goods/images'
 import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goodsHelpers'
 
 function isPlainObject(value) {

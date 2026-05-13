@@ -1,5 +1,5 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { getSupabaseClient } from '@/utils/supabaseClient'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
 /**
  * Supabase Realtime 订阅 composable

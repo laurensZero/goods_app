@@ -1,4 +1,4 @@
-import { readPersisted, writePersisted } from '@/utils/platformStorage'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 
 export async function readSyncKey(key) {
   return readPersisted(key)

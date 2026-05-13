@@ -321,7 +321,7 @@ import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeac
 import { useRoute, useRouter } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { Capacitor } from '@capacitor/core'
-import { pickLinkedLocalImage } from '@/utils/localImage'
+import { pickLinkedLocalImage } from '@/utils/image/localImage'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
 // ...
@@ -329,7 +329,7 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { readEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
-import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/syncFieldValue'
+import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import NavBar from '@/components/common/NavBar.vue'

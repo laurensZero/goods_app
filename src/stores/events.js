@@ -1,10 +1,10 @@
 // @ts-check
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, triggerRef } from 'vue'
-import { addEvent, deleteEvents, getEvents } from '@/utils/db'
+import { addEvent, deleteEvents, getEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/tracks'
-import { buildGistImageUri, parseGistImageUri } from '@/utils/goodsImages'
-import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/localImage'
+import { buildGistImageUri, parseGistImageUri } from '@/utils/goods/images'
+import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
 import { useSyncStore } from '@/stores/sync'
 
 function parseTicketPrice(value) {

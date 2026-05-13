@@ -4,15 +4,15 @@ import {
   getGoodsVariant,
   normalizeGoodsName,
   stripVariantFromNote
-} from '@/utils/goodsIdentity'
+} from '@/utils/goods/identity'
 import {
   getPrimaryGoodsImageUrl,
   normalizeGoodsImageList
-} from '@/utils/goodsImages'
+} from '@/utils/goods/images'
 import {
   collectManagedLocalImagePathsFromGoodsItem,
   restoreLocalImageFromDataUrl
-} from '@/utils/localImage'
+} from '@/utils/image/localImage'
 import { normalizeCharacterName } from '@/stores/presets'
 import { normalizeStorageLocationValue } from '@/utils/storageLocations'
 import { normalizeTracks } from '@/utils/tracks'

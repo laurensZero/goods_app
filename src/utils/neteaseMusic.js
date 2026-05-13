@@ -1,7 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { AppLauncher } from '@capacitor/app-launcher'
-import { openNeteaseSongNative } from '@/utils/nativeMusicBridge'
-import { fetchWithPlatformBridge } from '@/utils/platformHttp'
+import { openNeteaseSongNative } from '@/utils/platform/nativeMusicBridge'
+import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const NETEASE_WEB_BASE = 'https://music.163.com'
 const NETEASE_REFERER = `${NETEASE_WEB_BASE}/`

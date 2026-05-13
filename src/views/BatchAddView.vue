@@ -70,8 +70,8 @@ import BatchAddCard from '@/components/goods/BatchAddCard.vue'
 import BatchDefaultsSheet from '@/components/goods/BatchDefaultsSheet.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
-import { pickLinkedLocalImages } from '@/utils/localImage'
-import { createGoodsImageId } from '@/utils/goodsImages'
+import { pickLinkedLocalImages } from '@/utils/image/localImage'
+import { createGoodsImageId } from '@/utils/goods/images'
 
 const router = useRouter()
 const presetsStore = usePresetsStore()

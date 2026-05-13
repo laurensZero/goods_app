@@ -1,7 +1,7 @@
 // src/services/supabaseBackendAdapter.js
 import { createSyncBackendAdapter } from './syncBackendAdapter'
-import { getSupabaseClient } from '@/utils/supabaseClient'
-import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/syncColumnMapping'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry } from './syncRetry'
 
 export function createSupabaseBackendAdapter({
