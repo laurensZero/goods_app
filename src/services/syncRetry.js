@@ -1,5 +1,20 @@
 import { SyncError, CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_SERVER } from './syncError'
 
+const OPERATION_TIMEOUT_MS = 60_000
+
+/**
+ * Wrap an async operation with a timeout.
+ * Rejects with a timeout Error if the operation doesn't settle within the deadline.
+ */
+export function withTimeout(fn, ms = OPERATION_TIMEOUT_MS) {
+  return Promise.race([
+    fn(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`操作超时（${Math.round(ms / 1000)}s）`)), ms)
+    )
+  ])
+}
+
 /**
  * Check if an error is retryable.
  * SyncError uses its own retryable flag; plain errors are inferred by type/message.

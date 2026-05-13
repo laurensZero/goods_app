@@ -199,17 +199,26 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
   const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
   const syncImages = normalizedImages
     .filter((entry) => preparedImages || isExportableGoodsImage(entry))
-    .map((entry) => ({
-      id: entry.id,
-      uri: entry.uri,
-      kind: entry.kind,
-      label: entry.label,
-      storageMode: inferGoodsImageStorageMode(entry.uri, entry.storageMode),
-      gistFileName: entry.gistFileName || parseGistImageUri(entry.uri),
-      mimeType: entry.mimeType || '',
-      fileSize: Number(entry.fileSize) > 0 ? Number(entry.fileSize) : 0,
-      isPrimary: entry.id === primaryId
-    }))
+    .map((entry) => {
+      const gistFileName = entry.gistFileName || parseGistImageUri(entry.uri)
+      // Never embed base64 data URLs in sync payload — images are uploaded separately.
+      // Replace data: URIs with gist-image:// references so all backends stay lightweight.
+      let uri = entry.uri
+      if (typeof uri === 'string' && uri.startsWith('data:')) {
+        uri = gistFileName ? `gist-image://${gistFileName}` : ''
+      }
+      return {
+        id: entry.id,
+        uri,
+        kind: entry.kind,
+        label: entry.label,
+        storageMode: inferGoodsImageStorageMode(uri, entry.storageMode),
+        gistFileName,
+        mimeType: entry.mimeType || '',
+        fileSize: Number(entry.fileSize) > 0 ? Number(entry.fileSize) : 0,
+        isPrimary: entry.id === primaryId
+      }
+    })
 
   if (syncImages.length === 0) return []
 

@@ -204,6 +204,12 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   async function setSyncBackend(backend) {
+    // Force-reset syncing state so a stuck sync on the old backend doesn't block the new one
+    if (isSyncing.value) {
+      console.warn('[sync] 切换后端时强制重置 isSyncing')
+      resetSyncingState()
+    }
+
     // initialize or clear supabase client on backend switch
     if (backend === 'supabase') {
       if (supabaseUrl.value && supabaseAnonKey.value) {
@@ -457,6 +463,8 @@ export const useSyncStore = defineStore('sync', () => {
 
   // ── Auto-push (Realtime) ──
 
+  const SYNC_TIMEOUT_MS = 3 * 60 * 1000 // 3 min safety net
+  let syncTimeoutId = null
   let autoPushTimer = null
 
   function autoPushGoods() {
@@ -498,12 +506,31 @@ export const useSyncStore = defineStore('sync', () => {
     return validateToken(token.value)
   }
 
+  function clearSyncTimeout() {
+    if (syncTimeoutId) { clearTimeout(syncTimeoutId); syncTimeoutId = null }
+  }
+
+  function resetSyncingState() {
+    clearSyncTimeout()
+    isSyncing.value = false
+    isPulling.value = false
+  }
+
   async function fullSync({ source = 'manual', maxRetries = 1 } = {}) {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     ensureBackendReady()
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在同步...'
+
+    // Safety net: force-reset isSyncing if the entire sync hangs
+    clearSyncTimeout()
+    syncTimeoutId = setTimeout(() => {
+      console.warn('[sync] 同步超时（3 分钟），强制重置 isSyncing')
+      resetSyncingState()
+      applySyncError(new Error('同步操作超时'), '同步超时')
+    }, SYNC_TIMEOUT_MS)
+
     try {
       const result = await withRetry(
         () => orchestrator.fullSync(buildSyncContext()),
@@ -522,7 +549,7 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
       throw error
-    } finally { isSyncing.value = false }
+    } finally { clearSyncTimeout(); isSyncing.value = false }
   }
 
   async function pullOnly({ silent = false, source = 'manual', maxRetries = 1 } = {}) {
@@ -533,6 +560,14 @@ export const useSyncStore = defineStore('sync', () => {
     if (!silent) conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = '正在拉取...'
+
+    clearSyncTimeout()
+    syncTimeoutId = setTimeout(() => {
+      console.warn('[sync] 拉取超时（3 分钟），强制重置')
+      resetSyncingState()
+      applySyncError(new Error('拉取操作超时'), '拉取超时')
+    }, SYNC_TIMEOUT_MS)
+
     try {
       const result = await withRetry(
         () => orchestrator.pullOnly(buildSyncContext(), { silent }),
@@ -551,7 +586,7 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
       throw error
-    } finally { isPulling.value = false; isSyncing.value = false }
+    } finally { clearSyncTimeout(); isPulling.value = false; isSyncing.value = false }
   }
 
   async function resolveConflict(useRemote, { source = 'manual', maxRetries = 1 } = {}) {
