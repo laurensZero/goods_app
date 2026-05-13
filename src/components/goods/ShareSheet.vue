@@ -62,11 +62,11 @@
                 :key="item.id"
                 class="preview-thumb"
               >
-                <img
+                <LazyCachedImage
                   v-if="getGoodsCover(item)"
                   :src="getGoodsCover(item)"
                   class="preview-img"
-                  loading="lazy"
+                  :alt="item.name || '谷子预览'"
                 />
                 <span v-else class="preview-fallback">{{ (item.name || '?').charAt(0) }}</span>
               </div>
@@ -172,6 +172,7 @@ import { buildShareDescription, findOrCreateShareGist, getShareGist, updateGist 
 import { buildShareUrl } from '@/config/share'
 import { useSyncStore } from '@/stores/sync'
 import { buildSharePosterDataUrl } from '@/utils/sharePoster'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   show: {

@@ -35,7 +35,7 @@
         <div v-if="store.trashViewList.length > 0" class="trash-list">
           <article v-for="item in store.trashViewList" :key="item.id" class="trash-card">
             <div class="trash-thumb">
-              <img v-if="item.coverImage" :src="item.coverImage" :alt="item.name" loading="lazy" />
+              <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" class="trash-thumb__img" />
               <span v-else>{{ item.name.trim().charAt(0).toUpperCase() || '谷' }}</span>
             </div>
 
@@ -95,6 +95,7 @@ import { useGoodsStore } from '@/stores/goods'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const store = useGoodsStore()
 const showDeleteConfirm = ref(false)
@@ -287,7 +288,7 @@ async function confirmEmptyAll() {
   font-weight: 700;
 }
 
-.trash-thumb img {
+.trash-thumb__img {
   width: 100%;
   height: 100%;
   object-fit: cover;

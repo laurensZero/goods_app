@@ -32,7 +32,13 @@
         <section class="cover-stage">
           <div class="cover-glow" />
           <div ref="coverCardRef" class="cover-card" :style="coverCardStyle">
-            <img v-if="cachedImgSrc" :src="cachedImgSrc" :alt="item.name" class="cover-img" />
+            <LazyCachedImage
+              v-if="activeImage?.uri"
+              :src="activeImage.uri"
+              :alt="item.name"
+              :lazy="false"
+              class="cover-img"
+            />
             <div v-else class="cover-fallback">
               <span class="cover-initial">{{ coverInitial }}</span>
             </div>
@@ -45,7 +51,12 @@
               :class="['cover-gallery__item', { 'cover-gallery__item--active': image.id === activeImageId }]"
               @click="activeImageId = image.id"
             >
-              <img :src="image.uri" :alt="image.label || getImageKindLabel(image.kind)" class="cover-gallery__img" />
+              <LazyCachedImage
+                :src="image.uri"
+                :alt="image.label || getImageKindLabel(image.kind)"
+                :lazy="false"
+                class="cover-gallery__img"
+              />
               <span class="cover-gallery__meta">{{ image.label || getImageKindLabel(image.kind) }}</span>
             </button>
           </div>
@@ -213,7 +224,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -228,6 +238,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -311,7 +322,7 @@ const coverBg = computed(() => {
 })
 const coverCardStyle = computed(() => {
   const style = {}
-  if (!cachedImgSrc.value) {
+  if (!activeImage.value?.uri) {
     style.background = coverBg.value
   }
   return style
@@ -472,7 +483,6 @@ const acquiredAtDisplayText = computed(() => {
   return item.value.acquiredAt || '未填写'
 })
 
-const cachedImgSrc = ref('')
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
 const DETAIL_ENTRY_SCROLL_LOCK_MS = 380
 const detailEntryScrollLockActive = ref(false)
@@ -517,17 +527,6 @@ async function prepareDetailLayout() {
   await nextTick()
   resetScrollPosition()
 }
-
-watch(
-  () => activeImage.value?.uri,
-  async (url) => {
-    if (!url) { cachedImgSrc.value = ''; return }
-    const instant = peekCachedImage(url)
-    if (instant) cachedImgSrc.value = instant
-    cachedImgSrc.value = await getCachedImage(url)
-  },
-  { immediate: true }
-)
 
 watch(
   () => galleryImages.value,

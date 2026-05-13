@@ -188,6 +188,9 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
 }
 
 /* When wrapper receives utility classes like `cover-img`, forward

@@ -51,7 +51,12 @@
           :class="['image-manager__thumb', { 'image-manager__thumb--active': image.id === activeImageId }]"
           @click="activeImageId = image.id"
         >
-          <img :src="image.uri" :alt="image.label || getKindLabel(image.kind)" class="image-manager__thumb-img" />
+          <LazyCachedImage
+            :src="image.uri"
+            :alt="image.label || getKindLabel(image.kind)"
+            :lazy="false"
+            class="image-manager__thumb-img"
+          />
           <span v-if="image.isPrimary" class="image-manager__thumb-badge">主图</span>
           <span class="image-manager__thumb-source">{{ getSourceLabel(image.storageMode) }}</span>
         </button>
@@ -59,7 +64,12 @@
 
       <article v-if="activeImage" class="image-manager__editor">
         <div class="image-manager__editor-preview">
-          <img :src="activeImage.uri" :alt="activeImage.label || getKindLabel(activeImage.kind)" class="image-manager__editor-img" />
+          <LazyCachedImage
+            :src="activeImage.uri"
+            :alt="activeImage.label || getKindLabel(activeImage.kind)"
+            :lazy="false"
+            class="image-manager__editor-img"
+          />
         </div>
 
         <div class="image-manager__editor-body">
@@ -136,6 +146,7 @@ import { computed, ref, watch } from 'vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import {
   GOODS_IMAGE_KIND_OPTIONS,
   createGoodsImageId,
@@ -225,6 +236,8 @@ function addRemoteImage() {
   appendImage({
     id: createGoodsImageId(),
     uri: resolvedUrl,
+    localUri: '',
+    remoteUri: resolvedUrl,
     kind: images.value.length === 0 ? 'primary' : draftKind.value,
     label: '',
     storageMode: inferGoodsImageStorageMode(resolvedUrl),
@@ -245,6 +258,8 @@ async function addLocalImage() {
     appendImage({
       id: createGoodsImageId(),
       uri: pickedImage.uri,
+      localUri: pickedImage.uri,
+      remoteUri: '',
       kind: images.value.length === 0 ? 'primary' : draftKind.value,
       label: '',
       storageMode: pickedImage.storageMode,
@@ -284,11 +299,13 @@ async function handleQuickEditSave(result) {
     const localUri = await saveLocalImage(result.file)
     emitImages(images.value.map((image) => {
       if (image.id !== editingTargetId.value) return image
-      return {
-        ...image,
-        uri: localUri,
-        storageMode: inferGoodsImageStorageMode(localUri),
-        localPath: '',
+        return {
+          ...image,
+          uri: localUri,
+          localUri,
+          remoteUri: '',
+          storageMode: inferGoodsImageStorageMode(localUri),
+          localPath: '',
         gistFileName: '',
         mimeType: '',
         fileSize: 0
