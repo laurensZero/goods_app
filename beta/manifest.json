@@ -1,9 +1,9 @@
 {
-  "version": "20260513.7",
-  "url": "bundle-20260513.7.zip",
-  "hash": "5dba9f2bbcca8e3f91fe252bf25b0d63245db9611279f5a66bc6a0f3579f5e22",
+  "version": "20260513.8",
+  "url": "bundle-20260513.8.zip",
+  "hash": "2bc558a3a3cb59023e053a6521dcafb7d12a348377a89cd5fb0f0375a02f9466",
   "minNativeVersion": null,
-  "notes": "- feat: 使用LazyCachedImage组件优化图片加载，统一aspect-ratio为1:1",
+  "notes": "- feat: 重构App.vue，优化启动逻辑并添加深度链接支持",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-13T12:12:18Z"
+  "publishedAt": "2026-05-13T12:49:26Z"
 }

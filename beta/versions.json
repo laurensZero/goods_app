@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.8",
+    "url": "bundle-20260513.8.zip",
+    "hash": "2bc558a3a3cb59023e053a6521dcafb7d12a348377a89cd5fb0f0375a02f9466",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构App.vue，优化启动逻辑并添加深度链接支持",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T12:49:26Z"
+  },
+  {
     "version": "20260513.7",
     "url": "bundle-20260513.7.zip",
     "hash": "5dba9f2bbcca8e3f91fe252bf25b0d63245db9611279f5a66bc6a0f3579f5e22",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"feat(DetailView): 使用LazyCachedImage组件优化图片加载，添加预加载功能\"\n  This reverts commit 82bb6d6526d80045410a89961e323fcf3d368f08.",
     "updateLevel": "silent",
     "publishedAt": "2026-05-13T11:47:31Z"
-  },
-  {
-    "version": "20260513.5",
-    "url": "bundle-20260513.5.zip",
-    "hash": "06ae724b993fee331a8ef03134d498f334471e1cdb62825f842e00e6e76946aa",
-    "minNativeVersion": null,
-    "notes": "- feat(theme): 添加可见性监听器以在应用恢复时更新主题",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-13T11:44:18Z"
   }
 ]
