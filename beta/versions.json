@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.3",
+    "url": "bundle-20260513.3.zip",
+    "hash": "87860bef5c29f34cdf75ea89c79b84e93cbfbcd9bdb7ea646943e3bb0cafaeb3",
+    "minNativeVersion": null,
+    "notes": "- feat(EventDetailView): 使用LazyCachedImage组件预加载关联商品图片，优化图片加载性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T09:04:56Z"
+  },
+  {
     "version": "20260513.2",
     "url": "bundle-20260513.2.zip",
     "hash": "8c403fd44a15372f065e676aa9739aa1f276c8a8d7bb83493c65cc3e3962c4db",
@@ -16,14 +25,5 @@
     "notes": "- feat(GoodsCard): 添加根元素引用并实现交叉观察者以优化重绘性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-13T08:40:19Z"
-  },
-  {
-    "version": "20260512.20",
-    "url": "bundle-20260512.20.zip",
-    "hash": "fe5fd6289ca5d18d497d461929c4811afbe891965930d0e99c4b20b1337a9856",
-    "minNativeVersion": null,
-    "notes": "- feat(mark-images): 增强本地图片URI处理，优化离线显示与元数据管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-12T15:28:39Z"
   }
 ]
