@@ -78,7 +78,22 @@ export function useRealtimeSync({ syncStore }) {
   })
 
   async function handleVisibilityChange() {
-    if (document.hidden) return
+    if (document.hidden) {
+      // Gist 模式：退到后台时若有本地变更则做一次完整同步
+      if (!syncStore.isSupabaseMode() && syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
+        const localChanges = syncStore.getLocalChangesSinceLastSync()
+        if (!localChanges.hasChanges) return
+
+        try {
+          await syncStore.fullSync()
+        } catch {
+          // silent fail on background sync
+        }
+      }
+      return
+    }
+
+    // Supabase 模式：回到前台时拉取最新数据
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
       if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
