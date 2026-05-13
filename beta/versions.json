@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.12",
+    "url": "bundle-20260513.12.zip",
+    "hash": "77583fad261e7135117e57fe2ad135656617ff5a1581b74245b4a7745460f050",
+    "minNativeVersion": null,
+    "notes": "- feat(SyncView): 添加同步密码输入和加密启用选项",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T14:25:11Z"
+  },
+  {
     "version": "20260513.11",
     "url": "bundle-20260513.11.zip",
     "hash": "5bc03dfa0e48a4334c7a3ab44ac3661e62c2a3dbed99081e595cc4a62e287636",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"refactor: 重构文件目录\"\n  This reverts commit 3113131483c6154e6e3748037de9948c7822b5a6.",
     "updateLevel": "silent",
     "publishedAt": "2026-05-13T13:41:58Z"
-  },
-  {
-    "version": "20260513.9",
-    "url": "bundle-20260513.9.zip",
-    "hash": "1b8da0f0bf7dbc0501791c9a3154cb7206025e7208f0f031cc639e2f13cb28e7",
-    "minNativeVersion": null,
-    "notes": "- refactor: 重构文件目录",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-13T13:11:04Z"
   }
 ]
