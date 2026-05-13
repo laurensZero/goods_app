@@ -1,9 +1,9 @@
 {
-  "version": "20260513.10",
-  "url": "bundle-20260513.10.zip",
-  "hash": "2302dc4cdd073281e6e388203ac03b52b998a19b03d1128aec54341689c8cc97",
+  "version": "20260513.11",
+  "url": "bundle-20260513.11.zip",
+  "hash": "5bc03dfa0e48a4334c7a3ab44ac3661e62c2a3dbed99081e595cc4a62e287636",
   "minNativeVersion": null,
-  "notes": "- Revert \"refactor: 重构文件目录\"\n  This reverts commit 3113131483c6154e6e3748037de9948c7822b5a6.",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-13T13:41:58Z"
+  "publishedAt": "2026-05-13T13:57:41Z"
 }
