@@ -131,10 +131,12 @@
                 :data-linked-goods-id="String(goods.id || '')"
                 @click.prevent="openLinkedGoodsDetail(goods, $event)"
               >
-                <img
+                <LazyCachedImage
                   v-if="goods.coverImage"
                   :src="goods.coverImage"
                   :alt="goods.name"
+                  :lazy="true"
+                  root-margin="220px 0px"
                   class="linked-goods-card__img"
                   :data-goods-hero-id="String(goods.id || '')"
                 />
@@ -201,11 +203,13 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
+import { preloadImages } from '@/utils/imageCache'
 
 defineOptions({ name: 'EventDetailView' })
 
@@ -303,6 +307,9 @@ const dateDisplay = computed(() => {
 const linkedGoodsList = computed(() =>
   (event.value?.linkedGoodsIds || []).map((id) => goodsStore.getById(id)).filter(Boolean)
 )
+const linkedGoodsImageUrls = computed(() => (
+  linkedGoodsList.value.map((goods) => String(goods?.coverImage || '').trim()).filter(Boolean)
+))
 const trackList = computed(() =>
   (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId)
 )
@@ -438,6 +445,12 @@ async function refresh() {
   }
 }
 
+function preloadLinkedGoodsImages() {
+  if (linkedGoodsImageUrls.value.length > 0) {
+    preloadImages(linkedGoodsImageUrls.value)
+  }
+}
+
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   lockDetailEntryScrollLock()
@@ -448,6 +461,7 @@ onMounted(async () => {
   }
   await refresh()
   await restoreViewState()
+  preloadLinkedGoodsImages()
   eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
 })
@@ -467,6 +481,7 @@ onActivated(async () => {
     eventDisplayReady.value = false
   }
   await restoreViewState()
+  preloadLinkedGoodsImages()
   eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
 })
@@ -486,8 +501,13 @@ watch(eventId, async () => {
   eventDisplayReady.value = false
   previewPhotoIndex.value = -1
   await restoreViewState()
+  preloadLinkedGoodsImages()
   eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+})
+
+watch(linkedGoodsImageUrls, () => {
+  preloadLinkedGoodsImages()
 })
 
 watch(trackSectionExpanded, (value) => {
@@ -919,6 +939,7 @@ function tryPlayLinkedGoodsBackHero() {
 }
 
 .linked-goods-card__img {
+  display: block;
   object-fit: cover;
 }
 
