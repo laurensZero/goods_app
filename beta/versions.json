@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.9",
+    "url": "bundle-20260513.9.zip",
+    "hash": "1b8da0f0bf7dbc0501791c9a3154cb7206025e7208f0f031cc639e2f13cb28e7",
+    "minNativeVersion": null,
+    "notes": "- refactor: 重构文件目录",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T13:11:04Z"
+  },
+  {
     "version": "20260513.8",
     "url": "bundle-20260513.8.zip",
     "hash": "2bc558a3a3cb59023e053a6521dcafb7d12a348377a89cd5fb0f0375a02f9466",
@@ -16,14 +25,5 @@
     "notes": "- feat: 使用LazyCachedImage组件优化图片加载，统一aspect-ratio为1:1",
     "updateLevel": "silent",
     "publishedAt": "2026-05-13T12:12:18Z"
-  },
-  {
-    "version": "20260513.6",
-    "url": "bundle-20260513.6.zip",
-    "hash": "b02849292dc222d475b70a02fa28ff45cf5faa3bc156d94a5728a8026ff50417",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat(DetailView): 使用LazyCachedImage组件优化图片加载，添加预加载功能\"\n  This reverts commit 82bb6d6526d80045410a89961e323fcf3d368f08.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-13T11:47:31Z"
   }
 ]
