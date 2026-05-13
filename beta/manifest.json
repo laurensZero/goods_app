@@ -1,9 +1,9 @@
 {
-  "version": "20260513.6",
-  "url": "bundle-20260513.6.zip",
-  "hash": "b02849292dc222d475b70a02fa28ff45cf5faa3bc156d94a5728a8026ff50417",
+  "version": "20260513.7",
+  "url": "bundle-20260513.7.zip",
+  "hash": "5dba9f2bbcca8e3f91fe252bf25b0d63245db9611279f5a66bc6a0f3579f5e22",
   "minNativeVersion": null,
-  "notes": "- Revert \"feat(DetailView): 使用LazyCachedImage组件优化图片加载，添加预加载功能\"\n  This reverts commit 82bb6d6526d80045410a89961e323fcf3d368f08.",
+  "notes": "- feat: 使用LazyCachedImage组件优化图片加载，统一aspect-ratio为1:1",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-13T11:47:31Z"
+  "publishedAt": "2026-05-13T12:12:18Z"
 }
