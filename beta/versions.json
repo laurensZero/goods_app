@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.4",
+    "url": "bundle-20260513.4.zip",
+    "hash": "e4e3b71a7d44f21deac6da9c967e76429c985208cf4a42977b59ad549a3e320e",
+    "minNativeVersion": null,
+    "notes": "- feat(DetailView): 使用LazyCachedImage组件优化图片加载，添加预加载功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T11:36:04Z"
+  },
+  {
     "version": "20260513.3",
     "url": "bundle-20260513.3.zip",
     "hash": "87860bef5c29f34cdf75ea89c79b84e93cbfbcd9bdb7ea646943e3bb0cafaeb3",
@@ -16,14 +25,5 @@
     "notes": "- feat(GoodsCardGridSection): 添加交叉观察者以优化卡片重绘性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-13T08:43:20Z"
-  },
-  {
-    "version": "20260513.1",
-    "url": "bundle-20260513.1.zip",
-    "hash": "8395a155dc22c07ed30de75b59ff0f4a1ecad437b08aa2b745a9c1855564eb4a",
-    "minNativeVersion": null,
-    "notes": "- feat(GoodsCard): 添加根元素引用并实现交叉观察者以优化重绘性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-13T08:40:19Z"
   }
 ]
