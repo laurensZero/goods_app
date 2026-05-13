@@ -1,9 +1,9 @@
 {
-  "version": "20260512.20",
-  "url": "bundle-20260512.20.zip",
-  "hash": "fe5fd6289ca5d18d497d461929c4811afbe891965930d0e99c4b20b1337a9856",
+  "version": "20260513.1",
+  "url": "bundle-20260513.1.zip",
+  "hash": "8395a155dc22c07ed30de75b59ff0f4a1ecad437b08aa2b745a9c1855564eb4a",
   "minNativeVersion": null,
-  "notes": "- feat(mark-images): 增强本地图片URI处理，优化离线显示与元数据管理",
+  "notes": "- feat(GoodsCard): 添加根元素引用并实现交叉观察者以优化重绘性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-12T15:28:39Z"
+  "publishedAt": "2026-05-13T08:40:19Z"
 }
