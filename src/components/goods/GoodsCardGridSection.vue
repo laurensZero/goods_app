@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 
@@ -112,6 +112,54 @@ const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const goodsListEl = ref(null)
 const cardRefs = new Map()
 const cardMotionStyles = reactive({})
+
+let _cardObserver = null
+const _observedEls = new WeakSet()
+
+function forceRepaint(el) {
+  if (!el) return
+  try {
+    el.style.willChange = 'transform'
+    void el.offsetHeight
+    setTimeout(() => {
+      if (el && el.style) el.style.willChange = ''
+    }, 120)
+  } catch (e) {}
+}
+
+function createCardObserver() {
+  if (typeof IntersectionObserver === 'undefined') return
+
+  _cardObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const target = entry.target
+      if (entry.isIntersecting && target) {
+        try {
+          forceRepaint(target)
+        } catch (e) {}
+        try { _cardObserver.unobserve(target) } catch (e) {}
+        try { _observedEls.delete(target) } catch (e) {}
+      }
+    }
+  }, { threshold: 0.02 })
+}
+
+async function observeCurrentCards() {
+  await nextTick()
+  if (!_cardObserver) createCardObserver()
+  if (!_cardObserver) return
+
+  for (const item of props.items) {
+    const instance = cardRefs.get(String(item.id || ''))
+    const el = getElement(instance)
+    if (!el) continue
+    if (_observedEls.has(el)) continue
+    try {
+      _cardObserver.observe(el)
+      _observedEls.add(el)
+    } catch (e) {}
+  }
+}
 
 let motionClearTimer = 0
 let motionRunToken = 0
@@ -333,10 +381,23 @@ watch(
   { flush: 'post' }
 )
 
+onMounted(() => {
+  observeCurrentCards()
+})
+
+watch(
+  () => props.items && props.items.map((i) => String(i.id || '')).join(','),
+  () => {
+    observeCurrentCards()
+  }
+)
+
 onBeforeUnmount(() => {
   if (motionClearTimer) window.clearTimeout(motionClearTimer)
   cancelMotionRetry()
   clearMotionStyles()
+  try { _cardObserver?.disconnect() } catch (e) {}
+  _cardObserver = null
 })
 
 defineExpose({

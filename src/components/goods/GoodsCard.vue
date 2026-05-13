@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -125,7 +125,6 @@ const props = defineProps({
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const tagsScrollerRef = ref(null)
 const coverEl = ref(null)
-const rootEl = ref(null)
 
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
@@ -359,38 +358,7 @@ const priceCNYHint = computed(() => {
   return `≈ ¥${cny.toFixed(2)}`
 })
 
-function forceRepaint(el) {
-  if (!el) return
-  try {
-    el.style.willChange = 'transform'
-    // force a reflow/repaint
-    void el.offsetHeight
-    setTimeout(() => {
-      if (el && el.style) el.style.willChange = ''
-    }, 120)
-  } catch (e) {}
-}
 
-let _observer = null
-onMounted(() => {
-  const el = rootEl?.value || null
-  if (!el || typeof IntersectionObserver === 'undefined') return
-
-  _observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting && entry.target) {
-        forceRepaint(entry.target)
-      }
-    }
-  }, { threshold: 0.01 })
-
-  _observer.observe(el)
-})
-
-onUnmounted(() => {
-  try { _observer?.disconnect() } catch (e) {}
-  _observer = null
-})
 </script>
 
 <style scoped>
