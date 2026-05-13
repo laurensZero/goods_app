@@ -1,9 +1,9 @@
 {
-  "version": "20260513.5",
-  "url": "bundle-20260513.5.zip",
-  "hash": "06ae724b993fee331a8ef03134d498f334471e1cdb62825f842e00e6e76946aa",
+  "version": "20260513.6",
+  "url": "bundle-20260513.6.zip",
+  "hash": "b02849292dc222d475b70a02fa28ff45cf5faa3bc156d94a5728a8026ff50417",
   "minNativeVersion": null,
-  "notes": "- feat(theme): 添加可见性监听器以在应用恢复时更新主题",
+  "notes": "- Revert \"feat(DetailView): 使用LazyCachedImage组件优化图片加载，添加预加载功能\"\n  This reverts commit 82bb6d6526d80045410a89961e323fcf3d368f08.",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-13T11:44:18Z"
+  "publishedAt": "2026-05-13T11:47:31Z"
 }
