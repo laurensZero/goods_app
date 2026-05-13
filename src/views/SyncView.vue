@@ -84,6 +84,30 @@
                   <span class="detail-value">{{ syncStore.githubLogin || '未登录' }}</span>
                 </div>
                 <div class="detail-row">
+                  <span class="detail-label">同步密码</span>
+                  <input
+                    :value="syncStore.syncPassword"
+                    class="password-input"
+                    type="password"
+                    placeholder="用于 Gist 加密"
+                    autocomplete="off"
+                    spellcheck="false"
+                    @input="handlePasswordChange"
+                  />
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">启用加密</span>
+                  <label class="toggle-switch" aria-label="启用 Gist 加密">
+                    <input
+                      :checked="syncStore.encryptionEnabled"
+                      :disabled="!syncStore.syncPassword"
+                      type="checkbox"
+                      @change="handleEncryptionToggle"
+                    />
+                    <span class="toggle-slider" />
+                  </label>
+                </div>
+                <div class="detail-row">
                   <span class="detail-label">Data Gist</span>
                   <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
                 </div>
@@ -1085,6 +1109,9 @@ async function handlePasswordChange(event) {
   const password = event.target.value
   try {
     await syncStore.setSyncPassword(password)
+    if (!password && syncStore.encryptionEnabled) {
+      await syncStore.setEncryptionEnabled(false)
+    }
   } catch (e) {
     console.error('设置密码失败:', e)
   }
