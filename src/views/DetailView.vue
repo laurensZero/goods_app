@@ -45,7 +45,14 @@
               :class="['cover-gallery__item', { 'cover-gallery__item--active': image.id === activeImageId }]"
               @click="activeImageId = image.id"
             >
-              <img :src="image.uri" :alt="image.label || getImageKindLabel(image.kind)" class="cover-gallery__img" />
+              <LazyCachedImage
+                v-if="image.uri"
+                :src="image.uri"
+                :alt="image.label || getImageKindLabel(image.kind)"
+                :lazy="true"
+                root-margin="100px 0px"
+                class="cover-gallery__img"
+              />
               <span class="cover-gallery__meta">{{ image.label || getImageKindLabel(image.kind) }}</span>
             </button>
           </div>
@@ -213,7 +220,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { getCachedImage, peekCachedImage } from '@/utils/imageCache'
+import { getCachedImage, peekCachedImage, preloadImages } from '@/utils/imageCache'
 import { formatDate } from '@/utils/format'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -228,6 +235,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -318,6 +326,9 @@ const coverCardStyle = computed(() => {
 })
 
 const galleryImages = computed(() => normalizeGoodsImageList(item.value?.images))
+const galleryImageUris = computed(() => (
+  galleryImages.value.map((image) => String(image?.uri || '').trim()).filter(Boolean)
+))
 const activeImage = computed(() => (
   galleryImages.value.find((image) => image.id === activeImageId.value)
   || getPrimaryGoodsImage(galleryImages.value)
@@ -661,11 +672,18 @@ function handleAndroidBackButton(event) {
   handleBackNavigation()
 }
 
+function preloadGalleryImages() {
+  if (galleryImageUris.value.length > 0) {
+    preloadImages(galleryImageUris.value)
+  }
+}
+
 onMounted(async () => {
   syncDetailScrollLock(true)
   lockDetailEntryScrollLock()
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   await prepareDetailLayout()
+  preloadGalleryImages()
   await playGoodsHeroForwardWhenReady()
 })
 
@@ -684,7 +702,15 @@ watch(
     lockDetailEntryScrollLock()
     activeImageId.value = ''
     await prepareDetailLayout()
+    preloadGalleryImages()
     await playGoodsHeroForwardWhenReady()
+  }
+)
+
+watch(
+  galleryImageUris,
+  () => {
+    preloadGalleryImages()
   }
 )
 
