@@ -252,6 +252,7 @@ export const useThemeStore = defineStore('theme', () => {
 
   let mediaQueryList = null
   let removeSystemListener = null
+  let removeVisibilityListener = null
 
   const themeDefinition = computed(() => getThemeDefinition(themeId.value))
   const resolvedAppearance = computed(() => (
@@ -333,6 +334,27 @@ export const useThemeStore = defineStore('theme', () => {
 
     mediaQueryList.addListener(listener)
     removeSystemListener = () => mediaQueryList?.removeListener(listener)
+
+    // When the page/app resumes from background, some platforms may not
+    // fire the media query change event while suspended. Listen for
+    // visibility changes and re-evaluate the media query on resume so
+    // the app updates its theme to match system preference.
+    const visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          systemAppearance.value = mediaQueryList.matches ? 'dark' : 'light'
+        } catch (e) {
+          // defensive: if mediaQueryList is unusable, skip
+        }
+
+        if (appearancePreference.value === APPEARANCE_PREFERENCES.system) {
+          applyTheme()
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', visibilityHandler)
+    removeVisibilityListener = () => document.removeEventListener('visibilitychange', visibilityHandler)
   }
 
   async function init() {
@@ -459,6 +481,8 @@ export const useThemeStore = defineStore('theme', () => {
     removeSystemListener?.()
     removeSystemListener = null
     mediaQueryList = null
+    removeVisibilityListener?.()
+    removeVisibilityListener = null
   }
 
   return {
