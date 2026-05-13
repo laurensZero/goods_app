@@ -8,7 +8,13 @@
           <div class="preview-stage">
             <div class="preview-glow" />
             <div ref="previewMediaRef" class="preview-media" :class="{ 'preview-media--empty': !primaryPreviewImage }">
-              <img v-if="primaryPreviewImage" :src="primaryPreviewImage" :alt="form.name || '预览图'" class="preview-image" />
+              <LazyCachedImage
+                v-if="primaryPreviewImage"
+                :src="primaryPreviewImage"
+                :alt="form.name || '预览图'"
+                :lazy="false"
+                class="preview-image"
+              />
               <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || '谷' }}</span>
             </div>
           </div>
@@ -589,6 +595,7 @@ import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { prepareGoodsHeroBack } from '@/utils/nativeGoodsHeroTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'

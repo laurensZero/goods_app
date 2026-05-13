@@ -1,7 +1,7 @@
 <template>
   <div class="batch-card">
     <div class="batch-card__image">
-      <img v-if="card.imageUri" :src="card.imageUri" class="batch-card__img" />
+      <LazyCachedImage v-if="card.imageUri" :src="card.imageUri" :lazy="false" class="batch-card__img" />
       <span v-else class="batch-card__placeholder">?</span>
       <button class="batch-card__swap" type="button" @click.stop="$emit('swap')">更换</button>
       <button class="batch-card__delete" type="button" @click.stop="$emit('remove')">&times;</button>
@@ -69,6 +69,7 @@
 
 <script setup>
 import AppSelect from '@/components/common/AppSelect.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 defineProps({
   card: { type: Object, required: true },

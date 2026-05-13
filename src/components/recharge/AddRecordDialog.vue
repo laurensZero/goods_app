@@ -537,7 +537,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1.18;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: 14px;
   background: #ffffff;

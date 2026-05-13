@@ -149,7 +149,7 @@
 
 .preview-media {
   width: 100%;
-  aspect-ratio: 1.18;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-large);
   overflow: hidden;
   background: linear-gradient(180deg, #dfe0e6, #cfd1d9);
