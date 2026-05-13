@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260513.5",
+    "url": "bundle-20260513.5.zip",
+    "hash": "06ae724b993fee331a8ef03134d498f334471e1cdb62825f842e00e6e76946aa",
+    "minNativeVersion": null,
+    "notes": "- feat(theme): 添加可见性监听器以在应用恢复时更新主题",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-13T11:44:18Z"
+  },
+  {
     "version": "20260513.4",
     "url": "bundle-20260513.4.zip",
     "hash": "e4e3b71a7d44f21deac6da9c967e76429c985208cf4a42977b59ad549a3e320e",
@@ -16,14 +25,5 @@
     "notes": "- feat(EventDetailView): 使用LazyCachedImage组件预加载关联商品图片，优化图片加载性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-13T09:04:56Z"
-  },
-  {
-    "version": "20260513.2",
-    "url": "bundle-20260513.2.zip",
-    "hash": "8c403fd44a15372f065e676aa9739aa1f276c8a8d7bb83493c65cc3e3962c4db",
-    "minNativeVersion": null,
-    "notes": "- feat(GoodsCardGridSection): 添加交叉观察者以优化卡片重绘性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-13T08:43:20Z"
   }
 ]
