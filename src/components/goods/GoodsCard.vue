@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -125,6 +125,7 @@ const props = defineProps({
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const tagsScrollerRef = ref(null)
 const coverEl = ref(null)
+const rootEl = ref(null)
 
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
@@ -357,6 +358,39 @@ const priceCNYHint = computed(() => {
   if (!cny || cny <= 0) return ''
   return `≈ ¥${cny.toFixed(2)}`
 })
+
+function forceRepaint(el) {
+  if (!el) return
+  try {
+    el.style.willChange = 'transform'
+    // force a reflow/repaint
+    void el.offsetHeight
+    setTimeout(() => {
+      if (el && el.style) el.style.willChange = ''
+    }, 120)
+  } catch (e) {}
+}
+
+let _observer = null
+onMounted(() => {
+  const el = rootEl?.value || null
+  if (!el || typeof IntersectionObserver === 'undefined') return
+
+  _observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting && entry.target) {
+        forceRepaint(entry.target)
+      }
+    }
+  }, { threshold: 0.01 })
+
+  _observer.observe(el)
+})
+
+onUnmounted(() => {
+  try { _observer?.disconnect() } catch (e) {}
+  _observer = null
+})
 </script>
 
 <style scoped>
@@ -369,7 +403,7 @@ const priceCNYHint = computed(() => {
   padding: 10px;
   border-radius: var(--radius-card);
   background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  box-shadow: var(--app-shadow, 0 8px 24px rgba(0, 0, 0, 0.06));
   cursor: pointer;
   user-select: none;
   -webkit-touch-callout: none;
@@ -491,8 +525,8 @@ const priceCNYHint = computed(() => {
   overflow: hidden;
   padding: 10px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--app-glass-border) 78%, transparent);
-  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-glass-border, rgba(0,0,0,0.06)) 78%, rgba(0,0,0,0.04));
+  background: color-mix(in srgb, var(--app-surface-soft, #eeeff2) 92%, var(--app-surface, #ffffff));
   background-size: cover;
   background-position: center;
 }
