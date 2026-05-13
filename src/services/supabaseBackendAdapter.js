@@ -2,7 +2,7 @@
 import { createSyncBackendAdapter } from './syncBackendAdapter'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/sync/columnMapping'
-import { withRetry } from './syncRetry'
+import { withRetry, withTimeout } from './syncRetry'
 
 export function createSupabaseBackendAdapter({
   trackSyncStep,
@@ -80,6 +80,21 @@ export function createSupabaseBackendAdapter({
     return String(value ?? '')
   }
 
+  const UPSERT_CHUNK_SIZE = 200
+
+  async function batchUpsert(db, tableName, rows, options = {}) {
+    for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE)
+      const { error } = await withRetry(() =>
+        db.from(tableName).upsert(chunk, options)
+      )
+      if (error) {
+        console.error(`[supabase] upsert ${tableName} 失败 (chunk ${i}-${i + chunk.length}):`, error)
+        throw new Error(`写入 ${tableName} 失败: ${error.message} (code: ${error.code || '?'})`)
+      }
+    }
+  }
+
   async function deleteRowsByIds(db, tableName, ids) {
     if (!ids || ids.length === 0) return
     const chunkSize = 500
@@ -155,7 +170,7 @@ export function createSupabaseBackendAdapter({
     category = '',
     successDetail = null
   }) {
-    const result = await trackSyncStep(title, async () => {
+    const result = await trackSyncStep(title, () => withTimeout(async () => {
       const db = getDb()
 
       if (fileName === 'data.json') {
@@ -241,7 +256,7 @@ export function createSupabaseBackendAdapter({
       }
 
       return null
-    }, {
+    }), {
       startDetail,
       category,
       successDetail: (value) => {
@@ -272,6 +287,7 @@ export function createSupabaseBackendAdapter({
   // ── Write operations ──
 
   async function writeData(_, dataMap) {
+    return withTimeout(async () => {
     const db = getDb()
 
     for (const [fileName, entry] of Object.entries(dataMap)) {
@@ -329,10 +345,7 @@ export function createSupabaseBackendAdapter({
         const mergedRows = [...goodsRows, ...trashRows]
 
         if (mergedRows.length > 0) {
-          const { error } = await withRetry(() =>
-            db.from('goods').upsert(mergedRows, { onConflict: 'id' })
-          )
-          if (error) throw new Error(`写入 data.json 失败: ${error.message}`)
+          await batchUpsert(db, 'goods', mergedRows, { onConflict: 'id' })
         }
 
         const incomingIdSet = new Set(
@@ -394,10 +407,7 @@ export function createSupabaseBackendAdapter({
         const mergedRows = [...rechargeRows, ...rechargeTrashRows]
 
         if (mergedRows.length > 0) {
-          const { error } = await withRetry(() =>
-            db.from('recharge_records').upsert(mergedRows, { onConflict: 'id' })
-          )
-          if (error) throw new Error(`写入 recharge 失败: ${error.message}`)
+          await batchUpsert(db, 'recharge_records', mergedRows, { onConflict: 'id' })
         }
 
         const incomingIdSet = new Set(
@@ -434,10 +444,7 @@ export function createSupabaseBackendAdapter({
           syncedBy: currentDeviceId
         }))
         if (rows.length > 0) {
-          const { error } = await withRetry(() =>
-            db.from('events').upsert(rows, { onConflict: 'id' })
-          )
-          if (error) throw new Error(`写入 events 失败: ${error.message}`)
+          await batchUpsert(db, 'events', rows, { onConflict: 'id' })
         }
 
         const incomingIdSet = new Set(
@@ -464,6 +471,7 @@ export function createSupabaseBackendAdapter({
         continue
       }
     }
+    })
   }
 
   // Strip .txt suffix from Gist-style filenames for Supabase Storage (stores binary, not base64 text)
