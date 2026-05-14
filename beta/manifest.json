@@ -1,9 +1,9 @@
 {
-  "version": "20260514.5",
-  "url": "bundle-20260514.5.zip",
-  "hash": "dca71badf1f2ca4a369466392c1ee9f24954647a60b89594ec6a7db762488b3a",
+  "version": "20260514.6",
+  "url": "bundle-20260514.6.zip",
+  "hash": "ef50f0b893d41f384cd768c580542d5176006c6c7228a8bf9eb0906ca4732011",
   "minNativeVersion": null,
-  "notes": "- feat: 加快启动速度",
+  "notes": "- feat: 更新图像加载优先级逻辑，优化内存缓存预加载并提高并发限制",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-14T11:56:19Z"
+  "publishedAt": "2026-05-14T12:05:16Z"
 }

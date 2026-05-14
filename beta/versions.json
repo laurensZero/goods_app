@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260514.6",
+    "url": "bundle-20260514.6.zip",
+    "hash": "ef50f0b893d41f384cd768c580542d5176006c6c7228a8bf9eb0906ca4732011",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新图像加载优先级逻辑，优化内存缓存预加载并提高并发限制",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-14T12:05:16Z"
+  },
+  {
     "version": "20260514.5",
     "url": "bundle-20260514.5.zip",
     "hash": "dca71badf1f2ca4a369466392c1ee9f24954647a60b89594ec6a7db762488b3a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化应用启动时的 store 初始化逻辑，添加同步摘要功能以避免重复处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-14T11:48:48Z"
-  },
-  {
-    "version": "20260514.3",
-    "url": "bundle-20260514.3.zip",
-    "hash": "14a49a81ea01ca7ee9ca701138f3ae8311bef30b6e3c3ed8e3322dd4e774b771",
-    "minNativeVersion": null,
-    "notes": "- feat: 替换同步数据中的gist-image:// URI为实际公共URL，确保数据库中的图像链接有效",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-14T09:17:37Z"
   }
 ]
