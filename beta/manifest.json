@@ -1,9 +1,9 @@
 {
-  "version": "20260514.1",
-  "url": "bundle-20260514.1.zip",
-  "hash": "ab6d3ab6740e6d0080a678f8c9165a343ba6ddd37b3818a920de2c55e5e374ab",
+  "version": "20260514.2",
+  "url": "bundle-20260514.2.zip",
+  "hash": "c069b932930f2ffe603230f4e278b84cd87389fc130b090a3f521b7d452f195e",
   "minNativeVersion": null,
-  "notes": "- feat: 更新权限配置，允许匿名和认证用户对表的完整访问",
+  "notes": "- feat: 优化活动记录添加和更新逻辑，增强数据处理和管理功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-14T05:55:12Z"
+  "publishedAt": "2026-05-14T07:43:16Z"
 }
