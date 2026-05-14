@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260514.3",
+    "url": "bundle-20260514.3.zip",
+    "hash": "14a49a81ea01ca7ee9ca701138f3ae8311bef30b6e3c3ed8e3322dd4e774b771",
+    "minNativeVersion": null,
+    "notes": "- feat: 替换同步数据中的gist-image:// URI为实际公共URL，确保数据库中的图像链接有效",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-14T09:17:37Z"
+  },
+  {
     "version": "20260514.2",
     "url": "bundle-20260514.2.zip",
     "hash": "c069b932930f2ffe603230f4e278b84cd87389fc130b090a3f521b7d452f195e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新权限配置，允许匿名和认证用户对表的完整访问",
     "updateLevel": "silent",
     "publishedAt": "2026-05-14T05:55:12Z"
-  },
-  {
-    "version": "20260513.13",
-    "url": "bundle-20260513.13.zip",
-    "hash": "d688d02d7ea10f70b45a6b71c1ed63dd650847ac1ddbdbd9702960f389f31e85",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加超时处理和批量插入功能，优化同步操作",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-13T15:45:13Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260514.2",
-  "url": "bundle-20260514.2.zip",
-  "hash": "c069b932930f2ffe603230f4e278b84cd87389fc130b090a3f521b7d452f195e",
+  "version": "20260514.3",
+  "url": "bundle-20260514.3.zip",
+  "hash": "14a49a81ea01ca7ee9ca701138f3ae8311bef30b6e3c3ed8e3322dd4e774b771",
   "minNativeVersion": null,
-  "notes": "- feat: 优化活动记录添加和更新逻辑，增强数据处理和管理功能",
+  "notes": "- feat: 替换同步数据中的gist-image:// URI为实际公共URL，确保数据库中的图像链接有效",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-14T07:43:16Z"
+  "publishedAt": "2026-05-14T09:17:37Z"
 }
