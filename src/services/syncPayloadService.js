@@ -80,7 +80,7 @@ export function createSyncPayloadService({
 
     const preparedImages = []
 
-    for (const imageEntry of normalizedImages) {
+    for (let imageEntry of normalizedImages) {
       const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
 
       if (storageMode === 'remote') {
@@ -96,13 +96,28 @@ export function createSyncPayloadService({
 
       if (storageMode === 'gist-local') {
         const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
-        if (gistFileName) referencedImageFiles.add(gistFileName)
-        preparedImages.push({
-          ...imageEntry,
-          storageMode: 'gist-local',
-          gistFileName
-        })
-        continue
+        // If the file is confirmed to exist in Storage, reuse it — no upload needed.
+        if (gistFileName && existingImageFiles?.has(gistFileName)) {
+          referencedImageFiles.add(gistFileName)
+          preparedImages.push({
+            ...imageEntry,
+            storageMode: 'gist-local',
+            gistFileName
+          })
+          continue
+        }
+        // File not confirmed in Storage — try to read local file and re-upload.
+        // If local file is also gone, return null (image lost, don't crash the sync).
+        if (gistFileName) {
+          const localDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath).catch(() => null)
+          if (localDataUrl?.startsWith('data:image/')) {
+            // Fall through to the upload path below — it will use gistFileName.
+            imageEntry = { ...imageEntry, uri: localDataUrl, gistFileName }
+          } else {
+            // Local file gone — skip this image, don't include in sync.
+            continue
+          }
+        }
       }
 
       let imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)

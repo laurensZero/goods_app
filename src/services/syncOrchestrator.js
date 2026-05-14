@@ -363,6 +363,25 @@ export function createSyncOrchestrator({
       catch (e) { wrapSyncError(e, PHASE_UPLOAD_IMAGES) }
     }
 
+    // Replace gist-image:// URIs in syncData with actual public URLs before writing to database.
+    // This ensures the database always has valid URLs, not placeholder gist-image:// references.
+    if (activeBackend.getImagePublicUrl) {
+      for (const item of [...syncData.goods, ...syncData.trash]) {
+        if (!Array.isArray(item.images)) continue
+        for (const img of item.images) {
+          if (img.gistFileName && allReferencedImageFiles.has(img.gistFileName)) {
+            img.uri = activeBackend.getImagePublicUrl(img.gistFileName)
+          }
+        }
+      }
+      for (const event of (eventSyncData?.events || [])) {
+        const coverFileName = event.coverImageData?.gistFileName
+        if (coverFileName && allReferencedImageFiles.has(coverFileName)) {
+          event.coverImage = activeBackend.getImagePublicUrl(coverFileName)
+        }
+      }
+    }
+
     const syncTimestamp = new Date().toISOString()
     const mergedImageStats = {
       uploadedImages: (Number(imageStats.uploadedImages) || 0) + (Number(eventImageStats.uploadedImages) || 0),
