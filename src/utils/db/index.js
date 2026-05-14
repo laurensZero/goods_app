@@ -33,6 +33,7 @@ const IS_NATIVE = Capacitor.isNativePlatform()
 
 /** @type {DatabaseAdapter | null} */
 let db = null
+let isInitialized = false
 
 async function getDb() {
   if (db) return db
@@ -280,13 +281,30 @@ async function _runMigrations() {
 /** @returns {Promise<void>} */
 export async function initDB() {
   db = await getDb()
+  
+  const t1 = performance.now()
   await db.open()
+  const openTime = performance.now() - t1
+  
+  // Only create tables on first init (skip if they already exist)
+  const t2 = performance.now()
+  if (!isInitialized) {
+    // Combine all CREATE TABLE statements into a single execute() call
+    // to reduce overhead of multiple SQL.js invocations
+    const allCreateSQL = [
+      CREATE_TABLE_SQL,
+      CREATE_EVENTS_TABLE_SQL,
+      CREATE_RECHARGE_TABLE_SQL,
+      CREATE_VERSION_TABLE_SQL
+    ].map(sql => sql.trim()).filter(Boolean).join(';\n') + ';'
+    
+    await db.execute(allCreateSQL)
+    isInitialized = true
+  }
+  const createTablesTime = performance.now() - t2
 
-  await db.execute(CREATE_TABLE_SQL)
-  await db.execute(CREATE_EVENTS_TABLE_SQL)
-  await db.execute(CREATE_RECHARGE_TABLE_SQL)
-  await db.execute(CREATE_VERSION_TABLE_SQL)
-
+  // Always check version and run migrations
+  const t3 = performance.now()
   const currentVersion = await _getSchemaVersion()
   if (currentVersion === 0) {
     await db.run('INSERT OR IGNORE INTO _schema_version (version) VALUES (0)')
@@ -294,8 +312,22 @@ export async function initDB() {
     // 遗留数据库 (version 26) → 重置到 0 让新迁移跑
     await db.run('UPDATE _schema_version SET version = 0')
   }
+  const versionCheckTime = performance.now() - t3
 
+  const t4 = performance.now()
   await _runMigrations()
+  const migrationsTime = performance.now() - t4
+
+  // Log detailed timings only in development
+  if (import.meta.env.DEV) {
+    console.log(
+      '[db] initDB detailed timings (ms):\n' +
+      `  db.open: ${openTime.toFixed(1)}\n` +
+      `  createTables: ${createTablesTime.toFixed(1)}\n` +
+      `  versionCheck: ${versionCheckTime.toFixed(1)}\n` +
+      `  migrations: ${migrationsTime.toFixed(1)}`
+    )
+  }
 }
 
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
