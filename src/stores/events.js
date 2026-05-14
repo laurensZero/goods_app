@@ -223,7 +223,28 @@ export const useEventsStore = defineStore('events', () => {
 
       const existing = list.value.find((item) => item.id === event.id)
       if (!existing) {
-        await addEventRecord(event)
+        const now = Date.now()
+        const record = {
+          id: event.id,
+          name: String(event.name || '').trim(),
+          type: String(event.type || '').trim(),
+          startDate: String(event.startDate || '').trim(),
+          endDate: String(event.endDate || event.startDate || '').trim(),
+          location: String(event.location || '').trim(),
+          description: String(event.description || '').trim(),
+          coverImage: String(event.coverImage || '').trim(),
+          coverImageData: event.coverImageData ? { ...event.coverImageData } : null,
+          photos: Array.isArray(event.photos) ? event.photos : [],
+          tracks: normalizeTracks(event.tracks),
+          ticketPrice: String(event.ticketPrice || '').trim(),
+          ticketType: String(event.ticketType || '').trim(),
+          seatInfo: String(event.seatInfo || '').trim(),
+          linkedGoodsIds: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds : [],
+          tags: Array.isArray(event.tags) ? event.tags : [],
+          createdAt: event.createdAt || now,
+          updatedAt: event.updatedAt || now
+        }
+        await addEvent(record)
         added += 1
         continue
       }
@@ -249,11 +270,16 @@ export const useEventsStore = defineStore('events', () => {
                 }
               : null)
 
-        await updateEventRecord(event.id, {
+        const next = {
+          ...existing,
           ...event,
+          id: event.id,
           coverImageData: normalizedCoverImageData || existing.coverImageData || null,
           updatedAt: shouldBackfillCoverImageData ? existingUpdatedAt : event.updatedAt
-        }, true)
+        }
+        next.tracks = normalizeTracks(next.tracks)
+        await addEvent(next)
+        await deleteManagedLocalImages(diffRemovedManagedImagePaths(existing, next))
         updated += 1
       }
     }
@@ -265,10 +291,19 @@ export const useEventsStore = defineStore('events', () => {
 
       if (missingIds.length > 0) {
         removed = missingIds.length
-        await removeMultipleEventRecords(missingIds)
+        const removedPaths = new Set()
+        for (const item of list.value) {
+          if (!missingIds.includes(item.id)) continue
+          for (const path of collectManagedLocalImagePathsFromEvent(item)) {
+            removedPaths.add(path)
+          }
+        }
+        await deleteEvents(missingIds)
+        await deleteManagedLocalImages(removedPaths)
       }
     }
 
+    await refreshList()
     return { added, updated, removed }
   }
 
