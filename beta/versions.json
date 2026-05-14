@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260514.4",
+    "url": "bundle-20260514.4.zip",
+    "hash": "875096b2b2e359ec7e614a99f72452b82079db490738adef124816471dd9e4d4",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化应用启动时的 store 初始化逻辑，添加同步摘要功能以避免重复处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-14T11:48:48Z"
+  },
+  {
     "version": "20260514.3",
     "url": "bundle-20260514.3.zip",
     "hash": "14a49a81ea01ca7ee9ca701138f3ae8311bef30b6e3c3ed8e3322dd4e774b771",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化活动记录添加和更新逻辑，增强数据处理和管理功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-14T07:43:16Z"
-  },
-  {
-    "version": "20260514.1",
-    "url": "bundle-20260514.1.zip",
-    "hash": "ab6d3ab6740e6d0080a678f8c9165a343ba6ddd37b3818a920de2c55e5e374ab",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新权限配置，允许匿名和认证用户对表的完整访问",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-14T05:55:12Z"
   }
 ]
