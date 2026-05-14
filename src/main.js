@@ -103,14 +103,19 @@ function setupAndroidBackButton() {
 }
 
 async function bootstrap() {
+  const startTime = performance.now()
+  const timings = {}
+
   void notifyUpdaterReady()
 
   // 初始化 SQLite（原生用 Capacitor，Web 用 sql.js）
+  const t1 = performance.now()
   try {
     await initDB()
   } catch (e) {
     console.error('[DB] initDB failed — running without SQLite storage:', e)
   }
+  timings.initDB = performance.now() - t1
 
   const app = createApp(App)
   const pinia = createPinia()
@@ -126,10 +131,15 @@ async function bootstrap() {
   const theme = useThemeStore()
   const exchangeRate = useExchangeRateStore()
   try {
+    const t2 = performance.now()
     await theme.init()
+    timings.themeInit = performance.now() - t2
+    
     // 只初始化关键 store（阻塞）— goods / presets / filterPresets 对主页必须
     // events / recharge 可以延迟到 App 挂载后，不影响首屏
+    const t3 = performance.now()
     await Promise.all([store.init(), presets.init(), filterPresets.init()])
+    timings.storesInit = performance.now() - t3
   } catch (e) {
     console.error('[bootstrap] store init failed:', e)
   }
@@ -152,13 +162,27 @@ async function bootstrap() {
     }
   }
 
+  const t4 = performance.now()
   try {
     await router.isReady()
   } catch (e) {
     console.error('[bootstrap] router.isReady failed:', e)
   }
+  timings.routerReady = performance.now() - t4
   setupAndroidBackButton()
+  
+  const t5 = performance.now()
   app.mount('#app')
+  timings.mount = performance.now() - t5
+  
+  // 打出启动时间统计（仅开发环境）
+  timings.total = performance.now() - startTime
+  if (import.meta.env.DEV) {
+    console.log(
+      '[bootstrap] startup timings (ms):\n' +
+      Object.entries(timings).map(([k, v]) => `  ${k}: ${v.toFixed(1)}`).join('\n')
+    )
+  }
   
   // 顺序很重要：先挂载 DOM，再初始化重的 store
   void deferredStoreInit()
