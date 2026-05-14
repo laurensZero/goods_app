@@ -9,7 +9,7 @@
       :alt="alt"
       :loading="loading"
       :decoding="decoding"
-      :fetchpriority="fetchpriority"
+      :fetchpriority="effectiveFetchPriority"
       @load="onImageLoad"
       @error="onImageError"
     />
@@ -80,6 +80,7 @@ const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
+const effectiveFetchPriority = computed(() => (hasEnteredViewport.value ? 'high' : props.fetchpriority))
 const showLoadingPlaceholder = computed(() => {
   return !!props.src && !showFallback.value && (!resolvedSrc.value || isImageLoading.value)
 })
@@ -131,7 +132,7 @@ function onImageError() {
 }
 
 onMounted(() => {
-  if (!props.lazy) {
+    if (!props.lazy) {
     hasEnteredViewport.value = true
     return
   }
