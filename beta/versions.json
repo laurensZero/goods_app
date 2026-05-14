@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260514.5",
+    "url": "bundle-20260514.5.zip",
+    "hash": "dca71badf1f2ca4a369466392c1ee9f24954647a60b89594ec6a7db762488b3a",
+    "minNativeVersion": null,
+    "notes": "- feat: 加快启动速度",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-14T11:56:19Z"
+  },
+  {
     "version": "20260514.4",
     "url": "bundle-20260514.4.zip",
     "hash": "875096b2b2e359ec7e614a99f72452b82079db490738adef124816471dd9e4d4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 替换同步数据中的gist-image:// URI为实际公共URL，确保数据库中的图像链接有效",
     "updateLevel": "silent",
     "publishedAt": "2026-05-14T09:17:37Z"
-  },
-  {
-    "version": "20260514.2",
-    "url": "bundle-20260514.2.zip",
-    "hash": "c069b932930f2ffe603230f4e278b84cd87389fc130b090a3f521b7d452f195e",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化活动记录添加和更新逻辑，增强数据处理和管理功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-14T07:43:16Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260514.4",
-  "url": "bundle-20260514.4.zip",
-  "hash": "875096b2b2e359ec7e614a99f72452b82079db490738adef124816471dd9e4d4",
+  "version": "20260514.5",
+  "url": "bundle-20260514.5.zip",
+  "hash": "dca71badf1f2ca4a369466392c1ee9f24954647a60b89594ec6a7db762488b3a",
   "minNativeVersion": null,
-  "notes": "- feat: 优化应用启动时的 store 初始化逻辑，添加同步摘要功能以避免重复处理",
+  "notes": "- feat: 加快启动速度",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-14T11:48:48Z"
+  "publishedAt": "2026-05-14T11:56:19Z"
 }
