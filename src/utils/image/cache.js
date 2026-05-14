@@ -159,7 +159,7 @@ function setMemoryCache(url, objectUrl) {
   memoryCache.set(url, objectUrl)
 }
 
-const PRELOAD_CONCURRENCY = 2
+const PRELOAD_CONCURRENCY = 6
 const preloadQueue = []
 const preloadQueued = new Set()
 let preloadActiveCount = 0
