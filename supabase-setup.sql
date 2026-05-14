@@ -112,13 +112,33 @@ ALTER TABLE recharge_records DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_manifest DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_presets DISABLE ROW LEVEL SECURITY;
 
--- 授予 anon 角色访问权限
-GRANT ALL ON goods TO anon;
-GRANT ALL ON events TO anon;
-GRANT ALL ON recharge_records TO anon;
-GRANT ALL ON sync_manifest TO anon;
-GRANT ALL ON sync_presets TO anon;
-GRANT ALL ON storage.objects TO anon;
+-- Supabase Data API GRANT 权限配置（May 30, 2026 变更）
+-- https://supabase.com/docs/guides/database/postgres/schema#access-control
+
+-- goods 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO service_role;
+
+-- events 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO service_role;
+
+-- recharge_records 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.recharge_records TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.recharge_records TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.recharge_records TO service_role;
+
+-- sync_manifest 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO service_role;
+
+-- sync_presets 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO service_role;
 
 -- Storage RLS policy: allow anon full access to goods-images bucket
 CREATE POLICY "Allow anon access to goods-images" ON storage.objects
