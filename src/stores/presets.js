@@ -11,6 +11,7 @@ const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
 const STORAGE_KEY_LOC = 'goods_presets_storage_locations'
+const STORAGE_KEY_SYNC_DIGEST = 'goods_presets_sync_digest'
 
 const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
@@ -37,6 +38,32 @@ async function readPersistedList(key, defaults) {
 
 async function writePersistedList(key, list) {
   await writePersisted(key, JSON.stringify(list))
+}
+
+// 快速摘要：用于检查是否需要重新同步（避免 700+ 商品的重复处理）
+function computeListDigest(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return '0'
+  const json = JSON.stringify(arr)
+  let hash = 0
+  for (let i = 0; i < Math.min(json.length, 1000); i++) {
+    hash = ((hash << 5) - hash) + json.charCodeAt(i)
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return `${arr.length}_${Math.abs(hash)}`
+}
+
+async function getSyncDigest() {
+  return (await readPersisted(STORAGE_KEY_SYNC_DIGEST)) || ''
+}
+
+async function setSyncDigest(digest) {
+  await writePersisted(STORAGE_KEY_SYNC_DIGEST, digest)
+}
+
+function createCurrentDigest(items, storageLocationPaths) {
+  const itemsDigest = computeListDigest(items)
+  const pathsDigest = computeListDigest(storageLocationPaths)
+  return `${itemsDigest}|${pathsDigest}`
 }
 
 function migrateCharacters(list) {
@@ -382,6 +409,34 @@ export const usePresetsStore = defineStore('presets', () => {
     return findStorageLocationPathIds(normalized)
   }
 
+  // 检查是否需要同步 — 避免 700+ 商品的重复处理
+  async function syncPresetsIfNeeded(items, storageLocs) {
+    if (!Array.isArray(items)) items = []
+    if (!Array.isArray(storageLocs)) storageLocs = []
+
+    const currentDigest = createCurrentDigest(items, storageLocs)
+    const cachedDigest = await getSyncDigest()
+
+    // 如果数据没变化，跳过同步
+    if (currentDigest === cachedDigest) {
+      return { synced: false, reason: 'digest-match' }
+    }
+
+    try {
+      // 执行实际同步
+      await Promise.all([
+        syncCharactersFromGoods(items),
+        syncStorageLocationsFromPaths(storageLocs)
+      ])
+      // 更新缓存摘要
+      await setSyncDigest(currentDigest)
+      return { synced: true, reason: 'completed' }
+    } catch (e) {
+      console.warn('[presets] syncPresetsIfNeeded failed:', e)
+      return { synced: false, reason: 'error', error: e }
+    }
+  }
+
   async function addCategory(name) {
     const normalized = name.trim()
     if (!normalized || categories.value.includes(normalized)) return false
@@ -622,6 +677,7 @@ export const usePresetsStore = defineStore('presets', () => {
     ensureStorageLocationPath,
     syncStorageLocationsFromPaths,
     syncCharactersFromGoods,
+    syncPresetsIfNeeded,
     replacePresetsSnapshot,
     characterNames
   }

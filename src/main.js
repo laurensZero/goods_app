@@ -127,11 +127,29 @@ async function bootstrap() {
   const exchangeRate = useExchangeRateStore()
   try {
     await theme.init()
-    await Promise.all([store.init(), eventsStore.init(), rechargeStore.init(), presets.init(), filterPresets.init(), exchangeRate.init()])
-    await presets.syncCharactersFromGoods(store.list)
-    await presets.syncStorageLocationsFromPaths(store.storageLocations)
+    // 只初始化关键 store（阻塞）— goods / presets / filterPresets 对主页必须
+    // events / recharge 可以延迟到 App 挂载后，不影响首屏
+    await Promise.all([store.init(), presets.init(), filterPresets.init()])
   } catch (e) {
     console.error('[bootstrap] store init failed:', e)
+  }
+  
+  // 非阻塞式初始化 - 不延迟 DOM 挂载
+  // exchangeRate, presets 同步（后台执行）
+  exchangeRate.init().catch((e) => {
+    console.warn('[bootstrap] exchangeRate.init failed:', e)
+  })
+  presets.syncPresetsIfNeeded(store.list, store.storageLocations).catch((e) => {
+    console.warn('[bootstrap] presets.syncPresetsIfNeeded failed:', e)
+  })
+  
+  // events + recharge 延迟到 App 挂载后（不影响首屏）
+  const deferredStoreInit = async () => {
+    try {
+      await Promise.all([eventsStore.init(), rechargeStore.init()])
+    } catch (e) {
+      console.error('[bootstrap] deferred store init failed:', e)
+    }
   }
 
   try {
@@ -141,6 +159,9 @@ async function bootstrap() {
   }
   setupAndroidBackButton()
   app.mount('#app')
+  
+  // 顺序很重要：先挂载 DOM，再初始化重的 store
+  void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()
 }
 
