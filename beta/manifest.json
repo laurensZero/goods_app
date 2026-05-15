@@ -1,9 +1,9 @@
 {
-  "version": "20260515.4",
-  "url": "bundle-20260515.4.zip",
-  "hash": "d9d949350a357fa04c3bdd8233392d46be3fa60527440e2daed49969f853d56d",
+  "version": "20260515.5",
+  "url": "bundle-20260515.5.zip",
+  "hash": "e12886019cfd700b0b58530fd63d8675eddf673ba1d33af688286007f5de0564",
   "minNativeVersion": null,
-  "notes": "- feat: 移除懒加载图像组件的闪烁和旋转动画，以提升性能",
+  "notes": "- feat: 添加 Android 平台恢复监听器以同步系统外观",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T11:15:01Z"
+  "publishedAt": "2026-05-15T11:21:44Z"
 }

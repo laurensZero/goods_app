@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.5",
+    "url": "bundle-20260515.5.zip",
+    "hash": "e12886019cfd700b0b58530fd63d8675eddf673ba1d33af688286007f5de0564",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 Android 平台恢复监听器以同步系统外观",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T11:21:44Z"
+  },
+  {
     "version": "20260515.4",
     "url": "bundle-20260515.4.zip",
     "hash": "d9d949350a357fa04c3bdd8233392d46be3fa60527440e2daed49969f853d56d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化懒加载图像组件，调整加载逻辑和根边距设置",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T11:09:33Z"
-  },
-  {
-    "version": "20260515.2",
-    "url": "bundle-20260515.2.zip",
-    "hash": "8a30c1467a356c009fb6beb8cffec4e1b55cc99ff296cbf065a6c98544565541",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新懒加载图像组件，优化加载状态和骨架屏效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T10:52:35Z"
   }
 ]
