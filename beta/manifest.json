@@ -1,9 +1,9 @@
 {
-  "version": "20260515.7",
-  "url": "bundle-20260515.7.zip",
-  "hash": "240b2c8336e88d5233d18c1ba1911a43cc666620f8295aae6960a651bf0b3460",
+  "version": "20260515.8",
+  "url": "bundle-20260515.8.zip",
+  "hash": "de5f8204b111c9c529fa57c84c8c23a1fe3a4075b9a27c476406e7e866ffc452",
   "minNativeVersion": null,
-  "notes": "- feat: 更新持有天数显示逻辑，添加状态标签以提升用户体验",
+  "notes": "- feat: 增强hero动画管理，添加生命周期清理和状态重置逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T11:42:21Z"
+  "publishedAt": "2026-05-15T11:47:42Z"
 }
