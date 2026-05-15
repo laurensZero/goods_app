@@ -102,6 +102,14 @@ function setupAndroidBackButton() {
   })
 }
 
+function setupAndroidResumeListener(theme) {
+  if (Capacitor.getPlatform() !== 'android') return
+
+  CapacitorApp.addListener('resume', () => {
+    theme.syncSystemAppearance({ forceApply: true })
+  })
+}
+
 async function bootstrap() {
   const startTime = performance.now()
   const timings = {}
@@ -170,6 +178,7 @@ async function bootstrap() {
   }
   timings.routerReady = performance.now() - t4
   setupAndroidBackButton()
+  setupAndroidResumeListener(theme)
   
   const t5 = performance.now()
   app.mount('#app')
