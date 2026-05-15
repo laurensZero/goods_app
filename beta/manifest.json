@@ -1,9 +1,9 @@
 {
-  "version": "20260515.10",
-  "url": "bundle-20260515.10.zip",
-  "hash": "7b0afd6c7d7d5fa6dbd21a0ac8aad6cb168800d4476e0058cc7798685fe25035",
+  "version": "20260515.11",
+  "url": "bundle-20260515.11.zip",
+  "hash": "ab9787571823488bf11ee29d1740bb23635ebc262d47e4ec52da5074b8ec4123",
   "minNativeVersion": null,
-  "notes": "- feat: 添加滚动锁定功能以改善用户体验",
+  "notes": "- feat: 添加价格排序功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T13:02:21Z"
+  "publishedAt": "2026-05-15T13:04:34Z"
 }
