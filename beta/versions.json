@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.6",
+    "url": "bundle-20260515.6.zip",
+    "hash": "ea1ef193128819631b660459e4e5c893d2d1484cce95c031271963d93152a981",
+    "minNativeVersion": null,
+    "notes": "- feat: 修复筛选界面的返回错误",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T11:27:54Z"
+  },
+  {
     "version": "20260515.5",
     "url": "bundle-20260515.5.zip",
     "hash": "e12886019cfd700b0b58530fd63d8675eddf673ba1d33af688286007f5de0564",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除懒加载图像组件的闪烁和旋转动画，以提升性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T11:15:01Z"
-  },
-  {
-    "version": "20260515.3",
-    "url": "bundle-20260515.3.zip",
-    "hash": "ec67d675b5fb1a80b1338107b41c1b77fee5d9c5a43e0d151d539af56c31ba3c",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化懒加载图像组件，调整加载逻辑和根边距设置",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T11:09:33Z"
   }
 ]

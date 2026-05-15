@@ -1,9 +1,9 @@
 {
-  "version": "20260515.5",
-  "url": "bundle-20260515.5.zip",
-  "hash": "e12886019cfd700b0b58530fd63d8675eddf673ba1d33af688286007f5de0564",
+  "version": "20260515.6",
+  "url": "bundle-20260515.6.zip",
+  "hash": "ea1ef193128819631b660459e4e5c893d2d1484cce95c031271963d93152a981",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 Android 平台恢复监听器以同步系统外观",
+  "notes": "- feat: 修复筛选界面的返回错误",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T11:21:44Z"
+  "publishedAt": "2026-05-15T11:27:54Z"
 }
