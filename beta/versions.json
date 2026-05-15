@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.12",
+    "url": "bundle-20260515.12.zip",
+    "hash": "497892c4796f41178b1ce8e71568b05079a1059544d24651d6b001615166ab2b",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新数据库迁移，添加 unit_status 列并迁移数据",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T13:16:15Z"
+  },
+  {
     "version": "20260515.11",
     "url": "bundle-20260515.11.zip",
     "hash": "ab9787571823488bf11ee29d1740bb23635ebc262d47e4ec52da5074b8ec4123",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加滚动锁定功能以改善用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T13:02:21Z"
-  },
-  {
-    "version": "20260515.9",
-    "url": "bundle-20260515.9.zip",
-    "hash": "593a05a1aa517c1b4b729b2db04a9b061ae7761f93b5e65a97ff5d599c9d9acb",
-    "minNativeVersion": null,
-    "notes": "- feat: 逐份状态",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T12:58:33Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260515.11",
-  "url": "bundle-20260515.11.zip",
-  "hash": "ab9787571823488bf11ee29d1740bb23635ebc262d47e4ec52da5074b8ec4123",
+  "version": "20260515.12",
+  "url": "bundle-20260515.12.zip",
+  "hash": "497892c4796f41178b1ce8e71568b05079a1059544d24651d6b001615166ab2b",
   "minNativeVersion": null,
-  "notes": "- feat: 添加价格排序功能",
+  "notes": "- feat: 更新数据库迁移，添加 unit_status 列并迁移数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T13:04:34Z"
+  "publishedAt": "2026-05-15T13:16:15Z"
 }
