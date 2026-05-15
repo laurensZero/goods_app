@@ -21,6 +21,35 @@ let heroRuntimeGeneration = 0
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
+const hiddenElementsMap = new Map()
+
+function hideElement(el) {
+  if (!el || hiddenElementsMap.has(el)) return
+  hiddenElementsMap.set(el, {
+    visibility: el.style.visibility ?? '',
+    opacity: el.style.opacity ?? ''
+  })
+  el.style.visibility = 'hidden'
+}
+
+function restoreElement(el) {
+  if (!el) return
+  const prev = hiddenElementsMap.get(el)
+  if (!prev) return
+  el.style.visibility = prev.visibility
+  el.style.opacity = prev.opacity
+  hiddenElementsMap.delete(el)
+}
+
+function restoreAllHiddenElements() {
+  hiddenElementsMap.forEach((prev, el) => {
+    try {
+      el.style.visibility = prev.visibility
+      el.style.opacity = prev.opacity
+    } catch (e) {}
+  })
+  hiddenElementsMap.clear()
+}
 
 function resetHeroRuntimeState() {
   pendingForwardHero = null
@@ -52,6 +81,8 @@ function bindHeroLifecycleCleanup() {
 
 export function cleanupAllHeroes() {
   heroRuntimeGeneration += 1
+
+  restoreAllHiddenElements()
 
   const animations = Array.from(activeHeroAnimations)
   activeHeroAnimations.clear()
@@ -402,12 +433,20 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     : HERO_FORWARD_OVERLAY_Z_INDEX
   const node = createHeroNode(snapshot, overlayZIndex)
   const animationGeneration = heroRuntimeGeneration
+  const targetEl = options.targetEl || null
+  const duration = resolveHeroDuration(baseDuration)
   let finalized = false
   let animation = null
+  let timeoutId = null
 
   const finalize = () => {
     if (finalized) return
     finalized = true
+
+    if (timeoutId != null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
 
     if (animation && activeHeroAnimations.has(animation)) {
       activeHeroAnimations.delete(animation)
@@ -423,10 +462,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       }
     } catch (e) {}
 
-    if (animationGeneration === heroRuntimeGeneration && targetEl) {
-      targetEl.style.visibility = previousVisibility
-      targetEl.style.opacity = previousOpacity
-    }
+    restoreElement(targetEl)
 
     if (animationGeneration === heroRuntimeGeneration) {
       heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
@@ -446,9 +482,6 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   document.body.appendChild(node)
   activeHeroNodes.add(node)
 
-  const targetEl = options.targetEl || null
-  const previousVisibility = targetEl?.style?.visibility || ''
-  const duration = resolveHeroDuration(baseDuration)
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
@@ -471,11 +504,7 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     }
   ]
 
-  const previousOpacity = targetEl?.style?.opacity || ''
-
-  if (targetEl) {
-    targetEl.style.visibility = 'hidden'
-  }
+  hideElement(targetEl)
 
   try {
     animation = node.animate(
@@ -497,6 +526,10 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     animation.addEventListener('finish', finalize, { once: true })
     animation.addEventListener('cancel', finalize, { once: true })
   }
+
+  timeoutId = setTimeout(() => {
+    finalize()
+  }, duration + 600)
 
   return Promise.allSettled([
     animation.finished,
