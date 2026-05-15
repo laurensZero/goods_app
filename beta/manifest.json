@@ -1,9 +1,9 @@
 {
-  "version": "20260514.6",
-  "url": "bundle-20260514.6.zip",
-  "hash": "ef50f0b893d41f384cd768c580542d5176006c6c7228a8bf9eb0906ca4732011",
+  "version": "20260515.1",
+  "url": "bundle-20260515.1.zip",
+  "hash": "6c376d4400f195064d07600c445c4ef271316dad925ea64d7c189eedb4be12e4",
   "minNativeVersion": null,
-  "notes": "- feat: 更新图像加载优先级逻辑，优化内存缓存预加载并提高并发限制",
+  "notes": "- feat: 优化图像加载和缓存逻辑，增强性能和用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-14T12:05:16Z"
+  "publishedAt": "2026-05-15T10:43:46Z"
 }
