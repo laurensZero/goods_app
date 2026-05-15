@@ -312,9 +312,16 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
-  function handleSystemAppearanceChange(event) {
-    systemAppearance.value = event.matches ? 'dark' : 'light'
-    if (appearancePreference.value === APPEARANCE_PREFERENCES.system) {
+  function syncSystemAppearance({ forceApply = false } = {}) {
+    if (!canUseDom() || !mediaQueryList) return
+
+    const nextAppearance = mediaQueryList.matches ? 'dark' : 'light'
+    const shouldApplyTheme = appearancePreference.value === APPEARANCE_PREFERENCES.system
+      && (forceApply || systemAppearance.value !== nextAppearance)
+
+    systemAppearance.value = nextAppearance
+
+    if (shouldApplyTheme) {
       applyTheme()
     }
   }
@@ -323,33 +330,20 @@ export const useThemeStore = defineStore('theme', () => {
     if (!canUseDom() || mediaQueryList) return
 
     mediaQueryList = window.matchMedia(SYSTEM_DARK_QUERY)
-    systemAppearance.value = mediaQueryList.matches ? 'dark' : 'light'
+    syncSystemAppearance()
 
-    const listener = (event) => handleSystemAppearanceChange(event)
+    const listener = () => syncSystemAppearance()
     if (typeof mediaQueryList.addEventListener === 'function') {
       mediaQueryList.addEventListener('change', listener)
       removeSystemListener = () => mediaQueryList?.removeEventListener('change', listener)
-      return
+    } else {
+      mediaQueryList.addListener(listener)
+      removeSystemListener = () => mediaQueryList?.removeListener(listener)
     }
 
-    mediaQueryList.addListener(listener)
-    removeSystemListener = () => mediaQueryList?.removeListener(listener)
-
-    // When the page/app resumes from background, some platforms may not
-    // fire the media query change event while suspended. Listen for
-    // visibility changes and re-evaluate the media query on resume so
-    // the app updates its theme to match system preference.
     const visibilityHandler = () => {
       if (document.visibilityState === 'visible') {
-        try {
-          systemAppearance.value = mediaQueryList.matches ? 'dark' : 'light'
-        } catch (e) {
-          // defensive: if mediaQueryList is unusable, skip
-        }
-
-        if (appearancePreference.value === APPEARANCE_PREFERENCES.system) {
-          applyTheme()
-        }
+        syncSystemAppearance({ forceApply: true })
       }
     }
 
@@ -500,6 +494,7 @@ export const useThemeStore = defineStore('theme', () => {
     initialized,
     init,
     applyTheme,
+    syncSystemAppearance,
     setTheme,
     setAppearancePreference,
     teardown
