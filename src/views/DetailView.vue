@@ -281,20 +281,24 @@ function isRectStable(prevRect, nextRect, tolerance = 0.5) {
     Math.abs(prevRect.height - nextRect.height) <= tolerance
 }
 
-async function waitForStableHeroTarget(el, maxFrames = 6) {
+async function waitForStableHeroTarget(el, maxFrames = 2) {
+  if (!el) return false
   let previousRect = null
   for (let frame = 0; frame < maxFrames; frame += 1) {
     await waitForNextFrame()
     const currentRect = readElementRect(el)
-    if (isRectStable(previousRect, currentRect)) return
+    if (isRectStable(previousRect, currentRect)) return true
     previousRect = currentRect
   }
+  return false
 }
 
 async function playGoodsHeroForwardWhenReady() {
   if (getPendingDetailTransitionKind() === 'detail-fade') return
   await nextTick()
-  await waitForStableHeroTarget(coverCardRef.value)
+  if (!coverCardRef.value) return
+  const isStable = await waitForStableHeroTarget(coverCardRef.value)
+  if (!isStable) return
   playGoodsHeroForward(props.id, coverCardRef.value)
 }
 
@@ -709,6 +713,18 @@ function getImageKindLabel(kind) {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
+}
+
+.detail-page--entry-lock .cover-glow {
+  filter: none;
+  opacity: 0;
+}
+
+.detail-page--entry-lock .hero-card,
+.detail-page--entry-lock .info-card,
+.detail-page--entry-lock .note-card {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .detail-page .page-body::-webkit-scrollbar {

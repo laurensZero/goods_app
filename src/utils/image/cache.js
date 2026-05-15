@@ -145,25 +145,56 @@ const supportsCacheAPI = typeof caches !== 'undefined'
 // --- Layer 1: 内存缓存 ---
 /** @type {Map<string, string>} url -> objectURL 或原始 url */
 const memoryCache = new Map()
-const MAX_MEMORY_CACHE_SIZE = 1500
+const memoryCacheTimers = new Map()
+const MAX_MEMORY_CACHE_SIZE = isNative() ? 600 : 900
+const MEMORY_BLOB_TTL_MS = isNative() ? 180000 : 420000
 
 function setMemoryCache(url, objectUrl) {
+  const existingTimer = memoryCacheTimers.get(url)
+  if (existingTimer) {
+    clearTimeout(existingTimer)
+    memoryCacheTimers.delete(url)
+  }
+
   if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
     const firstKey = memoryCache.keys().next().value
     const firstVal = memoryCache.get(firstKey)
     if (firstVal && firstVal.startsWith('blob:')) {
       URL.revokeObjectURL(firstVal)
     }
+    const firstTimer = memoryCacheTimers.get(firstKey)
+    if (firstTimer) {
+      clearTimeout(firstTimer)
+      memoryCacheTimers.delete(firstKey)
+    }
     memoryCache.delete(firstKey)
   }
   memoryCache.set(url, objectUrl)
+
+  if (objectUrl && objectUrl.startsWith('blob:')) {
+    const timerId = setTimeout(() => {
+      const currentValue = memoryCache.get(url)
+      if (currentValue !== objectUrl) return
+
+      memoryCache.delete(url)
+      memoryCacheTimers.delete(url)
+
+      if (![...memoryCache.values()].includes(objectUrl)) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }, MEMORY_BLOB_TTL_MS)
+    memoryCacheTimers.set(url, timerId)
+  }
 }
 
-const PRELOAD_CONCURRENCY = 6
-const preloadQueue = []
-const preloadQueued = new Set()
-let preloadActiveCount = 0
-let preloadDrainScheduled = false
+const IMAGE_LOAD_CONCURRENCY = isNative() ? 3 : 6
+const viewportLoadQueue = []
+const preloadLoadQueue = []
+const queuedLoadKeys = new Set()
+const queuedLoadMeta = new Map()
+let imageLoadActiveCount = 0
+let imageLoadDrainScheduled = false
+let preloadPaused = false
 
 function normalizeCacheUrl(input) {
   const value = String(input || '').trim()
@@ -186,6 +217,39 @@ function getCacheKeyCandidates(url) {
   const normalized = normalizeCacheUrl(raw)
   if (!raw) return []
   return normalized && normalized !== raw ? [normalized, raw] : [raw]
+}
+
+function enqueueImageLoadTask(task, priority = 'viewport') {
+  task.priority = priority
+  const queue = priority === 'preload' ? preloadLoadQueue : viewportLoadQueue
+  queue.push(task)
+  queuedLoadKeys.add(task.cacheKey)
+  queuedLoadMeta.set(task.cacheKey, task)
+  scheduleImageLoadDrain()
+}
+
+function promoteQueuedImageLoad(cacheKey) {
+  const task = queuedLoadMeta.get(cacheKey)
+  if (!task || task.priority !== 'preload') return
+
+  const preloadIndex = preloadLoadQueue.findIndex((entry) => entry.cacheKey === cacheKey)
+  if (preloadIndex < 0) return
+
+  preloadLoadQueue.splice(preloadIndex, 1)
+  task.priority = 'viewport'
+  viewportLoadQueue.unshift(task)
+  scheduleImageLoadDrain()
+}
+
+function takeNextImageLoadTask() {
+  if (viewportLoadQueue.length > 0) return viewportLoadQueue.shift()
+  if (!preloadPaused && preloadLoadQueue.length > 0) return preloadLoadQueue.shift()
+  return null
+}
+
+function setImageLoadPaused(paused) {
+  preloadPaused = !!paused
+  scheduleImageLoadDrain()
 }
 
 // --- URL 转换逻辑 ---
@@ -286,12 +350,13 @@ async function putToCapacitorFS(url, blob) {
  */
 const inFlight = new Map()
 
-export async function getCachedImage(url) {
+export async function getCachedImage(url, options = {}) {
   if (!url) return ''
 
   const normalizedUrl = normalizeCacheUrl(url)
   const cacheKeys = getCacheKeyCandidates(normalizedUrl || url)
   const cacheKey = cacheKeys[0] || normalizedUrl || url
+  const priority = options?.priority === 'preload' ? 'preload' : 'viewport'
 
   // 转换开发环境的跨域 URL 为代理路径（仅用于 fetch，缓存 key 保留原始 URL）
   let fetchUrl = normalizedUrl || url
@@ -305,59 +370,73 @@ export async function getCachedImage(url) {
   }
 
   // 防止并发请求相同 URL 导致多次 IO 和网络请求
-  if (inFlight.has(cacheKey)) return inFlight.get(cacheKey)
+  if (inFlight.has(cacheKey)) {
+    if (priority === 'viewport') promoteQueuedImageLoad(cacheKey)
+    return inFlight.get(cacheKey)
+  }
 
-  const promise = (async () => {
-    // 2: Cache API (Web)
-    const cacheHit = await getFromCacheAPI(cacheKey)
-    if (cacheHit) {
-      setMemoryCache(cacheKey, cacheHit)
-      if (normalizedUrl && normalizedUrl !== cacheKey) {
-        setMemoryCache(url, cacheHit)
-      }
-      inFlight.delete(cacheKey)
-      return cacheHit
-    }
-
-    // 3: Capacitor FS (Native)
-    const fsHit = await getFromCapacitorFS(cacheKey)
-    if (fsHit) {
-      setMemoryCache(cacheKey, fsHit)
-      if (normalizedUrl && normalizedUrl !== cacheKey) {
-        setMemoryCache(url, fsHit)
-      }
-      inFlight.delete(cacheKey)
-      return fsHit
-    }
-
-    try {
-      const response = await fetchWithPlatformBridge(fetchUrl)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
-      const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
-      setMemoryCache(cacheKey, objectUrl)
-      if (normalizedUrl && normalizedUrl !== cacheKey) {
-        setMemoryCache(url, objectUrl)
-      }
-
-      // 后台写入 Cache API 和 Capacitor FS（用规范化后的 URL 作为 key），不阻塞返回
-      putToCacheAPI(cacheKey, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
-      putToCapacitorFS(cacheKey, blob)
-
-      inFlight.delete(cacheKey)
-      return objectUrl
-    } catch {
-      setMemoryCache(cacheKey, url)
-      if (normalizedUrl && normalizedUrl !== cacheKey) {
-        setMemoryCache(url, url)
-      }
-      inFlight.delete(cacheKey)
-      return url
-    }
-  })()
+  let resolvePromise = null
+  const promise = new Promise((resolve) => {
+    resolvePromise = resolve
+  })
 
   inFlight.set(cacheKey, promise)
+  enqueueImageLoadTask({
+    cacheKey,
+    run: async () => {
+        // 2: Cache API (Web)
+        const cacheHit = await getFromCacheAPI(cacheKey)
+        if (cacheHit) {
+          setMemoryCache(cacheKey, cacheHit)
+          if (normalizedUrl && normalizedUrl !== cacheKey) {
+            setMemoryCache(url, cacheHit)
+          }
+          return cacheHit
+        }
+
+        // 3: Capacitor FS (Native)
+        const fsHit = await getFromCapacitorFS(cacheKey)
+        if (fsHit) {
+          setMemoryCache(cacheKey, fsHit)
+          if (normalizedUrl && normalizedUrl !== cacheKey) {
+            setMemoryCache(url, fsHit)
+          }
+          return fsHit
+        }
+
+        try {
+          const response = await fetchWithPlatformBridge(fetchUrl)
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+          const blob = await response.blob()
+          const objectUrl = URL.createObjectURL(blob)
+          setMemoryCache(cacheKey, objectUrl)
+          if (normalizedUrl && normalizedUrl !== cacheKey) {
+            setMemoryCache(url, objectUrl)
+          }
+
+          // 后台写入 Cache API 和 Capacitor FS（用规范化后的 URL 作为 key），不阻塞返回
+          putToCacheAPI(cacheKey, new Response(blob.slice(), { headers: { 'Content-Type': blob.type } }))
+          putToCapacitorFS(cacheKey, blob)
+
+          return objectUrl
+        } catch {
+          setMemoryCache(cacheKey, url)
+          if (normalizedUrl && normalizedUrl !== cacheKey) {
+            setMemoryCache(url, url)
+          }
+          return url
+        }
+    },
+    resolve: (value) => {
+      inFlight.delete(cacheKey)
+      queuedLoadKeys.delete(cacheKey)
+      queuedLoadMeta.delete(cacheKey)
+      resolvePromise?.(value)
+    }
+  }, priority)
+
+  scheduleImageLoadDrain()
   return promise
 }
 
@@ -366,13 +445,8 @@ export async function getCachedImage(url) {
  */
 export function preloadImages(urls) {
   urls.forEach((url) => {
-    const key = normalizeCacheUrl(url)
-    if (!key || memoryCache.has(key) || preloadQueued.has(key)) return
-    preloadQueue.push(key)
-    preloadQueued.add(key)
+    void getCachedImage(url, { priority: 'preload' }).catch(() => {})
   })
-
-  schedulePreloadDrain()
 }
 
 /**
@@ -390,41 +464,83 @@ export function peekCachedImage(url) {
   return ''
 }
 
-function schedulePreloadDrain() {
-  if (preloadDrainScheduled) return
-  preloadDrainScheduled = true
+function scheduleImageLoadDrain() {
+  if (imageLoadDrainScheduled) return
+  imageLoadDrainScheduled = true
 
   const run = () => {
-    preloadDrainScheduled = false
-    drainPreloadQueue()
+    imageLoadDrainScheduled = false
+    drainImageLoadQueue()
   }
 
-  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(run, { timeout: 240 })
+  const hasViewportWork = viewportLoadQueue.length > 0
+  const hasPreloadOnlyWork = !hasViewportWork && !preloadPaused && preloadLoadQueue.length > 0
+
+  if (hasViewportWork) {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(run)
+      return
+    }
+    setTimeout(run, 0)
     return
   }
 
-  setTimeout(run, 32)
+  if (hasPreloadOnlyWork && typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 160 })
+    return
+  }
+
+  setTimeout(run, 24)
 }
 
-function drainPreloadQueue() {
-  while (preloadActiveCount < PRELOAD_CONCURRENCY && preloadQueue.length > 0) {
-    const url = preloadQueue.shift()
-    preloadQueued.delete(url)
+function drainImageLoadQueue() {
+  while (imageLoadActiveCount < IMAGE_LOAD_CONCURRENCY) {
+    const task = takeNextImageLoadTask()
+    if (!task) break
 
-    if (!url || memoryCache.has(url)) continue
+    if (!task.cacheKey || !queuedLoadKeys.has(task.cacheKey)) continue
+    if (memoryCache.has(task.cacheKey)) {
+      queuedLoadKeys.delete(task.cacheKey)
+      task.resolve(memoryCache.get(task.cacheKey))
+      continue
+    }
 
-    preloadActiveCount += 1
-    getCachedImage(url)
-      .catch(() => {})
+    imageLoadActiveCount += 1
+    Promise.resolve(task.run())
+      .then(task.resolve)
+      .catch(() => task.resolve(''))
       .finally(() => {
-        preloadActiveCount = Math.max(0, preloadActiveCount - 1)
-        if (preloadQueue.length > 0) schedulePreloadDrain()
+        imageLoadActiveCount = Math.max(0, imageLoadActiveCount - 1)
+        if (viewportLoadQueue.length > 0 || (!preloadPaused && preloadLoadQueue.length > 0)) {
+          scheduleImageLoadDrain()
+        }
       })
   }
 }
 
+export function setImagePreloadPaused(paused) {
+  setImageLoadPaused(paused)
+}
+
+export function getImageLoadState() {
+  return {
+    activeCount: imageLoadActiveCount,
+    queuedViewportCount: viewportLoadQueue.length,
+    queuedPreloadCount: preloadLoadQueue.length,
+    preloadPaused
+  }
+}
+
+export function clearImageLoadQueues() {
+  viewportLoadQueue.length = 0
+  preloadLoadQueue.length = 0
+  queuedLoadKeys.clear()
+  queuedLoadMeta.clear()
+}
+
 export function clearMemoryCache() {
+  memoryCacheTimers.forEach((timerId) => clearTimeout(timerId))
+  memoryCacheTimers.clear()
   memoryCache.forEach((val) => {
     if (val.startsWith('blob:')) URL.revokeObjectURL(val)
   })

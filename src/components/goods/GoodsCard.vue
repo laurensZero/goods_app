@@ -41,8 +41,9 @@
           v-if="item.coverImage"
           :src="item.coverImage"
           :alt="item.name"
-          :lazy="!preferEagerCoverLoad"
-          :root-margin="preferEagerCoverLoad ? '180px 0px' : '520px 0px'"
+          :lazy="true"
+          root-margin="720px 0px"
+          fetchpriority="low"
           class="cover-img"
         />
         <span v-if="!item.coverImage" class="cover-initial">{{ coverInitial }}</span>
@@ -134,7 +135,6 @@ const gestureMoved = ref(false)
 const tagsDragging = ref(false)
 const TOUCH_TAP_THRESHOLD = 12
 const MOUSE_TAP_THRESHOLD = 6
-const preferEagerCoverLoad = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '')
 let tagsDragStartX = 0
 let tagsDragStartScrollLeft = 0
 

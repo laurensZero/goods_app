@@ -1,5 +1,7 @@
-const FORWARD_DURATION_MS = 420
-const BACK_DURATION_MS = 380
+import { setImagePreloadPaused } from '@/utils/image/cache'
+
+const FORWARD_DURATION_MS = 390
+const BACK_DURATION_MS = 350
 const BACK_SCROLL_LOCK_MS = 200
 const BACK_HERO_PENDING_TTL_MS = 5000
 const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
@@ -13,6 +15,7 @@ let pendingForwardHero = null
 let pendingBackHero = null
 let pendingForwardEventHero = null
 let pendingBackEventHero = null
+let heroAnimationLockCount = 0
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
@@ -37,6 +40,10 @@ export function cleanupAllHeroes() {
 
 export function getHeroBackDurationMs() {
   return BACK_DURATION_MS
+}
+
+export function isGoodsHeroAnimating() {
+  return heroAnimationLockCount > 0
 }
 
 function isPendingBackHeroValid(pendingHero, currentPath = '') {
@@ -208,12 +215,9 @@ function resolveHeroMotionFactors(snapshot, targetRect) {
   return { travel, size }
 }
 
-function resolveHeroDuration(baseDuration, snapshot, targetRect) {
+function resolveHeroDuration(baseDuration) {
   const normalizedBase = Number.isFinite(baseDuration) ? baseDuration : FORWARD_DURATION_MS
-  const { travel, size } = resolveHeroMotionFactors(snapshot, targetRect)
-  const multiplier = 0.8 + travel * 0.22 + size * 0.12
-  const value = Math.round(normalizedBase * multiplier)
-  return clamp(value, 240, 520)
+  return clamp(Math.round(normalizedBase), BACK_DURATION_MS, FORWARD_DURATION_MS)
 }
 
 function resolveHeroEasing(direction, snapshot, targetRect) {
@@ -226,23 +230,6 @@ function resolveHeroEasing(direction, snapshot, targetRect) {
   }
 
   return intensity > 0.42 ? HERO_FORWARD_EASING_FAR : HERO_FORWARD_EASING_NEAR
-}
-
-function readBoxShadow(el) {
-  if (!el || typeof window === 'undefined') return 'none'
-  const style = window.getComputedStyle(el)
-  return style.boxShadow || 'none'
-}
-
-function resolveCompensatedShadow(shadowStr, scaleFactor) {
-  if (!shadowStr || shadowStr === 'none') return 'none'
-  const normalizedScale = Math.max(Math.abs(Number(scaleFactor) || 1), 0.0001)
-  
-  return shadowStr.replace(/([-+]?\d*\.?\d+)px/g, (match, val) => {
-    const num = Number.parseFloat(val)
-    if (!Number.isFinite(num)) return match
-    return `${num / normalizedScale}px`
-  })
 }
 
 function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
@@ -261,15 +248,26 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   node.style.contain = 'layout style'
   node.style.backfaceVisibility = 'hidden'
   node.style.background = 'transparent'
+  node.style.overflow = 'visible'
+
+  const shadow = document.createElement('div')
+  shadow.style.position = 'absolute'
+  shadow.style.inset = '0'
+  shadow.style.borderRadius = `${snapshot.radius || 0}px`
+  shadow.style.boxShadow = 'var(--app-shadow)'
+  shadow.style.pointerEvents = 'none'
+  shadow.style.backfaceVisibility = 'hidden'
+  node.appendChild(shadow)
 
   const clip = document.createElement('div')
   clip.dataset.heroClip = 'true'
+  clip.style.position = 'relative'
+  clip.style.zIndex = '1'
   clip.style.width = '100%'
   clip.style.height = '100%'
   clip.style.overflow = 'hidden'
-  clip.style.willChange = 'border-radius'
   clip.style.backfaceVisibility = 'hidden'
-  clip.style.borderRadius = `${snapshot.radius || 0}px`
+  clip.style.borderRadius = 'inherit'
   clip.style.background = snapshot.background || 'var(--app-surface, #fff)'
   node.appendChild(clip)
 
@@ -341,54 +339,42 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     ? HERO_BACK_OVERLAY_Z_INDEX
     : HERO_FORWARD_OVERLAY_Z_INDEX
   const node = createHeroNode(snapshot, overlayZIndex)
+  heroAnimationLockCount += 1
+  setImagePreloadPaused(true)
 
-  node.style.transform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`
+  node.style.left = `${snapshot.left}px`
+  node.style.top = `${snapshot.top}px`
+  node.style.width = `${snapshot.width}px`
+  node.style.height = `${snapshot.height}px`
   document.body.appendChild(node)
   activeHeroNodes.add(node)
 
   const targetEl = options.targetEl || null
   const previousVisibility = targetEl?.style?.visibility || ''
-  const duration = resolveHeroDuration(baseDuration, snapshot, targetRect)
+  const duration = resolveHeroDuration(baseDuration)
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
-  const sourceAspectRatio = snapshot.height > 0 ? snapshot.width / snapshot.height : 1
-  const targetAspectRatio = targetRect.height > 0 ? targetRect.width / targetRect.height : 1
-  const aspectDelta = Math.abs(sourceAspectRatio - targetAspectRatio)
-  const canUseScalePath = shouldPreferTransformOnlyHero(direction, aspectDelta)
-  const transformTarget = resolveTransformOnlyTarget(snapshot, targetRect)
-  const fromTransform = `translate3d(${snapshot.left}px, ${snapshot.top}px, 0) scale(1, 1)`
-  const toTransform = `translate3d(${transformTarget.translateX}px, ${transformTarget.translateY}px, 0) scale(${transformTarget.scaleX}, ${transformTarget.scaleY})`
-  const clipEl = node.querySelector('[data-hero-clip="true"]')
-
-  const keyframes = canUseScalePath
-    ? [
-        {
-          transform: fromTransform,
-          opacity: 1
-        },
-        {
-          transform: toTransform,
-          opacity: 1
-        }
-      ]
-    : [
-        {
-          transform: `translate3d(${snapshot.left}px, ${snapshot.top}px, 0)`,
-          width: `${snapshot.width}px`,
-          height: `${snapshot.height}px`,
-          opacity: 1
-        },
-        {
-          transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`,
-          width: `${targetRect.width}px`,
-          height: `${targetRect.height}px`,
-          opacity: 1
-        }
-      ]
+  const keyframes = [
+    {
+      left: `${snapshot.left}px`,
+      top: `${snapshot.top}px`,
+      width: `${snapshot.width}px`,
+      height: `${snapshot.height}px`,
+      opacity: 1,
+      borderRadius: `${radiusFrom}px`
+    },
+    {
+      left: `${targetRect.left}px`,
+      top: `${targetRect.top}px`,
+      width: `${targetRect.width}px`,
+      height: `${targetRect.height}px`,
+      opacity: 1,
+      borderRadius: `${radiusTo}px`
+    }
+  ]
 
   const previousOpacity = targetEl?.style?.opacity || ''
-  const targetBoxShadow = readBoxShadow(targetEl)
 
   if (targetEl) {
     targetEl.style.visibility = 'hidden'
@@ -404,44 +390,8 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   )
   activeHeroAnimations.add(animation)
 
-  const clipAnimation = clipEl
-    ? clipEl.animate(
-        canUseScalePath
-          ? [
-              {
-                borderRadius: resolveCompensatedRadius(radiusFrom, 1, 1),
-                boxShadow: snapshot.boxShadow || 'none'
-              },
-              {
-                borderRadius: resolveCompensatedRadius(radiusTo, transformTarget.scaleX, transformTarget.scaleY),
-                boxShadow: resolveCompensatedShadow(targetBoxShadow, transformTarget.scaleX) || 'none'
-              }
-            ]
-          : [
-              {
-                borderRadius: `${radiusFrom}px`,
-                boxShadow: snapshot.boxShadow || 'none'
-              },
-              {
-                borderRadius: `${radiusTo}px`,
-                boxShadow: targetBoxShadow || 'none'
-              }
-            ],
-        {
-          duration,
-          easing,
-          fill: 'both'
-        }
-      )
-    : null
-  
-  if (clipAnimation) {
-    activeHeroAnimations.add(clipAnimation)
-  }
-
   return Promise.allSettled([
     animation.finished,
-    clipAnimation?.finished
   ]).catch(() => {
     // ignore interruption
   }).finally(() => {
@@ -450,11 +400,14 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       node.remove()
     }
     if (activeHeroAnimations.has(animation)) activeHeroAnimations.delete(animation)
-    if (clipAnimation && activeHeroAnimations.has(clipAnimation)) activeHeroAnimations.delete(clipAnimation)
 
     if (targetEl) {
       targetEl.style.visibility = previousVisibility
       targetEl.style.opacity = previousOpacity
+    }
+    heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
+    if (heroAnimationLockCount === 0) {
+      setImagePreloadPaused(false)
     }
   })
 }
@@ -474,8 +427,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background,
-    boxShadow: readBoxShadow(sourceEl)
+    background: window.getComputedStyle(sourceEl).background
   }
 }
 
@@ -520,8 +472,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background,
-    boxShadow: readBoxShadow(sourceEl)
+    background: window.getComputedStyle(sourceEl).background
   }
 }
 
@@ -536,6 +487,7 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
+    pendingBackHero = null
     return false
   }
 
@@ -576,8 +528,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background,
-    boxShadow: readBoxShadow(sourceEl)
+    background: window.getComputedStyle(sourceEl).background
   }
 }
 
@@ -622,8 +573,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background,
-    boxShadow: readBoxShadow(sourceEl)
+    background: window.getComputedStyle(sourceEl).background
   }
 }
 

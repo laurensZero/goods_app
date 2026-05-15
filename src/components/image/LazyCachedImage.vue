@@ -1,27 +1,25 @@
 <template>
-  <div v-bind="rootAttrs" class="lazy-image-root">
+  <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
       v-if="!showFallback"
-      ref="imageRef"
       v-bind="imageAttrs"
-      :class="['lazy-image-element', { 'lazy-image-element--hidden': showLoadingPlaceholder }]"
+      :class="['lazy-image-element', { 'lazy-image-element--hidden': showLoading }]"
       :src="resolvedSrc || undefined"
       :alt="alt"
       :loading="loading"
       :decoding="decoding"
-      :fetchpriority="effectiveFetchPriority"
+      :fetchpriority="fetchpriority"
       @load="onImageLoad"
       @error="onImageError"
     />
     <div
-      v-if="showLoadingPlaceholder"
-      class="lazy-image-placeholder lazy-image-layer"
+      v-if="showLoading"
+      class="lazy-image-loading lazy-image-layer"
       role="status"
       aria-live="polite"
       aria-label="图片加载中"
     >
-      <span class="lazy-image-placeholder__dot" aria-hidden="true" />
-      <span>加载中</span>
+      <span class="lazy-image-loading__spinner" aria-hidden="true" />
     </div>
     <div
       v-if="showFallback"
@@ -57,6 +55,7 @@ const props = defineProps({
 })
 
 const attrs = useAttrs()
+const rootRef = ref(null)
 const rootAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
   return {
@@ -75,39 +74,41 @@ const imageAttrs = computed(() => {
     style: _style
   }
 })
-const imageRef = ref(null)
 const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
-const effectiveFetchPriority = computed(() => (hasEnteredViewport.value ? 'high' : props.fetchpriority))
-const showLoadingPlaceholder = computed(() => {
-  return !!props.src && !showFallback.value && (!resolvedSrc.value || isImageLoading.value)
+const showLoading = computed(() => {
+  return !!props.src && hasEnteredViewport.value && !showFallback.value && isImageLoading.value
 })
 const showFallback = computed(() => !!props.src && hasLoadError.value)
 let visibilityObserver = null
+let loadRequestId = 0
 
 watch(
   [() => props.src, hasEnteredViewport],
   async ([url, isVisible]) => {
+    const requestId = ++loadRequestId
     if (!url) {
+      resolvedSrc.value = ''
+      isImageLoading.value = false
+      return
+    }
+    if (!isVisible) {
       resolvedSrc.value = ''
       isImageLoading.value = false
       return
     }
     const cached = peekCachedImage(url)
     if (cached) {
-      isImageLoading.value = true
       resolvedSrc.value = cached
-      return
-    }
-    if (!isVisible) {
-      resolvedSrc.value = ''
       isImageLoading.value = true
       return
     }
     isImageLoading.value = true
-    resolvedSrc.value = props.useCache ? await getCachedImage(url) : url
+    const nextSrc = props.useCache ? await getCachedImage(url) : url
+    if (requestId !== loadRequestId) return
+    resolvedSrc.value = nextSrc
   },
   { immediate: true }
 )
@@ -132,14 +133,7 @@ function onImageError() {
 }
 
 onMounted(() => {
-    if (!props.lazy) {
-    hasEnteredViewport.value = true
-    return
-  }
-
-  const cached = peekCachedImage(props.src)
-  if (cached) {
-    resolvedSrc.value = cached
+  if (!props.lazy) {
     hasEnteredViewport.value = true
     return
   }
@@ -160,7 +154,7 @@ onMounted(() => {
     { rootMargin: props.rootMargin }
   )
 
-  if (imageRef.value) visibilityObserver.observe(imageRef.value)
+  if (rootRef.value) visibilityObserver.observe(rootRef.value)
 })
 
 onBeforeUnmount(() => {
@@ -203,31 +197,12 @@ onBeforeUnmount(() => {
   border-radius: inherit;
 }
 
-.lazy-image-fallback {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background:
-    radial-gradient(120% 95% at 0% 0%, var(--app-glass), transparent 62%),
-    linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
-  color: var(--app-text-tertiary);
-  border: 1px solid var(--app-glass-border);
-  border-radius: inherit;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
 .lazy-image-element--hidden {
   opacity: 0;
 }
 
-.lazy-image-placeholder {
+.lazy-image-fallback {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -243,20 +218,26 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.lazy-image-placeholder__dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  border: 2px solid var(--app-glass-border);
-  border-top-color: var(--app-text-tertiary);
-  animation: lazy-image-spin 1s linear infinite;
+.lazy-image-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
+  border: 1px solid var(--app-glass-border);
+  border-radius: inherit;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-.lazy-image-placeholder span {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+.lazy-image-loading__spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--app-text) 18%, transparent);
+  border-top-color: var(--app-text-tertiary);
+  animation: lazy-image-spin 0.75s linear infinite;
 }
 
 .lazy-image-fallback svg {
