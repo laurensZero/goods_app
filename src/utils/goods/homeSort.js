@@ -18,6 +18,12 @@ export const HOME_SORT_OPTIONS = [
     label: '名称',
     descLabel: '名称 Z-A',
     ascLabel: '名称 A-Z',
+  },
+  {
+    value: 'price',
+    label: '价格',
+    descLabel: '价格高到低',
+    ascLabel: '价格低到高',
   }
 ]
 
@@ -57,6 +63,16 @@ export function sortHomeGoodsList(list, sortMode, sortDirection) {
       return compareName(a, b) * directionFactor
         || (parseAddedTime(b) - parseAddedTime(a))
         || (Number(b?.acquiredTime || 0) - Number(a?.acquiredTime || 0))
+        || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
+    }
+
+    if (normalizedSortMode === 'price') {
+      const priceA = Number(a?.totalValueNumber || 0)
+      const priceB = Number(b?.totalValueNumber || 0)
+      return (priceA - priceB) * directionFactor
+        || (parseAddedTime(a) - parseAddedTime(b))
+        || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0))
+        || compareName(a, b)
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
 
