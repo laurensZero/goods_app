@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 export function useGoodsSelection(items, options = {}) {
   const {
     historyKey = 'selectionMode',
+    manageHistory = true,
     onExit = null,
     bodyClass = 'selection-active',
     getScrollTop = null,
@@ -35,6 +36,7 @@ export function useGoodsSelection(items, options = {}) {
   }
 
   function clearSelectionHistoryFlag() {
+    if (!manageHistory) return
     if (!history.state?.[historyKey]) return
     const nextState = { ...(history.state || {}) }
     delete nextState[historyKey]
@@ -45,7 +47,7 @@ export function useGoodsSelection(items, options = {}) {
     if (!selectionMode.value) {
       selectionMode.value = true
       selectedIds.value = new Set([id])
-      if (!history.state?.[historyKey]) {
+      if (manageHistory && !history.state?.[historyKey]) {
         history.pushState({ ...(history.state || {}), [historyKey]: true }, '')
       }
       return
@@ -85,6 +87,13 @@ export function useGoodsSelection(items, options = {}) {
   }
 
   function exitSelectionMode() {
+    if (!manageHistory) {
+      const scrollTop = getScrollTop?.() ?? null
+      exitSelectionModeQuiet()
+      restoreSelectionScrollTop(scrollTop)
+      return
+    }
+
     const hadPushed = !!history.state?.[historyKey]
     const scrollTop = getScrollTop?.() ?? null
 
@@ -99,6 +108,7 @@ export function useGoodsSelection(items, options = {}) {
   }
 
   function handleSelectionPopState() {
+    if (!manageHistory) return
     if (!selectionMode.value && pendingRestoreScrollTop == null) return
 
     const scrollTop = pendingRestoreScrollTop ?? getScrollTop?.() ?? null

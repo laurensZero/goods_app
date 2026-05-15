@@ -847,10 +847,10 @@ const {
   toggleSelect,
   toggleSelectAll,
   exitSelectionModeQuiet,
-  exitSelectionMode,
-  handleSelectionPopState
+  exitSelectionMode
 } = useGoodsSelection(results, {
   historyKey: selectionHistoryKey,
+  manageHistory: false,
   onExit: closeSelectionOverlays,
   getScrollTop: getSearchScrollTop,
   restoreScrollTop: restoreSearchScrollTop
@@ -887,19 +887,6 @@ function openDetail(payload) {
 }
 
 function navigateBackToHome() {
-  const previousPath = window.history.state?.back
-  if (previousPath === defaultBackPath.value) {
-    runWithRouteTransition(
-      () => router.back(),
-      {
-        direction: 'back',
-        preferFallback: true,
-        detailTransitionKind: 'search-back'
-      }
-    )
-    return
-  }
-
   if (route.fullPath !== defaultBackPath.value) {
     runWithRouteTransition(
       () => router.replace(defaultBackPath.value),
@@ -1035,7 +1022,6 @@ onMounted(async () => {
   measureRowHeight()
 
   // 2. 绑定滚动监听
-  window.addEventListener('popstate', handleSelectionPopState)
   window.addEventListener('scroll', onSelectionScroll, { passive: true })
   window.addEventListener('scroll', handleSearchScroll, { passive: true })
   pageBodyRef.value?.addEventListener('scroll', handleSearchScroll, { passive: true })
@@ -1061,7 +1047,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   cancelGoodsBackHeroRetry()
   if (searchTimeout) clearTimeout(searchTimeout)
-  window.removeEventListener('popstate', handleSelectionPopState)
   window.removeEventListener('scroll', onSelectionScroll)
   window.removeEventListener('scroll', handleSearchScroll)
   pageBodyRef.value?.removeEventListener('scroll', handleSearchScroll)
