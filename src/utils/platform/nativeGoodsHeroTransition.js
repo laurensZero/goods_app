@@ -29,6 +29,7 @@ function hideElement(el) {
     visibility: el.style.visibility ?? '',
     opacity: el.style.opacity ?? ''
   })
+  el.setAttribute('data-hero-hidden', '')
   el.style.visibility = 'hidden'
 }
 
@@ -38,17 +39,31 @@ function restoreElement(el) {
   if (!prev) return
   el.style.visibility = prev.visibility
   el.style.opacity = prev.opacity
+  el.removeAttribute('data-hero-hidden')
   hiddenElementsMap.delete(el)
 }
 
 function restoreAllHiddenElements() {
   hiddenElementsMap.forEach((prev, el) => {
     try {
-      el.style.visibility = prev.visibility
-      el.style.opacity = prev.opacity
+      if (el.isConnected) {
+        el.style.visibility = prev.visibility
+        el.style.opacity = prev.opacity
+      }
+      el.removeAttribute('data-hero-hidden')
     } catch (e) {}
   })
   hiddenElementsMap.clear()
+
+  // Vue re-render 后旧 DOM 被替换，新 DOM 上无 data-hero-hidden，
+  // 但可能仍有残留标记（旧 DOM 尚未被 GC）。兜底清理所有标记。
+  document.querySelectorAll('[data-hero-hidden]').forEach((el) => {
+    try {
+      el.style.visibility = ''
+      el.style.opacity = ''
+      el.removeAttribute('data-hero-hidden')
+    } catch (e) {}
+  })
 }
 
 function resetHeroRuntimeState() {
