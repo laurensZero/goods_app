@@ -1,9 +1,9 @@
 {
-  "version": "20260515.2",
-  "url": "bundle-20260515.2.zip",
-  "hash": "8a30c1467a356c009fb6beb8cffec4e1b55cc99ff296cbf065a6c98544565541",
+  "version": "20260515.3",
+  "url": "bundle-20260515.3.zip",
+  "hash": "ec67d675b5fb1a80b1338107b41c1b77fee5d9c5a43e0d151d539af56c31ba3c",
   "minNativeVersion": null,
-  "notes": "- feat: 更新懒加载图像组件，优化加载状态和骨架屏效果",
+  "notes": "- feat: 优化懒加载图像组件，调整加载逻辑和根边距设置",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T10:52:35Z"
+  "publishedAt": "2026-05-15T11:09:33Z"
 }

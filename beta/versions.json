@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.3",
+    "url": "bundle-20260515.3.zip",
+    "hash": "ec67d675b5fb1a80b1338107b41c1b77fee5d9c5a43e0d151d539af56c31ba3c",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化懒加载图像组件，调整加载逻辑和根边距设置",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T11:09:33Z"
+  },
+  {
     "version": "20260515.2",
     "url": "bundle-20260515.2.zip",
     "hash": "8a30c1467a356c009fb6beb8cffec4e1b55cc99ff296cbf065a6c98544565541",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图像加载和缓存逻辑，增强性能和用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T10:43:46Z"
-  },
-  {
-    "version": "20260514.6",
-    "url": "bundle-20260514.6.zip",
-    "hash": "ef50f0b893d41f384cd768c580542d5176006c6c7228a8bf9eb0906ca4732011",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新图像加载优先级逻辑，优化内存缓存预加载并提高并发限制",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-14T12:05:16Z"
   }
 ]
