@@ -1,5 +1,6 @@
 import { nextTick } from 'vue'
 import { setWindowScrollTop } from '@/utils/scrollPosition'
+import { isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
 
 export function usePageScrollRestore(pageBodyRef, options = {}) {
   const {
@@ -205,6 +206,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   }
 
   function saveScrollPosition(markPending = true, reason = 'save', options = {}) {
+    if (isGoodsHeroAnimating()) return
     const includeAnchor = options.includeAnchor !== false
     // Save both the numeric scrollTop and the source that produced it.
     // Losing the source is what previously caused wrong restores and broken scroll-top behavior.
@@ -392,6 +394,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   }
 
   function rememberCurrentScrollPosition(reason = 'remember', shouldLog = false) {
+    if (isGoodsHeroAnimating()) return
     const { top, source } = getScrollSnapshotForPersistence()
     activeScrollSource = source
     // High-frequency scroll updates should avoid full anchor scans.

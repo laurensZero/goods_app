@@ -183,7 +183,7 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { preloadImages } from '@/utils/image/cache'
+import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { useHomeScrollRestore } from '@/composables/scroll/useHomeScrollRestore'
@@ -195,7 +195,7 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/goods/homeSort'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -229,6 +229,9 @@ const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
 let addMotionRaf = 0
 let addMotionOverlayRaf = 0
 let addMotionOverlayClearTimer = 0
+let imagePreloadResumeTimer = 0
+let lastImageScrollTop = 0
+let lastImageScrollAt = 0
 
 const addMotionGhostStyle = computed(() => {
   const overlay = addMotionOverlay.value
@@ -277,8 +280,8 @@ const ROW_HEIGHT_MAP = {
   standard: 272,
   compact: 236
 }
-const HOME_BACK_HERO_RETRY_MAX_FRAMES = 40
-const HOME_BACK_HERO_GUARD_TIMEOUT_MS = 620
+const HOME_BACK_HERO_RETRY_MAX_FRAMES = 12
+const HOME_BACK_HERO_GUARD_TIMEOUT_MS = 320
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
@@ -745,10 +748,13 @@ function maybeLoadMoreTimelineMonths() {
 
 function handlePageScroll() {
   if (isRouteLeaving) return
+  if (isGoodsHeroAnimating()) return
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
     if (isRouteLeaving) return
+    if (isGoodsHeroAnimating()) return
+    updateImagePreloadThrottle(readScrollTop())
     rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
     maybeLoadMoreGoods()
@@ -759,6 +765,42 @@ function handlePageScroll() {
 
 function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
+}
+
+function clearImagePreloadThrottleTimer() {
+  if (!imagePreloadResumeTimer) return
+  window.clearTimeout(imagePreloadResumeTimer)
+  imagePreloadResumeTimer = 0
+}
+
+function updateImagePreloadThrottle(scrollTop = 0) {
+  if (!isAndroidNative) return
+
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+  const normalizedTop = Math.max(0, Number(scrollTop) || 0)
+
+  if (!lastImageScrollAt) {
+    lastImageScrollTop = normalizedTop
+    lastImageScrollAt = now
+    return
+  }
+
+  const delta = Math.abs(normalizedTop - lastImageScrollTop)
+  const elapsed = Math.max(1, now - lastImageScrollAt)
+  const velocity = delta / elapsed
+  const isFlinging = delta >= 160 || velocity >= 2.2
+
+  lastImageScrollTop = normalizedTop
+  lastImageScrollAt = now
+
+  setImagePreloadPaused(isFlinging)
+  clearImagePreloadThrottleTimer()
+  imagePreloadResumeTimer = window.setTimeout(() => {
+    setImagePreloadPaused(false)
+    imagePreloadResumeTimer = 0
+  }, isFlinging ? 160 : 96)
 }
 
 function getGoodsListEl() {
@@ -905,6 +947,8 @@ onDeactivated(() => {
   mountBootstrapSession += 1
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
+  clearImagePreloadThrottleTimer()
+  setImagePreloadPaused(false)
   cancelPendingRestore()
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
@@ -922,6 +966,8 @@ onBeforeUnmount(() => {
   clearAddMotionOverlay()
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
+  clearImagePreloadThrottleTimer()
+  setImagePreloadPaused(false)
   if (topJumpMaskTimer) {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
@@ -1038,10 +1084,15 @@ const visibleGoodsTailSpacerHeight = computed(() => {
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
+const isAndroidNative = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
 const preloadLeadCount = computed(() =>
-  displayDensity.value === 'timeline'
-    ? 6
-    : Math.min(16, Math.max(getResponsiveCols(displayDensity.value) * 2, 10))
+  isAndroidNative
+    ? (displayDensity.value === 'timeline'
+        ? 5
+        : Math.min(8, Math.max(getResponsiveCols(displayDensity.value) + 2, 5)))
+    : (displayDensity.value === 'timeline'
+        ? 6
+        : Math.min(16, Math.max(getResponsiveCols(displayDensity.value) * 2, 10)))
 )
 const preloadTargetList = computed(() =>
   (
@@ -1155,6 +1206,10 @@ function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
       hooks?.onPlayed?.()
       return
     }
+    if (!hasPendingGoodsHeroBack(route.fullPath)) {
+      hooks?.onGiveUp?.()
+      return
+    }
     if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
       hooks?.onGiveUp?.()
       return
@@ -1185,7 +1240,7 @@ function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
       homeBackHeroDeferredRestoreTimer = window.setTimeout(() => {
         homeBackHeroDeferredRestoreTimer = 0
         settle()
-      }, Math.max(0, getHeroBackDurationMs() + 24))
+      }, Math.max(0, getHeroBackDurationMs() + 16))
     },
     onGiveUp: settle
   })
