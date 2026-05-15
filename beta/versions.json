@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.13",
+    "url": "bundle-20260515.13.zip",
+    "hash": "c341c28e9ae688fb79830e9421a6b3db68df979621b0f025000f03322a40aa45",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 getItems 函数以使用 COALESCE 处理 unit_status 数据",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T13:24:06Z"
+  },
+  {
     "version": "20260515.12",
     "url": "bundle-20260515.12.zip",
     "hash": "497892c4796f41178b1ce8e71568b05079a1059544d24651d6b001615166ab2b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加价格排序功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T13:04:34Z"
-  },
-  {
-    "version": "20260515.10",
-    "url": "bundle-20260515.10.zip",
-    "hash": "7b0afd6c7d7d5fa6dbd21a0ac8aad6cb168800d4476e0058cc7798685fe25035",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加滚动锁定功能以改善用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T13:02:21Z"
   }
 ]

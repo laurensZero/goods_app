@@ -1,9 +1,9 @@
 {
-  "version": "20260515.12",
-  "url": "bundle-20260515.12.zip",
-  "hash": "497892c4796f41178b1ce8e71568b05079a1059544d24651d6b001615166ab2b",
+  "version": "20260515.13",
+  "url": "bundle-20260515.13.zip",
+  "hash": "c341c28e9ae688fb79830e9421a6b3db68df979621b0f025000f03322a40aa45",
   "minNativeVersion": null,
-  "notes": "- feat: 更新数据库迁移，添加 unit_status 列并迁移数据",
+  "notes": "- feat: 更新 getItems 函数以使用 COALESCE 处理 unit_status 数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T13:16:15Z"
+  "publishedAt": "2026-05-15T13:24:06Z"
 }
