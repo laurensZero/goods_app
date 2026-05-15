@@ -1,9 +1,9 @@
 {
-  "version": "20260515.6",
-  "url": "bundle-20260515.6.zip",
-  "hash": "ea1ef193128819631b660459e4e5c893d2d1484cce95c031271963d93152a981",
+  "version": "20260515.7",
+  "url": "bundle-20260515.7.zip",
+  "hash": "240b2c8336e88d5233d18c1ba1911a43cc666620f8295aae6960a651bf0b3460",
   "minNativeVersion": null,
-  "notes": "- feat: 修复筛选界面的返回错误",
+  "notes": "- feat: 更新持有天数显示逻辑，添加状态标签以提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T11:27:54Z"
+  "publishedAt": "2026-05-15T11:42:21Z"
 }

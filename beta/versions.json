@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.7",
+    "url": "bundle-20260515.7.zip",
+    "hash": "240b2c8336e88d5233d18c1ba1911a43cc666620f8295aae6960a651bf0b3460",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新持有天数显示逻辑，添加状态标签以提升用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T11:42:21Z"
+  },
+  {
     "version": "20260515.6",
     "url": "bundle-20260515.6.zip",
     "hash": "ea1ef193128819631b660459e4e5c893d2d1484cce95c031271963d93152a981",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 Android 平台恢复监听器以同步系统外观",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T11:21:44Z"
-  },
-  {
-    "version": "20260515.4",
-    "url": "bundle-20260515.4.zip",
-    "hash": "d9d949350a357fa04c3bdd8233392d46be3fa60527440e2daed49969f853d56d",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除懒加载图像组件的闪烁和旋转动画，以提升性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T11:15:01Z"
   }
 ]
