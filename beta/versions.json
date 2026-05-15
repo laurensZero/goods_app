@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.9",
+    "url": "bundle-20260515.9.zip",
+    "hash": "593a05a1aa517c1b4b729b2db04a9b061ae7761f93b5e65a97ff5d599c9d9acb",
+    "minNativeVersion": null,
+    "notes": "- feat: 逐份状态",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T12:58:33Z"
+  },
+  {
     "version": "20260515.8",
     "url": "bundle-20260515.8.zip",
     "hash": "de5f8204b111c9c529fa57c84c8c23a1fe3a4075b9a27c476406e7e866ffc452",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新持有天数显示逻辑，添加状态标签以提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T11:42:21Z"
-  },
-  {
-    "version": "20260515.6",
-    "url": "bundle-20260515.6.zip",
-    "hash": "ea1ef193128819631b660459e4e5c893d2d1484cce95c031271963d93152a981",
-    "minNativeVersion": null,
-    "notes": "- feat: 修复筛选界面的返回错误",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T11:27:54Z"
   }
 ]

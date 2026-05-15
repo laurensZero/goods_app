@@ -1,9 +1,9 @@
 {
-  "version": "20260515.8",
-  "url": "bundle-20260515.8.zip",
-  "hash": "de5f8204b111c9c529fa57c84c8c23a1fe3a4075b9a27c476406e7e866ffc452",
+  "version": "20260515.9",
+  "url": "bundle-20260515.9.zip",
+  "hash": "593a05a1aa517c1b4b729b2db04a9b061ae7761f93b5e65a97ff5d599c9d9acb",
   "minNativeVersion": null,
-  "notes": "- feat: 增强hero动画管理，添加生命周期清理和状态重置逻辑",
+  "notes": "- feat: 逐份状态",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T11:47:42Z"
+  "publishedAt": "2026-05-15T12:58:33Z"
 }
