@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.2",
+    "url": "bundle-20260515.2.zip",
+    "hash": "8a30c1467a356c009fb6beb8cffec4e1b55cc99ff296cbf065a6c98544565541",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新懒加载图像组件，优化加载状态和骨架屏效果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T10:52:35Z"
+  },
+  {
     "version": "20260515.1",
     "url": "bundle-20260515.1.zip",
     "hash": "6c376d4400f195064d07600c445c4ef271316dad925ea64d7c189eedb4be12e4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新图像加载优先级逻辑，优化内存缓存预加载并提高并发限制",
     "updateLevel": "silent",
     "publishedAt": "2026-05-14T12:05:16Z"
-  },
-  {
-    "version": "20260514.5",
-    "url": "bundle-20260514.5.zip",
-    "hash": "dca71badf1f2ca4a369466392c1ee9f24954647a60b89594ec6a7db762488b3a",
-    "minNativeVersion": null,
-    "notes": "- feat: 加快启动速度",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-14T11:56:19Z"
   }
 ]
