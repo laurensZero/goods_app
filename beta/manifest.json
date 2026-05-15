@@ -1,9 +1,9 @@
 {
-  "version": "20260515.14",
-  "url": "bundle-20260515.14.zip",
-  "hash": "085f00695a9e17dbf5fb811e931996096224edd0ae233572df1d1854488b30ae",
+  "version": "20260515.15",
+  "url": "bundle-20260515.15.zip",
+  "hash": "98e275a612d171606548f6cdf5d1383eebcb1aac8ed4d31b033d82abe28e2be0",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 units 列并确保 unit_status 列存在，合并数据",
+  "notes": "- feat: 修复：确保 unit_status 列存在并从 units 中迁移数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T13:50:21Z"
+  "publishedAt": "2026-05-15T13:54:02Z"
 }
