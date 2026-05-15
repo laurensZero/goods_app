@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.19",
+    "url": "bundle-20260515.19.zip",
+    "hash": "adbbb725140ccc454ec9fa5799b319ed89551a5a304ff707087e36a442e6443b",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强hero动画管理，添加元素隐藏与恢复功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T14:46:07Z"
+  },
+  {
     "version": "20260515.18",
     "url": "bundle-20260515.18.zip",
     "hash": "749de6e34189aad1bb0c328f14e6b5a50279b32b6523e2e2e52357d5f093e27f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加滚动锁定功能以改善用户体验\n\n- feat: 添加价格排序功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T14:19:59Z"
-  },
-  {
-    "version": "20260515.16",
-    "url": "bundle-20260515.16.zip",
-    "hash": "a51034c2f20311f2326db0924cab2cf8e0a172e53d4b56db70fae86096e482f8",
-    "minNativeVersion": null,
-    "notes": "- fix: addItem/saveItems 写入前自动修复缺失的 unit_status 列\n  Co-Authored-By: deepseek-v4-pro[1m] <deepseek-ai@claude-code-best.win>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T14:11:10Z"
   }
 ]
