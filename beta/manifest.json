@@ -1,9 +1,9 @@
 {
-  "version": "20260515.9",
-  "url": "bundle-20260515.9.zip",
-  "hash": "593a05a1aa517c1b4b729b2db04a9b061ae7761f93b5e65a97ff5d599c9d9acb",
+  "version": "20260515.10",
+  "url": "bundle-20260515.10.zip",
+  "hash": "7b0afd6c7d7d5fa6dbd21a0ac8aad6cb168800d4476e0058cc7798685fe25035",
   "minNativeVersion": null,
-  "notes": "- feat: 逐份状态",
+  "notes": "- feat: 添加滚动锁定功能以改善用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T12:58:33Z"
+  "publishedAt": "2026-05-15T13:02:21Z"
 }
