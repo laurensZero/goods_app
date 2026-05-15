@@ -1,9 +1,9 @@
 {
-  "version": "20260515.15",
-  "url": "bundle-20260515.15.zip",
-  "hash": "98e275a612d171606548f6cdf5d1383eebcb1aac8ed4d31b033d82abe28e2be0",
+  "version": "20260515.16",
+  "url": "bundle-20260515.16.zip",
+  "hash": "a51034c2f20311f2326db0924cab2cf8e0a172e53d4b56db70fae86096e482f8",
   "minNativeVersion": null,
-  "notes": "- feat: 修复：确保 unit_status 列存在并从 units 中迁移数据",
+  "notes": "- fix: addItem/saveItems 写入前自动修复缺失的 unit_status 列\n  Co-Authored-By: deepseek-v4-pro[1m] <deepseek-ai@claude-code-best.win>",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T13:54:02Z"
+  "publishedAt": "2026-05-15T14:11:10Z"
 }
