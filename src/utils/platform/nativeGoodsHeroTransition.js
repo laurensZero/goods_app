@@ -16,17 +16,51 @@ let pendingBackHero = null
 let pendingForwardEventHero = null
 let pendingBackEventHero = null
 let heroAnimationLockCount = 0
+let heroLifecycleCleanupBound = false
+let heroRuntimeGeneration = 0
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
 
+function resetHeroRuntimeState() {
+  pendingForwardHero = null
+  pendingBackHero = null
+  pendingForwardEventHero = null
+  pendingBackEventHero = null
+  heroAnimationLockCount = 0
+  setImagePreloadPaused(false)
+}
+
+function bindHeroLifecycleCleanup() {
+  if (heroLifecycleCleanupBound) return
+  if (typeof document === 'undefined' || typeof window === 'undefined') return
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState !== 'visible') {
+      cleanupAllHeroes()
+    }
+  }
+
+  const handlePageHide = () => {
+    cleanupAllHeroes()
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+  window.addEventListener('pagehide', handlePageHide, { passive: true })
+  heroLifecycleCleanupBound = true
+}
+
 export function cleanupAllHeroes() {
-  activeHeroAnimations.forEach(anim => {
+  heroRuntimeGeneration += 1
+
+  const animations = Array.from(activeHeroAnimations)
+  activeHeroAnimations.clear()
+
+  animations.forEach(anim => {
     try {
       anim.cancel()
     } catch (e) {}
   })
-  activeHeroAnimations.clear()
 
   activeHeroNodes.forEach(node => {
     try {
@@ -36,8 +70,11 @@ export function cleanupAllHeroes() {
     } catch (e) {}
   })
   activeHeroNodes.clear()
+  resetHeroRuntimeState()
 }
 
+
+bindHeroLifecycleCleanup()
 export function getHeroBackDurationMs() {
   return BACK_DURATION_MS
 }
@@ -283,7 +320,32 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
     img.style.backfaceVisibility = 'hidden'
     img.style.transform = 'translateZ(0)'
     img.style.transformOrigin = 'center center'
+    img.style.opacity = '0'
+    img.style.visibility = 'hidden'
     img.dataset.heroMedia = 'image'
+
+    const revealImage = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        img.style.opacity = '1'
+        img.style.visibility = 'visible'
+      } else {
+        img.style.opacity = '0'
+        img.style.visibility = 'hidden'
+      }
+    }
+
+    const hideImage = () => {
+      img.style.opacity = '0'
+      img.style.visibility = 'hidden'
+    }
+
+    img.addEventListener('load', revealImage, { once: true })
+    img.addEventListener('error', hideImage, { once: true })
+
+    if (img.complete) {
+      revealImage()
+    }
+
     clip.appendChild(img)
   } else {
     const text = document.createElement('span')
@@ -339,6 +401,41 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     ? HERO_BACK_OVERLAY_Z_INDEX
     : HERO_FORWARD_OVERLAY_Z_INDEX
   const node = createHeroNode(snapshot, overlayZIndex)
+  const animationGeneration = heroRuntimeGeneration
+  let finalized = false
+  let animation = null
+
+  const finalize = () => {
+    if (finalized) return
+    finalized = true
+
+    if (animation && activeHeroAnimations.has(animation)) {
+      activeHeroAnimations.delete(animation)
+    }
+
+    if (activeHeroNodes.has(node)) {
+      activeHeroNodes.delete(node)
+    }
+
+    try {
+      if (node.parentNode) {
+        node.remove()
+      }
+    } catch (e) {}
+
+    if (animationGeneration === heroRuntimeGeneration && targetEl) {
+      targetEl.style.visibility = previousVisibility
+      targetEl.style.opacity = previousOpacity
+    }
+
+    if (animationGeneration === heroRuntimeGeneration) {
+      heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
+      if (heroAnimationLockCount === 0) {
+        setImagePreloadPaused(false)
+      }
+    }
+  }
+
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
@@ -380,35 +477,33 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     targetEl.style.visibility = 'hidden'
   }
 
-  const animation = node.animate(
-    keyframes,
-    {
-      duration,
-      easing,
-      fill: 'both'
-    }
-  )
+  try {
+    animation = node.animate(
+      keyframes,
+      {
+        duration,
+        easing,
+        fill: 'both'
+      }
+    )
+  } catch (e) {
+    finalize()
+    return Promise.resolve()
+  }
+
   activeHeroAnimations.add(animation)
+
+  if (typeof animation.addEventListener === 'function') {
+    animation.addEventListener('finish', finalize, { once: true })
+    animation.addEventListener('cancel', finalize, { once: true })
+  }
 
   return Promise.allSettled([
     animation.finished,
   ]).catch(() => {
     // ignore interruption
   }).finally(() => {
-    if (activeHeroNodes.has(node)) {
-      activeHeroNodes.delete(node)
-      node.remove()
-    }
-    if (activeHeroAnimations.has(animation)) activeHeroAnimations.delete(animation)
-
-    if (targetEl) {
-      targetEl.style.visibility = previousVisibility
-      targetEl.style.opacity = previousOpacity
-    }
-    heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
-    if (heroAnimationLockCount === 0) {
-      setImagePreloadPaused(false)
-    }
+    finalize()
   })
 }
 
@@ -437,7 +532,7 @@ export function playGoodsHeroForward(goodsId, targetEl) {
 
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    pendingForwardHero = null
+    cleanupAllHeroes()
     return
   }
 
@@ -479,15 +574,18 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
 export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   if (!pendingBackHero) return false
   if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
-    pendingBackHero = null
+    cleanupAllHeroes()
     return false
   }
-  if (typeof resolveTargetEl !== 'function') return false
+  if (typeof resolveTargetEl !== 'function') {
+    cleanupAllHeroes()
+    return false
+  }
 
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    pendingBackHero = null
+    cleanupAllHeroes()
     return false
   }
 
@@ -538,7 +636,7 @@ export function playEventHeroForward(eventId, targetEl) {
 
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    pendingForwardEventHero = null
+    cleanupAllHeroes()
     return
   }
 
@@ -580,14 +678,18 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
 export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
   if (!pendingBackEventHero) return false
   if (!isPendingBackHeroValid(pendingBackEventHero, currentPath)) {
-    pendingBackEventHero = null
+    cleanupAllHeroes()
     return false
   }
-  if (typeof resolveTargetEl !== 'function') return false
+  if (typeof resolveTargetEl !== 'function') {
+    cleanupAllHeroes()
+    return false
+  }
 
   const targetEl = resolveTargetEl(pendingBackEventHero.eventId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
+    cleanupAllHeroes()
     return false
   }
 
