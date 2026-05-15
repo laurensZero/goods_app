@@ -148,7 +148,7 @@
             </article>
 
             <article v-if="!item.isWishlist && holdingDays !== null" class="info-tile">
-              <span class="info-label">持有时长</span>
+              <span class="info-label">{{ detailStatusLabel }}</span>
               <strong class="info-value">{{ holdingDays }} 天</strong>
             </article>
 
@@ -553,6 +553,34 @@ const holdingDays = computed(() => {
   const diff = Date.now() - new Date(date).getTime()
   const days = Math.floor(diff / 86400000)
   return days >= 0 ? days : null
+})
+
+function resolvePrimaryStatusForItem(it) {
+  if (!it) return '已拥有'
+  const list = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : null
+  if (list && list.length > 0) {
+    const counts = Object.create(null)
+    for (const s of list) counts[s] = (counts[s] || 0) + 1
+    let winner = ''
+    let max = 0
+    for (const k in counts) {
+      if (counts[k] > max) {
+        max = counts[k]
+        winner = k
+      }
+    }
+    if (winner) return winner
+  }
+  return it.collectStatus || '已拥有'
+}
+
+const detailStatusLabel = computed(() => {
+  const it = item.value
+  if (!it) return '持有时长'
+  const primary = resolvePrimaryStatusForItem(it)
+  if (primary === '已拥有' || !primary) return '持有时长'
+  // 在详情页展示完整文案，例如：待发货 / 待补款 / 待补邮
+  return primary
 })
 
 function handleDelete() {

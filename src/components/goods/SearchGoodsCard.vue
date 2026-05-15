@@ -52,7 +52,7 @@
           {{ priceText }}
           <span v-if="showPoints" class="card-price-points">+{{ item.points }}积分</span>
         </span>
-        <span v-if="showHoldingDays" class="card-days">持有 {{ holdingDays }} 天</span>
+        <span v-if="showHoldingDays" class="card-days">{{ statusDaysText }}</span>
         <span v-else class="card-days card-days--placeholder" aria-hidden="true"></span>
       </div>
     </div>
@@ -188,6 +188,42 @@ const holdingDays = computed(() => {
   const diff = Date.now() - new Date(date).getTime()
   const days = Math.floor(diff / 86400000)
   return days >= 0 ? days : null
+})
+
+const STATUS_SHORT_MAP = {
+  '待发货': '待发',
+  '待补款': '补款',
+  '待补邮': '补邮'
+}
+
+function resolvePrimaryStatus(item) {
+  const list = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : null
+  if (list && list.length > 0) {
+    const counts = Object.create(null)
+    for (const s of list) counts[s] = (counts[s] || 0) + 1
+    let winner = ''
+    let max = 0
+    for (const k in counts) {
+      if (counts[k] > max) {
+        max = counts[k]
+        winner = k
+      }
+    }
+    if (winner) return winner
+  }
+
+  return item.collectStatus || '已拥有'
+}
+
+const statusDaysText = computed(() => {
+  if (props.item.isWishlist) return ''
+  const days = holdingDays.value
+  if (days === null) return ''
+
+  const primary = resolvePrimaryStatus(props.item)
+  if (STATUS_SHORT_MAP[primary]) return `${STATUS_SHORT_MAP[primary]} ${days} 天`
+  if (primary === '已拥有' || !primary) return `持有 ${days} 天`
+  return `${primary} ${days} 天`
 })
 
 const chips = computed(() => {
