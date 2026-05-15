@@ -1,7 +1,7 @@
 <template>
   <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
-      v-if="!showFallback"
+      v-if="resolvedSrc && !showFallback"
       v-bind="imageAttrs"
       :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
@@ -46,7 +46,7 @@ defineOptions({ inheritAttrs: false })
 const props = defineProps({
   src: { type: String, default: '' },
   alt: { type: String, default: '' },
-  rootMargin: { type: String, default: '180px 0px' },
+  rootMargin: { type: String, default: '720px 0px' },
   loading: { type: String, default: 'lazy' },
   decoding: { type: String, default: 'async' },
   fetchpriority: { type: String, default: 'low' },
@@ -102,9 +102,11 @@ watch(
     const cached = peekCachedImage(url)
     if (cached) {
       resolvedSrc.value = cached
-      isImageLoading.value = true
+      // cached image is already available — don't show loading skeleton
+      isImageLoading.value = false
       return
     }
+    // start actual loading only when we will fetch
     isImageLoading.value = true
     const nextSrc = props.useCache ? await getCachedImage(url) : url
     if (requestId !== loadRequestId) return
@@ -117,7 +119,8 @@ watch(
   () => props.src,
   () => {
     hasLoadError.value = false
-    isImageLoading.value = !!props.src
+    // do not change isImageLoading here; loading is driven by the
+    // [props.src, hasEnteredViewport] watcher to avoid redundant updates
   },
   { immediate: true }
 )
@@ -130,6 +133,7 @@ function onImageLoad() {
 function onImageError() {
   hasLoadError.value = true
   isImageLoading.value = false
+  resolvedSrc.value = ''
 }
 
 onMounted(() => {
@@ -199,6 +203,16 @@ onBeforeUnmount(() => {
 
 .lazy-image-element--hidden {
   opacity: 0;
+}
+
+.lazy-image-skeleton {
+  position: absolute;
+  inset: 0;
+  background: var(--app-surface-soft);
+}
+
+.lazy-image-skeleton__shimmer {
+  display: none;
 }
 
 .lazy-image-fallback {
