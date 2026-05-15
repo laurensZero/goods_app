@@ -1,9 +1,9 @@
 {
-  "version": "20260515.13",
-  "url": "bundle-20260515.13.zip",
-  "hash": "c341c28e9ae688fb79830e9421a6b3db68df979621b0f025000f03322a40aa45",
+  "version": "20260515.14",
+  "url": "bundle-20260515.14.zip",
+  "hash": "085f00695a9e17dbf5fb811e931996096224edd0ae233572df1d1854488b30ae",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 getItems 函数以使用 COALESCE 处理 unit_status 数据",
+  "notes": "- feat: 添加 units 列并确保 unit_status 列存在，合并数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T13:24:06Z"
+  "publishedAt": "2026-05-15T13:50:21Z"
 }
