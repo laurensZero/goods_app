@@ -18,9 +18,7 @@
       role="status"
       aria-live="polite"
       aria-label="图片加载中"
-    >
-      <span class="lazy-image-skeleton__shimmer" aria-hidden="true" />
-    </div>
+    />
     <div
       v-if="showFallback"
       class="lazy-image-fallback lazy-image-layer"
@@ -205,14 +203,13 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
+
 .lazy-image-skeleton {
   position: absolute;
   inset: 0;
   background: var(--app-surface-soft);
-}
-
-.lazy-image-skeleton__shimmer {
-  display: none;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .lazy-image-fallback {
@@ -220,50 +217,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background:
-    radial-gradient(120% 95% at 0% 0%, var(--app-glass), transparent 62%),
-    linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
+  background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  border: 1px solid var(--app-glass-border);
   border-radius: inherit;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   pointer-events: none;
-}
-
-.lazy-image-skeleton {
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  background: linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
-  border: 1px solid var(--app-glass-border);
-  border-radius: inherit;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.lazy-image-skeleton__shimmer {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background:
-    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%),
-    linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
-  background-size: 220% 100%, 100% 100%;
-  animation: lazy-image-shimmer 1.2s ease-in-out infinite;
-}
-
-@keyframes lazy-image-shimmer {
-  0% {
-    background-position: 180% 0, 0 0;
-  }
-
-  100% {
-    background-position: -20% 0, 0 0;
-  }
 }
 
 .lazy-image-fallback svg {
@@ -288,15 +248,5 @@ onBeforeUnmount(() => {
   border-color: var(--app-glass-border);
 }
 
-@keyframes lazy-image-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lazy-image-placeholder__dot {
-    animation: none;
-  }
-}
+/* removed shimmer and spin animations for performance */
 </style>
