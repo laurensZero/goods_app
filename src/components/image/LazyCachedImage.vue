@@ -3,7 +3,7 @@
     <img
       v-if="!showFallback"
       v-bind="imageAttrs"
-      :class="['lazy-image-element', { 'lazy-image-element--hidden': showLoading }]"
+      :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
       :alt="alt"
       :loading="loading"
@@ -13,13 +13,13 @@
       @error="onImageError"
     />
     <div
-      v-if="showLoading"
-      class="lazy-image-loading lazy-image-layer"
+      v-if="showSkeleton"
+      class="lazy-image-skeleton lazy-image-layer"
       role="status"
       aria-live="polite"
       aria-label="图片加载中"
     >
-      <span class="lazy-image-loading__spinner" aria-hidden="true" />
+      <span class="lazy-image-skeleton__shimmer" aria-hidden="true" />
     </div>
     <div
       v-if="showFallback"
@@ -78,7 +78,7 @@ const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
-const showLoading = computed(() => {
+const showSkeleton = computed(() => {
   return !!props.src && hasEnteredViewport.value && !showFallback.value && isImageLoading.value
 })
 const showFallback = computed(() => !!props.src && hasLoadError.value)
@@ -218,10 +218,10 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.lazy-image-loading {
+.lazy-image-skeleton {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   background: linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
   border: 1px solid var(--app-glass-border);
   border-radius: inherit;
@@ -231,13 +231,25 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.lazy-image-loading__spinner {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--app-text) 18%, transparent);
-  border-top-color: var(--app-text-tertiary);
-  animation: lazy-image-spin 0.75s linear infinite;
+.lazy-image-skeleton__shimmer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%),
+    linear-gradient(145deg, var(--app-surface-soft), var(--app-surface-muted));
+  background-size: 220% 100%, 100% 100%;
+  animation: lazy-image-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes lazy-image-shimmer {
+  0% {
+    background-position: 180% 0, 0 0;
+  }
+
+  100% {
+    background-position: -20% 0, 0 0;
+  }
 }
 
 .lazy-image-fallback svg {
