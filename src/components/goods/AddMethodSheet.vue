@@ -6,7 +6,7 @@
 <template>
   <Teleport to="body">
     <Transition name="sheet-backdrop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
+      <div v-if="modelValue" class="sheet-backdrop" @click="close" @touchmove.prevent />
     </Transition>
 
     <Transition name="sheet-slide" @after-leave="view = 'options'">
@@ -227,7 +227,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { formatCurrency } from '@/utils/format'
@@ -268,6 +268,52 @@ const {
 
 const codeInputRef = ref(null)
 const codeInput = ref('')
+
+// ---- scroll lock ----
+let scrollLockActive = false
+let savedScrollY = 0
+const savedBodyStyles = {}
+const savedDocStyles = {}
+const bodyStyleKeys = ['position', 'top', 'left', 'right', 'width', 'overflow']
+const docStyleKeys = ['overflow', 'overscrollBehavior', 'background']
+
+function lockScroll() {
+  if (scrollLockActive) return
+  scrollLockActive = true
+  const body = document.body
+  const doc = document.documentElement
+  savedScrollY = window.scrollY
+  for (const k of bodyStyleKeys) savedBodyStyles[k] = body.style[k]
+  for (const k of docStyleKeys) savedDocStyles[k] = doc.style[k]
+  body.style.position = 'fixed'
+  body.style.top = `-${savedScrollY}px`
+  body.style.left = '0'
+  body.style.right = '0'
+  body.style.width = '100%'
+  body.style.overflow = 'hidden'
+  doc.style.overflow = 'hidden'
+  doc.style.overscrollBehavior = 'none'
+  doc.style.background = getComputedStyle(body).background
+}
+
+function unlockScroll() {
+  if (!scrollLockActive) return
+  scrollLockActive = false
+  const body = document.body
+  const doc = document.documentElement
+  for (const k of bodyStyleKeys) body.style[k] = savedBodyStyles[k] || ''
+  for (const k of docStyleKeys) doc.style[k] = savedDocStyles[k] || ''
+  window.scrollTo(0, savedScrollY)
+}
+
+watch(() => props.modelValue, (open) => {
+  if (open) lockScroll()
+  else unlockScroll()
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (scrollLockActive) unlockScroll()
+})
 
 function handleFetch() {
   const { gistId: id, shareId: sid } = extractIdsFromInput(codeInput.value)
@@ -348,6 +394,8 @@ function onTaobaoImport() {
   gap: 0;
   max-height: 90dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 顶部手柄 */
