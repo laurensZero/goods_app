@@ -1,9 +1,9 @@
 {
-  "version": "20260515.3",
-  "url": "bundle-20260515.3.zip",
-  "hash": "ec67d675b5fb1a80b1338107b41c1b77fee5d9c5a43e0d151d539af56c31ba3c",
+  "version": "20260515.4",
+  "url": "bundle-20260515.4.zip",
+  "hash": "d9d949350a357fa04c3bdd8233392d46be3fa60527440e2daed49969f853d56d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化懒加载图像组件，调整加载逻辑和根边距设置",
+  "notes": "- feat: 移除懒加载图像组件的闪烁和旋转动画，以提升性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T11:09:33Z"
+  "publishedAt": "2026-05-15T11:15:01Z"
 }

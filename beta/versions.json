@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.4",
+    "url": "bundle-20260515.4.zip",
+    "hash": "d9d949350a357fa04c3bdd8233392d46be3fa60527440e2daed49969f853d56d",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除懒加载图像组件的闪烁和旋转动画，以提升性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T11:15:01Z"
+  },
+  {
     "version": "20260515.3",
     "url": "bundle-20260515.3.zip",
     "hash": "ec67d675b5fb1a80b1338107b41c1b77fee5d9c5a43e0d151d539af56c31ba3c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新懒加载图像组件，优化加载状态和骨架屏效果",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T10:52:35Z"
-  },
-  {
-    "version": "20260515.1",
-    "url": "bundle-20260515.1.zip",
-    "hash": "6c376d4400f195064d07600c445c4ef271316dad925ea64d7c189eedb4be12e4",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图像加载和缓存逻辑，增强性能和用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T10:43:46Z"
   }
 ]
