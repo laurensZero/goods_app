@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260515.17",
+    "url": "bundle-20260515.17.zip",
+    "hash": "6b2809bee89ed86f8aecb786121c4ad8a602f7c4a54705d2b55897e8ce975f8b",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加滚动锁定功能以改善用户体验\n\n- feat: 添加价格排序功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-15T14:19:59Z"
+  },
+  {
     "version": "20260515.16",
     "url": "bundle-20260515.16.zip",
     "hash": "a51034c2f20311f2326db0924cab2cf8e0a172e53d4b56db70fae86096e482f8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修复：确保 unit_status 列存在并从 units 中迁移数据",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T13:54:02Z"
-  },
-  {
-    "version": "20260515.14",
-    "url": "bundle-20260515.14.zip",
-    "hash": "085f00695a9e17dbf5fb811e931996096224edd0ae233572df1d1854488b30ae",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 units 列并确保 unit_status 列存在，合并数据",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T13:50:21Z"
   }
 ]
