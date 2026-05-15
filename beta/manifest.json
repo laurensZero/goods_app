@@ -1,9 +1,9 @@
 {
-  "version": "20260515.19",
-  "url": "bundle-20260515.19.zip",
-  "hash": "adbbb725140ccc454ec9fa5799b319ed89551a5a304ff707087e36a442e6443b",
+  "version": "20260515.20",
+  "url": "bundle-20260515.20.zip",
+  "hash": "d3725bf56730ff478fa912e661f93779a3e0f07142281df8bf416ac371ea8766",
   "minNativeVersion": null,
-  "notes": "- feat: 增强hero动画管理，添加元素隐藏与恢复功能",
+  "notes": "- feat: 增强元素隐藏与恢复逻辑，添加数据属性以支持清理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T14:46:07Z"
+  "publishedAt": "2026-05-15T15:31:28Z"
 }
