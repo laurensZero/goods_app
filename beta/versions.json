@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.14",
+    "url": "bundle-20260516.14.zip",
+    "hash": "bd44737471cd633c6a63ece6c4a4bef1af8fbb484ae8c3f704a1a456e4ecc59f",
+    "minNativeVersion": null,
+    "notes": "- feat: 在 LazyCachedImage 组件中添加 imageAttrs 属性以支持自定义样式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T14:11:14Z"
+  },
+  {
     "version": "20260516.13",
     "url": "bundle-20260516.13.zip",
     "hash": "3639eed16041364942ab58a2202584bf7cee266ada0cea37aa8a4f06441f160e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新路由过渡动画逻辑，优化动画流畅度和稳定性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T12:22:35Z"
-  },
-  {
-    "version": "20260516.11",
-    "url": "bundle-20260516.11.zip",
-    "hash": "a8a1c5ff25fb16205020991642dde9bf243e8a84634feff38c91930161d9c59d",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加同标签子模式切换逻辑，优化导航体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T12:11:47Z"
   }
 ]
