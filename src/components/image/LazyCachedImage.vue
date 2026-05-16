@@ -49,7 +49,8 @@ const props = defineProps({
   decoding: { type: String, default: 'async' },
   fetchpriority: { type: String, default: 'low' },
   useCache: { type: Boolean, default: true },
-  lazy: { type: Boolean, default: true }
+  lazy: { type: Boolean, default: true },
+  imageAttrs: { type: Object, default: () => ({}) }
 })
 
 const attrs = useAttrs()
@@ -65,12 +66,14 @@ const rootAttrs = computed(() => {
 })
 const imageAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
+  const { class: imageClass, style: imageStyle, ...imageRest } = props.imageAttrs || {}
   // forward class and style also to the actual <img> element so callers
   // (e.g. cover-img) can style the image itself instead of only the wrapper
   return {
     ...rest,
-    class: _class,
-    style: _style
+    ...imageRest,
+    class: [_class, imageClass],
+    style: [_style, imageStyle]
   }
 })
 const resolvedSrc = ref('')
