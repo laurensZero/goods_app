@@ -36,7 +36,12 @@
               :data-event-hero-id="String(eventId || '')"
               :style="coverCardStyle"
             >
-              <img v-if="event.coverImage" :src="event.coverImage" :alt="event.name" class="cover-card__img" />
+              <LazyCachedImage
+                v-if="event.coverImage"
+                :src="event.coverImage"
+                :alt="event.name"
+                :image-attrs="{ class: 'cover-card__img' }"
+              />
               <div v-else class="cover-card__fallback">{{ coverFallback }}</div>
             </div>
 
@@ -203,7 +208,6 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
-import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -353,12 +357,7 @@ function getStoredViewState() {
       top: Number(parsed.top) || 0
     }
   } catch {
-    return null
-  }
-}
-
-function getStoredTrackState() {
-  const raw = localStorage.getItem(eventTrackKey.value)
+              <img v-if="event.coverImage" :src="event.coverImage" :alt="event.name" class="cover-card__img" />
   if (raw == null) return true
   return raw !== '0'
 }
