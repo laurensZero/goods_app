@@ -33,28 +33,19 @@ function animateScene(scene, direction) {
 }
 
 function runSlideTransition(navigate, direction) {
-  const result = navigate()
+  // Start navigation immediately — do not await it. Waiting for the
+  // navigation promise defers the slide animation until after the new
+  // component mounts, which causes a visible dead gap on the tab bar.
+  navigate()
 
-  const schedule = () => {
+  // Schedule the slide animation across two rAFs so it reliably runs
+  // after the DOM update, regardless of whether the route was lazy.
+  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const scene = getRouteScene()
-      if (scene) {
-        animateScene(scene, direction)
-      } else {
-        requestAnimationFrame(() => {
-          const scene = getRouteScene()
-          if (scene) animateScene(scene, direction)
-        })
-      }
+      if (scene) animateScene(scene, direction)
     })
-  }
-
-  // Wait for vue-router promise so async components are loaded
-  if (result && typeof result.then === 'function') {
-    result.then(schedule)
-  } else {
-    schedule()
-  }
+  })
 }
 
 /* ---------- public API ---------- */

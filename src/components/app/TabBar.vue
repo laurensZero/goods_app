@@ -167,6 +167,12 @@ function isTabActive(key) {
 
 const COLLECTION_SUB_ORDER = ['/home', '/wishlist', '/leaderboard/characters']
 
+function isSameTabSubSwitch(currentPath, targetPath) {
+  const fromSub = COLLECTION_SUB_ORDER.indexOf(currentPath)
+  const toSub = COLLECTION_SUB_ORDER.indexOf(targetPath)
+  return fromSub !== -1 && toSub !== -1 && fromSub !== toSub
+}
+
 function tabIndexOf(key) {
   return tabs.value.findIndex((t) => t.key === key)
 }
@@ -175,14 +181,10 @@ function resolveSlideDirection(currentPath, targetPath, targetTabKey) {
   const currentIndex = activeTabIndex.value
   const targetIndex = tabIndexOf(targetTabKey)
 
-  // Different tabs: direction based on tab bar position
   if (targetIndex !== currentIndex) {
     return targetIndex < currentIndex ? 'back' : 'forward'
   }
 
-  // Same tab, different sub-mode: 收藏 → 心愿 → 统计
-  // Going "deeper" (left to right) = new page comes from left = 'back'
-  // Going "back" (right to left) = new page comes from right = 'forward'
   const fromSub = COLLECTION_SUB_ORDER.indexOf(currentPath)
   const toSub = COLLECTION_SUB_ORDER.indexOf(targetPath)
   if (fromSub !== -1 && toSub !== -1) {
@@ -194,6 +196,13 @@ function resolveSlideDirection(currentPath, targetPath, targetTabKey) {
 
 function navigateWithTransition(path, tabKey) {
   if (route.path === path) return
+
+  // Same-tab sub-mode switch (收藏 / 心愿 / 统计): navigate instantly without
+  // slide animation — these are view-mode toggles, not page transitions.
+  if (isSameTabSubSwitch(route.path, path)) {
+    router.push(path)
+    return
+  }
 
   const direction = resolveSlideDirection(route.path, path, tabKey)
 
