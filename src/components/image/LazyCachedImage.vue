@@ -2,6 +2,7 @@
   <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
       v-if="resolvedSrc && !showFallback"
+      :key="imageElementKey"
       v-bind="imageAttrs"
       :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
@@ -77,11 +78,13 @@ const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
+const refreshGeneration = ref(0)
 const showSkeleton = computed(() => {
   return !!props.src && hasEnteredViewport.value && !showFallback.value && isImageLoading.value
 })
 const showFallback = computed(() => !!props.src && hasLoadError.value)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
+const imageElementKey = computed(() => `${props.src || 'empty'}:${refreshGeneration.value}`)
 let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
@@ -146,6 +149,7 @@ function onImageError() {
 onMounted(() => {
   imageCacheRefreshHandler = () => {
     const requestId = ++loadRequestId
+    refreshGeneration.value += 1
     resolvedSrc.value = ''
     hasLoadError.value = false
     isImageLoading.value = false
