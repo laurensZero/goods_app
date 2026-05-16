@@ -1,9 +1,9 @@
 {
-  "version": "20260516.15",
-  "url": "bundle-20260516.15.zip",
-  "hash": "7093de3be50aae1b70a001540627061cd410d12880014ceeaef54e502ce89ea4",
+  "version": "20260516.16",
+  "url": "bundle-20260516.16.zip",
+  "hash": "8b939234ee3f212e21e6c5c187a1be0afda4f32ca151a30803347d402fc83d82",
   "minNativeVersion": null,
-  "notes": "- fix: 修复新搜索界面bug",
+  "notes": "- feat: 在多个视图中添加 cleanupAllHeroes 方法以优化英雄动画管理\n\n- feat: 添加序列化和持久化愿望清单搜索状态功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T15:13:21Z"
+  "publishedAt": "2026-05-16T15:43:48Z"
 }
