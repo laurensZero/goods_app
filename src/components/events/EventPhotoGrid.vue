@@ -8,12 +8,11 @@
         class="photo-grid__item"
         @click="$emit('preview', index)"
       >
-        <img
+        <LazyCachedImage
           v-if="photo.uri"
-          class="photo-grid__img"
           :src="photo.uri"
           :alt="photo.caption || `照片 ${index + 1}`"
-          loading="lazy"
+          :image-attrs="{ class: 'photo-grid__img' }"
         />
         <div v-else class="photo-grid__placeholder">✦</div>
       </button>
@@ -22,6 +21,8 @@
 </template>
 
 <script setup>
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
 defineProps({
   photos: { type: Array, default: () => [] }
 })
@@ -67,7 +68,7 @@ defineEmits(['preview'])
   opacity: 0.85;
 }
 
-.photo-grid__img {
+:deep(.photo-grid__img) {
   width: 100%;
   height: 100%;
   object-fit: cover;
