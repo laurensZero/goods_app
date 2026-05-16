@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.15",
+    "url": "bundle-20260516.15.zip",
+    "hash": "7093de3be50aae1b70a001540627061cd410d12880014ceeaef54e502ce89ea4",
+    "minNativeVersion": null,
+    "notes": "- fix: 修复新搜索界面bug",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T15:13:21Z"
+  },
+  {
     "version": "20260516.14",
     "url": "bundle-20260516.14.zip",
     "hash": "bd44737471cd633c6a63ece6c4a4bef1af8fbb484ae8c3f704a1a456e4ecc59f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 使用 LazyCachedImage 组件优化活动图片加载",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T14:01:37Z"
-  },
-  {
-    "version": "20260516.12",
-    "url": "bundle-20260516.12.zip",
-    "hash": "c3c29d756eacf93630124f099f0b5c85f7beb23df8a1632c20d3bb579e6a82e6",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新路由过渡动画逻辑，优化动画流畅度和稳定性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T12:22:35Z"
   }
 ]
