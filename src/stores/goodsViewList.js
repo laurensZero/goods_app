@@ -14,8 +14,9 @@ import {
 /**
  * @param {object} item
  * @param {object} exchangeRate
+ * @returns {object}
  */
-function enrichItem(item, exchangeRate) {
+function createViewItem(item, exchangeRate) {
   const quantityNumber = parseQuantity(item.quantity)
   const officialPriceNumber = parseNumericPrice(item.price)
   const actualPriceNumber = parseNumericPrice(item.actualPrice)
@@ -36,6 +37,73 @@ function enrichItem(item, exchangeRate) {
     quantityNumber,
     totalValueNumber: priceCNYNumber * quantityNumber
   }
+}
+
+/**
+ * Mutates an existing viewItem in place to match the new source item.
+ * Reuses the same object reference so downstream vnodes stay stable.
+ * @param {object} view
+ * @param {object} item
+ * @param {object} exchangeRate
+ */
+function mutateViewItem(view, item, exchangeRate) {
+  const keys = Object.keys(item)
+  for (let i = 0; i < keys.length; i++) {
+    view[keys[i]] = item[keys[i]]
+  }
+  view.isWishlist = normalizeWishlistFlag(item.isWishlist)
+  view.sortId = String(item.id)
+  view.acquiredTime = parseAcquiredTime(item.acquiredAt)
+  view.timelineYearMonth = parseTimelineYearMonth(item.acquiredAt)
+
+  const quantityNumber = parseQuantity(item.quantity)
+  const officialPriceNumber = parseNumericPrice(item.price)
+  const actualPriceNumber = parseNumericPrice(item.actualPrice)
+  const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
+  const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+  view.priceNumber = effectivePriceNumber
+  view.officialPriceNumber = officialPriceNumber
+  view.actualPriceNumber = actualPriceNumber
+  view.effectivePriceNumber = effectivePriceNumber
+  view.priceCNYNumber = priceCNYNumber
+  view.quantityNumber = quantityNumber
+  view.totalValueNumber = priceCNYNumber * quantityNumber
+}
+
+/**
+ * Mutates an existing trash viewItem in place.
+ * @param {object} view
+ * @param {object} item
+ * @param {object} exchangeRate
+ */
+function mutateTrashViewItem(view, item, exchangeRate) {
+  const keys = Object.keys(item)
+  for (let i = 0; i < keys.length; i++) {
+    view[keys[i]] = item[keys[i]]
+  }
+  view.deletedTime = parseDeletedTime(item.deletedAt)
+  view.acquiredTime = parseAcquiredTime(item.acquiredAt)
+
+  const quantityNumber = parseQuantity(item.quantity)
+  const officialPriceNumber = parseNumericPrice(item.price)
+  const actualPriceNumber = parseNumericPrice(item.actualPrice)
+  const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
+  const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+  view.priceNumber = effectivePriceNumber
+  view.officialPriceNumber = officialPriceNumber
+  view.actualPriceNumber = actualPriceNumber
+  view.effectivePriceNumber = effectivePriceNumber
+  view.priceCNYNumber = priceCNYNumber
+  view.quantityNumber = quantityNumber
+  view.totalValueNumber = priceCNYNumber * quantityNumber
+}
+
+function idsEqual(a, b) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
 }
 
 /**
@@ -65,12 +133,17 @@ export function createViewList(list) {
       const cached = viewCache.get(item.id)
       if (cached && cached.srcItem === item && !ratesChanged) continue
       changed = true
-      const viewItem = enrichItem(item, exchangeRate)
-      newMap.set(item.id, { viewItem, srcItem: item })
+      if (cached) {
+        mutateViewItem(cached.viewItem, item, exchangeRate)
+        newMap.set(item.id, { viewItem: cached.viewItem, srcItem: item })
+      } else {
+        newMap.set(item.id, { viewItem: createViewItem(item, exchangeRate), srcItem: item })
+      }
     }
 
+    const newIds = new Set(newList.map((i) => i.id))
     for (const item of oldList) {
-      if (!newList.some((i) => i.id === item.id)) {
+      if (!newIds.has(item.id)) {
         changed = true
         newMap.delete(item.id)
       }
@@ -81,10 +154,7 @@ export function createViewList(list) {
     viewMap.value = newMap
 
     const newOrder = newList.map((i) => i.id)
-    if (
-      newOrder.length !== viewOrder.value.length ||
-      newOrder.some((id, i) => id !== viewOrder.value[i])
-    ) {
+    if (!idsEqual(newOrder, viewOrder.value)) {
       viewOrder.value = newOrder
     }
   }, { flush: 'sync' })
@@ -92,15 +162,30 @@ export function createViewList(list) {
   watch(() => useExchangeRateStore().rates, () => {
     const exchangeRate = useExchangeRateStore()
     cachedRatesRef = exchangeRate.rates
-    const newMap = new Map()
-    for (const [id, { srcItem }] of viewCache) {
-      newMap.set(id, { viewItem: enrichItem(srcItem, exchangeRate), srcItem })
+    const newMap = new Map(viewCache)
+    for (const [id, cached] of newMap) {
+      mutateViewItem(cached.viewItem, cached.srcItem, exchangeRate)
     }
     viewCache = newMap
     viewMap.value = newMap
   })
 
-  const viewList = computed(() => viewOrder.value.map((id) => viewMap.value.get(id)?.viewItem).filter(Boolean))
+  // Cache viewList — only rebuild when viewOrder or viewMap actually changes
+  let cachedViewList = []
+  let lastOrderRef = null
+  let lastMapRef = null
+
+  const viewList = computed(() => {
+    if (viewOrder.value === lastOrderRef && viewMap.value === lastMapRef) {
+      return cachedViewList
+    }
+    lastOrderRef = viewOrder.value
+    lastMapRef = viewMap.value
+    cachedViewList = viewOrder.value
+      .map((id) => viewMap.value.get(id)?.viewItem)
+      .filter(Boolean)
+    return cachedViewList
+  })
 
   return { viewList, viewMap, viewOrder }
 }
@@ -131,28 +216,17 @@ export function createTrashViewList(trashList) {
       const cached = trashViewCache.get(item.id)
       if (cached && cached.srcItem === item && !ratesChanged) continue
       changed = true
-      const quantityNumber = parseQuantity(item.quantity)
-      const officialPriceNumber = parseNumericPrice(item.price)
-      const actualPriceNumber = parseNumericPrice(item.actualPrice)
-      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
-      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
-      const viewItem = {
-        ...item,
-        deletedTime: parseDeletedTime(item.deletedAt),
-        acquiredTime: parseAcquiredTime(item.acquiredAt),
-        priceNumber: effectivePriceNumber,
-        officialPriceNumber,
-        actualPriceNumber,
-        effectivePriceNumber,
-        priceCNYNumber,
-        quantityNumber,
-        totalValueNumber: priceCNYNumber * quantityNumber
+      if (cached) {
+        mutateTrashViewItem(cached.viewItem, item, exchangeRate)
+        newMap.set(item.id, { viewItem: cached.viewItem, srcItem: item })
+      } else {
+        newMap.set(item.id, { viewItem: createViewItem(item, exchangeRate), srcItem: item })
       }
-      newMap.set(item.id, { viewItem, srcItem: item })
     }
 
+    const newIds = new Set(newList.map((i) => i.id))
     for (const item of oldList) {
-      if (!newList.some((i) => i.id === item.id)) {
+      if (!newIds.has(item.id)) {
         changed = true
         newMap.delete(item.id)
       }
@@ -175,32 +249,30 @@ export function createTrashViewList(trashList) {
   watch(() => useExchangeRateStore().rates, () => {
     const exchangeRate = useExchangeRateStore()
     trashCachedRatesRef = exchangeRate.rates
-    const newMap = new Map()
-    for (const [id, { srcItem }] of trashViewCache) {
-      const quantityNumber = parseQuantity(srcItem.quantity)
-      const officialPriceNumber = parseNumericPrice(srcItem.price)
-      const actualPriceNumber = parseNumericPrice(srcItem.actualPrice)
-      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(srcItem))
-      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, srcItem.currency)
-      const viewItem = {
-        ...srcItem,
-        deletedTime: parseDeletedTime(srcItem.deletedAt),
-        acquiredTime: parseAcquiredTime(srcItem.acquiredAt),
-        priceNumber: effectivePriceNumber,
-        officialPriceNumber,
-        actualPriceNumber,
-        effectivePriceNumber,
-        priceCNYNumber,
-        quantityNumber,
-        totalValueNumber: priceCNYNumber * quantityNumber
-      }
-      newMap.set(id, { viewItem, srcItem })
+    const newMap = new Map(trashViewCache)
+    for (const [id, cached] of newMap) {
+      mutateTrashViewItem(cached.viewItem, cached.srcItem, exchangeRate)
     }
     trashViewCache = newMap
     viewMap.value = newMap
   })
 
-  const viewList = computed(() => viewOrder.value.map((id) => viewMap.value.get(id)?.viewItem).filter(Boolean))
+  // Cache viewList — only rebuild when viewOrder or viewMap actually changes
+  let cachedViewList = []
+  let lastOrderRef = null
+  let lastMapRef = null
+
+  const viewList = computed(() => {
+    if (viewOrder.value === lastOrderRef && viewMap.value === lastMapRef) {
+      return cachedViewList
+    }
+    lastOrderRef = viewOrder.value
+    lastMapRef = viewMap.value
+    cachedViewList = viewOrder.value
+      .map((id) => viewMap.value.get(id)?.viewItem)
+      .filter(Boolean)
+    return cachedViewList
+  })
 
   return viewList
 }
@@ -210,7 +282,22 @@ export function createTrashViewList(trashList) {
  * @param {import('vue').ComputedRef} viewList
  */
 export function createFilteredViewLists(viewList) {
-  const collectionViewList = computed(() => viewList.value.filter((item) => !item.isWishlist))
-  const wishlistViewList = computed(() => viewList.value.filter((item) => item.isWishlist))
+  const collectionViewList = ref([])
+  const wishlistViewList = ref([])
+
+  watch(viewList, (list) => {
+    const collection = []
+    const wishlist = []
+    for (const item of list) {
+      if (item.isWishlist) {
+        wishlist.push(item)
+      } else {
+        collection.push(item)
+      }
+    }
+    collectionViewList.value = collection
+    wishlistViewList.value = wishlist
+  }, { flush: 'sync', immediate: true })
+
   return { collectionViewList, wishlistViewList }
 }

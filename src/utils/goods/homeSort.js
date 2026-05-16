@@ -53,41 +53,52 @@ function compareName(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hans-CN')
 }
 
+function compareItems(a, b, normalizedSortMode, directionFactor) {
+  if (normalizedSortMode === 'name') {
+    return compareName(a, b) * directionFactor
+      || (parseAddedTime(b) - parseAddedTime(a))
+      || (Number(b?.acquiredTime || 0) - Number(a?.acquiredTime || 0))
+      || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
+  }
+
+  if (normalizedSortMode === 'price') {
+    const priceA = Number(a?.totalValueNumber || 0)
+    const priceB = Number(b?.totalValueNumber || 0)
+    return (priceA - priceB) * directionFactor
+      || (parseAddedTime(a) - parseAddedTime(b))
+      || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0))
+      || compareName(a, b)
+      || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
+  }
+
+  if (normalizedSortMode === 'acquiredAt') {
+    return (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
+      || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
+      || compareName(a, b)
+      || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
+  }
+
+  return (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
+    || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
+    || compareName(a, b)
+    || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
+}
+
 export function sortHomeGoodsList(list, sortMode, sortDirection) {
   const normalizedSortMode = normalizeHomeSortMode(sortMode)
   const directionFactor = sortDirection === 'asc' ? 1 : -1
+
+  // Check if already sorted — avoid creating new array
+  let isSorted = true
+  for (let i = 1; i < list.length; i++) {
+    if (compareItems(list[i - 1], list[i], normalizedSortMode, directionFactor) > 0) {
+      isSorted = false
+      break
+    }
+  }
+  if (isSorted) return list
+
   const sorted = [...list]
-
-  sorted.sort((a, b) => {
-    if (normalizedSortMode === 'name') {
-      return compareName(a, b) * directionFactor
-        || (parseAddedTime(b) - parseAddedTime(a))
-        || (Number(b?.acquiredTime || 0) - Number(a?.acquiredTime || 0))
-        || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
-    }
-
-    if (normalizedSortMode === 'price') {
-      const priceA = Number(a?.totalValueNumber || 0)
-      const priceB = Number(b?.totalValueNumber || 0)
-      return (priceA - priceB) * directionFactor
-        || (parseAddedTime(a) - parseAddedTime(b))
-        || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0))
-        || compareName(a, b)
-        || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
-    }
-
-    if (normalizedSortMode === 'acquiredAt') {
-      return (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
-        || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
-        || compareName(a, b)
-        || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
-    }
-
-    return (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
-      || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
-      || compareName(a, b)
-      || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
-  })
-
+  sorted.sort((a, b) => compareItems(a, b, normalizedSortMode, directionFactor))
   return sorted
 }
