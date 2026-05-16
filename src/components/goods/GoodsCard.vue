@@ -44,7 +44,7 @@
           :lazy="!imagePriority"
           :use-cache="!imagePriority"
           :loading="imagePriority ? 'eager' : 'lazy'"
-          :decoding="imagePriority ? 'sync' : 'async'"
+          :decoding="'async'"
           :root-margin="imagePriority ? '0px' : '720px 0px'"
           :fetchpriority="imagePriority ? 'high' : 'low'"
           class="cover-img"
