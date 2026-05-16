@@ -222,8 +222,17 @@ function getCacheKeyCandidates(url) {
 
 function enqueueImageLoadTask(task, priority = 'viewport') {
   task.priority = priority
-  const queue = priority === 'preload' ? preloadLoadQueue : viewportLoadQueue
-  queue.push(task)
+  if (priority === 'preload') {
+    preloadLoadQueue.push(task)
+  } else {
+    const dist = task.viewportDistance ?? Infinity
+    const idx = viewportLoadQueue.findIndex((t) => (t.viewportDistance ?? Infinity) > dist)
+    if (idx < 0) {
+      viewportLoadQueue.push(task)
+    } else {
+      viewportLoadQueue.splice(idx, 0, task)
+    }
+  }
   queuedLoadKeys.add(task.cacheKey)
   queuedLoadMeta.set(task.cacheKey, task)
   scheduleImageLoadDrain()
@@ -238,7 +247,13 @@ function promoteQueuedImageLoad(cacheKey) {
 
   preloadLoadQueue.splice(preloadIndex, 1)
   task.priority = 'viewport'
-  viewportLoadQueue.unshift(task)
+  const dist = task.viewportDistance ?? Infinity
+  const idx = viewportLoadQueue.findIndex((t) => (t.viewportDistance ?? Infinity) > dist)
+  if (idx < 0) {
+    viewportLoadQueue.push(task)
+  } else {
+    viewportLoadQueue.splice(idx, 0, task)
+  }
   scheduleImageLoadDrain()
 }
 
@@ -380,9 +395,20 @@ export async function getCachedImage(url, options = {}) {
     if (memoryCache.has(key)) return memoryCache.get(key)
   }
 
+  let viewportDistance = options?.viewportDistance
+  if (viewportDistance === undefined || viewportDistance === null) {
+    viewportDistance = Infinity
+  }
+
   // 防止并发请求相同 URL 导致多次 IO 和网络请求
   if (inFlight.has(cacheKey)) {
-    if (priority === 'viewport') promoteQueuedImageLoad(cacheKey)
+    if (priority === 'viewport') {
+      const existingTask = queuedLoadMeta.get(cacheKey)
+      if (existingTask) {
+        existingTask.viewportDistance = Math.min(existingTask.viewportDistance ?? Infinity, viewportDistance)
+      }
+      promoteQueuedImageLoad(cacheKey)
+    }
     return inFlight.get(cacheKey)
   }
 
@@ -394,6 +420,7 @@ export async function getCachedImage(url, options = {}) {
   inFlight.set(cacheKey, promise)
   enqueueImageLoadTask({
     cacheKey,
+    viewportDistance,
     run: async () => {
         // 2: Cache API (Web)
         const cacheHit = await getFromCacheAPI(cacheKey)
