@@ -1,9 +1,9 @@
 {
-  "version": "20260516.3",
-  "url": "bundle-20260516.3.zip",
-  "hash": "073edb714857f8c6dac66bbb4398bfc147e8c5b9f7ae748596146f4952e44d96",
+  "version": "20260516.4",
+  "url": "bundle-20260516.4.zip",
+  "hash": "dfe48e536fabc86ec2dbd6d549a533f063c62bff199c845023cb7d99d26028af",
   "minNativeVersion": null,
-  "notes": "- feat: 优化图像加载优先级，添加图像优先级属性以提升性能",
+  "notes": "- feat: 增强商品列表骨架屏，添加价格和天数占位符，优化样式布局",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T03:59:08Z"
+  "publishedAt": "2026-05-16T04:14:40Z"
 }
