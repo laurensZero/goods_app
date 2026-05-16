@@ -1,9 +1,9 @@
 {
-  "version": "20260516.7",
-  "url": "bundle-20260516.7.zip",
-  "hash": "577c4e7a794563aded6feb689ebe5d15f41aade16db977a400f96566aa23ada1",
+  "version": "20260516.8",
+  "url": "bundle-20260516.8.zip",
+  "hash": "faa392005280c970ca2eeb8297a7115a2747907220b38b1aded008e4d9b493ba",
   "minNativeVersion": null,
-  "notes": "- Revert \"feat: 优化图像加载优先级，添加图像优先级属性以提升性能\"\n  This reverts commit 47d023f5df1ddd14dd25fcdc5f6400c224d3352c.",
+  "notes": "- feat: 添加图像元素键以支持图像刷新机制",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T05:43:26Z"
+  "publishedAt": "2026-05-16T08:50:03Z"
 }
