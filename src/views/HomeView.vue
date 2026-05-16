@@ -26,7 +26,7 @@
           </button>
 
           <HomeViewModeSwitch
-            v-if="!selectionMode && !searchModeActive"
+            v-if="!selectionMode"
             model-value="goods"
             @update:model-value="switchHomeTopTab"
           />
@@ -86,9 +86,6 @@
                     <h3 class="search-section__sub-title">保存组合</h3>
                   </div>
                   <div class="search-section__actions">
-                    <button class="search-section__chip-btn" type="button" @click="toggleSearchScope">
-                      切换到{{ searchScope === 'wishlist' ? '收藏库' : '心愿单' }}
-                    </button>
                     <button v-if="activeSearchFilterCount > 0" class="search-section__chip-btn" type="button" @click="resetSearchFilters">重置</button>
                   </div>
                 </div>
@@ -502,13 +499,9 @@ function resetSearchFilters() {
   persistSearchState()
 }
 
-function toggleSearchScope() {
-  searchScope.value = searchScope.value === 'wishlist' ? 'collection' : 'wishlist'
-  persistSearchState()
-}
-
 function toggleSearchAdvanced() {
   advancedExpanded.value = !advancedExpanded.value
+  persistSearchState()
 }
 
 function assignSearchFilters(nextFilters) {
@@ -520,8 +513,7 @@ function buildSearchState() {
   return {
     scope: searchScope.value,
     active: searchModeActive.value,
-    advancedExpanded: advancedExpanded.value,
-    filters: normalizeSearchFilters(searchFilters)
+    advancedExpanded: advancedExpanded.value
   }
 }
 
@@ -543,11 +535,48 @@ function restoreSearchStateFromHistory() {
   const state = window.history.state?.[searchModeHistoryKey]
   if (!state || typeof state !== 'object') return false
 
+  const wasSearchActive = searchModeActive.value
   searchScope.value = state.scope === 'wishlist' ? 'wishlist' : 'collection'
-  assignSearchFilters(state.filters)
   searchModeActive.value = state.active !== false
-  advancedExpanded.value = state.advancedExpanded !== false
+  advancedExpanded.value = state.advancedExpanded === true
+
+  if (!wasSearchActive) {
+    resetSearchFilters()
+  }
+
   return true
+}
+
+function applySearchModeState(scope = 'collection', options = {}) {
+  const { resetFilters = true } = options
+  searchScope.value = scope === 'wishlist' ? 'wishlist' : 'collection'
+  if (resetFilters) {
+    resetSearchFilters()
+  }
+  searchModeActive.value = true
+  advancedExpanded.value = false
+  searchDisplayReady.value = true
+}
+
+function syncSearchModeFromRoute() {
+  if (String(route.query.mode || '') === 'search') {
+    const nextScope = route.query.scope === 'wishlist' ? 'wishlist' : 'collection'
+    if (!searchModeActive.value) {
+      applySearchModeState(nextScope, {
+        resetFilters: false
+      })
+    } else {
+      searchScope.value = nextScope
+    }
+    return true
+  }
+
+  if (searchModeActive.value) {
+    searchModeActive.value = false
+    advancedExpanded.value = false
+  }
+
+  return false
 }
 
 function updateSearchModeRoute(active) {
@@ -564,7 +593,11 @@ function updateSearchModeRoute(active) {
 
     if (active) {
       nextQuery.mode = 'search'
-      nextQuery.scope = searchScope.value
+      if (searchScope.value === 'wishlist') {
+        nextQuery.scope = 'wishlist'
+      } else {
+        delete nextQuery.scope
+      }
     } else {
       delete nextQuery.mode
       delete nextQuery.scope
@@ -575,17 +608,25 @@ function updateSearchModeRoute(active) {
 }
 
 function openSearchMode(scope = 'collection') {
-  searchScope.value = scope === 'wishlist' ? 'wishlist' : 'collection'
-  searchModeActive.value = true
-  advancedExpanded.value = false
-  searchDisplayReady.value = true
+  applySearchModeState(scope)
   updateSearchModeRoute(true)
   persistSearchState()
 }
 
-function closeSearchMode() {
+async function closeSearchMode(options = {}) {
+  const { immediate = false, syncRoute = true } = options
+  if (advancedExpanded.value) {
+    advancedExpanded.value = false
+    if (!immediate) {
+      await nextTick()
+    }
+  }
+
   searchModeActive.value = false
-  updateSearchModeRoute(false)
+  resetSearchFilters()
+  if (syncRoute) {
+    updateSearchModeRoute(false)
+  }
   persistSearchState()
 }
 
@@ -679,7 +720,8 @@ const {
   clearDisplayedScrollPosition,
   clearStoredScrollState,
   resetStoredScrollOnReload,
-  cancelPendingRestore
+  cancelPendingRestore,
+  isRestoring
 } = useHomeScrollRestore(pageBodyRef)
 
 const homeDisplayReady = ref(true)
@@ -692,12 +734,16 @@ let lastDetailNavigationTime = 0
 const router = useRouter()
 const route = useRoute()
 
-function switchHomeTopTab(nextMode) {
+async function switchHomeTopTab(nextMode) {
   const SUB_ORDER = ['/home', '/wishlist', '/leaderboard/characters']
   const fi = SUB_ORDER.indexOf(route.path)
   const toPath = nextMode === 'wishlist' ? '/wishlist' : nextMode === 'stats' ? '/leaderboard/characters' : '/home'
   const ti = SUB_ORDER.indexOf(toPath)
   const direction = (fi !== -1 && ti !== -1 && ti < fi) ? 'forward' : 'back'
+
+  if (searchModeActive.value) {
+    await closeSearchMode({ immediate: true, syncRoute: false })
+  }
 
   if (nextMode === 'wishlist') {
     persistCollectionTab('wishlist')
@@ -946,7 +992,8 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const cols = getResponsiveCols(effectiveDisplayDensity.value)
   const rowHeight = ROW_HEIGHT_MAP[effectiveDisplayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
-  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const baseOverscan = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const overscanRows = searchModeActive.value ? Math.max(baseOverscan, 10) : baseOverscan
   const maxRenderCards = GOODS_GRID_MAX_RENDER_CARDS
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
@@ -1080,11 +1127,13 @@ function maybeLoadMoreTimelineMonths() {
 
 function handlePageScroll() {
   if (isRouteLeaving) return
+  if (isRestoring.value) return
   if (isGoodsHeroAnimating()) return
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
     if (isRouteLeaving) return
+    if (isRestoring.value) return
     if (isGoodsHeroAnimating()) return
     updateImagePreloadThrottle(readScrollTop())
     rememberCurrentScrollPosition()
@@ -1226,10 +1275,8 @@ onMounted(async () => {
   }
   homeDisplayReady.value = true
   restoreHomePreferences()
-  if (!restoreSearchStateFromHistory() && String(route.query.mode || '') === 'search') {
-    searchScope.value = route.query.scope === 'wishlist' ? 'wishlist' : 'collection'
-    searchModeActive.value = true
-    searchDisplayReady.value = true
+  if (!restoreSearchStateFromHistory()) {
+    syncSearchModeFromRoute()
   }
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
@@ -1270,6 +1317,9 @@ onActivated(async () => {
   if (storedState?.source) {
     markScrollSource(storedState.source)
   }
+  if (!restoreSearchStateFromHistory()) {
+    syncSearchModeFromRoute()
+  }
   await restoreActivatedScrollPosition(
     syncVisibleGoodsCountForActivatedRestore,
     syncVisibleTimelineMonthCountForActivatedRestore,
@@ -1284,6 +1334,14 @@ onActivated(async () => {
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
 })
+
+watch(
+  () => [route.query.mode, route.query.scope],
+  () => {
+    if (!isHomeActive.value) return
+    syncSearchModeFromRoute()
+  }
+)
 
 onDeactivated(() => {
   isHomeActive.value = false
@@ -1565,7 +1623,7 @@ const preloadTargetList = computed(() =>
 )
 
 watch(
-  [() => displayedGoodsList.value.length, effectiveDisplayDensity, sortDirection, sortMode, windowWidth, searchModeActive, searchScope],
+  [() => displayedGoodsList.value.length, effectiveDisplayDensity, sortDirection, sortMode, windowWidth, searchModeActive, searchScope, advancedExpanded],
   () => {
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
@@ -1871,6 +1929,7 @@ async function applyBatchEditPayload(payload) {
 
 .page-body {
   padding-top: calc(env(safe-area-inset-top) + 20px);
+  overflow-anchor: none;
 }
 
 .hero-section,
@@ -2229,12 +2288,17 @@ async function applyBatchEditPayload(payload) {
 }
 
 .search-mode-panel-enter-active,
+.search-advanced-panel-enter-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+
 .search-mode-panel-leave-active,
-.search-advanced-panel-enter-active,
 .search-advanced-panel-leave-active {
   transition:
-    opacity 0.22s ease,
-    transform 0.22s cubic-bezier(0.2, 0.85, 0.25, 1);
+    opacity 0.1s ease,
+    transform 0.1s cubic-bezier(0.2, 0.85, 0.25, 1);
 }
 
 .search-mode-panel-enter-from,
@@ -2246,7 +2310,7 @@ async function applyBatchEditPayload(payload) {
 .search-advanced-panel-enter-from,
 .search-advanced-panel-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(0);
 }
 
 :global(html.theme-dark) .search-section__toggle,

@@ -1,4 +1,4 @@
-import { nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import { setWindowScrollTop } from '@/utils/scrollPosition'
 import { isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
 
@@ -12,6 +12,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   let savedScrollState = null
   let activeScrollSource = null
   let restoreSessionId = 0
+  const isRestoring = ref(false)
   const DEBUG_SCROLL_RESTORE = false
 
   function debugLog(message, payload = null) {
@@ -268,7 +269,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     debugLog('applyScrollPosition:start', { sessionId, top, source, stateOrTop })
 
     const applyTarget = () => {
-      setScrollTop(top, 'both')
+      setScrollTop(top, source)
     }
 
     applyTarget()
@@ -324,31 +325,36 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
 
     if (!shouldRestore) return
 
-    syncVisibleGoodsCount(storedTop)
-    syncVisibleTimelineMonthCount(storedTop)
-    prepareRestoreState?.(storedState)
-    // top=0 is a valid stored position. Never treat it as "no data".
-    if (storedTop <= 0) {
-      setScrollTop(0, storedState?.source || 'both')
+    isRestoring.value = true
+    try {
+      syncVisibleGoodsCount(storedTop)
+      syncVisibleTimelineMonthCount(storedTop)
+      prepareRestoreState?.(storedState)
+      // top=0 is a valid stored position. Never treat it as "no data".
+      if (storedTop <= 0) {
+        setScrollTop(0, storedState?.source || 'both')
+        sessionStorage.removeItem(pendingKey)
+        debugLog('restorePendingScrollPosition:top<=0-clear-pending', { sessionId, storedState })
+        return
+      }
+      // Apply target scroll immediately to avoid a visible jump at page top.
+      setScrollTop(storedTop, storedState?.source || 'both')
+      if (Math.abs(readScrollTop() - storedTop) <= 1) {
+        sessionStorage.removeItem(pendingKey)
+        debugLog('restorePendingScrollPosition:already-at-target', { sessionId, storedTop })
+        return
+      }
+      if (!(await waitForLayout(2, sessionId))) return
+      const didApply = await applyScrollPosition(storedState || storedTop, sessionId)
+      if (!didApply) {
+        if (!(await waitForLayout(1, sessionId))) return
+        await applyScrollPosition(storedState || storedTop, sessionId)
+      }
       sessionStorage.removeItem(pendingKey)
-      debugLog('restorePendingScrollPosition:top<=0-clear-pending', { sessionId, storedState })
-      return
+      debugLog('restorePendingScrollPosition:done', { sessionId, storedState, storedTop })
+    } finally {
+      isRestoring.value = false
     }
-    // Apply target scroll immediately to avoid a visible jump at page top.
-    setScrollTop(storedTop, storedState?.source || 'both')
-    if (Math.abs(readScrollTop() - storedTop) <= 1) {
-      sessionStorage.removeItem(pendingKey)
-      debugLog('restorePendingScrollPosition:already-at-target', { sessionId, storedTop })
-      return
-    }
-    if (!(await waitForLayout(2, sessionId))) return
-    const didApply = await applyScrollPosition(storedState || storedTop, sessionId)
-    if (!didApply) {
-      if (!(await waitForLayout(1, sessionId))) return
-      await applyScrollPosition(storedState || storedTop, sessionId)
-    }
-    sessionStorage.removeItem(pendingKey)
-    debugLog('restorePendingScrollPosition:done', { sessionId, storedState, storedTop })
   }
 
   async function restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState = null) {
@@ -365,32 +371,37 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
       return
     }
 
-    syncVisibleGoodsCount(storedTop)
-    syncVisibleTimelineMonthCount(storedTop)
-    prepareRestoreState?.(storedState)
-    // top=0 is a valid stored position. Never treat it as "no data".
-    if (storedTop <= 0) {
-      setScrollTop(0, storedState?.source || 'both')
-      sessionStorage.removeItem(pendingKey)
-      debugLog('restoreActivatedScrollPosition:top<=0-clear-pending', { sessionId, storedState })
-      return
-    }
-    // Apply target scroll immediately to avoid a visible jump at page top.
-    setScrollTop(storedTop, storedState?.source || 'both')
-    if (Math.abs(readScrollTop() - storedTop) <= 1) {
-      sessionStorage.removeItem(pendingKey)
-      debugLog('restoreActivatedScrollPosition:already-at-target', { sessionId, storedTop })
-      return
-    }
+    isRestoring.value = true
+    try {
+      syncVisibleGoodsCount(storedTop)
+      syncVisibleTimelineMonthCount(storedTop)
+      prepareRestoreState?.(storedState)
+      // top=0 is a valid stored position. Never treat it as "no data".
+      if (storedTop <= 0) {
+        setScrollTop(0, storedState?.source || 'both')
+        sessionStorage.removeItem(pendingKey)
+        debugLog('restoreActivatedScrollPosition:top<=0-clear-pending', { sessionId, storedState })
+        return
+      }
+      // Apply target scroll immediately to avoid a visible jump at page top.
+      setScrollTop(storedTop, storedState?.source || 'both')
+      if (Math.abs(readScrollTop() - storedTop) <= 1) {
+        sessionStorage.removeItem(pendingKey)
+        debugLog('restoreActivatedScrollPosition:already-at-target', { sessionId, storedTop })
+        return
+      }
 
-    if (!(await waitForLayout(2, sessionId))) return
-    const firstPassApplied = await applyScrollPosition(storedState || storedTop, sessionId)
-    if (!firstPassApplied) {
-      if (!(await waitForLayout(1, sessionId))) return
-      await applyScrollPosition(storedState || storedTop, sessionId)
+      if (!(await waitForLayout(2, sessionId))) return
+      const firstPassApplied = await applyScrollPosition(storedState || storedTop, sessionId)
+      if (!firstPassApplied) {
+        if (!(await waitForLayout(1, sessionId))) return
+        await applyScrollPosition(storedState || storedTop, sessionId)
+      }
+      sessionStorage.removeItem(pendingKey)
+      debugLog('restoreActivatedScrollPosition:done', { sessionId, storedState, storedTop })
+    } finally {
+      isRestoring.value = false
     }
-    sessionStorage.removeItem(pendingKey)
-    debugLog('restoreActivatedScrollPosition:done', { sessionId, storedState, storedTop })
   }
 
   function rememberCurrentScrollPosition(reason = 'remember', shouldLog = false) {
@@ -446,6 +457,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     readScrollTop,
     getStoredScrollState,
     hasPendingRestore,
+    isRestoring,
     saveScrollPosition,
     applyScrollPosition,
     restorePendingScrollPosition,

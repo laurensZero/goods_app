@@ -12,7 +12,7 @@
         </div>
 
         <div class="hero-actions">
-          <button class="hero-search" type="button" aria-label="搜索心愿单" @click="openSearch">
+          <button v-if="!searchModeActive" class="hero-search" type="button" aria-label="搜索心愿单" @click="openSearch">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20L16.65 16.65" />
@@ -36,7 +36,21 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <section class="summary-section">
+      <Transition name="search-mode-panel" mode="out-in">
+        <GoodsSearchPanel
+          v-if="searchModeActive && !selectionMode"
+          :active="searchModeActive"
+          v-model:advanced-expanded="searchAdvancedExpanded"
+          :filters="searchFilters"
+          :source-list="baseGoodsList"
+          :storage-location-tree-source="presets.storageLocationTree"
+          scope-label="心愿单"
+          @close="closeSearchMode"
+          @reset="resetSearchFilters"
+        />
+      </Transition>
+
+      <section v-if="!searchModeActive" class="summary-section">
         <SummaryCard
           label="Wishlist Budget"
           storage-key="goods-app:wishlist-total-value-hidden"
@@ -47,7 +61,7 @@
       </section>
 
       <HomeGoodsToolbar
-        v-if="goodsList.length > 0"
+        v-if="!searchModeActive && goodsList.length > 0"
         section-label="我的心愿"
         title="全部目标"
         :total-quantity="totalQuantity"
@@ -66,7 +80,7 @@
       <GoodsListSkeleton v-if="!store.isReady" />
 
       <GoodsCardGridSection
-        v-else-if="goodsList.length > 0"
+        v-else-if="displayedGoodsList.length > 0"
         ref="goodsGridSectionRef"
         :items="visibleGoodsList"
         :density="displayDensity"
@@ -85,11 +99,11 @@
 
       <section v-else class="empty-wrap">
         <EmptyState
-          icon="♡"
-          title="还没有心愿记录"
-          description="看到想收的谷子时先放进这里，之后再决定什么时候入手。"
-          action-text="添加心愿"
-          @action="openAddSheet"
+          :icon="searchModeActive ? '🔍' : '♡'"
+          :title="searchModeActive ? '没有匹配的心愿' : '还没有心愿记录'"
+          :description="searchModeActive ? '试试更短的关键词，或者收起高级筛选。' : '看到想收的谷子时先放进这里，之后再决定什么时候入手。'"
+          :action-text="searchModeActive ? '关闭搜索' : '添加心愿'"
+          @action="searchModeActive ? closeSearchMode() : openAddSheet()"
         />
       </section>
     </main>
@@ -139,6 +153,7 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { useWishlistScrollRestore } from '@/composables/scroll/useWishlistScrollRestore'
@@ -147,6 +162,7 @@ import { useDensityGridViewport } from '@/composables/home/useDensityGridViewpor
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
+import GoodsSearchPanel from '@/components/goods/GoodsSearchPanel.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -165,6 +181,13 @@ import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import {
+  GOODS_FILTER_SPECIAL_VALUES,
+  applyGoodsFilters,
+  countActiveGoodsFilters,
+  createDefaultGoodsFilters,
+  normalizeGoodsFilterConditions
+} from '@/utils/goods/filters'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -204,6 +227,7 @@ const ROW_HEIGHT_MAP = {
 const router = useRouter()
 const route = useRoute()
 const store = useGoodsStore()
+const presets = usePresetsStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const windowWidth = ref(window.innerWidth)
@@ -217,6 +241,9 @@ const wishlistDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
 const topJumpMasking = ref(false)
 const selectionHeaderTop = ref(0)
+const searchModeActive = ref(false)
+const searchAdvancedExpanded = ref(false)
+const searchFilters = ref(createDefaultGoodsFilters({ hasImage: 'any' }))
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
@@ -283,7 +310,21 @@ function getInitialVisibleCount() {
 
 const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
 
-const listCore = useGoodsListCore(goodsList, {
+function normalizeSearchFilters(input = {}) {
+  return normalizeGoodsFilterConditions({
+    ...input,
+    hasImage: 'any'
+  })
+}
+
+const searchNormalizedFilters = computed(() => normalizeSearchFilters(searchFilters.value))
+const searchResults = computed(() => applyGoodsFilters(baseGoodsList.value, searchNormalizedFilters.value))
+const displayedGoodsList = computed(() => (
+  searchModeActive.value ? searchResults.value : goodsList.value
+))
+const activeSearchFilterCount = computed(() => countActiveGoodsFilters(searchNormalizedFilters.value))
+
+const listCore = useGoodsListCore(displayedGoodsList, {
   density: displayDensity,
   getResponsiveCols,
   rowHeightMap: ROW_HEIGHT_MAP,
@@ -332,7 +373,7 @@ const densityFlip = useGoodsGridDensityFlip({
 
 
 const selectedGoodsItems = computed(() =>
-  goodsList.value.filter((item) => selectedIds.value.has(item.id))
+  displayedGoodsList.value.filter((item) => selectedIds.value.has(item.id))
 )
 
 function closeSelectionOverlays() {
@@ -352,7 +393,7 @@ const {
   exitSelectionModeQuiet,
   exitSelectionMode,
   handleSelectionPopState
-} = useGoodsSelection(goodsList, {
+} = useGoodsSelection(displayedGoodsList, {
   historyKey: 'wishlistSelectionMode',
   onExit: closeSelectionOverlays,
   getScrollTop: readScrollTop,
@@ -378,23 +419,18 @@ function resolveGoodsViewportHeight(options = {}) {
 }
 
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
-  if (!shouldVirtualizeGoodsList.value) {
-    visibleGoodsStartIndex.value = 0
-    visibleGoodsRenderCount.value = goodsList.value.length
-    return
-  }
-
   const normalizedTop = Math.max(0, Number(scrollTop) || 0)
   const viewportHeight = resolveGoodsViewportHeight(options)
   const cols = getResponsiveCols(displayDensity.value)
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
-  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const baseOverscan = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const overscanRows = searchModeActive.value ? Math.max(baseOverscan, 10) : baseOverscan
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
-  const startIndex = Math.min(goodsList.value.length, startRow * cols)
-  const remainingItems = Math.max(0, goodsList.value.length - startIndex)
+  const startIndex = Math.min(displayedGoodsList.value.length, startRow * cols)
+  const remainingItems = Math.max(0, displayedGoodsList.value.length - startIndex)
   const renderCount = Math.min(
     remainingItems,
     Math.min(
@@ -413,7 +449,7 @@ function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
 function syncVisibleTimelineMonthCount() {}
 
 watch(
-  [() => goodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
+  [() => displayedGoodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth, searchModeActive, searchAdvancedExpanded],
   () => {
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
   },
@@ -600,15 +636,19 @@ function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
 }
 
 function openSearch() {
-  saveScrollPosition(true, 'wishlist:openSearch')
-  runWithRouteTransition(
-    () => router.push({ path: '/home', query: { mode: 'search', scope: 'wishlist' } }),
-    {
-      direction: 'forward',
-      preferFallback: true,
-      detailTransitionKind: 'search-enter'
-    }
-  )
+  resetSearchFilters()
+  searchAdvancedExpanded.value = false
+  searchModeActive.value = true
+}
+
+function closeSearchMode() {
+  searchModeActive.value = false
+  searchAdvancedExpanded.value = false
+  resetSearchFilters()
+}
+
+function resetSearchFilters() {
+  searchFilters.value = createDefaultGoodsFilters({ hasImage: 'any' })
 }
 
 function persistHomeMode(mode) {
@@ -619,12 +659,16 @@ function persistHomeMode(mode) {
   }))
 }
 
-function switchTopTab(nextMode) {
+async function switchTopTab(nextMode) {
   const SUB_ORDER = ['/home', '/wishlist', '/leaderboard/characters']
   const fi = SUB_ORDER.indexOf(route.path)
   const toPath = nextMode === 'goods' ? '/home' : nextMode === 'stats' ? '/leaderboard/characters' : '/wishlist'
   const ti = SUB_ORDER.indexOf(toPath)
   const direction = (fi !== -1 && ti !== -1 && ti < fi) ? 'forward' : 'back'
+
+  if (searchModeActive.value) {
+    closeSearchMode()
+  }
 
   if (nextMode === 'goods') {
     persistCollectionTab('goods')
