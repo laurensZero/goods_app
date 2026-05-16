@@ -208,6 +208,7 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -357,7 +358,12 @@ function getStoredViewState() {
       top: Number(parsed.top) || 0
     }
   } catch {
-              <img v-if="event.coverImage" :src="event.coverImage" :alt="event.name" class="cover-card__img" />
+    return null
+  }
+}
+
+function getStoredTrackState() {
+  const raw = localStorage.getItem(eventTrackKey.value)
   if (raw == null) return true
   return raw !== '0'
 }
@@ -687,7 +693,7 @@ function tryPlayLinkedGoodsBackHero() {
   background: linear-gradient(180deg, #2c2f38, #242731);
 }
 
-.cover-card__img {
+:deep(.cover-card__img) {
   width: 100%;
   height: 100%;
   object-fit: cover;
