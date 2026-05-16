@@ -30,12 +30,11 @@
       :data-event-hero-id="String(event.id || '')"
       :style="coverMediaStyle"
     >
-      <img
+      <LazyCachedImage
         v-if="event.coverImage"
-        class="event-card__image"
         :src="event.coverImage"
         :alt="event.name || '活动封面'"
-        loading="lazy"
+        :image-attrs="{ class: 'event-card__image' }"
       />
       <div v-else class="event-card__placeholder">
         <span>{{ event.name?.trim()?.charAt(0) || '活' }}</span>
@@ -74,6 +73,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -323,7 +323,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, #2c2f38, #242731);
 }
 
-.event-card__image {
+:deep(.event-card__image) {
   width: 100%;
   height: 100%;
   object-fit: cover;
