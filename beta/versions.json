@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.2",
+    "url": "bundle-20260516.2.zip",
+    "hash": "26f2eca542249fc084a0b715d12136af43bc383aa5111069ca05aeb6f77fd0a2",
+    "minNativeVersion": null,
+    "notes": "- feat: 预加载活动和充值数据，确保相关页面初次打开时已就绪",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T03:10:19Z"
+  },
+  {
     "version": "20260516.1",
     "url": "bundle-20260516.1.zip",
     "hash": "c06d668316a31d7e221a6b7f43cbcd92a09d9f52802c54cccd97547f1f416e28",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强元素隐藏与恢复逻辑，添加数据属性以支持清理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-15T15:31:28Z"
-  },
-  {
-    "version": "20260515.19",
-    "url": "bundle-20260515.19.zip",
-    "hash": "adbbb725140ccc454ec9fa5799b319ed89551a5a304ff707087e36a442e6443b",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强hero动画管理，添加元素隐藏与恢复功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T14:46:07Z"
   }
 ]
