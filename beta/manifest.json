@@ -1,9 +1,9 @@
 {
-  "version": "20260516.2",
-  "url": "bundle-20260516.2.zip",
-  "hash": "26f2eca542249fc084a0b715d12136af43bc383aa5111069ca05aeb6f77fd0a2",
+  "version": "20260516.3",
+  "url": "bundle-20260516.3.zip",
+  "hash": "073edb714857f8c6dac66bbb4398bfc147e8c5b9f7ae748596146f4952e44d96",
   "minNativeVersion": null,
-  "notes": "- feat: 预加载活动和充值数据，确保相关页面初次打开时已就绪",
+  "notes": "- feat: 优化图像加载优先级，添加图像优先级属性以提升性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T03:10:19Z"
+  "publishedAt": "2026-05-16T03:59:08Z"
 }

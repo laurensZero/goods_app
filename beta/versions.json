@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.3",
+    "url": "bundle-20260516.3.zip",
+    "hash": "073edb714857f8c6dac66bbb4398bfc147e8c5b9f7ae748596146f4952e44d96",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化图像加载优先级，添加图像优先级属性以提升性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T03:59:08Z"
+  },
+  {
     "version": "20260516.2",
     "url": "bundle-20260516.2.zip",
     "hash": "26f2eca542249fc084a0b715d12136af43bc383aa5111069ca05aeb6f77fd0a2",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加图像缓存刷新机制，优化图像加载状态管理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T02:37:07Z"
-  },
-  {
-    "version": "20260515.20",
-    "url": "bundle-20260515.20.zip",
-    "hash": "d3725bf56730ff478fa912e661f93779a3e0f07142281df8bf416ac371ea8766",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强元素隐藏与恢复逻辑，添加数据属性以支持清理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-15T15:31:28Z"
   }
 ]
