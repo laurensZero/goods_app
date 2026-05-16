@@ -142,6 +142,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { useWishlistScrollRestore } from '@/composables/scroll/useWishlistScrollRestore'
+import { useGoodsListCore } from '@/composables/goods/useGoodsListCore'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -280,21 +281,28 @@ function getInitialVisibleCount() {
   return Math.max(getResponsiveCols(displayDensity.value) * INITIAL_RENDER_ROWS, 24)
 }
 
-const visibleGoodsStartIndex = ref(0)
-const visibleGoodsRenderCount = ref(getInitialVisibleCount())
-const shouldVirtualizeGoodsList = computed(() => goodsList.value.length > GOODS_GRID_MAX_RENDER_CARDS)
-const visibleGoodsEndIndex = computed(() =>
-  shouldVirtualizeGoodsList.value
-    ? Math.min(goodsList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
-    : goodsList.value.length
-)
-
 const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
-const visibleGoodsList = computed(() =>
-  shouldVirtualizeGoodsList.value
-    ? goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
-    : goodsList.value
-)
+
+const listCore = useGoodsListCore(goodsList, {
+  density: displayDensity,
+  getResponsiveCols,
+  rowHeightMap: ROW_HEIGHT_MAP,
+  getScrollEl,
+  initialRenderRows: INITIAL_RENDER_ROWS,
+  rowGap: GOODS_GRID_ROW_GAP,
+  overscanRows: GOODS_GRID_OVERSCAN_ROWS,
+  overscanRowsWide: GOODS_GRID_OVERSCAN_ROWS_WIDE,
+  maxRenderCards: GOODS_GRID_MAX_RENDER_CARDS,
+  getActiveScrollSource
+})
+
+const visibleGoodsStartIndex = listCore.visibleStartIndex
+const visibleGoodsRenderCount = listCore.visibleRenderCount
+const visibleGoodsEndIndex = listCore.visibleEndIndex
+const visibleGoodsList = listCore.visibleItems
+const goodsGridStyle = listCore.gridStyle
+const visibleGoodsHeadSpacerHeight = listCore.visibleHeadSpacerHeight
+const visibleGoodsTailSpacerHeight = listCore.visibleTailSpacerHeight
 
 const isAndroid = /Android/i.test(navigator.userAgent || '')
 const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
@@ -322,32 +330,6 @@ const densityFlip = useGoodsGridDensityFlip({
   getItemCount: () => goodsList.value.length
 })
 
-const goodsGridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
-}))
-
-const visibleGoodsHeadSpacerHeight = computed(() => {
-  if (!shouldVirtualizeGoodsList.value) return 0
-  const cols = getResponsiveCols(displayDensity.value)
-  const headRows = Math.floor(visibleGoodsStartIndex.value / cols)
-  if (headRows <= 0) return 0
-
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  return headRows * rowHeight + Math.max(0, headRows - 1) * GOODS_GRID_ROW_GAP
-})
-
-const visibleGoodsTailSpacerHeight = computed(() => {
-  if (!shouldVirtualizeGoodsList.value) return 0
-  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsEndIndex.value)
-  if (!remainingItems) return 0
-
-  const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const remainingRows = Math.ceil(remainingItems / cols)
-  return remainingRows > 0
-    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * GOODS_GRID_ROW_GAP
-    : 0
-})
 
 const selectedGoodsItems = computed(() =>
   goodsList.value.filter((item) => selectedIds.value.has(item.id))
@@ -620,7 +602,7 @@ function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
 function openSearch() {
   saveScrollPosition(true, 'wishlist:openSearch')
   runWithRouteTransition(
-    () => router.push('/search?scope=wishlist'),
+    () => router.push({ path: '/home', query: { mode: 'search', scope: 'wishlist' } }),
     {
       direction: 'forward',
       preferFallback: true,

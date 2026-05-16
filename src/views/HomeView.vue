@@ -13,6 +13,7 @@
 
         <div class="hero-actions">
           <button
+            v-if="!searchModeActive"
             class="hero-search"
             type="button"
             aria-label="搜索"
@@ -25,7 +26,7 @@
           </button>
 
           <HomeViewModeSwitch
-            v-if="!selectionMode"
+            v-if="!selectionMode && !searchModeActive"
             model-value="goods"
             @update:model-value="switchHomeTopTab"
           />
@@ -41,11 +42,201 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <section class="summary-section">
+      <Transition name="search-mode-panel" mode="out-in">
+        <section v-if="searchModeActive && !selectionMode" class="search-section">
+          <div class="search-section__bar-wrap">
+            <button class="search-section__close" type="button" aria-label="关闭搜索" @click="closeSearchMode">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M15 18L9 12L15 6" />
+              </svg>
+            </button>
+
+            <SearchBar
+              v-model="searchFilters.keyword"
+              placeholder="搜索名称、分类、IP、角色、备注"
+              autofocus
+              class="search-section__bar"
+            />
+          </div>
+
+          <button class="search-section__toggle" type="button" :aria-expanded="advancedExpanded" @click="toggleSearchAdvanced">
+            <div class="search-section__toggle-main">
+              <div class="search-section__toggle-copy">
+                <p class="search-section__eyebrow">高级筛选</p>
+                <h2 class="search-section__title">组合条件</h2>
+                <div class="search-section__summary">
+                  <span>{{ searchScope === 'wishlist' ? '心愿单' : '收藏库' }}</span>
+                  <span v-if="activeSearchFilterCount > 0">已启用 {{ activeSearchFilterCount }}</span>
+                </div>
+              </div>
+            </div>
+            <span class="search-section__toggle-icon" aria-hidden="true">
+              <svg :class="{ 'search-section__toggle-icon--open': advancedExpanded }" viewBox="0 0 24 24" fill="none">
+                <path d="M7 10L12 15L17 10" />
+              </svg>
+            </span>
+          </button>
+
+          <Transition name="search-advanced-panel">
+            <div v-if="advancedExpanded" class="search-section__panel-wrap">
+              <section class="search-section__card">
+                <div class="search-section__head">
+                  <div>
+                    <p class="search-section__eyebrow">筛选方案</p>
+                    <h3 class="search-section__sub-title">保存组合</h3>
+                  </div>
+                  <div class="search-section__actions">
+                    <button class="search-section__chip-btn" type="button" @click="toggleSearchScope">
+                      切换到{{ searchScope === 'wishlist' ? '收藏库' : '心愿单' }}
+                    </button>
+                    <button v-if="activeSearchFilterCount > 0" class="search-section__chip-btn" type="button" @click="resetSearchFilters">重置</button>
+                  </div>
+                </div>
+
+                <div class="search-section__field-grid">
+                  <div class="search-section__field-block">
+                    <label class="search-section__label">价格区间</label>
+                    <div class="search-section__range-row">
+                      <input v-model="searchFilters.priceMin" class="search-section__input" type="number" min="0" inputmode="decimal" placeholder="最低价">
+                      <span class="search-section__range-gap">-</span>
+                      <input v-model="searchFilters.priceMax" class="search-section__input" type="number" min="0" inputmode="decimal" placeholder="最高价">
+                    </div>
+                  </div>
+
+                  <div class="search-section__field-block">
+                    <label class="search-section__label">排序方式</label>
+                    <AppSelect v-model="searchFilters.sortBy" :options="GOODS_FILTER_SORT_OPTIONS" placeholder="请选择排序" />
+                  </div>
+
+                  <div class="search-section__field-block">
+                    <label class="search-section__label">备注</label>
+                    <AppSelect v-model="searchFilters.hasNote" :options="GOODS_FILTER_BOOLEAN_OPTIONS" placeholder="不限" />
+                  </div>
+                </div>
+
+                <div v-if="searchScope === 'collection'" class="search-section__field-block">
+                  <label class="search-section__label">收藏状态</label>
+                  <div class="search-section__chip-wrap">
+                    <button
+                      v-for="option in GOODS_FILTER_COLLECT_STATUS_OPTIONS"
+                      :key="option.value"
+                      type="button"
+                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.collectStatuses.includes(option.value) }]"
+                      @click="toggleFilterValue('collectStatuses', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div class="search-section__field-block">
+                  <label class="search-section__label">购入时间</label>
+                  <div class="search-section__chip-wrap">
+                    <button
+                      v-for="option in GOODS_FILTER_DATE_PRESET_OPTIONS"
+                      :key="option.value"
+                      type="button"
+                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.acquiredPreset === option.value }]"
+                      @click="searchFilters.acquiredPreset = option.value"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                  <div v-if="searchFilters.acquiredPreset === 'custom'" class="search-section__range-row search-section__range-row--date">
+                    <input v-model="searchFilters.acquiredFrom" class="search-section__input" type="date">
+                    <span class="search-section__range-gap">-</span>
+                    <input v-model="searchFilters.acquiredTo" class="search-section__input" type="date">
+                  </div>
+                </div>
+
+                <div v-if="categoryOptions.length" class="search-section__field-block">
+                  <label class="search-section__label">分类</label>
+                  <div class="search-section__chip-wrap">
+                    <button
+                      v-for="option in categoryOptions"
+                      :key="option.value"
+                      type="button"
+                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.categories.includes(option.value) }]"
+                      @click="toggleFilterValue('categories', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="ipOptions.length" class="search-section__field-block">
+                  <label class="search-section__label">IP</label>
+                  <div class="search-section__chip-wrap">
+                    <button
+                      v-for="option in ipOptions"
+                      :key="option.value"
+                      type="button"
+                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.ips.includes(option.value) }]"
+                      @click="toggleFilterValue('ips', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="characterOptions.length" class="search-section__field-block">
+                  <div class="search-section__field-head">
+                    <label class="search-section__label">角色</label>
+                    <button
+                      v-if="hasCollapsedCharacterOptions"
+                      class="search-section__field-toggle"
+                      type="button"
+                      @click="showAllCharacterOptions = !showAllCharacterOptions"
+                    >
+                      {{ showAllCharacterOptions ? '收起角色' : '展开角色' }}
+                    </button>
+                  </div>
+                  <div class="search-section__chip-wrap">
+                    <button
+                      v-for="option in visibleCharacterOptions"
+                      :key="option.value"
+                      type="button"
+                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.characters.includes(option.value) }]"
+                      @click="toggleFilterValue('characters', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="storageLocationTree.length || hasUnassignedStorageLocation" class="search-section__field-block">
+                  <label class="search-section__label">存放位置</label>
+                  <div class="search-section__location-tree">
+                    <button
+                      v-if="hasUnassignedStorageLocation"
+                      type="button"
+                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.storageLocations.includes(GOODS_FILTER_SPECIAL_VALUES.noStorageLocation) }]"
+                      @click="toggleFilterValue('storageLocations', GOODS_FILTER_SPECIAL_VALUES.noStorageLocation)"
+                    >
+                      未设置位置
+                    </button>
+
+                    <StorageLocationFilterTree
+                      v-for="node in storageLocationTree"
+                      :key="node.path"
+                      :node="node"
+                      :selected-values="searchFilters.storageLocations"
+                      @toggle="toggleFilterValue('storageLocations', $event)"
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+          </Transition>
+        </section>
+      </Transition>
+
+      <section v-if="!searchModeActive" class="summary-section">
         <SummaryCard :total-value="totalValue" :total-count="goodsList.length" :trend-items="goodsList" trend-date-field="acquiredAt" />
       </section>
 
       <HomeGoodsToolbar
+        v-if="!searchModeActive"
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
         :sort-mode="sortMode"
@@ -63,11 +254,11 @@
         <GoodsListSkeleton v-if="!store.isReady" key="skeleton" />
 
         <GoodsCardGridSection
-          v-else-if="goodsList.length > 0 && displayDensity !== 'timeline'"
+          v-else-if="displayedGoodsList.length > 0 && effectiveDisplayDensity !== 'timeline'"
           key="grid"
           ref="goodsGridSectionRef"
           :items="visibleGoodsList"
-          :density="displayDensity"
+          :density="effectiveDisplayDensity"
           :grid-style="goodsGridStyle"
           :index-offset="visibleGoodsStartIndex"
           :before-spacer-height="visibleGoodsHeadSpacerHeight"
@@ -86,7 +277,7 @@
         />
 
         <section
-          v-else-if="goodsList.length > 0"
+          v-else-if="displayedGoodsList.length > 0"
           key="timeline"
           :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
         >
@@ -106,11 +297,11 @@
 
         <section v-else key="empty" class="empty-wrap goods-view-pane">
           <EmptyState
-            icon="✦"
-            title="还没有收藏记录"
-            description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
-            action-text="添加第一件"
-            @action="goToAdd"
+            :icon="searchModeActive ? '🔍' : '✦'"
+            :title="searchModeActive ? '没有匹配的收藏' : '还没有收藏记录'"
+            :description="searchModeActive ? '试试更短的关键词，或者切换搜索范围。' : '从徽章、手办到卡片，把每一件喜欢的谷子收进这里。'"
+            :action-text="searchModeActive ? '关闭搜索' : '添加第一件'"
+            @action="searchModeActive ? closeSearchMode() : goToAdd()"
           />
         </section>
       </Transition>
@@ -121,7 +312,7 @@
         :show="showScrollTopButton && isHomeActive && !selectionMode"
         @click="scrollToTop"
       />
-      <button v-if="!selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
+      <button v-if="!selectionMode && isHomeActive && !searchModeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
           <path d="M5 12H19" />
@@ -180,9 +371,10 @@
   </div>
 </template>
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
 import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
@@ -191,9 +383,22 @@ import { useHomeTimeline } from '@/composables/home/useHomeTimeline'
 import { useHomeGoodsList } from '@/composables/home/useHomeGoodsList'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
+import { useGoodsListCore } from '@/composables/goods/useGoodsListCore'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/goods/homeSort'
+import {
+  GOODS_FILTER_BOOLEAN_OPTIONS,
+  GOODS_FILTER_COLLECT_STATUS_OPTIONS,
+  GOODS_FILTER_DATE_PRESET_OPTIONS,
+  GOODS_FILTER_SORT_OPTIONS,
+  GOODS_FILTER_SPECIAL_VALUES,
+  applyGoodsFilters,
+  countActiveGoodsFilters,
+  createDefaultGoodsFilters,
+  normalizeGoodsFilterConditions
+} from '@/utils/goods/filters'
+import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
@@ -211,17 +416,28 @@ import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
+import SearchBar from '@/components/common/SearchBar.vue'
+import AppSelect from '@/components/common/AppSelect.vue'
+import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'HomeView' })
 
 const store = useGoodsStore()
+const presets = usePresetsStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const batchEditSheetRef = ref(null)
 const addMotionSnapshot = ref(null)
 const addMotionRequest = ref(null)
 const addMotionOverlay = ref(null)
+const searchModeActive = ref(false)
+const searchScope = ref('collection')
+const searchFilters = reactive(createDefaultGoodsFilters({ hasImage: 'any' }))
+const advancedExpanded = ref(false)
+const showAllCharacterOptions = ref(false)
+const searchModeHistoryKey = 'homeSearchState'
+const searchDisplayReady = ref(true)
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 const ADD_MOTION_SNAPSHOT_KEY = 'goods-app:add-motion-snapshot-v1'
@@ -232,6 +448,7 @@ let addMotionOverlayClearTimer = 0
 let imagePreloadResumeTimer = 0
 let lastImageScrollTop = 0
 let lastImageScrollAt = 0
+let searchModeSyncTimer = 0
 
 const addMotionGhostStyle = computed(() => {
   const overlay = addMotionOverlay.value
@@ -256,6 +473,129 @@ function persistCollectionTab(tab) {
   window.dispatchEvent(new CustomEvent(COLLECTION_TAB_EVENT, {
     detail: { tab: normalizedTab }
   }))
+}
+
+function normalizeSearchFilters(input = {}) {
+  return normalizeGoodsFilterConditions({
+    ...input,
+    hasImage: 'any'
+  })
+}
+
+function buildOptionList(values, specialOption = null) {
+  const base = [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+    .map((value) => ({ label: value, value }))
+
+  return specialOption ? [specialOption, ...base] : base
+}
+
+function toggleFilterValue(key, value) {
+  const current = Array.isArray(searchFilters[key]) ? [...searchFilters[key]] : []
+  searchFilters[key] = current.includes(value)
+    ? current.filter((item) => item !== value)
+    : [...current, value]
+}
+
+function resetSearchFilters() {
+  assignSearchFilters(createDefaultGoodsFilters({ hasImage: 'any' }))
+  persistSearchState()
+}
+
+function toggleSearchScope() {
+  searchScope.value = searchScope.value === 'wishlist' ? 'collection' : 'wishlist'
+  persistSearchState()
+}
+
+function toggleSearchAdvanced() {
+  advancedExpanded.value = !advancedExpanded.value
+}
+
+function assignSearchFilters(nextFilters) {
+  const normalized = normalizeSearchFilters(nextFilters)
+  Object.assign(searchFilters, normalized)
+}
+
+function buildSearchState() {
+  return {
+    scope: searchScope.value,
+    active: searchModeActive.value,
+    advancedExpanded: advancedExpanded.value,
+    filters: normalizeSearchFilters(searchFilters)
+  }
+}
+
+function persistSearchState() {
+  if (typeof window === 'undefined') return
+  const nextState = { ...(window.history.state || {}) }
+
+  if (!searchModeActive.value) {
+    delete nextState[searchModeHistoryKey]
+    window.history.replaceState(nextState, '')
+    return
+  }
+
+  nextState[searchModeHistoryKey] = buildSearchState()
+  window.history.replaceState(nextState, '')
+}
+
+function restoreSearchStateFromHistory() {
+  const state = window.history.state?.[searchModeHistoryKey]
+  if (!state || typeof state !== 'object') return false
+
+  searchScope.value = state.scope === 'wishlist' ? 'wishlist' : 'collection'
+  assignSearchFilters(state.filters)
+  searchModeActive.value = state.active !== false
+  advancedExpanded.value = state.advancedExpanded !== false
+  return true
+}
+
+function updateSearchModeRoute(active) {
+  if (typeof window === 'undefined') return
+
+  if (searchModeSyncTimer) {
+    window.clearTimeout(searchModeSyncTimer)
+    searchModeSyncTimer = 0
+  }
+
+  searchModeSyncTimer = window.setTimeout(() => {
+    searchModeSyncTimer = 0
+    const nextQuery = { ...route.query }
+
+    if (active) {
+      nextQuery.mode = 'search'
+      nextQuery.scope = searchScope.value
+    } else {
+      delete nextQuery.mode
+      delete nextQuery.scope
+    }
+
+    router.replace({ path: '/home', query: nextQuery }).catch(() => {})
+  }, 0)
+}
+
+function openSearchMode(scope = 'collection') {
+  searchScope.value = scope === 'wishlist' ? 'wishlist' : 'collection'
+  searchModeActive.value = true
+  advancedExpanded.value = false
+  searchDisplayReady.value = true
+  updateSearchModeRoute(true)
+  persistSearchState()
+}
+
+function closeSearchMode() {
+  searchModeActive.value = false
+  updateSearchModeRoute(false)
+  persistSearchState()
+}
+
+function toggleSearchMode() {
+  if (searchModeActive.value) {
+    closeSearchMode()
+    return
+  }
+
+  openSearchMode('collection')
 }
 
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
@@ -389,15 +729,7 @@ function switchHomeTopTab(nextMode) {
 }
 
 function handleHeroSearch() {
-  saveScrollPosition(true, 'home:handleHeroSearch')
-  runWithRouteTransition(
-    () => router.push('/search'),
-    {
-      direction: 'forward',
-      preferFallback: true,
-      detailTransitionKind: 'search-enter'
-    }
-  )
+  toggleSearchMode()
 }
 
 function navigateFromAddSheet(path, reason) {
@@ -611,16 +943,16 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
 
   const normalizedTop = Math.max(0, Number(scrollTop) || 0)
   const viewportHeight = resolveGoodsViewportHeight(options)
-  const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
+  const cols = getResponsiveCols(effectiveDisplayDensity.value)
+  const rowHeight = ROW_HEIGHT_MAP[effectiveDisplayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
   const maxRenderCards = GOODS_GRID_MAX_RENDER_CARDS
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
-  const startIndex = Math.min(goodsList.value.length, startRow * cols)
-  const remainingItems = Math.max(0, goodsList.value.length - startIndex)
+  const startIndex = Math.min(displayedGoodsList.value.length, startRow * cols)
+  const remainingItems = Math.max(0, displayedGoodsList.value.length - startIndex)
   const renderCount = Math.min(
     remainingItems,
     Math.min(
@@ -636,19 +968,19 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
 }
 
 function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
-  if (displayDensity.value === 'timeline') return
+  if (effectiveDisplayDensity.value === 'timeline') return
   syncVirtualGoodsViewport(scrollTop, options)
 }
 
 function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
-  if (displayDensity.value === 'timeline') return
+  if (effectiveDisplayDensity.value === 'timeline') return
   const viewportHeight = getFlipViewportHeight()
   const preloadTargetTop = scrollTop + viewportHeight * 2.5
   syncVirtualGoodsViewport(preloadTargetTop, { useFlipViewport: true, viewportHeight })
 }
 
 function maybeLoadMoreGoods() {
-  if (displayDensity.value === 'timeline') return
+  if (effectiveDisplayDensity.value === 'timeline') return
   syncVisibleGoodsCount(readScrollTop())
 }
 
@@ -840,6 +1172,12 @@ function unbindSelectionHeaderScroll() {
 }
 
 function handleAndroidBackButton(event) {
+  if (searchModeActive.value) {
+    closeSearchMode()
+    event.preventDefault()
+    return
+  }
+
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
     return
@@ -888,6 +1226,11 @@ onMounted(async () => {
   }
   homeDisplayReady.value = true
   restoreHomePreferences()
+  if (!restoreSearchStateFromHistory() && String(route.query.mode || '') === 'search') {
+    searchScope.value = route.query.scope === 'wishlist' ? 'wishlist' : 'collection'
+    searchModeActive.value = true
+    searchDisplayReady.value = true
+  }
   window.addEventListener('resize', _onResize, { passive: true })
   await refresh()
   if (sessionId !== mountBootstrapSession) return
@@ -945,6 +1288,10 @@ onActivated(async () => {
 onDeactivated(() => {
   isHomeActive.value = false
   mountBootstrapSession += 1
+  if (searchModeSyncTimer) {
+    window.clearTimeout(searchModeSyncTimer)
+    searchModeSyncTimer = 0
+  }
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
   clearImagePreloadThrottleTimer()
@@ -962,6 +1309,10 @@ onBeforeUnmount(() => {
   if (addMotionRaf) {
     window.cancelAnimationFrame(addMotionRaf)
     addMotionRaf = 0
+  }
+  if (searchModeSyncTimer) {
+    window.clearTimeout(searchModeSyncTimer)
+    searchModeSyncTimer = 0
   }
   clearAddMotionOverlay()
   cancelGoodsBackHeroRetry()
@@ -1024,21 +1375,153 @@ const densityFlip = useGoodsGridDensityFlip({
   getItemCount: () => goodsList.value.length
 })
 
-const currentGoodsScrollTop = ref(0)
-const currentGoodsViewportHeight = ref(0)
-const visibleGoodsStartIndex = ref(0)
-const visibleGoodsRenderCount = ref(getInitialVisibleCount())
-const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
-const visibleGoodsEndIndex = computed(() => (
-  displayDensity.value === 'timeline'
-    ? goodsList.value.length
-    : Math.min(goodsList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
+const searchSourceList = computed(() => (
+  searchScope.value === 'wishlist' ? store.wishlistViewList : store.collectionViewList
 ))
-const visibleGoodsList = computed(() =>
-  displayDensity.value === 'timeline'
-    ? goodsList.value
-    : goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
+
+const categoryOptions = computed(() => buildOptionList(
+  searchSourceList.value.map((item) => item.category),
+  searchSourceList.value.some((item) => !String(item.category || '').trim())
+    ? { label: '未分类', value: GOODS_FILTER_SPECIAL_VALUES.uncategorized }
+    : null
+))
+
+const ipOptions = computed(() => buildOptionList(
+  searchSourceList.value.map((item) => item.ip),
+  searchSourceList.value.some((item) => !String(item.ip || '').trim())
+    ? { label: '未设置 IP', value: GOODS_FILTER_SPECIAL_VALUES.noIp }
+    : null
+))
+
+const characterSourceList = computed(() => {
+  if (searchFilters.ips.length === 0) return searchSourceList.value
+
+  return searchSourceList.value.filter((item) => {
+    const itemIp = String(item.ip || '').trim()
+    return searchFilters.ips.some((value) => (
+      value === GOODS_FILTER_SPECIAL_VALUES.noIp ? !itemIp : value === itemIp
+    ))
+  })
+})
+
+const characterOptions = computed(() => buildOptionList(
+  characterSourceList.value.flatMap((item) => (Array.isArray(item.characters) ? item.characters : [])),
+  characterSourceList.value.some((item) => !Array.isArray(item.characters) || item.characters.length === 0)
+    ? { label: '未设置角色', value: GOODS_FILTER_SPECIAL_VALUES.noCharacter }
+    : null
+))
+
+const hasCollapsedCharacterOptions = computed(() => (
+  characterOptions.value.some((option) => option.value !== GOODS_FILTER_SPECIAL_VALUES.noCharacter)
+))
+
+const visibleCharacterOptions = computed(() => {
+  if (showAllCharacterOptions.value) return characterOptions.value
+
+  return characterOptions.value.filter((option) => option.value === GOODS_FILTER_SPECIAL_VALUES.noCharacter)
+})
+
+watch(
+  () => searchFilters.characters.slice(),
+  (selectedValues) => {
+    if (selectedValues.some((value) => value !== GOODS_FILTER_SPECIAL_VALUES.noCharacter)) {
+      showAllCharacterOptions.value = true
+    }
+  },
+  { immediate: true }
 )
+
+watch(
+  () => characterOptions.value.map((option) => option.value),
+  (nextOptions) => {
+    const allowedValues = new Set(nextOptions)
+    const nextCharacters = searchFilters.characters.filter((value) => allowedValues.has(value))
+
+    if (nextCharacters.length !== searchFilters.characters.length) {
+      searchFilters.characters = nextCharacters
+    }
+  },
+  { immediate: true }
+)
+
+const hasUnassignedStorageLocation = computed(() => (
+  searchSourceList.value.some((item) => !normalizeStorageLocationValue(item.storageLocation))
+))
+
+const storageLocationCounts = computed(() => {
+  const counts = new Map()
+
+  for (const item of searchSourceList.value) {
+    const normalizedPath = normalizeStorageLocationValue(item.storageLocation)
+    if (!normalizedPath) continue
+
+    const pathParts = []
+    for (const part of splitStorageLocationPath(normalizedPath)) {
+      pathParts.push(part)
+      const currentPath = buildStorageLocationPath(pathParts)
+      counts.set(currentPath, (counts.get(currentPath) || 0) + 1)
+    }
+  }
+
+  return counts
+})
+
+const storageLocationTree = computed(() => {
+  const attachCounts = (nodes = []) => nodes.map((node) => ({
+    name: node.name,
+    path: node.path,
+    depth: Math.max(0, Number(node.depth || 1) - 1),
+    itemCount: storageLocationCounts.value.get(node.path) || 0,
+    children: attachCounts(node.children || [])
+  }))
+
+  return attachCounts(presets.storageLocationTree)
+})
+
+const searchNormalizedFilters = computed(() => normalizeSearchFilters({
+  ...searchFilters,
+  keyword: String(searchFilters.keyword || '').trim().toLowerCase()
+}))
+
+const searchResults = computed(() => applyGoodsFilters(searchSourceList.value, searchNormalizedFilters.value))
+const activeSearchFilterCount = computed(() => countActiveGoodsFilters(searchNormalizedFilters.value))
+
+const displayedGoodsList = computed(() => (
+  searchModeActive.value ? searchResults.value : goodsList.value
+))
+
+const effectiveDisplayDensity = computed(() => (
+  searchModeActive.value && displayDensity.value === 'timeline'
+    ? 'standard'
+    : displayDensity.value
+))
+
+const homeListCore = useGoodsListCore(displayedGoodsList, {
+  density: effectiveDisplayDensity,
+  getResponsiveCols,
+  rowHeightMap: ROW_HEIGHT_MAP,
+  getScrollEl,
+  getViewportHeight: ({ useFlipViewport = false } = {}) => (
+    useFlipViewport ? getFlipViewportHeight() : (getScrollEl()?.clientHeight || window.innerHeight || 800)
+  ),
+  initialRenderRows: INITIAL_RENDER_ROWS,
+  rowGap: GOODS_GRID_ROW_GAP,
+  overscanRows: GOODS_GRID_OVERSCAN_ROWS,
+  overscanRowsWide: GOODS_GRID_OVERSCAN_ROWS_WIDE,
+  maxRenderCards: GOODS_GRID_MAX_RENDER_CARDS,
+  getActiveScrollSource
+})
+
+const currentGoodsScrollTop = homeListCore.currentScrollTop
+const currentGoodsViewportHeight = homeListCore.currentViewportHeight
+const visibleGoodsStartIndex = homeListCore.visibleStartIndex
+const visibleGoodsRenderCount = homeListCore.visibleRenderCount
+const visibleGoodsEndIndex = homeListCore.visibleEndIndex
+const visibleGoodsList = homeListCore.visibleItems
+const goodsGridStyle = homeListCore.gridStyle
+const visibleGoodsHeadSpacerHeight = homeListCore.visibleHeadSpacerHeight
+const visibleGoodsTailSpacerHeight = homeListCore.visibleTailSpacerHeight
+const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
 const {
   allTimelineMonthCount,
   timelineMonthIndexByItemId,
@@ -1055,48 +1538,22 @@ const {
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths
 })
-const goodsGridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
-}))
-const visibleGoodsHeadSpacerHeight = computed(() => {
-  if (displayDensity.value === 'timeline') return 0
-
-  const cols = getResponsiveCols(displayDensity.value)
-  const headRows = Math.floor(visibleGoodsStartIndex.value / cols)
-  if (headRows <= 0) return 0
-
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  return headRows * rowHeight + Math.max(0, headRows - 1) * GOODS_GRID_ROW_GAP
-})
-const visibleGoodsTailSpacerHeight = computed(() => {
-  if (displayDensity.value === 'timeline') return 0
-
-  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsEndIndex.value)
-  if (!remainingItems) return 0
-
-  const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const remainingRows = Math.ceil(remainingItems / cols)
-  return remainingRows > 0
-    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * GOODS_GRID_ROW_GAP
-    : 0
-})
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
 const isAndroidNative = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
 const preloadLeadCount = computed(() =>
   isAndroidNative
-    ? (displayDensity.value === 'timeline'
+  ? (effectiveDisplayDensity.value === 'timeline'
         ? 5
-        : Math.min(8, Math.max(getResponsiveCols(displayDensity.value) + 2, 5)))
-    : (displayDensity.value === 'timeline'
+    : Math.min(8, Math.max(getResponsiveCols(effectiveDisplayDensity.value) + 2, 5)))
+  : (effectiveDisplayDensity.value === 'timeline'
         ? 6
-        : Math.min(16, Math.max(getResponsiveCols(displayDensity.value) * 2, 10)))
+    : Math.min(16, Math.max(getResponsiveCols(effectiveDisplayDensity.value) * 2, 10)))
 )
 const preloadTargetList = computed(() =>
   (
-    displayDensity.value === 'timeline'
+    effectiveDisplayDensity.value === 'timeline'
       ? [
           ...visibleTimelineYearGroups.value.flatMap((yearGroup) =>
             yearGroup.months.flatMap((monthGroup) => monthGroup.items)
@@ -1108,7 +1565,7 @@ const preloadTargetList = computed(() =>
 )
 
 watch(
-  [() => goodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
+  [() => displayedGoodsList.value.length, effectiveDisplayDensity, sortDirection, sortMode, windowWidth, searchModeActive, searchScope],
   () => {
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
@@ -1322,7 +1779,7 @@ const showBatchEditSheet = ref(false)
 const showShareSheet = ref(false)
 
 const selectedGoodsItems = computed(() =>
-  store.collectionList.filter((item) => selectedIds.value.has(item.id))
+  displayedGoodsList.value.filter((item) => selectedIds.value.has(item.id))
 )
 
 function closeSelectionOverlays() {
@@ -1341,7 +1798,7 @@ const {
   exitSelectionModeQuiet,
   exitSelectionMode,
   handleSelectionPopState
-} = useGoodsSelection(computed(() => store.collectionList), {
+} = useGoodsSelection(displayedGoodsList, {
   historyKey: 'selectionMode',
   onExit: closeSelectionOverlays,
   getScrollTop: readScrollTop,
@@ -1492,6 +1949,327 @@ async function applyBatchEditPayload(payload) {
 
 .hero-search:active {
   transform: scale(0.96);
+}
+
+.search-section {
+  margin-top: 8px;
+  padding: 0 var(--page-padding) 0;
+  display: grid;
+  gap: 12px;
+}
+
+.search-section__bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.search-section__bar {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-section__close {
+  width: var(--icon-button-size);
+  height: var(--icon-button-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-glass);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  flex-shrink: 0;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.search-section__close svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.search-section__close:active,
+.search-section__chip-btn:active,
+.search-section__toggle:active,
+.search-section__chip:active,
+.search-section__field-toggle:active {
+  transform: scale(0.98);
+}
+
+.search-section__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--app-glass) 72%, transparent), transparent 60%),
+    color-mix(in srgb, var(--app-surface) 84%, var(--app-glass));
+  box-shadow: var(--app-shadow);
+  color: var(--app-text);
+  text-align: left;
+}
+
+.search-section__toggle-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.search-section__toggle-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.search-section__eyebrow {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.search-section__title {
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.search-section__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.search-section__toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--app-text-tertiary);
+}
+
+.search-section__toggle-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s ease;
+}
+
+.search-section__toggle-icon--open {
+  transform: rotate(180deg);
+}
+
+.search-section__panel-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.search-section__card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--app-surface) 86%, var(--app-glass));
+  border: 1px solid color-mix(in srgb, var(--app-glass-border) 90%, transparent);
+  box-shadow: var(--app-shadow);
+}
+
+.search-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.search-section__sub-title {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.search-section__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.search-section__chip-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.search-section__field-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.search-section__field-block {
+  display: grid;
+  gap: 10px;
+}
+
+.search-section__field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.search-section__field-toggle {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.search-section__label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.search-section__range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-section__range-row--date {
+  flex-wrap: wrap;
+}
+
+.search-section__range-gap {
+  color: var(--app-text-tertiary);
+  flex-shrink: 0;
+}
+
+.search-section__input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--app-glass-border) 90%, transparent);
+  border-radius: 16px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 14px;
+}
+
+.search-section__input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--app-text) 30%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.search-section__chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-section__chip {
+  border: none;
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.search-section__chip--active {
+  background: #141416;
+  color: #fff;
+}
+
+.search-section__location-tree {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.search-section__location-tree :deep(.location-node) {
+  max-width: 100%;
+}
+
+.search-section__location-tree :deep(.location-node__chip) {
+  max-width: min(100%, 420px);
+}
+
+.search-mode-panel-enter-active,
+.search-mode-panel-leave-active,
+.search-advanced-panel-enter-active,
+.search-advanced-panel-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+
+.search-mode-panel-enter-from,
+.search-mode-panel-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.search-advanced-panel-enter-from,
+.search-advanced-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+:global(html.theme-dark) .search-section__toggle,
+:global(html.theme-dark) .search-section__card {
+  background:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--app-glass) 58%, transparent), transparent 60%),
+    color-mix(in srgb, var(--app-surface) 78%, var(--app-glass));
+}
+
+:global(html.theme-dark) .search-section__chip-btn,
+:global(html.theme-dark) .search-section__field-toggle,
+:global(html.theme-dark) .search-section__chip,
+:global(html.theme-dark) .search-section__input {
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, var(--app-glass));
+}
+
+:global(html.theme-dark) .search-section__chip--active {
+  background: #f5f5f7;
+  color: #141416;
+}
+
+:global(html.theme-dark) .search-section__close {
+  background: var(--app-glass);
 }
 
 .goods-list {
@@ -1692,7 +2470,6 @@ async function applyBatchEditPayload(payload) {
   transform: scale(0.96);
 }
 
-/* 閳光偓閳光偓 濞ｈ精澹婂Ο鈥崇础鐟曞棛娲?閳光偓閳光偓 */
 :global(html.theme-dark) .hero-search {
     background: var(--app-glass);
   }

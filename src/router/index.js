@@ -20,7 +20,6 @@ if ('scrollRestoration' in window.history) {
 
 const MANUAL_SCROLL_RESTORE_ROUTES = new Set([
   'home',
-  'search',
   'wishlist',
   'recharge',
   'events',

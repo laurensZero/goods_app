@@ -25,12 +25,13 @@ export function useDeepLinks() {
     let storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
     storagePath = storagePath.replace(/\/$/, '')
 
-    const stateKey = 'searchViewState:collection'
+    const stateKey = 'homeSearchState:collection'
     const nextState = buildNfcSearchState(storagePath)
 
     await router.push({
-      path: '/search',
+      path: '/home',
       query: {
+        mode: 'search',
         scope: 'collection',
         action: 'nfc',
         nfc: `${Date.now()}`
@@ -68,7 +69,7 @@ export function useDeepLinks() {
 
   function isOneShotNfcSearchRoute(currentRoute) {
     if (!currentRoute) return false
-    if (String(currentRoute.path || '') !== '/search') return false
+    if (String(currentRoute.path || '') !== '/home') return false
     return String(currentRoute.query?.action || '').toLowerCase() === 'nfc'
   }
 

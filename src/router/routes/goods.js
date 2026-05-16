@@ -2,12 +2,6 @@ import DetailView from '@/views/DetailView.vue'
 
 export default [
   {
-    path: '/search',
-    name: 'search',
-    component: () => import('@/views/SearchView.vue'),
-    meta: { title: '搜索' }
-  },
-  {
     path: '/add',
     name: 'add',
     component: () => import('@/views/AddItemView.vue'),
