@@ -41,12 +41,9 @@
           v-if="item.coverImage"
           :src="item.coverImage"
           :alt="item.name"
-          :lazy="!imagePriority"
-          :use-cache="!imagePriority"
-          :loading="imagePriority ? 'eager' : 'lazy'"
-          :decoding="imagePriority ? 'sync' : 'async'"
-          :root-margin="imagePriority ? '0px' : '720px 0px'"
-          :fetchpriority="imagePriority ? 'high' : 'low'"
+          :lazy="true"
+          root-margin="720px 0px"
+          fetchpriority="low"
           class="cover-img"
         />
         <span v-if="!item.coverImage" class="cover-initial">{{ coverInitial }}</span>
@@ -119,7 +116,6 @@ import { CURRENCY_MAP } from '@/constants/currencies'
 
 const props = defineProps({
   item: { type: Object, required: true },
-  imagePriority: { type: Boolean, default: false },
   density: { type: String, default: '' },
   transitioning: { type: Boolean, default: false },
   selected: { type: Boolean, default: false },
