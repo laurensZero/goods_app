@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.7",
+    "url": "bundle-20260516.7.zip",
+    "hash": "577c4e7a794563aded6feb689ebe5d15f41aade16db977a400f96566aa23ada1",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat: 优化图像加载优先级，添加图像优先级属性以提升性能\"\n  This reverts commit 47d023f5df1ddd14dd25fcdc5f6400c224d3352c.",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T05:43:26Z"
+  },
+  {
     "version": "20260516.6",
     "url": "bundle-20260516.6.zip",
     "hash": "41a0fe5a42aa2c012caa5f76dd35090bf1e2d734dbed8dc2a0a8a13ef077ff53",
@@ -16,14 +25,5 @@
     "notes": "- feat: 将图像解码方式更改为异步，以优化加载性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T04:32:46Z"
-  },
-  {
-    "version": "20260516.4",
-    "url": "bundle-20260516.4.zip",
-    "hash": "dfe48e536fabc86ec2dbd6d549a533f063c62bff199c845023cb7d99d26028af",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强商品列表骨架屏，添加价格和天数占位符，优化样式布局",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T04:14:40Z"
   }
 ]
