@@ -35,6 +35,10 @@ export function useAppStartup() {
     void webUpdateStore.init()
     void announcementStore.init()
 
+    // 预加载活动和充值数据，确保相关页面初次打开时已就绪
+    void eventsStore.init()
+    void rechargeStore.init()
+
     const shouldAutoCheckUpdate = !(import.meta.env.DEV && !Capacitor.isNativePlatform())
     if (shouldAutoCheckUpdate) {
       void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
