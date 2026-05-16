@@ -655,13 +655,10 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
     return false
   }
 
   if (!isHeroImageReady(targetEl)) {
-    cleanupAllHeroes()
-    pendingBackHero = null
     return false
   }
 
@@ -765,7 +762,6 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetEl = resolveTargetEl(pendingBackEventHero.eventId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
     return false
   }
 

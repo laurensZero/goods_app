@@ -180,7 +180,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import {
   GOODS_FILTER_SPECIAL_VALUES,
   applyGoodsFilters,
@@ -595,6 +595,7 @@ function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
       return
     }
     if (attempt + 1 >= WISHLIST_BACK_HERO_RETRY_MAX_FRAMES) {
+      cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return
     }
@@ -645,6 +646,9 @@ function closeSearchMode() {
   searchModeActive.value = false
   searchAdvancedExpanded.value = false
   resetSearchFilters()
+  const el = getScrollEl()
+  if (el) el.scrollTop = 0
+  window.scrollTo({ top: 0, behavior: 'instant' })
 }
 
 function resetSearchFilters() {

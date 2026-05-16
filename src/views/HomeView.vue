@@ -397,7 +397,7 @@ import {
 } from '@/utils/goods/filters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -628,6 +628,9 @@ async function closeSearchMode(options = {}) {
     updateSearchModeRoute(false)
   }
   persistSearchState()
+  const el = getScrollEl()
+  if (el) el.scrollTop = 0
+  window.scrollTo({ top: 0, behavior: 'instant' })
 }
 
 function toggleSearchMode() {
@@ -1722,10 +1725,12 @@ function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
       return
     }
     if (!hasPendingGoodsHeroBack(route.fullPath)) {
+      cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return
     }
     if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
+      cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return
     }

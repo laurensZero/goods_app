@@ -273,7 +273,7 @@ import { formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -585,6 +585,7 @@ function scheduleEventBackHeroRetry(attempt = 0, hooks = null) {
       return
     }
     if (attempt + 1 >= EVENT_BACK_HERO_RETRY_MAX_FRAMES) {
+      cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return
     }
