@@ -11,39 +11,44 @@ function getRouteScene() {
 }
 
 function animateScene(scene, direction) {
+  // Set the start offset without transition, then on the next frame
+  // enable the transition and snap to the final position. This two‑rAF
+  // dance replaces getBoundingClientRect() (which forces a synchronous
+  // layout) and produces a clean directional slide with no shake.
+  const offset = direction === 'back' ? -10 : 10
   scene.style.transition = 'none'
-  if (direction === 'back') {
-    scene.style.transform = 'translateX(-16px)'
-  } else {
-    scene.style.transform = 'translateX(20px)'
-  }
-  scene.style.opacity = '0.95'
+  scene.style.transform = `translateX(${offset}px)`
 
-  scene.getBoundingClientRect()
+  requestAnimationFrame(() => {
+    scene.style.transition = `transform ${DURATION}ms ${EASING}`
+    scene.style.transform = 'translateX(0)'
 
-  scene.style.transition = `transform ${DURATION}ms ${EASING}, opacity ${DURATION}ms ${EASING}`
-  scene.style.transform = 'translateX(0)'
-  scene.style.opacity = '1'
-
-  setTimeout(() => {
-    scene.style.transition = ''
-    scene.style.transform = ''
-    scene.style.opacity = ''
-  }, DURATION + 30)
+    setTimeout(() => {
+      scene.style.transition = ''
+      scene.style.transform = ''
+    }, DURATION + 30)
+  })
 }
 
 function runSlideTransition(navigate, direction) {
-  // Start navigation immediately — do not await it. Waiting for the
-  // navigation promise defers the slide animation until after the new
-  // component mounts, which causes a visible dead gap on the tab bar.
   navigate()
 
-  // Schedule the slide animation across two rAFs so it reliably runs
-  // after the DOM update, regardless of whether the route was lazy.
-  requestAnimationFrame(() => {
+  // Let Vue microtasks flush so the new route DOM is settled, then
+  // animate on the next paint frame. This is faster than awaiting
+  // router.push() (which blocks until component mount) but still gives
+  // the DOM one tick to stabilise, avoiding the left‑right shake.
+  Promise.resolve().then(() => {
     requestAnimationFrame(() => {
       const scene = getRouteScene()
-      if (scene) animateScene(scene, direction)
+      if (scene) {
+        animateScene(scene, direction)
+      } else {
+        // Lazy route — component not yet in DOM, retry next frame.
+        requestAnimationFrame(() => {
+          const scene = getRouteScene()
+          if (scene) animateScene(scene, direction)
+        })
+      }
     })
   })
 }

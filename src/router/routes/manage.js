@@ -51,7 +51,7 @@ export default [
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),
-    meta: { title: '数据统计' }
+    meta: { title: '数据统计', showTabBar: true }
   },
   {
     path: '/trash',
