@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.5",
+    "url": "bundle-20260516.5.zip",
+    "hash": "a66e6689121e449e8348c61d768cdc30fce57fb8330d8d78996912ef99fca47b",
+    "minNativeVersion": null,
+    "notes": "- feat: 将图像解码方式更改为异步，以优化加载性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T04:32:46Z"
+  },
+  {
     "version": "20260516.4",
     "url": "bundle-20260516.4.zip",
     "hash": "dfe48e536fabc86ec2dbd6d549a533f063c62bff199c845023cb7d99d26028af",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图像加载优先级，添加图像优先级属性以提升性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T03:59:08Z"
-  },
-  {
-    "version": "20260516.2",
-    "url": "bundle-20260516.2.zip",
-    "hash": "26f2eca542249fc084a0b715d12136af43bc383aa5111069ca05aeb6f77fd0a2",
-    "minNativeVersion": null,
-    "notes": "- feat: 预加载活动和充值数据，确保相关页面初次打开时已就绪",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T03:10:19Z"
   }
 ]
