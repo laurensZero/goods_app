@@ -1,9 +1,9 @@
 {
-  "version": "20260516.10",
-  "url": "bundle-20260516.10.zip",
-  "hash": "f19477fc7b669337e1956af49012c153971b27297b18e1594e059de1666d03d2",
+  "version": "20260516.11",
+  "url": "bundle-20260516.11.zip",
+  "hash": "a8a1c5ff25fb16205020991642dde9bf243e8a84634feff38c91930161d9c59d",
   "minNativeVersion": null,
-  "notes": "- feat: 添加视口距离计算，优化图像加载任务的优先级管理",
+  "notes": "- feat: 添加同标签子模式切换逻辑，优化导航体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T11:46:40Z"
+  "publishedAt": "2026-05-16T12:11:47Z"
 }
