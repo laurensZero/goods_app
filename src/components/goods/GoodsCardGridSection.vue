@@ -19,6 +19,7 @@
         :key="item.id"
         :ref="(instance) => setCardRef(item.id, instance)"
         :item="item"
+        :image-priority="index + indexOffset < 2"
         :density="density"
         :transitioning="transitioning"
         :motion-style="cardMotionStyles[item.id]"
