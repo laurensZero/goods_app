@@ -86,6 +86,15 @@ let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
 
+function getViewportDistance() {
+  const el = rootRef.value
+  if (!el) return Infinity
+  const rect = el.getBoundingClientRect()
+  const elCenter = rect.top + rect.height / 2
+  const vpCenter = window.innerHeight / 2
+  return Math.abs(elCenter - vpCenter)
+}
+
 watch(
   [() => props.src, hasEnteredViewport],
   async ([url, isVisible]) => {
@@ -109,12 +118,12 @@ watch(
     if (cached) {
       if (requestId !== loadRequestId) return
       resolvedSrc.value = cached
-      // cached image is already available — don't show loading skeleton
       isImageLoading.value = false
       return
     }
-    // start actual loading only when we will fetch
-    const nextSrc = props.useCache ? await getCachedImage(url) : url
+    const nextSrc = props.useCache
+      ? await getCachedImage(url, { viewportDistance: getViewportDistance() })
+      : url
     if (requestId !== loadRequestId) return
     resolvedSrc.value = nextSrc
     isImageLoading.value = false
@@ -161,7 +170,9 @@ onMounted(() => {
             return
           }
           isImageLoading.value = true
-          const loadPromise = props.useCache ? getCachedImage(props.src) : Promise.resolve(props.src)
+          const loadPromise = props.useCache
+            ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
+            : Promise.resolve(props.src)
           void loadPromise.then((nextSrc) => {
             if (requestId !== loadRequestId) return
             if (!props.src || !hasEnteredViewport.value) return
