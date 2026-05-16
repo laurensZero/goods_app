@@ -615,16 +615,23 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const maxRenderCards = GOODS_GRID_MAX_RENDER_CARDS
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
-  const renderRows = Math.max(
-    INITIAL_RENDER_ROWS,
-    Math.ceil((normalizedTop + viewportHeight + overscanRows * rowSpan) / rowSpan) + overscanRows
+  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+  const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+  const startIndex = Math.min(goodsList.value.length, startRow * cols)
+  const remainingItems = Math.max(0, goodsList.value.length - startIndex)
+  const renderCount = Math.min(
+    remainingItems,
+    Math.min(
+      maxRenderCards,
+      Math.max(cols * 4, renderRows * cols)
+    )
   )
-  const renderCount = Math.min(goodsList.value.length, Math.max(cols * 4, renderRows * cols))
 
   currentGoodsScrollTop.value = normalizedTop
   currentGoodsViewportHeight.value = viewportHeight
-  visibleGoodsStartIndex.value = 0
+  visibleGoodsStartIndex.value = startIndex
   visibleGoodsRenderCount.value = renderCount
 }
 
