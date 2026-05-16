@@ -69,9 +69,9 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  View enrichment
 
-  const { viewList } = createViewList(list)
+  const { viewList, flushPendingPublish: flushGoodsPendingPublish, setViewportItemIds } = createViewList(list)
   const { collectionViewList, wishlistViewList } = createFilteredViewLists(viewList)
-  const trashViewList = createTrashViewList(trashList)
+  const { viewList: trashViewList, flushPendingPublish: flushTrashPendingPublish } = createTrashViewList(trashList)
 
   //  Persistence
 
@@ -213,6 +213,11 @@ export const useGoodsStore = defineStore('goods', () => {
     return _markImagesAsRemote(preparedImagesByItemId, list, trashList)
   }
 
+  function flushPendingPublish() {
+    flushGoodsPendingPublish()
+    flushTrashPendingPublish()
+  }
+
   return {
     list,
     trashList,
@@ -248,6 +253,8 @@ export const useGoodsStore = defineStore('goods', () => {
     importTrashBackup,
     updateTrashBackup,
     markImagesAsRemote,
-    refreshList
+    refreshList,
+    flushPendingPublish,
+    setViewportItemIds
   }
 })

@@ -1,5 +1,5 @@
 // @ts-check
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, triggerRef } from 'vue'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import {
   parseAcquiredTime,
@@ -120,6 +120,20 @@ export function createViewList(list) {
   const viewMap = ref(new Map())
   const viewOrder = ref([])
 
+  let isFirstEnrich = true
+  let pendingPublishRaf = 0
+  let pendingOrder = null
+
+  /** @type {Set<string>} */
+  let viewportIds = new Set()
+
+  function publishView(newMap, newOrder) {
+    viewMap.value = newMap
+    if (!idsEqual(newOrder, viewOrder.value)) {
+      viewOrder.value = newOrder
+    }
+  }
+
   watch(list, (newList, oldList) => {
     const exchangeRate = useExchangeRateStore()
     const ratesRef = exchangeRate.rates
@@ -151,11 +165,27 @@ export function createViewList(list) {
 
     if (!changed) return
     viewCache = newMap
-    viewMap.value = newMap
 
     const newOrder = newList.map((i) => i.id)
-    if (!idsEqual(newOrder, viewOrder.value)) {
-      viewOrder.value = newOrder
+
+    if (isFirstEnrich) {
+      isFirstEnrich = false
+      publishView(newMap, newOrder)
+    } else {
+      // Mutated viewItems are already in the old viewMap (same references).
+      // Trigger viewport-only reactivity so visible cards update immediately.
+      if (viewportIds.size > 0) {
+        triggerRef(viewMap)
+      }
+
+      pendingOrder = newOrder
+      if (!pendingPublishRaf) {
+        pendingPublishRaf = requestAnimationFrame(() => {
+          pendingPublishRaf = 0
+          publishView(viewCache, pendingOrder)
+          pendingOrder = null
+        })
+      }
     }
   }, { flush: 'sync' })
 
@@ -169,6 +199,21 @@ export function createViewList(list) {
     viewCache = newMap
     viewMap.value = newMap
   })
+
+  function setViewportItemIds(ids) {
+    viewportIds = ids instanceof Set ? ids : new Set(ids)
+  }
+
+  function flushPendingPublish() {
+    if (pendingPublishRaf) {
+      cancelAnimationFrame(pendingPublishRaf)
+      pendingPublishRaf = 0
+    }
+    if (pendingOrder) {
+      publishView(viewCache, pendingOrder)
+      pendingOrder = null
+    }
+  }
 
   // Cache viewList — only rebuild when viewOrder or viewMap actually changes
   let cachedViewList = []
@@ -187,7 +232,7 @@ export function createViewList(list) {
     return cachedViewList
   })
 
-  return { viewList, viewMap, viewOrder }
+  return { viewList, viewMap, viewOrder, flushPendingPublish, setViewportItemIds }
 }
 
 /**
@@ -202,6 +247,17 @@ export function createTrashViewList(trashList) {
 
   const viewMap = ref(new Map())
   const viewOrder = ref([])
+
+  let isFirstEnrich = true
+  let pendingPublishRaf = 0
+  let pendingOrder = null
+
+  function publishView(newMap, newOrder) {
+    viewMap.value = newMap
+    if (!idsEqual(newOrder, viewOrder.value)) {
+      viewOrder.value = newOrder
+    }
+  }
 
   watch(trashList, (newList, oldList) => {
     const exchangeRate = useExchangeRateStore()
@@ -234,16 +290,28 @@ export function createTrashViewList(trashList) {
 
     if (!changed) return
     trashViewCache = newMap
-    viewMap.value = newMap
 
     const sortedIds = [...newList]
       .sort((a, b) => {
-        const va = viewMap.value.get(a.id)?.viewItem
-        const vb = viewMap.value.get(b.id)?.viewItem
+        const va = trashViewCache.get(a.id)?.viewItem
+        const vb = trashViewCache.get(b.id)?.viewItem
         return (vb?.deletedTime - va?.deletedTime) || (vb?.acquiredTime - va?.acquiredTime)
       })
       .map((i) => i.id)
-    viewOrder.value = sortedIds
+
+    if (isFirstEnrich) {
+      isFirstEnrich = false
+      publishView(newMap, sortedIds)
+    } else {
+      pendingOrder = sortedIds
+      if (!pendingPublishRaf) {
+        pendingPublishRaf = requestAnimationFrame(() => {
+          pendingPublishRaf = 0
+          publishView(trashViewCache, pendingOrder)
+          pendingOrder = null
+        })
+      }
+    }
   }, { flush: 'sync' })
 
   watch(() => useExchangeRateStore().rates, () => {
@@ -256,6 +324,17 @@ export function createTrashViewList(trashList) {
     trashViewCache = newMap
     viewMap.value = newMap
   })
+
+  function flushPendingPublish() {
+    if (pendingPublishRaf) {
+      cancelAnimationFrame(pendingPublishRaf)
+      pendingPublishRaf = 0
+    }
+    if (pendingOrder) {
+      publishView(trashViewCache, pendingOrder)
+      pendingOrder = null
+    }
+  }
 
   // Cache viewList — only rebuild when viewOrder or viewMap actually changes
   let cachedViewList = []
@@ -274,7 +353,7 @@ export function createTrashViewList(trashList) {
     return cachedViewList
   })
 
-  return viewList
+  return { viewList, flushPendingPublish }
 }
 
 /**
