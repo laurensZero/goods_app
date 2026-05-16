@@ -1,9 +1,9 @@
 {
-  "version": "20260516.11",
-  "url": "bundle-20260516.11.zip",
-  "hash": "a8a1c5ff25fb16205020991642dde9bf243e8a84634feff38c91930161d9c59d",
+  "version": "20260516.12",
+  "url": "bundle-20260516.12.zip",
+  "hash": "c3c29d756eacf93630124f099f0b5c85f7beb23df8a1632c20d3bb579e6a82e6",
   "minNativeVersion": null,
-  "notes": "- feat: 添加同标签子模式切换逻辑，优化导航体验",
+  "notes": "- feat: 更新路由过渡动画逻辑，优化动画流畅度和稳定性",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T12:11:47Z"
+  "publishedAt": "2026-05-16T12:22:35Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.12",
+    "url": "bundle-20260516.12.zip",
+    "hash": "c3c29d756eacf93630124f099f0b5c85f7beb23df8a1632c20d3bb579e6a82e6",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新路由过渡动画逻辑，优化动画流畅度和稳定性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T12:22:35Z"
+  },
+  {
     "version": "20260516.11",
     "url": "bundle-20260516.11.zip",
     "hash": "a8a1c5ff25fb16205020991642dde9bf243e8a84634feff38c91930161d9c59d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加视口距离计算，优化图像加载任务的优先级管理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T11:46:40Z"
-  },
-  {
-    "version": "20260516.9",
-    "url": "bundle-20260516.9.zip",
-    "hash": "2eeaf30b9349a4e0a0a76fc9c9982669125a18ebae1cd3d3ebd514a2508adbb6",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T11:34:09Z"
   }
 ]
