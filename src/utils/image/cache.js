@@ -197,7 +197,7 @@ let imageLoadDrainScheduled = false
 let preloadPaused = false
 let imageRefreshDispatchScheduled = 0
 
-function normalizeCacheUrl(input) {
+export function normalizeCacheUrl(input) {
   const value = String(input || '').trim()
   if (!value) return ''
   if (/^(blob:|data:|file:|content:|capacitor:)/i.test(value)) return value

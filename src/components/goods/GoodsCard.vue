@@ -42,8 +42,6 @@
           :src="item.coverImage"
           :alt="item.name"
           :lazy="true"
-          root-margin="720px 0px"
-          fetchpriority="low"
           class="cover-img"
         />
         <span v-if="!item.coverImage" class="cover-initial">{{ coverInitial }}</span>

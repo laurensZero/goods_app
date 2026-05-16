@@ -9,7 +9,7 @@
       :alt="alt"
       :loading="loading"
       :decoding="decoding"
-      :fetchpriority="fetchpriority"
+      :fetchpriority="computedFetchPriority"
       @load="onImageLoad"
       @error="onImageError"
     />
@@ -38,23 +38,46 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
+import { useImageLoader } from '@/composables/image/useImageLoader'
+import { peekCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   src: { type: String, default: '' },
   alt: { type: String, default: '' },
-  rootMargin: { type: String, default: '720px 0px' },
+  rootMargin: { type: String, default: '320px 0px' },
   loading: { type: String, default: 'lazy' },
   decoding: { type: String, default: 'async' },
-  fetchpriority: { type: String, default: 'low' },
+  fetchpriority: { type: String, default: '' },
   useCache: { type: Boolean, default: true },
-  lazy: { type: Boolean, default: true }
+  lazy: { type: Boolean, default: true },
+  hero: { type: Boolean, default: false }
 })
 
 const attrs = useAttrs()
 const rootRef = ref(null)
+const rootMarginRef = computed(() => props.rootMargin)
+
+const {
+  resolvedSrc,
+  isImageReady,
+  showSkeleton,
+  showFallback,
+  dynamicFetchPriority,
+  onImageLoad,
+  onImageError
+} = useImageLoader(props, rootRef, { rootMargin: rootMarginRef })
+
+const computedFetchPriority = computed(() => {
+  if (props.hero) return 'high'
+  if (props.fetchpriority) return props.fetchpriority
+  return dynamicFetchPriority.value
+})
+
+const refreshGeneration = ref(0)
+const imageElementKey = computed(() => `${props.src || 'empty'}:${refreshGeneration.value}`)
+
 const rootAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
   return {
@@ -64,153 +87,31 @@ const rootAttrs = computed(() => {
     'data-lazy-image-ready': isImageReady.value ? 'true' : 'false'
   }
 })
+
 const imageAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
-  // forward class and style also to the actual <img> element so callers
-  // (e.g. cover-img) can style the image itself instead of only the wrapper
   return {
     ...rest,
     class: _class,
     style: _style
   }
 })
-const resolvedSrc = ref('')
-const hasEnteredViewport = ref(false)
-const hasLoadError = ref(false)
-const isImageLoading = ref(false)
-const refreshGeneration = ref(0)
-const showSkeleton = computed(() => {
-  return !!props.src && hasEnteredViewport.value && !showFallback.value && isImageLoading.value
-})
-const showFallback = computed(() => !!props.src && hasLoadError.value)
-const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
-const imageElementKey = computed(() => `${props.src || 'empty'}:${refreshGeneration.value}`)
-let visibilityObserver = null
-let loadRequestId = 0
+
+// Keep the old event API for backward compatibility
 let imageCacheRefreshHandler = null
-
-watch(
-  [() => props.src, hasEnteredViewport],
-  async ([url, isVisible]) => {
-    const requestId = ++loadRequestId
-    if (!url) {
-      resolvedSrc.value = ''
-      hasLoadError.value = false
-      isImageLoading.value = false
-      return
-    }
-    if (!isVisible) {
-      resolvedSrc.value = ''
-      hasLoadError.value = false
-      isImageLoading.value = false
-      return
-    }
-    hasLoadError.value = false
-    resolvedSrc.value = ''
-    isImageLoading.value = true
-    const cached = peekCachedImage(url)
-    if (cached) {
-      if (requestId !== loadRequestId) return
-      resolvedSrc.value = cached
-      // cached image is already available — don't show loading skeleton
-      isImageLoading.value = false
-      return
-    }
-    // start actual loading only when we will fetch
-    const nextSrc = props.useCache ? await getCachedImage(url) : url
-    if (requestId !== loadRequestId) return
-    resolvedSrc.value = nextSrc
-    isImageLoading.value = false
-  },
-  { immediate: true }
-)
-
-watch(
-  () => props.src,
-  () => {
-    hasLoadError.value = false
-    // do not change isImageLoading here; loading is driven by the
-    // [props.src, hasEnteredViewport] watcher to avoid redundant updates
-  },
-  { immediate: true }
-)
-
-function onImageLoad() {
-  hasLoadError.value = false
-  isImageLoading.value = false
-}
-
-function onImageError() {
-  hasLoadError.value = true
-  isImageLoading.value = false
-  resolvedSrc.value = ''
-}
 
 onMounted(() => {
   imageCacheRefreshHandler = () => {
-    const requestId = ++loadRequestId
     refreshGeneration.value += 1
-    resolvedSrc.value = ''
-    hasLoadError.value = false
-    isImageLoading.value = false
-    if (props.src && hasEnteredViewport.value) {
-      void Promise.resolve().then(() => {
-        if (requestId !== loadRequestId) return
-        if (props.src && hasEnteredViewport.value) {
-          const cached = peekCachedImage(props.src)
-          if (cached) {
-            if (requestId !== loadRequestId) return
-            resolvedSrc.value = cached
-            isImageLoading.value = false
-            return
-          }
-          isImageLoading.value = true
-          const loadPromise = props.useCache ? getCachedImage(props.src) : Promise.resolve(props.src)
-          void loadPromise.then((nextSrc) => {
-            if (requestId !== loadRequestId) return
-            if (!props.src || !hasEnteredViewport.value) return
-            resolvedSrc.value = nextSrc
-            isImageLoading.value = false
-          }).catch(() => {
-            if (requestId !== loadRequestId) return
-            if (!props.src || !hasEnteredViewport.value) return
-            resolvedSrc.value = props.src
-            isImageLoading.value = false
-          })
-        }
-      })
+    const cached = peekCachedImage(props.src)
+    if (cached) {
+      resolvedSrc.value = cached
     }
   }
-
   window.addEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
-
-  if (!props.lazy) {
-    hasEnteredViewport.value = true
-    return
-  }
-
-  if (typeof IntersectionObserver === 'undefined') {
-    hasEnteredViewport.value = true
-    return
-  }
-
-  visibilityObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        hasEnteredViewport.value = true
-        visibilityObserver?.disconnect()
-        visibilityObserver = null
-      }
-    },
-    { rootMargin: props.rootMargin }
-  )
-
-  if (rootRef.value) visibilityObserver.observe(rootRef.value)
 })
 
 onBeforeUnmount(() => {
-  visibilityObserver?.disconnect()
-  visibilityObserver = null
   if (imageCacheRefreshHandler) {
     window.removeEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
     imageCacheRefreshHandler = null

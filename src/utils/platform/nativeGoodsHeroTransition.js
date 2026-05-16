@@ -1,4 +1,4 @@
-import { setImagePreloadPaused } from '@/utils/image/cache'
+import { setImagePreloadPaused, getCachedImage, peekCachedImage } from '@/utils/image/cache'
 
 const FORWARD_DURATION_MS = 390
 const BACK_DURATION_MS = 350
@@ -576,6 +576,13 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+
+  // Preload hero image so it's in cache when the target page renders
+  if (imageSrc && !peekCachedImage(imageSrc)) {
+    getCachedImage(imageSrc, { priority: 'viewport' }).catch(() => {})
+  }
+
   pendingForwardHero = {
     goodsId: String(goodsId),
     left: rect.left,
@@ -583,7 +590,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background
   }
@@ -626,6 +633,13 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+
+  // Preload hero image so it's cached when the list page renders the target card
+  if (imageSrc && !peekCachedImage(imageSrc)) {
+    getCachedImage(imageSrc, { priority: 'viewport' }).catch(() => {})
+  }
+
   pendingBackHero = {
     goodsId: String(goodsId),
     preparedAt: Date.now(),
@@ -635,7 +649,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background
   }
@@ -693,6 +707,11 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+  if (imageSrc && !peekCachedImage(imageSrc)) {
+    getCachedImage(imageSrc, { priority: 'viewport' }).catch(() => {})
+  }
+
   pendingForwardEventHero = {
     eventId: String(eventId),
     left: rect.left,
@@ -700,7 +719,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background
   }
@@ -736,6 +755,11 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const imageSrc = readImageSource(sourceEl)
+  if (imageSrc && !peekCachedImage(imageSrc)) {
+    getCachedImage(imageSrc, { priority: 'viewport' }).catch(() => {})
+  }
+
   pendingBackEventHero = {
     eventId: String(eventId),
     preparedAt: Date.now(),
@@ -745,7 +769,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
+    imageSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background
   }
