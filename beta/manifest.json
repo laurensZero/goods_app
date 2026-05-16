@@ -1,9 +1,9 @@
 {
-  "version": "20260516.12",
-  "url": "bundle-20260516.12.zip",
-  "hash": "c3c29d756eacf93630124f099f0b5c85f7beb23df8a1632c20d3bb579e6a82e6",
+  "version": "20260516.13",
+  "url": "bundle-20260516.13.zip",
+  "hash": "3639eed16041364942ab58a2202584bf7cee266ada0cea37aa8a4f06441f160e",
   "minNativeVersion": null,
-  "notes": "- feat: 更新路由过渡动画逻辑，优化动画流畅度和稳定性",
+  "notes": "- feat: 使用 LazyCachedImage 组件优化活动图片加载",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-16T12:22:35Z"
+  "publishedAt": "2026-05-16T14:01:37Z"
 }

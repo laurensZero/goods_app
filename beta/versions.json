@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.13",
+    "url": "bundle-20260516.13.zip",
+    "hash": "3639eed16041364942ab58a2202584bf7cee266ada0cea37aa8a4f06441f160e",
+    "minNativeVersion": null,
+    "notes": "- feat: 使用 LazyCachedImage 组件优化活动图片加载",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T14:01:37Z"
+  },
+  {
     "version": "20260516.12",
     "url": "bundle-20260516.12.zip",
     "hash": "c3c29d756eacf93630124f099f0b5c85f7beb23df8a1632c20d3bb579e6a82e6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加同标签子模式切换逻辑，优化导航体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T12:11:47Z"
-  },
-  {
-    "version": "20260516.10",
-    "url": "bundle-20260516.10.zip",
-    "hash": "f19477fc7b669337e1956af49012c153971b27297b18e1594e059de1666d03d2",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加视口距离计算，优化图像加载任务的优先级管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T11:46:40Z"
   }
 ]
