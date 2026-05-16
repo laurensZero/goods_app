@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260516.10",
+    "url": "bundle-20260516.10.zip",
+    "hash": "f19477fc7b669337e1956af49012c153971b27297b18e1594e059de1666d03d2",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加视口距离计算，优化图像加载任务的优先级管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-16T11:46:40Z"
+  },
+  {
     "version": "20260516.9",
     "url": "bundle-20260516.9.zip",
     "hash": "2eeaf30b9349a4e0a0a76fc9c9982669125a18ebae1cd3d3ebd514a2508adbb6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加图像元素键以支持图像刷新机制",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T08:50:03Z"
-  },
-  {
-    "version": "20260516.7",
-    "url": "bundle-20260516.7.zip",
-    "hash": "577c4e7a794563aded6feb689ebe5d15f41aade16db977a400f96566aa23ada1",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 优化图像加载优先级，添加图像优先级属性以提升性能\"\n  This reverts commit 47d023f5df1ddd14dd25fcdc5f6400c224d3352c.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T05:43:26Z"
   }
 ]
