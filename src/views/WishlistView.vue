@@ -195,6 +195,7 @@ const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
+const WISHLIST_SEARCH_STATE_KEY = 'wishlistSearchState'
 
 function persistCollectionTab(tab) {
   const normalizedTab = tab === 'wishlist' || tab === 'stats' ? tab : 'goods'
@@ -323,6 +324,64 @@ const displayedGoodsList = computed(() => (
   searchModeActive.value ? searchResults.value : goodsList.value
 ))
 const activeSearchFilterCount = computed(() => countActiveGoodsFilters(searchNormalizedFilters.value))
+
+function serializeWishlistSearchFilters() {
+  const f = searchFilters.value
+  return {
+    keyword: f.keyword,
+    categories: f.categories.slice(),
+    ips: f.ips.slice(),
+    characters: f.characters.slice(),
+    storageLocations: f.storageLocations.slice(),
+    priceMin: f.priceMin,
+    priceMax: f.priceMax,
+    acquiredPreset: f.acquiredPreset,
+    acquiredFrom: f.acquiredFrom,
+    acquiredTo: f.acquiredTo,
+    hasImage: f.hasImage,
+    hasNote: f.hasNote,
+    sortBy: f.sortBy
+  }
+}
+
+function buildWishlistSearchState() {
+  return {
+    active: searchModeActive.value,
+    advancedExpanded: searchAdvancedExpanded.value,
+    filters: serializeWishlistSearchFilters()
+  }
+}
+
+function persistWishlistSearchState() {
+  if (typeof window === 'undefined') return
+  const nextState = { ...(window.history.state || {}) }
+
+  if (!searchModeActive.value) {
+    delete nextState[WISHLIST_SEARCH_STATE_KEY]
+    window.history.replaceState(nextState, '')
+    return
+  }
+
+  nextState[WISHLIST_SEARCH_STATE_KEY] = buildWishlistSearchState()
+  window.history.replaceState(nextState, '')
+}
+
+function restoreWishlistSearchStateFromHistory() {
+  const state = window.history.state?.[WISHLIST_SEARCH_STATE_KEY]
+  if (!state || typeof state !== 'object') return false
+
+  // KeepAlive already preserves live state; only restore on fresh mount
+  if (searchModeActive.value) return true
+
+  searchModeActive.value = state.active !== false
+  searchAdvancedExpanded.value = state.advancedExpanded === true
+
+  if (state.filters && typeof state.filters === 'object') {
+    searchFilters.value = { ...searchFilters.value, ...state.filters }
+  }
+
+  return true
+}
 
 const listCore = useGoodsListCore(displayedGoodsList, {
   density: displayDensity,
@@ -640,6 +699,7 @@ function openSearch() {
   resetSearchFilters()
   searchAdvancedExpanded.value = false
   searchModeActive.value = true
+  persistWishlistSearchState()
 }
 
 function closeSearchMode() {
@@ -649,6 +709,7 @@ function closeSearchMode() {
   const el = getScrollEl()
   if (el) el.scrollTop = 0
   window.scrollTo({ top: 0, behavior: 'instant' })
+  persistWishlistSearchState()
 }
 
 function resetSearchFilters() {
@@ -846,6 +907,7 @@ onActivated(async () => {
   if (shouldMaskWishlistDisplay()) {
     wishlistDisplayReady.value = false
   }
+  restoreWishlistSearchStateFromHistory()
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
@@ -893,6 +955,7 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave(() => {
   isRouteLeaving = true
   saveScrollPosition(false, 'wishlist:onBeforeRouteLeave')
+  persistWishlistSearchState()
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)
     pageScrollRaf = 0

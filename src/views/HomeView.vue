@@ -509,11 +509,31 @@ function assignSearchFilters(nextFilters) {
   Object.assign(searchFilters, normalized)
 }
 
+function serializeSearchFilters() {
+  return {
+    keyword: searchFilters.keyword,
+    categories: searchFilters.categories.slice(),
+    ips: searchFilters.ips.slice(),
+    characters: searchFilters.characters.slice(),
+    storageLocations: searchFilters.storageLocations.slice(),
+    priceMin: searchFilters.priceMin,
+    priceMax: searchFilters.priceMax,
+    acquiredPreset: searchFilters.acquiredPreset,
+    acquiredFrom: searchFilters.acquiredFrom,
+    acquiredTo: searchFilters.acquiredTo,
+    hasImage: searchFilters.hasImage,
+    hasNote: searchFilters.hasNote,
+    collectStatuses: searchFilters.collectStatuses.slice(),
+    sortBy: searchFilters.sortBy
+  }
+}
+
 function buildSearchState() {
   return {
     scope: searchScope.value,
     active: searchModeActive.value,
-    advancedExpanded: advancedExpanded.value
+    advancedExpanded: advancedExpanded.value,
+    filters: serializeSearchFilters()
   }
 }
 
@@ -535,12 +555,16 @@ function restoreSearchStateFromHistory() {
   const state = window.history.state?.[searchModeHistoryKey]
   if (!state || typeof state !== 'object') return false
 
-  const wasSearchActive = searchModeActive.value
+  // KeepAlive already preserves live state; only restore on fresh mount
+  if (searchModeActive.value) return true
+
   searchScope.value = state.scope === 'wishlist' ? 'wishlist' : 'collection'
   searchModeActive.value = state.active !== false
   advancedExpanded.value = state.advancedExpanded === true
 
-  if (!wasSearchActive) {
+  if (state.filters && typeof state.filters === 'object') {
+    assignSearchFilters(state.filters)
+  } else {
     resetSearchFilters()
   }
 
@@ -603,14 +627,15 @@ function updateSearchModeRoute(active) {
       delete nextQuery.scope
     }
 
-    router.replace({ path: '/home', query: nextQuery }).catch(() => {})
+    router.replace({ path: '/home', query: nextQuery })
+      .then(() => persistSearchState())
+      .catch(() => {})
   }, 0)
 }
 
 function openSearchMode(scope = 'collection') {
   applySearchModeState(scope)
   updateSearchModeRoute(true)
-  persistSearchState()
 }
 
 async function closeSearchMode(options = {}) {
@@ -627,7 +652,6 @@ async function closeSearchMode(options = {}) {
   if (syncRoute) {
     updateSearchModeRoute(false)
   }
-  persistSearchState()
   const el = getScrollEl()
   if (el) el.scrollTop = 0
   window.scrollTo({ top: 0, behavior: 'instant' })
@@ -1402,6 +1426,7 @@ onBeforeUnmount(() => {
 onBeforeRouteLeave(() => {
   isRouteLeaving = true
   saveScrollPosition(false, 'home:onBeforeRouteLeave')
+  persistSearchState()
   if (pageScrollRaf) {
     window.cancelAnimationFrame(pageScrollRaf)
     pageScrollRaf = 0
