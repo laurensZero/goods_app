@@ -1,9 +1,9 @@
 {
-  "version": "20260515.20",
-  "url": "bundle-20260515.20.zip",
-  "hash": "d3725bf56730ff478fa912e661f93779a3e0f07142281df8bf416ac371ea8766",
+  "version": "20260516.1",
+  "url": "bundle-20260516.1.zip",
+  "hash": "c06d668316a31d7e221a6b7f43cbcd92a09d9f52802c54cccd97547f1f416e28",
   "minNativeVersion": null,
-  "notes": "- feat: 增强元素隐藏与恢复逻辑，添加数据属性以支持清理",
+  "notes": "- feat: 添加图像缓存刷新机制，优化图像加载状态管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-15T15:31:28Z"
+  "publishedAt": "2026-05-16T02:37:07Z"
 }
