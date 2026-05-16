@@ -195,6 +195,7 @@ const queuedLoadMeta = new Map()
 let imageLoadActiveCount = 0
 let imageLoadDrainScheduled = false
 let preloadPaused = false
+let imageRefreshDispatchScheduled = 0
 
 function normalizeCacheUrl(input) {
   const value = String(input || '').trim()
@@ -250,6 +251,16 @@ function takeNextImageLoadTask() {
 function setImageLoadPaused(paused) {
   preloadPaused = !!paused
   scheduleImageLoadDrain()
+}
+
+function dispatchImageCacheRefresh(reason = 'resume') {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('goodsapp:image-cache-refresh', {
+    detail: {
+      reason,
+      timestamp: Date.now()
+    }
+  }))
 }
 
 // --- URL 转换逻辑 ---
@@ -520,6 +531,23 @@ function drainImageLoadQueue() {
 
 export function setImagePreloadPaused(paused) {
   setImageLoadPaused(paused)
+}
+
+export function signalImageCacheRefresh(reason = 'resume') {
+  if (typeof window === 'undefined') return
+  if (imageRefreshDispatchScheduled) return
+
+  const run = () => {
+    imageRefreshDispatchScheduled = 0
+    dispatchImageCacheRefresh(reason)
+  }
+
+  if (typeof window.requestAnimationFrame === 'function') {
+    imageRefreshDispatchScheduled = window.requestAnimationFrame(run)
+    return
+  }
+
+  imageRefreshDispatchScheduled = window.setTimeout(run, 0)
 }
 
 export function getImageLoadState() {

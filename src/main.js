@@ -18,6 +18,7 @@ import { useExchangeRateStore } from './stores/exchangeRate'
 import { useRechargeStore } from './stores/recharge'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
+import { signalImageCacheRefresh } from './utils/image/cache'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -103,11 +104,19 @@ function setupAndroidBackButton() {
 }
 
 function setupAndroidResumeListener(theme) {
-  if (Capacitor.getPlatform() !== 'android') return
-
-  CapacitorApp.addListener('resume', () => {
+  const handleAppVisible = () => {
     theme.syncSystemAppearance({ forceApply: true })
+    signalImageCacheRefresh('resume')
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    handleAppVisible()
   })
+
+  if (Capacitor.isNativePlatform()) {
+    CapacitorApp.addListener('resume', handleAppVisible)
+  }
 }
 
 async function bootstrap() {
