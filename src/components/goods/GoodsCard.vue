@@ -587,6 +587,7 @@ const priceCNYHint = computed(() => {
   display: flex;
   gap: 5px;
   max-height: 28px;
+  height: 28px;
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
@@ -603,6 +604,12 @@ const priceCNYHint = computed(() => {
   max-height: 0;
   opacity: 0;
   transform: translateY(-4px);
+}
+
+.goods-card--standard .card-tags--hidden,
+.goods-card--comfortable .card-tags--hidden {
+  min-height: 28px;
+  max-height: 28px;
 }
 
 .card-tags::-webkit-scrollbar {
@@ -655,14 +662,18 @@ const priceCNYHint = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 18px;
+  height: 18px;
   margin-top: auto;
   overflow: hidden;
   flex-wrap: nowrap;
 }
 
 .card-price {
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #8e8e93;
   font-size: 14px;
   font-weight: 500;
@@ -727,7 +738,7 @@ const priceCNYHint = computed(() => {
 
 .goods-card--standard .card-tags {
   margin-top: auto;
-  min-height: 28px;
+  height: 28px;
   align-items: center;
 }
 
@@ -755,7 +766,7 @@ const priceCNYHint = computed(() => {
 
 .goods-card--comfortable .card-tags {
   margin-top: auto;
-  min-height: 28px;
+  height: 28px;
   align-items: center;
 }
 
@@ -825,8 +836,16 @@ const priceCNYHint = computed(() => {
   filter: grayscale(0.6);
 }
 
-.goods-card--pending {
-  border-left: 3px solid var(--app-pending-border);
+.goods-card--pending::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: inherit;
+  background: var(--app-pending-border);
+  pointer-events: none;
 }
 
 .sel-overlay-enter-active,

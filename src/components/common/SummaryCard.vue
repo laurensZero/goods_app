@@ -34,10 +34,15 @@
         </p>
 
         <button
-          v-if="hasTrendData"
           type="button"
           class="summary-trend-toggle"
-          :class="{ 'summary-trend-toggle--open': showTrendDetails }"
+          :class="[
+            { 'summary-trend-toggle--open': showTrendDetails },
+            { 'summary-trend-toggle--hidden': !hasTrendData }
+          ]"
+          :aria-hidden="!hasTrendData"
+          :tabindex="hasTrendData ? 0 : -1"
+          :disabled="!hasTrendData"
           @click="toggleTrendDetails"
         >
           <span>{{ showTrendDetails ? '收起趋势' : '查看趋势' }}</span>
@@ -67,6 +72,14 @@
             <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
             <p class="summary-metric__meta">{{ monthChangeCount }} 件</p>
           </article>
+        </div>
+      </div>
+
+      <div v-else class="summary-trend summary-trend--placeholder" aria-hidden="true">
+        <div class="summary-sparkline" />
+        <div class="summary-metrics">
+          <article class="summary-metric summary-metric--placeholder" />
+          <article class="summary-metric summary-metric--placeholder" />
         </div>
       </div>
     </div>
@@ -377,6 +390,11 @@ watch(isHidden, (value) => {
   letter-spacing: 0.04em;
 }
 
+.summary-trend-toggle--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .summary-trend-toggle svg {
   width: 14px;
   height: 14px;
@@ -397,6 +415,16 @@ watch(isHidden, (value) => {
 
 .summary-trend--desktop {
   display: none;
+}
+
+.summary-trend--placeholder {
+  margin-top: 18px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.summary-trend--placeholder .summary-sparkline {
+  margin-bottom: 14px;
 }
 
 .summary-trend--mobile {
@@ -438,6 +466,10 @@ watch(isHidden, (value) => {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.07);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.summary-metric--placeholder {
+  min-height: 80px;
 }
 
 .summary-metric__label {

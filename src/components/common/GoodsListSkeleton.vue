@@ -8,6 +8,10 @@
           <div class="skeleton-tag skeleton-pulse" />
           <div class="skeleton-tag skeleton-pulse" />
         </div>
+        <div class="skeleton-bottom">
+          <div class="skeleton-price skeleton-pulse" />
+          <div class="skeleton-days skeleton-pulse" />
+        </div>
       </div>
     </div>
   </div>
@@ -18,7 +22,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   gap: var(--card-gap, 12px);
-  padding: 16px var(--page-padding, 16px);
+  padding: 0 var(--page-padding, 16px);
 }
 
 .skeleton-card {
@@ -28,6 +32,9 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
+  padding: 10px;
+  gap: 12px;
+  height: 100%;
 }
 
 .skeleton-cover {
@@ -37,7 +44,11 @@
 }
 
 .skeleton-body {
-  padding: 10px 12px 14px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 .skeleton-line {
@@ -48,12 +59,13 @@
 
 .skeleton-title {
   width: 70%;
-  margin-bottom: 8px;
+  min-height: 2.6em;
 }
 
 .skeleton-meta {
   display: flex;
   gap: 6px;
+  min-height: 28px;
 }
 
 .skeleton-tag {
@@ -61,6 +73,29 @@
   width: 36px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--app-surface-soft, #f0f3fa) 60%, transparent);
+}
+
+.skeleton-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 18px;
+  margin-top: auto;
+}
+
+.skeleton-price {
+  width: 42%;
+  height: 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft, #f0f3fa) 70%, transparent);
+}
+
+.skeleton-days {
+  width: 24%;
+  height: 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft, #f0f3fa) 58%, transparent);
 }
 
 .skeleton-pulse {
