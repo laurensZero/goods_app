@@ -1,9 +1,9 @@
 {
-  "version": "20260517.53",
-  "url": "bundle-20260517.53.zip",
-  "hash": "37f6e7f686884f1b8260d58961bab4174b2d5d559a1763cacfe3cf6f50146f4e",
+  "version": "20260517.54",
+  "url": "bundle-20260517.54.zip",
+  "hash": "4e17383f7b700d4fca5b787533a4bacfebae1bef11e0161d592e9c02d82437ae",
   "minNativeVersion": null,
-  "notes": "- feat: 移除Android设备的可见商品日志记录功能，优化性能",
+  "notes": "- feat: 优化商品英雄过渡状态重置逻辑，支持可选参数以控制重置行为",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T15:11:59Z"
+  "publishedAt": "2026-05-17T15:23:10Z"
 }

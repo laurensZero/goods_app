@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.54",
+    "url": "bundle-20260517.54.zip",
+    "hash": "4e17383f7b700d4fca5b787533a4bacfebae1bef11e0161d592e9c02d82437ae",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化商品英雄过渡状态重置逻辑，支持可选参数以控制重置行为",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T15:23:10Z"
+  },
+  {
     "version": "20260517.53",
     "url": "bundle-20260517.53.zip",
     "hash": "37f6e7f686884f1b8260d58961bab4174b2d5d559a1763cacfe3cf6f50146f4e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除主页可见商品窗口和卡片状态的日志记录功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T15:06:00Z"
-  },
-  {
-    "version": "20260517.51",
-    "url": "bundle-20260517.51.zip",
-    "hash": "103e7ed089a81a4f32541dc79544651e670c3c725b31559bdcf08c88f53f41c6",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加日志记录功能，跟踪主页可见商品窗口和卡片状态",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T15:04:39Z"
   }
 ]
