@@ -1,9 +1,9 @@
 {
-  "version": "20260517.13",
-  "url": "bundle-20260517.13.zip",
-  "hash": "42ad022a9f5891f1bffe7d911bc9b1e0a6887fd738db45fdfb57fe45fa02b0a6",
+  "version": "20260517.14",
+  "url": "bundle-20260517.14.zip",
+  "hash": "a2b8ab62941f5580226fe8c407ef8486198e882707f9d0d34aea18efc5172aba",
   "minNativeVersion": null,
-  "notes": "- feat: 在 LazyCachedImage 组件中添加 imageAttrs 属性以支持自定义样式",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T05:43:58Z"
+  "publishedAt": "2026-05-17T05:52:58Z"
 }
