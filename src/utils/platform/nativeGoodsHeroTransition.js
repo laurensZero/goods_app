@@ -23,13 +23,22 @@ let heroRuntimeGeneration = 0
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
 const hiddenElementsMap = new Map()
+let activeHiddenHeroElement = null
 
 function hideElement(el) {
   if (!el || hiddenElementsMap.has(el)) return
+
+  // Hero 退场只应隐藏当前这一个目标元素。
+  // 如果上一次的隐藏状态还没被清理，先恢复它，避免把其它可见卡片一起卷进回收流程。
+  if (activeHiddenHeroElement && activeHiddenHeroElement !== el) {
+    restoreElement(activeHiddenHeroElement)
+  }
+
   hiddenElementsMap.set(el, {
     opacity: el.style.opacity ?? '',
     pointerEvents: el.style.pointerEvents ?? ''
   })
+  activeHiddenHeroElement = el
   el.setAttribute('data-hero-hidden', '')
   // Use opacity to hide so we avoid layout/layout thrash caused by
   // changing visibility or display. Also disable pointer events.
@@ -45,21 +54,16 @@ function restoreElement(el) {
   el.style.pointerEvents = prev.pointerEvents
   el.removeAttribute('data-hero-hidden')
   hiddenElementsMap.delete(el)
+  if (activeHiddenHeroElement === el) {
+    activeHiddenHeroElement = null
+  }
 }
 
-function restoreAllHiddenElements() {
-  // 仅恢复我们记录的元素，避免对全局 DOM 做不安全的恢复操作，
-  // 防止在虚拟列表/DOM recycle 场景下错误地影响其它图片元素。
-  hiddenElementsMap.forEach((prev, el) => {
-    try {
-      if (el.isConnected) {
-        el.style.opacity = prev.opacity
-        el.style.pointerEvents = prev.pointerEvents
-        el.removeAttribute('data-hero-hidden')
-      }
-    } catch (e) {}
-  })
-  hiddenElementsMap.clear()
+function restoreActiveHiddenElement() {
+  if (!activeHiddenHeroElement) return
+  const el = activeHiddenHeroElement
+  activeHiddenHeroElement = null
+  restoreElement(el)
 }
 
 function resetHeroRuntimeState() {
@@ -93,7 +97,7 @@ function bindHeroLifecycleCleanup() {
 export function cleanupAllHeroes() {
   heroRuntimeGeneration += 1
 
-  restoreAllHiddenElements()
+  restoreActiveHiddenElement()
 
   const animations = Array.from(activeHeroAnimations)
   activeHeroAnimations.clear()
@@ -576,6 +580,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
+  // Hide the destination target immediately so slow decode cannot flash the
+  // final image before the hero overlay takes over.
+  hideElement(targetEl)
+
   // Ensure image is reasonably decoded before starting animation to avoid
   // skeleton/灰底先行的情况。等待短时的 decode 成功，超时则继续（图片在动画中会被 reveal）。
   const tryWaitImage = snapshot.imageSrc ? await waitForImageDecode(snapshot.imageSrc, 350) : false
@@ -597,8 +605,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   // or when moving back.
   const aspectDelta = Math.abs((snapshot.width / (snapshot.height || 1)) - (targetRect.width / (targetRect.height || 1)))
   const transformOnly = shouldPreferTransformOnlyHero(direction, aspectDelta)
-
-  hideElement(targetEl)
 
   try {
     await waitForNextFrame()
@@ -846,6 +852,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
 
   pendingForwardEventHero = {
     eventId: String(eventId),
+    preparedAt: Date.now(),
     left: rect.left,
     top: rect.top,
     width: rect.width,
@@ -862,9 +869,29 @@ export function playEventHeroForward(eventId, targetEl) {
   if (!pendingForwardEventHero) return
   if (String(eventId) !== pendingForwardEventHero.eventId) return
 
+  const ageMs = Date.now() - Number(pendingForwardEventHero.preparedAt || 0)
+  if (ageMs > FORWARD_HERO_PENDING_TTL_MS) {
+    cleanupAllHeroes()
+    pendingForwardEventHero = null
+    return
+  }
+
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
+    setTimeout(() => {
+      if (pendingForwardEventHero && pendingForwardEventHero.eventId === String(eventId)) {
+        void playEventHeroForward(eventId, targetEl)
+      }
+    }, 120)
+    return
+  }
+
+  if (!isHeroImageReady(targetEl)) {
+    setTimeout(() => {
+      if (pendingForwardEventHero && pendingForwardEventHero.eventId === String(eventId)) {
+        void playEventHeroForward(eventId, targetEl)
+      }
+    }, 120)
     return
   }
 

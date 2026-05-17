@@ -277,20 +277,43 @@ function isRectStable(prevRect, nextRect, tolerance = 0.5) {
 }
 
 async function waitForStableHeroTarget(el, maxFrames = 6) {
+  if (!el) return false
   let previousRect = null
   for (let frame = 0; frame < maxFrames; frame += 1) {
     await waitForNextFrame()
     const currentRect = readElementRect(el)
-    if (isRectStable(previousRect, currentRect)) return
+    if (isRectStable(previousRect, currentRect)) return true
     previousRect = currentRect
   }
+  return false
+}
+
+function isEventHeroTargetReady(el) {
+  if (!el) return false
+  const imageRoot = el.querySelector?.('[data-lazy-image-ready]') || null
+  if (!imageRoot) return true
+  return imageRoot.getAttribute('data-lazy-image-ready') === 'true'
 }
 
 async function playEventHeroForwardWhenReady() {
   await nextTick()
-  await waitForStableHeroTarget(coverCardRef.value)
-  await playEventHeroForward(eventId.value, coverCardRef.value)
-  tryPlayLinkedGoodsBackHero()
+  const targetEl = coverCardRef.value
+  if (!targetEl) return false
+
+  const targetReadyNeeded = !!event.value?.coverImage
+  for (let frame = 0; frame < 12; frame += 1) {
+    if (!targetReadyNeeded || isEventHeroTargetReady(targetEl)) {
+      const heroPromise = await playEventHeroForward(eventId.value, targetEl)
+      if (heroPromise) {
+        await heroPromise
+        tryPlayLinkedGoodsBackHero()
+        return true
+      }
+    }
+    await waitForNextFrame()
+  }
+
+  return false
 }
 
 const eventId = computed(() => props.id || route.params.id)
@@ -466,15 +489,12 @@ onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   lockDetailEntryScrollLock()
   coverMediaVisible.value = false
-  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
-  eventDisplayReady.value = !shouldRestore
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
   await refresh()
   await restoreViewState()
   preloadLinkedGoodsImages()
-  eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
   coverMediaVisible.value = true
 })
@@ -490,13 +510,8 @@ onBeforeUnmount(() => {
 onActivated(async () => {
   lockDetailEntryScrollLock()
   coverMediaVisible.value = false
-  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
-  if (shouldRestore) {
-    eventDisplayReady.value = false
-  }
   await restoreViewState()
   preloadLinkedGoodsImages()
-  eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
   coverMediaVisible.value = true
 })
@@ -513,12 +528,10 @@ onBeforeRouteLeave((to) => {
 
 watch(eventId, async () => {
   lockDetailEntryScrollLock()
-  eventDisplayReady.value = false
   previewPhotoIndex.value = -1
   coverMediaVisible.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
-  eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
   coverMediaVisible.value = true
 })
