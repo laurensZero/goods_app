@@ -1,9 +1,9 @@
 {
-  "version": "20260517.50",
-  "url": "bundle-20260517.50.zip",
-  "hash": "22a1448da55c3e29e2c853d6430b3b486da915d93faa8c9d7984a09241018124",
+  "version": "20260517.51",
+  "url": "bundle-20260517.51.zip",
+  "hash": "103e7ed089a81a4f32541dc79544651e670c3c725b31559bdcf08c88f53f41c6",
   "minNativeVersion": null,
-  "notes": "- feat: 增加商品卡片和详情视图的data属性，优化调试信息记录",
+  "notes": "- feat: 增加日志记录功能，跟踪主页可见商品窗口和卡片状态",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:58:15Z"
+  "publishedAt": "2026-05-17T15:04:39Z"
 }

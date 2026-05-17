@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.51",
+    "url": "bundle-20260517.51.zip",
+    "hash": "103e7ed089a81a4f32541dc79544651e670c3c725b31559bdcf08c88f53f41c6",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加日志记录功能，跟踪主页可见商品窗口和卡片状态",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T15:04:39Z"
+  },
+  {
     "version": "20260517.50",
     "url": "bundle-20260517.50.zip",
     "hash": "22a1448da55c3e29e2c853d6430b3b486da915d93faa8c9d7984a09241018124",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修改封面图片隐藏逻辑，从opacity改为visibility",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T14:52:27Z"
-  },
-  {
-    "version": "20260517.48",
-    "url": "bundle-20260517.48.zip",
-    "hash": "b4034e28d46f161786047c065ebc794329e80ac2ada98835a5f0d3cdc6b2f7ce",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化商品卡片样式，移除不必要的CSS属性并调整懒加载图片的隐藏逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:41:06Z"
   }
 ]
