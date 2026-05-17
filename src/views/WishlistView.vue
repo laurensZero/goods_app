@@ -494,19 +494,35 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
   const baseOverscan = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
-  const overscanRows = searchModeActive.value ? Math.max(baseOverscan, 6) : baseOverscan
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
-  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
-  const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+
+  let startRow
+  let renderRows
+
+  if (searchModeActive.value) {
+    startRow = 0
+    const bottomOverscan = Math.max(baseOverscan, 6)
+    renderRows = Math.max(
+      INITIAL_RENDER_ROWS,
+      Math.ceil((normalizedTop + viewportHeight) / rowSpan) + bottomOverscan
+    )
+  } else {
+    const overscanRows = baseOverscan
+    startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+    renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+  }
+
   const startIndex = Math.min(displayedGoodsList.value.length, startRow * cols)
   const remainingItems = Math.max(0, displayedGoodsList.value.length - startIndex)
-  const renderCount = Math.min(
-    remainingItems,
-    Math.min(
-      GOODS_GRID_MAX_RENDER_CARDS,
-      Math.max(cols * 4, renderRows * cols)
-    )
-  )
+  const renderCount = searchModeActive.value
+    ? Math.min(remainingItems, Math.max(cols * 4, renderRows * cols))
+    : Math.min(
+        remainingItems,
+        Math.min(
+          GOODS_GRID_MAX_RENDER_CARDS,
+          Math.max(cols * 4, renderRows * cols)
+        )
+      )
 
   visibleGoodsStartIndex.value = startIndex
   visibleGoodsRenderCount.value = renderCount

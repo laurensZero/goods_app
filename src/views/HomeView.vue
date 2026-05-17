@@ -42,7 +42,7 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <Transition name="search-mode-panel" mode="out-in" @after-leave="handleSearchModePanelAfterLeave">
+      <Transition name="search-mode-panel" mode="out-in">
         <GoodsSearchPanel
           v-if="searchModeActive && !selectionMode"
           :active="searchModeActive"
@@ -56,12 +56,12 @@
         />
       </Transition>
 
-      <section v-if="!searchModeActive && !searchModeTransitioning" class="summary-section">
+      <section v-if="!searchModeActive" class="summary-section">
         <SummaryCard :total-value="totalValue" :total-count="goodsList.length" :trend-items="goodsList" trend-date-field="acquiredAt" />
       </section>
 
       <HomeGoodsToolbar
-        v-if="!searchModeActive && !searchModeTransitioning"
+        v-if="!searchModeActive"
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
         :sort-mode="sortMode"
@@ -255,7 +255,7 @@ const addMotionSnapshot = ref(null)
 const addMotionRequest = ref(null)
 const addMotionOverlay = ref(null)
 const searchModeActive = ref(false)
-const searchModeTransitioning = ref(false)
+
 const searchScope = ref('collection')
 const searchFilters = reactive(createDefaultGoodsFilters({ hasImage: 'any' }))
 const advancedExpanded = ref(false)
@@ -404,7 +404,6 @@ function applySearchModeState(scope = 'collection', options = {}) {
     resetSearchFilters()
   }
   searchModeActive.value = true
-  searchModeTransitioning.value = false
   advancedExpanded.value = false
 }
 
@@ -422,7 +421,6 @@ function syncSearchModeFromRoute() {
   }
 
   if (searchModeActive.value) {
-    searchModeTransitioning.value = true
     searchModeActive.value = false
     advancedExpanded.value = false
   }
@@ -474,7 +472,6 @@ async function closeSearchMode(options = {}) {
     }
   }
 
-  searchModeTransitioning.value = true
   searchModeActive.value = false
   resetSearchFilters()
   if (syncRoute) {
@@ -494,9 +491,6 @@ function toggleSearchMode() {
   openSearchMode('collection')
 }
 
-function handleSearchModePanelAfterLeave() {
-  searchModeTransitioning.value = false
-}
 
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
@@ -851,20 +845,38 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const rowHeight = ROW_HEIGHT_MAP[effectiveDisplayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
   const baseOverscan = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
-  const overscanRows = searchModeActive.value ? Math.max(baseOverscan, 6) : baseOverscan
   const maxRenderCards = GOODS_GRID_MAX_RENDER_CARDS
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
-  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
-  const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+
+  let startRow
+  let renderRows
+
+  if (searchModeActive.value) {
+    // 搜索模式下不卸载顶部谷子：startRow 始终从 0 开始，
+    // 避免 beforeSpacer 高度变化导致页面跳动
+    startRow = 0
+    const bottomOverscan = Math.max(baseOverscan, 6)
+    renderRows = Math.max(
+      INITIAL_RENDER_ROWS,
+      Math.ceil((normalizedTop + viewportHeight) / rowSpan) + bottomOverscan
+    )
+  } else {
+    const overscanRows = baseOverscan
+    startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+    renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
+  }
+
   const startIndex = Math.min(displayedGoodsList.value.length, startRow * cols)
   const remainingItems = Math.max(0, displayedGoodsList.value.length - startIndex)
-  const renderCount = Math.min(
-    remainingItems,
-    Math.min(
-      maxRenderCards,
-      Math.max(cols * 4, renderRows * cols)
-    )
-  )
+  const renderCount = searchModeActive.value
+    ? Math.min(remainingItems, Math.max(cols * 4, renderRows * cols))
+    : Math.min(
+        remainingItems,
+        Math.min(
+          maxRenderCards,
+          Math.max(cols * 4, renderRows * cols)
+        )
+      )
 
   currentGoodsScrollTop.value = normalizedTop
   currentGoodsViewportHeight.value = viewportHeight
@@ -1168,7 +1180,7 @@ onActivated(async () => {
   isHomeActive.value = true
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
-  if (shouldMaskHomeDisplay()) {
+  if (!searchModeActive.value && shouldMaskHomeDisplay()) {
     homeDisplayReady.value = false
   }
   const storedState = getStoredScrollState()
