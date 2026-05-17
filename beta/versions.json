@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.22",
+    "url": "bundle-20260517.22.zip",
+    "hash": "6b3bd73da26f00481c7c348c9149cd671f66812c3d0d978d75172810c71055b6",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化事件英雄动画的准备状态检查，确保目标元素准备就绪后再执行动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T08:09:13Z"
+  },
+  {
     "version": "20260517.21",
     "url": "bundle-20260517.21.zip",
     "hash": "ba97670c89ae83ba7e9af7ff8ca74a2c8e66964a3e63bf91100f35c104f70916",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加骨架屏延迟显示支持，优化图片加载体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T07:31:17Z"
-  },
-  {
-    "version": "20260517.19",
-    "url": "bundle-20260517.19.zip",
-    "hash": "be1741dfe093d67fdc074fb8fa74062b207e0e887ed7c3743926f245ee18443b",
-    "minNativeVersion": null,
-    "notes": "- feat: 延迟解锁图片预加载以防止重绘，优化多个卡片更新时的动画表现",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T06:52:47Z"
   }
 ]

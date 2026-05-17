@@ -1,9 +1,9 @@
 {
-  "version": "20260517.21",
-  "url": "bundle-20260517.21.zip",
-  "hash": "ba97670c89ae83ba7e9af7ff8ca74a2c8e66964a3e63bf91100f35c104f70916",
+  "version": "20260517.22",
+  "url": "bundle-20260517.22.zip",
+  "hash": "6b3bd73da26f00481c7c348c9149cd671f66812c3d0d978d75172810c71055b6",
   "minNativeVersion": null,
-  "notes": "- feat: 优化英雄动画的可见性控制，添加隐藏样式以改善用户体验\n\n- feat: 添加英雄隐藏样式以改善事件卡片的视觉表现",
+  "notes": "- feat: 优化事件英雄动画的准备状态检查，确保目标元素准备就绪后再执行动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T07:44:04Z"
+  "publishedAt": "2026-05-17T08:09:13Z"
 }
