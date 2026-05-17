@@ -27,7 +27,6 @@ const hiddenElementsMap = new Map()
 function hideElement(el) {
   if (!el || hiddenElementsMap.has(el)) return
   hiddenElementsMap.set(el, {
-    visibility: el.style.visibility ?? '',
     opacity: el.style.opacity ?? '',
     pointerEvents: el.style.pointerEvents ?? ''
   })
@@ -42,7 +41,6 @@ function restoreElement(el) {
   if (!el) return
   const prev = hiddenElementsMap.get(el)
   if (!prev) return
-  el.style.visibility = prev.visibility
   el.style.opacity = prev.opacity
   el.style.pointerEvents = prev.pointerEvents
   el.removeAttribute('data-hero-hidden')
@@ -55,8 +53,8 @@ function restoreAllHiddenElements() {
   hiddenElementsMap.forEach((prev, el) => {
     try {
       if (el.isConnected) {
-        el.style.visibility = prev.visibility
         el.style.opacity = prev.opacity
+        el.style.pointerEvents = prev.pointerEvents
         el.removeAttribute('data-hero-hidden')
       }
     } catch (e) {}
@@ -498,6 +496,12 @@ async function waitForImageDecode(src, timeoutMs = 400) {
   }
 }
 
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+}
+
 async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return Promise.resolve()
   if (!snapshot || !targetRect) return Promise.resolve()
@@ -532,20 +536,17 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       activeHeroNodes.delete(node)
     }
 
-    // Defer restore and DOM removal to the next animation frames to avoid
-    // causing synchronous layout/repaint that can produce flicker when
-    // multiple cards are being updated. Also delay unlocking image preload
-    // until after DOM restore to prevent resumed loads from causing repaints
-    // while the overlay is still being torn down.
+    // Defer DOM removal to the next animation frames to avoid synchronous
+    // layout/repaint while the overlay is being torn down.
     const shouldUnlock = animationGeneration === heroRuntimeGeneration
     try {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           try {
-            restoreElement(targetEl)
+            if (node.parentNode) node.remove()
           } catch (e) {}
           try {
-            if (node.parentNode) node.remove()
+            restoreElement(targetEl)
           } catch (e) {}
 
           if (shouldUnlock) {
@@ -558,10 +559,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       })
     } catch (e) {
       try {
-        restoreElement(targetEl)
+        if (node.parentNode) node.remove()
       } catch (e) {}
       try {
-        if (node.parentNode) node.remove()
+        restoreElement(targetEl)
       } catch (e) {}
       if (shouldUnlock) {
         heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
@@ -583,6 +584,7 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   node.style.top = `${snapshot.top}px`
   node.style.width = `${snapshot.width}px`
   node.style.height = `${snapshot.height}px`
+  node.style.opacity = '0'
   document.body.appendChild(node)
   activeHeroNodes.add(node)
 
@@ -599,6 +601,9 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   hideElement(targetEl)
 
   try {
+    await waitForNextFrame()
+    node.style.opacity = '1'
+
     if (transformOnly) {
       const { scaleX, scaleY } = resolveTransformOnlyTarget(snapshot, targetRect)
       const deltaX = Number(targetRect.left || 0) - Number(snapshot.left || 0)
@@ -616,8 +621,8 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
       animation = node.animate(
         [
-          { transform: fromTransform, opacity: 1 },
-          { transform: toTransform, opacity: 1 }
+          { transform: fromTransform },
+          { transform: toTransform }
         ],
         { duration, easing, fill: 'both' }
       )
@@ -647,7 +652,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
           top: `${snapshot.top}px`,
           width: `${snapshot.width}px`,
           height: `${snapshot.height}px`,
-          opacity: 1,
           borderRadius: `${radiusFrom}px`
         },
         {
@@ -655,7 +659,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
           top: `${targetRect.top}px`,
           width: `${targetRect.width}px`,
           height: `${targetRect.height}px`,
-          opacity: 1,
           borderRadius: `${radiusTo}px`
         }
       ]
