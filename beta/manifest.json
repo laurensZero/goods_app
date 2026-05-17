@@ -1,9 +1,9 @@
 {
-  "version": "20260517.42",
-  "url": "bundle-20260517.42.zip",
-  "hash": "95ae77429a25d8e1d83265bec49f57d8f13e1c0e644a802919e019ef075d56f3",
+  "version": "20260517.43",
+  "url": "bundle-20260517.43.zip",
+  "hash": "4ea54ffcd2f35e789d685413c3de200613da3af9f224bcfdc30a6644ed52aabe",
   "minNativeVersion": null,
-  "notes": "- feat: 增加英雄调试功能，优化调试日志记录逻辑",
+  "notes": "- feat: 优化Android设备的卡片观察逻辑，避免不必要的观察",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:23:19Z"
+  "publishedAt": "2026-05-17T14:26:13Z"
 }
