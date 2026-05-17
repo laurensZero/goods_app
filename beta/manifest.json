@@ -1,9 +1,9 @@
 {
-  "version": "20260517.14",
-  "url": "bundle-20260517.14.zip",
-  "hash": "a2b8ab62941f5580226fe8c407ef8486198e882707f9d0d34aea18efc5172aba",
+  "version": "20260517.15",
+  "url": "bundle-20260517.15.zip",
+  "hash": "c4c1d95fef0ea20624f8a9216b38543a5c8bcabb08c71eae56ece9acd4c10174",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 添加图片解码等待逻辑，优化动画前的图片加载体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T05:52:58Z"
+  "publishedAt": "2026-05-17T06:39:50Z"
 }
