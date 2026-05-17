@@ -851,7 +851,7 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const rowHeight = ROW_HEIGHT_MAP[effectiveDisplayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
   const baseOverscan = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
-  const overscanRows = searchModeActive.value ? Math.max(baseOverscan, 10) : baseOverscan
+  const overscanRows = searchModeActive.value ? Math.max(baseOverscan, 5) : baseOverscan
   const maxRenderCards = GOODS_GRID_MAX_RENDER_CARDS
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
