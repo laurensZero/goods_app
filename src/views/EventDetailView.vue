@@ -3,7 +3,6 @@
     v-if="event"
     class="page event-detail-page"
     :class="{
-      'event-detail-page--restoring': !eventDisplayReady,
       'event-detail-page--entry-lock': detailEntryScrollLockActive
     }"
   >
@@ -40,6 +39,10 @@
                 v-if="event.coverImage"
                 :src="event.coverImage"
                 :alt="event.name"
+                :lazy="false"
+                loading="eager"
+                fetchpriority="high"
+                :skeleton-enabled="false"
                 :image-attrs="{ class: 'cover-card__img' }"
               />
               <div v-else class="cover-card__fallback">{{ coverFallback }}</div>
@@ -142,6 +145,7 @@
                   :alt="goods.name"
                   :lazy="true"
                   root-margin="220px 0px"
+                  :skeleton-delay-ms="120"
                   class="linked-goods-card__img"
                   :data-goods-hero-id="String(goods.id || '')"
                 />
@@ -629,10 +633,6 @@ function tryPlayLinkedGoodsBackHero() {
   height: 100dvh;
   overflow: hidden;
   background: var(--app-bg-gradient);
-}
-
-.event-detail-page--restoring {
-  visibility: hidden;
 }
 
 .event-detail-page--entry-lock .page-body {

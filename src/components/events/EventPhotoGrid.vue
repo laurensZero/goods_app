@@ -12,6 +12,7 @@
           v-if="photo.uri"
           :src="photo.uri"
           :alt="photo.caption || `照片 ${index + 1}`"
+          :skeleton-delay-ms="120"
           :image-attrs="{ class: 'photo-grid__img' }"
         />
         <div v-else class="photo-grid__placeholder">✦</div>
