@@ -1,9 +1,9 @@
 {
-  "version": "20260517.40",
-  "url": "bundle-20260517.40.zip",
-  "hash": "f323c2313cde57796ff03e537324760cbfd9985877cae47e034d53e8b3ac2482",
+  "version": "20260517.41",
+  "url": "bundle-20260517.41.zip",
+  "hash": "e22efc41e0ca58f8bf3864b48d9d18b511b3f334613d0e24ee2fd62026b6c65d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化商品卡片重绘逻辑，增加对Android设备的处理",
+  "notes": "- feat: 增强调试日志记录，优化商品卡片和懒加载图片的性能监控",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:12:31Z"
+  "publishedAt": "2026-05-17T14:18:29Z"
 }
