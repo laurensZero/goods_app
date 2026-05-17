@@ -1,9 +1,9 @@
 {
-  "version": "20260517.41",
-  "url": "bundle-20260517.41.zip",
-  "hash": "e22efc41e0ca58f8bf3864b48d9d18b511b3f334613d0e24ee2fd62026b6c65d",
+  "version": "20260517.42",
+  "url": "bundle-20260517.42.zip",
+  "hash": "95ae77429a25d8e1d83265bec49f57d8f13e1c0e644a802919e019ef075d56f3",
   "minNativeVersion": null,
-  "notes": "- feat: 增强调试日志记录，优化商品卡片和懒加载图片的性能监控",
+  "notes": "- feat: 增加英雄调试功能，优化调试日志记录逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:18:29Z"
+  "publishedAt": "2026-05-17T14:23:19Z"
 }

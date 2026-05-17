@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.42",
+    "url": "bundle-20260517.42.zip",
+    "hash": "95ae77429a25d8e1d83265bec49f57d8f13e1c0e644a802919e019ef075d56f3",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加英雄调试功能，优化调试日志记录逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T14:23:19Z"
+  },
+  {
     "version": "20260517.41",
     "url": "bundle-20260517.41.zip",
     "hash": "e22efc41e0ca58f8bf3864b48d9d18b511b3f334613d0e24ee2fd62026b6c65d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品卡片重绘逻辑，增加对Android设备的处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T14:12:31Z"
-  },
-  {
-    "version": "20260517.39",
-    "url": "bundle-20260517.39.zip",
-    "hash": "6b9b59aed58dff8d1db7904f2b519a281f250f24386a473a4d3720b5099030af",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加英雄调试面板和日志功能以增强调试能力",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:09:39Z"
   }
 ]
