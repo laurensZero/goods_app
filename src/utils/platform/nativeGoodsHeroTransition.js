@@ -28,10 +28,14 @@ function hideElement(el) {
   if (!el || hiddenElementsMap.has(el)) return
   hiddenElementsMap.set(el, {
     visibility: el.style.visibility ?? '',
-    opacity: el.style.opacity ?? ''
+    opacity: el.style.opacity ?? '',
+    pointerEvents: el.style.pointerEvents ?? ''
   })
   el.setAttribute('data-hero-hidden', '')
-  el.style.visibility = 'hidden'
+  // Use opacity to hide so we avoid layout/layout thrash caused by
+  // changing visibility or display. Also disable pointer events.
+  el.style.opacity = '0'
+  el.style.pointerEvents = 'none'
 }
 
 function restoreElement(el) {
@@ -40,6 +44,7 @@ function restoreElement(el) {
   if (!prev) return
   el.style.visibility = prev.visibility
   el.style.opacity = prev.opacity
+  el.style.pointerEvents = prev.pointerEvents
   el.removeAttribute('data-hero-hidden')
   hiddenElementsMap.delete(el)
 }
@@ -527,13 +532,28 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       activeHeroNodes.delete(node)
     }
 
+    // Defer restore and DOM removal to the next animation frames to avoid
+    // causing synchronous layout/repaint that can produce flicker when
+    // multiple cards are being updated.
     try {
-      if (node.parentNode) {
-        node.remove()
-      }
-    } catch (e) {}
-
-    restoreElement(targetEl)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            restoreElement(targetEl)
+          } catch (e) {}
+          try {
+            if (node.parentNode) node.remove()
+          } catch (e) {}
+        })
+      })
+    } catch (e) {
+      try {
+        restoreElement(targetEl)
+      } catch (e) {}
+      try {
+        if (node.parentNode) node.remove()
+      } catch (e) {}
+    }
 
     if (animationGeneration === heroRuntimeGeneration) {
       heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
