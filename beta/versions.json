@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.34",
+    "url": "bundle-20260517.34.zip",
+    "hash": "1e6ea800da611a587eb6d5d659b2d44c6041240cea7fcbc309f09b43789f3cd7",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除文档样式中的背景属性，优化滚动锁定逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T11:57:58Z"
+  },
+  {
     "version": "20260517.33",
     "url": "bundle-20260517.33.zip",
     "hash": "ef6cc7896e7fd7c83a9955934208db388c25abb10cd9fba0f34f70a9461e8d98",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T11:16:38Z"
-  },
-  {
-    "version": "20260517.31",
-    "url": "bundle-20260517.31.zip",
-    "hash": "fad1540e222d41dd17265ff3bd3116018a6ad09bdbd9a31a1358318d7c9720dc",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化事件和主页的显示逻辑，防止闪烁现象，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T10:51:19Z"
   }
 ]
