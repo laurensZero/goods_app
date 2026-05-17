@@ -54,16 +54,6 @@ function restoreAllHiddenElements() {
     } catch (e) {}
   })
   hiddenElementsMap.clear()
-
-  // Vue re-render 后旧 DOM 被替换，新 DOM 上无 data-hero-hidden，
-  // 但可能仍有残留标记（旧 DOM 尚未被 GC）。兜底清理所有标记。
-  document.querySelectorAll('[data-hero-hidden]').forEach((el) => {
-    try {
-      el.style.visibility = ''
-      el.style.opacity = ''
-      el.removeAttribute('data-hero-hidden')
-    } catch (e) {}
-  })
 }
 
 function resetHeroRuntimeState() {
@@ -97,8 +87,6 @@ function bindHeroLifecycleCleanup() {
 export function cleanupAllHeroes() {
   heroRuntimeGeneration += 1
 
-  restoreAllHiddenElements()
-
   const animations = Array.from(activeHeroAnimations)
   activeHeroAnimations.clear()
 
@@ -116,6 +104,8 @@ export function cleanupAllHeroes() {
     } catch (e) {}
   })
   activeHeroNodes.clear()
+
+  restoreAllHiddenElements()
   resetHeroRuntimeState()
 }
 
@@ -123,6 +113,10 @@ export function cleanupAllHeroes() {
 bindHeroLifecycleCleanup()
 export function getHeroBackDurationMs() {
   return BACK_DURATION_MS
+}
+
+export function getHeroBackPendingTtlMs() {
+  return BACK_HERO_PENDING_TTL_MS
 }
 
 export function isGoodsHeroAnimating() {
@@ -346,6 +340,7 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   node.style.backfaceVisibility = 'hidden'
   node.style.background = 'transparent'
   node.style.overflow = 'visible'
+  node.style.transform = 'translate3d(0, 0, 0) scale(1, 1)'
 
   const shadow = document.createElement('div')
   shadow.style.position = 'absolute'
@@ -433,12 +428,14 @@ function resolveTransformOnlyTarget(snapshot, targetRect) {
   const scaleY = snapshot.height > 0 ? targetRect.height / snapshot.height : 1
   const normalizedScaleX = Number.isFinite(scaleX) ? scaleX : 1
   const normalizedScaleY = Number.isFinite(scaleY) ? scaleY : 1
+  const translateX = Number(targetRect.left || 0) - Number(snapshot.left || 0)
+  const translateY = Number(targetRect.top || 0) - Number(snapshot.top || 0)
 
   return {
     scaleX: normalizedScaleX,
     scaleY: normalizedScaleY,
-    translateX: targetRect.left,
-    translateY: targetRect.top
+    translateX: Number.isFinite(translateX) ? translateX : 0,
+    translateY: Number.isFinite(translateY) ? translateY : 0
   }
 }
 
@@ -514,22 +511,19 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
+  const targetTransform = resolveTransformOnlyTarget(snapshot, targetRect)
+  const startRadius = resolveCompensatedRadius(radiusFrom, 1, 1)
+  const endRadius = resolveCompensatedRadius(radiusTo, targetTransform.scaleX, targetTransform.scaleY)
   const keyframes = [
     {
-      left: `${snapshot.left}px`,
-      top: `${snapshot.top}px`,
-      width: `${snapshot.width}px`,
-      height: `${snapshot.height}px`,
+      transform: 'translate3d(0, 0, 0) scale(1, 1)',
       opacity: 1,
-      borderRadius: `${radiusFrom}px`
+      borderRadius: startRadius
     },
     {
-      left: `${targetRect.left}px`,
-      top: `${targetRect.top}px`,
-      width: `${targetRect.width}px`,
-      height: `${targetRect.height}px`,
+      transform: `translate3d(${targetTransform.translateX}px, ${targetTransform.translateY}px, 0) scale(${targetTransform.scaleX}, ${targetTransform.scaleY})`,
       opacity: 1,
-      borderRadius: `${radiusTo}px`
+      borderRadius: endRadius
     }
   ]
 
@@ -595,14 +589,11 @@ export function playGoodsHeroForward(goodsId, targetEl) {
 
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
-    return
+    return false
   }
 
   if (!isHeroImageReady(targetEl)) {
-    cleanupAllHeroes()
-    pendingForwardHero = null
-    return
+    return false
   }
 
   void animateHero(
@@ -617,6 +608,7 @@ export function playGoodsHeroForward(goodsId, targetEl) {
   )
 
   pendingForwardHero = null
+  return true
 }
 
 export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {

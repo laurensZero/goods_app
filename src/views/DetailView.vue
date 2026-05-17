@@ -252,6 +252,8 @@ const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 let removeAndroidBackListener = null
+let goodsHeroForwardRetryRaf = 0
+const GOODS_HERO_FORWARD_RETRY_MAX_FRAMES = 40
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -299,7 +301,24 @@ async function playGoodsHeroForwardWhenReady() {
   if (!coverCardRef.value) return
   const isStable = await waitForStableHeroTarget(coverCardRef.value)
   if (!isStable) return
-  playGoodsHeroForward(props.id, coverCardRef.value)
+
+  if (goodsHeroForwardRetryRaf) {
+    window.cancelAnimationFrame(goodsHeroForwardRetryRaf)
+    goodsHeroForwardRetryRaf = 0
+  }
+
+  let attempt = 0
+  const tryPlay = () => {
+    goodsHeroForwardRetryRaf = 0
+    const played = playGoodsHeroForward(props.id, coverCardRef.value)
+    if (played || attempt + 1 >= GOODS_HERO_FORWARD_RETRY_MAX_FRAMES) {
+      return
+    }
+    attempt += 1
+    goodsHeroForwardRetryRaf = window.requestAnimationFrame(tryPlay)
+  }
+
+  tryPlay()
 }
 
 const item = computed(() => store.getById(props.id))
@@ -703,6 +722,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   releaseDetailEntryScrollLock()
   syncDetailScrollLock(false)
+  if (goodsHeroForwardRetryRaf) {
+    window.cancelAnimationFrame(goodsHeroForwardRetryRaf)
+    goodsHeroForwardRetryRaf = 0
+  }
   if (removeAndroidBackListener) {
     removeAndroidBackListener()
     removeAndroidBackListener = null

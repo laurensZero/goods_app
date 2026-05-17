@@ -397,7 +397,7 @@ import {
 } from '@/utils/goods/filters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, getHeroBackPendingTtlMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -688,8 +688,7 @@ const ROW_HEIGHT_MAP = {
   standard: 272,
   compact: 236
 }
-const HOME_BACK_HERO_RETRY_MAX_FRAMES = 12
-const HOME_BACK_HERO_GUARD_TIMEOUT_MS = 320
+const HOME_BACK_HERO_GUARD_TIMEOUT_MS = Math.max(320, getHeroBackPendingTtlMs() + 120)
 let removeAndroidBackListener = null
 let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
@@ -1750,11 +1749,6 @@ function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
       return
     }
     if (!hasPendingGoodsHeroBack(route.fullPath)) {
-      cleanupAllHeroes()
-      hooks?.onGiveUp?.()
-      return
-    }
-    if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
       cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return

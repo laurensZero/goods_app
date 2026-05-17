@@ -10,7 +10,6 @@
       <SearchBar
         v-model="filters.keyword"
         placeholder="搜索名称、分类、IP、角色、备注"
-        autofocus
         class="search-section__bar"
       />
     </div>

@@ -180,7 +180,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, getHeroBackPendingTtlMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import {
   GOODS_FILTER_SPECIAL_VALUES,
   applyGoodsFilters,
@@ -212,8 +212,7 @@ const HOME_TOP_OPTIONS = [
 ]
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
-const WISHLIST_BACK_HERO_RETRY_MAX_FRAMES = 40
-const WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS = 620
+const WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS = Math.max(620, getHeroBackPendingTtlMs() + 120)
 const INITIAL_RENDER_ROWS = 6
 const GOODS_GRID_ROW_GAP = 12
 const GOODS_GRID_OVERSCAN_ROWS = 4
@@ -257,6 +256,7 @@ let topJumpMaskTimer = 0
 let goodsBackHeroRetryRaf = 0
 let wishlistBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
+let wishlistSearchRestoreContext = null
 
 const {
   densityModes,
@@ -352,6 +352,32 @@ function buildWishlistSearchState() {
   }
 }
 
+function captureWishlistSearchRestoreContext() {
+  if (!searchModeActive.value) {
+    wishlistSearchRestoreContext = null
+    return
+  }
+
+  wishlistSearchRestoreContext = {
+    active: true,
+    advancedExpanded: searchAdvancedExpanded.value,
+    filters: serializeWishlistSearchFilters()
+  }
+}
+
+function restoreWishlistSearchStateFromContext() {
+  if (!wishlistSearchRestoreContext || typeof wishlistSearchRestoreContext !== 'object') return false
+
+  searchModeActive.value = wishlistSearchRestoreContext.active !== false
+  searchAdvancedExpanded.value = wishlistSearchRestoreContext.advancedExpanded === true
+
+  if (wishlistSearchRestoreContext.filters && typeof wishlistSearchRestoreContext.filters === 'object') {
+    searchFilters.value = { ...searchFilters.value, ...wishlistSearchRestoreContext.filters }
+  }
+
+  return true
+}
+
 function persistWishlistSearchState() {
   if (typeof window === 'undefined') return
   const nextState = { ...(window.history.state || {}) }
@@ -364,23 +390,6 @@ function persistWishlistSearchState() {
 
   nextState[WISHLIST_SEARCH_STATE_KEY] = buildWishlistSearchState()
   window.history.replaceState(nextState, '')
-}
-
-function restoreWishlistSearchStateFromHistory() {
-  const state = window.history.state?.[WISHLIST_SEARCH_STATE_KEY]
-  if (!state || typeof state !== 'object') return false
-
-  // KeepAlive already preserves live state; only restore on fresh mount
-  if (searchModeActive.value) return true
-
-  searchModeActive.value = state.active !== false
-  searchAdvancedExpanded.value = state.advancedExpanded === true
-
-  if (state.filters && typeof state.filters === 'object') {
-    searchFilters.value = { ...searchFilters.value, ...state.filters }
-  }
-
-  return true
 }
 
 const listCore = useGoodsListCore(displayedGoodsList, {
@@ -600,6 +609,7 @@ function openDetail(id) {
   const payload = typeof id === 'object' && id !== null ? id : { id }
   const goodsId = payload.id
   saveScrollPosition(true, `wishlist:openDetail:${goodsId}`)
+  captureWishlistSearchRestoreContext()
   clearRouteTransitionFallback()
   prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
@@ -653,11 +663,6 @@ function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
       hooks?.onPlayed?.()
       return
     }
-    if (attempt + 1 >= WISHLIST_BACK_HERO_RETRY_MAX_FRAMES) {
-      cleanupAllHeroes()
-      hooks?.onGiveUp?.()
-      return
-    }
     scheduleGoodsBackHeroRetry(attempt + 1, hooks)
   })
 }
@@ -699,6 +704,7 @@ function openSearch() {
   resetSearchFilters()
   searchAdvancedExpanded.value = false
   searchModeActive.value = true
+  wishlistSearchRestoreContext = null
   persistWishlistSearchState()
 }
 
@@ -706,6 +712,7 @@ function closeSearchMode() {
   searchModeActive.value = false
   searchAdvancedExpanded.value = false
   resetSearchFilters()
+  wishlistSearchRestoreContext = null
   const el = getScrollEl()
   if (el) el.scrollTop = 0
   window.scrollTo({ top: 0, behavior: 'instant' })
@@ -831,6 +838,12 @@ function handleAndroidBackButton(event) {
     return
   }
 
+  if (searchModeActive.value) {
+    closeSearchMode()
+    event.preventDefault()
+    return
+  }
+
   if (selectionMode.value) {
     exitSelectionMode()
     event.preventDefault()
@@ -907,7 +920,7 @@ onActivated(async () => {
   if (shouldMaskWishlistDisplay()) {
     wishlistDisplayReady.value = false
   }
-  restoreWishlistSearchStateFromHistory()
+  restoreWishlistSearchStateFromContext()
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
@@ -950,6 +963,7 @@ onBeforeUnmount(() => {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
+  wishlistSearchRestoreContext = null
 })
 
 onBeforeRouteLeave(() => {

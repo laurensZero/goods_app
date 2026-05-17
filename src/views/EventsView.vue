@@ -273,7 +273,7 @@ import { formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, getHeroBackPendingTtlMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -282,8 +282,7 @@ const EVENT_SORT_STORAGE_KEY = 'events-sort-direction-v1'
 const SELECTION_HEADER_HEIGHT = 64
 const SCROLL_TOP_ANCHOR_REASON = 'events:openDetail'
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
-const EVENT_BACK_HERO_RETRY_MAX_FRAMES = 40
-const EVENT_BACK_HERO_GUARD_TIMEOUT_MS = 620
+const EVENT_BACK_HERO_GUARD_TIMEOUT_MS = Math.max(620, getHeroBackPendingTtlMs() + 120)
 
 const router = useRouter()
 const route = useRoute()
@@ -582,11 +581,6 @@ function scheduleEventBackHeroRetry(attempt = 0, hooks = null) {
     const played = tryPlayEventBackHero()
     if (played) {
       hooks?.onPlayed?.()
-      return
-    }
-    if (attempt + 1 >= EVENT_BACK_HERO_RETRY_MAX_FRAMES) {
-      cleanupAllHeroes()
-      hooks?.onGiveUp?.()
       return
     }
     scheduleEventBackHeroRetry(attempt + 1, hooks)

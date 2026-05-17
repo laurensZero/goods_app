@@ -2,6 +2,7 @@
   <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
       v-if="resolvedSrc && !showFallback"
+      ref="imageRef"
       v-bind="imageAttrs"
       :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
@@ -36,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
@@ -55,6 +56,7 @@ const props = defineProps({
 
 const attrs = useAttrs()
 const rootRef = ref(null)
+const imageRef = ref(null)
 const rootAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
   return {
@@ -89,6 +91,34 @@ let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
 
+async function settleImageReady(requestId) {
+  await nextTick()
+  if (requestId !== loadRequestId) return
+
+  const img = imageRef.value
+  if (!img) return
+
+  if (typeof img.decode === 'function') {
+    try {
+      await img.decode()
+    } catch (error) {
+      if (requestId !== loadRequestId) return
+      if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return
+    }
+  } else if (!img.complete) {
+    await new Promise((resolve) => {
+      const finish = () => resolve()
+      img.addEventListener('load', finish, { once: true })
+      img.addEventListener('error', finish, { once: true })
+    })
+  }
+
+  if (requestId !== loadRequestId) return
+  if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+    isImageLoading.value = false
+  }
+}
+
 function getViewportDistance() {
   const el = rootRef.value
   if (!el) return Infinity
@@ -121,7 +151,7 @@ watch(
     if (cached) {
       if (requestId !== loadRequestId) return
       resolvedSrc.value = cached
-      isImageLoading.value = false
+      void settleImageReady(requestId)
       return
     }
     const nextSrc = props.useCache
@@ -129,7 +159,7 @@ watch(
       : url
     if (requestId !== loadRequestId) return
     resolvedSrc.value = nextSrc
-    isImageLoading.value = false
+    void settleImageReady(requestId)
   },
   { immediate: true }
 )
@@ -146,7 +176,7 @@ watch(
 
 function onImageLoad() {
   hasLoadError.value = false
-  isImageLoading.value = false
+  void settleImageReady(loadRequestId)
 }
 
 function onImageError() {
@@ -169,7 +199,7 @@ onMounted(() => {
           if (cached) {
             if (requestId !== loadRequestId) return
             resolvedSrc.value = cached
-            isImageLoading.value = false
+            void settleImageReady(requestId)
             return
           }
           isImageLoading.value = true
@@ -180,12 +210,12 @@ onMounted(() => {
             if (requestId !== loadRequestId) return
             if (!props.src || !hasEnteredViewport.value) return
             resolvedSrc.value = nextSrc
-            isImageLoading.value = false
+            void settleImageReady(requestId)
           }).catch(() => {
             if (requestId !== loadRequestId) return
             if (!props.src || !hasEnteredViewport.value) return
             resolvedSrc.value = props.src
-            isImageLoading.value = false
+            void settleImageReady(requestId)
           })
         }
       })
