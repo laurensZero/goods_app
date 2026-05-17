@@ -951,8 +951,8 @@ onActivated(async () => {
   )
   await nextTick()
   syncAddMotionContext()
-  homeDisplayReady.value = true
   scheduleGoodsBackHeroRetry()
+  homeDisplayReady.value = true
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
@@ -1425,8 +1425,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 .home-page--restoring {
-  opacity: 0.01;
-  pointer-events: none;
+  visibility: hidden;
 }
 
 .page-body {

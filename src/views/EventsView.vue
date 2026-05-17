@@ -1,7 +1,7 @@
 <template>
   <div
     class="page events-page"
-    :class="{ 'events-page--top-jump': topJumpMasking }"
+    :class="{ 'events-page--restoring': !eventsDisplayReady, 'events-page--top-jump': topJumpMasking }"
   >
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
@@ -780,8 +780,8 @@ onActivated(async () => {
   }
   await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
   await nextTick()
-  eventsDisplayReady.value = true
   scheduleEventBackHeroRetry()
+  eventsDisplayReady.value = true
   bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
@@ -837,6 +837,10 @@ onBeforeRouteLeave(() => {
 .events-page {
   position: relative;
   background: var(--app-bg-gradient);
+}
+
+.events-page--restoring {
+  visibility: hidden;
 }
 
 .events-page--top-jump .page-body {
