@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.53",
+    "url": "bundle-20260517.53.zip",
+    "hash": "37f6e7f686884f1b8260d58961bab4174b2d5d559a1763cacfe3cf6f50146f4e",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除Android设备的可见商品日志记录功能，优化性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T15:11:59Z"
+  },
+  {
     "version": "20260517.52",
     "url": "bundle-20260517.52.zip",
     "hash": "3a42eedf23a553b605a26b35268700d943348dcc6223d2643df42cb076df7f65",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加日志记录功能，跟踪主页可见商品窗口和卡片状态",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T15:04:39Z"
-  },
-  {
-    "version": "20260517.50",
-    "url": "bundle-20260517.50.zip",
-    "hash": "22a1448da55c3e29e2c853d6430b3b486da915d93faa8c9d7984a09241018124",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加商品卡片和详情视图的data属性，优化调试信息记录",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:58:15Z"
   }
 ]
