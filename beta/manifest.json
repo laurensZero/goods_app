@@ -1,9 +1,9 @@
 {
-  "version": "20260517.48",
-  "url": "bundle-20260517.48.zip",
-  "hash": "b4034e28d46f161786047c065ebc794329e80ac2ada98835a5f0d3cdc6b2f7ce",
+  "version": "20260517.49",
+  "url": "bundle-20260517.49.zip",
+  "hash": "5849bb7ed7f5f3599597b1a7871a1f58148598b8d367e2a0c43e2daa5485058e",
   "minNativeVersion": null,
-  "notes": "- feat: 优化商品卡片样式，移除不必要的CSS属性并调整懒加载图片的隐藏逻辑",
+  "notes": "- feat: 修改封面图片隐藏逻辑，从opacity改为visibility",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:41:06Z"
+  "publishedAt": "2026-05-17T14:52:27Z"
 }
