@@ -492,11 +492,7 @@ onBeforeUnmount(() => {
 }
 
 .search-section__panel-wrap {
-  position: absolute;
-  left: var(--page-padding);
-  right: var(--page-padding);
-  top: calc(100% + 12px);
-  z-index: 4;
+  position: relative;
   display: grid;
   gap: 12px;
 }
