@@ -19,6 +19,7 @@ let pendingBackEventHero = null
 let heroAnimationLockCount = 0
 let heroLifecycleCleanupBound = false
 let heroRuntimeGeneration = 0
+let goodsCardRepaintBlockUntil = 0
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
@@ -73,6 +74,7 @@ function resetHeroRuntimeState() {
   pendingForwardEventHero = null
   pendingBackEventHero = null
   heroAnimationLockCount = 0
+  goodsCardRepaintBlockUntil = 0
   setImagePreloadPaused(false)
 }
 
@@ -128,6 +130,10 @@ export function getHeroBackDurationMs() {
 
 export function isGoodsHeroAnimating() {
   return heroAnimationLockCount > 0
+}
+
+export function shouldBlockGoodsCardRepaint() {
+  return isGoodsHeroAnimating() || Date.now() < goodsCardRepaintBlockUntil
 }
 
 function isPendingBackHeroValid(pendingHero, currentPath = '') {
@@ -760,6 +766,8 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
     targetEl,
     Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
   )
+
+  goodsCardRepaintBlockUntil = Date.now() + BACK_DURATION_MS + 160
 
   void animateHero(
     pendingBackHero,
