@@ -546,11 +546,14 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     try {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          try {
-            if (node.parentNode) node.remove()
-          } catch (e) {}
+          // Restore target before removing overlay so there is never a
+          // frame where both are absent — prevents a white flash at the
+          // end of the hero back animation.
           try {
             restoreElement(targetEl)
+          } catch (e) {}
+          try {
+            if (node.parentNode) node.remove()
           } catch (e) {}
 
           if (shouldUnlock) {
@@ -563,10 +566,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       })
     } catch (e) {
       try {
-        if (node.parentNode) node.remove()
+        restoreElement(targetEl)
       } catch (e) {}
       try {
-        restoreElement(targetEl)
+        if (node.parentNode) node.remove()
       } catch (e) {}
       if (shouldUnlock) {
         heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
