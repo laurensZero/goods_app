@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.50",
+    "url": "bundle-20260517.50.zip",
+    "hash": "22a1448da55c3e29e2c853d6430b3b486da915d93faa8c9d7984a09241018124",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加商品卡片和详情视图的data属性，优化调试信息记录",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T14:58:15Z"
+  },
+  {
     "version": "20260517.49",
     "url": "bundle-20260517.49.zip",
     "hash": "5849bb7ed7f5f3599597b1a7871a1f58148598b8d367e2a0c43e2daa5485058e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品卡片样式，移除不必要的CSS属性并调整懒加载图片的隐藏逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T14:41:06Z"
-  },
-  {
-    "version": "20260517.47",
-    "url": "bundle-20260517.47.zip",
-    "hash": "ea0c68a4ca8e7b10394d06ab2f08e7043a0d2533666f26469108a7595f7cd16a",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化observeCurrentCards函数，避免在Android设备上执行观察逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:37:10Z"
   }
 ]

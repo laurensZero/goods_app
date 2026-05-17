@@ -1,9 +1,9 @@
 {
-  "version": "20260517.49",
-  "url": "bundle-20260517.49.zip",
-  "hash": "5849bb7ed7f5f3599597b1a7871a1f58148598b8d367e2a0c43e2daa5485058e",
+  "version": "20260517.50",
+  "url": "bundle-20260517.50.zip",
+  "hash": "22a1448da55c3e29e2c853d6430b3b486da915d93faa8c9d7984a09241018124",
   "minNativeVersion": null,
-  "notes": "- feat: 修改封面图片隐藏逻辑，从opacity改为visibility",
+  "notes": "- feat: 增加商品卡片和详情视图的data属性，优化调试信息记录",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:52:27Z"
+  "publishedAt": "2026-05-17T14:58:15Z"
 }
