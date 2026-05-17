@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.32",
+    "url": "bundle-20260517.32.zip",
+    "hash": "fcb0257872a5bb9a90fa6d858af45c720c064d50d12f6513049366889e767355",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T11:16:38Z"
+  },
+  {
     "version": "20260517.31",
     "url": "bundle-20260517.31.zip",
     "hash": "fad1540e222d41dd17265ff3bd3116018a6ad09bdbd9a31a1358318d7c9720dc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化页面过渡动画逻辑，防止闪烁现象，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T10:34:15Z"
-  },
-  {
-    "version": "20260517.29",
-    "url": "bundle-20260517.29.zip",
-    "hash": "bd140954cb7a519a819e4261b7f45e5b079eb5f42c1755a4ac41a79eab396e39",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化英雄动画中的图像加载逻辑，减少白闪现象，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T10:14:15Z"
   }
 ]

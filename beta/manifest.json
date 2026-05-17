@@ -1,9 +1,9 @@
 {
-  "version": "20260517.31",
-  "url": "bundle-20260517.31.zip",
-  "hash": "fad1540e222d41dd17265ff3bd3116018a6ad09bdbd9a31a1358318d7c9720dc",
+  "version": "20260517.32",
+  "url": "bundle-20260517.32.zip",
+  "hash": "fcb0257872a5bb9a90fa6d858af45c720c064d50d12f6513049366889e767355",
   "minNativeVersion": null,
-  "notes": "- feat: 优化事件和主页的显示逻辑，防止闪烁现象，提升用户体验",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T10:51:19Z"
+  "publishedAt": "2026-05-17T11:16:38Z"
 }
