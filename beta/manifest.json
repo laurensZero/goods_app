@@ -1,9 +1,9 @@
 {
-  "version": "20260517.9",
-  "url": "bundle-20260517.9.zip",
-  "hash": "d4eff297bbb7166b8f695d6880d167931d2f75eccc367a9124d568b12d597828",
+  "version": "20260517.10",
+  "url": "bundle-20260517.10.zip",
+  "hash": "a66b5e5df6c30363454004894167855b23edbe2c42daac689f9d61a1084d6a8a",
   "minNativeVersion": null,
-  "notes": "- feat: 调整商品列表的预渲染行数，优化搜索模式下的性能",
+  "notes": "- feat: 增加搜索模式下的预渲染行数，优化商品列表的渲染性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T03:49:30Z"
+  "publishedAt": "2026-05-17T04:33:52Z"
 }
