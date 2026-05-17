@@ -1,9 +1,9 @@
 {
-  "version": "20260517.28",
-  "url": "bundle-20260517.28.zip",
-  "hash": "8e7cac4d5922301c84b7a9adca2fd3181993e710304bee02664b58209266ec73",
+  "version": "20260517.29",
+  "url": "bundle-20260517.29.zip",
+  "hash": "bd140954cb7a519a819e4261b7f45e5b079eb5f42c1755a4ac41a79eab396e39",
   "minNativeVersion": null,
-  "notes": "- feat: 优化元素隐藏和恢复逻辑，防止白闪现象，提升用户体验",
+  "notes": "- feat: 优化英雄动画中的图像加载逻辑，减少白闪现象，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T09:35:48Z"
+  "publishedAt": "2026-05-17T10:14:15Z"
 }
