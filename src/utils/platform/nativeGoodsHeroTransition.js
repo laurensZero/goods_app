@@ -391,31 +391,18 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
     img.style.backfaceVisibility = 'hidden'
     img.style.transform = 'translateZ(0)'
     img.style.transformOrigin = 'center center'
-    img.style.opacity = '0'
-    img.style.visibility = 'hidden'
     img.dataset.heroMedia = 'image'
 
-    const revealImage = () => {
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        img.style.opacity = '1'
-        img.style.visibility = 'visible'
-      } else {
-        img.style.opacity = '0'
-        img.style.visibility = 'hidden'
-      }
-    }
-
+    // Don't start hidden — on Android the image may be cached but
+    // img.complete won't because true on a freshly created element.  A
+    // brief partially-decoded frame is less noticeable than the
+    // clip's white background showing through.
     const hideImage = () => {
       img.style.opacity = '0'
       img.style.visibility = 'hidden'
     }
 
-    img.addEventListener('load', revealImage, { once: true })
     img.addEventListener('error', hideImage, { once: true })
-
-    if (img.complete) {
-      revealImage()
-    }
 
     clip.appendChild(img)
   } else {
@@ -561,10 +548,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
-  // Append overlay and start animation synchronously — v1.8.1 behaviour.
-  // Async waits (waitForImageDecode, waitForNextFrame, overlay image load)
-  // let the browser paint the target page before the overlay appears,
-  // causing a visible flash on Android.
+  // Append overlay at the snapshot position and start animation immediately.
+  // No async wait — the source image was just visible on screen so the
+  // browser already has it decoded.  A brief partially-decoded frame is
+  // far less noticeable than a 350ms stall before the animation starts.
   node.style.left = `${snapshot.left}px`
   node.style.top = `${snapshot.top}px`
   node.style.width = `${snapshot.width}px`
@@ -583,6 +570,8 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const transformOnly = shouldPreferTransformOnlyHero(direction, aspectDelta)
 
   try {
+    // Hide target and start animation in the same sync block — no frame
+    // where the target is hidden without the overlay already in motion.
     hideElement(targetEl)
 
     if (transformOnly) {
@@ -674,7 +663,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   cleanupAllHeroes()
   if (!sourceEl || !goodsId) return
-  if (!isHeroImageReady(sourceEl)) return
   const rect = readRect(sourceEl)
   if (!rect) return
 
@@ -707,22 +695,8 @@ export function playGoodsHeroForward(goodsId, targetEl) {
 
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    // 目标可能因为虚拟列表回收尚未挂载，短时重试
-    setTimeout(() => {
-      if (pendingForwardHero && pendingForwardHero.goodsId === String(goodsId)) {
-        void playGoodsHeroForward(goodsId, targetEl)
-      }
-    }, 120)
-    return
-  }
-
-  if (!isHeroImageReady(targetEl)) {
-    // 图片可能仍在 decode，重试而不是直接取消
-    setTimeout(() => {
-      if (pendingForwardHero && pendingForwardHero.goodsId === String(goodsId)) {
-        void playGoodsHeroForward(goodsId, targetEl)
-      }
-    }, 120)
+    cleanupAllHeroes()
+    pendingForwardHero = null
     return
   }
 
@@ -744,7 +718,6 @@ export function playGoodsHeroForward(goodsId, targetEl) {
 export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   cleanupAllHeroes()
   if (!sourceEl || !goodsId) return
-  if (!isHeroImageReady(sourceEl)) return
   const rect = readRect(sourceEl)
   if (!rect) return
 
@@ -778,22 +751,8 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    // 目标可能因虚拟列表尚未渲染，短时重试
-    setTimeout(() => {
-      if (isPendingBackHeroValid(pendingBackHero, currentPath)) {
-        void playGoodsHeroBack({ currentPath, resolveTargetEl })
-      }
-    }, 120)
-    return false
-  }
-
-  if (!isHeroImageReady(targetEl)) {
-    // 图片可能仍在 decode，重试而不是直接取消
-    setTimeout(() => {
-      if (isPendingBackHeroValid(pendingBackHero, currentPath)) {
-        void playGoodsHeroBack({ currentPath, resolveTargetEl })
-      }
-    }, 120)
+    cleanupAllHeroes()
+    pendingBackHero = null
     return false
   }
 
@@ -853,20 +812,8 @@ export function playEventHeroForward(eventId, targetEl) {
 
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    setTimeout(() => {
-      if (pendingForwardEventHero && pendingForwardEventHero.eventId === String(eventId)) {
-        void playEventHeroForward(eventId, targetEl)
-      }
-    }, 120)
-    return
-  }
-
-  if (!isHeroImageReady(targetEl)) {
-    setTimeout(() => {
-      if (pendingForwardEventHero && pendingForwardEventHero.eventId === String(eventId)) {
-        void playEventHeroForward(eventId, targetEl)
-      }
-    }, 120)
+    cleanupAllHeroes()
+    pendingForwardEventHero = null
     return
   }
 
