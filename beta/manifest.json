@@ -1,9 +1,9 @@
 {
-  "version": "20260517.18",
-  "url": "bundle-20260517.18.zip",
-  "hash": "fe759a837b0fb40f9b1a6150304c2f000272330aabea1ec71642faf84725cfda",
+  "version": "20260517.19",
+  "url": "bundle-20260517.19.zip",
+  "hash": "be1741dfe093d67fdc074fb8fa74062b207e0e887ed7c3743926f245ee18443b",
   "minNativeVersion": null,
-  "notes": "- feat: 强制样式刷新以优化动画开始状态，防止覆盖层在动画开始前出现错误位置",
+  "notes": "- feat: 延迟解锁图片预加载以防止重绘，优化多个卡片更新时的动画表现",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T06:51:05Z"
+  "publishedAt": "2026-05-17T06:52:47Z"
 }
