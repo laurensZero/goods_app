@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.44",
+    "url": "bundle-20260517.44.zip",
+    "hash": "9e1f405a702e93f5ac2c9047ae6439c0d463592937c087cc5ece200a9a7faa22",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加对Android设备的调试日志记录，优化图片缓存逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T14:30:11Z"
+  },
+  {
     "version": "20260517.43",
     "url": "bundle-20260517.43.zip",
     "hash": "4ea54ffcd2f35e789d685413c3de200613da3af9f224bcfdc30a6644ed52aabe",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加英雄调试功能，优化调试日志记录逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T14:23:19Z"
-  },
-  {
-    "version": "20260517.41",
-    "url": "bundle-20260517.41.zip",
-    "hash": "e22efc41e0ca58f8bf3864b48d9d18b511b3f334613d0e24ee2fd62026b6c65d",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强调试日志记录，优化商品卡片和懒加载图片的性能监控",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:18:29Z"
   }
 ]

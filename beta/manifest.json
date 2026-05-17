@@ -1,9 +1,9 @@
 {
-  "version": "20260517.43",
-  "url": "bundle-20260517.43.zip",
-  "hash": "4ea54ffcd2f35e789d685413c3de200613da3af9f224bcfdc30a6644ed52aabe",
+  "version": "20260517.44",
+  "url": "bundle-20260517.44.zip",
+  "hash": "9e1f405a702e93f5ac2c9047ae6439c0d463592937c087cc5ece200a9a7faa22",
   "minNativeVersion": null,
-  "notes": "- feat: 优化Android设备的卡片观察逻辑，避免不必要的观察",
+  "notes": "- feat: 增加对Android设备的调试日志记录，优化图片缓存逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:26:13Z"
+  "publishedAt": "2026-05-17T14:30:11Z"
 }
