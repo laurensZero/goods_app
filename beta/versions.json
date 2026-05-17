@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.18",
+    "url": "bundle-20260517.18.zip",
+    "hash": "fe759a837b0fb40f9b1a6150304c2f000272330aabea1ec71642faf84725cfda",
+    "minNativeVersion": null,
+    "notes": "- feat: 强制样式刷新以优化动画开始状态，防止覆盖层在动画开始前出现错误位置",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T06:51:05Z"
+  },
+  {
     "version": "20260517.17",
     "url": "bundle-20260517.17.zip",
     "hash": "916de611035efb24dd4a30ce4167d18ec202cc1002e335fd8d8951e7b3ec5d91",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化元素隐藏和恢复逻辑，减少布局抖动；在搜索视图中添加滚动索引属性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T06:47:16Z"
-  },
-  {
-    "version": "20260517.15",
-    "url": "bundle-20260517.15.zip",
-    "hash": "c4c1d95fef0ea20624f8a9216b38543a5c8bcabb08c71eae56ece9acd4c10174",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加图片解码等待逻辑，优化动画前的图片加载体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T06:39:50Z"
   }
 ]
