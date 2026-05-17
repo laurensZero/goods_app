@@ -35,23 +35,24 @@ function hideElement(el) {
   }
 
   hiddenElementsMap.set(el, {
-    opacity: el.style.opacity ?? '',
-    pointerEvents: el.style.pointerEvents ?? ''
+    visibility: el.style.visibility ?? '',
+    opacity: el.style.opacity ?? ''
   })
   activeHiddenHeroElement = el
   el.setAttribute('data-hero-hidden', '')
-  // Use opacity to hide so we avoid layout/layout thrash caused by
-  // changing visibility or display. Also disable pointer events.
-  el.style.opacity = '0'
-  el.style.pointerEvents = 'none'
+  // visibility: hidden keeps the element's layout space while making it
+  // invisible — the hero overlay covers the same space so there is no
+  // visual gap. opacity: 0 was tried and caused border/background flash
+  // on Android because it creates a stacking context.
+  el.style.visibility = 'hidden'
 }
 
 function restoreElement(el) {
   if (!el) return
   const prev = hiddenElementsMap.get(el)
   if (!prev) return
+  el.style.visibility = prev.visibility
   el.style.opacity = prev.opacity
-  el.style.pointerEvents = prev.pointerEvents
   el.removeAttribute('data-hero-hidden')
   hiddenElementsMap.delete(el)
   if (activeHiddenHeroElement === el) {
@@ -540,42 +541,19 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       activeHeroNodes.delete(node)
     }
 
-    // Defer DOM removal to the next animation frames to avoid synchronous
-    // layout/repaint while the overlay is being torn down.
-    const shouldUnlock = animationGeneration === heroRuntimeGeneration
+    // Restore target before removing overlay — synchronous like v1.8.1
+    // so both happen in the same browser frame with no gap.
     try {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Restore target before removing overlay so there is never a
-          // frame where both are absent — prevents a white flash at the
-          // end of the hero back animation.
-          try {
-            restoreElement(targetEl)
-          } catch (e) {}
-          try {
-            if (node.parentNode) node.remove()
-          } catch (e) {}
+      restoreElement(targetEl)
+    } catch (e) {}
+    try {
+      if (node.parentNode) node.remove()
+    } catch (e) {}
 
-          if (shouldUnlock) {
-            heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
-            if (heroAnimationLockCount === 0) {
-              setImagePreloadPaused(false)
-            }
-          }
-        })
-      })
-    } catch (e) {
-      try {
-        restoreElement(targetEl)
-      } catch (e) {}
-      try {
-        if (node.parentNode) node.remove()
-      } catch (e) {}
-      if (shouldUnlock) {
-        heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
-        if (heroAnimationLockCount === 0) {
-          setImagePreloadPaused(false)
-        }
+    if (animationGeneration === heroRuntimeGeneration) {
+      heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
+      if (heroAnimationLockCount === 0) {
+        setImagePreloadPaused(false)
       }
     }
   }
@@ -583,15 +561,14 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
-  // Ensure image is reasonably decoded before starting animation to avoid
-  // skeleton/灰底先行的情况。等待短时的 decode 成功，超时则继续（图片在动画中会被 reveal）。
-  const tryWaitImage = snapshot.imageSrc ? await waitForImageDecode(snapshot.imageSrc, 350) : false
-
+  // Append overlay and start animation synchronously — v1.8.1 behaviour.
+  // Async waits (waitForImageDecode, waitForNextFrame, overlay image load)
+  // let the browser paint the target page before the overlay appears,
+  // causing a visible flash on Android.
   node.style.left = `${snapshot.left}px`
   node.style.top = `${snapshot.top}px`
   node.style.width = `${snapshot.width}px`
   node.style.height = `${snapshot.height}px`
-  node.style.opacity = '0'
   document.body.appendChild(node)
   activeHeroNodes.add(node)
 
@@ -606,28 +583,7 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const transformOnly = shouldPreferTransformOnlyHero(direction, aspectDelta)
 
   try {
-    await waitForNextFrame()
-    // Wait for the overlay's own <img> to load before showing it,
-    // otherwise the clip's white background flashes through on the
-    // first painted frame (especially on Android where decode is slower).
-    const heroImg = node.querySelector('[data-hero-media="image"]')
-    if (heroImg && !heroImg.complete) {
-      await new Promise((resolve) => {
-        const done = () => resolve()
-        heroImg.addEventListener('load', done, { once: true })
-        heroImg.addEventListener('error', done, { once: true })
-        setTimeout(done, 250)
-      })
-      if (heroImg.naturalWidth > 0 && heroImg.naturalHeight > 0) {
-        heroImg.style.opacity = '1'
-        heroImg.style.visibility = 'visible'
-      }
-    }
-    // Hide target and show overlay in the same synchronous block so there
-    // is never a frame where the target is hidden but the overlay isn't
-    // covering it — prevents the card's background / border from flashing.
     hideElement(targetEl)
-    node.style.opacity = '1'
 
     if (transformOnly) {
       const { scaleX, scaleY } = resolveTransformOnlyTarget(snapshot, targetRect)
