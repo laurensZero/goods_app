@@ -1,9 +1,9 @@
 {
-  "version": "20260517.37",
-  "url": "bundle-20260517.37.zip",
-  "hash": "c10920fef44ef40c6d257661667204352ccccc43ce15fac783c8f7d75acc3078",
+  "version": "20260517.38",
+  "url": "bundle-20260517.38.zip",
+  "hash": "4d96bbe5fb2540d40c9f8afb86a6a719c92eb977a2aad37897cbd26b55fac285",
   "minNativeVersion": null,
-  "notes": "- feat: 添加调试日志以优化商品卡片重绘逻辑",
+  "notes": "- feat: 更新调试日志以增强后退导航和英雄动画的可追踪性",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:00:47Z"
+  "publishedAt": "2026-05-17T14:05:17Z"
 }

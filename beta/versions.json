@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.38",
+    "url": "bundle-20260517.38.zip",
+    "hash": "4d96bbe5fb2540d40c9f8afb86a6a719c92eb977a2aad37897cbd26b55fac285",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新调试日志以增强后退导航和英雄动画的可追踪性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T14:05:17Z"
+  },
+  {
     "version": "20260517.37",
     "url": "bundle-20260517.37.zip",
     "hash": "c10920fef44ef40c6d257661667204352ccccc43ce15fac783c8f7d75acc3078",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加阻止商品卡片重绘的逻辑以优化性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T13:54:08Z"
-  },
-  {
-    "version": "20260517.35",
-    "url": "bundle-20260517.35.zip",
-    "hash": "a3b124b4fd1bff799cc68b545ee21e1c8c3d028e4e4b8efa283f5c583e9e958c",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 移除文档样式中的背景属性，优化滚动锁定逻辑\"\n  This reverts commit 141a721f1df1a9073d47b9744cef5e422e700398.\n\n- Revert \"feat: 添加滚动锁定功能以改善用户体验\"\n  This reverts commit 57eb69589e1d83c49e62a91d87151d3eb9206a75.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T12:23:10Z"
   }
 ]
