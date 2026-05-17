@@ -1,9 +1,9 @@
 {
-  "version": "20260517.36",
-  "url": "bundle-20260517.36.zip",
-  "hash": "2b77d11f1d0cf15befd5f92066c0adc06dfa6e69ea4a35c0cb068fa633b20b2f",
+  "version": "20260517.37",
+  "url": "bundle-20260517.37.zip",
+  "hash": "c10920fef44ef40c6d257661667204352ccccc43ce15fac783c8f7d75acc3078",
   "minNativeVersion": null,
-  "notes": "- feat: 添加阻止商品卡片重绘的逻辑以优化性能",
+  "notes": "- feat: 添加调试日志以优化商品卡片重绘逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T13:54:08Z"
+  "publishedAt": "2026-05-17T14:00:47Z"
 }
