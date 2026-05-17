@@ -1,9 +1,9 @@
 {
-  "version": "20260517.27",
-  "url": "bundle-20260517.27.zip",
-  "hash": "29a4cff2b11087ceb10381df56827584dbd292359ba86bf4363af90201b24ae5",
+  "version": "20260517.28",
+  "url": "bundle-20260517.28.zip",
+  "hash": "8e7cac4d5922301c84b7a9adca2fd3181993e710304bee02664b58209266ec73",
   "minNativeVersion": null,
-  "notes": "- feat: 等待英雄图片加载完成以防止白闪现象，提升用户体验",
+  "notes": "- feat: 优化元素隐藏和恢复逻辑，防止白闪现象，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T09:23:35Z"
+  "publishedAt": "2026-05-17T09:35:48Z"
 }
