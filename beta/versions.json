@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.7",
+    "url": "bundle-20260517.7.zip",
+    "hash": "b69b73d0bfafd8dab4f77cc65c9c99b321952f11e28a6e1d5ac33a65cdac047b",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat: 优化搜索模式和选择模式的 Android 返回按钮处理逻辑\"\n  This reverts commit 15ac461d8175bb7044bbcc8ad7f580c64c8f5bd7.\n\n- feat: 调整 Android 返回按钮处理逻辑，优化搜索和选择模式的关闭顺序",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T03:26:31Z"
+  },
+  {
     "version": "20260517.6",
     "url": "bundle-20260517.6.zip",
     "hash": "6329c864a42a98094527e9c4a95265a34bfe36a9c59f47cf133633590922a1ac",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除搜索状态冻结支持，优化搜索模式面板过渡效果",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T02:48:16Z"
-  },
-  {
-    "version": "20260517.4",
-    "url": "bundle-20260517.4.zip",
-    "hash": "6e94e64c8f5e33bc3a89699f3e4381d330d94f4889b75d5579485c13988918d7",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除不必要的 cleanupAllHeroes 调用以优化英雄回退逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T02:37:02Z"
   }
 ]
