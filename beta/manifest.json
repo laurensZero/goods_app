@@ -1,9 +1,9 @@
 {
-  "version": "20260517.12",
-  "url": "bundle-20260517.12.zip",
-  "hash": "81cfe94bd3dfa10c308f14e06bd382e316bd3bfe117bfef64257d7e2a611fc9e",
+  "version": "20260517.13",
+  "url": "bundle-20260517.13.zip",
+  "hash": "42ad022a9f5891f1bffe7d911bc9b1e0a6887fd738db45fdfb57fe45fa02b0a6",
   "minNativeVersion": null,
-  "notes": "- Revert \"feat: 优化搜索模式下的商品列表渲染逻辑，避免不必要的状态更新\"\n  This reverts commit 673b156a6706c977d1135bccc65076ff1e71683e.\n\n- feat: 增加搜索模式下的空状态提示，优化用户体验",
+  "notes": "- feat: 在 LazyCachedImage 组件中添加 imageAttrs 属性以支持自定义样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T05:34:09Z"
+  "publishedAt": "2026-05-17T05:43:58Z"
 }
