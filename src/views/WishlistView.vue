@@ -36,7 +36,7 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <Transition name="search-mode-panel" mode="out-in">
+      <Transition name="search-mode-panel" mode="out-in" @after-leave="handleSearchModePanelAfterLeave">
         <GoodsSearchPanel
           v-if="searchModeActive && !selectionMode"
           :active="searchModeActive"
@@ -50,7 +50,7 @@
         />
       </Transition>
 
-      <section v-if="!searchModeActive" class="summary-section">
+      <section v-if="!searchModeActive && !searchModeTransitioning" class="summary-section">
         <SummaryCard
           label="Wishlist Budget"
           storage-key="goods-app:wishlist-total-value-hidden"
@@ -61,7 +61,7 @@
       </section>
 
       <HomeGoodsToolbar
-        v-if="!searchModeActive && goodsList.length > 0"
+        v-if="!searchModeActive && !searchModeTransitioning && goodsList.length > 0"
         section-label="我的心愿"
         title="全部目标"
         :total-quantity="totalQuantity"
@@ -242,6 +242,7 @@ const showScrollTopButton = ref(false)
 const topJumpMasking = ref(false)
 const selectionHeaderTop = ref(0)
 const searchModeActive = ref(false)
+const searchModeTransitioning = ref(false)
 const searchAdvancedExpanded = ref(false)
 const searchFilters = ref(createDefaultGoodsFilters({ hasImage: 'any' }))
 const selectionHeaderStyle = computed(() => ({
@@ -704,11 +705,13 @@ function openSearch() {
   resetSearchFilters()
   searchAdvancedExpanded.value = false
   searchModeActive.value = true
+  searchModeTransitioning.value = false
   wishlistSearchRestoreContext = null
   persistWishlistSearchState()
 }
 
 function closeSearchMode() {
+  searchModeTransitioning.value = true
   searchModeActive.value = false
   searchAdvancedExpanded.value = false
   resetSearchFilters()
@@ -717,6 +720,10 @@ function closeSearchMode() {
   if (el) el.scrollTop = 0
   window.scrollTo({ top: 0, behavior: 'instant' })
   persistWishlistSearchState()
+}
+
+function handleSearchModePanelAfterLeave() {
+  searchModeTransitioning.value = false
 }
 
 function resetSearchFilters() {
@@ -1003,6 +1010,33 @@ onBeforeRouteLeave(() => {
   pointer-events: none;
 }
 
+.search-mode-panel-enter-active,
+.search-mode-panel-leave-active {
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+  will-change: opacity, transform;
+}
+
+.search-mode-panel-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+.search-mode-panel-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.search-mode-panel-enter-to,
+.search-mode-panel-leave-from {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.search-mode-panel-enter-active :is(.search-section__card, .search-section__bar-wrap, .search-section__toggle, .search-section__panel-wrap),
+.search-mode-panel-leave-active :is(.search-section__card, .search-section__bar-wrap, .search-section__toggle, .search-section__panel-wrap) {
+  will-change: transform, opacity;
+}
+
 .page-body {
   padding-top: calc(env(safe-area-inset-top) + 20px);
 }
@@ -1151,4 +1185,16 @@ onBeforeRouteLeave(() => {
     background: var(--app-text);
     color: var(--app-surface);
   }
+
+@media (prefers-reduced-motion: reduce) {
+  .search-mode-panel-enter-active,
+  .search-mode-panel-leave-active {
+    transition: opacity 120ms ease;
+  }
+
+  .search-mode-panel-enter-from,
+  .search-mode-panel-leave-to {
+    transform: none;
+  }
+}
 </style>

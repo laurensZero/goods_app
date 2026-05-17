@@ -42,7 +42,7 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <Transition name="search-mode-panel" mode="out-in">
+      <Transition name="search-mode-panel" mode="out-in" @after-leave="handleSearchModePanelAfterLeave">
         <section v-if="searchModeActive && !selectionMode" class="search-section">
           <div class="search-section__bar-wrap">
             <button class="search-section__close" type="button" aria-label="关闭搜索" @click="closeSearchMode">
@@ -228,12 +228,12 @@
         </section>
       </Transition>
 
-      <section v-if="!searchModeActive" class="summary-section">
+      <section v-if="!searchModeActive && !searchModeTransitioning" class="summary-section">
         <SummaryCard :total-value="totalValue" :total-count="goodsList.length" :trend-items="goodsList" trend-date-field="acquiredAt" />
       </section>
 
       <HomeGoodsToolbar
-        v-if="!searchModeActive"
+        v-if="!searchModeActive && !searchModeTransitioning"
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
         :sort-mode="sortMode"
@@ -429,6 +429,7 @@ const addMotionSnapshot = ref(null)
 const addMotionRequest = ref(null)
 const addMotionOverlay = ref(null)
 const searchModeActive = ref(false)
+const searchModeTransitioning = ref(false)
 const searchScope = ref('collection')
 const searchFilters = reactive(createDefaultGoodsFilters({ hasImage: 'any' }))
 const advancedExpanded = ref(false)
@@ -578,6 +579,7 @@ function applySearchModeState(scope = 'collection', options = {}) {
     resetSearchFilters()
   }
   searchModeActive.value = true
+  searchModeTransitioning.value = false
   advancedExpanded.value = false
   searchDisplayReady.value = true
 }
@@ -596,6 +598,7 @@ function syncSearchModeFromRoute() {
   }
 
   if (searchModeActive.value) {
+    searchModeTransitioning.value = true
     searchModeActive.value = false
     advancedExpanded.value = false
   }
@@ -647,6 +650,7 @@ async function closeSearchMode(options = {}) {
     }
   }
 
+  searchModeTransitioning.value = true
   searchModeActive.value = false
   resetSearchFilters()
   if (syncRoute) {
@@ -664,6 +668,10 @@ function toggleSearchMode() {
   }
 
   openSearchMode('collection')
+}
+
+function handleSearchModePanelAfterLeave() {
+  searchModeTransitioning.value = false
 }
 
 const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
@@ -2035,6 +2043,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 .search-section {
+  position: relative;
   margin-top: 8px;
   padding: 0 var(--page-padding) 0;
   display: grid;
@@ -2165,6 +2174,11 @@ async function applyBatchEditPayload(payload) {
 }
 
 .search-section__panel-wrap {
+  position: absolute;
+  left: var(--page-padding);
+  right: var(--page-padding);
+  top: calc(100% + 12px);
+  z-index: 4;
   display: grid;
   gap: 12px;
 }
@@ -2314,27 +2328,49 @@ async function applyBatchEditPayload(payload) {
 .search-mode-panel-enter-active,
 .search-advanced-panel-enter-active {
   transition:
-    opacity 0.18s ease,
-    transform 0.18s cubic-bezier(0.2, 0.85, 0.25, 1);
+    opacity 0.16s ease,
+    transform 0.16s cubic-bezier(0.22, 0.8, 0.22, 1);
 }
 
 .search-mode-panel-leave-active,
 .search-advanced-panel-leave-active {
   transition:
-    opacity 0.1s ease,
-    transform 0.1s cubic-bezier(0.2, 0.85, 0.25, 1);
+    opacity 0.08s ease,
+    transform 0.08s cubic-bezier(0.22, 0.8, 0.22, 1);
 }
 
 .search-mode-panel-enter-from,
 .search-mode-panel-leave-to {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateX(10px);
 }
 
 .search-advanced-panel-enter-from,
 .search-advanced-panel-leave-to {
   opacity: 0;
-  transform: translateY(0);
+  transform: translateX(8px);
+}
+
+.search-advanced-panel-enter-to,
+.search-advanced-panel-leave-from {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-mode-panel-enter-active,
+  .search-advanced-panel-enter-active,
+  .search-mode-panel-leave-active,
+  .search-advanced-panel-leave-active {
+    transition: opacity 120ms ease;
+  }
+
+  .search-mode-panel-enter-from,
+  .search-mode-panel-leave-to,
+  .search-advanced-panel-enter-from,
+  .search-advanced-panel-leave-to {
+    transform: none;
+  }
 }
 
 :global(html.theme-dark) .search-section__toggle,

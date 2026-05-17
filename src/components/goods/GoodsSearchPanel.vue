@@ -369,6 +369,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .search-section {
+  position: relative;
   margin-top: 8px;
   padding: 0 var(--page-padding) 0;
   display: grid;
@@ -491,6 +492,11 @@ onBeforeUnmount(() => {
 }
 
 .search-section__panel-wrap {
+  position: absolute;
+  left: var(--page-padding);
+  right: var(--page-padding);
+  top: calc(100% + 12px);
+  z-index: 4;
   display: grid;
   gap: 12px;
 }
@@ -640,27 +646,49 @@ onBeforeUnmount(() => {
 .search-mode-panel-enter-active,
 .search-advanced-panel-enter-active {
   transition:
-    opacity 0.18s ease,
-    transform 0.18s cubic-bezier(0.2, 0.85, 0.25, 1);
+    opacity 0.16s ease,
+    transform 0.16s cubic-bezier(0.22, 0.8, 0.22, 1);
 }
 
 .search-mode-panel-leave-active,
 .search-advanced-panel-leave-active {
   transition:
-    opacity 0.1s ease,
-    transform 0.1s cubic-bezier(0.2, 0.85, 0.25, 1);
+    opacity 0.08s ease,
+    transform 0.08s cubic-bezier(0.22, 0.8, 0.22, 1);
 }
 
 .search-mode-panel-enter-from,
 .search-mode-panel-leave-to {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateX(10px);
 }
 
 .search-advanced-panel-enter-from,
 .search-advanced-panel-leave-to {
   opacity: 0;
-  transform: translateY(0);
+  transform: translateX(8px);
+}
+
+.search-advanced-panel-enter-to,
+.search-advanced-panel-leave-from {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-mode-panel-enter-active,
+  .search-advanced-panel-enter-active,
+  .search-mode-panel-leave-active,
+  .search-advanced-panel-leave-active {
+    transition: opacity 120ms ease;
+  }
+
+  .search-mode-panel-enter-from,
+  .search-mode-panel-leave-to,
+  .search-advanced-panel-enter-from,
+  .search-advanced-panel-leave-to {
+    transform: none;
+  }
 }
 
 :global(html.theme-dark) .search-section__toggle,
