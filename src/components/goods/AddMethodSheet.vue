@@ -275,7 +275,7 @@ let savedScrollY = 0
 const savedBodyStyles = {}
 const savedDocStyles = {}
 const bodyStyleKeys = ['position', 'top', 'left', 'right', 'width', 'overflow']
-const docStyleKeys = ['overflow', 'overscrollBehavior']
+const docStyleKeys = ['overflow', 'overscrollBehavior', 'background']
 
 function lockScroll() {
   if (scrollLockActive) return
@@ -293,6 +293,7 @@ function lockScroll() {
   body.style.overflow = 'hidden'
   doc.style.overflow = 'hidden'
   doc.style.overscrollBehavior = 'none'
+  doc.style.background = getComputedStyle(body).background
 }
 
 function unlockScroll() {
