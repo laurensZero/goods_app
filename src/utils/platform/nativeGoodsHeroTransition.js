@@ -4,6 +4,7 @@ const FORWARD_DURATION_MS = 390
 const BACK_DURATION_MS = 350
 const BACK_SCROLL_LOCK_MS = 200
 const BACK_HERO_PENDING_TTL_MS = 5000
+const FORWARD_HERO_PENDING_TTL_MS = 3000
 const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
 const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.15, 0.9, 0.2, 1)'
 const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.25, 0.85, 0.3, 1)'
@@ -44,26 +45,18 @@ function restoreElement(el) {
 }
 
 function restoreAllHiddenElements() {
+  // 仅恢复我们记录的元素，避免对全局 DOM 做不安全的恢复操作，
+  // 防止在虚拟列表/DOM recycle 场景下错误地影响其它图片元素。
   hiddenElementsMap.forEach((prev, el) => {
     try {
       if (el.isConnected) {
         el.style.visibility = prev.visibility
         el.style.opacity = prev.opacity
+        el.removeAttribute('data-hero-hidden')
       }
-      el.removeAttribute('data-hero-hidden')
     } catch (e) {}
   })
   hiddenElementsMap.clear()
-
-  // Vue re-render 后旧 DOM 被替换，新 DOM 上无 data-hero-hidden，
-  // 但可能仍有残留标记（旧 DOM 尚未被 GC）。兜底清理所有标记。
-  document.querySelectorAll('[data-hero-hidden]').forEach((el) => {
-    try {
-      el.style.visibility = ''
-      el.style.opacity = ''
-      el.removeAttribute('data-hero-hidden')
-    } catch (e) {}
-  })
 }
 
 function resetHeroRuntimeState() {
@@ -253,6 +246,16 @@ function readFallbackText(el) {
   return String(fallback?.textContent || '').trim().slice(0, 1)
 }
 
+function readBoxShadow(el) {
+  if (!el || typeof window === 'undefined') return ''
+  try {
+    const style = window.getComputedStyle(el)
+    return style.boxShadow || ''
+  } catch (e) {
+    return ''
+  }
+}
+
 function findLazyImageRoot(el) {
   if (!el || typeof el.querySelector !== 'function') return null
   if (typeof el.hasAttribute === 'function' && el.hasAttribute('data-lazy-image-ready')) {
@@ -351,7 +354,7 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   shadow.style.position = 'absolute'
   shadow.style.inset = '0'
   shadow.style.borderRadius = `${snapshot.radius || 0}px`
-  shadow.style.boxShadow = 'var(--app-shadow)'
+  shadow.style.boxShadow = snapshot.boxShadow || 'var(--app-shadow)'
   shadow.style.pointerEvents = 'none'
   shadow.style.backfaceVisibility = 'hidden'
   node.appendChild(shadow)
@@ -451,7 +454,46 @@ function resolveCompensatedRadius(radius, scaleX = 1, scaleY = 1) {
   return `${horizontalRadius}px / ${verticalRadius}px`
 }
 
-function animateHero(snapshot, targetRect, targetRadius, options = {}) {
+async function waitForImageDecode(src, timeoutMs = 400) {
+  if (!src || typeof window === 'undefined') return false
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = src
+
+    if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      if (typeof img.decode === 'function') {
+        await img.decode().catch(() => {})
+      }
+      return true
+    }
+
+    return await new Promise((resolve) => {
+      let settled = false
+      const onDone = (ok) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(ok)
+      }
+      const onLoad = () => {
+        if (typeof img.decode === 'function') {
+          img.decode().then(() => onDone(true)).catch(() => onDone(true))
+        } else {
+          onDone(true)
+        }
+      }
+      const onError = () => onDone(false)
+      const timer = setTimeout(() => onDone(false), Math.max(50, timeoutMs))
+      img.addEventListener('load', onLoad, { once: true })
+      img.addEventListener('error', onError, { once: true })
+    })
+  } catch (e) {
+    return false
+  }
+}
+
+async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return Promise.resolve()
   if (!snapshot || !targetRect) return Promise.resolve()
 
@@ -504,6 +546,10 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
+  // Ensure image is reasonably decoded before starting animation to avoid
+  // skeleton/灰底先行的情况。等待短时的 decode 成功，超时则继续（图片在动画中会被 reveal）。
+  const tryWaitImage = snapshot.imageSrc ? await waitForImageDecode(snapshot.imageSrc, 350) : false
+
   node.style.left = `${snapshot.left}px`
   node.style.top = `${snapshot.top}px`
   node.style.width = `${snapshot.width}px`
@@ -514,36 +560,74 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
-  const keyframes = [
-    {
-      left: `${snapshot.left}px`,
-      top: `${snapshot.top}px`,
-      width: `${snapshot.width}px`,
-      height: `${snapshot.height}px`,
-      opacity: 1,
-      borderRadius: `${radiusFrom}px`
-    },
-    {
-      left: `${targetRect.left}px`,
-      top: `${targetRect.top}px`,
-      width: `${targetRect.width}px`,
-      height: `${targetRect.height}px`,
-      opacity: 1,
-      borderRadius: `${radiusTo}px`
-    }
-  ]
+
+  // Decide whether to animate via transform-only (compositor) or fallback to
+  // layout-affecting properties. Prefer transform when aspect ratio delta small
+  // or when moving back.
+  const aspectDelta = Math.abs((snapshot.width / (snapshot.height || 1)) - (targetRect.width / (targetRect.height || 1)))
+  const transformOnly = shouldPreferTransformOnlyHero(direction, aspectDelta)
 
   hideElement(targetEl)
 
   try {
-    animation = node.animate(
-      keyframes,
-      {
-        duration,
-        easing,
-        fill: 'both'
+    if (transformOnly) {
+      const { scaleX, scaleY } = resolveTransformOnlyTarget(snapshot, targetRect)
+      const deltaX = Number(targetRect.left || 0) - Number(snapshot.left || 0)
+      const deltaY = Number(targetRect.top || 0) - Number(snapshot.top || 0)
+      const fromTransform = `translate3d(0px, 0px, 0) scale(1,1)`
+      const toTransform = `translate3d(${deltaX}px, ${deltaY}px, 0) scale(${scaleX}, ${scaleY})`
+
+      // node is already positioned at snapshot.left/top; use delta transforms
+      node.style.transform = fromTransform
+
+      animation = node.animate(
+        [
+          { transform: fromTransform, opacity: 1 },
+          { transform: toTransform, opacity: 1 }
+        ],
+        { duration, easing, fill: 'both' }
+      )
+
+      // animate clip borderRadius to compensate scaling
+      const clip = node.querySelector('[data-hero-clip]')
+      if (clip) {
+        try {
+          const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
+          const compensatedFrom = `${radiusFrom}px`
+          // set initial borderRadius synchronously so the clip visual matches
+          // the snapshot before animation starts
+          try { clip.style.borderRadius = compensatedFrom } catch (e) {}
+          const clipAnim = clip.animate(
+            [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
+            { duration, easing, fill: 'both' }
+          )
+          activeHeroAnimations.add(clipAnim)
+          clipAnim.addEventListener('finish', () => {}, { once: true })
+          clipAnim.addEventListener('cancel', () => {}, { once: true })
+        } catch (e) {}
       }
-    )
+    } else {
+      const keyframes = [
+        {
+          left: `${snapshot.left}px`,
+          top: `${snapshot.top}px`,
+          width: `${snapshot.width}px`,
+          height: `${snapshot.height}px`,
+          opacity: 1,
+          borderRadius: `${radiusFrom}px`
+        },
+        {
+          left: `${targetRect.left}px`,
+          top: `${targetRect.top}px`,
+          width: `${targetRect.width}px`,
+          height: `${targetRect.height}px`,
+          opacity: 1,
+          borderRadius: `${radiusTo}px`
+        }
+      ]
+
+      animation = node.animate(keyframes, { duration, easing, fill: 'both' })
+    }
   } catch (e) {
     finalize()
     return Promise.resolve()
@@ -578,6 +662,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
 
   pendingForwardHero = {
     goodsId: String(goodsId),
+    preparedAt: Date.now(),
     left: rect.left,
     top: rect.top,
     width: rect.width,
@@ -585,7 +670,8 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -593,15 +679,32 @@ export function playGoodsHeroForward(goodsId, targetEl) {
   if (!pendingForwardHero) return
   if (String(goodsId) !== pendingForwardHero.goodsId) return
 
+  // TTL check for forward pending hero
+  const ageMs = Date.now() - Number(pendingForwardHero.preparedAt || 0)
+  if (ageMs > FORWARD_HERO_PENDING_TTL_MS) {
+    cleanupAllHeroes()
+    pendingForwardHero = null
+    return
+  }
+
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
+    // 目标可能因为虚拟列表回收尚未挂载，短时重试
+    setTimeout(() => {
+      if (pendingForwardHero && pendingForwardHero.goodsId === String(goodsId)) {
+        void playGoodsHeroForward(goodsId, targetEl)
+      }
+    }, 120)
     return
   }
 
   if (!isHeroImageReady(targetEl)) {
-    cleanupAllHeroes()
-    pendingForwardHero = null
+    // 图片可能仍在 decode，重试而不是直接取消
+    setTimeout(() => {
+      if (pendingForwardHero && pendingForwardHero.goodsId === String(goodsId)) {
+        void playGoodsHeroForward(goodsId, targetEl)
+      }
+    }, 120)
     return
   }
 
@@ -637,7 +740,8 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -655,13 +759,22 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
+    // 目标可能因虚拟列表尚未渲染，短时重试
+    setTimeout(() => {
+      if (isPendingBackHeroValid(pendingBackHero, currentPath)) {
+        void playGoodsHeroBack({ currentPath, resolveTargetEl })
+      }
+    }, 120)
     return false
   }
 
   if (!isHeroImageReady(targetEl)) {
-    cleanupAllHeroes()
-    pendingBackHero = null
+    // 图片可能仍在 decode，重试而不是直接取消
+    setTimeout(() => {
+      if (isPendingBackHeroValid(pendingBackHero, currentPath)) {
+        void playGoodsHeroBack({ currentPath, resolveTargetEl })
+      }
+    }, 120)
     return false
   }
 
@@ -702,7 +815,8 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -747,7 +861,8 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 

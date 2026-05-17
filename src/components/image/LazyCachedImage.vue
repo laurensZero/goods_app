@@ -89,6 +89,41 @@ let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
 
+async function waitForImgDecode(src, timeoutMs = 400) {
+  if (!src || typeof window === 'undefined') return false
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = src
+    if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      if (typeof img.decode === 'function') await img.decode().catch(() => {})
+      return true
+    }
+    return await new Promise((resolve) => {
+      let done = false
+      const onDone = (ok) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        resolve(ok)
+      }
+      const onLoad = () => {
+        if (typeof img.decode === 'function') {
+          img.decode().then(() => onDone(true)).catch(() => onDone(true))
+        } else {
+          onDone(true)
+        }
+      }
+      const onError = () => onDone(false)
+      const timer = setTimeout(() => onDone(false), Math.max(50, timeoutMs))
+      img.addEventListener('load', onLoad, { once: true })
+      img.addEventListener('error', onError, { once: true })
+    })
+  } catch (e) {
+    return false
+  }
+}
+
 function getViewportDistance() {
   const el = rootRef.value
   if (!el) return Infinity
@@ -121,7 +156,15 @@ watch(
     if (cached) {
       if (requestId !== loadRequestId) return
       resolvedSrc.value = cached
-      isImageLoading.value = false
+      // ensure decode before marking loaded
+      const ok = await waitForImgDecode(cached)
+      if (requestId !== loadRequestId) return
+      if (!ok) {
+        // keep showing skeleton for a bit; but still set src so browser may warm cache
+        isImageLoading.value = true
+      } else {
+        isImageLoading.value = false
+      }
       return
     }
     const nextSrc = props.useCache
@@ -129,7 +172,9 @@ watch(
       : url
     if (requestId !== loadRequestId) return
     resolvedSrc.value = nextSrc
-    isImageLoading.value = false
+    const ok2 = await waitForImgDecode(nextSrc)
+    if (requestId !== loadRequestId) return
+    isImageLoading.value = !ok2
   },
   { immediate: true }
 )
@@ -162,14 +207,16 @@ onMounted(() => {
     hasLoadError.value = false
     isImageLoading.value = false
     if (props.src && hasEnteredViewport.value) {
-      void Promise.resolve().then(() => {
+      void Promise.resolve().then(async () => {
         if (requestId !== loadRequestId) return
         if (props.src && hasEnteredViewport.value) {
           const cached = peekCachedImage(props.src)
           if (cached) {
             if (requestId !== loadRequestId) return
             resolvedSrc.value = cached
-            isImageLoading.value = false
+            const ok = await waitForImgDecode(cached)
+            if (requestId !== loadRequestId) return
+            isImageLoading.value = !ok
             return
           }
           isImageLoading.value = true
@@ -180,12 +227,16 @@ onMounted(() => {
             if (requestId !== loadRequestId) return
             if (!props.src || !hasEnteredViewport.value) return
             resolvedSrc.value = nextSrc
-            isImageLoading.value = false
+            void (async () => {
+              const ok = await waitForImgDecode(nextSrc)
+              if (requestId !== loadRequestId) return
+              isImageLoading.value = !ok
+            })()
           }).catch(() => {
             if (requestId !== loadRequestId) return
             if (!props.src || !hasEnteredViewport.value) return
             resolvedSrc.value = props.src
-            isImageLoading.value = false
+            isImageLoading.value = true
           })
         }
       })
