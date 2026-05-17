@@ -937,7 +937,7 @@ onActivated(async () => {
   isHomeActive.value = true
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
-  if (shouldMaskHomeDisplay()) {
+  if (shouldMaskHomeDisplay() || hasPendingGoodsHeroBack(route.fullPath)) {
     homeDisplayReady.value = false
   }
   const storedState = getStoredScrollState()
@@ -951,8 +951,23 @@ onActivated(async () => {
   )
   await nextTick()
   syncAddMotionContext()
-  scheduleGoodsBackHeroRetry()
-  homeDisplayReady.value = true
+  // Try to hide the hero target synchronously before lifting the mask.
+  // scheduleGoodsBackHeroRetry() only queues a rAF — if the target is
+  // already in the DOM (which it should be after nextTick+layout), we
+  // can apply hideElement in this same frame so the user never sees the
+  // target card uncovered.  If the target isn't ready yet, keep the mask
+  // on and let the retry callback unmask when it succeeds.
+  const played = tryPlayNativeGoodsBackHero()
+  if (played) {
+    homeDisplayReady.value = true
+  } else if (hasPendingGoodsHeroBack(route.fullPath)) {
+    scheduleGoodsBackHeroRetry(0, {
+      onPlayed: () => { homeDisplayReady.value = true },
+      onGiveUp: () => { homeDisplayReady.value = true }
+    })
+  } else {
+    homeDisplayReady.value = true
+  }
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
