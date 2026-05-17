@@ -1079,12 +1079,6 @@ function unbindSelectionHeaderScroll() {
 }
 
 function handleAndroidBackButton(event) {
-  if (searchModeActive.value) {
-    closeSearchMode()
-    event.preventDefault()
-    return
-  }
-
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
     return
@@ -1098,6 +1092,12 @@ function handleAndroidBackButton(event) {
 
   if (selectionMode.value) {
     exitSelectionMode()
+    event.preventDefault()
+    return
+  }
+
+  if (searchModeActive.value) {
+    closeSearchMode()
     event.preventDefault()
   }
 }

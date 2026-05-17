@@ -845,14 +845,14 @@ function handleAndroidBackButton(event) {
     return
   }
 
-  if (searchModeActive.value) {
-    closeSearchMode()
+  if (selectionMode.value) {
+    exitSelectionMode()
     event.preventDefault()
     return
   }
 
-  if (selectionMode.value) {
-    exitSelectionMode()
+  if (searchModeActive.value) {
+    closeSearchMode()
     event.preventDefault()
   }
 }
