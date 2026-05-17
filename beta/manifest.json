@@ -1,9 +1,9 @@
 {
-  "version": "20260517.23",
-  "url": "bundle-20260517.23.zip",
-  "hash": "218199db7910b9c4d9d85ca7a8f51fd644b154669aa1f784b1ac973415623baa",
+  "version": "20260517.24",
+  "url": "bundle-20260517.24.zip",
+  "hash": "06bec2cf447d43ec15ab5c95ad1239aa907dbff0e0732ce1799a80daf34269be",
   "minNativeVersion": null,
-  "notes": "- feat: 优化图片加载逻辑，减少未缓存图片的闪烁现象，提升用户体验",
+  "notes": "- feat: 优化英雄动画结束时的元素恢复逻辑，防止白闪现象",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T08:53:07Z"
+  "publishedAt": "2026-05-17T09:05:17Z"
 }
