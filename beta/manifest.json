@@ -1,9 +1,9 @@
 {
-  "version": "20260517.38",
-  "url": "bundle-20260517.38.zip",
-  "hash": "4d96bbe5fb2540d40c9f8afb86a6a719c92eb977a2aad37897cbd26b55fac285",
+  "version": "20260517.39",
+  "url": "bundle-20260517.39.zip",
+  "hash": "6b9b59aed58dff8d1db7904f2b519a281f250f24386a473a4d3720b5099030af",
   "minNativeVersion": null,
-  "notes": "- feat: 更新调试日志以增强后退导航和英雄动画的可追踪性",
+  "notes": "- feat: 添加英雄调试面板和日志功能以增强调试能力",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:05:17Z"
+  "publishedAt": "2026-05-17T14:09:39Z"
 }
