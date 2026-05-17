@@ -1,9 +1,9 @@
 {
-  "version": "20260517.25",
-  "url": "bundle-20260517.25.zip",
-  "hash": "b45ca64d3687aaab8af337c95b3b56799bfb41a309138805b3a6309dfd4c0a48",
+  "version": "20260517.26",
+  "url": "bundle-20260517.26.zip",
+  "hash": "cf3aee217eba760469ec16e905c81d6adbea70309caf81d6906abaf1f660db96",
   "minNativeVersion": null,
-  "notes": "- feat: 优化可见商品计数同步逻辑，减少渲染窗口闪烁现象",
+  "notes": "- feat: 优化英雄动画中的目标元素隐藏逻辑，防止背景闪烁现象",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T09:11:21Z"
+  "publishedAt": "2026-05-17T09:20:10Z"
 }

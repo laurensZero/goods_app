@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.26",
+    "url": "bundle-20260517.26.zip",
+    "hash": "cf3aee217eba760469ec16e905c81d6adbea70309caf81d6906abaf1f660db96",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化英雄动画中的目标元素隐藏逻辑，防止背景闪烁现象",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T09:20:10Z"
+  },
+  {
     "version": "20260517.25",
     "url": "bundle-20260517.25.zip",
     "hash": "b45ca64d3687aaab8af337c95b3b56799bfb41a309138805b3a6309dfd4c0a48",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化英雄动画结束时的元素恢复逻辑，防止白闪现象",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T09:05:17Z"
-  },
-  {
-    "version": "20260517.23",
-    "url": "bundle-20260517.23.zip",
-    "hash": "218199db7910b9c4d9d85ca7a8f51fd644b154669aa1f784b1ac973415623baa",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图片加载逻辑，减少未缓存图片的闪烁现象，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T08:53:07Z"
   }
 ]
