@@ -775,13 +775,22 @@ onActivated(async () => {
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
   const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
-  if (shouldMaskDisplay) {
+  if (shouldMaskDisplay || hasPendingEventHeroBack(route.fullPath)) {
     eventsDisplayReady.value = false
   }
   await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
   await nextTick()
-  scheduleEventBackHeroRetry()
-  eventsDisplayReady.value = true
+  const played = tryPlayEventBackHero()
+  if (played) {
+    eventsDisplayReady.value = true
+  } else if (hasPendingEventHeroBack(route.fullPath)) {
+    scheduleEventBackHeroRetry(0, {
+      onPlayed: () => { eventsDisplayReady.value = true },
+      onGiveUp: () => { eventsDisplayReady.value = true }
+    })
+  } else {
+    eventsDisplayReady.value = true
+  }
   bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
