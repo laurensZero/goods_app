@@ -261,6 +261,7 @@ const searchFilters = reactive(createDefaultGoodsFilters({ hasImage: 'any' }))
 const advancedExpanded = ref(false)
 const showAllCharacterOptions = ref(false)
 const searchModeHistoryKey = 'homeSearchState'
+let homeSearchRestoreContext = null
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 const ADD_MOTION_SNAPSHOT_KEY = 'goods-app:add-motion-snapshot-v1'
@@ -397,6 +398,34 @@ function restoreSearchStateFromHistory() {
   return true
 }
 
+function captureHomeSearchRestoreContext() {
+  if (!searchModeActive.value) {
+    homeSearchRestoreContext = null
+    return
+  }
+
+  homeSearchRestoreContext = {
+    active: true,
+    scope: searchScope.value,
+    advancedExpanded: advancedExpanded.value,
+    filters: serializeSearchFilters()
+  }
+}
+
+function restoreHomeSearchStateFromContext() {
+  if (!homeSearchRestoreContext || typeof homeSearchRestoreContext !== 'object') return false
+
+  searchScope.value = homeSearchRestoreContext.scope === 'wishlist' ? 'wishlist' : 'collection'
+  searchModeActive.value = homeSearchRestoreContext.active !== false
+  advancedExpanded.value = homeSearchRestoreContext.advancedExpanded === true
+
+  if (homeSearchRestoreContext.filters && typeof homeSearchRestoreContext.filters === 'object') {
+    assignSearchFilters(homeSearchRestoreContext.filters)
+  }
+
+  return true
+}
+
 function applySearchModeState(scope = 'collection', options = {}) {
   const { resetFilters = true } = options
   searchScope.value = scope === 'wishlist' ? 'wishlist' : 'collection'
@@ -461,6 +490,7 @@ function updateSearchModeRoute(active) {
 }
 
 function openSearchMode(scope = 'collection') {
+  homeSearchRestoreContext = null
   applySearchModeState(scope)
   updateSearchModeRoute(true)
 }
@@ -477,6 +507,7 @@ async function closeSearchMode(options = {}) {
   searchModeTransitioning.value = true
   searchModeActive.value = false
   resetSearchFilters()
+  homeSearchRestoreContext = null
   if (syncRoute) {
     updateSearchModeRoute(false)
   }
@@ -1079,12 +1110,6 @@ function unbindSelectionHeaderScroll() {
 }
 
 function handleAndroidBackButton(event) {
-  if (searchModeActive.value) {
-    closeSearchMode()
-    event.preventDefault()
-    return
-  }
-
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
     return
@@ -1098,6 +1123,12 @@ function handleAndroidBackButton(event) {
 
   if (selectionMode.value) {
     exitSelectionMode()
+    event.preventDefault()
+    return
+  }
+
+  if (searchModeActive.value) {
+    closeSearchMode()
     event.preventDefault()
   }
 }
@@ -1175,22 +1206,26 @@ onActivated(async () => {
   if (storedState?.source) {
     markScrollSource(storedState.source)
   }
-  if (!restoreSearchStateFromHistory()) {
+  if (!restoreHomeSearchStateFromContext() && !restoreSearchStateFromHistory()) {
     syncSearchModeFromRoute()
   }
-  await restoreActivatedScrollPosition(
-    syncVisibleGoodsCountForActivatedRestore,
-    syncVisibleTimelineMonthCountForActivatedRestore,
-    prepareRestoreState
-  )
-  await nextTick()
-  syncAddMotionContext()
-  homeDisplayReady.value = true
-  scheduleGoodsBackHeroRetry()
-  bindSelectionHeaderScroll()
-  updateSelectionHeaderPosition()
-  updateScrollTopButtonVisibility()
-  bindAndroidBackButton()
+  deferActivatedRestoreAfterGoodsBackHero(() => {
+    void (async () => {
+      await restoreActivatedScrollPosition(
+        syncVisibleGoodsCountForActivatedRestore,
+        syncVisibleTimelineMonthCountForActivatedRestore,
+        prepareRestoreState
+      )
+      await nextTick()
+      syncAddMotionContext()
+      homeDisplayReady.value = true
+      scheduleGoodsBackHeroRetry()
+      bindSelectionHeaderScroll()
+      updateSelectionHeaderPosition()
+      updateScrollTopButtonVisibility()
+      bindAndroidBackButton()
+    })()
+  })
 })
 
 watch(
@@ -1204,6 +1239,7 @@ watch(
 onDeactivated(() => {
   isHomeActive.value = false
   mountBootstrapSession += 1
+  homeSearchRestoreContext = null
   if (searchModeSyncTimer) {
     window.clearTimeout(searchModeSyncTimer)
     searchModeSyncTimer = 0
@@ -1484,6 +1520,9 @@ const preloadTargetList = computed(() =>
 watch(
   [() => displayedGoodsList.value.length, effectiveDisplayDensity, sortDirection, sortMode, windowWidth, searchModeActive, searchScope, advancedExpanded],
   () => {
+    if (hasPendingGoodsHeroBack(route.fullPath) || isGoodsHeroAnimating()) {
+      return
+    }
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
   },
@@ -1510,6 +1549,7 @@ function openDetail(id) {
   const goodsId = payload.id
   saveScrollPosition(true, `home:openDetail:${goodsId}`)
   primeActivatedRestoreWindow(getStoredScrollState())
+  captureHomeSearchRestoreContext()
   if (displayDensity.value === 'timeline') {
     clearRouteTransitionFallback()
     runWithRouteTransition(
