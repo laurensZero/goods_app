@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.30",
+    "url": "bundle-20260517.30.zip",
+    "hash": "75428c67a5268b549c19bbcaae7d62136c90b52c13517fd59e9f633a86105e82",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化页面过渡动画逻辑，防止闪烁现象，提升用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T10:34:15Z"
+  },
+  {
     "version": "20260517.29",
     "url": "bundle-20260517.29.zip",
     "hash": "bd140954cb7a519a819e4261b7f45e5b079eb5f42c1755a4ac41a79eab396e39",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化元素隐藏和恢复逻辑，防止白闪现象，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T09:35:48Z"
-  },
-  {
-    "version": "20260517.27",
-    "url": "bundle-20260517.27.zip",
-    "hash": "29a4cff2b11087ceb10381df56827584dbd292359ba86bf4363af90201b24ae5",
-    "minNativeVersion": null,
-    "notes": "- feat: 等待英雄图片加载完成以防止白闪现象，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T09:23:35Z"
   }
 ]
