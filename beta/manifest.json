@@ -1,9 +1,9 @@
 {
-  "version": "20260517.26",
-  "url": "bundle-20260517.26.zip",
-  "hash": "cf3aee217eba760469ec16e905c81d6adbea70309caf81d6906abaf1f660db96",
+  "version": "20260517.27",
+  "url": "bundle-20260517.27.zip",
+  "hash": "29a4cff2b11087ceb10381df56827584dbd292359ba86bf4363af90201b24ae5",
   "minNativeVersion": null,
-  "notes": "- feat: 优化英雄动画中的目标元素隐藏逻辑，防止背景闪烁现象",
+  "notes": "- feat: 等待英雄图片加载完成以防止白闪现象，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T09:20:10Z"
+  "publishedAt": "2026-05-17T09:23:35Z"
 }
