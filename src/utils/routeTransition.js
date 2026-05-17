@@ -31,13 +31,9 @@ function animateScene(scene, direction) {
 }
 
 function runSlideTransition(navigate, direction) {
-  navigate()
+  const result = navigate()
 
-  // Let Vue microtasks flush so the new route DOM is settled, then
-  // animate on the next paint frame. This is faster than awaiting
-  // router.push() (which blocks until component mount) but still gives
-  // the DOM one tick to stabilise, avoiding the left‑right shake.
-  Promise.resolve().then(() => {
+  const schedule = () => {
     requestAnimationFrame(() => {
       const scene = getRouteScene()
       if (scene) {
@@ -50,7 +46,17 @@ function runSlideTransition(navigate, direction) {
         })
       }
     })
-  })
+  }
+
+  // Wait for vue-router promise so the new route component is mounted
+  // before animating.  Without this the animation may target the old
+  // route-scene that KeepAlive is about to cache, leaving stale inline
+  // styles in the cached DOM that cause a flash on reactivation.
+  if (result && typeof result.then === 'function') {
+    result.then(schedule)
+  } else {
+    schedule()
+  }
 }
 
 /* ---------- public API ---------- */
