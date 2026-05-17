@@ -1,9 +1,9 @@
 {
-  "version": "20260517.3",
-  "url": "bundle-20260517.3.zip",
-  "hash": "04683867ff3fae980dcc0d8e4e43963db5223c8e6975857e5a60e3ce4c6d71b4",
+  "version": "20260517.4",
+  "url": "bundle-20260517.4.zip",
+  "hash": "6e94e64c8f5e33bc3a89699f3e4381d330d94f4889b75d5579485c13988918d7",
   "minNativeVersion": null,
-  "notes": "- feat: 优化搜索模式面板过渡效果，添加搜索状态冻结支持",
+  "notes": "- feat: 移除不必要的 cleanupAllHeroes 调用以优化英雄回退逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T02:32:09Z"
+  "publishedAt": "2026-05-17T02:37:02Z"
 }

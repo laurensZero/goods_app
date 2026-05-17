@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.4",
+    "url": "bundle-20260517.4.zip",
+    "hash": "6e94e64c8f5e33bc3a89699f3e4381d330d94f4889b75d5579485c13988918d7",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除不必要的 cleanupAllHeroes 调用以优化英雄回退逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T02:37:02Z"
+  },
+  {
     "version": "20260517.3",
     "url": "bundle-20260517.3.zip",
     "hash": "04683867ff3fae980dcc0d8e4e43963db5223c8e6975857e5a60e3ce4c6d71b4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加搜索模式面板过渡效果，优化搜索状态管理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T02:14:26Z"
-  },
-  {
-    "version": "20260517.1",
-    "url": "bundle-20260517.1.zip",
-    "hash": "1979eb62d433c102c12c881f663bea1711cba1e56a69af912aa07bd2feb9e314",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图像加载和恢复功能，添加搜索状态持久化支持",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T01:56:40Z"
   }
 ]
