@@ -1,9 +1,9 @@
 {
-  "version": "20260517.34",
-  "url": "bundle-20260517.34.zip",
-  "hash": "1e6ea800da611a587eb6d5d659b2d44c6041240cea7fcbc309f09b43789f3cd7",
+  "version": "20260517.35",
+  "url": "bundle-20260517.35.zip",
+  "hash": "a3b124b4fd1bff799cc68b545ee21e1c8c3d028e4e4b8efa283f5c583e9e958c",
   "minNativeVersion": null,
-  "notes": "- feat: 移除文档样式中的背景属性，优化滚动锁定逻辑",
+  "notes": "- Revert \"feat: 移除文档样式中的背景属性，优化滚动锁定逻辑\"\n  This reverts commit 141a721f1df1a9073d47b9744cef5e422e700398.\n\n- Revert \"feat: 添加滚动锁定功能以改善用户体验\"\n  This reverts commit 57eb69589e1d83c49e62a91d87151d3eb9206a75.",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T11:57:58Z"
+  "publishedAt": "2026-05-17T12:23:10Z"
 }
