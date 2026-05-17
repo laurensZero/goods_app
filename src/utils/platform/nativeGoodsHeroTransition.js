@@ -600,6 +600,11 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       // node is already positioned at snapshot.left/top; use delta transforms
       node.style.transform = fromTransform
 
+      // Force style flush so the browser paints the start state before
+      // starting the animation. This prevents a frame where the overlay
+      // appears at the end position and then animates back.
+      try { node.getBoundingClientRect() } catch (e) {}
+
       animation = node.animate(
         [
           { transform: fromTransform, opacity: 1 },
