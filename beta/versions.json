@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.6",
+    "url": "bundle-20260517.6.zip",
+    "hash": "6329c864a42a98094527e9c4a95265a34bfe36a9c59f47cf133633590922a1ac",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改搜索面板样式，调整位置属性为相对定位\n\n- feat: 优化搜索模式和选择模式的 Android 返回按钮处理逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T03:05:42Z"
+  },
+  {
     "version": "20260517.5",
     "url": "bundle-20260517.5.zip",
     "hash": "9a2f0c790b02a65703803e96759e85fd4074a9606e8949ec6acd193a4c06e0a7",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除不必要的 cleanupAllHeroes 调用以优化英雄回退逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T02:37:02Z"
-  },
-  {
-    "version": "20260517.3",
-    "url": "bundle-20260517.3.zip",
-    "hash": "04683867ff3fae980dcc0d8e4e43963db5223c8e6975857e5a60e3ce4c6d71b4",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化搜索模式面板过渡效果，添加搜索状态冻结支持",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T02:32:09Z"
   }
 ]
