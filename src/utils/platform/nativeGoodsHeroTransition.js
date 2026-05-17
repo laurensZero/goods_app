@@ -534,7 +534,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
     // Defer restore and DOM removal to the next animation frames to avoid
     // causing synchronous layout/repaint that can produce flicker when
-    // multiple cards are being updated.
+    // multiple cards are being updated. Also delay unlocking image preload
+    // until after DOM restore to prevent resumed loads from causing repaints
+    // while the overlay is still being torn down.
+    const shouldUnlock = animationGeneration === heroRuntimeGeneration
     try {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -544,6 +547,13 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
           try {
             if (node.parentNode) node.remove()
           } catch (e) {}
+
+          if (shouldUnlock) {
+            heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
+            if (heroAnimationLockCount === 0) {
+              setImagePreloadPaused(false)
+            }
+          }
         })
       })
     } catch (e) {
@@ -553,12 +563,11 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       try {
         if (node.parentNode) node.remove()
       } catch (e) {}
-    }
-
-    if (animationGeneration === heroRuntimeGeneration) {
-      heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
-      if (heroAnimationLockCount === 0) {
-        setImagePreloadPaused(false)
+      if (shouldUnlock) {
+        heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
+        if (heroAnimationLockCount === 0) {
+          setImagePreloadPaused(false)
+        }
       }
     }
   }
