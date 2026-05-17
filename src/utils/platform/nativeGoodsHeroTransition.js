@@ -607,6 +607,22 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   try {
     await waitForNextFrame()
+    // Wait for the overlay's own <img> to load before showing it,
+    // otherwise the clip's white background flashes through on the
+    // first painted frame (especially on Android where decode is slower).
+    const heroImg = node.querySelector('[data-hero-media="image"]')
+    if (heroImg && !heroImg.complete) {
+      await new Promise((resolve) => {
+        const done = () => resolve()
+        heroImg.addEventListener('load', done, { once: true })
+        heroImg.addEventListener('error', done, { once: true })
+        setTimeout(done, 250)
+      })
+      if (heroImg.naturalWidth > 0 && heroImg.naturalHeight > 0) {
+        heroImg.style.opacity = '1'
+        heroImg.style.visibility = 'visible'
+      }
+    }
     // Hide target and show overlay in the same synchronous block so there
     // is never a frame where the target is hidden but the overlay isn't
     // covering it — prevents the card's background / border from flashing.
