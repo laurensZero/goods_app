@@ -1,9 +1,9 @@
 {
-  "version": "20260517.44",
-  "url": "bundle-20260517.44.zip",
-  "hash": "9e1f405a702e93f5ac2c9047ae6439c0d463592937c087cc5ece200a9a7faa22",
+  "version": "20260517.45",
+  "url": "bundle-20260517.45.zip",
+  "hash": "e2bd5fd7e21ab7d585364740b424b4bb2f20c0254196f34cccb8a2d6bed446a4",
   "minNativeVersion": null,
-  "notes": "- feat: 增加对Android设备的调试日志记录，优化图片缓存逻辑",
+  "notes": "- feat: 增加商品图片调试功能，优化调试日志记录逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:30:11Z"
+  "publishedAt": "2026-05-17T14:30:57Z"
 }
