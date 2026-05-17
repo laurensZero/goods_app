@@ -745,7 +745,7 @@ export function playGoodsHeroForward(goodsId, targetEl) {
     return
   }
 
-  void animateHero(
+  const heroPromise = animateHero(
     pendingForwardHero,
     targetRect,
     readRadius(targetEl),
@@ -757,6 +757,7 @@ export function playGoodsHeroForward(goodsId, targetEl) {
   )
 
   pendingForwardHero = null
+  return heroPromise
 }
 
 export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
@@ -867,7 +868,7 @@ export function playEventHeroForward(eventId, targetEl) {
     return
   }
 
-  void animateHero(
+  const heroPromise = animateHero(
     pendingForwardEventHero,
     targetRect,
     readRadius(targetEl),
@@ -879,6 +880,7 @@ export function playEventHeroForward(eventId, targetEl) {
   )
 
   pendingForwardEventHero = null
+  return heroPromise
 }
 
 export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {

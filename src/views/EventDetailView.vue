@@ -43,6 +43,7 @@
                 loading="eager"
                 fetchpriority="high"
                 :skeleton-enabled="false"
+                :class="['event-cover-media', { 'event-cover-media--hero-hidden': !coverMediaVisible } ]"
                 :image-attrs="{ class: 'cover-card__img' }"
               />
               <div v-else class="cover-card__fallback">{{ coverFallback }}</div>
@@ -238,6 +239,7 @@ const goodsStore = useGoodsStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const eventDisplayReady = ref(true)
+const coverMediaVisible = ref(false)
 const detailEntryScrollLockActive = ref(false)
 let detailEntryScrollLockTimer = 0
 
@@ -287,7 +289,7 @@ async function waitForStableHeroTarget(el, maxFrames = 6) {
 async function playEventHeroForwardWhenReady() {
   await nextTick()
   await waitForStableHeroTarget(coverCardRef.value)
-  playEventHeroForward(eventId.value, coverCardRef.value)
+  await playEventHeroForward(eventId.value, coverCardRef.value)
   tryPlayLinkedGoodsBackHero()
 }
 
@@ -463,6 +465,7 @@ function preloadLinkedGoodsImages() {
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   lockDetailEntryScrollLock()
+  coverMediaVisible.value = false
   const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
   eventDisplayReady.value = !shouldRestore
   if (!eventsStore.isReady) {
@@ -473,6 +476,7 @@ onMounted(async () => {
   preloadLinkedGoodsImages()
   eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 onBeforeUnmount(() => {
@@ -485,6 +489,7 @@ onBeforeUnmount(() => {
 
 onActivated(async () => {
   lockDetailEntryScrollLock()
+  coverMediaVisible.value = false
   const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
   if (shouldRestore) {
     eventDisplayReady.value = false
@@ -493,6 +498,7 @@ onActivated(async () => {
   preloadLinkedGoodsImages()
   eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 onBeforeRouteLeave((to) => {
@@ -509,10 +515,12 @@ watch(eventId, async () => {
   lockDetailEntryScrollLock()
   eventDisplayReady.value = false
   previewPhotoIndex.value = -1
+  coverMediaVisible.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
   eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 watch(linkedGoodsImageUrls, () => {
@@ -684,6 +692,10 @@ function tryPlayLinkedGoodsBackHero() {
   overflow: hidden;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
   box-shadow: var(--app-shadow);
+}
+
+.event-cover-media--hero-hidden {
+  opacity: 0;
 }
 
 .cover-card--empty {

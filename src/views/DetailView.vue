@@ -37,7 +37,7 @@
               :src="activeImage.uri"
               :alt="item.name"
               :lazy="false"
-              class="cover-img"
+              :class="['cover-img', { 'cover-img--hero-hidden': !coverMediaVisible } ]"
             />
             <div v-else class="cover-fallback">
               <span class="cover-initial">{{ coverInitial }}</span>
@@ -251,6 +251,7 @@ const store = useGoodsStore()
 const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
+const coverMediaVisible = ref(false)
 let removeAndroidBackListener = null
 
 function waitForNextFrame() {
@@ -299,7 +300,7 @@ async function playGoodsHeroForwardWhenReady() {
   if (!coverCardRef.value) return
   const isStable = await waitForStableHeroTarget(coverCardRef.value)
   if (!isStable) return
-  playGoodsHeroForward(props.id, coverCardRef.value)
+  await playGoodsHeroForward(props.id, coverCardRef.value)
 }
 
 const item = computed(() => store.getById(props.id))
@@ -696,8 +697,10 @@ onMounted(async () => {
   syncDetailScrollLock(true)
   lockDetailEntryScrollLock()
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+  coverMediaVisible.value = false
   await prepareDetailLayout()
   await playGoodsHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 onBeforeUnmount(() => {
@@ -714,8 +717,10 @@ watch(
   async () => {
     lockDetailEntryScrollLock()
     activeImageId.value = ''
+    coverMediaVisible.value = false
     await prepareDetailLayout()
     await playGoodsHeroForwardWhenReady()
+    coverMediaVisible.value = true
   }
 )
 
@@ -745,6 +750,10 @@ function getImageKindLabel(kind) {
 
 .detail-page--entry-lock .cover-glow {
   filter: none;
+  opacity: 0;
+}
+
+.cover-img--hero-hidden {
   opacity: 0;
 }
 
