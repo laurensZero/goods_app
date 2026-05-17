@@ -1589,7 +1589,6 @@ function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
       return
     }
     if (!hasPendingGoodsHeroBack(route.fullPath)) {
-      cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return
     }
