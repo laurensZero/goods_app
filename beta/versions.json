@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.40",
+    "url": "bundle-20260517.40.zip",
+    "hash": "f323c2313cde57796ff03e537324760cbfd9985877cae47e034d53e8b3ac2482",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化商品卡片重绘逻辑，增加对Android设备的处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T14:12:31Z"
+  },
+  {
     "version": "20260517.39",
     "url": "bundle-20260517.39.zip",
     "hash": "6b9b59aed58dff8d1db7904f2b519a281f250f24386a473a4d3720b5099030af",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新调试日志以增强后退导航和英雄动画的可追踪性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T14:05:17Z"
-  },
-  {
-    "version": "20260517.37",
-    "url": "bundle-20260517.37.zip",
-    "hash": "c10920fef44ef40c6d257661667204352ccccc43ce15fac783c8f7d75acc3078",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加调试日志以优化商品卡片重绘逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:00:47Z"
   }
 ]
