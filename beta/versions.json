@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.2",
+    "url": "bundle-20260517.2.zip",
+    "hash": "01b7975ba7248667244ac43b9d6f6f38cd89339572c669ead2ac8baac1ea8fb7",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加搜索模式面板过渡效果，优化搜索状态管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T02:14:26Z"
+  },
+  {
     "version": "20260517.1",
     "url": "bundle-20260517.1.zip",
     "hash": "1979eb62d433c102c12c881f663bea1711cba1e56a69af912aa07bd2feb9e314",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在多个视图中添加 cleanupAllHeroes 方法以优化英雄动画管理\n\n- feat: 添加序列化和持久化愿望清单搜索状态功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T15:43:48Z"
-  },
-  {
-    "version": "20260516.15",
-    "url": "bundle-20260516.15.zip",
-    "hash": "7093de3be50aae1b70a001540627061cd410d12880014ceeaef54e502ce89ea4",
-    "minNativeVersion": null,
-    "notes": "- fix: 修复新搜索界面bug",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T15:13:21Z"
   }
 ]
