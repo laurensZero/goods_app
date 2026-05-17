@@ -1,9 +1,9 @@
 {
-  "version": "20260517.20",
-  "url": "bundle-20260517.20.zip",
-  "hash": "f7502b7908c7c3b43495ec8d89da2dc6ee022ada7f55e471bbb437d488a85c5a",
+  "version": "20260517.21",
+  "url": "bundle-20260517.21.zip",
+  "hash": "ba97670c89ae83ba7e9af7ff8ca74a2c8e66964a3e63bf91100f35c104f70916",
   "minNativeVersion": null,
-  "notes": "- feat: 添加骨架屏延迟显示支持，优化图片加载体验",
+  "notes": "- feat: 优化英雄动画的可见性控制，添加隐藏样式以改善用户体验\n\n- feat: 添加英雄隐藏样式以改善事件卡片的视觉表现",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T07:31:17Z"
+  "publishedAt": "2026-05-17T07:44:04Z"
 }

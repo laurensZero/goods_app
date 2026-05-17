@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.21",
+    "url": "bundle-20260517.21.zip",
+    "hash": "ba97670c89ae83ba7e9af7ff8ca74a2c8e66964a3e63bf91100f35c104f70916",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化英雄动画的可见性控制，添加隐藏样式以改善用户体验\n\n- feat: 添加英雄隐藏样式以改善事件卡片的视觉表现",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T07:44:04Z"
+  },
+  {
     "version": "20260517.20",
     "url": "bundle-20260517.20.zip",
     "hash": "f7502b7908c7c3b43495ec8d89da2dc6ee022ada7f55e471bbb437d488a85c5a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 延迟解锁图片预加载以防止重绘，优化多个卡片更新时的动画表现",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T06:52:47Z"
-  },
-  {
-    "version": "20260517.18",
-    "url": "bundle-20260517.18.zip",
-    "hash": "fe759a837b0fb40f9b1a6150304c2f000272330aabea1ec71642faf84725cfda",
-    "minNativeVersion": null,
-    "notes": "- feat: 强制样式刷新以优化动画开始状态，防止覆盖层在动画开始前出现错误位置",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T06:51:05Z"
   }
 ]
