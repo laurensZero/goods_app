@@ -1,7 +1,7 @@
 <template>
   <div
     class="page home-page"
-    :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking, 'home-page--search-frozen': !searchDisplayReady }"
+    :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking }"
     :style="HOME_MOTION_CSS_VARS"
   >
     <main ref="pageBodyRef" class="page-body">
@@ -42,7 +42,7 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <Transition name="search-mode-panel" mode="out-in" :css="searchDisplayReady" @after-leave="handleSearchModePanelAfterLeave">
+      <Transition name="search-mode-panel" mode="out-in" @after-leave="handleSearchModePanelAfterLeave">
         <GoodsSearchPanel
           v-if="searchModeActive && !selectionMode"
           :active="searchModeActive"
@@ -225,7 +225,7 @@ import {
 } from '@/utils/goods/filters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { cleanupAllHeroes, getHeroBackDurationMs, getHeroBackPendingTtlMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { getHeroBackDurationMs, getHeroBackPendingTtlMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -261,7 +261,6 @@ const searchFilters = reactive(createDefaultGoodsFilters({ hasImage: 'any' }))
 const advancedExpanded = ref(false)
 const showAllCharacterOptions = ref(false)
 const searchModeHistoryKey = 'homeSearchState'
-const searchDisplayReady = ref(true)
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 const ADD_MOTION_SNAPSHOT_KEY = 'goods-app:add-motion-snapshot-v1'
@@ -407,7 +406,6 @@ function applySearchModeState(scope = 'collection', options = {}) {
   searchModeActive.value = true
   searchModeTransitioning.value = false
   advancedExpanded.value = false
-  searchDisplayReady.value = true
 }
 
 function syncSearchModeFromRoute() {
@@ -1156,7 +1154,6 @@ onMounted(async () => {
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
   homeDisplayReady.value = true
-  searchDisplayReady.value = true
   syncAddMotionContext()
   window.requestAnimationFrame(() => {
     tryPlayNativeGoodsBackHero()
@@ -1189,7 +1186,6 @@ onActivated(async () => {
   await nextTick()
   syncAddMotionContext()
   homeDisplayReady.value = true
-  searchDisplayReady.value = true
   scheduleGoodsBackHeroRetry()
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
@@ -1532,14 +1528,10 @@ function openDetail(id) {
   }
 
   clearRouteTransitionFallback()
-  if (searchModeActive.value) {
-    searchDisplayReady.value = false
-  }
   prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
   router.push(`/detail/${goodsId}`).catch(() => {
     homeDisplayReady.value = true
-    searchDisplayReady.value = true
   })
 }
 
@@ -2204,21 +2196,6 @@ async function applyBatchEditPayload(payload) {
   .search-advanced-panel-leave-to {
     transform: none;
   }
-}
-
-.home-page--search-frozen .search-mode-panel-enter-active,
-.home-page--search-frozen .search-advanced-panel-enter-active,
-.home-page--search-frozen .search-mode-panel-leave-active,
-.home-page--search-frozen .search-advanced-panel-leave-active {
-  transition: none !important;
-}
-
-.home-page--search-frozen .search-mode-panel-enter-from,
-.home-page--search-frozen .search-mode-panel-leave-to,
-.home-page--search-frozen .search-advanced-panel-enter-from,
-.home-page--search-frozen .search-advanced-panel-leave-to {
-  opacity: 1 !important;
-  transform: none !important;
 }
 
 :global(html.theme-dark) .search-section__toggle,
