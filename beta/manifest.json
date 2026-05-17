@@ -1,9 +1,9 @@
 {
-  "version": "20260517.51",
-  "url": "bundle-20260517.51.zip",
-  "hash": "103e7ed089a81a4f32541dc79544651e670c3c725b31559bdcf08c88f53f41c6",
+  "version": "20260517.52",
+  "url": "bundle-20260517.52.zip",
+  "hash": "3a42eedf23a553b605a26b35268700d943348dcc6223d2643df42cb076df7f65",
   "minNativeVersion": null,
-  "notes": "- feat: 增加日志记录功能，跟踪主页可见商品窗口和卡片状态",
+  "notes": "- feat: 移除主页可见商品窗口和卡片状态的日志记录功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T15:04:39Z"
+  "publishedAt": "2026-05-17T15:06:00Z"
 }
