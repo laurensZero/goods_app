@@ -583,10 +583,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
-  // Hide the destination target immediately so slow decode cannot flash the
-  // final image before the hero overlay takes over.
-  hideElement(targetEl)
-
   // Ensure image is reasonably decoded before starting animation to avoid
   // skeleton/灰底先行的情况。等待短时的 decode 成功，超时则继续（图片在动画中会被 reveal）。
   const tryWaitImage = snapshot.imageSrc ? await waitForImageDecode(snapshot.imageSrc, 350) : false
@@ -611,6 +607,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 
   try {
     await waitForNextFrame()
+    // Hide target and show overlay in the same synchronous block so there
+    // is never a frame where the target is hidden but the overlay isn't
+    // covering it — prevents the card's background / border from flashing.
+    hideElement(targetEl)
     node.style.opacity = '1'
 
     if (transformOnly) {
