@@ -1,9 +1,9 @@
 {
-  "version": "20260517.11",
-  "url": "bundle-20260517.11.zip",
-  "hash": "499810d823bc36324fc57615b58155dc55c4ce8624cf765712dc8d4d6684fac4",
+  "version": "20260517.12",
+  "url": "bundle-20260517.12.zip",
+  "hash": "81cfe94bd3dfa10c308f14e06bd382e316bd3bfe117bfef64257d7e2a611fc9e",
   "minNativeVersion": null,
-  "notes": "- feat: 优化搜索模式下的商品列表渲染逻辑，避免不必要的状态更新",
+  "notes": "- Revert \"feat: 优化搜索模式下的商品列表渲染逻辑，避免不必要的状态更新\"\n  This reverts commit 673b156a6706c977d1135bccc65076ff1e71683e.\n\n- feat: 增加搜索模式下的空状态提示，优化用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T05:01:49Z"
+  "publishedAt": "2026-05-17T05:34:09Z"
 }
