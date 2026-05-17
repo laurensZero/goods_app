@@ -643,8 +643,25 @@ function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
 function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
   if (displayDensity.value === 'timeline') return
   const viewportHeight = getFlipViewportHeight()
+  // Sync with actual scroll position first so existing items at the top
+  // of the viewport stay in the render window — avoids a visible flash
+  // when KeepAlive preserves the scroll position and the mask is skipped.
+  syncVirtualGoodsViewport(scrollTop, { useFlipViewport: true, viewportHeight })
+  // Then extend the render window forward to preload upcoming items
+  // without shifting the start index.
   const preloadTargetTop = scrollTop + viewportHeight * 2.5
-  syncVirtualGoodsViewport(preloadTargetTop, { useFlipViewport: true, viewportHeight })
+  const cols = getResponsiveCols(displayDensity.value)
+  const rowSpan = (ROW_HEIGHT_MAP[displayDensity.value] || 272) + GOODS_GRID_ROW_GAP
+  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const endRow = Math.ceil(preloadTargetTop / rowSpan) + overscanRows
+  const endIndex = Math.min(goodsList.value.length, endRow * cols)
+  const neededCount = Math.max(0, endIndex - visibleGoodsStartIndex.value)
+  if (neededCount > visibleGoodsRenderCount.value) {
+    visibleGoodsRenderCount.value = Math.min(
+      GOODS_GRID_MAX_RENDER_CARDS,
+      neededCount
+    )
+  }
 }
 
 function maybeLoadMoreGoods() {
