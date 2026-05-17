@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.1",
+    "url": "bundle-20260517.1.zip",
+    "hash": "1979eb62d433c102c12c881f663bea1711cba1e56a69af912aa07bd2feb9e314",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化图像加载和恢复功能，添加搜索状态持久化支持",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T01:56:40Z"
+  },
+  {
     "version": "20260516.16",
     "url": "bundle-20260516.16.zip",
     "hash": "8b939234ee3f212e21e6c5c187a1be0afda4f32ca151a30803347d402fc83d82",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复新搜索界面bug",
     "updateLevel": "silent",
     "publishedAt": "2026-05-16T15:13:21Z"
-  },
-  {
-    "version": "20260516.14",
-    "url": "bundle-20260516.14.zip",
-    "hash": "bd44737471cd633c6a63ece6c4a4bef1af8fbb484ae8c3f704a1a456e4ecc59f",
-    "minNativeVersion": null,
-    "notes": "- feat: 在 LazyCachedImage 组件中添加 imageAttrs 属性以支持自定义样式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T14:11:14Z"
   }
 ]
