@@ -1,7 +1,7 @@
 <template>
   <div
     class="page events-page"
-    :class="{ 'events-page--restoring': !eventsDisplayReady, 'events-page--top-jump': topJumpMasking }"
+    :class="{ 'events-page--top-jump': topJumpMasking }"
   >
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
@@ -853,10 +853,6 @@ onBeforeRouteLeave(() => {
     opacity: 1;
     filter: saturate(100%);
   }
-}
-
-.events-page--restoring {
-  visibility: hidden;
 }
 
 .page-body {
