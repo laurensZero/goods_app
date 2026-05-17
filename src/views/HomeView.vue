@@ -120,6 +120,16 @@
           />
         </section>
 
+        <section v-else-if="searchModeActive && activeSearchFilterCount === 0" key="search-prompt" class="empty-wrap goods-view-pane">
+          <EmptyState
+            icon="🔍"
+            title="输入关键词开始搜索"
+            description="输入谷子名称、IP、角色等关键词，或选择筛选条件来查找想要的收藏。"
+            action-text="关闭搜索"
+            @action="closeSearchMode()"
+          />
+        </section>
+
         <section v-else key="empty" class="empty-wrap goods-view-pane">
           <EmptyState
             :icon="searchModeActive ? '🔍' : '✦'"
@@ -1403,9 +1413,11 @@ const searchNormalizedFilters = computed(() => normalizeSearchFilters({
 const searchResults = computed(() => applyGoodsFilters(searchSourceList.value, searchNormalizedFilters.value))
 const activeSearchFilterCount = computed(() => countActiveGoodsFilters(searchNormalizedFilters.value))
 
-const displayedGoodsList = computed(() => (
-  searchModeActive.value ? searchResults.value : goodsList.value
-))
+const displayedGoodsList = computed(() => {
+  if (!searchModeActive.value) return goodsList.value
+  if (countActiveGoodsFilters(searchNormalizedFilters.value) === 0) return []
+  return searchResults.value
+})
 
 const effectiveDisplayDensity = computed(() => (
   searchModeActive.value && displayDensity.value === 'timeline'

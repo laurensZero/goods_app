@@ -97,6 +97,16 @@
         @open-detail="openDetail"
       />
 
+      <section v-else-if="searchModeActive && activeSearchFilterCount === 0" class="empty-wrap">
+        <EmptyState
+          icon="🔍"
+          title="输入关键词开始搜索"
+          description="输入谷子名称、IP、角色等关键词，或选择筛选条件来查找想要的心愿。"
+          action-text="关闭搜索"
+          @action="closeSearchMode()"
+        />
+      </section>
+
       <section v-else class="empty-wrap">
         <EmptyState
           :icon="searchModeActive ? '🔍' : '♡'"
@@ -321,9 +331,11 @@ function normalizeSearchFilters(input = {}) {
 
 const searchNormalizedFilters = computed(() => normalizeSearchFilters(searchFilters.value))
 const searchResults = computed(() => applyGoodsFilters(baseGoodsList.value, searchNormalizedFilters.value))
-const displayedGoodsList = computed(() => (
-  searchModeActive.value ? searchResults.value : goodsList.value
-))
+const displayedGoodsList = computed(() => {
+  if (!searchModeActive.value) return goodsList.value
+  if (countActiveGoodsFilters(searchNormalizedFilters.value) === 0) return []
+  return searchResults.value
+})
 const activeSearchFilterCount = computed(() => countActiveGoodsFilters(searchNormalizedFilters.value))
 
 function serializeWishlistSearchFilters() {
