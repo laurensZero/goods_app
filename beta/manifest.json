@@ -1,9 +1,9 @@
 {
-  "version": "20260517.24",
-  "url": "bundle-20260517.24.zip",
-  "hash": "06bec2cf447d43ec15ab5c95ad1239aa907dbff0e0732ce1799a80daf34269be",
+  "version": "20260517.25",
+  "url": "bundle-20260517.25.zip",
+  "hash": "b45ca64d3687aaab8af337c95b3b56799bfb41a309138805b3a6309dfd4c0a48",
   "minNativeVersion": null,
-  "notes": "- feat: 优化英雄动画结束时的元素恢复逻辑，防止白闪现象",
+  "notes": "- feat: 优化可见商品计数同步逻辑，减少渲染窗口闪烁现象",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T09:05:17Z"
+  "publishedAt": "2026-05-17T09:11:21Z"
 }

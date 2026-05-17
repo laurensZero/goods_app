@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.25",
+    "url": "bundle-20260517.25.zip",
+    "hash": "b45ca64d3687aaab8af337c95b3b56799bfb41a309138805b3a6309dfd4c0a48",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化可见商品计数同步逻辑，减少渲染窗口闪烁现象",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T09:11:21Z"
+  },
+  {
     "version": "20260517.24",
     "url": "bundle-20260517.24.zip",
     "hash": "06bec2cf447d43ec15ab5c95ad1239aa907dbff0e0732ce1799a80daf34269be",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图片加载逻辑，减少未缓存图片的闪烁现象，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T08:53:07Z"
-  },
-  {
-    "version": "20260517.22",
-    "url": "bundle-20260517.22.zip",
-    "hash": "6b3bd73da26f00481c7c348c9149cd671f66812c3d0d978d75172810c71055b6",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化事件英雄动画的准备状态检查，确保目标元素准备就绪后再执行动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T08:09:13Z"
   }
 ]
