@@ -177,32 +177,28 @@ watch(
       return
     }
     hasLoadError.value = false
+    // Check memory cache first — cached images skip skeleton and decode wait,
+    // avoiding a visible flash when virtual list items are recreated (e.g.
+    // returning from detail page). Uncached images show skeleton only while
+    // the DB fetch + decode are actually in progress.
+    const cached = peekCachedImage(url)
+    if (cached) {
+      resolvedSrc.value = cached
+      isImageLoading.value = false
+      resetSkeletonVisibility()
+      return
+    }
     resolvedSrc.value = ''
     isImageLoading.value = true
     resetSkeletonVisibility()
-    const cached = peekCachedImage(url)
-    if (cached) {
-      if (requestId !== loadRequestId) return
-      resolvedSrc.value = cached
-      // ensure decode before marking loaded
-      const ok = await waitForImgDecode(cached)
-      if (requestId !== loadRequestId) return
-      if (!ok) {
-        // keep showing skeleton for a bit; but still set src so browser may warm cache
-        isImageLoading.value = true
-      } else {
-        isImageLoading.value = false
-      }
-      return
-    }
     const nextSrc = props.useCache
       ? await getCachedImage(url, { viewportDistance: getViewportDistance() })
       : url
     if (requestId !== loadRequestId) return
     resolvedSrc.value = nextSrc
-    const ok2 = await waitForImgDecode(nextSrc)
+    const ok = await waitForImgDecode(nextSrc)
     if (requestId !== loadRequestId) return
-    isImageLoading.value = !ok2
+    isImageLoading.value = !ok
   },
   { immediate: true }
 )
@@ -231,45 +227,46 @@ function onImageError() {
 onMounted(() => {
   imageCacheRefreshHandler = () => {
     const requestId = ++loadRequestId
-    resolvedSrc.value = ''
-    hasLoadError.value = false
-    isImageLoading.value = false
-    resetSkeletonVisibility()
-    if (props.src && hasEnteredViewport.value) {
-      void Promise.resolve().then(async () => {
-        if (requestId !== loadRequestId) return
-        if (props.src && hasEnteredViewport.value) {
-          const cached = peekCachedImage(props.src)
-          if (cached) {
-            if (requestId !== loadRequestId) return
-            resolvedSrc.value = cached
-            const ok = await waitForImgDecode(cached)
-            if (requestId !== loadRequestId) return
-            isImageLoading.value = !ok
-            return
-          }
-          isImageLoading.value = true
-          const loadPromise = props.useCache
-            ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
-            : Promise.resolve(props.src)
-          void loadPromise.then((nextSrc) => {
-            if (requestId !== loadRequestId) return
-            if (!props.src || !hasEnteredViewport.value) return
-            resolvedSrc.value = nextSrc
-            void (async () => {
-              const ok = await waitForImgDecode(nextSrc)
-              if (requestId !== loadRequestId) return
-              isImageLoading.value = !ok
-            })()
-          }).catch(() => {
-            if (requestId !== loadRequestId) return
-            if (!props.src || !hasEnteredViewport.value) return
-            resolvedSrc.value = props.src
-            isImageLoading.value = true
-          })
-        }
-      })
+    if (!props.src || !hasEnteredViewport.value) {
+      resolvedSrc.value = ''
+      hasLoadError.value = false
+      isImageLoading.value = false
+      resetSkeletonVisibility()
+      return
     }
+    void Promise.resolve().then(async () => {
+      if (requestId !== loadRequestId) return
+      if (!props.src || !hasEnteredViewport.value) return
+      const cached = peekCachedImage(props.src)
+      if (cached) {
+        if (requestId !== loadRequestId) return
+        resolvedSrc.value = cached
+        isImageLoading.value = false
+        resetSkeletonVisibility()
+        return
+      }
+      resolvedSrc.value = ''
+      isImageLoading.value = true
+      resetSkeletonVisibility()
+      const loadPromise = props.useCache
+        ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
+        : Promise.resolve(props.src)
+      void loadPromise.then((nextSrc) => {
+        if (requestId !== loadRequestId) return
+        if (!props.src || !hasEnteredViewport.value) return
+        resolvedSrc.value = nextSrc
+        void (async () => {
+          const ok = await waitForImgDecode(nextSrc)
+          if (requestId !== loadRequestId) return
+          isImageLoading.value = !ok
+        })()
+      }).catch(() => {
+        if (requestId !== loadRequestId) return
+        if (!props.src || !hasEnteredViewport.value) return
+        resolvedSrc.value = props.src
+        isImageLoading.value = true
+      })
+    })
   }
 
   window.addEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
