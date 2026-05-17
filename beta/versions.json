@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.3",
+    "url": "bundle-20260517.3.zip",
+    "hash": "04683867ff3fae980dcc0d8e4e43963db5223c8e6975857e5a60e3ce4c6d71b4",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化搜索模式面板过渡效果，添加搜索状态冻结支持",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T02:32:09Z"
+  },
+  {
     "version": "20260517.2",
     "url": "bundle-20260517.2.zip",
     "hash": "01b7975ba7248667244ac43b9d6f6f38cd89339572c669ead2ac8baac1ea8fb7",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图像加载和恢复功能，添加搜索状态持久化支持",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T01:56:40Z"
-  },
-  {
-    "version": "20260516.16",
-    "url": "bundle-20260516.16.zip",
-    "hash": "8b939234ee3f212e21e6c5c187a1be0afda4f32ca151a30803347d402fc83d82",
-    "minNativeVersion": null,
-    "notes": "- feat: 在多个视图中添加 cleanupAllHeroes 方法以优化英雄动画管理\n\n- feat: 添加序列化和持久化愿望清单搜索状态功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-16T15:43:48Z"
   }
 ]
