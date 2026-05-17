@@ -1,9 +1,9 @@
 {
-  "version": "20260517.45",
-  "url": "bundle-20260517.45.zip",
-  "hash": "e2bd5fd7e21ab7d585364740b424b4bb2f20c0254196f34cccb8a2d6bed446a4",
+  "version": "20260517.46",
+  "url": "bundle-20260517.46.zip",
+  "hash": "826423b6620c3010c69b143eb762524f8f7501f6211e224cd16433db118f3db5",
   "minNativeVersion": null,
-  "notes": "- feat: 增加商品图片调试功能，优化调试日志记录逻辑",
+  "notes": "- feat: 移除商品图片调试窗口逻辑，优化商品卡片重绘控制",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:30:57Z"
+  "publishedAt": "2026-05-17T14:34:05Z"
 }

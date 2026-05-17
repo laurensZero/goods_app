@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.46",
+    "url": "bundle-20260517.46.zip",
+    "hash": "826423b6620c3010c69b143eb762524f8f7501f6211e224cd16433db118f3db5",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除商品图片调试窗口逻辑，优化商品卡片重绘控制",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T14:34:05Z"
+  },
+  {
     "version": "20260517.45",
     "url": "bundle-20260517.45.zip",
     "hash": "e2bd5fd7e21ab7d585364740b424b4bb2f20c0254196f34cccb8a2d6bed446a4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加对Android设备的调试日志记录，优化图片缓存逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T14:30:11Z"
-  },
-  {
-    "version": "20260517.43",
-    "url": "bundle-20260517.43.zip",
-    "hash": "4ea54ffcd2f35e789d685413c3de200613da3af9f224bcfdc30a6644ed52aabe",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化Android设备的卡片观察逻辑，避免不必要的观察",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T14:26:13Z"
   }
 ]
