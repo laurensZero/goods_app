@@ -1,9 +1,9 @@
 {
-  "version": "20260517.46",
-  "url": "bundle-20260517.46.zip",
-  "hash": "826423b6620c3010c69b143eb762524f8f7501f6211e224cd16433db118f3db5",
+  "version": "20260517.47",
+  "url": "bundle-20260517.47.zip",
+  "hash": "ea0c68a4ca8e7b10394d06ab2f08e7043a0d2533666f26469108a7595f7cd16a",
   "minNativeVersion": null,
-  "notes": "- feat: 移除商品图片调试窗口逻辑，优化商品卡片重绘控制",
+  "notes": "- feat: 优化observeCurrentCards函数，避免在Android设备上执行观察逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-17T14:34:05Z"
+  "publishedAt": "2026-05-17T14:37:10Z"
 }
