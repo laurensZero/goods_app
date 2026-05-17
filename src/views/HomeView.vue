@@ -1484,6 +1484,9 @@ const preloadTargetList = computed(() =>
 watch(
   [() => displayedGoodsList.value.length, effectiveDisplayDensity, sortDirection, sortMode, windowWidth, searchModeActive, searchScope, advancedExpanded],
   () => {
+    if (hasPendingGoodsHeroBack(route.fullPath) || isGoodsHeroAnimating()) {
+      return
+    }
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
   },
