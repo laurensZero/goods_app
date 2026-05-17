@@ -1,7 +1,7 @@
 <template>
   <div
     class="page home-page"
-    :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking }"
+    :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking, 'home-page--search-frozen': !searchDisplayReady }"
     :style="HOME_MOTION_CSS_VARS"
   >
     <main ref="pageBodyRef" class="page-body">
@@ -42,190 +42,18 @@
         @toggle-all="toggleSelectAll"
       />
 
-      <Transition name="search-mode-panel" mode="out-in" @after-leave="handleSearchModePanelAfterLeave">
-        <section v-if="searchModeActive && !selectionMode" class="search-section">
-          <div class="search-section__bar-wrap">
-            <button class="search-section__close" type="button" aria-label="关闭搜索" @click="closeSearchMode">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M15 18L9 12L15 6" />
-              </svg>
-            </button>
-
-            <SearchBar
-              v-model="searchFilters.keyword"
-              placeholder="搜索名称、分类、IP、角色、备注"
-              autofocus
-              class="search-section__bar"
-            />
-          </div>
-
-          <button class="search-section__toggle" type="button" :aria-expanded="advancedExpanded" @click="toggleSearchAdvanced">
-            <div class="search-section__toggle-main">
-              <div class="search-section__toggle-copy">
-                <p class="search-section__eyebrow">高级筛选</p>
-                <h2 class="search-section__title">组合条件</h2>
-                <div class="search-section__summary">
-                  <span>{{ searchScope === 'wishlist' ? '心愿单' : '收藏库' }}</span>
-                  <span v-if="activeSearchFilterCount > 0">已启用 {{ activeSearchFilterCount }}</span>
-                </div>
-              </div>
-            </div>
-            <span class="search-section__toggle-icon" aria-hidden="true">
-              <svg :class="{ 'search-section__toggle-icon--open': advancedExpanded }" viewBox="0 0 24 24" fill="none">
-                <path d="M7 10L12 15L17 10" />
-              </svg>
-            </span>
-          </button>
-
-          <Transition name="search-advanced-panel">
-            <div v-if="advancedExpanded" class="search-section__panel-wrap">
-              <section class="search-section__card">
-                <div class="search-section__head">
-                  <div>
-                    <p class="search-section__eyebrow">筛选方案</p>
-                    <h3 class="search-section__sub-title">保存组合</h3>
-                  </div>
-                  <div class="search-section__actions">
-                    <button v-if="activeSearchFilterCount > 0" class="search-section__chip-btn" type="button" @click="resetSearchFilters">重置</button>
-                  </div>
-                </div>
-
-                <div class="search-section__field-grid">
-                  <div class="search-section__field-block">
-                    <label class="search-section__label">价格区间</label>
-                    <div class="search-section__range-row">
-                      <input v-model="searchFilters.priceMin" class="search-section__input" type="number" min="0" inputmode="decimal" placeholder="最低价">
-                      <span class="search-section__range-gap">-</span>
-                      <input v-model="searchFilters.priceMax" class="search-section__input" type="number" min="0" inputmode="decimal" placeholder="最高价">
-                    </div>
-                  </div>
-
-                  <div class="search-section__field-block">
-                    <label class="search-section__label">排序方式</label>
-                    <AppSelect v-model="searchFilters.sortBy" :options="GOODS_FILTER_SORT_OPTIONS" placeholder="请选择排序" />
-                  </div>
-
-                  <div class="search-section__field-block">
-                    <label class="search-section__label">备注</label>
-                    <AppSelect v-model="searchFilters.hasNote" :options="GOODS_FILTER_BOOLEAN_OPTIONS" placeholder="不限" />
-                  </div>
-                </div>
-
-                <div v-if="searchScope === 'collection'" class="search-section__field-block">
-                  <label class="search-section__label">收藏状态</label>
-                  <div class="search-section__chip-wrap">
-                    <button
-                      v-for="option in GOODS_FILTER_COLLECT_STATUS_OPTIONS"
-                      :key="option.value"
-                      type="button"
-                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.collectStatuses.includes(option.value) }]"
-                      @click="toggleFilterValue('collectStatuses', option.value)"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-
-                <div class="search-section__field-block">
-                  <label class="search-section__label">购入时间</label>
-                  <div class="search-section__chip-wrap">
-                    <button
-                      v-for="option in GOODS_FILTER_DATE_PRESET_OPTIONS"
-                      :key="option.value"
-                      type="button"
-                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.acquiredPreset === option.value }]"
-                      @click="searchFilters.acquiredPreset = option.value"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                  <div v-if="searchFilters.acquiredPreset === 'custom'" class="search-section__range-row search-section__range-row--date">
-                    <input v-model="searchFilters.acquiredFrom" class="search-section__input" type="date">
-                    <span class="search-section__range-gap">-</span>
-                    <input v-model="searchFilters.acquiredTo" class="search-section__input" type="date">
-                  </div>
-                </div>
-
-                <div v-if="categoryOptions.length" class="search-section__field-block">
-                  <label class="search-section__label">分类</label>
-                  <div class="search-section__chip-wrap">
-                    <button
-                      v-for="option in categoryOptions"
-                      :key="option.value"
-                      type="button"
-                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.categories.includes(option.value) }]"
-                      @click="toggleFilterValue('categories', option.value)"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-
-                <div v-if="ipOptions.length" class="search-section__field-block">
-                  <label class="search-section__label">IP</label>
-                  <div class="search-section__chip-wrap">
-                    <button
-                      v-for="option in ipOptions"
-                      :key="option.value"
-                      type="button"
-                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.ips.includes(option.value) }]"
-                      @click="toggleFilterValue('ips', option.value)"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-
-                <div v-if="characterOptions.length" class="search-section__field-block">
-                  <div class="search-section__field-head">
-                    <label class="search-section__label">角色</label>
-                    <button
-                      v-if="hasCollapsedCharacterOptions"
-                      class="search-section__field-toggle"
-                      type="button"
-                      @click="showAllCharacterOptions = !showAllCharacterOptions"
-                    >
-                      {{ showAllCharacterOptions ? '收起角色' : '展开角色' }}
-                    </button>
-                  </div>
-                  <div class="search-section__chip-wrap">
-                    <button
-                      v-for="option in visibleCharacterOptions"
-                      :key="option.value"
-                      type="button"
-                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.characters.includes(option.value) }]"
-                      @click="toggleFilterValue('characters', option.value)"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-
-                <div v-if="storageLocationTree.length || hasUnassignedStorageLocation" class="search-section__field-block">
-                  <label class="search-section__label">存放位置</label>
-                  <div class="search-section__location-tree">
-                    <button
-                      v-if="hasUnassignedStorageLocation"
-                      type="button"
-                      :class="['search-section__chip', { 'search-section__chip--active': searchFilters.storageLocations.includes(GOODS_FILTER_SPECIAL_VALUES.noStorageLocation) }]"
-                      @click="toggleFilterValue('storageLocations', GOODS_FILTER_SPECIAL_VALUES.noStorageLocation)"
-                    >
-                      未设置位置
-                    </button>
-
-                    <StorageLocationFilterTree
-                      v-for="node in storageLocationTree"
-                      :key="node.path"
-                      :node="node"
-                      :selected-values="searchFilters.storageLocations"
-                      @toggle="toggleFilterValue('storageLocations', $event)"
-                    />
-                  </div>
-                </div>
-              </section>
-            </div>
-          </Transition>
-        </section>
+      <Transition name="search-mode-panel" mode="out-in" :css="searchDisplayReady" @after-leave="handleSearchModePanelAfterLeave">
+        <GoodsSearchPanel
+          v-if="searchModeActive && !selectionMode"
+          :active="searchModeActive"
+          v-model:advanced-expanded="advancedExpanded"
+          :filters="searchFilters"
+          :source-list="searchSourceList"
+          :storage-location-tree-source="presets.storageLocationTree"
+          scope-label="收藏库"
+          @close="closeSearchMode"
+          @reset="resetSearchFilters"
+        />
       </Transition>
 
       <section v-if="!searchModeActive && !searchModeTransitioning" class="summary-section">
@@ -413,9 +241,7 @@ import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
-import SearchBar from '@/components/common/SearchBar.vue'
-import AppSelect from '@/components/common/AppSelect.vue'
-import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
+import GoodsSearchPanel from '@/components/goods/GoodsSearchPanel.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'HomeView' })
@@ -1330,6 +1156,7 @@ onMounted(async () => {
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
   homeDisplayReady.value = true
+  searchDisplayReady.value = true
   syncAddMotionContext()
   window.requestAnimationFrame(() => {
     tryPlayNativeGoodsBackHero()
@@ -1362,6 +1189,7 @@ onActivated(async () => {
   await nextTick()
   syncAddMotionContext()
   homeDisplayReady.value = true
+  searchDisplayReady.value = true
   scheduleGoodsBackHeroRetry()
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
@@ -1704,10 +1532,14 @@ function openDetail(id) {
   }
 
   clearRouteTransitionFallback()
+  if (searchModeActive.value) {
+    searchDisplayReady.value = false
+  }
   prepareGoodsHeroForward({ goodsId, sourceEl: payload.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
   router.push(`/detail/${goodsId}`).catch(() => {
     homeDisplayReady.value = true
+    searchDisplayReady.value = true
   })
 }
 
@@ -1991,8 +1823,9 @@ async function applyBatchEditPayload(payload) {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .hero-copy {
@@ -2018,15 +1851,15 @@ async function applyBatchEditPayload(payload) {
     width: var(--icon-button-size);
     height: var(--icon-button-size);
     border: none;
-  border-radius: 50%;
-  background: var(--app-glass);
-  box-shadow: var(--app-shadow);
-  color: var(--app-text);
-  flex-shrink: 0;
-  transition: transform 0.16s ease, background 0.16s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    border-radius: 50%;
+    background: var(--app-glass);
+    box-shadow: var(--app-shadow);
+    color: var(--app-text);
+    flex: 0 0 auto;
+    transition: transform 0.16s ease, background 0.16s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .hero-search svg {
@@ -2328,8 +2161,9 @@ async function applyBatchEditPayload(payload) {
 .search-mode-panel-enter-active,
 .search-advanced-panel-enter-active {
   transition:
-    opacity 0.16s ease,
-    transform 0.16s cubic-bezier(0.22, 0.8, 0.22, 1);
+    opacity 180ms ease,
+    transform 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+  will-change: opacity, transform;
 }
 
 .search-mode-panel-leave-active,
@@ -2342,13 +2176,13 @@ async function applyBatchEditPayload(payload) {
 .search-mode-panel-enter-from,
 .search-mode-panel-leave-to {
   opacity: 0;
-  transform: translateX(10px);
+  transform: translateX(12px);
 }
 
 .search-advanced-panel-enter-from,
 .search-advanced-panel-leave-to {
   opacity: 0;
-  transform: translateX(8px);
+  transform: translateX(12px);
 }
 
 .search-advanced-panel-enter-to,
@@ -2371,6 +2205,21 @@ async function applyBatchEditPayload(payload) {
   .search-advanced-panel-leave-to {
     transform: none;
   }
+}
+
+.home-page--search-frozen .search-mode-panel-enter-active,
+.home-page--search-frozen .search-advanced-panel-enter-active,
+.home-page--search-frozen .search-mode-panel-leave-active,
+.home-page--search-frozen .search-advanced-panel-leave-active {
+  transition: none !important;
+}
+
+.home-page--search-frozen .search-mode-panel-enter-from,
+.home-page--search-frozen .search-mode-panel-leave-to,
+.home-page--search-frozen .search-advanced-panel-enter-from,
+.home-page--search-frozen .search-advanced-panel-leave-to {
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 :global(html.theme-dark) .search-section__toggle,

@@ -646,8 +646,9 @@ onBeforeUnmount(() => {
 .search-mode-panel-enter-active,
 .search-advanced-panel-enter-active {
   transition:
-    opacity 0.16s ease,
-    transform 0.16s cubic-bezier(0.22, 0.8, 0.22, 1);
+    opacity 180ms ease,
+    transform 180ms cubic-bezier(0.22, 0.8, 0.22, 1);
+  will-change: opacity, transform;
 }
 
 .search-mode-panel-leave-active,
@@ -660,13 +661,13 @@ onBeforeUnmount(() => {
 .search-mode-panel-enter-from,
 .search-mode-panel-leave-to {
   opacity: 0;
-  transform: translateX(10px);
+  transform: translateX(12px);
 }
 
 .search-advanced-panel-enter-from,
 .search-advanced-panel-leave-to {
   opacity: 0;
-  transform: translateX(8px);
+  transform: translateX(12px);
 }
 
 .search-advanced-panel-enter-to,
