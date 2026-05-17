@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260517.20",
+    "url": "bundle-20260517.20.zip",
+    "hash": "f7502b7908c7c3b43495ec8d89da2dc6ee022ada7f55e471bbb437d488a85c5a",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加骨架屏延迟显示支持，优化图片加载体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-17T07:31:17Z"
+  },
+  {
     "version": "20260517.19",
     "url": "bundle-20260517.19.zip",
     "hash": "be1741dfe093d67fdc074fb8fa74062b207e0e887ed7c3743926f245ee18443b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 强制样式刷新以优化动画开始状态，防止覆盖层在动画开始前出现错误位置",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T06:51:05Z"
-  },
-  {
-    "version": "20260517.17",
-    "url": "bundle-20260517.17.zip",
-    "hash": "916de611035efb24dd4a30ce4167d18ec202cc1002e335fd8d8951e7b3ec5d91",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加状态样式支持，优化搜索商品卡片的视觉反馈",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T06:48:34Z"
   }
 ]
