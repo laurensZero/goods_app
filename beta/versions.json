@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.1",
+    "url": "bundle-20260518.1.zip",
+    "hash": "fcb2a2345d8b837d7ff8c07f85ab52d90b6a760f58642f4055d24d20a7c9742d",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加主页返回英雄动画的定时器调度和清理逻辑，优化页面滚动处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T00:15:17Z"
+  },
+  {
     "version": "20260517.54",
     "url": "bundle-20260517.54.zip",
     "hash": "4e17383f7b700d4fca5b787533a4bacfebae1bef11e0161d592e9c02d82437ae",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除Android设备的可见商品日志记录功能，优化性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T15:11:59Z"
-  },
-  {
-    "version": "20260517.52",
-    "url": "bundle-20260517.52.zip",
-    "hash": "3a42eedf23a553b605a26b35268700d943348dcc6223d2643df42cb076df7f65",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除主页可见商品窗口和卡片状态的日志记录功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T15:06:00Z"
   }
 ]
