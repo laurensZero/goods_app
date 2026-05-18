@@ -11,11 +11,12 @@
             <div class="preview-stage">
               <div class="preview-stage__glow" />
               <div class="preview-card" :class="{ 'preview-card--empty': !form.coverImage }">
-                <img
+                <LazyCachedImage
                   v-if="form.coverImage"
                   :src="form.coverImage"
                   :alt="form.name || '活动封面预览'"
-                  class="preview-card__image"
+                  :lazy="false"
+                  :image-attrs="{ class: 'preview-card__image' }"
                 />
                 <span v-else class="preview-card__fallback">{{ form.name?.trim().charAt(0).toUpperCase() || '活' }}</span>
               </div>
@@ -94,7 +95,13 @@
                           <span class="field-label">活动封面</span>
                           <button type="button" class="media-picker" @click="pickCoverImage">
                             <div class="media-picker__preview" :class="{ 'media-picker__preview--empty': !form.coverImage }">
-                              <img v-if="form.coverImage" :src="form.coverImage" alt="活动封面" />
+                              <LazyCachedImage
+                                v-if="form.coverImage"
+                                :src="form.coverImage"
+                                alt="活动封面"
+                                :lazy="false"
+                                :image-attrs="{ class: 'media-picker__preview-img' }"
+                              />
                               <span v-else>封面</span>
                             </div>
                             <div class="media-picker__copy">
@@ -217,7 +224,12 @@
 
                           <div v-if="linkedGoodsList.length > 0" class="linked-goods">
                             <div v-for="goods in linkedGoodsList" :key="goods.id" class="linked-goods__item">
-                              <img v-if="goods.coverImage" :src="goods.coverImage" :alt="goods.name" class="linked-goods__thumb" />
+                              <LazyCachedImage
+                                v-if="goods.coverImage"
+                                :src="goods.coverImage"
+                                :alt="goods.name"
+                                :image-attrs="{ class: 'linked-goods__thumb' }"
+                              />
                               <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || '谷' }}</div>
                               <span class="linked-goods__name">{{ goods.name }}</span>
                               <button type="button" class="linked-goods__remove" @click="removeLinkedGoods(goods.id)">×</button>
@@ -255,7 +267,11 @@
                             </button>
 
                             <div v-for="(photo, index) in form.photos" :key="photo.id || index" class="photo-upload__item">
-                              <img :src="photo.uri" :alt="photo.caption || `照片 ${index + 1}`" />
+                              <LazyCachedImage
+                                :src="photo.uri"
+                                :alt="photo.caption || `照片 ${index + 1}`"
+                                :image-attrs="{ class: 'photo-upload__img' }"
+                              />
                               <button type="button" class="photo-upload__remove" @click="removePhoto(index)">×</button>
                             </div>
                           </div>
@@ -337,6 +353,7 @@ import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import FormTabNav from '@/components/goods/FormTabNav.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
