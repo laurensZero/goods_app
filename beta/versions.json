@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.15",
+    "url": "bundle-20260518.15.zip",
+    "hash": "9440bd04f5f036f6b5c743eefa09aea2b20e9336a42040f243621fe81181ebc7",
+    "minNativeVersion": null,
+    "notes": "- feat: 在应用启动时为 Supabase 模式添加自动拉取功能，以防错过实时推送",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T09:55:04Z"
+  },
+  {
     "version": "20260518.14",
     "url": "bundle-20260518.14.zip",
     "hash": "930526737f70a62c081e639dba32cbe685b51b11d3f3c33064520c90b91450ff",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加角色保存功能，优化批量导入时的角色记录与历史标签上下文管理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T09:43:20Z"
-  },
-  {
-    "version": "20260518.12",
-    "url": "bundle-20260518.12.zip",
-    "hash": "fd839836251cc2cf48d61a7a907617378ad58007e9e7921042800c329de5d91f",
-    "minNativeVersion": null,
-    "notes": "- feat: 使用 LazyCachedImage 组件替换活动封面和图片预览，优化图片加载性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T07:19:21Z"
   }
 ]
