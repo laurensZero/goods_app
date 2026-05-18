@@ -1,9 +1,9 @@
 {
-  "version": "20260518.20",
-  "url": "bundle-20260518.20.zip",
-  "hash": "bf25b55a9ee1cd4274057eb7914a8109cc563efd8d3310d238961ffdb86cf2b9",
+  "version": "20260518.21",
+  "url": "bundle-20260518.21.zip",
+  "hash": "364f98b4faff34e08f3011e8fe621190b48ad8bb2c9d46870a3fcbc4b5983006",
   "minNativeVersion": null,
-  "notes": "- fix: 修复商品封面图像属性，优化类名绑定",
+  "notes": "- feat: 添加阴影动画支持，优化英雄节点过渡效果\n\n- feat: 增强英雄节点创建，支持自定义阴影值并优化动画逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T11:52:14Z"
+  "publishedAt": "2026-05-18T11:57:49Z"
 }
