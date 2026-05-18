@@ -181,7 +181,7 @@
                     <input v-model.number="whiteBgScalePercent" type="range" min="40" max="100" step="1" />
                   </label>
 
-                  <p class="editor-hint">保存时自动压缩到 1MB 以内</p>
+                  <p class="editor-hint">保存时保留当前导出结果，不再额外压缩</p>
                 </div>
               </section>
 
@@ -728,6 +728,7 @@ async function handleSave() {
     const sourceBlob = await getCurrentBlob()
     const exported = await exportForUpload(sourceBlob, {
       targetMaxBytes: 1024 * 1024,
+      skipCompression: true,
       applyWhiteBg: whiteBgEnabled.value,
       whiteBgStyle: whiteBgStyle.value,
       whiteBgFitRatio: whiteBgScalePercent.value / 100,
