@@ -1041,6 +1041,7 @@ function tryPlayLinkedGoodsBackHero() {
 
 .linked-goods-card__img {
   display: block;
+  background: var(--app-surface-soft);
   object-fit: cover;
 }
 
