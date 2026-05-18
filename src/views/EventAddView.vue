@@ -228,7 +228,7 @@
                                 v-if="goods.coverImage"
                                 :src="goods.coverImage"
                                 :alt="goods.name"
-                                :image-attrs="{ class: 'linked-goods__thumb' }"
+                                class="linked-goods__thumb"
                               />
                               <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || '谷' }}</div>
                               <span class="linked-goods__name">{{ goods.name }}</span>
