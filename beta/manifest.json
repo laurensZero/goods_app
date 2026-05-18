@@ -1,9 +1,9 @@
 {
-  "version": "20260518.1",
-  "url": "bundle-20260518.1.zip",
-  "hash": "fcb2a2345d8b837d7ff8c07f85ab52d90b6a760f58642f4055d24d20a7c9742d",
+  "version": "20260518.2",
+  "url": "bundle-20260518.2.zip",
+  "hash": "ae91fe1b7397bef1bbb4e347252959aca4578916a4e9be719b371dad387d35dc",
   "minNativeVersion": null,
-  "notes": "- feat: 增加主页返回英雄动画的定时器调度和清理逻辑，优化页面滚动处理",
+  "notes": "- feat: 优化主页商品加载逻辑，增加条件判断以避免在动画进行时加载商品",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T00:15:17Z"
+  "publishedAt": "2026-05-18T00:24:04Z"
 }

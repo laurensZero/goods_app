@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.2",
+    "url": "bundle-20260518.2.zip",
+    "hash": "ae91fe1b7397bef1bbb4e347252959aca4578916a4e9be719b371dad387d35dc",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化主页商品加载逻辑，增加条件判断以避免在动画进行时加载商品",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T00:24:04Z"
+  },
+  {
     "version": "20260518.1",
     "url": "bundle-20260518.1.zip",
     "hash": "fcb2a2345d8b837d7ff8c07f85ab52d90b6a760f58642f4055d24d20a7c9742d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品英雄过渡状态重置逻辑，支持可选参数以控制重置行为",
     "updateLevel": "silent",
     "publishedAt": "2026-05-17T15:23:10Z"
-  },
-  {
-    "version": "20260517.53",
-    "url": "bundle-20260517.53.zip",
-    "hash": "37f6e7f686884f1b8260d58961bab4174b2d5d559a1763cacfe3cf6f50146f4e",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除Android设备的可见商品日志记录功能，优化性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T15:11:59Z"
   }
 ]
