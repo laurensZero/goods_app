@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.24",
+    "url": "bundle-20260518.24.zip",
+    "hash": "77f5c7075fff83ca5c3f17762e9505874d2524e04736a17c81cc42951aa74136",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加英雄源元素解析功能，优化英雄动画播放逻辑\n\n- feat: 优化英雄动画逻辑，增加目标元素解码前的隐藏处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T14:12:46Z"
+  },
+  {
     "version": "20260518.23",
     "url": "bundle-20260518.23.zip",
     "hash": "e06040d3186afe3f58846f3be8da458e1a0929e85d3e453a9190f9b68ea949fa",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化自动推送机制，优化同步流程中的冲突处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T13:34:22Z"
-  },
-  {
-    "version": "20260518.21",
-    "url": "bundle-20260518.21.zip",
-    "hash": "364f98b4faff34e08f3011e8fe621190b48ad8bb2c9d46870a3fcbc4b5983006",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加阴影动画支持，优化英雄节点过渡效果\n\n- feat: 增强英雄节点创建，支持自定义阴影值并优化动画逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T11:57:49Z"
   }
 ]
