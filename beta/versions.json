@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.19",
+    "url": "bundle-20260518.19.zip",
+    "hash": "6f7201de1633cda58e326536f433db2badadfacff84063a5df6608324a094bf5",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加待处理的商品英雄返回动画检查与重试机制，优化媒体显示时机",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T11:50:31Z"
+  },
+  {
     "version": "20260518.18",
     "url": "bundle-20260518.18.zip",
     "hash": "35203dcf0360b86e2afa2e55d61368715aa156be38d02c43b055f6c25d325df8",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T11:24:16Z"
-  },
-  {
-    "version": "20260518.16",
-    "url": "bundle-20260518.16.zip",
-    "hash": "261c1a7aaca089cd7c7520c148baed121a8119258100f85e8b9ae0b3ded1706e",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化动画效果，使用 transform 属性提升性能并计算缩放和位移",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T11:20:54Z"
   }
 ]
