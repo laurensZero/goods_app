@@ -565,6 +565,15 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   document.body.appendChild(node)
   activeHeroNodes.add(node)
 
+  // Update clip background to match target element to avoid white flash
+  const clipEl = node.querySelector('[data-hero-clip]')
+  if (clipEl && targetEl) {
+    const targetBg = window.getComputedStyle(targetEl).background
+    if (targetBg && targetBg !== 'none' && targetBg !== 'rgba(0, 0, 0, 0)') {
+      clipEl.style.background = targetBg
+    }
+  }
+
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
@@ -759,6 +768,11 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   if (!targetRect) {
     cleanupAllHeroes()
     pendingBackHero = null
+    return false
+  }
+
+  if (!isHeroImageReady(targetEl)) {
+    // Don't cleanup - let the caller retry when image is ready
     return false
   }
 
