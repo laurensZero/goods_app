@@ -34,6 +34,11 @@ export function getMihoyoShopCodeByIp(ip) {
 
 export const MIHOYO_ROLE_SHOP_CODES = Object.values(MIHOYO_SHOP_CODE_BY_IP)
 
+// 反向索引：shop_code -> IP 名称，便于快速查表
+const SHOP_CODE_TO_IP = Object.fromEntries(
+  Object.entries(MIHOYO_SHOP_CODE_BY_IP).map(([ipName, code]) => [String(code || '').trim(), ipName])
+)
+
 // 常出现在【】中但不属于 IP 的词缀
 const PSEUDO_IP_SET = new Set([
   '积分兑换', '积分', '兑换', 
@@ -41,6 +46,29 @@ const PSEUDO_IP_SET = new Set([
   '赠品', '满赠', 
   '预售', '现货', '包邮', '周边'
 ])
+
+const NOISE_TITLE_PREFIX_SET = new Set([
+  '赠品', '礼品', '礼包', '福袋', '特典', '随机', '加购', '满赠',
+  '积分兑换', '积分', '兑换', '限定商品', '限定', '预售', '现货', '包邮', '周边'
+])
+
+function stripNoiseTitlePrefixes(value) {
+  let result = String(value || '')
+
+  while (true) {
+    const trimmed = result.trim()
+    const match = trimmed.match(/^[【\[(（]\s*([^】\])）]+?)\s*[】\])）]\s*(.+)$/)
+    if (!match) return trimmed
+
+    const prefix = String(match[1] || '').trim()
+    const rest = String(match[2] || '').trim()
+    if (!prefix || !rest || !NOISE_TITLE_PREFIX_SET.has(prefix)) {
+      return trimmed
+    }
+
+    result = rest
+  }
+}
 
 // 从商品名称中提取 IP 和去掉前缀的商品名
 // 支持：【原神】xxx  /  「崩坏：星穹铁道」xxx
@@ -257,7 +285,17 @@ export async function parseMihoyoUrl(url) {
     throw new Error('未能识别商品信息，请确认链接有效')
   }
 
-  const { ip, name: rawName } = parseTitleIpName(detail.name)
+  const { ip: parsedIpFromTitle, name: rawName } = parseTitleIpName(detail.name)
+
+  // 若标题中未明确标注 IP，则尝试从返回的 detail/shop 字段里读取 shop_code 并反查 IP
+  let ip = parsedIpFromTitle || ''
+  if (!ip) {
+    const shopCode = String(detail?.shop_code || detail?.shop?.shop_code || json?.data?.goods?.shop_code || json?.data?.goods?.shop?.shop_code || '').trim()
+    if (shopCode) {
+      const mapped = SHOP_CODE_TO_IP[shopCode]
+      if (mapped) ip = mapped
+    }
+  }
   // 去掉标题中的预售标注
   const name = cleanGoodsName(rawName)
 
@@ -604,7 +642,7 @@ function shopToIp(shopName) {
  *  同时去除末尾常见变体字母 A-E（如 "昔涟B" → "昔涟"，"叶瞬光A" → "叶瞬光"）
  */
 export function cleanGoodsName(str) {
-  return String(str || '')
+  return stripNoiseTitlePrefixes(String(str || ''))
     .replace(/【(?:预售|预计|现货)[^】]*】/g, '')
     .replace(/（(?:预售|预计|现货)?[^）]*(?:到仓|发货|补款|预售|现货)[^）]*）/g, '')
     .replace(/\((?:预售|预计|现货)?[^)]*(?:到仓|发货|补款|预售|现货)[^)]*\)/g, '')

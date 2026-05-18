@@ -490,6 +490,14 @@
                   <div v-if="batchEditSelectedVariantKey === v.key" class="variant-check">✓</div>
                 </button>
               </div>
+              <div v-if="batchEditSelectedVariantKey && batchEditSelectedCharacterName" class="save-char-row" @click="toggleBatchSaveAsCharacter">
+                <span class="save-char-label">
+                  将角色记录为「{{ batchEditSelectedCharacterName }}」
+                </span>
+                <div class="save-char-toggle" :class="{ 'save-char-toggle--on': batchEditSaveAsCharacter }">
+                  <div class="save-char-knob" />
+                </div>
+              </div>
             </div>
             <!-- 图片选择 -->
             <div v-if="batchEditImages.length > 1" class="field">
@@ -775,6 +783,8 @@ const batchEditImages = ref([])
 const batchEditBaseImages = ref([])
 const batchEditVariants = ref([])           // SKU 变体列表 { text, key, img_url, cover_url? }
 const batchEditSelectedVariantKey = ref('') // 当前选中款式 key
+const batchEditSelectedCharacterName = ref('')
+const batchEditSaveAsCharacter = ref(false)
 const savingAll = ref(false)
 
 // 用户编辑输入时重置批量状态
@@ -1151,14 +1161,37 @@ async function handleBatchImport() {
   parseError.value = ''
   batchStep.value = 'parsing'
   batchParsing.value = true
+  const historicalContext = ensureHistoricalTagContext()
   batchItems.value = urls.map(url => ({ url, status: 'pending', data: null, error: '' }))
   for (const item of batchItems.value) {
     item.status = 'parsing'
     try {
       const result = await parseMihoyoUrl(item.url)
-      if (result.ip && !presets.ips.includes(result.ip)) presets.addIp(result.ip)
-      const detectedCat = detectCategory(result.name)
-      if (detectedCat && !presets.categories.includes(detectedCat)) presets.addCategory(detectedCat)
+      const extractedCharacters = extractCharsFromVariants(result.variants)
+      const taggingResult = getTaggingSuggestions(
+        {
+          name: result.name,
+          note: '',
+          chars: extractedCharacters,
+        },
+        staticDictionaries,
+        {
+          categories: presets.categories || [],
+          ips: presets.ips || [],
+          characters: historicalContext.characters,
+          tags: historicalContext.tags,
+        }
+      )
+      const resolvedIp = result.ip || (taggingResult.ipSuggestion && taggingResult.ipSuggestion.score >= 0.6 ? taggingResult.ipSuggestion.value : '') || ''
+      const resolvedCategory = detectCategory(result.name, historicalContext) || (taggingResult.categorySuggestion && taggingResult.categorySuggestion.score >= 0.6 ? taggingResult.categorySuggestion.value : '') || ''
+      const resolvedCharacters = extractedCharacters.length > 0
+        ? [extractedCharacters[0]]
+        : (taggingResult.characterSuggestions?.[0]?.score >= 0.4
+          ? [taggingResult.characterSuggestions[0].value]
+          : [])
+
+      if (resolvedIp && !presets.ips.includes(resolvedIp)) presets.addIp(resolvedIp)
+      if (resolvedCategory && !presets.categories.includes(resolvedCategory)) presets.addCategory(resolvedCategory)
       const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
       const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
         .map(u => (u || '').split('?')[0])
@@ -1166,13 +1199,13 @@ async function handleBatchImport() {
         .filter((u, i, arr) => arr.indexOf(u) === i)
       item.data = {
         name: result.name?.trim() || '',
-        category: detectedCat || '',
-        ip: result.ip || '',
+        category: resolvedCategory || '',
+        ip: resolvedIp || '',
         goodsId: result.goodsId || '',
         image: allImgs[0] || '',
         price: result.price != null ? String(result.price) : '',
         notes: '',
-        characters: [],
+        characters: resolvedCharacters,
         purchaseDate: '',
         variant: '',
         selectedVariantKey: '',
@@ -1181,6 +1214,11 @@ async function handleBatchImport() {
         variants: result.variants || [],
         goodsId: result.goodsId || '',
       }
+      updateHistoricalTagContextFromItem({
+        ip: item.data.ip,
+        characters: item.data.characters,
+        tags: item.data.tags,
+      })
       item.status = 'ready'
       // 异步补全 SKU cover_url + 价格（不阻塞列表显示）
       if (result.goodsId) {
@@ -1218,6 +1256,9 @@ function openBatchEdit(idx) {
   if (!item?.data) return
   batchEditPriceError.value = ''
   editingBatchIdx.value = idx
+  const initialCharacterName = Array.isArray(item.data.characters) && item.data.characters.length === 1
+    ? String(item.data.characters[0] || '').trim()
+    : ''
   Object.assign(batchEditForm, {
     name: item.data.name,
     category: item.data.category,
@@ -1226,7 +1267,7 @@ function openBatchEdit(idx) {
     price: item.data.price,
     notes: item.data.notes,
     tags: Array.isArray(item.data.tags) ? [...item.data.tags] : [],
-    characters: [...item.data.characters],
+    characters: initialCharacterName ? [initialCharacterName] : [],
     purchaseDate: item.data.purchaseDate,
     variant: item.data.variant || '',
   })
@@ -1234,6 +1275,8 @@ function openBatchEdit(idx) {
   batchEditImages.value = [...batchEditBaseImages.value]
   batchEditVariants.value = item.data.variants || []
   batchEditSelectedVariantKey.value = item.data.selectedVariantKey || ''
+  batchEditSelectedCharacterName.value = initialCharacterName
+  batchEditSaveAsCharacter.value = Boolean(initialCharacterName)
   if (batchEditSelectedVariantKey.value) {
     const selected = batchEditVariants.value.find((variant) => variant.key === batchEditSelectedVariantKey.value)
     if (selected) {
@@ -1261,7 +1304,9 @@ function saveBatchEdit() {
     price: batchEditForm.price === '' ? '' : Number(batchEditForm.price),
     notes: batchEditForm.notes,
     tags: [...batchEditForm.tags],
-    characters: [...batchEditForm.characters],
+    characters: batchEditSaveAsCharacter.value && batchEditSelectedCharacterName.value
+      ? [batchEditSelectedCharacterName.value]
+      : [],
     purchaseDate: batchEditForm.purchaseDate,
     variant: batchEditForm.variant,
     selectedVariantKey: batchEditSelectedVariantKey.value,
@@ -1294,13 +1339,22 @@ function handleBatchVariantSelect(v) {
     // 取消选中
     batchEditSelectedVariantKey.value = ''
     batchEditForm.variant = ''
+    batchEditSelectedCharacterName.value = ''
+    batchEditSaveAsCharacter.value = false
     batchEditImages.value = [...batchEditBaseImages.value]
     batchEditForm.image = batchEditBaseImages.value[0] || ''
   } else {
     batchEditSelectedVariantKey.value = v.key
     batchEditForm.variant = displayVariantText(v.text)
+    const candidateCharacterName = normalizeCharacterName(v.text)
+    batchEditSelectedCharacterName.value = isLikelyCharName(candidateCharacterName) ? candidateCharacterName : ''
+    batchEditSaveAsCharacter.value = Boolean(batchEditSelectedCharacterName.value)
     applyBatchVariantMedia(v)
   }
+}
+
+function toggleBatchSaveAsCharacter() {
+  batchEditSaveAsCharacter.value = !batchEditSaveAsCharacter.value
 }
 
 async function saveAllBatch() {
@@ -1328,6 +1382,11 @@ async function saveAllBatch() {
         characters: item.data.characters,
         variant: item.data.variant || undefined,
         isWishlist: isWishlistMode.value,
+      })
+      updateHistoricalTagContextFromItem({
+        ip: item.data.ip,
+        characters: item.data.characters,
+        tags: item.data.tags,
       })
       item.status = 'saved'
     } catch (e) {
@@ -1452,6 +1511,87 @@ function extractCharsFromVariants(variants) {
   return [...new Set(result)]
 }
 
+let historicalTagContextCache = null
+
+function createHistoricalTagContext() {
+  return {
+    characters: {},
+    tags: new Set(),
+  }
+}
+
+function seedHistoricalTagContextFromGoods() {
+  const context = createHistoricalTagContext()
+
+  if (goodsStore?.list?.length) {
+    goodsStore.list.forEach((item) => {
+      const ip = String(item?.ip || 'unknown').trim() || 'unknown'
+
+      if (Array.isArray(item?.characters)) {
+        for (const character of item.characters) {
+          const value = String(character || '').trim()
+          if (!value || /\d{4}年?/.test(value) || /周年/.test(value)) continue
+          if (!context.characters[ip]) context.characters[ip] = []
+          if (!context.characters[ip].includes(value)) {
+            context.characters[ip].push(value)
+          }
+        }
+      }
+
+      if (Array.isArray(item?.tags)) {
+        for (const tag of item.tags) {
+          const value = String(tag || '').trim()
+          if (value) context.tags.add(value)
+        }
+      }
+    })
+  }
+
+  historicalTagContextCache = context
+  return context
+}
+
+function ensureHistoricalTagContext() {
+  return historicalTagContextCache || seedHistoricalTagContextFromGoods()
+}
+
+function updateHistoricalTagContextFromItem(item) {
+  const context = ensureHistoricalTagContext()
+  const ip = String(item?.ip || 'unknown').trim() || 'unknown'
+
+  if (Array.isArray(item?.characters)) {
+    for (const character of item.characters) {
+      const value = String(character || '').trim()
+      if (!value || /\d{4}年?/.test(value) || /周年/.test(value)) continue
+      if (!context.characters[ip]) context.characters[ip] = []
+      if (!context.characters[ip].includes(value)) {
+        context.characters[ip].push(value)
+      }
+    }
+  }
+
+  if (Array.isArray(item?.tags)) {
+    for (const tag of item.tags) {
+      const value = String(tag || '').trim()
+      if (value) context.tags.add(value)
+    }
+  }
+
+  return context
+}
+
+function buildHistoricalCharacterMap() {
+  return ensureHistoricalTagContext().characters
+}
+
+function buildHistoricalTagContext() {
+  const context = ensureHistoricalTagContext()
+  return {
+    characters: context.characters,
+    tags: [...context.tags],
+  }
+}
+
 // ── 判断某个变体是否已被用户选中（用 key 追踪，防止同名误判）──
 function isVariantSelected(v) {
   return selectedVariantKey.value === v.key
@@ -1572,26 +1712,13 @@ function autoSelectVariantByHint() {
 function evalVariantTags(v) {
   const combinedText = [form.name, displayVariantText(v.text)].filter(Boolean).join(' ')
   const presetsStore = usePresetsStore()
-  const goodsStore = useGoodsStore()
-
-  const charMap = {}
-  if (goodsStore?.list?.length) {
-    goodsStore.list.forEach(item => {
-      if (item.characters && item.characters.length) {
-        const ip = item.ip || 'unknown'
-        if (!charMap[ip]) charMap[ip] = []
-        item.characters.forEach(c => {
-          if (!charMap[ip].includes(c) && !/\d{4}年?/.test(c) && !/周年/.test(c)) charMap[ip].push(c)
-        })
-      }
-    })
-  }
+  const historicalContext = ensureHistoricalTagContext()
 
   return getTaggingSuggestions({ name: combinedText, note: '' }, staticDictionaries, {
     categories: presetsStore.categories || [],
     ips: presetsStore.ips || [],
-    characters: charMap,
-    tags: []
+    characters: historicalContext.characters,
+    tags: [...historicalContext.tags],
   })
 }
 
@@ -1653,28 +1780,14 @@ function toggleSaveAsCharacter() {
 }
 
 // ── 自动匹配分类（关键词）──
-function detectCategory(name) {
+function detectCategory(name, historicalContext = null) {
   if (!name) return ''
     
     const presetsStore = usePresetsStore()
-    const goodsStore = useGoodsStore()
-    const extractedTags = new Set()
-    const charMap = {}
-    if (goodsStore?.list?.length) {
-      goodsStore.list.forEach(item => {
-        if (item.tags && item.tags.length) item.tags.forEach(t => extractedTags.add(t))
-        if (item.characters && item.characters.length) {
-          const ip = item.ip || 'unknown'
-          if (!charMap[ip]) charMap[ip] = []
-          item.characters.forEach(c => {
-            if (!charMap[ip].includes(c)) charMap[ip].push(c)
-          })
-        }
-      })
-    }
+    const context = historicalContext || ensureHistoricalTagContext()
     const result = getTaggingSuggestions({ name, note: '' }, staticDictionaries, {
       categories: presetsStore.categories || [], ips: presetsStore.ips || [],
-      characters: charMap, tags: Array.from(extractedTags)
+      characters: context.characters, tags: [...context.tags]
     })
     
     if (result.categorySuggestion && result.categorySuggestion.score >= 0.6) {
@@ -1775,6 +1888,11 @@ async function handleParse() {
     applyPreferredSearchCharacter()
     selectedVariantKey.value = ''  // 重置选中状态
     autoSelectVariantByHint()
+    updateHistoricalTagContextFromItem({
+      ip: form.ip,
+      characters: form.characters,
+      tags: [],
+    })
 
     parsed.value = true
   } catch (e) {
@@ -1859,6 +1977,11 @@ async function handleSave() {
       notes: form.notes,
       characters: form.characters,
       isWishlist: isWishlistMode.value,
+    })
+    updateHistoricalTagContextFromItem({
+      ip: form.ip,
+      characters: form.characters,
+      tags: [],
     })
     runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   } catch (e) {
