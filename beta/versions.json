@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.17",
+    "url": "bundle-20260518.17.zip",
+    "hash": "864aabb26acdbc2c308aa8a3d73326184cae10072a928196da9f4ab39f1e13fa",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T11:24:16Z"
+  },
+  {
     "version": "20260518.16",
     "url": "bundle-20260518.16.zip",
     "hash": "261c1a7aaca089cd7c7520c148baed121a8119258100f85e8b9ae0b3ded1706e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在应用启动时为 Supabase 模式添加自动拉取功能，以防错过实时推送",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T09:55:04Z"
-  },
-  {
-    "version": "20260518.14",
-    "url": "bundle-20260518.14.zip",
-    "hash": "930526737f70a62c081e639dba32cbe685b51b11d3f3c33064520c90b91450ff",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 添加滚动锁定功能以改善用户体验\"\n  This reverts commit 57eb69589e1d83c49e62a91d87151d3eb9206a75.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T09:43:35Z"
   }
 ]
