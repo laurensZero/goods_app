@@ -4,6 +4,7 @@ const FORWARD_DURATION_MS = 390
 const BACK_DURATION_MS = 350
 const BACK_SCROLL_LOCK_MS = 200
 const BACK_HERO_PENDING_TTL_MS = 5000
+const FORWARD_HERO_PENDING_TTL_MS = 3000
 const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
 const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.15, 0.9, 0.2, 1)'
 const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.25, 0.85, 0.3, 1)'
@@ -18,18 +19,32 @@ let pendingBackEventHero = null
 let heroAnimationLockCount = 0
 let heroLifecycleCleanupBound = false
 let heroRuntimeGeneration = 0
+let goodsCardRepaintBlockUntil = 0
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
 const hiddenElementsMap = new Map()
+let activeHiddenHeroElement = null
 
 function hideElement(el) {
   if (!el || hiddenElementsMap.has(el)) return
+
+  // Hero 退场只应隐藏当前这一个目标元素。
+  // 如果上一次的隐藏状态还没被清理，先恢复它，避免把其它可见卡片一起卷进回收流程。
+  if (activeHiddenHeroElement && activeHiddenHeroElement !== el) {
+    restoreElement(activeHiddenHeroElement)
+  }
+
   hiddenElementsMap.set(el, {
     visibility: el.style.visibility ?? '',
     opacity: el.style.opacity ?? ''
   })
+  activeHiddenHeroElement = el
   el.setAttribute('data-hero-hidden', '')
+  // visibility: hidden keeps the element's layout space while making it
+  // invisible — the hero overlay covers the same space so there is no
+  // visual gap. opacity: 0 was tried and caused border/background flash
+  // on Android because it creates a stacking context.
   el.style.visibility = 'hidden'
 }
 
@@ -41,29 +56,16 @@ function restoreElement(el) {
   el.style.opacity = prev.opacity
   el.removeAttribute('data-hero-hidden')
   hiddenElementsMap.delete(el)
+  if (activeHiddenHeroElement === el) {
+    activeHiddenHeroElement = null
+  }
 }
 
-function restoreAllHiddenElements() {
-  hiddenElementsMap.forEach((prev, el) => {
-    try {
-      if (el.isConnected) {
-        el.style.visibility = prev.visibility
-        el.style.opacity = prev.opacity
-      }
-      el.removeAttribute('data-hero-hidden')
-    } catch (e) {}
-  })
-  hiddenElementsMap.clear()
-
-  // Vue re-render 后旧 DOM 被替换，新 DOM 上无 data-hero-hidden，
-  // 但可能仍有残留标记（旧 DOM 尚未被 GC）。兜底清理所有标记。
-  document.querySelectorAll('[data-hero-hidden]').forEach((el) => {
-    try {
-      el.style.visibility = ''
-      el.style.opacity = ''
-      el.removeAttribute('data-hero-hidden')
-    } catch (e) {}
-  })
+function restoreActiveHiddenElement() {
+  if (!activeHiddenHeroElement) return
+  const el = activeHiddenHeroElement
+  activeHiddenHeroElement = null
+  restoreElement(el)
 }
 
 function resetHeroRuntimeState() {
@@ -72,6 +74,7 @@ function resetHeroRuntimeState() {
   pendingForwardEventHero = null
   pendingBackEventHero = null
   heroAnimationLockCount = 0
+  goodsCardRepaintBlockUntil = 0
   setImagePreloadPaused(false)
 }
 
@@ -97,7 +100,7 @@ function bindHeroLifecycleCleanup() {
 export function cleanupAllHeroes() {
   heroRuntimeGeneration += 1
 
-  restoreAllHiddenElements()
+  restoreActiveHiddenElement()
 
   const animations = Array.from(activeHeroAnimations)
   activeHeroAnimations.clear()
@@ -127,6 +130,10 @@ export function getHeroBackDurationMs() {
 
 export function isGoodsHeroAnimating() {
   return heroAnimationLockCount > 0
+}
+
+export function shouldBlockGoodsCardRepaint() {
+  return isGoodsHeroAnimating() || Date.now() < goodsCardRepaintBlockUntil
 }
 
 function isPendingBackHeroValid(pendingHero, currentPath = '') {
@@ -253,6 +260,16 @@ function readFallbackText(el) {
   return String(fallback?.textContent || '').trim().slice(0, 1)
 }
 
+function readBoxShadow(el) {
+  if (!el || typeof window === 'undefined') return ''
+  try {
+    const style = window.getComputedStyle(el)
+    return style.boxShadow || ''
+  } catch (e) {
+    return ''
+  }
+}
+
 function findLazyImageRoot(el) {
   if (!el || typeof el.querySelector !== 'function') return null
   if (typeof el.hasAttribute === 'function' && el.hasAttribute('data-lazy-image-ready')) {
@@ -351,7 +368,7 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   shadow.style.position = 'absolute'
   shadow.style.inset = '0'
   shadow.style.borderRadius = `${snapshot.radius || 0}px`
-  shadow.style.boxShadow = 'var(--app-shadow)'
+  shadow.style.boxShadow = snapshot.boxShadow || 'var(--app-shadow)'
   shadow.style.pointerEvents = 'none'
   shadow.style.backfaceVisibility = 'hidden'
   node.appendChild(shadow)
@@ -380,31 +397,18 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
     img.style.backfaceVisibility = 'hidden'
     img.style.transform = 'translateZ(0)'
     img.style.transformOrigin = 'center center'
-    img.style.opacity = '0'
-    img.style.visibility = 'hidden'
     img.dataset.heroMedia = 'image'
 
-    const revealImage = () => {
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        img.style.opacity = '1'
-        img.style.visibility = 'visible'
-      } else {
-        img.style.opacity = '0'
-        img.style.visibility = 'hidden'
-      }
-    }
-
+    // Don't start hidden — on Android the image may be cached but
+    // img.complete won't because true on a freshly created element.  A
+    // brief partially-decoded frame is less noticeable than the
+    // clip's white background showing through.
     const hideImage = () => {
       img.style.opacity = '0'
       img.style.visibility = 'hidden'
     }
 
-    img.addEventListener('load', revealImage, { once: true })
     img.addEventListener('error', hideImage, { once: true })
-
-    if (img.complete) {
-      revealImage()
-    }
 
     clip.appendChild(img)
   } else {
@@ -451,7 +455,52 @@ function resolveCompensatedRadius(radius, scaleX = 1, scaleY = 1) {
   return `${horizontalRadius}px / ${verticalRadius}px`
 }
 
-function animateHero(snapshot, targetRect, targetRadius, options = {}) {
+async function waitForImageDecode(src, timeoutMs = 400) {
+  if (!src || typeof window === 'undefined') return false
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = src
+
+    if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      if (typeof img.decode === 'function') {
+        await img.decode().catch(() => {})
+      }
+      return true
+    }
+
+    return await new Promise((resolve) => {
+      let settled = false
+      const onDone = (ok) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(ok)
+      }
+      const onLoad = () => {
+        if (typeof img.decode === 'function') {
+          img.decode().then(() => onDone(true)).catch(() => onDone(true))
+        } else {
+          onDone(true)
+        }
+      }
+      const onError = () => onDone(false)
+      const timer = setTimeout(() => onDone(false), Math.max(50, timeoutMs))
+      img.addEventListener('load', onLoad, { once: true })
+      img.addEventListener('error', onError, { once: true })
+    })
+  } catch (e) {
+    return false
+  }
+}
+
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+}
+
+async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   if (typeof document === 'undefined' || typeof window === 'undefined') return Promise.resolve()
   if (!snapshot || !targetRect) return Promise.resolve()
 
@@ -485,13 +534,14 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       activeHeroNodes.delete(node)
     }
 
+    // Restore target before removing overlay — synchronous like v1.8.1
+    // so both happen in the same browser frame with no gap.
     try {
-      if (node.parentNode) {
-        node.remove()
-      }
+      restoreElement(targetEl)
     } catch (e) {}
-
-    restoreElement(targetEl)
+    try {
+      if (node.parentNode) node.remove()
+    } catch (e) {}
 
     if (animationGeneration === heroRuntimeGeneration) {
       heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
@@ -504,6 +554,10 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   heroAnimationLockCount += 1
   setImagePreloadPaused(true)
 
+  // Append overlay at the snapshot position and start animation immediately.
+  // No async wait — the source image was just visible on screen so the
+  // browser already has it decoded.  A brief partially-decoded frame is
+  // far less noticeable than a 350ms stall before the animation starts.
   node.style.left = `${snapshot.left}px`
   node.style.top = `${snapshot.top}px`
   node.style.width = `${snapshot.width}px`
@@ -514,36 +568,79 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
-  const keyframes = [
-    {
-      left: `${snapshot.left}px`,
-      top: `${snapshot.top}px`,
-      width: `${snapshot.width}px`,
-      height: `${snapshot.height}px`,
-      opacity: 1,
-      borderRadius: `${radiusFrom}px`
-    },
-    {
-      left: `${targetRect.left}px`,
-      top: `${targetRect.top}px`,
-      width: `${targetRect.width}px`,
-      height: `${targetRect.height}px`,
-      opacity: 1,
-      borderRadius: `${radiusTo}px`
-    }
-  ]
 
-  hideElement(targetEl)
+  // Decide whether to animate via transform-only (compositor) or fallback to
+  // layout-affecting properties. Prefer transform when aspect ratio delta small
+  // or when moving back.
+  const aspectDelta = Math.abs((snapshot.width / (snapshot.height || 1)) - (targetRect.width / (targetRect.height || 1)))
+  const transformOnly = false  // Disabled: transform causes visual flickering, use layout animation
 
   try {
-    animation = node.animate(
-      keyframes,
-      {
-        duration,
-        easing,
-        fill: 'both'
+    // Hide target and start animation in the same sync block — no frame
+    // where the target is hidden without the overlay already in motion.
+    hideElement(targetEl)
+
+    if (transformOnly) {
+      const { scaleX, scaleY } = resolveTransformOnlyTarget(snapshot, targetRect)
+      const deltaX = Number(targetRect.left || 0) - Number(snapshot.left || 0)
+      const deltaY = Number(targetRect.top || 0) - Number(snapshot.top || 0)
+      const fromTransform = `translate3d(0px, 0px, 0) scale(1,1)`
+      const toTransform = `translate3d(${deltaX}px, ${deltaY}px, 0) scale(${scaleX}, ${scaleY})`
+
+      // node is already positioned at snapshot.left/top; use delta transforms
+      node.style.transform = fromTransform
+
+      // Force style flush so the browser paints the start state before
+      // starting the animation. This prevents a frame where the overlay
+      // appears at the end position and then animates back.
+      try { node.getBoundingClientRect() } catch (e) {}
+
+      animation = node.animate(
+        [
+          { transform: fromTransform },
+          { transform: toTransform }
+        ],
+        { duration, easing, fill: 'both' }
+      )
+
+      // animate clip borderRadius to compensate scaling
+      const clip = node.querySelector('[data-hero-clip]')
+      if (clip) {
+        try {
+          const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
+          const compensatedFrom = `${radiusFrom}px`
+          // set initial borderRadius synchronously so the clip visual matches
+          // the snapshot before animation starts
+          try { clip.style.borderRadius = compensatedFrom } catch (e) {}
+          const clipAnim = clip.animate(
+            [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
+            { duration, easing, fill: 'both' }
+          )
+          activeHeroAnimations.add(clipAnim)
+          clipAnim.addEventListener('finish', () => {}, { once: true })
+          clipAnim.addEventListener('cancel', () => {}, { once: true })
+        } catch (e) {}
       }
-    )
+    } else {
+      const keyframes = [
+        {
+          left: `${snapshot.left}px`,
+          top: `${snapshot.top}px`,
+          width: `${snapshot.width}px`,
+          height: `${snapshot.height}px`,
+          borderRadius: `${radiusFrom}px`
+        },
+        {
+          left: `${targetRect.left}px`,
+          top: `${targetRect.top}px`,
+          width: `${targetRect.width}px`,
+          height: `${targetRect.height}px`,
+          borderRadius: `${radiusTo}px`
+        }
+      ]
+
+      animation = node.animate(keyframes, { duration, easing, fill: 'both' })
+    }
   } catch (e) {
     finalize()
     return Promise.resolve()
@@ -572,12 +669,12 @@ function animateHero(snapshot, targetRect, targetRadius, options = {}) {
 export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   cleanupAllHeroes()
   if (!sourceEl || !goodsId) return
-  if (!isHeroImageReady(sourceEl)) return
   const rect = readRect(sourceEl)
   if (!rect) return
 
   pendingForwardHero = {
     goodsId: String(goodsId),
+    preparedAt: Date.now(),
     left: rect.left,
     top: rect.top,
     width: rect.width,
@@ -585,7 +682,8 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -593,19 +691,22 @@ export function playGoodsHeroForward(goodsId, targetEl) {
   if (!pendingForwardHero) return
   if (String(goodsId) !== pendingForwardHero.goodsId) return
 
-  const targetRect = readRect(targetEl)
-  if (!targetRect) {
-    cleanupAllHeroes()
-    return
-  }
-
-  if (!isHeroImageReady(targetEl)) {
+  // TTL check for forward pending hero
+  const ageMs = Date.now() - Number(pendingForwardHero.preparedAt || 0)
+  if (ageMs > FORWARD_HERO_PENDING_TTL_MS) {
     cleanupAllHeroes()
     pendingForwardHero = null
     return
   }
 
-  void animateHero(
+  const targetRect = readRect(targetEl)
+  if (!targetRect) {
+    cleanupAllHeroes()
+    pendingForwardHero = null
+    return
+  }
+
+  const heroPromise = animateHero(
     pendingForwardHero,
     targetRect,
     readRadius(targetEl),
@@ -617,12 +718,12 @@ export function playGoodsHeroForward(goodsId, targetEl) {
   )
 
   pendingForwardHero = null
+  return heroPromise
 }
 
 export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   cleanupAllHeroes()
   if (!sourceEl || !goodsId) return
-  if (!isHeroImageReady(sourceEl)) return
   const rect = readRect(sourceEl)
   if (!rect) return
 
@@ -637,7 +738,8 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -656,11 +758,6 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetRect = readRect(targetEl)
   if (!targetRect) {
     cleanupAllHeroes()
-    return false
-  }
-
-  if (!isHeroImageReady(targetEl)) {
-    cleanupAllHeroes()
     pendingBackHero = null
     return false
   }
@@ -669,6 +766,8 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
     targetEl,
     Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
   )
+
+  goodsCardRepaintBlockUntil = Date.now() + BACK_DURATION_MS + 160
 
   void animateHero(
     pendingBackHero,
@@ -695,6 +794,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
 
   pendingForwardEventHero = {
     eventId: String(eventId),
+    preparedAt: Date.now(),
     left: rect.left,
     top: rect.top,
     width: rect.width,
@@ -702,7 +802,8 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 
@@ -710,13 +811,21 @@ export function playEventHeroForward(eventId, targetEl) {
   if (!pendingForwardEventHero) return
   if (String(eventId) !== pendingForwardEventHero.eventId) return
 
-  const targetRect = readRect(targetEl)
-  if (!targetRect) {
+  const ageMs = Date.now() - Number(pendingForwardEventHero.preparedAt || 0)
+  if (ageMs > FORWARD_HERO_PENDING_TTL_MS) {
     cleanupAllHeroes()
+    pendingForwardEventHero = null
     return
   }
 
-  void animateHero(
+  const targetRect = readRect(targetEl)
+  if (!targetRect) {
+    cleanupAllHeroes()
+    pendingForwardEventHero = null
+    return
+  }
+
+  const heroPromise = animateHero(
     pendingForwardEventHero,
     targetRect,
     readRadius(targetEl),
@@ -728,6 +837,7 @@ export function playEventHeroForward(eventId, targetEl) {
   )
 
   pendingForwardEventHero = null
+  return heroPromise
 }
 
 export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
@@ -747,7 +857,8 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
-    background: window.getComputedStyle(sourceEl).background
+    background: window.getComputedStyle(sourceEl).background,
+    boxShadow: readBoxShadow(sourceEl)
   }
 }
 

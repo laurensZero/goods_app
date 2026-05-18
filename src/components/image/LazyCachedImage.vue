@@ -50,6 +50,8 @@ const props = defineProps({
   fetchpriority: { type: String, default: 'low' },
   useCache: { type: Boolean, default: true },
   lazy: { type: Boolean, default: true },
+  skeletonEnabled: { type: Boolean, default: true },
+  skeletonDelayMs: { type: Number, default: 0 },
   imageAttrs: { type: Object, default: () => ({}) }
 })
 
@@ -80,14 +82,72 @@ const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
+const isSkeletonReady = ref(Number(props.skeletonDelayMs || 0) <= 0)
 const showSkeleton = computed(() => {
-  return !!props.src && hasEnteredViewport.value && !showFallback.value && isImageLoading.value
+  return !!props.src && props.skeletonEnabled && hasEnteredViewport.value && !showFallback.value && isImageLoading.value && isSkeletonReady.value
 })
 const showFallback = computed(() => !!props.src && hasLoadError.value)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
 let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
+let skeletonDelayTimer = null
+
+function clearSkeletonDelayTimer() {
+  if (skeletonDelayTimer != null) {
+    window.clearTimeout(skeletonDelayTimer)
+    skeletonDelayTimer = null
+  }
+}
+
+function resetSkeletonVisibility() {
+  clearSkeletonDelayTimer()
+  const delayMs = Math.max(0, Number(props.skeletonDelayMs || 0))
+  if (delayMs <= 0) {
+    isSkeletonReady.value = true
+    return
+  }
+  isSkeletonReady.value = false
+  skeletonDelayTimer = window.setTimeout(() => {
+    isSkeletonReady.value = true
+    skeletonDelayTimer = null
+  }, delayMs)
+}
+
+async function waitForImgDecode(src, timeoutMs = 400) {
+  if (!src || typeof window === 'undefined') return false
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = src
+    if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      if (typeof img.decode === 'function') await img.decode().catch(() => {})
+      return true
+    }
+    return await new Promise((resolve) => {
+      let done = false
+      const onDone = (ok) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        resolve(ok)
+      }
+      const onLoad = () => {
+        if (typeof img.decode === 'function') {
+          img.decode().then(() => onDone(true)).catch(() => onDone(true))
+        } else {
+          onDone(true)
+        }
+      }
+      const onError = () => onDone(false)
+      const timer = setTimeout(() => onDone(false), Math.max(50, timeoutMs))
+      img.addEventListener('load', onLoad, { once: true })
+      img.addEventListener('error', onError, { once: true })
+    })
+  } catch (e) {
+    return false
+  }
+}
 
 function getViewportDistance() {
   const el = rootRef.value
@@ -106,30 +166,39 @@ watch(
       resolvedSrc.value = ''
       hasLoadError.value = false
       isImageLoading.value = false
+      resetSkeletonVisibility()
       return
     }
     if (!isVisible) {
       resolvedSrc.value = ''
       hasLoadError.value = false
       isImageLoading.value = false
+      resetSkeletonVisibility()
       return
     }
     hasLoadError.value = false
-    resolvedSrc.value = ''
-    isImageLoading.value = true
+    // Check memory cache first — cached images skip skeleton and decode wait,
+    // avoiding a visible flash when virtual list items are recreated (e.g.
+    // returning from detail page). Uncached images show skeleton only while
+    // the DB fetch + decode are actually in progress.
     const cached = peekCachedImage(url)
     if (cached) {
-      if (requestId !== loadRequestId) return
       resolvedSrc.value = cached
       isImageLoading.value = false
+      resetSkeletonVisibility()
       return
     }
+    resolvedSrc.value = ''
+    isImageLoading.value = true
+    resetSkeletonVisibility()
     const nextSrc = props.useCache
       ? await getCachedImage(url, { viewportDistance: getViewportDistance() })
       : url
     if (requestId !== loadRequestId) return
     resolvedSrc.value = nextSrc
-    isImageLoading.value = false
+    const ok = await waitForImgDecode(nextSrc)
+    if (requestId !== loadRequestId) return
+    isImageLoading.value = !ok
   },
   { immediate: true }
 )
@@ -158,38 +227,46 @@ function onImageError() {
 onMounted(() => {
   imageCacheRefreshHandler = () => {
     const requestId = ++loadRequestId
-    resolvedSrc.value = ''
-    hasLoadError.value = false
-    isImageLoading.value = false
-    if (props.src && hasEnteredViewport.value) {
-      void Promise.resolve().then(() => {
-        if (requestId !== loadRequestId) return
-        if (props.src && hasEnteredViewport.value) {
-          const cached = peekCachedImage(props.src)
-          if (cached) {
-            if (requestId !== loadRequestId) return
-            resolvedSrc.value = cached
-            isImageLoading.value = false
-            return
-          }
-          isImageLoading.value = true
-          const loadPromise = props.useCache
-            ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
-            : Promise.resolve(props.src)
-          void loadPromise.then((nextSrc) => {
-            if (requestId !== loadRequestId) return
-            if (!props.src || !hasEnteredViewport.value) return
-            resolvedSrc.value = nextSrc
-            isImageLoading.value = false
-          }).catch(() => {
-            if (requestId !== loadRequestId) return
-            if (!props.src || !hasEnteredViewport.value) return
-            resolvedSrc.value = props.src
-            isImageLoading.value = false
-          })
-        }
-      })
+    if (!props.src || !hasEnteredViewport.value) {
+      resolvedSrc.value = ''
+      hasLoadError.value = false
+      isImageLoading.value = false
+      resetSkeletonVisibility()
+      return
     }
+    void Promise.resolve().then(async () => {
+      if (requestId !== loadRequestId) return
+      if (!props.src || !hasEnteredViewport.value) return
+      const cached = peekCachedImage(props.src)
+      if (cached) {
+        if (requestId !== loadRequestId) return
+        resolvedSrc.value = cached
+        isImageLoading.value = false
+        resetSkeletonVisibility()
+        return
+      }
+      resolvedSrc.value = ''
+      isImageLoading.value = true
+      resetSkeletonVisibility()
+      const loadPromise = props.useCache
+        ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
+        : Promise.resolve(props.src)
+      void loadPromise.then((nextSrc) => {
+        if (requestId !== loadRequestId) return
+        if (!props.src || !hasEnteredViewport.value) return
+        resolvedSrc.value = nextSrc
+        void (async () => {
+          const ok = await waitForImgDecode(nextSrc)
+          if (requestId !== loadRequestId) return
+          isImageLoading.value = !ok
+        })()
+      }).catch(() => {
+        if (requestId !== loadRequestId) return
+        if (!props.src || !hasEnteredViewport.value) return
+        resolvedSrc.value = props.src
+        isImageLoading.value = true
+      })
+    })
   }
 
   window.addEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
@@ -225,6 +302,7 @@ onBeforeUnmount(() => {
     window.removeEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
     imageCacheRefreshHandler = null
   }
+  clearSkeletonDelayTimer()
 })
 </script>
 

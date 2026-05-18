@@ -45,6 +45,7 @@
 import { nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
+import { shouldBlockGoodsCardRepaint } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'GoodsCardGridSection' })
 
@@ -134,9 +135,11 @@ function createCardObserver() {
     for (const entry of entries) {
       const target = entry.target
       if (entry.isIntersecting && target) {
-        try {
-          forceRepaint(target)
-        } catch (e) {}
+        if (!shouldBlockGoodsCardRepaint()) {
+          try {
+            forceRepaint(target)
+          } catch (e) {}
+        }
         try { _cardObserver.unobserve(target) } catch (e) {}
         try { _observedEls.delete(target) } catch (e) {}
       }

@@ -3,7 +3,6 @@
     v-if="event"
     class="page event-detail-page"
     :class="{
-      'event-detail-page--restoring': !eventDisplayReady,
       'event-detail-page--entry-lock': detailEntryScrollLockActive
     }"
   >
@@ -40,6 +39,11 @@
                 v-if="event.coverImage"
                 :src="event.coverImage"
                 :alt="event.name"
+                :lazy="false"
+                loading="eager"
+                fetchpriority="high"
+                :skeleton-enabled="false"
+                :class="['event-cover-media', { 'event-cover-media--hero-hidden': !coverMediaVisible } ]"
                 :image-attrs="{ class: 'cover-card__img' }"
               />
               <div v-else class="cover-card__fallback">{{ coverFallback }}</div>
@@ -142,6 +146,7 @@
                   :alt="goods.name"
                   :lazy="true"
                   root-margin="220px 0px"
+                  :skeleton-delay-ms="120"
                   class="linked-goods-card__img"
                   :data-goods-hero-id="String(goods.id || '')"
                 />
@@ -234,6 +239,7 @@ const goodsStore = useGoodsStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const eventDisplayReady = ref(true)
+const coverMediaVisible = ref(false)
 const detailEntryScrollLockActive = ref(false)
 let detailEntryScrollLockTimer = 0
 
@@ -271,20 +277,43 @@ function isRectStable(prevRect, nextRect, tolerance = 0.5) {
 }
 
 async function waitForStableHeroTarget(el, maxFrames = 6) {
+  if (!el) return false
   let previousRect = null
   for (let frame = 0; frame < maxFrames; frame += 1) {
     await waitForNextFrame()
     const currentRect = readElementRect(el)
-    if (isRectStable(previousRect, currentRect)) return
+    if (isRectStable(previousRect, currentRect)) return true
     previousRect = currentRect
   }
+  return false
+}
+
+function isEventHeroTargetReady(el) {
+  if (!el) return false
+  const imageRoot = el.querySelector?.('[data-lazy-image-ready]') || null
+  if (!imageRoot) return true
+  return imageRoot.getAttribute('data-lazy-image-ready') === 'true'
 }
 
 async function playEventHeroForwardWhenReady() {
   await nextTick()
-  await waitForStableHeroTarget(coverCardRef.value)
-  playEventHeroForward(eventId.value, coverCardRef.value)
-  tryPlayLinkedGoodsBackHero()
+  const targetEl = coverCardRef.value
+  if (!targetEl) return false
+
+  const targetReadyNeeded = !!event.value?.coverImage
+  for (let frame = 0; frame < 12; frame += 1) {
+    if (!targetReadyNeeded || isEventHeroTargetReady(targetEl)) {
+      const heroPromise = await playEventHeroForward(eventId.value, targetEl)
+      if (heroPromise) {
+        await heroPromise
+        tryPlayLinkedGoodsBackHero()
+        return true
+      }
+    }
+    await waitForNextFrame()
+  }
+
+  return false
 }
 
 const eventId = computed(() => props.id || route.params.id)
@@ -459,16 +488,15 @@ function preloadLinkedGoodsImages() {
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   lockDetailEntryScrollLock()
-  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
-  eventDisplayReady.value = !shouldRestore
+  coverMediaVisible.value = false
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
   await refresh()
   await restoreViewState()
   preloadLinkedGoodsImages()
-  eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 onBeforeUnmount(() => {
@@ -481,14 +509,11 @@ onBeforeUnmount(() => {
 
 onActivated(async () => {
   lockDetailEntryScrollLock()
-  const shouldRestore = sessionStorage.getItem(eventPendingKey.value) === '1'
-  if (shouldRestore) {
-    eventDisplayReady.value = false
-  }
+  coverMediaVisible.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
-  eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 onBeforeRouteLeave((to) => {
@@ -503,12 +528,12 @@ onBeforeRouteLeave((to) => {
 
 watch(eventId, async () => {
   lockDetailEntryScrollLock()
-  eventDisplayReady.value = false
   previewPhotoIndex.value = -1
+  coverMediaVisible.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
-  eventDisplayReady.value = true
   await playEventHeroForwardWhenReady()
+  coverMediaVisible.value = true
 })
 
 watch(linkedGoodsImageUrls, () => {
@@ -631,10 +656,6 @@ function tryPlayLinkedGoodsBackHero() {
   background: var(--app-bg-gradient);
 }
 
-.event-detail-page--restoring {
-  visibility: hidden;
-}
-
 .event-detail-page--entry-lock .page-body {
   overflow: hidden;
   overscroll-behavior: none;
@@ -684,6 +705,10 @@ function tryPlayLinkedGoodsBackHero() {
   overflow: hidden;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
   box-shadow: var(--app-shadow);
+}
+
+.event-cover-media--hero-hidden {
+  opacity: 0;
 }
 
 .cover-card--empty {
