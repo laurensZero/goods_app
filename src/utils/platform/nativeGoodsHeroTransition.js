@@ -365,10 +365,14 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX) {
   node.style.overflow = 'visible'
 
   const shadow = document.createElement('div')
+  const initialShadow = snapshot.boxShadow && snapshot.boxShadow !== 'none'
+    ? snapshot.boxShadow
+    : 'none'
+  shadow.dataset.heroShadow = 'true'
   shadow.style.position = 'absolute'
   shadow.style.inset = '0'
   shadow.style.borderRadius = `${snapshot.radius || 0}px`
-  shadow.style.boxShadow = snapshot.boxShadow || 'var(--app-shadow)'
+  shadow.style.boxShadow = initialShadow
   shadow.style.pointerEvents = 'none'
   shadow.style.backfaceVisibility = 'hidden'
   node.appendChild(shadow)
@@ -577,6 +581,13 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
+  const sourceShadow = snapshot.boxShadow && snapshot.boxShadow !== 'none'
+    ? snapshot.boxShadow
+    : 'none'
+  const targetShadowRaw = targetEl ? readBoxShadow(targetEl) : ''
+  const targetShadow = targetShadowRaw && targetShadowRaw !== 'none'
+    ? targetShadowRaw
+    : 'none'
 
   // Decide whether to animate via transform-only (compositor) or fallback to
   // layout-affecting properties. Prefer transform when aspect ratio delta small
@@ -656,6 +667,28 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   }
 
   activeHeroAnimations.add(animation)
+
+  const shadowEl = node.querySelector('[data-hero-shadow]')
+  if (shadowEl && (sourceShadow !== targetShadow || radiusFrom !== radiusTo)) {
+    try {
+      const shadowAnimation = shadowEl.animate(
+        [
+          {
+            boxShadow: sourceShadow,
+            borderRadius: `${radiusFrom}px`
+          },
+          {
+            boxShadow: targetShadow,
+            borderRadius: `${radiusTo}px`
+          }
+        ],
+        { duration, easing, fill: 'both' }
+      )
+      activeHeroAnimations.add(shadowAnimation)
+      shadowAnimation.addEventListener('finish', () => {}, { once: true })
+      shadowAnimation.addEventListener('cancel', () => {}, { once: true })
+    } catch (e) {}
+  }
 
   if (typeof animation.addEventListener === 'function') {
     animation.addEventListener('finish', finalize, { once: true })
