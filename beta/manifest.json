@@ -1,9 +1,9 @@
 {
-  "version": "20260518.25",
-  "url": "bundle-20260518.25.zip",
-  "hash": "5034ad5f6a3f5f43179af9d57b981f6ededd87da84e5bfcc112eb2148c66337a",
+  "version": "20260518.26",
+  "url": "bundle-20260518.26.zip",
+  "hash": "452729aca56070bcb359aef7dc980ae440a1f9d20d498eb3397204005aac0a39",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 更新图像导出功能，支持跳过压缩以保留导出结果",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T14:30:54Z"
+  "publishedAt": "2026-05-18T15:17:24Z"
 }
