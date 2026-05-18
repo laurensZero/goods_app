@@ -1,9 +1,9 @@
 {
-  "version": "20260518.4",
-  "url": "bundle-20260518.4.zip",
-  "hash": "7b96bca4487948de50f2b7a3d33d4b70fe670bdf926f1748f52d4a94230df213",
+  "version": "20260518.5",
+  "url": "bundle-20260518.5.zip",
+  "hash": "ff00c8ba697c69518a15f40a538026e3bbbaf3105c5201906ef87d98e3dee00a",
   "minNativeVersion": null,
-  "notes": "- feat: 优化主页激活时的商品英雄过渡逻辑，增加延迟恢复和状态记录",
+  "notes": "- feat: 优化主页激活时的商品英雄过渡逻辑，简化恢复流程并增加状态记录",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T00:36:49Z"
+  "publishedAt": "2026-05-18T00:39:57Z"
 }

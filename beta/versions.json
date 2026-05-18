@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.5",
+    "url": "bundle-20260518.5.zip",
+    "hash": "ff00c8ba697c69518a15f40a538026e3bbbaf3105c5201906ef87d98e3dee00a",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化主页激活时的商品英雄过渡逻辑，简化恢复流程并增加状态记录",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T00:39:57Z"
+  },
+  {
     "version": "20260518.4",
     "url": "bundle-20260518.4.zip",
     "hash": "7b96bca4487948de50f2b7a3d33d4b70fe670bdf926f1748f52d4a94230df213",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加快速恢复选项以优化滚动位置恢复逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T00:30:01Z"
-  },
-  {
-    "version": "20260518.2",
-    "url": "bundle-20260518.2.zip",
-    "hash": "ae91fe1b7397bef1bbb4e347252959aca4578916a4e9be719b371dad387d35dc",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化主页商品加载逻辑，增加条件判断以避免在动画进行时加载商品",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T00:24:04Z"
   }
 ]
