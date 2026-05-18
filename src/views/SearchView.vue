@@ -294,10 +294,12 @@
             class="goods-row"
           >
             <SearchGoodsCard
-              v-for="item in row.items"
+              v-for="(item, i) in row.items"
               :key="item.id"
               :item="item"
               :data-goods-id="item.id"
+              :data-scroll-index="row.startIndex + i"
+              data-scroll-anchor="goods-card"
               :selected="selectedIds.has(item.id)"
               :selection-mode="selectionMode"
               @long-press="enterSelectionMode(item.id)"

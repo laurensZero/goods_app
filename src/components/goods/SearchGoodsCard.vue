@@ -1,7 +1,11 @@
 <template>
   <article
     class="search-goods-card"
-    :class="{ 'search-goods-card--selected': selected }"
+    :class="[
+      { 'search-goods-card--selected': selected },
+      { 'search-goods-card--pending': isPending },
+      { 'search-goods-card--exited': isExited }
+    ]"
     :data-goods-id="item.id"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
@@ -234,6 +238,10 @@ const chips = computed(() => {
   return next
 })
 
+const primaryStatus = computed(() => resolvePrimaryStatus(props.item))
+const isPending = computed(() => !props.item.isWishlist && ['待发货', '待补款', '待补邮'].includes(primaryStatus.value))
+const isExited = computed(() => !props.item.isWishlist && ['已出', '已赠出', '丢失'].includes(primaryStatus.value))
+
 const showHoldingDays = computed(() => !props.item.isWishlist && holdingDays.value !== null)
 const showPoints = computed(() => !props.item.isWishlist && props.item.points)
 
@@ -354,6 +362,7 @@ const priceText = computed(() => {
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: -0.03em;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -476,6 +485,18 @@ const priceText = computed(() => {
 
 .search-goods-card--selected {
   filter: brightness(0.88);
+}
+
+.search-goods-card--exited {
+  opacity: 0.5;
+}
+
+.search-goods-card--exited .card-cover {
+  filter: grayscale(0.6);
+}
+
+.search-goods-card--pending {
+  border-left: 3px solid var(--app-pending-border);
 }
 
 .sel-overlay-enter-active,

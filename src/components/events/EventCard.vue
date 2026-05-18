@@ -26,7 +26,7 @@
     <div
       ref="coverMediaRef"
       class="event-card__media"
-      :class="{ 'event-card__media--empty': !event.coverImage }"
+      :class="{ 'event-card__media--empty': !event.coverImage, 'event-card__media--hero-hidden': heroHidden }"
       :data-event-hero-id="String(event.id || '')"
       :style="coverMediaStyle"
     >
@@ -78,7 +78,8 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 const props = defineProps({
   event: { type: Object, required: true },
   selected: { type: Boolean, default: false },
-  selectionMode: { type: Boolean, default: false }
+  selectionMode: { type: Boolean, default: false },
+  heroHidden: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
@@ -323,6 +324,10 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, #2c2f38, #242731);
 }
 
+.event-card__media--hero-hidden {
+  opacity: 0;
+}
+
 :deep(.event-card__image) {
   width: 100%;
   height: 100%;
@@ -371,6 +376,7 @@ onBeforeUnmount(() => {
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: -0.03em;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }

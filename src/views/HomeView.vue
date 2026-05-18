@@ -643,8 +643,25 @@ function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
 function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
   if (displayDensity.value === 'timeline') return
   const viewportHeight = getFlipViewportHeight()
+  // Sync with actual scroll position first so existing items at the top
+  // of the viewport stay in the render window — avoids a visible flash
+  // when KeepAlive preserves the scroll position and the mask is skipped.
+  syncVirtualGoodsViewport(scrollTop, { useFlipViewport: true, viewportHeight })
+  // Then extend the render window forward to preload upcoming items
+  // without shifting the start index.
   const preloadTargetTop = scrollTop + viewportHeight * 2.5
-  syncVirtualGoodsViewport(preloadTargetTop, { useFlipViewport: true, viewportHeight })
+  const cols = getResponsiveCols(displayDensity.value)
+  const rowSpan = (ROW_HEIGHT_MAP[displayDensity.value] || 272) + GOODS_GRID_ROW_GAP
+  const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  const endRow = Math.ceil(preloadTargetTop / rowSpan) + overscanRows
+  const endIndex = Math.min(goodsList.value.length, endRow * cols)
+  const neededCount = Math.max(0, endIndex - visibleGoodsStartIndex.value)
+  if (neededCount > visibleGoodsRenderCount.value) {
+    visibleGoodsRenderCount.value = Math.min(
+      GOODS_GRID_MAX_RENDER_CARDS,
+      neededCount
+    )
+  }
 }
 
 function maybeLoadMoreGoods() {
@@ -920,7 +937,7 @@ onActivated(async () => {
   isHomeActive.value = true
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
-  if (shouldMaskHomeDisplay()) {
+  if (shouldMaskHomeDisplay() || hasPendingGoodsHeroBack(route.fullPath)) {
     homeDisplayReady.value = false
   }
   const storedState = getStoredScrollState()
@@ -934,8 +951,23 @@ onActivated(async () => {
   )
   await nextTick()
   syncAddMotionContext()
-  homeDisplayReady.value = true
-  scheduleGoodsBackHeroRetry()
+  // Try to hide the hero target synchronously before lifting the mask.
+  // scheduleGoodsBackHeroRetry() only queues a rAF — if the target is
+  // already in the DOM (which it should be after nextTick+layout), we
+  // can apply hideElement in this same frame so the user never sees the
+  // target card uncovered.  If the target isn't ready yet, keep the mask
+  // on and let the retry callback unmask when it succeeds.
+  const played = tryPlayNativeGoodsBackHero()
+  if (played) {
+    homeDisplayReady.value = true
+  } else if (hasPendingGoodsHeroBack(route.fullPath)) {
+    scheduleGoodsBackHeroRetry(0, {
+      onPlayed: () => { homeDisplayReady.value = true },
+      onGiveUp: () => { homeDisplayReady.value = true }
+    })
+  } else {
+    homeDisplayReady.value = true
+  }
   bindSelectionHeaderScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
@@ -1408,8 +1440,7 @@ async function applyBatchEditPayload(payload) {
 }
 
 .home-page--restoring {
-  opacity: 0.01;
-  pointer-events: none;
+  visibility: hidden;
 }
 
 .page-body {
