@@ -1,9 +1,9 @@
 {
-  "version": "20260518.2",
-  "url": "bundle-20260518.2.zip",
-  "hash": "ae91fe1b7397bef1bbb4e347252959aca4578916a4e9be719b371dad387d35dc",
+  "version": "20260518.3",
+  "url": "bundle-20260518.3.zip",
+  "hash": "dd136be94466ee0e5051755ddf5f667c44d73d6beaa73a20c120f9b3b6073cd2",
   "minNativeVersion": null,
-  "notes": "- feat: 优化主页商品加载逻辑，增加条件判断以避免在动画进行时加载商品",
+  "notes": "- feat: 增加快速恢复选项以优化滚动位置恢复逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T00:24:04Z"
+  "publishedAt": "2026-05-18T00:30:01Z"
 }

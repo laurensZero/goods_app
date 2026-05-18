@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.3",
+    "url": "bundle-20260518.3.zip",
+    "hash": "dd136be94466ee0e5051755ddf5f667c44d73d6beaa73a20c120f9b3b6073cd2",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加快速恢复选项以优化滚动位置恢复逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T00:30:01Z"
+  },
+  {
     "version": "20260518.2",
     "url": "bundle-20260518.2.zip",
     "hash": "ae91fe1b7397bef1bbb4e347252959aca4578916a4e9be719b371dad387d35dc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加主页返回英雄动画的定时器调度和清理逻辑，优化页面滚动处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T00:15:17Z"
-  },
-  {
-    "version": "20260517.54",
-    "url": "bundle-20260517.54.zip",
-    "hash": "4e17383f7b700d4fca5b787533a4bacfebae1bef11e0161d592e9c02d82437ae",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化商品英雄过渡状态重置逻辑，支持可选参数以控制重置行为",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-17T15:23:10Z"
   }
 ]
