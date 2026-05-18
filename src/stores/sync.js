@@ -466,12 +466,35 @@ export const useSyncStore = defineStore('sync', () => {
   const SYNC_TIMEOUT_MS = 3 * 60 * 1000 // 3 min safety net
   let syncTimeoutId = null
   let autoPushTimer = null
+  let pendingAutoPush = false
+
+  function flushPendingAutoPush() {
+    if (!pendingAutoPush) return
+    if (isPulling.value || isSyncing.value) return
+
+    pendingAutoPush = false
+    if (autoPushTimer) {
+      clearTimeout(autoPushTimer)
+      autoPushTimer = null
+    }
+
+    autoPushTimer = setTimeout(() => {
+      autoPushTimer = null
+      if (!isPulling.value && !isSyncing.value) {
+        void fullSync({ source: 'auto' })
+      }
+    }, 0)
+  }
 
   function autoPushGoods() {
     if (!isSupabaseMode()) return
-    if (isPulling.value || isSyncing.value) return
+    if (isPulling.value || isSyncing.value) {
+      pendingAutoPush = true
+      return
+    }
     if (autoPushTimer) clearTimeout(autoPushTimer)
     autoPushTimer = setTimeout(async () => {
+      autoPushTimer = null
       try {
         await fullSync({ source: 'auto' })
       } catch (error) {
@@ -549,7 +572,11 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
       throw error
-    } finally { clearSyncTimeout(); isSyncing.value = false }
+    } finally {
+      clearSyncTimeout()
+      isSyncing.value = false
+      flushPendingAutoPush()
+    }
   }
 
   async function pullOnly({ silent = false, source = 'manual', maxRetries = 1 } = {}) {
@@ -586,7 +613,12 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
       throw error
-    } finally { clearSyncTimeout(); isPulling.value = false; isSyncing.value = false }
+    } finally {
+      clearSyncTimeout()
+      isPulling.value = false
+      isSyncing.value = false
+      flushPendingAutoPush()
+    }
   }
 
   async function resolveConflict(useRemote, { source = 'manual', maxRetries = 1 } = {}) {
@@ -612,7 +644,10 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
       throw error
-    } finally { isSyncing.value = false }
+    } finally {
+      isSyncing.value = false
+      flushPendingAutoPush()
+    }
   }
 
   async function resolvePullConflict(confirm, { source = 'manual', maxRetries = 1 } = {}) {
@@ -639,7 +674,10 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
       throw error
-    } finally { isSyncing.value = false }
+    } finally {
+      isSyncing.value = false
+      flushPendingAutoPush()
+    }
   }
 
   function clearConflict() {
