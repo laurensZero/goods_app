@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.22",
+    "url": "bundle-20260518.22.zip",
+    "hash": "30fde7e7666d9bc44d457b93c8c1059f6a82d16061b726c9188f5391f6d3163e",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化自动推送机制，优化同步流程中的冲突处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T13:34:22Z"
+  },
+  {
     "version": "20260518.21",
     "url": "bundle-20260518.21.zip",
     "hash": "364f98b4faff34e08f3011e8fe621190b48ad8bb2c9d46870a3fcbc4b5983006",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复商品封面图像属性，优化类名绑定",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T11:52:14Z"
-  },
-  {
-    "version": "20260518.19",
-    "url": "bundle-20260518.19.zip",
-    "hash": "6f7201de1633cda58e326536f433db2badadfacff84063a5df6608324a094bf5",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加待处理的商品英雄返回动画检查与重试机制，优化媒体显示时机",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T11:50:31Z"
   }
 ]
