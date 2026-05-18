@@ -573,7 +573,7 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   // layout-affecting properties. Prefer transform when aspect ratio delta small
   // or when moving back.
   const aspectDelta = Math.abs((snapshot.width / (snapshot.height || 1)) - (targetRect.width / (targetRect.height || 1)))
-  const transformOnly = shouldPreferTransformOnlyHero(direction, aspectDelta)
+  const transformOnly = false  // Disabled: transform causes visual flickering, use layout animation
 
   try {
     // Hide target and start animation in the same sync block — no frame
