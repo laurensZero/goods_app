@@ -1,9 +1,9 @@
 {
-  "version": "20260518.5",
-  "url": "bundle-20260518.5.zip",
-  "hash": "ff00c8ba697c69518a15f40a538026e3bbbaf3105c5201906ef87d98e3dee00a",
+  "version": "20260518.6",
+  "url": "bundle-20260518.6.zip",
+  "hash": "809c97cbe85eeeb2e6a96c0577e178e6d41cd74564d303f9e3bee0926e808f51",
   "minNativeVersion": null,
-  "notes": "- feat: 优化主页激活时的商品英雄过渡逻辑，简化恢复流程并增加状态记录",
+  "notes": "- feat: 增强激活恢复逻辑，支持英雄返回模式并限制可见商品数量",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T00:39:57Z"
+  "publishedAt": "2026-05-18T00:46:30Z"
 }

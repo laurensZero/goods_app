@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.6",
+    "url": "bundle-20260518.6.zip",
+    "hash": "809c97cbe85eeeb2e6a96c0577e178e6d41cd74564d303f9e3bee0926e808f51",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强激活恢复逻辑，支持英雄返回模式并限制可见商品数量",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T00:46:30Z"
+  },
+  {
     "version": "20260518.5",
     "url": "bundle-20260518.5.zip",
     "hash": "ff00c8ba697c69518a15f40a538026e3bbbaf3105c5201906ef87d98e3dee00a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化主页激活时的商品英雄过渡逻辑，增加延迟恢复和状态记录",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T00:36:49Z"
-  },
-  {
-    "version": "20260518.3",
-    "url": "bundle-20260518.3.zip",
-    "hash": "dd136be94466ee0e5051755ddf5f667c44d73d6beaa73a20c120f9b3b6073cd2",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加快速恢复选项以优化滚动位置恢复逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T00:30:01Z"
   }
 ]
