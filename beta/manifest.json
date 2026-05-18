@@ -1,9 +1,9 @@
 {
-  "version": "20260518.6",
-  "url": "bundle-20260518.6.zip",
-  "hash": "809c97cbe85eeeb2e6a96c0577e178e6d41cd74564d303f9e3bee0926e808f51",
+  "version": "20260518.7",
+  "url": "bundle-20260518.7.zip",
+  "hash": "113bc18ee2530c59a9ba6c36f94f49fb428b70b9e34243076bc0972250d63c57",
   "minNativeVersion": null,
-  "notes": "- feat: 增强激活恢复逻辑，支持英雄返回模式并限制可见商品数量",
+  "notes": "- feat: 在恢复激活滚动位置时增加跳过准备状态选项",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T00:46:30Z"
+  "publishedAt": "2026-05-18T00:50:17Z"
 }
