@@ -1,9 +1,9 @@
 {
-  "version": "20260518.7",
-  "url": "bundle-20260518.7.zip",
-  "hash": "113bc18ee2530c59a9ba6c36f94f49fb428b70b9e34243076bc0972250d63c57",
+  "version": "20260518.8",
+  "url": "bundle-20260518.8.zip",
+  "hash": "47ebb98a55c4e057b5836315daa35b77ea85b03f89ce4d0fb7bf1d66b9f078d2",
   "minNativeVersion": null,
-  "notes": "- feat: 在恢复激活滚动位置时增加跳过准备状态选项",
+  "notes": "- feat: 移除准备状态下的清理英雄逻辑以优化恢复流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T00:50:17Z"
+  "publishedAt": "2026-05-18T00:54:46Z"
 }
