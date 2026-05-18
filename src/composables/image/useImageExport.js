@@ -255,6 +255,8 @@ export function useImageExport() {
       ? options.onProgress
       : null
     let preferredFormat = options.preferredFormat || 'image/jpeg'
+    const targetMaxBytes = Number(options.targetMaxBytes) > 0 ? Number(options.targetMaxBytes) : DEFAULT_TARGET_MAX_BYTES
+    const skipCompression = options.skipCompression === true
 
     const emitProgress = (percent, text, stage = 'export') => {
       if (!reportProgress) return
@@ -305,9 +307,26 @@ export function useImageExport() {
       }
     }
 
+    if (skipCompression || workingBlob.size <= targetMaxBytes) {
+      emitProgress(100, '保存完成')
+      const file = new File([workingBlob], fileNameWithExt(options.fileName, preferredFormat), {
+        type: preferredFormat,
+        lastModified: Date.now()
+      })
+
+      return {
+        blob: workingBlob,
+        bytes: workingBlob.size,
+        finalQuality: 1,
+        format: preferredFormat,
+        underTarget: true,
+        file
+      }
+    }
+
     emitProgress(60, '压缩中...')
     const result = await compressUnderTarget(workingBlob, {
-      targetMaxBytes: options.targetMaxBytes || DEFAULT_TARGET_MAX_BYTES,
+      targetMaxBytes,
       preferredFormat,
       initialMaxEdge: options.initialMaxEdge || 1600,
       minMaxEdge: options.minMaxEdge || 1024,
