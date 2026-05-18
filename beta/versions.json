@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260518.16",
+    "url": "bundle-20260518.16.zip",
+    "hash": "261c1a7aaca089cd7c7520c148baed121a8119258100f85e8b9ae0b3ded1706e",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化动画效果，使用 transform 属性提升性能并计算缩放和位移",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-18T11:20:54Z"
+  },
+  {
     "version": "20260518.15",
     "url": "bundle-20260518.15.zip",
     "hash": "9440bd04f5f036f6b5c743eefa09aea2b20e9336a42040f243621fe81181ebc7",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"feat: 添加滚动锁定功能以改善用户体验\"\n  This reverts commit 57eb69589e1d83c49e62a91d87151d3eb9206a75.",
     "updateLevel": "silent",
     "publishedAt": "2026-05-18T09:43:35Z"
-  },
-  {
-    "version": "20260518.13",
-    "url": "bundle-20260518.13.zip",
-    "hash": "5fb8009bbdb0058b2239d3405947df96c2c21b73ed123b7b6175f6aa99dcc5af",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加角色保存功能，优化批量导入时的角色记录与历史标签上下文管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-18T09:43:20Z"
   }
 ]

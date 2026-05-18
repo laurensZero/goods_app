@@ -1,9 +1,9 @@
 {
-  "version": "20260518.15",
-  "url": "bundle-20260518.15.zip",
-  "hash": "9440bd04f5f036f6b5c743eefa09aea2b20e9336a42040f243621fe81181ebc7",
+  "version": "20260518.16",
+  "url": "bundle-20260518.16.zip",
+  "hash": "261c1a7aaca089cd7c7520c148baed121a8119258100f85e8b9ae0b3ded1706e",
   "minNativeVersion": null,
-  "notes": "- feat: 在应用启动时为 Supabase 模式添加自动拉取功能，以防错过实时推送",
+  "notes": "- feat: 优化动画效果，使用 transform 属性提升性能并计算缩放和位移",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T09:55:04Z"
+  "publishedAt": "2026-05-18T11:20:54Z"
 }
