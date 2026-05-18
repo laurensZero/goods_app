@@ -1,9 +1,9 @@
 {
-  "version": "20260518.11",
-  "url": "bundle-20260518.11.zip",
-  "hash": "328280782f0268f7159a16018e47cd61ddf75c20a523bd44be752d7a054498c9",
+  "version": "20260518.12",
+  "url": "bundle-20260518.12.zip",
+  "hash": "fd839836251cc2cf48d61a7a907617378ad58007e9e7921042800c329de5d91f",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 使用 LazyCachedImage 组件替换活动封面和图片预览，优化图片加载性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T01:31:54Z"
+  "publishedAt": "2026-05-18T07:19:21Z"
 }
