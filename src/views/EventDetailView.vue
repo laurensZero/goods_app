@@ -215,7 +215,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroBack, playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward, getHeroBackDurationMs } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
@@ -495,12 +495,24 @@ onMounted(async () => {
   await refresh()
   await restoreViewState()
   preloadLinkedGoodsImages()
-  await playEventHeroForwardWhenReady()
-  coverMediaVisible.value = true
+  
+  // Check if there's a pending linked goods hero back animation
+  const hasPendingBackAnimation = hasPendingGoodsHeroBack(route.fullPath)
+  
+  if (hasPendingBackAnimation) {
+    await nextTick()
+    tryPlayLinkedGoodsBackHero()
+    // Don't show media until the back animation completes
+    // The animation will handle visibility
+  } else {
+    await playEventHeroForwardWhenReady()
+    coverMediaVisible.value = true
+  }
 })
 
 onBeforeUnmount(() => {
   releaseDetailEntryScrollLock()
+  cancelLinkedGoodsBackHeroRetry()
   if (typeof removeAndroidBackListener === 'function') {
     removeAndroidBackListener()
   }
@@ -512,7 +524,17 @@ onActivated(async () => {
   coverMediaVisible.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
-  await playEventHeroForwardWhenReady()
+  
+  // Check if there's a pending linked goods hero back animation
+  const hasPendingBackAnimation = hasPendingGoodsHeroBack(route.fullPath)
+  
+  if (hasPendingBackAnimation) {
+    await nextTick()
+    tryPlayLinkedGoodsBackHero()
+  } else {
+    await playEventHeroForwardWhenReady()
+  }
+  
   coverMediaVisible.value = true
 })
 
@@ -641,11 +663,60 @@ function resolveLinkedGoodsCover(goodsId) {
   return cardRoot
 }
 
+let linkedGoodsBackHeroRetryRaf = 0
+
+function cancelLinkedGoodsBackHeroRetry() {
+  if (linkedGoodsBackHeroRetryRaf) {
+    window.cancelAnimationFrame(linkedGoodsBackHeroRetryRaf)
+    linkedGoodsBackHeroRetryRaf = 0
+  }
+}
+
+function scheduleLinkedGoodsBackHeroRetry(attempt = 0, onSuccess) {
+  cancelLinkedGoodsBackHeroRetry()
+  linkedGoodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
+    linkedGoodsBackHeroRetryRaf = 0
+    const played = playGoodsHeroBack({
+      currentPath: route.fullPath,
+      resolveTargetEl: resolveLinkedGoodsCover
+    })
+    if (played) {
+      // Animation started, show media after it completes
+      const backDuration = getHeroBackDurationMs()
+      window.setTimeout(() => {
+        coverMediaVisible.value = true
+      }, Math.max(0, backDuration + 40))
+      if (typeof onSuccess === 'function') onSuccess()
+      return
+    }
+    if (!hasPendingGoodsHeroBack(route.fullPath)) {
+      return
+    }
+    if (attempt + 1 >= 20) {
+      coverMediaVisible.value = true
+      return
+    }
+    scheduleLinkedGoodsBackHeroRetry(attempt + 1, onSuccess)
+  })
+}
+
 function tryPlayLinkedGoodsBackHero() {
-  playGoodsHeroBack({
+  const played = playGoodsHeroBack({
     currentPath: route.fullPath,
     resolveTargetEl: resolveLinkedGoodsCover
   })
+  if (played) {
+    // Animation started, show media after it completes
+    const backDuration = getHeroBackDurationMs()
+    window.setTimeout(() => {
+      coverMediaVisible.value = true
+    }, Math.max(0, backDuration + 40))
+  } else if (hasPendingGoodsHeroBack(route.fullPath)) {
+    scheduleLinkedGoodsBackHeroRetry(0)
+  } else {
+    // No animation, show media immediately
+    coverMediaVisible.value = true
+  }
 }
 </script>
 
