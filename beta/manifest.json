@@ -1,9 +1,9 @@
 {
-  "version": "20260518.22",
-  "url": "bundle-20260518.22.zip",
-  "hash": "30fde7e7666d9bc44d457b93c8c1059f6a82d16061b726c9188f5391f6d3163e",
+  "version": "20260518.23",
+  "url": "bundle-20260518.23.zip",
+  "hash": "e06040d3186afe3f58846f3be8da458e1a0929e85d3e453a9190f9b68ea949fa",
   "minNativeVersion": null,
-  "notes": "- feat: 优化自动推送机制，优化同步流程中的冲突处理",
+  "notes": "- feat: 为链接商品卡片添加背景样式，提升视觉效果",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T13:34:22Z"
+  "publishedAt": "2026-05-18T13:40:14Z"
 }
