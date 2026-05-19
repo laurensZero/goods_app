@@ -50,6 +50,7 @@ const props = defineProps({
   fetchpriority: { type: String, default: 'low' },
   useCache: { type: Boolean, default: true },
   lazy: { type: Boolean, default: true },
+  resumeDecodeValidation: { type: Boolean, default: false },
   skeletonEnabled: { type: Boolean, default: true },
   skeletonDelayMs: { type: Number, default: 0 },
   imageAttrs: { type: Object, default: () => ({}) }
@@ -92,6 +93,7 @@ let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
 let skeletonDelayTimer = null
+let forceDecodeValidationOnCacheHit = false
 
 function clearSkeletonDelayTimer() {
   if (skeletonDelayTimer != null) {
@@ -149,6 +151,19 @@ async function waitForImgDecode(src, timeoutMs = 400) {
   }
 }
 
+async function ensureCachedImageReady(src, requestId, timeoutMs = 220) {
+  if (!src) return false
+  isImageLoading.value = true
+  const ok = await waitForImgDecode(src, timeoutMs)
+  if (requestId !== loadRequestId) return false
+  isImageLoading.value = !ok
+  if (ok) {
+    markImageDecoded(src)
+    forceDecodeValidationOnCacheHit = false
+  }
+  return ok
+}
+
 function getViewportDistance() {
   const el = rootRef.value
   if (!el) return Infinity
@@ -184,8 +199,12 @@ watch(
     const cached = peekCachedImage(url)
     if (cached) {
       resolvedSrc.value = cached
-      isImageLoading.value = false
       resetSkeletonVisibility()
+      if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+        await ensureCachedImageReady(cached, requestId)
+      } else {
+        isImageLoading.value = false
+      }
       return
     }
     resolvedSrc.value = ''
@@ -227,7 +246,11 @@ function onImageError() {
 }
 
 onMounted(() => {
-  imageCacheRefreshHandler = () => {
+  imageCacheRefreshHandler = (event) => {
+    const reason = String(event?.detail?.reason || '')
+    if (reason === 'resume') {
+      forceDecodeValidationOnCacheHit = true
+    }
     const requestId = ++loadRequestId
     if (!props.src || !hasEnteredViewport.value) {
       resolvedSrc.value = ''
@@ -243,8 +266,12 @@ onMounted(() => {
       if (cached) {
         if (requestId !== loadRequestId) return
         resolvedSrc.value = cached
-        isImageLoading.value = false
         resetSkeletonVisibility()
+        if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+          await ensureCachedImageReady(cached, requestId)
+        } else {
+          isImageLoading.value = false
+        }
         return
       }
       resolvedSrc.value = ''
