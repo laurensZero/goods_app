@@ -1,9 +1,9 @@
 {
-  "version": "20260519.1",
-  "url": "bundle-20260519.1.zip",
-  "hash": "f82122e939dbe1a38613314398bb0e321a1aa4d4dd2a7d320d54d5014b62d5ea",
+  "version": "20260519.2",
+  "url": "bundle-20260519.2.zip",
+  "hash": "7dd729bf8e88a24451730a3f6dd985599e7f704056443d4be6770a84ef3555c4",
   "minNativeVersion": null,
-  "notes": "- feat: 增强同步机制，支持充值和事件数据的时间戳管理，优化数据导入逻辑",
+  "notes": "- feat: 优化动画逻辑，确保覆盖图像解码后再隐藏目标元素，避免在Android WebView中出现空白帧",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-19T07:11:07Z"
+  "publishedAt": "2026-05-19T08:30:20Z"
 }
