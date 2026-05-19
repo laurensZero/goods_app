@@ -434,7 +434,9 @@ export function createSyncPayloadService({
       goodsCount: Number(counts.collectionCount || 0) + Number(counts.wishlistCount || 0),
       trashCount: Number(counts.trashCount) || 0,
       rechargeCount: Number(counts.rechargeCount) || 0,
-      eventCount: Number(counts.eventCount) || 0
+      eventCount: Number(counts.eventCount) || 0,
+      rechargeUpdatedAt: counts.rechargeUpdatedAt || '',
+      eventUpdatedAt: counts.eventUpdatedAt || ''
     }
   }
 

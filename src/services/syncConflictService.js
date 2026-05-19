@@ -26,6 +26,28 @@ export function createSyncConflictService({
     return typeof getBackend === 'function' ? (getBackend() || backend) : backend
   }
 
+  function toTimestampMs(value) {
+    if (!value) return 0
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+    const ms = new Date(value).getTime()
+    return Number.isFinite(ms) ? ms : 0
+  }
+
+  function getLatestRechargeTimestamp(records = []) {
+    let latest = 0
+    for (const item of records || []) {
+      latest = Math.max(latest, getItemTimestamp(item))
+    }
+    return latest
+  }
+
+  function shouldPullRechargeByManifest(remoteManifest, localRechargeRecords) {
+    const remoteRechargeTs = toTimestampMs(remoteManifest?.rechargeUpdatedAt)
+    if (!remoteRechargeTs) return true
+    const localRechargeTs = getLatestRechargeTimestamp(localRechargeRecords)
+    return remoteRechargeTs > localRechargeTs
+  }
+
   function getLocalChangesSince(timestamp) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
@@ -80,24 +102,27 @@ export function createSyncConflictService({
       }
     })
     const localRechargeData = buildRechargeSyncData({ incremental: false })
-    const remoteRechargeData = await currentBackend.readJson({
-      title: '预检读取 recharge-data.json',
-      gist,
-      fileName: 'recharge-data.json',
-      startDetail: '读取充值记录',
-      category: 'pull',
-      fallbackGist: existingRechargeGist,
-      fallbackFileName: 'recharge-data.json',
-      successDetail: (parsed, source) => {
-        if (!parsed) return '未找到充值数据'
-        const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-        const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-        return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
-      }
-    }) || {
-      recharge: Array.isArray(remoteData?.recharge) ? remoteData.recharge : [],
-      rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
-    }
+    const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
+    const remoteRechargeData = shouldReadRechargePrecheck
+      ? (await currentBackend.readJson({
+          title: '预检读取 recharge-data.json',
+          gist,
+          fileName: 'recharge-data.json',
+          startDetail: '读取充值记录',
+          category: 'pull',
+          fallbackGist: existingRechargeGist,
+          fallbackFileName: 'recharge-data.json',
+          successDetail: (parsed, source) => {
+            if (!parsed) return '未找到充值数据'
+            const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+            const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+            return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
+          }
+        }) || {
+          recharge: Array.isArray(remoteData?.recharge) ? remoteData.recharge : [],
+          rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
+        })
+      : { recharge: localRechargeData.recharge || [], rechargeTrash: [] }
     const localEventData = buildEventSyncData()
     const remoteEventData = await currentBackend.readJson({
       title: '预检读取 events-data.json',
