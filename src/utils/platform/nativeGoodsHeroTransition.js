@@ -1,4 +1,4 @@
-import { setImagePreloadPaused } from '@/utils/image/cache'
+import { hasRecentlyDecodedImage, markImageDecoded, preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 
 const FORWARD_DURATION_MS = 390
 const BACK_DURATION_MS = 350
@@ -591,18 +591,25 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const heroImgEl = node.querySelector('[data-hero-media]')
   let heroImgReady = true
   if (heroImgEl && heroImgEl.tagName === 'IMG' && snapshot.imageSrc) {
-    heroImgReady = false
-    try {
-      const decodePromise = (typeof heroImgEl.decode === 'function')
-        ? heroImgEl.decode().then(() => true).catch(() => true)
-        : Promise.resolve(true)
-
-      heroImgReady = await Promise.race([
-        decodePromise,
-        new Promise((res) => setTimeout(() => res(false), 80))
-      ])
-    } catch (e) {
+    if (hasRecentlyDecodedImage(snapshot.imageSrc)) {
+      heroImgReady = true
+    } else {
       heroImgReady = false
+      try {
+        const decodePromise = (typeof heroImgEl.decode === 'function')
+          ? heroImgEl.decode().then(() => true).catch(() => true)
+          : Promise.resolve(true)
+
+        heroImgReady = await Promise.race([
+          decodePromise,
+          new Promise((res) => setTimeout(() => res(false), 48))
+        ])
+        if (heroImgReady) {
+          markImageDecoded(snapshot.imageSrc)
+        }
+      } catch (e) {
+        heroImgReady = false
+      }
     }
   }
 
@@ -730,6 +737,10 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
   }
+
+  if (pendingForwardHero.imageSrc) {
+    preloadImages([pendingForwardHero.imageSrc])
+  }
 }
 
 export function playGoodsHeroForward(goodsId, targetEl) {
@@ -785,6 +796,10 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
+  }
+
+  if (pendingBackHero.imageSrc) {
+    preloadImages([pendingBackHero.imageSrc])
   }
 }
 
@@ -855,6 +870,10 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
   }
+
+  if (pendingForwardEventHero.imageSrc) {
+    preloadImages([pendingForwardEventHero.imageSrc])
+  }
 }
 
 export function playEventHeroForward(eventId, targetEl) {
@@ -909,6 +928,10 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
+  }
+
+  if (pendingBackEventHero.imageSrc) {
+    preloadImages([pendingBackEventHero.imageSrc])
   }
 }
 

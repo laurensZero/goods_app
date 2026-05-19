@@ -37,7 +37,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
+import { getCachedImage, markImageDecoded, peekCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
 
@@ -199,6 +199,7 @@ watch(
     const ok = await waitForImgDecode(nextSrc)
     if (requestId !== loadRequestId) return
     isImageLoading.value = !ok
+    if (ok) markImageDecoded(nextSrc)
   },
   { immediate: true }
 )
@@ -216,6 +217,7 @@ watch(
 function onImageLoad() {
   hasLoadError.value = false
   isImageLoading.value = false
+  if (resolvedSrc.value) markImageDecoded(resolvedSrc.value)
 }
 
 function onImageError() {
@@ -259,6 +261,7 @@ onMounted(() => {
           const ok = await waitForImgDecode(nextSrc)
           if (requestId !== loadRequestId) return
           isImageLoading.value = !ok
+          if (ok) markImageDecoded(nextSrc)
         })()
       }).catch(() => {
         if (requestId !== loadRequestId) return
