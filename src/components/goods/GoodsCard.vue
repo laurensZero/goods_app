@@ -42,6 +42,7 @@
           :src="item.coverImage"
           :alt="item.name"
           :lazy="true"
+          resume-decode-validation
           root-margin="720px 0px"
           fetchpriority="low"
           class="cover-img"

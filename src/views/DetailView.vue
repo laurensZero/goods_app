@@ -37,6 +37,7 @@
               :src="activeImage.uri"
               :alt="item.name"
               :lazy="false"
+              resume-decode-validation
               :class="['cover-img', { 'cover-img--hero-hidden': !coverMediaVisible } ]"
             />
             <div v-else class="cover-fallback">
