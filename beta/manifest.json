@@ -1,9 +1,9 @@
 {
-  "version": "20260518.26",
-  "url": "bundle-20260518.26.zip",
-  "hash": "452729aca56070bcb359aef7dc980ae440a1f9d20d498eb3397204005aac0a39",
+  "version": "20260519.1",
+  "url": "bundle-20260519.1.zip",
+  "hash": "f82122e939dbe1a38613314398bb0e321a1aa4d4dd2a7d320d54d5014b62d5ea",
   "minNativeVersion": null,
-  "notes": "- feat: 更新图像导出功能，支持跳过压缩以保留导出结果",
+  "notes": "- feat: 增强同步机制，支持充值和事件数据的时间戳管理，优化数据导入逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-18T15:17:24Z"
+  "publishedAt": "2026-05-19T07:11:07Z"
 }
