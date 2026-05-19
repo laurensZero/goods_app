@@ -1,9 +1,9 @@
 {
-  "version": "20260519.2",
-  "url": "bundle-20260519.2.zip",
-  "hash": "7dd729bf8e88a24451730a3f6dd985599e7f704056443d4be6770a84ef3555c4",
+  "version": "20260519.3",
+  "url": "bundle-20260519.3.zip",
+  "hash": "025255f844d35f6fece88c591d1082a51f1c55d7b4fb76564d2ed2ba1a31a04e",
   "minNativeVersion": null,
-  "notes": "- feat: 优化动画逻辑，确保覆盖图像解码后再隐藏目标元素，避免在Android WebView中出现空白帧",
+  "notes": "- feat: 增强图像解码管理，添加最近解码图像跟踪和预加载机制",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-19T08:30:20Z"
+  "publishedAt": "2026-05-19T10:06:33Z"
 }
