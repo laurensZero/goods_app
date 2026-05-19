@@ -228,7 +228,7 @@ export const useRechargeStore = defineStore('recharge', () => {
       .map((item) => toBackupRecord(item, { stripImage }))
   }
 
-  async function importBackup(list = [], { reconcileMissing = false } = {}) {
+  async function importBackup(list = [], { reconcileMissing = false, preserveLocalNewerThan = 0 } = {}) {
     if (!Array.isArray(list) || list.length === 0) {
       return { added: 0, updated: 0, removed: 0, skipped: 0, total: records.value.length }
     }
@@ -262,8 +262,14 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
 
     if (reconcileMissing) {
+      const preserveTs = Number(preserveLocalNewerThan || 0)
       for (const id of currentMap.keys()) {
         if (!incomingMap.has(id)) {
+          const existing = currentMap.get(id)
+          const existingUpdatedAt = Number(existing?.updatedAt || 0)
+          if (preserveTs > 0 && existingUpdatedAt > preserveTs) {
+            continue
+          }
           currentMap.delete(id)
           removed += 1
         }

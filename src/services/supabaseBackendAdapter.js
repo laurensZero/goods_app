@@ -310,12 +310,34 @@ export function createSupabaseBackendAdapter({
           trashCount: manifestContent.trashCount || 0,
           rechargeCount: manifestContent.rechargeCount || 0,
           eventCount: manifestContent.eventCount || 0,
-          imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images'
+          imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
+          rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
+          eventUpdatedAt: manifestContent.eventUpdatedAt || null
         })
-        const { error } = await withRetry(() =>
+        let { error } = await withRetry(() =>
           db.from('sync_manifest').upsert(manifestRow)
         )
-        if (error) throw new Error(`写入 manifest 失败: ${error.message}`)
+        if (error) {
+          const isMissingColumn = String(error.message || '').includes('column')
+          if (!isMissingColumn) throw new Error(`写入 manifest 失败: ${error.message}`)
+
+          const fallbackManifestRow = toSnakeCase({
+            id: 'default',
+            syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
+            deviceId: manifestContent.deviceId || '',
+            imageCount: imageCountVal,
+            goodsCount: goodsCountVal,
+            trashCount: manifestContent.trashCount || 0,
+            rechargeCount: manifestContent.rechargeCount || 0,
+            eventCount: manifestContent.eventCount || 0,
+            imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images'
+          })
+
+          ;({ error } = await withRetry(() =>
+            db.from('sync_manifest').upsert(fallbackManifestRow)
+          ))
+          if (error) throw new Error(`写入 manifest 失败: ${error.message}`)
+        }
         continue
       }
 

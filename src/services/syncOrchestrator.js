@@ -39,6 +39,29 @@ export function createSyncOrchestrator({
     return activeBackend.readJson(opts)
   }
 
+  function toTimestampMs(value) {
+    if (!value) return 0
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+    const ms = new Date(value).getTime()
+    return Number.isFinite(ms) ? ms : 0
+  }
+
+  function getLatestRechargeTimestamp(records = []) {
+    let latest = 0
+    for (const item of records || []) {
+      latest = Math.max(latest, getItemTimestamp(item))
+    }
+    return latest
+  }
+
+  function shouldPullRechargeByManifest(remoteManifest, rechargeStore) {
+    const remoteRechargeTs = toTimestampMs(remoteManifest?.rechargeUpdatedAt)
+    if (!remoteRechargeTs) return true
+    const localRecharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const localRechargeTs = getLatestRechargeTimestamp(localRecharge)
+    return remoteRechargeTs > localRechargeTs
+  }
+
   // ── Internal: pull from remote ──
 
   function resolveCoverGistFileName(event) {
@@ -113,10 +136,28 @@ export function createSyncOrchestrator({
     return targetEventIds
   }
 
+  function getRemoteWatermark(remoteManifest, remoteData, rechargeData, eventData) {
+    const timestamps = []
+    const manifestTs = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
+    if (manifestTs > 0) timestamps.push(manifestTs)
+    for (const item of remoteData?.goods || []) timestamps.push(getItemTimestamp(item))
+    for (const item of remoteData?.trash || []) timestamps.push(getItemTimestamp(item))
+    for (const item of rechargeData?.recharge || []) timestamps.push(getItemTimestamp(item))
+    for (const item of rechargeData?.rechargeTrash || []) timestamps.push(getItemTimestamp(item))
+    for (const item of eventData?.events || []) timestamps.push(Number(item?.updatedAt) || 0)
+    return Math.max(0, ...timestamps)
+  }
+
   async function pullFromRemote(gist, remoteManifest, rechargeGist, eventGist, options, ctx) {
     const shouldHydrateGoodsImages = options.hydrateGoodsImages !== false
     const shouldHydrateTrashImages = options.hydrateTrashImages !== false
     const shouldHydrateEventImages = options.hydrateEventImages !== false
+    const shouldPullRecharge = options.pullRecharge !== false
+
+    const goodsStore = useGoodsStore()
+    const rechargeStore = useRechargeStore()
+    const presets = usePresetsStore()
+    const eventsStore = useEventsStore()
 
     const remoteData = await readJson({
       title: '读取 data.json',
@@ -135,21 +176,24 @@ export function createSyncOrchestrator({
       }
     }) || { goods: [], trash: [], presets: {} }
 
-    const rechargeData = await readJson({
-      title: '正式拉取 recharge-data.json',
-      gist,
-      fileName: RECHARGE_DATA_FILENAME,
-      startDetail: '读取充值记录',
-      category: 'pull',
-      fallbackGist: rechargeGist,
-      fallbackFileName: RECHARGE_DATA_FILENAME,
-      successDetail: (parsed, source) => {
-        if (!parsed) return '未找到充值数据'
-        const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-        const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-        return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
-      }
-    })
+    const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const rechargeData = shouldPullRecharge
+      ? await readJson({
+          title: '正式拉取 recharge-data.json',
+          gist,
+          fileName: RECHARGE_DATA_FILENAME,
+          startDetail: '读取充值记录',
+          category: 'pull',
+          fallbackGist: rechargeGist,
+          fallbackFileName: RECHARGE_DATA_FILENAME,
+          successDetail: (parsed, source) => {
+            if (!parsed) return '未找到充值数据'
+            const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+            const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+            return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
+          }
+        })
+      : { recharge: localRechargeSnapshot, rechargeTrash: [] }
 
     const eventData = await readJson({
       title: '正式拉取 events-data.json',
@@ -166,12 +210,8 @@ export function createSyncOrchestrator({
       }
     })
 
-    const goodsStore = useGoodsStore()
-    const rechargeStore = useRechargeStore()
-    const presets = usePresetsStore()
-    const eventsStore = useEventsStore()
-
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
+    const remoteWatermark = getRemoteWatermark(remoteManifest, remoteData, rechargeData, eventData)
     const localResolved = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const remoteResolved = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
     const changedGoodsIds = collectChangedGoodsIds(localResolved, remoteResolved, ctx.shouldApplyRemoteItem)
@@ -291,20 +331,37 @@ export function createSyncOrchestrator({
     // Safety: don't delete local items if remote is completely empty (prevents data loss on first sync or read errors)
     const hasAnyRemoteData = remoteGoodsIds.size > 0 || remoteTrashIds.size > 0
     if (hasAnyRemoteData) {
-      const localOnlyGoodsIds = goodsStore.list.filter((item) => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id)).map((item) => item.id)
-      const localOnlyTrashIds = goodsStore.trashList.filter((item) => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id)).map((item) => item.id)
+      const localOnlyGoodsIds = goodsStore.list
+        .filter((item) => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id))
+        .filter((item) => getItemTimestamp(item) <= remoteWatermark)
+        .map((item) => item.id)
+      const localOnlyTrashIds = goodsStore.trashList
+        .filter((item) => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id))
+        .filter((item) => getItemTimestamp(item) <= remoteWatermark)
+        .map((item) => item.id)
       if (localOnlyGoodsIds.length > 0) await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
       if (localOnlyTrashIds.length > 0) { for (const id of localOnlyTrashIds) await goodsStore.deleteTrashItem(id) }
     }
 
     const remoteRecharge = Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []
     const remoteRechargeLegacy = Array.isArray(remoteData.rechargeRecords) ? remoteData.rechargeRecords : []
-    const rechargeApplyResult = await rechargeStore.importBackup([...remoteRecharge, ...remoteRechargeLegacy], { reconcileMissing: true })
+    const rechargeApplyResult = shouldPullRecharge
+      ? await rechargeStore.importBackup([...remoteRecharge, ...remoteRechargeLegacy], {
+          reconcileMissing: true,
+          preserveLocalNewerThan: remoteWatermark
+        })
+      : { added: 0, updated: 0, removed: 0, skipped: 0, total: localRechargeSnapshot.length }
 
     let eventApplyResult = { added: 0, updated: 0, removed: 0, total: 0 }
     if (eventData && Array.isArray(eventData.events)) {
       const eventsStore = useEventsStore()
-      eventApplyResult = { ...(await eventsStore.importEventsBackup(eventData.events, { reconcileMissing: true })), total: eventData.events.length }
+      eventApplyResult = {
+        ...(await eventsStore.importEventsBackup(eventData.events, {
+          reconcileMissing: true,
+          preserveLocalNewerThan: remoteWatermark
+        })),
+        total: eventData.events.length
+      }
       await ctx.saveEventLastSyncedAt(eventData.updatedAt || remoteManifest?.lastSyncAt || new Date().toISOString())
     }
 
@@ -395,7 +452,16 @@ export function createSyncOrchestrator({
       wishlistCount: syncData.goods.filter(g => g.isWishlist).length,
       trashCount: syncData.trash.length,
       rechargeCount: rechargeSyncData.recharge.length,
-      eventCount: eventSyncData.events.length
+      eventCount: eventSyncData.events.length,
+      rechargeUpdatedAt: (() => {
+        const ts = getLatestRechargeTimestamp(rechargeSyncData.recharge)
+        return ts > 0 ? new Date(ts).toISOString() : ''
+      })(),
+      eventUpdatedAt: (() => {
+        const timestamps = (eventSyncData.events || []).map((item) => Number(item?.updatedAt) || 0)
+        const ts = Math.max(0, ...timestamps)
+        return ts > 0 ? new Date(ts).toISOString() : ''
+      })()
     }
     const manifest = payload.buildManifest(mergedImageStats, syncTimestamp, counts)
 
@@ -484,11 +550,15 @@ export function createSyncOrchestrator({
         }
       }) || { goods: [], trash: [], presets: {} }
 
-      remoteRechargeData = await readJson({
-        title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME,
-        startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-        successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
-      }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
+      const rechargeStore = useRechargeStore()
+      const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      remoteRechargeData = shouldReadRechargePrecheck
+        ? (await readJson({
+            title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME,
+            startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+            successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+          }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] })
+        : { recharge: rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }), rechargeTrash: [] }
 
       remoteEventData = await readJson({
         title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME,
@@ -573,7 +643,10 @@ export function createSyncOrchestrator({
       let result
       try {
         result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-          hydrateGoodsImages: hasDataDiff, hydrateTrashImages: hasDataDiff, hydrateEventImages: hasEventDataDiff
+          hydrateGoodsImages: hasDataDiff,
+          hydrateTrashImages: hasDataDiff,
+          hydrateEventImages: hasEventDataDiff,
+          pullRecharge: hasRechargeDataDiff
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -603,13 +676,20 @@ export function createSyncOrchestrator({
 
     let remoteManifest, remoteRechargeData, remoteEventData
     try {
-      [remoteManifest, remoteRechargeData, remoteEventData] = await Promise.all([
-        readJson({ title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
-          successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' }),
-        readJson({ title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
-          fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-          successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
-        }).then((result) => result || { recharge: [], rechargeTrash: [] }),
+      remoteManifest = await readJson({ title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
+        successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' })
+
+      const rechargeStore = useRechargeStore()
+      const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+
+      ;[remoteRechargeData, remoteEventData] = await Promise.all([
+        shouldReadRechargePrecheck
+          ? readJson({ title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
+              fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+              successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+            }).then((result) => result || { recharge: [], rechargeTrash: [] })
+          : Promise.resolve({ recharge: localRechargeSnapshot, rechargeTrash: [] }),
         readJson({ title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
           fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
           successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
@@ -648,7 +728,10 @@ export function createSyncOrchestrator({
       let result
       try {
         result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-          hydrateGoodsImages: true, hydrateTrashImages: true, hydrateEventImages: true
+          hydrateGoodsImages: true,
+          hydrateTrashImages: true,
+          hydrateEventImages: true,
+          pullRecharge: hasRechargeContentDiff
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -688,7 +771,10 @@ export function createSyncOrchestrator({
     let result
     try {
       result = await pullFromRemote(gist, remoteManifest, existingRechargeGist, existingEventGist, {
-        hydrateGoodsImages: pullGoodsContentDiff, hydrateTrashImages: pullGoodsContentDiff, hydrateEventImages: pullEventContentDiff
+        hydrateGoodsImages: pullGoodsContentDiff,
+        hydrateTrashImages: pullGoodsContentDiff,
+        hydrateEventImages: pullEventContentDiff,
+        pullRecharge: pullRechargeContentDiff
       }, ctx)
     } catch (e) { wrapSyncError(e, PHASE_PULL) }
     await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)

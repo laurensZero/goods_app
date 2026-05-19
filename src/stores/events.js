@@ -209,7 +209,7 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function importEventsBackup(events, { reconcileMissing = false } = {}) {
+  async function importEventsBackup(events, { reconcileMissing = false, preserveLocalNewerThan = 0 } = {}) {
     const incoming = Array.isArray(events) ? events : []
     const incomingIds = new Set()
     let added = 0
@@ -285,8 +285,14 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     if (reconcileMissing) {
+      const preserveTs = Number(preserveLocalNewerThan || 0)
       const missingIds = list.value
-        .filter((item) => item?.id && !incomingIds.has(item.id))
+        .filter((item) => {
+          if (!item?.id || incomingIds.has(item.id)) return false
+          const localUpdatedAt = Number(item.updatedAt || 0)
+          if (preserveTs > 0 && localUpdatedAt > preserveTs) return false
+          return true
+        })
         .map((item) => item.id)
 
       if (missingIds.length > 0) {
