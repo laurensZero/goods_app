@@ -278,6 +278,98 @@ function dispatchImageCacheRefresh(reason = 'resume') {
   }))
 }
 
+const recentlyDecodedImages = new Map()
+const decodePrimeInFlight = new Set()
+const DECODED_IMAGE_TTL_MS = isNative() ? 90000 : 180000
+
+function clearDecodedImageTimer(key) {
+  const entry = recentlyDecodedImages.get(key)
+  if (!entry) return
+  if (entry.timerId) {
+    clearTimeout(entry.timerId)
+  }
+}
+
+function clearDecodedImageState() {
+  recentlyDecodedImages.forEach((entry) => {
+    if (entry?.timerId) {
+      clearTimeout(entry.timerId)
+    }
+  })
+  recentlyDecodedImages.clear()
+}
+
+function rememberDecodedImage(url) {
+  const key = normalizeCacheUrl(url) || String(url || '').trim()
+  if (!key) return
+
+  clearDecodedImageTimer(key)
+  const timerId = setTimeout(() => {
+    recentlyDecodedImages.delete(key)
+  }, DECODED_IMAGE_TTL_MS)
+
+  recentlyDecodedImages.set(key, {
+    decodedAt: Date.now(),
+    timerId
+  })
+}
+
+export function markImageDecoded(url) {
+  rememberDecodedImage(url)
+}
+
+export function hasRecentlyDecodedImage(url) {
+  const key = normalizeCacheUrl(url) || String(url || '').trim()
+  if (!key) return false
+  const entry = recentlyDecodedImages.get(key)
+  if (!entry) return false
+  const ageMs = Date.now() - Number(entry.decodedAt || 0)
+  return Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= DECODED_IMAGE_TTL_MS
+}
+
+function scheduleDecodePrime(run) {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => run(), { timeout: 160 })
+    return
+  }
+  setTimeout(() => run(), 0)
+}
+
+function primeImageDecode(src) {
+  const normalizedSrc = String(src || '').trim()
+  if (!normalizedSrc || hasRecentlyDecodedImage(normalizedSrc)) return
+  if (decodePrimeInFlight.has(normalizedSrc)) return
+
+  decodePrimeInFlight.add(normalizedSrc)
+
+  const img = new Image()
+  img.decoding = 'async'
+  img.src = normalizedSrc
+
+  if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+    rememberDecodedImage(normalizedSrc)
+    decodePrimeInFlight.delete(normalizedSrc)
+    return
+  }
+
+  if (typeof img.decode === 'function') {
+    void img.decode().then(() => {
+      rememberDecodedImage(normalizedSrc)
+    }).catch(() => {}).finally(() => {
+      decodePrimeInFlight.delete(normalizedSrc)
+    })
+    return
+  }
+
+  img.addEventListener('load', () => {
+    rememberDecodedImage(normalizedSrc)
+    decodePrimeInFlight.delete(normalizedSrc)
+  }, { once: true })
+  img.addEventListener('error', () => {
+    decodePrimeInFlight.delete(normalizedSrc)
+  }, { once: true })
+}
+
 // --- URL 转换逻辑 ---
 /**
  * @param {string} url
@@ -483,7 +575,10 @@ export async function getCachedImage(url, options = {}) {
  */
 export function preloadImages(urls) {
   urls.forEach((url) => {
-    void getCachedImage(url, { priority: 'preload' }).catch(() => {})
+    void getCachedImage(url, { priority: 'preload' }).then((cachedSrc) => {
+      if (!cachedSrc) return
+      scheduleDecodePrime(() => primeImageDecode(cachedSrc))
+    }).catch(() => {})
   })
 }
 
@@ -564,6 +659,10 @@ export function signalImageCacheRefresh(reason = 'resume') {
   if (typeof window === 'undefined') return
   if (imageRefreshDispatchScheduled) return
 
+  if (reason === 'resume') {
+    clearDecodedImageState()
+  }
+
   const run = () => {
     imageRefreshDispatchScheduled = 0
     dispatchImageCacheRefresh(reason)
@@ -600,6 +699,7 @@ export function clearMemoryCache() {
     if (val.startsWith('blob:')) URL.revokeObjectURL(val)
   })
   memoryCache.clear()
+  clearDecodedImageState()
 }
 
 export async function clearAllCache() {
