@@ -583,6 +583,29 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     }
   }
 
+  // Try to ensure the overlay image is decoded before hiding the target
+  // element. Use a short timeout to avoid blocking the UI — if decode
+  // finishes quickly we hide the target and start animation in the same
+  // frame; otherwise we start animation without hiding to avoid a
+  // one-frame blank gap on Android WebView.
+  const heroImgEl = node.querySelector('[data-hero-media]')
+  let heroImgReady = true
+  if (heroImgEl && heroImgEl.tagName === 'IMG' && snapshot.imageSrc) {
+    heroImgReady = false
+    try {
+      const decodePromise = (typeof heroImgEl.decode === 'function')
+        ? heroImgEl.decode().then(() => true).catch(() => true)
+        : Promise.resolve(true)
+
+      heroImgReady = await Promise.race([
+        decodePromise,
+        new Promise((res) => setTimeout(() => res(false), 80))
+      ])
+    } catch (e) {
+      heroImgReady = false
+    }
+  }
+
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
@@ -594,9 +617,13 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const transformOnly = false  // Disabled: transform causes visual flickering, use layout animation
 
   try {
-    // Hide target and start animation in the same sync block — no frame
-    // where the target is hidden without the overlay already in motion.
-    hideElement(targetEl)
+    // Hide target and start animation in the same sync block when the
+    // overlay image is ready. If not ready, skip hiding to avoid a
+    // visible blank; this may leave the target briefly visible under
+    // the overlay but prevents a gray block on Android.
+    if (heroImgReady) {
+      hideElement(targetEl)
+    }
 
     if (transformOnly) {
       const { scaleX, scaleY } = resolveTransformOnlyTarget(snapshot, targetRect)
