@@ -2,6 +2,7 @@
   <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
       v-if="resolvedSrc && !showFallback"
+      :key="imageRenderKey"
       v-bind="imageAttrs"
       :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
@@ -70,8 +71,6 @@ const rootAttrs = computed(() => {
 const imageAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
   const { class: imageClass, style: imageStyle, ...imageRest } = props.imageAttrs || {}
-  // forward class and style also to the actual <img> element so callers
-  // (e.g. cover-img) can style the image itself instead of only the wrapper
   return {
     ...rest,
     ...imageRest,
@@ -80,6 +79,7 @@ const imageAttrs = computed(() => {
   }
 })
 const resolvedSrc = ref('')
+const imageRenderKey = ref(0)
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
@@ -89,11 +89,16 @@ const showSkeleton = computed(() => {
 })
 const showFallback = computed(() => !!props.src && hasLoadError.value)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
+
 let visibilityObserver = null
 let loadRequestId = 0
 let imageCacheRefreshHandler = null
 let skeletonDelayTimer = null
 let forceDecodeValidationOnCacheHit = false
+
+function forceRebuildImageElement() {
+  imageRenderKey.value += 1
+}
 
 function clearSkeletonDelayTimer() {
   if (skeletonDelayTimer != null) {
@@ -146,7 +151,7 @@ async function waitForImgDecode(src, timeoutMs = 400) {
       img.addEventListener('load', onLoad, { once: true })
       img.addEventListener('error', onError, { once: true })
     })
-  } catch (e) {
+  } catch {
     return false
   }
 }
@@ -192,10 +197,6 @@ watch(
       return
     }
     hasLoadError.value = false
-    // Check memory cache first — cached images skip skeleton and decode wait,
-    // avoiding a visible flash when virtual list items are recreated (e.g.
-    // returning from detail page). Uncached images show skeleton only while
-    // the DB fetch + decode are actually in progress.
     const cached = peekCachedImage(url)
     if (cached) {
       resolvedSrc.value = cached
@@ -227,8 +228,6 @@ watch(
   () => props.src,
   () => {
     hasLoadError.value = false
-    // do not change isImageLoading here; loading is driven by the
-    // [props.src, hasEnteredViewport] watcher to avoid redundant updates
   },
   { immediate: true }
 )
@@ -251,6 +250,7 @@ onMounted(() => {
     if (reason === 'resume') {
       forceDecodeValidationOnCacheHit = true
     }
+
     const requestId = ++loadRequestId
     if (!props.src || !hasEnteredViewport.value) {
       resolvedSrc.value = ''
@@ -259,6 +259,34 @@ onMounted(() => {
       resetSkeletonVisibility()
       return
     }
+
+    if (reason === 'resume') {
+      const reloadSrc = peekCachedImage(props.src) || resolvedSrc.value || props.src
+      if (reloadSrc) {
+        hasLoadError.value = false
+        isImageLoading.value = true
+        resolvedSrc.value = ''
+        forceRebuildImageElement()
+        resetSkeletonVisibility()
+
+        const scheduleReload = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+          ? window.requestAnimationFrame.bind(window)
+          : (cb) => window.setTimeout(cb, 0)
+
+        scheduleReload(() => {
+          if (requestId !== loadRequestId) return
+          resolvedSrc.value = reloadSrc
+          if (!props.resumeDecodeValidation) return
+          void ensureCachedImageReady(reloadSrc, requestId, 180).then((ok) => {
+            if (requestId !== loadRequestId) return
+            isImageLoading.value = !ok
+            if (ok) markImageDecoded(reloadSrc)
+          })
+        })
+        return
+      }
+    }
+
     void Promise.resolve().then(async () => {
       if (requestId !== loadRequestId) return
       if (!props.src || !hasEnteredViewport.value) return
@@ -267,15 +295,31 @@ onMounted(() => {
         if (requestId !== loadRequestId) return
         resolvedSrc.value = cached
         resetSkeletonVisibility()
-        // Lightweight re-validation on resume for visible images on Android
         const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+        let ok = true
         if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
-          await ensureCachedImageReady(cached, requestId)
+          ok = await ensureCachedImageReady(cached, requestId)
         } else if (reason === 'resume' && hasEnteredViewport.value && isAndroid) {
-          // short timeout to avoid jank; ensures image texture isn't lost after WebView resume
-          await ensureCachedImageReady(cached, requestId, 180)
+          ok = await ensureCachedImageReady(cached, requestId, 180)
         } else {
           isImageLoading.value = false
+          ok = true
+        }
+        if (!ok && hasEnteredViewport.value && requestId === loadRequestId) {
+          imageRenderKey.value += 1
+          resolvedSrc.value = ''
+          setTimeout(() => {
+            if (requestId !== loadRequestId) return
+            resolvedSrc.value = cached
+            imageRenderKey.value += 1
+            isImageLoading.value = true
+            resetSkeletonVisibility()
+            void ensureCachedImageReady(cached, requestId, 300).then((ok2) => {
+              if (requestId !== loadRequestId) return
+              isImageLoading.value = !ok2
+              if (ok2) markImageDecoded(cached)
+            })
+          }, 80)
         }
         return
       }
@@ -378,7 +422,6 @@ onBeforeUnmount(() => {
 .lazy-image-element--hidden {
   opacity: 0;
 }
-
 
 .lazy-image-skeleton {
   position: absolute;
