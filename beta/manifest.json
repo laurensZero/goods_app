@@ -1,9 +1,9 @@
 {
-  "version": "20260520.4",
-  "url": "bundle-20260520.4.zip",
-  "hash": "cc326d7456d178759af5243e0e53ad19db654134e2082e76bcb3ba04debb23db",
+  "version": "20260520.5",
+  "url": "bundle-20260520.5.zip",
+  "hash": "68763dc80639b8e1cd81da75406a93d679d7ad61b7272f61b41081fafabc55af",
   "minNativeVersion": null,
-  "notes": "- feat: 添加图像渲染键以支持轻量级重新验证，优化 Android 上的图像恢复",
+  "notes": "- feat: 将 imageCacheRefreshHandler 函数改为异步，以支持缓存图像的刷新逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-20T09:31:29Z"
+  "publishedAt": "2026-05-20T09:53:51Z"
 }

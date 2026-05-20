@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260520.5",
+    "url": "bundle-20260520.5.zip",
+    "hash": "68763dc80639b8e1cd81da75406a93d679d7ad61b7272f61b41081fafabc55af",
+    "minNativeVersion": null,
+    "notes": "- feat: 将 imageCacheRefreshHandler 函数改为异步，以支持缓存图像的刷新逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-20T09:53:51Z"
+  },
+  {
     "version": "20260520.4",
     "url": "bundle-20260520.4.zip",
     "hash": "cc326d7456d178759af5243e0e53ad19db654134e2082e76bcb3ba04debb23db",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在 Android 上实现图像恢复时的轻量级重新验证，优化 WebView 恢复后的图像加载",
     "updateLevel": "silent",
     "publishedAt": "2026-05-20T09:12:14Z"
-  },
-  {
-    "version": "20260520.2",
-    "url": "bundle-20260520.2.zip",
-    "hash": "40dacd7ba9f34f1003adcc6a8b1dd7a142ad3d2000bbbe174dccd14d5de81713",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 Supabase 后端支持，优化数据加载逻辑，增强数据同步功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-20T06:23:27Z"
   }
 ]
