@@ -1079,17 +1079,18 @@ async function loadGistInfo() {
 
     const manifestContent = await getGistFileContent(syncStore.token, gist, 'manifest.json')
     const manifest = manifestContent ? JSON.parse(manifestContent) : null
+    const readCount = (value) => (value === undefined || value === null ? null : Number(value) || 0)
 
     gistInfo.value = {
-      collectionCount: Number(manifest?.collectionCount) || 0,
-      wishlistCount: Number(manifest?.wishlistCount) || 0,
-      trashCount: Number(manifest?.trashCount) || 0,
-      rechargeCount: Number(manifest?.rechargeCount) || 0,
-      eventCount: Number(manifest?.eventCount) || 0,
+      collectionCount: readCount(manifest?.collectionCount),
+      wishlistCount: readCount(manifest?.wishlistCount),
+      trashCount: readCount(manifest?.trashCount),
+      rechargeCount: readCount(manifest?.rechargeCount),
+      eventCount: readCount(manifest?.eventCount),
       imageGistId: manifest?.imageGistId || '',
       rechargeGistId: syncStore.gistId || '',
       eventGistId: syncStore.gistId || '',
-      imageFileCount: Number(manifest?.imageFileCount) || 0,
+      imageFileCount: readCount(manifest?.imageFileCount),
       imageUpdatedAt: manifest?.imageUpdatedAt || ''
     }
   } catch {

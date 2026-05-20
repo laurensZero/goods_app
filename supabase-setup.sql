@@ -73,11 +73,15 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
   id TEXT PRIMARY KEY DEFAULT 'default',
   device_id TEXT DEFAULT '',
   synced_at TIMESTAMPTZ DEFAULT now(),
+  collection_count INTEGER DEFAULT 0,
+  wishlist_count INTEGER DEFAULT 0,
   image_count INTEGER DEFAULT 0,
   goods_count INTEGER DEFAULT 0,
   trash_count INTEGER DEFAULT 0,
   recharge_count INTEGER DEFAULT 0,
   event_count INTEGER DEFAULT 0,
+  recharge_updated_at TIMESTAMPTZ,
+  event_updated_at TIMESTAMPTZ,
   image_bucket TEXT DEFAULT 'goods-images'
 );
 

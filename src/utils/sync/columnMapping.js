@@ -29,11 +29,15 @@ const CAMEL_TO_SNAKE = {
   // sync_manifest
   deviceId: 'device_id',
   syncedAt: 'synced_at',
+  collectionCount: 'collection_count',
+  wishlistCount: 'wishlist_count',
   imageCount: 'image_count',
   goodsCount: 'goods_count',
   trashCount: 'trash_count',
   rechargeCount: 'recharge_count',
   eventCount: 'event_count',
+  rechargeUpdatedAt: 'recharge_updated_at',
+  eventUpdatedAt: 'event_updated_at',
   imageBucket: 'image_bucket',
   // sync_presets
   storageLocations: 'storage_locations'
