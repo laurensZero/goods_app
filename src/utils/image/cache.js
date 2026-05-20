@@ -583,6 +583,43 @@ export function preloadImages(urls) {
 }
 
 /**
+ * Force refresh a cached image's memory entry and return a fresh object URL.
+ * This revokes any existing blob: URL stored in memory cache for the key
+ * and attempts to rehydrate from Cache API / Capacitor FS / network.
+ * Useful when WebView may have lost texture for an existing object URL.
+ * @param {string} url
+ * @returns {Promise<string>} objectURL or original url
+ */
+export async function refreshCachedImage(url) {
+  if (!url) return ''
+  const normalizedUrl = normalizeCacheUrl(url)
+  const cacheKeys = getCacheKeyCandidates(normalizedUrl || url)
+  const cacheKey = cacheKeys[0] || normalizedUrl || url
+
+  // revoke and delete any existing memory cache entry for this key
+  try {
+    const existing = memoryCache.get(cacheKey)
+    if (existing && existing.startsWith('blob:')) {
+      memoryCache.delete(cacheKey)
+      const timer = memoryCacheTimers.get(cacheKey)
+      if (timer) {
+        clearTimeout(timer)
+        memoryCacheTimers.delete(cacheKey)
+      }
+      try { URL.revokeObjectURL(existing) } catch {}
+    }
+  } catch {}
+
+  // delegate to getCachedImage which will rehydrate from Cache API / FS / network
+  try {
+    const fresh = await getCachedImage(url)
+    return fresh || url
+  } catch {
+    return url
+  }
+}
+
+/**
  * 同步读取内存层缓存。
  * 只用于避免组件重挂载时出现一帧空白占位。
  * @param {string} url
