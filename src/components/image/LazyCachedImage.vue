@@ -245,7 +245,7 @@ function onImageError() {
 }
 
 onMounted(() => {
-  imageCacheRefreshHandler = (event) => {
+  imageCacheRefreshHandler = async (event) => {
     const reason = String(event?.detail?.reason || '')
     if (reason === 'resume') {
       forceDecodeValidationOnCacheHit = true
@@ -261,14 +261,14 @@ onMounted(() => {
     }
 
     if (reason === 'resume') {
-        // try to refresh memory cache entry to create a new objectURL if needed
-        const reloadSrc = await (async () => {
-          try {
-            return await refreshCachedImage(props.src)
-          } catch {
-            return peekCachedImage(props.src) || resolvedSrc.value || props.src
-          }
-        })()
+      // try to refresh memory cache entry to create a new objectURL if needed
+      const reloadSrc = await (async () => {
+        try {
+          return await refreshCachedImage(props.src)
+        } catch {
+          return peekCachedImage(props.src) || resolvedSrc.value || props.src
+        }
+      })()
       if (reloadSrc) {
         // detect hero shared-element images (marked on ancestor)
         const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
