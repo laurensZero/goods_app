@@ -38,7 +38,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage, markImageDecoded, peekCachedImage } from '@/utils/image/cache'
+import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
 
@@ -261,14 +261,36 @@ onMounted(() => {
     }
 
     if (reason === 'resume') {
-      const reloadSrc = peekCachedImage(props.src) || resolvedSrc.value || props.src
+        // try to refresh memory cache entry to create a new objectURL if needed
+        const reloadSrc = await (async () => {
+          try {
+            return await refreshCachedImage(props.src)
+          } catch {
+            return peekCachedImage(props.src) || resolvedSrc.value || props.src
+          }
+        })()
       if (reloadSrc) {
+        // detect hero shared-element images (marked on ancestor)
+        const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
+
         hasLoadError.value = false
         isImageLoading.value = true
+        // clear current src and bump key to force remount
         resolvedSrc.value = ''
         forceRebuildImageElement()
         resetSkeletonVisibility()
 
+        // For hero images, attempt a short, blocking pre-decode to avoid grey texture
+        if (isHero) {
+          const ok = await ensureCachedImageReady(reloadSrc, requestId, 420)
+          if (requestId !== loadRequestId) return
+          resolvedSrc.value = reloadSrc
+          isImageLoading.value = !ok
+          if (ok) markImageDecoded(reloadSrc)
+          return
+        }
+
+        // Non-hero: schedule a microtask/frame to reassign src and optionally validate
         const scheduleReload = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
           ? window.requestAnimationFrame.bind(window)
           : (cb) => window.setTimeout(cb, 0)
