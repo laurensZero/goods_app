@@ -1,9 +1,9 @@
 {
-  "version": "20260520.2",
-  "url": "bundle-20260520.2.zip",
-  "hash": "40dacd7ba9f34f1003adcc6a8b1dd7a142ad3d2000bbbe174dccd14d5de81713",
+  "version": "20260520.3",
+  "url": "bundle-20260520.3.zip",
+  "hash": "174ac5d74c20530971978a9a135c2adaff499c023f6b3466df188ae858a8238b",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 Supabase 后端支持，优化数据加载逻辑，增强数据同步功能",
+  "notes": "- feat: 在 Android 上实现图像恢复时的轻量级重新验证，优化 WebView 恢复后的图像加载",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-20T06:23:27Z"
+  "publishedAt": "2026-05-20T09:12:14Z"
 }
