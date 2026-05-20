@@ -740,6 +740,7 @@ import {
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
 } from '@/services/syncError'
 import { validateToken, getGist, getGistFileContent } from '@/utils/github/gist'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import {
   fetchGitHubUser,
   getGitHubDeviceFlowScope,
@@ -1065,6 +1066,37 @@ function showToast(message, duration = 2600) {
 }
 
 async function loadGistInfo() {
+  // If using Supabase backend, read manifest from Supabase table
+  const readCount = (value) => (value === undefined || value === null ? null : Number(value) || 0)
+  if (syncStore.syncBackend === 'supabase') {
+    try {
+      const db = getSupabaseClient()
+      const { data, error } = await db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
+      if (error || !data || data.length === 0) {
+        gistInfo.value = null
+        return
+      }
+      const row = data[0]
+      gistInfo.value = {
+        collectionCount: readCount(row.collection_count ?? row.collectionCount),
+        wishlistCount: readCount(row.wishlist_count ?? row.wishlistCount),
+        trashCount: readCount(row.trash_count ?? row.trashCount),
+        rechargeCount: readCount(row.recharge_count ?? row.rechargeCount),
+        eventCount: readCount(row.event_count ?? row.eventCount),
+        imageGistId: row.image_bucket ?? row.imageGistId ?? '',
+        rechargeGistId: syncStore.gistId || '',
+        eventGistId: syncStore.gistId || '',
+        imageFileCount: readCount(row.image_count ?? row.imageFileCount),
+        imageUpdatedAt: row.image_updated_at ?? row.imageUpdatedAt ?? ''
+      }
+      return
+    } catch (e) {
+      gistInfo.value = null
+      return
+    }
+  }
+
+  // Fallback: Gist backend
   if (!syncStore.token || !syncStore.gistId) {
     gistInfo.value = null
     return
@@ -1079,7 +1111,6 @@ async function loadGistInfo() {
 
     const manifestContent = await getGistFileContent(syncStore.token, gist, 'manifest.json')
     const manifest = manifestContent ? JSON.parse(manifestContent) : null
-    const readCount = (value) => (value === undefined || value === null ? null : Number(value) || 0)
 
     gistInfo.value = {
       collectionCount: readCount(manifest?.collectionCount),
