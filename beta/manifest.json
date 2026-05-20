@@ -1,9 +1,9 @@
 {
-  "version": "20260519.4",
-  "url": "bundle-20260519.4.zip",
-  "hash": "50c2ab0bb129be97c61f8593b60980be12ddb231fd813f0bd5aeafa921ada05a",
+  "version": "20260520.1",
+  "url": "bundle-20260520.1.zip",
+  "hash": "0f583c97ece1f20e71e55db238992684f27c16d0350c2e8c1557ffa9d82d22b9",
   "minNativeVersion": null,
-  "notes": "- feat: 为图像组件添加 resume-decode-validation 属性，优化图像解码管理",
+  "notes": "- feat: 添加 collectionCount 和 wishlistCount 字段，优化数据同步和管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-19T14:59:52Z"
+  "publishedAt": "2026-05-20T06:10:58Z"
 }
