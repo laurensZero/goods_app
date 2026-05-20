@@ -267,8 +267,13 @@ onMounted(() => {
         if (requestId !== loadRequestId) return
         resolvedSrc.value = cached
         resetSkeletonVisibility()
+        // Lightweight re-validation on resume for visible images on Android
+        const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
         if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
           await ensureCachedImageReady(cached, requestId)
+        } else if (reason === 'resume' && hasEnteredViewport.value && isAndroid) {
+          // short timeout to avoid jank; ensures image texture isn't lost after WebView resume
+          await ensureCachedImageReady(cached, requestId, 180)
         } else {
           isImageLoading.value = false
         }
