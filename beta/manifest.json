@@ -1,9 +1,9 @@
 {
-  "version": "20260520.1",
-  "url": "bundle-20260520.1.zip",
-  "hash": "0f583c97ece1f20e71e55db238992684f27c16d0350c2e8c1557ffa9d82d22b9",
+  "version": "20260520.2",
+  "url": "bundle-20260520.2.zip",
+  "hash": "40dacd7ba9f34f1003adcc6a8b1dd7a142ad3d2000bbbe174dccd14d5de81713",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 collectionCount 和 wishlistCount 字段，优化数据同步和管理",
+  "notes": "- feat: 添加 Supabase 后端支持，优化数据加载逻辑，增强数据同步功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-20T06:10:58Z"
+  "publishedAt": "2026-05-20T06:23:27Z"
 }
