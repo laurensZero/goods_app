@@ -1,9 +1,9 @@
 {
-  "version": "20260521.8",
-  "url": "bundle-20260521.8.zip",
-  "hash": "179d7350739742c807bb76a2d8822e293da4087a018e5f58d252137c2edd3755",
+  "version": "20260521.9",
+  "url": "bundle-20260521.9.zip",
+  "hash": "6775ac69ccdf950acfea09625bac7990c8f77322fb3d4da59ee51790a772457d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化预算功能",
+  "notes": "- feat: 优化价格计算逻辑，增加基础价格存在性检查",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T10:51:44Z"
+  "publishedAt": "2026-05-21T10:55:45Z"
 }

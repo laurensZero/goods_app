@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.9",
+    "url": "bundle-20260521.9.zip",
+    "hash": "6775ac69ccdf950acfea09625bac7990c8f77322fb3d4da59ee51790a772457d",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化价格计算逻辑，增加基础价格存在性检查",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T10:55:45Z"
+  },
+  {
     "version": "20260521.8",
     "url": "bundle-20260521.8.zip",
     "hash": "179d7350739742c807bb76a2d8822e293da4087a018e5f58d252137c2edd3755",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加预算管理功能，支持月度和年度预算设置及进度追踪",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T09:06:21Z"
-  },
-  {
-    "version": "20260521.6",
-    "url": "bundle-20260521.6.zip",
-    "hash": "f9b1a5df9406fe37bc3f7fe3cf4a5988d9c35f10ec881e8246a78f9f4267cb82",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 ECharts 支持，新增 PieChart 和 BarChart 组件，优化数据可视化展示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T08:49:00Z"
   }
 ]
