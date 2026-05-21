@@ -259,7 +259,7 @@ const priceText = computed(() => {
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
-    const total = (Number(props.item.actualPrice) || 0) * quantity + shipping
+    const total = (Number(props.item.actualPrice) || 0) + shipping
     return `${sym}${total}`
   }
 
