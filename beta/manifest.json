@@ -1,9 +1,9 @@
 {
-  "version": "20260521.19",
-  "url": "bundle-20260521.19.zip",
-  "hash": "20e91892231715dba3ddb35970bb79942410083aa84dc4648c87fa718f951d25",
+  "version": "20260521.20",
+  "url": "bundle-20260521.20.zip",
+  "hash": "2f140270a139bb3454fd1d7acf5972a1b5486a04a0ad747ab00e90f57623b1f4",
   "minNativeVersion": null,
-  "notes": "- feat: 移除图像组件中的 resume-decode-validation 属性，简化图像加载逻辑",
+  "notes": "- feat: 优化图表工具提示格式化逻辑，确保数值显示更友好",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T14:11:23Z"
+  "publishedAt": "2026-05-21T14:19:43Z"
 }

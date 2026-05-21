@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.20",
+    "url": "bundle-20260521.20.zip",
+    "hash": "2f140270a139bb3454fd1d7acf5972a1b5486a04a0ad747ab00e90f57623b1f4",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化图表工具提示格式化逻辑，确保数值显示更友好",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T14:19:43Z"
+  },
+  {
     "version": "20260521.19",
     "url": "bundle-20260521.19.zip",
     "hash": "20e91892231715dba3ddb35970bb79942410083aa84dc4648c87fa718f951d25",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T14:03:27Z"
-  },
-  {
-    "version": "20260521.17",
-    "url": "bundle-20260521.17.zip",
-    "hash": "4c1972f93c2aa89ad9a1256e983581d18ec06e49c9f5b8371778d34caff80b67",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加图像缓存刷新处理逻辑，确保在图像更新时重新渲染封面图像",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T13:57:45Z"
   }
 ]
