@@ -268,7 +268,7 @@ function setImageLoadPaused(paused) {
   scheduleImageLoadDrain()
 }
 
-function dispatchImageCacheRefresh(reason = 'resume') {
+function dispatchImageCacheRefresh(reason = 'refresh') {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('goodsapp:image-cache-refresh', {
     detail: {
@@ -692,11 +692,9 @@ export function setImagePreloadPaused(paused) {
   setImageLoadPaused(paused)
 }
 
-export function signalImageCacheRefresh(reason = 'resume') {
+export function signalImageCacheRefresh(reason = 'refresh') {
   if (typeof window === 'undefined') return
   if (imageRefreshDispatchScheduled) return
-
-  if (reason === 'resume') return
 
   const run = () => {
     imageRefreshDispatchScheduled = 0
