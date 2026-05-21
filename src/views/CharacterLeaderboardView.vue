@@ -71,6 +71,20 @@
         </div>
       </section>
 
+      <section class="charts-section">
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3 class="chart-title">按当前维度占比</h3>
+            <PieChart :entries="entries" labelKey="label" valueKey="quantity" />
+          </div>
+
+          <div class="chart-card">
+            <h3 class="chart-title">Top 10 项目（按选中指标）</h3>
+            <BarChart :entries="sortedEntries.slice(0,10)" :labelKey="'label'" :valueKey="selectedMetric" :inverse="true" />
+          </div>
+        </div>
+      </section>
+
       <section v-if="topThree.length > 0" class="podium-section">
         <article
           v-for="(entry, index) in topThree"
@@ -143,6 +157,8 @@ import {
 import EmptyState from '@/components/common/EmptyState.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
+import PieChart from '@/components/statistics/PieChart.vue'
+import BarChart from '@/components/statistics/BarChart.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 
@@ -399,7 +415,7 @@ const selectedDimensionLabel = computed(() =>
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 
@@ -462,6 +478,11 @@ const selectedDimensionLabel = computed(() =>
   font-weight: 600;
   transition: background var(--motion-fast) var(--motion-emphasis), color var(--motion-fast) var(--motion-emphasis), transform var(--motion-fast) var(--motion-emphasis);
 }
+
+.charts-section { padding: 0 var(--page-padding); margin-top: var(--section-gap); }
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.chart-card { background: var(--app-card-bg); border: 1px solid var(--app-glass-border); padding: 12px; border-radius: 12px; }
+.chart-title { margin: 0 0 8px 0; font-size: 14px; color: var(--app-text-secondary); }
 
 .chip:active {
   transform: scale(0.97);
@@ -599,6 +620,18 @@ const selectedDimensionLabel = computed(() =>
 }
 
 @media (max-width: 640px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card {
+    padding: 10px;
+  }
+
   .hero-copy {
     max-width: min(54vw, 320px);
   }

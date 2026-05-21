@@ -808,10 +808,10 @@ const LOG_GROUP_SEQUENCE = [
   'other'
 ]
 const LOG_GROUP_LABELS = {
-  manifest: 'manifest.json',
-  data: 'data.json',
-  'recharge-data': 'recharge-data.json',
-  'events-data': 'events-data.json',
+  manifest: 'manifest',
+  data: 'data',
+  'recharge-data': 'recharge-data',
+  'events-data': 'events-data',
   'image-gist': '图片 Gist',
   'recharge-gist': '充值 Gist',
   'event-gist': '活动 Gist',

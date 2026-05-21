@@ -88,7 +88,7 @@ export function createSyncConflictService({
       ? await getExistingEventGist()
       : await currentBackend.getExistingEventGist()
     const remoteData = await currentBackend.readJson({
-      title: '预检读取 data.json',
+      title: '预检读取 Data',
       gist,
       fileName: 'data.json',
       startDetail: '读取收藏、心愿单和回收站',
@@ -105,7 +105,7 @@ export function createSyncConflictService({
     const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
     const remoteRechargeData = shouldReadRechargePrecheck
       ? (await currentBackend.readJson({
-          title: '预检读取 recharge-data.json',
+          title: '预检读取 RechargeData',
           gist,
           fileName: 'recharge-data.json',
           startDetail: '读取充值记录',
@@ -125,7 +125,7 @@ export function createSyncConflictService({
       : { recharge: localRechargeData.recharge || [], rechargeTrash: [] }
     const localEventData = buildEventSyncData()
     const remoteEventData = await currentBackend.readJson({
-      title: '预检读取 events-data.json',
+      title: '预检读取 EventsData',
       gist,
       fileName: 'events-data.json',
       startDetail: '读取活动数据',
