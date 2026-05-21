@@ -257,7 +257,6 @@ const coverCardRef = ref(null)
 const coverMediaVisible = ref(false)
 const coverImageRenderKey = ref(0)
 let removeAndroidBackListener = null
-let removeImageCacheRefreshListener = null
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -713,20 +712,10 @@ function handleAndroidBackButton(event) {
   handleBackNavigation()
 }
 
-function handleImageCacheRefresh(event) {
-  const reason = String(event?.detail?.reason || '')
-  if (reason !== 'resume' || !activeImage.value?.uri) return
-  coverImageRenderKey.value += 1
-}
-
 onMounted(async () => {
   syncDetailScrollLock(true)
   lockDetailEntryScrollLock()
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
-  removeImageCacheRefreshListener = (event) => {
-    handleImageCacheRefresh(event)
-  }
-  window.addEventListener('goodsapp:image-cache-refresh', removeImageCacheRefreshListener)
   coverMediaVisible.value = false
   await prepareDetailLayout()
   await playGoodsHeroForwardWhenReady()
@@ -739,10 +728,6 @@ onBeforeUnmount(() => {
   if (removeAndroidBackListener) {
     removeAndroidBackListener()
     removeAndroidBackListener = null
-  }
-  if (removeImageCacheRefreshListener) {
-    window.removeEventListener('goodsapp:image-cache-refresh', removeImageCacheRefreshListener)
-    removeImageCacheRefreshListener = null
   }
 })
 

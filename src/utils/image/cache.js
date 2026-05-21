@@ -696,9 +696,7 @@ export function signalImageCacheRefresh(reason = 'resume') {
   if (typeof window === 'undefined') return
   if (imageRefreshDispatchScheduled) return
 
-  if (reason === 'resume') {
-    clearDecodedImageState()
-  }
+  if (reason === 'resume') return
 
   const run = () => {
     imageRefreshDispatchScheduled = 0

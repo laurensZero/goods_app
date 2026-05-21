@@ -106,7 +106,6 @@ function setupAndroidBackButton() {
 function setupAndroidResumeListener(theme) {
   const handleAppVisible = () => {
     theme.syncSystemAppearance({ forceApply: true })
-    signalImageCacheRefresh('resume')
   }
 
   document.addEventListener('visibilitychange', () => {
