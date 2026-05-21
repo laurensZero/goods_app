@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.11",
+    "url": "bundle-20260521.11.zip",
+    "hash": "706a052ea389fe99c4cc98b4dfac4e9fade6173378d1143543592ed30f5b9cf6",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化图表样式，添加圆角和玻璃效果，提升视觉体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T11:25:40Z"
+  },
+  {
     "version": "20260521.10",
     "url": "bundle-20260521.10.zip",
     "hash": "2a955f5961aac57b5a1f7f1418d90a501325c0347e6348540827cfc5d692cfe1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化价格计算逻辑，增加基础价格存在性检查",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T10:55:45Z"
-  },
-  {
-    "version": "20260521.8",
-    "url": "bundle-20260521.8.zip",
-    "hash": "179d7350739742c807bb76a2d8822e293da4087a018e5f58d252137c2edd3755",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化预算功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T10:51:44Z"
   }
 ]
