@@ -251,13 +251,24 @@ function hasPriceValue(value) {
 
 const priceText = computed(() => {
   const sym = CURRENCY_MAP[props.item.currency]?.symbol || '¥'
+  const quantity = Math.max(1, Number(props.item.quantity) || 1)
+  const shipping = Number(props.item.shippingFee) || 0
+
   if (props.item.isWishlist) {
     return hasPriceValue(props.item.price) ? `目标 ${sym}${props.item.price}` : '心愿单'
   }
+
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
-    return `到手 ${sym}${props.item.actualPrice}`
+    const total = (Number(props.item.actualPrice) || 0) * quantity + shipping
+    return `${sym}${total}`
   }
-  return hasPriceValue(props.item.price) ? `${sym}${props.item.price}` : `${sym}—`
+
+  if (hasPriceValue(props.item.price)) {
+    const total = (Number(props.item.price) || 0) * quantity + shipping
+    return `${sym}${total}`
+  }
+
+  return `${sym}—`
 })
 </script>
 
