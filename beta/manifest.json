@@ -1,9 +1,9 @@
 {
-  "version": "20260521.14",
-  "url": "bundle-20260521.14.zip",
-  "hash": "ab742592e38e92b1770021bd4f08f29556786adcc8047d4e2f3021680f8c2f98",
+  "version": "20260521.15",
+  "url": "bundle-20260521.15.zip",
+  "hash": "a772e568ddc534668c465448a8b29e85ef839119580f595889bbf8334f56f322",
   "minNativeVersion": null,
-  "notes": "- feat: 优化事件详情视图的媒体显示逻辑，确保在动画完成后正确显示封面媒体",
+  "notes": "- feat: 优化商品总价计算逻辑，使用 resolveCollectionTotalValue 函数简化计算过程",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T13:14:25Z"
+  "publishedAt": "2026-05-21T13:41:23Z"
 }
