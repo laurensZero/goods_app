@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.2",
+    "url": "bundle-20260521.2.zip",
+    "hash": "73ac4703c8f5a2c8a4aa43aa858f8e9091846dddda25ba41d03f4f225de3c75b",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改 groupedViewEnabled 默认值为 false，优化用户界面设置",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T06:51:31Z"
+  },
+  {
     "version": "20260521.1",
     "url": "bundle-20260521.1.zip",
     "hash": "4ef3503ad85dd3d3fe8bac65ca4b18f873e10c5cac9b418b3fdf3f809928c5a3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 将 imageCacheRefreshHandler 函数改为异步，以支持缓存图像的刷新逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-20T09:53:51Z"
-  },
-  {
-    "version": "20260520.4",
-    "url": "bundle-20260520.4.zip",
-    "hash": "cc326d7456d178759af5243e0e53ad19db654134e2082e76bcb3ba04debb23db",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加图像渲染键以支持轻量级重新验证，优化 Android 上的图像恢复",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-20T09:31:29Z"
   }
 ]
