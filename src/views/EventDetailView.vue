@@ -490,7 +490,6 @@ function preloadLinkedGoodsImages() {
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   lockDetailEntryScrollLock()
-  coverMediaVisible.value = false
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
@@ -502,11 +501,13 @@ onMounted(async () => {
   const hasPendingBackAnimation = hasPendingGoodsHeroBack(route.fullPath)
   
   if (hasPendingBackAnimation) {
+    coverMediaVisible.value = true
     await nextTick()
     tryPlayLinkedGoodsBackHero()
     // Don't show media until the back animation completes
     // The animation will handle visibility
   } else {
+    coverMediaVisible.value = false
     await playEventHeroForwardWhenReady()
     coverMediaVisible.value = true
   }
@@ -523,7 +524,6 @@ onBeforeUnmount(() => {
 
 onActivated(async () => {
   lockDetailEntryScrollLock()
-  coverMediaVisible.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
   
