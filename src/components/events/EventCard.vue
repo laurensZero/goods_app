@@ -34,7 +34,6 @@
         v-if="event.coverImage"
         :src="event.coverImage"
         :alt="event.name || '活动封面'"
-        resume-decode-validation
         :image-attrs="{ class: 'event-card__image' }"
       />
       <div v-else class="event-card__placeholder">
