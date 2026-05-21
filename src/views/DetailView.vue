@@ -379,11 +379,12 @@ const heroTotalPriceAmount = computed(() => {
 
   const quantity = Math.max(1, Number(it.quantity) || 1)
   const shipping = Number(it.shippingFee) || 0
+  const hasBasePrice = hasActualPriceValue(it.actualPrice) || hasPriceValue(it.price)
   const basePrice = hasActualPriceValue(it.actualPrice)
-    ? Number(it.actualPrice) || 0
-    : (hasPriceValue(it.price) ? Number(it.price) || 0 : 0)
+    ? (Number(it.actualPrice) || 0)
+    : (hasPriceValue(it.price) ? (Number(it.price) || 0) : 0)
 
-  if (!basePrice && !shipping) return '—'
+  if (!hasBasePrice && !shipping) return '—'
   const total = (basePrice * quantity) + shipping
   return `${Math.round(total * 100) / 100}`
 })
