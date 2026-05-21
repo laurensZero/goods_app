@@ -296,13 +296,33 @@ async function waitForStableHeroTarget(el, maxFrames = 2) {
   return false
 }
 
+function isGoodsHeroTargetReady(el) {
+  if (!el) return false
+  const imageRoot = el.querySelector?.('[data-lazy-image-ready]') || null
+  if (!imageRoot) return true
+  return imageRoot.getAttribute('data-lazy-image-ready') === 'true'
+}
+
 async function playGoodsHeroForwardWhenReady() {
   if (getPendingDetailTransitionKind() === 'detail-fade') return
   await nextTick()
-  if (!coverCardRef.value) return
-  const isStable = await waitForStableHeroTarget(coverCardRef.value)
-  if (!isStable) return
-  await playGoodsHeroForward(props.id, coverCardRef.value)
+  const targetEl = coverCardRef.value
+  if (!targetEl) return
+
+  const targetReadyNeeded = !!activeImage.value?.uri
+  for (let frame = 0; frame < 12; frame += 1) {
+    if (!targetReadyNeeded || isGoodsHeroTargetReady(targetEl)) {
+      const isStable = await waitForStableHeroTarget(targetEl)
+      if (!isStable) return
+
+      const heroPromise = await playGoodsHeroForward(props.id, targetEl)
+      if (heroPromise) {
+        await heroPromise
+        return
+      }
+    }
+    await waitForNextFrame()
+  }
 }
 
 const item = computed(() => store.getById(props.id))

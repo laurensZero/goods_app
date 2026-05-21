@@ -525,6 +525,18 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   let finalized = false
   let animation = null
   let timeoutId = null
+  let sourceImageReady = true
+
+  if (snapshot.imageSrc) {
+    if (hasRecentlyDecodedImage(snapshot.imageSrc)) {
+      sourceImageReady = true
+    } else {
+      sourceImageReady = await waitForImageDecode(snapshot.imageSrc, 420)
+      if (sourceImageReady) {
+        markImageDecoded(snapshot.imageSrc)
+      }
+    }
+  }
 
   const finalize = () => {
     if (finalized) return
@@ -588,31 +600,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   // finishes quickly we hide the target and start animation in the same
   // frame; otherwise we start animation without hiding to avoid a
   // one-frame blank gap on Android WebView.
-  const heroImgEl = node.querySelector('[data-hero-media]')
-  let heroImgReady = true
-  if (heroImgEl && heroImgEl.tagName === 'IMG' && snapshot.imageSrc) {
-    if (hasRecentlyDecodedImage(snapshot.imageSrc)) {
-      heroImgReady = true
-    } else {
-      heroImgReady = false
-      try {
-        const decodePromise = (typeof heroImgEl.decode === 'function')
-          ? heroImgEl.decode().then(() => true).catch(() => true)
-          : Promise.resolve(true)
-
-        heroImgReady = await Promise.race([
-          decodePromise,
-          new Promise((res) => setTimeout(() => res(false), 48))
-        ])
-        if (heroImgReady) {
-          markImageDecoded(snapshot.imageSrc)
-        }
-      } catch (e) {
-        heroImgReady = false
-      }
-    }
-  }
-
   const easing = resolveHeroEasing(direction, snapshot, targetRect)
   const radiusFrom = Number.isFinite(snapshot.radius) ? snapshot.radius : 0
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
@@ -628,7 +615,7 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     // overlay image is ready. If not ready, skip hiding to avoid a
     // visible blank; this may leave the target briefly visible under
     // the overlay but prevents a gray block on Android.
-    if (heroImgReady) {
+    if (sourceImageReady) {
       hideElement(targetEl)
     }
 
