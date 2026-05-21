@@ -314,7 +314,9 @@ export function createSupabaseBackendAdapter({
           eventCount: manifestContent.eventCount || 0,
           imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
           rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
-          eventUpdatedAt: manifestContent.eventUpdatedAt || null
+          eventUpdatedAt: manifestContent.eventUpdatedAt || null,
+          budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
+          budgetYearly: Number(manifestContent.budgetYearly) || 0
         })
         let { error } = await withRetry(() =>
           db.from('sync_manifest').upsert(manifestRow)

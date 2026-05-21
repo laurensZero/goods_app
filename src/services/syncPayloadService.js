@@ -16,6 +16,8 @@ import {
   EVENT_DATA_VERSION,
   MANIFEST_VERSION
 } from '@/constants/syncConstants'
+import { readPersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 export function createSyncPayloadService({
   deviceIdRef,
@@ -30,6 +32,31 @@ export function createSyncPayloadService({
   compressImageToBlob,
   imageFileSizeLimit
 }) {
+  function normalizeBudgetValue(value) {
+    const num = Number(value)
+    if (!Number.isFinite(num) || num <= 0) return 0
+    return num
+  }
+
+  async function readBudgetSettingsFromStorage() {
+    const [monthlyRaw, yearlyRaw] = await Promise.all([
+      readPersisted(MONTHLY_BUDGET_STORAGE_KEY, ''),
+      readPersisted(YEARLY_BUDGET_STORAGE_KEY, '')
+    ])
+
+    return {
+      monthly: normalizeBudgetValue(monthlyRaw),
+      yearly: normalizeBudgetValue(yearlyRaw)
+    }
+  }
+
+  function normalizeBudgetSettings(input) {
+    return {
+      monthly: normalizeBudgetValue(input?.monthly),
+      yearly: normalizeBudgetValue(input?.yearly)
+    }
+  }
+
   function normalizeEventForComparison(item) {
     const coverGistFileName = String(item?.coverImageData?.gistFileName || parseGistImageUri(item?.coverImage) || '').trim()
     const normalizedCoverImage = coverGistFileName
@@ -286,6 +313,8 @@ export function createSyncPayloadService({
 
     imageStats.imageFileCount = referencedImageFiles.size
 
+    const budgetSettings = await readBudgetSettingsFromStorage()
+
     return {
       syncData: {
         version: SYNC_PAYLOAD_VERSION,
@@ -293,7 +322,8 @@ export function createSyncPayloadService({
         deviceId: deviceIdRef.value,
         goods,
         trash,
-        presets: await buildPresetsData()
+        presets: await buildPresetsData(),
+        budgetSettings
       },
       imageStats,
       imageFiles,
@@ -391,11 +421,15 @@ export function createSyncPayloadService({
       .map((item) => sortObjectKeys(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     const presetsData = data?.presets || await buildPresetsData()
+    const budgetSettings = data?.budgetSettings
+      ? normalizeBudgetSettings(data.budgetSettings)
+      : await readBudgetSettingsFromStorage()
 
     return JSON.stringify(sortObjectKeys({
       goods,
       trash,
-      presets: presetsData
+      presets: presetsData,
+      budgetSettings
     }))
   }
 
@@ -436,7 +470,9 @@ export function createSyncPayloadService({
       rechargeCount: Number(counts.rechargeCount) || 0,
       eventCount: Number(counts.eventCount) || 0,
       rechargeUpdatedAt: counts.rechargeUpdatedAt || '',
-      eventUpdatedAt: counts.eventUpdatedAt || ''
+      eventUpdatedAt: counts.eventUpdatedAt || '',
+      budgetMonthly: normalizeBudgetValue(counts.budgetMonthly),
+      budgetYearly: normalizeBudgetValue(counts.budgetYearly)
     }
   }
 
