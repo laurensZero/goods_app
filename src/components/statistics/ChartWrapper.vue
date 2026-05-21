@@ -56,6 +56,15 @@ function applyThemeToOption(opt) {
   if (option.tooltip) {
     option.tooltip.textStyle = option.tooltip.textStyle || {}
     option.tooltip.textStyle.color = option.tooltip.textStyle.color || colors.text
+    // apply glass-like background for tooltip using CSS variables
+    const s = getComputedStyle(document.documentElement)
+    const glass = (s.getPropertyValue('--app-glass') || 'rgba(255,255,255,0.06)').trim()
+    const glassBorder = (s.getPropertyValue('--app-glass-border') || 'rgba(255,255,255,0.06)').trim()
+    option.tooltip.backgroundColor = option.tooltip.backgroundColor || glass
+    option.tooltip.borderColor = option.tooltip.borderColor || glassBorder
+    option.tooltip.borderWidth = option.tooltip.borderWidth || 1
+    option.tooltip.padding = option.tooltip.padding || 10
+    option.tooltip.extraCssText = option.tooltip.extraCssText || `border-radius: var(--radius-card); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);`
   }
 
   const applyAxis = (axis) => {
@@ -73,6 +82,14 @@ function applyThemeToOption(opt) {
 
   applyAxis(option.xAxis)
   applyAxis(option.yAxis)
+
+  // legend style: use glass subtle background and rounded markers
+  if (option.legend) {
+    option.legend.itemWidth = option.legend.itemWidth || 14
+    option.legend.itemHeight = option.legend.itemHeight || 8
+    option.legend.textStyle = option.legend.textStyle || {}
+    option.legend.textStyle.fontFamily = option.legend.textStyle.fontFamily || getComputedStyle(document.documentElement).getPropertyValue('font-family')
+  }
 
   return option
 }
@@ -101,7 +118,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.chart-wrapper { min-height: 180px; display: flex; align-items: center; justify-content: center; }
-.chart-root { width: 100%; height: 240px; }
+.chart-wrapper { position: relative; min-height: 180px; display: flex; align-items: center; justify-content: center; padding: 8px; }
+.chart-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: var(--radius-card);
+  background: var(--app-glass-strong, rgba(255,255,255,0.04));
+  border: 1px solid var(--app-glass-border, rgba(255,255,255,0.06));
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  pointer-events: none;
+}
+.chart-root { width: 100%; height: 240px; position: relative; z-index: 1; }
 .chart-loading, .chart-empty { color: var(--app-text-tertiary); }
 </style>

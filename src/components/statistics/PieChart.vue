@@ -53,26 +53,18 @@ const chartOption = computed(() => {
 
   return {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', confine: true },
-    legend: isCompact.value
-      ? {
-          orient: 'horizontal',
-          bottom: 0,
-          type: 'scroll',
-          itemWidth: 10,
-          itemHeight: 10,
-          textStyle: { fontSize: 11 }
-        }
-      : { orient: 'horizontal', bottom: 0, type: 'scroll' },
+      legend: { orient: 'horizontal', bottom: 0, type: 'scroll', itemStyle: { borderRadius: 2 } },
     series: [
       {
         type: 'pie',
-        radius: isCompact.value ? ['30%', '54%'] : ['40%', '70%'],
+          radius: ['42%', '68%'],
         center: isCompact.value ? ['50%', '42%'] : ['50%', '50%'],
         avoidLabelOverlap: false,
         label: { show: false, position: 'center' },
         emphasis: { label: { show: true, fontSize: '14', fontWeight: 'bold' } },
         labelLine: { show: false },
-        data
+          data,
+          itemStyle: { borderRadius: 6 }
       }
     ]
   }
