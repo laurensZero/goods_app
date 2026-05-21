@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.14",
+    "url": "bundle-20260521.14.zip",
+    "hash": "ab742592e38e92b1770021bd4f08f29556786adcc8047d4e2f3021680f8c2f98",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化事件详情视图的媒体显示逻辑，确保在动画完成后正确显示封面媒体",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T13:14:25Z"
+  },
+  {
     "version": "20260521.13",
     "url": "bundle-20260521.13.zip",
     "hash": "8acc6350d3e940de6992db21867bb53332a62d519f86a5fe3b4670eb729ad354",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化预算计算逻辑，基于商品入手日期和实际价格计算消费，支持已赠出/已出商品的排除",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T12:20:59Z"
-  },
-  {
-    "version": "20260521.11",
-    "url": "bundle-20260521.11.zip",
-    "hash": "706a052ea389fe99c4cc98b4dfac4e9fade6173378d1143543592ed30f5b9cf6",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图表样式，添加圆角和玻璃效果，提升视觉体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T11:25:40Z"
   }
 ]

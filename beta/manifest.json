@@ -1,9 +1,9 @@
 {
-  "version": "20260521.13",
-  "url": "bundle-20260521.13.zip",
-  "hash": "8acc6350d3e940de6992db21867bb53332a62d519f86a5fe3b4670eb729ad354",
+  "version": "20260521.14",
+  "url": "bundle-20260521.14.zip",
+  "hash": "ab742592e38e92b1770021bd4f08f29556786adcc8047d4e2f3021680f8c2f98",
   "minNativeVersion": null,
-  "notes": "- feat: 添加深色模式下 nav-icon-btn 的样式覆盖，确保可见性和一致性",
+  "notes": "- feat: 优化事件详情视图的媒体显示逻辑，确保在动画完成后正确显示封面媒体",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T13:00:05Z"
+  "publishedAt": "2026-05-21T13:14:25Z"
 }
