@@ -1,9 +1,9 @@
 {
-  "version": "20260521.16",
-  "url": "bundle-20260521.16.zip",
-  "hash": "e5c6a720f4a8f73b15fe8c33d6a0ba866f69dcb931f0b3cc3f247f8e27878c48",
+  "version": "20260521.17",
+  "url": "bundle-20260521.17.zip",
+  "hash": "4c1972f93c2aa89ad9a1256e983581d18ec06e49c9f5b8371778d34caff80b67",
   "minNativeVersion": null,
-  "notes": "- feat: 优化商品英雄动画逻辑，确保图像解码后再进行动画播放，提高用户体验",
+  "notes": "- feat: 添加图像缓存刷新处理逻辑，确保在图像更新时重新渲染封面图像",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T13:51:15Z"
+  "publishedAt": "2026-05-21T13:57:45Z"
 }

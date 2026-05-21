@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.17",
+    "url": "bundle-20260521.17.zip",
+    "hash": "4c1972f93c2aa89ad9a1256e983581d18ec06e49c9f5b8371778d34caff80b67",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加图像缓存刷新处理逻辑，确保在图像更新时重新渲染封面图像",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T13:57:45Z"
+  },
+  {
     "version": "20260521.16",
     "url": "bundle-20260521.16.zip",
     "hash": "e5c6a720f4a8f73b15fe8c33d6a0ba866f69dcb931f0b3cc3f247f8e27878c48",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品总价计算逻辑，使用 resolveCollectionTotalValue 函数简化计算过程",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T13:41:23Z"
-  },
-  {
-    "version": "20260521.14",
-    "url": "bundle-20260521.14.zip",
-    "hash": "ab742592e38e92b1770021bd4f08f29556786adcc8047d4e2f3021680f8c2f98",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化事件详情视图的媒体显示逻辑，确保在动画完成后正确显示封面媒体",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T13:14:25Z"
   }
 ]
