@@ -1,9 +1,9 @@
 {
-  "version": "20260521.15",
-  "url": "bundle-20260521.15.zip",
-  "hash": "a772e568ddc534668c465448a8b29e85ef839119580f595889bbf8334f56f322",
+  "version": "20260521.16",
+  "url": "bundle-20260521.16.zip",
+  "hash": "e5c6a720f4a8f73b15fe8c33d6a0ba866f69dcb931f0b3cc3f247f8e27878c48",
   "minNativeVersion": null,
-  "notes": "- feat: 优化商品总价计算逻辑，使用 resolveCollectionTotalValue 函数简化计算过程",
+  "notes": "- feat: 优化商品英雄动画逻辑，确保图像解码后再进行动画播放，提高用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T13:41:23Z"
+  "publishedAt": "2026-05-21T13:51:15Z"
 }

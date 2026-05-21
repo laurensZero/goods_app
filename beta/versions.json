@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.16",
+    "url": "bundle-20260521.16.zip",
+    "hash": "e5c6a720f4a8f73b15fe8c33d6a0ba866f69dcb931f0b3cc3f247f8e27878c48",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化商品英雄动画逻辑，确保图像解码后再进行动画播放，提高用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T13:51:15Z"
+  },
+  {
     "version": "20260521.15",
     "url": "bundle-20260521.15.zip",
     "hash": "a772e568ddc534668c465448a8b29e85ef839119580f595889bbf8334f56f322",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化事件详情视图的媒体显示逻辑，确保在动画完成后正确显示封面媒体",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T13:14:25Z"
-  },
-  {
-    "version": "20260521.13",
-    "url": "bundle-20260521.13.zip",
-    "hash": "8acc6350d3e940de6992db21867bb53332a62d519f86a5fe3b4670eb729ad354",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加深色模式下 nav-icon-btn 的样式覆盖，确保可见性和一致性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T13:00:05Z"
   }
 ]
