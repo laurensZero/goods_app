@@ -518,6 +518,17 @@ body .toast {
   }
 }
 
+/* 全局深色模式覆盖：确保 nav-icon-btn 在深色主题下可见，优先级高于 scoped 样式 */
+html.theme-dark .nav-icon-btn {
+  background: var(--app-glass) !important;
+  border: 1px solid var(--app-glass-border) !important;
+  color: var(--app-text) !important;
+}
+
+html.theme-dark .nav-icon-btn.danger {
+  color: #ff8a80 !important;
+}
+
 /* ── 深色模式 ── */
 html.theme-dark {
   --app-bg: #0f0f10;
