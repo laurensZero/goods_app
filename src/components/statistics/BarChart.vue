@@ -1,0 +1,64 @@
+<template>
+  <ChartWrapper :option="chartOption" :loading="loading" />
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import ChartWrapper from './ChartWrapper.vue'
+
+const props = defineProps({
+  entries: { type: Array, default: () => [] },
+  labelKey: { type: String, default: 'label' },
+  valueKey: { type: String, default: 'quantity' },
+  horizontal: { type: Boolean, default: true },
+  inverse: { type: Boolean, default: true },
+  loading: { type: Boolean, default: false }
+})
+
+const chartOption = computed(() => {
+  if (!props.entries || props.entries.length === 0) return {}
+  const labels = props.entries.map((e) => e[props.labelKey])
+  const values = props.entries.map((e) => Number(e[props.valueKey] || 0))
+
+  // Determine a comfortable left margin for long labels when horizontal
+  const leftMargin = props.horizontal ? '20%' : '6%'
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: function (params) {
+        const p = params[0]
+        return `${p.name}<br/>${p.seriesName || ''}: ${p.value}`
+      }
+    },
+    grid: { left: leftMargin, right: '6%', top: '12%', bottom: '12%', containLabel: true },
+    xAxis: props.horizontal ? { type: 'value' } : { type: 'category', data: labels },
+    yAxis: props.horizontal
+      ? {
+          type: 'category',
+          data: labels,
+          inverse: !!props.inverse,
+          axisLabel: {
+            interval: 0,
+            formatter: function (val) {
+              if (!val) return ''
+              return val.length > 18 ? val.slice(0, 18) + '…' : val
+            }
+          }
+        }
+      : { type: 'value' },
+    series: [
+      {
+        name: props.valueKey,
+        type: 'bar',
+        data: values,
+        barMaxWidth: 24,
+        label: { show: false }
+      }
+    ]
+  }
+})
+</script>
+
+<style scoped></style>

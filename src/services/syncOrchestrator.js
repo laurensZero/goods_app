@@ -160,7 +160,7 @@ export function createSyncOrchestrator({
     const eventsStore = useEventsStore()
 
     const remoteData = await readJson({
-      title: '读取 data.json',
+      title: '读取 Data',
       gist,
       fileName: DATA_FILENAME,
       startDetail: '读取收藏、心愿单和回收站',
@@ -179,7 +179,7 @@ export function createSyncOrchestrator({
     const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const rechargeData = shouldPullRecharge
       ? await readJson({
-          title: '正式拉取 recharge-data.json',
+          title: '正式拉取 RechargeData',
           gist,
           fileName: RECHARGE_DATA_FILENAME,
           startDetail: '读取充值记录',
@@ -196,7 +196,7 @@ export function createSyncOrchestrator({
       : { recharge: localRechargeSnapshot, rechargeTrash: [] }
 
     const eventData = await readJson({
-      title: '正式拉取 events-data.json',
+      title: '正式拉取 EventsData',
       gist,
       fileName: EVENT_DATA_FILENAME,
       startDetail: '读取活动数据',
@@ -473,7 +473,7 @@ export function createSyncOrchestrator({
           [EVENT_DATA_FILENAME]: { content: eventSyncData },
           [MANIFEST_FILENAME]: { content: manifest }
         }),
-        { startDetail: '上传 data.json / recharge-data.json / events-data.json / manifest.json', category: 'sync', successDetail: () => '远端数据已更新' }
+        { startDetail: '上传 data / recharge-data / events-data / manifest', category: 'sync', successDetail: () => '远端数据已更新' }
       )
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
 
@@ -527,7 +527,7 @@ export function createSyncOrchestrator({
     let remoteManifest
     try {
       remoteManifest = await readJson({
-        title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME,
+        title: '读取 manifest', gist, fileName: MANIFEST_FILENAME,
         startDetail: '检查远端同步摘要', category: 'pull',
         successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
       })
@@ -541,7 +541,7 @@ export function createSyncOrchestrator({
     let remoteData, remoteRechargeData, remoteEventData
     try {
       remoteData = await readJson({
-        title: '读取 data.json', gist, fileName: DATA_FILENAME,
+        title: '读取 Data', gist, fileName: DATA_FILENAME,
         startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
         successDetail: (parsed) => {
           if (!parsed) return '未找到远端主数据'
@@ -554,14 +554,14 @@ export function createSyncOrchestrator({
       const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, rechargeStore)
       remoteRechargeData = shouldReadRechargePrecheck
         ? (await readJson({
-            title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME,
+            title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
             startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
             successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
           }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] })
         : { recharge: rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }), rechargeTrash: [] }
 
       remoteEventData = await readJson({
-        title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME,
+        title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
         startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
         successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
       }) || { events: [] }
@@ -676,7 +676,7 @@ export function createSyncOrchestrator({
 
     let remoteManifest, remoteRechargeData, remoteEventData
     try {
-      remoteManifest = await readJson({ title: '读取 manifest.json', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
+      remoteManifest = await readJson({ title: '读取 manifest', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
         successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' })
 
       const rechargeStore = useRechargeStore()
@@ -685,12 +685,12 @@ export function createSyncOrchestrator({
 
       ;[remoteRechargeData, remoteEventData] = await Promise.all([
         shouldReadRechargePrecheck
-          ? readJson({ title: '预检读取 recharge-data.json', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
+          ? readJson({ title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
               fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
               successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
             }).then((result) => result || { recharge: [], rechargeTrash: [] })
           : Promise.resolve({ recharge: localRechargeSnapshot, rechargeTrash: [] }),
-        readJson({ title: '预检读取 events-data.json', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
+        readJson({ title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
           fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
           successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
         }).then((result) => result || { events: [] })
@@ -789,7 +789,7 @@ export function createSyncOrchestrator({
       let remoteManifest
       try {
         remoteManifest = await readJson({
-          title: '读取 manifest.json', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
+          title: '读取 manifest', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
           startDetail: '读取冲突远端摘要', category: 'pull',
           successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
         })
