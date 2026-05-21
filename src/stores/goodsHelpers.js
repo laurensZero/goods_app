@@ -135,12 +135,26 @@ function resolveEffectivePriceValue(item) {
   }
 
   if (item?.actualPrice !== '' && item?.actualPrice != null) {
-    const base = Number(item.actualPrice) || 0
-    const shipping = Number(item.shippingFee) || 0
-    return String(base + shipping)
+    return item?.actualPrice
   }
 
   return item?.price
+}
+
+function resolveCollectionTotalValue(item) {
+  if (normalizeWishlistFlag(item?.isWishlist)) {
+    return item?.price
+  }
+
+  const shipping = Number(item?.shippingFee) || 0
+  if (item?.actualPrice !== '' && item?.actualPrice != null) {
+    const actual = Number(item.actualPrice) || 0
+    return String(actual + shipping)
+  }
+
+  const quantity = parseQuantity(item?.quantity)
+  const basePrice = Number(item?.price) || 0
+  return String((basePrice * quantity) + shipping)
 }
 
 function normalizeCharacterList(list) {
@@ -336,6 +350,7 @@ export {
   normalizeWishlistFlag,
   normalizeCollectStatus,
   resolveEffectivePriceValue,
+  resolveCollectionTotalValue,
   normalizeCharacterList,
   normalizeTagList,
   normalizeUnitAcquiredAtList,

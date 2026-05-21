@@ -39,7 +39,8 @@ function buildTimelineEntries(goodsList) {
   for (const item of goodsList) {
     const dates = getTimelineSourceDates(item)
     const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
-    const priceNumber = Number(item?.priceCNYNumber) || 0
+    const collectionTotalNumber = Number(item?.totalValueNumber) || 0
+    const perUnitShareNumber = quantityNumber > 0 ? collectionTotalNumber / quantityNumber : collectionTotalNumber
 
     if (dates.length === 0) {
       entries.push({
@@ -52,8 +53,8 @@ function buildTimelineEntries(goodsList) {
         acquiredAt: '',
         timelineYearMonth: '',
         timelineSortTime: 0,
-        priceNumber,
-        totalValueNumber: priceNumber * quantityNumber
+        priceNumber: perUnitShareNumber,
+        totalValueNumber: collectionTotalNumber
       })
       continue
     }
@@ -84,8 +85,8 @@ function buildTimelineEntries(goodsList) {
         quantity: monthDates.length,
         timelineYearMonth: yearMonth,
         timelineQuantity: monthDates.length,
-        priceNumber,
-        totalValueNumber: priceNumber * monthDates.length,
+        priceNumber: perUnitShareNumber,
+        totalValueNumber: perUnitShareNumber * monthDates.length,
         timelineSortTime: getLatestTimelineDateTimestamp(monthDates) || parseTimelineDateTimestamp(acquiredAt) || index
       }
     })
@@ -158,9 +159,9 @@ export function useHomeTimeline({
 
       monthGroup.items.push(item)
       monthGroup.count += Number(item.quantity) || 1
-      monthGroup.totalSpend += (Number(item.priceCNYNumber) || 0) * (Number(item.quantity) || 1)
+      monthGroup.totalSpend += Number(item.totalValueNumber) || 0
       yearGroup.yearCount += Number(item.quantity) || 1
-      yearGroup.yearTotal += (Number(item.priceCNYNumber) || 0) * (Number(item.quantity) || 1)
+      yearGroup.yearTotal += Number(item.totalValueNumber) || 0
     }
 
     return yearGroups.map(({ monthMap, ...yearGroup }) => yearGroup)

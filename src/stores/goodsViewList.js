@@ -8,7 +8,8 @@ import {
   parseQuantity,
   parseDeletedTime,
   normalizeWishlistFlag,
-  resolveEffectivePriceValue
+  resolveEffectivePriceValue,
+  resolveCollectionTotalValue
 } from '@/stores/goodsHelpers'
 
 /**
@@ -21,6 +22,8 @@ function enrichItem(item, exchangeRate) {
   const actualPriceNumber = parseNumericPrice(item.actualPrice)
   const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
   const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+  const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(item))
+  const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, item.currency)
 
   return {
     ...item,
@@ -34,7 +37,7 @@ function enrichItem(item, exchangeRate) {
     effectivePriceNumber,
     priceCNYNumber,
     quantityNumber,
-    totalValueNumber: priceCNYNumber * quantityNumber
+    totalValueNumber: collectionTotalCNYNumber
   }
 }
 
@@ -136,6 +139,8 @@ export function createTrashViewList(trashList) {
       const actualPriceNumber = parseNumericPrice(item.actualPrice)
       const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
       const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+      const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(item))
+      const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, item.currency)
       const viewItem = {
         ...item,
         deletedTime: parseDeletedTime(item.deletedAt),
@@ -146,7 +151,7 @@ export function createTrashViewList(trashList) {
         effectivePriceNumber,
         priceCNYNumber,
         quantityNumber,
-        totalValueNumber: priceCNYNumber * quantityNumber
+        totalValueNumber: collectionTotalCNYNumber
       }
       newMap.set(item.id, { viewItem, srcItem: item })
     }
@@ -182,6 +187,8 @@ export function createTrashViewList(trashList) {
       const actualPriceNumber = parseNumericPrice(srcItem.actualPrice)
       const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(srcItem))
       const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, srcItem.currency)
+      const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(srcItem))
+      const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, srcItem.currency)
       const viewItem = {
         ...srcItem,
         deletedTime: parseDeletedTime(srcItem.deletedAt),
@@ -192,7 +199,7 @@ export function createTrashViewList(trashList) {
         effectivePriceNumber,
         priceCNYNumber,
         quantityNumber,
-        totalValueNumber: priceCNYNumber * quantityNumber
+        totalValueNumber: collectionTotalCNYNumber
       }
       newMap.set(id, { viewItem, srcItem })
     }
