@@ -33,7 +33,7 @@
               :data-goods-id="item.id"
               data-scroll-anchor="timeline-thumb"
               :data-scroll-index="itemIndexById.get(item.id) ?? -1"
-              :class="{ 'tl-thumb-btn--active': activeItemId === item.id }"
+              :class="{ 'tl-thumb-btn--active': activeItemId === item.id, 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
               @click="$emit('toggle-item', item.id)"
             >
               <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
@@ -73,7 +73,7 @@
           </div>
         </div>
         <div class="tl-thumb-grid">
-          <button
+            <button
             v-for="item in unknownItems"
             :key="item.id"
             type="button"
@@ -81,7 +81,7 @@
             :data-goods-id="item.id"
             data-scroll-anchor="timeline-thumb"
             :data-scroll-index="itemIndexById.get(item.id) ?? -1"
-            :class="{ 'tl-thumb-btn--active': activeItemId === item.id }"
+            :class="{ 'tl-thumb-btn--active': activeItemId === item.id, 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
             @click="$emit('toggle-item', item.id)"
           >
             <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
@@ -283,6 +283,11 @@ defineEmits(['toggle-item', 'open-detail'])
 .tl-thumb-btn:active {
   transform: scale(0.94);
   opacity: 0.8;
+}
+
+.tl-thumb-btn--disabled {
+  opacity: 0.48;
+  filter: grayscale(60%);
 }
 
 .tl-thumb-img-wrap {

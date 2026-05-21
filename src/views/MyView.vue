@@ -411,25 +411,97 @@ const currentYearLabel = computed(() => `${new Date().getFullYear()} 年`)
 const monthlyBudget = computed(() => parseBudgetValue(monthlyBudgetInput.value))
 const yearlyBudget = computed(() => parseBudgetValue(yearlyBudgetInput.value))
 
+// 预算消费改为基于商品的入手日期计算：
+// - 如果存在 unitAcquiredAtList 与 unitActualPriceList，按每个单位逐条判断并累加对应价格
+// - 否则使用 item.acquiredAt 与 item.actualPrice/price * quantity
+// - 邮费按单件分摊：shippingFee / quantity，然后根据当期计入的件数累加分摊后的邮费
 const currentMonthSpent = computed(() => {
   const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth()
-  return rechargeStore.activeRecords.reduce((sum, record) => {
-    const recordDate = parseRecordDate(record)
-    if (!recordDate) return sum
-    if (recordDate.getFullYear() !== currentYear || recordDate.getMonth() !== currentMonth) return sum
-    return sum + Number(record.amount || 0)
+  const cy = now.getFullYear()
+  const cm = now.getMonth()
+
+  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+  return goodsStore.list.reduce((sum, item) => {
+    if (item?.isWishlist) return sum
+    if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return sum
+
+    const qty = Math.max(1, Number(item.quantity) || 1)
+    const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
+    const unitPrices = Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : []
+    let monthUnits = 0
+    let monthAmount = 0
+
+    if (unitDates.length > 0 && unitPrices.length > 0) {
+      const len = Math.min(unitDates.length, unitPrices.length)
+      for (let i = 0; i < len; i++) {
+        const d = unitDates[i] ? new Date(String(unitDates[i]).trim()) : null
+        const ts = d && !isNaN(d.getTime()) ? d : null
+        if (!ts) continue
+        if (ts.getFullYear() === cy && ts.getMonth() === cm) {
+          monthUnits += 1
+          monthAmount += Number(unitPrices[i] || 0)
+        }
+      }
+    } else {
+      const d = item?.acquiredAt ? new Date(String(item.acquiredAt).trim()) : null
+      if (d && !isNaN(d.getTime()) && d.getFullYear() === cy && d.getMonth() === cm) {
+        const base = (item.actualPrice !== '' && item.actualPrice != null)
+          ? (Number(item.actualPrice) || 0)
+          : (Number(item.price) || 0)
+        monthUnits = qty
+        monthAmount = base * qty
+      }
+    }
+
+    if (monthUnits === 0) return sum
+
+    const shipping = Number(item.shippingFee) || 0
+    const shippingPerUnit = shipping / Math.max(1, qty)
+    return sum + monthAmount + (shippingPerUnit * monthUnits)
   }, 0)
 })
 
 const currentYearSpent = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return rechargeStore.activeRecords.reduce((sum, record) => {
-    const recordDate = parseRecordDate(record)
-    if (!recordDate) return sum
-    if (recordDate.getFullYear() !== currentYear) return sum
-    return sum + Number(record.amount || 0)
+  const cy = new Date().getFullYear()
+
+  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+  return goodsStore.list.reduce((sum, item) => {
+    if (item?.isWishlist) return sum
+    if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return sum
+
+    const qty = Math.max(1, Number(item.quantity) || 1)
+    const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
+    const unitPrices = Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : []
+    let yearUnits = 0
+    let yearAmount = 0
+
+    if (unitDates.length > 0 && unitPrices.length > 0) {
+      const len = Math.min(unitDates.length, unitPrices.length)
+      for (let i = 0; i < len; i++) {
+        const d = unitDates[i] ? new Date(String(unitDates[i]).trim()) : null
+        const ts = d && !isNaN(d.getTime()) ? d : null
+        if (!ts) continue
+        if (ts.getFullYear() === cy) {
+          yearUnits += 1
+          yearAmount += Number(unitPrices[i] || 0)
+        }
+      }
+    } else {
+      const d = item?.acquiredAt ? new Date(String(item.acquiredAt).trim()) : null
+      if (d && !isNaN(d.getTime()) && d.getFullYear() === cy) {
+        const base = (item.actualPrice !== '' && item.actualPrice != null)
+          ? (Number(item.actualPrice) || 0)
+          : (Number(item.price) || 0)
+        yearUnits = qty
+        yearAmount = base * qty
+      }
+    }
+
+    if (yearUnits === 0) return sum
+
+    const shipping = Number(item.shippingFee) || 0
+    const shippingPerUnit = shipping / Math.max(1, qty)
+    return sum + yearAmount + (shippingPerUnit * yearUnits)
   }, 0)
 })
 
@@ -890,6 +962,15 @@ watch(yearlyBudgetInput, (value) => {
   }
   writePersisted(YEARLY_BUDGET_STORAGE_KEY, normalized)
 })
+
+// 确保当商品数据发生变化时（包括数组内部变更），预算进度会被重新计算并触发视图更新。
+watch(
+  () => goodsStore.list,
+  () => {
+    // 空处理函数；watch 的触发会使相关 computed 重新评估并更新模板
+  },
+  { deep: true }
+)
 
 onMounted(async () => {
   resetPageScrollTop()

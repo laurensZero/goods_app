@@ -36,7 +36,10 @@ function getTimelineSourceDates(item) {
 function buildTimelineEntries(goodsList) {
   const entries = []
 
+  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
   for (const item of goodsList) {
+    // 对已售出 / 已赠出的商品：仍然在时间线上显示，但不计入金额统计，前端可据此置灰展示
+    const isExcluded = EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())
     const dates = getTimelineSourceDates(item)
     const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
     const collectionTotalNumber = Number(item?.totalValueNumber) || 0
@@ -53,8 +56,11 @@ function buildTimelineEntries(goodsList) {
         acquiredAt: '',
         timelineYearMonth: '',
         timelineSortTime: 0,
-        priceNumber: perUnitShareNumber,
-        totalValueNumber: collectionTotalNumber
+        // 当被排除时，设置显示置灰标志并将计入金额设为 0
+        isExcludedFromValue: isExcluded,
+        priceNumber: isExcluded ? 0 : perUnitShareNumber,
+        totalValueNumber: isExcluded ? 0 : collectionTotalNumber,
+        originalTotalValueNumber: collectionTotalNumber
       })
       continue
     }
@@ -75,7 +81,7 @@ function buildTimelineEntries(goodsList) {
         return timestamp > latest.timestamp ? { value: normalizeTimelineDate(value), timestamp } : latest
       }, { value: '', timestamp: 0 })
       const acquiredAt = latestDate.value || normalizeTimelineDate(item.acquiredAt)
-
+      const monthTotal = perUnitShareNumber * monthDates.length
       return {
         ...item,
         id,
@@ -85,8 +91,11 @@ function buildTimelineEntries(goodsList) {
         quantity: monthDates.length,
         timelineYearMonth: yearMonth,
         timelineQuantity: monthDates.length,
-        priceNumber: perUnitShareNumber,
-        totalValueNumber: perUnitShareNumber * monthDates.length,
+        // 若该商品被标记为已出/已赠出，则不计入本月金额
+        isExcludedFromValue: isExcluded,
+        priceNumber: isExcluded ? 0 : perUnitShareNumber,
+        totalValueNumber: isExcluded ? 0 : monthTotal,
+        originalTotalValueNumber: monthTotal,
         timelineSortTime: getLatestTimelineDateTimestamp(monthDates) || parseTimelineDateTimestamp(acquiredAt) || index
       }
     })
