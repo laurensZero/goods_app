@@ -1,9 +1,9 @@
 {
-  "version": "20260521.4",
-  "url": "bundle-20260521.4.zip",
-  "hash": "b310f31242ef791dd0eff88091834b82d23b6941633056a329caac5b72f9f457",
+  "version": "20260521.5",
+  "url": "bundle-20260521.5.zip",
+  "hash": "24c8cff0b4976358bd85886cf830273ea57b12b455b8af0e0c940391d4c00b14",
   "minNativeVersion": null,
-  "notes": "- feat: 优化价格计算逻辑，支持数量和运费的动态计算，提升用户体验",
+  "notes": "- feat: 优化价格和总值计算逻辑，添加 resolveCollectionTotalValue 函数以提升数据处理准确性",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T08:13:37Z"
+  "publishedAt": "2026-05-21T08:22:40Z"
 }
