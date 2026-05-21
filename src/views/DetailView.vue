@@ -1438,5 +1438,21 @@ function getImageKindLabel(kind) {
 
 :global(html.theme-dark) .nav-icon-btn {
     background: var(--app-glass);
+    color: var(--app-text);
+  }
+
+:global(html.theme-dark) .nav-icon-btn.danger {
+    color: #ff8a80;
+  }
+
+/* 强制覆盖，避免已编译样式或外部 scope 覆盖导致不生效 */
+:global(html.theme-dark) .detail-page .nav-icon-btn {
+    background: var(--app-glass) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-glass-border) !important;
+  }
+
+:global(html.theme-dark) .detail-page .nav-icon-btn.danger {
+    color: #ff8a80 !important;
   }
 </style>

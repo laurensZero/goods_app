@@ -132,6 +132,39 @@ function handleBackClick() {
   transition: transform 0.16s ease;
 }
 
+:slotted(.nav-icon-btn) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-button-size);
+  height: var(--icon-button-size);
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--app-surface-muted) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  background-clip: padding-box;
+  box-shadow: var(--app-shadow);
+  color: var(--app-text);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+:slotted(.nav-icon-btn):active {
+  transform: scale(0.96);
+}
+
+:slotted(.nav-icon-btn) svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:slotted(.nav-icon-btn.danger) {
+  color: #c74444;
+}
+
 :slotted(.add-btn):active {
   transform: scale(0.96);
 }
@@ -162,13 +195,15 @@ function handleBackClick() {
   }
 
 :global(html.theme-dark) .nav-back,
-  :global(html.theme-dark) :slotted(.add-btn) {
+  :global(html.theme-dark) :slotted(.add-btn),
+  :global(html.theme-dark) :slotted(.nav-icon-btn) {
     background: color-mix(in srgb, var(--app-surface) 18%, transparent);
     border-color: color-mix(in srgb, var(--app-surface) 10%, transparent);
   }
 
 :global(html.theme-dark) .nav-back:active,
-  :global(html.theme-dark) :slotted(.add-btn):active {
+  :global(html.theme-dark) :slotted(.add-btn):active,
+  :global(html.theme-dark) :slotted(.nav-icon-btn):active {
     background: color-mix(in srgb, var(--app-surface) 26%, transparent);
   }
 </style>
