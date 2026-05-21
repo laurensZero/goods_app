@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.6",
+    "url": "bundle-20260521.6.zip",
+    "hash": "f9b1a5df9406fe37bc3f7fe3cf4a5988d9c35f10ec881e8246a78f9f4267cb82",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 ECharts 支持，新增 PieChart 和 BarChart 组件，优化数据可视化展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T08:49:00Z"
+  },
+  {
     "version": "20260521.5",
     "url": "bundle-20260521.5.zip",
     "hash": "24c8cff0b4976358bd85886cf830273ea57b12b455b8af0e0c940391d4c00b14",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化价格计算逻辑，支持数量和运费的动态计算，提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T08:13:37Z"
-  },
-  {
-    "version": "20260521.3",
-    "url": "bundle-20260521.3.zip",
-    "hash": "8175ca4ba9679c5d8f7f7f40cb3d3ace6f364034a8469c33e2bf06f69311b3b3",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T07:53:29Z"
   }
 ]

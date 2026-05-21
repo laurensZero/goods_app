@@ -1,9 +1,9 @@
 {
-  "version": "20260521.5",
-  "url": "bundle-20260521.5.zip",
-  "hash": "24c8cff0b4976358bd85886cf830273ea57b12b455b8af0e0c940391d4c00b14",
+  "version": "20260521.6",
+  "url": "bundle-20260521.6.zip",
+  "hash": "f9b1a5df9406fe37bc3f7fe3cf4a5988d9c35f10ec881e8246a78f9f4267cb82",
   "minNativeVersion": null,
-  "notes": "- feat: 优化价格和总值计算逻辑，添加 resolveCollectionTotalValue 函数以提升数据处理准确性",
+  "notes": "- feat: 添加 ECharts 支持，新增 PieChart 和 BarChart 组件，优化数据可视化展示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T08:22:40Z"
+  "publishedAt": "2026-05-21T08:49:00Z"
 }
