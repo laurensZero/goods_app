@@ -1,9 +1,9 @@
 {
-  "version": "20260521.17",
-  "url": "bundle-20260521.17.zip",
-  "hash": "4c1972f93c2aa89ad9a1256e983581d18ec06e49c9f5b8371778d34caff80b67",
+  "version": "20260521.18",
+  "url": "bundle-20260521.18.zip",
+  "hash": "9a0e8d81b1ba4fcd330b1cec6ec530c5712c3043ca9ea2495f3eb0bcb7b91a28",
   "minNativeVersion": null,
-  "notes": "- feat: 添加图像缓存刷新处理逻辑，确保在图像更新时重新渲染封面图像",
+  "notes": "- feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T13:57:45Z"
+  "publishedAt": "2026-05-21T14:03:27Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.18",
+    "url": "bundle-20260521.18.zip",
+    "hash": "9a0e8d81b1ba4fcd330b1cec6ec530c5712c3043ca9ea2495f3eb0bcb7b91a28",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T14:03:27Z"
+  },
+  {
     "version": "20260521.17",
     "url": "bundle-20260521.17.zip",
     "hash": "4c1972f93c2aa89ad9a1256e983581d18ec06e49c9f5b8371778d34caff80b67",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品英雄动画逻辑，确保图像解码后再进行动画播放，提高用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T13:51:15Z"
-  },
-  {
-    "version": "20260521.15",
-    "url": "bundle-20260521.15.zip",
-    "hash": "a772e568ddc534668c465448a8b29e85ef839119580f595889bbf8334f56f322",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化商品总价计算逻辑，使用 resolveCollectionTotalValue 函数简化计算过程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T13:41:23Z"
   }
 ]
