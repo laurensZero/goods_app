@@ -80,7 +80,7 @@
             <span class="price-label">{{ heroPriceLabel }}</span>
             <p class="price-value">
               <span class="price-currency">{{ heroPriceCurrencySymbol }}</span>
-              <span class="price-amount">{{ heroPriceAmount }}</span>
+              <span class="price-amount">{{ heroTotalPriceAmount }}</span>
               <span v-if="showHeroPointsInline" class="price-points">+{{ item.points }}积分</span>
               <span v-if="heroPriceCNYHint" class="price-cny-hint">{{ heroPriceCNYHint }}</span>
             </p>
@@ -348,20 +348,11 @@ function hasActualPriceValue(value) {
 function hasPriceValue(value) {
   return value !== '' && value != null
 }
-
-const heroPriceAmount = computed(() => {
-  if (!item.value) return '—'
-  if (item.value.isWishlist) return hasPriceValue(item.value.price) ? item.value.price : '—'
-  if (unitActualPriceAmountText.value) return unitActualPriceAmountText.value
-  return hasActualPriceValue(item.value.actualPrice)
-    ? item.value.actualPrice
-    : (hasPriceValue(item.value.price) ? item.value.price : '—')
-})
 const heroPriceLabel = computed(() => {
   if (!item.value) return '价格'
   if (unitActualPriceAmountText.value) return '价格'
   if (item.value.isWishlist) return '目标价格'
-  return hasActualPriceValue(item.value.actualPrice) ? '入手价' : '价格'
+  return hasActualPriceValue(item.value.actualPrice) ? '到手价' : '价格'
 })
 const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
 const noteHtml = computed(() => renderMarkdown(item.value?.note || ''))
@@ -381,18 +372,36 @@ const itemCurrency = computed(() => (item.value?.currency || 'CNY'))
 const itemCurrencySymbol = computed(() => CURRENCY_MAP[itemCurrency.value]?.symbol || '¥')
 const actualPriceCurrencySymbol = computed(() => CURRENCY_MAP[item.value?.actualPriceCurrency]?.symbol || '¥')
 const heroPriceCurrencySymbol = computed(() => itemCurrencySymbol.value)
+const heroTotalPriceAmount = computed(() => {
+  const it = item.value
+  if (!it) return '—'
+  if (it.isWishlist) return hasPriceValue(it.price) ? it.price : '—'
+
+  const quantity = Math.max(1, Number(it.quantity) || 1)
+  const shipping = Number(it.shippingFee) || 0
+  const basePrice = hasActualPriceValue(it.actualPrice)
+    ? Number(it.actualPrice) || 0
+    : (hasPriceValue(it.price) ? Number(it.price) || 0 : 0)
+
+  if (!basePrice && !shipping) return '—'
+  const total = (basePrice * quantity) + shipping
+  return `${Math.round(total * 100) / 100}`
+})
 const heroPriceCNYHint = computed(() => {
   const it = item.value
   if (!it) return ''
-  if (unitActualPriceAmountText.value) return ''
 
-  const useActual = !it.isWishlist && it.actualPrice !== '' && it.actualPrice != null
-  const rawPrice = useActual ? it.actualPrice : it.price
+  const useActual = !it.isWishlist && hasActualPriceValue(it.actualPrice)
+  const quantity = Math.max(1, Number(it.quantity) || 1)
+  const shipping = Number(it.shippingFee) || 0
+  const basePrice = useActual
+    ? (Number(it.actualPrice) || 0)
+    : (hasPriceValue(it.price) ? Number(it.price) || 0 : 0)
+  const rawPrice = (basePrice * quantity) + shipping
   const currency = useActual ? (it.actualPriceCurrency || 'CNY') : (it.currency || 'CNY')
   if (currency === 'CNY') return ''
-  const num = parseFloat(rawPrice)
-  if (isNaN(num) || num <= 0) return ''
-  const cny = exchangeRate.convertToCNY(num, currency)
+  if (!Number.isFinite(rawPrice) || rawPrice <= 0) return ''
+  const cny = exchangeRate.convertToCNY(rawPrice, currency)
   if (!cny || cny <= 0) return ''
   return `≈ ¥${cny.toFixed(2)}`
 })

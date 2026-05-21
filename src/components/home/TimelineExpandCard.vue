@@ -58,9 +58,23 @@ const displayUnitPrice = computed(() => (
     ? props.item.price
     : (props.item.actualPrice !== '' && props.item.actualPrice != null ? props.item.actualPrice : props.item.price)
 ))
-const totalPrice = computed(() =>
-  formatPrice(Number(displayUnitPrice.value || 0) * Number(props.item.quantity || 1))
-)
+const totalPrice = computed(() => {
+  if (props.item.isWishlist) {
+    return hasPriceValue(props.item.price) ? formatPrice(props.item.price) : '—'
+  }
+
+  const quantity = Math.max(1, Number(props.item.quantity) || 1)
+  const shipping = Number(props.item.shippingFee) || 0
+  const base = props.item.actualPrice !== '' && props.item.actualPrice != null
+    ? (Number(props.item.actualPrice) || 0)
+    : (hasPriceValue(props.item.price) ? Number(props.item.price) || 0 : 0)
+  const total = (base * quantity) + shipping
+  return formatPrice(total)
+})
+
+function hasPriceValue(value) {
+  return value !== '' && value != null
+}
 
 const displayAcquiredAtText = computed(() => {
   const list = Array.isArray(props.item.unitAcquiredAtList) ? props.item.unitAcquiredAtList : []

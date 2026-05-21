@@ -362,35 +362,54 @@ const actualPriceCurrencySymbol = computed(() => CURRENCY_MAP[props.item.actualP
 const priceText = computed(() => {
   const sym = itemCurrencySymbol.value
   const apSym = actualPriceCurrencySymbol.value
+  const showAtHandPrefix = props.density !== 'standard' && (
+    unitActualPriceText.value ||
+    (props.item.actualPrice !== '' && props.item.actualPrice != null) ||
+    (Number(props.item.shippingFee) || 0) > 0
+  )
 
   if (props.item.isWishlist) {
     return hasPriceValue(props.item.price) ? `目标 ${sym}${props.item.price}` : '心愿单'
   }
 
+  const quantity = Math.max(1, Number(props.item.quantity) || 1)
+  const shipping = Number(props.item.shippingFee) || 0
+
   if (unitActualPriceText.value) {
-    return unitActualPriceText.value
+    const list = Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList : []
+    const total = list.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) + shipping
+    return `${showAtHandPrefix ? '到手 ' : ''}${apSym}${total}`
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
     const base = Number(props.item.actualPrice) || 0
-    const shipping = Number(props.item.shippingFee) || 0
     const total = base + shipping
-    return `到手 ${apSym}${total}`
+    return `${showAtHandPrefix ? '到手 ' : ''}${apSym}${total}`
   }
 
-  return hasPriceValue(props.item.price) ? `${sym}${props.item.price}` : `${sym}—`
+  if (hasPriceValue(props.item.price)) {
+    const base = Number(props.item.price) || 0
+    const total = (base * quantity) + shipping
+    return `${showAtHandPrefix ? '到手 ' : ''}${sym}${total}`
+  }
+
+  return `${sym}—`
 })
 
 const priceCNYHint = computed(() => {
   const useActual = props.item.actualPrice !== '' && props.item.actualPrice != null
-  const rawPrice = useActual
-    ? (Number(props.item.actualPrice) || 0) + (Number(props.item.shippingFee) || 0)
-    : props.item.price
+  const quantity = Math.max(1, Number(props.item.quantity) || 1)
+  const shipping = Number(props.item.shippingFee) || 0
+  const base = useActual
+    ? (Number(props.item.actualPrice) || 0)
+    : (hasPriceValue(props.item.price) ? Number(props.item.price) || 0 : 0)
+  const rawPrice = unitActualPriceText.value
+    ? (Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) : 0) + shipping
+    : (useActual ? base + shipping : (base * quantity) + shipping)
   const currency = useActual ? (props.item.actualPriceCurrency || 'CNY') : (props.item.currency || 'CNY')
   if (currency === 'CNY') return ''
-  const num = parseFloat(rawPrice)
-  if (isNaN(num) || num <= 0) return ''
-  const cny = exchangeRate.convertToCNY(num, currency)
+  if (!Number.isFinite(rawPrice) || rawPrice <= 0) return ''
+  const cny = exchangeRate.convertToCNY(rawPrice, currency)
   if (!cny || cny <= 0) return ''
   return `≈ ¥${cny.toFixed(2)}`
 })
