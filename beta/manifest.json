@@ -1,9 +1,9 @@
 {
-  "version": "20260520.5",
-  "url": "bundle-20260520.5.zip",
-  "hash": "68763dc80639b8e1cd81da75406a93d679d7ad61b7272f61b41081fafabc55af",
+  "version": "20260521.1",
+  "url": "bundle-20260521.1.zip",
+  "hash": "4ef3503ad85dd3d3fe8bac65ca4b18f873e10c5cac9b418b3fdf3f809928c5a3",
   "minNativeVersion": null,
-  "notes": "- feat: 将 imageCacheRefreshHandler 函数改为异步，以支持缓存图像的刷新逻辑",
+  "notes": "- feat: 谷子组",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-20T09:53:51Z"
+  "publishedAt": "2026-05-21T06:38:44Z"
 }
