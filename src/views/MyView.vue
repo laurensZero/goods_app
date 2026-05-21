@@ -54,6 +54,46 @@
                 <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? `上次同步 ${formatTime(syncStore.lastSyncedAt)}` : '尚未同步' }}</span>
               </div>
             </div>
+
+            <article class="budget-compact">
+              <div class="budget-compact__head">
+                <div>
+                  <p class="budget-compact__label">Budget Watch</p>
+                  <h2 class="budget-compact__title">吃谷预算</h2>
+                </div>
+                <button type="button" class="budget-settings-btn" @click="openBudgetDialog">设置</button>
+              </div>
+
+              <div class="budget-compact__item">
+                <div class="budget-compact__meta">
+                  <span>月度</span>
+                  <strong>{{ currentPeriodLabel }}</strong>
+                  <span class="budget-compact__percent" :class="{ 'budget-compact__percent--over': monthlyBudgetProgress.isOverBudget }">
+                    {{ monthlyBudgetProgress.hasBudget ? `${monthlyBudgetProgress.percent.toFixed(0)}%` : '未设' }}
+                  </span>
+                </div>
+                <div class="budget-progress budget-progress--compact" role="progressbar" :aria-valuenow="monthlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
+                  <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': monthlyBudgetProgress.isOverBudget }" :style="{ width: `${monthlyBudgetProgress.clampedPercent}%` }" />
+                  <span v-if="monthlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${monthlyBudgetProgress.overPercent}%` }" />
+                </div>
+                <div class="budget-compact__foot">{{ formatPrice(monthlyBudgetProgress.spent) }} / {{ monthlyBudgetProgress.hasBudget ? formatPrice(monthlyBudgetProgress.budget) : '未设置' }}</div>
+              </div>
+
+              <div class="budget-compact__item">
+                <div class="budget-compact__meta">
+                  <span>年度</span>
+                  <strong>{{ currentYearLabel }}</strong>
+                  <span class="budget-compact__percent" :class="{ 'budget-compact__percent--over': yearlyBudgetProgress.isOverBudget }">
+                    {{ yearlyBudgetProgress.hasBudget ? `${yearlyBudgetProgress.percent.toFixed(0)}%` : '未设' }}
+                  </span>
+                </div>
+                <div class="budget-progress budget-progress--compact" role="progressbar" :aria-valuenow="yearlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
+                  <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': yearlyBudgetProgress.isOverBudget }" :style="{ width: `${yearlyBudgetProgress.clampedPercent}%` }" />
+                  <span v-if="yearlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${yearlyBudgetProgress.overPercent}%` }" />
+                </div>
+                <div class="budget-compact__foot">{{ formatPrice(yearlyBudgetProgress.spent) }} / {{ yearlyBudgetProgress.hasBudget ? formatPrice(yearlyBudgetProgress.budget) : '未设置' }}</div>
+              </div>
+            </article>
           </div>
 
           <div class="account-actions">
@@ -80,74 +120,6 @@
 
       <section class="content-grid">
         <section class="content-main">
-          <div class="section-head">
-            <p class="section-label">Budget Watch</p>
-            <div class="budget-section-head">
-              <h2 class="section-title">吃谷预算</h2>
-              <button type="button" class="budget-settings-btn" @click="openBudgetDialog">设置预算</button>
-            </div>
-          </div>
-
-          <div class="budget-stack">
-            <article class="budget-card" :class="{ 'budget-card--over': monthlyBudgetProgress.isOverBudget }">
-              <div class="budget-card__head">
-                <div>
-                  <p class="budget-card__label">月度预算</p>
-                  <h3 class="budget-card__title">{{ currentPeriodLabel }}</h3>
-                </div>
-                <span class="budget-card__percent" :class="{ 'budget-card__percent--over': monthlyBudgetProgress.isOverBudget }">
-                  {{ monthlyBudgetProgress.hasBudget ? `${monthlyBudgetProgress.percent.toFixed(1)}%` : '未设置' }}
-                </span>
-              </div>
-
-              <div class="budget-progress" role="progressbar" :aria-valuenow="monthlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
-                <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': monthlyBudgetProgress.isOverBudget }" :style="{ width: `${monthlyBudgetProgress.clampedPercent}%` }" />
-                <span v-if="monthlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${monthlyBudgetProgress.overPercent}%` }" />
-              </div>
-
-              <p class="budget-card__meta">
-                已花费 {{ formatPrice(monthlyBudgetProgress.spent) }}
-                <template v-if="monthlyBudgetProgress.hasBudget">
-                  / 预算 {{ formatPrice(monthlyBudgetProgress.budget) }}
-                </template>
-              </p>
-              <p v-if="!monthlyBudgetProgress.hasBudget" class="budget-card__hint">设置预算后可实时追踪本月吃谷进度。</p>
-              <p v-else-if="monthlyBudgetProgress.isOverBudget" class="budget-card__hint budget-card__hint--over">
-                已超预算 {{ formatPrice(Math.abs(monthlyBudgetProgress.remaining)) }}
-              </p>
-              <p v-else class="budget-card__hint">距离预算还剩 {{ formatPrice(monthlyBudgetProgress.remaining) }}</p>
-            </article>
-
-            <article class="budget-card" :class="{ 'budget-card--over': yearlyBudgetProgress.isOverBudget }">
-              <div class="budget-card__head">
-                <div>
-                  <p class="budget-card__label">年度预算</p>
-                  <h3 class="budget-card__title">{{ currentYearLabel }}</h3>
-                </div>
-                <span class="budget-card__percent" :class="{ 'budget-card__percent--over': yearlyBudgetProgress.isOverBudget }">
-                  {{ yearlyBudgetProgress.hasBudget ? `${yearlyBudgetProgress.percent.toFixed(1)}%` : '未设置' }}
-                </span>
-              </div>
-
-              <div class="budget-progress" role="progressbar" :aria-valuenow="yearlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
-                <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': yearlyBudgetProgress.isOverBudget }" :style="{ width: `${yearlyBudgetProgress.clampedPercent}%` }" />
-                <span v-if="yearlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${yearlyBudgetProgress.overPercent}%` }" />
-              </div>
-
-              <p class="budget-card__meta">
-                已花费 {{ formatPrice(yearlyBudgetProgress.spent) }}
-                <template v-if="yearlyBudgetProgress.hasBudget">
-                  / 预算 {{ formatPrice(yearlyBudgetProgress.budget) }}
-                </template>
-              </p>
-              <p v-if="!yearlyBudgetProgress.hasBudget" class="budget-card__hint">设置预算后可实时追踪全年吃谷进度。</p>
-              <p v-else-if="yearlyBudgetProgress.isOverBudget" class="budget-card__hint budget-card__hint--over">
-                已超预算 {{ formatPrice(Math.abs(yearlyBudgetProgress.remaining)) }}
-              </p>
-              <p v-else class="budget-card__hint">距离预算还剩 {{ formatPrice(yearlyBudgetProgress.remaining) }}</p>
-            </article>
-          </div>
-
           <div class="section-head">
             <p class="section-label">Quick Access</p>
             <h2 class="section-title">常用入口</h2>
@@ -930,6 +902,7 @@ onActivated(() => {
   scanError.value = ''
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+  void loadBudgetSettings()
 })
 
 onBeforeUnmount(() => {
@@ -1111,9 +1084,99 @@ onBeforeUnmount(() => {
 
 .account-panel__main {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) minmax(240px, 300px);
   gap: 18px;
+  align-items: start;
+}
+
+.budget-compact {
+  display: grid;
+  gap: 4px;
+  padding: 20px 16px 18px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--app-surface-soft) 84%, transparent);
+  box-shadow: var(--app-shadow);
+  min-width: 0;
+}
+
+.budget-compact__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.budget-compact__label {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.budget-compact__title {
+  margin-top: 4px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.budget-compact__item {
+  display: grid;
+  gap: 2px;
+}
+
+.budget-compact__item + .budget-compact__item {
+  margin-top: 0;
+}
+
+.budget-compact__meta {
+  display: flex;
   align-items: center;
+  gap: 6px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  min-height: 0;
+}
+
+.budget-compact__meta strong {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.budget-compact__percent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  min-height: 32px;
+  align-self: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.budget-compact__percent--over {
+  background: color-mix(in srgb, #e45b5b 16%, var(--app-surface-soft));
+  color: #cd3f3f;
+}
+
+.budget-progress--compact {
+  height: 8px;
+  margin-top: -2px;
+}
+
+.budget-compact__foot {
+  margin-top: 6px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .account-avatar {
@@ -1735,6 +1798,14 @@ onBeforeUnmount(() => {
   .content-side {
     order: 1;
   }
+
+  .account-panel__main {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .budget-compact {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1754,6 +1825,10 @@ onBeforeUnmount(() => {
   .account-panel__main {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .budget-compact {
+    width: 100%;
   }
 
   .account-name {

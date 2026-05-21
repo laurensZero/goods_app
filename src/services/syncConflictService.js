@@ -7,6 +7,8 @@ import {
   getItemTimestamp,
   resolveGoodsTrashMaps
 } from '@/utils/sync/shared'
+import { readPersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 export function createSyncConflictService({
   backend,
@@ -46,6 +48,24 @@ export function createSyncConflictService({
     if (!remoteRechargeTs) return true
     const localRechargeTs = getLatestRechargeTimestamp(localRechargeRecords)
     return remoteRechargeTs > localRechargeTs
+  }
+
+  function normalizeBudgetValue(value) {
+    const num = Number(value)
+    if (!Number.isFinite(num) || num <= 0) return 0
+    return num
+  }
+
+  async function readLocalBudgetSettings() {
+    const [monthlyRaw, yearlyRaw] = await Promise.all([
+      readPersisted(MONTHLY_BUDGET_STORAGE_KEY, ''),
+      readPersisted(YEARLY_BUDGET_STORAGE_KEY, '')
+    ])
+
+    return {
+      monthly: normalizeBudgetValue(monthlyRaw),
+      yearly: normalizeBudgetValue(yearlyRaw)
+    }
   }
 
   function getLocalChangesSince(timestamp) {
@@ -102,6 +122,11 @@ export function createSyncConflictService({
       }
     })
     const localRechargeData = buildRechargeSyncData({ incremental: false })
+    const localBudgetData = await readLocalBudgetSettings()
+    const remoteBudgetData = {
+      monthly: normalizeBudgetValue(remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly),
+      yearly: normalizeBudgetValue(remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly)
+    }
     const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
     const remoteRechargeData = shouldReadRechargePrecheck
       ? (await currentBackend.readJson({
@@ -206,6 +231,7 @@ export function createSyncConflictService({
       buildTimestampRecordMap(localEventData.events || []),
       buildTimestampRecordMap(remoteEventData.events || [])
     )
+    const hasBudgetDiff = localBudgetData.monthly !== remoteBudgetData.monthly || localBudgetData.yearly !== remoteBudgetData.yearly
     const imageDiff = countComparableRecordDiff(
       buildImageReferenceMap({
         goods: [...resolvedLocal.goodsMap.values()],
@@ -273,7 +299,12 @@ export function createSyncConflictService({
       localOnlyCollection,
       localOnlyWishlist,
       localOnlyTrash,
-      updatedGoods
+      updatedGoods,
+      hasBudgetDiff,
+      localBudgetMonthly: localBudgetData.monthly,
+      localBudgetYearly: localBudgetData.yearly,
+      remoteBudgetMonthly: remoteBudgetData.monthly,
+      remoteBudgetYearly: remoteBudgetData.yearly
     }
   }
 
