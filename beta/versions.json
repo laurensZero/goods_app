@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.10",
+    "url": "bundle-20260521.10.zip",
+    "hash": "2a955f5961aac57b5a1f7f1418d90a501325c0347e6348540827cfc5d692cfe1",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加主题颜色支持，优化图表样式应用逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T11:15:59Z"
+  },
+  {
     "version": "20260521.9",
     "url": "bundle-20260521.9.zip",
     "hash": "6775ac69ccdf950acfea09625bac7990c8f77322fb3d4da59ee51790a772457d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化预算功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T10:51:44Z"
-  },
-  {
-    "version": "20260521.7",
-    "url": "bundle-20260521.7.zip",
-    "hash": "94ade9e59acbde21264e6bf531aef29a17b5eb48dfbc09dd110b2177312b4e54",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加预算管理功能，支持月度和年度预算设置及进度追踪",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T09:06:21Z"
   }
 ]
