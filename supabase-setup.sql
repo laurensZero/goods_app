@@ -82,7 +82,9 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
   event_count INTEGER DEFAULT 0,
   recharge_updated_at TIMESTAMPTZ,
   event_updated_at TIMESTAMPTZ,
-  image_bucket TEXT DEFAULT 'goods-images'
+  image_bucket TEXT DEFAULT 'goods-images',
+  budget_monthly REAL DEFAULT 0,
+  budget_yearly REAL DEFAULT 0
 );
 
 -- presets 表（存储分类、IP、角色、存储位置）

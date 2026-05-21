@@ -232,7 +232,10 @@ export function createSyncOrchestrator({
       }
     })
 
-    await applyRemoteBudgetSettings(remoteData?.budgetSettings)
+    await applyRemoteBudgetSettings({
+      monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
+      yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
+    })
 
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
     const remoteWatermark = getRemoteWatermark(remoteManifest, remoteData, rechargeData, eventData)
@@ -600,7 +603,12 @@ export function createSyncOrchestrator({
 
     const goodsStore = useGoodsStore()
     const localComparableState = await payload.buildComparableSyncStateFromData({ goods: goodsStore.list, trash: goodsStore.trashList, presets: await ctx.buildPresetsData() })
-    const remoteComparableState = await payload.buildComparableSyncStateFromData(remoteData)
+    const remoteComparableState = await payload.buildComparableSyncStateFromData(remoteData, {
+      budgetSettings: {
+        monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
+        yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
+      }
+    })
     const localRechargeComparableState = payload.buildComparableRechargeStateFromData(payload.buildRechargeSyncData({ incremental: false }))
     const remoteRechargeComparableState = payload.buildComparableRechargeStateFromData(remoteRechargeData)
     const localEventComparableState = payload.buildComparableEventStateFromData(payload.buildEventSyncData())
@@ -746,6 +754,7 @@ export function createSyncOrchestrator({
         diff.remoteOnlyGoods > 0 || diff.updatedGoods > 0 || diff.localOnlyGoods > 0
         || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0
         || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0
+        || diff.hasBudgetDiff
       )
       if (!hasAnyDiff) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -769,7 +778,7 @@ export function createSyncOrchestrator({
       const hasPullConflict = !!(
         diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
         || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
-        || hasRechargeContentDiff || hasEventContentDiff
+        || hasRechargeContentDiff || hasEventContentDiff || diff.hasBudgetDiff
       )
       if (!hasPullConflict) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -788,8 +797,9 @@ export function createSyncOrchestrator({
     )
     const pullRechargeContentDiff = hasRechargeContentDiff
     const pullEventContentDiff = hasEventContentDiff
+    const pullBudgetContentDiff = diff.hasBudgetDiff
 
-    if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff) {
+    if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff && !pullBudgetContentDiff) {
       if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       return { action: 'no_changes', statusMessage: '数据已是最新' }
     }

@@ -412,7 +412,7 @@ export function createSyncPayloadService({
     }
   }
 
-  async function buildComparableSyncStateFromData(data) {
+  async function buildComparableSyncStateFromData(data, { budgetSettings = null } = {}) {
     const resolved = resolveGoodsTrashMaps(data?.goods || [], data?.trash || [])
     const goods = [...resolved.goodsMap.values()]
       .map((item) => sortObjectKeys(item))
@@ -421,15 +421,15 @@ export function createSyncPayloadService({
       .map((item) => sortObjectKeys(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     const presetsData = data?.presets || await buildPresetsData()
-    const budgetSettings = data?.budgetSettings
-      ? normalizeBudgetSettings(data.budgetSettings)
+    const resolvedBudgetSettings = budgetSettings || data?.budgetSettings
+      ? normalizeBudgetSettings(budgetSettings || data.budgetSettings)
       : await readBudgetSettingsFromStorage()
 
     return JSON.stringify(sortObjectKeys({
       goods,
       trash,
       presets: presetsData,
-      budgetSettings
+      budgetSettings: resolvedBudgetSettings
     }))
   }
 

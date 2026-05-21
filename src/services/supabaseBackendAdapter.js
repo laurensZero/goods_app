@@ -560,7 +560,9 @@ export function createSupabaseBackendAdapter({
     return {
       ...row,
       lastSyncAt: row.syncedAt || row.lastSyncAt || '',
-      imageGistId: row.imageBucket || row.imageGistId || ''
+      imageGistId: row.imageBucket || row.imageGistId || '',
+      budgetMonthly: Number(row.budgetMonthly) || 0,
+      budgetYearly: Number(row.budgetYearly) || 0
     }
   }
 
