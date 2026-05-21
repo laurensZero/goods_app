@@ -52,7 +52,15 @@ const chartOption = computed(() => {
   }
 
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', confine: true },
+    tooltip: {
+      trigger: 'item',
+      formatter: function (params) {
+        const v = Number(params.value || 0)
+        const s = v.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')
+        return `${params.name}: ${s} (${params.percent}%)`
+      },
+      confine: true
+    },
       legend: { orient: 'horizontal', bottom: 0, type: 'scroll', itemStyle: { borderRadius: 2 } },
     series: [
       {

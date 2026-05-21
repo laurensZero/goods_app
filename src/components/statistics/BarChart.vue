@@ -29,7 +29,20 @@ const chartOption = computed(() => {
       axisPointer: { type: 'shadow' },
       formatter: function (params) {
         const p = params[0]
-        return `${p.name}<br/>${p.seriesName || ''}: ${p.value}`
+        const raw = p.value
+        const key = String(p.seriesName || '')
+
+        function fmtNumberByKey(k, v) {
+          const n = Number(v || 0)
+          if (!Number.isFinite(n)) return '0'
+          if (k === 'totalValue' || k === 'averageUnitPrice') {
+            return `¥ ${n.toFixed(2)}`
+          }
+          const s = n.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')
+          return s === '-0' ? '0' : s
+        }
+
+        return `${p.name}<br/>${p.seriesName || ''}: ${fmtNumberByKey(key, raw)}`
       }
     },
     grid: { left: leftMargin, right: '6%', top: '12%', bottom: '12%', containLabel: true },
