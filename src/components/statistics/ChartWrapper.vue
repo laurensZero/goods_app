@@ -43,8 +43,8 @@ function readThemeColors() {
 function applyThemeToOption(opt) {
   if (!opt) return opt
   const colors = readThemeColors()
-  // deep clone to avoid mutating prop
-  const option = JSON.parse(JSON.stringify(opt))
+  // shallow copy to avoid mutating prop while preserving functions (formatter, etc.)
+  const option = Array.isArray(opt) ? opt.slice() : Object.assign({}, opt)
 
   if (!option.textStyle) option.textStyle = { color: colors.text }
 
