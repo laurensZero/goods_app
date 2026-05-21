@@ -54,6 +54,7 @@ const chartOption = computed(() => {
         type: 'bar',
         data: values,
         barMaxWidth: 24,
+        itemStyle: { borderRadius: [6, 6, 6, 6] },
         label: { show: false }
       }
     ]
