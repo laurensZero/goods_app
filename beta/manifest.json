@@ -1,9 +1,9 @@
 {
-  "version": "20260521.18",
-  "url": "bundle-20260521.18.zip",
-  "hash": "9a0e8d81b1ba4fcd330b1cec6ec530c5712c3043ca9ea2495f3eb0bcb7b91a28",
+  "version": "20260521.19",
+  "url": "bundle-20260521.19.zip",
+  "hash": "20e91892231715dba3ddb35970bb79942410083aa84dc4648c87fa718f951d25",
   "minNativeVersion": null,
-  "notes": "- feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码",
+  "notes": "- feat: 移除图像组件中的 resume-decode-validation 属性，简化图像加载逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T14:03:27Z"
+  "publishedAt": "2026-05-21T14:11:23Z"
 }
