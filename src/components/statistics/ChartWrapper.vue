@@ -29,10 +29,58 @@ function resize() {
   chartInstance?.resize()
 }
 
+function readThemeColors() {
+  try {
+    const s = getComputedStyle(document.documentElement)
+    const text = (s.getPropertyValue('--app-text') || '').trim() || '#111'
+    const secondary = (s.getPropertyValue('--app-text-secondary') || '').trim() || text
+    return { text, secondary }
+  } catch (e) {
+    return { text: '#111', secondary: '#666' }
+  }
+}
+
+function applyThemeToOption(opt) {
+  if (!opt) return opt
+  const colors = readThemeColors()
+  // deep clone to avoid mutating prop
+  const option = JSON.parse(JSON.stringify(opt))
+
+  if (!option.textStyle) option.textStyle = { color: colors.text }
+
+  if (option.legend) {
+    option.legend.textStyle = option.legend.textStyle || {}
+    option.legend.textStyle.color = option.legend.textStyle.color || colors.secondary
+  }
+
+  if (option.tooltip) {
+    option.tooltip.textStyle = option.tooltip.textStyle || {}
+    option.tooltip.textStyle.color = option.tooltip.textStyle.color || colors.text
+  }
+
+  const applyAxis = (axis) => {
+    if (!axis) return
+    if (Array.isArray(axis)) {
+      axis.forEach((a) => {
+        a.axisLabel = a.axisLabel || {}
+        a.axisLabel.color = (a.axisLabel && a.axisLabel.color) || colors.secondary
+      })
+    } else {
+      axis.axisLabel = axis.axisLabel || {}
+      axis.axisLabel.color = (axis.axisLabel && axis.axisLabel.color) || colors.secondary
+    }
+  }
+
+  applyAxis(option.xAxis)
+  applyAxis(option.yAxis)
+
+  return option
+}
+
 onMounted(() => {
   if (!chartRef.value) return
   chartInstance = echarts.init(chartRef.value)
-  if (hasData.value) chartInstance.setOption(props.option)
+  if (hasData.value) chartInstance.setOption(applyThemeToOption(props.option))
   window.addEventListener('resize', resize)
 })
 
@@ -42,7 +90,7 @@ watch(() => props.option, (opt) => {
     chartInstance.clear()
     return
   }
-  chartInstance.setOption(opt)
+  chartInstance.setOption(applyThemeToOption(opt))
 })
 
 onBeforeUnmount(() => {
