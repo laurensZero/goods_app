@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.3",
+    "url": "bundle-20260521.3.zip",
+    "hash": "8175ca4ba9679c5d8f7f7f40cb3d3ace6f364034a8469c33e2bf06f69311b3b3",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T07:53:29Z"
+  },
+  {
     "version": "20260521.2",
     "url": "bundle-20260521.2.zip",
     "hash": "73ac4703c8f5a2c8a4aa43aa858f8e9091846dddda25ba41d03f4f225de3c75b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 谷子组",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T06:38:44Z"
-  },
-  {
-    "version": "20260520.5",
-    "url": "bundle-20260520.5.zip",
-    "hash": "68763dc80639b8e1cd81da75406a93d679d7ad61b7272f61b41081fafabc55af",
-    "minNativeVersion": null,
-    "notes": "- feat: 将 imageCacheRefreshHandler 函数改为异步，以支持缓存图像的刷新逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-20T09:53:51Z"
   }
 ]

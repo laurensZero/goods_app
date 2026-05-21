@@ -1,9 +1,9 @@
 {
-  "version": "20260521.2",
-  "url": "bundle-20260521.2.zip",
-  "hash": "73ac4703c8f5a2c8a4aa43aa858f8e9091846dddda25ba41d03f4f225de3c75b",
+  "version": "20260521.3",
+  "url": "bundle-20260521.3.zip",
+  "hash": "8175ca4ba9679c5d8f7f7f40cb3d3ace6f364034a8469c33e2bf06f69311b3b3",
   "minNativeVersion": null,
-  "notes": "- feat: 修改 groupedViewEnabled 默认值为 false，优化用户界面设置",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T06:51:31Z"
+  "publishedAt": "2026-05-21T07:53:29Z"
 }
