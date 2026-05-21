@@ -1,5 +1,7 @@
 import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { parseGistImageUri } from '@/utils/goods/images'
+import { writePersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { wrapSyncError, PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA } from './syncError'
 
 /**
@@ -44,6 +46,26 @@ export function createSyncOrchestrator({
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0
     const ms = new Date(value).getTime()
     return Number.isFinite(ms) ? ms : 0
+  }
+
+  function normalizeBudgetValue(value) {
+    const num = Number(value)
+    if (!Number.isFinite(num) || num <= 0) return 0
+    return num
+  }
+
+  async function applyRemoteBudgetSettings(settings) {
+    if (!settings || typeof settings !== 'object') return false
+
+    const monthly = normalizeBudgetValue(settings.monthly)
+    const yearly = normalizeBudgetValue(settings.yearly)
+
+    await Promise.all([
+      writePersisted(MONTHLY_BUDGET_STORAGE_KEY, monthly > 0 ? String(monthly) : ''),
+      writePersisted(YEARLY_BUDGET_STORAGE_KEY, yearly > 0 ? String(yearly) : '')
+    ])
+
+    return true
   }
 
   function getLatestRechargeTimestamp(records = []) {
@@ -209,6 +231,8 @@ export function createSyncOrchestrator({
         return `${source}，活动 ${events.length} 场`
       }
     })
+
+    await applyRemoteBudgetSettings(remoteData?.budgetSettings)
 
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
     const remoteWatermark = getRemoteWatermark(remoteManifest, remoteData, rechargeData, eventData)
@@ -453,6 +477,8 @@ export function createSyncOrchestrator({
       trashCount: syncData.trash.length,
       rechargeCount: rechargeSyncData.recharge.length,
       eventCount: eventSyncData.events.length,
+      budgetMonthly: normalizeBudgetValue(syncData?.budgetSettings?.monthly),
+      budgetYearly: normalizeBudgetValue(syncData?.budgetSettings?.yearly),
       rechargeUpdatedAt: (() => {
         const ts = getLatestRechargeTimestamp(rechargeSyncData.recharge)
         return ts > 0 ? new Date(ts).toISOString() : ''

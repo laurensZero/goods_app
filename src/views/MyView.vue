@@ -81,6 +81,74 @@
       <section class="content-grid">
         <section class="content-main">
           <div class="section-head">
+            <p class="section-label">Budget Watch</p>
+            <div class="budget-section-head">
+              <h2 class="section-title">吃谷预算</h2>
+              <button type="button" class="budget-settings-btn" @click="openBudgetDialog">设置预算</button>
+            </div>
+          </div>
+
+          <div class="budget-stack">
+            <article class="budget-card" :class="{ 'budget-card--over': monthlyBudgetProgress.isOverBudget }">
+              <div class="budget-card__head">
+                <div>
+                  <p class="budget-card__label">月度预算</p>
+                  <h3 class="budget-card__title">{{ currentPeriodLabel }}</h3>
+                </div>
+                <span class="budget-card__percent" :class="{ 'budget-card__percent--over': monthlyBudgetProgress.isOverBudget }">
+                  {{ monthlyBudgetProgress.hasBudget ? `${monthlyBudgetProgress.percent.toFixed(1)}%` : '未设置' }}
+                </span>
+              </div>
+
+              <div class="budget-progress" role="progressbar" :aria-valuenow="monthlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
+                <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': monthlyBudgetProgress.isOverBudget }" :style="{ width: `${monthlyBudgetProgress.clampedPercent}%` }" />
+                <span v-if="monthlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${monthlyBudgetProgress.overPercent}%` }" />
+              </div>
+
+              <p class="budget-card__meta">
+                已花费 {{ formatPrice(monthlyBudgetProgress.spent) }}
+                <template v-if="monthlyBudgetProgress.hasBudget">
+                  / 预算 {{ formatPrice(monthlyBudgetProgress.budget) }}
+                </template>
+              </p>
+              <p v-if="!monthlyBudgetProgress.hasBudget" class="budget-card__hint">设置预算后可实时追踪本月吃谷进度。</p>
+              <p v-else-if="monthlyBudgetProgress.isOverBudget" class="budget-card__hint budget-card__hint--over">
+                已超预算 {{ formatPrice(Math.abs(monthlyBudgetProgress.remaining)) }}
+              </p>
+              <p v-else class="budget-card__hint">距离预算还剩 {{ formatPrice(monthlyBudgetProgress.remaining) }}</p>
+            </article>
+
+            <article class="budget-card" :class="{ 'budget-card--over': yearlyBudgetProgress.isOverBudget }">
+              <div class="budget-card__head">
+                <div>
+                  <p class="budget-card__label">年度预算</p>
+                  <h3 class="budget-card__title">{{ currentYearLabel }}</h3>
+                </div>
+                <span class="budget-card__percent" :class="{ 'budget-card__percent--over': yearlyBudgetProgress.isOverBudget }">
+                  {{ yearlyBudgetProgress.hasBudget ? `${yearlyBudgetProgress.percent.toFixed(1)}%` : '未设置' }}
+                </span>
+              </div>
+
+              <div class="budget-progress" role="progressbar" :aria-valuenow="yearlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
+                <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': yearlyBudgetProgress.isOverBudget }" :style="{ width: `${yearlyBudgetProgress.clampedPercent}%` }" />
+                <span v-if="yearlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${yearlyBudgetProgress.overPercent}%` }" />
+              </div>
+
+              <p class="budget-card__meta">
+                已花费 {{ formatPrice(yearlyBudgetProgress.spent) }}
+                <template v-if="yearlyBudgetProgress.hasBudget">
+                  / 预算 {{ formatPrice(yearlyBudgetProgress.budget) }}
+                </template>
+              </p>
+              <p v-if="!yearlyBudgetProgress.hasBudget" class="budget-card__hint">设置预算后可实时追踪全年吃谷进度。</p>
+              <p v-else-if="yearlyBudgetProgress.isOverBudget" class="budget-card__hint budget-card__hint--over">
+                已超预算 {{ formatPrice(Math.abs(yearlyBudgetProgress.remaining)) }}
+              </p>
+              <p v-else class="budget-card__hint">距离预算还剩 {{ formatPrice(yearlyBudgetProgress.remaining) }}</p>
+            </article>
+          </div>
+
+          <div class="section-head">
             <p class="section-label">Quick Access</p>
             <h2 class="section-title">常用入口</h2>
           </div>
@@ -246,6 +314,51 @@
       @toast="showToast"
     />
 
+    <Teleport to="body">
+      <Transition name="budget-sheet-pop">
+        <div v-if="showBudgetDialog" class="login-overlay budget-overlay" @click.self="closeBudgetDialog">
+          <section class="login-sheet budget-sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
+            <h2 id="budgetSheetTitle" class="login-sheet__title">设置吃谷预算</h2>
+            <p class="login-sheet__desc">保存后会实时更新月度和年度预算进度，留空或填 0 视为未设置预算。</p>
+
+            <div class="budget-sheet__fields">
+              <label class="budget-input-wrap">
+                <span class="budget-input-wrap__label">月度预算（元）</span>
+                <input
+                  v-model="monthlyBudgetInput"
+                  class="budget-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="例如 1200"
+                />
+              </label>
+
+              <label class="budget-input-wrap">
+                <span class="budget-input-wrap__label">年度预算（元）</span>
+                <input
+                  v-model="yearlyBudgetInput"
+                  class="budget-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="例如 15000"
+                />
+              </label>
+            </div>
+
+            <div class="login-sheet__actions">
+              <button type="button" class="login-sheet__button login-sheet__button--primary" @click="closeBudgetDialog">
+                完成
+              </button>
+            </div>
+          </section>
+        </div>
+      </Transition>
+    </Teleport>
+
     <div v-if="showLogoutDialog" class="login-overlay" @click.self="closeLogoutDialog">
       <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
         <h2 id="logoutSheetTitle" class="login-sheet__title">退出登录</h2>
@@ -267,12 +380,15 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
 import { extractIdsFromInput } from '@/utils/share/goods'
+import { formatPrice } from '@/utils/format'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
@@ -302,6 +418,9 @@ const rechargeStore = useRechargeStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
+const showBudgetDialog = ref(false)
+const monthlyBudgetInput = ref('')
+const yearlyBudgetInput = ref('')
 
 const githubOAuthClientId = getGitHubOAuthClientId()
 
@@ -309,6 +428,41 @@ const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.i
 const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
 const eventCount = computed(() => eventsStore.list.length)
 const rechargeCount = computed(() => rechargeStore.sortedRecords.length)
+
+const currentPeriodLabel = computed(() => {
+  const now = new Date()
+  return `${now.getFullYear()} 年 ${String(now.getMonth() + 1).padStart(2, '0')} 月`
+})
+
+const currentYearLabel = computed(() => `${new Date().getFullYear()} 年`)
+
+const monthlyBudget = computed(() => parseBudgetValue(monthlyBudgetInput.value))
+const yearlyBudget = computed(() => parseBudgetValue(yearlyBudgetInput.value))
+
+const currentMonthSpent = computed(() => {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
+  return rechargeStore.activeRecords.reduce((sum, record) => {
+    const recordDate = parseRecordDate(record)
+    if (!recordDate) return sum
+    if (recordDate.getFullYear() !== currentYear || recordDate.getMonth() !== currentMonth) return sum
+    return sum + Number(record.amount || 0)
+  }, 0)
+})
+
+const currentYearSpent = computed(() => {
+  const currentYear = new Date().getFullYear()
+  return rechargeStore.activeRecords.reduce((sum, record) => {
+    const recordDate = parseRecordDate(record)
+    if (!recordDate) return sum
+    if (recordDate.getFullYear() !== currentYear) return sum
+    return sum + Number(record.amount || 0)
+  }, 0)
+})
+
+const monthlyBudgetProgress = computed(() => buildBudgetProgress(currentMonthSpent.value, monthlyBudget.value))
+const yearlyBudgetProgress = computed(() => buildBudgetProgress(currentYearSpent.value, yearlyBudget.value))
 
 const avatarInitial = computed(() => (syncStore.githubLogin ? syncStore.githubLogin.slice(0, 1).toUpperCase() : 'G'))
 const tokenDisplay = computed(() => {
@@ -363,6 +517,14 @@ function openSync() {
 
 function openSettings() {
   runWithRouteTransition(() => router.push('/manage/settings'), { direction: 'forward' })
+}
+
+function openBudgetDialog() {
+  showBudgetDialog.value = true
+}
+
+function closeBudgetDialog() {
+  showBudgetDialog.value = false
 }
 
 const scanning = ref(false)
@@ -672,10 +834,95 @@ function formatTime(isoString) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+function parseRecordDate(record) {
+  const chargedAt = String(record?.chargedAt || '').trim()
+  const chargedAtTs = chargedAt ? new Date(chargedAt).getTime() : NaN
+  if (Number.isFinite(chargedAtTs)) {
+    return new Date(chargedAtTs)
+  }
+
+  const updatedAt = Number(record?.updatedAt || 0)
+  if (Number.isFinite(updatedAt) && updatedAt > 0) {
+    return new Date(updatedAt)
+  }
+
+  return null
+}
+
+function parseBudgetValue(value) {
+  const normalized = Number(String(value || '').trim())
+  if (!Number.isFinite(normalized) || normalized <= 0) return 0
+  return normalized
+}
+
+function normalizeBudgetInput(value) {
+  const normalized = parseBudgetValue(value)
+  if (normalized <= 0) return ''
+  return String(normalized)
+}
+
+function buildBudgetProgress(spent, budget) {
+  const safeSpent = Number.isFinite(spent) ? Math.max(0, spent) : 0
+  const safeBudget = Number.isFinite(budget) ? Math.max(0, budget) : 0
+
+  if (safeBudget <= 0) {
+    return {
+      hasBudget: false,
+      spent: safeSpent,
+      budget: safeBudget,
+      percent: 0,
+      clampedPercent: 0,
+      overPercent: 0,
+      remaining: 0,
+      isOverBudget: false
+    }
+  }
+
+  const percent = (safeSpent / safeBudget) * 100
+  return {
+    hasBudget: true,
+    spent: safeSpent,
+    budget: safeBudget,
+    percent,
+    clampedPercent: Math.min(100, Math.max(0, percent)),
+    overPercent: Math.min(100, Math.max(0, percent - 100)),
+    remaining: safeBudget - safeSpent,
+    isOverBudget: percent > 100
+  }
+}
+
+async function loadBudgetSettings() {
+  const [savedMonthly, savedYearly] = await Promise.all([
+    readPersisted(MONTHLY_BUDGET_STORAGE_KEY, ''),
+    readPersisted(YEARLY_BUDGET_STORAGE_KEY, '')
+  ])
+
+  monthlyBudgetInput.value = normalizeBudgetInput(savedMonthly)
+  yearlyBudgetInput.value = normalizeBudgetInput(savedYearly)
+}
+
+watch(monthlyBudgetInput, (value) => {
+  const normalized = normalizeBudgetInput(value)
+  if (normalized !== value) {
+    monthlyBudgetInput.value = normalized
+    return
+  }
+  writePersisted(MONTHLY_BUDGET_STORAGE_KEY, normalized)
+})
+
+watch(yearlyBudgetInput, (value) => {
+  const normalized = normalizeBudgetInput(value)
+  if (normalized !== value) {
+    yearlyBudgetInput.value = normalized
+    return
+  }
+  writePersisted(YEARLY_BUDGET_STORAGE_KEY, normalized)
+})
+
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
-  await syncStore.init()
+  await Promise.all([syncStore.init(), loadBudgetSettings()])
 })
 
 onActivated(() => {
@@ -1050,6 +1297,163 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
+.budget-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.budget-settings-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, transparent);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.budget-settings-btn:active {
+  transform: scale(0.98);
+}
+
+.budget-stack {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.budget-card {
+  padding: 16px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--app-surface) 90%, transparent);
+  box-shadow: var(--app-shadow);
+}
+
+.budget-card--over {
+  box-shadow:
+    var(--app-shadow),
+    0 0 0 1px color-mix(in srgb, #e45b5b 26%, transparent);
+}
+
+.budget-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.budget-card__label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.budget-card__title {
+  margin-top: 4px;
+  color: var(--app-text);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.budget-card__percent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 90%, transparent);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.budget-card__percent--over {
+  background: color-mix(in srgb, #e45b5b 14%, var(--app-surface-soft));
+  color: #cd3f3f;
+}
+
+.budget-input-wrap {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.budget-input-wrap__label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.budget-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text);
+  font-size: 14px;
+  outline: none;
+}
+
+.budget-input:focus {
+  border-color: color-mix(in srgb, var(--app-text) 26%, transparent);
+}
+
+.budget-progress {
+  position: relative;
+  width: 100%;
+  height: 10px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  overflow: hidden;
+}
+
+.budget-progress__bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4f9cff, #58c892);
+}
+
+.budget-progress__bar--over {
+  background: linear-gradient(90deg, #f1a23a, #e45b5b);
+}
+
+.budget-progress__overflow {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(228, 91, 91, 0.42);
+}
+
+.budget-card__meta {
+  margin-top: 10px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+.budget-card__hint {
+  margin-top: 4px;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+}
+
+.budget-card__hint--over {
+  color: #cd3f3f;
+}
+
 .shortcut-stack {
   overflow: hidden;
   border-radius: 28px;
@@ -1282,6 +1686,37 @@ onBeforeUnmount(() => {
   opacity: 0.56;
 }
 
+.budget-sheet__fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.budget-overlay {
+  z-index: 220;
+}
+
+.budget-sheet-pop-enter-active,
+.budget-sheet-pop-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.budget-sheet-pop-enter-active .budget-sheet,
+.budget-sheet-pop-leave-active .budget-sheet {
+  transition: transform 0.24s ease, opacity 0.24s ease;
+}
+
+.budget-sheet-pop-enter-from,
+.budget-sheet-pop-leave-to {
+  opacity: 0;
+}
+
+.budget-sheet-pop-enter-from .budget-sheet,
+.budget-sheet-pop-leave-to .budget-sheet {
+  transform: translateY(26px);
+  opacity: 0;
+}
+
 @media (max-width: 1023px) {
   .overview-strip {
     display: none;
@@ -1289,6 +1724,16 @@ onBeforeUnmount(() => {
 
   .content-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .content-main {
+    order: 2;
+  }
+
+  .content-side {
+    order: 1;
   }
 }
 
@@ -1370,6 +1815,21 @@ onBeforeUnmount(() => {
     width: min(100%, 430px);
     margin: 0 auto;
     border-radius: 24px;
+  }
+
+  .budget-overlay {
+    align-items: center;
+  }
+
+  .budget-sheet {
+    width: min(100%, 460px);
+    border-radius: 24px;
+  }
+
+  .budget-sheet-pop-enter-from .budget-sheet,
+  .budget-sheet-pop-leave-to .budget-sheet {
+    transform: translateY(0) scale(0.96);
+    opacity: 0;
   }
 }
 
@@ -1578,5 +2038,10 @@ onBeforeUnmount(() => {
   box-shadow:
     0 24px 56px rgba(0, 0, 0, 0.48),
     0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+:global(html.theme-dark) .budget-card__percent--over,
+:global(html.theme-dark) .budget-card__hint--over {
+  color: #ff8d8d;
 }
 </style>

@@ -39,6 +39,8 @@ const CAMEL_TO_SNAKE = {
   rechargeUpdatedAt: 'recharge_updated_at',
   eventUpdatedAt: 'event_updated_at',
   imageBucket: 'image_bucket',
+  budgetMonthly: 'budget_monthly',
+  budgetYearly: 'budget_yearly',
   // sync_presets
   storageLocations: 'storage_locations'
 }
