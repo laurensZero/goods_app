@@ -1,9 +1,9 @@
 {
-  "version": "20260521.3",
-  "url": "bundle-20260521.3.zip",
-  "hash": "8175ca4ba9679c5d8f7f7f40cb3d3ace6f364034a8469c33e2bf06f69311b3b3",
+  "version": "20260521.4",
+  "url": "bundle-20260521.4.zip",
+  "hash": "b310f31242ef791dd0eff88091834b82d23b6941633056a329caac5b72f9f457",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 优化价格计算逻辑，支持数量和运费的动态计算，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T07:53:29Z"
+  "publishedAt": "2026-05-21T08:13:37Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.4",
+    "url": "bundle-20260521.4.zip",
+    "hash": "b310f31242ef791dd0eff88091834b82d23b6941633056a329caac5b72f9f457",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化价格计算逻辑，支持数量和运费的动态计算，提升用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T08:13:37Z"
+  },
+  {
     "version": "20260521.3",
     "url": "bundle-20260521.3.zip",
     "hash": "8175ca4ba9679c5d8f7f7f40cb3d3ace6f364034a8469c33e2bf06f69311b3b3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 修改 groupedViewEnabled 默认值为 false，优化用户界面设置",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T06:51:31Z"
-  },
-  {
-    "version": "20260521.1",
-    "url": "bundle-20260521.1.zip",
-    "hash": "4ef3503ad85dd3d3fe8bac65ca4b18f873e10c5cac9b418b3fdf3f809928c5a3",
-    "minNativeVersion": null,
-    "notes": "- feat: 谷子组",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T06:38:44Z"
   }
 ]
