@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.13",
+    "url": "bundle-20260521.13.zip",
+    "hash": "8acc6350d3e940de6992db21867bb53332a62d519f86a5fe3b4670eb729ad354",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加深色模式下 nav-icon-btn 的样式覆盖，确保可见性和一致性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T13:00:05Z"
+  },
+  {
     "version": "20260521.12",
     "url": "bundle-20260521.12.zip",
     "hash": "b2f454e1022285fd719d666700bbec0e75f0417824b0bce133bec5af109a2cbf",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图表样式，添加圆角和玻璃效果，提升视觉体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T11:25:40Z"
-  },
-  {
-    "version": "20260521.10",
-    "url": "bundle-20260521.10.zip",
-    "hash": "2a955f5961aac57b5a1f7f1418d90a501325c0347e6348540827cfc5d692cfe1",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加主题颜色支持，优化图表样式应用逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T11:15:59Z"
   }
 ]
