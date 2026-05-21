@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.12",
+    "url": "bundle-20260521.12.zip",
+    "hash": "b2f454e1022285fd719d666700bbec0e75f0417824b0bce133bec5af109a2cbf",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化预算计算逻辑，基于商品入手日期和实际价格计算消费，支持已赠出/已出商品的排除",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T12:20:59Z"
+  },
+  {
     "version": "20260521.11",
     "url": "bundle-20260521.11.zip",
     "hash": "706a052ea389fe99c4cc98b4dfac4e9fade6173378d1143543592ed30f5b9cf6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加主题颜色支持，优化图表样式应用逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T11:15:59Z"
-  },
-  {
-    "version": "20260521.9",
-    "url": "bundle-20260521.9.zip",
-    "hash": "6775ac69ccdf950acfea09625bac7990c8f77322fb3d4da59ee51790a772457d",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化价格计算逻辑，增加基础价格存在性检查",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T10:55:45Z"
   }
 ]
