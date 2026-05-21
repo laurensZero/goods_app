@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260521.7",
+    "url": "bundle-20260521.7.zip",
+    "hash": "94ade9e59acbde21264e6bf531aef29a17b5eb48dfbc09dd110b2177312b4e54",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加预算管理功能，支持月度和年度预算设置及进度追踪",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-21T09:06:21Z"
+  },
+  {
     "version": "20260521.6",
     "url": "bundle-20260521.6.zip",
     "hash": "f9b1a5df9406fe37bc3f7fe3cf4a5988d9c35f10ec881e8246a78f9f4267cb82",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化价格和总值计算逻辑，添加 resolveCollectionTotalValue 函数以提升数据处理准确性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T08:22:40Z"
-  },
-  {
-    "version": "20260521.4",
-    "url": "bundle-20260521.4.zip",
-    "hash": "b310f31242ef791dd0eff88091834b82d23b6941633056a329caac5b72f9f457",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化价格计算逻辑，支持数量和运费的动态计算，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T08:13:37Z"
   }
 ]
