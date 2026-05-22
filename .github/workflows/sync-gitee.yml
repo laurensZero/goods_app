@@ -112,7 +112,7 @@ jobs:
         env:
           SNAPSHOT_SOURCE: refs/remotes/origin/gh-pages
           SNAPSHOT_BRANCH: gh-pages
-          SNAPSHOT_MESSAGE: chore: sync gh-pages snapshot
+          SNAPSHOT_MESSAGE: "chore: sync gh-pages snapshot"
         run: node scripts/create_gitee_snapshot.mjs
 
       - name: Push clean snapshot to gitee
