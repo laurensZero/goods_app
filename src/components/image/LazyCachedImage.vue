@@ -169,11 +169,6 @@ async function ensureCachedImageReady(src, requestId, timeoutMs = 220) {
   return ok
 }
 
-async function probeCachedImageReady(src, timeoutMs = 220) {
-  if (!src) return false
-  return waitForImgDecode(src, timeoutMs)
-}
-
 function getViewportDistance() {
   const el = rootRef.value
   if (!el) return Infinity
@@ -266,13 +261,6 @@ onMounted(() => {
     }
 
     if (reason === 'resume') {
-      // Only hero shared-element images need a resume-time refresh.
-      // Ordinary cards should keep the current blob URL to avoid a visible flash.
-      const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
-      if (!isHero) {
-        return
-      }
-
       // try to refresh memory cache entry to create a new objectURL if needed
       const reloadSrc = await (async () => {
         try {
@@ -282,16 +270,41 @@ onMounted(() => {
         }
       })()
       if (reloadSrc) {
+        // detect hero shared-element images (marked on ancestor)
+        const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
+
         hasLoadError.value = false
         isImageLoading.value = true
+        // clear current src and bump key to force remount
         resolvedSrc.value = ''
         forceRebuildImageElement()
         resetSkeletonVisibility()
-        const ok = await ensureCachedImageReady(reloadSrc, requestId, 420)
-        if (requestId !== loadRequestId) return
-        resolvedSrc.value = reloadSrc
-        isImageLoading.value = !ok
-        if (ok) markImageDecoded(reloadSrc)
+
+        // For hero images, attempt a short, blocking pre-decode to avoid grey texture
+        if (isHero) {
+          const ok = await ensureCachedImageReady(reloadSrc, requestId, 420)
+          if (requestId !== loadRequestId) return
+          resolvedSrc.value = reloadSrc
+          isImageLoading.value = !ok
+          if (ok) markImageDecoded(reloadSrc)
+          return
+        }
+
+        // Non-hero: schedule a microtask/frame to reassign src and optionally validate
+        const scheduleReload = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+          ? window.requestAnimationFrame.bind(window)
+          : (cb) => window.setTimeout(cb, 0)
+
+        scheduleReload(() => {
+          if (requestId !== loadRequestId) return
+          resolvedSrc.value = reloadSrc
+          if (!props.resumeDecodeValidation) return
+          void ensureCachedImageReady(reloadSrc, requestId, 180).then((ok) => {
+            if (requestId !== loadRequestId) return
+            isImageLoading.value = !ok
+            if (ok) markImageDecoded(reloadSrc)
+          })
+        })
         return
       }
     }
@@ -307,9 +320,9 @@ onMounted(() => {
         const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
         let ok = true
         if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
-          ok = await probeCachedImageReady(cached)
+          ok = await ensureCachedImageReady(cached, requestId)
         } else if (reason === 'resume' && hasEnteredViewport.value && isAndroid) {
-          ok = await probeCachedImageReady(cached, 180)
+          ok = await ensureCachedImageReady(cached, requestId, 180)
         } else {
           isImageLoading.value = false
           ok = true
