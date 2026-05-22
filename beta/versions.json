@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260522.5",
+    "url": "bundle-20260522.5.zip",
+    "hash": "eb9f61bba354c7eb1a5c5f9e45d21c3629ee096efdd40bd9a07f7958fad9ef18",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-22T03:44:11Z"
+  },
+  {
     "version": "20260522.4",
     "url": "bundle-20260522.4.zip",
     "hash": "3f69c2d9f4cb1f3357265d83a4bd18f55956b05174e4db8dd0a3ba3fdc7f6d39",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加预算紧凑布局样式，优化预算展示效果",
     "updateLevel": "silent",
     "publishedAt": "2026-05-22T02:51:55Z"
-  },
-  {
-    "version": "20260522.2",
-    "url": "bundle-20260522.2.zip",
-    "hash": "08b5e1d81d3df4dcd171509183e62b07a2e26652614e570c118dab2b9bc5c336",
-    "minNativeVersion": null,
-    "notes": "- feat: 重构账户面板布局，优化 GitHub 登录和退出按钮的显示逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-22T02:46:06Z"
   }
 ]

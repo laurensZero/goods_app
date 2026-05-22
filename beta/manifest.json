@@ -1,9 +1,9 @@
 {
-  "version": "20260522.4",
-  "url": "bundle-20260522.4.zip",
-  "hash": "3f69c2d9f4cb1f3357265d83a4bd18f55956b05174e4db8dd0a3ba3fdc7f6d39",
+  "version": "20260522.5",
+  "url": "bundle-20260522.5.zip",
+  "hash": "eb9f61bba354c7eb1a5c5f9e45d21c3629ee096efdd40bd9a07f7958fad9ef18",
   "minNativeVersion": null,
-  "notes": "- feat: 创建无父提交的快照并同步到 Gitee，优化历史管理",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T03:42:16Z"
+  "publishedAt": "2026-05-22T03:44:11Z"
 }
