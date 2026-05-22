@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260522.10",
+    "url": "bundle-20260522.10.zip",
+    "hash": "f331b395668aa95d84db718f1cafbbd66943417e31a3e15ed6acdc44f479865a",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加增量同步支持，优化数据上传和删除逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-22T09:10:16Z"
+  },
+  {
     "version": "20260522.9",
     "url": "bundle-20260522.9.zip",
     "hash": "d51aeaf10dd1ecf8634806d8068190f7a32effa1b8850a95adb358fee4cbb10e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加图像缓存刷新处理逻辑，优化图像加载体验",
     "updateLevel": "silent",
     "publishedAt": "2026-05-22T07:15:51Z"
-  },
-  {
-    "version": "20260522.7",
-    "url": "bundle-20260522.7.zip",
-    "hash": "44425f5d480befa59c8ce4ea91109064456c460a40268dd9a5cad9531eaf03f7",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-22T06:37:36Z"
   }
 ]
