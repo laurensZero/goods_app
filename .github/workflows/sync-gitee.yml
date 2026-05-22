@@ -107,30 +107,21 @@ jobs:
             sleep "${sleep_seconds}"
           done
 
-      - name: Push matching ref to gitee
+      - name: Create clean gh-pages snapshot
         if: steps.check.outputs.enabled == 'true'
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          REF_NAME: ${{ github.ref_name }}
+          SNAPSHOT_SOURCE: refs/remotes/origin/gh-pages
+          SNAPSHOT_BRANCH: gh-pages
+          SNAPSHOT_MESSAGE: chore: sync gh-pages snapshot
+        run: node scripts/create_gitee_snapshot.mjs
+
+      - name: Push clean snapshot to gitee
+        if: steps.check.outputs.enabled == 'true'
         run: |
           set -euo pipefail
 
-          refspec=""
-
-          if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
-            refspec="+refs/remotes/origin/${REF_NAME}:refs/heads/${REF_NAME}"
-          elif [ "${EVENT_NAME}" = "workflow_run" ]; then
-            refspec="+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
-          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            refspec="+refs/remotes/origin/gh-pages:refs/heads/gh-pages"
-          else
-            echo "No matching ref sync rule for event ${EVENT_NAME}, skip."
-            exit 0
-          fi
-
           for attempt in 1 2 3 4; do
-            if git push gitee "${refspec}"; then
+            if git push gitee "+HEAD:refs/heads/gh-pages"; then
               echo "Push to gitee succeeded on attempt ${attempt}"
               break
             fi
