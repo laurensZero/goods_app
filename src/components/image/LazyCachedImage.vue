@@ -38,7 +38,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
+import { getCachedImage, markImageDecoded, peekCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
 
@@ -90,7 +90,6 @@ const showFallback = computed(() => !!props.src && hasLoadError.value)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
 
 let visibilityObserver = null
-let imageCacheRefreshHandler = null
 let loadRequestId = 0
 let skeletonDelayTimer = null
 
@@ -238,89 +237,6 @@ function onImageError() {
 }
 
 onMounted(() => {
-  // Listen for cache refresh signals (e.g. app resume). For hero images we
-  // attempt offscreen decode + crossfade to avoid remount flashes.
-  imageCacheRefreshHandler = (event) => {
-    const reason = String(event?.detail?.reason || '')
-    const requestId = ++loadRequestId
-
-    if (!props.src || !hasEnteredViewport.value) return
-    if (reason !== 'resume') return
-
-    const rootEl = rootRef.value
-    const isHero = !!(rootEl && typeof rootEl.closest === 'function' && rootEl.closest('[data-goods-hero-id]'))
-    if (!isHero) return
-
-    // schedule on next frame to avoid blocking mount
-    const scheduleReload = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
-      ? window.requestAnimationFrame.bind(window)
-      : (cb) => window.setTimeout(cb, 0)
-
-    hasLoadError.value = false
-    isImageLoading.value = true
-    resetSkeletonVisibility()
-
-    scheduleReload(() => {
-      void (async () => {
-        if (requestId !== loadRequestId) return
-        const freshSrc = await refreshCachedImage(props.src).catch(() => peekCachedImage(props.src) || resolvedSrc.value || props.src)
-        if (requestId !== loadRequestId) return
-
-        // Pre-decode offscreen
-        const off = new Image()
-        off.decoding = 'async'
-        off.src = freshSrc
-        let decoded = false
-        try {
-          if (typeof off.decode === 'function') await off.decode()
-          else if (off.complete && off.naturalWidth > 0) {}
-          decoded = true
-        } catch {}
-        if (requestId !== loadRequestId) return
-
-        if (decoded && rootEl) {
-          const overlay = document.createElement('div')
-          overlay.style.position = 'absolute'
-          overlay.style.inset = '0'
-          overlay.style.backgroundSize = 'cover'
-          overlay.style.backgroundPosition = 'center'
-          overlay.style.backgroundRepeat = 'no-repeat'
-          overlay.style.backgroundImage = `url(${freshSrc})`
-          overlay.style.opacity = '0'
-          overlay.style.transition = 'opacity 220ms ease'
-          overlay.style.pointerEvents = 'none'
-          rootEl.appendChild(overlay)
-          // force reflow
-          // eslint-disable-next-line no-unused-expressions
-          overlay.offsetHeight
-          overlay.style.opacity = '1'
-
-          const cleanup = () => { try { overlay.remove() } catch {} }
-          const onEnd = () => {
-            overlay.removeEventListener('transitionend', onEnd)
-            if (requestId !== loadRequestId) { cleanup(); return }
-            resolvedSrc.value = freshSrc
-            if (decoded) markImageDecoded(freshSrc)
-            isImageLoading.value = false
-            setTimeout(cleanup, 32)
-          }
-          overlay.addEventListener('transitionend', onEnd)
-          setTimeout(() => { if (overlay.parentNode) onEnd() }, 400)
-          return
-        }
-
-        // Fallback: assign directly and try ensure decode
-        resolvedSrc.value = freshSrc
-        const ok = await ensureCachedImageReady(freshSrc, requestId, 260)
-        if (requestId !== loadRequestId) return
-        isImageLoading.value = !ok
-        if (ok) markImageDecoded(freshSrc)
-      })()
-    })
-  }
-
-  window.addEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
-
   if (!props.lazy) {
     hasEnteredViewport.value = true
     return
@@ -348,10 +264,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   visibilityObserver?.disconnect()
   visibilityObserver = null
-  if (imageCacheRefreshHandler) {
-    window.removeEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
-    imageCacheRefreshHandler = null
-  }
   clearSkeletonDelayTimer()
 })
 </script>
