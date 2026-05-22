@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260522.13",
+    "url": "bundle-20260522.13.zip",
+    "hash": "0ad552037c0944444909859c0f795ad90db6eac3ef69cebb216b303f9f2c0bc5",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码\"\n  This reverts commit 60bec094b26cc4ce3248a28ca23aff5905a6b1dd.",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-22T09:26:34Z"
+  },
+  {
     "version": "20260522.12",
     "url": "bundle-20260522.12.zip",
     "hash": "028b13630d0fd470e5d900e6206f232102287df2f0d0b2005e12ab10c84232b1",
@@ -16,14 +25,5 @@
     "notes": "- Revert \"feat: 添加图像缓存刷新处理逻辑，优化图像加载体验\"\n  This reverts commit 58d8755fdceb1dae1175763f60072da94e64c4f4.",
     "updateLevel": "silent",
     "publishedAt": "2026-05-22T09:15:04Z"
-  },
-  {
-    "version": "20260522.10",
-    "url": "bundle-20260522.10.zip",
-    "hash": "f331b395668aa95d84db718f1cafbbd66943417e31a3e15ed6acdc44f479865a",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加增量同步支持，优化数据上传和删除逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-22T09:10:16Z"
   }
 ]
