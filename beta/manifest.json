@@ -1,9 +1,9 @@
 {
-  "version": "20260522.3",
-  "url": "bundle-20260522.3.zip",
-  "hash": "63fe14fbf92cb44e0ea5579f1186bf56befe904c1e1d99fc5c5e848731236158",
+  "version": "20260522.4",
+  "url": "bundle-20260522.4.zip",
+  "hash": "3f69c2d9f4cb1f3357265d83a4bd18f55956b05174e4db8dd0a3ba3fdc7f6d39",
   "minNativeVersion": null,
-  "notes": "- feat: 添加预算紧凑布局样式，优化预算展示效果",
+  "notes": "- feat: 创建无父提交的快照并同步到 Gitee，优化历史管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T02:51:55Z"
+  "publishedAt": "2026-05-22T03:42:16Z"
 }
