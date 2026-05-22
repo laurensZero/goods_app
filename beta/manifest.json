@@ -1,9 +1,9 @@
 {
-  "version": "20260522.7",
-  "url": "bundle-20260522.7.zip",
-  "hash": "44425f5d480befa59c8ce4ea91109064456c460a40268dd9a5cad9531eaf03f7",
+  "version": "20260522.8",
+  "url": "bundle-20260522.8.zip",
+  "hash": "e2e41980d7b5801483002414f3388de0af61a1fd3a108d36ff050e1aaab6dfc4",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 添加图像缓存刷新处理逻辑，优化图像加载体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T06:37:36Z"
+  "publishedAt": "2026-05-22T07:15:51Z"
 }
