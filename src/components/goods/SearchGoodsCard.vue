@@ -34,7 +34,7 @@
         :style="!item.coverImage ? { background: coverBg } : {}"
         :data-goods-hero-id="item.id"
       >
-        <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" class="cover-img" />
+        <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" :lazy="false" resume-decode-validation class="cover-img" />
         <span v-else class="cover-initial">{{ coverInitial }}</span>
       </div>
       <div v-if="item.isWishlist" class="wishlist-badge">心愿</div>

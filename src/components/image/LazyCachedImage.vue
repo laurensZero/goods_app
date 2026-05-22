@@ -38,7 +38,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
-import { getCachedImage, markImageDecoded, peekCachedImage } from '@/utils/image/cache'
+import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
 
@@ -51,6 +51,7 @@ const props = defineProps({
   fetchpriority: { type: String, default: 'low' },
   useCache: { type: Boolean, default: true },
   lazy: { type: Boolean, default: true },
+  resumeDecodeValidation: { type: Boolean, default: false },
   skeletonEnabled: { type: Boolean, default: true },
   skeletonDelayMs: { type: Number, default: 0 },
   imageAttrs: { type: Object, default: () => ({}) }
@@ -91,7 +92,9 @@ const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value &
 
 let visibilityObserver = null
 let loadRequestId = 0
+let imageCacheRefreshHandler = null
 let skeletonDelayTimer = null
+let forceDecodeValidationOnCacheHit = false
 
 function forceRebuildImageElement() {
   imageRenderKey.value += 1
@@ -161,8 +164,14 @@ async function ensureCachedImageReady(src, requestId, timeoutMs = 220) {
   isImageLoading.value = !ok
   if (ok) {
     markImageDecoded(src)
+    forceDecodeValidationOnCacheHit = false
   }
   return ok
+}
+
+async function probeCachedImageReady(src, timeoutMs = 220) {
+  if (!src) return false
+  return waitForImgDecode(src, timeoutMs)
 }
 
 function getViewportDistance() {
@@ -197,7 +206,11 @@ watch(
     if (cached) {
       resolvedSrc.value = cached
       resetSkeletonVisibility()
-      isImageLoading.value = false
+      if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+        await ensureCachedImageReady(cached, requestId)
+      } else {
+        isImageLoading.value = false
+      }
       return
     }
     resolvedSrc.value = ''
@@ -237,6 +250,115 @@ function onImageError() {
 }
 
 onMounted(() => {
+  imageCacheRefreshHandler = async (event) => {
+    const reason = String(event?.detail?.reason || '')
+    if (reason === 'resume') {
+      forceDecodeValidationOnCacheHit = true
+    }
+
+    const requestId = ++loadRequestId
+    if (!props.src || !hasEnteredViewport.value) {
+      resolvedSrc.value = ''
+      hasLoadError.value = false
+      isImageLoading.value = false
+      resetSkeletonVisibility()
+      return
+    }
+
+    if (reason === 'resume') {
+      // Only hero shared-element images need a resume-time refresh.
+      // Ordinary cards should keep the current blob URL to avoid a visible flash.
+      const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
+      if (!isHero) {
+        return
+      }
+
+      // try to refresh memory cache entry to create a new objectURL if needed
+      const reloadSrc = await (async () => {
+        try {
+          return await refreshCachedImage(props.src)
+        } catch {
+          return peekCachedImage(props.src) || resolvedSrc.value || props.src
+        }
+      })()
+      if (reloadSrc) {
+        hasLoadError.value = false
+        isImageLoading.value = true
+        resolvedSrc.value = ''
+        forceRebuildImageElement()
+        resetSkeletonVisibility()
+        const ok = await ensureCachedImageReady(reloadSrc, requestId, 420)
+        if (requestId !== loadRequestId) return
+        resolvedSrc.value = reloadSrc
+        isImageLoading.value = !ok
+        if (ok) markImageDecoded(reloadSrc)
+        return
+      }
+    }
+
+    void Promise.resolve().then(async () => {
+      if (requestId !== loadRequestId) return
+      if (!props.src || !hasEnteredViewport.value) return
+      const cached = peekCachedImage(props.src)
+      if (cached) {
+        if (requestId !== loadRequestId) return
+        resolvedSrc.value = cached
+        resetSkeletonVisibility()
+        const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+        let ok = true
+        if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+          ok = await probeCachedImageReady(cached)
+        } else if (reason === 'resume' && hasEnteredViewport.value && isAndroid) {
+          ok = await probeCachedImageReady(cached, 180)
+        } else {
+          isImageLoading.value = false
+          ok = true
+        }
+        if (!ok && hasEnteredViewport.value && requestId === loadRequestId) {
+          imageRenderKey.value += 1
+          resolvedSrc.value = ''
+          setTimeout(() => {
+            if (requestId !== loadRequestId) return
+            resolvedSrc.value = cached
+            imageRenderKey.value += 1
+            isImageLoading.value = true
+            resetSkeletonVisibility()
+            void ensureCachedImageReady(cached, requestId, 300).then((ok2) => {
+              if (requestId !== loadRequestId) return
+              isImageLoading.value = !ok2
+              if (ok2) markImageDecoded(cached)
+            })
+          }, 80)
+        }
+        return
+      }
+      resolvedSrc.value = ''
+      isImageLoading.value = true
+      resetSkeletonVisibility()
+      const loadPromise = props.useCache
+        ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
+        : Promise.resolve(props.src)
+      void loadPromise.then((nextSrc) => {
+        if (requestId !== loadRequestId) return
+        if (!props.src || !hasEnteredViewport.value) return
+        resolvedSrc.value = nextSrc
+        void (async () => {
+          const ok = await waitForImgDecode(nextSrc)
+          if (requestId !== loadRequestId) return
+          isImageLoading.value = !ok
+          if (ok) markImageDecoded(nextSrc)
+        })()
+      }).catch(() => {
+        if (requestId !== loadRequestId) return
+        if (!props.src || !hasEnteredViewport.value) return
+        resolvedSrc.value = props.src
+        isImageLoading.value = true
+      })
+    })
+  }
+
+  window.addEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
+
   if (!props.lazy) {
     hasEnteredViewport.value = true
     return
@@ -264,6 +386,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   visibilityObserver?.disconnect()
   visibilityObserver = null
+  if (imageCacheRefreshHandler) {
+    window.removeEventListener('goodsapp:image-cache-refresh', imageCacheRefreshHandler)
+    imageCacheRefreshHandler = null
+  }
   clearSkeletonDelayTimer()
 })
 </script>

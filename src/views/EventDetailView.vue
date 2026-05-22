@@ -42,6 +42,7 @@
                 :lazy="false"
                 loading="eager"
                 fetchpriority="high"
+                resume-decode-validation
                 :skeleton-enabled="false"
                 :class="['event-cover-media', { 'event-cover-media--hero-hidden': !coverMediaVisible } ]"
                 :image-attrs="{ class: 'cover-card__img' }"
@@ -145,6 +146,7 @@
                   :src="goods.coverImage"
                   :alt="goods.name"
                   :lazy="true"
+                  resume-decode-validation
                   root-margin="220px 0px"
                   :skeleton-delay-ms="120"
                   class="linked-goods-card__img"
