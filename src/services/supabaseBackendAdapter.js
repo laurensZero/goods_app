@@ -122,9 +122,17 @@ export function createSupabaseBackendAdapter({
     )
   }
 
-  async function syncTableRows(db, tableName, rows, { label = tableName } = {}) {
+  async function syncTableRows(db, tableName, rows, { label = tableName, incremental = false, deleteIds = [] } = {}) {
     if (rows.length > 0) {
       await batchUpsert(db, tableName, rows, { onConflict: 'id' })
+    }
+
+    if (incremental) {
+      const normalizedDeleteIds = [...new Set((deleteIds || []).map(normalizeId).filter(Boolean))]
+      if (normalizedDeleteIds.length > 0) {
+        await deleteRowsByIds(db, tableName, normalizedDeleteIds)
+      }
+      return
     }
 
     const incomingIdSet = buildIncomingIdSet(rows)
@@ -373,9 +381,11 @@ export function createSupabaseBackendAdapter({
 
   // ── Write operations ──
 
-  async function writeData(_, dataMap) {
+  async function writeData(_, dataMap, options = {}) {
     return withTimeout(async () => {
     const db = getDb()
+    const incremental = options?.incremental === true
+    const deleteIdsByFile = options?.deleteIdsByFile || {}
 
     for (const [fileName, entry] of Object.entries(dataMap)) {
       const content = entry.content
@@ -458,7 +468,11 @@ export function createSupabaseBackendAdapter({
           syncedBy: currentDeviceId
         }))
         const mergedRows = [...goodsRows, ...trashRows]
-        await syncTableRows(db, 'goods', mergedRows, { label: 'goods' })
+        await syncTableRows(db, 'goods', mergedRows, {
+          label: 'goods',
+          incremental,
+          deleteIds: deleteIdsByFile[fileName] || []
+        })
 
         if (content.presets) {
           const presetsRow = {
@@ -488,7 +502,11 @@ export function createSupabaseBackendAdapter({
           .filter(Boolean)
         const mergedRows = [...rechargeRows, ...rechargeTrashRows]
 
-        await syncTableRows(db, 'recharge_records', mergedRows, { label: 'recharge_records' })
+        await syncTableRows(db, 'recharge_records', mergedRows, {
+          label: 'recharge_records',
+          incremental,
+          deleteIds: deleteIdsByFile[fileName] || []
+        })
         continue
       }
 
@@ -501,7 +519,11 @@ export function createSupabaseBackendAdapter({
           createdAt: toTimestamp(item.createdAt),
           syncedBy: currentDeviceId
         }))
-        await syncTableRows(db, 'events', rows, { label: 'events' })
+        await syncTableRows(db, 'events', rows, {
+          label: 'events',
+          incremental,
+          deleteIds: deleteIdsByFile[fileName] || []
+        })
         continue
       }
     }
