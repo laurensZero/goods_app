@@ -469,7 +469,11 @@ export function createSyncOrchestrator({
 
   // ── Internal: push to remote ──
 
-  async function pushToRemote(existingGist, existingImageGist, existingRechargeGist, existingEventGist, ctx) {
+  async function pushToRemote(existingGist, existingImageGist, existingRechargeGist, existingEventGist, ctx, uploadPlan = null) {
+    const shouldWriteData = uploadPlan ? uploadPlan.hasDataDiff !== false : true
+    const shouldWriteRecharge = uploadPlan ? uploadPlan.hasRechargeDataDiff !== false : true
+    const shouldWriteEvent = uploadPlan ? uploadPlan.hasEventDataDiff !== false : true
+    const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof activeBackend.getImagePublicUrl === 'function'
     let imageGist = existingImageGist || await activeBackend.ensureImageGist()
 
     if (imageGist?.files) {
@@ -558,17 +562,89 @@ export function createSyncOrchestrator({
     }
     const manifest = payload.buildManifest(mergedImageStats, syncTimestamp, counts)
 
-    try {
-      await trackSyncStep('更新远端数据', () =>
-        activeBackend.writeData(existingGist?.id || activeBackend.getDataGistId(), {
-          [DATA_FILENAME]: { content: syncData },
-          [RECHARGE_DATA_FILENAME]: { content: rechargeSyncData },
-          [EVENT_DATA_FILENAME]: { content: eventSyncData },
-          [MANIFEST_FILENAME]: { content: manifest }
-        }),
-        { startDetail: '上传 data / recharge-data / events-data / manifest', category: 'sync', successDetail: () => '远端数据已更新' }
+    const dataMap = {}
+    const writeOptions = isSupabaseIncrementalUpload ? { incremental: true, deleteIdsByFile: {} } : null
+
+    function buildRowsDiff(localRows = [], remoteRows = []) {
+      const localMap = buildComparableRecordMap(localRows)
+      const remoteMap = buildComparableRecordMap(remoteRows)
+      return localRows.filter((item) => {
+        const id = String(item?.id || '').trim()
+        if (!id) return false
+        return localMap.get(id) !== remoteMap.get(id)
+      })
+    }
+
+    function buildDeleteIds(localRows = [], remoteRows = []) {
+      const localIdSet = new Set(localRows.map((item) => String(item?.id || '').trim()).filter(Boolean))
+      const remoteIdSet = new Set(remoteRows.map((item) => String(item?.id || '').trim()).filter(Boolean))
+      return [...remoteIdSet].filter((id) => !localIdSet.has(id))
+    }
+
+    if (shouldWriteData && isSupabaseIncrementalUpload && uploadPlan?.remoteData) {
+      const localGoodsRows = syncData.goods || []
+      const localTrashRows = syncData.trash || []
+      const remoteGoodsRows = uploadPlan.remoteData.goods || []
+      const remoteTrashRows = uploadPlan.remoteData.trash || []
+
+      dataMap[DATA_FILENAME] = {
+        content: {
+          ...syncData,
+          goods: buildRowsDiff(localGoodsRows, remoteGoodsRows),
+          trash: buildRowsDiff(localTrashRows, remoteTrashRows)
+        }
+      }
+      writeOptions.deleteIdsByFile[DATA_FILENAME] = buildDeleteIds(
+        [...localGoodsRows, ...localTrashRows],
+        [...remoteGoodsRows, ...remoteTrashRows]
       )
-    } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+    } else if (shouldWriteData) {
+      dataMap[DATA_FILENAME] = { content: syncData }
+    }
+
+    if (shouldWriteRecharge) {
+      if (isSupabaseIncrementalUpload && uploadPlan?.remoteRechargeData) {
+        const rechargeRows = buildRowsDiff(rechargeSyncData.recharge || [], uploadPlan.remoteRechargeData.recharge || [])
+        dataMap[RECHARGE_DATA_FILENAME] = {
+          content: {
+            ...rechargeSyncData,
+            recharge: rechargeRows,
+            rechargeTrash: []
+          }
+        }
+        writeOptions.deleteIdsByFile[RECHARGE_DATA_FILENAME] = buildDeleteIds(rechargeSyncData.recharge || [], uploadPlan.remoteRechargeData.recharge || [])
+      } else {
+        dataMap[RECHARGE_DATA_FILENAME] = { content: rechargeSyncData }
+      }
+    }
+
+    if (shouldWriteEvent) {
+      if (isSupabaseIncrementalUpload && uploadPlan?.remoteEventData) {
+        const eventRows = buildRowsDiff(eventSyncData.events || [], uploadPlan.remoteEventData.events || [])
+        dataMap[EVENT_DATA_FILENAME] = {
+          content: {
+            ...eventSyncData,
+            events: eventRows
+          }
+        }
+        writeOptions.deleteIdsByFile[EVENT_DATA_FILENAME] = buildDeleteIds(eventSyncData.events || [], uploadPlan.remoteEventData.events || [])
+      } else {
+        dataMap[EVENT_DATA_FILENAME] = { content: eventSyncData }
+      }
+    }
+
+    if (Object.keys(imageUpdates).length > 0 || Object.keys(dataMap).length > 0) {
+      dataMap[MANIFEST_FILENAME] = { content: manifest }
+    }
+
+    if (Object.keys(dataMap).length > 0) {
+      try {
+        await trackSyncStep('更新远端数据', () =>
+          activeBackend.writeData(existingGist?.id || activeBackend.getDataGistId(), dataMap, writeOptions || undefined),
+          { startDetail: '上传选中的同步文件', category: 'sync', successDetail: () => '远端数据已更新' }
+        )
+      } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+    }
 
     // Update local image entries so future syncs can dedup
     const goodsStore = useGoodsStore()
@@ -684,12 +760,6 @@ export function createSyncOrchestrator({
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff
 
     if (!hasEffectiveDiff) {
-      if (localChanges.hasChanges && !isRemoteFromOtherDevice) {
-        let imageStats
-        try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
-        catch (e) { wrapSyncError(e, PHASE_PUSH) }
-        return { action: 'pushed', statusMessage: '上传完成', ...localChanges, ...imageStats }
-      }
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       if (remoteEventData?.updatedAt || remoteManifest?.lastSyncAt) {
         await ctx.saveEventLastSyncedAt(remoteEventData?.updatedAt || remoteManifest.lastSyncAt)
@@ -715,7 +785,18 @@ export function createSyncOrchestrator({
 
     if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
       let imageStats
-      try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
+      try {
+        imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx, {
+          hasDataDiff: false,
+          hasRechargeDataDiff: false,
+          hasEventDataDiff: false,
+          hasPendingImageChanges: true,
+          incremental: typeof activeBackend.getImagePublicUrl === 'function',
+          remoteData,
+          remoteRechargeData,
+          remoteEventData
+        })
+      }
       catch (e) { wrapSyncError(e, PHASE_PUSH) }
       return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
     }
@@ -755,7 +836,18 @@ export function createSyncOrchestrator({
     }
 
     let imageStats
-    try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
+    try {
+      imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx, {
+        hasDataDiff,
+        hasRechargeDataDiff,
+        hasEventDataDiff,
+        hasPendingImageChanges,
+        incremental: typeof activeBackend.getImagePublicUrl === 'function',
+        remoteData,
+        remoteRechargeData,
+        remoteEventData
+      })
+    }
     catch (e) { wrapSyncError(e, PHASE_PUSH) }
     return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
   }
@@ -816,7 +908,7 @@ export function createSyncOrchestrator({
 
     // Silent 模式（Realtime/visibilitychange 触发）：跳过冲突弹窗，直接拉取
     if (silent) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest)
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge })
       const hasAnyDiff = !!(
         diff.remoteOnlyGoods > 0 || diff.updatedGoods > 0 || diff.localOnlyGoods > 0
         || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0

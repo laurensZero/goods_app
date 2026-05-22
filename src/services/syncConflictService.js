@@ -96,7 +96,7 @@ export function createSyncConflictService({
     }
   }
 
-  async function buildPullConflictData(gist, remoteManifest) {
+  async function buildPullConflictData(gist, remoteManifest, { forceRecharge = false } = {}) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
@@ -127,7 +127,7 @@ export function createSyncConflictService({
       monthly: normalizeBudgetValue(remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly),
       yearly: normalizeBudgetValue(remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly)
     }
-    const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
+    const shouldReadRechargePrecheck = forceRecharge || shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
     const remoteRechargeData = shouldReadRechargePrecheck
       ? (await currentBackend.readJson({
           title: '预检读取 RechargeData',
