@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260522.7",
+    "url": "bundle-20260522.7.zip",
+    "hash": "44425f5d480befa59c8ce4ea91109064456c460a40268dd9a5cad9531eaf03f7",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-22T06:37:36Z"
+  },
+  {
     "version": "20260522.6",
     "url": "bundle-20260522.6.zip",
     "hash": "ea43f7e4ed4bd06d1529772c85d8d7875db59420b64b3c1689f516ce76764479",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-05-22T03:44:11Z"
-  },
-  {
-    "version": "20260522.4",
-    "url": "bundle-20260522.4.zip",
-    "hash": "3f69c2d9f4cb1f3357265d83a4bd18f55956b05174e4db8dd0a3ba3fdc7f6d39",
-    "minNativeVersion": null,
-    "notes": "- feat: 创建无父提交的快照并同步到 Gitee，优化历史管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-22T03:42:16Z"
   }
 ]
