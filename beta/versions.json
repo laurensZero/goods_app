@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260522.1",
+    "url": "bundle-20260522.1.zip",
+    "hash": "4ea0b37fc218e7e232b9814ad121e30c8bf34d1c02f8a25a6e8090d46cca2039",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加单一变体自动选择逻辑，优化变体选择体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-22T02:34:45Z"
+  },
+  {
     "version": "20260521.20",
     "url": "bundle-20260521.20.zip",
     "hash": "2f140270a139bb3454fd1d7acf5972a1b5486a04a0ad747ab00e90f57623b1f4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 移除图像组件中的 resume-decode-validation 属性，简化图像加载逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T14:11:23Z"
-  },
-  {
-    "version": "20260521.18",
-    "url": "bundle-20260521.18.zip",
-    "hash": "9a0e8d81b1ba4fcd330b1cec6ec530c5712c3043ca9ea2495f3eb0bcb7b91a28",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T14:03:27Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260521.20",
-  "url": "bundle-20260521.20.zip",
-  "hash": "2f140270a139bb3454fd1d7acf5972a1b5486a04a0ad747ab00e90f57623b1f4",
+  "version": "20260522.1",
+  "url": "bundle-20260522.1.zip",
+  "hash": "4ea0b37fc218e7e232b9814ad121e30c8bf34d1c02f8a25a6e8090d46cca2039",
   "minNativeVersion": null,
-  "notes": "- feat: 优化图表工具提示格式化逻辑，确保数值显示更友好",
+  "notes": "- feat: 添加单一变体自动选择逻辑，优化变体选择体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-21T14:19:43Z"
+  "publishedAt": "2026-05-22T02:34:45Z"
 }
