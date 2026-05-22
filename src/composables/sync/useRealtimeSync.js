@@ -13,6 +13,7 @@ export function useRealtimeSync({ syncStore }) {
   function handleRemoteChange(payload) {
     const row = payload.new || payload.old
     if (!row) return
+    const table = String(payload?.table || '')
     // 过滤自己设备的写入
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
     // debounce 300ms 合并短时间内的多次事件
@@ -20,7 +21,7 @@ export function useRealtimeSync({ syncStore }) {
     pullDebounceTimer = setTimeout(async () => {
       if (syncStore.isSyncing || syncStore.isPulling) return
       try {
-        await syncStore.pullOnly({ silent: true })
+        await syncStore.pullOnly({ silent: true, forceRecharge: table === 'recharge_records' })
       } catch {
         // silent fail
       }

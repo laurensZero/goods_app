@@ -488,7 +488,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   function autoPushGoods() {
     if (!isSupabaseMode()) return
-    if (isPulling.value || isSyncing.value) {
+     if (isPulling.value || isSyncing.value) {
       pendingAutoPush = true
       return
     }
@@ -579,7 +579,7 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  async function pullOnly({ silent = false, source = 'manual', maxRetries = 1 } = {}) {
+  async function pullOnly({ silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
     if (isSyncing.value) return
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error('未找到 Gist')
@@ -597,7 +597,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       const result = await withRetry(
-        () => orchestrator.pullOnly(buildSyncContext(), { silent }),
+        () => orchestrator.pullOnly(buildSyncContext(), { silent, forceRecharge }),
         { maxRetries, baseDelay: 1200 }
       )
       if (!silent && result.conflictData) conflictData.value = result.conflictData

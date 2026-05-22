@@ -67,6 +67,12 @@ export function createSupabaseBackendAdapter({
     return message.includes('already exists') || message.includes('duplicate')
   }
 
+  function isBucketCreatePermissionError(error) {
+    const code = String(error?.code || '').toUpperCase()
+    const message = String(error?.message || '').toLowerCase()
+    return code === '42501' || message.includes('row-level security') || message.includes('permission denied') || message.includes('not allowed')
+  }
+
   function normalizeBucketName(bucketLike) {
     if (typeof bucketLike === 'string' && bucketLike.trim()) return bucketLike.trim()
     if (bucketLike && typeof bucketLike === 'object') {
@@ -107,6 +113,58 @@ export function createSupabaseBackendAdapter({
     }
   }
 
+  function buildIncomingIdSet(rows) {
+    return new Set(
+      rows
+        .map((row) => row.id)
+        .filter((id) => id !== undefined && id !== null && id !== '')
+        .map(normalizeId)
+    )
+  }
+
+  async function syncTableRows(db, tableName, rows, { label = tableName } = {}) {
+    if (rows.length > 0) {
+      await batchUpsert(db, tableName, rows, { onConflict: 'id' })
+    }
+
+    const incomingIdSet = buildIncomingIdSet(rows)
+    if (incomingIdSet.size === 0) {
+      const { error } = await withRetry(() =>
+        db.from(tableName).delete().neq('id', '')
+      )
+      if (error) throw new Error(`清空 ${label} 失败: ${error.message}`)
+      return
+    }
+
+    const { data: existingRows, error: existingError } = await withRetry(() =>
+      db.from(tableName).select('id')
+    )
+    if (existingError) throw new Error(`读取 ${label} 现有记录失败: ${existingError.message}`)
+
+    const staleIds = (existingRows || [])
+      .map((row) => row.id)
+      .filter((id) => !incomingIdSet.has(normalizeId(id)))
+    await deleteRowsByIds(db, tableName, staleIds)
+  }
+
+  function toRechargeRow(item, currentDeviceId, deleted) {
+    const id = String(item?.id || '').trim()
+    if (!id) return null
+    return toSnakeCase({
+      ...pickCols(item, RECHARGE_COLS),
+      id,
+      game: String(item?.game || '').trim(),
+      itemName: String(item?.itemName || '').trim(),
+      note: String(item?.note || '').trim(),
+      image: String(item?.image || '').trim(),
+      amount: Number(item?.amount) || 0,
+      chargedAt: String(item?.chargedAt || '').trim(),
+      deleted: deleted ? 1 : 0,
+      updatedAt: toTimestamp(item?.updatedAt),
+      syncedBy: currentDeviceId
+    })
+  }
+
   // ── Ensure operations (no-op for Supabase, tables are pre-created) ──
 
   async function ensureDataGist() {
@@ -125,6 +183,11 @@ export function createSupabaseBackendAdapter({
 
     const { error: createError } = await db.storage.createBucket(bucketName, { public: true })
     if (createError && !isBucketAlreadyExistsError(createError)) {
+      if (isBucketCreatePermissionError(createError)) {
+        // Anon key usually cannot create buckets; keep data sync usable even when storage setup is incomplete.
+        console.warn('[supabase] createBucket permission denied, skip auto-create:', createError.message)
+        return { id: bucketName }
+      }
       throw new Error(`创建 bucket 失败: ${createError.message}`)
     }
     return { id: bucketName }
@@ -168,15 +231,29 @@ export function createSupabaseBackendAdapter({
     fileName,
     startDetail = '',
     category = '',
-    successDetail = null
+    successDetail = null,
+    incrementalSince = 0
   }) {
     const result = await trackSyncStep(title, () => withTimeout(async () => {
       const db = getDb()
 
       if (fileName === 'data.json') {
+        const incrementalSinceMs = Number(incrementalSince) || 0
         const [goodsRes, trashRes, presetsRes] = await Promise.all([
-          withRetry(() => db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 0)),
-          withRetry(() => db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 1)),
+          withRetry(() => {
+            let query = db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 0)
+            if (incrementalSinceMs > 0) {
+              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+            }
+            return query
+          }),
+          withRetry(() => {
+            let query = db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 1)
+            if (incrementalSinceMs > 0) {
+              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+            }
+            return query
+          }),
           withRetry(() => db.from('sync_presets').select('*').eq('id', 'default').limit(1))
         ])
         if (goodsRes.error) throw new Error(`读取 goods 失败: ${goodsRes.error.message}`)
@@ -206,9 +283,14 @@ export function createSupabaseBackendAdapter({
       }
 
       if (fileName === 'recharge-data.json') {
-        const { data, error } = await withRetry(() =>
-          db.from('recharge_records').select(RECHARGE_SELECT_COLS).eq('deleted', 0)
-        )
+        const incrementalSinceMs = Number(incrementalSince) || 0
+        const { data, error } = await withRetry(() => {
+          let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS).eq('deleted', 0)
+          if (incrementalSinceMs > 0) {
+            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+          }
+          return query
+        })
         if (error) throw new Error(`读取 recharge 失败: ${error.message}`)
         const recharge = (data || []).map((row) => {
           const item = toCamelCase(row)
@@ -223,9 +305,14 @@ export function createSupabaseBackendAdapter({
       }
 
       if (fileName === 'events-data.json') {
-        const { data, error } = await withRetry(() =>
-          db.from('events').select(EVENT_SELECT_COLS)
-        )
+        const incrementalSinceMs = Number(incrementalSince) || 0
+        const { data, error } = await withRetry(() => {
+          let query = db.from('events').select(EVENT_SELECT_COLS)
+          if (incrementalSinceMs > 0) {
+            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+          }
+          return query
+        })
         if (error) throw new Error(`读取 events 失败: ${error.message}`)
         const events = (data || []).map((row) => {
           const item = toCamelCase(row)
@@ -371,32 +458,7 @@ export function createSupabaseBackendAdapter({
           syncedBy: currentDeviceId
         }))
         const mergedRows = [...goodsRows, ...trashRows]
-
-        if (mergedRows.length > 0) {
-          await batchUpsert(db, 'goods', mergedRows, { onConflict: 'id' })
-        }
-
-        const incomingIdSet = new Set(
-          mergedRows
-            .map((row) => row.id)
-            .filter((id) => id !== undefined && id !== null && id !== '')
-            .map(normalizeId)
-        )
-        if (incomingIdSet.size === 0) {
-          const { error } = await withRetry(() =>
-            db.from('goods').delete().neq('id', '')
-          )
-          if (error) throw new Error(`清空 goods 失败: ${error.message}`)
-        } else {
-          const { data: existingRows, error: existingError } = await withRetry(() =>
-            db.from('goods').select('id')
-          )
-          if (existingError) throw new Error(`读取 goods 现有记录失败: ${existingError.message}`)
-          const staleIds = (existingRows || [])
-            .map((row) => row.id)
-            .filter((id) => !incomingIdSet.has(normalizeId(id)))
-          await deleteRowsByIds(db, 'goods', staleIds)
-        }
+        await syncTableRows(db, 'goods', mergedRows, { label: 'goods' })
 
         if (content.presets) {
           const presetsRow = {
@@ -418,47 +480,15 @@ export function createSupabaseBackendAdapter({
         const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
         const recharge = Array.isArray(content.recharge) ? content.recharge : []
         const rechargeTrash = Array.isArray(content.rechargeTrash) ? content.rechargeTrash : []
-        const rechargeRows = recharge.map(item => toSnakeCase({
-          ...pickCols(item, RECHARGE_COLS),
-          amount: Number(item.amount) || 0,
-          deleted: 0,
-          updatedAt: toTimestamp(item.updatedAt),
-          syncedBy: currentDeviceId
-        }))
-        const rechargeTrashRows = rechargeTrash.map(item => toSnakeCase({
-          ...pickCols(item, RECHARGE_COLS),
-          amount: Number(item.amount) || 0,
-          deleted: 1,
-          updatedAt: toTimestamp(item.updatedAt),
-          syncedBy: currentDeviceId
-        }))
+        const rechargeRows = recharge
+          .map((item) => toRechargeRow(item, currentDeviceId, false))
+          .filter(Boolean)
+        const rechargeTrashRows = rechargeTrash
+          .map((item) => toRechargeRow(item, currentDeviceId, true))
+          .filter(Boolean)
         const mergedRows = [...rechargeRows, ...rechargeTrashRows]
 
-        if (mergedRows.length > 0) {
-          await batchUpsert(db, 'recharge_records', mergedRows, { onConflict: 'id' })
-        }
-
-        const incomingIdSet = new Set(
-          mergedRows
-            .map((row) => row.id)
-            .filter((id) => id !== undefined && id !== null && id !== '')
-            .map(normalizeId)
-        )
-        if (incomingIdSet.size === 0) {
-          const { error } = await withRetry(() =>
-            db.from('recharge_records').delete().neq('id', '')
-          )
-          if (error) throw new Error(`清空 recharge_records 失败: ${error.message}`)
-        } else {
-          const { data: existingRows, error: existingError } = await withRetry(() =>
-            db.from('recharge_records').select('id')
-          )
-          if (existingError) throw new Error(`读取 recharge 现有记录失败: ${existingError.message}`)
-          const staleIds = (existingRows || [])
-            .map((row) => row.id)
-            .filter((id) => !incomingIdSet.has(normalizeId(id)))
-          await deleteRowsByIds(db, 'recharge_records', staleIds)
-        }
+        await syncTableRows(db, 'recharge_records', mergedRows, { label: 'recharge_records' })
         continue
       }
 
@@ -471,31 +501,7 @@ export function createSupabaseBackendAdapter({
           createdAt: toTimestamp(item.createdAt),
           syncedBy: currentDeviceId
         }))
-        if (rows.length > 0) {
-          await batchUpsert(db, 'events', rows, { onConflict: 'id' })
-        }
-
-        const incomingIdSet = new Set(
-          rows
-            .map((row) => row.id)
-            .filter((id) => id !== undefined && id !== null && id !== '')
-            .map(normalizeId)
-        )
-        if (incomingIdSet.size === 0) {
-          const { error } = await withRetry(() =>
-            db.from('events').delete().neq('id', '')
-          )
-          if (error) throw new Error(`清空 events 失败: ${error.message}`)
-        } else {
-          const { data: existingRows, error: existingError } = await withRetry(() =>
-            db.from('events').select('id')
-          )
-          if (existingError) throw new Error(`读取 events 现有记录失败: ${existingError.message}`)
-          const staleIds = (existingRows || [])
-            .map((row) => row.id)
-            .filter((id) => !incomingIdSet.has(normalizeId(id)))
-          await deleteRowsByIds(db, 'events', staleIds)
-        }
+        await syncTableRows(db, 'events', rows, { label: 'events' })
         continue
       }
     }
