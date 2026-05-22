@@ -1902,6 +1902,33 @@ onBeforeUnmount(() => {
 
   .budget-compact {
     width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-items: start;
+  }
+
+  .budget-compact__head {
+    grid-column: 1 / -1;
+  }
+
+  .budget-compact__item {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .budget-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-items: start;
+  }
+
+  .budget-compact__head {
+    grid-column: 1 / -1;
+  }
+
+  .budget-compact__item {
+    min-width: 0;
   }
 }
 
