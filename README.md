@@ -140,9 +140,12 @@ npm run open:android
 
 1. 先运行 [`.github/workflows/web-bundle-pages.yml`](.github/workflows/web-bundle-pages.yml) 发布或回档 `manifest.json` 与 `bundle-*.zip` 到 `gh-pages`
 2. [`.github/workflows/sync-gitee.yml`](.github/workflows/sync-gitee.yml) 会在该 workflow 成功后自动触发
-3. 自动把最新 `gh-pages` 同步到 Gitee，Gitee Pages 即可提供最新 bundle 地址
+3. 自动把最新 `gh-pages` 生成一个无父提交的快照再同步到 Gitee，避免历史里的 `bundle-*.zip` 持续累积
+4. Gitee Pages 即可提供最新 bundle 地址
 
 如果你需要手动补同步，也可以手动触发 `sync-gitee` workflow。
+
+如果 Gitee 仓库已经因为旧 bundle 历史变大，可以在本地克隆里运行 `npm run clean:gitee-history`，再 force push 到对应的 Gitee 仓库分支。
 
 当前推荐的 bundle 拉取策略：
 
