@@ -1,9 +1,9 @@
 {
-  "version": "20260522.1",
-  "url": "bundle-20260522.1.zip",
-  "hash": "4ea0b37fc218e7e232b9814ad121e30c8bf34d1c02f8a25a6e8090d46cca2039",
+  "version": "20260522.2",
+  "url": "bundle-20260522.2.zip",
+  "hash": "08b5e1d81d3df4dcd171509183e62b07a2e26652614e570c118dab2b9bc5c336",
   "minNativeVersion": null,
-  "notes": "- feat: 添加单一变体自动选择逻辑，优化变体选择体验",
+  "notes": "- feat: 重构账户面板布局，优化 GitHub 登录和退出按钮的显示逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T02:34:45Z"
+  "publishedAt": "2026-05-22T02:46:06Z"
 }

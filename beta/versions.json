@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260522.2",
+    "url": "bundle-20260522.2.zip",
+    "hash": "08b5e1d81d3df4dcd171509183e62b07a2e26652614e570c118dab2b9bc5c336",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构账户面板布局，优化 GitHub 登录和退出按钮的显示逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-22T02:46:06Z"
+  },
+  {
     "version": "20260522.1",
     "url": "bundle-20260522.1.zip",
     "hash": "4ea0b37fc218e7e232b9814ad121e30c8bf34d1c02f8a25a6e8090d46cca2039",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图表工具提示格式化逻辑，确保数值显示更友好",
     "updateLevel": "silent",
     "publishedAt": "2026-05-21T14:19:43Z"
-  },
-  {
-    "version": "20260521.19",
-    "url": "bundle-20260521.19.zip",
-    "hash": "20e91892231715dba3ddb35970bb79942410083aa84dc4648c87fa718f951d25",
-    "minNativeVersion": null,
-    "notes": "- feat: 移除图像组件中的 resume-decode-validation 属性，简化图像加载逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-21T14:11:23Z"
   }
 ]
