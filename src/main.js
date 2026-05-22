@@ -18,6 +18,7 @@ import { useExchangeRateStore } from './stores/exchangeRate'
 import { useRechargeStore } from './stores/recharge'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
+import { signalImageCacheRefresh } from './utils/image/cache'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
