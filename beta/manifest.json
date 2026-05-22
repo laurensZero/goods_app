@@ -1,9 +1,9 @@
 {
-  "version": "20260522.10",
-  "url": "bundle-20260522.10.zip",
-  "hash": "f331b395668aa95d84db718f1cafbbd66943417e31a3e15ed6acdc44f479865a",
+  "version": "20260522.11",
+  "url": "bundle-20260522.11.zip",
+  "hash": "fc5d40ea3f46fab66ca2020e9b01c111cbc350b9948d30adbc65f029a5715c18",
   "minNativeVersion": null,
-  "notes": "- feat: 添加增量同步支持，优化数据上传和删除逻辑",
+  "notes": "- Revert \"feat: 添加图像缓存刷新处理逻辑，优化图像加载体验\"\n  This reverts commit 58d8755fdceb1dae1175763f60072da94e64c4f4.",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T09:10:16Z"
+  "publishedAt": "2026-05-22T09:15:04Z"
 }
