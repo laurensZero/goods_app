@@ -214,8 +214,9 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
  * @param {string} id
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
  * @param {() => Promise<void>} persistTrash
+ * @param {() => void} [onMutate]
  */
-export async function deleteTrashItem(id, trashList, persistTrash) {
+export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
   const existing = trashList.value.find((entry) => entry.id === id)
   const next = trashList.value.filter((entry) => entry.id !== id)
   if (next.length === trashList.value.length) return
@@ -228,13 +229,15 @@ export async function deleteTrashItem(id, trashList, persistTrash) {
     console.error('[goods] deleteTrashItem DB write failed:', e)
     throw e
   }
+  onMutate?.()
 }
 
 /**
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
  * @param {() => Promise<void>} persistTrash
+ * @param {() => void} [onMutate]
  */
-export async function emptyTrash(trashList, persistTrash) {
+export async function emptyTrash(trashList, persistTrash, onMutate) {
   if (trashList.value.length === 0) return
   const removedPaths = new Set()
   for (const item of trashList.value) {
@@ -250,6 +253,7 @@ export async function emptyTrash(trashList, persistTrash) {
     console.error('[goods] emptyTrash DB write failed:', e)
     throw e
   }
+  onMutate?.()
 }
 
 /**

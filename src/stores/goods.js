@@ -155,8 +155,8 @@ export const useGoodsStore = defineStore('goods', () => {
   function removeGoods(id) { return crud.removeGoods(id, list, trashList, persistTrash, autoPushGoods) }
   function removeMultipleGoods(ids) { return crud.removeMultipleGoods(ids, list, trashList, persistTrash, autoPushGoods) }
   function restoreTrashItem(id) { return crud.restoreTrashItem(id, list, trashList, persistTrash, autoPushGoods) }
-  function deleteTrashItem(id) { return crud.deleteTrashItem(id, trashList, persistTrash) }
-  function emptyTrash() { return crud.emptyTrash(trashList, persistTrash) }
+  function deleteTrashItem(id) { return crud.deleteTrashItem(id, trashList, persistTrash, autoPushGoods) }
+  function emptyTrash() { return crud.emptyTrash(trashList, persistTrash, autoPushGoods) }
   function deleteGoodsPermanently(ids) { return crud.deleteGoodsPermanently(ids, list) }
 
   //  Delegated to sub-modules
