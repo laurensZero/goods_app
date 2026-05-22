@@ -55,6 +55,26 @@
               </div>
             </div>
 
+            <div class="account-actions">
+              <button type="button" class="hero-action hero-action--primary" @click="handleGithubLogin">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3a9 9 0 1 0 9 9" />
+                  <path d="M12 12l4.5-4.5" />
+                  <path d="M12 12h7" />
+                </svg>
+                <span>{{ syncStore.githubLogin ? '重新登录 GitHub' : '登录 GitHub' }}</span>
+              </button>
+
+              <button type="button" class="hero-action" :disabled="!syncStore.githubLogin && !syncStore.token" @click="openLogoutDialog">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M10 17l5-5-5-5" />
+                  <path d="M15 12H3" />
+                  <path d="M21 4v16" />
+                </svg>
+                <span>退出登录</span>
+              </button>
+            </div>
+
             <article class="budget-compact">
               <div class="budget-compact__head">
                 <div>
@@ -94,26 +114,6 @@
                 <div class="budget-compact__foot">{{ formatPrice(yearlyBudgetProgress.spent) }} / {{ yearlyBudgetProgress.hasBudget ? formatPrice(yearlyBudgetProgress.budget) : '未设置' }}</div>
               </div>
             </article>
-          </div>
-
-          <div class="account-actions">
-            <button type="button" class="hero-action hero-action--primary" @click="handleGithubLogin">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 3a9 9 0 1 0 9 9" />
-                <path d="M12 12l4.5-4.5" />
-                <path d="M12 12h7" />
-              </svg>
-              <span>{{ syncStore.githubLogin ? '重新登录 GitHub' : '登录 GitHub' }}</span>
-            </button>
-
-            <button type="button" class="hero-action" :disabled="!syncStore.githubLogin && !syncStore.token" @click="openLogoutDialog">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M10 17l5-5-5-5" />
-                <path d="M15 12H3" />
-                <path d="M21 4v16" />
-              </svg>
-              <span>退出登录</span>
-            </button>
           </div>
         </article>
       </section>
@@ -1165,12 +1165,21 @@ onBeforeUnmount(() => {
 
 .account-panel__main {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(240px, 300px);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'avatar copy actions'
+    'budget budget budget';
+  gap: 14px 18px;
+  align-items: center;
+}
+
+.account-avatar-wrap {
+  grid-area: avatar;
+  align-self: start;
 }
 
 .budget-compact {
+  grid-area: budget;
   display: grid;
   gap: 4px;
   padding: 20px 16px 18px;
@@ -1279,6 +1288,7 @@ onBeforeUnmount(() => {
 }
 
 .account-copy {
+  grid-area: copy;
   min-width: 0;
 }
 
@@ -1353,8 +1363,10 @@ onBeforeUnmount(() => {
 }
 
 .account-actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
 }
 
@@ -1882,10 +1894,14 @@ onBeforeUnmount(() => {
 
   .account-panel__main {
     grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'avatar copy'
+      'actions actions'
+      'budget budget';
   }
 
   .budget-compact {
-    grid-column: 1 / -1;
+    width: 100%;
   }
 }
 
@@ -1905,6 +1921,11 @@ onBeforeUnmount(() => {
 
   .account-panel__main {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'avatar'
+      'copy'
+      'actions'
+      'budget';
     justify-items: start;
   }
 
