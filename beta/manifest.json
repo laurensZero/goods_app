@@ -1,9 +1,9 @@
 {
-  "version": "20260522.14",
-  "url": "bundle-20260522.14.zip",
-  "hash": "f543d2768178882e998771ff022aa8162fc9051647784b242ad22bbf47c236c5",
+  "version": "20260522.15",
+  "url": "bundle-20260522.15.zip",
+  "hash": "2b1cb43d3c0a474e73c4300ac5d93b23019b42edf8a5a83c1b6ad0ca996024c1",
   "minNativeVersion": null,
-  "notes": "- feat: 更新删除和清空垃圾箱的函数，添加 onMutate 回调以支持状态更新",
+  "notes": "- feat: 移除 Android 返回按钮监听器相关代码，简化组件逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T15:04:20Z"
+  "publishedAt": "2026-05-22T15:25:26Z"
 }
