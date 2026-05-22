@@ -1708,6 +1708,14 @@ function autoSelectVariantByHint() {
   }
 }
 
+function autoSelectSingleVariant() {
+  if (selectedVariantKey.value) return
+  if (!Array.isArray(parsedVariants.value) || parsedVariants.value.length !== 1) return
+
+  handleVariantSelect(parsedVariants.value[0])
+  variantSectionCollapsed.value = true
+}
+
 // ── 智能推算 ──
 function evalVariantTags(v) {
   const combinedText = [form.name, displayVariantText(v.text)].filter(Boolean).join(' ')
@@ -1858,6 +1866,7 @@ async function handleParse() {
             parsedImages.value = [...parsedBaseImages.value]
           }
         }
+        autoSelectSingleVariant()
         autoSelectVariantByHint()
         if (selectedVariantKey.value) {
           const selected = parsedVariants.value.find(v => v.key === selectedVariantKey.value)
@@ -1887,6 +1896,7 @@ async function handleParse() {
     parsedVariants.value = result.variants || []
     applyPreferredSearchCharacter()
     selectedVariantKey.value = ''  // 重置选中状态
+    autoSelectSingleVariant()
     autoSelectVariantByHint()
     updateHistoricalTagContextFromItem({
       ip: form.ip,
