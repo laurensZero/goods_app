@@ -1,9 +1,9 @@
 {
-  "version": "20260522.15",
-  "url": "bundle-20260522.15.zip",
-  "hash": "2b1cb43d3c0a474e73c4300ac5d93b23019b42edf8a5a83c1b6ad0ca996024c1",
+  "version": "20260523.1",
+  "url": "bundle-20260523.1.zip",
+  "hash": "804813b41a14a3a6b2fb6eee492a77f6f7b43ca79153bf9a31667efd48ea0b4e",
   "minNativeVersion": null,
-  "notes": "- feat: 移除 Android 返回按钮监听器相关代码，简化组件逻辑",
+  "notes": "- feat: 移除图像元素重建逻辑，优化图像加载流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-22T15:25:26Z"
+  "publishedAt": "2026-05-23T06:20:40Z"
 }

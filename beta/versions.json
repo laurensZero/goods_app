@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260523.1",
+    "url": "bundle-20260523.1.zip",
+    "hash": "804813b41a14a3a6b2fb6eee492a77f6f7b43ca79153bf9a31667efd48ea0b4e",
+    "minNativeVersion": null,
+    "notes": "- feat: 移除图像元素重建逻辑，优化图像加载流程",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-23T06:20:40Z"
+  },
+  {
     "version": "20260522.15",
     "url": "bundle-20260522.15.zip",
     "hash": "2b1cb43d3c0a474e73c4300ac5d93b23019b42edf8a5a83c1b6ad0ca996024c1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新删除和清空垃圾箱的函数，添加 onMutate 回调以支持状态更新",
     "updateLevel": "silent",
     "publishedAt": "2026-05-22T15:04:20Z"
-  },
-  {
-    "version": "20260522.13",
-    "url": "bundle-20260522.13.zip",
-    "hash": "0ad552037c0944444909859c0f795ad90db6eac3ef69cebb216b303f9f2c0bc5",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 优化图像缓存刷新逻辑，移除不必要的事件监听和处理，简化代码\"\n  This reverts commit 60bec094b26cc4ce3248a28ca23aff5905a6b1dd.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-22T09:26:34Z"
   }
 ]
