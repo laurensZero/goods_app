@@ -2,7 +2,6 @@
   <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
       v-if="resolvedSrc && !showFallback"
-      :key="imageRenderKey"
       v-bind="imageAttrs"
       :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
@@ -79,7 +78,6 @@ const imageAttrs = computed(() => {
   }
 })
 const resolvedSrc = ref('')
-const imageRenderKey = ref(0)
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
@@ -95,10 +93,6 @@ let loadRequestId = 0
 let imageCacheRefreshHandler = null
 let skeletonDelayTimer = null
 let forceDecodeValidationOnCacheHit = false
-
-function forceRebuildImageElement() {
-  imageRenderKey.value += 1
-}
 
 function clearSkeletonDelayTimer() {
   if (skeletonDelayTimer != null) {
@@ -274,37 +268,21 @@ onMounted(() => {
         const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
 
         hasLoadError.value = false
-        isImageLoading.value = true
-        // clear current src and bump key to force remount
-        resolvedSrc.value = ''
-        forceRebuildImageElement()
         resetSkeletonVisibility()
 
-        // For hero images, attempt a short, blocking pre-decode to avoid grey texture
-        if (isHero) {
-          const ok = await ensureCachedImageReady(reloadSrc, requestId, 420)
-          if (requestId !== loadRequestId) return
+        // Keep the current pixels visible and only swap once the refreshed object URL
+        // is decoded, so resume does not flash every image at once.
+        const decodeTimeout = isHero
+          ? 420
+          : (props.resumeDecodeValidation ? 180 : 120)
+        const ok = await waitForImgDecode(reloadSrc, decodeTimeout)
+        if (requestId !== loadRequestId) return
+
+        if (ok || !resolvedSrc.value) {
           resolvedSrc.value = reloadSrc
-          isImageLoading.value = !ok
-          if (ok) markImageDecoded(reloadSrc)
-          return
         }
-
-        // Non-hero: schedule a microtask/frame to reassign src and optionally validate
-        const scheduleReload = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
-          ? window.requestAnimationFrame.bind(window)
-          : (cb) => window.setTimeout(cb, 0)
-
-        scheduleReload(() => {
-          if (requestId !== loadRequestId) return
-          resolvedSrc.value = reloadSrc
-          if (!props.resumeDecodeValidation) return
-          void ensureCachedImageReady(reloadSrc, requestId, 180).then((ok) => {
-            if (requestId !== loadRequestId) return
-            isImageLoading.value = !ok
-            if (ok) markImageDecoded(reloadSrc)
-          })
-        })
+        isImageLoading.value = false
+        if (ok) markImageDecoded(reloadSrc)
         return
       }
     }
