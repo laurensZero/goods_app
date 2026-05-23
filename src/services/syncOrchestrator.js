@@ -1,4 +1,5 @@
 import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
+import { Capacitor } from '@capacitor/core'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
@@ -476,6 +477,18 @@ export function createSyncOrchestrator({
     const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof activeBackend.getImagePublicUrl === 'function'
     let imageGist = existingImageGist || await activeBackend.ensureImageGist()
 
+    // Debug: log incremental/uploadPlan state to help diagnose unexpected full uploads
+    try {
+      if (!Capacitor.isNativePlatform()) {
+        // eslint-disable-next-line no-console
+        console.log('[sync] pushToRemote: isSupabaseIncrementalUpload=', Boolean(isSupabaseIncrementalUpload), 'uploadPlanKeys=', uploadPlan ? Object.keys(uploadPlan) : null)
+        // eslint-disable-next-line no-console
+        console.log('[sync] pushToRemote: uploadPlan.remoteData=', !!(uploadPlan && uploadPlan.remoteData), 'remoteRechargeData=', !!(uploadPlan && uploadPlan.remoteRechargeData), 'remoteEventData=', !!(uploadPlan && uploadPlan.remoteEventData))
+      }
+    } catch (e) {
+      // ignore
+    }
+
     if (imageGist?.files) {
       const firstFileName = Object.keys(imageGist.files).find(f => f !== 'README.md')
       if (firstFileName) {
@@ -574,11 +587,93 @@ export function createSyncOrchestrator({
         delete copy.synced_by
         return copy
       }
+      // Normalize image/cover fields to gistFileName only to avoid diffs caused by different public URLs
+      function normalizeForDiff(item) {
+        if (!item || typeof item !== 'object') return item
+        const out = { ...item }
+        // goods images
+        if (Array.isArray(out.images)) {
+          out.images = out.images.map((img) => {
+            if (!img || typeof img !== 'object') return { id: img?.id || '', gistFileName: '' }
+            const gistFileName = String(img.gistFileName || '').trim() || (typeof img.uri === 'string' && img.uri.startsWith('gist-image://') ? img.uri.slice('gist-image://'.length) : '')
+            return { id: String(img.id || '').trim(), gistFileName }
+          })
+          // sort images by id for stable comparable representation
+          out.images.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+        }
+        // remove legacy single-image field to avoid structure mismatch
+        if (out.image !== undefined) delete out.image
+        // event cover
+        if (out.coverImageData && typeof out.coverImageData === 'object') {
+          out.coverImageData = { gistFileName: String(out.coverImageData.gistFileName || '').trim() }
+        }
+        // remove coverImage string to avoid url/publicUrl difference
+        if (out.coverImage !== undefined) delete out.coverImage
+        // normalize boolean/numeric fields to stable types to avoid trivial diffs
+        try {
+          // isWishlist: normalize to 0/1
+          if (out.isWishlist === undefined || out.isWishlist === null) out.isWishlist = 0
+          else if (typeof out.isWishlist === 'string') out.isWishlist = (out.isWishlist === '1' || out.isWishlist.toLowerCase() === 'true') ? 1 : 0
+          else out.isWishlist = out.isWishlist ? 1 : 0
+
+          // points: ensure null rather than undefined
+          if (out.points === undefined) out.points = null
+
+          // updatedAt: normalize to Number
+          if (out.updatedAt !== undefined && out.updatedAt !== null) out.updatedAt = Number(out.updatedAt) || 0
+        } catch (e) {
+          // ignore
+        }
+        // event photos
+        if (Array.isArray(out.photos)) {
+          out.photos = out.photos.map((p) => {
+            if (!p || typeof p !== 'object') return { id: p?.id || '', gistFileName: '' }
+            const gistFileName = String(p.gistFileName || '').trim() || (typeof p.uri === 'string' && p.uri.startsWith('gist-image://') ? p.uri.slice('gist-image://'.length) : '')
+            return { id: String(p.id || '').trim(), gistFileName }
+          })
+          out.photos.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+        }
+        return out
+      }
 
       const normalizedLocal = localRows.map(stripMeta)
       const normalizedRemote = remoteRows.map(stripMeta)
-      const localMap = buildComparableRecordMap(normalizedLocal)
-      const remoteMap = buildComparableRecordMap(normalizedRemote)
+      const localMap = buildComparableRecordMap(normalizedLocal.map(normalizeForDiff))
+      const remoteMap = buildComparableRecordMap(normalizedRemote.map(normalizeForDiff))
+      try {
+        // Debug sample comparison: show comparable strings for the first differing id
+        const sample = normalizedLocal[0] || normalizedRemote[0]
+        const sampleId = String(sample?.id || '').trim()
+        if (sampleId) {
+          const lstr = localMap.get(sampleId)
+          const rstr = remoteMap.get(sampleId)
+          if (!Capacitor.isNativePlatform()) {
+            // eslint-disable-next-line no-console
+            console.log('[sync] compare sample id=', sampleId, 'localStrLen=', lstr?.length || 0, 'remoteStrLen=', rstr?.length || 0)
+          }
+          if (lstr !== rstr) {
+            let idx = -1
+            const la = lstr || ''
+            const ra = rstr || ''
+            const max = Math.min(la.length, ra.length)
+            for (let i = 0; i < max; i++) {
+              if (la[i] !== ra[i]) { idx = i; break }
+            }
+            if (idx === -1 && la.length !== ra.length) idx = max
+            if (!Capacitor.isNativePlatform()) {
+              // eslint-disable-next-line no-console
+              console.log('[sync] first diff index=', idx, 'localChunk=', (la || '').slice(Math.max(0, idx - 20), idx + 20), 'remoteChunk=', (ra || '').slice(Math.max(0, idx - 20), idx + 20))
+            }
+          } else {
+            if (!Capacitor.isNativePlatform()) {
+              // eslint-disable-next-line no-console
+              console.log('[sync] sample comparable strings equal')
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
       return localRows.filter((item) => {
         const id = String(item?.id || '').trim()
         if (!id) return false
@@ -597,12 +692,40 @@ export function createSyncOrchestrator({
       const localTrashRows = syncData.trash || []
       const remoteGoodsRows = uploadPlan.remoteData.goods || []
       const remoteTrashRows = uploadPlan.remoteData.trash || []
+      // Compute diffs and log samples to debug unexpected full diffs
+      const goodsDiffRows = buildRowsDiff(localGoodsRows, remoteGoodsRows)
+      const trashDiffRows = buildRowsDiff(localTrashRows, remoteTrashRows)
+      try {
+        if (!Capacitor.isNativePlatform()) {
+          // eslint-disable-next-line no-console
+          console.log('[sync] incremental diff counts: localGoods=', localGoodsRows.length, 'remoteGoods=', remoteGoodsRows.length, 'goodsDiff=', goodsDiffRows.length)
+        }
+        // sample a diff item to inspect field differences
+        if (goodsDiffRows.length > 0) {
+          const sampleId = String(goodsDiffRows[0]?.id || goodsDiffRows[0])
+          const localSample = localGoodsRows.find((r) => String(r?.id || '').trim() === String(sampleId).trim())
+          const remoteSample = remoteGoodsRows.find((r) => String(r?.id || '').trim() === String(sampleId).trim())
+          const strip = (r) => {
+            if (!r || typeof r !== 'object') return r
+            const c = { ...r }
+            delete c.syncedBy
+            delete c.synced_by
+            return c
+          }
+          if (!Capacitor.isNativePlatform()) {
+            // eslint-disable-next-line no-console
+            console.log('[sync] goods diff sample id=', sampleId, 'local=', strip(localSample), 'remote=', strip(remoteSample))
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
 
       dataMap[DATA_FILENAME] = {
         content: {
           ...syncData,
-          goods: buildRowsDiff(localGoodsRows, remoteGoodsRows),
-          trash: buildRowsDiff(localTrashRows, remoteTrashRows)
+          goods: goodsDiffRows,
+          trash: trashDiffRows
         }
       }
       writeOptions.deleteIdsByFile[DATA_FILENAME] = buildDeleteIds(
@@ -649,6 +772,27 @@ export function createSyncOrchestrator({
     }
 
     if (Object.keys(dataMap).length > 0) {
+      try {
+        // Log what will be written: filenames and approximate item counts
+        const debugFiles = Object.keys(dataMap).reduce((acc, fn) => {
+          const content = dataMap[fn]?.content
+          if (!content) return acc
+          if (Array.isArray(content.goods) || Array.isArray(content.trash)) {
+            acc[fn] = { goods: (content.goods || []).length, trash: (content.trash || []).length }
+          } else if (Array.isArray(content.recharge) || Array.isArray(content.events)) {
+            acc[fn] = { recharge: (content.recharge || []).length, events: (content.events || []).length }
+          } else {
+            acc[fn] = { keys: Object.keys(content).length }
+          }
+          return acc
+        }, {})
+        if (!Capacitor.isNativePlatform()) {
+          // eslint-disable-next-line no-console
+          console.log('[sync] writeData payload summary:', debugFiles, 'writeOptions=', writeOptions)
+        }
+      } catch (e) {
+        // ignore
+      }
       try {
         await trackSyncStep('更新远端数据', () =>
           activeBackend.writeData(existingGist?.id || activeBackend.getDataGistId(), dataMap, writeOptions || undefined),
