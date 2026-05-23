@@ -1,9 +1,9 @@
 {
-  "version": "20260523.5",
-  "url": "bundle-20260523.5.zip",
-  "hash": "2129de157d8131d88ee17019ff020df1ca46e1a2bba1a59c08192a03553c64e3",
+  "version": "20260523.6",
+  "url": "bundle-20260523.6.zip",
+  "hash": "0ee340fb1aac619f64a8765a71578e5e18f485009f2b71a9b1f073331098bcd7",
   "minNativeVersion": null,
-  "notes": "- feat: 在 buildRowsDiff 函数中添加 stripMeta 函数以规范化行数据，移除设备特定的同步元数据",
+  "notes": "- feat: 增量上传",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-23T12:28:17Z"
+  "publishedAt": "2026-05-23T12:45:29Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260523.6",
+    "url": "bundle-20260523.6.zip",
+    "hash": "0ee340fb1aac619f64a8765a71578e5e18f485009f2b71a9b1f073331098bcd7",
+    "minNativeVersion": null,
+    "notes": "- feat: 增量上传",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-23T12:45:29Z"
+  },
+  {
     "version": "20260523.5",
     "url": "bundle-20260523.5.zip",
     "hash": "2129de157d8131d88ee17019ff020df1ca46e1a2bba1a59c08192a03553c64e3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 deleteGoodsPermanently 函数，添加 onMutate 回调以支持状态更新",
     "updateLevel": "silent",
     "publishedAt": "2026-05-23T11:47:07Z"
-  },
-  {
-    "version": "20260523.3",
-    "url": "bundle-20260523.3.zip",
-    "hash": "1f9f83f247a18e585fd4d7064d95241b1289a47a1ca294c137922e150de160d9",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化搜索页日期选择体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-23T11:32:14Z"
   }
 ]
