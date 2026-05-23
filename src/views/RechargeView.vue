@@ -52,7 +52,7 @@
 
 <script setup>
 import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { useRechargeScrollRestore } from '@/composables/scroll/useRechargeScrollRestore'
@@ -238,6 +238,16 @@ onBeforeUnmount(() => {
   if (!hasPendingRestore() && !isRouteLeaving) {
     rememberCurrentScrollPosition()
   }
+})
+
+onBeforeRouteLeave(() => {
+  isRouteLeaving = true
+  saveScrollPosition(false, 'recharge:onBeforeRouteLeave')
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
 })
 </script>
 
