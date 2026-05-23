@@ -259,8 +259,9 @@ export async function emptyTrash(trashList, persistTrash, onMutate) {
 /**
  * @param {string[]|Set<string>} ids
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
+ * @param {() => void} [onMutate]
  */
-export async function deleteGoodsPermanently(ids, list) {
+export async function deleteGoodsPermanently(ids, list, onMutate) {
   const targetIds = [...new Set(Array.from(ids || []).filter(Boolean))]
   if (targetIds.length === 0) return 0
 
@@ -285,5 +286,6 @@ export async function deleteGoodsPermanently(ids, list) {
     console.error('[goods] deleteGoodsPermanently DB write failed:', e)
     throw e
   }
+  onMutate?.()
   return targetIds.length
 }
