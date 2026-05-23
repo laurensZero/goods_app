@@ -566,8 +566,19 @@ export function createSyncOrchestrator({
     const writeOptions = isSupabaseIncrementalUpload ? { incremental: true, deleteIdsByFile: {} } : null
 
     function buildRowsDiff(localRows = [], remoteRows = []) {
-      const localMap = buildComparableRecordMap(localRows)
-      const remoteMap = buildComparableRecordMap(remoteRows)
+      const stripMeta = (r) => {
+        if (!r || typeof r !== 'object') return r
+        const copy = { ...r }
+        // remove sync metadata that is intentionally different per-device
+        delete copy.syncedBy
+        delete copy.synced_by
+        return copy
+      }
+
+      const normalizedLocal = localRows.map(stripMeta)
+      const normalizedRemote = remoteRows.map(stripMeta)
+      const localMap = buildComparableRecordMap(normalizedLocal)
+      const remoteMap = buildComparableRecordMap(normalizedRemote)
       return localRows.filter((item) => {
         const id = String(item?.id || '').trim()
         if (!id) return false
