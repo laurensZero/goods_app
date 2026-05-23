@@ -1,9 +1,9 @@
 {
-  "version": "20260523.4",
-  "url": "bundle-20260523.4.zip",
-  "hash": "16e8e5da7be75ba85a8e45a1307b7bf3ee463a7ef33f4dd79dee117921803033",
+  "version": "20260523.5",
+  "url": "bundle-20260523.5.zip",
+  "hash": "2129de157d8131d88ee17019ff020df1ca46e1a2bba1a59c08192a03553c64e3",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 deleteGoodsPermanently 函数，添加 onMutate 回调以支持状态更新",
+  "notes": "- feat: 在 buildRowsDiff 函数中添加 stripMeta 函数以规范化行数据，移除设备特定的同步元数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-23T11:47:07Z"
+  "publishedAt": "2026-05-23T12:28:17Z"
 }
