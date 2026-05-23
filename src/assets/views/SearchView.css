@@ -372,6 +372,41 @@
   color: var(--app-placeholder);
 }
 
+.date-field {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 16px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  text-align: left;
+  transition: transform 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.date-field:active {
+  transform: scale(0.988);
+}
+
+.date-field__value--placeholder {
+  color: var(--app-placeholder);
+}
+
+.date-field__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--app-text-tertiary);
+}
+
 .range-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

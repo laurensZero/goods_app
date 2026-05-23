@@ -189,9 +189,29 @@
                     </button>
                   </div>
                   <div v-if="filters.acquiredPreset === 'custom'" class="range-row range-row--date">
-                    <input v-model="filters.acquiredFrom" class="field-input" type="date">
+                    <button class="date-field" type="button" @click="openAcquiredDatePicker('from')">
+                      <span :class="{ 'date-field__value--placeholder': !filters.acquiredFrom }">
+                        {{ filters.acquiredFrom || '开始日期' }}
+                      </span>
+                      <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="16" rx="3" />
+                        <path d="M8 3V7" />
+                        <path d="M16 3V7" />
+                        <path d="M3 10H21" />
+                      </svg>
+                    </button>
                     <span class="range-gap">-</span>
-                    <input v-model="filters.acquiredTo" class="field-input" type="date">
+                    <button class="date-field" type="button" @click="openAcquiredDatePicker('to')">
+                      <span :class="{ 'date-field__value--placeholder': !filters.acquiredTo }">
+                        {{ filters.acquiredTo || '结束日期' }}
+                      </span>
+                      <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="16" rx="3" />
+                        <path d="M8 3V7" />
+                        <path d="M16 3V7" />
+                        <path d="M3 10H21" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
@@ -250,7 +270,7 @@
                   </div>
                 </div>
 
-                <div v-if="storageLocationTree.length || hasUnassignedStorageLocation" class="field-block">
+                <div v-if="showStorageLocationFilter && (storageLocationTree.length || hasUnassignedStorageLocation)" class="field-block">
                   <label class="field-label">存放位置</label>
 
                   <div class="location-tree">
@@ -341,6 +361,17 @@
     />
 
     <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
+
+    <AppDatePicker
+      v-model:show="showAcquiredDatePicker"
+      v-model="acquiredDatePickerValue"
+      :z-index="2000"
+      :is-tablet="isTabletViewport"
+      :title="acquiredDatePickerTarget === 'from' ? '选择购入开始日期' : '选择购入结束日期'"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onAcquiredDateConfirm"
+    />
   </div>
 </template>
 
@@ -351,6 +382,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useFilterPresetsStore } from '@/stores/filterPresets'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
+import { useTabletViewport } from '@/composables/useTabletViewport'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import {
   GOODS_FILTER_BOOLEAN_OPTIONS,
@@ -368,6 +400,7 @@ import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import SearchGoodsCard from '@/components/goods/SearchGoodsCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
@@ -376,15 +409,18 @@ import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
+import { formatDate } from '@/utils/format'
 
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const filterPresetsStore = useFilterPresetsStore()
 const route = useRoute()
 const router = useRouter()
+const { isTabletViewport } = useTabletViewport()
 
 const searchScope = computed(() => (route.query.scope === 'wishlist' ? 'wishlist' : 'collection'))
 const searchScopeLabel = computed(() => (searchScope.value === 'wishlist' ? '心愿单' : '收藏库'))
+const showStorageLocationFilter = computed(() => searchScope.value === 'collection')
 const searchStateHistoryKey = computed(() => `searchViewState:${searchScope.value}`)
 const defaultBackPath = computed(() => (searchScope.value === 'wishlist' ? '/wishlist' : '/home'))
 const selectionHistoryKey = computed(() => (
@@ -404,11 +440,16 @@ const presetDraftName = ref('')
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const showShareSheet = ref(false)
+const showAcquiredDatePicker = ref(false)
+const acquiredDatePickerTarget = ref('from')
+const acquiredDatePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
 const selectionHeaderTop = ref(0)
 const SELECTION_HEADER_HEIGHT = 64
 const searchDisplayReady = ref(!hasPendingGoodsHeroBack(route.fullPath))
+const minDate = new Date(2000, 0, 1)
+const maxDate = new Date(2100, 11, 31)
 
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
@@ -740,6 +781,46 @@ function resetFilters() {
   activePresetId.value = ''
   activePresetName.value = ''
   presetDraftName.value = ''
+}
+
+function openAcquiredDatePicker(target) {
+  acquiredDatePickerTarget.value = target
+  const dateString = target === 'from' ? filters.acquiredFrom : (filters.acquiredTo || filters.acquiredFrom)
+  acquiredDatePickerValue.value = toDatePickerValue(dateString)
+  showAcquiredDatePicker.value = true
+}
+
+function onAcquiredDateConfirm({ selectedValues }) {
+  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+  const dateString = `${year}-${month}-${day}`
+
+  if (acquiredDatePickerTarget.value === 'from') {
+    filters.acquiredFrom = dateString
+    if (filters.acquiredTo && filters.acquiredTo < dateString) {
+      filters.acquiredTo = dateString
+    }
+  } else {
+    filters.acquiredTo = dateString
+    if (filters.acquiredFrom && filters.acquiredFrom > dateString) {
+      filters.acquiredFrom = dateString
+    }
+  }
+
+  acquiredDatePickerValue.value = [year, month, day]
+  showAcquiredDatePicker.value = false
+}
+
+function toDatePickerValue(dateString) {
+  const [year, month, day] = normalizeDateParts(dateString)
+  return [year, month, day]
+}
+
+function normalizeDateParts(dateString) {
+  const [fallbackYear, fallbackMonth, fallbackDay] = formatDate(new Date(), 'YYYY-MM-DD').split('-')
+  if (!dateString) return [fallbackYear, fallbackMonth, fallbackDay]
+
+  const [year = fallbackYear, month = fallbackMonth, day = fallbackDay] = `${dateString}`.split('-')
+  return [year, month.padStart(2, '0'), day.padStart(2, '0')]
 }
 
 function togglePresetEditor() {
