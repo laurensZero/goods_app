@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.9",
+    "url": "bundle-20260524.9.zip",
+    "hash": "f9b3da90344b05ea4b6f349e993bbcf1e1b7885aec641be9ab4c56b30a4ae677",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新匹配收藏状态过滤器，增加丢失状态支持",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:24:03Z"
+  },
+  {
     "version": "20260524.8",
     "url": "bundle-20260524.8.zip",
     "hash": "a533d67af64a45a02feb888093fe02b0dcde7471154ac2e9f87dd1026e4a4cdb",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在 SummaryCard 和 RechargeContent 中添加 showTips 属性以控制提示项的显示",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:01:04Z"
-  },
-  {
-    "version": "20260524.6",
-    "url": "bundle-20260524.6.zip",
-    "hash": "d0283e2ed0c737cf9954d0c369010ac491fed730ff9f1a18ab32982a889ba114",
-    "minNativeVersion": null,
-    "notes": "- feat: 在 SummaryCard 和 WishlistView 中添加预算计算要点和提示项，以增强用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T08:59:51Z"
   }
 ]
