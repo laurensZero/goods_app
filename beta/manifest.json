@@ -1,9 +1,9 @@
 {
-  "version": "20260524.9",
-  "url": "bundle-20260524.9.zip",
-  "hash": "f9b3da90344b05ea4b6f349e993bbcf1e1b7885aec641be9ab4c56b30a4ae677",
+  "version": "20260524.10",
+  "url": "bundle-20260524.10.zip",
+  "hash": "55778d0b202cf526f31c6bd2dcb6153216e38a970c02ac49e74124bd4d1dd1f1",
   "minNativeVersion": null,
-  "notes": "- feat: 更新匹配收藏状态过滤器，增加丢失状态支持",
+  "notes": "- feat: 添加商品、事件和充值记录所需的数据库列，并确保表结构更新",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T09:24:03Z"
+  "publishedAt": "2026-05-24T09:28:30Z"
 }
