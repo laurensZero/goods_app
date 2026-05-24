@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.19",
+    "url": "bundle-20260524.19.zip",
+    "hash": "b95a3454b3388f48c781df792a78976f516d195657f9e736c974d9b3cd0dc7ff",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强商品管理功能，支持逐份持有天数计算和状态过滤",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T11:37:04Z"
+  },
+  {
     "version": "20260524.18",
     "url": "bundle-20260524.18.zip",
     "hash": "e1a4dcfc8230dabdcc5fdfc59f71bce6889e2811745757c1ba23e1c27ab9022d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新查询条件以支持未删除和已删除状态的记录",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:55:56Z"
-  },
-  {
-    "version": "20260524.16",
-    "url": "bundle-20260524.16.zip",
-    "hash": "1ba4f74c363c6f837e2254ebd2d5ff65b0586d55ea67599f22fe5c6b4ea6a5d1",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:51:31Z"
   }
 ]
