@@ -136,6 +136,9 @@ export const useGoodsStore = defineStore('goods', () => {
     } catch (e) {
       console.error('[goods] init: getItems failed, starting with empty list:', e)
       list.value = []
+      import('vant').then(({ showFailToast }) => {
+        showFailToast('数据加载失败：' + ((e && e.message) || '未知错误'))
+      }).catch(() => {})
     }
     try {
       trashList.value = (await readPersistedTrash()).map((item) => normalizeTrashItem(item, item.id))
