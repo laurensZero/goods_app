@@ -861,6 +861,7 @@ export function createSyncOrchestrator({
     const existingRechargeGist = await activeBackend.getExistingRechargeGist()
     const existingEventGist = await activeBackend.getExistingEventGist()
     const existingImageGist = await activeBackend.getExistingImageGist(remoteManifest)
+    const isSupabaseBackend = typeof activeBackend.getImagePublicUrl === 'function'
 
     let remoteData, remoteRechargeData, remoteEventData
     try {
@@ -875,7 +876,7 @@ export function createSyncOrchestrator({
       }) || { goods: [], trash: [], presets: {} }
 
       const rechargeStore = useRechargeStore()
-      const shouldReadRechargePrecheck = shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      const shouldReadRechargePrecheck = isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, rechargeStore)
       remoteRechargeData = shouldReadRechargePrecheck
         ? (await readJson({
             title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
@@ -1021,6 +1022,7 @@ export function createSyncOrchestrator({
       ])
     } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
     if (!gist) throw new Error('未找到远端数据')
+    const isSupabaseBackend = typeof activeBackend.getImagePublicUrl === 'function'
 
     let remoteManifest, remoteRechargeData, remoteEventData
     try {
@@ -1028,7 +1030,7 @@ export function createSyncOrchestrator({
         successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' })
 
       const rechargeStore = useRechargeStore()
-      const shouldReadRechargePrecheck = forceRecharge || shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, rechargeStore)
       const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
 
       ;[remoteRechargeData, remoteEventData] = await Promise.all([

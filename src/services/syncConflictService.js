@@ -101,6 +101,7 @@ export function createSyncConflictService({
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
     const currentBackend = resolveBackend()
+    const isSupabaseBackend = typeof currentBackend.getImagePublicUrl === 'function'
     const existingRechargeGist = getExistingRechargeGist
       ? await getExistingRechargeGist()
       : await currentBackend.getExistingRechargeGist()
@@ -127,7 +128,7 @@ export function createSyncConflictService({
       monthly: normalizeBudgetValue(remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly),
       yearly: normalizeBudgetValue(remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly)
     }
-    const shouldReadRechargePrecheck = forceRecharge || shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
+    const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
     const remoteRechargeData = shouldReadRechargePrecheck
       ? (await currentBackend.readJson({
           title: '预检读取 RechargeData',
