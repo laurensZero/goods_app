@@ -183,16 +183,22 @@ function sortGoodsList(list, sortBy) {
       case 'acquiredAt_asc':
         return a.acquiredTime - b.acquiredTime
           || a.name.localeCompare(b.name, 'zh-Hans-CN')
-      case 'price_desc':
-        return b.priceNumber - a.priceNumber
+      case 'price_desc': {
+        const vb = Number(b.priceCNYNumber ?? b.priceNumber ?? 0)
+        const va = Number(a.priceCNYNumber ?? a.priceNumber ?? 0)
+        return vb - va
           || b.acquiredTime - a.acquiredTime
           || a.name.localeCompare(b.name, 'zh-Hans-CN')
-      case 'price_asc':
-        return a.priceNumber - b.priceNumber
+      }
+      case 'price_asc': {
+        const va = Number(a.priceCNYNumber ?? a.priceNumber ?? 0)
+        const vb = Number(b.priceCNYNumber ?? b.priceNumber ?? 0)
+        return va - vb
           || b.acquiredTime - a.acquiredTime
           || a.name.localeCompare(b.name, 'zh-Hans-CN')
+      }
       case 'totalValue_desc':
-        return b.totalValueNumber - a.totalValueNumber
+        return (Number(b.totalValueNumber ?? 0) - Number(a.totalValueNumber ?? 0))
           || b.acquiredTime - a.acquiredTime
           || a.name.localeCompare(b.name, 'zh-Hans-CN')
       case 'name_asc':
