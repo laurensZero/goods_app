@@ -183,7 +183,7 @@ function matchesCollectStatusFilter(selectedStatuses, item) {
   const primaryStatus = resolvePrimaryCollectStatus(item)
   const unitEntries = getCollectStatusEntries(item)
   const unitStatuses = new Set(unitEntries.map(({ status }) => status))
-  const exitStatuses = new Set(['已出', '已赠出'])
+  const exitStatuses = new Set(['已出', '已赠出', '丢失'])
 
   return selectedStatuses.some((selectedStatus) => {
     if (selectedStatus === itemStatus || selectedStatus === primaryStatus) return true
