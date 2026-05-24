@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.3",
+    "url": "bundle-20260524.3.zip",
+    "hash": "2162700ad55e3580077f74bc6a4d250a08eaebd239984eb2451b4e1ef215be4d",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新小部件背景和文本颜色，使用新的颜色资源以提升一致性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T04:55:27Z"
+  },
+  {
     "version": "20260524.2",
     "url": "bundle-20260524.2.zip",
     "hash": "b1b32a4298d569072331113e73c14427212342161ecc68212b54cd221aca2e98",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品列表排序逻辑，支持价格字段的多种表示方式",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T03:38:24Z"
-  },
-  {
-    "version": "20260523.6",
-    "url": "bundle-20260523.6.zip",
-    "hash": "0ee340fb1aac619f64a8765a71578e5e18f485009f2b71a9b1f073331098bcd7",
-    "minNativeVersion": null,
-    "notes": "- feat: 增量上传",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-23T12:45:29Z"
   }
 ]
