@@ -28,4 +28,14 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 2,
+    description: 'Persist per-unit collect statuses',
+    up: async (db) => {
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('unitCollectStatusList')) {
+        await db.run("ALTER TABLE goods ADD COLUMN unitCollectStatusList TEXT DEFAULT '[]'")
+      }
+    }
+  },
 ]
