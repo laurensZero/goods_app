@@ -411,6 +411,14 @@ export async function initDB() {
 
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
 export async function getItems() {
+  if (!isInitialized) {
+    try {
+      await initDB()
+    } catch (e) {
+      console.error('[db] initDB retry failed in getItems:', e)
+      throw e
+    }
+  }
   try {
     const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
     return rows.map(r => ({
@@ -483,6 +491,14 @@ export async function deleteItems(ids) {
 
 /** @returns {Promise<import('@/types/models').EventItem[]>} */
 export async function getEvents() {
+  if (!isInitialized) {
+    try {
+      await initDB()
+    } catch (e) {
+      console.error('[db] initDB retry failed in getEvents:', e)
+      throw e
+    }
+  }
   try {
     const rows = await db.query('SELECT * FROM events ORDER BY startDate DESC')
     return rows.map(r => {
@@ -563,6 +579,14 @@ export async function deleteEvents(ids) {
 
 /** @returns {Promise<Array>} */
 export async function getRechargeRecords() {
+  if (!isInitialized) {
+    try {
+      await initDB()
+    } catch (e) {
+      console.error('[db] initDB retry failed in getRechargeRecords:', e)
+      throw e
+    }
+  }
   try {
     const rows = await db.query('SELECT * FROM recharge_records ORDER BY updatedAt DESC')
     return rows.map(r => ({
