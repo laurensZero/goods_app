@@ -1,9 +1,9 @@
 {
-  "version": "20260524.4",
-  "url": "bundle-20260524.4.zip",
-  "hash": "912d173eb8a0279d1c4dec5a94f26c5439a9022bfba466dd1c1842c160366184",
+  "version": "20260524.5",
+  "url": "bundle-20260524.5.zip",
+  "hash": "561151a605f3f9218eb9df2fb4aa281dfbed08796624e6e55145fe66066865ab",
   "minNativeVersion": null,
-  "notes": "- feat: 在 metaToGoods 函数中添加 goodsId 字段以支持懒加载和识别",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T05:04:06Z"
+  "publishedAt": "2026-05-24T07:21:22Z"
 }

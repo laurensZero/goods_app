@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.5",
+    "url": "bundle-20260524.5.zip",
+    "hash": "561151a605f3f9218eb9df2fb4aa281dfbed08796624e6e55145fe66066865ab",
+    "minNativeVersion": null,
+    "notes": "- 本次 beta 更新无可用变更说明",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T07:21:22Z"
+  },
+  {
     "version": "20260524.4",
     "url": "bundle-20260524.4.zip",
     "hash": "912d173eb8a0279d1c4dec5a94f26c5439a9022bfba466dd1c1842c160366184",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新小部件背景和文本颜色，使用新的颜色资源以提升一致性",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T04:55:27Z"
-  },
-  {
-    "version": "20260524.2",
-    "url": "bundle-20260524.2.zip",
-    "hash": "b1b32a4298d569072331113e73c14427212342161ecc68212b54cd221aca2e98",
-    "minNativeVersion": null,
-    "notes": "- feat: 小组件",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T04:50:35Z"
   }
 ]
