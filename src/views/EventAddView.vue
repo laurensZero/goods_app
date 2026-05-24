@@ -191,6 +191,55 @@
                           <span v-if="ticketPriceError" class="field-error">{{ ticketPriceError }}</span>
                         </label>
 
+                        <div class="field field--full expense-section">
+                          <div class="expense-section__head">
+                            <div>
+                              <span class="field-label">其他费用</span>
+                              <p class="expense-section__hint">可自行添加住宿、交通等明细，留空行会自动忽略。</p>
+                            </div>
+                            <button type="button" class="outline-action outline-action--compact" @click="addOtherExpense">
+                              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 5V19" />
+                                <path d="M5 12H19" />
+                              </svg>
+                              <span>添加费用</span>
+                            </button>
+                          </div>
+
+                          <div v-if="form.otherExpenses.length > 0" class="expense-list">
+                            <article v-for="(expense, index) in form.otherExpenses" :key="expense.id || index" class="expense-item">
+                              <div class="expense-item__grid">
+                                <label class="field field--half" :class="{ 'field--error': otherExpenseValidation[index]?.nameError }">
+                                  <span class="field-label">费用名称</span>
+                                  <input
+                                    :value="expense.name"
+                                    type="text"
+                                    placeholder="比如：住宿费、交通费"
+                                    @input="updateOtherExpenseField(index, 'name', $event)"
+                                  />
+                                  <span v-if="otherExpenseValidation[index]?.nameError" class="field-error">{{ otherExpenseValidation[index].nameError }}</span>
+                                </label>
+
+                                <label class="field field--half" :class="{ 'field--error': otherExpenseValidation[index]?.amountError }">
+                                  <span class="field-label">金额（元）</span>
+                                  <input
+                                    :value="expense.amount"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    @input="updateOtherExpenseField(index, 'amount', $event)"
+                                  />
+                                  <span v-if="otherExpenseValidation[index]?.amountError" class="field-error">{{ otherExpenseValidation[index].amountError }}</span>
+                                </label>
+                              </div>
+
+                              <button type="button" class="expense-item__remove" @click="removeOtherExpense(index)">删除</button>
+                            </article>
+                          </div>
+                          <p v-else class="expense-section__empty">点击右侧按钮添加住宿、交通等费用。</p>
+                        </div>
+
                         <label v-if="form.type === 'exhibition'" class="field field--half">
                           <span class="field-label">票种</span>
                           <input
@@ -395,6 +444,7 @@ const form = reactive({
   ticketPrice: '',
   ticketType: '',
   seatInfo: '',
+  otherExpenses: [],
   linkedGoodsIds: [],
   tags: []
 })
@@ -426,7 +476,7 @@ const tabItems = computed(() => {
   const items = [
     { key: 'basic', label: '基础', badge: Boolean(nameError.value || !String(form.name || '').trim()) },
     { key: 'schedule', label: '时间地点' },
-    { key: 'ticket', label: '票务与谷子', badge: Boolean(ticketPriceError.value) },
+    { key: 'ticket', label: '票务与谷子', badge: Boolean(ticketPriceError.value || hasOtherExpenseValidationError.value) },
     { key: 'gallery', label: '照片备注' }
   ]
 
@@ -440,6 +490,49 @@ const tabItems = computed(() => {
 const linkedGoodsList = computed(() =>
   form.linkedGoodsIds.map((id) => goodsStore.getById(id)).filter(Boolean)
 )
+
+function buildOtherExpenseRow() {
+  return {
+    id: `expense_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    name: '',
+    amount: ''
+  }
+}
+
+function normalizeOtherExpenseRow(item = {}) {
+  return {
+    id: String(item.id || `expense_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+    name: String(item.name || '').trim(),
+    amount: String(item.amount || '').trim()
+  }
+}
+
+function sanitizeOtherExpenses(expenses) {
+  return (Array.isArray(expenses) ? expenses : [])
+    .map((item) => normalizeOtherExpenseRow(item))
+    .filter((item) => item.name || item.amount)
+}
+
+const otherExpenseValidation = computed(() => (
+  form.otherExpenses.map((expense) => {
+    const name = String(expense?.name || '').trim()
+    const amount = String(expense?.amount || '').trim()
+
+    if (!name && !amount) {
+      return { nameError: '', amountError: '' }
+    }
+
+    const amountResult = amount ? validateNumericPrice(amount) : { valid: false, message: '请输入费用金额' }
+    return {
+      nameError: name ? '' : '请输入费用名称',
+      amountError: amountResult.valid ? '' : amountResult.message
+    }
+  })
+))
+
+const hasOtherExpenseValidationError = computed(() => (
+  otherExpenseValidation.value.some((item) => item.nameError || item.amountError)
+))
 
 function setActiveTab(tabKey, options = {}) {
   if (!tabItems.value.some((item) => item.key === tabKey)) return
@@ -469,6 +562,7 @@ function buildDraftPayload() {
       ticketPrice: String(form.ticketPrice || ''),
       ticketType: String(form.ticketType || ''),
       seatInfo: String(form.seatInfo || ''),
+      otherExpenses: Array.isArray(form.otherExpenses) ? form.otherExpenses.map((item) => ({ ...item })) : [],
       linkedGoodsIds: Array.isArray(form.linkedGoodsIds) ? [...form.linkedGoodsIds] : [],
       tags: Array.isArray(form.tags) ? [...form.tags] : []
     }
@@ -489,6 +583,7 @@ function applyFormSnapshot(snapshot) {
   form.ticketPrice = String(snapshot.ticketPrice || '')
   form.ticketType = String(snapshot.ticketType || '')
   form.seatInfo = String(snapshot.seatInfo || '')
+  form.otherExpenses = Array.isArray(snapshot.otherExpenses) ? snapshot.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = Array.isArray(snapshot.linkedGoodsIds) ? [...snapshot.linkedGoodsIds] : []
   form.tags = Array.isArray(snapshot.tags) ? [...snapshot.tags] : []
 }
@@ -583,6 +678,7 @@ async function loadEditData() {
   form.ticketPrice = existing.ticketPrice || ''
   form.ticketType = existing.ticketType || ''
   form.seatInfo = existing.seatInfo || ''
+  form.otherExpenses = Array.isArray(existing.otherExpenses) ? existing.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = existing.linkedGoodsIds ? [...existing.linkedGoodsIds] : []
   form.tags = existing.tags ? [...existing.tags] : []
 }
@@ -612,6 +708,23 @@ function validateTicketPrice() {
   return false
 }
 
+function addOtherExpense() {
+  form.otherExpenses.push(buildOtherExpenseRow())
+}
+
+function removeOtherExpense(index) {
+  form.otherExpenses.splice(index, 1)
+}
+
+function updateOtherExpenseField(index, key, event) {
+  const nextValue = String(event?.target?.value || '')
+  form.otherExpenses = form.otherExpenses.map((item, currentIndex) => (
+    currentIndex === index
+      ? { ...item, [key]: nextValue }
+      : item
+  ))
+}
+
 function getReturnToRoute() {
   const value = route.query.returnTo
   if (typeof value !== 'string') return ''
@@ -630,6 +743,10 @@ async function handleSubmit() {
     setActiveTab('ticket', { scroll: false })
     return
   }
+  if (hasOtherExpenseValidationError.value) {
+    setActiveTab('ticket', { scroll: false })
+    return
+  }
 
   if (!form.endDate && form.startDate) {
     form.endDate = form.startDate
@@ -642,7 +759,10 @@ async function handleSubmit() {
     form.seatInfo = ''
   }
 
-  const payload = { ...form }
+  const payload = {
+    ...form,
+    otherExpenses: sanitizeOtherExpenses(form.otherExpenses)
+  }
   let addedRecord = null
   if (isEdit.value) {
     await eventsStore.updateEventRecord(editId.value, payload)
@@ -1371,6 +1491,76 @@ onBeforeUnmount(() => {
   height: 18px;
   stroke: currentColor;
   stroke-width: 2;
+}
+
+.outline-action--compact {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 40px;
+  padding: 0 14px;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.outline-action--compact span {
+  white-space: nowrap;
+}
+
+.expense-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.expense-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expense-section__hint {
+  margin-top: 6px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.expense-list {
+  display: grid;
+  gap: 10px;
+}
+
+.expense-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-surface-soft) 90%, var(--app-surface));
+}
+
+.expense-item__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.expense-item__remove {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(209, 83, 83, 0.1);
+  color: #c54f4f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.expense-section__empty {
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .photo-upload-grid {

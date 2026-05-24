@@ -34,6 +34,7 @@ const IS_NATIVE = Capacitor.isNativePlatform()
 /** @type {DatabaseAdapter | null} */
 let db = null
 let isInitialized = false
+let isSchemaSynced = false
 
 async function getDb() {
   if (db) return db
@@ -95,6 +96,7 @@ const CREATE_EVENTS_TABLE_SQL = `
     ticketPrice TEXT DEFAULT '',
     ticketType TEXT DEFAULT '',
     seatInfo   TEXT DEFAULT '',
+    otherExpenses TEXT DEFAULT '[]',
     tracks     TEXT DEFAULT '[]',
     linkedGoodsIds TEXT DEFAULT '[]',
     tags       TEXT DEFAULT '[]',
@@ -163,6 +165,7 @@ const EVENTS_REQUIRED_COLUMNS = [
   ['ticketPrice', "TEXT DEFAULT ''"],
   ['ticketType', "TEXT DEFAULT ''"],
   ['seatInfo', "TEXT DEFAULT ''"],
+  ['otherExpenses', "TEXT DEFAULT '[]'"],
   ['tracks', "TEXT DEFAULT '[]'"],
   ['linkedGoodsIds', "TEXT DEFAULT '[]'"],
   ['tags', "TEXT DEFAULT '[]'"],
@@ -279,7 +282,7 @@ function goodsRecordToValues(record) {
   return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
 }
 
-const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 const RECHARGE_INSERT_SQL = 'INSERT OR REPLACE INTO recharge_records (id,game,itemName,amount,chargedAt,note,image,deleted,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)'
 
@@ -302,17 +305,18 @@ function prepareEventValues(event) {
     id, name = '', type = '', startDate = '', endDate = '',
     location = '', description = '', coverImage = '',
     coverImageData = {},
-    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', tracks = [], linkedGoodsIds = [], tags = [],
+    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', otherExpenses = [], tracks = [], linkedGoodsIds = [], tags = [],
     createdAt, updatedAt
   } = event
   const coverImageDataStr = stringifyJsonObject(coverImageData)
   const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
+  const otherExpensesStr = JSON.stringify(Array.isArray(otherExpenses) ? otherExpenses : [])
   const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
   const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const ts = updatedAt || Date.now()
   const created = createdAt || ts
-  return [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, tracksStr, linkedGoodsStr, tagsStr, created, ts]
+  return [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, created, ts]
 }
 
 async function _getSchemaVersion() {
@@ -352,6 +356,10 @@ async function _ensureTableColumns(tableName, columns) {
 
 /** @returns {Promise<void>} */
 export async function initDB() {
+  if (isInitialized && isSchemaSynced && db) {
+    return
+  }
+
   db = await getDb()
   
   const t1 = performance.now()
@@ -395,6 +403,7 @@ export async function initDB() {
   const t4 = performance.now()
   await _runMigrations()
   const migrationsTime = performance.now() - t4
+  isSchemaSynced = true
 
   // Log detailed timings only in development
   if (import.meta.env.DEV) {
@@ -524,6 +533,7 @@ export async function getEvents() {
         ...r,
         coverImageData,
         photos: parseJsonArray(r.photos),
+        otherExpenses: parseJsonArray(r.otherExpenses),
         tracks: parseJsonArray(r.tracks),
         linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
         tags: parseJsonArray(r.tags),

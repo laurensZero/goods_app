@@ -7,8 +7,8 @@ export const MANIFEST_FILENAME = 'manifest.json'
 // Sync payload / manifest protocol versions
 export const SYNC_PAYLOAD_VERSION = 6
 export const RECHARGE_PAYLOAD_VERSION = 1
-export const EVENT_PAYLOAD_VERSION = 2
-export const EVENT_DATA_VERSION = 1
+export const EVENT_PAYLOAD_VERSION = 3
+export const EVENT_DATA_VERSION = 2
 export const MANIFEST_VERSION = 1
 
 // 其它可共享的同步相关常量

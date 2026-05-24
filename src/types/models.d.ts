@@ -39,6 +39,13 @@ export interface EventCoverImageData {
   [key: string]: any
 }
 
+/** 活动费用明细 */
+export interface EventExpenseItem {
+  id: string
+  name: string
+  amount: string
+}
+
 /** 商品完整对象（业务层 shape，对应 normalizeGoodsInput 返回值） */
 export interface GoodsItem {
   id: string
@@ -92,6 +99,7 @@ export interface EventItem {
   ticketPrice: string
   ticketType: string
   seatInfo: string
+  otherExpenses: EventExpenseItem[]
   tracks: TrackItem[]
   linkedGoodsIds: string[]
   tags: string[]
