@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.11",
+    "url": "bundle-20260524.11.zip",
+    "hash": "c94521c8e387af370a67d741dc054902f39e4b86baf197b9ef620e9917cffe85",
+    "minNativeVersion": null,
+    "notes": "- feat: 在获取商品、事件和充值记录时确保数据库初始化，增加错误处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:32:00Z"
+  },
+  {
     "version": "20260524.10",
     "url": "bundle-20260524.10.zip",
     "hash": "55778d0b202cf526f31c6bd2dcb6153216e38a970c02ac49e74124bd4d1dd1f1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新匹配收藏状态过滤器，增加丢失状态支持",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:24:03Z"
-  },
-  {
-    "version": "20260524.8",
-    "url": "bundle-20260524.8.zip",
-    "hash": "a533d67af64a45a02feb888093fe02b0dcde7471154ac2e9f87dd1026e4a4cdb",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加单元收藏状态支持，优化状态处理逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:23:21Z"
   }
 ]
