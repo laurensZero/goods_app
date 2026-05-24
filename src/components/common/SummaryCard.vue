@@ -9,6 +9,7 @@
           <div class="summary-label-row">
             <p class="summary-label">{{ label }}</p>
             <div
+              v-if="showTips"
               ref="valueTipsRef"
               class="summary-value-tips"
               :class="{ 'summary-value-tips--open': showValueTips }"
@@ -117,7 +118,7 @@
     </transition>
   </section>
 
-  <Teleport to="body">
+  <Teleport v-if="showTips" to="body">
     <transition name="summary-tip-fade">
       <div
         v-if="showValueTips"
@@ -150,6 +151,7 @@ const props = defineProps({
   label: { type: String, default: 'Collection Value' },
   storageKey: { type: String, default: SUMMARY_VISIBILITY_STORAGE_KEY },
   currency: { type: String, default: '¥' },
+  showTips: { type: Boolean, default: true },
   tipsTitle: { type: String, default: '总金额计算要点' },
   tipsItems: {
     type: Array,

@@ -13,6 +13,7 @@
       :total-value="totalAmountText"
       label="Recharge Value"
       storage-key="goods-app:recharge-total-value-hidden"
+      :show-tips="false"
       :trend-items="activeRecords"
       trend-date-field="chargedAt"
     />
