@@ -1,9 +1,9 @@
 {
-  "version": "20260524.15",
-  "url": "bundle-20260524.15.zip",
-  "hash": "6ecb3f73164fb3c8a4689cf15de6180fd15c6f7dfc799b2005723a018cee8872",
+  "version": "20260524.16",
+  "url": "bundle-20260524.16.zip",
+  "hash": "1ba4f74c363c6f837e2254ebd2d5ff65b0586d55ea67599f22fe5c6b4ea6a5d1",
   "minNativeVersion": null,
-  "notes": "- feat: 添加数据库适配器加载失败的处理逻辑，支持回退到Web适配器",
+  "notes": "- 本次 beta 更新无可用变更说明",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T09:45:37Z"
+  "publishedAt": "2026-05-24T09:51:31Z"
 }
