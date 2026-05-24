@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS events (
   ticket_price TEXT DEFAULT '',
   ticket_type TEXT DEFAULT '',
   seat_info TEXT DEFAULT '',
+  other_expenses JSONB DEFAULT '[]',
   tracks JSONB DEFAULT '[]',
   linked_goods_ids JSONB DEFAULT '[]',
   tags JSONB DEFAULT '[]',
@@ -100,6 +101,7 @@ CREATE TABLE IF NOT EXISTS sync_presets (
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
 
 -- 启用 Realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE goods;

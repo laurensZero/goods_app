@@ -38,4 +38,14 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 3,
+    description: 'Persist event expense items',
+    up: async (db) => {
+      const cols = await db.getTableColumns('events')
+      if (!cols.has('otherExpenses')) {
+        await db.run("ALTER TABLE events ADD COLUMN otherExpenses TEXT DEFAULT '[]'")
+      }
+    }
+  },
 ]

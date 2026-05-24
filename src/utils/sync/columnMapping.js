@@ -19,6 +19,7 @@ const CAMEL_TO_SNAKE = {
   ticketPrice: 'ticket_price',
   ticketType: 'ticket_type',
   seatInfo: 'seat_info',
+  otherExpenses: 'other_expenses',
   linkedGoodsIds: 'linked_goods_ids',
   startDate: 'start_date',
   endDate: 'end_date',

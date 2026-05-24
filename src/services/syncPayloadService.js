@@ -95,6 +95,13 @@ export function createSyncPayloadService({
       }),
       ticketType: String(item?.ticketType || '').trim(),
       seatInfo: String(item?.seatInfo || '').trim(),
+      otherExpenses: Array.isArray(item?.otherExpenses)
+        ? item.otherExpenses.map((expense, index) => ({
+            id: String(expense?.id || `expense_${index}`),
+            name: String(expense?.name || '').trim(),
+            amount: String(expense?.amount || '').trim()
+          })).filter((expense) => expense.name || expense.amount)
+        : [],
       linkedGoodsIds: Array.isArray(item?.linkedGoodsIds) ? item.linkedGoodsIds : [],
       tags: Array.isArray(item?.tags) ? item.tags : []
     }
@@ -374,6 +381,7 @@ export function createSyncPayloadService({
           photos: Array.isArray(item.photos) ? item.photos : [],
           ticketType: String(item.ticketType || '').trim(),
           seatInfo: String(item.seatInfo || '').trim(),
+          otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],
           linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
           tags: Array.isArray(item.tags) ? item.tags : []
         }
@@ -406,6 +414,7 @@ export function createSyncPayloadService({
         photos: Array.isArray(item.photos) ? item.photos : [],
         ticketType: String(item.ticketType || '').trim(),
         seatInfo: String(item.seatInfo || '').trim(),
+        otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],
         linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
         tags: Array.isArray(item.tags) ? item.tags : []
       }))

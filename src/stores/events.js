@@ -12,6 +12,18 @@ function parseTicketPrice(value) {
   return Number.isFinite(price) ? price : 0
 }
 
+function normalizeOtherExpenses(expenses) {
+  if (!Array.isArray(expenses)) return []
+
+  return expenses
+    .map((item, index) => ({
+      id: String(item?.id || `expense_${Date.now()}_${index}`),
+      name: String(item?.name || '').trim(),
+      amount: String(item?.amount || '').trim()
+    }))
+    .filter((item) => item.name || item.amount)
+}
+
 function getSortDate(event) {
   if (event?.startDate) return event.startDate
   if (!event || !event.createdAt) return '0000-00-00'
@@ -106,6 +118,7 @@ export const useEventsStore = defineStore('events', () => {
       ticketPrice: String(data.ticketPrice || '').trim(),
       ticketType: String(data.ticketType || '').trim(),
       seatInfo: String(data.seatInfo || '').trim(),
+      otherExpenses: normalizeOtherExpenses(data.otherExpenses),
       linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
       tags: Array.isArray(data.tags) ? data.tags : [],
       createdAt: data.createdAt || now,
@@ -137,7 +150,8 @@ export const useEventsStore = defineStore('events', () => {
     const previous = list.value[index]
     const normalizedData = {
       ...data,
-      tracks: normalizeTracks(data?.tracks)
+        tracks: normalizeTracks(data?.tracks),
+        otherExpenses: normalizeOtherExpenses(data?.otherExpenses)
     }
 
     const next = {
@@ -239,6 +253,7 @@ export const useEventsStore = defineStore('events', () => {
           ticketPrice: String(event.ticketPrice || '').trim(),
           ticketType: String(event.ticketType || '').trim(),
           seatInfo: String(event.seatInfo || '').trim(),
+          otherExpenses: normalizeOtherExpenses(event.otherExpenses),
           linkedGoodsIds: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds : [],
           tags: Array.isArray(event.tags) ? event.tags : [],
           createdAt: event.createdAt || now,

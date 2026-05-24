@@ -101,6 +101,29 @@
             </article>
           </section>
 
+          <section v-if="otherExpenseItems.length > 0" class="expense-section">
+            <div class="section-head">
+              <p class="section-label">费用</p>
+              <h2 class="section-title">其他费用</h2>
+            </div>
+
+            <article class="expense-card">
+              <div class="expense-card__summary">
+                <span>总计</span>
+                <strong>¥{{ Math.round(otherExpenseTotalAmount * 100) / 100 }}</strong>
+              </div>
+
+              <div class="expense-list">
+                <div v-for="expense in otherExpenseItems" :key="expense.id" class="expense-row">
+                  <div class="expense-row__copy">
+                    <strong>{{ expense.name }}</strong>
+                  </div>
+                  <span class="expense-row__amount">¥{{ Math.round((Number.parseFloat(expense.amount) || 0) * 100) / 100 }}</span>
+                </div>
+              </div>
+            </article>
+          </section>
+
           <section v-if="trackList.length > 0" class="track-section">
             <div class="section-head section-head--toggle">
               <div>
@@ -357,6 +380,20 @@ const ticketPriceAmount = computed(() => {
   const value = Number.parseFloat(String(event.value?.ticketPrice || '').trim())
   return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : '0'
 })
+const otherExpenseItems = computed(() => (
+  Array.isArray(event.value?.otherExpenses)
+    ? event.value.otherExpenses
+      .map((item, index) => ({
+        id: String(item?.id || `expense_${index}`),
+        name: String(item?.name || '').trim(),
+        amount: String(item?.amount || '').trim()
+      }))
+      .filter((item) => item.name || item.amount)
+    : []
+))
+const otherExpenseTotalAmount = computed(() => (
+  otherExpenseItems.value.reduce((sum, item) => sum + (Number.parseFloat(item.amount) || 0), 0)
+))
 
 function clearDetailEntryScrollLockTimer() {
   if (!detailEntryScrollLockTimer) return
@@ -453,6 +490,9 @@ const infoItems = computed(() => {
   }
   if (hasTicketPrice.value) {
     items.push({ label: '票价', value: `¥${ticketPriceAmount.value}` })
+  }
+  if (otherExpenseItems.value.length > 0) {
+    items.push({ label: '其他费用', value: `¥${Math.round(otherExpenseTotalAmount.value * 100) / 100}` })
   }
   if (event.value.type === 'exhibition' && String(event.value.ticketType || '').trim()) {
     items.push({ label: '票种', value: String(event.value.ticketType || '').trim() })
@@ -758,6 +798,7 @@ function tryPlayLinkedGoodsBackHero() {
 .hero-card,
 .info-card,
 .note-card,
+.expense-card,
 .gallery-card,
 .linked-goods-card,
 .dialog-card {
@@ -1012,6 +1053,69 @@ function tryPlayLinkedGoodsBackHero() {
   font-size: 15px;
   line-height: 1.85;
   white-space: pre-wrap;
+}
+
+.expense-section {
+  margin-top: 18px;
+}
+
+.expense-card {
+  padding: 20px 22px;
+  border-radius: 28px;
+  display: grid;
+  gap: 14px;
+}
+
+.expense-card__summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expense-card__summary span {
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+}
+
+.expense-card__summary strong {
+  color: var(--app-text);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.expense-list {
+  display: grid;
+  gap: 10px;
+}
+
+.expense-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
+}
+
+.expense-row__copy {
+  min-width: 0;
+}
+
+.expense-row__copy strong {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.expense-row__amount {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .linked-goods-grid {
