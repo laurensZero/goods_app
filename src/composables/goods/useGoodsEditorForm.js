@@ -117,6 +117,7 @@ export function useGoodsEditorForm(options = {}) {
   const hasUnitCharacterValue = computed(() => form.unitCharacterList.some((value) => !!String(value || '').trim()))
   const hasUnitCollectStatusValue = computed(() => form.unitCollectStatusList.some((value) => !!String(value || '').trim()))
   const disableActualPriceInput = computed(() => !form.isWishlist && quantityNumber.value >= 2 && showUnitActualPriceInput.value)
+  const disableCollectStatusInput = computed(() => !form.isWishlist && quantityNumber.value >= 2 && showUnitCollectStatusInput.value)
   const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 
   watch(
@@ -725,6 +726,7 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitCharacterListLength,
     showUnitCollectStatusInput,
     hasUnitCollectStatusValue,
+    disableCollectStatusInput,
     clearUnitCollectStatusList,
     normalizeUnitCollectStatusValue,
     syncUnitCollectStatusListLength,

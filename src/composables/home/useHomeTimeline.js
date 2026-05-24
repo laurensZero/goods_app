@@ -36,14 +36,23 @@ function getTimelineSourceDates(item) {
 function buildTimelineEntries(goodsList) {
   const entries = []
 
-  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
   for (const item of goodsList) {
-    // 对已售出 / 已赠出的商品：仍然在时间线上显示，但不计入金额统计，前端可据此置灰展示
-    const isExcluded = EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())
     const dates = getTimelineSourceDates(item)
     const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
     const collectionTotalNumber = Number(item?.totalValueNumber) || 0
     const perUnitShareNumber = quantityNumber > 0 ? collectionTotalNumber / quantityNumber : collectionTotalNumber
+
+    // Build per-copy statuses aligned with dates
+    const unitStatuses = Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList : []
+
+    // Determine if the whole item is excluded (no per-copy statuses or all copies excluded)
+    let itemIsExcluded = false
+    if (unitStatuses.length > 0) {
+      itemIsExcluded = unitStatuses.every((s) => EXCLUDED_VALUE_STATUSES.has(String(s || '').trim()))
+    } else {
+      itemIsExcluded = EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())
+    }
 
     if (dates.length === 0) {
       entries.push({
@@ -56,32 +65,48 @@ function buildTimelineEntries(goodsList) {
         acquiredAt: '',
         timelineYearMonth: '',
         timelineSortTime: 0,
-        // 当被排除时，设置显示置灰标志并将计入金额设为 0
-        isExcludedFromValue: isExcluded,
-        priceNumber: isExcluded ? 0 : perUnitShareNumber,
-        totalValueNumber: isExcluded ? 0 : collectionTotalNumber,
+        isExcludedFromValue: itemIsExcluded,
+        priceNumber: itemIsExcluded ? 0 : perUnitShareNumber,
+        totalValueNumber: itemIsExcluded ? 0 : collectionTotalNumber,
         originalTotalValueNumber: collectionTotalNumber
       })
       continue
     }
 
+    // Build (date, status) pairs aligned by copy index
+    const dateStatusPairs = dates.map((date, i) => ({
+      date,
+      status: unitStatuses[i] || ''
+    }))
+
     const monthMap = new Map()
-    for (const date of dates) {
-      const yearMonth = date.slice(0, 7)
+    for (const pair of dateStatusPairs) {
+      const yearMonth = pair.date.slice(0, 7)
       if (!monthMap.has(yearMonth)) {
         monthMap.set(yearMonth, [])
       }
-      monthMap.get(yearMonth).push(date)
+      monthMap.get(yearMonth).push(pair)
     }
 
-    const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthDates], index) => {
+    const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthPairs], index) => {
       const id = monthMap.size === 1 ? item.id : `${item.id}::${yearMonth}`
-      const latestDate = monthDates.reduce((latest, value) => {
-        const timestamp = parseTimelineDateTimestamp(value)
-        return timestamp > latest.timestamp ? { value: normalizeTimelineDate(value), timestamp } : latest
+      const monthDates = monthPairs.map((p) => p.date)
+      const latestDate = monthPairs.reduce((latest, pair) => {
+        const timestamp = parseTimelineDateTimestamp(pair.date)
+        return timestamp > latest.timestamp ? { value: normalizeTimelineDate(pair.date), timestamp } : latest
       }, { value: '', timestamp: 0 })
       const acquiredAt = latestDate.value || normalizeTimelineDate(item.acquiredAt)
       const monthTotal = perUnitShareNumber * monthDates.length
+
+      // Per-copy status graying: only exclude if ALL copies in this month group have exited statuses
+      let monthIsExcluded = false
+      const monthStatuses = monthPairs.map((p) => String(p.status || '').trim()).filter(Boolean)
+      if (monthStatuses.length > 0) {
+        monthIsExcluded = monthStatuses.every((s) => EXCLUDED_VALUE_STATUSES.has(s))
+      } else {
+        monthIsExcluded = itemIsExcluded
+      }
+
       return {
         ...item,
         id,
@@ -91,10 +116,9 @@ function buildTimelineEntries(goodsList) {
         quantity: monthDates.length,
         timelineYearMonth: yearMonth,
         timelineQuantity: monthDates.length,
-        // 若该商品被标记为已出/已赠出，则不计入本月金额
-        isExcludedFromValue: isExcluded,
-        priceNumber: isExcluded ? 0 : perUnitShareNumber,
-        totalValueNumber: isExcluded ? 0 : monthTotal,
+        isExcludedFromValue: monthIsExcluded,
+        priceNumber: monthIsExcluded ? 0 : perUnitShareNumber,
+        totalValueNumber: monthIsExcluded ? 0 : monthTotal,
         originalTotalValueNumber: monthTotal,
         timelineSortTime: getLatestTimelineDateTimestamp(monthDates) || parseTimelineDateTimestamp(acquiredAt) || index
       }

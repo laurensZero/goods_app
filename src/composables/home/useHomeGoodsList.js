@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { sortHomeGoodsList } from '@/utils/goods/homeSort'
 
-const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
 export function useHomeGoodsList(store, sortMode, sortDirection) {
   const listData = computed(() => {

@@ -420,7 +420,7 @@ const currentMonthSpent = computed(() => {
   const cy = now.getFullYear()
   const cm = now.getMonth()
 
-  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
   return goodsStore.list.reduce((sum, item) => {
     if (item?.isWishlist) return sum
     if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return sum
@@ -464,7 +464,7 @@ const currentMonthSpent = computed(() => {
 const currentYearSpent = computed(() => {
   const cy = new Date().getFullYear()
 
-  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出'])
+  const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
   return goodsStore.list.reduce((sum, item) => {
     if (item?.isWishlist) return sum
     if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return sum

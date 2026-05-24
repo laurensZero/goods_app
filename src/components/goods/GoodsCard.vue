@@ -116,7 +116,9 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import {
   hasCollectStatusMatch,
-  resolvePrimaryCollectStatus
+  resolvePrimaryCollectStatus,
+  areAllCopiesExited,
+  formatCollectStatusSummary
 } from '@/utils/goods/status'
 
 const props = defineProps({
@@ -281,8 +283,42 @@ const coverStyle = computed(() => {
 
 const coverInitial = computed(() => (props.item.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 
+const unitHoldingDaysList = computed(() => {
+  const it = props.item
+  if (!it || it.isWishlist) return []
+
+  const quantity = Math.max(1, Number(it.quantity) || 1)
+  if (quantity < 2) return []
+
+  const unitDates = Array.isArray(it.unitAcquiredAtList) ? it.unitAcquiredAtList : []
+  if (unitDates.length === 0) return []
+
+  const unitStatuses = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : []
+
+  return unitDates
+    .map((date, i) => {
+      const normalizedDate = String(date || '').trim()
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
+
+      const diff = Date.now() - new Date(normalizedDate).getTime()
+      const days = Math.floor(diff / 86400000)
+      if (days < 0) return null
+
+      const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
+      return { days, status }
+    })
+    .filter(Boolean)
+})
+
+const hasUnitHoldingDays = computed(() => unitHoldingDaysList.value.length > 0)
+
 const holdingDays = computed(() => {
-  const date = props.item.acquiredAt
+  const it = props.item
+  if (!it) return null
+
+  if (hasUnitHoldingDays.value) return null
+
+  const date = it.acquiredAt
   if (!date) return null
 
   const diff = Date.now() - new Date(date).getTime()
@@ -302,15 +338,33 @@ function resolvePrimaryStatus(item) {
 
 const primaryStatus = computed(() => resolvePrimaryStatus(props.item))
 const isPending = computed(() => !props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮']))
-const isExited = computed(() => {
-  if (props.item.isWishlist) return false
-  const exitedStatuses = new Set(['已出', '已赠出', '丢失'])
-  const primary = primaryStatus.value
-  return exitedStatuses.has(primary)
-})
+const isExited = computed(() => areAllCopiesExited(props.item))
 
 const statusDaysText = computed(() => {
   if (props.item.isWishlist) return ''
+
+  // Multi-copy per-unit holding days
+  if (hasUnitHoldingDays.value) {
+    const list = unitHoldingDaysList.value
+    const daysList = list.map((e) => e.days)
+    const minDays = Math.min(...daysList)
+    const maxDays = Math.max(...daysList)
+    const daysStr = minDays === maxDays ? `${minDays}天` : `${minDays}~${maxDays}天`
+
+    // Collect unique statuses
+    const statusSet = new Set(list.map((e) => e.status))
+    if (statusSet.size === 1) {
+      const status = list[0].status
+      const short = STATUS_SHORT_MAP[status]
+      if (short) return `${short} ${daysStr}`
+      if (status === '已拥有') return `持有 ${daysStr}`
+      return `${status} ${daysStr}`
+    }
+
+    const summary = formatCollectStatusSummary(props.item, { compact: true })
+    return `${summary} · ${daysStr}`
+  }
+
   const days = holdingDays.value
   if (days === null) return ''
 
@@ -329,7 +383,7 @@ const showCustomTags = computed(() => props.density === 'comfortable' && allCust
 const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value || showCustomTags.value)
 const windowWidth = ref(window.innerWidth)
 const isTablet = computed(() => windowWidth.value >= 900)
-const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && holdingDays.value !== null)
+const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && (holdingDays.value !== null || hasUnitHoldingDays.value))
 const showPoints = computed(() => !props.item.isWishlist && props.item.points && (props.density === 'comfortable' || isTablet.value))
 const unitActualPriceText = computed(() => {
   const quantity = Math.max(1, Number(props.item.quantity) || 1)
