@@ -249,7 +249,7 @@ export function createSupabaseBackendAdapter({
         const incrementalSinceMs = Number(incrementalSince) || 0
         const [goodsRes, trashRes, presetsRes] = await Promise.all([
           withRetry(() => {
-            let query = db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 0)
+            let query = db.from('goods').select(GOODS_SELECT_COLS).or('trashed.is.null,trashed.eq.0')
             if (incrementalSinceMs > 0) {
               query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
             }
@@ -293,7 +293,7 @@ export function createSupabaseBackendAdapter({
       if (fileName === 'recharge-data.json') {
         const incrementalSinceMs = Number(incrementalSince) || 0
         const { data, error } = await withRetry(() => {
-          let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS).eq('deleted', 0)
+          let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS).or('deleted.is.null,deleted.eq.0')
           if (incrementalSinceMs > 0) {
             query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
           }
