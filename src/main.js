@@ -131,6 +131,10 @@ async function bootstrap() {
     await initDB()
   } catch (e) {
     console.error('[DB] initDB failed — running without SQLite storage:', e)
+    // 延迟导入 Toast，避免循环依赖
+    import('vant').then(({ showFailToast }) => {
+      showFailToast('数据库初始化失败：' + (e.message || String(e)))
+    }).catch(() => {})
   }
   timings.initDB = performance.now() - t1
 

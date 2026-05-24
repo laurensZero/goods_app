@@ -43,7 +43,14 @@ export function createNativeAdapter() {
     async getTableColumns(tableName) {
       const safeName = tableName.replace(/[^a-zA-Z0-9_]/g, '')
       const result = await _db.query(`PRAGMA table_info(${safeName})`)
-      return new Set((result.values ?? []).map(row => row[1]))
+      const rows = result.values ?? []
+      if (rows.length === 0) return new Set()
+      // 兼容不同 Capacitor SQLite 版本的返回格式：
+      // 旧版返回 [[cid, name, type, ...], ...]，新版可能返回 [{cid, name, type, ...}, ...]
+      if (typeof rows[0] === 'object' && !Array.isArray(rows[0])) {
+        return new Set(rows.map(row => row.name))
+      }
+      return new Set(rows.map(row => row[1]))
     }
   }
 }
