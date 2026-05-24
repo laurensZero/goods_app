@@ -1,9 +1,9 @@
 {
-  "version": "20260524.5",
-  "url": "bundle-20260524.5.zip",
-  "hash": "561151a605f3f9218eb9df2fb4aa281dfbed08796624e6e55145fe66066865ab",
+  "version": "20260524.6",
+  "url": "bundle-20260524.6.zip",
+  "hash": "d0283e2ed0c737cf9954d0c369010ac491fed730ff9f1a18ab32982a889ba114",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 在 SummaryCard 和 WishlistView 中添加预算计算要点和提示项，以增强用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T07:21:22Z"
+  "publishedAt": "2026-05-24T08:59:51Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.6",
+    "url": "bundle-20260524.6.zip",
+    "hash": "d0283e2ed0c737cf9954d0c369010ac491fed730ff9f1a18ab32982a889ba114",
+    "minNativeVersion": null,
+    "notes": "- feat: 在 SummaryCard 和 WishlistView 中添加预算计算要点和提示项，以增强用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T08:59:51Z"
+  },
+  {
     "version": "20260524.5",
     "url": "bundle-20260524.5.zip",
     "hash": "561151a605f3f9218eb9df2fb4aa281dfbed08796624e6e55145fe66066865ab",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在 metaToGoods 函数中添加 goodsId 字段以支持懒加载和识别",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T05:04:06Z"
-  },
-  {
-    "version": "20260524.3",
-    "url": "bundle-20260524.3.zip",
-    "hash": "2162700ad55e3580077f74bc6a4d250a08eaebd239984eb2451b4e1ef215be4d",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新小部件背景和文本颜色，使用新的颜色资源以提升一致性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T04:55:27Z"
   }
 ]
