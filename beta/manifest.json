@@ -1,9 +1,9 @@
 {
-  "version": "20260524.13",
-  "url": "bundle-20260524.13.zip",
-  "hash": "9ff80fc84ab89703b736f07509c152e50afc3e1391ad370ded44a6e3a484da2c",
+  "version": "20260524.14",
+  "url": "bundle-20260524.14.zip",
+  "hash": "9f277e6a37b3d53bd312d439589a705cfe79f3449cbf7d507b6bcbee50ebdd75",
   "minNativeVersion": null,
-  "notes": "- feat: 调整调试浮动按钮位置，确保其在底部标签栏之上并增加层级",
+  "notes": "- feat: 添加诊断功能，显示桥接信息和诊断结果",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T09:39:02Z"
+  "publishedAt": "2026-05-24T09:42:46Z"
 }

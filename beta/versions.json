@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.14",
+    "url": "bundle-20260524.14.zip",
+    "hash": "9f277e6a37b3d53bd312d439589a705cfe79f3449cbf7d507b6bcbee50ebdd75",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加诊断功能，显示桥接信息和诊断结果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:42:46Z"
+  },
+  {
     "version": "20260524.13",
     "url": "bundle-20260524.13.zip",
     "hash": "9ff80fc84ab89703b736f07509c152e50afc3e1391ad370ded44a6e3a484da2c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加调试浮动按钮，支持应用诊断和错误信息展示",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:36:33Z"
-  },
-  {
-    "version": "20260524.11",
-    "url": "bundle-20260524.11.zip",
-    "hash": "c94521c8e387af370a67d741dc054902f39e4b86baf197b9ef620e9917cffe85",
-    "minNativeVersion": null,
-    "notes": "- feat: 在获取商品、事件和充值记录时确保数据库初始化，增加错误处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:32:00Z"
   }
 ]
