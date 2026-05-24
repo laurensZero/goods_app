@@ -293,21 +293,24 @@ export function createSupabaseBackendAdapter({
       if (fileName === 'recharge-data.json') {
         const incrementalSinceMs = Number(incrementalSince) || 0
         const { data, error } = await withRetry(() => {
-          let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS).or('deleted.is.null,deleted.eq.0')
+          let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS)
           if (incrementalSinceMs > 0) {
             query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
           }
           return query
         })
         if (error) throw new Error(`读取 recharge 失败: ${error.message}`)
-        const recharge = (data || []).map((row) => {
+        const recharge = []
+        const rechargeTrash = []
+        for (const row of data || []) {
           const item = toCamelCase(row)
           item.updatedAt = normalizeTimestamp(item.updatedAt)
           item.deleted = Boolean(item.deleted)
-          return item
-        })
+          if (item.deleted) rechargeTrash.push(item)
+          else recharge.push(item)
+        }
         return {
-          parsed: { recharge, rechargeTrash: [] },
+          parsed: { recharge, rechargeTrash },
           source: 'Supabase'
         }
       }
