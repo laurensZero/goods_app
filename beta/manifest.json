@@ -1,9 +1,9 @@
 {
-  "version": "20260524.19",
-  "url": "bundle-20260524.19.zip",
-  "hash": "b95a3454b3388f48c781df792a78976f516d195657f9e736c974d9b3cd0dc7ff",
+  "version": "20260524.20",
+  "url": "bundle-20260524.20.zip",
+  "hash": "ccad41f8ae39e5190210b0ab04c3120e6f50fae27016e4dcf67897b364f4f1e4",
   "minNativeVersion": null,
-  "notes": "- feat: 增强商品管理功能，支持逐份持有天数计算和状态过滤",
+  "notes": "- feat: 优化持有天数计算，增加去重功能并调整显示格式",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T11:37:04Z"
+  "publishedAt": "2026-05-24T11:53:47Z"
 }
