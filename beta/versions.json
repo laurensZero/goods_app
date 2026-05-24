@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.4",
+    "url": "bundle-20260524.4.zip",
+    "hash": "912d173eb8a0279d1c4dec5a94f26c5439a9022bfba466dd1c1842c160366184",
+    "minNativeVersion": null,
+    "notes": "- feat: 在 metaToGoods 函数中添加 goodsId 字段以支持懒加载和识别",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T05:04:06Z"
+  },
+  {
     "version": "20260524.3",
     "url": "bundle-20260524.3.zip",
     "hash": "2162700ad55e3580077f74bc6a4d250a08eaebd239984eb2451b4e1ef215be4d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 小组件",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T04:50:35Z"
-  },
-  {
-    "version": "20260524.1",
-    "url": "bundle-20260524.1.zip",
-    "hash": "d8a87dce5bc237e212c033b9e3d5a6bd52be1d51f95d9f9f087849349731697e",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化商品列表排序逻辑，支持价格字段的多种表示方式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T03:38:24Z"
   }
 ]

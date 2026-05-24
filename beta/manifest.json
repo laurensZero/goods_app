@@ -1,9 +1,9 @@
 {
-  "version": "20260524.3",
-  "url": "bundle-20260524.3.zip",
-  "hash": "2162700ad55e3580077f74bc6a4d250a08eaebd239984eb2451b4e1ef215be4d",
+  "version": "20260524.4",
+  "url": "bundle-20260524.4.zip",
+  "hash": "912d173eb8a0279d1c4dec5a94f26c5439a9022bfba466dd1c1842c160366184",
   "minNativeVersion": null,
-  "notes": "- feat: 更新小部件背景和文本颜色，使用新的颜色资源以提升一致性",
+  "notes": "- feat: 在 metaToGoods 函数中添加 goodsId 字段以支持懒加载和识别",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T04:55:27Z"
+  "publishedAt": "2026-05-24T05:04:06Z"
 }
