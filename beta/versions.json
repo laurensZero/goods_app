@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.21",
+    "url": "bundle-20260524.21.zip",
+    "hash": "9351179e4a2e19820af17c8ea0a96cd941ffc8fd801972592827b6eeba5b0952",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强同步逻辑，支持从 Supabase 后端读取充值数据的预检",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T14:40:26Z"
+  },
+  {
     "version": "20260524.20",
     "url": "bundle-20260524.20.zip",
     "hash": "ccad41f8ae39e5190210b0ab04c3120e6f50fae27016e4dcf67897b364f4f1e4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强商品管理功能，支持逐份持有天数计算和状态过滤",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T11:37:04Z"
-  },
-  {
-    "version": "20260524.18",
-    "url": "bundle-20260524.18.zip",
-    "hash": "e1a4dcfc8230dabdcc5fdfc59f71bce6889e2811745757c1ba23e1c27ab9022d",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加数据库初始化失败和数据加载失败时的用户提示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T10:36:18Z"
   }
 ]

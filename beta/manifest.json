@@ -1,9 +1,9 @@
 {
-  "version": "20260524.20",
-  "url": "bundle-20260524.20.zip",
-  "hash": "ccad41f8ae39e5190210b0ab04c3120e6f50fae27016e4dcf67897b364f4f1e4",
+  "version": "20260524.21",
+  "url": "bundle-20260524.21.zip",
+  "hash": "9351179e4a2e19820af17c8ea0a96cd941ffc8fd801972592827b6eeba5b0952",
   "minNativeVersion": null,
-  "notes": "- feat: 优化持有天数计算，增加去重功能并调整显示格式",
+  "notes": "- feat: 增强同步逻辑，支持从 Supabase 后端读取充值数据的预检",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T11:53:47Z"
+  "publishedAt": "2026-05-24T14:40:26Z"
 }
