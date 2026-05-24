@@ -1,9 +1,9 @@
 {
-  "version": "20260524.12",
-  "url": "bundle-20260524.12.zip",
-  "hash": "82db3bc688ff6de0f5048676faad3bd8bba8322b815591b62ebbd94dc602007a",
+  "version": "20260524.13",
+  "url": "bundle-20260524.13.zip",
+  "hash": "9ff80fc84ab89703b736f07509c152e50afc3e1391ad370ded44a6e3a484da2c",
   "minNativeVersion": null,
-  "notes": "- feat: 添加调试浮动按钮，支持应用诊断和错误信息展示",
+  "notes": "- feat: 调整调试浮动按钮位置，确保其在底部标签栏之上并增加层级",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T09:36:33Z"
+  "publishedAt": "2026-05-24T09:39:02Z"
 }

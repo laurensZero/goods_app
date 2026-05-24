@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.13",
+    "url": "bundle-20260524.13.zip",
+    "hash": "9ff80fc84ab89703b736f07509c152e50afc3e1391ad370ded44a6e3a484da2c",
+    "minNativeVersion": null,
+    "notes": "- feat: 调整调试浮动按钮位置，确保其在底部标签栏之上并增加层级",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:39:02Z"
+  },
+  {
     "version": "20260524.12",
     "url": "bundle-20260524.12.zip",
     "hash": "82db3bc688ff6de0f5048676faad3bd8bba8322b815591b62ebbd94dc602007a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在获取商品、事件和充值记录时确保数据库初始化，增加错误处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:32:00Z"
-  },
-  {
-    "version": "20260524.10",
-    "url": "bundle-20260524.10.zip",
-    "hash": "55778d0b202cf526f31c6bd2dcb6153216e38a970c02ac49e74124bd4d1dd1f1",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加商品、事件和充值记录所需的数据库列，并确保表结构更新",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:28:30Z"
   }
 ]
