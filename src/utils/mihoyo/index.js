@@ -879,6 +879,8 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     // 仅商品级别的独立状态（不含订单 fallback），用于单件状态徽章
     _wrapperStatus: itemStatusText,
     _coverUrl: coverUrl,
+    // 保留原始米游铺商品 ID 供后续懒加载或识别使用
+    goodsId: String(goodsId || ''),
   }
 }
 
