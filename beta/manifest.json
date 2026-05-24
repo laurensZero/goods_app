@@ -1,9 +1,9 @@
 {
-  "version": "20260524.17",
-  "url": "bundle-20260524.17.zip",
-  "hash": "4d7d34ed863a779d5d389e84a07ec3d74ff70c53ecb6d1684435d465297ba037",
+  "version": "20260524.18",
+  "url": "bundle-20260524.18.zip",
+  "hash": "e1a4dcfc8230dabdcc5fdfc59f71bce6889e2811745757c1ba23e1c27ab9022d",
   "minNativeVersion": null,
-  "notes": "- feat: 更新查询条件以支持未删除和已删除状态的记录",
+  "notes": "- feat: 增加数据库初始化失败和数据加载失败时的用户提示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T09:55:56Z"
+  "publishedAt": "2026-05-24T10:36:18Z"
 }

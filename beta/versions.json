@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.18",
+    "url": "bundle-20260524.18.zip",
+    "hash": "e1a4dcfc8230dabdcc5fdfc59f71bce6889e2811745757c1ba23e1c27ab9022d",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加数据库初始化失败和数据加载失败时的用户提示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T10:36:18Z"
+  },
+  {
     "version": "20260524.17",
     "url": "bundle-20260524.17.zip",
     "hash": "4d7d34ed863a779d5d389e84a07ec3d74ff70c53ecb6d1684435d465297ba037",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:51:31Z"
-  },
-  {
-    "version": "20260524.15",
-    "url": "bundle-20260524.15.zip",
-    "hash": "6ecb3f73164fb3c8a4689cf15de6180fd15c6f7dfc799b2005723a018cee8872",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加数据库适配器加载失败的处理逻辑，支持回退到Web适配器",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:45:37Z"
   }
 ]
