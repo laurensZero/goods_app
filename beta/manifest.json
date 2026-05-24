@@ -1,9 +1,9 @@
 {
-  "version": "20260524.6",
-  "url": "bundle-20260524.6.zip",
-  "hash": "d0283e2ed0c737cf9954d0c369010ac491fed730ff9f1a18ab32982a889ba114",
+  "version": "20260524.7",
+  "url": "bundle-20260524.7.zip",
+  "hash": "0d13d56d1cae379314e7f4ff275f5cdc1357b8239d56b2fe00387aa1259c0cd8",
   "minNativeVersion": null,
-  "notes": "- feat: 在 SummaryCard 和 WishlistView 中添加预算计算要点和提示项，以增强用户体验",
+  "notes": "- feat: 在 SummaryCard 和 RechargeContent 中添加 showTips 属性以控制提示项的显示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T08:59:51Z"
+  "publishedAt": "2026-05-24T09:01:04Z"
 }

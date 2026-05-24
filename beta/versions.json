@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.7",
+    "url": "bundle-20260524.7.zip",
+    "hash": "0d13d56d1cae379314e7f4ff275f5cdc1357b8239d56b2fe00387aa1259c0cd8",
+    "minNativeVersion": null,
+    "notes": "- feat: 在 SummaryCard 和 RechargeContent 中添加 showTips 属性以控制提示项的显示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:01:04Z"
+  },
+  {
     "version": "20260524.6",
     "url": "bundle-20260524.6.zip",
     "hash": "d0283e2ed0c737cf9954d0c369010ac491fed730ff9f1a18ab32982a889ba114",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T07:21:22Z"
-  },
-  {
-    "version": "20260524.4",
-    "url": "bundle-20260524.4.zip",
-    "hash": "912d173eb8a0279d1c4dec5a94f26c5439a9022bfba466dd1c1842c160366184",
-    "minNativeVersion": null,
-    "notes": "- feat: 在 metaToGoods 函数中添加 goodsId 字段以支持懒加载和识别",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T05:04:06Z"
   }
 ]
