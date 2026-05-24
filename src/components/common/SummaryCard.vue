@@ -6,7 +6,27 @@
     <div class="summary-layout">
       <div class="summary-main">
         <div class="summary-head">
-          <p class="summary-label">{{ label }}</p>
+          <div class="summary-label-row">
+            <p class="summary-label">{{ label }}</p>
+            <div
+              ref="valueTipsRef"
+              class="summary-value-tips"
+              :class="{ 'summary-value-tips--open': showValueTips }"
+              @mouseenter="onValueTipsMouseEnter"
+              @mouseleave="onValueTipsMouseLeave"
+            >
+              <button
+                ref="valueTipsButtonRef"
+                type="button"
+                class="summary-tip-btn"
+                :aria-expanded="showValueTips ? 'true' : 'false'"
+                aria-label="总金额计算说明"
+                @click.stop="toggleValueTips"
+              >
+                ?
+              </button>
+            </div>
+          </div>
           <button
             type="button"
             class="summary-visibility-btn"
@@ -96,10 +116,29 @@
       </div>
     </transition>
   </section>
+
+  <Teleport to="body">
+    <transition name="summary-tip-fade">
+      <div
+        v-if="showValueTips"
+        ref="valueTipsPopoverRef"
+        class="summary-tip-popover"
+        :style="valueTipsPopoverStyle"
+        role="note"
+        @mouseenter="onValueTipsPopoverMouseEnter"
+        @mouseleave="onValueTipsPopoverMouseLeave"
+      >
+        <p class="summary-tip-title">{{ tipsTitle }}</p>
+        <ul class="summary-tip-list">
+          <li v-for="item in tipsItems" :key="item">{{ item }}</li>
+        </ul>
+      </div>
+    </transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const SUMMARY_VISIBILITY_STORAGE_KEY = 'goods-app:home-total-value-hidden'
 
@@ -110,13 +149,32 @@ const props = defineProps({
   trendDateField: { type: String, default: 'updatedAt' },
   label: { type: String, default: 'Collection Value' },
   storageKey: { type: String, default: SUMMARY_VISIBILITY_STORAGE_KEY },
-  currency: { type: String, default: '¥' }
+  currency: { type: String, default: '¥' },
+  tipsTitle: { type: String, default: '总金额计算要点' },
+  tipsItems: {
+    type: Array,
+    default: () => ([
+      '仅统计首页收藏，不含心愿单。',
+      '状态为“已赠出/已出”的条目不计入。',
+      '优先按实付价+邮费；否则按标价×数量+邮费。',
+      '非人民币条目会先换算为人民币。'
+    ])
+  }
 })
 
 const intPart = computed(() => props.totalValue.split('.')[0])
 const decPart = computed(() => props.totalValue.split('.')[1] ?? '00')
 const isHidden = ref(localStorage.getItem(props.storageKey) === '1')
 const showTrendDetails = ref(false)
+const valueTipsRef = ref(null)
+const valueTipsButtonRef = ref(null)
+const valueTipsPopoverRef = ref(null)
+const showValueTips = ref(false)
+const valueTipsPinned = ref(false)
+const valueTipsPopoverStyle = ref({})
+const isValueTipsTriggerHovering = ref(false)
+const isValueTipsPopoverHovering = ref(false)
+let valueTipsHideTimer = 0
 
 const hasTrendData = computed(() => Array.isArray(props.trendItems) && props.trendItems.length > 0)
 
@@ -242,6 +300,117 @@ function toggleTrendDetails() {
   showTrendDetails.value = !showTrendDetails.value
 }
 
+function onValueTipsMouseEnter() {
+  isValueTipsTriggerHovering.value = true
+  clearValueTipsHideTimer()
+  showValueTips.value = true
+}
+
+function onValueTipsMouseLeave() {
+  isValueTipsTriggerHovering.value = false
+  queueValueTipsAutoHide()
+}
+
+function onValueTipsPopoverMouseEnter() {
+  isValueTipsPopoverHovering.value = true
+  clearValueTipsHideTimer()
+  showValueTips.value = true
+}
+
+function onValueTipsPopoverMouseLeave() {
+  isValueTipsPopoverHovering.value = false
+  queueValueTipsAutoHide()
+}
+
+function toggleValueTips() {
+  const nextPinned = !valueTipsPinned.value
+  valueTipsPinned.value = nextPinned
+  if (nextPinned) {
+    clearValueTipsHideTimer()
+    showValueTips.value = true
+    return
+  }
+
+  showValueTips.value = isValueTipsTriggerHovering.value || isValueTipsPopoverHovering.value
+}
+
+function clearValueTipsHideTimer() {
+  if (!valueTipsHideTimer) return
+  window.clearTimeout(valueTipsHideTimer)
+  valueTipsHideTimer = 0
+}
+
+function queueValueTipsAutoHide() {
+  if (valueTipsPinned.value) return
+  clearValueTipsHideTimer()
+  valueTipsHideTimer = window.setTimeout(() => {
+    if (valueTipsPinned.value) return
+    if (isValueTipsTriggerHovering.value || isValueTipsPopoverHovering.value) return
+    showValueTips.value = false
+  }, 120)
+}
+
+function updateValueTipsPosition() {
+  if (!showValueTips.value) return
+
+  const trigger = valueTipsButtonRef.value
+  if (!trigger) return
+
+  const triggerRect = trigger.getBoundingClientRect()
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const sideGap = 12
+  const width = Math.max(220, Math.min(320, viewportWidth - (sideGap * 2)))
+
+  let left = triggerRect.left + (triggerRect.width / 2) - (width / 2)
+  left = Math.min(Math.max(left, sideGap), Math.max(sideGap, viewportWidth - width - sideGap))
+
+  const measuredHeight = valueTipsPopoverRef.value?.offsetHeight || 170
+  const normalTop = triggerRect.bottom + 10
+  const hasBottomSpace = normalTop + measuredHeight <= (viewportHeight - sideGap)
+  const top = hasBottomSpace
+    ? normalTop
+    : Math.max(sideGap, triggerRect.top - measuredHeight - 10)
+
+  valueTipsPopoverStyle.value = {
+    left: `${Math.round(left)}px`,
+    top: `${Math.round(top)}px`,
+    width: `${Math.round(width)}px`
+  }
+}
+
+function handleOutsidePointerDown(event) {
+  const host = valueTipsRef.value
+  const popover = valueTipsPopoverRef.value
+  if (!host) return
+  if (host.contains(event.target)) return
+  if (popover?.contains(event.target)) return
+  clearValueTipsHideTimer()
+  isValueTipsTriggerHovering.value = false
+  isValueTipsPopoverHovering.value = false
+  valueTipsPinned.value = false
+  showValueTips.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handleOutsidePointerDown)
+  window.addEventListener('resize', updateValueTipsPosition, { passive: true })
+  window.addEventListener('scroll', updateValueTipsPosition, { passive: true, capture: true })
+})
+
+onBeforeUnmount(() => {
+  clearValueTipsHideTimer()
+  document.removeEventListener('pointerdown', handleOutsidePointerDown)
+  window.removeEventListener('resize', updateValueTipsPosition)
+  window.removeEventListener('scroll', updateValueTipsPosition, true)
+})
+
+watch(showValueTips, async (visible) => {
+  if (!visible) return
+  await nextTick()
+  updateValueTipsPosition()
+})
+
 watch(isHidden, (value) => {
   localStorage.setItem(props.storageKey, value ? '1' : '0')
 }, { immediate: true })
@@ -323,6 +492,87 @@ watch(isHidden, (value) => {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.summary-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.summary-value-tips {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.summary-tip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.summary-tip-btn:active {
+  transform: scale(0.94);
+}
+
+.summary-value-tips--open .summary-tip-btn {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.summary-tip-popover {
+  position: fixed;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-glass-strong) 92%, transparent);
+  border: 1px solid var(--app-glass-border);
+  color: var(--app-text);
+  box-shadow:
+    0 12px 26px color-mix(in srgb, var(--app-overlay) 58%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-glass-border) 28%, transparent);
+  backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
+  -webkit-backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
+  z-index: 1200;
+}
+
+.summary-tip-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--app-text);
+}
+
+.summary-tip-list {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--app-text-secondary);
+}
+
+.summary-tip-fade-enter-active,
+.summary-tip-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.summary-tip-fade-enter-from,
+.summary-tip-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .summary-visibility-btn {

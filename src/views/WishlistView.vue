@@ -43,6 +43,8 @@
           :total-value="totalValue"
           :total-count="baseGoodsList.length"
           :trend-items="baseGoodsList"
+          :tips-title="'预算计算要点'"
+          :tips-items="wishlistTipsItems"
         />
       </section>
 
@@ -275,6 +277,12 @@ const totalQuantity = computed(() => (
 const totalValue = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
 ))
+const wishlistTipsItems = [
+  '仅统计心愿单条目，不包含已拥有收藏。',
+  '按每条目标价汇总，不叠加邮费。',
+  '数量会参与合计：标价 × 数量。',
+  '非人民币条目会先换算为人民币。'
+]
 
 function getInitialVisibleCount() {
   return Math.max(getResponsiveCols(displayDensity.value) * INITIAL_RENDER_ROWS, 24)
