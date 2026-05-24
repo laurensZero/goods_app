@@ -585,7 +585,7 @@ const unitHoldingDaysList = computed(() => {
 
   const unitStatuses = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : []
 
-  return unitDates
+  const entries = unitDates
     .map((date, i) => {
       const normalizedDate = String(date || '').trim()
       if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
@@ -595,9 +595,16 @@ const unitHoldingDaysList = computed(() => {
       if (days < 0) return null
 
       const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
-      return { date: normalizedDate, days, status, index: i + 1 }
+      return { date: normalizedDate, days, status }
     })
     .filter(Boolean)
+
+  const seenDays = new Set()
+  return entries.filter((entry) => {
+    if (seenDays.has(entry.days)) return false
+    seenDays.add(entry.days)
+    return true
+  })
 })
 
 const hasUnitHoldingDays = computed(() => unitHoldingDaysList.value.length > 0)
@@ -606,7 +613,7 @@ const unitHoldingDaysText = computed(() => {
   const list = unitHoldingDaysList.value
   if (list.length === 0) return ''
   return list
-    .map((entry) => `${entry.days}天(${entry.status})`)
+    .map((entry) => `${entry.days} 天 (${entry.status})`)
     .join(' / ')
 })
 

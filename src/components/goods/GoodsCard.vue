@@ -295,7 +295,7 @@ const unitHoldingDaysList = computed(() => {
 
   const unitStatuses = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : []
 
-  return unitDates
+  const entries = unitDates
     .map((date, i) => {
       const normalizedDate = String(date || '').trim()
       if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
@@ -305,9 +305,17 @@ const unitHoldingDaysList = computed(() => {
       if (days < 0) return null
 
       const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
-      return { days, status }
+      return { days, status, date: normalizedDate }
     })
     .filter(Boolean)
+
+  // Deduplicate by date: same-day copies produce one entry
+  const seenDays = new Set()
+  return entries.filter((entry) => {
+    if (seenDays.has(entry.days)) return false
+    seenDays.add(entry.days)
+    return true
+  })
 })
 
 const hasUnitHoldingDays = computed(() => unitHoldingDaysList.value.length > 0)
@@ -349,7 +357,7 @@ const statusDaysText = computed(() => {
     const daysList = list.map((e) => e.days)
     const minDays = Math.min(...daysList)
     const maxDays = Math.max(...daysList)
-    const daysStr = minDays === maxDays ? `${minDays}天` : `${minDays}~${maxDays}天`
+    const daysStr = minDays === maxDays ? `${minDays} 天` : `${minDays}~${maxDays} 天`
 
     // Collect unique statuses
     const statusSet = new Set(list.map((e) => e.status))
