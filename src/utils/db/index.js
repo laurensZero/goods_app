@@ -120,6 +120,67 @@ const CREATE_RECHARGE_TABLE_SQL = `
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
 const LATEST_VERSION = MIGRATIONS.length
 
+const GOODS_REQUIRED_COLUMNS = [
+  ['name', "TEXT NOT NULL DEFAULT ''"],
+  ['category', "TEXT DEFAULT ''"],
+  ['ip', "TEXT DEFAULT ''"],
+  ['goodsId', "TEXT DEFAULT ''"],
+  ['isWishlist', 'INTEGER DEFAULT 0'],
+  ['characters', "TEXT DEFAULT '[]'"],
+  ['tags', "TEXT DEFAULT '[]'"],
+  ['storageLocation', "TEXT DEFAULT ''"],
+  ['variant', "TEXT DEFAULT ''"],
+  ['price', "TEXT DEFAULT ''"],
+  ['actualPrice', "TEXT DEFAULT ''"],
+  ['acquiredAt', "TEXT DEFAULT ''"],
+  ['unitAcquiredAtList', "TEXT DEFAULT '[]'"],
+  ['unitActualPriceList', "TEXT DEFAULT '[]'"],
+  ['unitCharacterList', "TEXT DEFAULT '[]'"],
+  ['unitCollectStatusList', "TEXT DEFAULT '[]'"],
+  ['image', "TEXT DEFAULT ''"],
+  ['images', "TEXT DEFAULT '[]'"],
+  ['tracks', "TEXT DEFAULT '[]'"],
+  ['note', "TEXT DEFAULT ''"],
+  ['quantity', 'INTEGER DEFAULT 1'],
+  ['points', 'INTEGER DEFAULT NULL'],
+  ['currency', "TEXT DEFAULT 'CNY'"],
+  ['actualPriceCurrency', "TEXT DEFAULT 'CNY'"],
+  ['collectStatus', "TEXT DEFAULT '已拥有'"],
+  ['shippingFee', "TEXT DEFAULT ''"],
+  ['updatedAt', 'INTEGER DEFAULT 0']
+]
+
+const EVENTS_REQUIRED_COLUMNS = [
+  ['name', "TEXT NOT NULL DEFAULT ''"],
+  ['type', "TEXT DEFAULT ''"],
+  ['startDate', "TEXT DEFAULT ''"],
+  ['endDate', "TEXT DEFAULT ''"],
+  ['location', "TEXT DEFAULT ''"],
+  ['description', "TEXT DEFAULT ''"],
+  ['coverImage', "TEXT DEFAULT ''"],
+  ['coverImageData', "TEXT DEFAULT '{}'"],
+  ['photos', "TEXT DEFAULT '[]'"],
+  ['ticketPrice', "TEXT DEFAULT ''"],
+  ['ticketType', "TEXT DEFAULT ''"],
+  ['seatInfo', "TEXT DEFAULT ''"],
+  ['tracks', "TEXT DEFAULT '[]'"],
+  ['linkedGoodsIds', "TEXT DEFAULT '[]'"],
+  ['tags', "TEXT DEFAULT '[]'"],
+  ['createdAt', 'INTEGER DEFAULT 0'],
+  ['updatedAt', 'INTEGER DEFAULT 0']
+]
+
+const RECHARGE_REQUIRED_COLUMNS = [
+  ['game', "TEXT DEFAULT ''"],
+  ['itemName', "TEXT DEFAULT ''"],
+  ['amount', 'REAL DEFAULT 0'],
+  ['chargedAt', "TEXT DEFAULT ''"],
+  ['note', "TEXT DEFAULT ''"],
+  ['image', "TEXT DEFAULT ''"],
+  ['deleted', 'INTEGER DEFAULT 0'],
+  ['updatedAt', 'INTEGER DEFAULT 0']
+]
+
 //  纯业务辅助函数
 
 /**
@@ -279,6 +340,14 @@ async function _runMigrations() {
   }
 }
 
+async function _ensureTableColumns(tableName, columns) {
+  const existingColumns = await db.getTableColumns(tableName)
+  for (const [columnName, columnDefinition] of columns) {
+    if (existingColumns.has(columnName)) continue
+    await db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`)
+  }
+}
+
 //  统一对外 API
 
 /** @returns {Promise<void>} */
@@ -306,6 +375,12 @@ export async function initDB() {
   }
   const createTablesTime = performance.now() - t2
 
+  const t2b = performance.now()
+  await _ensureTableColumns('goods', GOODS_REQUIRED_COLUMNS)
+  await _ensureTableColumns('events', EVENTS_REQUIRED_COLUMNS)
+  await _ensureTableColumns('recharge_records', RECHARGE_REQUIRED_COLUMNS)
+  const backfillColumnsTime = performance.now() - t2b
+
   // Always check version and run migrations
   const t3 = performance.now()
   const currentVersion = await _getSchemaVersion()
@@ -327,6 +402,7 @@ export async function initDB() {
       '[db] initDB detailed timings (ms):\n' +
       `  db.open: ${openTime.toFixed(1)}\n` +
       `  createTables: ${createTablesTime.toFixed(1)}\n` +
+      `  backfillColumns: ${backfillColumnsTime.toFixed(1)}\n` +
       `  versionCheck: ${versionCheckTime.toFixed(1)}\n` +
       `  migrations: ${migrationsTime.toFixed(1)}`
     )
