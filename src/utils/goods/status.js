@@ -65,10 +65,21 @@ function hasCollectStatusMatch(item, statuses) {
   return getCollectStatusEntries(item).some(({ status }) => statusSet.has(status))
 }
 
+const EXITED_COLLECT_STATUSES = new Set(['已出', '已赠出', '丢失'])
+
+function areAllCopiesExited(item) {
+  if (!item || item.isWishlist) return false
+  const entries = getCollectStatusEntries(item)
+  if (entries.length === 0) return false
+  return entries.every(({ status }) => EXITED_COLLECT_STATUSES.has(status))
+}
+
 export {
   normalizeCollectStatus,
   getCollectStatusEntries,
   resolvePrimaryCollectStatus,
   formatCollectStatusSummary,
-  hasCollectStatusMatch
+  hasCollectStatusMatch,
+  EXITED_COLLECT_STATUSES,
+  areAllCopiesExited
 }

@@ -60,7 +60,13 @@
 
                 <div v-if="!form.isWishlist" class="field">
                   <span class="field-label">收藏状态</span>
-                  <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" placeholder="请选择状态" />
+                  <AppSelect
+                    v-model="form.collectStatus"
+                    :options="collectStatusOptions"
+                    placeholder="请选择状态"
+                    :disabled="disableCollectStatusInput"
+                    :class="{ 'app-select--disabled': disableCollectStatusInput }"
+                  />
 
                   <div v-if="quantityNumber >= 2" class="actual-price-block" :class="{ 'actual-price-block--open': showUnitCollectStatusInput }">
                     <button class="actual-price-toggle" type="button" @click="showUnitCollectStatusInput = !showUnitCollectStatusInput">
@@ -694,6 +700,7 @@ const {
   hasUnitCharacterValue,
   hasUnitCollectStatusValue,
   disableActualPriceInput,
+  disableCollectStatusInput,
   isTabletViewport,
   handleSubmit,
   toggleCharPicker,

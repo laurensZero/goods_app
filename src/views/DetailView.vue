@@ -149,7 +149,12 @@
               <strong class="info-value">{{ variantText }}</strong>
             </article>
 
-            <article v-if="!item.isWishlist && holdingDays !== null" class="info-tile">
+            <article v-if="!item.isWishlist && hasUnitHoldingDays" class="info-tile">
+              <span class="info-label">逐份时长</span>
+              <strong class="info-value">{{ unitHoldingDaysText }}</strong>
+            </article>
+
+            <article v-else-if="!item.isWishlist && holdingDays !== null" class="info-tile">
               <span class="info-label">{{ detailStatusLabel }}</span>
               <strong class="info-value">{{ holdingDays }} 天</strong>
             </article>
@@ -568,8 +573,56 @@ watch(
   { immediate: true, deep: true }
 )
 
+const unitHoldingDaysList = computed(() => {
+  const it = item.value
+  if (!it || it.isWishlist) return []
+
+  const quantity = Math.max(1, Number(it.quantity) || 1)
+  if (quantity < 2) return []
+
+  const unitDates = Array.isArray(it.unitAcquiredAtList) ? it.unitAcquiredAtList : []
+  if (unitDates.length === 0) return []
+
+  const unitStatuses = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : []
+
+  return unitDates
+    .map((date, i) => {
+      const normalizedDate = String(date || '').trim()
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
+
+      const diff = Date.now() - new Date(normalizedDate).getTime()
+      const days = Math.floor(diff / 86400000)
+      if (days < 0) return null
+
+      const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
+      return { date: normalizedDate, days, status, index: i + 1 }
+    })
+    .filter(Boolean)
+})
+
+const hasUnitHoldingDays = computed(() => unitHoldingDaysList.value.length > 0)
+
+const unitHoldingDaysText = computed(() => {
+  const list = unitHoldingDaysList.value
+  if (list.length === 0) return ''
+  return list
+    .map((entry) => `${entry.days}天(${entry.status})`)
+    .join(' / ')
+})
+
 const holdingDays = computed(() => {
-  const date = item.value?.acquiredAt
+  const it = item.value
+  if (!it) return null
+
+  // When per-copy dates exist, use average or primary
+  if (hasUnitHoldingDays.value) {
+    const list = unitHoldingDaysList.value
+    if (list.length === 1) return list[0].days
+    // Multiple copies: return null so template uses hasUnitHoldingDays branch
+    return null
+  }
+
+  const date = it.acquiredAt
   if (!date) return null
 
   const diff = Date.now() - new Date(date).getTime()

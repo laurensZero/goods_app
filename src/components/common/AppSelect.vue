@@ -1,6 +1,6 @@
 <template>
-  <div ref="rootRef" class="app-select" :class="{ 'app-select--open': open }">
-    <button class="app-select__trigger" type="button" @pointerdown="flushActiveInput" @click="toggle">
+  <div ref="rootRef" class="app-select" :class="{ 'app-select--open': open, 'app-select--disabled': disabled }">
+    <button class="app-select__trigger" type="button" :disabled="disabled" @pointerdown="flushActiveInput" @click="toggle">
       <span class="app-select__value" :class="{ 'app-select__value--placeholder': !displayLabel }">
         {{ displayLabel || placeholder }}
       </span>
@@ -55,6 +55,10 @@ const props = defineProps({
   placeholder: {
     type: String,
     default: '请选择'
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -82,6 +86,7 @@ const displayLabel = computed(() => {
 })
 
 async function toggle() {
+  if (props.disabled) return
   await commitActiveInput()
   open.value = !open.value
 }
@@ -136,6 +141,15 @@ onBeforeUnmount(() => {
 
 .app-select__trigger:active {
   transform: scale(0.98);
+}
+
+.app-select--disabled .app-select__trigger {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-select--disabled .app-select__trigger:active {
+  transform: none;
 }
 
 .app-select--open .app-select__trigger,
