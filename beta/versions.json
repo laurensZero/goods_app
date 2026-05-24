@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.12",
+    "url": "bundle-20260524.12.zip",
+    "hash": "82db3bc688ff6de0f5048676faad3bd8bba8322b815591b62ebbd94dc602007a",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加调试浮动按钮，支持应用诊断和错误信息展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:36:33Z"
+  },
+  {
     "version": "20260524.11",
     "url": "bundle-20260524.11.zip",
     "hash": "c94521c8e387af370a67d741dc054902f39e4b86baf197b9ef620e9917cffe85",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加商品、事件和充值记录所需的数据库列，并确保表结构更新",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:28:30Z"
-  },
-  {
-    "version": "20260524.9",
-    "url": "bundle-20260524.9.zip",
-    "hash": "f9b3da90344b05ea4b6f349e993bbcf1e1b7885aec641be9ab4c56b30a4ae677",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新匹配收藏状态过滤器，增加丢失状态支持",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:24:03Z"
   }
 ]
