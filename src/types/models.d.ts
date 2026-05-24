@@ -58,6 +58,7 @@ export interface GoodsItem {
   unitAcquiredAtList: string[]
   unitActualPriceList: string[]
   unitCharacterList: string[]
+  unitCollectStatusList: string[]
   coverImage: string
   images: GoodsImage[]
   tracks: TrackItem[]

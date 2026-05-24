@@ -61,6 +61,40 @@
                 <div v-if="!form.isWishlist" class="field">
                   <span class="field-label">收藏状态</span>
                   <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" placeholder="请选择状态" />
+
+                  <div v-if="quantityNumber >= 2" class="actual-price-block" :class="{ 'actual-price-block--open': showUnitCollectStatusInput }">
+                    <button class="actual-price-toggle" type="button" @click="showUnitCollectStatusInput = !showUnitCollectStatusInput">
+                      <span class="actual-price-toggle__copy">
+                        <span class="actual-price-toggle__title">
+                          {{ showUnitCollectStatusInput ? '收起逐份状态' : (hasUnitCollectStatusValue ? '已填写逐份状态' : '设置逐份状态') }}
+                        </span>
+                        <span class="actual-price-toggle__desc">
+                          {{ showUnitCollectStatusInput ? '每一份谷子都可以单独标记状态' : (hasUnitCollectStatusValue ? '已保存部分逐份状态' : '可以为每一份单独设置收藏状态') }}
+                        </span>
+                      </span>
+                      <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showUnitCollectStatusInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M7 10L12 15L17 10" />
+                      </svg>
+                    </button>
+
+                    <Transition name="unit-character-panel">
+                      <div v-if="showUnitCollectStatusInput" class="actual-price-panel">
+                        <div class="inline-actions">
+                          <span class="inline-actions__label">逐份明细</span>
+                          <button class="inline-clear-btn" type="button" @click="clearUnitCollectStatusList">清空</button>
+                        </div>
+
+                        <label v-for="index in quantityNumber" :key="`unit-status-${index}`" class="unit-date-field">
+                          <span class="field-label">第 {{ index }} 份状态</span>
+                          <AppSelect
+                            v-model="form.unitCollectStatusList[index - 1]"
+                            :options="collectStatusOptions"
+                            placeholder="请选择状态"
+                          />
+                        </label>
+                      </div>
+                    </Transition>
+                  </div>
                 </div>
 
                 <label class="field" :class="{ 'field--error': nameError }">
@@ -629,6 +663,7 @@ const {
   showUnitAcquiredAtInput,
   showUnitActualPriceInput,
   showUnitCharacterInput,
+  showUnitCollectStatusInput,
   quickCreateTarget,
   quickCategoryName,
   quickIpName,
@@ -657,6 +692,7 @@ const {
   hasUnitAcquiredAtValue,
   hasUnitActualPriceValue,
   hasUnitCharacterValue,
+  hasUnitCollectStatusValue,
   disableActualPriceInput,
   isTabletViewport,
   handleSubmit,
@@ -674,6 +710,7 @@ const {
   normalizeUnitPriceAt,
   clearUnitActualPriceList,
   clearUnitCharacterList,
+  clearUnitCollectStatusList,
   syncAllUnitDatesFromPrimaryDate,
   syncAllUnitPricesFromActualPrice,
   openDatePicker,

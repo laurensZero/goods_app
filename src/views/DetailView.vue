@@ -67,7 +67,7 @@
         <section class="hero-card">
           <div class="hero-meta">
             <span v-if="item.isWishlist" class="hero-chip wish-chip">心愿单</span>
-            <span v-if="!item.isWishlist && item.collectStatus" class="hero-chip collect-status-chip">{{ item.collectStatus }}</span>
+            <span v-if="!item.isWishlist && statusChipText" class="hero-chip collect-status-chip">{{ statusChipText }}</span>
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
@@ -230,6 +230,7 @@ import { resolveCollectionTotalValue } from '@/stores/goodsHelpers'
 import { formatDate } from '@/utils/format'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
+import { formatCollectStatusSummary, getCollectStatusEntries, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -577,31 +578,25 @@ const holdingDays = computed(() => {
 })
 
 function resolvePrimaryStatusForItem(it) {
-  if (!it) return '已拥有'
-  const list = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : null
-  if (list && list.length > 0) {
-    const counts = Object.create(null)
-    for (const s of list) counts[s] = (counts[s] || 0) + 1
-    let winner = ''
-    let max = 0
-    for (const k in counts) {
-      if (counts[k] > max) {
-        max = counts[k]
-        winner = k
-      }
-    }
-    if (winner) return winner
-  }
-  return it.collectStatus || '已拥有'
+  return resolvePrimaryCollectStatus(it)
 }
+
+const collectStatusEntries = computed(() => getCollectStatusEntries(item.value))
+const hasMultipleStatusEntries = computed(() => collectStatusEntries.value.length > 1 || (collectStatusEntries.value[0] && collectStatusEntries.value[0].count > 1))
+
+const statusChipText = computed(() => {
+  if (!item.value || item.value.isWishlist) return ''
+  return hasMultipleStatusEntries.value
+    ? formatCollectStatusSummary(item.value, { compact: true })
+    : resolvePrimaryCollectStatus(item.value)
+})
 
 const detailStatusLabel = computed(() => {
   const it = item.value
   if (!it) return '持有时长'
   const primary = resolvePrimaryStatusForItem(it)
   if (primary === '已拥有' || !primary) return '持有时长'
-  // 在详情页展示完整文案，例如：待发货 / 待补款 / 待补邮
-  return primary
+  return hasMultipleStatusEntries.value ? formatCollectStatusSummary(it) : primary
 })
 
 function handleDelete() {

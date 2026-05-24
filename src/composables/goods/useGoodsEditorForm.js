@@ -47,6 +47,7 @@ export function useGoodsEditorForm(options = {}) {
     unitAcquiredAtList: [],
     unitActualPriceList: [],
     unitCharacterList: [],
+    unitCollectStatusList: [],
     currency: 'CNY',
     actualPriceCurrency: 'CNY',
     collectStatus: '已拥有',
@@ -58,6 +59,7 @@ export function useGoodsEditorForm(options = {}) {
   const showUnitAcquiredAtInput = ref(false)
   const showUnitActualPriceInput = ref(false)
   const showUnitCharacterInput = ref(false)
+  const showUnitCollectStatusInput = ref(false)
   const quickCreateTarget = ref('')
   const quickCategoryName = ref('')
   const quickIpName = ref('')
@@ -113,6 +115,7 @@ export function useGoodsEditorForm(options = {}) {
   const hasUnitAcquiredAtValue = computed(() => form.unitAcquiredAtList.some((value) => !!String(value || '').trim()))
   const hasUnitActualPriceValue = computed(() => form.unitActualPriceList.some((value) => !!String(value || '').trim()))
   const hasUnitCharacterValue = computed(() => form.unitCharacterList.some((value) => !!String(value || '').trim()))
+  const hasUnitCollectStatusValue = computed(() => form.unitCollectStatusList.some((value) => !!String(value || '').trim()))
   const disableActualPriceInput = computed(() => !form.isWishlist && quantityNumber.value >= 2 && showUnitActualPriceInput.value)
   const datePickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 
@@ -142,6 +145,13 @@ export function useGoodsEditorForm(options = {}) {
   )
 
   watch(
+    () => form.collectStatus,
+    () => {
+      syncUnitCollectStatusListLength()
+    }
+  )
+
+  watch(
     () => form.ip,
     (ip) => {
       form.characters = form.characters.filter((name) =>
@@ -165,11 +175,13 @@ export function useGoodsEditorForm(options = {}) {
         showUnitAcquiredAtInput.value = false
         showUnitActualPriceInput.value = false
         showUnitCharacterInput.value = false
+        showUnitCollectStatusInput.value = false
         form.actualPrice = ''
         form.points = ''
         form.unitAcquiredAtList = []
         form.unitActualPriceList = []
         form.unitCharacterList = []
+        form.unitCollectStatusList = []
         return
       }
 
@@ -228,12 +240,15 @@ export function useGoodsEditorForm(options = {}) {
         form.unitAcquiredAtList = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
         form.unitActualPriceList = Array.isArray(item.unitActualPriceList) ? [...item.unitActualPriceList] : []
         form.unitCharacterList = Array.isArray(item.unitCharacterList) ? [...item.unitCharacterList] : []
+        form.unitCollectStatusList = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
         showUnitAcquiredAtInput.value = form.unitAcquiredAtList.some((value) => !!String(value || '').trim())
         showUnitActualPriceInput.value = form.unitActualPriceList.some((value) => !!String(value || '').trim())
         showUnitCharacterInput.value = form.unitCharacterList.some((value) => !!String(value || '').trim())
+        showUnitCollectStatusInput.value = form.unitCollectStatusList.some((value) => !!String(value || '').trim())
         syncUnitAcquiredAtListLength()
         syncUnitActualPriceListLength()
         syncUnitCharacterListLength()
+        syncUnitCollectStatusListLength()
         datePickerValue.value = toDatePickerValue(form.acquiredAt)
       }
     }
@@ -241,6 +256,7 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitAcquiredAtListLength()
     syncUnitActualPriceListLength()
     syncUnitCharacterListLength()
+    syncUnitCollectStatusListLength()
     updateViewport()
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('touchstart', handleClickOutside)
@@ -462,6 +478,16 @@ export function useGoodsEditorForm(options = {}) {
     showUnitCharacterInput.value = false
   }
 
+  function normalizeUnitCollectStatusValue(value) {
+    const normalized = String(value || '').trim()
+    return normalized
+  }
+
+  function clearUnitCollectStatusList() {
+    form.unitCollectStatusList = []
+    showUnitCollectStatusInput.value = false
+  }
+
   function syncUnitAcquiredAtListLength() {
     const targetLength = quantityNumber.value
     const fallbackDate = normalizeUnitDateValue(form.acquiredAt)
@@ -522,6 +548,30 @@ export function useGoodsEditorForm(options = {}) {
 
     if (targetLength < 2) {
       showUnitCharacterInput.value = false
+    }
+  }
+
+  function syncUnitCollectStatusListLength() {
+    const targetLength = quantityNumber.value
+
+    if (form.isWishlist || targetLength < 2) {
+      form.unitCollectStatusList = []
+      showUnitCollectStatusInput.value = false
+      return
+    }
+
+    const fallbackStatus = normalizeUnitCollectStatusValue(form.collectStatus) || '已拥有'
+    const current = Array.isArray(form.unitCollectStatusList) ? [...form.unitCollectStatusList] : []
+    const next = Array.from({ length: targetLength }, (_, index) => normalizeUnitCollectStatusValue(current[index]) || fallbackStatus)
+
+    while (next.length > 0 && !next[next.length - 1]) {
+      next.pop()
+    }
+
+    form.unitCollectStatusList = next
+
+    if (targetLength < 2) {
+      showUnitCollectStatusInput.value = false
     }
   }
 
@@ -673,6 +723,11 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitAcquiredAtListLength,
     syncUnitActualPriceListLength,
     syncUnitCharacterListLength,
+    showUnitCollectStatusInput,
+    hasUnitCollectStatusValue,
+    clearUnitCollectStatusList,
+    normalizeUnitCollectStatusValue,
+    syncUnitCollectStatusListLength,
     syncAllUnitDatesFromPrimaryDate,
     syncAllUnitPricesFromActualPrice,
     openDatePicker,

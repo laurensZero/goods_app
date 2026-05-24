@@ -10,6 +10,7 @@ const CAMEL_TO_SNAKE = {
   unitAcquiredAtList: 'unit_acquired_at_list',
   unitActualPriceList: 'unit_actual_price_list',
   unitCharacterList: 'unit_character_list',
+  unitCollectStatusList: 'unit_collect_status_list',
   actualPriceCurrency: 'actual_price_currency',
   collectStatus: 'collect_status',
   shippingFee: 'shipping_fee',

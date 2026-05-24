@@ -65,6 +65,7 @@ const CREATE_TABLE_SQL = `
     unitAcquiredAtList TEXT DEFAULT '[]',
     unitActualPriceList TEXT DEFAULT '[]',
     unitCharacterList TEXT DEFAULT '[]',
+    unitCollectStatusList TEXT DEFAULT '[]',
     image      TEXT DEFAULT '',
     images     TEXT DEFAULT '[]',
     tracks     TEXT DEFAULT '[]',
@@ -156,6 +157,7 @@ function prepareGoodsRecord(item) {
     unitAcquiredAtList = [],
     unitActualPriceList = [],
     unitCharacterList = [],
+    unitCollectStatusList = [],
     image = '',
     coverImage = '',
     images = [],
@@ -182,6 +184,7 @@ function prepareGoodsRecord(item) {
     unitDatesStr: JSON.stringify(Array.isArray(unitAcquiredAtList) ? unitAcquiredAtList : []),
     unitPricesStr: JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : []),
     unitCharactersStr: JSON.stringify(Array.isArray(unitCharacterList) ? unitCharacterList : []),
+    unitCollectStatusStr: JSON.stringify(Array.isArray(unitCollectStatusList) ? unitCollectStatusList : []),
     imagesStr: JSON.stringify(Array.isArray(images) ? images : []),
     tracksStr: JSON.stringify(Array.isArray(tracks) ? tracks : []),
     storageLocation,
@@ -209,10 +212,10 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -333,7 +336,7 @@ export async function initDB() {
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
 export async function getItems() {
   try {
-    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
+    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
       isWishlist: normalizeWishlistFlag(r.isWishlist),
@@ -343,6 +346,7 @@ export async function getItems() {
       unitAcquiredAtList: parseJsonArray(r.unitAcquiredAtList),
       unitActualPriceList: parseJsonArray(r.unitActualPriceList),
       unitCharacterList: parseJsonArray(r.unitCharacterList),
+      unitCollectStatusList: parseJsonArray(r.unitCollectStatusList),
       images: parseJsonArray(r.images),
       tracks: parseJsonArray(r.tracks),
       storageLocation: String(r.storageLocation || '').trim(),

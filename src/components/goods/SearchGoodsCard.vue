@@ -67,6 +67,12 @@
 import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { CURRENCY_MAP } from '@/constants/currencies'
+import {
+  formatCollectStatusSummary,
+  getCollectStatusEntries,
+  hasCollectStatusMatch,
+  resolvePrimaryCollectStatus
+} from '@/utils/goods/status'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -201,30 +207,20 @@ const STATUS_SHORT_MAP = {
 }
 
 function resolvePrimaryStatus(item) {
-  const list = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : null
-  if (list && list.length > 0) {
-    const counts = Object.create(null)
-    for (const s of list) counts[s] = (counts[s] || 0) + 1
-    let winner = ''
-    let max = 0
-    for (const k in counts) {
-      if (counts[k] > max) {
-        max = counts[k]
-        winner = k
-      }
-    }
-    if (winner) return winner
-  }
-
-  return item.collectStatus || '已拥有'
+  return resolvePrimaryCollectStatus(item)
 }
+
+const collectStatusEntries = computed(() => getCollectStatusEntries(props.item))
+const hasMultipleStatusEntries = computed(() => collectStatusEntries.value.length > 1 || (collectStatusEntries.value[0] && collectStatusEntries.value[0].count > 1))
+const primaryStatus = computed(() => resolvePrimaryStatus(props.item))
 
 const statusDaysText = computed(() => {
   if (props.item.isWishlist) return ''
   const days = holdingDays.value
   if (days === null) return ''
 
-  const primary = resolvePrimaryStatus(props.item)
+  const primary = primaryStatus.value
+  if (hasMultipleStatusEntries.value) return `${formatCollectStatusSummary(props.item)} · ${days} 天`
   if (STATUS_SHORT_MAP[primary]) return `${STATUS_SHORT_MAP[primary]} ${days} 天`
   if (primary === '已拥有' || !primary) return `持有 ${days} 天`
   return `${primary} ${days} 天`
@@ -238,9 +234,12 @@ const chips = computed(() => {
   return next
 })
 
-const primaryStatus = computed(() => resolvePrimaryStatus(props.item))
-const isPending = computed(() => !props.item.isWishlist && ['待发货', '待补款', '待补邮'].includes(primaryStatus.value))
-const isExited = computed(() => !props.item.isWishlist && ['已出', '已赠出', '丢失'].includes(primaryStatus.value))
+const isPending = computed(() => !props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮']))
+const isExited = computed(() => {
+  if (props.item.isWishlist) return false
+  const exitedStatuses = new Set(['已出', '已赠出', '丢失'])
+  return exitedStatuses.has(primaryStatus.value)
+})
 
 const showHoldingDays = computed(() => !props.item.isWishlist && holdingDays.value !== null)
 const showPoints = computed(() => !props.item.isWishlist && props.item.points)

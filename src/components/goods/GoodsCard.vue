@@ -5,8 +5,8 @@
       `goods-card--${density || 'comfortable'}`,
       { 'goods-card--transitioning': transitioning },
       { 'goods-card--selected': selected },
-      { 'goods-card--pending': item.collectStatus === '待发货' || item.collectStatus === '待补款' || item.collectStatus === '待补邮' },
-      { 'goods-card--exited': item.collectStatus === '已出' || item.collectStatus === '已赠出' || item.collectStatus === '丢失' },
+      { 'goods-card--pending': isPending },
+      { 'goods-card--exited': isExited },
       { 'goods-card--motion': Boolean(motionStyle) }
     ]"
     :style="motionStyle || undefined"
@@ -56,10 +56,10 @@
         心愿
       </div>
       <div
-        v-if="!item.isWishlist && (item.collectStatus === '待发货' || item.collectStatus === '待补款' || item.collectStatus === '待补邮')"
+        v-if="!item.isWishlist && isPending"
         :class="['pending-badge', { 'pending-badge--compact': density === 'compact' }]"
       >
-        {{ item.collectStatus }}
+        {{ primaryStatus }}
       </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
     </div>
@@ -114,6 +114,10 @@ import { computed, ref } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
+import {
+  hasCollectStatusMatch,
+  resolvePrimaryCollectStatus
+} from '@/utils/goods/status'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -293,30 +297,24 @@ const STATUS_SHORT_MAP = {
 }
 
 function resolvePrimaryStatus(item) {
-  const list = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : null
-  if (list && list.length > 0) {
-    const counts = Object.create(null)
-    for (const s of list) counts[s] = (counts[s] || 0) + 1
-    let winner = ''
-    let max = 0
-    for (const k in counts) {
-      if (counts[k] > max) {
-        max = counts[k]
-        winner = k
-      }
-    }
-    if (winner) return winner
-  }
-
-  return item.collectStatus || '已拥有'
+  return resolvePrimaryCollectStatus(item)
 }
+
+const primaryStatus = computed(() => resolvePrimaryStatus(props.item))
+const isPending = computed(() => !props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮']))
+const isExited = computed(() => {
+  if (props.item.isWishlist) return false
+  const exitedStatuses = new Set(['已出', '已赠出', '丢失'])
+  const primary = primaryStatus.value
+  return exitedStatuses.has(primary)
+})
 
 const statusDaysText = computed(() => {
   if (props.item.isWishlist) return ''
   const days = holdingDays.value
   if (days === null) return ''
 
-  const primary = resolvePrimaryStatus(props.item)
+  const primary = primaryStatus.value
   if (STATUS_SHORT_MAP[primary]) return `${STATUS_SHORT_MAP[primary]} ${days} 天`
   if (primary === '已拥有' || !primary) return `持有 ${days} 天`
   return `${primary} ${days} 天`

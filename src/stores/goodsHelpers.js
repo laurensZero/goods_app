@@ -99,6 +99,21 @@ function normalizeUnitCharacterList(list, quantity) {
     .map((value) => normalizeCharacterName(value))
 }
 
+function normalizeUnitCollectStatusList(list, quantity) {
+  const quantityNumber = parseQuantity(quantity)
+  if (quantityNumber < 2 || !Array.isArray(list) || list.length === 0) return []
+
+  const normalized = list
+    .slice(0, quantityNumber)
+    .map((value) => normalizeCollectStatus(value))
+
+  while (normalized.length > 0 && !normalized[normalized.length - 1]) {
+    normalized.pop()
+  }
+
+  return normalized.some((value) => value && value !== '已拥有') ? normalized : []
+}
+
 function resolveCompleteUnitActualPriceTotal(list, quantity) {
   const quantityNumber = parseQuantity(quantity)
   if (quantityNumber < 2 || !Array.isArray(list) || list.length < quantityNumber) return ''
@@ -242,6 +257,9 @@ function normalizeGoodsInput(data, fallbackId = '') {
   const unitCharacterList = normalizeWishlistFlag(data.isWishlist)
     ? []
     : normalizeUnitCharacterList(data.unitCharacterList, data.quantity)
+  const unitCollectStatusList = normalizeWishlistFlag(data.isWishlist)
+    ? []
+    : normalizeUnitCollectStatusList(data.unitCollectStatusList || data.purchaseStatusList, data.quantity)
   const resolvedUnitActualPriceTotal = normalizeWishlistFlag(data.isWishlist)
     ? ''
     : resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity)
@@ -269,6 +287,7 @@ function normalizeGoodsInput(data, fallbackId = '') {
       : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
     unitActualPriceList,
     unitCharacterList,
+    unitCollectStatusList,
     coverImage,
     images,
     tracks: normalizeTracks(data.tracks),
@@ -330,6 +349,12 @@ function mergeGoodsRecord(existing, incoming) {
       [...(existing.unitCharacterList || []), ...(incoming.unitCharacterList || [])],
       mergedQuantity
     ),
+    unitCollectStatusList: normalizeWishlistFlag(existing.isWishlist)
+      ? []
+      : normalizeUnitCollectStatusList(
+        [...(existing.unitCollectStatusList || []), ...(incoming.unitCollectStatusList || [])],
+        mergedQuantity
+      ),
     coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
     images,
     note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),

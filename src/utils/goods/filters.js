@@ -1,5 +1,6 @@
 import { isStorageLocationUnderPrefix, normalizeStorageLocationValue } from '@/utils/storageLocations'
 import { validatePrice } from '@/utils/validate'
+import { getCollectStatusEntries, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 
 const DEFAULT_SORT = 'acquiredAt_desc'
 const DEFAULT_DATE_PRESET = 'all'
@@ -175,6 +176,22 @@ function matchesStorageLocationValue(selected, actualValue, emptyToken) {
   })
 }
 
+function matchesCollectStatusFilter(selectedStatuses, item) {
+  if (!selectedStatuses.length) return true
+
+  const itemStatus = String(item?.collectStatus || '').trim()
+  const primaryStatus = resolvePrimaryCollectStatus(item)
+  const unitEntries = getCollectStatusEntries(item)
+  const unitStatuses = new Set(unitEntries.map(({ status }) => status))
+  const exitStatuses = new Set(['已出', '已赠出'])
+
+  return selectedStatuses.some((selectedStatus) => {
+    if (selectedStatus === itemStatus || selectedStatus === primaryStatus) return true
+    if (exitStatuses.has(selectedStatus)) return unitStatuses.has(selectedStatus)
+    return false
+  })
+}
+
 function sortGoodsList(list, sortBy) {
   const sorted = [...list]
 
@@ -320,10 +337,7 @@ export function applyGoodsFilters(list, input) {
     if (filters.hasNote === 'yes' && !hasNote) return false
     if (filters.hasNote === 'no' && hasNote) return false
 
-    if (filters.collectStatuses.length) {
-      const itemStatus = String(item.collectStatus || '').trim()
-      if (!filters.collectStatuses.includes(itemStatus)) return false
-    }
+    if (!matchesCollectStatusFilter(filters.collectStatuses, item)) return false
 
     return true
   })
