@@ -1,9 +1,9 @@
 {
-  "version": "20260524.16",
-  "url": "bundle-20260524.16.zip",
-  "hash": "1ba4f74c363c6f837e2254ebd2d5ff65b0586d55ea67599f22fe5c6b4ea6a5d1",
+  "version": "20260524.17",
+  "url": "bundle-20260524.17.zip",
+  "hash": "4d7d34ed863a779d5d389e84a07ec3d74ff70c53ecb6d1684435d465297ba037",
   "minNativeVersion": null,
-  "notes": "- 本次 beta 更新无可用变更说明",
+  "notes": "- feat: 更新查询条件以支持未删除和已删除状态的记录",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T09:51:31Z"
+  "publishedAt": "2026-05-24T09:55:56Z"
 }

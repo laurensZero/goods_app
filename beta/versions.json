@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260524.17",
+    "url": "bundle-20260524.17.zip",
+    "hash": "4d7d34ed863a779d5d389e84a07ec3d74ff70c53ecb6d1684435d465297ba037",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新查询条件以支持未删除和已删除状态的记录",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-24T09:55:56Z"
+  },
+  {
     "version": "20260524.16",
     "url": "bundle-20260524.16.zip",
     "hash": "1ba4f74c363c6f837e2254ebd2d5ff65b0586d55ea67599f22fe5c6b4ea6a5d1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加数据库适配器加载失败的处理逻辑，支持回退到Web适配器",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T09:45:37Z"
-  },
-  {
-    "version": "20260524.14",
-    "url": "bundle-20260524.14.zip",
-    "hash": "9f277e6a37b3d53bd312d439589a705cfe79f3449cbf7d507b6bcbee50ebdd75",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加诊断功能，显示桥接信息和诊断结果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T09:42:46Z"
   }
 ]
