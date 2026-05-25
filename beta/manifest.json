@@ -1,9 +1,9 @@
 {
-  "version": "20260525.2",
-  "url": "bundle-20260525.2.zip",
-  "hash": "1a5a9061a522f09ea4a0daad8a57dd4203a41f8a380f8958ace27117d399dafd",
+  "version": "20260525.3",
+  "url": "bundle-20260525.3.zip",
+  "hash": "99685e624eec819e199aeb92fbc9d16e9c2f676d68f43d7d5cc853f3896e7e94",
   "minNativeVersion": null,
-  "notes": "- feat: 更新照片预览逻辑，使用 gistFileName 作为唯一键；添加图像缓存刷新通知",
+  "notes": "- feat: 更新共享元素英雄图像检测逻辑，支持活动和商品的动画效果；避免在应用恢复后动画灰色占位符",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T03:17:26Z"
+  "publishedAt": "2026-05-25T03:26:12Z"
 }
