@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
+import { useSyncStore } from '@/stores/sync'
 import {
   buildStorageLocationPath,
   normalizeStorageLocationValue,
@@ -269,6 +270,10 @@ export const usePresetsStore = defineStore('presets', () => {
     await writePersistedList(STORAGE_KEY_LOC, storageLocations.value)
   }
 
+  function autoPushPresets() {
+    useSyncStore().autoPushGoods()
+  }
+
   async function init() {
     categories.value = await readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES)
     ips.value = await readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS)
@@ -447,12 +452,14 @@ export const usePresetsStore = defineStore('presets', () => {
       ? [...withoutOther, normalized, '其他']
       : [...withoutOther, normalized]
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    autoPushPresets()
     return true
   }
 
   async function removeCategory(name) {
     categories.value = categories.value.filter((category) => category !== name)
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    autoPushPresets()
   }
 
   async function updateCategoryName(oldName, newName) {
@@ -469,12 +476,14 @@ export const usePresetsStore = defineStore('presets', () => {
     updated.splice(index, 1, next)
     categories.value = updated
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    autoPushPresets()
     return true
   }
 
   async function reorderCategories(list) {
     categories.value = [...list]
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    autoPushPresets()
   }
 
   async function addIp(name) {
@@ -483,12 +492,14 @@ export const usePresetsStore = defineStore('presets', () => {
 
     ips.value.push(normalized)
     await writePersistedList(STORAGE_KEY_IP, ips.value)
+    autoPushPresets()
     return true
   }
 
   async function removeIp(name) {
     ips.value = ips.value.filter((ip) => ip !== name)
     await writePersistedList(STORAGE_KEY_IP, ips.value)
+    autoPushPresets()
   }
 
   async function updateIpName(oldName, newName) {
@@ -505,6 +516,7 @@ export const usePresetsStore = defineStore('presets', () => {
     updated.splice(index, 1, next)
     ips.value = updated
     await writePersistedList(STORAGE_KEY_IP, ips.value)
+    autoPushPresets()
     return true
   }
 
@@ -514,6 +526,7 @@ export const usePresetsStore = defineStore('presets', () => {
 
     characters.value.push({ name: normalized, ip: ip.trim() })
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    autoPushPresets()
     return true
   }
 
@@ -521,6 +534,7 @@ export const usePresetsStore = defineStore('presets', () => {
     const normalized = normalizeCharacterName(name)
     characters.value = characters.value.filter((character) => character.name !== normalized)
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    autoPushPresets()
   }
 
   async function updateCharacterName(oldName, newName) {
@@ -541,6 +555,7 @@ export const usePresetsStore = defineStore('presets', () => {
     })
     characters.value = updated
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    autoPushPresets()
     return true
   }
 
@@ -554,6 +569,7 @@ export const usePresetsStore = defineStore('presets', () => {
       ip: ip.trim()
     })
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    autoPushPresets()
   }
 
   async function addStorageLocation(name, parentId = '') {
@@ -567,6 +583,7 @@ export const usePresetsStore = defineStore('presets', () => {
     if (existing) return existing
 
     const node = {
+    autoPushPresets()
       id: createStorageLocationId(),
       name: normalized,
       parentId: normalizedParentId
@@ -578,6 +595,7 @@ export const usePresetsStore = defineStore('presets', () => {
 
   async function renameStorageLocation(id, name) {
     const normalizedId = String(id || '').trim()
+    autoPushPresets()
     const normalizedName = String(name || '').trim()
     if (!normalizedId || !normalizedName) return false
 
@@ -627,6 +645,7 @@ export const usePresetsStore = defineStore('presets', () => {
 
     storageLocations.value = storageLocations.value.filter((node) => !removedIds.has(node.id))
     await persistStorageLocations()
+    autoPushPresets()
     return [...removedIds]
   }
 
