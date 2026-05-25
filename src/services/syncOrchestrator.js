@@ -509,10 +509,13 @@ export function createSyncOrchestrator({
       () => payload.buildSyncPayload({ existingImageGist: imageGist }),
       { startDetail: '读取本地收藏、回收站和图片', category: 'local', successDetail: (p) => `收藏 ${p.syncData.goods.length}，回收站 ${p.syncData.trash.length}，图片 ${p.imageStats.imageFileCount} 个` }
     )
-    const rechargeSyncData = await trackSyncStep('整理充值同步数据',
-      () => payload.buildRechargeSyncData({ incremental: false }),
-      { startDetail: '读取本地充值记录', category: 'local', successDetail: (p) => `充值 ${p.recharge.length} 条` }
-    )
+    let rechargeSyncData = { recharge: [], rechargeTrash: [] }
+    if (shouldWriteRecharge) {
+      rechargeSyncData = await trackSyncStep('整理充值同步数据',
+        () => payload.buildRechargeSyncData({ incremental: false }),
+        { startDetail: '读取本地充值记录', category: 'local', successDetail: (p) => `充值 ${p.recharge.length} 条` }
+      )
+    }
     let eventSyncData = { events: [] }
     let eventImageStats = { imageFileCount: 0 }
     let eventImageFiles = {}
