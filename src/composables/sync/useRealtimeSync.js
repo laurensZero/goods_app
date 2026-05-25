@@ -18,10 +18,10 @@ export function useRealtimeSync({ syncStore }) {
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
     // debounce 300ms 合并短时间内的多次事件
     if (pullDebounceTimer) clearTimeout(pullDebounceTimer)
-    pullDebounceTimer = setTimeout(async () => {
+      pullDebounceTimer = setTimeout(async () => {
       if (syncStore.isSyncing || syncStore.isPulling) return
       try {
-        await syncStore.pullOnly({ silent: true, forceRecharge: table === 'recharge_records' })
+        await syncStore.pullOnly({ silent: true, forceRecharge: table === 'recharge_records', source: table })
       } catch {
         // silent fail
       }
