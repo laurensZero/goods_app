@@ -1,9 +1,9 @@
 {
-  "version": "20260525.3",
-  "url": "bundle-20260525.3.zip",
-  "hash": "99685e624eec819e199aeb92fbc9d16e9c2f676d68f43d7d5cc853f3896e7e94",
+  "version": "20260525.4",
+  "url": "bundle-20260525.4.zip",
+  "hash": "530aa4eeea6bf5fc6b49e7b419aabcd0d68c7026360835b1e362b92dafb6ac36",
   "minNativeVersion": null,
-  "notes": "- feat: 更新共享元素英雄图像检测逻辑，支持活动和商品的动画效果；避免在应用恢复后动画灰色占位符",
+  "notes": "- feat: 增加自动推送预设功能，确保在类别、IP、角色和存储位置的增删改操作后自动同步数据\n\n- feat: 优化数据同步逻辑，减少预检读取\n\n- feat: 在存储位置的添加和重命名操作后自动推送预设",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T03:26:12Z"
+  "publishedAt": "2026-05-25T14:13:54Z"
 }
