@@ -1,6 +1,7 @@
 import {
   buildComparableRecordMap,
   buildEventCoverFilename,
+  buildEventPhotoFilename,
   buildImageFilename,
   buildImageSyncStats,
   getItemTimestamp,
@@ -289,6 +290,120 @@ export function createSyncPayloadService({
     }
   }
 
+  async function prepareEventPhotosForSync(event, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
+    const sourcePhotos = Array.isArray(event?.photos) ? event.photos : []
+    if (sourcePhotos.length === 0) return []
+
+    const preparedPhotos = []
+
+    for (let index = 0; index < sourcePhotos.length; index += 1) {
+      const rawPhoto = sourcePhotos[index]
+      const photoUri = String(rawPhoto?.uri || '').trim()
+      if (!photoUri) continue
+
+      const normalizedPhoto = {
+        ...rawPhoto,
+        id: String(rawPhoto?.id || `event_photo_${index}`),
+        caption: String(rawPhoto?.caption || '').trim()
+      }
+      const storageMode = inferGoodsImageStorageMode(photoUri, rawPhoto?.storageMode)
+
+      if (storageMode === 'remote') {
+        preparedPhotos.push({
+          ...normalizedPhoto,
+          uri: photoUri,
+          storageMode: 'remote',
+          gistFileName: '',
+          mimeType: '',
+          fileSize: 0,
+          localPath: ''
+        })
+        continue
+      }
+
+      if (storageMode === 'gist-local') {
+        const gistFileName = String(rawPhoto?.gistFileName || parseGistImageUri(photoUri)).trim()
+        if (gistFileName && existingImageFiles?.has(gistFileName)) {
+          referencedImageFiles.add(gistFileName)
+          preparedPhotos.push({
+            ...normalizedPhoto,
+            uri: buildGistImageUri(gistFileName),
+            storageMode: 'gist-local',
+            gistFileName,
+            mimeType: String(rawPhoto?.mimeType || '').trim(),
+            fileSize: Number(rawPhoto?.fileSize) > 0 ? Number(rawPhoto.fileSize) : 0,
+            localPath: ''
+          })
+          continue
+        }
+
+        if (gistFileName) {
+          const recoveredDataUrl = await readLocalImageAsDataUrl(photoUri, rawPhoto?.localPath).catch(() => null)
+          if (!recoveredDataUrl?.startsWith('data:image/')) {
+            continue
+          }
+          const parsedRecovered = parseImageDataUrl(recoveredDataUrl)
+          if (!parsedRecovered) {
+            continue
+          }
+          referencedImageFiles.add(gistFileName)
+          if (!existingImageFiles?.has(gistFileName) && imageFiles) {
+            imageFiles[gistFileName] = { content: recoveredDataUrl }
+            imageStats.uploadedImages += 1
+          } else {
+            imageStats.reusedImages += 1
+          }
+          imageStats.imageUpdatedAt = new Date().toISOString()
+          preparedPhotos.push({
+            ...normalizedPhoto,
+            uri: buildGistImageUri(gistFileName),
+            storageMode: 'gist-local',
+            gistFileName,
+            mimeType: parsedRecovered.mimeType,
+            fileSize: parsedRecovered.fileSize,
+            localPath: ''
+          })
+          continue
+        }
+      }
+
+      const imageDataUrl = await readLocalImageAsDataUrl(photoUri, rawPhoto?.localPath).catch(() => null)
+      if (!imageDataUrl?.startsWith('data:image/')) {
+        continue
+      }
+
+      const parsedData = parseImageDataUrl(imageDataUrl)
+      if (!parsedData) {
+        continue
+      }
+
+      // Keep original quality for event gallery photos.
+      const gistFileName = buildEventPhotoFilename(event, normalizedPhoto, parsedData.mimeType)
+      referencedImageFiles.add(gistFileName)
+
+      if (existingImageFiles?.has(gistFileName)) {
+        imageStats.reusedImages += 1
+      } else if (imageFiles) {
+        imageFiles[gistFileName] = { content: imageDataUrl }
+        imageStats.uploadedImages += 1
+      }
+
+      imageStats.imageUpdatedAt = new Date().toISOString()
+
+      preparedPhotos.push({
+        ...normalizedPhoto,
+        uri: buildGistImageUri(gistFileName),
+        storageMode: 'gist-local',
+        gistFileName,
+        mimeType: parsedData.mimeType,
+        fileSize: parsedData.fileSize,
+        localPath: ''
+      })
+    }
+
+    return preparedPhotos
+  }
+
   async function buildSyncPayload({ incremental = false, existingImageGist = null } = {}) {
     const goodsStore = useGoodsStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
@@ -373,12 +488,13 @@ export function createSyncPayloadService({
         if (item.coverImage) {
           processedCoverImage = await prepareEventCoverForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
         }
+        const processedPhotos = await prepareEventPhotosForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
 
         return {
           ...item,
           coverImage: processedCoverImage?.uri || item.coverImage,
           coverImageData: processedCoverImage,
-          photos: Array.isArray(item.photos) ? item.photos : [],
+          photos: processedPhotos,
           ticketType: String(item.ticketType || '').trim(),
           seatInfo: String(item.seatInfo || '').trim(),
           otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],

@@ -51,7 +51,7 @@
             </div>
 
             <div v-if="event.photos?.length" class="gallery-card">
-              <EventPhotoGrid :photos="event.photos" @preview="openPhotoPreview" />
+              <EventPhotoGrid :photos="event.photos" :suspend="!galleryReady" @preview="openPhotoPreview" />
             </div>
           </section>
         </aside>
@@ -265,8 +265,10 @@ const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const eventDisplayReady = ref(true)
 const coverMediaVisible = ref(false)
+const galleryReady = ref(false)
 const detailEntryScrollLockActive = ref(false)
 let detailEntryScrollLockTimer = 0
+let galleryReadyTimer = 0
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
@@ -401,6 +403,21 @@ function clearDetailEntryScrollLockTimer() {
   detailEntryScrollLockTimer = 0
 }
 
+function clearGalleryReadyTimer() {
+  if (!galleryReadyTimer) return
+  window.clearTimeout(galleryReadyTimer)
+  galleryReadyTimer = 0
+}
+
+function setGalleryReadyWithDelay(delayMs = 160) {
+  clearGalleryReadyTimer()
+  galleryReady.value = false
+  galleryReadyTimer = window.setTimeout(() => {
+    galleryReadyTimer = 0
+    galleryReady.value = true
+  }, Math.max(0, Number(delayMs) || 0))
+}
+
 function releaseDetailEntryScrollLock() {
   clearDetailEntryScrollLockTimer()
   detailEntryScrollLockActive.value = false
@@ -530,6 +547,7 @@ function preloadLinkedGoodsImages() {
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
   lockDetailEntryScrollLock()
+  galleryReady.value = false
   if (!eventsStore.isReady) {
     await eventsStore.init()
   }
@@ -544,17 +562,20 @@ onMounted(async () => {
     coverMediaVisible.value = true
     await nextTick()
     tryPlayLinkedGoodsBackHero()
+    setGalleryReadyWithDelay(getHeroBackDurationMs() + 120)
     // Don't show media until the back animation completes
     // The animation will handle visibility
   } else {
     coverMediaVisible.value = false
     await playEventHeroForwardWhenReady()
     coverMediaVisible.value = true
+    setGalleryReadyWithDelay(140)
   }
 })
 
 onBeforeUnmount(() => {
   releaseDetailEntryScrollLock()
+  clearGalleryReadyTimer()
   cancelLinkedGoodsBackHeroRetry()
   if (typeof removeAndroidBackListener === 'function') {
     removeAndroidBackListener()
@@ -564,6 +585,7 @@ onBeforeUnmount(() => {
 
 onActivated(async () => {
   lockDetailEntryScrollLock()
+  galleryReady.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
   
@@ -573,8 +595,10 @@ onActivated(async () => {
   if (hasPendingBackAnimation) {
     await nextTick()
     tryPlayLinkedGoodsBackHero()
+    setGalleryReadyWithDelay(getHeroBackDurationMs() + 120)
   } else {
     await playEventHeroForwardWhenReady()
+    setGalleryReadyWithDelay(140)
   }
   
   coverMediaVisible.value = true
@@ -594,10 +618,12 @@ watch(eventId, async () => {
   lockDetailEntryScrollLock()
   previewPhotoIndex.value = -1
   coverMediaVisible.value = false
+  galleryReady.value = false
   await restoreViewState()
   preloadLinkedGoodsImages()
   await playEventHeroForwardWhenReady()
   coverMediaVisible.value = true
+  setGalleryReadyWithDelay(140)
 })
 
 watch(linkedGoodsImageUrls, () => {
@@ -727,6 +753,7 @@ function scheduleLinkedGoodsBackHeroRetry(attempt = 0, onSuccess) {
       const backDuration = getHeroBackDurationMs()
       window.setTimeout(() => {
         coverMediaVisible.value = true
+        setGalleryReadyWithDelay(90)
       }, Math.max(0, backDuration + 40))
       if (typeof onSuccess === 'function') onSuccess()
       return
@@ -736,6 +763,7 @@ function scheduleLinkedGoodsBackHeroRetry(attempt = 0, onSuccess) {
     }
     if (attempt + 1 >= 20) {
       coverMediaVisible.value = true
+      setGalleryReadyWithDelay(80)
       return
     }
     scheduleLinkedGoodsBackHeroRetry(attempt + 1, onSuccess)
@@ -752,12 +780,14 @@ function tryPlayLinkedGoodsBackHero() {
     const backDuration = getHeroBackDurationMs()
     window.setTimeout(() => {
       coverMediaVisible.value = true
+      setGalleryReadyWithDelay(90)
     }, Math.max(0, backDuration + 40))
   } else if (hasPendingGoodsHeroBack(route.fullPath)) {
     scheduleLinkedGoodsBackHeroRetry(0)
   } else {
     // No animation, show media immediately
     coverMediaVisible.value = true
+    setGalleryReadyWithDelay(80)
   }
 }
 </script>
