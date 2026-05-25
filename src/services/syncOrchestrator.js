@@ -513,10 +513,20 @@ export function createSyncOrchestrator({
       () => payload.buildRechargeSyncData({ incremental: false }),
       { startDetail: '读取本地充值记录', category: 'local', successDetail: (p) => `充值 ${p.recharge.length} 条` }
     )
-    const { eventData: eventSyncData, imageStats: eventImageStats, imageFiles: eventImageFiles, referencedImageFiles: eventReferencedImageFiles } = await trackSyncStep('整理活动同步数据',
-      () => payload.buildEventSyncPayload({ existingImageGist: imageGist }),
-      { startDetail: '读取活动和封面图片', category: 'local', successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个` }
-    )
+    let eventSyncData = { events: [] }
+    let eventImageStats = { imageFileCount: 0 }
+    let eventImageFiles = {}
+    let eventReferencedImageFiles = []
+    if (shouldWriteEvent) {
+      const ev = await trackSyncStep('整理活动同步数据',
+        () => payload.buildEventSyncPayload({ existingImageGist: imageGist }),
+        { startDetail: '读取活动和封面图片', category: 'local', successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个` }
+      )
+      eventSyncData = ev.eventData || { events: [] }
+      eventImageStats = ev.imageStats || { imageFileCount: 0 }
+      eventImageFiles = ev.imageFiles || {}
+      eventReferencedImageFiles = ev.referencedImageFiles || []
+    }
 
     const allReferencedImageFiles = new Set([...referencedImageFiles, ...eventReferencedImageFiles])
     const imageCleanupFiles = image.buildImageCleanupFiles(imageGist, allReferencedImageFiles)
