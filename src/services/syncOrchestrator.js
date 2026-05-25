@@ -974,19 +974,16 @@ export function createSyncOrchestrator({
       startDetail: '读取本地收藏、回收站和图片', category: 'local',
       successDetail: (p) => `收藏 ${p.syncData.goods.length}，回收站 ${p.syncData.trash.length}，图片 ${p.imageStats.imageFileCount} 个`
     })
-    const localEventPayload = await trackSyncStep('整理本地活动数据', () => payload.buildEventSyncPayload({ existingImageGist }), {
-      startDetail: '读取活动和封面图片', category: 'local',
-      successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个`
-    })
-    const allReferencedImageFiles = new Set([...localPayload.referencedImageFiles, ...localEventPayload.referencedImageFiles])
-    const pendingAllImageCleanup = image.buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
-    const hasPendingImageChanges = (
+    // Delay building event payload until necessary (events payload is heavy due to images)
+    let localEventPayload = null
+    let allReferencedImageFiles = new Set([...localPayload.referencedImageFiles])
+    let pendingAllImageCleanup = image.buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
+    let hasPendingImageChanges = (
       Object.keys(localPayload.imageFiles).length > 0
-      || Object.keys(localEventPayload.imageFiles).length > 0
       || Object.keys(pendingAllImageCleanup).length > 0
     )
 
-    if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
+      if (!hasDataDiff && !hasRechargeDataDiff && !hasEventDataDiff && hasPendingImageChanges) {
       let imageStats
       try {
         imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx, {
@@ -1002,6 +999,23 @@ export function createSyncOrchestrator({
       }
       catch (e) { wrapSyncError(e, PHASE_PUSH) }
       return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
+    }
+
+    // If we reach here and event data diff or images might involve events, build event payload lazily
+    // Build when there is an event data diff OR when there are pending image changes to process
+    if (!localEventPayload && (hasEventDataDiff || hasPendingImageChanges)) {
+      localEventPayload = await trackSyncStep('整理本地活动数据', () => payload.buildEventSyncPayload({ existingImageGist }), {
+        startDetail: '读取活动和封面图片', category: 'local',
+        successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个`
+      })
+      // merge referenced images and recompute cleanup/pending flags
+      for (const f of (localEventPayload.referencedImageFiles || [])) allReferencedImageFiles.add(f)
+      pendingAllImageCleanup = image.buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
+      hasPendingImageChanges = (
+        Object.keys(localPayload.imageFiles).length > 0
+        || Object.keys(localEventPayload.imageFiles || {}).length > 0
+        || Object.keys(pendingAllImageCleanup).length > 0
+      )
     }
 
     if (remoteTime > localSyncTime || !remoteManifest) {
