@@ -1,9 +1,9 @@
 {
-  "version": "20260524.22",
-  "url": "bundle-20260524.22.zip",
-  "hash": "1d92cd9624a75db130b23bbc6fde30e1a7a433feafca29f4f74009cd22692b1f",
+  "version": "20260525.1",
+  "url": "bundle-20260525.1.zip",
+  "hash": "c4ffebaca7c81cbb3187c5b87c3d3552f93c05c9284da3cf8d52fc738dc52366",
   "minNativeVersion": null,
-  "notes": "- feat: 增加活动费用明细功能，支持用户添加和管理其他费用",
+  "notes": "- feat: 增强活动照片管理功能，支持照片的上传、同步和显示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-24T15:18:42Z"
+  "publishedAt": "2026-05-25T02:50:14Z"
 }

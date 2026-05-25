@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260525.1",
+    "url": "bundle-20260525.1.zip",
+    "hash": "c4ffebaca7c81cbb3187c5b87c3d3552f93c05c9284da3cf8d52fc738dc52366",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强活动照片管理功能，支持照片的上传、同步和显示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-25T02:50:14Z"
+  },
+  {
     "version": "20260524.22",
     "url": "bundle-20260524.22.zip",
     "hash": "1d92cd9624a75db130b23bbc6fde30e1a7a433feafca29f4f74009cd22692b1f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强同步逻辑，支持从 Supabase 后端读取充值数据的预检",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T14:40:26Z"
-  },
-  {
-    "version": "20260524.20",
-    "url": "bundle-20260524.20.zip",
-    "hash": "ccad41f8ae39e5190210b0ab04c3120e6f50fae27016e4dcf67897b364f4f1e4",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化持有天数计算，增加去重功能并调整显示格式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T11:53:47Z"
   }
 ]
