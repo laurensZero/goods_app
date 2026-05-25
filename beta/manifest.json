@@ -1,9 +1,9 @@
 {
-  "version": "20260525.7",
-  "url": "bundle-20260525.7.zip",
-  "hash": "e648fe304c6353d4c1e78d3dea8d6eee599f72fea4c4a574eeb628f87750bead",
+  "version": "20260525.8",
+  "url": "bundle-20260525.8.zip",
+  "hash": "75b1e68f1b8ab2ddaa5f38b4d61eba5979dcec9426c82b54560e1608d2341667",
   "minNativeVersion": null,
-  "notes": "- feat: 优化活动同步数据处理逻辑，增加条件判断以提升性能",
+  "notes": "- feat: 延迟构建活动数据负载以优化性能，减少不必要的资源消耗",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T14:31:38Z"
+  "publishedAt": "2026-05-25T14:43:23Z"
 }
