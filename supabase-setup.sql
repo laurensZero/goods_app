@@ -153,8 +153,17 @@ CREATE POLICY "Allow anon access to goods-images" ON storage.objects
   FOR ALL USING (bucket_id = 'goods-images')
   WITH CHECK (bucket_id = 'goods-images');
 
+-- Storage RLS policy: allow anon full access to event-photos bucket
+CREATE POLICY "Allow anon access to event-photos" ON storage.objects
+  FOR ALL USING (bucket_id = 'event-photos')
+  WITH CHECK (bucket_id = 'event-photos');
+
 -- Storage bucket（需要在 Supabase Dashboard → Storage 中手动创建 bucket 名为 goods-images）
 -- 或者通过 SQL 创建：
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('goods-images', 'goods-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('event-photos', 'event-photos', true)
 ON CONFLICT (id) DO NOTHING;

@@ -5,7 +5,8 @@ export function createSyncImageService({
   getBackend,
   trackSyncStep,
   imageFilePrefix,
-  eventCoverPrefix
+  eventCoverPrefix,
+  eventPhotoPrefix
 }) {
   function resolveBackend() {
     return typeof getBackend === 'function' ? (getBackend() || backend) : backend
@@ -95,46 +96,93 @@ export function createSyncImageService({
         return event
       }
 
-      if (!event.coverImage) return event
+      let nextCoverImage = event?.coverImage
+      let nextCoverImageData = event?.coverImageData
+      const sourcePhotos = Array.isArray(event?.photos) ? event.photos : []
+      let nextPhotos = sourcePhotos
 
-      const storageMode = inferGoodsImageStorageMode(event.coverImage)
-      if (storageMode !== 'gist-local') return event
+      if (imageGist && event.coverImage) {
+        const storageMode = inferGoodsImageStorageMode(event.coverImage, event?.coverImageData?.storageMode)
+        if (storageMode === 'gist-local') {
+          const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
+          if (gistFileName) {
+            try {
+              if (!fileCache.has(gistFileName)) {
+                const imageDataUrl = await trackSyncStep(`读取活动封面文件 ${gistFileName}`, async () => {
+                  const fetched = await resolveBackend().readImage(imageGist, gistFileName)
+                  if (!String(fetched || '').startsWith('data:image/')) {
+                    throw new Error(`远端活动封面缺失：${gistFileName}`)
+                  }
+                  return fetched
+                }, {
+                  startDetail: event?.name ? `活动：${event.name}` : '正在恢复封面',
+                  category: 'image',
+                  successDetail: () => `已恢复活动 ${event?.name || event?.id || gistFileName} 的封面`
+                })
+                fileCache.set(gistFileName, imageDataUrl)
+              }
 
-      const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
-      if (!gistFileName) return event
-
-      if (!imageGist) return event
-
-      try {
-        if (!fileCache.has(gistFileName)) {
-          const imageDataUrl = await trackSyncStep(`读取活动封面文件 ${gistFileName}`, async () => {
-            const fetched = await resolveBackend().readImage(imageGist, gistFileName)
-            if (!String(fetched || '').startsWith('data:image/')) {
-              throw new Error(`远端活动封面缺失：${gistFileName}`)
+              nextCoverImage = fileCache.get(gistFileName)
+              nextCoverImageData = {
+                ...event.coverImageData,
+                uri: nextCoverImage,
+                storageMode: 'gist-local',
+                gistFileName
+              }
+              imageStats.restoredImages += 1
+            } catch {
+              // Keep original cover when single file restore fails.
             }
-            return fetched
-          }, {
-            startDetail: event?.name ? `活动：${event.name}` : '正在恢复封面',
-            category: 'image',
-            successDetail: () => `已恢复活动 ${event?.name || event?.id || gistFileName} 的封面`
-          })
-          fileCache.set(gistFileName, imageDataUrl)
-        }
-
-        const imageDataUrl = fileCache.get(gistFileName)
-
-        imageStats.restoredImages += 1
-
-        return {
-          ...event,
-          coverImage: imageDataUrl,
-          coverImageData: {
-            ...event.coverImageData,
-            uri: imageDataUrl
           }
         }
-      } catch {
-        return event
+      }
+
+      if (imageGist && sourcePhotos.length > 0) {
+        nextPhotos = await Promise.all(sourcePhotos.map(async (photoEntry, index) => {
+          const photoUri = String(photoEntry?.uri || '').trim()
+          if (!photoUri) return photoEntry
+
+          const photoStorageMode = inferGoodsImageStorageMode(photoUri, photoEntry?.storageMode)
+          if (photoStorageMode !== 'gist-local') return photoEntry
+
+          const gistFileName = String(photoEntry?.gistFileName || parseGistImageUri(photoUri)).trim()
+          if (!gistFileName) return photoEntry
+
+          try {
+            if (!fileCache.has(gistFileName)) {
+              const imageDataUrl = await trackSyncStep(`读取活动照片文件 ${gistFileName}`, async () => {
+                const fetched = await resolveBackend().readImage(imageGist, gistFileName)
+                if (!String(fetched || '').startsWith('data:image/')) {
+                  throw new Error(`远端活动照片缺失：${gistFileName}`)
+                }
+                return fetched
+              }, {
+                startDetail: event?.name ? `活动：${event.name}` : '正在恢复活动照片',
+                category: 'image',
+                successDetail: () => `已恢复活动 ${(event?.name || event?.id || '?')} 的第 ${index + 1} 张照片`
+              })
+              fileCache.set(gistFileName, imageDataUrl)
+            }
+
+            imageStats.restoredImages += 1
+
+            return {
+              ...photoEntry,
+              uri: fileCache.get(gistFileName),
+              storageMode: 'gist-local',
+              gistFileName
+            }
+          } catch {
+            return photoEntry
+          }
+        }))
+      }
+
+      return {
+        ...event,
+        coverImage: nextCoverImage,
+        coverImageData: nextCoverImageData,
+        photos: nextPhotos
       }
     }))
   }
@@ -149,7 +197,11 @@ export function createSyncImageService({
 
     const files = {}
     for (const filename of Object.keys(existingImageGist?.files || {})) {
-      if (!filename.startsWith(imageFilePrefix) && !filename.startsWith(eventCoverPrefix)) continue
+      if (
+        !filename.startsWith(imageFilePrefix)
+        && !filename.startsWith(eventCoverPrefix)
+        && !filename.startsWith(eventPhotoPrefix)
+      ) continue
       if (referencedImageFiles.has(filename)) continue
       files[filename] = null
     }

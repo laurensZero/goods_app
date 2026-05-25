@@ -14,4 +14,5 @@ export const MANIFEST_VERSION = 1
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'
 export const EVENT_COVER_PREFIX = 'event-cover__'
+export const EVENT_PHOTO_PREFIX = 'event-photo__'
 export const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024

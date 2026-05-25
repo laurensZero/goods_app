@@ -3,6 +3,7 @@ import { createSyncBackendAdapter } from './syncBackendAdapter'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry, withTimeout } from './syncRetry'
+import { EVENT_PHOTO_PREFIX } from '@/constants/syncConstants'
 
 export function createSupabaseBackendAdapter({
   trackSyncStep,
@@ -29,6 +30,8 @@ export function createSupabaseBackendAdapter({
   const GOODS_SELECT_COLS = 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, image, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, trashed, updated_at'
   const RECHARGE_SELECT_COLS = 'id, game, item_name, amount, charged_at, note, deleted, updated_at'
   const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, other_expenses, tracks, linked_goods_ids, tags, updated_at, created_at'
+  const GOODS_IMAGE_BUCKET = 'goods-images'
+  const EVENT_PHOTO_BUCKET = 'event-photos'
 
   function pickCols(item, allowed) {
     const result = {}
@@ -79,7 +82,41 @@ export function createSupabaseBackendAdapter({
       const candidate = bucketLike.id || bucketLike.bucket || bucketLike.bucketName || bucketLike.name || bucketLike.imageBucket || bucketLike.imageGistId
       if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
     }
-    return 'goods-images'
+    return GOODS_IMAGE_BUCKET
+  }
+
+  function resolveStorageBucketByPath(filePath, fallbackBucket = GOODS_IMAGE_BUCKET) {
+    const normalizedPath = String(filePath || '').trim()
+    if (normalizedPath.startsWith(EVENT_PHOTO_PREFIX)) return EVENT_PHOTO_BUCKET
+    return fallbackBucket || GOODS_IMAGE_BUCKET
+  }
+
+  async function ensureStorageBucket(db, bucketName) {
+    const { data, error } = await db.storage.getBucket(bucketName)
+    if (data) return { id: bucketName }
+
+    if (error && !isBucketNotFoundError(error)) {
+      throw new Error(`读取 bucket 失败: ${error.message}`)
+    }
+
+    const { error: createError } = await db.storage.createBucket(bucketName, { public: true })
+    if (createError && !isBucketAlreadyExistsError(createError)) {
+      if (isBucketCreatePermissionError(createError)) {
+        // Anon key usually cannot create buckets; keep data sync usable even when storage setup is incomplete.
+        console.warn('[supabase] createBucket permission denied, skip auto-create:', createError.message)
+        return { id: bucketName }
+      }
+      throw new Error(`创建 bucket 失败: ${createError.message}`)
+    }
+    return { id: bucketName }
+  }
+
+  async function listStorageBucketFiles(db, bucketName) {
+    const { data, error } = await db.storage.from(bucketName).list('', { limit: 10000 })
+    if (error || !data) return []
+    return data
+      .map((file) => String(file?.name || '').trim())
+      .filter((name) => !!name && name !== '.emptyFolderPlaceholder')
   }
 
   function normalizeId(value) {
@@ -181,24 +218,9 @@ export function createSupabaseBackendAdapter({
 
   async function ensureImageGist() {
     const db = getDb()
-    const bucketName = 'goods-images'
-    const { data, error } = await db.storage.getBucket(bucketName)
-    if (data) return { id: bucketName }
-
-    if (error && !isBucketNotFoundError(error)) {
-      throw new Error(`读取 bucket 失败: ${error.message}`)
-    }
-
-    const { error: createError } = await db.storage.createBucket(bucketName, { public: true })
-    if (createError && !isBucketAlreadyExistsError(createError)) {
-      if (isBucketCreatePermissionError(createError)) {
-        // Anon key usually cannot create buckets; keep data sync usable even when storage setup is incomplete.
-        console.warn('[supabase] createBucket permission denied, skip auto-create:', createError.message)
-        return { id: bucketName }
-      }
-      throw new Error(`创建 bucket 失败: ${createError.message}`)
-    }
-    return { id: bucketName }
+    await ensureStorageBucket(db, GOODS_IMAGE_BUCKET)
+    await ensureStorageBucket(db, EVENT_PHOTO_BUCKET)
+    return { id: GOODS_IMAGE_BUCKET }
   }
 
   async function ensureRechargeGist() {
@@ -213,15 +235,18 @@ export function createSupabaseBackendAdapter({
 
   async function getExistingImageGist() {
     const db = getDb()
-    const { data, error } = await db.storage.from('goods-images').list('', { limit: 10000 })
-    if (error || !data) return { id: 'goods-images', files: {} }
     const files = {}
-    for (const file of data) {
-      if (!file.name || file.name === '.emptyFolderPlaceholder') continue
-      files[file.name] = { name: file.name }
-      files[file.name + '.txt'] = { name: file.name }
+
+    const [goodsFiles, eventPhotoFiles] = await Promise.all([
+      listStorageBucketFiles(db, GOODS_IMAGE_BUCKET),
+      listStorageBucketFiles(db, EVENT_PHOTO_BUCKET)
+    ])
+
+    for (const fileName of [...goodsFiles, ...eventPhotoFiles]) {
+      files[fileName] = { name: fileName }
+      files[fileName + '.txt'] = { name: fileName }
     }
-    return { id: 'goods-images', files }
+    return { id: GOODS_IMAGE_BUCKET, files }
   }
 
   async function getExistingRechargeGist() {
@@ -368,8 +393,9 @@ export function createSupabaseBackendAdapter({
 
   async function readImage(bucket, filePath) {
     const db = getDb()
-    const bucketName = normalizeBucketName(bucket)
     const storagePath = toStoragePath(filePath)
+    const fallbackBucket = normalizeBucketName(bucket)
+    const bucketName = resolveStorageBucketByPath(storagePath, fallbackBucket)
     const { data, error } = await withRetry(() =>
       db.storage.from(bucketName).download(storagePath)
     )
@@ -549,15 +575,16 @@ export function createSupabaseBackendAdapter({
 
       for (const [filePath, fileObj] of entries) {
         const storagePath = toStoragePath(filePath)
+        const bucketName = resolveStorageBucketByPath(storagePath)
         try {
           if (!fileObj || !fileObj.content) {
-            await db.storage.from('goods-images').remove([storagePath])
+            await db.storage.from(bucketName).remove([storagePath])
             continue
           }
 
           const response = await fetch(fileObj.content)
           const blob = await response.blob()
-          const { error } = await db.storage.from('goods-images').upload(storagePath, blob, {
+          const { error } = await db.storage.from(bucketName).upload(storagePath, blob, {
             upsert: true,
             contentType: blob.type || 'image/jpeg'
           })
@@ -610,7 +637,8 @@ export function createSupabaseBackendAdapter({
   function getImagePublicUrl(filePath) {
     const db = getDb()
     const storagePath = toStoragePath(filePath)
-    const { data } = db.storage.from('goods-images').getPublicUrl(storagePath)
+    const bucketName = resolveStorageBucketByPath(storagePath)
+    const { data } = db.storage.from(bucketName).getPublicUrl(storagePath)
     return data?.publicUrl || ''
   }
 

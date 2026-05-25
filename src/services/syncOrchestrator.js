@@ -361,9 +361,9 @@ export function createSyncOrchestrator({
     }
     if (shouldHydrateEventImages && eventData && Array.isArray(eventData.events)) {
       const before = imageStats.restoredImages
-      eventData.events = await trackSyncStep('恢复活动封面', () =>
+      eventData.events = await trackSyncStep('恢复活动封面与照片', () =>
         image.hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, { targetEventIds: changedEventIds }),
-        { startDetail: '正在恢复活动封面图片', category: 'image', successDetail: () => `恢复 ${imageStats.restoredImages - before} 张活动封面` }
+        { startDetail: '正在恢复活动封面与照片', category: 'image', successDetail: () => `恢复 ${imageStats.restoredImages - before} 张活动图片` }
       )
     }
 
@@ -543,6 +543,14 @@ export function createSyncOrchestrator({
         const coverFileName = event.coverImageData?.gistFileName
         if (coverFileName && allReferencedImageFiles.has(coverFileName)) {
           event.coverImage = activeBackend.getImagePublicUrl(coverFileName)
+        }
+        if (Array.isArray(event.photos)) {
+          for (const photo of event.photos) {
+            const photoFileName = String(photo?.gistFileName || '').trim()
+            if (photoFileName && allReferencedImageFiles.has(photoFileName)) {
+              photo.uri = activeBackend.getImagePublicUrl(photoFileName)
+            }
+          }
         }
       }
     }
@@ -821,6 +829,27 @@ export function createSyncOrchestrator({
       if (imageMap.size > 0) preparedImagesByItemId.set(item.id, imageMap)
     }
     await goodsStore.markImagesAsRemote(preparedImagesByItemId)
+
+    if (activeBackend.getImagePublicUrl) {
+      const eventsStore = useEventsStore()
+      const preparedMediaByEventId = new Map()
+      for (const event of (eventSyncData?.events || [])) {
+        const eventId = String(event?.id || '').trim()
+        if (!eventId) continue
+
+        const coverFileName = String(event?.coverImageData?.gistFileName || '').trim()
+        const hasCover = !!coverFileName
+        const hasPhotos = Array.isArray(event?.photos) && event.photos.some((photo) => String(photo?.gistFileName || '').trim())
+        if (!hasCover && !hasPhotos) continue
+
+        preparedMediaByEventId.set(eventId, {
+          coverImage: event.coverImage,
+          coverImageData: event.coverImageData ? { ...event.coverImageData } : null,
+          photos: Array.isArray(event.photos) ? event.photos.map((photo) => ({ ...photo })) : []
+        })
+      }
+      await eventsStore.markMediaAsRemote(preparedMediaByEventId)
+    }
 
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)

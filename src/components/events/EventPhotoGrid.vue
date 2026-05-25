@@ -9,10 +9,14 @@
         @click="$emit('preview', index)"
       >
         <LazyCachedImage
-          v-if="photo.uri"
+          v-if="photo.uri && !suspend"
           :src="photo.uri"
           :alt="photo.caption || `照片 ${index + 1}`"
-          :skeleton-delay-ms="120"
+          root-margin="120px 0px"
+          loading="lazy"
+          decoding="async"
+          fetchpriority="low"
+          :skeleton-delay-ms="180"
           :image-attrs="{ class: 'photo-grid__img' }"
         />
         <div v-else class="photo-grid__placeholder">✦</div>
@@ -25,7 +29,8 @@
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 defineProps({
-  photos: { type: Array, default: () => [] }
+  photos: { type: Array, default: () => [] },
+  suspend: { type: Boolean, default: false }
 })
 
 defineEmits(['preview'])

@@ -328,6 +328,32 @@ export const useEventsStore = defineStore('events', () => {
     return { added, updated, removed }
   }
 
+  async function markMediaAsRemote(preparedMediaByEventId) {
+    if (!(preparedMediaByEventId instanceof Map) || preparedMediaByEventId.size === 0) return
+
+    let hasUpdates = false
+    for (let index = 0; index < list.value.length; index += 1) {
+      const current = list.value[index]
+      const payload = preparedMediaByEventId.get(current?.id)
+      if (!payload) continue
+
+      const next = {
+        ...current,
+        coverImage: payload.coverImage ?? current.coverImage,
+        coverImageData: payload.coverImageData ?? current.coverImageData,
+        photos: Array.isArray(payload.photos) ? payload.photos : (Array.isArray(current.photos) ? current.photos : [])
+      }
+
+      list.value[index] = next
+      hasUpdates = true
+      await addEvent(next)
+    }
+
+    if (hasUpdates) {
+      triggerRef(list)
+    }
+  }
+
   return {
     list,
     sortedList,
@@ -341,6 +367,7 @@ export const useEventsStore = defineStore('events', () => {
     removeEventRecord,
     removeMultipleEventRecords,
     refreshList,
-    importEventsBackup
+    importEventsBackup,
+    markMediaAsRemote
   }
 })

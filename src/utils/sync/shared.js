@@ -6,6 +6,7 @@ import {
 
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
+const EVENT_PHOTO_PREFIX = 'event-photo__'
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -273,6 +274,17 @@ export function buildEventCoverFilename(event, mimeType) {
   const updatedAt = String(event?.updatedAt || 0)
   const extension = resolveImageExtension(mimeType, event?.coverImage || '')
   return `${EVENT_COVER_PREFIX}${eventId}__${updatedAt}.${extension}.txt`
+}
+
+export function buildEventPhotoFilename(event, photoEntry, mimeType) {
+  const existingGistFileName = String(photoEntry?.gistFileName || parseGistImageUri(photoEntry?.uri) || '').trim()
+  if (existingGistFileName) return existingGistFileName
+
+  const eventId = sanitizeFilenamePart(event?.id)
+  const photoId = sanitizeFilenamePart(photoEntry?.id)
+  const updatedAt = String(event?.updatedAt || 0)
+  const extension = resolveImageExtension(mimeType, photoEntry?.uri || photoEntry?.gistFileName || '')
+  return `${EVENT_PHOTO_PREFIX}${eventId}__${photoId}__${updatedAt}.${extension}.txt`
 }
 
 export function buildImageSyncStats() {
