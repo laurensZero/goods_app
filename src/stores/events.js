@@ -5,6 +5,7 @@ import { addEvent, deleteEvents, getEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/tracks'
 import { buildGistImageUri, parseGistImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
+import { signalImageCacheRefresh } from '@/utils/image/cache'
 import { useSyncStore } from '@/stores/sync'
 
 function parseTicketPrice(value) {
@@ -351,6 +352,12 @@ export const useEventsStore = defineStore('events', () => {
 
     if (hasUpdates) {
       triggerRef(list)
+      // Notify image cache to refresh object URLs so UI picks up updated public URLs
+      try {
+        signalImageCacheRefresh('resume')
+      } catch (e) {
+        // ignore
+      }
     }
   }
 
