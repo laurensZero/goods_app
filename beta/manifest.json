@@ -1,9 +1,9 @@
 {
-  "version": "20260525.1",
-  "url": "bundle-20260525.1.zip",
-  "hash": "c4ffebaca7c81cbb3187c5b87c3d3552f93c05c9284da3cf8d52fc738dc52366",
+  "version": "20260525.2",
+  "url": "bundle-20260525.2.zip",
+  "hash": "1a5a9061a522f09ea4a0daad8a57dd4203a41f8a380f8958ace27117d399dafd",
   "minNativeVersion": null,
-  "notes": "- feat: 增强活动照片管理功能，支持照片的上传、同步和显示",
+  "notes": "- feat: 更新照片预览逻辑，使用 gistFileName 作为唯一键；添加图像缓存刷新通知",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T02:50:14Z"
+  "publishedAt": "2026-05-25T03:17:26Z"
 }

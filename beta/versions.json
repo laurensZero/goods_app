@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260525.2",
+    "url": "bundle-20260525.2.zip",
+    "hash": "1a5a9061a522f09ea4a0daad8a57dd4203a41f8a380f8958ace27117d399dafd",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新照片预览逻辑，使用 gistFileName 作为唯一键；添加图像缓存刷新通知",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-25T03:17:26Z"
+  },
+  {
     "version": "20260525.1",
     "url": "bundle-20260525.1.zip",
     "hash": "c4ffebaca7c81cbb3187c5b87c3d3552f93c05c9284da3cf8d52fc738dc52366",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加活动费用明细功能，支持用户添加和管理其他费用",
     "updateLevel": "silent",
     "publishedAt": "2026-05-24T15:18:42Z"
-  },
-  {
-    "version": "20260524.21",
-    "url": "bundle-20260524.21.zip",
-    "hash": "9351179e4a2e19820af17c8ea0a96cd941ffc8fd801972592827b6eeba5b0952",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强同步逻辑，支持从 Supabase 后端读取充值数据的预检",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-24T14:40:26Z"
   }
 ]
