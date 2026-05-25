@@ -96,7 +96,7 @@ export function createSyncConflictService({
     }
   }
 
-  async function buildPullConflictData(gist, remoteManifest, { forceRecharge = false } = {}) {
+  async function buildPullConflictData(gist, remoteManifest, { forceRecharge = false, sourceTable = 'manual' } = {}) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
@@ -129,7 +129,9 @@ export function createSyncConflictService({
       yearly: normalizeBudgetValue(remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly)
     }
     const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
-    const remoteRechargeData = shouldReadRechargePrecheck
+    const triggeredByRealtime = typeof sourceTable === 'string' && sourceTable !== 'manual'
+    const localEventData = buildEventSyncData()
+    const remoteRechargeData = (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
       ? (await currentBackend.readJson({
           title: '预检读取 RechargeData',
           gist,
@@ -149,21 +151,22 @@ export function createSyncConflictService({
           rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
         })
       : { recharge: localRechargeData.recharge || [], rechargeTrash: [] }
-    const localEventData = buildEventSyncData()
-    const remoteEventData = await currentBackend.readJson({
-      title: '预检读取 EventsData',
-      gist,
-      fileName: 'events-data.json',
-      startDetail: '读取活动数据',
-      category: 'pull',
-      fallbackGist: existingEventGist,
-      fallbackFileName: 'events-data.json',
-      successDetail: (parsed, source) => {
-        if (!parsed) return '未找到活动数据'
-        const events = Array.isArray(parsed.events) ? parsed.events : []
-        return `${source}，活动 ${events.length} 场`
-      }
-    }) || { events: [] }
+    const remoteEventData = (!triggeredByRealtime || sourceTable === 'events')
+      ? (await currentBackend.readJson({
+          title: '预检读取 EventsData',
+          gist,
+          fileName: 'events-data.json',
+          startDetail: '读取活动数据',
+          category: 'pull',
+          fallbackGist: existingEventGist,
+          fallbackFileName: 'events-data.json',
+          successDetail: (parsed, source) => {
+            if (!parsed) return '未找到活动数据'
+            const events = Array.isArray(parsed.events) ? parsed.events : []
+            return `${source}，活动 ${events.length} 场`
+          }
+        }) || { events: [] })
+      : { events: [] }
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
     let remoteGoods = []
