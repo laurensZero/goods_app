@@ -1,9 +1,9 @@
 {
-  "version": "20260525.6",
-  "url": "bundle-20260525.6.zip",
-  "hash": "6c67a29941f27a7342c23181ce88b22a931998e16111df29bf1a9b014eec0e0f",
+  "version": "20260525.7",
+  "url": "bundle-20260525.7.zip",
+  "hash": "e648fe304c6353d4c1e78d3dea8d6eee599f72fea4c4a574eeb628f87750bead",
   "minNativeVersion": null,
-  "notes": "- feat: 在 buildPullConflictData 函数中增加 sourceTable 参数，以支持更灵活的数据拉取逻辑",
+  "notes": "- feat: 优化活动同步数据处理逻辑，增加条件判断以提升性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T14:24:36Z"
+  "publishedAt": "2026-05-25T14:31:38Z"
 }
