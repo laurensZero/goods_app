@@ -1,9 +1,9 @@
 {
-  "version": "20260525.5",
-  "url": "bundle-20260525.5.zip",
-  "hash": "b56e247cd28e9d83182e0eb49c150c423827db3616eae8be1d94fdbcbf07231f",
+  "version": "20260525.6",
+  "url": "bundle-20260525.6.zip",
+  "hash": "6c67a29941f27a7342c23181ce88b22a931998e16111df29bf1a9b014eec0e0f",
   "minNativeVersion": null,
-  "notes": "- feat: 增强 pullOnly 函数，支持源表参数以优化数据读取逻辑",
+  "notes": "- feat: 在 buildPullConflictData 函数中增加 sourceTable 参数，以支持更灵活的数据拉取逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T14:17:14Z"
+  "publishedAt": "2026-05-25T14:24:36Z"
 }
