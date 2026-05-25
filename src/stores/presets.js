@@ -583,19 +583,18 @@ export const usePresetsStore = defineStore('presets', () => {
     if (existing) return existing
 
     const node = {
-    autoPushPresets()
       id: createStorageLocationId(),
       name: normalized,
       parentId: normalizedParentId
     }
     storageLocations.value = normalizeStorageLocationNodes([...storageLocations.value, node])
     await persistStorageLocations()
+    autoPushPresets()
     return storageLocations.value.find((item) => item.id === node.id) || node
   }
 
   async function renameStorageLocation(id, name) {
     const normalizedId = String(id || '').trim()
-    autoPushPresets()
     const normalizedName = String(name || '').trim()
     if (!normalizedId || !normalizedName) return false
 
@@ -619,6 +618,7 @@ export const usePresetsStore = defineStore('presets', () => {
     })
     storageLocations.value = normalizeStorageLocationNodes(next)
     await persistStorageLocations()
+    autoPushPresets()
     return true
   }
 
