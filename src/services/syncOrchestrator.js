@@ -890,7 +890,13 @@ export function createSyncOrchestrator({
     const existingRechargeGist = await activeBackend.getExistingRechargeGist()
     const existingEventGist = await activeBackend.getExistingEventGist()
     const existingImageGist = await activeBackend.getExistingImageGist(remoteManifest)
-    const isSupabaseBackend = typeof activeBackend.getImagePublicUrl === 'function'
+    const rechargeStore = useRechargeStore()
+    const localRechargeData = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const localEventData = payload.buildEventSyncData()
+    const localRechargeLatestTs = getLatestRechargeTimestamp(localRechargeData)
+    const localEventLatestTs = getLatestEventTimestamp(localEventData.events || [])
+    const remoteRechargeTs = toTimestampMs(remoteManifest?.rechargeUpdatedAt)
+    const remoteEventTs = toTimestampMs(remoteManifest?.eventUpdatedAt)
 
     let remoteData, remoteRechargeData, remoteEventData
     try {
@@ -904,21 +910,23 @@ export function createSyncOrchestrator({
         }
       }) || { goods: [], trash: [], presets: {} }
 
-      const rechargeStore = useRechargeStore()
-      const shouldReadRechargePrecheck = isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      const shouldReadRechargePrecheck = !!remoteRechargeTs && remoteRechargeTs > localRechargeLatestTs
       remoteRechargeData = shouldReadRechargePrecheck
         ? (await readJson({
             title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
             startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
             successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
           }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] })
-        : { recharge: rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }), rechargeTrash: [] }
+        : { recharge: localRechargeData, rechargeTrash: [] }
 
-      remoteEventData = await readJson({
-        title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
-        startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-        successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
-      }) || { events: [] }
+      const shouldReadEventPrecheck = !!remoteEventTs && remoteEventTs > localEventLatestTs
+      remoteEventData = shouldReadEventPrecheck
+        ? (await readJson({
+            title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
+            startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
+            successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+          }) || { events: [] })
+        : { events: localEventData.events || [] }
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
 
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
