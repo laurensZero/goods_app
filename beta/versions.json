@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260525.9",
+    "url": "bundle-20260525.9.zip",
+    "hash": "c3cfa08ecc79241c7159a4abe3e8ec8c491fdc353d2f9802b1b4fcd8ab9fe518",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加条件判断以整理充值同步数据，优化数据处理逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-25T14:47:58Z"
+  },
+  {
     "version": "20260525.8",
     "url": "bundle-20260525.8.zip",
     "hash": "75b1e68f1b8ab2ddaa5f38b4d61eba5979dcec9426c82b54560e1608d2341667",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化活动同步数据处理逻辑，增加条件判断以提升性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-25T14:31:38Z"
-  },
-  {
-    "version": "20260525.6",
-    "url": "bundle-20260525.6.zip",
-    "hash": "6c67a29941f27a7342c23181ce88b22a931998e16111df29bf1a9b014eec0e0f",
-    "minNativeVersion": null,
-    "notes": "- feat: 在 buildPullConflictData 函数中增加 sourceTable 参数，以支持更灵活的数据拉取逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-25T14:24:36Z"
   }
 ]
