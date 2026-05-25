@@ -940,6 +940,12 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
     return false
   }
 
+  if (!isHeroImageReady(targetEl)) {
+    // Let the caller retry once the event cover image has actually decoded.
+    // This avoids animating a gray lazy-image placeholder after app resume.
+    return false
+  }
+
   const releaseScrollLock = lockBackScroll(
     targetEl,
     Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
