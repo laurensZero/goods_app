@@ -1106,7 +1106,7 @@ export function createSyncOrchestrator({
 
     // Silent 模式（Realtime/visibilitychange 触发）：跳过冲突弹窗，直接拉取
     if (silent) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge })
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge, sourceTable })
       const hasAnyDiff = !!(
         diff.remoteOnlyGoods > 0 || diff.updatedGoods > 0 || diff.localOnlyGoods > 0
         || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0
@@ -1134,7 +1134,7 @@ export function createSyncOrchestrator({
     }
 
     if (localChanges.hasChanges) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest)
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable })
       const hasPullConflict = !!(
         diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
         || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
@@ -1150,7 +1150,7 @@ export function createSyncOrchestrator({
       }
     }
 
-    const diff = await conflict.buildPullConflictData(gist, remoteManifest)
+    const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable })
     const pullGoodsContentDiff = !!(
       diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
       || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
