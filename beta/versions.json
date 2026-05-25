@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260525.5",
+    "url": "bundle-20260525.5.zip",
+    "hash": "b56e247cd28e9d83182e0eb49c150c423827db3616eae8be1d94fdbcbf07231f",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强 pullOnly 函数，支持源表参数以优化数据读取逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-25T14:17:14Z"
+  },
+  {
     "version": "20260525.4",
     "url": "bundle-20260525.4.zip",
     "hash": "530aa4eeea6bf5fc6b49e7b419aabcd0d68c7026360835b1e362b92dafb6ac36",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新共享元素英雄图像检测逻辑，支持活动和商品的动画效果；避免在应用恢复后动画灰色占位符",
     "updateLevel": "silent",
     "publishedAt": "2026-05-25T03:26:12Z"
-  },
-  {
-    "version": "20260525.2",
-    "url": "bundle-20260525.2.zip",
-    "hash": "1a5a9061a522f09ea4a0daad8a57dd4203a41f8a380f8958ace27117d399dafd",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新照片预览逻辑，使用 gistFileName 作为唯一键；添加图像缓存刷新通知",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-25T03:17:26Z"
   }
 ]

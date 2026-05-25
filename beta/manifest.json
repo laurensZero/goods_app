@@ -1,9 +1,9 @@
 {
-  "version": "20260525.4",
-  "url": "bundle-20260525.4.zip",
-  "hash": "530aa4eeea6bf5fc6b49e7b419aabcd0d68c7026360835b1e362b92dafb6ac36",
+  "version": "20260525.5",
+  "url": "bundle-20260525.5.zip",
+  "hash": "b56e247cd28e9d83182e0eb49c150c423827db3616eae8be1d94fdbcbf07231f",
   "minNativeVersion": null,
-  "notes": "- feat: 增加自动推送预设功能，确保在类别、IP、角色和存储位置的增删改操作后自动同步数据\n\n- feat: 优化数据同步逻辑，减少预检读取\n\n- feat: 在存储位置的添加和重命名操作后自动推送预设",
+  "notes": "- feat: 增强 pullOnly 函数，支持源表参数以优化数据读取逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-25T14:13:54Z"
+  "publishedAt": "2026-05-25T14:17:14Z"
 }
