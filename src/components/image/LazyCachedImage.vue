@@ -264,8 +264,8 @@ onMounted(() => {
         }
       })()
       if (reloadSrc) {
-        // detect hero shared-element images (marked on ancestor)
-        const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id]'))
+        // detect shared-element hero images (goods and events are both animated)
+        const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id], [data-event-hero-id]'))
 
         hasLoadError.value = false
         resetSkeletonVisibility()
