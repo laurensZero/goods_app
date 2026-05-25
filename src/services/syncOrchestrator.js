@@ -1047,7 +1047,7 @@ export function createSyncOrchestrator({
 
   // ── Public: pullOnly ──
 
-  async function pullOnly(ctx, { silent = false, forceRecharge = false } = {}) {
+  async function pullOnly(ctx, { silent = false, forceRecharge = false, sourceTable = 'manual' } = {}) {
     activeBackend = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
     let gist, existingRechargeGist, existingEventGist
@@ -1068,19 +1068,23 @@ export function createSyncOrchestrator({
 
       const rechargeStore = useRechargeStore()
       const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      // If pull was triggered by realtime for a specific table, avoid reading unrelated heavy files
+      const triggeredByRealtime = typeof sourceTable === 'string' && sourceTable !== 'manual'
       const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
 
       ;[remoteRechargeData, remoteEventData] = await Promise.all([
-        shouldReadRechargePrecheck
+        (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
           ? readJson({ title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
               fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
               successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
             }).then((result) => result || { recharge: [], rechargeTrash: [] })
           : Promise.resolve({ recharge: localRechargeSnapshot, rechargeTrash: [] }),
-        readJson({ title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
+        (!triggeredByRealtime || sourceTable === 'events')
+        ? readJson({ title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
           fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
           successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
         }).then((result) => result || { events: [] })
+        : Promise.resolve({ events: [] })
       ])
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
 

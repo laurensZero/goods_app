@@ -599,7 +599,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       const result = await withRetry(
-        () => orchestrator.pullOnly(buildSyncContext(), { silent, forceRecharge }),
+        () => orchestrator.pullOnly(buildSyncContext(), { silent, forceRecharge, sourceTable: source }),
         { maxRetries, baseDelay: 1200 }
       )
       if (!silent && result.conflictData) conflictData.value = result.conflictData
