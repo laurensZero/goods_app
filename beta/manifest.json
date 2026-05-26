@@ -1,9 +1,9 @@
 {
-  "version": "20260526.2",
-  "url": "bundle-20260526.2.zip",
-  "hash": "d37fd53113bf45af55bb2333a4b8d3862f90684fb011b07f9903c018e142e4f2",
+  "version": "20260526.3",
+  "url": "bundle-20260526.3.zip",
+  "hash": "ea2fee1fcc73be8f5863babfa49610da3c7a7bc093480ad7f44593df752c9130",
   "minNativeVersion": null,
-  "notes": "- feat: 更新标签字典，增加相卡以提升数据准确性",
+  "notes": "- feat: 优化快照创建逻辑，使用 commit-tree 替代临时分支以提升性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-26T05:04:56Z"
+  "publishedAt": "2026-05-26T06:55:23Z"
 }
