@@ -103,7 +103,7 @@
                 @pointerdown="syncUrlInput()"
                 @click="batchMode ? handleBatchImport() : handleParse()"
               >
-                <span v-if="!parsing && !batchParsing">{{ batchMode ? `批量解析 (${urlList.length})` : parseButtonText }}</span>
+                <span v-if="!parsing && !batchParsing">{{ batchMode ? batchParseButtonText : parseButtonText }}</span>
                 <span v-else class="parse-spinner" />
               </button>
             </div>
@@ -370,9 +370,9 @@
         <section v-if="batchStep === 'list'" class="batch-section">
           <div class="section-head">
             <p class="section-label">
-              识别完成{{ batchItems.filter(i => i.status === 'error').length ? ' · ' + batchItems.filter(i => i.status === 'error').length + ' 件失败' : '' }}
+              识别完成{{ batchErrorCount ? ' · ' + batchErrorCount + ' 条失败' : '' }}
             </p>
-            <h2 class="section-title">{{ batchItems.filter(i => i.status === 'ready' || i.status === 'saved').length }} 件谷子就绪</h2>
+            <h2 class="section-title">{{ batchReadyCount }} 份谷子就绪</h2>
           </div>
           <ul class="field-card batch-goods-list">
             <li
@@ -434,7 +434,7 @@
       <!-- 批量模式保存全部 -->
       <div v-if="batchStep === 'list' && batchItems.some(i => i.status === 'ready')" class="float-footer">
         <button class="btn-primary btn-float" :disabled="savingAll" @click="saveAllBatch">
-          {{ savingAll ? '保存中...' : `保存全部 (${batchItems.filter(i => i.status === 'ready').length})` }}
+          {{ savingAll ? '保存中...' : `保存全部 (${batchReadyCount} 份)` }}
         </button>
       </div>
       <!-- 批量编辑遮罩 -->
@@ -629,13 +629,13 @@ function handleBack() {
 }
 const urlHintText = computed(() =>
   isWishlistMode.value
-    ? '先按角色搜索，或直接粘贴米游铺商品链接（支持多个，每行一个）'
-    : '先按关键词搜索，或直接粘贴米游铺商品链接（支持多个，每行一个）'
+    ? '先按角色搜索，或直接粘贴米游铺商品链接；每行可在末尾加多份款式数，例如：链接 x3'
+    : '先按关键词搜索，或直接粘贴米游铺商品链接；每行可在末尾加多份款式数，例如：链接 x3'
 )
 const urlPlaceholder = computed(() =>
   isWishlistMode.value
     ? '搜索后会自动填入，也可手动粘贴米游铺商品链接'
-    : 'https://www.mihoyogift.com/goods/...或多条链接，每行一个'
+    : 'https://www.mihoyogift.com/goods/... x3 或多条链接，每行一个'
 )
 const parseButtonText = computed(() => '解析')
 
@@ -763,12 +763,55 @@ async function resolveRoleSearchTargets(keyword) {
   return targets
 }
 
+function parseBatchUrlEntries(text) {
+  const lines = String(text || '').split(/\r?\n/)
+  const entries = []
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line) continue
+
+    const urlMatches = [...line.matchAll(/https?:\/\/\S+/gi)]
+    if (!urlMatches.length) continue
+
+    if (urlMatches.length > 1) {
+      for (const urlMatch of urlMatches) {
+        const url = urlMatch[0].replace(/[),.，。；;]+$/, '')
+        if (isMihoyoGiftUrl(url)) {
+          entries.push({ url, count: 1 })
+        }
+      }
+      continue
+    }
+
+    const urlMatch = urlMatches[0]
+    const url = urlMatch[0].replace(/[),.，。；;]+$/, '')
+    if (!isMihoyoGiftUrl(url)) continue
+
+    const before = line.slice(0, urlMatch.index).trim()
+    const after = line.slice(urlMatch.index + urlMatch[0].length).trim()
+    const countSource = `${before} ${after}`.replace(/[×＊]/g, 'x')
+    const countMatch = countSource.match(/(?:^|[^\d])(\d+)(?:\D*$)/)
+    const count = countMatch ? Math.max(1, Number.parseInt(countMatch[1], 10) || 1) : 1
+
+    entries.push({ url, count })
+  }
+
+  return entries
+}
+
 // 多 URL 批量导入状态
-const urlList = computed(() => {
-  const text = urlInput.value || ''
-  return text.split(/[\n\s]+/).map(s => s.trim()).filter(s => isMihoyoGiftUrl(s))
+const urlEntries = computed(() => parseBatchUrlEntries(urlInput.value || ''))
+const batchMode = computed(() => urlEntries.value.length > 1 || urlEntries.value.some(entry => entry.count > 1))
+const batchTotalCount = computed(() => urlEntries.value.reduce((sum, entry) => sum + entry.count, 0))
+const batchParseButtonText = computed(() => {
+  const entryCount = urlEntries.value.length
+  if (!entryCount) return '批量解析'
+  if (batchTotalCount.value === entryCount) return `批量解析 (${entryCount})`
+  return `批量解析 (${entryCount} 条 / ${batchTotalCount.value} 个结果)`
 })
-const batchMode = computed(() => urlList.value.length > 1)
+const batchReadyCount = computed(() => batchItems.value.filter(item => item.status === 'ready' || item.status === 'saved').length)
+const batchErrorCount = computed(() => batchItems.value.filter(item => item.status === 'error').length)
 // 批量步骤: 'input' | 'parsing' | 'list'
 const batchStep = ref('input')
 const batchItems = ref([]) // { url, status: 'pending'|'parsing'|'ready'|'error'|'saved', data, error }
@@ -1156,17 +1199,28 @@ function shortenUrl(url) {
 
 async function handleBatchImport() {
   syncUrlInput()
-  const urls = urlList.value
-  if (!urls.length) return
+  const entries = urlEntries.value
+  if (!entries.length) return
   parseError.value = ''
   batchStep.value = 'parsing'
   batchParsing.value = true
   const historicalContext = ensureHistoricalTagContext()
-  batchItems.value = urls.map(url => ({ url, status: 'pending', data: null, error: '' }))
-  for (const item of batchItems.value) {
+  const parsedGroups = []
+  batchItems.value = entries.map(({ url, count }) => ({
+    url,
+    count,
+    status: 'pending',
+    data: null,
+    error: ''
+  }))
+
+  for (const [entryIndex, entry] of entries.entries()) {
+    const item = batchItems.value[entryIndex]
+    if (!item) continue
     item.status = 'parsing'
+    const group = { url: entry.url, count: entry.count, data: null, error: '' }
     try {
-      const result = await parseMihoyoUrl(item.url)
+      const result = await parseMihoyoUrl(entry.url)
       const extractedCharacters = extractCharsFromVariants(result.variants)
       const taggingResult = getTaggingSuggestions(
         {
@@ -1197,7 +1251,7 @@ async function handleBatchImport() {
         .map(u => (u || '').split('?')[0])
         .filter(Boolean)
         .filter((u, i, arr) => arr.indexOf(u) === i)
-      item.data = {
+      group.data = {
         name: result.name?.trim() || '',
         category: resolvedCategory || '',
         ip: resolvedIp || '',
@@ -1215,40 +1269,67 @@ async function handleBatchImport() {
         goodsId: result.goodsId || '',
       }
       updateHistoricalTagContextFromItem({
-        ip: item.data.ip,
-        characters: item.data.characters,
-        tags: item.data.tags,
+        ip: group.data.ip,
+        characters: group.data.characters,
+        tags: group.data.tags,
       })
-      item.status = 'ready'
+      parsedGroups.push(group)
       // 异步补全 SKU cover_url + 价格（不阻塞列表显示）
       if (result.goodsId) {
         fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, skuVariants, coverUrl, mainImages }) => {
           const sourceVariants = skuVariants.length
             ? skuVariants
-            : item.data.variants
-          item.data.variants = sourceVariants.map(v => ({
+            : group.data.variants
+          group.data.variants = sourceVariants.map(v => ({
             ...v,
             cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
             price: v.price ?? skuPrices[v.key] ?? null,
           }))
-          if (!item.data.variants.length) {
+          if (!group.data.variants.length) {
             const extras = mainImages
               .map(u => (u || '').split('?')[0])
-              .filter(u => u && !item.data.baseParsedImages.includes(u))
+              .filter(u => u && !group.data.baseParsedImages.includes(u))
             if (extras.length) {
-              item.data.baseParsedImages = [...item.data.baseParsedImages, ...extras]
-              item.data.parsedImages = [...item.data.baseParsedImages]
+              group.data.baseParsedImages = [...group.data.baseParsedImages, ...extras]
+              group.data.parsedImages = [...group.data.baseParsedImages]
             }
           }
         }).catch(() => {})
       }
+      item.status = 'ready'
+      item.data = cloneBatchItemData(group.data)
+      item.error = ''
     } catch (e) {
+      const message = e.message || '解析失败'
       item.status = 'error'
-      item.error = e.message || '解析失败'
+      item.error = message
+      parsedGroups.push({ url: entry.url, count: 1, data: null, error: message, status: 'error' })
+      continue
     }
   }
+  batchItems.value = parsedGroups.flatMap((group) => {
+    if (group.status === 'error') return [group]
+    return Array.from({ length: group.count }, () => ({
+      url: group.url,
+      status: 'ready',
+      data: cloneBatchItemData(group.data),
+      error: ''
+    }))
+  })
   batchParsing.value = false
   batchStep.value = 'list'
+}
+
+function cloneBatchItemData(data) {
+  if (!data) return null
+  return {
+    ...data,
+    characters: Array.isArray(data.characters) ? [...data.characters] : [],
+    tags: Array.isArray(data.tags) ? [...data.tags] : [],
+    baseParsedImages: Array.isArray(data.baseParsedImages) ? [...data.baseParsedImages] : [],
+    parsedImages: Array.isArray(data.parsedImages) ? [...data.parsedImages] : [],
+    variants: Array.isArray(data.variants) ? data.variants.map((variant) => ({ ...variant })) : [],
+  }
 }
 
 function openBatchEdit(idx) {

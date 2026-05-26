@@ -571,6 +571,10 @@
   background: rgba(32,112,192,0.08);
   color: #2070c0;
 }
+.batch-meta-tag--count {
+  background: rgba(98, 90, 214, 0.1);
+  color: #5d57c7;
+}
 .batch-meta-tag--error {
   background: rgba(199,68,68,0.1);
   color: #c74444;
