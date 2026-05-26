@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260526.5",
+    "url": "bundle-20260526.5.zip",
+    "hash": "21f0f4a9031864424d56ff111f17726b3b1134a8ec4d626ce41eb9f721d5068d",
+    "minNativeVersion": null,
+    "notes": "- feat: 调整界面文本和样式，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-26T14:46:24Z"
+  },
+  {
     "version": "20260526.4",
     "url": "bundle-20260526.4.zip",
     "hash": "5ded2a6fed035828364d628e8af0d49470e1af49e97284567f72b9c5618a7b77",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化快照创建逻辑，使用 commit-tree 替代临时分支以提升性能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-26T06:55:23Z"
-  },
-  {
-    "version": "20260526.2",
-    "url": "bundle-20260526.2.zip",
-    "hash": "d37fd53113bf45af55bb2333a4b8d3862f90684fb011b07f9903c018e142e4f2",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新标签字典，增加相卡以提升数据准确性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-26T05:04:56Z"
   }
 ]

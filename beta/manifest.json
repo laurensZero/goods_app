@@ -1,9 +1,9 @@
 {
-  "version": "20260526.4",
-  "url": "bundle-20260526.4.zip",
-  "hash": "5ded2a6fed035828364d628e8af0d49470e1af49e97284567f72b9c5618a7b77",
+  "version": "20260526.5",
+  "url": "bundle-20260526.5.zip",
+  "hash": "21f0f4a9031864424d56ff111f17726b3b1134a8ec4d626ce41eb9f721d5068d",
   "minNativeVersion": null,
-  "notes": "- feat: 更新批量解析功能",
+  "notes": "- feat: 调整界面文本和样式，优化用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-26T14:26:03Z"
+  "publishedAt": "2026-05-26T14:46:24Z"
 }
