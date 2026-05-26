@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260526.1",
+    "url": "bundle-20260526.1.zip",
+    "hash": "70b82df2ce4c8c82d6ff331edb60ad9a706bb022043e12047a0b8802b3915874",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新标签字典，修正画集和毛绒玩偶的值以提升数据准确性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-26T05:03:59Z"
+  },
+  {
     "version": "20260525.9",
     "url": "bundle-20260525.9.zip",
     "hash": "c3cfa08ecc79241c7159a4abe3e8ec8c491fdc353d2f9802b1b4fcd8ab9fe518",
@@ -16,14 +25,5 @@
     "notes": "- feat: 延迟构建活动数据负载以优化性能，减少不必要的资源消耗",
     "updateLevel": "silent",
     "publishedAt": "2026-05-25T14:43:23Z"
-  },
-  {
-    "version": "20260525.7",
-    "url": "bundle-20260525.7.zip",
-    "hash": "e648fe304c6353d4c1e78d3dea8d6eee599f72fea4c4a574eeb628f87750bead",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化活动同步数据处理逻辑，增加条件判断以提升性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-25T14:31:38Z"
   }
 ]
