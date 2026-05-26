@@ -1,9 +1,9 @@
 {
-  "version": "20260526.3",
-  "url": "bundle-20260526.3.zip",
-  "hash": "ea2fee1fcc73be8f5863babfa49610da3c7a7bc093480ad7f44593df752c9130",
+  "version": "20260526.4",
+  "url": "bundle-20260526.4.zip",
+  "hash": "5ded2a6fed035828364d628e8af0d49470e1af49e97284567f72b9c5618a7b77",
   "minNativeVersion": null,
-  "notes": "- feat: 优化快照创建逻辑，使用 commit-tree 替代临时分支以提升性能",
+  "notes": "- feat: 更新批量解析功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-26T06:55:23Z"
+  "publishedAt": "2026-05-26T14:26:03Z"
 }
