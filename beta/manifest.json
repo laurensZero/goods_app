@@ -1,9 +1,9 @@
 {
-  "version": "20260526.1",
-  "url": "bundle-20260526.1.zip",
-  "hash": "70b82df2ce4c8c82d6ff331edb60ad9a706bb022043e12047a0b8802b3915874",
+  "version": "20260526.2",
+  "url": "bundle-20260526.2.zip",
+  "hash": "d37fd53113bf45af55bb2333a4b8d3862f90684fb011b07f9903c018e142e4f2",
   "minNativeVersion": null,
-  "notes": "- feat: 更新标签字典，修正画集和毛绒玩偶的值以提升数据准确性",
+  "notes": "- feat: 更新标签字典，增加相卡以提升数据准确性",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-26T05:03:59Z"
+  "publishedAt": "2026-05-26T05:04:56Z"
 }

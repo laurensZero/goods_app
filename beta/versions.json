@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260526.2",
+    "url": "bundle-20260526.2.zip",
+    "hash": "d37fd53113bf45af55bb2333a4b8d3862f90684fb011b07f9903c018e142e4f2",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新标签字典，增加相卡以提升数据准确性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-26T05:04:56Z"
+  },
+  {
     "version": "20260526.1",
     "url": "bundle-20260526.1.zip",
     "hash": "70b82df2ce4c8c82d6ff331edb60ad9a706bb022043e12047a0b8802b3915874",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加条件判断以整理充值同步数据，优化数据处理逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-25T14:47:58Z"
-  },
-  {
-    "version": "20260525.8",
-    "url": "bundle-20260525.8.zip",
-    "hash": "75b1e68f1b8ab2ddaa5f38b4d61eba5979dcec9426c82b54560e1608d2341667",
-    "minNativeVersion": null,
-    "notes": "- feat: 延迟构建活动数据负载以优化性能，减少不必要的资源消耗",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-25T14:43:23Z"
   }
 ]
