@@ -36,14 +36,19 @@ function runGit(args) {
   });
 }
 
+function runGitCapture(args) {
+  return execFileSync('git', args, {
+    encoding: 'utf8',
+  }).trim();
+}
+
 const options = parseArgs(process.argv.slice(2));
 const sourceRef = options.source || process.env.SNAPSHOT_SOURCE || 'refs/remotes/origin/gh-pages';
 const snapshotBranch = options.branch || process.env.SNAPSHOT_BRANCH || 'gh-pages';
 const snapshotMessage = options.message || process.env.SNAPSHOT_MESSAGE || 'chore: sync gh-pages snapshot';
-const temporaryBranch = options.temp || '__gitee_clean_snapshot__';
 
 runGit(['rev-parse', '--is-inside-work-tree']);
-runGit(['checkout', '--orphan', temporaryBranch]);
-runGit(['reset', '--hard', sourceRef]);
-runGit(['commit', '--allow-empty', '-m', snapshotMessage]);
-runGit(['branch', '-M', snapshotBranch]);
+const sourceTree = runGitCapture(['rev-parse', `${sourceRef}^{tree}`]);
+const snapshotCommit = runGitCapture(['commit-tree', sourceTree, '-m', snapshotMessage]);
+runGit(['update-ref', `refs/heads/${snapshotBranch}`, snapshotCommit]);
+runGit(['checkout', '-f', snapshotBranch]);
