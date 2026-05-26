@@ -192,6 +192,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* ── URL 输入区 ── */
@@ -316,7 +317,7 @@
 .url-input {
   flex: 1;
   min-width: 0;
-  min-height: 40px;
+  min-height: 88px;
   padding: 10px 12px;
   border: 1px solid rgba(20, 20, 22, 0.1);
   border-radius: 10px;
@@ -346,12 +347,12 @@
   flex-shrink: 0;
   min-width: 80px;
   min-height: 46px;
-  padding: 0 18px;
+  padding: 0 14px;
   border: none;
   border-radius: 14px;
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.12s;
@@ -1427,6 +1428,25 @@
 @media (max-width: 359px) {
   .variant-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .url-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .url-input {
+    min-height: 92px;
+  }
+
+  .btn-parse {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 12px;
   }
 }
 

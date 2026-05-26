@@ -372,7 +372,7 @@
             <p class="section-label">
               识别完成{{ batchErrorCount ? ' · ' + batchErrorCount + ' 条失败' : '' }}
             </p>
-            <h2 class="section-title">{{ batchReadyCount }} 份谷子就绪</h2>
+            <h2 class="section-title">{{ batchReadyCount }} 个结果就绪</h2>
           </div>
           <ul class="field-card batch-goods-list">
             <li
@@ -807,8 +807,7 @@ const batchTotalCount = computed(() => urlEntries.value.reduce((sum, entry) => s
 const batchParseButtonText = computed(() => {
   const entryCount = urlEntries.value.length
   if (!entryCount) return '批量解析'
-  if (batchTotalCount.value === entryCount) return `批量解析 (${entryCount})`
-  return `批量解析 (${entryCount} 条 / ${batchTotalCount.value} 个结果)`
+  return `批量解析（${entryCount}条/${batchTotalCount.value}个结果）`
 })
 const batchReadyCount = computed(() => batchItems.value.filter(item => item.status === 'ready' || item.status === 'saved').length)
 const batchErrorCount = computed(() => batchItems.value.filter(item => item.status === 'error').length)
@@ -1280,18 +1279,19 @@ async function handleBatchImport() {
           const sourceVariants = skuVariants.length
             ? skuVariants
             : group.data.variants
-          group.data.variants = sourceVariants.map(v => ({
+          const mergedVariants = sourceVariants.map(v => ({
             ...v,
             cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
             price: v.price ?? skuPrices[v.key] ?? null,
           }))
+          group.data.variants.splice(0, group.data.variants.length, ...mergedVariants)
           if (!group.data.variants.length) {
             const extras = mainImages
               .map(u => (u || '').split('?')[0])
               .filter(u => u && !group.data.baseParsedImages.includes(u))
             if (extras.length) {
-              group.data.baseParsedImages = [...group.data.baseParsedImages, ...extras]
-              group.data.parsedImages = [...group.data.baseParsedImages]
+              group.data.baseParsedImages.splice(0, group.data.baseParsedImages.length, ...group.data.baseParsedImages, ...extras)
+              group.data.parsedImages.splice(0, group.data.parsedImages.length, ...group.data.baseParsedImages)
             }
           }
         }).catch(() => {})
@@ -1324,11 +1324,11 @@ function cloneBatchItemData(data) {
   if (!data) return null
   return {
     ...data,
-    characters: Array.isArray(data.characters) ? [...data.characters] : [],
-    tags: Array.isArray(data.tags) ? [...data.tags] : [],
-    baseParsedImages: Array.isArray(data.baseParsedImages) ? [...data.baseParsedImages] : [],
-    parsedImages: Array.isArray(data.parsedImages) ? [...data.parsedImages] : [],
-    variants: Array.isArray(data.variants) ? data.variants.map((variant) => ({ ...variant })) : [],
+    characters: Array.isArray(data.characters) ? data.characters : [],
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    baseParsedImages: Array.isArray(data.baseParsedImages) ? data.baseParsedImages : [],
+    parsedImages: Array.isArray(data.parsedImages) ? data.parsedImages : [],
+    variants: Array.isArray(data.variants) ? data.variants : [],
   }
 }
 
