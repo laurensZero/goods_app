@@ -10,6 +10,15 @@ function normalizeQueue(queue) {
   return (Array.isArray(queue) ? queue : []).filter((item) => getTrackIdentity(item))
 }
 
+const MAX_CACHE_SIZE = 50
+
+function lruSet(map, key, value) {
+  if (map.size >= MAX_CACHE_SIZE) {
+    map.delete(map.keys().next().value)
+  }
+  map.set(key, value)
+}
+
 function supportsMediaSession() {
   return typeof navigator !== 'undefined' && 'mediaSession' in navigator
 }
@@ -323,7 +332,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
 
     const result = await fetchNeteasePlayableUrl(track.neteaseSongId)
-    playableUrlCache.set(trackId, result.url)
+    lruSet(playableUrlCache, trackId, result.url)
     return result.url
   }
 
@@ -345,7 +354,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     try {
       const result = await fetchNeteaseLyrics(songId)
       const nextLines = Array.isArray(result?.lines) ? result.lines : []
-      lyricsCache.set(trackId, nextLines)
+      lruSet(lyricsCache, trackId, nextLines)
       if (currentTrackId.value !== trackId) return
       lyricsLines.value = nextLines
       lyricsStatus.value = nextLines.length ? 'ready' : 'empty'
