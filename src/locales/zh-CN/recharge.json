@@ -1,0 +1,22 @@
+{
+  "recharge.title": "充值",
+  "recharge.addRecord": "添加充值记录",
+  "recharge.editRecord": "编辑充值记录",
+  "recharge.noRecords": "还没有充值记录",
+  "recharge.noRecordsDesc": "记录你的充值消费",
+  "recharge.addFirst": "添加第一条记录",
+  "recharge.amount": "金额",
+  "recharge.date": "充值日期",
+  "recharge.type": "充值类型",
+  "recharge.note": "备注",
+  "recharge.saveRecord": "保存记录",
+  "recharge.deleteRecord": "删除记录",
+  "recharge.confirmDelete": "确认删除这条记录？",
+  "recharge.monthCard": "月卡",
+  "recharge.monthCardCalendar": "月卡日历",
+  "recharge.totalRecharge": "总充值",
+  "recharge.thisMonth": "本月充值",
+  "recharge.recentRecords": "最近记录",
+  "recharge.rechargeArchive": "充值库",
+  "recharge.searchAria": "搜索"
+}

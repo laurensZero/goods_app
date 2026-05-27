@@ -4,10 +4,10 @@
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">ACCOUNT CENTER</p>
-          <h1 class="hero-title">我的</h1>
+          <h1 class="hero-title">{{ t('nav.my') }}</h1>
         </div>
         <div class="hero-actions">
-          <button type="button" class="toolbar-scan" aria-label="扫码导入" :disabled="scanning" @click="openScanner">
+          <button type="button" class="toolbar-scan" :aria-label="t('my.scanImport')" :disabled="scanning" @click="openScanner">
             <span v-if="scanning" class="toolbar-scan-spinner" />
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect width="6" height="6" x="3" y="3" rx="1" />
@@ -24,7 +24,7 @@
               <path d="M12 21v-1" />
             </svg>
           </button>
-          <button type="button" class="toolbar-settings" aria-label="打开设置" @click="openSettings">
+          <button type="button" class="toolbar-settings" :aria-label="t('my.openSettings')" @click="openSettings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -40,18 +40,18 @@
         <article class="account-panel">
           <div class="account-panel__main">
             <div class="account-avatar-wrap">
-              <img v-if="syncStore.githubAvatarUrl" class="account-avatar" :src="syncStore.githubAvatarUrl" alt="GitHub 头像" />
+              <img v-if="syncStore.githubAvatarUrl" class="account-avatar" :src="syncStore.githubAvatarUrl" :alt="t('my.githubAvatar')" />
               <span v-else class="account-avatar account-avatar--placeholder">{{ avatarInitial }}</span>
             </div>
 
             <div class="account-copy">
-              <h1 class="account-name">{{ syncStore.githubLogin || '未连接 GitHub' }}</h1>
+              <h1 class="account-name">{{ syncStore.githubLogin || t('my.notConnected') }}</h1>
               <div class="account-tags">
                 <span class="status-pill" :class="syncStore.githubLogin ? 'status-pill--online' : 'status-pill--idle'">
-                  {{ syncStore.githubLogin ? '已连接 GitHub' : '未连接 GitHub' }}
+                  {{ syncStore.githubLogin ? t('my.connected') : t('my.notConnected') }}
                 </span>
-                <span v-if="showAuthMethod" class="status-pill status-pill--soft">{{ syncStore.githubAuthMethod || '未设置登录方式' }}</span>
-                <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? `上次同步 ${formatTime(syncStore.lastSyncedAt)}` : '尚未同步' }}</span>
+                <span v-if="showAuthMethod" class="status-pill status-pill--soft">{{ syncStore.githubAuthMethod || t('my.noAuthMethod') }}</span>
+                <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? t('my.lastSync', { time: formatTime(syncStore.lastSyncedAt) }) : t('my.neverSynced') }}</span>
               </div>
             </div>
 
@@ -62,7 +62,7 @@
                   <path d="M12 12l4.5-4.5" />
                   <path d="M12 12h7" />
                 </svg>
-                <span>{{ syncStore.githubLogin ? '重新登录 GitHub' : '登录 GitHub' }}</span>
+                <span>{{ syncStore.githubLogin ? t('my.relogin') : t('my.login') }}</span>
               </button>
 
               <button type="button" class="hero-action" :disabled="!syncStore.githubLogin && !syncStore.token" @click="openLogoutDialog">
@@ -71,7 +71,7 @@
                   <path d="M15 12H3" />
                   <path d="M21 4v16" />
                 </svg>
-                <span>退出登录</span>
+                <span>{{ t('my.logout') }}</span>
               </button>
             </div>
 
@@ -79,39 +79,39 @@
               <div class="budget-compact__head">
                 <div>
                   <p class="budget-compact__label">Budget Watch</p>
-                  <h2 class="budget-compact__title">吃谷预算</h2>
+                  <h2 class="budget-compact__title">{{ t('my.budgetTitle') }}</h2>
                 </div>
-                <button type="button" class="budget-settings-btn" @click="openBudgetDialog">设置</button>
+                <button type="button" class="budget-settings-btn" @click="openBudgetDialog">{{ t('my.settings') }}</button>
               </div>
 
               <div class="budget-compact__item">
                 <div class="budget-compact__meta">
-                  <span>月度</span>
+                  <span>{{ t('my.monthly') }}</span>
                   <strong>{{ currentPeriodLabel }}</strong>
                   <span class="budget-compact__percent" :class="{ 'budget-compact__percent--over': monthlyBudgetProgress.isOverBudget }">
-                    {{ monthlyBudgetProgress.hasBudget ? `${monthlyBudgetProgress.percent.toFixed(0)}%` : '未设' }}
+                    {{ monthlyBudgetProgress.hasBudget ? `${monthlyBudgetProgress.percent.toFixed(0)}%` : t('my.notSet') }}
                   </span>
                 </div>
                 <div class="budget-progress budget-progress--compact" role="progressbar" :aria-valuenow="monthlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
                   <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': monthlyBudgetProgress.isOverBudget }" :style="{ width: `${monthlyBudgetProgress.clampedPercent}%` }" />
                   <span v-if="monthlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${monthlyBudgetProgress.overPercent}%` }" />
                 </div>
-                <div class="budget-compact__foot">{{ formatPrice(monthlyBudgetProgress.spent) }} / {{ monthlyBudgetProgress.hasBudget ? formatPrice(monthlyBudgetProgress.budget) : '未设置' }}</div>
+                <div class="budget-compact__foot">{{ formatPrice(monthlyBudgetProgress.spent) }} / {{ monthlyBudgetProgress.hasBudget ? formatPrice(monthlyBudgetProgress.budget) : t('my.notSetFull') }}</div>
               </div>
 
               <div class="budget-compact__item">
                 <div class="budget-compact__meta">
-                  <span>年度</span>
+                  <span>{{ t('my.yearly') }}</span>
                   <strong>{{ currentYearLabel }}</strong>
                   <span class="budget-compact__percent" :class="{ 'budget-compact__percent--over': yearlyBudgetProgress.isOverBudget }">
-                    {{ yearlyBudgetProgress.hasBudget ? `${yearlyBudgetProgress.percent.toFixed(0)}%` : '未设' }}
+                    {{ yearlyBudgetProgress.hasBudget ? `${yearlyBudgetProgress.percent.toFixed(0)}%` : t('my.notSet') }}
                   </span>
                 </div>
                 <div class="budget-progress budget-progress--compact" role="progressbar" :aria-valuenow="yearlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
                   <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': yearlyBudgetProgress.isOverBudget }" :style="{ width: `${yearlyBudgetProgress.clampedPercent}%` }" />
                   <span v-if="yearlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${yearlyBudgetProgress.overPercent}%` }" />
                 </div>
-                <div class="budget-compact__foot">{{ formatPrice(yearlyBudgetProgress.spent) }} / {{ yearlyBudgetProgress.hasBudget ? formatPrice(yearlyBudgetProgress.budget) : '未设置' }}</div>
+                <div class="budget-compact__foot">{{ formatPrice(yearlyBudgetProgress.spent) }} / {{ yearlyBudgetProgress.hasBudget ? formatPrice(yearlyBudgetProgress.budget) : t('my.notSetFull') }}</div>
               </div>
             </article>
           </div>
@@ -122,7 +122,7 @@
         <section class="content-main">
           <div class="section-head">
             <p class="section-label">Quick Access</p>
-            <h2 class="section-title">常用入口</h2>
+            <h2 class="section-title">{{ t('my.quickAccess') }}</h2>
           </div>
 
           <div class="shortcut-stack">
@@ -137,10 +137,10 @@
               </span>
               <span class="shortcut-row__copy">
                 <span class="shortcut-row__kicker">Sync</span>
-                <span class="shortcut-row__title">云同步</span>
+                <span class="shortcut-row__title">{{ t('my.cloudSync') }}</span>
                 <span class="shortcut-row__desc">{{ syncSummaryText }}</span>
               </span>
-              <span class="shortcut-row__meta">{{ syncStore.githubLogin ? '已连接' : '去登录' }}</span>
+              <span class="shortcut-row__meta">{{ syncStore.githubLogin ? t('my.connectedShort') : t('my.gotoLogin') }}</span>
             </button>
 
             <button type="button" class="shortcut-row" @click="openSettings">
@@ -155,8 +155,8 @@
               </span>
               <span class="shortcut-row__copy">
                 <span class="shortcut-row__kicker">Manage</span>
-                <span class="shortcut-row__title">设置</span>
-                <span class="shortcut-row__desc">分类、主题、回收站、导入导出和同步配置。</span>
+                <span class="shortcut-row__title">{{ t('my.settings') }}</span>
+                <span class="shortcut-row__desc">{{ t('my.settingsDesc') }}</span>
               </span>
               <svg class="shortcut-row__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -173,8 +173,8 @@
               </span>
               <span class="shortcut-row__copy">
                 <span class="shortcut-row__kicker">App</span>
-                <span class="shortcut-row__title">关于应用</span>
-                <span class="shortcut-row__desc">版本信息、更新入口和使用说明。</span>
+                <span class="shortcut-row__title">{{ t('my.aboutApp') }}</span>
+                <span class="shortcut-row__desc">{{ t('my.aboutDesc') }}</span>
               </span>
               <svg class="shortcut-row__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -186,38 +186,38 @@
         <aside class="content-side">
           <div class="section-head">
             <p class="section-label">Account Details</p>
-            <h2 class="section-title">账号与同步</h2>
+            <h2 class="section-title">{{ t('my.accountSync') }}</h2>
           </div>
 
           <div class="detail-list">
             <div class="detail-row">
-              <span class="detail-row__label">GitHub 用户</span>
-              <span class="detail-row__value">{{ syncStore.githubLogin || '未登录' }}</span>
+              <span class="detail-row__label">{{ t('my.githubUser') }}</span>
+              <span class="detail-row__value">{{ syncStore.githubLogin || t('my.notLoggedIn') }}</span>
             </div>
             <div v-if="!isUsingGithubLogin" class="detail-row">
-              <span class="detail-row__label">同步令牌</span>
+              <span class="detail-row__label">{{ t('my.syncToken') }}</span>
               <span class="detail-row__value detail-row__value--mono">{{ tokenDisplay }}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-row__label">授权方式</span>
-              <span class="detail-row__value">{{ syncStore.githubAuthMethod || '未设置' }}</span>
+              <span class="detail-row__label">{{ t('my.authMethod') }}</span>
+              <span class="detail-row__value">{{ syncStore.githubAuthMethod || t('my.notSetFull') }}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-row__label">权限范围</span>
-              <span class="detail-row__value detail-row__value--mono">{{ syncStore.githubScopes || '未获取' }}</span>
+              <span class="detail-row__label">{{ t('my.scopes') }}</span>
+              <span class="detail-row__value detail-row__value--mono">{{ syncStore.githubScopes || t('my.notObtained') }}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-row__label">最近同步</span>
-              <span class="detail-row__value">{{ syncStore.lastSyncedAt ? formatTime(syncStore.lastSyncedAt) : '从未同步' }}</span>
+              <span class="detail-row__label">{{ t('my.recentSync') }}</span>
+              <span class="detail-row__value">{{ syncStore.lastSyncedAt ? formatTime(syncStore.lastSyncedAt) : t('my.neverSyncedDetail') }}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-row__label">同步状态</span>
-              <span class="detail-row__value">{{ syncStore.syncStatus || (syncStore.githubLogin ? '就绪' : '未处理') }}</span>
+              <span class="detail-row__label">{{ t('my.syncStatus') }}</span>
+              <span class="detail-row__value">{{ syncStore.syncStatus || (syncStore.githubLogin ? t('my.ready') : t('my.unprocessed')) }}</span>
             </div>
             <div class="detail-row detail-row--clickable" @click="refreshExchangeRates">
-              <span class="detail-row__label">汇率更新</span>
+              <span class="detail-row__label">{{ t('my.exchangeRateUpdate') }}</span>
               <span class="detail-row__value" :class="{ 'detail-row__value--error': exchangeRateStore.error }">
-                <template v-if="exchangeRateStore.loading">更新中...</template>
+                <template v-if="exchangeRateStore.loading">{{ t('my.updating') }}</template>
                 <template v-else-if="exchangeRateStore.error">{{ exchangeRateStore.error }}</template>
                 <template v-else>{{ exchangeRateLastUpdatedText }}</template>
               </span>
@@ -234,8 +234,8 @@
         <div v-if="showScanner" class="scanner-overlay" @click.self="closeScanner">
           <div class="scanner-dialog" @click.stop>
             <div class="scanner-dialog__head">
-              <h2 class="scanner-dialog__title">扫描二维码</h2>
-              <button class="scanner-dialog__close" type="button" aria-label="关闭" @click="closeScanner">
+              <h2 class="scanner-dialog__title">{{ t('my.scanQR') }}</h2>
+              <button class="scanner-dialog__close" type="button" :aria-label="t('my.close')" @click="closeScanner">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 6 6 18" /><path d="m6 6 12 12" />
                 </svg>
@@ -272,7 +272,7 @@
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
-                <span>从相册选择</span>
+                <span>{{ t('my.fromGallery') }}</span>
               </button>
             </div>
           </div>
@@ -290,12 +290,12 @@
       <Transition name="budget-sheet-pop">
         <div v-if="showBudgetDialog" class="login-overlay budget-overlay" @click.self="closeBudgetDialog">
           <section class="login-sheet budget-sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
-            <h2 id="budgetSheetTitle" class="login-sheet__title">设置吃谷预算</h2>
-            <p class="login-sheet__desc">保存后会实时更新月度和年度预算进度，留空或填 0 视为未设置预算。</p>
+            <h2 id="budgetSheetTitle" class="login-sheet__title">{{ t('my.setBudget') }}</h2>
+            <p class="login-sheet__desc">{{ t('my.budgetDesc') }}</p>
 
             <div class="budget-sheet__fields">
               <label class="budget-input-wrap">
-                <span class="budget-input-wrap__label">月度预算（元）</span>
+                <span class="budget-input-wrap__label">{{ t('my.monthlyBudget') }}</span>
                 <input
                   v-model="monthlyBudgetInput"
                   class="budget-input"
@@ -303,12 +303,12 @@
                   min="0"
                   step="0.01"
                   inputmode="decimal"
-                  placeholder="例如 1200"
+                  :placeholder="t('my.monthlyBudgetPlaceholder')"
                 />
               </label>
 
               <label class="budget-input-wrap">
-                <span class="budget-input-wrap__label">年度预算（元）</span>
+                <span class="budget-input-wrap__label">{{ t('my.yearlyBudget') }}</span>
                 <input
                   v-model="yearlyBudgetInput"
                   class="budget-input"
@@ -316,14 +316,14 @@
                   min="0"
                   step="0.01"
                   inputmode="decimal"
-                  placeholder="例如 15000"
+                  :placeholder="t('my.yearlyBudgetPlaceholder')"
                 />
               </label>
             </div>
 
             <div class="login-sheet__actions">
               <button type="button" class="login-sheet__button login-sheet__button--primary" @click="closeBudgetDialog">
-                完成
+                {{ t('my.done') }}
               </button>
             </div>
           </section>
@@ -333,17 +333,17 @@
 
     <div v-if="showLogoutDialog" class="login-overlay" @click.self="closeLogoutDialog">
       <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
-        <h2 id="logoutSheetTitle" class="login-sheet__title">退出登录</h2>
+        <h2 id="logoutSheetTitle" class="login-sheet__title">{{ t('my.logout') }}</h2>
         <p class="login-sheet__desc">
-          退出后会清除当前设备保存的同步令牌和 GitHub 登录信息。
+          {{ t('my.logoutDesc') }}
         </p>
 
         <div class="login-sheet__actions">
           <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmLogout">
-            确认退出
+            {{ t('my.confirmLogout') }}
           </button>
           <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeLogoutDialog">
-            取消
+            {{ t('my.cancel') }}
           </button>
         </div>
       </section>
@@ -377,9 +377,11 @@ import {
 } from '@/utils/github/auth'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { useI18n } from 'vue-i18n'
 
 defineOptions({ name: 'MyView' })
 
+const { t } = useI18n()
 const router = useRouter()
 const syncStore = useSyncStore()
 const exchangeRateStore = useExchangeRateStore()
@@ -403,10 +405,10 @@ const rechargeCount = computed(() => rechargeStore.sortedRecords.length)
 
 const currentPeriodLabel = computed(() => {
   const now = new Date()
-  return `${now.getFullYear()} 年 ${String(now.getMonth() + 1).padStart(2, '0')} 月`
+  return t('my.periodLabel', { year: now.getFullYear(), month: String(now.getMonth() + 1).padStart(2, '0') })
 })
 
-const currentYearLabel = computed(() => `${new Date().getFullYear()} 年`)
+const currentYearLabel = computed(() => t('my.yearLabel', { year: new Date().getFullYear() }))
 
 const monthlyBudget = computed(() => parseBudgetValue(monthlyBudgetInput.value))
 const yearlyBudget = computed(() => parseBudgetValue(yearlyBudgetInput.value))
@@ -510,7 +512,7 @@ const yearlyBudgetProgress = computed(() => buildBudgetProgress(currentYearSpent
 
 const avatarInitial = computed(() => (syncStore.githubLogin ? syncStore.githubLogin.slice(0, 1).toUpperCase() : 'G'))
 const tokenDisplay = computed(() => {
-  if (!syncStore.token) return '未配置'
+  if (!syncStore.token) return t('my.notConfigured')
   const token = syncStore.token
   return `${token.slice(0, 4)}...${token.slice(-4)}`
 })
@@ -524,26 +526,26 @@ const showAuthMethod = computed(() => (
 ))
 
 const syncHeadlineText = computed(() => {
-  if (syncStore.githubLogin) return '已连接'
-  if (syncStore.token) return '已配置'
-  return '待登录'
+  if (syncStore.githubLogin) return t('my.headlineConnected')
+  if (syncStore.token) return t('my.headlineConfigured')
+  return t('my.headlinePending')
 })
 
 const syncSublineText = computed(() => {
-  if (syncStore.lastSyncedAt) return `最近同步 ${formatTime(syncStore.lastSyncedAt)}`
-  if (syncStore.token) return '同步配置已保存，可继续前往云同步页检查远端数据。'
-  return '当前尚未配置同步，建议先完成 GitHub 登录。'
+  if (syncStore.lastSyncedAt) return t('my.sublineRecentSync', { time: formatTime(syncStore.lastSyncedAt) })
+  if (syncStore.token) return t('my.sublineConfigSaved')
+  return t('my.sublineNotConfigured')
 })
 
 const syncSummaryText = computed(() => {
-  if (syncStore.lastSyncedAt) return `上次同步 ${formatTime(syncStore.lastSyncedAt)}，可继续查看远端 Gist 和差异。`
-  if (syncStore.githubLogin) return '已连接 GitHub，建议完成一次同步以建立远端基线。'
-  return '还没有建立同步基线，登录 GitHub 后可在多设备之间同步收藏数据。'
+  if (syncStore.lastSyncedAt) return t('my.summaryLastSync', { time: formatTime(syncStore.lastSyncedAt) })
+  if (syncStore.githubLogin) return t('my.summaryConnected')
+  return t('my.summaryNotConnected')
 })
 
 const exchangeRateLastUpdatedText = computed(() => {
-  if (!exchangeRateStore.lastUpdated) return '尚未获取'
-  return `最近更新 ${formatTime(exchangeRateStore.lastUpdated)}`
+  if (!exchangeRateStore.lastUpdated) return t('my.rateNotFetched')
+  return t('my.rateLastUpdated', { time: formatTime(exchangeRateStore.lastUpdated) })
 })
 
 async function refreshExchangeRates() {
@@ -577,7 +579,7 @@ const showScanner = ref(false)
 const scannerReady = ref(false)
 const scannerVideoRef = ref(null)
 const scannerCanvasRef = ref(null)
-const scannerHint = ref('将二维码放入框内，即可自动扫描')
+const scannerHint = ref('') // initialized in openScanner with t()
 let scannerStream = null
 let scannerTimer = 0
 let scannerResolved = false
@@ -593,7 +595,7 @@ function loadImageFromSrc(src) {
     img.decoding = 'async'
     img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('二维码图片加载失败'))
+    img.onerror = () => reject(new Error(t('my.qrLoadFailed')))
     img.src = src
   })
 }
@@ -670,10 +672,10 @@ async function onScannerQRFound(text) {
   stopScanner()
 
   if (!gistId) {
-    scannerHint.value = '未识别到有效分享码，请重试'
+    scannerHint.value = t('my.scanInvalidShareCode')
     setTimeout(() => {
       scannerResolved = false
-      scannerHint.value = '将二维码放入框内，即可自动扫描'
+      scannerHint.value = t('my.scannerHint')
       startScannerLoop()
     }, 1500)
     return
@@ -744,7 +746,7 @@ async function openScanner() {
       scannerVideoRef.value.srcObject = stream
       // video @playing event will call onScannerVideoReady → startScannerLoop
     }
-    scannerHint.value = '将二维码放入框内，即可自动扫描'
+    scannerHint.value = t('my.scannerHint')
   } catch {
     // Fallback: if getUserMedia fails (e.g. no permission), use native camera
     closeScanner()
@@ -753,9 +755,9 @@ async function openScanner() {
         source: CameraSource.Prompt,
         resultType: CameraResultType.Uri,
         quality: 92,
-        promptLabelHeader: '扫码导入',
-        promptLabelPhoto: '从相册选择',
-        promptLabelPicture: '拍摄二维码'
+        promptLabelHeader: t('my.promptScanImport'),
+        promptLabelPhoto: t('my.promptFromGallery'),
+        promptLabelPicture: t('my.promptTakePhoto')
       })
 
       const src = String(photo?.webPath || photo?.path || '').trim()
@@ -765,14 +767,14 @@ async function openScanner() {
       const text = await decodeQrFromImageElement(image)
 
       if (!text) {
-        scanError.value = '未识别到二维码，请重试或手动输入分享码'
+        scanError.value = t('my.scanNoQR')
         scanning.value = false
         return
       }
 
       const { gistId, shareId } = extractIdsFromInput(text)
       if (!gistId) {
-        scanError.value = '二维码内容不是有效的分享码'
+        scanError.value = t('my.scanInvalidContent')
         scanning.value = false
         return
       }
@@ -786,7 +788,7 @@ async function openScanner() {
     } catch (e2) {
       const message = String(e2?.message || '')
       if (!message || !/cancel|canceled|cancelled/i.test(message)) {
-        scanError.value = e2?.message || '扫码失败，请稍后重试'
+        scanError.value = e2?.message || t('my.scanFailed')
       }
       scanning.value = false
     }
@@ -802,7 +804,7 @@ async function handleScannerGallery() {
       source: CameraSource.Photos,
       resultType: CameraResultType.Uri,
       quality: 92,
-      promptLabelHeader: '从相册选择二维码'
+      promptLabelHeader: t('my.scanFromGallery')
     })
 
     const src = String(photo?.webPath || photo?.path || '').trim()
@@ -814,17 +816,17 @@ async function handleScannerGallery() {
     if (text) {
       await onScannerQRFound(text)
     } else {
-      scannerHint.value = '未识别到二维码，请重试'
+      scannerHint.value = t('my.scanNoQRRetry')
       setTimeout(() => {
         scannerResolved = false
-        scannerHint.value = '将二维码放入框内，即可自动扫描'
+        scannerHint.value = t('my.scannerHint')
         startScannerLoop()
       }, 1500)
     }
   } catch (e) {
     const message = String(e?.message || '')
     if (!message || !/cancel|canceled|cancelled/i.test(message)) {
-      scanError.value = e?.message || '读取相册失败'
+      scanError.value = e?.message || t('my.galleryReadFailed')
     }
     startScannerLoop()
   }
@@ -845,15 +847,11 @@ function closeLogoutDialog() {
 
 function showToast(message) {
   // Simple fallback toast for MyView since we didn't extract a full Vant-like system
-  // We can create a simple text element or just ignore if it's less critical.
-  // Actually, we can use standard alert for copy text:
-  if (message.includes('失败')) {
-    console.error(message)
-  }
+  console.error(message)
 }
 
 async function handleGithubLoginSuccess(user) {
-  showToast(`GitHub 登录成功（${user.login}）`)
+  showToast(t('my.loginSuccess', { login: user.login }))
   showLoginDialog.value = false
 }
 

@@ -137,7 +137,9 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] init: getItems failed, starting with empty list:', e)
       list.value = []
       import('vant').then(({ showFailToast }) => {
-        showFailToast('数据加载失败：' + ((e && e.message) || '未知错误'))
+        import('@/locales').then(({ default: i18n }) => {
+          showFailToast(i18n.global.t('toast.dataLoadFailed', { error: (e && e.message) || i18n.global.t('goods.unknownError') }))
+        }).catch(() => {})
       }).catch(() => {})
     }
     try {

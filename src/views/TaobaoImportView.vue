@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="page taobao-import-page">
-    <NavBar title="淘宝订单导入" show-back />
+    <NavBar :title="t('import.taobao')" show-back />
 
     <main class="page-body">
       <Transition name="step-fade" mode="out-in">
@@ -16,15 +16,15 @@
               </svg>
             </div>
             <div class="info-body">
-              <p class="info-title">如何导出淘宝订单？</p>
+              <p class="info-title">{{ t('import.taobaoHowTo') }}</p>
               <ol class="info-steps">
-                <li>打开 <strong>电脑版淘宝</strong>（taobao.com）并登录</li>
-                <li>进入「我的淘宝」→「已买到的宝贝」</li>
-                <li>通过筛选条件选好要导出的订单范围</li>
-                <li>点击「<strong>导出订单</strong>」按钮</li>
-                <li>在弹出的「选择导出项」中确认选择，等待生成</li>
-                <li>下载 .xlsx 文件（每页需单独导出）</li>
-                <li>在下方选择所有文件即可一次性导入</li>
+                <li>{{ t('import.taobaoStep1') }}</li>
+                <li>{{ t('import.taobaoStep2') }}</li>
+                <li>{{ t('import.taobaoStep3') }}</li>
+                <li>{{ t('import.taobaoStep4') }}</li>
+                <li>{{ t('import.taobaoStep5') }}</li>
+                <li>{{ t('import.taobaoStep6') }}</li>
+                <li>{{ t('import.taobaoStep7') }}</li>
               </ol>
             </div>
           </div>
@@ -38,8 +38,8 @@
               <path d="M28 4v12h12"/>
               <path d="M17 28h14M17 34h8"/>
             </svg>
-            <p class="file-pick-label">点击选择 .xlsx 文件（可多选）</p>
-            <p class="file-pick-sub">也可将多个文件拖拽到此处</p>
+            <p class="file-pick-label">{{ t('import.taobaoPickFile') }}</p>
+            <p class="file-pick-sub">{{ t('import.taobaoDragDrop') }}</p>
             <input ref="fileInputRef" type="file" accept=".xlsx" multiple class="file-input-hidden" @change="onFileChange" />
           </div>
         </section>
@@ -47,12 +47,12 @@
         <!-- ========== Step: list（预览 + 选择） ========== -->
         <section v-else-if="step === 'list'" key="list" class="step-section step-section--list">
           <div class="list-header">
-            <p class="list-count">{{ processedOrders.length }} 个订单 · {{ allGoods.length }} 件</p>
+            <p class="list-count">{{ t('import.taobaoOrderCount', { orders: processedOrders.length, items: allGoods.length }) }}</p>
             <div class="list-header-actions">
               <button :class="['text-btn', isAllSelectableSelected && 'text-btn--active']"
-                type="button" @click="selectAll">全选</button>
+                type="button" @click="selectAll">{{ t('common.selectAll') }}</button>
               <button :class="['text-btn', hasSelection && 'text-btn--active']"
-                type="button" @click="deselectAll">取消全选</button>
+                type="button" @click="deselectAll">{{ t('common.deselectAll') }}</button>
             </div>
           </div>
 
@@ -91,17 +91,17 @@
 
                 <!-- 订单信息 -->
                 <div class="order-info" @click="toggleExpand(po.orderNo)">
-                  <p class="order-name">{{ po.goods[0]?.name || '未知商品' }}</p>
+                  <p class="order-name">{{ po.goods[0]?.name || t('import.unknownGoods') }}</p>
                   <div class="order-meta">
-                    <span v-if="po.goods.length > 1" class="meta-count">共 {{ po.goods.length }} 件</span>
+                    <span v-if="po.goods.length > 1" class="meta-count">{{ t('import.goodsCount', { count: po.goods.length }) }}</span>
                     <span v-if="po.shopName" class="meta-shop">{{ po.shopName }}</span>
                     <span class="meta-date">{{ po.goods[0]?.acquiredAt }}</span>
                   </div>
                 </div>
 
-                <span v-if="isOrderImported(po)" class="status-badge status--imported">已导入</span>
+                <span v-if="isOrderImported(po)" class="status-badge status--imported">{{ t('import.alreadyImported') }}</span>
                 <span v-else-if="isOrderRefunded(po)" class="status-badge status--refund">{{ po.status }}</span>
-                <span v-else-if="isOrderClosed(po)" class="status-badge status--refund">已关闭</span>
+                <span v-else-if="isOrderClosed(po)" class="status-badge status--refund">{{ t('import.orderClosed') }}</span>
 
                 <!-- 展开箭头 -->
                 <button :class="['expand-btn', expandedSet.has(po.orderNo) && 'expand-btn--open']"
@@ -146,8 +146,8 @@
                         <span v-if="item.characters?.length" class="meta-char">{{ item.characters[0] }}</span>
                         <span v-else-if="item.variant" class="meta-char">{{ item.variant }}</span>
                         <span v-if="isItemRefundedOrCancelled(item)" class="status-badge status--refund meta-item-status">{{ item._status }}</span>
-                        <span v-else-if="CLOSED_ORDER_PATTERNS.some(p => p.test(item._status || ''))" class="status-badge status--refund meta-item-status">已关闭</span>
-                        <span v-else-if="isItemImported(item)" class="status-badge status--imported meta-item-status">已导入</span>
+                        <span v-else-if="CLOSED_ORDER_PATTERNS.some(p => p.test(item._status || ''))" class="status-badge status--refund meta-item-status">{{ t('import.orderClosed') }}</span>
+                        <span v-else-if="isItemImported(item)" class="status-badge status--imported meta-item-status">{{ t('import.alreadyImported') }}</span>
                         <span v-else-if="item._displayVariant" class="meta-variant">{{ item._displayVariant }}</span>
                       </div>
                     </div>
@@ -169,11 +169,11 @@
           <!-- 底部按钮 -->
           <div class="bottom-bar">
             <button class="secondary-btn" type="button" @click="step = 'pick'">
-              重新选文件
+              {{ t('import.taobaoRepick') }}
             </button>
             <button class="primary-btn" type="button"
               :disabled="selectedSet.size === 0" @click="doImport">
-              导入 {{ selectedSet.size > 0 ? `${selectedSet.size} 件` : '' }}谷子
+              {{ t('import.importGoods', { count: selectedSet.size || '' }) }}
             </button>
           </div>
         </section>
@@ -186,9 +186,9 @@
               <polyline points="7 12 11 16 17 8"/>
             </svg>
           </div>
-          <p class="done-title">导入成功</p>
-          <p class="done-sub">已添加 <strong>{{ importedCount }}</strong> 种谷子（共 <strong>{{ importedTotalQty }}</strong> 件）到收藏</p>
-          <button class="primary-btn" type="button" @click="$router.push('/home')">返回首页</button>
+          <p class="done-title">{{ t('import.importComplete') }}</p>
+          <p class="done-sub">{{ t('import.importDoneSub', { count: importedCount, qty: importedTotalQty }) }}</p>
+          <button class="primary-btn" type="button" @click="$router.push('/home')">{{ t('import.backToHome') }}</button>
         </section>
 
       </Transition>
@@ -200,42 +200,42 @@
         <div v-if="showEditSheet" class="sheet-backdrop" @click="closeEdit" />
       </Transition>
       <Transition name="sheet-slide">
-        <div v-if="showEditSheet" class="edit-sheet" role="dialog" aria-modal="true" aria-label="编辑商品信息">
+        <div v-if="showEditSheet" class="edit-sheet" role="dialog" aria-modal="true" :aria-label="t('import.editGoodsInfo')">
           <div class="sheet-handle" aria-hidden="true" />
-          <p class="sheet-title">编辑商品信息</p>
+          <p class="sheet-title">{{ t('import.editGoodsInfo') }}</p>
 
           <div class="edit-sheet-body">
             <div class="edit-field">
-              <span class="edit-label">名称</span>
-              <input v-model="editForm.name" type="text" placeholder="商品名称" class="edit-input" />
+              <span class="edit-label">{{ t('common.name') }}</span>
+              <input v-model="editForm.name" type="text" :placeholder="t('import.goodsName')" class="edit-input" />
             </div>
             <div class="edit-field">
               <span class="edit-label">IP</span>
-              <AppSelect v-model="editForm.ip" :options="presets.ips" placeholder="请选择 IP" />
+              <AppSelect v-model="editForm.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
             </div>
             <div class="edit-field">
-              <span class="edit-label">分类</span>
-              <AppSelect v-model="editForm.category" :options="presets.categories" placeholder="请选择分类" />
+              <span class="edit-label">{{ t('common.category') }}</span>
+              <AppSelect v-model="editForm.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
             </div>
             <div class="edit-field">
-              <span class="edit-label">角色</span>
-              <input v-model="editForm.charactersText" type="text" placeholder="角色名（多个用逗号分隔）" class="edit-input" />
+              <span class="edit-label">{{ t('common.character') }}</span>
+              <input v-model="editForm.charactersText" type="text" :placeholder="t('import.characterPlaceholder')" class="edit-input" />
             </div>
             <div class="edit-field">
-              <span class="edit-label">款式</span>
-              <input v-model="editForm.variant" type="text" placeholder="款式描述" class="edit-input" />
+              <span class="edit-label">{{ t('common.variant') }}</span>
+              <input v-model="editForm.variant" type="text" :placeholder="t('import.variantPlaceholder')" class="edit-input" />
             </div>
             <div class="edit-field">
-              <span class="edit-label">价格（¥）</span>
+              <span class="edit-label">{{ t('import.priceLabel') }}</span>
               <input v-model="editForm.price" type="number" min="0" step="1" placeholder="0.00" class="edit-input" />
               <p v-if="editPriceError" class="field-error field-error--block">{{ editPriceError }}</p>
             </div>
             <div class="edit-field">
-              <span class="edit-label">购入日期</span>
+              <span class="edit-label">{{ t('import.purchaseDate') }}</span>
               <input v-model="editForm.acquiredAt" type="date" class="edit-input" />
             </div>
             <div class="edit-field edit-field--image">
-              <span class="edit-label">图片 URL</span>
+              <span class="edit-label">{{ t('import.imageUrl') }}</span>
               <MihoyoImagePicker
                 ref="editMihoyoPickerRef"
                 v-model="editForm.image"
@@ -243,14 +243,14 @@
               />
             </div>
             <div class="edit-field">
-              <span class="edit-label">备注</span>
-              <input v-model="editForm.note" type="text" placeholder="备注（可选）" class="edit-input" />
+              <span class="edit-label">{{ t('common.note') }}</span>
+              <input v-model="editForm.note" type="text" :placeholder="t('import.notePlaceholder')" class="edit-input" />
             </div>
           </div>
 
           <div class="edit-sheet-actions">
-            <button class="edit-cancel-btn" type="button" @click="closeEdit">取消</button>
-            <button class="edit-save-btn" type="button" @click="saveEdit">保存</button>
+            <button class="edit-cancel-btn" type="button" @click="closeEdit">{{ t('common.cancel') }}</button>
+            <button class="edit-save-btn" type="button" @click="saveEdit">{{ t('common.save') }}</button>
           </div>
         </div>
       </Transition>
@@ -260,6 +260,7 @@
 
 <script setup>
 import { ref, computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { parseTaobaoXlsx } from '@/utils/taobao'
@@ -271,6 +272,7 @@ import { validatePrice } from '@/utils/validate'
 
 defineOptions({ name: 'TaobaoImportView' })
 
+const { t } = useI18n()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 
@@ -446,7 +448,7 @@ async function parseFiles(files) {
       return true
     })
     if (deduped.length === 0) {
-      parseError.value = '未解析到任何商品数据，请确认文件是淘宝导出的订单列表'
+      parseError.value = t('import.taobaoNoData')
       return
     }
     rawGoods.value = deduped
@@ -457,7 +459,7 @@ async function parseFiles(files) {
     expandedSet.value = new Set()
     step.value = 'list'
   } catch (err) {
-    parseError.value = err.message || '文件解析失败'
+    parseError.value = err.message || t('import.fileParseFailed')
   }
 }
 

@@ -3,8 +3,8 @@
     <div v-if="modelValue" class="overlay" @click.self="closeDialog">
       <div class="dialog dialog--wide dialog--scrollable">
         <div class="dialog-scroll">
-          <h3 class="dialog-title">GitHub 授权登录</h3>
-          <p class="dialog-desc">使用 Device Flow 完成授权。授权成功后会自动保存访问令牌，并同步当前 GitHub 账号信息。</p>
+          <h3 class="dialog-title">{{ t('sync.githubLoginTitle') }}</h3>
+          <p class="dialog-desc">{{ t('sync.githubLoginDesc') }}</p>
 
           <div v-if="githubLoginStatus" class="dialog-success">{{ githubLoginStatus }}</div>
           <div v-if="githubLoginError" class="dialog-error">{{ githubLoginError }}</div>
@@ -12,36 +12,36 @@
           <article v-if="githubDeviceInfo" class="panel-card" style="margin-top: 16px;">
             <div class="detail-list">
               <div class="detail-row">
-                <span class="detail-label">验证码</span>
+                <span class="detail-label">{{ t('sync.deviceCode') }}</span>
                 <span class="detail-value detail-value--mono">{{ githubDeviceInfo.user_code }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">授权地址</span>
+                <span class="detail-label">{{ t('sync.authUrl') }}</span>
                 <span class="detail-value detail-value--mono">{{ githubVerificationUrl }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">倒计时</span>
+                <span class="detail-label">{{ t('sync.countdown') }}</span>
                 <span class="detail-value detail-value--countdown">{{ githubDeviceCountdownText }}</span>
               </div>
               <div class="detail-row detail-row--last">
-                <span class="detail-label">权限范围</span>
+                <span class="detail-label">{{ t('sync.scope') }}</span>
                 <span class="detail-value">{{ githubDeviceScope }}</span>
               </div>
             </div>
           </article>
 
           <div class="dialog-actions dialog-actions--wrap" style="margin-top: 16px;">
-            <button class="dialog-btn dialog-btn--secondary" :disabled="!githubDeviceInfo" @click="copyText(githubDeviceInfo?.user_code || '')">复制验证码</button>
-            <button class="dialog-btn dialog-btn--secondary" :disabled="!githubVerificationUrl" @click="openGithubVerificationPage">打开授权页</button>
+            <button class="dialog-btn dialog-btn--secondary" :disabled="!githubDeviceInfo" @click="copyText(githubDeviceInfo?.user_code || '')">{{ t('sync.copyCode') }}</button>
+            <button class="dialog-btn dialog-btn--secondary" :disabled="!githubVerificationUrl" @click="openGithubVerificationPage">{{ t('sync.openAuthPage') }}</button>
           </div>
           <div class="dialog-actions dialog-actions--wrap">
-            <button class="dialog-btn dialog-btn--secondary" @click="closeDialog">取消</button>
+            <button class="dialog-btn dialog-btn--secondary" @click="closeDialog">{{ t('theme.cancel') }}</button>
             <button
               class="dialog-btn dialog-btn--primary"
               :disabled="isRequestingGithubDeviceCode || isPollingGithubLogin || !githubOAuthClientId"
               @click="handleStartGithubLogin"
             >
-              {{ isRequestingGithubDeviceCode ? '申请设备码...' : isPollingGithubLogin ? '等待授权中...' : '开始授权' }}
+              {{ isRequestingGithubDeviceCode ? t('sync.requestingDeviceCode') : isPollingGithubLogin ? t('sync.waitingForAuth') : t('sync.startAuth') }}
             </button>
           </div>
         </div>
@@ -52,6 +52,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSyncStore } from '@/stores/sync'
 import {
   fetchGitHubUser,
@@ -71,6 +72,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'login-success', 'toast'])
 
+const { t } = useI18n()
 const syncStore = useSyncStore()
 
 const githubOAuthClientId = getGitHubOAuthClientId()
@@ -90,7 +92,7 @@ const githubVerificationUrl = computed(() => githubDeviceInfo.value?.verificatio
 
 const githubDeviceCountdownText = computed(() => {
   if (!githubDeviceInfo.value) return ''
-  if (githubDeviceCountdownSeconds.value <= 0) return '已过期'
+  if (githubDeviceCountdownSeconds.value <= 0) return t('sync.expired')
 
   const totalSeconds = githubDeviceCountdownSeconds.value
   const minutes = Math.floor(totalSeconds / 60)
@@ -118,9 +120,9 @@ function startGithubDeviceCountdown(expiresInSeconds) {
 
     if (githubDeviceCountdownSeconds.value <= 0) {
       stopGithubDeviceCountdown()
-      githubLoginStatus.value = '验证码已过期，请重新开始授权。'
+      githubLoginStatus.value = t('sync.codeExpiredStatus')
       if (!githubLoginError.value) {
-        githubLoginError.value = 'GitHub 设备码已过期，请重新发起登录。'
+        githubLoginError.value = t('sync.codeExpiredError')
       }
     }
   }, 1000)
@@ -156,10 +158,10 @@ async function copyText(text) {
   if (!text) return
   try {
     await navigator.clipboard.writeText(text)
-    emit('toast', '已复制验证码', 2000)
+    emit('toast', t('sync.codeCopied'), 2000)
   } catch (err) {
-    console.error('复制失败', err)
-    emit('toast', '复制失败: ' + err.message, 2000)
+    console.error('Copy failed', err)
+    emit('toast', t('sync.copyFailed') + ': ' + err.message, 2000)
   }
 }
 
@@ -167,7 +169,7 @@ watch(() => props.modelValue, (newVal) => {
   if (newVal) {
     resetGithubLoginState()
     if (!githubOAuthClientId) {
-      githubLoginError.value = '未配置 GitHub OAuth Client ID，请先设置 VITE_GITHUB_OAUTH_CLIENT_ID。'
+      githubLoginError.value = t('sync.githubOAuthNotConfigured')
     }
   }
 })
@@ -175,12 +177,12 @@ watch(() => props.modelValue, (newVal) => {
 async function handleStartGithubLogin() {
   if (isRequestingGithubDeviceCode.value || isPollingGithubLogin.value) return
   if (!githubOAuthClientId) {
-    githubLoginError.value = '未配置 GitHub OAuth Client ID，请先设置 VITE_GITHUB_OAUTH_CLIENT_ID。'
+    githubLoginError.value = t('sync.githubOAuthNotConfigured')
     return
   }
 
   githubLoginError.value = ''
-  githubLoginStatus.value = '正在向 GitHub 申请设备码...'
+  githubLoginStatus.value = t('sync.requestingDeviceCodeStatus')
   githubDeviceInfo.value = null
   isRequestingGithubDeviceCode.value = true
 
@@ -191,7 +193,7 @@ async function handleStartGithubLogin() {
     const device = await requestGitHubDeviceCode(githubOAuthClientId, githubDeviceScope, controller.signal)
     githubDeviceInfo.value = device
     startGithubDeviceCountdown(device.expires_in)
-    githubLoginStatus.value = `请将验证码 ${device.user_code} 填入授权页面`
+    githubLoginStatus.value = t('sync.fillCode', { code: device.user_code })
 
     const verificationUrl = githubVerificationUrl.value
     if (verificationUrl) {
@@ -199,7 +201,7 @@ async function handleStartGithubLogin() {
     }
 
     isPollingGithubLogin.value = true
-    githubLoginStatus.value = '等待你在 GitHub 完成授权...'
+    githubLoginStatus.value = t('sync.waitingForAuthStatus')
 
     const token = await pollGitHubAccessToken({
       clientId: githubOAuthClientId,
@@ -209,7 +211,7 @@ async function handleStartGithubLogin() {
       signal: controller.signal
     })
 
-    githubLoginStatus.value = '正在验证 GitHub 账号...'
+    githubLoginStatus.value = t('sync.verifyingAccount')
     const user = await fetchGitHubUser(token.access_token, controller.signal)
 
     await syncStore.saveToken(token.access_token, {
@@ -225,7 +227,7 @@ async function handleStartGithubLogin() {
     emit('login-success', user)
     closeDialog()
   } catch (error) {
-    githubLoginError.value = error?.message || 'GitHub 登录失败'
+    githubLoginError.value = error?.message || t('sync.loginFailed')
     githubLoginStatus.value = ''
   } finally {
     isRequestingGithubDeviceCode.value = false

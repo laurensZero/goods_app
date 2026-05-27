@@ -4,14 +4,14 @@
       <section v-if="!rechargeSelectionMode" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Recharge Archive</p>
-          <h1 class="hero-title">充值库</h1>
+          <h1 class="hero-title">{{ t('recharge.rechargeArchive') }}</h1>
         </div>
 
         <div class="hero-actions">
           <button
             class="hero-search"
             type="button"
-            aria-label="搜索"
+            :aria-label="t('recharge.searchAria')"
             @click="handleHeroSearch"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -38,7 +38,7 @@
         v-if="isRechargeActive && !rechargeSelectionMode"
         class="fab"
         type="button"
-        aria-label="添加充值记录"
+        :aria-label="t('recharge.addRecord')"
         @click="openRechargeAdd"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -52,6 +52,7 @@
 
 <script setup>
 import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
@@ -61,6 +62,8 @@ import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'RechargeView' })
+
+const { t } = useI18n()
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'

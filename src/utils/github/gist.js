@@ -198,7 +198,7 @@ async function requestPublic(method, path, token, body = null) {
             // ignore invalid date formatting
           }
         }
-        throw new Error(`GitHub API 访问频率受限。请先在“云同步”里配置 GitHub Token 后重试${resetHint}`)
+        throw new Error(`GitHub API 访问频率受限。请先在"云同步"里配置 GitHub Token 后重试${resetHint}`)
       }
 
       const message = error?.message || `GitHub API error: ${response.status}`

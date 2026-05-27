@@ -1,0 +1,12 @@
+{
+  "leaderboard.title": "数据统计",
+  "leaderboard.dimension": "维度",
+  "leaderboard.stats": "统计",
+  "leaderboard.dimensionRatio": "维度占比",
+  "leaderboard.emptyDesc": "暂无数据",
+  "leaderboard.emptyTitle": "暂无统计",
+  "leaderboard.groupCount": "分组数",
+  "leaderboard.sortMetric": "排序指标",
+  "leaderboard.totalItems": "总件数",
+  "leaderboard.unsetItems": "未设置"
+}

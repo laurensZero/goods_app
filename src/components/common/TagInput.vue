@@ -6,7 +6,7 @@
         <button
           class="tag-chip__remove"
           type="button"
-          :aria-label="`移除标签 ${tag}`"
+          :aria-label="`${t('common.aria.removeTag')} ${tag}`"
           @click="removeTag(tag)"
         >
           ×
@@ -17,19 +17,22 @@
         v-model="draft"
         class="tag-input__field"
         type="text"
-        :placeholder="modelValue.length === 0 ? placeholder : ''"
+        :placeholder="modelValue.length === 0 ? resolvedPlaceholder : ''"
         @keydown.enter.prevent="commitDraft"
         @keydown="handleKeydown"
         @blur="commitDraft"
       />
     </div>
 
-    <p class="tag-input__hint">{{ hint }}</p>
+    <p class="tag-input__hint">{{ resolvedHint }}</p>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -38,13 +41,16 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: '输入标签后回车'
+    default: ''
   },
   hint: {
     type: String,
-    default: '按回车或英文逗号添加，可添加多个标签'
+    default: ''
   }
 })
+
+const resolvedPlaceholder = computed(() => props.placeholder || t('common.tagPlaceholder'))
+const resolvedHint = computed(() => props.hint || t('common.tagHint'))
 
 const emit = defineEmits(['update:modelValue'])
 

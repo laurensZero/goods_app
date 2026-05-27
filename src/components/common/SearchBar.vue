@@ -8,7 +8,7 @@
     <input
       ref="inputRef"
       :value="modelValue"
-      :placeholder="placeholder"
+      :placeholder="resolvedPlaceholder"
       :autofocus="autofocus"
       type="text"
       inputmode="search"
@@ -25,7 +25,7 @@
       v-if="modelValue"
       class="clear-btn"
       type="button"
-      aria-label="清空搜索"
+      :aria-label="t('common.aria.clearSearch')"
       @click="$emit('update:modelValue', '')"
     >
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -37,12 +37,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-defineProps({
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+const props = defineProps({
   modelValue: { type: String, default: '' },
-  placeholder: { type: String, default: '搜索名称或分类' },
+  placeholder: { type: String, default: '' },
   autofocus: { type: Boolean, default: false }
 })
+
+const resolvedPlaceholder = computed(() => props.placeholder || t('search.placeholder'))
 
 const emit = defineEmits(['update:modelValue'])
 const inputRef = ref(null)

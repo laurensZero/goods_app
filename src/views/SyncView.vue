@@ -1,10 +1,10 @@
 <template>
   <div class="page sync-page">
-    <NavBar title="云同步" show-back />
+    <NavBar :title="t('sync.title')" show-back />
 
     <Transition name="toast-fade">
       <div v-if="syncNoticeText" class="sync-notice" :class="`sync-notice--${syncNoticeLevel}`" role="alert">
-        <span class="sync-notice__title">同步{{ syncNoticeLevel === 'error' ? '失败' : '提示' }}</span>
+        <span class="sync-notice__title">{{ syncNoticeLevel === 'error' ? t('sync.errorTitle') : t('sync.syncNotice') }}</span>
         <span class="sync-notice__body">{{ syncNoticeText }}</span>
       </div>
     </Transition>
@@ -15,15 +15,15 @@
           <div class="hero-head">
             <div class="hero-copy">
               <p class="hero-label">Cloud Sync</p>
-              <h1 class="hero-title">{{ syncBackendLabel }} 同步</h1>
-              <p class="hero-desc">在多设备之间同步收藏、心愿单、回收站、充值记录、预设数据和本地图片。</p>
+              <h1 class="hero-title">{{ t('sync.syncLabel', { backend: syncBackendLabel }) }}</h1>
+              <p class="hero-desc">{{ t('sync.description') }}</p>
             </div>
             <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
           </div>
 
           <div class="hero-grid">
             <div class="hero-metric">
-              <p class="hero-metric__label">最近同步</p>
+              <p class="hero-metric__label">{{ t('sync.recentSync') }}</p>
               <p class="hero-metric__value">{{ lastSyncDisplay }}</p>
             </div>
             <div class="hero-metric">
@@ -37,7 +37,7 @@
               :disabled="!syncStore.token"
               @click="copyText(syncStore.token)"
             >
-              <p class="hero-metric__label">同步 Token</p>
+              <p class="hero-metric__label">{{ t('sync.syncToken') }}</p>
               <p class="hero-metric__value hero-metric__value--mono">{{ tokenDisplay }}</p>
             </button>
           </div>
@@ -47,11 +47,11 @@
       <Transition name="overlay-fade">
         <div v-if="showBackendConfirm" class="overlay" @click.self="cancelChooseBackend">
           <div class="dialog">
-            <h3 class="dialog-title">切换同步后端</h3>
-            <p class="dialog-desc">确定要切换同步后端为 <strong>{{ pendingBackend === 'supabase' ? 'Supabase' : 'GitHub Gist' }}</strong> 吗？切换可能需要重新配置连接信息。</p>
+            <h3 class="dialog-title">{{ t('sync.switchBackend') }}</h3>
+            <p class="dialog-desc">{{ t('sync.switchBackendDesc', { backend: pendingBackend === 'supabase' ? 'Supabase' : 'GitHub Gist' }) }}</p>
             <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="cancelChooseBackend">取消</button>
-              <button class="dialog-btn dialog-btn--primary" @click="confirmChooseBackend">确认切换</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="cancelChooseBackend">{{ t('common.cancel') }}</button>
+              <button class="dialog-btn dialog-btn--primary" @click="confirmChooseBackend">{{ t('sync.confirmSwitch') }}</button>
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@
       <section class="content-section overview-section">
         <div class="section-head">
           <p class="section-label">Sync Overview</p>
-          <h2 class="section-title">同步概览</h2>
+          <h2 class="section-title">{{ t('sync.overview') }}</h2>
         </div>
 
         <div class="overview-grid">
@@ -68,7 +68,7 @@
             <div class="panel-head">
               <div>
                 <p class="panel-kicker">Connection</p>
-                <h3 class="panel-title">连接信息</h3>
+                <h3 class="panel-title">{{ t('sync.connection') }}</h3>
               </div>
               <span class="panel-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
             </div>
@@ -80,24 +80,24 @@
                   <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
                 </button>
                 <div class="detail-row">
-                  <span class="detail-label">GitHub 账号</span>
-                  <span class="detail-value">{{ syncStore.githubLogin || '未登录' }}</span>
+                  <span class="detail-label">{{ t('sync.githubAccount') }}</span>
+                  <span class="detail-value">{{ syncStore.githubLogin || t('common.notLoggedIn') }}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">同步密码</span>
+                  <span class="detail-label">{{ t('sync.syncPassword') }}</span>
                   <input
                     :value="syncStore.syncPassword"
                     class="password-input"
                     type="password"
-                    placeholder="用于 Gist 加密"
+                    :placeholder="t('sync.syncPasswordPlaceholder')"
                     autocomplete="off"
                     spellcheck="false"
                     @input="handlePasswordChange"
                   />
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">启用加密</span>
-                  <label class="toggle-switch" aria-label="启用 Gist 加密">
+                  <span class="detail-label">{{ t('sync.enableEncryption') }}</span>
+                  <label class="toggle-switch" :aria-label="t('sync.enableEncryption')">
                     <input
                       :checked="syncStore.encryptionEnabled"
                       :disabled="!syncStore.syncPassword"
@@ -109,17 +109,17 @@
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Data Gist</span>
-                  <span class="detail-value detail-value--mono">{{ syncStore.gistId || '未创建' }}</span>
+                  <span class="detail-value detail-value--mono">{{ syncStore.gistId || t('common.notCreated') }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Image Gist</span>
-                  <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
+                  <span class="detail-value detail-value--mono">{{ resolvedImageGistId || t('common.notCreated') }}</span>
                 </div>
               </template>
 
               <template v-else-if="syncStore.syncBackend === 'supabase'">
                 <div class="detail-row">
-                  <span class="detail-label">Supabase 项目 URL</span>
+                  <span class="detail-label">{{ t('sync.supabaseUrl') }}</span>
                   <button type="button" class="detail-value detail-value--mono detail-value--link" @click="openSupabaseUrlDialog">{{ supabaseUrlDisplay }}</button>
                 </div>
                 <div class="detail-row">
@@ -129,12 +129,12 @@
               </template>
 
               <div class="detail-row">
-                <span class="detail-label">设备 ID</span>
+                <span class="detail-label">{{ t('sync.deviceId') }}</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
               </div>
 
               <div class="detail-row detail-row--last">
-                <span class="detail-label">最近同步</span>
+                <span class="detail-label">{{ t('sync.recentSync') }}</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
               </div>
             </div>
@@ -144,66 +144,66 @@
             <div class="panel-head">
               <div>
                 <p class="panel-kicker">Image Sync</p>
-                <h3 class="panel-title">图片同步</h3>
+                <h3 class="panel-title">{{ t('sync.imageSync') }}</h3>
               </div>
             </div>
 
             <div class="detail-list">
               <div class="detail-row">
                 <span class="detail-label">Image Gist</span>
-                <span class="detail-value detail-value--mono">{{ resolvedImageGistId || '未创建' }}</span>
+                <span class="detail-value detail-value--mono">{{ resolvedImageGistId || t('common.notCreated') }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">图片文件数</span>
+                <span class="detail-label">{{ t('sync.imageFileCount') }}</span>
                 <span class="detail-value">{{ imageFileCount }}</span>
               </div>
               <article class="stat-card stat-card--image">
                 <p class="stat-label">Images</p>
                 <p class="stat-value">{{ imageFileCount }}</p>
-                <p class="stat-desc">图片 Gist 当前保存的图片文件数量。</p>
+                <p class="stat-desc">{{ t('sync.remoteImagesDesc') }}</p>
               </article>
             </div>
-            <p class="section-note">本地图片会同步到独立图片 Gist，最近图片同步时间：{{ imageSyncDisplay }}。</p>
+            <p class="section-note">{{ t('sync.imageSyncTime', { time: imageSyncDisplay }) }}</p>
           </article>
 
           <article class="panel-card">
             <div class="panel-head">
               <div>
                 <p class="panel-kicker">Remote Data</p>
-                <h3 class="panel-title">远端数据</h3>
+                <h3 class="panel-title">{{ t('sync.remoteData') }}</h3>
               </div>
             </div>
 
             <div class="stats-grid">
               <article class="stat-card stat-card--collection">
-                <p class="stat-label">收藏</p>
+                <p class="stat-label">{{ t('sync.remoteCollection') }}</p>
                 <p class="stat-value">{{ collectionCount }}</p>
-                <p class="stat-desc">云端已记录的正式收藏条目。</p>
+                <p class="stat-desc">{{ t('sync.remoteCollectionDesc') }}</p>
               </article>
               <article class="stat-card stat-card--wishlist">
-                <p class="stat-label">心愿单</p>
+                <p class="stat-label">{{ t('sync.remoteWishlist') }}</p>
                 <p class="stat-value">{{ wishlistCount }}</p>
-                <p class="stat-desc">云端当前标记为心愿单的条目。</p>
+                <p class="stat-desc">{{ t('sync.remoteWishlistDesc') }}</p>
               </article>
               <article class="stat-card stat-card--wishlist">
-                <p class="stat-label">充值</p>
+                <p class="stat-label">{{ t('sync.remoteRecharge') }}</p>
                 <p class="stat-value">{{ rechargeCount }}</p>
-                <p class="stat-desc">云端保存的充值记录总数。</p>
+                <p class="stat-desc">{{ t('sync.remoteRechargeDesc') }}</p>
               </article>
               <article class="stat-card stat-card--collection">
-                <p class="stat-label">活动</p>
+                <p class="stat-label">{{ t('sync.remoteEvents') }}</p>
                 <p class="stat-value">{{ eventCount }}</p>
-                <p class="stat-desc">云端保存的活动总数。</p>
+                <p class="stat-desc">{{ t('sync.remoteEventsDesc') }}</p>
               </article>
               <article class="stat-card stat-card--image">
-                <p class="stat-label">图片文件</p>
+                <p class="stat-label">{{ t('sync.remoteImages') }}</p>
                 <p class="stat-value">{{ imageFileCount }}</p>
-                <p class="stat-desc">图片 Gist 当前保存的图片文件数量。</p>
+                <p class="stat-desc">{{ t('sync.remoteImagesDesc') }}</p>
               </article>
               <article class="stat-card stat-card--trash">
-                <p class="stat-label">回收站</p>
+                <p class="stat-label">{{ t('sync.remoteTrash') }}</p>
                 <p class="stat-value">{{ trashCount }}</p>
-                <p class="stat-desc">云端保留的已删除数据数量。</p>
+                <p class="stat-desc">{{ t('sync.remoteTrashDesc') }}</p>
               </article>
             </div>
           </article>
@@ -213,7 +213,7 @@
       <section class="content-section actions-section">
         <div class="section-head">
           <p class="section-label">Sync Actions</p>
-          <h2 class="section-title">同步操作</h2>
+          <h2 class="section-title">{{ t('sync.actions') }}</h2>
         </div>
 
         <div class="action-grid">
@@ -234,8 +234,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Push & Resolve</p>
-              <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || '同步中') : '上传到远端后端' }}</h3>
-              <p class="entry-desc">将收藏、充值、活动等数据同步到远端后端，若发现冲突会提示你选择处理方式。</p>
+              <h3 class="entry-name">{{ syncStore.isSyncing ? (syncStore.syncStatus || t('sync.syncing')) : t('sync.uploadToRemote') }}</h3>
+              <p class="entry-desc">{{ t('sync.uploadDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -257,8 +257,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Remote to Local</p>
-              <h3 class="entry-name">拉取远端数据</h3>
-              <p class="entry-desc">把远端的最新数据合并到当前设备，不会直接覆盖本地收藏。</p>
+              <h3 class="entry-name">{{ t('sync.pullRemote') }}</h3>
+              <p class="entry-desc">{{ t('sync.pullDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -271,7 +271,7 @@
       <section class="content-section">
         <div class="section-head">
           <p class="section-label">Backend</p>
-          <h2 class="section-title">同步后端</h2>
+          <h2 class="section-title">{{ t('sync.backend') }}</h2>
         </div>
 
         <div class="backend-grid">
@@ -288,8 +288,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">GitHub Gist</p>
-              <h3 class="entry-name">使用 GitHub Gist 存储</h3>
-              <p class="entry-desc">借助 GitHub 进行跨设备同步，支持端到端加密与历史版本，配置简单。</p>
+              <h3 class="entry-name">{{ t('sync.gistBackend') }}</h3>
+              <p class="entry-desc">{{ t('sync.gistBackendDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -311,8 +311,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Supabase</p>
-              <h3 class="entry-name">使用 Supabase 存储</h3>
-              <p class="entry-desc">将数据与图片保存在你自己的 Supabase 项目，可以进行实时同步，但配置较繁琐。</p>
+              <h3 class="entry-name">{{ t('sync.supabaseBackend') }}</h3>
+              <p class="entry-desc">{{ t('sync.supabaseBackendDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -326,7 +326,7 @@
       <section v-if="syncStore.syncBackend === 'gist'" class="content-section config-section">
         <div class="section-head">
           <p class="section-label">Config</p>
-          <h2 class="section-title">配置与维护</h2>
+          <h2 class="section-title">{{ t('sync.configMaintenance') }}</h2>
         </div>
 
         <div class="action-grid">
@@ -340,8 +340,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Remote Inspect</p>
-              <h3 class="entry-name">查看数据 Gist</h3>
-              <p class="entry-desc">直接打开当前 Gist 页面，检查远端文件、更新时间与历史版本。</p>
+              <h3 class="entry-name">{{ t('sync.viewDataGist') }}</h3>
+              <p class="entry-desc">{{ t('sync.viewDataGistDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -358,8 +358,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Image Store</p>
-              <h3 class="entry-name">查看图片 Gist</h3>
-              <p class="entry-desc">打开独立图片 Gist，查看同步后的本地图片文件和更新时间。</p>
+              <h3 class="entry-name">{{ t('sync.viewImageGist') }}</h3>
+              <p class="entry-desc">{{ t('sync.viewImageGistDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -376,8 +376,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">GitHub OAuth</p>
-              <h3 class="entry-name">{{ syncStore.githubLogin ? `重新登录（${syncStore.githubLogin}）` : '使用 GitHub 授权登录' }}</h3>
-              <p class="entry-desc">通过 Device Flow 完成授权，自动保存可用于同步、反馈和更新的访问令牌。</p>
+              <h3 class="entry-name">{{ syncStore.githubLogin ? `${t('sync.relogin')}（${syncStore.githubLogin}）` : t('sync.githubLogin') }}</h3>
+              <p class="entry-desc">{{ t('sync.githubLoginDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -393,8 +393,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">GitHub Access</p>
-              <h3 class="entry-name">{{ syncStore.token ? '手动更换 Token' : '手动配置 Token' }}</h3>
-              <p class="entry-desc">仍可手动保存带有 <code>gist</code> 权限的 Personal Access Token 作为备用方案。</p>
+              <h3 class="entry-name">{{ syncStore.token ? t('sync.manualTokenReplace') : t('sync.manualToken') }}</h3>
+              <p class="entry-desc">{{ t('sync.manualTokenDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -411,8 +411,8 @@
             </span>
             <div class="entry-body">
               <p class="entry-kicker">Reset</p>
-              <h3 class="entry-name">清除同步配置</h3>
-              <p class="entry-desc">移除当前设备保存的 Token 和 Gist 配置，但不会删除 GitHub 上的远端数据。</p>
+              <h3 class="entry-name">{{ t('sync.clearConfig') }}</h3>
+              <p class="entry-desc">{{ t('sync.clearConfigDesc') }}</p>
             </div>
             <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -434,9 +434,9 @@
               </span>
               <div class="error-card__copy">
                 <p class="error-card__label">Sync Error</p>
-                <h3 class="error-card__title">同步失败</h3>
+                <h3 class="error-card__title">{{ t('sync.errorTitle') }}</h3>
               </div>
-              <button type="button" class="error-card__dismiss" @click="clearSyncError" aria-label="关闭">
+              <button type="button" class="error-card__dismiss" @click="clearSyncError" :aria-label="t('common.close')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -446,15 +446,15 @@
 
             <div class="error-card__body">
               <div class="error-card__row">
-                <span class="error-card__key">失败阶段</span>
+                <span class="error-card__key">{{ t('sync.errorPhase') }}</span>
                 <span class="error-card__val">{{ syncPhaseName }}</span>
               </div>
               <div class="error-card__row">
-                <span class="error-card__key">失败原因</span>
+                <span class="error-card__key">{{ t('sync.errorCause') }}</span>
                 <span class="error-card__val">{{ syncCauseName }}</span>
               </div>
               <div class="error-card__row">
-                <span class="error-card__key">错误信息</span>
+                <span class="error-card__key">{{ t('sync.errorMessage') }}</span>
                 <span class="error-card__val error-card__val--detail">{{ syncStore.lastError }}</span>
               </div>
             </div>
@@ -467,7 +467,7 @@
                 class="error-card__action"
                 @click="openGithubLoginDialog"
               >
-                重新登录
+                {{ t('sync.relogin') }}
               </button>
             </div>
           </article>
@@ -477,21 +477,21 @@
       <section class="content-section logs-section">
         <div class="section-head">
           <p class="section-label">Sync Trace</p>
-          <h2 class="section-title">同步日志</h2>
+          <h2 class="section-title">{{ t('sync.syncLogs') }}</h2>
         </div>
 
         <article class="panel-card log-panel">
           <div class="panel-head">
             <div>
               <p class="panel-kicker">Detailed Trace</p>
-              <h3 class="panel-title">拉取 / 上传明细</h3>
+              <h3 class="panel-title">{{ t('sync.logsSubtitle') }}</h3>
             </div>
             <span class="panel-badge" :class="syncStore.isSyncing ? 'badge--syncing' : 'log-count-badge'">
-              {{ syncStore.isSyncing ? '记录中' : `${syncStore.syncLogs.length} 条` }}
+              {{ syncStore.isSyncing ? t('sync.recording') : t('sync.logCount', { count: syncStore.syncLogs.length }) }}
             </span>
           </div>
 
-          <p class="section-note">这里会按文件和阶段分组展示同步日志。图片文件默认折叠，点开组标题就能看明细。</p>
+          <p class="section-note">{{ t('sync.logsNote') }}</p>
 
           <div v-if="groupedSyncLogs.length > 0" class="log-groups">
             <article
@@ -503,7 +503,7 @@
               <button type="button" class="log-group-head" @click="toggleLogGroup(group.key)">
                 <div class="log-group-head__copy">
                   <p class="log-group-title">{{ group.label }}</p>
-                  <span class="log-group-meta">{{ group.logs.length }} 条</span>
+                  <span class="log-group-meta">{{ t('sync.logCount', { count: group.logs.length }) }}</span>
                 </div>
 
                 <div class="log-group-head__stats">
@@ -528,14 +528,14 @@
                         <div class="log-title-row">
                           <p class="log-title">{{ entry.title }}</p>
                           <span class="log-status">
-                            {{ entry.status === 'running' ? '进行中' : entry.status === 'success' ? '完成' : '失败' }}
+                            {{ entry.status === 'running' ? t('sync.status.running') : entry.status === 'success' ? t('sync.status.success') : t('sync.status.failed') }}
                           </span>
                         </div>
                         <span class="log-time">{{ formatLogTime(entry.timestamp) }}</span>
                       </div>
 
                       <div class="log-meta">
-                        <p class="log-detail">{{ entry.detail || '处理中...' }}</p>
+                        <p class="log-detail">{{ entry.detail || t('toast.loading') }}</p>
                         <span v-if="entry.durationMs !== null" class="log-duration">{{ formatLogDuration(entry.durationMs) }}</span>
                       </div>
                     </div>
@@ -546,7 +546,7 @@
           </div>
 
           <div v-else class="log-empty">
-            开始同步后，这里会显示每个文件的读取步骤和耗时。
+            {{ t('sync.logEmpty') }}
           </div>
         </article>
       </section>
@@ -554,10 +554,10 @@
       <Transition name="overlay-fade">
         <div v-if="showTokenDialog" class="overlay" @click.self="closeTokenDialog">
           <div class="dialog">
-            <h3 class="dialog-title">配置 GitHub Token</h3>
+            <h3 class="dialog-title">{{ t('sync.configGithubToken') }}</h3>
             <p class="dialog-desc">
-              需要一个包含 <code>gist</code> 权限的 Personal Access Token。
-              <a href="https://github.com/settings/tokens/new?scopes=gist&description=goods-app-sync" target="_blank" rel="noopener">点击创建</a>
+              {{ t('sync.tokenDialogDesc') }}
+              <a href="https://github.com/settings/tokens/new?scopes=gist&description=goods-app-sync" target="_blank" rel="noopener">{{ t('sync.createToken') }}</a>
             </p>
             <input
               v-model="tokenInput"
@@ -567,15 +567,15 @@
               autocomplete="off"
             />
             <div v-if="tokenError" class="dialog-error">{{ tokenError }}</div>
-            <div v-if="tokenValidLogin" class="dialog-success">已验证：{{ tokenValidLogin }}</div>
+            <div v-if="tokenValidLogin" class="dialog-success">{{ t('sync.verified') }}：{{ tokenValidLogin }}</div>
             <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="closeTokenDialog">取消</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="closeTokenDialog">{{ t('common.cancel') }}</button>
               <button
                 class="dialog-btn dialog-btn--primary"
                 :disabled="isVerifyingToken || !tokenInput.trim()"
                 @click="handleSaveToken"
               >
-                {{ isVerifyingToken ? '验证中...' : '验证并保存' }}
+                {{ isVerifyingToken ? t('sync.verifying') : t('sync.verifyAndSave') }}
               </button>
             </div>
           </div>
@@ -591,13 +591,13 @@
       <Transition name="overlay-fade">
         <div v-if="showResetConfirm" class="overlay" @click.self="showResetConfirm = false">
           <div class="dialog">
-            <h3 class="dialog-title">确认清除配置</h3>
+            <h3 class="dialog-title">{{ t('common.confirmDelete') }}</h3>
             <p class="dialog-desc">
-              清除后需要重新配置 Token。远端 Gist 中的数据不会被删除。
+              {{ t('sync.clearConfigDesc') }}
             </p>
             <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="showResetConfirm = false">取消</button>
-              <button class="dialog-btn dialog-btn--danger" @click="handleReset">确认清除</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="showResetConfirm = false">{{ t('common.cancel') }}</button>
+              <button class="dialog-btn dialog-btn--danger" @click="handleReset">{{ t('common.confirmDelete') }}</button>
             </div>
           </div>
         </div>
@@ -607,42 +607,42 @@
         <div v-if="showPullConflict" class="overlay">
           <div class="dialog dialog--wide dialog--scrollable">
             <div class="dialog-scroll">
-              <h3 class="dialog-title">检测到远端数据</h3>
+              <h3 class="dialog-title">{{ t('sync.remoteDataDetected') }}</h3>
               <div class="conflict-info">
                 <div class="conflict-row">
-                  <span class="conflict-label">来源设备</span>
+                  <span class="conflict-label">{{ t('sync.sourceDevice') }}</span>
                   <span class="conflict-value">{{ pullConflictData.remoteDevice }}</span>
                 </div>
                 <div class="conflict-row">
-                  <span class="conflict-label">远端时间</span>
+                  <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
                   <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
                 </div>
                 <div class="conflict-row">
-                  <span class="conflict-label">远端总数</span>
-                  <span class="conflict-value">{{ pullConflictData.remoteCollectionCount }} 收藏，{{ pullConflictData.remoteWishlistCount }} 心愿单，{{ pullConflictData.remoteTrashCount }} 回收站，{{ pullConflictData.remoteRechargeCount || 0 }} 充值，{{ pullConflictData.remoteEventCount || 0 }} 活动，{{ pullConflictData.remoteImageCount || 0 }} 张图片</span>
+                  <span class="conflict-label">{{ t('sync.remoteTotal') }}</span>
+                  <span class="conflict-value">{{ t('sync.remoteTotalValue', { collection: pullConflictData.remoteCollectionCount, wishlist: pullConflictData.remoteWishlistCount, trash: pullConflictData.remoteTrashCount, recharge: pullConflictData.remoteRechargeCount || 0, events: pullConflictData.remoteEventCount || 0, images: pullConflictData.remoteImageCount || 0 }) }}</span>
                 </div>
               </div>
               <div class="conflict-diff">
-                <p class="conflict-diff-title">差异</p>
+                <p class="conflict-diff-title">{{ t('sync.diff') }}</p>
                 <div class="conflict-diff-row">
-                  <span class="conflict-diff-label">远端新增</span>
-                  <span class="conflict-diff-value conflict-diff-value--add">+{{ pullConflictData.remoteOnlyCollection }} 收藏，+{{ pullConflictData.remoteOnlyWishlist }} 心愿单，+{{ pullConflictData.remoteOnlyTrash }} 回收站，+{{ pullConflictData.remoteOnlyRecharge || 0 }} 充值，+{{ pullConflictData.remoteOnlyEvents || 0 }} 活动，+{{ pullConflictData.remoteOnlyImages || 0 }} 张图片</span>
+                  <span class="conflict-diff-label">{{ t('sync.remoteAdded') }}</span>
+                  <span class="conflict-diff-value conflict-diff-value--add">{{ t('sync.remoteAddedValue', { collection: pullConflictData.remoteOnlyCollection, wishlist: pullConflictData.remoteOnlyWishlist, trash: pullConflictData.remoteOnlyTrash, recharge: pullConflictData.remoteOnlyRecharge || 0, events: pullConflictData.remoteOnlyEvents || 0, images: pullConflictData.remoteOnlyImages || 0 }) }}</span>
                 </div>
                 <div class="conflict-diff-row">
-                  <span class="conflict-diff-label">远端修改</span>
-                  <span class="conflict-diff-value conflict-diff-value--update">{{ pullConflictData.updatedGoods || 0 }} 条商品，{{ pullConflictData.updatedRecharge || 0 }} 条充值，{{ pullConflictData.updatedEvents || 0 }} 场活动，{{ pullConflictData.updatedImages || 0 }} 张图片</span>
+                  <span class="conflict-diff-label">{{ t('sync.remoteModified') }}</span>
+                  <span class="conflict-diff-value conflict-diff-value--update">{{ t('sync.remoteModifiedValue', { goods: pullConflictData.updatedGoods || 0, recharge: pullConflictData.updatedRecharge || 0, events: pullConflictData.updatedEvents || 0, images: pullConflictData.updatedImages || 0 }) }}</span>
                 </div>
                 <div class="conflict-diff-row">
-                  <span class="conflict-diff-label">本地独有</span>
-                  <span class="conflict-diff-value conflict-diff-value--local">{{ pullConflictData.localOnlyCollection }} 收藏，{{ pullConflictData.localOnlyWishlist }} 心愿单，{{ pullConflictData.localOnlyTrash }} 回收站，{{ pullConflictData.localOnlyRecharge || 0 }} 充值，{{ pullConflictData.localOnlyEvents || 0 }} 活动，{{ pullConflictData.localOnlyImages || 0 }} 张图片</span>
+                  <span class="conflict-diff-label">{{ t('sync.localOnly') }}</span>
+                  <span class="conflict-diff-value conflict-diff-value--local">{{ t('sync.localOnlyValue', { collection: pullConflictData.localOnlyCollection, wishlist: pullConflictData.localOnlyWishlist, trash: pullConflictData.localOnlyTrash, recharge: pullConflictData.localOnlyRecharge || 0, events: pullConflictData.localOnlyEvents || 0, images: pullConflictData.localOnlyImages || 0 }) }}</span>
                 </div>
               </div>
-              <p class="conflict-desc">确认拉取后，当前设备会对齐远端状态。远端已经删除的数据，也会从本地同步移除。</p>
+              <p class="conflict-desc">{{ t('sync.pullConflictDesc') }}</p>
             </div>
             <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">取消</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">{{ t('common.cancel') }}</button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
-                确认拉取
+                {{ t('sync.confirmPull') }}
               </button>
             </div>
           </div>
@@ -653,30 +653,30 @@
         <div v-if="showSyncConflict" class="overlay">
           <div class="dialog dialog--scrollable">
             <div class="dialog-scroll">
-              <h3 class="dialog-title">检测到冲突</h3>
-              <p class="conflict-desc">远端存在其他设备更新的数据。下面会同时显示本地上次同步时间和本地最近修改时间。</p>
+              <h3 class="dialog-title">{{ t('sync.conflictDetected') }}</h3>
+              <p class="conflict-desc">{{ t('sync.conflictDesc') }}</p>
               <div class="conflict-info">
                 <div class="conflict-row">
-                  <span class="conflict-label">远端时间</span>
+                  <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
                   <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
                 </div>
                 <div class="conflict-row">
-                  <span class="conflict-label">本地上次同步</span>
-                  <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || '从未同步' }}</span>
+                  <span class="conflict-label">{{ t('sync.localLastSync') }}</span>
+                  <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || t('sync.neverSynced') }}</span>
                 </div>
                 <div class="conflict-row">
-                  <span class="conflict-label">本地最近修改</span>
-                  <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || '无本地改动' }}</span>
+                  <span class="conflict-label">{{ t('sync.localLastModified') }}</span>
+                  <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || t('sync.noLocalChanges') }}</span>
                 </div>
               </div>
-              <p class="conflict-desc">请选择要保留哪一边的数据：</p>
+              <p class="conflict-desc">{{ t('sync.conflictChoose') }}</p>
             </div>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(false)">
-                上传本地
+                {{ t('sync.uploadLocal') }}
               </button>
               <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(true)">
-                拉取远端
+                {{ t('sync.pullRemoteBtn') }}
               </button>
             </div>
           </div>
@@ -687,7 +687,7 @@
       <Transition name="overlay-fade">
         <div v-if="showSupabaseUrlDialog" class="overlay" @click.self="showSupabaseUrlDialog = false">
           <div class="dialog">
-            <h3 class="dialog-title">Supabase 项目 URL</h3>
+            <h3 class="dialog-title">{{ t('sync.supabaseUrlTitle') }}</h3>
             <input
               v-model="supabaseUrlInput"
               class="dialog-input"
@@ -696,8 +696,8 @@
               autocomplete="off"
             />
             <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseUrlDialog = false">取消</button>
-              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseUrlInput.trim()" @click="handleSaveSupabaseUrl">保存</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseUrlDialog = false">{{ t('common.cancel') }}</button>
+              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseUrlInput.trim()" @click="handleSaveSupabaseUrl">{{ t('common.save') }}</button>
             </div>
           </div>
         </div>
@@ -707,7 +707,7 @@
       <Transition name="overlay-fade">
         <div v-if="showSupabaseKeyDialog" class="overlay" @click.self="showSupabaseKeyDialog = false">
           <div class="dialog">
-            <h3 class="dialog-title">Supabase Anon Key</h3>
+            <h3 class="dialog-title">{{ t('sync.supabaseKeyTitle') }}</h3>
             <input
               v-model="supabaseKeyInput"
               class="dialog-input"
@@ -716,8 +716,8 @@
               autocomplete="off"
             />
             <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseKeyDialog = false">取消</button>
-              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseKeyInput.trim()" @click="handleSaveSupabaseKey">保存</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseKeyDialog = false">{{ t('common.cancel') }}</button>
+              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseKeyInput.trim()" @click="handleSaveSupabaseKey">{{ t('common.save') }}</button>
             </div>
           </div>
         </div>
@@ -753,9 +753,11 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { showSuccessToast, showFailToast } from 'vant'
 import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
+import { useI18n } from 'vue-i18n'
 
 const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common/GithubLoginDialog.vue'))
 
+const { t } = useI18n()
 const syncStore = useSyncStore()
 const route = useRoute()
 const router = useRouter()
@@ -807,23 +809,23 @@ const LOG_GROUP_SEQUENCE = [
   'event-cover-file',
   'other'
 ]
-const LOG_GROUP_LABELS = {
+const LOG_GROUP_LABEL_KEYS = {
   manifest: 'manifest',
   data: 'data',
   'recharge-data': 'recharge-data',
   'events-data': 'events-data',
-  'image-gist': '图片 Gist',
-  'recharge-gist': '充值 Gist',
-  'event-gist': '活动 Gist',
-  'image-merge': '图片恢复',
-  'local-collection': '本地收藏 / 回收站',
-  'local-recharge': '本地充值',
-  'local-event': '本地活动',
-  'update-image-gist': '图片 Gist 更新',
-  'update-main-gist': '主同步 Gist 更新',
-  'image-file': '图片文件',
-  'event-cover-file': '活动封面',
-  other: '其他'
+  'image-gist': 'sync.logGroup.imageGist',
+  'recharge-gist': 'sync.logGroup.rechargeGist',
+  'event-gist': 'sync.logGroup.eventGist',
+  'image-merge': 'sync.logGroup.imageMerge',
+  'local-collection': 'sync.logGroup.localCollection',
+  'local-recharge': 'sync.logGroup.localRecharge',
+  'local-event': 'sync.logGroup.localEvent',
+  'update-image-gist': 'sync.logGroup.updateImageGist',
+  'update-main-gist': 'sync.logGroup.updateMainGist',
+  'image-file': 'sync.logGroup.imageFile',
+  'event-cover-file': 'sync.logGroup.eventCover',
+  other: 'sync.logGroup.other'
 }
 const DEFAULT_OPEN_LOG_GROUPS = []
 const expandedLogGroups = ref(new Set(DEFAULT_OPEN_LOG_GROUPS))
@@ -834,9 +836,10 @@ const groupedSyncLogs = computed(() => {
   for (const entry of syncStore.syncLogs) {
     const key = resolveLogGroupKey(entry)
     if (!groupMap.has(key)) {
+      const labelKey = LOG_GROUP_LABEL_KEYS[key] || LOG_GROUP_LABEL_KEYS.other
       groupMap.set(key, {
         key,
-        label: LOG_GROUP_LABELS[key] || LOG_GROUP_LABELS.other,
+        label: labelKey.startsWith('sync.') ? t(labelKey) : labelKey,
         logs: []
       })
     }
@@ -913,7 +916,7 @@ watch(() => syncStore.conflictData, (val) => {
 })
 
 const lastSyncDisplay = computed(() => {
-  if (!syncStore.lastSyncedAt) return '从未同步'
+  if (!syncStore.lastSyncedAt) return t('sync.neverSynced')
   return formatTime(syncStore.lastSyncedAt)
 })
 
@@ -931,36 +934,42 @@ const statusBadgeClass = computed(() => {
 })
 
 const statusBadgeText = computed(() => {
-  if (syncStore.isSyncing) return '同步中'
-  if (syncStore.lastError) return '有错误'
-  if (syncStore.githubLogin) return '已登录'
-  if (!syncStore.token) return '未配置'
-  if (syncStore.gistId) return '已连接'
-  return '待上传'
+  if (syncStore.isSyncing) return t('sync.syncing')
+  if (syncStore.lastError) return t('sync.hasError')
+  if (syncStore.githubLogin) return t('sync.loggedIn')
+  if (!syncStore.token) return t('sync.notConfigured')
+  if (syncStore.gistId) return t('sync.connected')
+  return t('sync.pendingUpload')
 })
 
 const PHASE_NAME_MAP = {
-  [PHASE_ENSURE_GIST]: '初始化同步空间',
-  [PHASE_READ_MANIFEST]: '读取同步摘要',
-  [PHASE_READ_REMOTE]: '读取云端数据',
-  [PHASE_DIFF]: '对比数据差异',
-  [PHASE_PULL]: '拉取云端数据',
-  [PHASE_PUSH]: '上传本地数据',
-  [PHASE_UPLOAD_IMAGES]: '上传图片',
-  [PHASE_WRITE_DATA]: '写入数据文件'
+  [PHASE_ENSURE_GIST]: 'sync.phase.ensureGist',
+  [PHASE_READ_MANIFEST]: 'sync.phase.readManifest',
+  [PHASE_READ_REMOTE]: 'sync.phase.readRemote',
+  [PHASE_DIFF]: 'sync.phase.diff',
+  [PHASE_PULL]: 'sync.phase.pull',
+  [PHASE_PUSH]: 'sync.phase.push',
+  [PHASE_UPLOAD_IMAGES]: 'sync.phase.uploadImages',
+  [PHASE_WRITE_DATA]: 'sync.phase.writeData'
 }
 
 const CAUSE_NAME_MAP = {
-  [CAUSE_NETWORK]: '网络异常',
-  [CAUSE_RATE_LIMIT]: '请求过于频繁',
-  [CAUSE_AUTH]: '认证失败',
-  [CAUSE_SERVER]: '服务端异常',
-  [CAUSE_DATA_FORMAT]: '数据格式错误',
-  [CAUSE_UNKNOWN]: '未知错误'
+  [CAUSE_NETWORK]: 'sync.cause.network',
+  [CAUSE_RATE_LIMIT]: 'sync.cause.rateLimit',
+  [CAUSE_AUTH]: 'sync.cause.auth',
+  [CAUSE_SERVER]: 'sync.cause.server',
+  [CAUSE_DATA_FORMAT]: 'sync.cause.dataFormat',
+  [CAUSE_UNKNOWN]: 'sync.cause.unknown'
 }
 
-const syncPhaseName = computed(() => PHASE_NAME_MAP[syncStore.syncPhase] || syncStore.syncPhase || '')
-const syncCauseName = computed(() => CAUSE_NAME_MAP[syncStore.syncCause] || syncStore.syncCause || '')
+const syncPhaseName = computed(() => {
+  const key = PHASE_NAME_MAP[syncStore.syncPhase]
+  return key ? t(key) : syncStore.syncPhase || ''
+})
+const syncCauseName = computed(() => {
+  const key = CAUSE_NAME_MAP[syncStore.syncCause]
+  return key ? t(key) : syncStore.syncCause || ''
+})
 
 function clearSyncError() {
   syncStore.syncPhase = null
@@ -985,19 +994,19 @@ const githubDeviceExpiresText = computed(() => {
   if (!Number.isFinite(expiresIn) || expiresIn <= 0) return '--'
   const minutes = Math.floor(expiresIn / 60)
   const seconds = expiresIn % 60
-  return minutes > 0 ? `${minutes} 分 ${seconds} 秒` : `${seconds} 秒`
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
 })
 
 const tokenDisplay = computed(() => {
-  if (!syncStore.token) return '未配置'
+  if (!syncStore.token) return t('sync.notConfigured')
   const token = syncStore.token
   return `${token.slice(0, 4)}...${token.slice(-4)}`
 })
 
-const remoteIdLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase 项目' : '远端 Gist')
+const remoteIdLabel = computed(() => syncStore.syncBackend === 'supabase' ? t('sync.supabaseUrl') : t('sync.remoteGist'))
 const remoteIdDisplay = computed(() => {
-  if (syncStore.syncBackend === 'supabase') return syncStore.supabaseUrl || '未配置'
-  return syncStore.gistId || '未创建'
+  if (syncStore.syncBackend === 'supabase') return syncStore.supabaseUrl || t('sync.notConfigured')
+  return syncStore.gistId || t('common.notCreated')
 })
 
 const gistUrl = computed(() => {
@@ -1027,7 +1036,7 @@ const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
 const eventCount = computed(() => gistInfo.value?.eventCount ?? '-')
 const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
 const imageSyncDisplay = computed(() => {
-  if (!gistInfo.value?.imageUpdatedAt) return '未同步图片'
+  if (!gistInfo.value?.imageUpdatedAt) return t('sync.neverSynced')
   return formatTime(gistInfo.value.imageUpdatedAt)
 })
 
@@ -1054,7 +1063,7 @@ function formatLogDuration(durationMs) {
   if (!Number.isFinite(numericDuration)) return ''
 
   const seconds = numericDuration / 1000
-  return `${seconds >= 10 ? seconds.toFixed(1) : seconds.toFixed(2)} 秒`
+  return `${seconds >= 10 ? seconds.toFixed(1) : seconds.toFixed(2)}s`
 }
 
 function showToast(message, duration = 2600) {
@@ -1131,9 +1140,9 @@ async function loadGistInfo() {
 
 function buildImageSyncText(result) {
   const parts = []
-  if (result?.uploadedImages > 0) parts.push(`上传 ${result.uploadedImages} 张图片`)
-  if (result?.reusedImages > 0) parts.push(`复用 ${result.reusedImages} 张图片`)
-  if (result?.restoredImages > 0) parts.push(`恢复 ${result.restoredImages} 张图片`)
+  if (result?.uploadedImages > 0) parts.push(t('sync.uploadImages', { count: result.uploadedImages }))
+  if (result?.reusedImages > 0) parts.push(t('sync.reuseImages', { count: result.reusedImages }))
+  if (result?.restoredImages > 0) parts.push(t('sync.restoreImages', { count: result.restoredImages }))
   return parts.join('，')
 }
 
@@ -1145,7 +1154,7 @@ async function handlePasswordChange(event) {
       await syncStore.setEncryptionEnabled(false)
     }
   } catch (e) {
-    console.error('设置密码失败:', e)
+    console.error(t('sync.setPwdFailed'), e)
   }
 }
 
@@ -1154,7 +1163,7 @@ async function handleEncryptionToggle(event) {
   try {
     await syncStore.setEncryptionEnabled(enabled)
   } catch (e) {
-    console.error('切换加密状态失败:', e)
+    console.error(t('sync.toggleEncryptionFailed'), e)
     event.target.checked = !enabled
   }
 }
@@ -1163,15 +1172,15 @@ async function copyText(text) {
   if (!text) return
   try {
     await navigator.clipboard.writeText(text)
-    showToast('已复制')
+    showToast(t('common.copied'))
   } catch {
-    showToast('复制失败')
+    showToast(t('common.copyFailed'))
   }
 }
 
 function openEventGist() {
   if (!eventGistUrl.value) {
-    showToast('还没有活动 Gist')
+    showToast(t('sync.noGistYet'))
     return
   }
   window.open(eventGistUrl.value, '_blank', 'noopener')
@@ -1180,14 +1189,35 @@ function openEventGist() {
 function buildEventSyncSummary(result) {
   if (!result) return ''
   if (result.action === 'no_changes') return ''
-  return `，活动 ${result.totalEvents ?? 0} 场`
+  return `，${t('sync.eventsAdded', { count: result.totalEvents ?? 0 })}`
 }
 
 function buildEventPullSummary(result) {
   if (!result) return ''
   const changed = Number(result.added || 0) + Number(result.updated || 0)
-  if (changed <= 0) return '，活动无更新'
-  return `，活动新增 ${result.added || 0} 场、更新 ${result.updated || 0} 场`
+  if (changed <= 0) return ''
+  return `，${t('sync.eventsAdded', { count: result.added || 0 })}、${t('sync.eventsUpdated', { count: result.updated || 0 })}`
+}
+
+function buildPullResultParts(result) {
+  const parts = []
+  if (result.importedGoods > 0) parts.push(t('sync.imported', { count: result.importedGoods }))
+  if (result.updatedGoods > 0) parts.push(t('sync.updated', { count: result.updatedGoods }))
+  if (result.importedTrash > 0) parts.push(t('sync.trashImported', { count: result.importedTrash }))
+  if (result.importedRecharge > 0) parts.push(t('sync.rechargeAdded', { count: result.importedRecharge }))
+  if (result.updatedRecharge > 0) parts.push(t('sync.rechargeUpdated', { count: result.updatedRecharge }))
+  if (result.importedEvents > 0) parts.push(t('sync.eventsAdded', { count: result.importedEvents }))
+  if (result.updatedEvents > 0) parts.push(t('sync.eventsUpdated', { count: result.updatedEvents }))
+  return parts
+}
+
+function buildPushResultParts(result) {
+  const parts = []
+  if (result.updatedGoods > 0) parts.push(t('sync.updated', { count: result.updatedGoods }))
+  if (result.updatedTrash > 0) parts.push(t('sync.trashImported', { count: result.updatedTrash }))
+  if (result.updatedRecharge > 0) parts.push(t('sync.rechargeUpdated', { count: result.updatedRecharge }))
+  if (result.updatedEvents > 0) parts.push(t('sync.eventsUpdated', { count: result.updatedEvents }))
+  return parts
 }
 
 async function handleSync() {
@@ -1197,7 +1227,7 @@ async function handleSync() {
     const result = await syncStore.fullSync()
 
     if (!result) {
-      showToast('上传完成')
+      showToast(t('sync.uploadComplete'))
       await loadGistInfo()
       return
     }
@@ -1214,36 +1244,25 @@ async function handleSync() {
 
     let message = ''
     if (result.action === 'pulled') {
-      const parts = []
-      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
-      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
-      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
-      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-      if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
-      if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
-      message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const parts = buildPullResultParts(result)
+      message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
     } else if (result.action === 'no_changes') {
-      message = '数据已经是最新，无需上传'
+      message = t('sync.noUploadNeeded')
     } else if (result.action === 'pushed') {
       if (result.hasChanges) {
-        const parts = []
-        if (result.updatedGoods > 0) parts.push(`收藏 ${result.updatedGoods} 件`)
-        if (result.updatedTrash > 0) parts.push(`回收站 ${result.updatedTrash} 条`)
-        if (result.updatedRecharge > 0) parts.push(`充值 ${result.updatedRecharge} 条`)
-        if (result.updatedEvents > 0) parts.push(`活动 ${result.updatedEvents} 场`)
-        message = `上传完成，${parts.join('，')}`
+        const parts = buildPushResultParts(result)
+        message = `${t('sync.uploadComplete')}，${parts.join('，')}`
       } else {
-        message = '已按当前本地数据重新上传'
+        message = t('sync.uploadComplete')
       }
     } else {
-      message = '上传完成'
+      message = t('sync.uploadComplete')
     }
 
     showToast(message, 3500)
     await loadGistInfo()
   } catch (error) {
-    showToast(syncStore.syncSuggestion || `上传失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || t('sync.uploadFailed', { error: error.message }))
   }
 }
 
@@ -1254,24 +1273,17 @@ async function handlePull() {
     const result = await syncStore.pullOnly()
 
     if (result?.action === 'pulled') {
-      const parts = []
-      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
-      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
-      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
-      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-        if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
-        if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
-      let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const parts = buildPullResultParts(result)
+      let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'no_changes') {
-      let message = '数据已经是最新'
+      let message = t('sync.dataUpToDate')
       showToast(message, 3500)
       await loadGistInfo()
     }
   } catch (error) {
-    showToast(syncStore.syncSuggestion || `拉取失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || t('sync.pullFailed', { error: error.message }))
   }
 }
 
@@ -1281,22 +1293,15 @@ async function handlePullConflict(confirm) {
     const result = await syncStore.resolvePullConflict(confirm)
 
     if (result?.action === 'pulled') {
-      const parts = []
-      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
-      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
-      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
-      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-        if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
-        if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
-      let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const parts = buildPullResultParts(result)
+      let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
       await loadGistInfo()
     } else if (result?.action === 'cancelled') {
-      showToast('已取消拉取')
+      showToast(t('sync.pullCancelled'))
     }
   } catch (error) {
-    showToast(syncStore.syncSuggestion || `拉取失败：${error.message}`)
+    showToast(syncStore.syncSuggestion || t('sync.pullFailed', { error: error.message }))
   }
 }
 
@@ -1306,22 +1311,15 @@ async function handleSyncConflict(useRemote) {
     showSyncConflict.value = false
 
     if (result?.action === 'pulled') {
-      const parts = []
-      if (result.importedGoods > 0) parts.push(`导入 ${result.importedGoods} 件`)
-      if (result.updatedGoods > 0) parts.push(`更新 ${result.updatedGoods} 件`)
-      if (result.importedTrash > 0) parts.push(`回收站 ${result.importedTrash} 条`)
-      if (result.importedRecharge > 0) parts.push(`充值新增 ${result.importedRecharge} 条`)
-      if (result.updatedRecharge > 0) parts.push(`充值更新 ${result.updatedRecharge} 条`)
-        if (result.importedEvents > 0) parts.push(`活动新增 ${result.importedEvents} 场`)
-        if (result.updatedEvents > 0) parts.push(`活动更新 ${result.updatedEvents} 场`)
-      let message = parts.length > 0 ? `拉取完成，${parts.join('，')}` : '数据已经是最新'
+      const parts = buildPullResultParts(result)
+      let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {
-      showToast(`上传完成`, 3500)
+      showToast(t('sync.uploadComplete'), 3500)
     }
     await loadGistInfo()
   } catch (error) {
-    showToast(syncStore.syncSuggestion || (useRemote ? `拉取失败：${error.message}` : `上传失败：${error.message}`))
+    showToast(syncStore.syncSuggestion || (useRemote ? `${t('sync.pullFailed', { error: error.message })}` : `${t('sync.uploadFailed', { error: error.message })}`))
   }
 }
 
@@ -1353,7 +1351,7 @@ function openGithubLoginDialog() {
   showGithubLoginDialog.value = true
   resetGithubLoginState()
   if (!githubOAuthClientId) {
-    githubLoginError.value = '未配置 GitHub OAuth Client ID，请先设置 VITE_GITHUB_OAUTH_CLIENT_ID。'
+    githubLoginError.value = t('sync.githubOAuthNotConfigured')
   }
 }
 
@@ -1380,13 +1378,13 @@ async function handleSaveToken() {
   try {
     const check = await validateToken(input)
     if (!check.valid) {
-      tokenError.value = 'Token 无效或网络错误'
+      tokenError.value = t('sync.tokenInvalid')
       return
     }
     tokenValidLogin.value = check.login
     await syncStore.saveToken(input, { login: check.login, userId: check.userId, authMethod: 'token' })
     await syncStore.init()
-    showToast(`Token 已保存（${tokenValidLogin.value}）`)
+    showToast(`${t('sync.tokenSaved')}（${tokenValidLogin.value}）`)
     closeTokenDialog()
     await loadGistInfo()
   } catch (error) {
@@ -1397,7 +1395,7 @@ async function handleSaveToken() {
 }
 
 async function handleGithubLoginSuccess(user) {
-  showToast(`GitHub 登录成功（${user.login}）`, 3200)
+  showToast(`${t('sync.githubLoginSuccess')}（${user.login}）`, 3200)
   showGithubLoginDialog.value = false
   await loadGistInfo()
 }
@@ -1413,13 +1411,13 @@ async function handleReset() {
   await syncStore.resetConfig()
   gistInfo.value = null
   showResetConfirm.value = false
-  showToast('配置已清除')
+  showToast(t('sync.configCleared'))
 }
 
 // ── Supabase 后端配置 ──────────────────────────────────
 const syncBackendLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase' : 'GitHub Gist')
-const supabaseUrlDisplay = computed(() => syncStore.supabaseUrl || '未配置')
-const supabaseKeyDisplay = computed(() => syncStore.supabaseAnonKey ? '***' + syncStore.supabaseAnonKey.slice(-6) : '未配置')
+const supabaseUrlDisplay = computed(() => syncStore.supabaseUrl || t('sync.notConfigured'))
+const supabaseKeyDisplay = computed(() => syncStore.supabaseAnonKey ? '***' + syncStore.supabaseAnonKey.slice(-6) : t('sync.notConfigured'))
 
 const selectedBackend = computed({
   get: () => syncStore.syncBackend,
@@ -1492,19 +1490,19 @@ async function handleSaveSupabaseKey() {
 
 async function handleTestSupabase() {
   if (!syncStore.supabaseUrl || !syncStore.supabaseAnonKey) {
-    showToast('请先配置 URL 和 Key')
+    showToast(t('sync.pleaseConfigFirst'))
     return
   }
   isTestingSupabase.value = true
   try {
     const result = await syncStore.testSupabaseConnection(syncStore.supabaseUrl, syncStore.supabaseAnonKey)
     if (result.ok) {
-      showSuccessToast('连接成功')
+      showSuccessToast(t('sync.connectionTestSuccess'))
     } else {
-      showFailToast(result.error || '连接失败')
+      showFailToast(result.error || t('sync.connectionTestFailed'))
     }
   } catch (e) {
-    showFailToast(e.message || '连接失败')
+    showFailToast(e.message || t('sync.connectionTestFailed'))
   } finally {
     isTestingSupabase.value = false
   }

@@ -1,7 +1,7 @@
 <template>
   <div class="route-page">
     <div class="page sub-page">
-    <NavBar title="角色管理" show-back>
+    <NavBar :title="t('manage.characterManage')" show-back>
       <template #right>
         <button class="add-btn" type="button" @click="toggleInput">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -21,7 +21,7 @@
             class="row-input"
             type="text"
             maxlength="30"
-            placeholder="输入角色名称"
+            :placeholder="t('manage.character.inputPlaceholder')"
             @input="syncName"
             @blur="syncName"
             @change="syncName"
@@ -31,14 +31,14 @@
           />
 
           <div class="ip-select-row">
-            <span class="ip-select-label">归属 IP</span>
+            <span class="ip-select-label">{{ t('manage.character.belongIp') }}</span>
             <div class="ip-select-chips">
               <button
                 type="button"
                 :class="['ip-chip', { 'ip-chip--active': newIp === '' }]"
                 @click="newIp = ''"
               >
-                未设置
+                {{ t('manage.character.notSet') }}
               </button>
               <button
                 v-for="ip in presets.ips"
@@ -53,7 +53,7 @@
           </div>
 
           <button class="confirm-btn" type="button" @pointerdown="flushActiveInput" @click="doAdd">
-            保存
+            {{ t('common.save') }}
           </button>
         </div>
       </Transition>
@@ -68,7 +68,7 @@
             v-model="searchKey"
             class="s-input"
             type="search"
-            placeholder="搜索角色名称"
+            :placeholder="t('manage.character.searchPlaceholder')"
           />
           <button v-if="searchKey" class="s-clear" type="button" @click="searchKey = ''">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -86,7 +86,7 @@
             :class="['ip-chip', { 'ip-chip--active': selectedIp === EMPTY_IP_FILTER }]"
             @click="selectedIp = selectedIp === EMPTY_IP_FILTER ? '' : EMPTY_IP_FILTER"
           >
-            未设置
+            {{ t('manage.character.notSet') }}
           </button>
           <button
             v-for="ip in presets.ips"
@@ -113,13 +113,13 @@
                 <span class="row-label">{{ item.name }}</span>
                 <div class="row-meta-line">
                   <span class="row-ip-badge" :class="{ 'row-ip-badge--empty': !item.ip }">
-                    {{ item.ip || '未设置 IP' }}
+                    {{ item.ip || t('manage.character.ipNotSet') }}
                   </span>
-                  <span class="row-meta">{{ getGoodsCount(item.name) }} 件收藏</span>
+                  <span class="row-meta">{{ t('manage.character.goodsCount', { count: getGoodsCount(item.name) }) }}</span>
                 </div>
               </button>
 
-              <button class="row-delete" type="button" aria-label="删除角色" @click="removeCharacter(item.name)">
+              <button class="row-delete" type="button" :aria-label="t('manage.character.delete')" @click="removeCharacter(item.name)">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M18 6L6 18" />
                   <path d="M6 6L18 18" />
@@ -127,13 +127,13 @@
               </button>
             </div>
           </div>
-          <p class="count-hint">共 {{ presets.characters.length }} 个角色，点按条目可修改名称和 IP</p>
+          <p class="count-hint">{{ t('manage.character.count', { count: presets.characters.length }) }}</p>
         </template>
 
         <p v-else-if="(searchKey || selectedIp) && presets.characters.length > 0" class="empty-hint">
-          没有匹配的角色
+          {{ t('manage.character.noMatch') }}
         </p>
-        <p v-else class="empty-hint">还没有角色，点击右上角新建</p>
+        <p v-else class="empty-hint">{{ t('manage.character.emptyHint') }}</p>
       </section>
     </main>
 
@@ -144,11 +144,11 @@
       <Transition name="sheet-slide">
         <div v-if="editingCharacter" class="edit-sheet" :style="editSheetStyle">
           <div class="edit-header">
-            <span class="edit-title">编辑角色</span>
+            <span class="edit-title">{{ t('manage.character.editTitle') }}</span>
             <button type="button" class="edit-close" @click="closeEdit">×</button>
           </div>
 
-          <p class="edit-caption">当前：{{ editingCharacter }}</p>
+          <p class="edit-caption">{{ t('manage.character.current', { name: editingCharacter }) }}</p>
 
           <input
             ref="editInputRef"
@@ -156,20 +156,20 @@
             class="row-input"
             type="text"
             maxlength="30"
-            placeholder="输入新的角色名称"
+            :placeholder="t('manage.character.newPlaceholder')"
             @focus="handleEditInputFocus"
             @keyup.enter="saveEdit"
           />
 
           <div class="edit-group">
-            <span class="edit-label">归属 IP</span>
+            <span class="edit-label">{{ t('manage.character.belongIp') }}</span>
             <div class="ip-select-chips">
               <button
                 type="button"
                 :class="['ip-chip', { 'ip-chip--active': editIp === '' }]"
                 @click="editIp = ''"
               >
-                未设置
+                {{ t('manage.character.notSet') }}
               </button>
               <button
                 v-for="ip in presets.ips"
@@ -185,7 +185,7 @@
 
           <p v-if="editError" class="edit-error">{{ editError }}</p>
 
-          <button class="save-btn" type="button" @click="saveEdit">保存修改</button>
+          <button class="save-btn" type="button" @click="saveEdit">{{ t('manage.character.saveEdit') }}</button>
         </div>
       </Transition>
     </Teleport>
@@ -195,7 +195,7 @@
     :show="showDeleteConfirm"
     :name="pendingDeleteName"
     :count="affectedCount"
-    field-label="该角色"
+    :field-label="t('manage.character.fieldLabel')"
     @cancel="showDeleteConfirm = false"
     @confirm="confirmDelete"
   />
@@ -204,6 +204,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
@@ -213,6 +214,7 @@ import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 
 const EMPTY_IP_FILTER = '__empty__'
 
+const { t } = useI18n()
 const presets = usePresetsStore()
 const store = useGoodsStore()
 
@@ -333,7 +335,7 @@ async function saveEdit() {
   const nextIp = String(editIp.value || '').trim()
 
   if (!nextName) {
-    editError.value = '请输入角色名称'
+    editError.value = t('manage.character.errorEmpty')
     return
   }
 
@@ -342,7 +344,7 @@ async function saveEdit() {
   if (nextName !== previousName) {
     const renamed = await presets.updateCharacterName(previousName, nextName)
     if (!renamed) {
-      editError.value = '角色名称已存在'
+      editError.value = t('manage.character.errorExists')
       return
     }
 

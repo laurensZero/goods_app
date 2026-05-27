@@ -3,6 +3,8 @@
  * 日期、价格等格式化辅助函数。
  */
 
+import i18n from '@/locales'
+
 /**
  * 格式化日期
  * @param {Date|string} date
@@ -25,6 +27,16 @@ export function formatDate(date, pattern = 'YYYY-MM-DD') {
     .replace('DD', pad(d.getDate()))
     .replace('HH', pad(d.getHours()))
     .replace('mm', pad(d.getMinutes()))
+}
+
+/**
+ * 获取基于当前 locale 的日期格式模式
+ * @returns {string}
+ */
+export function getLocaleDatePattern() {
+  const locale = i18n.global.locale.value
+  if (locale === 'zh-CN') return 'YYYY年MM月DD日'
+  return 'YYYY-MM-DD'
 }
 
 /**

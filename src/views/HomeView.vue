@@ -8,14 +8,14 @@
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Goods Archive</p>
-          <h1 class="hero-title">收藏库</h1>
+          <h1 class="hero-title">{{ t('home.title') }}</h1>
         </div>
 
         <div class="hero-actions">
           <button
             class="hero-search"
             type="button"
-            aria-label="搜索"
+            :aria-label="t('common.aria.search')"
             @click="handleHeroSearch"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -107,9 +107,9 @@
         <section v-else key="empty" class="empty-wrap goods-view-pane">
           <EmptyState
             icon="✦"
-            title="还没有收藏记录"
-            description="从徽章、手办到卡片，把每一件喜欢的谷子收进这里。"
-            action-text="添加第一件"
+            :title="t('home.empty.title')"
+            :description="t('home.empty.description')"
+            :action-text="t('home.empty.action')"
             @action="goToAdd"
           />
         </section>
@@ -121,7 +121,7 @@
         :show="showScrollTopButton && isHomeActive && !selectionMode"
         @click="scrollToTop"
       />
-      <button v-if="!selectionMode && isHomeActive" class="fab" type="button" aria-label="添加" @click="showAddSheet = true">
+      <button v-if="!selectionMode && isHomeActive" class="fab" type="button" :aria-label="t('common.aria.add')" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
           <path d="M5 12H19" />
@@ -167,11 +167,11 @@
               :alt="addMotionOverlay.item.name"
               class="add-motion-ghost__img"
             />
-            <span v-else class="add-motion-ghost__fallback">{{ (addMotionOverlay.item.name || '').trim().charAt(0).toUpperCase() || '谷' }}</span>
+            <span v-else class="add-motion-ghost__fallback">{{ (addMotionOverlay.item.name || '').trim().charAt(0).toUpperCase() || t('goods.heroFallback') }}</span>
           </div>
           <div class="add-motion-ghost__body">
             <p class="add-motion-ghost__name">{{ addMotionOverlay.item.name }}</p>
-            <p class="add-motion-ghost__meta">新谷子已加入</p>
+            <p class="add-motion-ghost__meta">{{ t('goods.newItemAdded') }}</p>
           </div>
         </div>
       </div>
@@ -214,8 +214,10 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { useI18n } from 'vue-i18n'
 
 defineOptions({ name: 'HomeView' })
+const { t } = useI18n()
 
 const store = useGoodsStore()
 const pageBodyRef = ref(null)

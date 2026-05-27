@@ -8,11 +8,11 @@
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Wish Archive</p>
-          <h1 class="hero-title">心愿单</h1>
+          <h1 class="hero-title">{{ t('common.wishlist') }}</h1>
         </div>
 
         <div class="hero-actions">
-          <button class="hero-search" type="button" aria-label="搜索心愿单" @click="openSearch">
+          <button class="hero-search" type="button" :aria-label="t('home.wishlist.searchAria')" @click="openSearch">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20L16.65 16.65" />
@@ -43,15 +43,15 @@
           :total-value="totalValue"
           :total-count="baseGoodsList.length"
           :trend-items="baseGoodsList"
-          :tips-title="'预算计算要点'"
+          :tips-title="t('home.wishlist.budgetTipsTitle')"
           :tips-items="wishlistTipsItems"
         />
       </section>
 
       <HomeGoodsToolbar
         v-if="goodsList.length > 0"
-        section-label="我的心愿"
-        title="全部目标"
+        :section-label="t('home.wishlist.sectionLabel')"
+        :title="t('home.wishlist.allTargets')"
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
         :sort-mode="sortMode"
@@ -88,9 +88,9 @@
       <section v-else class="empty-wrap">
         <EmptyState
           icon="♡"
-          title="还没有心愿记录"
-          description="看到想收的谷子时先放进这里，之后再决定什么时候入手。"
-          action-text="添加心愿"
+          :title="t('home.wishlist.noRecords')"
+          :description="t('home.wishlist.noRecordsDesc')"
+          :action-text="t('home.wishlist.addWish')"
           @action="openAddSheet"
         />
       </section>
@@ -99,7 +99,7 @@
     <Teleport v-if="isWishlistActive" to="body">
       <ScrollTopButton :show="showScrollTopButton && !selectionMode" @click="scrollToTop" />
 
-      <button v-if="!selectionMode" class="fab" type="button" aria-label="添加心愿" @click="goToAdd">
+      <button v-if="!selectionMode" class="fab" type="button" :aria-label="t('home.wishlist.addWish')" @click="goToAdd">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
           <path d="M5 12H19" />
@@ -139,6 +139,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
@@ -171,6 +172,8 @@ import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 
 defineOptions({ name: 'WishlistView' })
 
+const { t } = useI18n()
+
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
@@ -184,11 +187,11 @@ function persistCollectionTab(tab) {
   }))
 }
 
-const HOME_TOP_OPTIONS = [
-  { value: 'goods', label: '收藏' },
-  { value: 'wishlist', label: '心愿' },
-  { value: 'stats', label: '统计' }
-]
+const HOME_TOP_OPTIONS = computed(() => [
+  { value: 'goods', label: t('common.collection') },
+  { value: 'wishlist', label: t('common.wishlist') },
+  { value: 'stats', label: t('nav.tabStats') }
+])
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
 const INITIAL_RENDER_ROWS = 6
@@ -281,12 +284,12 @@ const totalQuantity = computed(() => (
 const totalValue = computed(() => (
   baseGoodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
 ))
-const wishlistTipsItems = [
-  '仅统计心愿单条目，不包含已拥有收藏。',
-  '按每条目标价汇总，不叠加邮费。',
-  '数量会参与合计：标价 × 数量。',
-  '非人民币条目会先换算为人民币。'
-]
+const wishlistTipsItems = computed(() => [
+  t('home.wishlist.budgetTip1'),
+  t('home.wishlist.budgetTip2'),
+  t('home.wishlist.budgetTip3'),
+  t('home.wishlist.budgetTip4')
+])
 
 function getInitialVisibleCount() {
   return Math.max(getResponsiveCols(displayDensity.value) * INITIAL_RENDER_ROWS, 24)
