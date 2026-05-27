@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260527.4",
+    "url": "bundle-20260527.4.zip",
+    "hash": "a2f3da9e0eebea862e601bf0f094e5eeed88eec196d6ec37b01ab49e97ec91c8",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构代码",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-27T15:06:52Z"
+  },
+  {
     "version": "20260527.3",
     "url": "bundle-20260527.3.zip",
     "hash": "83362af99de920a6727933935e935572acebf20285e10378c38be84525cfa29f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 多语种适配 (i18n) - 中英文双语支持\n  - 安装 vue-i18n v10 + @intlify/unplugin-vue-i18n\n  - 创建 src/locales/ 目录，15 个翻译模块 × 2 种语言\n  - 所有路由 title 改为 titleKey，使用 t() 翻译\n  - TabBar、所有视图、组件、store、utils、services 改造\n  - 语言切换组件集成到设置页面\n  - 英文翻译懒加载，Vant Locale 同步\n\n- fix: 修复语言切换持久化 + 平板端语言设置页面\n  - 英文消息改为同步加载，修复刷新后语言重置问题\n  - 设置页新增独立语言设置入口（桌面侧栏 + 详情面板）\n  - LanguageSwitcher 组件同时支持移动端和桌面端\n\n- feat: 添加更多翻译文本",
     "updateLevel": "silent",
     "publishedAt": "2026-05-27T13:43:07Z"
-  },
-  {
-    "version": "20260527.1",
-    "url": "bundle-20260527.1.zip",
-    "hash": "7b5f7e08835c71cef33ce00fb81be978c626b011d836a196f840bea0ce13f9be",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化组件卸载时的清理逻辑，避免内存泄漏；更新路由懒加载方式以提升性能；重构媒体播放器缓存逻辑，使用 LRU 策略管理缓存\n\n- feat: 重构多个组件的样式，移除冗余的过渡动画；新增共享样式文件以统一确认对话框和浮动按钮的样式\n\n- feat: 新增页面滚动绑定功能，重构多个视图以使用共享的滚动管理逻辑；优化更新相关的工具函数",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-27T13:09:26Z"
   }
 ]

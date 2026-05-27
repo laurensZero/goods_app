@@ -1,9 +1,9 @@
 {
-  "version": "20260527.3",
-  "url": "bundle-20260527.3.zip",
-  "hash": "83362af99de920a6727933935e935572acebf20285e10378c38be84525cfa29f",
+  "version": "20260527.4",
+  "url": "bundle-20260527.4.zip",
+  "hash": "a2f3da9e0eebea862e601bf0f094e5eeed88eec196d6ec37b01ab49e97ec91c8",
   "minNativeVersion": null,
-  "notes": "- feat: 重构商品返回动画逻辑，新增共享组合式函数以优化代码复用",
+  "notes": "- feat: 重构代码",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-27T14:40:07Z"
+  "publishedAt": "2026-05-27T15:06:52Z"
 }
