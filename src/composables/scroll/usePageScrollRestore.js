@@ -2,6 +2,14 @@ import { nextTick } from 'vue'
 import { setWindowScrollTop } from '@/utils/scrollPosition'
 import { isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
 
+export function createPageScrollRestore(pageName, selector) {
+  return (pageBodyRef) => usePageScrollRestore(pageBodyRef, {
+    storageKey: `${pageName}-scroll`,
+    pendingKey: `${pageName}-scroll-restore-pending`,
+    selector: selector || `.${pageName}-page .page-body`
+  })
+}
+
 export function usePageScrollRestore(pageBodyRef, options = {}) {
   const {
     storageKey = 'page-scroll-state',

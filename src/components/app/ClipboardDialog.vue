@@ -478,31 +478,6 @@ watch(showPrompt, (newVal) => {
   color: var(--app-bg);
 }
 
-/* 过渡动画 */
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active {
-  transition: opacity 0.28s ease;
-}
-
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to {
-  opacity: 0;
-}
-
-.sheet-slide-enter-active {
-  transition: transform 0.32s cubic-bezier(0.34, 1.1, 0.64, 1), opacity 0.22s ease;
-}
-
-.sheet-slide-leave-active {
-  transition: transform 0.24s ease, opacity 0.18s ease;
-}
-
-.sheet-slide-enter-from,
-.sheet-slide-leave-to {
-  transform: translateX(-50%) translateY(100%);
-  opacity: 0.6;
-}
-
 @media (min-width: 900px) {
   .sheet-panel {
     bottom: auto;

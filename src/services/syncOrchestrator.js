@@ -1,4 +1,4 @@
-import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
+import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest } from '@/utils/sync/shared'
 import { Capacitor } from '@capacitor/core'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
@@ -42,19 +42,6 @@ export function createSyncOrchestrator({
     return activeBackend.readJson(opts)
   }
 
-  function toTimestampMs(value) {
-    if (!value) return 0
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0
-    const ms = new Date(value).getTime()
-    return Number.isFinite(ms) ? ms : 0
-  }
-
-  function normalizeBudgetValue(value) {
-    const num = Number(value)
-    if (!Number.isFinite(num) || num <= 0) return 0
-    return num
-  }
-
   async function applyRemoteBudgetSettings(settings) {
     if (!settings || typeof settings !== 'object') return false
 
@@ -67,14 +54,6 @@ export function createSyncOrchestrator({
     ])
 
     return true
-  }
-
-  function getLatestRechargeTimestamp(records = []) {
-    let latest = 0
-    for (const item of records || []) {
-      latest = Math.max(latest, getItemTimestamp(item))
-    }
-    return latest
   }
 
   function getLatestGoodsTrashTimestamp(goods = [], trash = []) {
@@ -110,14 +89,6 @@ export function createSyncOrchestrator({
       localOnly: 0,
       updated
     }
-  }
-
-  function shouldPullRechargeByManifest(remoteManifest, rechargeStore) {
-    const remoteRechargeTs = toTimestampMs(remoteManifest?.rechargeUpdatedAt)
-    if (!remoteRechargeTs) return true
-    const localRecharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
-    const localRechargeTs = getLatestRechargeTimestamp(localRecharge)
-    return remoteRechargeTs > localRechargeTs
   }
 
   // ── Internal: pull from remote ──
@@ -1094,10 +1065,10 @@ export function createSyncOrchestrator({
         successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' })
 
       const rechargeStore = useRechargeStore()
-      const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, rechargeStore)
+      const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+      const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, localRechargeSnapshot)
       // If pull was triggered by realtime for a specific table, avoid reading unrelated heavy files
       const triggeredByRealtime = typeof sourceTable === 'string' && sourceTable !== 'manual'
-      const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
 
       ;[remoteRechargeData, remoteEventData] = await Promise.all([
         (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))

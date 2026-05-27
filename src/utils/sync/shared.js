@@ -3,6 +3,8 @@ import {
   normalizeGoodsImageList,
   parseGistImageUri
 } from '@/utils/goods/images'
+import { readPersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
@@ -294,5 +296,45 @@ export function buildImageSyncStats() {
     restoredImages: 0,
     imageFileCount: 0,
     imageUpdatedAt: ''
+  }
+}
+
+export function toTimestampMs(value) {
+  if (!value) return 0
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  const ms = new Date(value).getTime()
+  return Number.isFinite(ms) ? ms : 0
+}
+
+export function normalizeBudgetValue(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num) || num <= 0) return 0
+  return num
+}
+
+export function getLatestRechargeTimestamp(records = []) {
+  let latest = 0
+  for (const item of records || []) {
+    latest = Math.max(latest, getItemTimestamp(item))
+  }
+  return latest
+}
+
+export function shouldPullRechargeByManifest(remoteManifest, localRechargeRecords) {
+  const remoteRechargeTs = toTimestampMs(remoteManifest?.rechargeUpdatedAt)
+  if (!remoteRechargeTs) return true
+  const localRechargeTs = getLatestRechargeTimestamp(localRechargeRecords)
+  return remoteRechargeTs > localRechargeTs
+}
+
+export async function readBudgetSettings() {
+  const [monthlyRaw, yearlyRaw] = await Promise.all([
+    readPersisted(MONTHLY_BUDGET_STORAGE_KEY, ''),
+    readPersisted(YEARLY_BUDGET_STORAGE_KEY, '')
+  ])
+
+  return {
+    monthly: normalizeBudgetValue(monthlyRaw),
+    yearly: normalizeBudgetValue(yearlyRaw)
   }
 }

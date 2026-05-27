@@ -7,7 +7,9 @@ import {
   getItemTimestamp,
   parseImageDataUrl,
   resolveGoodsTrashMaps,
-  sortObjectKeys
+  sortObjectKeys,
+  normalizeBudgetValue,
+  readBudgetSettings
 } from '@/utils/sync/shared'
 import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri, sanitizeGoodsItemForSync } from '@/utils/goods/images'
 import {
@@ -17,8 +19,6 @@ import {
   EVENT_DATA_VERSION,
   MANIFEST_VERSION
 } from '@/constants/syncConstants'
-import { readPersisted } from '@/utils/platform/storage'
-import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 export function createSyncPayloadService({
   deviceIdRef,
@@ -33,24 +33,6 @@ export function createSyncPayloadService({
   compressImageToBlob,
   imageFileSizeLimit
 }) {
-  function normalizeBudgetValue(value) {
-    const num = Number(value)
-    if (!Number.isFinite(num) || num <= 0) return 0
-    return num
-  }
-
-  async function readBudgetSettingsFromStorage() {
-    const [monthlyRaw, yearlyRaw] = await Promise.all([
-      readPersisted(MONTHLY_BUDGET_STORAGE_KEY, ''),
-      readPersisted(YEARLY_BUDGET_STORAGE_KEY, '')
-    ])
-
-    return {
-      monthly: normalizeBudgetValue(monthlyRaw),
-      yearly: normalizeBudgetValue(yearlyRaw)
-    }
-  }
-
   function normalizeBudgetSettings(input) {
     return {
       monthly: normalizeBudgetValue(input?.monthly),
@@ -435,7 +417,7 @@ export function createSyncPayloadService({
 
     imageStats.imageFileCount = referencedImageFiles.size
 
-    const budgetSettings = await readBudgetSettingsFromStorage()
+    const budgetSettings = await readBudgetSettings()
 
     return {
       syncData: {
@@ -548,7 +530,7 @@ export function createSyncPayloadService({
     const presetsData = data?.presets || await buildPresetsData()
     const resolvedBudgetSettings = budgetSettings || data?.budgetSettings
       ? normalizeBudgetSettings(budgetSettings || data.budgetSettings)
-      : await readBudgetSettingsFromStorage()
+      : await readBudgetSettings()
 
     return JSON.stringify(sortObjectKeys({
       goods,
