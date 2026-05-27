@@ -532,6 +532,23 @@ export const useSyncStore = defineStore('sync', () => {
     return validateToken(token.value)
   }
 
+  const STATUS_MESSAGES = {
+    pulled: 'sync.pullComplete',
+    pushed: 'sync.uploadComplete',
+    no_changes: 'sync.dataUpToDate',
+    conflict: 'sync.conflictDetected',
+    cancelled: 'sync.pullCancelled'
+  }
+
+  function translateStatusMessage(result) {
+    if (result.statusMessage) {
+      return result.statusMessage.startsWith('sync.')
+        ? i18n.global.t(result.statusMessage)
+        : result.statusMessage
+    }
+    return i18n.global.t(STATUS_MESSAGES[result.action] || 'sync.syncing')
+  }
+
   function clearSyncTimeout() {
     if (syncTimeoutId) { clearTimeout(syncTimeoutId); syncTimeoutId = null }
   }
@@ -563,7 +580,7 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       if (result.conflictData) conflictData.value = result.conflictData
-      syncStatus.value = result.statusMessage || i18n.global.t('sync.uploadComplete')
+      syncStatus.value = translateStatusMessage(result)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
@@ -604,7 +621,7 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       if (!silent && result.conflictData) conflictData.value = result.conflictData
-      syncStatus.value = result.statusMessage || i18n.global.t('sync.pullComplete')
+      syncStatus.value = translateStatusMessage(result)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
@@ -635,7 +652,7 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       conflictData.value = null
-      syncStatus.value = result.statusMessage || i18n.global.t('sync.uploadComplete')
+      syncStatus.value = translateStatusMessage(result)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
@@ -665,7 +682,7 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       conflictData.value = null
-      syncStatus.value = result.statusMessage || i18n.global.t('sync.pullComplete')
+      syncStatus.value = translateStatusMessage(result)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))

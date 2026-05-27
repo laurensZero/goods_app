@@ -5,6 +5,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { formatDate } from '@/utils/format'
+import i18n from '@/locales'
 
 /**
  * 统一的分享导入逻辑，供 ClipboardDialog 和 ShareImportView 共用。
@@ -59,7 +60,7 @@ export function useShareImport(options = {}) {
 
   async function doFetch(gistIdValue, shareIdValue = '') {
     if (!gistIdValue) {
-      fetchError.value = '无效的分享数据'
+      fetchError.value = i18n.global.t('share.invalidData')
       return
     }
 
@@ -70,13 +71,13 @@ export function useShareImport(options = {}) {
     try {
       const gist = await getPublicGist(gistIdValue, syncStore.token || '')
       if (!gist) {
-        fetchError.value = '未找到该分享，请检查分享是否已取消'
+        fetchError.value = i18n.global.t('share.notFound')
         return
       }
 
       const data = extractSharePayloadFromGist(gist, shareIdValue)
       if (!data) {
-        fetchError.value = '分享数据无效或已过期'
+        fetchError.value = i18n.global.t('share.dataExpired')
         return
       }
 
@@ -88,7 +89,7 @@ export function useShareImport(options = {}) {
 
       payload.value = data
     } catch (e) {
-      fetchError.value = e.message || '获取分享数据失败，请检查网络'
+      fetchError.value = e.message || i18n.global.t('share.fetchFailed')
     } finally {
       fetching.value = false
     }

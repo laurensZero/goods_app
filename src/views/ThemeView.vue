@@ -11,8 +11,8 @@
 
         <article class="preview-card">
           <p class="preview-kicker">{{ t('theme.currentInUse') }}</p>
-          <h2 class="preview-title">{{ themeStore.themeDefinition.label }}</h2>
-          <p class="preview-desc">{{ themeStore.themeDefinition.description }}</p>
+          <h2 class="preview-title">{{ t(themeStore.themeDefinition.labelKey) }}</h2>
+          <p class="preview-desc">{{ t(themeStore.themeDefinition.descriptionKey) }}</p>
           <div class="preview-row">
             <span class="preview-chip">{{ t('theme.actualAppearance', { appearance: appliedAppearanceLabel }) }}</span>
             <span class="preview-chip">{{ t('theme.preferenceSetting', { preference: preferenceLabel }) }}</span>
@@ -73,10 +73,10 @@
 
             <div class="theme-card__body">
               <div class="theme-card__title-row">
-                <p class="theme-card__name">{{ theme.label }}</p>
+                <p class="theme-card__name">{{ t(theme.labelKey) }}</p>
                 <span class="theme-card__state">{{ themeStore.themeId === theme.id ? t('theme.current') : t('theme.switchTheme') }}</span>
               </div>
-              <p class="theme-card__desc">{{ theme.description }}</p>
+              <p class="theme-card__desc">{{ t(theme.descriptionKey) }}</p>
               <p class="theme-card__meta">{{ getThemeMeta(theme) }}</p>
             </div>
           </button>
@@ -212,8 +212,8 @@
             @click="themeStore.setAppearancePreference(option.value)"
           >
             <div class="mode-copy">
-              <p class="mode-name">{{ option.label }}</p>
-              <p class="mode-desc">{{ option.description }}</p>
+              <p class="mode-name">{{ t(option.labelKey) }}</p>
+              <p class="mode-desc">{{ t(option.descriptionKey) }}</p>
             </div>
             <span class="mode-state">{{ themeStore.appearancePreference === option.value ? t('theme.currentlyUsing') : t('theme.switchTheme') }}</span>
           </button>

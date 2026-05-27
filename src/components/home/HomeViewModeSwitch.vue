@@ -32,7 +32,10 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTabletViewport } from '@/composables/useTabletViewport'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -41,15 +44,11 @@ const props = defineProps({
   },
   ariaLabel: {
     type: String,
-    default: '首页内容切换'
+    default: ''
   },
   options: {
     type: Array,
-    default: () => ([
-      { value: 'goods', label: '收藏' },
-      { value: 'wishlist', label: '心愿' },
-      { value: 'stats', label: '统计' }
-    ])
+    default: null
   }
 })
 
@@ -105,8 +104,14 @@ onBeforeUnmount(() => {
   }
 })
 
+const defaultOptions = computed(() => [
+  { value: 'goods', label: t('nav.tabCollection') },
+  { value: 'wishlist', label: t('nav.tabWishlist') },
+  { value: 'stats', label: t('nav.tabStats') }
+])
+
 const normalizedOptions = computed(() =>
-  props.options.map((option) => ({
+  (props.options ?? defaultOptions.value).map((option) => ({
     value: option.value,
     label: option.label,
     ariaLabel: option.ariaLabel || option.label

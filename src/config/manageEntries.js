@@ -38,7 +38,7 @@ export function useManageEntries() {
 
   const syncMetaText = computed(() => {
     const statusText = String(syncStore.syncStatus || '')
-    if (!syncStore.isSyncing && /(数据已是最新|数据已经是最新|上传完成|拉取完成)/.test(statusText)) {
+    if (!syncStore.isSyncing && new RegExp(t('sync.dataUpToDate') + '|' + t('sync.uploadComplete') + '|' + t('sync.pullComplete')).test(statusText)) {
       return syncStore.lastSyncedAt ? t('manage.syncDataUpToDateTime', { time: formatSyncTime(syncStore.lastSyncedAt) }) : t('manage.syncDataUpToDate')
     }
     if (syncStore.lastSyncedAt) {
