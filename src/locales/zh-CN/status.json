@@ -16,5 +16,7 @@
   "status.short.gifted": "已赠",
   "status.short.wantToSell": "想出",
   "status.short.sold": "已出",
-  "status.short.forSale": "在售"
+  "status.short.forSale": "在售",
+  "status.pendingShipping": "待补邮",
+  "status.onSale": "在售"
 }

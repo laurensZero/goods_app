@@ -94,14 +94,14 @@
           <span class="podium-rank">#{{ index + 1 }}</span>
           <p class="podium-name">{{ entry.label }}</p>
           <p v-if="entry.meta" class="podium-meta">{{ entry.meta }}</p>
-          <strong class="podium-value">{{ formatLeaderboardMetricValue(entry, selectedMetric) }}</strong>
+          <strong class="podium-value">{{ formatLeaderboardMetricValue(entry, selectedMetric, t) }}</strong>
         </article>
       </section>
 
       <section class="list-section">
         <div class="section-head">
           <div>
-            <p class="section-label">Full Ranking</p>
+            <p class="section-label">{{ t('leaderboard.fullRanking') }}</p>
             <h2 class="section-title section-title--sub">{{ dimensionMeta.title }}</h2>
           </div>
         </div>
@@ -115,7 +115,7 @@
                   <p class="ranking-name">{{ entry.label }}</p>
                   <p v-if="entry.meta" class="ranking-sub">{{ entry.meta }}</p>
                 </div>
-                <p class="ranking-value">{{ formatLeaderboardMetricValue(entry, selectedMetric) }}</p>
+                <p class="ranking-value">{{ formatLeaderboardMetricValue(entry, selectedMetric, t) }}</p>
               </div>
               <div class="ranking-meta">
                 <span class="ranking-chip">{{ t('leaderboard.items', { count: entry.quantity }) }}</span>
@@ -148,8 +148,8 @@ import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import {
-  LEADERBOARD_DIMENSION_OPTIONS,
-  LEADERBOARD_METRIC_OPTIONS,
+  createLeaderboardDimensionOptions,
+  createLeaderboardMetricOptions,
   buildLeaderboardEntries,
   formatLeaderboardMetricValue,
   getLeaderboardDimensionMeta,
@@ -172,6 +172,8 @@ const HOME_TOP_OPTIONS = computed(() => [
   { value: 'wishlist', label: t('common.wishlist') },
   { value: 'stats', label: t('leaderboard.stats') }
 ])
+const LEADERBOARD_DIMENSION_OPTIONS = computed(() => createLeaderboardDimensionOptions(t))
+const LEADERBOARD_METRIC_OPTIONS = computed(() => createLeaderboardMetricOptions(t))
 
 const { t } = useI18n()
 const router = useRouter()
@@ -303,7 +305,7 @@ const characterPresetIpMap = computed(() =>
 )
 
 const leaderboardState = computed(() =>
-  buildLeaderboardEntries(store.collectionViewList, selectedDimension.value, characterPresetIpMap.value)
+  buildLeaderboardEntries(store.collectionViewList, selectedDimension.value, characterPresetIpMap.value, t)
 )
 
 const entries = computed(() => leaderboardState.value.entries)
@@ -311,10 +313,10 @@ const emptyGroupCount = computed(() => leaderboardState.value.emptyCount)
 const sortedEntries = computed(() => sortLeaderboardEntries(entries.value, selectedMetric.value, selectedDimension.value))
 const topThree = computed(() => sortedEntries.value.slice(0, 3))
 const totalQuantity = computed(() => entries.value.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0))
-const totalQuantityText = computed(() => formatLeaderboardMetricValue({ quantity: totalQuantity.value }, 'quantity'))
-const dimensionMeta = computed(() => getLeaderboardDimensionMeta(selectedDimension.value))
+const totalQuantityText = computed(() => formatLeaderboardMetricValue({ quantity: totalQuantity.value }, 'quantity', t))
+const dimensionMeta = computed(() => getLeaderboardDimensionMeta(selectedDimension.value, t))
 const selectedDimensionLabel = computed(() =>
-  LEADERBOARD_DIMENSION_OPTIONS.find((item) => item.value === selectedDimension.value)?.label || t('common.character')
+  LEADERBOARD_DIMENSION_OPTIONS.value.find((item) => item.value === selectedDimension.value)?.label || t('common.character')
 )
 </script>
 

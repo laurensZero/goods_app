@@ -209,5 +209,8 @@
   "sync.noLocalChanges": "无本地改动",
   "sync.syncNotice": "同步提示",
   "sync.remoteGist": "远端 Gist",
-  "sync.switchBackendDesc": "确定要切换同步后端为 {backend} 吗？切换可能需要重新配置连接信息。"
+  "sync.switchBackendDesc": "确定要切换同步后端为 {backend} 吗？切换可能需要重新配置连接信息。",
+  "sync.remoteModified": "远端已修改",
+  "sync.tokenDialogDesc": "需要一个包含 gist 权限的 Personal Access Token。",
+  "sync.verified": "已验证"
 }

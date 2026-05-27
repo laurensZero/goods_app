@@ -16,5 +16,7 @@
   "status.short.gifted": "Gift",
   "status.short.wantToSell": "Sell",
   "status.short.sold": "Sold",
-  "status.short.forSale": "Sale"
+  "status.short.forSale": "Sale",
+  "status.pendingShipping": "Pending Postage",
+  "status.onSale": "For Sale"
 }

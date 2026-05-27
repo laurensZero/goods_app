@@ -10,5 +10,14 @@
   "trash.confirmPermanent": "Confirm permanent deletion?",
   "trash.confirmPermanentDesc": "This action is irreversible",
   "trash.deletedAt": "Deleted at",
-  "trash.quantity": "Quantity"
+  "trash.quantity": "Quantity",
+  "trash.deleteConfirmDesc": "Cannot be undone after deletion",
+  "trash.deleteConfirmTitle": "Confirm Deletion",
+  "trash.emptyConfirmDesc": "All records will be permanently deleted",
+  "trash.emptyConfirmTitle": "Confirm Empty Trash",
+  "trash.heroDesc": "View and restore deleted items",
+  "trash.heroTitle": "Trash",
+  "trash.justNow": "Just now",
+  "trash.totalQuantity": "{count} items total",
+  "trash.trashItems": "Trash Items"
 }

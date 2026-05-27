@@ -27,6 +27,35 @@ export const HOME_SORT_OPTIONS = [
   }
 ]
 
+export function createHomeSortOptions(t) {
+  return [
+    {
+      value: 'createdAt',
+      label: t('home.sort.createdAt'),
+      descLabel: t('home.sort.createdAtDesc'),
+      ascLabel: t('home.sort.createdAtAsc'),
+    },
+    {
+      value: 'acquiredAt',
+      label: t('home.sort.acquiredAt'),
+      descLabel: t('home.sort.acquiredAtDesc'),
+      ascLabel: t('home.sort.acquiredAtAsc'),
+    },
+    {
+      value: 'name',
+      label: t('home.sort.name'),
+      descLabel: t('home.sort.nameDesc'),
+      ascLabel: t('home.sort.nameAsc'),
+    },
+    {
+      value: 'price',
+      label: t('home.sort.price'),
+      descLabel: t('home.sort.priceDesc'),
+      ascLabel: t('home.sort.priceAsc'),
+    }
+  ]
+}
+
 export function normalizeHomeSortMode(value) {
   const matched = HOME_SORT_OPTIONS.find((option) => option.value === value)
   return matched?.value || DEFAULT_SORT_MODE

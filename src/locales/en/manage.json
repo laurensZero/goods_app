@@ -282,5 +282,15 @@
   "manage.storage.renameTitle": "Rename",
   "manage.storage.saveName": "Save Name",
   "manage.category.goodsCount": "{count} items",
-  "manage.character.goodsCount": "{count} items"
+  "manage.character.goodsCount": "{count} items",
+  "manage.category.count": "{count} categories",
+  "manage.category.current": "Current Category",
+  "manage.character.count": "{count} characters",
+  "manage.character.current": "Current Character",
+  "manage.ip.current": "Current IP",
+  "manage.storage.createChildHint": "Create a sub-location under current",
+  "manage.storage.nfcAlertMessage": "Please hold the NFC tag near the back of your phone",
+  "manage.storage.nfcFailed": "NFC write failed",
+  "manage.storage.nfcSuccess": "NFC binding successful",
+  "manage.storage.renameHint": "Enter a new location name"
 }

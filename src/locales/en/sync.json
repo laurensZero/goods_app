@@ -209,5 +209,8 @@
   "sync.noLocalChanges": "No local changes",
   "sync.syncNotice": "Sync Notice",
   "sync.remoteGist": "Remote Gist",
-  "sync.switchBackendDesc": "Switch sync backend to {backend}? This may require reconfiguring connection settings."
+  "sync.switchBackendDesc": "Switch sync backend to {backend}? This may require reconfiguring connection settings.",
+  "sync.remoteModified": "Remote Modified",
+  "sync.tokenDialogDesc": "A Personal Access Token with gist scope is required.",
+  "sync.verified": "Verified"
 }

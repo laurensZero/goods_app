@@ -6,15 +6,15 @@
       'event-detail-page--entry-lock': detailEntryScrollLockActive
     }"
   >
-    <NavBar :title="event.name || '活动详情'" show-back @back="handleBackNavigation">
+    <NavBar :title="event.name || t('events.detail.eventDetail')" show-back @back="handleBackNavigation">
       <template #right>
-        <button class="nav-icon-btn" type="button" aria-label="编辑活动" @click="handleEditEvent">
+        <button class="nav-icon-btn" type="button" :aria-label="t('events.detail.editEvent')" @click="handleEditEvent">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
           </svg>
         </button>
-        <button class="nav-icon-btn danger" type="button" aria-label="删除活动" @click="showDeleteDialog = true">
+        <button class="nav-icon-btn danger" type="button" :aria-label="t('events.detail.deleteEvent')" @click="showDeleteDialog = true">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3 6H21" />
             <path d="M8 6V4H16V6" />
@@ -68,7 +68,7 @@
             <h1 class="hero-title">{{ event.name }}</h1>
 
             <div v-if="hasTicketPrice" class="hero-price">
-              <span class="hero-price__label">票务</span>
+              <span class="hero-price__label">{{ t('events.detail.ticketing') }}</span>
               <p class="hero-price__value">
                 <span class="hero-price__currency">¥</span>
                 <span class="hero-price__amount">{{ ticketPriceAmount }}</span>
@@ -78,8 +78,8 @@
 
           <section v-if="infoItems.length > 0" class="info-section">
             <div class="section-head">
-              <p class="section-label">信息卡片</p>
-              <h2 class="section-title">活动信息</h2>
+              <p class="section-label">{{ t('events.detail.infoCards') }}</p>
+              <h2 class="section-title">{{ t('events.detail.eventInfo') }}</h2>
             </div>
 
             <div class="info-card">
@@ -92,8 +92,8 @@
 
           <section v-if="event.description" class="note-section">
             <div class="section-head">
-              <p class="section-label">附加信息</p>
-              <h2 class="section-title">备注</h2>
+              <p class="section-label">{{ t('events.detail.additionalInfo') }}</p>
+              <h2 class="section-title">{{ t('events.detail.notes') }}</h2>
             </div>
 
             <article class="note-card">
@@ -103,13 +103,13 @@
 
           <section v-if="otherExpenseItems.length > 0" class="expense-section">
             <div class="section-head">
-              <p class="section-label">费用</p>
-              <h2 class="section-title">其他费用</h2>
+              <p class="section-label">{{ t('events.detail.expenses') }}</p>
+              <h2 class="section-title">{{ t('events.detail.otherExpenses') }}</h2>
             </div>
 
             <article class="expense-card">
               <div class="expense-card__summary">
-                <span>总计</span>
+                <span>{{ t('events.detail.total') }}</span>
                 <strong>¥{{ Math.round(otherExpenseTotalAmount * 100) / 100 }}</strong>
               </div>
 
@@ -128,7 +128,7 @@
             <div class="section-head section-head--toggle">
               <div>
                 <p class="section-label">Setlist</p>
-                <h2 class="section-title">演唱会曲目</h2>
+                <h2 class="section-title">{{ t('events.detail.concertSetlist') }}</h2>
               </div>
               <button
                 type="button"
@@ -136,7 +136,7 @@
                 :aria-expanded="trackSectionExpanded ? 'true' : 'false'"
                 @click="trackSectionExpanded = !trackSectionExpanded"
               >
-                <span>{{ trackSectionExpanded ? '收起' : '展开' }}</span>
+                <span>{{ trackSectionExpanded ? t('events.detail.collapse') : t('events.detail.expand') }}</span>
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" :class="{ 'section-toggle-btn__icon--expanded': trackSectionExpanded }">
                   <path d="M6 9L12 15L18 9" />
                 </svg>
@@ -151,7 +151,7 @@
           <section v-if="linkedGoodsList.length > 0" class="linked-section">
             <div class="section-head">
               <p class="section-label">Linked Goods</p>
-              <h2 class="section-title">关联谷子</h2>
+              <h2 class="section-title">{{ t('events.detail.linkedGoods') }}</h2>
             </div>
 
             <div class="linked-goods-grid">
@@ -187,11 +187,11 @@
     <Transition name="dialog-fade">
       <div v-if="showDeleteDialog" class="dialog-overlay" @click.self="showDeleteDialog = false">
         <div class="dialog-card">
-          <h3 class="dialog-title">删除活动</h3>
-          <p class="dialog-message">确认删除"{{ event.name }}"吗？删除后将无法恢复。</p>
+          <h3 class="dialog-title">{{ t('events.detail.deleteDialog.title') }}</h3>
+          <p class="dialog-message">{{ t('events.detail.deleteDialog.message', { name: event.name }) }}</p>
           <div class="dialog-actions">
-            <button class="dialog-btn" type="button" @click="showDeleteDialog = false">取消</button>
-            <button class="dialog-btn danger" type="button" @click="handleDelete">删除</button>
+            <button class="dialog-btn" type="button" @click="showDeleteDialog = false">{{ t('events.detail.deleteDialog.cancel') }}</button>
+            <button class="dialog-btn danger" type="button" @click="handleDelete">{{ t('events.detail.deleteDialog.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -216,14 +216,14 @@
   </div>
 
   <div v-else class="page event-detail-page">
-    <NavBar title="活动详情" show-back />
+    <NavBar :title="t('events.detail.eventDetail')" show-back />
     <main class="page-body">
       <section class="empty-wrap">
         <EmptyState
           icon="✨"
-          title="活动不存在"
-          description="这条记录可能已经被删除，或者还没有同步到本地。"
-          action-text="返回活动列表"
+          :title="t('events.detail.notFound')"
+          :description="t('events.detail.notFoundDesc')"
+          :action-text="t('events.detail.backToList')"
           @action="router.push('/events')"
         />
       </section>
@@ -233,6 +233,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
@@ -261,6 +262,7 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
+const { t } = useI18n()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const eventDisplayReady = ref(true)
@@ -349,19 +351,19 @@ const eventStateKey = computed(() => `${EVENT_DETAIL_STATE_PREFIX}:${String(even
 const eventPendingKey = computed(() => `${EVENT_DETAIL_PENDING_PREFIX}:${String(eventId.value || '')}`)
 const eventTrackKey = computed(() => `${EVENT_DETAIL_TRACK_KEY_PREFIX}:${String(eventId.value || '')}`)
 
-const TYPE_MAP = {
-  exhibition: { label: '展会', cls: 'type-exhibition' },
-  concert: { label: '音乐会', cls: 'type-concert' },
-  other: { label: '其他', cls: 'type-other' }
-}
+const TYPE_MAP = computed(() => ({
+  exhibition: { label: t('events.typeExhibition'), cls: 'type-exhibition' },
+  concert: { label: t('events.typeConcert'), cls: 'type-concert' },
+  other: { label: t('events.typeOther'), cls: 'type-other' }
+}))
 
-const typeInfo = computed(() => TYPE_MAP[event.value?.type] || TYPE_MAP.other)
+const typeInfo = computed(() => TYPE_MAP.value[event.value?.type] || TYPE_MAP.value.other)
 const typeLabel = computed(() => typeInfo.value.label)
 const typeChipClass = computed(() => typeInfo.value.cls)
 const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || '活')
 const coverCardStyle = computed(() => ({}))
 const dateDisplay = computed(() => {
-  if (!event.value?.startDate) return '未填写'
+  if (!event.value?.startDate) return t('common.unfilled')
   if (!event.value.endDate || event.value.endDate === event.value.startDate) return event.value.startDate
   return `${event.value.startDate} - ${event.value.endDate}`
 })
@@ -375,7 +377,7 @@ const trackList = computed(() =>
   (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId)
 )
 const tagsDisplay = computed(() => (
-  event.value?.tags?.length ? event.value.tags.join('、') : '未填写'
+  event.value?.tags?.length ? event.value.tags.join('、') : t('common.unfilled')
 ))
 const hasTicketPrice = computed(() => String(event.value?.ticketPrice || '').trim() !== '')
 const ticketPriceAmount = computed(() => {
@@ -494,40 +496,40 @@ const infoItems = computed(() => {
 
   const items = []
   if (event.value.type) {
-    items.push({ label: '活动类型', value: typeLabel.value })
+    items.push({ label: t('events.detail.eventType'), value: typeLabel.value })
   }
   if (event.value.startDate) {
-    items.push({ label: '开始日期', value: event.value.startDate })
+    items.push({ label: t('events.detail.startDate'), value: event.value.startDate })
   }
   if (event.value.endDate && event.value.endDate !== event.value.startDate) {
-    items.push({ label: '结束日期', value: event.value.endDate })
+    items.push({ label: t('events.detail.endDate'), value: event.value.endDate })
   }
   if (event.value.location) {
-    items.push({ label: '活动地点', value: event.value.location })
+    items.push({ label: t('events.detail.eventLocation'), value: event.value.location })
   }
   if (hasTicketPrice.value) {
-    items.push({ label: '票价', value: `¥${ticketPriceAmount.value}` })
+    items.push({ label: t('events.detail.ticketPrice'), value: `¥${ticketPriceAmount.value}` })
   }
   if (otherExpenseItems.value.length > 0) {
-    items.push({ label: '其他费用', value: `¥${Math.round(otherExpenseTotalAmount.value * 100) / 100}` })
+    items.push({ label: t('events.detail.otherExpensesLabel'), value: `¥${Math.round(otherExpenseTotalAmount.value * 100) / 100}` })
   }
   if (event.value.type === 'exhibition' && String(event.value.ticketType || '').trim()) {
-    items.push({ label: '票种', value: String(event.value.ticketType || '').trim() })
+    items.push({ label: t('events.detail.ticketType'), value: String(event.value.ticketType || '').trim() })
   }
   if (event.value.type === 'concert' && String(event.value.seatInfo || '').trim()) {
-    items.push({ label: '座位', value: String(event.value.seatInfo || '').trim() })
+    items.push({ label: t('events.detail.seat'), value: String(event.value.seatInfo || '').trim() })
   }
   if (Array.isArray(event.value.photos) && event.value.photos.length > 0) {
-    items.push({ label: '活动照片', value: `${event.value.photos.length} 张` })
+    items.push({ label: t('events.detail.eventPhotos'), value: `${event.value.photos.length} ${t('common.images_count')}` })
   }
   if (trackList.value.length > 0) {
-    items.push({ label: '曲目', value: `${trackList.value.length} 首` })
+    items.push({ label: t('events.detail.tracks'), value: `${trackList.value.length} ${t('common.items')}` })
   }
   if (linkedGoodsList.value.length > 0) {
-    items.push({ label: '关联谷子', value: `${linkedGoodsList.value.length} 件` })
+    items.push({ label: t('events.detail.linkedGoodsCount'), value: `${linkedGoodsList.value.length} ${t('common.items')}` })
   }
   if (event.value.tags?.length) {
-    items.push({ label: '标签', value: tagsDisplay.value })
+    items.push({ label: t('events.detail.tags'), value: tagsDisplay.value })
   }
   return items
 })

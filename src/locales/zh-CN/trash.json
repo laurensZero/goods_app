@@ -10,5 +10,14 @@
   "trash.confirmPermanent": "确认永久删除？",
   "trash.confirmPermanentDesc": "此操作不可逆",
   "trash.deletedAt": "删除于",
-  "trash.quantity": "数量"
+  "trash.quantity": "数量",
+  "trash.deleteConfirmDesc": "删除后无法恢复",
+  "trash.deleteConfirmTitle": "确认删除",
+  "trash.emptyConfirmDesc": "清空后所有记录将永久删除",
+  "trash.emptyConfirmTitle": "确认清空回收站",
+  "trash.heroDesc": "查看和恢复已删除的谷子",
+  "trash.heroTitle": "回收站",
+  "trash.justNow": "刚刚",
+  "trash.totalQuantity": "共 {count} 件",
+  "trash.trashItems": "回收站记录"
 }
