@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260527.1",
+    "url": "bundle-20260527.1.zip",
+    "hash": "7b5f7e08835c71cef33ce00fb81be978c626b011d836a196f840bea0ce13f9be",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化组件卸载时的清理逻辑，避免内存泄漏；更新路由懒加载方式以提升性能；重构媒体播放器缓存逻辑，使用 LRU 策略管理缓存\n\n- feat: 重构多个组件的样式，移除冗余的过渡动画；新增共享样式文件以统一确认对话框和浮动按钮的样式\n\n- feat: 新增页面滚动绑定功能，重构多个视图以使用共享的滚动管理逻辑；优化更新相关的工具函数",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-27T13:09:26Z"
+  },
+  {
     "version": "20260526.5",
     "url": "bundle-20260526.5.zip",
     "hash": "21f0f4a9031864424d56ff111f17726b3b1134a8ec4d626ce41eb9f721d5068d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新批量解析功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-26T14:26:03Z"
-  },
-  {
-    "version": "20260526.3",
-    "url": "bundle-20260526.3.zip",
-    "hash": "ea2fee1fcc73be8f5863babfa49610da3c7a7bc093480ad7f44593df752c9130",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化快照创建逻辑，使用 commit-tree 替代临时分支以提升性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-26T06:55:23Z"
   }
 ]
