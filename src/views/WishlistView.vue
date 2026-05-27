@@ -144,6 +144,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { useWishlistScrollRestore } from '@/composables/scroll/useWishlistScrollRestore'
+import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -222,10 +223,7 @@ const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
 let removeAndroidBackListener = null
-let pageScrollBound = false
 let pageScrollRaf = 0
-let elementScrollHandler = null
-let windowScrollHandler = null
 let topJumpMaskTimer = 0
 let goodsBackHeroRetryRaf = 0
 let wishlistBackHeroDeferredRestoreTimer = 0
@@ -269,6 +267,8 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useWishlistScrollRestore(pageBodyRef)
+
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
 const baseGoodsList = computed(() => store.wishlistViewList)
 const totalQuantity = computed(() => (
@@ -477,35 +477,6 @@ function handlePageScroll() {
     if (selectionMode.value) updateSelectionHeaderPosition()
     updateScrollTopButtonVisibility()
   })
-}
-
-function bindPageScroll() {
-  if (pageScrollBound) return
-
-  elementScrollHandler = () => {
-    markScrollSource('element')
-    handlePageScroll()
-  }
-  windowScrollHandler = () => {
-    markScrollSource('window')
-    handlePageScroll()
-  }
-  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
-  window.addEventListener('scroll', windowScrollHandler, { passive: true })
-  pageScrollBound = true
-}
-
-function unbindPageScroll() {
-  if (!pageScrollBound) return
-  if (elementScrollHandler) {
-    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
-    elementScrollHandler = null
-  }
-  if (windowScrollHandler) {
-    window.removeEventListener('scroll', windowScrollHandler)
-    windowScrollHandler = null
-  }
-  pageScrollBound = false
 }
 
 function scrollToTop() {

@@ -187,6 +187,7 @@ import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { useHomeScrollRestore } from '@/composables/scroll/useHomeScrollRestore'
+import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { useHomeTimeline } from '@/composables/home/useHomeTimeline'
 import { useHomeGoodsList } from '@/composables/home/useHomeGoodsList'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
@@ -283,10 +284,7 @@ const ROW_HEIGHT_MAP = {
 const HOME_BACK_HERO_RETRY_MAX_FRAMES = 12
 const HOME_BACK_HERO_GUARD_TIMEOUT_MS = 320
 let removeAndroidBackListener = null
-let selectionHeaderScrollBound = false
 let pageScrollRaf = 0
-let elementScrollHandler = null
-let windowScrollHandler = null
 let mountBootstrapSession = 0
 let goodsBackHeroRetryRaf = 0
 let homeBackHeroDeferredRestoreTimer = 0
@@ -341,6 +339,8 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useHomeScrollRestore(pageBodyRef)
+
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
 const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
@@ -824,38 +824,6 @@ function getGoodsListEl() {
   return goodsGridSectionRef.value?.goodsListEl?.value || goodsGridSectionRef.value?.goodsListEl || null
 }
 
-function bindSelectionHeaderScroll() {
-  if (selectionHeaderScrollBound) return
-  // Guardrail:
-  // We intentionally listen to both the page container and window.
-  // Different routes / browser states can move the effective scroll source.
-  // The handler marks the real source before saving so restore uses the same target later.
-  elementScrollHandler = () => {
-    markScrollSource('element')
-    handlePageScroll()
-  }
-  windowScrollHandler = () => {
-    markScrollSource('window')
-    handlePageScroll()
-  }
-  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
-  window.addEventListener('scroll', windowScrollHandler, { passive: true })
-  selectionHeaderScrollBound = true
-}
-
-function unbindSelectionHeaderScroll() {
-  if (!selectionHeaderScrollBound) return
-  if (elementScrollHandler) {
-    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
-    elementScrollHandler = null
-  }
-  if (windowScrollHandler) {
-    window.removeEventListener('scroll', windowScrollHandler)
-    windowScrollHandler = null
-  }
-  selectionHeaderScrollBound = false
-}
-
 function handleAndroidBackButton(event) {
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
@@ -912,7 +880,7 @@ onMounted(async () => {
   syncVisibleTimelineMonthCount()
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
-  bindSelectionHeaderScroll()
+  bindPageScroll()
   updateSelectionHeaderPosition()
   const pendingState = getStoredScrollState()
   if (pendingState?.source) {
@@ -968,7 +936,7 @@ onActivated(async () => {
   } else {
     homeDisplayReady.value = true
   }
-  bindSelectionHeaderScroll()
+  bindPageScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
@@ -986,7 +954,7 @@ onDeactivated(() => {
     rememberCurrentScrollPosition()
   }
   exitSelectionModeQuiet()
-  unbindSelectionHeaderScroll()
+  unbindPageScroll()
   unbindAndroidBackButton()
 })
 
@@ -1010,7 +978,7 @@ onBeforeUnmount(() => {
     window.cancelAnimationFrame(pageScrollRaf)
     pageScrollRaf = 0
   }
-  unbindSelectionHeaderScroll()
+  unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
@@ -1026,7 +994,7 @@ onBeforeRouteLeave(() => {
     window.cancelAnimationFrame(pageScrollRaf)
     pageScrollRaf = 0
   }
-  unbindSelectionHeaderScroll()
+  unbindPageScroll()
 })
 
 const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)

@@ -8,6 +8,7 @@ import {
   normalizeVersionTag
 } from '@/utils/github/release'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
   gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
@@ -16,9 +17,7 @@ const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
 const UPDATE_SOURCE_STORAGE_KEY = 'goods_web_update_source'
 const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
-const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const REQUEST_TIMEOUT_MS = 15000
-const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
 let activeCheckPromise = null
 
@@ -229,12 +228,6 @@ function normalizeUpdateSource(value) {
   return 'auto'
 }
 
-function normalizeUpdateLevel(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (AVAILABLE_UPDATE_LEVELS.includes(normalized)) return normalized
-  return 'prompt'
-}
-
 function resolveUpdateLevelFromManifest(manifest) {
   if (manifest?.forceUpdate === true) return 'force'
   if (manifest?.silentUpdate === true) return 'silent'
@@ -334,11 +327,6 @@ function buildManifestUrl(channel, source) {
   const base = WEB_MANIFEST_BASE_BY_SOURCE[source]
   if (!base) return ''
   return `${base}/${channel}/manifest.json`
-}
-
-function resolveSourceCandidates(source) {
-  if (source === 'auto') return ['gitee', 'github']
-  return [source]
 }
 
 export const useWebUpdateStore = defineStore('webUpdate', () => {

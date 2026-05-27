@@ -15,6 +15,7 @@ import {
   resolveReleaseTargetUrl
 } from '@/utils/github/release'
 import { readSyncKey } from '@/utils/sync/storage'
+import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
 
 const UPDATE_REPO_NAME = 'goods_app'
 const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
@@ -23,11 +24,9 @@ const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
 })
 const UPDATE_SOURCE_STORAGE_KEY = 'goods_app_update_source'
 const SYNC_TOKEN_STORAGE_KEY = 'sync_github_token'
-const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
 const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatform() && !SUPPORT_WEB_MOCK_DOWNLOAD
-const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
 let activeCheckPromise = null
 
@@ -66,17 +65,6 @@ function persistSource(source) {
   } catch {
     // ignore persistence failures
   }
-}
-
-function resolveSourceCandidates(source) {
-  if (source === 'auto') return ['gitee', 'github']
-  return [source]
-}
-
-function normalizeUpdateLevel(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (AVAILABLE_UPDATE_LEVELS.includes(normalized)) return normalized
-  return 'prompt'
 }
 
 function resolveUpdateLevelFromRelease(release) {

@@ -205,6 +205,7 @@ import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import { Capacitor } from '@capacitor/core'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
+import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { useManageExport, exportSectionOptions } from '@/composables/manage/useManageExport'
 import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
@@ -295,10 +296,7 @@ function handleResize() { windowWidth.value = window.innerWidth }
 // ---- scroll management ----
 const pageBodyRef = ref(null)
 const manageDisplayReady = ref(true)
-let pageScrollBound = false
 let pageScrollRaf = 0
-let elementScrollHandler = null
-let windowScrollHandler = null
 let isRouteLeaving = false
 
 const {
@@ -307,6 +305,8 @@ const {
   restoreActivatedScrollPosition, rememberCurrentScrollPosition,
   clearDisplayedScrollPosition, resetStoredScrollOnReload, cancelPendingRestore
 } = useManageScrollRestore(pageBodyRef)
+
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
 function syncVisibleGoodsCount() {}
 function syncVisibleTimelineMonthCount() {}
@@ -325,22 +325,6 @@ function handlePageScroll() {
     if (isRouteLeaving) return
     rememberCurrentScrollPosition()
   })
-}
-
-function bindPageScroll() {
-  if (pageScrollBound) return
-  elementScrollHandler = () => { markScrollSource('element'); handlePageScroll() }
-  windowScrollHandler = () => { markScrollSource('window'); handlePageScroll() }
-  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
-  window.addEventListener('scroll', windowScrollHandler, { passive: true })
-  pageScrollBound = true
-}
-
-function unbindPageScroll() {
-  if (!pageScrollBound) return
-  if (elementScrollHandler) { getScrollEl()?.removeEventListener('scroll', elementScrollHandler); elementScrollHandler = null }
-  if (windowScrollHandler) { window.removeEventListener('scroll', windowScrollHandler); windowScrollHandler = null }
-  pageScrollBound = false
 }
 
 // ---- lifecycle ----
