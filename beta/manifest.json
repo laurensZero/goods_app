@@ -1,9 +1,9 @@
 {
-  "version": "20260527.4",
-  "url": "bundle-20260527.4.zip",
-  "hash": "a2f3da9e0eebea862e601bf0f094e5eeed88eec196d6ec37b01ab49e97ec91c8",
+  "version": "20260527.5",
+  "url": "bundle-20260527.5.zip",
+  "hash": "bed58cbe13a74e73ff4683c8afd3d83d722e35e1c7e89ec7063cc40501ae71a8",
   "minNativeVersion": null,
-  "notes": "- feat: 重构代码",
+  "notes": "- feat: 更多翻译",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-27T15:06:52Z"
+  "publishedAt": "2026-05-27T15:46:26Z"
 }
