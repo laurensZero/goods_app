@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
@@ -495,6 +495,8 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     }
     suppressNextExportClick = false
   }
+
+  onBeforeUnmount(cleanupExportTimers)
 
   return {
     // state

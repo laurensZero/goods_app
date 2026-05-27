@@ -268,6 +268,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRestore'
+import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -299,10 +300,7 @@ const topJumpMasking = ref(false)
 const sortDirection = ref(localStorage.getItem(EVENT_SORT_STORAGE_KEY) === 'asc' ? 'asc' : 'desc')
 const viewMode = ref(localStorage.getItem(EVENT_VIEW_STORAGE_KEY) === 'timeline' ? 'timeline' : 'grid')
 const selectionHeaderTop = ref(0)
-let pageScrollBound = false
 let pageScrollRaf = 0
-let elementScrollHandler = null
-let windowScrollHandler = null
 let topJumpMaskTimer = 0
 let eventBackHeroRetryRaf = 0
 let eventBackHeroDeferredRestoreTimer = 0
@@ -354,6 +352,8 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useEventsScrollRestore(pageBodyRef)
+
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
 const filteredEvents = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
@@ -696,35 +696,6 @@ function triggerTopJumpMask() {
     topJumpMasking.value = false
     topJumpMaskTimer = 0
   }, 260)
-}
-
-function bindPageScroll() {
-  if (pageScrollBound) return
-
-  elementScrollHandler = () => {
-    markScrollSource('element')
-    handlePageScroll()
-  }
-  windowScrollHandler = () => {
-    markScrollSource('window')
-    handlePageScroll()
-  }
-  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
-  window.addEventListener('scroll', windowScrollHandler, { passive: true })
-  pageScrollBound = true
-}
-
-function unbindPageScroll() {
-  if (!pageScrollBound) return
-  if (elementScrollHandler) {
-    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
-    elementScrollHandler = null
-  }
-  if (windowScrollHandler) {
-    window.removeEventListener('scroll', windowScrollHandler)
-    windowScrollHandler = null
-  }
-  pageScrollBound = false
 }
 
 async function refresh() {

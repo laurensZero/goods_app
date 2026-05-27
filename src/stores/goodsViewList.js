@@ -16,7 +16,7 @@ import {
  * @param {object} item
  * @param {object} exchangeRate
  */
-function enrichItem(item, exchangeRate) {
+function computePriceFields(item, exchangeRate) {
   const quantityNumber = parseQuantity(item.quantity)
   const officialPriceNumber = parseNumericPrice(item.price)
   const actualPriceNumber = parseNumericPrice(item.actualPrice)
@@ -24,13 +24,7 @@ function enrichItem(item, exchangeRate) {
   const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
   const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(item))
   const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, item.currency)
-
   return {
-    ...item,
-    isWishlist: normalizeWishlistFlag(item.isWishlist),
-    sortId: String(item.id),
-    acquiredTime: parseAcquiredTime(item.acquiredAt),
-    timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
     priceNumber: effectivePriceNumber,
     officialPriceNumber,
     actualPriceNumber,
@@ -38,6 +32,21 @@ function enrichItem(item, exchangeRate) {
     priceCNYNumber,
     quantityNumber,
     totalValueNumber: collectionTotalCNYNumber
+  }
+}
+
+/**
+ * @param {object} item
+ * @param {object} exchangeRate
+ */
+function enrichItem(item, exchangeRate) {
+  return {
+    ...item,
+    ...computePriceFields(item, exchangeRate),
+    isWishlist: normalizeWishlistFlag(item.isWishlist),
+    sortId: String(item.id),
+    acquiredTime: parseAcquiredTime(item.acquiredAt),
+    timelineYearMonth: parseTimelineYearMonth(item.acquiredAt)
   }
 }
 
@@ -134,24 +143,11 @@ export function createTrashViewList(trashList) {
       const cached = trashViewCache.get(item.id)
       if (cached && cached.srcItem === item && !ratesChanged) continue
       changed = true
-      const quantityNumber = parseQuantity(item.quantity)
-      const officialPriceNumber = parseNumericPrice(item.price)
-      const actualPriceNumber = parseNumericPrice(item.actualPrice)
-      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
-      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
-      const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(item))
-      const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, item.currency)
       const viewItem = {
         ...item,
+        ...computePriceFields(item, exchangeRate),
         deletedTime: parseDeletedTime(item.deletedAt),
-        acquiredTime: parseAcquiredTime(item.acquiredAt),
-        priceNumber: effectivePriceNumber,
-        officialPriceNumber,
-        actualPriceNumber,
-        effectivePriceNumber,
-        priceCNYNumber,
-        quantityNumber,
-        totalValueNumber: collectionTotalCNYNumber
+        acquiredTime: parseAcquiredTime(item.acquiredAt)
       }
       newMap.set(item.id, { viewItem, srcItem: item })
     }
@@ -182,24 +178,11 @@ export function createTrashViewList(trashList) {
     trashCachedRatesRef = exchangeRate.rates
     const newMap = new Map()
     for (const [id, { srcItem }] of trashViewCache) {
-      const quantityNumber = parseQuantity(srcItem.quantity)
-      const officialPriceNumber = parseNumericPrice(srcItem.price)
-      const actualPriceNumber = parseNumericPrice(srcItem.actualPrice)
-      const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(srcItem))
-      const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, srcItem.currency)
-      const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(srcItem))
-      const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, srcItem.currency)
       const viewItem = {
         ...srcItem,
+        ...computePriceFields(srcItem, exchangeRate),
         deletedTime: parseDeletedTime(srcItem.deletedAt),
-        acquiredTime: parseAcquiredTime(srcItem.acquiredAt),
-        priceNumber: effectivePriceNumber,
-        officialPriceNumber,
-        actualPriceNumber,
-        effectivePriceNumber,
-        priceCNYNumber,
-        quantityNumber,
-        totalValueNumber: collectionTotalCNYNumber
+        acquiredTime: parseAcquiredTime(srcItem.acquiredAt)
       }
       newMap.set(id, { viewItem, srcItem })
     }

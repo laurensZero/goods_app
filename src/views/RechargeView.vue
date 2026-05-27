@@ -56,6 +56,7 @@ import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { useRechargeScrollRestore } from '@/composables/scroll/useRechargeScrollRestore'
+import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
@@ -71,10 +72,7 @@ const rechargeSelectionMode = ref(false)
 const showScrollTopButton = ref(false)
 const isRechargeActive = ref(true)
 
-let pageScrollBound = false
 let pageScrollRaf = 0
-let elementScrollHandler = null
-let windowScrollHandler = null
 let isRouteLeaving = false
 let mountBootstrapSession = 0
 
@@ -95,6 +93,8 @@ const {
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = useRechargeScrollRestore(pageBodyRef)
+
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
 function persistHomeMode(mode) {
   const normalizedMode = mode === 'recharge' ? 'recharge' : 'goods'
@@ -140,36 +140,6 @@ function handlePageScroll() {
     rememberCurrentScrollPosition()
     updateScrollTopButtonVisibility()
   })
-}
-
-function bindPageScroll() {
-  if (pageScrollBound) return
-
-  elementScrollHandler = () => {
-    markScrollSource('element')
-    handlePageScroll()
-  }
-  windowScrollHandler = () => {
-    markScrollSource('window')
-    handlePageScroll()
-  }
-
-  getScrollEl()?.addEventListener('scroll', elementScrollHandler, { passive: true })
-  window.addEventListener('scroll', windowScrollHandler, { passive: true })
-  pageScrollBound = true
-}
-
-function unbindPageScroll() {
-  if (!pageScrollBound) return
-  if (elementScrollHandler) {
-    getScrollEl()?.removeEventListener('scroll', elementScrollHandler)
-    elementScrollHandler = null
-  }
-  if (windowScrollHandler) {
-    window.removeEventListener('scroll', windowScrollHandler)
-    windowScrollHandler = null
-  }
-  pageScrollBound = false
 }
 
 function scrollToTop() {
