@@ -1616,14 +1616,7 @@ onBeforeUnmount(() => {
 }
 
 .float-footer {
-  position: fixed;
-  left: 50%;
-  bottom: max(20px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: min(calc(100vw - 32px), 420px);
   padding: 0;
-  z-index: 40;
-  pointer-events: none;
 }
 
 .btn-primary {

@@ -7,11 +7,7 @@ import { buildGistImageUri, parseGistImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
 import { signalImageCacheRefresh } from '@/utils/image/cache'
 import { useSyncStore } from '@/stores/sync'
-
-function parseTicketPrice(value) {
-  const price = Number.parseFloat(value)
-  return Number.isFinite(price) ? price : 0
-}
+import { parseNumericPrice } from '@/stores/goodsHelpers'
 
 function normalizeOtherExpenses(expenses) {
   if (!Array.isArray(expenses)) return []
@@ -79,14 +75,14 @@ export const useEventsStore = defineStore('events', () => {
           month: isUndated ? '' : String(parseInt(month, 10)),
           isUndated,
           count: items.length,
-          totalTicket: items.reduce((sum, item) => sum + parseTicketPrice(item.ticketPrice), 0),
+          totalTicket: items.reduce((sum, item) => sum + parseNumericPrice(item.ticketPrice), 0),
           items
         }
       })
   })
 
   const totalTicketAll = computed(() =>
-    list.value.reduce((sum, item) => sum + parseTicketPrice(item.ticketPrice), 0)
+    list.value.reduce((sum, item) => sum + parseNumericPrice(item.ticketPrice), 0)
   )
 
   const getById = computed(() => (id) => list.value.find((item) => item.id === id))

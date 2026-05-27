@@ -963,31 +963,6 @@ watch(() => shareResult.value?.code, (value) => {
   background: rgba(142, 142, 147, 0.18);
 }
 
-/* Transitions */
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active {
-  transition: opacity 0.28s ease;
-}
-
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to {
-  opacity: 0;
-}
-
-.sheet-slide-enter-active {
-  transition: transform 0.32s cubic-bezier(0.34, 1.1, 0.64, 1), opacity 0.22s ease;
-}
-
-.sheet-slide-leave-active {
-  transition: transform 0.24s ease, opacity 0.18s ease;
-}
-
-.sheet-slide-enter-from,
-.sheet-slide-leave-to {
-  transform: translateX(-50%) translateY(100%);
-  opacity: 0.6;
-}
-
 /* Mode switch content transition */
 .mode-fade-enter-active {
   transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1);

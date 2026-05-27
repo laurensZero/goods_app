@@ -35,39 +35,6 @@ defineEmits(['cancel', 'confirm'])
 </script>
 
 <style scoped>
-.confirm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(18px) saturate(125%);
-  -webkit-backdrop-filter: blur(18px) saturate(125%);
-}
-
-.confirm-card {
-  width: min(100%, 360px);
-  padding: 22px;
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
-  border: 1px solid var(--app-glass-border);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-}
-
-.confirm-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: rgba(199, 68, 68, 0.1);
-  color: #c74444;
-}
-
 .confirm-icon svg {
   width: 20px;
   height: 20px;
