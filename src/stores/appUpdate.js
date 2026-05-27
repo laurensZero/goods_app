@@ -217,7 +217,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       || raw.includes('not allowed')
       || raw.includes('权限')
     ) {
-      return '未授予安装权限。请到系统设置 > 应用 > 谷子收纳 > 安装未知应用，开启“允许来自此来源”。'
+      return '未授予安装权限。请到系统设置 > 应用 > 谷子收纳 > 安装未知应用，开启"允许来自此来源"。'
     }
 
     return error?.message || '下载更新包失败，请稍后再试。'

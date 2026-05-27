@@ -1,22 +1,22 @@
 <template>
   <div class="page trash-page">
-    <NavBar title="回收站" show-back />
+    <NavBar :title="t('common.trash')" show-back />
 
     <main class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Trash Bin</p>
-          <h1 class="hero-title">误删的谷子可以在这里恢复</h1>
-          <p class="hero-desc">删除后的物品会先进入回收站，恢复后会重新回到收藏列表。</p>
+          <h1 class="hero-title">{{ t('trash.heroTitle') }}</h1>
+          <p class="hero-desc">{{ t('trash.heroDesc') }}</p>
         </div>
 
         <div class="summary-grid">
           <article class="summary-card">
-            <span class="summary-kicker">回收站条目</span>
+            <span class="summary-kicker">{{ t('trash.trashItems') }}</span>
             <strong class="summary-value">{{ store.trashList.length }}</strong>
           </article>
           <article class="summary-card">
-            <span class="summary-kicker">总数量</span>
+            <span class="summary-kicker">{{ t('trash.totalQuantity') }}</span>
             <strong class="summary-value">{{ totalQuantity }}</strong>
           </article>
         </div>
@@ -24,10 +24,10 @@
 
       <section class="action-section">
         <button class="action-btn action-btn--ghost" type="button" :disabled="store.trashList.length === 0" @click="restoreAll">
-          全部恢复
+          {{ t('trash.restoreAll') }}
         </button>
         <button class="action-btn action-btn--danger" type="button" :disabled="store.trashList.length === 0" @click="emptyAll">
-          清空回收站
+          {{ t('trash.emptyTrash') }}
         </button>
       </section>
 
@@ -42,19 +42,19 @@
             <div class="trash-body">
               <div class="trash-main">
                 <p class="trash-name">{{ item.name }}</p>
-                <p class="trash-meta">删除于 {{ formatDeletedAt(item.deletedAt) }}</p>
+                <p class="trash-meta">{{ t('trash.deletedAt', { date: formatDeletedAt(item.deletedAt) }) }}</p>
               </div>
 
               <div class="trash-chips">
                 <span v-if="item.category" class="trash-chip">{{ item.category }}</span>
                 <span v-if="item.ip" class="trash-chip">{{ item.ip }}</span>
-                <span class="trash-chip">{{ item.quantityNumber }} 件</span>
+                <span class="trash-chip">{{ t('common.items', { count: item.quantityNumber }) }}</span>
                 <span v-if="item.totalValueNumber > 0" class="trash-chip">¥{{ item.totalValueNumber.toFixed(2) }}</span>
               </div>
 
               <div class="trash-actions">
-                <button class="trash-btn trash-btn--ghost" type="button" @click="restoreItem(item.id)">恢复</button>
-                <button class="trash-btn trash-btn--danger" type="button" @click="deleteItem(item.id)">彻底删除</button>
+                <button class="trash-btn trash-btn--ghost" type="button" @click="restoreItem(item.id)">{{ t('trash.restore') }}</button>
+                <button class="trash-btn trash-btn--danger" type="button" @click="deleteItem(item.id)">{{ t('trash.permanentDelete') }}</button>
               </div>
             </div>
           </article>
@@ -63,25 +63,25 @@
         <EmptyState
           v-else
           icon="✓"
-          title="回收站是空的"
-          description="以后误删的谷子会先出现在这里。"
+          :title="t('trash.emptyTitle')"
+          :description="t('trash.emptyDesc')"
         />
       </section>
 
       <DangerConfirmDialog
         :show="showDeleteConfirm"
-        title="彻底删除这条记录？"
-        description="删除后将无法恢复，这件物品会从回收站中永久移除。"
-        confirm-text="彻底删除"
+        :title="t('trash.deleteConfirmTitle')"
+        :description="t('trash.deleteConfirmDesc')"
+        :confirm-text="t('trash.permanentDelete')"
         @cancel="cancelDelete"
         @confirm="confirmDelete"
       />
 
       <DangerConfirmDialog
         :show="showEmptyConfirm"
-        title="清空整个回收站？"
-        description="清空后将无法恢复，回收站中的所有记录都会被永久删除。"
-        confirm-text="清空回收站"
+        :title="t('trash.emptyConfirmTitle')"
+        :description="t('trash.emptyConfirmDesc')"
+        :confirm-text="t('trash.emptyTrash')"
         @cancel="showEmptyConfirm = false"
         @confirm="confirmEmptyAll"
       />
@@ -91,12 +91,14 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
+const { t } = useI18n()
 const store = useGoodsStore()
 const showDeleteConfirm = ref(false)
 const showEmptyConfirm = ref(false)
@@ -108,7 +110,7 @@ const totalQuantity = computed(() =>
 
 function formatDeletedAt(value) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '刚刚'
+  if (Number.isNaN(date.getTime())) return t('trash.justNow')
 
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric',

@@ -1,28 +1,28 @@
 <template>
   <div class="page share-manage-page">
-    <NavBar title="管理分享" show-back />
+    <NavBar :title="t('manage.shareManage')" show-back />
 
     <main class="page-body">
       <section class="share-hero">
         <div class="share-hero__copy">
           <p class="share-hero__label">Share Center</p>
-          <h1 class="share-hero__title">分享管理</h1>
+          <h1 class="share-hero__title">{{ t('share.manageTitle') }}</h1>
           <p class="share-hero__desc">
-            统一查看已发起的分享链接，按需复制、停用或删除，避免失效分享散落。
+            {{ t('share.manageDesc') }}
           </p>
         </div>
 
         <div class="share-hero__stats">
           <article class="hero-stat-card">
-            <span class="hero-stat-card__label">全部分享</span>
+            <span class="hero-stat-card__label">{{ t('share.allShares') }}</span>
             <strong class="hero-stat-card__value">{{ stats.total }}</strong>
           </article>
           <article class="hero-stat-card">
-            <span class="hero-stat-card__label">生效中</span>
+            <span class="hero-stat-card__label">{{ t('share.active') }}</span>
             <strong class="hero-stat-card__value">{{ stats.active }}</strong>
           </article>
           <article class="hero-stat-card">
-            <span class="hero-stat-card__label">已停用</span>
+            <span class="hero-stat-card__label">{{ t('share.disabled') }}</span>
             <strong class="hero-stat-card__value">{{ stats.disabled }}</strong>
           </article>
         </div>
@@ -35,14 +35,14 @@
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </span>
-        <h2 class="share-state-card__title">需要先配置 GitHub Token</h2>
-        <p class="share-state-card__desc">分享记录保存在 GitHub Gist 里。先去云同步页完成 token 配置，才能查看和管理已有分享。</p>
-        <button class="share-primary-btn" type="button" @click="openSync">前往云同步</button>
+        <h2 class="share-state-card__title">{{ t('share.needToken') }}</h2>
+        <p class="share-state-card__desc">{{ t('share.needTokenDesc') }}</p>
+        <button class="share-primary-btn" type="button" @click="openSync">{{ t('share.goToSync') }}</button>
       </section>
 
       <section v-else-if="loading" class="share-state-card share-state-card--loading">
         <span class="load-spinner" />
-        <p class="share-state-card__desc">正在加载分享记录...</p>
+        <p class="share-state-card__desc">{{ t('share.loadingShares') }}</p>
       </section>
 
       <section v-else-if="loadError" class="share-state-card share-state-card--empty">
@@ -54,23 +54,23 @@
           </svg>
         </span>
         <h2 class="share-state-card__title">{{ loadError }}</h2>
-        <button class="share-primary-btn" type="button" @click="loadShares">重新加载</button>
+        <button class="share-primary-btn" type="button" @click="loadShares">{{ t('share.reload') }}</button>
       </section>
 
       <section v-else class="share-content">
         <div class="share-toolbar">
           <div class="share-toolbar__copy">
             <p class="share-toolbar__label">Records</p>
-            <h2 class="share-toolbar__title">{{ shares.length > 0 ? `共 ${shares.length} 条分享` : '暂无分享记录' }}</h2>
+            <h2 class="share-toolbar__title">{{ shares.length > 0 ? t('share.shareCount', { count: shares.length }) : t('share.noShares') }}</h2>
             <p class="share-toolbar__desc">
               {{ gistMetaText }}
             </p>
           </div>
 
           <div class="share-toolbar__actions">
-            <button class="share-secondary-btn" type="button" :disabled="loading" @click="loadShares">刷新</button>
+            <button class="share-secondary-btn" type="button" :disabled="loading" @click="loadShares">{{ t('share.refresh') }}</button>
             <button v-if="shareGist?.id" class="share-secondary-btn share-secondary-btn--mono" type="button" @click="copyGistId">
-              {{ gistCopied ? 'Gist 已复制' : '复制 Gist ID' }}
+              {{ gistCopied ? t('share.gistCopied') : t('share.copyGistId') }}
             </button>
           </div>
         </div>
@@ -82,8 +82,8 @@
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
           </span>
-          <h2 class="share-state-card__title">还没有分享记录</h2>
-          <p class="share-state-card__desc">从收藏详情或批量选择里发起分享后，记录会自动出现在这里。</p>
+          <h2 class="share-state-card__title">{{ t('share.noSharesTitle') }}</h2>
+          <p class="share-state-card__desc">{{ t('share.noSharesDesc') }}</p>
         </section>
 
         <section v-else class="share-grid">
@@ -106,14 +106,14 @@
 
                 <div class="share-record__copy">
                   <div class="share-record__topline">
-                    <h3 class="share-record__title">{{ share.firstGoodsName }}{{ share.goodsCount > 1 ? ` 等 ${share.goodsCount} 件` : '' }}</h3>
+                    <h3 class="share-record__title">{{ share.firstGoodsName }}{{ share.goodsCount > 1 ? t('share.goodsCountSuffix', { count: share.goodsCount }) : '' }}</h3>
                     <span :class="['share-status-chip', share.disabled ? 'share-status-chip--off' : 'share-status-chip--on']">
-                      {{ share.disabled ? '已停用' : '生效中' }}
+                      {{ share.disabled ? t('share.statusDisabled') : t('share.statusActive') }}
                     </span>
                   </div>
 
                   <div class="share-record__meta">
-                    <span class="share-meta-pill">{{ share.goodsCount }} 件谷子</span>
+                    <span class="share-meta-pill">{{ t('share.goodsCount', { count: share.goodsCount }) }}</span>
                     <span class="share-meta-pill share-meta-pill--mono">{{ share.shareId }}</span>
                     <span class="share-record__date">{{ formatShareDate(share.sharedAt) }}</span>
                   </div>
@@ -122,19 +122,19 @@
             </div>
 
             <div class="share-record__linkbox">
-              <span class="share-record__linklabel">分享链接</span>
+              <span class="share-record__linklabel">{{ t('share.shareLink') }}</span>
               <code class="share-record__linkvalue">{{ buildShareLink(share) }}</code>
             </div>
 
             <div class="share-record__actions">
               <button class="share-action-btn share-action-btn--primary" type="button" @click="shareAgain(share)">
-                {{ copiedId === share.shareId ? '已分享' : '再次分享' }}
+                {{ copiedId === share.shareId ? t('share.shared') : t('share.shareAgain') }}
               </button>
               <button class="share-action-btn" type="button" :disabled="togglingId === share.shareId" @click="toggleShare(share)">
-                {{ togglingId === share.shareId ? '处理中...' : share.disabled ? '重新启用' : '停用分享' }}
+                {{ togglingId === share.shareId ? t('share.processing') : share.disabled ? t('share.reEnable') : t('share.disableShare') }}
               </button>
               <button class="share-action-btn share-action-btn--danger" type="button" :disabled="deletingId === share.shareId" @click="confirmDelete(share)">
-                {{ deletingId === share.shareId ? '删除中...' : '删除' }}
+                {{ deletingId === share.shareId ? t('share.deleting') : t('common.delete') }}
               </button>
             </div>
           </article>
@@ -151,11 +151,11 @@
       <Transition name="sheet-slide">
         <div v-if="deleteTarget" class="confirm-sheet" role="dialog" aria-modal="true">
           <div class="confirm-handle" aria-hidden="true" />
-          <p class="confirm-title">删除这个分享？</p>
-          <p class="confirm-desc">删除后，该分享码和链接将无法继续导入。此操作不可撤销。</p>
+          <p class="confirm-title">{{ t('share.deleteTitle') }}</p>
+          <p class="confirm-desc">{{ t('share.deleteDesc') }}</p>
           <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--cancel" type="button" @click="deleteTarget = null">取消</button>
-            <button class="confirm-btn confirm-btn--delete" type="button" @click="doDelete">确认删除</button>
+            <button class="confirm-btn confirm-btn--cancel" type="button" @click="deleteTarget = null">{{ t('common.cancel') }}</button>
+            <button class="confirm-btn confirm-btn--delete" type="button" @click="doDelete">{{ t('share.confirmDelete') }}</button>
           </div>
         </div>
       </Transition>
@@ -165,6 +165,7 @@
 
 <script setup>
 import { computed, onMounted, ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { Share } from '@capacitor/share'
 import NavBar from '@/components/common/NavBar.vue'
@@ -176,6 +177,7 @@ import { formatDate } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 
+const { t } = useI18n()
 const router = useRouter()
 const syncStore = useSyncStore()
 
@@ -204,13 +206,13 @@ const stats = computed(() => {
 })
 
 const gistMetaText = computed(() => {
-  if (!shareGist.value?.id) return '当前未找到分享 Gist。'
-  return `当前 Gist：${shareGist.value.id}`
+  if (!shareGist.value?.id) return t('share.gistNotFound')
+  return t('share.currentGist', { id: shareGist.value.id })
 })
 
 function formatShareDate(dateStr) {
-  if (!dateStr) return '未知时间'
-  return formatDate(dateStr, 'YYYY-MM-DD HH:mm') || '未知时间'
+  if (!dateStr) return t('share.unknownTime')
+  return formatDate(dateStr, 'YYYY-MM-DD HH:mm') || t('share.unknownTime')
 }
 
 function buildShareLink(share) {
@@ -242,7 +244,7 @@ async function loadShares() {
     shareGist.value = gist
     shares.value = gist ? listSharesFromGist(gist) : []
   } catch (error) {
-    loadError.value = error.message || '加载分享记录失败'
+    loadError.value = error.message || t('share.loadFailed')
   } finally {
     loading.value = false
   }
@@ -283,7 +285,7 @@ async function shareAgain(share) {
 
   if (loadedItems.length === 0) {
     loadedItems = [{
-      name: share.firstGoodsName || '未命名',
+      name: share.firstGoodsName || t('share.unnamed'),
       images: share.coverUri ? [{ uri: share.coverUri, isPrimary: true }] : []
     }]
   }
@@ -306,7 +308,7 @@ async function toggleShare(share) {
   togglingId.value = share.shareId
   try {
     const newContent = toggleShareDisabled(shareGist.value, share.filename, !share.disabled)
-    if (!newContent) throw new Error('无法读取分享数据')
+    if (!newContent) throw new Error(t('share.cannotReadData'))
 
     await updateGist(syncStore.token, shareGist.value.id, {
       [share.filename]: { content: newContent }

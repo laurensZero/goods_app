@@ -1,0 +1,20 @@
+{
+  "status.pendingShipment": "Pending Shipment",
+  "status.pendingPayment": "Pending Payment",
+  "status.pendingPostage": "Pending Postage",
+  "status.owned": "Owned",
+  "status.lost": "Lost",
+  "status.gifted": "Gifted",
+  "status.wantToSell": "Want to Sell",
+  "status.sold": "Sold",
+  "status.forSale": "For Sale",
+  "status.short.pendingShipment": "Ship",
+  "status.short.pendingPayment": "Pay",
+  "status.short.pendingPostage": "Post",
+  "status.short.owned": "Own",
+  "status.short.lost": "Lost",
+  "status.short.gifted": "Gift",
+  "status.short.wantToSell": "Sell",
+  "status.short.sold": "Sold",
+  "status.short.forSale": "Sale"
+}

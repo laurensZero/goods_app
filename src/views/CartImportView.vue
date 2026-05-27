@@ -9,7 +9,7 @@
           <p class="dialog-desc">{{ errorDialogMessage }}</p>
           <div class="dialog-actions">
             <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
-              知道了
+              {{ t('common.ok') }}
             </button>
           </div>
         </div>
@@ -29,75 +29,75 @@
             </div>
             <div class="info-body">
               <template v-if="canUseNativeImport">
-                <p class="info-title">App 内登录米游铺</p>
+                <p class="info-title">{{ t('import.nativeLoginTitle') }}</p>
                 <ol class="info-steps">
-                  <li>点击下方按钮，打开米游铺登录页</li>
-                  <li>在 App 内完成登录</li>
-                  <li>登录完成后点击右上角“继续导入”</li>
-                  <li>App 会自动读取购物车并进入下一步</li>
+                  <li>{{ t('import.nativeStep1') }}</li>
+                  <li>{{ t('import.nativeStep2') }}</li>
+                  <li>{{ t('import.nativeStep3') }}</li>
+                  <li>{{ t('import.nativeStep4Cart') }}</li>
                 </ol>
               </template>
               <template v-else>
-                <p class="info-title">如何获取 Cookie</p>
+                <p class="info-title">{{ t('import.howToGetCookie') }}</p>
                 <ol class="info-steps">
-                  <li>在浏览器中打开 `mihoyogift.com` 并登录</li>
-                  <li>按 `F12` 打开开发者工具，切到 `Network`</li>
-                  <li>刷新页面或进入购物车，点开任意请求</li>
-                  <li>在 `Request Headers` 里复制完整 `Cookie`</li>
-                  <li>粘贴到下方后读取购物车内容</li>
+                  <li>{{ t('import.cartCookieStep1') }}</li>
+                  <li>{{ t('import.cartCookieStep2') }}</li>
+                  <li>{{ t('import.cartCookieStep3') }}</li>
+                  <li>{{ t('import.cartCookieStep4') }}</li>
+                  <li>{{ t('import.cartCookieStep5') }}</li>
                 </ol>
               </template>
             </div>
           </div>
 
           <div v-if="!canUseNativeImport" class="field-group">
-            <label class="field-label" for="cookie-input">粘贴 Cookie</label>
+            <label class="field-label" for="cookie-input">{{ t('import.pasteCookie') }}</label>
             <textarea
               id="cookie-input"
               v-model="cookieInput"
               class="cookie-textarea"
-              placeholder="粘贴完整 Cookie，包含 cookie_token_v2 / ltoken_v2 等字段..."
+              :placeholder="t('import.cookiePlaceholder')"
               spellcheck="false"
               autocomplete="off"
             />
             <p v-if="cookieInput && !cookieValid" class="field-error">
-              Cookie 格式不正确，请确认包含认证字段。
+              {{ t('import.cookieInvalid') }}
             </p>
           </div>
 
           <div v-if="!canUseNativeImport" class="cookie-actions">
             <label class="remember-row">
               <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
-              <span>保存 Cookie，下次自动尝试</span>
+              <span>{{ t('import.rememberCookie') }}</span>
             </label>
             <button v-if="hasSavedCookie" class="cookie-clear-btn" type="button" @click="clearSavedCookie(false)">
-              清除已保存
+              {{ t('import.clearSaved') }}
             </button>
           </div>
           <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
 
           <button class="primary-btn" type="button" :disabled="!canUseNativeImport && !cookieValid" @click="startFetch">
-            {{ canUseNativeImport ? '登录并读取购物车' : '读取购物车' }}
+            {{ canUseNativeImport ? t('import.loginAndFetchCart') : t('import.fetchCart') }}
           </button>
         </section>
 
         <section v-else-if="step === 'loading'" key="loading" class="step-section step-section--center">
-          <div class="loading-anim" aria-label="加载中">
+          <div class="loading-anim" :aria-label="t('common.loading')">
             <div class="loading-ring" />
           </div>
-          <p class="loading-title">正在读取购物车...</p>
-          <p class="loading-sub">请稍候</p>
+          <p class="loading-title">{{ t('import.fetchingCart') }}</p>
+          <p class="loading-sub">{{ t('import.pleaseWait') }}</p>
         </section>
 
         <section v-else-if="step === 'list'" key="list" class="step-section step-section--list">
           <div class="list-header">
-            <p class="list-count">{{ processedGroups.length }} 个店铺 · {{ selectableGoods.length }} 件可导入</p>
+            <p class="list-count">{{ t('import.cartCount', { shops: processedGroups.length, items: selectableGoods.length }) }}</p>
             <div class="list-header-actions">
               <button :class="['text-btn', isAllSelectableSelected && 'text-btn--active']" type="button" @click="selectAll">
-                全选
+                {{ t('common.selectAll') }}
               </button>
               <button :class="['text-btn', hasSelection && 'text-btn--active']" type="button" @click="deselectAll">
-                取消全选
+                {{ t('common.deselectAll') }}
               </button>
             </div>
           </div>
@@ -105,8 +105,8 @@
           <div v-if="processedGroups.length === 0" class="empty-wrap">
             <EmptyState
               icon="✦"
-              title="购物车是空的"
-              description="当前没有可导入的米游铺购物车商品。"
+              :title="t('import.cartEmptyTitle')"
+              :description="t('import.cartEmptyDesc')"
             />
           </div>
 
@@ -125,8 +125,8 @@
                 </button>
 
                 <div class="shop-copy">
-                  <p class="shop-name">{{ group.shopName || '米游铺店铺' }}</p>
-                  <p class="shop-meta">{{ group.goods.length }} 件商品</p>
+                  <p class="shop-name">{{ group.shopName || t('import.mihoyoShop') }}</p>
+                  <p class="shop-meta">{{ t('import.shopGoodsCount', { count: group.goods.length }) }}</p>
                 </div>
               </div>
 
@@ -162,8 +162,8 @@
                       <span v-if="item.variant" class="meta-tag">{{ item.variant }}</span>
                       <span v-else-if="item.characters?.length" class="meta-tag">{{ item.characters[0] }}</span>
                       <span v-if="item.ip" class="meta-tag meta-tag--ip">{{ item.ip }}</span>
-                      <span v-if="isItemImported(item)" class="meta-tag meta-tag--imported">已存在</span>
-                      <span v-else-if="!item._isEffective" class="meta-tag meta-tag--disabled">{{ item._reason || '当前不可导入' }}</span>
+                      <span v-if="isItemImported(item)" class="meta-tag meta-tag--imported">{{ t('import.alreadyExists') }}</span>
+                      <span v-else-if="!item._isEffective" class="meta-tag meta-tag--disabled">{{ item._reason || t('import.notImportable') }}</span>
                     </div>
                   </div>
                 </li>
@@ -180,10 +180,10 @@
               <polyline points="7 12 11 16 17 8" />
             </svg>
           </div>
-          <p class="done-title">导入成功</p>
-          <p class="done-sub">已添加 <strong>{{ importedCount }}</strong> 种商品，共 <strong>{{ importedTotalQty }}</strong> 件。</p>
+          <p class="done-title">{{ t('import.importComplete') }}</p>
+          <p class="done-sub">{{ t('import.cartDoneSub', { count: importedCount, qty: importedTotalQty }) }}</p>
           <button class="primary-btn" type="button" @click="router.replace(doneTargetPath)">
-            返回{{ isWishlistMode ? '心愿单' : '首页' }}
+            {{ t('import.backTo', { target: isWishlistMode ? t('common.wishlist') : t('import.home') }) }}
           </button>
         </section>
       </Transition>
@@ -191,7 +191,7 @@
 
     <div v-if="step === 'list' && processedGroups.length > 0" class="bottom-bar">
       <button class="primary-btn" type="button" :disabled="selectedSet.size === 0" @click="doImport">
-        确定导入
+        {{ t('import.confirmImport') }}
       </button>
     </div>
   </div>
@@ -199,6 +199,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -211,6 +212,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 
 defineOptions({ name: 'CartImportView' })
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useGoodsStore()
@@ -230,7 +232,7 @@ const {
 } = useMihoyoCookieState()
 
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
-const pageTitle = computed(() => isWishlistMode.value ? '购物车导入心愿' : '购物车导入')
+const pageTitle = computed(() => isWishlistMode.value ? t('import.cartImportWishlistTitle') : t('import.cart'))
 const doneTargetPath = computed(() => (isWishlistMode.value ? '/wishlist' : '/home'))
 const targetList = computed(() => (isWishlistMode.value ? store.wishlistList : store.collectionList))
 
@@ -246,7 +248,7 @@ const errorDialogMessage = ref('')
 
 function openErrorDialog(title, message) {
   errorDialogTitle.value = title
-  errorDialogMessage.value = String(message || '').trim() || '发生未知错误'
+  errorDialogMessage.value = String(message || '').trim() || t('import.unknownError')
   showErrorDialog.value = true
 }
 
@@ -341,7 +343,7 @@ const startFetch = async (options = {}) => {
       selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
       step.value = 'list'
     } catch (error) {
-      openErrorDialog('读取购物车失败', error?.message || '请确认已在米游铺完成登录后重试。')
+      openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.confirmLoginRetry'))
       step.value = 'cookie'
     }
     return
@@ -360,12 +362,12 @@ const startFetch = async (options = {}) => {
     if (cookieExpired) {
       step.value = 'cookie'
       if (!silentCookieExpired) {
-        openErrorDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
+        openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
       }
       return
     }
 
-    openErrorDialog('读取购物车失败', error?.message || '请稍后重试。')
+    openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.retryLater'))
     step.value = 'cookie'
   }
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="page account-import-page">
-    <NavBar title="账号批量导入" show-back />
+    <NavBar :title="t('import.account')" show-back />
     <Transition name="overlay-fade">
       <div v-if="showErrorDialog" class="overlay" @click.self="closeErrorDialog">
         <div class="dialog import-error-dialog" role="alertdialog" aria-modal="true">
@@ -9,7 +9,7 @@
           <p class="dialog-desc">{{ errorDialogMessage }}</p>
           <div class="dialog-actions">
             <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
-              知道了
+              {{ t('common.ok') }}
             </button>
           </div>
         </div>
@@ -31,49 +31,49 @@
             </div>
             <div class="info-body">
               <template v-if="canUseNativeImport">
-                <p class="info-title">App 内登录米游铺</p>
+                <p class="info-title">{{ t('import.nativeLoginTitle') }}</p>
                 <ol class="info-steps">
-                  <li>点击下方按钮，打开米游铺登录页</li>
-                  <li>在 App 内完成登录</li>
-                  <li>登录完成后点击右上角“继续导入”</li>
-                  <li>App 会自动读取订单并进入下一步</li>
+                  <li>{{ t('import.nativeStep1') }}</li>
+                  <li>{{ t('import.nativeStep2') }}</li>
+                  <li>{{ t('import.nativeStep3') }}</li>
+                  <li>{{ t('import.nativeStep4Orders') }}</li>
                 </ol>
               </template>
               <template v-else>
-                <p class="info-title">如何获取 Cookie？</p>
+                <p class="info-title">{{ t('import.howToGetCookie') }}</p>
                 <ol class="info-steps">
-                  <li>在浏览器中打开 <strong>mihoyogift.com</strong> 并登录</li>
-                  <li>按 <kbd>F12</kbd> 打开开发者工具 → Network 标签</li>
-                  <li>随便点击一下页面，在请求列表中找到任意请求</li>
-                  <li>在 Request Headers 中找到 <strong>Cookie</strong> 字段</li>
-                  <li>复制整行 Cookie 值粘贴到下方</li>
+                  <li>{{ t('import.cookieStep1') }}</li>
+                  <li>{{ t('import.cookieStep2') }}</li>
+                  <li>{{ t('import.cookieStep3') }}</li>
+                  <li>{{ t('import.cookieStep4') }}</li>
+                  <li>{{ t('import.cookieStep5') }}</li>
                 </ol>
               </template>
             </div>
           </div>
 
           <div v-if="!canUseNativeImport" class="field-group">
-            <label class="field-label" for="cookie-input">粘贴 Cookie</label>
+            <label class="field-label" for="cookie-input">{{ t('import.pasteCookie') }}</label>
             <textarea
               id="cookie-input"
               v-model="cookieInput"
               class="cookie-textarea"
-              placeholder="粘贴完整的 Cookie 字符串，包含 cookie_token_v2 / ltoken_v2 等字段..."
+              :placeholder="t('import.cookiePlaceholder')"
               spellcheck="false"
               autocomplete="off"
             />
             <p v-if="cookieInput && !cookieValid" class="field-error">
-              Cookie 格式不正确，请确保包含认证字段（cookie_token_v2 或 ltoken_v2）
+              {{ t('import.cookieInvalid') }}
             </p>
           </div>
 
           <div v-if="!canUseNativeImport" class="cookie-actions">
             <label class="remember-row">
               <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
-              <span>保存 Cookie，下次自动尝试</span>
+              <span>{{ t('import.rememberCookie') }}</span>
             </label>
             <button v-if="hasSavedCookie" class="cookie-clear-btn" type="button" @click="clearSavedCookie(false)">
-              清除已保存
+              {{ t('import.clearSaved') }}
             </button>
           </div>
           <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
@@ -84,43 +84,43 @@
             :disabled="!canUseNativeImport && !cookieValid"
             @click="startFetch"
           >
-            {{ canUseNativeImport ? '登录并获取订单' : '开始获取订单' }}
+            {{ canUseNativeImport ? t('import.loginAndGetOrders') : t('import.startFetchOrders') }}
           </button>
         </section>
 
         <!-- ========== Step: loading ========== -->
         <section v-else-if="step === 'loading'" key="loading" class="step-section step-section--center">
-          <div class="loading-anim" aria-label="加载中">
+          <div class="loading-anim" :aria-label="t('common.loading')">
             <div class="loading-ring" />
           </div>
-          <p class="loading-title">正在获取订单...</p>
-          <p class="loading-sub">{{ loadedCount }} / {{ totalCount || '??' }} 条</p>
+          <p class="loading-title">{{ t('import.fetchingOrders') }}</p>
+          <p class="loading-sub">{{ loadedCount }} / {{ totalCount || '??' }} {{ t('common.records') }}</p>
         </section>
 
         <!-- ========== Step: orders ========== -->
         <section v-else-if="step === 'orders'" key="orders" class="step-section step-section--list">
           <div class="list-header">
-            <p class="list-count">{{ processedOrders.length }} 个订单 · {{ mergedAllGoods.length }} 种（{{ allGoods.length }} 件）</p>
+            <p class="list-count">{{ t('import.orderCount', { orders: processedOrders.length, types: mergedAllGoods.length, total: allGoods.length }) }}</p>
             <div class="list-header-actions">
               <button
                 :class="['text-btn', isAllSelectableSelected && 'text-btn--active']"
                 type="button"
                 @click="selectAll"
               >
-                全选
+                {{ t('common.selectAll') }}
               </button>
               <button
                 :class="['text-btn', hasSelection && 'text-btn--active']"
                 type="button"
                 @click="deselectAll"
               >
-                取消全选
+                {{ t('common.deselectAll') }}
               </button>
             </div>
           </div>
 
           <div v-if="cappedWarning" class="warn-banner">
-            订单超过 200 条，仅显示最新 200 条
+            {{ t('import.cappedWarning') }}
           </div>
 
           <ul class="order-list">
@@ -162,15 +162,15 @@
 
                 <!-- 订单信息（点击展开） -->
                 <div class="order-info" @click="toggleExpand(po.orderNo)">
-                  <p class="order-name">{{ po.goods[0]?.name || '未知商品' }}</p>
+                  <p class="order-name">{{ po.goods[0]?.name || t('import.unknownGoods') }}</p>
                   <div class="order-meta">
-                    <span v-if="po.goods.length > 1" class="meta-count">共 {{ po.goods.length }} 件</span>
+                    <span v-if="po.goods.length > 1" class="meta-count">{{ t('import.goodsCount', { count: po.goods.length }) }}</span>
                     <span v-if="po.shopName" class="meta-shop">{{ po.shopName }}</span>
                     <span class="meta-date">{{ po.goods[0]?.acquiredAt }}</span>
                   </div>
                 </div>
 
-                <span v-if="isOrderImported(po)" class="status-badge status--imported">已导入</span>
+                <span v-if="isOrderImported(po)" class="status-badge status--imported">{{ t('import.alreadyImported') }}</span>
                 <span v-else-if="po.statusText" :class="['status-badge', getStatusClass(po.statusText)]">
                   {{ po.statusText }}
                 </span>
@@ -220,7 +220,7 @@
                         <span v-if="item.variant" class="meta-char">{{ item.variant }}</span>
                         <span v-else-if="item.characters?.length" class="meta-char">{{ item.characters[0] }}</span>
                         <span v-if="isItemRefundedOrCancelled(item)" :class="['status-badge', 'status--refund', 'meta-item-status']">{{ getItemStatusText(item) }}</span>
-                        <span v-else-if="isItemImported(item)" class="status-badge status--imported meta-item-status">已导入</span>
+                        <span v-else-if="isItemImported(item)" class="status-badge status--imported meta-item-status">{{ t('import.alreadyImported') }}</span>
                         <span v-else-if="isItemStatusWorthy(item)" class="status-badge status--neutral meta-item-status">{{ getItemStatusText(item) }}</span>
                       </div>
                     </div>
@@ -241,10 +241,10 @@
               <polyline points="7 12 11 16 17 8" />
             </svg>
           </div>
-          <p class="done-title">导入成功</p>
-          <p class="done-sub">已添加 <strong>{{ importedCount }}</strong> 种谷子（共 <strong>{{ importedTotalQty }}</strong> 件）到收藏</p>
+          <p class="done-title">{{ t('import.importComplete') }}</p>
+          <p class="done-sub">{{ t('import.importDoneSub', { count: importedCount, qty: importedTotalQty }) }}</p>
           <button class="primary-btn" type="button" @click="$router.push('/home')">
-            返回首页
+            {{ t('import.backToHome') }}
           </button>
         </section>
       </Transition>
@@ -258,7 +258,7 @@
         :disabled="selectedSet.size === 0"
         @click="doImport"
       >
-        导入 {{ selectedSet.size > 0 ? `${selectedSet.size} 件` : '' }}谷子
+        {{ t('import.importGoods', { count: selectedSet.size || '' }) }}
       </button>
     </div>
   </div>
@@ -266,6 +266,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
@@ -277,6 +278,7 @@ import NavBar from '@/components/common/NavBar.vue'
 
 defineOptions({ name: 'AccountImportView' })
 
+const { t } = useI18n()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const {
@@ -310,7 +312,7 @@ const errorDialogMessage = ref('')
 
 function openErrorDialog(title, message) {
   errorDialogTitle.value = title
-  errorDialogMessage.value = String(message || '').trim() || '发生未知错误'
+  errorDialogMessage.value = String(message || '').trim() || t('import.unknownError')
   showErrorDialog.value = true
 }
 
@@ -352,12 +354,12 @@ const REFUND_STATUS_PATTERNS = [
 ]
 // 商品是否已退款/取消
 function isItemRefundedOrCancelled(item) {
-  const t = getItemStatusText(item).trim()
-  return REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(t))
+  const statusText = getItemStatusText(item).trim()
+  return REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(statusText))
 }
 function isOrderClosed(po) {
-  const t = String(po?.statusText || '').trim()
-  return CLOSED_ORDER_PATTERNS.some((pattern) => pattern.test(t))
+  const statusText = String(po?.statusText || '').trim()
+  return CLOSED_ORDER_PATTERNS.some((pattern) => pattern.test(statusText))
 }
 
 // 商品是否有展示价值的非常规状态（山不是「已完成」类气泰状态）
@@ -376,8 +378,8 @@ function isItemSelectable(item, po) {
 }
 
 function isItemStatusWorthy(item) {
-  const t = getItemStatusText(item)
-  return t.length > 0 && !SKIP_STATUS_SET.has(t)
+  const statusText = getItemStatusText(item)
+  return statusText.length > 0 && !SKIP_STATUS_SET.has(statusText)
 }
 
 // ── Computed ───────────────────────────────────────────────────
@@ -474,7 +476,7 @@ const startFetch = async (options = {}) => {
       selectedSet.value = new Set()
       step.value = 'orders'
     } catch (err) {
-      openErrorDialog('获取订单失败', err?.message || '请确认已在米游铺完成登录后重试。')
+      openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.confirmLoginRetry'))
       step.value = 'cookie'
     } finally {
       progressHandle?.remove()
@@ -505,12 +507,12 @@ const startFetch = async (options = {}) => {
     if (cookieExpired) {
       step.value = 'cookie'
       if (!silentCookieExpired) {
-        openErrorDialog('Cookie 已失效', '已保存的 Cookie 可能已失效，请重新输入并更新。')
+        openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
       }
       return
     }
 
-    openErrorDialog('获取订单失败', err?.message || '请稍后重试。')
+    openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.retryLater'))
     step.value = 'cookie'
   }
 }

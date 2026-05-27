@@ -1,19 +1,19 @@
 <template>
   <div class="page about-page">
-    <NavBar title="关于应用" show-back />
+    <NavBar :title="t('about.title')" show-back />
 
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <article class="hero-card">
-          <img class="app-icon" :src="appIconSrc" alt="应用图标" />
+          <img class="app-icon" :src="appIconSrc" :alt="t('about.appIcon')" />
           <div class="hero-copy">
             <p class="hero-label">About Goods App</p>
             <h1 class="hero-title">{{ appName }}</h1>
-            <p class="hero-desc">用来整理谷子、位置、预设与备份同步的收藏管理工具。</p>
+            <p class="hero-desc">{{ t('about.heroDesc') }}</p>
             <div class="hero-meta">
-              <span class="hero-chip">版本 {{ appVersion }}</span>
+              <span class="hero-chip">{{ t('about.version') }} {{ appVersion }}</span>
               <span class="hero-chip">Android {{ androidVersionName }}</span>
-              <span class="hero-chip">资源 {{ webBundleVersionLabel }}</span>
+              <span class="hero-chip">{{ t('about.resourceVersion') }} {{ webBundleVersionLabel }}</span>
             </div>
           </div>
         </article>
@@ -22,32 +22,32 @@
       <section class="content-section">
         <div class="section-head">
           <p class="section-label">App Info</p>
-          <h2 class="section-title">应用信息</h2>
+          <h2 class="section-title">{{ t('about.appInfo') }}</h2>
         </div>
 
         <div class="info-grid">
           <article class="info-card">
-            <p class="info-kicker">应用名称</p>
+            <p class="info-kicker">{{ t('about.appName') }}</p>
             <h3 class="info-value">{{ appName }}</h3>
-            <p class="info-desc">Capacitor 应用名与管理页展示信息。</p>
+            <p class="info-desc">{{ t('about.appNameDesc') }}</p>
           </article>
 
           <article class="info-card">
-            <p class="info-kicker">包名</p>
+            <p class="info-kicker">{{ t('about.packageName') }}</p>
             <h3 class="info-value info-value--mono">{{ appId }}</h3>
-            <p class="info-desc">安卓安装包唯一标识。</p>
+            <p class="info-desc">{{ t('about.packageNameDesc') }}</p>
           </article>
 
           <article class="info-card">
-            <p class="info-kicker">Android 版本</p>
+            <p class="info-kicker">{{ t('about.androidVersion') }}</p>
             <h3 class="info-value">{{ androidVersionName }}</h3>
-            <p class="info-desc">当前原生工程中的 versionName。</p>
+            <p class="info-desc">{{ t('about.androidVersionDesc') }}</p>
           </article>
 
           <article class="info-card">
-            <p class="info-kicker">资源版本</p>
+            <p class="info-kicker">{{ t('about.resourceVersion') }}</p>
             <h3 class="info-value">{{ webBundleVersionLabel }}</h3>
-            <p class="info-desc">当前生效的前端资源包版本（Capacitor Updater）。</p>
+            <p class="info-desc">{{ t('about.resourceVersionDesc') }}</p>
           </article>
         </div>
       </section>
@@ -55,16 +55,16 @@
       <section class="content-section">
         <div class="section-head">
           <p class="section-label">App Update</p>
-          <h2 class="section-title">检查更新</h2>
+          <h2 class="section-title">{{ t('about.checkUpdate') }}</h2>
         </div>
 
         <div class="update-grid">
           <article class="update-panel">
             <p class="info-kicker">App Release</p>
-            <h3 class="info-value">当前版本 v{{ updateStore.currentVersion }}</h3>
-            <p class="info-desc">{{ IS_NATIVE ? '启动时会自动检查一次更新，你也可以在这里手动触发。' : 'Web 端默认不自动检查，你可以在这里手动触发。' }}</p>
+            <h3 class="info-value">{{ t('about.currentVersionLabel', { version: updateStore.currentVersion }) }}</h3>
+            <p class="info-desc">{{ IS_NATIVE ? t('about.appUpdateDescNative') : t('about.appUpdateDescWeb') }}</p>
             <div class="update-channel-row">
-              <span class="update-channel-label">更新源</span>
+              <span class="update-channel-label">{{ t('about.updateSource') }}</span>
               <div class="update-channel-actions">
                 <button
                   v-for="source in updateStore.availableUpdateSources"
@@ -81,18 +81,18 @@
             <p v-if="updateStore.downloadError" class="update-status update-status--error">{{ updateStore.downloadError }}</p>
             <div v-if="updateStore.isDownloading" class="update-download-progress">
               <div class="update-download-progress__head">
-                <span>下载中</span>
+                <span>{{ t('about.downloadProgress') }}</span>
                 <span>{{ updateStore.downloadProgress }}%</span>
               </div>
               <div class="update-download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
                 <span class="update-download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
               </div>
               <div class="update-download-progress__meta">
-                <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
+                <span>{{ updateStore.downloadTransferred || t('about.preparing') }}</span>
                 <span>{{ updateStore.downloadSpeed || '--' }}</span>
               </div>
             </div>
-            <p class="update-meta">上次检查：{{ updateCheckedAtLabel }}</p>
+            <p class="update-meta">{{ t('about.lastChecked', { time: updateCheckedAtLabel }) }}</p>
 
             <div class="update-actions">
               <button
@@ -101,7 +101,7 @@
                 :disabled="updateStore.isChecking"
                 @click="handleManualCheckUpdate"
               >
-                {{ updateStore.isChecking ? '检查中...' : '手动检查更新' }}
+                {{ updateStore.isChecking ? t('about.checking') : t('about.manualCheckUpdate') }}
               </button>
               <button
                 v-if="updateStore.hasUpdate"
@@ -110,17 +110,17 @@
                 :disabled="updateStore.isDownloading"
                 @click="handleStartUpdate"
               >
-                {{ updateStore.isDownloading ? '下载中...' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新') }}
+                {{ updateStore.isDownloading ? t('about.downloading') : (updateStore.supportsInAppDownload ? t('about.downloadAndInstall') : t('about.gotoUpdate')) }}
               </button>
             </div>
           </article>
 
           <article class="update-panel">
             <p class="info-kicker">Web Bundle</p>
-            <h3 class="info-value">当前资源 {{ webBundleVersionLabel }}</h3>
-            <p class="info-desc">通过 manifest 执行资源增量更新，不修改 APK。</p>
+            <h3 class="info-value">{{ t('about.currentResourceLabel', { version: webBundleVersionLabel }) }}</h3>
+            <p class="info-desc">{{ t('about.webUpdateDesc') }}</p>
             <div class="update-channel-row">
-              <span class="update-channel-label">更新源</span>
+              <span class="update-channel-label">{{ t('about.updateSource') }}</span>
               <div class="update-channel-actions">
                 <button
                   v-for="source in webUpdateStore.availableUpdateSources"
@@ -134,7 +134,7 @@
               </div>
             </div>
             <div class="update-channel-row">
-              <span class="update-channel-label">更新通道</span>
+              <span class="update-channel-label">{{ t('about.updateChannel') }}</span>
               <div class="update-channel-actions">
                 <button
                   v-for="channel in webUpdateStore.availableUpdateChannels"
@@ -149,20 +149,20 @@
             </div>
             <p class="update-status">{{ webUpdateStatusText }}</p>
             <section v-if="webUpdateReleaseNotesPreview" class="update-notes">
-              <p class="update-notes__label">更新日志</p>
+              <p class="update-notes__label">{{ t('about.releaseNotes') }}</p>
               <pre class="update-notes__body">{{ webUpdateReleaseNotesPreview }}</pre>
             </section>
             <p v-if="webUpdateStore.lastError" class="update-status update-status--error">{{ webUpdateStore.lastError }}</p>
             <div v-if="webUpdateStore.isDownloading" class="update-download-progress">
               <div class="update-download-progress__head">
-                <span>下载中</span>
+                <span>{{ t('about.downloadProgress') }}</span>
                 <span>{{ webUpdateStore.downloadProgress }}%</span>
               </div>
               <div class="update-download-progress__track" role="progressbar" :aria-valuenow="webUpdateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
                 <span class="update-download-progress__bar" :style="{ width: `${webUpdateStore.downloadProgress}%` }" />
               </div>
             </div>
-            <p class="update-meta">上次检查：{{ webUpdateCheckedAtLabel }}</p>
+            <p class="update-meta">{{ t('about.lastChecked', { time: webUpdateCheckedAtLabel }) }}</p>
             <div class="update-actions">
               <button
                 type="button"
@@ -170,7 +170,7 @@
                 :disabled="!webUpdateStore.supported || webUpdateStore.isChecking"
                 @click="handleManualCheckWebUpdate"
               >
-                {{ webUpdateStore.isChecking ? '检查中...' : '检查资源更新' }}
+                {{ webUpdateStore.isChecking ? t('about.checking') : t('about.checkResourceUpdate') }}
               </button>
               <button
                 v-if="webUpdateStore.hasUpdate"
@@ -179,7 +179,7 @@
                 :disabled="webUpdateStore.isDownloading"
                 @click="handleStartWebUpdate"
               >
-                {{ webUpdateStore.isDownloading ? '下载中...' : '下载并下次启动生效' }}
+                {{ webUpdateStore.isDownloading ? t('about.downloading') : t('about.downloadAndNextLaunch') }}
               </button>
               <button
                 v-if="webUpdateStore.supported"
@@ -187,7 +187,7 @@
                 class="dialog-btn dialog-btn--ghost"
                 @click="showWebUpdateResetDialog = true"
               >
-                恢复内置资源
+                {{ t('about.restoreBuiltInResource') }}
               </button>
             </div>
           </article>
@@ -197,40 +197,40 @@
       <section class="content-section">
         <div class="section-head">
           <p class="section-label">Resource Management</p>
-          <h2 class="section-title">资源管理</h2>
+          <h2 class="section-title">{{ t('about.resourceManagement') }}</h2>
         </div>
 
         <div class="info-grid">
           <article class="info-card">
-            <p class="info-kicker">本地图片缓存</p>
+            <p class="info-kicker">{{ t('about.localImageCache') }}</p>
             <h3 class="info-value">{{ resourceSizeCacheImage }}</h3>
-            <p class="info-desc">释放由于查看商品而产生的本地图片缓存，随时可再次下载。</p>
+            <p class="info-desc">{{ t('about.localImageCacheDesc') }}</p>
             <div class="update-actions" style="margin-top: 1rem;">
-              <button class="dialog-btn dialog-btn--secondary" @click="handleClearImageCache">清除图片缓存</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="handleClearImageCache">{{ t('about.clearImageCache') }}</button>
             </div>
           </article>
 
           <article class="info-card">
-            <p class="info-kicker">本地抠图模型</p>
+            <p class="info-kicker">{{ t('about.localCutoutModel') }}</p>
             <h3 class="info-value">{{ resourceSizeModel }}</h3>
-            <p class="info-desc">卸载由于使用“去除背景”功能而下载的模型文件以腾出空间。</p>
+            <p class="info-desc">{{ t('about.localCutoutModelDesc') }}</p>
             <div class="update-actions" style="margin-top: 1rem;">
               <button
                 class="dialog-btn dialog-btn--secondary"
                 :disabled="isClearingCutoutModel"
                 @click="handleClearCutoutModel"
               >
-                {{ isClearingCutoutModel ? '卸载中...' : '卸载抠图模型' }}
+                {{ isClearingCutoutModel ? t('about.uninstalling') : t('about.uninstallCutoutModel') }}
               </button>
             </div>
           </article>
 
           <article class="info-card">
-            <p class="info-kicker">应用更新残留</p>
+            <p class="info-kicker">{{ t('about.updateRemnants') }}</p>
             <h3 class="info-value">{{ resourceSizeUpdate }}</h3>
-            <p class="info-desc">清理系统热更或下载的 APK 安装包等无效残留数据。</p>
+            <p class="info-desc">{{ t('about.updateRemnantsDesc') }}</p>
             <div class="update-actions" style="margin-top: 1rem;">
-              <button class="dialog-btn dialog-btn--secondary" @click="handleClearUpdateCache">清除更新残留</button>
+              <button class="dialog-btn dialog-btn--secondary" @click="handleClearUpdateCache">{{ t('about.clearUpdateRemnants') }}</button>
             </div>
           </article>
         </div>
@@ -239,7 +239,7 @@
       <section class="content-section">
         <div class="section-head">
           <p class="section-label">Current Data</p>
-          <h2 class="section-title">当前数据</h2>
+          <h2 class="section-title">{{ t('about.currentData') }}</h2>
         </div>
 
         <div class="stats-grid">
@@ -254,7 +254,7 @@
       <section class="content-section">
         <div class="section-head">
           <p class="section-label">Feedback</p>
-          <h2 class="section-title">反馈</h2>
+          <h2 class="section-title">{{ t('about.feedback') }}</h2>
         </div>
 
         <div class="feedback-grid feedback-grid--single">
@@ -266,8 +266,8 @@
             </span>
             <div class="feedback-body">
               <p class="feedback-kicker">In-App Submit</p>
-              <h3 class="feedback-title">提交反馈</h3>
-              <p class="feedback-desc">填写标题和内容后，直接创建到 GitHub Issues。优先使用您的 GitHub 登录状态。</p>
+              <h3 class="feedback-title">{{ t('about.submitFeedback') }}</h3>
+              <p class="feedback-desc">{{ t('about.submitFeedbackDesc') }}</p>
             </div>
             <svg class="feedback-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -280,12 +280,12 @@
     <Transition name="overlay-fade">
         <div v-if="showFeedbackDialog" class="overlay" @click.self="closeFeedbackDialog">
           <div class="dialog">
-          <h3 class="dialog-title">提交反馈到 GitHub Issues</h3>
+          <h3 class="dialog-title">{{ t('about.feedbackDialogTitle') }}</h3>
           <p v-if="feedbackNeedsToken" class="dialog-desc">
-            需要一个对仓库 <code>laurensZero/goods_app</code> 具有 <code>Issues: write</code> 权限的 token。
+            {{ t('about.feedbackTokenRequired') }}
           </p>
           <p v-else class="dialog-desc">
-            将使用当前登录的 GitHub 账号提交反馈。{{ syncStore.githubLogin ? `当前账号：${syncStore.githubLogin}` : '' }}
+            {{ t('about.feedbackWithAccount', { info: syncStore.githubLogin ? t('about.currentAccount', { account: syncStore.githubLogin }) : '' }) }}
           </p>
 
           <label v-if="feedbackNeedsToken" class="dialog-field">
@@ -302,45 +302,45 @@
                 <button
                   type="button"
                   class="dialog-input-btn"
-                  :aria-label="showFeedbackToken ? '隐藏 token' : '显示 token'"
+                  :aria-label="showFeedbackToken ? t('about.hideToken') + ' token' : t('about.showToken') + ' token'"
                   @click="showFeedbackToken = !showFeedbackToken"
                 >
-                  {{ showFeedbackToken ? '隐藏' : '显示' }}
+                  {{ showFeedbackToken ? t('about.hideToken') : t('about.showToken') }}
                 </button>
                 <button
                   type="button"
                   class="dialog-input-btn"
                   :disabled="!feedbackToken.trim()"
-                  @click="copyText(feedbackToken.trim(), '反馈 token 已复制')"
+                  @click="copyText(feedbackToken.trim(), t('about.feedbackTokenCopied'))"
                 >
-                  复制
+                  {{ t('about.copy') }}
                 </button>
               </div>
             </div>
           </label>
 
           <label class="dialog-field">
-            <span class="dialog-label">标题</span>
+            <span class="dialog-label">{{ t('about.labelTitle') }}</span>
             <input
               v-model="feedbackTitle"
               class="dialog-input"
               type="text"
               maxlength="120"
-              placeholder="例如：同步页拉取后提示文案不清楚"
+              :placeholder="t('about.feedbackTitlePlaceholder')"
             />
           </label>
 
           <label class="dialog-field">
-            <span class="dialog-label">内容</span>
+            <span class="dialog-label">{{ t('about.labelContent') }}</span>
             <textarea
               v-model="feedbackBody"
               class="dialog-textarea"
               rows="7"
-              placeholder="写下 bug、想法、使用场景或希望改进的地方。"
+              :placeholder="t('about.feedbackBodyPlaceholder')"
             />
           </label>
 
-          <p v-if="feedbackTokenLogin && feedbackNeedsToken" class="dialog-success">当前 token 已验证：{{ feedbackTokenLogin }}</p>
+          <p v-if="feedbackTokenLogin && feedbackNeedsToken" class="dialog-success">{{ t('about.currentAccount', { account: feedbackTokenLogin }) }}</p>
           <p v-if="feedbackError" class="dialog-error">{{ feedbackError }}</p>
 
           <div class="dialog-actions dialog-actions--between">
@@ -351,18 +351,18 @@
               :disabled="isSubmittingFeedback || !feedbackToken.trim()"
               @click="clearSavedFeedbackToken"
             >
-              清除已存 token
+              {{ t('about.clearSavedToken') }}
             </button>
             <div v-else></div>
             <div class="dialog-actions__right">
-              <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="isSubmittingFeedback" @click="closeFeedbackDialog">取消</button>
+              <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="isSubmittingFeedback" @click="closeFeedbackDialog">{{ t('about.cancel') }}</button>
               <button
                 type="button"
                 class="dialog-btn dialog-btn--primary"
                 :disabled="isSubmittingFeedback || !canSubmitFeedback"
                 @click="submitFeedbackIssue"
               >
-                {{ isSubmittingFeedback ? '提交中...' : '提交反馈' }}
+                {{ isSubmittingFeedback ? t('about.submitting') : t('about.submitFeedback') }}
               </button>
             </div>
           </div>
@@ -373,11 +373,11 @@
     <Transition name="overlay-fade">
       <div v-if="showWebUpdateRestartDialog" class="overlay" @click.self="cancelWebUpdateRestart">
         <div class="dialog">
-          <h3 class="dialog-title">资源更新已下载完成</h3>
-          <p class="dialog-desc">新资源将在重启 App 后生效，是否现在重启？</p>
+          <h3 class="dialog-title">{{ t('about.resourceUpdateReady') }}</h3>
+          <p class="dialog-desc">{{ t('about.restartPrompt') }}</p>
           <div class="dialog-actions dialog-actions__right">
-            <button type="button" class="dialog-btn dialog-btn--secondary" @click="cancelWebUpdateRestart">稍后</button>
-            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmWebUpdateRestart">立即重启</button>
+            <button type="button" class="dialog-btn dialog-btn--secondary" @click="cancelWebUpdateRestart">{{ t('about.later') }}</button>
+            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmWebUpdateRestart">{{ t('about.restartNow') }}</button>
           </div>
         </div>
       </div>
@@ -386,11 +386,11 @@
     <Transition name="overlay-fade">
       <div v-if="showWebUpdateResetDialog" class="overlay" @click.self="showWebUpdateResetDialog = false">
         <div class="dialog">
-          <h3 class="dialog-title">恢复内置资源版本</h3>
-          <p class="dialog-desc">将回退到 APK 内置前端资源并立即重载应用，是否继续？</p>
+          <h3 class="dialog-title">{{ t('about.restoreBuiltinTitle') }}</h3>
+          <p class="dialog-desc">{{ t('about.restoreBuiltinDesc') }}</p>
           <div class="dialog-actions dialog-actions__right">
-            <button type="button" class="dialog-btn dialog-btn--secondary" @click="showWebUpdateResetDialog = false">取消</button>
-            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmResetWebUpdate">确认恢复</button>
+            <button type="button" class="dialog-btn dialog-btn--secondary" @click="showWebUpdateResetDialog = false">{{ t('about.cancel') }}</button>
+            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmResetWebUpdate">{{ t('about.confirmRestore') }}</button>
           </div>
         </div>
       </div>
@@ -415,8 +415,11 @@ import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { useI18n } from 'vue-i18n'
 import packageJson from '../../package.json'
 import capacitorConfig from '../../capacitor.config.json'
+
+const { t } = useI18n()
 
 const FEEDBACK_TOKEN_KEY = 'goods_feedback_github_token'
 const FEEDBACK_REPO_OWNER = 'laurensZero'
@@ -456,7 +459,7 @@ function formatUpdateSourceLabel(source) {
   const normalized = String(source || '').trim().toLowerCase()
   if (normalized === 'gitee') return 'Gitee'
   if (normalized === 'github') return 'GitHub'
-  if (normalized === 'auto') return '自动'
+  if (normalized === 'auto') return t('about.auto')
   return normalized || '--'
 }
 
@@ -483,34 +486,34 @@ const feedbackNeedsToken = computed(() => !effectiveFeedbackToken.value)
 
 const statsCards = computed(() => [
   {
-    label: '藏品',
+    label: t('about.collectionItems'),
     value: String(goodsStore.list.length),
-    desc: '当前首页和搜索里可见的收藏条目。'
+    desc: t('about.collectionItemsDesc')
   },
   {
-    label: '回收站',
+    label: t('about.trash'),
     value: String(goodsStore.trashList.length),
-    desc: '已删除但仍可恢复的数据。'
+    desc: t('about.trashDesc')
   },
   {
-    label: '分类预设',
+    label: t('about.categoryPresets'),
     value: String(presetsStore.categories.length),
-    desc: '管理页里维护的分类标签。'
+    desc: t('about.categoryPresetsDesc')
   },
   {
-    label: '角色预设',
+    label: t('about.characterPresets'),
     value: String(presetsStore.characters.length),
-    desc: '角色名与所属 IP 的预设数据。'
+    desc: t('about.characterPresetsDesc')
   },
   {
-    label: '收纳位置',
+    label: t('about.storageLocations'),
     value: String(presetsStore.storageLocations.length),
-    desc: '柜子、抽屉、册页等位置层级。'
+    desc: t('about.storageLocationsDesc')
   },
   {
-    label: '同步状态',
-    value: syncStore.lastSyncedAt ? '已配置' : '未同步',
-    desc: syncStore.lastSyncedAt ? `最近同步：${formatSyncTime(syncStore.lastSyncedAt)}` : '可在设置页中配置云同步。'
+    label: t('about.syncStatus'),
+    value: syncStore.lastSyncedAt ? t('about.syncStatusConfigured') : t('about.syncStatusNotSynced'),
+    desc: syncStore.lastSyncedAt ? t('about.recentSync', { time: formatSyncTime(syncStore.lastSyncedAt) }) : t('about.configureSync')
   }
 ])
 
@@ -518,55 +521,55 @@ const updateStatusText = computed(() => {
   const sourceLabel = formatUpdateSourceLabel(updateStore.selectedSource)
   const resolvedLabel = updateStore.resolvedSource ? formatUpdateSourceLabel(updateStore.resolvedSource) : ''
 
-  if (updateStore.isChecking) return `正在检查版本更新（${sourceLabel}）...`
-  if (updateStore.lastStatus === 'disabled') return '当前为 Web 开发环境，已禁用更新检查。'
+  if (updateStore.isChecking) return t('about.checkingVersion', { source: sourceLabel })
+  if (updateStore.lastStatus === 'disabled') return t('about.versionDisabled')
   if (updateStore.lastStatus === 'available' && updateStore.latestVersion) {
     return resolvedLabel
-      ? `发现新版本 v${updateStore.latestVersion}（命中 ${resolvedLabel}）`
-      : `发现新版本 v${updateStore.latestVersion}`
+      ? t('about.newVersionFoundWithSource', { version: updateStore.latestVersion, source: resolvedLabel })
+      : t('about.newVersionFound', { version: updateStore.latestVersion })
   }
-  if (updateStore.lastStatus === 'latest') return '当前已是最新版本'
-  if (updateStore.lastStatus === 'error') return updateStore.lastError || '检查更新失败，请稍后再试。'
+  if (updateStore.lastStatus === 'latest') return t('about.noUpdate')
+  if (updateStore.lastStatus === 'error') return updateStore.lastError || t('about.checkUpdateFailed')
   if (resolvedLabel) {
-    return `可手动检查版本更新（策略 ${sourceLabel}，最近命中 ${resolvedLabel}）。`
+    return t('about.canCheckManuallyWithResolved', { source: sourceLabel, resolved: resolvedLabel })
   }
-  return `可手动检查版本更新（策略 ${sourceLabel}）。`
+  return t('about.canCheckManually', { source: sourceLabel })
 })
 
 const updateCheckedAtLabel = computed(() => (
-  updateStore.lastCheckedAt ? formatSyncTime(updateStore.lastCheckedAt) : '尚未检查'
+  updateStore.lastCheckedAt ? formatSyncTime(updateStore.lastCheckedAt) : t('about.notCheckedYet')
 ))
 
 const webUpdateStatusText = computed(() => {
   const sourceLabel = formatUpdateSourceLabel(webUpdateStore.selectedSource)
   const resolvedLabel = webUpdateStore.resolvedSource ? formatUpdateSourceLabel(webUpdateStore.resolvedSource) : ''
 
-  if (!webUpdateStore.supported) return '仅原生环境支持资源增量更新。'
-  if (webUpdateStore.isChecking) return `正在检查资源更新（${sourceLabel}）...`
+  if (!webUpdateStore.supported) return t('about.webOnlyNativeSupported')
+  if (webUpdateStore.isChecking) return t('about.checkingResource', { source: sourceLabel })
   if (webUpdateStore.lastStatus === 'pending' && webUpdateStore.pendingVersion) {
-    return `资源包 v${webUpdateStore.pendingVersion} 已就绪，重启或切后台后生效。`
+    return t('about.resourceReady', { version: webUpdateStore.pendingVersion })
   }
   if (webUpdateStore.lastStatus === 'available' && webUpdateStore.latestVersion) {
     return resolvedLabel
-      ? `发现资源更新 v${webUpdateStore.latestVersion}（命中 ${resolvedLabel}）`
-      : `发现资源更新 v${webUpdateStore.latestVersion}`
+      ? t('about.resourceUpdateFoundWithSource', { version: webUpdateStore.latestVersion, source: resolvedLabel })
+      : t('about.resourceUpdateFound', { version: webUpdateStore.latestVersion })
   }
   if (webUpdateStore.lastStatus === 'incompatible-native' && webUpdateStore.latestMinNativeVersion) {
-    return `当前原生版本过低，需升级到 Android ${webUpdateStore.latestMinNativeVersion} 后再应用此资源包。`
+    return t('about.incompatibleNative', { version: webUpdateStore.latestMinNativeVersion })
   }
   if (webUpdateStore.lastStatus === 'missing-asset') {
-    return 'manifest 缺少 version/url 字段，无法更新资源。'
+    return t('about.missingAsset')
   }
-  if (webUpdateStore.lastStatus === 'latest') return '当前资源已是最新版本'
-  if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || '资源更新检查失败'
+  if (webUpdateStore.lastStatus === 'latest') return t('about.resourceLatest')
+  if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || t('about.resourceCheckFailed')
   if (resolvedLabel) {
-    return `可手动检查 ${webUpdateStore.selectedChannel} 通道资源包（策略 ${sourceLabel}，最近命中 ${resolvedLabel}）。`
+    return t('about.canCheckResourceWithResolved', { channel: webUpdateStore.selectedChannel, source: sourceLabel, resolved: resolvedLabel })
   }
-  return `可手动检查 ${webUpdateStore.selectedChannel} 通道资源包（策略 ${sourceLabel}）。`
+  return t('about.canCheckResource', { channel: webUpdateStore.selectedChannel, source: sourceLabel })
 })
 
 const webUpdateCheckedAtLabel = computed(() => (
-  webUpdateStore.lastCheckedAt ? formatSyncTime(webUpdateStore.lastCheckedAt) : '尚未检查'
+  webUpdateStore.lastCheckedAt ? formatSyncTime(webUpdateStore.lastCheckedAt) : t('about.notCheckedYet')
 ))
 
 const webUpdateReleaseNotesPreview = computed(() => {
@@ -627,14 +630,14 @@ function showToast(message, duration = 2600) {
   }, duration)
 }
 
-async function copyText(text, successMessage = '已复制') {
+async function copyText(text, successMessage = t('toast.copySuccess')) {
   if (!text) return
 
   try {
     await navigator.clipboard.writeText(text)
     showToast(successMessage)
   } catch {
-    showToast('复制失败')
+    showToast(t('toast.copyFailed'))
   }
 }
 
@@ -674,14 +677,14 @@ async function clearSavedFeedbackToken() {
   showFeedbackToken.value = false
   feedbackTokenLogin.value = ''
   await clearPersistedFeedbackToken()
-  showToast('已清除本地保存的反馈 token')
+  showToast(t('about.feedbackTokenCleared'))
 }
 
 async function ensureFeedbackTokenValid(token) {
   const { validateToken } = await import('@/utils/github/gist')
   const check = await validateToken(token)
   if (!check.valid) {
-    throw new Error('Token 无效，或没有访问 GitHub 的权限')
+    throw new Error(t('about.tokenInvalid'))
   }
 
   feedbackTokenLogin.value = check.login
@@ -709,13 +712,13 @@ async function submitFeedbackIssue() {
     showFeedbackDialog.value = false
     feedbackTitle.value = ''
     feedbackBody.value = ''
-    showToast('反馈已提交到 GitHub Issues', 3200)
+    showToast(t('about.feedbackSubmitted'), 3200)
 
     if (issue?.html_url) {
       window.open(issue.html_url, '_blank', 'noopener')
     }
   } catch (error) {
-    feedbackError.value = error.message || '提交失败'
+    feedbackError.value = error.message || t('about.submitFailed')
   } finally {
     isSubmittingFeedback.value = false
   }
@@ -727,18 +730,18 @@ async function handleManualCheckUpdate() {
   try {
     const result = await updateStore.checkForUpdates({ source: 'manual' })
     if (result?.status === 'disabled') {
-      showToast('Web 开发环境已禁用更新检查')
+      showToast(t('about.webDevDisabled'))
       return
     }
 
     if (result?.status === 'available') {
-      showToast(`发现新版本 v${updateStore.latestVersion}`, 3200)
+      showToast(t('about.newVersionFound', { version: updateStore.latestVersion }), 3200)
       return
     }
 
-    showToast('当前已是最新版本')
+    showToast(t('about.noUpdate'))
   } catch (error) {
-    showToast(updateStore.lastError || error?.message || '检查更新失败，请稍后再试。', 3200)
+    showToast(updateStore.lastError || error?.message || t('about.checkUpdateFailed'), 3200)
   }
 }
 
@@ -748,11 +751,11 @@ async function handleStartUpdate() {
   const succeeded = await updateStore.downloadAndInstallUpdate()
   if (succeeded) {
     if (updateStore.usingMockDownload) {
-      showToast('模拟下载完成', 2200)
+      showToast(t('about.mockDownloadDone'), 2200)
       return
     }
     if (updateStore.supportsInAppDownload) {
-      showToast('更新包下载完成，请选择安装程序继续安装。', 3200)
+      showToast(t('about.updateDownloaded'), 3200)
       return
     }
   }
@@ -765,7 +768,7 @@ async function handleStartUpdate() {
 async function handleAppUpdateSourceChange(source) {
   if (updateStore.selectedSource === source) return
   updateStore.setUpdateSource(source)
-  showToast(`已切换版本更新源：${source}`, 2200)
+  showToast(t('about.updateSourceChanged', { source }), 2200)
   await handleManualCheckUpdate()
 }
 
@@ -775,39 +778,39 @@ async function handleManualCheckWebUpdate() {
   try {
     const result = await webUpdateStore.checkForUpdates()
     if (result?.status === 'available') {
-      showToast(`发现资源更新 v${webUpdateStore.latestVersion}`, 3200)
+      showToast(t('about.resourceUpdateFound', { version: webUpdateStore.latestVersion }), 3200)
       return
     }
     if (result?.status === 'incompatible-native') {
       showToast(
         webUpdateStore.latestMinNativeVersion
-          ? `需要先升级到 Android ${webUpdateStore.latestMinNativeVersion} 再更新资源。`
-          : '当前原生版本不满足资源包要求。',
+          ? t('about.nativeVersionTooLow', { version: webUpdateStore.latestMinNativeVersion })
+          : t('about.nativeVersionInsufficient'),
         3200
       )
       return
     }
     if (result?.status === 'missing-asset') {
-      showToast('manifest 缺少 version/url', 3200)
+      showToast(t('about.missingVersionUrl'), 3200)
       return
     }
-    showToast('当前资源已是最新版本')
+    showToast(t('about.resourceLatest'))
   } catch (error) {
-    showToast(webUpdateStore.lastError || error?.message || '检查资源更新失败', 3200)
+    showToast(webUpdateStore.lastError || error?.message || t('about.resourceCheckFailed'), 3200)
   }
 }
 
 async function handleWebUpdateChannelChange(channel) {
   if (webUpdateStore.selectedChannel === channel) return
   webUpdateStore.setUpdateChannel(channel)
-  showToast(`已切换资源更新通道：${channel}`, 2200)
+  showToast(t('about.resourceChannelChanged', { channel }), 2200)
   await handleManualCheckWebUpdate()
 }
 
 async function handleWebUpdateSourceChange(source) {
   if (webUpdateStore.selectedSource === source) return
   webUpdateStore.setUpdateSource(source)
-  showToast(`已切换资源更新源：${source}`, 2200)
+  showToast(t('about.resourceSourceChanged', { source }), 2200)
   await handleManualCheckWebUpdate()
 }
 
@@ -823,7 +826,7 @@ async function handleStartWebUpdate() {
 
 function cancelWebUpdateRestart() {
   showWebUpdateRestartDialog.value = false
-  showToast('已保留更新，稍后重启后生效。', 2600)
+  showToast(t('about.updateKeptForRestart'), 2600)
 }
 
 async function confirmWebUpdateRestart() {
@@ -834,19 +837,19 @@ async function confirmWebUpdateRestart() {
     return
   }
 
-  showToast('正在应用更新并重启...', 1800)
+  showToast(t('about.applyingUpdate'), 1800)
   const activated = await webUpdateStore.applyPendingUpdateNow()
   if (!activated) {
-    showToast(webUpdateStore.lastError || '应用更新失败，请手动重开应用。', 3200)
+    showToast(webUpdateStore.lastError || t('about.updateFailed'), 3200)
   }
 }
 
 async function confirmResetWebUpdate() {
   showWebUpdateResetDialog.value = false
-  showToast('正在恢复内置资源...', 1800)
+  showToast(t('about.restoringBuiltin'), 1800)
   const resetOk = await webUpdateStore.resetToBuiltinBundle()
   if (!resetOk) {
-    showToast(webUpdateStore.lastError || '恢复失败，请手动重启应用。', 3200)
+    showToast(webUpdateStore.lastError || t('about.restoreFailed'), 3200)
   }
 }
 
@@ -909,9 +912,9 @@ function formatSize(bytes) {
 
 async function refreshResourceSizes() {
   if (!IS_NATIVE) {
-    resourceSizeCacheImage.value = 'H5端由浏览器管理'
-    resourceSizeModel.value = 'Web 端未保存'
-    resourceSizeUpdate.value = 'Web 端未使用'
+    resourceSizeCacheImage.value = t('about.webManagedByBrowser')
+    resourceSizeModel.value = t('about.webNoSaved')
+    resourceSizeUpdate.value = t('about.webNotUsed')
     return
   }
 
@@ -936,16 +939,16 @@ async function handleClearImageCache() {
   try {
     const { clearAllCache } = await import('@/utils/image/cache')
     await clearAllCache()
-    showToast('图片缓存已清除')
+    showToast(t('about.imageCacheCleared'))
     refreshResourceSizes()
   } catch (error) {
-    showToast('清除图片缓存失败')
+    showToast(t('about.clearImageCacheFailed'))
   }
 }
 
 async function handleClearCutoutModel() {
   if (!IS_NATIVE) {
-    showToast('Web版未下载原生模型')
+    showToast(t('about.webNoNativeModel'))
     return
   }
   if (isClearingCutoutModel.value) return
@@ -956,13 +959,13 @@ async function handleClearCutoutModel() {
     const { clearLocalModelAssets } = await import('@/composables/image/useImageCutout')
     const ok = await clearLocalModelAssets()
     if (ok) {
-      showToast('抠图模型已卸载')
+      showToast(t('about.cutoutModelUninstalled'))
     } else {
-      showToast('清理抠图模型失败')
+      showToast(t('about.clearCutoutModelFailed'))
     }
   } catch (error) {
     console.error('[about] clear cutout model failed:', error)
-    showToast('清理抠图模型失败')
+    showToast(t('about.clearCutoutModelFailed'))
   } finally {
     isClearingCutoutModel.value = false
     refreshResourceSizes()
@@ -982,10 +985,10 @@ async function handleClearUpdateCache() {
     if (caches) {
       await caches.delete('app-update-cache')
     }
-    showToast('应用更新缓存已清除')
+    showToast(t('about.updateCacheCleared'))
     refreshResourceSizes()
   } catch (error) {
-    showToast('应用更新缓存为空。')
+    showToast(t('about.updateCacheEmpty'))
   }
 }
 
