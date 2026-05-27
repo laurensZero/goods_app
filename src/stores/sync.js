@@ -66,25 +66,37 @@ function shouldApplyRemoteItem(localItem, remoteItem) {
 
 export const useSyncStore = defineStore('sync', () => {
   const { syncLogs, clearSyncLogs, trackSyncStep } = useSyncLogger()
+
+  // ── GitHub Auth ──
   const token = ref('')
   const githubLogin = ref('')
   const githubUserId = ref('')
   const githubAvatarUrl = ref('')
   const githubScopes = ref('')
   const githubAuthMethod = ref('')
+
+  // ── Gist IDs ──
   const gistId = ref('')
   const imageGistId = ref('')
   const rechargeGistId = ref('')
   const eventGistId = ref('')
+
+  // ── Sync Timestamps ──
   const lastSyncedAt = ref('')
   const eventLastSyncedAt = ref('')
+
+  // ── Device & Encryption ──
   const deviceId = ref('')
   const encryptionEnabled = ref(false)
   const encryptionKey = ref(null)
   const syncPassword = ref('')
+
+  // ── Backend Selection ──
   const syncBackend = ref('gist')
   const supabaseUrl = ref('')
   const supabaseAnonKey = ref('')
+
+  // ── Sync Lifecycle / UI State ──
   const isInitialized = ref(false)
   const isSyncing = ref(false)
   const isPulling = ref(false)

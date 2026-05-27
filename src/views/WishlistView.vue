@@ -144,8 +144,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
-import { useWishlistScrollRestore } from '@/composables/scroll/useWishlistScrollRestore'
-import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
+import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -266,7 +265,7 @@ const {
   clearDisplayedScrollPosition,
   resetStoredScrollOnReload,
   cancelPendingRestore
-} = useWishlistScrollRestore(pageBodyRef)
+} = createPageScrollRestore('wishlist')(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 

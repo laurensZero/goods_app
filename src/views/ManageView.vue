@@ -224,8 +224,7 @@ import { Popup } from 'vant'
 
 const { t } = useI18n()
 import { Capacitor } from '@capacitor/core'
-import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
-import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
+import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useManageExport, exportSectionOptions } from '@/composables/manage/useManageExport'
 import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
@@ -325,7 +324,7 @@ const {
   hasPendingRestore, saveScrollPosition, restorePendingScrollPosition,
   restoreActivatedScrollPosition, rememberCurrentScrollPosition,
   clearDisplayedScrollPosition, resetStoredScrollOnReload, cancelPendingRestore
-} = useManageScrollRestore(pageBodyRef)
+} = createPageScrollRestore('manage')(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 

@@ -56,8 +56,7 @@ import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
-import { useRechargeScrollRestore } from '@/composables/scroll/useRechargeScrollRestore'
-import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
+import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
@@ -95,7 +94,7 @@ const {
   clearDisplayedScrollPosition,
   resetStoredScrollOnReload,
   cancelPendingRestore
-} = useRechargeScrollRestore(pageBodyRef)
+} = createPageScrollRestore('recharge', '.recharge-view-page .page-body')(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
