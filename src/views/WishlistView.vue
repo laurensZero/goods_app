@@ -166,7 +166,8 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -190,8 +191,6 @@ const HOME_TOP_OPTIONS = [
 ]
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const SELECTION_HEADER_HEIGHT = 64
-const WISHLIST_BACK_HERO_RETRY_MAX_FRAMES = 40
-const WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS = 620
 const INITIAL_RENDER_ROWS = 6
 const GOODS_GRID_ROW_GAP = 12
 const GOODS_GRID_OVERSCAN_ROWS = 4
@@ -225,8 +224,6 @@ const selectionHeaderStyle = computed(() => ({
 let removeAndroidBackListener = null
 let pageScrollRaf = 0
 let topJumpMaskTimer = 0
-let goodsBackHeroRetryRaf = 0
-let wishlistBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
 const {
@@ -269,6 +266,13 @@ const {
 } = useWishlistScrollRestore(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
+
+const {
+  tryPlayNativeGoodsBackHero,
+  cancelGoodsBackHeroRetry,
+  clearDeferredRestoreTimer: clearWishlistBackHeroDeferredRestoreTimer,
+  scheduleGoodsBackHeroRetry
+} = useGoodsBackHero({ getScrollEl, rootRef: pageBodyRef, maxRetryFrames: 40, guardTimeoutMs: 620 })
 
 const baseGoodsList = computed(() => store.wishlistViewList)
 const totalQuantity = computed(() => (
@@ -508,92 +512,6 @@ function openDetail(id) {
   router.push(`/detail/${goodsId}`).catch(() => {
     wishlistDisplayReady.value = true
   })
-}
-
-function resolveGoodsCardCover(goodsId) {
-  const normalized = String(goodsId || '')
-  if (!normalized) return null
-  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-    ? CSS.escape(normalized)
-    : normalized.replace(/"/g, '\\"')
-  const rootEl = getScrollEl() || pageBodyRef.value || document
-  const cardRoot = rootEl?.querySelector?.(`[data-goods-id="${escaped}"]`) || null
-  if (cardRoot) {
-    const coverInsideCard = cardRoot.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
-    if (coverInsideCard) return coverInsideCard
-  }
-  const directCover = rootEl?.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
-  if (directCover) return directCover
-  return cardRoot
-}
-
-function tryPlayNativeGoodsBackHero() {
-  return playGoodsHeroBack({
-    currentPath: route.fullPath,
-    resolveTargetEl: resolveGoodsCardCover
-  })
-}
-
-function cancelGoodsBackHeroRetry() {
-  if (!goodsBackHeroRetryRaf) return
-  window.cancelAnimationFrame(goodsBackHeroRetryRaf)
-  goodsBackHeroRetryRaf = 0
-}
-
-function clearWishlistBackHeroDeferredRestoreTimer() {
-  if (!wishlistBackHeroDeferredRestoreTimer) return
-  window.clearTimeout(wishlistBackHeroDeferredRestoreTimer)
-  wishlistBackHeroDeferredRestoreTimer = 0
-}
-
-function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
-  cancelGoodsBackHeroRetry()
-  goodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
-    goodsBackHeroRetryRaf = 0
-    const played = tryPlayNativeGoodsBackHero()
-    if (played) {
-      hooks?.onPlayed?.()
-      return
-    }
-    if (attempt + 1 >= WISHLIST_BACK_HERO_RETRY_MAX_FRAMES) {
-      hooks?.onGiveUp?.()
-      return
-    }
-    scheduleGoodsBackHeroRetry(attempt + 1, hooks)
-  })
-}
-
-function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
-  const safeRunRestore = typeof runRestore === 'function' ? runRestore : () => {}
-  const hasPendingBackHero = hasPendingGoodsHeroBack(route.fullPath)
-  if (!hasPendingBackHero) {
-    safeRunRestore()
-    return
-  }
-
-  clearWishlistBackHeroDeferredRestoreTimer()
-  let settled = false
-  const settle = () => {
-    if (settled) return
-    settled = true
-    clearWishlistBackHeroDeferredRestoreTimer()
-    safeRunRestore()
-  }
-
-  scheduleGoodsBackHeroRetry(0, {
-    onPlayed: () => {
-      wishlistBackHeroDeferredRestoreTimer = window.setTimeout(() => {
-        wishlistBackHeroDeferredRestoreTimer = 0
-        settle()
-      }, Math.max(0, getHeroBackDurationMs() + 24))
-    },
-    onGiveUp: settle
-  })
-
-  wishlistBackHeroDeferredRestoreTimer = window.setTimeout(() => {
-    wishlistBackHeroDeferredRestoreTimer = 0
-    settle()
-  }, WISHLIST_BACK_HERO_GUARD_TIMEOUT_MS)
 }
 
 function openSearch() {
@@ -901,10 +819,6 @@ onBeforeRouteLeave(() => {
   gap: 14px;
 }
 
-.hero-copy {
-  max-width: 320px;
-}
-
 .hero-actions {
   display: flex;
   align-items: center;
@@ -912,50 +826,6 @@ onBeforeRouteLeave(() => {
   gap: 12px;
   flex: 1;
   min-width: 0;
-}
-
-.hero-label {
-  color: var(--app-text-tertiary);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hero-title {
-  margin-top: 4px;
-  color: var(--app-text);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-}
-
-.hero-search {
-  width: var(--icon-button-size);
-  height: var(--icon-button-size);
-  border: none;
-  border-radius: 50%;
-  background: var(--app-glass);
-  box-shadow: var(--app-shadow);
-  color: var(--app-text);
-  flex-shrink: 0;
-  transition: transform 0.16s ease, background 0.16s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-search svg,
-.fab svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-search:active {
-  transform: scale(0.96);
 }
 
 .goods-list {
@@ -986,41 +856,6 @@ onBeforeRouteLeave(() => {
     transform: translateY(0);
   }
 }
-
-.fab {
-  position: fixed;
-  right: 16px;
-  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--fab-size);
-  height: var(--fab-size);
-  border: none;
-  border-radius: 50%;
-  background: var(--app-text);
-  color: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
-  z-index: 65;
-}
-
-.fab svg {
-  width: 22px;
-  height: 22px;
-  stroke-width: 2.2;
-}
-
-.fab:active {
-  transform: scale(0.96);
-}
-
-:global(html.theme-dark) .hero-search {
-    background: var(--app-glass);
-  }
-
-:global(html.theme-dark) .fab {
-    background: var(--app-text);
-    color: var(--app-surface);
-  }
 </style>
+
+<style src="../assets/views/hero.css"></style>

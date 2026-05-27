@@ -196,7 +196,8 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { HOME_SORT_OPTIONS } from '@/utils/goods/homeSort'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
@@ -281,13 +282,9 @@ const ROW_HEIGHT_MAP = {
   standard: 272,
   compact: 236
 }
-const HOME_BACK_HERO_RETRY_MAX_FRAMES = 12
-const HOME_BACK_HERO_GUARD_TIMEOUT_MS = 320
 let removeAndroidBackListener = null
 let pageScrollRaf = 0
 let mountBootstrapSession = 0
-let goodsBackHeroRetryRaf = 0
-let homeBackHeroDeferredRestoreTimer = 0
 let isRouteLeaving = false
 
 // 添加方式面板
@@ -341,6 +338,13 @@ const {
 } = useHomeScrollRestore(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
+
+const {
+  tryPlayNativeGoodsBackHero,
+  cancelGoodsBackHeroRetry,
+  clearDeferredRestoreTimer: clearHomeBackHeroDeferredRestoreTimer,
+  scheduleGoodsBackHeroRetry
+} = useGoodsBackHero({ getScrollEl, rootRef: pageBodyRef })
 
 const homeDisplayReady = ref(true)
 const showScrollTopButton = ref(false)
@@ -1161,96 +1165,6 @@ function openDetail(id) {
   })
 }
 
-function resolveGoodsCardCover(goodsId) {
-  const normalized = String(goodsId || '')
-  if (!normalized) return null
-  const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-    ? CSS.escape(normalized)
-    : normalized.replace(/"/g, '\\"')
-  const rootEl = getScrollEl() || pageBodyRef.value || document
-  const cardRoot = rootEl?.querySelector?.(`[data-goods-id="${escaped}"]`) || null
-  if (cardRoot) {
-    const coverInsideCard = cardRoot.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
-    if (coverInsideCard) return coverInsideCard
-  }
-  const directCover = rootEl?.querySelector?.(`[data-goods-hero-id="${escaped}"]`) || null
-  if (directCover) return directCover
-  return cardRoot
-}
-
-function tryPlayNativeGoodsBackHero() {
-  return playGoodsHeroBack({
-    currentPath: route.fullPath,
-    resolveTargetEl: resolveGoodsCardCover
-  })
-}
-
-function cancelGoodsBackHeroRetry() {
-  if (!goodsBackHeroRetryRaf) return
-  window.cancelAnimationFrame(goodsBackHeroRetryRaf)
-  goodsBackHeroRetryRaf = 0
-}
-
-function clearHomeBackHeroDeferredRestoreTimer() {
-  if (!homeBackHeroDeferredRestoreTimer) return
-  window.clearTimeout(homeBackHeroDeferredRestoreTimer)
-  homeBackHeroDeferredRestoreTimer = 0
-}
-
-function scheduleGoodsBackHeroRetry(attempt = 0, hooks = null) {
-  cancelGoodsBackHeroRetry()
-  goodsBackHeroRetryRaf = window.requestAnimationFrame(() => {
-    goodsBackHeroRetryRaf = 0
-    const played = tryPlayNativeGoodsBackHero()
-    if (played) {
-      hooks?.onPlayed?.()
-      return
-    }
-    if (!hasPendingGoodsHeroBack(route.fullPath)) {
-      hooks?.onGiveUp?.()
-      return
-    }
-    if (attempt + 1 >= HOME_BACK_HERO_RETRY_MAX_FRAMES) {
-      hooks?.onGiveUp?.()
-      return
-    }
-    scheduleGoodsBackHeroRetry(attempt + 1, hooks)
-  })
-}
-
-function deferActivatedRestoreAfterGoodsBackHero(runRestore) {
-  const safeRunRestore = typeof runRestore === 'function' ? runRestore : () => {}
-  const hasPendingBackHero = hasPendingGoodsHeroBack(route.fullPath)
-  if (!hasPendingBackHero) {
-    safeRunRestore()
-    return
-  }
-
-  clearHomeBackHeroDeferredRestoreTimer()
-  let settled = false
-  const settle = () => {
-    if (settled) return
-    settled = true
-    clearHomeBackHeroDeferredRestoreTimer()
-    safeRunRestore()
-  }
-
-  scheduleGoodsBackHeroRetry(0, {
-    onPlayed: () => {
-      homeBackHeroDeferredRestoreTimer = window.setTimeout(() => {
-        homeBackHeroDeferredRestoreTimer = 0
-        settle()
-      }, Math.max(0, getHeroBackDurationMs() + 16))
-    },
-    onGiveUp: settle
-  })
-
-  homeBackHeroDeferredRestoreTimer = window.setTimeout(() => {
-    homeBackHeroDeferredRestoreTimer = 0
-    settle()
-  }, HOME_BACK_HERO_GUARD_TIMEOUT_MS)
-}
-
 function scrollToTop() {
   triggerTopJumpMask()
   scrollToTopAnimated(getScrollEl, 260, () => {
@@ -1446,53 +1360,6 @@ async function applyBatchEditPayload(payload) {
   min-width: 0;
 }
 
-.hero-copy {
-  max-width: 296px;
-}
-
-.hero-label {
-  color: var(--app-text-tertiary);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-  .hero-title {
-    margin-top: 4px;
-    color: var(--app-text);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.04em;
-  }
-
-  .hero-search {
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border: none;
-  border-radius: 50%;
-  background: var(--app-glass);
-  box-shadow: var(--app-shadow);
-  color: var(--app-text);
-  flex-shrink: 0;
-  transition: transform 0.16s ease, background 0.16s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-search svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-search:active {
-  transform: scale(0.96);
-}
-
 .goods-list {
   display: grid;
   gap: var(--card-gap);
@@ -1655,50 +1522,8 @@ async function applyBatchEditPayload(payload) {
     transform: translateY(0);
   }
 }
-
-.fab {
-  position: fixed;
-  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--fab-size);
-  height: var(--fab-size);
-  border: none;
-  border-radius: 50%;
-  background: var(--app-text);
-  color: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
-  z-index: 65;
-}
-
-.fab {
-  right: 16px;
-  background: var(--app-text);
-  color: var(--app-surface);
-}
-
-.fab svg {
-  width: 22px;
-  height: 22px;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-}
-
-.fab:active {
-  transform: scale(0.96);
-}
-
-/* 閳光偓閳光偓 濞ｈ精澹婂Ο鈥崇础鐟曞棛娲?閳光偓閳光偓 */
-:global(html.theme-dark) .hero-search {
-    background: var(--app-glass);
-  }
-:global(html.theme-dark) .fab {
-    background: var(--app-text);
-    color: var(--app-surface);
-  }
 </style>
+
+<style src="../assets/views/hero.css"></style>
 
 
