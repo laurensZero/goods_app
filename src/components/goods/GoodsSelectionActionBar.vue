@@ -13,7 +13,7 @@
             <path d="M19 6l-1 14H6L5 6" />
             <path d="M10 11v6M14 11v6" />
           </svg>
-          删除{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
+          {{ t('goods.selection.delete') }}{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
         </button>
         <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('share')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -21,14 +21,14 @@
             <polyline points="16 6 12 2 8 6" />
             <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
-          分享{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
+          {{ t('goods.selection.share') }}{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
         </button>
         <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('edit')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          批量修改
+          {{ t('goods.selection.batchEdit') }}
         </button>
       </div>
     </Transition>
@@ -36,6 +36,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   show: { type: Boolean, default: false },
   selectedCount: { type: Number, default: 0 }

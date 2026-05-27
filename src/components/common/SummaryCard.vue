@@ -21,7 +21,7 @@
                 type="button"
                 class="summary-tip-btn"
                 :aria-expanded="showValueTips ? 'true' : 'false'"
-                aria-label="总金额计算说明"
+                :aria-label="t('home.summary.totalAmountInfo')"
                 @click.stop="toggleValueTips"
               >
                 ?
@@ -31,7 +31,7 @@
           <button
             type="button"
             class="summary-visibility-btn"
-            :aria-label="isHidden ? '显示总金额' : '隐藏总金额'"
+            :aria-label="isHidden ? t('home.summary.showAmount') : t('home.summary.hideAmount')"
             @click="toggleHidden"
           >
             <svg v-if="!isHidden" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -61,7 +61,7 @@
           :class="{ 'summary-trend-toggle--open': showTrendDetails }"
           @click="toggleTrendDetails"
         >
-          <span>{{ showTrendDetails ? '收起趋势' : '查看趋势' }}</span>
+          <span>{{ showTrendDetails ? t('home.summary.collapseTrend') : t('home.summary.viewTrend') }}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M7 10L12 15L17 10" />
           </svg>
@@ -78,15 +78,15 @@
 
         <div class="summary-metrics">
           <article class="summary-metric">
-            <p class="summary-metric__label">近 30 天新增</p>
+            <p class="summary-metric__label">{{ t('home.summary.recent30Days') }}</p>
             <p class="summary-metric__value">¥{{ formatTrendAmount(recentChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ recentChangeCount }} 件</p>
+            <p class="summary-metric__meta">{{ recentChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
           </article>
 
           <article class="summary-metric">
-            <p class="summary-metric__label">本月新增</p>
+            <p class="summary-metric__label">{{ t('home.summary.thisMonth') }}</p>
             <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ monthChangeCount }} 件</p>
+            <p class="summary-metric__meta">{{ monthChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
           </article>
         </div>
       </div>
@@ -103,15 +103,15 @@
 
         <div class="summary-metrics">
           <article class="summary-metric">
-            <p class="summary-metric__label">近 30 天新增</p>
+            <p class="summary-metric__label">{{ t('home.summary.recent30Days') }}</p>
             <p class="summary-metric__value">¥{{ formatTrendAmount(recentChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ recentChangeCount }} 件</p>
+            <p class="summary-metric__meta">{{ recentChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
           </article>
 
           <article class="summary-metric">
-            <p class="summary-metric__label">本月新增</p>
+            <p class="summary-metric__label">{{ t('home.summary.thisMonth') }}</p>
             <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ monthChangeCount }} 件</p>
+            <p class="summary-metric__meta">{{ monthChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
           </article>
         </div>
       </div>
@@ -129,9 +129,9 @@
         @mouseenter="onValueTipsPopoverMouseEnter"
         @mouseleave="onValueTipsPopoverMouseLeave"
       >
-        <p class="summary-tip-title">{{ tipsTitle }}</p>
+        <p class="summary-tip-title">{{ resolvedTipsTitle }}</p>
         <ul class="summary-tip-list">
-          <li v-for="item in tipsItems" :key="item">{{ item }}</li>
+          <li v-for="item in resolvedTipsItems" :key="item">{{ item }}</li>
         </ul>
       </div>
     </transition>
@@ -140,6 +140,9 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const SUMMARY_VISIBILITY_STORAGE_KEY = 'goods-app:home-total-value-hidden'
 
@@ -152,17 +155,20 @@ const props = defineProps({
   storageKey: { type: String, default: SUMMARY_VISIBILITY_STORAGE_KEY },
   currency: { type: String, default: '¥' },
   showTips: { type: Boolean, default: true },
-  tipsTitle: { type: String, default: '总金额计算要点' },
+  tipsTitle: { type: String, default: '' },
   tipsItems: {
     type: Array,
-    default: () => ([
-      '仅统计首页收藏，不含心愿单。',
-      '状态为“已赠出/已出/丢失”的条目不计入。',
-      '优先按实付价+邮费；否则按标价×数量+邮费。',
-      '非人民币条目会先换算为人民币。'
-    ])
+    default: undefined
   }
 })
+
+const resolvedTipsTitle = computed(() => props.tipsTitle || t('home.summary.tipsTitle'))
+const resolvedTipsItems = computed(() => props.tipsItems || [
+  t('home.summary.tip1'),
+  t('home.summary.tip2'),
+  t('home.summary.tip3'),
+  t('home.summary.tip4')
+])
 
 const intPart = computed(() => props.totalValue.split('.')[0])
 const decPart = computed(() => props.totalValue.split('.')[1] ?? '00')

@@ -4,6 +4,8 @@
  * 每个函数返回 { valid: boolean, message: string }。
  */
 
+import i18n from '@/locales'
+
 /**
  * 校验谷子名称
  * @param {string} name
@@ -13,10 +15,10 @@ export function validateName(name, options = {}) {
   const maxLength = Number.isFinite(Number(options.maxLength)) ? Number(options.maxLength) : 50
 
   if (!name || !name.trim()) {
-    return { valid: false, message: `${label}不能为空` }
+    return { valid: false, message: i18n.global.t('validation.required', { field: label }) }
   }
   if (name.trim().length > maxLength) {
-    return { valid: false, message: `${label}最多 ${maxLength} 个字符` }
+    return { valid: false, message: i18n.global.t('validation.maxLength', { field: label, max: maxLength }) }
   }
   return { valid: true, message: '' }
 }
@@ -31,10 +33,10 @@ export function validatePrice(price) {
   }
   const num = Number(price)
   if (isNaN(num) || num < 0) {
-    return { valid: false, message: '请输入有效的非负价格' }
+    return { valid: false, message: i18n.global.t('validation.invalidPrice') }
   }
   if (num > 999999) {
-    return { valid: false, message: '价格超出合理范围' }
+    return { valid: false, message: i18n.global.t('validation.priceOutOfRange') }
   }
   return { valid: true, message: '' }
 }

@@ -1,22 +1,22 @@
 <template>
   <div class="page theme-page">
-    <NavBar :key="`${themeStore.themeId}-${themeStore.appliedAppearance}`" title="主题与外观" show-back />
+    <NavBar :key="`${themeStore.themeId}-${themeStore.appliedAppearance}`" :title="t('theme.title')" show-back />
 
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Theme & Appearance</p>
-          <h1 class="hero-title">主题与外观</h1>
+          <h1 class="hero-title">{{ t('theme.title') }}</h1>
         </div>
 
         <article class="preview-card">
-          <p class="preview-kicker">当前使用</p>
-          <h2 class="preview-title">{{ themeStore.themeDefinition.label }}</h2>
-          <p class="preview-desc">{{ themeStore.themeDefinition.description }}</p>
+          <p class="preview-kicker">{{ t('theme.currentInUse') }}</p>
+          <h2 class="preview-title">{{ t(themeStore.themeDefinition.labelKey) }}</h2>
+          <p class="preview-desc">{{ t(themeStore.themeDefinition.descriptionKey) }}</p>
           <div class="preview-row">
-            <span class="preview-chip">实际外观：{{ appliedAppearanceLabel }}</span>
-            <span class="preview-chip">偏好设置：{{ preferenceLabel }}</span>
-            <span v-if="isCustomThemeActive" class="preview-chip">自定义颜色实时生效</span>
+            <span class="preview-chip">{{ t('theme.actualAppearance', { appearance: appliedAppearanceLabel }) }}</span>
+            <span class="preview-chip">{{ t('theme.preferenceSetting', { preference: preferenceLabel }) }}</span>
+            <span v-if="isCustomThemeActive" class="preview-chip">{{ t('theme.customColorLive') }}</span>
           </div>
         </article>
       </section>
@@ -25,8 +25,8 @@
         <div class="section-head">
           <div>
             <p class="section-label">Theme Library</p>
-            <h2 class="section-title">主题风格</h2>
-            <p class="section-desc">内置主题在前，自定义主题固定放在最后，方便先挑风格再细调。</p>
+            <h2 class="section-title">{{ t('theme.themeStyle') }}</h2>
+            <p class="section-desc">{{ t('theme.themeStyleDesc') }}</p>
           </div>
         </div>
 
@@ -73,10 +73,10 @@
 
             <div class="theme-card__body">
               <div class="theme-card__title-row">
-                <p class="theme-card__name">{{ theme.label }}</p>
-                <span class="theme-card__state">{{ themeStore.themeId === theme.id ? '当前' : '切换' }}</span>
+                <p class="theme-card__name">{{ t(theme.labelKey) }}</p>
+                <span class="theme-card__state">{{ themeStore.themeId === theme.id ? t('theme.current') : t('theme.switchTheme') }}</span>
               </div>
-              <p class="theme-card__desc">{{ theme.description }}</p>
+              <p class="theme-card__desc">{{ t(theme.descriptionKey) }}</p>
               <p class="theme-card__meta">{{ getThemeMeta(theme) }}</p>
             </div>
           </button>
@@ -87,11 +87,11 @@
         <div class="section-head section-head--split">
           <div>
             <p class="section-label">Custom Theme Studio</p>
-            <h2 class="section-title">自定义主题</h2>
-            <p class="section-desc">浅色和深色分别调色，卡片预览和页面主题都会实时更新。</p>
+            <h2 class="section-title">{{ t('theme.customTheme') }}</h2>
+            <p class="section-desc">{{ t('theme.customThemeDesc') }}</p>
           </div>
           <button type="button" class="ghost-button" @click="themeStore.resetCustomColors()">
-            恢复默认
+            {{ t('theme.resetDefault') }}
           </button>
         </div>
 
@@ -111,7 +111,7 @@
                 class="ghost-button ghost-button--small"
                 @click="themeStore.resetCustomColors(mode.value)"
               >
-                重置
+                {{ t('theme.reset') }}
               </button>
             </div>
 
@@ -171,7 +171,7 @@
                <div class="custom-effect-card__head">
                  <div>
                    <p class="custom-effect-card__kicker">Glass Dialog</p>
-                    <h4 class="custom-effect-card__title">模糊弹窗</h4>
+                    <h4 class="custom-effect-card__title">{{ t('theme.glassDialog') }}</h4>
                   </div>
                   <strong class="custom-effect-card__value">{{ getCustomBlurValue(mode.value) }}px</strong>
                 </div>
@@ -198,8 +198,8 @@
         <div class="section-head">
           <div>
             <p class="section-label">Appearance Mode</p>
-            <h2 class="section-title">外观模式</h2>
-            <p class="section-desc">支持双模式的主题可以跟随系统，也可以固定成浅色或深色。</p>
+            <h2 class="section-title">{{ t('theme.appearanceMode') }}</h2>
+            <p class="section-desc">{{ t('theme.appearanceModeDesc') }}</p>
           </div>
         </div>
 
@@ -212,17 +212,17 @@
             @click="themeStore.setAppearancePreference(option.value)"
           >
             <div class="mode-copy">
-              <p class="mode-name">{{ option.label }}</p>
-              <p class="mode-desc">{{ option.description }}</p>
+              <p class="mode-name">{{ t(option.labelKey) }}</p>
+              <p class="mode-desc">{{ t(option.descriptionKey) }}</p>
             </div>
-            <span class="mode-state">{{ themeStore.appearancePreference === option.value ? '当前使用' : '切换' }}</span>
+            <span class="mode-state">{{ themeStore.appearancePreference === option.value ? t('theme.currentlyUsing') : t('theme.switchTheme') }}</span>
           </button>
         </div>
 
         <article v-else class="mode-lock-card">
-          <p class="mode-lock-title">当前主题固定为 {{ appliedAppearanceLabel }} 外观</p>
+          <p class="mode-lock-title">{{ t('theme.lockedAppearance', { appearance: appliedAppearanceLabel }) }}</p>
           <p class="mode-lock-desc">
-            只有支持外观切换的主题才能在这里选择浅色、深色或跟随系统。切换回支持双模式的主题后，这里的偏好会继续生效。
+            {{ t('theme.lockedAppearanceDesc') }}
           </p>
         </article>
       </section>
@@ -244,10 +244,10 @@
           </div>
           <div class="theme-color-sheet__actions">
             <button type="button" class="ghost-button ghost-button--small" @click="closeColorPicker">
-              取消
+              {{ t('theme.cancel') }}
             </button>
             <button type="button" class="ghost-button ghost-button--small ghost-button--solid" @click="applyColorPicker">
-              应用
+              {{ t('theme.apply') }}
             </button>
           </div>
         </div>
@@ -328,18 +328,21 @@ import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/con
 import NavBar from '@/components/common/NavBar.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
 
+const { t } = useI18n()
+
 const CUSTOM_THEME_MODES = [
-  { value: 'light', label: '浅色外观', kicker: 'Light appearance' },
-  { value: 'dark', label: '深色外观', kicker: 'Dark appearance' }
+  { value: 'light', label: t('theme.lightAppearance'), kicker: 'Light appearance' },
+  { value: 'dark', label: t('theme.darkAppearance'), kicker: 'Dark appearance' }
 ]
 
 const CUSTOM_THEME_FIELDS = [
-  { key: 'bg', label: '背景' },
-  { key: 'surface', label: '表面' },
-  { key: 'primary', label: '主色' },
-  { key: 'text', label: '文字' }
+  { key: 'bg', label: t('theme.bg') },
+  { key: 'surface', label: t('theme.surface') },
+  { key: 'primary', label: t('theme.primary') },
+  { key: 'text', label: t('theme.text') }
 ]
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6})$/
@@ -370,10 +373,10 @@ const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT
 const pickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const pickerHex = computed(() => hslToHex(Number(colorPicker.h), Number(colorPicker.s), Number(colorPicker.l)))
 const activePickerFieldLabel = computed(() => (
-  CUSTOM_THEME_FIELDS.find((field) => field.key === colorPicker.field)?.label || '颜色'
+  CUSTOM_THEME_FIELDS.find((field) => field.key === colorPicker.field)?.label || t('theme.colorPicker')
 ))
 const activePickerModeLabel = computed(() => (
-  CUSTOM_THEME_MODES.find((mode) => mode.value === colorPicker.mode)?.label || '主题'
+  CUSTOM_THEME_MODES.find((mode) => mode.value === colorPicker.mode)?.label || t('theme.title')
 ))
 const activePickerPreviewColors = computed(() => {
   const modeColors = themeStore.customColors[colorPicker.mode] || themeStore.customColors.light
@@ -385,18 +388,18 @@ const activePickerPreviewColors = computed(() => {
 })
 
 const appliedAppearanceLabel = computed(() => (
-  themeStore.appliedAppearance === 'dark' ? '深色' : '浅色'
+  themeStore.appliedAppearance === 'dark' ? t('theme.dark') : t('theme.light')
 ))
 
 const preferenceLabel = computed(() => {
   switch (themeStore.appearancePreference) {
     case APPEARANCE_PREFERENCES.light:
-      return '浅色模式'
+      return t('theme.lightDesc')
     case APPEARANCE_PREFERENCES.dark:
-      return '深色模式'
+      return t('theme.darkDesc')
     case APPEARANCE_PREFERENCES.system:
     default:
-      return '跟随系统'
+      return t('theme.followSystem')
   }
 })
 
@@ -456,12 +459,12 @@ function getThemeSwatches(previewAppearance, theme) {
 
 function getThemeMeta(theme) {
   if (theme.id === 'custom') {
-    return '浅色/深色独立调色，实时预览'
+    return t('theme.customThemeMeta')
   }
 
   return theme.supportsAppearanceControl
-    ? '支持浅色 / 深色 / 跟随系统'
-    : `固定${theme.defaultAppearance === 'dark' ? '深色' : '浅色'}外观`
+    ? t('theme.supportsAppearance')
+    : t('theme.fixedAppearance', { appearance: theme.defaultAppearance === 'dark' ? t('theme.dark') : t('theme.light') })
 }
 
 function getCustomColorValue(mode, key) {

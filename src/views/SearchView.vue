@@ -1,14 +1,14 @@
 ﻿<template>
   <div :class="['page', 'search-page', { 'search-page--restoring': !searchDisplayReady }]">
     <header v-show="!selectionMode" class="search-header">
-      <button class="icon-btn" type="button" aria-label="返回" @click="handleBack">
+      <button class="icon-btn" type="button" :aria-label="t('common.back')" @click="handleBack">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M15 18L9 12L15 6" />
         </svg>
       </button>
       <SearchBar
         v-model="filters.keyword"
-        placeholder="搜索名称、分类、IP、角色、备注"
+        :placeholder="t('search.placeholder')"
         autofocus
         class="header-search"
       />
@@ -38,11 +38,11 @@
           >
             <div class="advanced-toggle__inner">
               <div class="advanced-toggle__hero">
-                <p class="section-label">高级筛选</p>
-                <h1 class="section-title section-title--sub section-title--tight">高级筛选</h1>
+                <p class="section-label">{{ t('search.advancedFilters') }}</p>
+                <h1 class="section-title section-title--sub section-title--tight">{{ t('search.advancedFilters') }}</h1>
                 <div class="advanced-summary">
                   <span>{{ searchScopeLabel }}</span>
-                  <span v-if="activeFilterCount > 0" class="advanced-toggle__count">已启用 {{ activeFilterCount }}</span>
+                  <span v-if="activeFilterCount > 0" class="advanced-toggle__count">{{ t('common.enabled') }} {{ activeFilterCount }}</span>
                 </div>
               </div>
 
@@ -60,14 +60,14 @@
             <section class="content-section">
               <div class="section-head">
                 <div>
-                  <p class="section-label">筛选方案</p>
-                  <h2 class="section-title section-title--sub">保存组合</h2>
+                  <p class="section-label">{{ t('search.filterPresets') }}</p>
+                  <h2 class="section-title section-title--sub">{{ t('search.saveCombo') }}</h2>
                 </div>
                 <div class="head-actions">
                   <button class="ghost-btn" type="button" @click="togglePresetEditor">
-                    {{ presetEditorVisible ? '收起' : '保存当前' }}
+                    {{ presetEditorVisible ? t('search.collapse') : t('search.saveCurrent') }}
                   </button>
-                  <button v-if="activeFilterCount > 0" class="ghost-btn" type="button" @click="resetFilters">重置</button>
+                  <button v-if="activeFilterCount > 0" class="ghost-btn" type="button" @click="resetFilters">{{ t('common.reset') }}</button>
                 </div>
               </div>
 
@@ -81,7 +81,7 @@
                     <span class="preset-name">{{ preset.name }}</span>
                     <span class="preset-meta">{{ formatPresetSummary(preset.conditions) }}</span>
                   </button>
-                  <button class="preset-delete" type="button" aria-label="删除方案" @click.stop="removePreset(preset.id)">
+                  <button class="preset-delete" type="button" :aria-label="t('search.deletePreset')" @click.stop="removePreset(preset.id)">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M18 6L6 18" />
                       <path d="M6 6L18 18" />
@@ -89,20 +89,20 @@
                   </button>
                 </article>
               </div>
-              <div v-else class="surface-card muted-copy">常用组合可以存成方案，下次一键套用。</div>
+              <div v-else class="surface-card muted-copy">{{ t('search.presetHint') }}</div>
 
               <div v-if="presetEditorVisible" class="surface-card preset-editor">
-                <label class="field-label" for="preset-name-input">方案名称</label>
+                <label class="field-label" for="preset-name-input">{{ t('search.presetNameLabel') }}</label>
                 <input
                   id="preset-name-input"
                   v-model.trim="presetDraftName"
                   class="field-input"
                   type="text"
                   maxlength="24"
-                  placeholder="例如：崩铁徽章 50+ 近半年"
+                  :placeholder="t('search.presetNamePlaceholder')"
                 >
                 <div class="head-actions">
-                  <button class="primary-btn" type="button" :disabled="!canSavePreset" @click="saveNewPreset">保存新方案</button>
+                  <button class="primary-btn" type="button" :disabled="!canSavePreset" @click="saveNewPreset">{{ t('search.saveNewPreset') }}</button>
                   <button
                     v-if="activePresetId"
                     class="secondary-btn"
@@ -110,7 +110,7 @@
                     :disabled="!canSavePreset"
                     @click="updateActivePreset"
                   >
-                    更新当前
+                    {{ t('search.updateCurrent') }}
                   </button>
                 </div>
               </div>
@@ -119,15 +119,15 @@
             <section class="content-section">
               <div class="section-head">
                 <div>
-                  <p class="section-label">筛选条件</p>
-                  <h2 class="section-title section-title--sub">组合条件</h2>
+                  <p class="section-label">{{ t('search.filterConditions') }}</p>
+                  <h2 class="section-title section-title--sub">{{ t('search.comboConditions') }}</h2>
                 </div>
               </div>
 
               <div class="surface-card filter-card">
                 <div class="field-grid">
                   <div class="field-block">
-                    <label class="field-label">价格区间</label>
+                    <label class="field-label">{{ t('search.priceRange') }}</label>
                     <div class="range-row">
                       <input
                         v-model="filters.priceMin"
@@ -135,7 +135,7 @@
                         type="number"
                         min="0"
                         inputmode="decimal"
-                        placeholder="最低价"
+                        :placeholder="t('search.minPrice')"
                       >
                       <span class="range-gap">-</span>
                       <input
@@ -144,24 +144,24 @@
                         type="number"
                         min="0"
                         inputmode="decimal"
-                        placeholder="最高价"
+                        :placeholder="t('search.maxPrice')"
                       >
                     </div>
                   </div>
 
                   <div class="field-block">
-                    <label class="field-label">排序方式</label>
-                    <AppSelect v-model="filters.sortBy" :options="GOODS_FILTER_SORT_OPTIONS" placeholder="请选择排序" />
+                    <label class="field-label">{{ t('search.sortBy') }}</label>
+                    <AppSelect v-model="filters.sortBy" :options="GOODS_FILTER_SORT_OPTIONS" :placeholder="t('search.selectSort')" />
                   </div>
 
                   <div class="field-block">
-                    <label class="field-label">备注</label>
-                    <AppSelect v-model="filters.hasNote" :options="GOODS_FILTER_BOOLEAN_OPTIONS" placeholder="不限" />
+                    <label class="field-label">{{ t('common.note') }}</label>
+                    <AppSelect v-model="filters.hasNote" :options="GOODS_FILTER_BOOLEAN_OPTIONS" :placeholder="t('search.noLimit')" />
                   </div>
                 </div>
 
                 <div v-if="searchScope === 'collection'" class="field-block">
-                  <label class="field-label">收藏状态</label>
+                  <label class="field-label">{{ t('search.collectStatus') }}</label>
                   <div class="chip-wrap">
                     <button
                       v-for="option in GOODS_FILTER_COLLECT_STATUS_OPTIONS"
@@ -176,7 +176,7 @@
                 </div>
 
                 <div class="field-block">
-                  <label class="field-label">购入时间</label>
+                  <label class="field-label">{{ t('search.acquireTime') }}</label>
                   <div class="chip-wrap">
                     <button
                       v-for="option in GOODS_FILTER_DATE_PRESET_OPTIONS"
@@ -191,7 +191,7 @@
                   <div v-if="filters.acquiredPreset === 'custom'" class="range-row range-row--date">
                     <button class="date-field" type="button" @click="openAcquiredDatePicker('from')">
                       <span :class="{ 'date-field__value--placeholder': !filters.acquiredFrom }">
-                        {{ filters.acquiredFrom || '开始日期' }}
+                        {{ filters.acquiredFrom || t('search.startDate') }}
                       </span>
                       <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -203,7 +203,7 @@
                     <span class="range-gap">-</span>
                     <button class="date-field" type="button" @click="openAcquiredDatePicker('to')">
                       <span :class="{ 'date-field__value--placeholder': !filters.acquiredTo }">
-                        {{ filters.acquiredTo || '结束日期' }}
+                        {{ filters.acquiredTo || t('search.endDate') }}
                       </span>
                       <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -216,7 +216,7 @@
                 </div>
 
                 <div v-if="categoryOptions.length" class="field-block">
-                  <label class="field-label">分类</label>
+                  <label class="field-label">{{ t('common.category') }}</label>
                   <div class="chip-wrap">
                     <button
                       v-for="option in categoryOptions"
@@ -231,7 +231,7 @@
                 </div>
 
                 <div v-if="ipOptions.length" class="field-block">
-                  <label class="field-label">IP</label>
+                  <label class="field-label">{{ t('common.ip') }}</label>
                   <div class="chip-wrap">
                     <button
                       v-for="option in ipOptions"
@@ -247,14 +247,14 @@
 
                 <div v-if="characterOptions.length" class="field-block">
                   <div class="field-head">
-                    <label class="field-label">角色</label>
+                    <label class="field-label">{{ t('common.character') }}</label>
                     <button
                       v-if="hasCollapsedCharacterOptions"
                       class="field-toggle"
                       type="button"
                       @click="showAllCharacterOptions = !showAllCharacterOptions"
                     >
-                      {{ showAllCharacterOptions ? '收起角色' : '展开角色' }}
+                      {{ showAllCharacterOptions ? t('search.collapseCharacters') : t('search.expandCharacters') }}
                     </button>
                   </div>
                   <div class="chip-wrap">
@@ -271,7 +271,7 @@
                 </div>
 
                 <div v-if="showStorageLocationFilter && (storageLocationTree.length || hasUnassignedStorageLocation)" class="field-block">
-                  <label class="field-label">存放位置</label>
+                  <label class="field-label">{{ t('search.storageLocation') }}</label>
 
                   <div class="location-tree">
                     <button
@@ -280,7 +280,7 @@
                       :class="['chip', { 'chip--active': filters.storageLocations.includes(GOODS_FILTER_SPECIAL_VALUES.noStorageLocation) }]"
                       @click="toggleFilterValue('storageLocations', GOODS_FILTER_SPECIAL_VALUES.noStorageLocation)"
                     >
-                      未设置位置
+                      {{ t('search.noLocation') }}
                     </button>
 
                     <StorageLocationFilterTree
@@ -301,9 +301,9 @@
       <section v-if="results.length > 0" :class="['content-section', { 'content-section--selection': selectionMode }]">
         <div class="section-head">
           <div>
-            <p class="section-label">搜索结果</p>
-            <h2 class="section-title section-title--sub">找到 {{ results.length }} 件谷子</h2>
-            <p v-if="activePresetName" class="section-desc section-desc--compact">当前方案：{{ activePresetName }}</p>
+            <p class="section-label">{{ t('search.searchResults') }}</p>
+            <h2 class="section-title section-title--sub">{{ t('search.foundItems', { count: results.length }) }}</h2>
+            <p v-if="activePresetName" class="section-desc section-desc--compact">{{ t('search.currentPreset', { name: activePresetName }) }}</p>
           </div>
         </div>
         <div class="goods-list-container">
@@ -332,14 +332,14 @@
       </section>
 
       <section v-else-if="isFiltering" :class="['content-section', { 'content-section--selection': selectionMode }]">
-        <EmptyState icon="🔍" title="没有匹配的收藏" :description="emptyDesc" />
+        <EmptyState icon="🔍" :title="t('search.noMatch')" :description="emptyDesc" />
       </section>
 
       <section v-else class="content-section">
         <EmptyState
           icon="✨"
-          title="从搜索开始找谷子"
-          description="输入关键词，或在需要时展开高级筛选组合条件。"
+          :title="t('search.startSearch')"
+          :description="t('search.startSearchDesc')"
         />
       </section>
     </main>
@@ -367,7 +367,7 @@
       v-model="acquiredDatePickerValue"
       :z-index="2000"
       :is-tablet="isTabletViewport"
-      :title="acquiredDatePickerTarget === 'from' ? '选择购入开始日期' : '选择购入结束日期'"
+      :title="acquiredDatePickerTarget === 'from' ? t('search.selectAcquiredFrom') : t('search.selectAcquiredTo')"
       :min-date="minDate"
       :max-date="maxDate"
       @confirm="onAcquiredDateConfirm"
@@ -377,6 +377,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -412,6 +413,7 @@ import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
 import { formatDate } from '@/utils/format'
 
+const { t } = useI18n()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const filterPresetsStore = useFilterPresetsStore()
@@ -420,7 +422,7 @@ const router = useRouter()
 const { isTabletViewport } = useTabletViewport()
 
 const searchScope = computed(() => (route.query.scope === 'wishlist' ? 'wishlist' : 'collection'))
-const searchScopeLabel = computed(() => (searchScope.value === 'wishlist' ? '心愿单' : '收藏库'))
+const searchScopeLabel = computed(() => (searchScope.value === 'wishlist' ? t('search.wishlistScope') : t('search.collectionScope')))
 const showStorageLocationFilter = computed(() => searchScope.value === 'collection')
 const searchStateHistoryKey = computed(() => `searchViewState:${searchScope.value}`)
 const defaultBackPath = computed(() => (searchScope.value === 'wishlist' ? '/wishlist' : '/home'))
@@ -509,14 +511,14 @@ function buildOptionList(values, specialOption = null) {
 const categoryOptions = computed(() => buildOptionList(
   sourceList.value.map((item) => item.category),
   sourceList.value.some((item) => !String(item.category || '').trim())
-    ? { label: '未分类', value: GOODS_FILTER_SPECIAL_VALUES.uncategorized }
+    ? { label: t('search.uncategorized'), value: GOODS_FILTER_SPECIAL_VALUES.uncategorized }
     : null
 ))
 
 const ipOptions = computed(() => buildOptionList(
   sourceList.value.map((item) => item.ip),
   sourceList.value.some((item) => !String(item.ip || '').trim())
-    ? { label: '未设置 IP', value: GOODS_FILTER_SPECIAL_VALUES.noIp }
+    ? { label: t('search.noIp'), value: GOODS_FILTER_SPECIAL_VALUES.noIp }
     : null
 ))
 
@@ -534,7 +536,7 @@ const characterSourceList = computed(() => {
 const characterOptions = computed(() => buildOptionList(
   characterSourceList.value.flatMap((item) => (Array.isArray(item.characters) ? item.characters : [])),
   characterSourceList.value.some((item) => !Array.isArray(item.characters) || item.characters.length === 0)
-    ? { label: '未设置角色', value: GOODS_FILTER_SPECIAL_VALUES.noCharacter }
+    ? { label: t('search.noCharacter'), value: GOODS_FILTER_SPECIAL_VALUES.noCharacter }
     : null
 ))
 
@@ -708,8 +710,8 @@ watch(resultRows, () => {
 const canSavePreset = computed(() => presetDraftName.value.trim().length > 0 && activeFilterCount.value > 0)
 const emptyDesc = computed(() => (
   debouncedKeyword.value
-    ? `没有找到与“${debouncedKeyword.value}”相关的谷子，试试更短的关键词或放宽筛选条件。`
-    : '当前筛选条件下没有匹配的收藏。'
+    ? t('search.noMatchKeyword', { keyword: debouncedKeyword.value })
+    : t('search.noMatchFilter')
 ))
 
 function assignFilters(nextFilters) {
@@ -777,14 +779,14 @@ function formatPresetSummary(conditions) {
   if (normalized.ips.length) segments.push(normalized.ips.slice(0, 2).join(' / '))
   if (normalized.storageLocations.length) segments.push(normalized.storageLocations[0])
   if (normalized.priceMin !== '' || normalized.priceMax !== '') {
-    segments.push(`￥${normalized.priceMin || '0'} - ${normalized.priceMax || '不限'}`)
+    segments.push(`￥${normalized.priceMin || '0'} - ${normalized.priceMax || t('search.noLimit')}`)
   }
   if (normalized.acquiredPreset !== 'all') {
     const preset = GOODS_FILTER_DATE_PRESET_OPTIONS.find((item) => item.value === normalized.acquiredPreset)
     if (preset) segments.push(preset.label)
   }
 
-  return segments.length ? segments.slice(0, 3).join(' · ') : '仅关键词或基础条件'
+  return segments.length ? segments.slice(0, 3).join(' · ') : t('search.onlyKeywordsOrBasic')
 }
 
 function toggleFilterValue(key, value) {

@@ -12,11 +12,11 @@
               <path d="M14 11V17" />
             </svg>
           </div>
-          <h2 class="confirm-title">移到回收站？</h2>
-          <p class="confirm-desc">这些收藏会从清单中移除，但之后可以在回收站里恢复。</p>
+          <h2 class="confirm-title">{{ t('common.moveToTrash') }}</h2>
+          <p class="confirm-desc">{{ t('common.moveToTrashDesc') }}</p>
           <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--ghost" type="button" @click="updateShow(false)">取消</button>
-            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">移入回收站</button>
+            <button class="confirm-btn confirm-btn--ghost" type="button" @click="updateShow(false)">{{ t('common.cancel') }}</button>
+            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">{{ t('goods.delete.moveToTrash') }}</button>
           </div>
         </div>
       </div>
@@ -25,6 +25,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps({
   show: { type: Boolean, default: false },
   selectedCount: { type: Number, default: 0 }

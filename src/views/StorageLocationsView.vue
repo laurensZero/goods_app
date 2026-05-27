@@ -1,22 +1,22 @@
 <template>
   <div class="page locations-page">
-    <NavBar title="收纳位置" show-back />
+    <NavBar :title="t('manage.storageLocations')" show-back />
 
     <main class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Storage Presets</p>
-          <h1 class="hero-title">把收纳位置整理成层级结构</h1>
-          <p class="hero-desc">支持新增一级位置、子级位置，重命名后会同步更新已有商品的路径。</p>
+          <h1 class="hero-title">{{ t('manage.storage.heroTitle') }}</h1>
+          <p class="hero-desc">{{ t('manage.storage.heroDesc') }}</p>
         </div>
 
         <div class="summary-grid">
           <article class="summary-card">
-            <span class="summary-kicker">位置节点</span>
+            <span class="summary-kicker">{{ t('manage.storage.locationNodes') }}</span>
             <strong class="summary-value">{{ presets.storageLocations.length }}</strong>
           </article>
           <article class="summary-card">
-            <span class="summary-kicker">未设置位置</span>
+            <span class="summary-kicker">{{ t('manage.storage.unassigned') }}</span>
             <strong class="summary-value">{{ unassignedCount }}</strong>
           </article>
         </div>
@@ -24,7 +24,7 @@
 
       <section class="editor-section">
         <div class="section-head">
-          <p class="section-label">编辑预设</p>
+          <p class="section-label">{{ t('manage.storage.editPresets') }}</p>
           <h2 class="section-title">{{ editorTitle }}</h2>
           <p v-if="editorHint" class="section-desc">{{ editorHint }}</p>
         </div>
@@ -36,7 +36,7 @@
             class="editor-primary-btn"
             @click="openCreateRoot"
           >
-            新增一级位置
+            {{ t('manage.storage.addRoot') }}
           </button>
 
           <QuickPresetCreator
@@ -54,8 +54,8 @@
 
       <section class="list-section">
         <div class="section-head">
-          <p class="section-label">位置树</p>
-          <h2 class="section-title">管理层级</h2>
+          <p class="section-label">{{ t('manage.storage.locationTree') }}</p>
+          <h2 class="section-title">{{ t('manage.storage.manageHierarchy') }}</h2>
         </div>
 
         <div v-if="presets.storageLocationTree.length > 0" class="tree-list">
@@ -74,8 +74,8 @@
         <EmptyState
           v-else
           icon="柜"
-          title="还没有收纳位置"
-          description="先新增一级位置，比如柜子、抽屉、活页册，后面再逐级细分。"
+          :title="t('manage.storage.emptyTitle')"
+          :description="t('manage.storage.emptyDesc')"
         />
       </section>
     </main>
@@ -92,7 +92,7 @@
       :show="showDeleteConfirm"
       :name="pendingDeleteNode?.path || ''"
       :count="affectedCount"
-      field-label="该收纳位置"
+      :field-label="t('manage.storage.fieldLabel')"
       @cancel="cancelDeleteNode"
       @confirm="confirmDeleteNode"
     />
@@ -101,6 +101,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { isStorageLocationUnderPrefix } from '@/utils/storageLocations'
@@ -111,6 +112,7 @@ import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 import StorageLocationTreeNode from '@/components/storage/StorageLocationTreeNode.vue'
 import NfcWriteDialog from '@/components/storage/NfcWriteDialog.vue'
 
+const { t } = useI18n()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 
@@ -171,33 +173,33 @@ const editorTargetPath = computed(() =>
 )
 
 const editorTitle = computed(() => {
-  if (editorMode.value === 'create-root') return '新增一级位置'
-  if (editorMode.value === 'create-child') return '新增子级位置'
-  if (editorMode.value === 'rename') return '重命名位置'
-  return '快速维护你的收纳层级'
+  if (editorMode.value === 'create-root') return t('manage.storage.createRootTitle')
+  if (editorMode.value === 'create-child') return t('manage.storage.createChildTitle')
+  if (editorMode.value === 'rename') return t('manage.storage.renameTitle')
+  return t('manage.storage.defaultTitle')
 })
 
 const editorHint = computed(() => {
   if (editorMode.value === 'create-child') {
-    return `当前会新增到 ${editorTargetPath.value} 下`
+    return t('manage.storage.createChildHint', { path: editorTargetPath.value })
   }
 
   if (editorMode.value === 'rename') {
-    return `当前正在编辑 ${editorTargetPath.value}`
+    return t('manage.storage.renameHint', { path: editorTargetPath.value })
   }
 
-  return '建议先建一级位置，再逐级细分到层、页、格。'
+  return t('manage.storage.defaultHint')
 })
 
 const editorPlaceholder = computed(() => {
-  if (editorMode.value === 'create-root') return '例如：柜子 A'
-  if (editorMode.value === 'create-child') return '例如：第 2 层'
-  if (editorMode.value === 'rename') return '输入新的位置名称'
+  if (editorMode.value === 'create-root') return t('manage.storage.createRootPlaceholder')
+  if (editorMode.value === 'create-child') return t('manage.storage.createChildPlaceholder')
+  if (editorMode.value === 'rename') return t('manage.storage.renamePlaceholder')
   return ''
 })
 
 const editorSubmitText = computed(() =>
-  editorMode.value === 'rename' ? '保存名称' : '新增位置'
+  editorMode.value === 'rename' ? t('manage.storage.saveName') : t('manage.storage.addLocation')
 )
 
 const NFC_ANDROID_READER_MODE_FLAGS = 0x01 | 0x02 | 0x04 | 0x08 | 0x100
@@ -210,7 +212,7 @@ async function handleWriteNfc(node) {
   if (!Capacitor.isNativePlatform()) {
     showNfcDialog.value = true
     nfcDialogStatus.value = 'error'
-    nfcDialogMessage.value = '您现在正在电脑/网页端预览，NFC 需要打包到手机才能真实执行物理读写哦。'
+    nfcDialogMessage.value = t('manage.storage.nfcPreviewOnly')
     currentNfcNode.value = node
     return
   }
@@ -225,18 +227,18 @@ async function handleWriteNfc(node) {
   try {
     const isAvailable = await CapacitorNfc.isSupported()
     if (!isAvailable.supported) {
-      nfcDialogMessage.value = '当前设备不支持 NFC 或未开启功能'
+      nfcDialogMessage.value = t('manage.storage.nfcNotSupported')
       nfcDialogStatus.value = 'error'
       return
     }
 
-    nfcDialogMessage.value = '准备写入，请将手机靠近贴纸...'
+    nfcDialogMessage.value = t('manage.storage.nfcPreparing')
 
     let nfcScannedListener = null
     const tagDetected = new Promise((resolve, reject) => {
       let timeoutId = setTimeout(() => {
         if (nfcScannedListener) nfcScannedListener.remove()
-        reject(new Error('等待超时，请重新点击绑定'))
+        reject(new Error(t('manage.storage.nfcTimeout')))
       }, 15000)
 
       CapacitorNfc.addListener('nfcEvent', () => {
@@ -251,7 +253,7 @@ async function handleWriteNfc(node) {
     try {
       await CapacitorNfc.startScanning({
          invalidateAfterFirstRead: false,
-        alertMessage: `靠近首饰盒 NFC 标签以将 ${node.name} 写入...`,
+        alertMessage: t('manage.storage.nfcAlertMessage', { name: node.name }),
         androidReaderModeFlags: NFC_ANDROID_READER_MODE_FLAGS
       })
     } catch {
@@ -260,7 +262,7 @@ async function handleWriteNfc(node) {
 
     // Wait until the phone physically touches a tag
     await tagDetected
-    nfcDialogMessage.value = '已靠近标签，正在写入...'
+    nfcDialogMessage.value = t('manage.storage.nfcWriting')
     
     // Write URI + Android Application Record to improve app launch reliability.
     const encoder = new TextEncoder()
@@ -293,12 +295,12 @@ async function handleWriteNfc(node) {
     })
 
     nfcDialogStatus.value = 'success'
-    nfcDialogMessage.value = `写入成功！\n现在只要碰一碰就自动筛选 ${node.name} 的内容。`
+    nfcDialogMessage.value = t('manage.storage.nfcSuccess', { name: node.name })
     await CapacitorNfc.stopScanning()
   } catch (error) {
     console.error('Nfc Write Error:', error)
     nfcDialogStatus.value = 'error'
-    nfcDialogMessage.value = `写入被取消或失败\n${error.message || ''}`
+    nfcDialogMessage.value = t('manage.storage.nfcFailed', { error: error.message || '' })
     try { await CapacitorNfc.stopScanning() } catch {}
   }
 }

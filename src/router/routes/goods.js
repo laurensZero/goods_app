@@ -3,38 +3,38 @@ export default [
     path: '/search',
     name: 'search',
     component: () => import('@/views/SearchView.vue'),
-    meta: { title: '搜索' }
+    meta: { titleKey: 'nav.search' }
   },
   {
     path: '/add',
     name: 'add',
     component: () => import('@/views/AddItemView.vue'),
-    meta: { title: '添加谷子' }
+    meta: { titleKey: 'nav.addGoods' }
   },
   {
     path: '/batch-add',
     name: 'batch-add',
     component: () => import('@/views/BatchAddView.vue'),
-    meta: { title: '批量添加' }
+    meta: { titleKey: 'nav.batchAdd' }
   },
   {
     path: '/detail/:id',
     name: 'detail',
     component: () => import('@/views/DetailView.vue'),
-    meta: { title: '谷子详情' },
+    meta: { titleKey: 'nav.goodsDetail' },
     props: true
   },
   {
     path: '/edit/:id',
     name: 'edit',
     component: () => import('@/views/EditItemView.vue'),
-    meta: { title: '编辑谷子' },
+    meta: { titleKey: 'nav.editGoods' },
     props: true
   },
   {
     path: '/storage-locations',
     name: 'storage-locations',
     component: () => import('@/views/StorageLocationsView.vue'),
-    meta: { title: '收纳位置' }
+    meta: { titleKey: 'nav.storageLocations' }
   }
 ]

@@ -1,7 +1,7 @@
 <template>
   <div class="route-page">
     <div class="page sub-page">
-    <NavBar title="IP 管理" show-back>
+    <NavBar :title="t('manage.ipManage')" show-back>
       <template #right>
         <button class="add-btn" type="button" @click="toggleInput">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -21,7 +21,7 @@
             class="row-input"
             type="text"
             maxlength="40"
-            placeholder="输入 IP 名称"
+            :placeholder="t('manage.ip.inputPlaceholder')"
             @input="syncName"
             @blur="syncName"
             @change="syncName"
@@ -30,7 +30,7 @@
             @keyup.enter="doAdd"
           />
           <button class="confirm-btn" type="button" @pointerdown="flushActiveInput" @click="doAdd">
-            保存
+            {{ t('common.save') }}
           </button>
         </div>
       </Transition>
@@ -45,7 +45,7 @@
             v-model="searchKey"
             class="s-input"
             type="search"
-            placeholder="搜索 IP 名称"
+            :placeholder="t('manage.ip.searchPlaceholder')"
           />
           <button v-if="searchKey" class="s-clear" type="button" @click="searchKey = ''">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -67,10 +67,10 @@
             >
               <button class="row-main" type="button" @click="openEdit(item)">
                 <span class="row-label">{{ item }}</span>
-                <span class="row-meta">{{ getGoodsCount(item) }} 件收藏</span>
+                <span class="row-meta">{{ t('manage.ip.goodsCount', { count: getGoodsCount(item) }) }}</span>
               </button>
 
-              <button class="row-delete" type="button" aria-label="删除 IP" @click="removeIp(item)">
+              <button class="row-delete" type="button" :aria-label="t('manage.ip.delete')" @click="removeIp(item)">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M18 6L6 18" />
                   <path d="M6 6L18 18" />
@@ -78,13 +78,13 @@
               </button>
             </div>
           </div>
-          <p class="count-hint">共 {{ presets.ips.length }} 个 IP</p>
+          <p class="count-hint">{{ t('manage.ip.count', { count: presets.ips.length }) }}</p>
         </template>
 
         <p v-else-if="searchKey && presets.ips.length > 0" class="empty-hint">
-          没有匹配“{{ searchKey }}”的 IP
+          {{ t('manage.ip.noMatch', { keyword: searchKey }) }}
         </p>
-        <p v-else class="empty-hint">还没有 IP，点击右上角新建</p>
+        <p v-else class="empty-hint">{{ t('manage.ip.emptyHint') }}</p>
       </section>
     </main>
 
@@ -95,11 +95,11 @@
       <Transition name="sheet-slide">
         <div v-if="editingIp" class="edit-sheet" :style="editSheetStyle">
           <div class="edit-header">
-            <span class="edit-title">修改 IP 名称</span>
+            <span class="edit-title">{{ t('manage.ip.editTitle') }}</span>
             <button type="button" class="edit-close" @click="closeEdit">×</button>
           </div>
 
-          <p class="edit-caption">当前：{{ editingIp }}</p>
+          <p class="edit-caption">{{ t('manage.ip.current', { name: editingIp }) }}</p>
 
           <input
             ref="editInputRef"
@@ -107,14 +107,14 @@
             class="row-input"
             type="text"
             maxlength="40"
-            placeholder="输入新的 IP 名称"
+            :placeholder="t('manage.ip.newPlaceholder')"
             @focus="handleEditInputFocus"
             @keyup.enter="saveEdit"
           />
 
           <p v-if="editError" class="edit-error">{{ editError }}</p>
 
-          <button class="save-btn" type="button" @click="saveEdit">保存修改</button>
+          <button class="save-btn" type="button" @click="saveEdit">{{ t('manage.ip.saveEdit') }}</button>
         </div>
       </Transition>
     </Teleport>
@@ -124,7 +124,7 @@
     :show="showDeleteConfirm"
     :name="pendingDeleteName"
     :count="affectedCount"
-    field-label="该 IP"
+    :field-label="t('manage.ip.fieldLabel')"
     @cancel="showDeleteConfirm = false"
     @confirm="confirmDelete"
   />
@@ -133,6 +133,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
@@ -140,6 +141,7 @@ import { usePresetDelete } from '@/composables/preset/usePresetDelete'
 import NavBar from '@/components/common/NavBar.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 
+const { t } = useI18n()
 const presets = usePresetsStore()
 const store = useGoodsStore()
 
@@ -273,7 +275,7 @@ async function saveEdit() {
   const nextName = String(editName.value || '').trim()
 
   if (!nextName) {
-    editError.value = '请输入 IP 名称'
+    editError.value = t('manage.ip.errorEmpty')
     return
   }
 
@@ -284,7 +286,7 @@ async function saveEdit() {
 
   const updated = await presets.updateIpName(previous, nextName)
   if (!updated) {
-    editError.value = 'IP 名称已存在'
+    editError.value = t('manage.ip.errorExists')
     return
   }
 

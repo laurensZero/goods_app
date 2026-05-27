@@ -1,0 +1,14 @@
+{
+  "trash.restore": "Restore",
+  "trash.emptyTitle": "Trash is Empty",
+  "trash.emptyDesc": "No deleted items",
+  "trash.restoreAll": "Restore All",
+  "trash.emptyTrash": "Empty Trash",
+  "trash.confirmEmpty": "Confirm empty trash?",
+  "trash.confirmEmptyDesc": "Cannot be undone after emptying",
+  "trash.permanentDelete": "Permanent Delete",
+  "trash.confirmPermanent": "Confirm permanent deletion?",
+  "trash.confirmPermanentDesc": "This action is irreversible",
+  "trash.deletedAt": "Deleted at",
+  "trash.quantity": "Quantity"
+}

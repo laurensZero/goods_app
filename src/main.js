@@ -5,6 +5,7 @@ import { Preferences } from '@capacitor/preferences'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { createPinia } from 'pinia'
 import App from './App.vue'
+import i18n from './locales'
 import router from './router'
 import 'vant/lib/index.css'
 import './assets/base.css'
@@ -134,13 +135,14 @@ async function bootstrap() {
     console.error('[DB] initDB failed — running without SQLite storage:', e)
     // 延迟导入 Toast，避免循环依赖
     import('vant').then(({ showFailToast }) => {
-      showFailToast('数据库初始化失败：' + (e.message || String(e)))
+      showFailToast(i18n.global.t('toast.dbInitFailed', { error: e.message || String(e) }))
     }).catch(() => {})
   }
   timings.initDB = performance.now() - t1
 
   const app = createApp(App)
   const pinia = createPinia()
+  app.use(i18n)
   app.use(pinia)
   app.use(router)
 

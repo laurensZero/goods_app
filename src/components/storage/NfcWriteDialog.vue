@@ -1,9 +1,9 @@
 <template>
   <Transition name="overlay-fade">
     <div v-if="show" class="overlay" @click.self="cancel">
-      <div class="dialog nfc-dialog" role="dialog" aria-modal="true" aria-label="绑定 NFC 标签">
-        <p class="dialog-label">NFC 绑定</p>
-        <h3 class="dialog-title">绑定 NFC 标签</h3>
+      <div class="dialog nfc-dialog" role="dialog" aria-modal="true" :aria-label="t('storage.nfc.bindTitle')">
+        <p class="dialog-label">{{ t('storage.nfc.bindLabel') }}</p>
+        <h3 class="dialog-title">{{ t('storage.nfc.bindTitle') }}</h3>
 
         <div class="nfc-content">
           <div class="nfc-animation" :class="{ 'is-scanning': status === 'scanning', 'is-success': status === 'success', 'is-error': status === 'error' }">
@@ -22,7 +22,7 @@
             class="dialog-btn dialog-btn--secondary"
             @click="cancel"
           >
-            {{ status === 'scanning' ? '取消' : '关闭' }}
+            {{ status === 'scanning' ? t('common.cancel') : t('common.close') }}
           </button>
         </div>
       </div>
@@ -32,6 +32,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: Boolean,
@@ -44,9 +47,9 @@ const emit = defineEmits(['cancel'])
 
 const promptMessage = computed(() => {
   if (props.message) return props.message
-  if (props.status === 'success') return `写入成功！\n现在碰一碰即可筛选 ${props.nodeName} 的物品。`
-  if (props.status === 'error') return '写入失败，请检查标签或重试。'
-  return `请将手机背面靠近 NFC 贴纸以写入\n${props.nodeName}`
+  if (props.status === 'success') return t('storage.nfc.writeSuccess', { name: props.nodeName })
+  if (props.status === 'error') return t('storage.nfc.writeFailed')
+  return t('storage.nfc.scanPrompt', { name: props.nodeName })
 })
 
 function cancel() {

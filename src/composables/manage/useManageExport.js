@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
+import i18n from '@/locales'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
@@ -9,15 +10,21 @@ const BACKUP_DIR = 'GoodsAppBackup'
 const BACKUP_RETENTION_COUNT = 5
 const EXPORT_LONG_PRESS_DELAY_MS = 420
 
-export const exportSectionOptions = [
-  { key: 'goods', label: '收藏', desc: '当前收藏记录' },
-  { key: 'wishlist', label: '心愿单', desc: '计划入手记录' },
-  { key: 'trash', label: '回收站', desc: '已删除但尚未清空的数据' },
-  { key: 'events', label: '活动', desc: '活动、曲目与关联谷子' },
-  { key: 'images', label: '图片', desc: '导出时内嵌本地图片（体积大、更慢）' },
-  { key: 'recharge', label: '充值', desc: '充值记录与回收站' },
-  { key: 'presets', label: '预设', desc: '分类、IP、角色和收纳位置' }
+const EXPORT_OPTION_KEYS = [
+  { key: 'goods', labelKey: 'manage.exportGoods', descKey: 'manage.exportGoodsDesc' },
+  { key: 'wishlist', labelKey: 'manage.exportWishlist', descKey: 'manage.exportWishlistDesc' },
+  { key: 'trash', labelKey: 'manage.exportTrash', descKey: 'manage.exportTrashDesc' },
+  { key: 'events', labelKey: 'manage.exportEvents', descKey: 'manage.exportEventsDesc' },
+  { key: 'images', labelKey: 'manage.exportImages', descKey: 'manage.exportImagesDesc' },
+  { key: 'recharge', labelKey: 'manage.exportRecharge', descKey: 'manage.exportRechargeDesc' },
+  { key: 'presets', labelKey: 'manage.exportPresets', descKey: 'manage.exportPresetsDesc' }
 ]
+
+export const exportSectionOptions = EXPORT_OPTION_KEYS.map((opt) => ({
+  ...opt,
+  get label() { return i18n.global.t(opt.labelKey) },
+  get desc() { return i18n.global.t(opt.descKey) }
+}))
 
 export function createDefaultExportSelection() {
   return exportSectionOptions.reduce((result, option) => {
@@ -175,9 +182,9 @@ async function shareBackupFile(uri) {
   const canShare = await Share.canShare().catch(() => ({ value: false }))
   if (!canShare.value) return false
   await Share.share({
-    title: '导出备份',
-    text: '请选择保存位置或分享方式',
-    dialogTitle: '导出备份',
+    title: i18n.global.t('manage.exportBackupTitle'),
+    text: i18n.global.t('manage.exportBackupText'),
+    dialogTitle: i18n.global.t('manage.exportBackupTitle'),
     files: [uri]
   })
   return true
@@ -281,7 +288,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       (sum, option) => sum + (exportSelection.value[option.key] ? 1 : 0), 0
     )
     if (selectedCount === 0) {
-      showToast('请至少选择一项导出内容')
+      showToast(i18n.global.t('manage.exportSelectAtLeastOne'))
       return
     }
     handleExport(exportSelection.value)
@@ -345,13 +352,13 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       const eventsChanged = Number(eventResult.added || 0) + Number(eventResult.updated || 0)
 
       if (goodsAdded > 0 || trashAdded > 0 || rechargeChanged > 0 || eventsChanged > 0) {
-        showToast(`成功导入 ${goodsAdded} 件收藏，${trashAdded} 条回收站记录，${rechargeChanged} 条充值记录，${eventResult.added} 场新活动，更新 ${eventResult.updated} 场活动`)
+        showToast(i18n.global.t('manage.importSuccess', { goods: goodsAdded, trash: trashAdded, recharge: rechargeChanged, newEvents: eventResult.added, updatedEvents: eventResult.updated }))
         return
       }
 
-      showToast('数据已是最新，无需导入')
+      showToast(i18n.global.t('manage.importUpToDate'))
     } catch (error) {
-      showToast(`导入失败：${error.message}`)
+      showToast(i18n.global.t('manage.importFailed', { error: error.message }))
     }
   }
 
@@ -435,7 +442,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       } : {})
     }
     const json = JSON.stringify(data)
-    const filename = `谷子备份_${new Date().toISOString().split('T')[0]}.json`
+    const filename = i18n.global.t('manage.backupFilename', { date: new Date().toISOString().split('T')[0] })
 
     try {
       if (Capacitor.isNativePlatform()) {
@@ -452,10 +459,10 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
           void pruneBackupArtifacts().catch(() => {})
           showToast(
             useLightweightImageExport
-              ? '已打开分享面板（轻量导出：图片未内嵌）'
+              ? i18n.global.t('manage.exportSharedLightweight')
               : (saved.visibleToUser
-                ? `已打开分享面板，并写入 文档/${saved.path}`
-                : '已打开分享面板，请选择"保存到文件"或其他目标'),
+                ? i18n.global.t('manage.exportSharedWritten', { path: saved.path })
+                : i18n.global.t('manage.exportSharedChoose')),
             4200
           )
           return
@@ -464,10 +471,10 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
         void pruneBackupArtifacts().catch(() => {})
         showToast(
           useLightweightImageExport
-            ? `已导出轻量备份到 ${saved.visibleToUser ? `文档/${saved.path}` : `应用目录 ${saved.path}`}`
+            ? i18n.global.t('manage.exportedLightweightTo', { location: saved.visibleToUser ? i18n.global.t('manage.exportedToDocument', { path: saved.path }) : i18n.global.t('manage.exportedToAppDir', { path: saved.path }) })
             : (saved.visibleToUser
-              ? `已导出到 文档/${saved.path}`
-              : `已导出到应用目录 ${saved.path}`),
+              ? i18n.global.t('manage.exportedToDocument', { path: saved.path })
+              : i18n.global.t('manage.exportedToAppDir', { path: saved.path })),
           4200
         )
         return
@@ -485,7 +492,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    showToast(`已导出到浏览器下载目录：${filename}`, 4200)
+    showToast(i18n.global.t('manage.exportedToDownload', { filename }), 4200)
   }
 
   function cleanupExportTimers() {

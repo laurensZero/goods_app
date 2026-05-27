@@ -1,0 +1,12 @@
+{
+  "leaderboard.title": "Statistics",
+  "leaderboard.dimension": "Dimension",
+  "leaderboard.stats": "Stats",
+  "leaderboard.dimensionRatio": "Dimension Ratio",
+  "leaderboard.emptyDesc": "No data yet",
+  "leaderboard.emptyTitle": "No Statistics",
+  "leaderboard.groupCount": "Group Count",
+  "leaderboard.sortMetric": "Sort Metric",
+  "leaderboard.totalItems": "Total Items",
+  "leaderboard.unsetItems": "Unset Items"
+}
