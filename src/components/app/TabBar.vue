@@ -1,5 +1,5 @@
 <template>
-  <nav class="tab-bar" aria-label="底部导航" :style="tabBarStyle">
+  <nav class="tab-bar" :aria-label="t('common.aria.nav')" :style="tabBarStyle">
     <span class="tab-bar__indicator" aria-hidden="true" />
     <button
       v-for="tab in tabs"
@@ -20,8 +20,11 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+
+const { t } = useI18n()
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
@@ -50,7 +53,7 @@ const firstTab = computed(() => {
   if (collectionTab.value === 'wishlist') {
     return {
       key: 'collection',
-      label: '心愿',
+      label: t('nav.tabWishlist'),
       paths: [
         'M12 20s-6.8-4.3-9.2-8.2C.9 8.7 2 5.1 5.1 3.8c2.2-.9 4.3 0 5.6 1.7 1.3-1.7 3.4-2.6 5.6-1.7 3.1 1.3 4.2 4.9 2.3 8-2.4 3.9-9.2 8.2-9.2 8.2Z'
       ]
@@ -60,7 +63,7 @@ const firstTab = computed(() => {
   if (collectionTab.value === 'stats') {
     return {
       key: 'collection',
-      label: '统计',
+      label: t('nav.tabStats'),
       paths: [
         'M6 20V11',
         'M12 20V4',
@@ -71,7 +74,7 @@ const firstTab = computed(() => {
 
   return {
     key: 'collection',
-    label: '收藏',
+    label: t('nav.tabCollection'),
     paths: [
       'M4 5h7v7H4z',
       'M13 5h7v7h-7z',
@@ -85,7 +88,7 @@ const tabs = computed(() => [
   firstTab.value,
   {
     key: 'events',
-    label: '活动',
+    label: t('nav.tabEvents'),
     paths: [
       'M12 3v18',
       'M7 8h10',
@@ -95,7 +98,7 @@ const tabs = computed(() => [
   },
   {
     key: 'recharge',
-    label: '充值',
+    label: t('nav.tabRecharge'),
     paths: [
       'M4 7h16',
       'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z',
@@ -105,7 +108,7 @@ const tabs = computed(() => [
   },
   {
     key: 'manage',
-    label: '我的',
+    label: t('nav.tabMy'),
     paths: [
       'M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z',
       'M4 20c0-4 3.6-7 8-7s8 3 8 7'

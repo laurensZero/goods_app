@@ -3,31 +3,31 @@ export default [
     path: '/import',
     name: 'import',
     component: () => import('@/views/ImportView.vue'),
-    meta: { title: '从米游铺导入' }
+    meta: { titleKey: 'nav.importFromMihoyo' }
   },
   {
     path: '/cart-import',
     name: 'cart-import',
     component: () => import('@/views/CartImportView.vue'),
-    meta: { title: '购物车导入' }
+    meta: { titleKey: 'nav.cartImport' }
   },
   {
     path: '/account-import',
     name: 'account-import',
     component: () => import('@/views/AccountImportView.vue'),
-    meta: { title: '账号批量导入' }
+    meta: { titleKey: 'nav.accountImport' }
   },
   {
     path: '/taobao-import',
     name: 'taobao-import',
     component: () => import('@/views/TaobaoImportView.vue'),
-    meta: { title: '淘宝订单导入' }
+    meta: { titleKey: 'nav.taobaoImport' }
   },
   {
     path: '/share/:gistId?',
     name: 'share-import',
     component: () => import('@/views/ShareImportView.vue'),
-    meta: { title: '导入分享' },
+    meta: { titleKey: 'nav.importShare' },
     props: true
   }
 ]

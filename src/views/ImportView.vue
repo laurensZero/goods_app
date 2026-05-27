@@ -19,7 +19,7 @@
               @keydown.enter.prevent="handleGoodsSearch"
             />
             <button class="search-btn" type="button" :disabled="searching" @click="handleGoodsSearch">
-              {{ searching ? '搜索中' : '搜索' }}
+              {{ searching ? t('import.searching') : t('common.search') }}
             </button>
           </div>
 
@@ -49,7 +49,7 @@
               :class="{ 'search-results-toggle--expanded': searchExpanded }"
               @click="toggleSearchExpanded"
             >
-              {{ searchExpanded ? '收起结果' : '展开更多' }}
+              {{ searchExpanded ? t('import.collapseResults') : t('import.expandMore') }}
             </button>
           </div>
 
@@ -58,11 +58,11 @@
             ref="searchLoadMoreRef"
             class="search-results-status"
           >
-            <span v-if="searchLoadingMore">正在加载更多...</span>
+            <span v-if="searchLoadingMore">{{ t('import.loadingMore') }}</span>
             <template v-else>
-              <span>继续下滑加载更多</span>
+              <span>{{ t('import.scrollForMore') }}</span>
               <button type="button" class="search-results-load-more" @click="loadMoreSearchResults">
-                加载更多
+                {{ t('import.loadMore') }}
               </button>
             </template>
           </div>
@@ -127,8 +127,8 @@
             </svg>
           </div>
           <div class="ie-body">
-            <p class="ie-title">{{ isWishlistMode ? '从购物车导入心愿' : '从购物车导入' }}</p>
-            <p class="ie-sub">{{ isWishlistMode ? '读取米游铺购物车商品，批量加入心愿单' : '读取米游铺购物车商品，批量导入当前收藏' }}</p>
+            <p class="ie-title">{{ isWishlistMode ? t('import.cartImportWishlist') : t('import.cartImport') }}</p>
+            <p class="ie-sub">{{ isWishlistMode ? t('import.cartImportWishlistDesc') : t('import.cartImportDesc') }}</p>
           </div>
           <svg class="ie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -146,8 +146,8 @@
           </svg>
           </div>
           <div class="ie-body">
-            <p class="ie-title">账号批量导入</p>
-            <p class="ie-sub">一键导入米游铺账号的所有历史订单</p>
+            <p class="ie-title">{{ t('import.account') }}</p>
+            <p class="ie-sub">{{ t('import.accountDesc') }}</p>
           </div>
           <svg class="ie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -170,37 +170,37 @@
             </div>
 
             <article class="hero-card">
-              <p class="hero-label">{{ isWishlistMode ? '来自米游铺心愿' : '来自米游铺' }}</p>
-              <h1 class="hero-title">{{ form.name || '商品名称' }}</h1>
-              <p class="hero-desc">{{ isWishlistMode ? '请确认目标款式、图片和预算，然后加入心愿单。' : '请检查并补充以下信息，确认后保存到你的收藏。' }}</p>
+              <p class="hero-label">{{ isWishlistMode ? t('import.fromMihoyoWishlist') : t('import.fromMihoyo') }}</p>
+              <h1 class="hero-title">{{ form.name || t('import.goodsName') }}</h1>
+              <p class="hero-desc">{{ isWishlistMode ? t('import.wishlistDesc') : t('import.collectionDesc') }}</p>
             </article>
           </section>
 
           <!-- 基础信息 -->
           <section class="form-section">
             <div class="section-head">
-              <p class="section-label">已识别信息</p>
-              <h2 class="section-title">商品资料</h2>
+              <p class="section-label">{{ t('import.recognizedInfo') }}</p>
+              <h2 class="section-title">{{ t('import.goodsInfo') }}</h2>
             </div>
             <div class="field-card">
               <label class="field">
-                <span class="field-label">名称 <span class="required">*</span></span>
-                <input v-model="form.name" type="text" placeholder="商品名称" />
+                <span class="field-label">{{ t('common.name') }} <span class="required">*</span></span>
+                <input v-model="form.name" type="text" :placeholder="t('import.goodsName')" />
               </label>
               <label class="field">
-                <span class="field-label">分类</span>
-                <AppSelect v-model="form.category" :options="presets.categories" placeholder="请选择分类" />
+                <span class="field-label">{{ t('common.category') }}</span>
+                <AppSelect v-model="form.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
               </label>
               <label class="field">
                 <span class="field-label">IP</span>
-                <AppSelect v-model="form.ip" :options="presets.ips" placeholder="请选择 IP" />
+                <AppSelect v-model="form.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
               </label>
               <!-- 角色款式选择器：用户点选要买的那个 -->
               <div v-if="parsedVariants.length > 0" class="field">
                 <div class="variant-field-head">
                   <span class="field-label">
-                    选择款式
-                    <span class="auto-badge">{{ parsedVariants.length }} 款</span>
+                    {{ t('import.selectVariant') }}
+                    <span class="auto-badge">{{ t('import.variantCount', { count: parsedVariants.length }) }}</span>
                   </span>
                   <button
                     v-if="selectedVariantKey"
@@ -208,11 +208,11 @@
                     class="variant-field-toggle"
                     @click="variantSectionCollapsed = !variantSectionCollapsed"
                   >
-                    {{ variantSectionCollapsed ? '展开' : '收起' }}
+                    {{ variantSectionCollapsed ? t('import.expand') : t('import.collapse') }}
                   </button>
                 </div>
                 <p v-if="variantSectionCollapsed && selectedVariantName" class="variant-field-match">
-                  已匹配：{{ selectedVariantName }}
+                  {{ t('import.matched', { name: selectedVariantName }) }}
                 </p>
                 <div v-if="!variantSectionCollapsed" class="variant-grid">
                   <button
@@ -233,7 +233,7 @@
                 <!-- 选中款式后：是否记录为角色开关 -->
                 <div v-if="selectedVariantKey" class="save-char-row" @click="toggleSaveAsCharacter">
                   <span class="save-char-label">
-                    将角色记录为「{{ selectedCharacterName || selectedVariantName }}」
+                    {{ t('import.saveAsCharacter', { name: selectedCharacterName || selectedVariantName }) }}
                   </span>
                   <div class="save-char-toggle" :class="{ 'save-char-toggle--on': saveAsCharacter }">
                     <div class="save-char-knob" />
@@ -242,7 +242,7 @@
               </div>
               <!-- 无变体时仍允许手动输入角色 -->
               <div v-else-if="form.characters.length > 0" class="field">
-                <span class="field-label">角色 <span class="auto-badge">自动识别</span></span>
+                <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
                 <div class="char-chips">
                   <span
                     v-for="char in form.characters"
@@ -255,14 +255,14 @@
                 </div>
               </div>
               <label class="field">
-                <span class="field-label">图片链接</span>
+                <span class="field-label">{{ t('import.imageUrl') }}</span>
                 <input v-model="form.image" type="text" inputmode="url"
                   autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
                   placeholder="https://..." />
               </label>
               <!-- 图片选择器：横向滚动所有可用图 -->
               <div v-if="parsedImages.length > 1" class="field">
-                <span class="field-label">选择保存的图片</span>
+                <span class="field-label">{{ t('import.selectImage') }}</span>
                 <div class="img-picker-scroll">
                   <button
                     v-for="(imgUrl, idx) in parsedImages"
@@ -272,8 +272,8 @@
                     :class="{ 'img-picker-item--active': form.image === imgUrl }"
                     @click="form.image = imgUrl"
                   >
-                    <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="`图片${idx+1}`" />
-                    <span v-if="idx === 0" class="img-picker-badge">封面</span>
+                    <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
+                    <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
                     <div v-if="form.image === imgUrl" class="img-picker-check">✓</div>
                   </button>
                 </div>
@@ -284,24 +284,24 @@
           <!-- 购入信息 -->
           <section class="form-section">
             <div class="section-head">
-              <p class="section-label">{{ isWishlistMode ? '目标信息' : '购入记录' }}</p>
-              <h2 class="section-title">{{ isWishlistMode ? '预算与来源' : '价格与来源' }}</h2>
+              <p class="section-label">{{ isWishlistMode ? t('import.targetInfo') : t('import.purchaseRecord') }}</p>
+              <h2 class="section-title">{{ isWishlistMode ? t('import.budgetAndSource') : t('import.priceAndSource') }}</h2>
             </div>
             <div class="field-card">
               <label class="field">
-                <span class="field-label">{{ isWishlistMode ? '目标价格（元）' : '价格（元）' }}</span>
+                <span class="field-label">{{ isWishlistMode ? t('import.targetPrice') : t('import.price') }}</span>
                 <input v-model.number="form.price" type="number" placeholder="0.00" min="0" step="1" />
                 <p v-if="formPriceError" class="parse-error">{{ formPriceError }}</p>
               </label>
               <label class="field">
-                <span class="field-label">购买渠道</span>
-                <input v-model="form.source" type="text" placeholder="米游铺" />
+                <span class="field-label">{{ t('import.purchaseChannel') }}</span>
+                <input v-model="form.source" type="text" :placeholder="t('import.mihoyo')" />
               </label>
               <label class="field">
-                <span class="field-label">{{ isWishlistMode ? '预计入手日期' : '购买日期' }}</span>
+                <span class="field-label">{{ isWishlistMode ? t('import.expectedDate') : t('import.purchaseDate') }}</span>
                 <button class="date-field" type="button" @click="openDatePicker">
                   <span :class="{ 'date-field__value--placeholder': !form.purchaseDate }">
-                    {{ form.purchaseDate || (isWishlistMode ? '可选，暂未计划' : '请选择日期') }}
+                    {{ form.purchaseDate || (isWishlistMode ? t('import.optionalNoPlan') : t('import.selectDate')) }}
                   </span>
                   <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -317,21 +317,21 @@
           <!-- 备注 -->
           <section class="form-section">
             <div class="section-head">
-              <p class="section-label">额外信息</p>
-              <h2 class="section-title">备注</h2>
+              <p class="section-label">{{ t('import.extraInfo') }}</p>
+              <h2 class="section-title">{{ t('common.note') }}</h2>
             </div>
             <div class="field-card">
               <label class="field">
-                <span class="field-label">备注</span>
+                <span class="field-label">{{ t('common.note') }}</span>
                 <textarea
                   ref="notesTextareaRef"
                   v-model="form.notes"
                   class="markdown-textarea"
-                  placeholder="支持 markdown，可填写来源、状态、链接等补充说明…"
+                  :placeholder="t('import.notesPlaceholder')"
                   rows="3"
                 />
               </label>
-              <MarkdownPreviewCard :content="form.notes" title="实时预览" />
+              <MarkdownPreviewCard :content="form.notes" :title="t('import.livePreview')" />
             </div>
           </section>
         </div>
@@ -341,8 +341,8 @@
       <transition name="result-fade">
         <section v-if="batchStep === 'parsing'" class="batch-section">
           <div class="section-head">
-            <p class="section-label">批量解析</p>
-            <h2 class="section-title">正在识别链接…</h2>
+            <p class="section-label">{{ t('import.batchParse') }}</p>
+            <h2 class="section-title">{{ t('import.identifyingLinks') }}</h2>
           </div>
           <div class="field-card batch-progress-card">
             <div v-for="(item, i) in batchItems" :key="i" class="batch-progress-row">
@@ -370,9 +370,9 @@
         <section v-if="batchStep === 'list'" class="batch-section">
           <div class="section-head">
             <p class="section-label">
-              识别完成{{ batchErrorCount ? ' · ' + batchErrorCount + ' 条失败' : '' }}
+              {{ t('import.identifyComplete', { errorCount: batchErrorCount }) }}
             </p>
-            <h2 class="section-title">{{ batchReadyCount }} 个结果就绪</h2>
+            <h2 class="section-title">{{ t('import.resultsReady', { count: batchReadyCount }) }}</h2>
           </div>
           <ul class="field-card batch-goods-list">
             <li
@@ -396,16 +396,16 @@
                   <span v-if="item.data?.price" class="batch-meta-tag batch-meta-tag--price">¥{{ item.data.price }}</span>
                   <span v-if="item.data?.ip" class="batch-meta-tag">{{ item.data.ip }}</span>
                   <span v-if="item.data?.variant" class="batch-meta-tag">{{ item.data.variant }}</span>
-                  <span v-if="item.data?.variants?.length && !item.data?.variant" class="batch-meta-tag batch-meta-tag--hint">{{ item.data.variants.length }} 款可选</span>
+                  <span v-if="item.data?.variants?.length && !item.data?.variant" class="batch-meta-tag batch-meta-tag--hint">{{ t('import.variantsAvailable', { count: item.data.variants.length }) }}</span>
                   <span v-if="item.status === 'error'" class="batch-meta-tag batch-meta-tag--error">{{ item.error }}</span>
                 </div>
               </div>
-              <span v-if="item.status === 'saved'" class="batch-saved-badge">已保存</span>
+              <span v-if="item.status === 'saved'" class="batch-saved-badge">{{ t('import.saved') }}</span>
               <button
                 v-if="item.status === 'ready'"
                 class="batch-goods-edit-btn"
                 type="button"
-                aria-label="编辑"
+                :aria-label="t('common.edit')"
                 @click="openBatchEdit(i)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -416,7 +416,7 @@
             </li>
           </ul>
           <button class="batch-reparse-link" type="button" @click="batchStep = 'input'; batchItems = []">
-            重新输入链接
+            {{ t('import.reinputLinks') }}
           </button>
         </section>
       </transition>
@@ -429,12 +429,12 @@
     <Teleport to="body">
       <!-- 单条模式保存 -->
       <div v-if="parsed && !batchMode" class="float-footer">
-        <button class="btn-primary btn-float" @click="handleSave">{{ isWishlistMode ? '加入心愿单' : '保存谷子' }}</button>
+        <button class="btn-primary btn-float" @click="handleSave">{{ isWishlistMode ? t('import.addToWishlist') : t('import.saveGoods') }}</button>
       </div>
       <!-- 批量模式保存全部 -->
       <div v-if="batchStep === 'list' && batchItems.some(i => i.status === 'ready')" class="float-footer">
         <button class="btn-primary btn-float" :disabled="savingAll" @click="saveAllBatch">
-          {{ savingAll ? '保存中...' : `保存全部 (${batchReadyCount} 份)` }}
+          {{ savingAll ? t('import.saving') : t('import.saveAll', { count: batchReadyCount }) }}
         </button>
       </div>
       <!-- 批量编辑遮罩 -->
@@ -445,30 +445,30 @@
       <Transition name="batch-sheet-slide">
         <div v-if="editingBatchIdx >= 0" class="batch-edit-sheet">
           <div class="batch-edit-handle" />
-          <p class="batch-edit-title">编辑商品资料</p>
+          <p class="batch-edit-title">{{ t('import.editGoodsInfo') }}</p>
           <div class="batch-edit-form">
             <label class="field">
-              <span class="field-label">名称</span>
-              <input v-model="batchEditForm.name" type="text" placeholder="商品名称" />
+              <span class="field-label">{{ t('common.name') }}</span>
+              <input v-model="batchEditForm.name" type="text" :placeholder="t('import.goodsName')" />
             </label>
             <label class="field">
-              <span class="field-label">分类</span>
-              <AppSelect v-model="batchEditForm.category" :options="presets.categories" placeholder="请选择分类" />
+              <span class="field-label">{{ t('common.category') }}</span>
+              <AppSelect v-model="batchEditForm.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
             </label>
             <label class="field">
               <span class="field-label">IP</span>
-              <AppSelect v-model="batchEditForm.ip" :options="presets.ips" placeholder="请选择 IP" />
+              <AppSelect v-model="batchEditForm.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
             </label>
             <label class="field">
-              <span class="field-label">价格（元）</span>
+              <span class="field-label">{{ t('import.price') }}</span>
               <input v-model.number="batchEditForm.price" type="number" placeholder="0.00" min="0" step="1" />
               <p v-if="batchEditPriceError" class="parse-error">{{ batchEditPriceError }}</p>
             </label>
             <!-- 款式选择（有 SKU 变体时显示） -->
             <div v-if="batchEditVariants.length > 0" class="field">
               <span class="field-label">
-                选择款式
-                <span class="auto-badge">{{ batchEditVariants.length }} 款</span>
+                {{ t('import.selectVariant') }}
+                <span class="auto-badge">{{ t('import.variantCount', { count: batchEditVariants.length }) }}</span>
               </span>
               <div class="variant-grid">
                 <button
@@ -492,7 +492,7 @@
               </div>
               <div v-if="batchEditSelectedVariantKey && batchEditSelectedCharacterName" class="save-char-row" @click="toggleBatchSaveAsCharacter">
                 <span class="save-char-label">
-                  将角色记录为「{{ batchEditSelectedCharacterName }}」
+                  {{ t('import.saveAsCharacter', { name: batchEditSelectedCharacterName }) }}
                 </span>
                 <div class="save-char-toggle" :class="{ 'save-char-toggle--on': batchEditSaveAsCharacter }">
                   <div class="save-char-knob" />
@@ -501,7 +501,7 @@
             </div>
             <!-- 图片选择 -->
             <div v-if="batchEditImages.length > 1" class="field">
-              <span class="field-label">选择图片</span>
+              <span class="field-label">{{ t('import.selectImage') }}</span>
               <div class="img-picker-scroll">
                 <button
                   v-for="(imgUrl, idx) in batchEditImages"
@@ -511,17 +511,17 @@
                   :class="{ 'img-picker-item--active': batchEditForm.image === imgUrl }"
                   @click="batchEditForm.image = imgUrl"
                 >
-                  <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="`图片${idx+1}`" />
-                  <span v-if="idx === 0" class="img-picker-badge">封面</span>
+                  <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
+                  <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
                   <div v-if="batchEditForm.image === imgUrl" class="img-picker-check">✓</div>
                 </button>
               </div>
             </div>
             <label class="field">
-              <span class="field-label">购买日期</span>
+              <span class="field-label">{{ t('import.purchaseDate') }}</span>
               <button class="date-field" type="button" @click="openBatchDatePicker">
                 <span :class="{ 'date-field__value--placeholder': !batchEditForm.purchaseDate }">
-                  {{ batchEditForm.purchaseDate || '请选择日期' }}
+                  {{ batchEditForm.purchaseDate || t('import.selectDate') }}
                 </span>
                 <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -532,24 +532,24 @@
               </button>
             </label>
             <label class="field">
-              <span class="field-label">备注</span>
+              <span class="field-label">{{ t('common.note') }}</span>
               <textarea
                 ref="batchNotesTextareaRef"
                 v-model="batchEditForm.notes"
                 class="markdown-textarea"
                 rows="4"
-                placeholder="支持 markdown，例如：\n- 来源\n- 状态\n- [链接](https://example.com)"
+                :placeholder="t('import.batchNotesPlaceholder')"
               />
             </label>
             <label class="field">
-              <span class="field-label">标签</span>
-              <TagInput v-model="batchEditForm.tags" placeholder="例如：生日谷、待出、收藏" />
+              <span class="field-label">{{ t('common.tag') }}</span>
+              <TagInput v-model="batchEditForm.tags" :placeholder="t('import.tagsPlaceholder')" />
             </label>
-            <MarkdownPreviewCard :content="batchEditForm.notes" title="实时预览" />
+            <MarkdownPreviewCard :content="batchEditForm.notes" :title="t('import.livePreview')" />
           </div>
           <div class="batch-edit-actions">
-            <button class="batch-edit-cancel" type="button" @click="editingBatchIdx = -1">取消</button>
-            <button class="batch-edit-save" type="button" @click="saveBatchEdit">完成</button>
+            <button class="batch-edit-cancel" type="button" @click="editingBatchIdx = -1">{{ t('common.cancel') }}</button>
+            <button class="batch-edit-save" type="button" @click="saveBatchEdit">{{ t('common.done') }}</button>
           </div>
         </div>
       </Transition>
@@ -561,7 +561,7 @@
       v-model="datePickerValue"
       :z-index="2000"
       :is-tablet="isTabletViewport"
-      title="选择购买日期"
+      :title="t('import.selectPurchaseDate')"
       :min-date="minDate"
       :max-date="maxDate"
       @confirm="onDateConfirm"
@@ -573,7 +573,7 @@
       v-model="batchDatePickerValue"
       :z-index="2100"
       :is-tablet="isTabletViewport"
-      title="选择购买日期"
+      :title="t('import.selectPurchaseDate')"
       :min-date="minDate"
       :max-date="maxDate"
       @confirm="onBatchDateConfirm"
@@ -583,6 +583,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -610,18 +611,19 @@ import { commitActiveInput } from '@/utils/commitActiveInput'
 import { validatePrice } from '@/utils/validate'
 import { resizeTextarea } from '@/utils/textarea'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
-const pageTitle = computed(() => isWishlistMode.value ? '导入心愿' : '从米游铺导入')
-const quickSearchLabel = computed(() => isWishlistMode.value ? '心愿快捷搜索' : '米游铺快捷搜索')
-const quickSearchTitle = computed(() => isWishlistMode.value ? '按角色查米游铺周边' : '按关键词查米游铺周边')
+const pageTitle = computed(() => isWishlistMode.value ? t('import.wishlistTitle') : t('import.mihoyo'))
+const quickSearchLabel = computed(() => isWishlistMode.value ? t('import.wishlistQuickSearch') : t('import.mihoyoQuickSearch'))
+const quickSearchTitle = computed(() => isWishlistMode.value ? t('import.searchByCharacter') : t('import.searchByKeyword'))
 const quickSearchPlaceholder = computed(() => (
   isWishlistMode.value
-    ? '例如：芙宁娜、流萤、安比'
-    : '例如：芙宁娜、徽章、立牌'
+    ? t('import.wishlistSearchPlaceholder')
+    : t('import.searchPlaceholder')
 ))
 
 function handleBack() {
@@ -629,15 +631,15 @@ function handleBack() {
 }
 const urlHintText = computed(() =>
   isWishlistMode.value
-    ? '先按角色搜索，或直接粘贴米游铺商品链接；每行可在末尾加多份款式数，例如：链接 x3'
-    : '先按关键词搜索，或直接粘贴米游铺商品链接；每行可在末尾加多份款式数，例如：链接 x3'
+    ? t('import.wishlistUrlHint')
+    : t('import.urlHint')
 )
 const urlPlaceholder = computed(() =>
   isWishlistMode.value
-    ? '搜索后会自动填入，也可手动粘贴米游铺商品链接'
-    : 'https://www.mihoyogift.com/goods/... x3 或多条链接，每行一个'
+    ? t('import.wishlistUrlPlaceholder')
+    : t('import.urlPlaceholder')
 )
-const parseButtonText = computed(() => '解析')
+const parseButtonText = computed(() => t('import.parse'))
 
 const urlInputRef = ref(null)
 const urlInput = ref('')
@@ -806,8 +808,8 @@ const batchMode = computed(() => urlEntries.value.length > 1 || urlEntries.value
 const batchTotalCount = computed(() => urlEntries.value.reduce((sum, entry) => sum + entry.count, 0))
 const batchParseButtonText = computed(() => {
   const entryCount = urlEntries.value.length
-  if (!entryCount) return '批量解析'
-  return `批量解析（${entryCount}条/${batchTotalCount.value}个结果）`
+  if (!entryCount) return t('import.batchParse')
+  return t('import.batchParseButtonText', { entries: entryCount, total: batchTotalCount.value })
 })
 const batchReadyCount = computed(() => batchItems.value.filter(item => item.status === 'ready' || item.status === 'saved').length)
 const batchErrorCount = computed(() => batchItems.value.filter(item => item.status === 'error').length)
@@ -887,13 +889,13 @@ async function handleGoodsSearch() {
   try {
     const results = await runSearchPage({ keyword, append: false })
     if (!results.length) {
-      searchError.value = '没有找到相关商品，换个角色名或关键词试试'
+      searchError.value = t('import.searchNoResults')
     }
   } catch (error) {
     searchResults.value = []
     selectedSearchGoodsId.value = ''
     resetSearchSession()
-    searchError.value = error?.message || '搜索失败，请稍后重试'
+    searchError.value = error?.message || t('import.searchFailed')
   } finally {
     searching.value = false
   }
@@ -1084,7 +1086,7 @@ async function loadMoreSearchResults() {
   try {
     await runSearchPage({ keyword, append: true })
   } catch (error) {
-    searchError.value = error?.message || '加载更多失败，请稍后重试'
+    searchError.value = error?.message || t('import.loadMoreFailed')
   } finally {
     searchLoadingMore.value = false
     if (searchExpanded.value && searchHasMore.value) {
@@ -1751,7 +1753,7 @@ function normalizeSearchHintText(value) {
   return String(value || '')
     .trim()
     .replace(/[「」『』【】《》〈〉]/g, '')
-    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+    .replace(/^["'""‘’]+|["'""‘’]+$/g, '')
     .trim()
 }
 
@@ -1891,7 +1893,7 @@ async function handleParse() {
   const url = urlInput.value.trim()
   if (!url) return
   if (!isMihoyoGiftUrl(url)) {
-    parseError.value = '请输入米游铺商品链接（mihoyogift.com/goods/... 或 mihoyogift.com/m/goods/...）'
+    parseError.value = t('import.errorInvalidUrl')
     return
   }
 
@@ -1987,7 +1989,7 @@ async function handleParse() {
 
     parsed.value = true
   } catch (e) {
-    parseError.value = e.message || '解析失败，请检查链接后重试'
+    parseError.value = e.message || t('import.errorParseFailed')
   } finally {
     parsing.value = false
   }
@@ -2035,7 +2037,7 @@ async function handleSave() {
   formPriceError.value = ''
   await commitActiveInput()
   if (!form.name.trim()) {
-    parseError.value = '请填写商品名称'
+    parseError.value = t('import.errorNameRequired')
     return
   }
 
@@ -2076,7 +2078,7 @@ async function handleSave() {
     })
     runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   } catch (e) {
-    parseError.value = '保存失败：' + e.message
+    parseError.value = t('import.errorSaveFailed', { message: e.message })
   }
 }
 

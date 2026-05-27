@@ -24,17 +24,23 @@ export const APPEARANCE_OPTIONS = [
   {
     value: APPEARANCE_PREFERENCES.system,
     label: '跟随系统',
-    description: '自动跟随设备当前的浅色或深色外观'
+    labelKey: 'theme.followSystem',
+    description: '自动跟随设备当前的浅色或深色外观',
+    descriptionKey: 'theme.followSystemDesc'
   },
   {
     value: APPEARANCE_PREFERENCES.light,
     label: '浅色模式',
-    description: '始终使用银雾玻璃主题的浅色外观'
+    labelKey: 'theme.light',
+    description: '始终使用银雾玻璃主题的浅色外观',
+    descriptionKey: 'theme.lightDesc'
   },
   {
     value: APPEARANCE_PREFERENCES.dark,
     label: '深色模式',
-    description: '始终使用银雾玻璃主题的深色外观'
+    labelKey: 'theme.dark',
+    description: '始终使用银雾玻璃主题的深色外观',
+    descriptionKey: 'theme.darkDesc'
   }
 ]
 
@@ -42,7 +48,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.custom]: {
     id: THEME_IDS.custom,
     label: '自定义调色板',
+    labelKey: 'theme.custom',
     description: '完全自由设定的专属主色调选项，创造你的个人风格。',
+    descriptionKey: 'theme.customDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: true,
     preview: ['#f5f5f7', '#ffffff', '#141416'],
@@ -100,7 +108,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.mist]: {
     id: THEME_IDS.mist,
     label: '银雾玻璃',
+    labelKey: 'theme.mist',
     description: '冷雾银灰和玻璃卡片的基础主题，支持浅色、深色和跟随系统。',
+    descriptionKey: 'theme.mistDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: true,
     preview: ['#ffffff', '#eeeff2', '#141416'],
@@ -158,7 +168,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.paper]: {
     id: THEME_IDS.paper,
     label: '纸页奶油',
+    labelKey: 'theme.paperCream',
     description: '更暖的纸页底色和收藏册气质，固定浅色外观。',
+    descriptionKey: 'theme.paperCreamDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     preview: ['#fffaf0', '#efe5d5', '#7a5e3f'],
@@ -192,7 +204,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.pink]: {
     id: THEME_IDS.pink,
     label: '糖霜粉霓',
+    labelKey: 'theme.frostingPink',
     description: '更大胆的粉色舞台感风格，偏甜但不做成儿童化，固定浅色外观。',
+    descriptionKey: 'theme.frostingPinkDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     preview: ['#fff7fb', '#ffd3e8', '#ff5fa2'],
@@ -226,7 +240,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.ember]: {
     id: THEME_IDS.ember,
     label: '霓橘流火',
+    labelKey: 'theme.ember',
     description: '更鲜艳的橘红霓光风格，像舞台灯和应援棒一起打亮，固定浅色外观。',
+    descriptionKey: 'theme.emberDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     preview: ['#fff8f3', '#ffd1b2', '#ff6a3d'],
@@ -260,7 +276,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.cobalt]: {
     id: THEME_IDS.cobalt,
     label: '钴蓝剧场',
+    labelKey: 'theme.cobalt',
     description: '冷调钴蓝和剧场灯幕的现代感主题，支持浅色、深色和跟随系统。',
+    descriptionKey: 'theme.cobaltDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: true,
     preview: ['#f7f9ff', '#d6e0ff', '#315eff'],
@@ -318,7 +336,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.jade]: {
     id: THEME_IDS.jade,
     label: '翡翠丝绒',
+    labelKey: 'theme.jade',
     description: '玉石绿和丝绒质感的陈列主题，支持浅色、深色和跟随系统。',
+    descriptionKey: 'theme.jadeDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: true,
     preview: ['#f7fffb', '#cfe9dc', '#1f8a68'],
@@ -376,7 +396,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.gilded]: {
     id: THEME_IDS.gilded,
     label: '鎏金典藏',
+    labelKey: 'theme.gilded',
     description: '月白纸签到夜宴金饰的一体化典藏主题，支持浅色、深色和跟随系统。',
+    descriptionKey: 'theme.gildedDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: true,
     preview: ['#fffdf7', '#efe7d6', '#c29b4b'],
@@ -434,7 +456,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.idol]: {
     id: THEME_IDS.idol,
     label: '星彩应援',
+    labelKey: 'theme.idol',
     description: '高饱和的偶像应援风格，带一点霓虹灯和舞台灯牌的感觉，固定浅色外观。',
+    descriptionKey: 'theme.idolDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     preview: ['#fff8ff', '#e2d2ff', '#ff4fc6'],
@@ -468,7 +492,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.mint]: {
     id: THEME_IDS.mint,
     label: '海盐薄荷',
+    labelKey: 'theme.mint',
     description: '更轻的海盐薄荷配色，清爽但仍保留卡片层次，固定浅色外观。',
+    descriptionKey: 'theme.mintDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     preview: ['#fcfffd', '#dcece5', '#2e8b73'],
@@ -502,7 +528,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.vinyl]: {
     id: THEME_IDS.vinyl,
     label: '黑胶夜色',
+    labelKey: 'theme.vinyl',
     description: '更偏黑胶封套和黄铜灯光的夜色风格，固定深色外观。',
+    descriptionKey: 'theme.vinylDesc',
     defaultAppearance: 'dark',
     supportsAppearanceControl: false,
     preview: ['#15111a', '#2b2033', '#c7a56a'],
@@ -536,7 +564,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.terracotta]: {
     id: THEME_IDS.terracotta,
     label: '赤陶档案',
+    labelKey: 'theme.terracotta',
     description: '更像陈列记录册的赤陶档案风格，固定浅色外观。',
+    descriptionKey: 'theme.terracottaDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     preview: ['#fff6f1', '#efd9ce', '#b25b45'],
@@ -570,7 +600,9 @@ export const THEME_DEFINITIONS = {
   [THEME_IDS.bruise]: {
     id: THEME_IDS.bruise,
     label: '黄祸紫瘀',
+    labelKey: 'theme.bruise',
     description: '故意做得很难看的一套高饱和黄紫主题，默认隐藏，不出现在常规主题列表里。',
+    descriptionKey: 'theme.bruiseDesc',
     defaultAppearance: 'light',
     supportsAppearanceControl: false,
     hidden: true,

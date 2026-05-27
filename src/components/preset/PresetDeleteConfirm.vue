@@ -12,11 +12,11 @@
               <path d="M14 11V17" />
             </svg>
           </div>
-          <h2 class="confirm-title">删除「{{ name }}」？</h2>
-          <p class="confirm-desc">{{ count }} 件谷子关联了{{ fieldLabel }}，删除后将清空对应字段。</p>
+          <h2 class="confirm-title">{{ t('preset.deleteTitle', { name }) }}</h2>
+          <p class="confirm-desc">{{ t('preset.deleteDesc', { count, field: fieldLabel || t('preset.thisPreset') }) }}</p>
           <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--ghost" type="button" @click="$emit('cancel')">取消</button>
-            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">删除</button>
+            <button class="confirm-btn confirm-btn--ghost" type="button" @click="$emit('cancel')">{{ t('common.cancel') }}</button>
+            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">{{ t('common.delete') }}</button>
           </div>
         </div>
       </div>
@@ -25,11 +25,15 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   show: { type: Boolean, default: false },
   name: { type: String, default: '' },
   count: { type: Number, default: 0 },
-  fieldLabel: { type: String, default: '该预设' },
+  fieldLabel: { type: String, default: '' },
 })
 defineEmits(['cancel', 'confirm'])
 </script>

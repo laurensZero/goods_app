@@ -21,6 +21,7 @@ import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient } from 
 import { deriveKey, isWebCryptoAvailable } from '@/utils/sync/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
+import i18n from '@/locales'
 import {
   DATA_FILENAME,
   RECHARGE_DATA_FILENAME,
@@ -231,12 +232,12 @@ export const useSyncStore = defineStore('sync', () => {
   function ensureBackendReady() {
     if (isSupabaseMode()) {
       if (!supabaseUrl.value || !supabaseAnonKey.value) {
-        throw new Error('未配置 Supabase URL 或 Anon Key')
+        throw new Error(i18n.global.t('sync.notConfigured'))
       }
       return
     }
     if (!token.value) {
-      throw new Error('未配置 Token')
+      throw new Error(i18n.global.t('sync.notConfigured'))
     }
   }
 
@@ -503,7 +504,7 @@ export const useSyncStore = defineStore('sync', () => {
         publishSyncNotice({
           source: 'auto',
           level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || '自动同步失败，请稍后重试'
+          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
     }, 2000)
@@ -546,7 +547,7 @@ export const useSyncStore = defineStore('sync', () => {
     ensureBackendReady()
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
-    clearSyncLogs(); syncStatus.value = '正在同步...'
+    clearSyncLogs(); syncStatus.value = i18n.global.t('sync.syncing')
 
     // Safety net: force-reset isSyncing if the entire sync hangs
     clearSyncTimeout()
@@ -562,15 +563,15 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       if (result.conflictData) conflictData.value = result.conflictData
-      syncStatus.value = result.statusMessage || '同步完成'
+      syncStatus.value = result.statusMessage || i18n.global.t('sync.uploadComplete')
       return result
     } catch (error) {
-      applySyncError(error, '同步失败')
+      applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
       if (source !== 'manual') {
         publishSyncNotice({
           source,
           level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || '同步失败'
+          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
       throw error
@@ -584,11 +585,11 @@ export const useSyncStore = defineStore('sync', () => {
   async function pullOnly({ silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
     if (isSyncing.value) return
     ensureBackendReady()
-    if (!isSupabaseMode() && !gistId.value) throw new Error('未找到 Gist')
+    if (!isSupabaseMode() && !gistId.value) throw new Error(i18n.global.t('sync.notConfigured'))
     isSyncing.value = true; isPulling.value = true; lastError.value = ''
     if (!silent) conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
-    clearSyncLogs(); syncStatus.value = '正在拉取...'
+    clearSyncLogs(); syncStatus.value = i18n.global.t('sync.syncing')
 
     clearSyncTimeout()
     syncTimeoutId = setTimeout(() => {
@@ -603,15 +604,15 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       if (!silent && result.conflictData) conflictData.value = result.conflictData
-      syncStatus.value = result.statusMessage || '拉取完成'
+      syncStatus.value = result.statusMessage || i18n.global.t('sync.pullComplete')
       return result
     } catch (error) {
-      applySyncError(error, '拉取失败')
+      applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
       if (source !== 'manual') {
         publishSyncNotice({
           source,
           level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || '拉取失败'
+          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
       throw error
@@ -625,7 +626,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function resolveConflict(useRemote, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value) return
-    isSyncing.value = true; syncStatus.value = '正在解决冲突...'
+    isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
@@ -634,15 +635,15 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries, baseDelay: 1200 }
       )
       conflictData.value = null
-      syncStatus.value = result.statusMessage || '冲突已解决'
+      syncStatus.value = result.statusMessage || i18n.global.t('sync.uploadComplete')
       return result
     } catch (error) {
-      applySyncError(error, '同步失败')
+      applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
       if (source !== 'manual') {
         publishSyncNotice({
           source,
           level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || '同步失败'
+          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
       throw error
@@ -654,25 +655,25 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function resolvePullConflict(confirm, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value?.isPullOnly) return
-    isSyncing.value = true; syncStatus.value = '正在拉取...'
+    isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
-      if (!confirm) { syncStatus.value = '已取消'; conflictData.value = null; return { action: 'cancelled' } }
+      if (!confirm) { syncStatus.value = i18n.global.t('toast.cancelled'); conflictData.value = null; return { action: 'cancelled' } }
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
       const result = await withRetry(
         () => orchestrator.resolvePullConflict(ctx, confirm),
         { maxRetries, baseDelay: 1200 }
       )
       conflictData.value = null
-      syncStatus.value = result.statusMessage || '拉取完成'
+      syncStatus.value = result.statusMessage || i18n.global.t('sync.pullComplete')
       return result
     } catch (error) {
-      applySyncError(error, '拉取失败')
+      applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
       if (source !== 'manual') {
         publishSyncNotice({
           source,
           level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || '拉取失败'
+          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
       throw error

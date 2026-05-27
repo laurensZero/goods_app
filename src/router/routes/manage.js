@@ -3,66 +3,66 @@ export default [
     path: '/manage/categories',
     name: 'manage-categories',
     component: () => import('@/views/CategoryManageView.vue'),
-    meta: { title: '分类管理' }
+    meta: { titleKey: 'nav.categoryManage' }
   },
   {
     path: '/manage/ips',
     name: 'manage-ips',
     component: () => import('@/views/IpManageView.vue'),
-    meta: { title: 'IP 管理' }
+    meta: { titleKey: 'nav.ipManage' }
   },
   {
     path: '/manage/characters',
     name: 'manage-characters',
     component: () => import('@/views/CharacterManageView.vue'),
-    meta: { title: '角色管理' }
+    meta: { titleKey: 'nav.characterManage' }
   },
   {
     path: '/manage/theme',
     name: 'manage-theme',
     component: () => import('@/views/ThemeView.vue'),
-    meta: { title: '主题与外观' }
+    meta: { titleKey: 'nav.themeAppearance' }
   },
   {
     path: '/manage/settings',
     name: 'manage-settings',
     component: () => import('@/views/ManageView.vue'),
-    meta: { title: '设置' }
+    meta: { titleKey: 'nav.settings' }
   },
   {
     path: '/manage/sync',
     name: 'manage-sync',
     component: () => import('@/views/SyncView.vue'),
-    meta: { title: '云同步' }
+    meta: { titleKey: 'nav.cloudSync' }
   },
   {
     path: '/manage/shares',
     name: 'manage-shares',
     component: () => import('@/views/ShareManageView.vue'),
-    meta: { title: '管理分享' }
+    meta: { titleKey: 'nav.manageShares' }
   },
   {
     path: '/manage/about',
     name: 'manage-about',
     component: () => import('@/views/AboutView.vue'),
-    meta: { title: '关于应用' }
+    meta: { titleKey: 'nav.about' }
   },
   {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),
-    meta: { title: '数据统计', showTabBar: true }
+    meta: { titleKey: 'nav.dataStatistics', showTabBar: true }
   },
   {
     path: '/trash',
     name: 'trash',
     component: () => import('@/views/TrashView.vue'),
-    meta: { title: '回收站' }
+    meta: { titleKey: 'nav.trash' }
   },
   {
     path: '/recharge/month-cards',
     name: 'recharge-month-cards',
     component: () => import('@/views/MonthCardCalendarView.vue'),
-    meta: { title: '月卡日历' }
+    meta: { titleKey: 'nav.monthCardCalendar' }
   }
 ]

@@ -1,21 +1,21 @@
 <template>
   <div class="page detail-page" :class="{ 'detail-page--entry-lock': detailEntryScrollLockActive }">
-    <NavBar :title="item ? (item.isWishlist ? '心愿详情' : '收藏详情') : '详情'" show-back @back="handleBackNavigation">
+    <NavBar :title="item ? (item.isWishlist ? t('goods.detail.wishlistTitle') : t('goods.detail.collectionTitle')) : t('nav.goodsDetail')" show-back @back="handleBackNavigation">
       <template #right>
-        <button class="nav-icon-btn" type="button" aria-label="编辑" @click="handleEditGoods">
+        <button class="nav-icon-btn" type="button" :aria-label="t('common.aria.edit')" @click="handleEditGoods">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20H21" />
             <path d="M16.5 3.5A2.12 2.12 0 0 1 19.5 6.5L8 18L4 19L5 15L16.5 3.5Z" />
           </svg>
         </button>
-        <button class="nav-icon-btn" type="button" aria-label="分享" @click="showShareSheet = true">
+        <button class="nav-icon-btn" type="button" :aria-label="t('common.aria.share')" @click="showShareSheet = true">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
             <polyline points="16 6 12 2 8 6" />
             <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
         </button>
-        <button class="nav-icon-btn danger" type="button" aria-label="删除" @click="handleDelete">
+        <button class="nav-icon-btn danger" type="button" :aria-label="t('common.aria.delete')" @click="handleDelete">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3 6H21" />
             <path d="M8 6V4H16V6" />
@@ -66,13 +66,13 @@
 
         <section class="hero-card">
           <div class="hero-meta">
-            <span v-if="item.isWishlist" class="hero-chip wish-chip">心愿单</span>
+            <span v-if="item.isWishlist" class="hero-chip wish-chip">{{ t('common.wishlist') }}</span>
             <span v-if="!item.isWishlist && statusChipText" class="hero-chip collect-status-chip">{{ statusChipText }}</span>
             <span v-if="item.category" class="hero-chip">{{ item.category }}</span>
             <span v-if="item.ip" class="hero-chip ip-chip">{{ item.ip }}</span>
             <span v-for="ch in item.characters || []" :key="ch" class="hero-chip char-chip">{{ ch }}</span>
             <span v-for="tag in item.tags || []" :key="tag" class="hero-chip tag-chip">#{{ tag }}</span>
-            <span v-if="acquiredAtDisplayText" class="hero-date">{{ item.isWishlist ? '计划于' : '购入于' }} {{ acquiredAtDisplayText }}</span>
+            <span v-if="acquiredAtDisplayText" class="hero-date">{{ item.isWishlist ? t('goods.detail.plannedFor') : t('goods.detail.purchasedAt') }} {{ acquiredAtDisplayText }}</span>
           </div>
 
           <h1 class="hero-name">{{ item.name }}</h1>
@@ -82,26 +82,26 @@
             <p class="price-value">
               <span class="price-currency">{{ heroPriceCurrencySymbol }}</span>
               <span class="price-amount">{{ heroTotalPriceAmount }}</span>
-              <span v-if="showHeroPointsInline" class="price-points">+{{ item.points }}积分</span>
+              <span v-if="showHeroPointsInline" class="price-points">+{{ item.points }}{{ t('goods.detail.points') }}</span>
               <span v-if="heroPriceCNYHint" class="price-cny-hint">{{ heroPriceCNYHint }}</span>
             </p>
           </div>
 
           <button v-if="item.isWishlist" class="hero-action-btn" type="button" @click="markAsOwned">
-            标记为已入手
+            {{ t('common.markAsOwned') }}
           </button>
         </section>
 
         <section class="info-section">
           <div class="section-head">
-            <p class="section-label">信息卡片</p>
-            <h2 class="section-title">收藏信息</h2>
+            <p class="section-label">{{ t('goods.detail.infoCard') }}</p>
+            <h2 class="section-title">{{ t('goods.detail.collectionInfo') }}</h2>
           </div>
 
           <div class="info-card">
             <article class="info-tile">
-              <span class="info-label">分类</span>
-              <strong class="info-value">{{ item.category || '未填写' }}</strong>
+              <span class="info-label">{{ t('common.category') }}</span>
+              <strong class="info-value">{{ item.category || t('common.unfilled') }}</strong>
             </article>
 
             <article v-if="item.ip" class="info-tile">
@@ -110,58 +110,58 @@
             </article>
 
             <article v-if="item.characters && item.characters.length" class="info-tile">
-              <span class="info-label">角色名</span>
+              <span class="info-label">{{ t('goods.detail.characterName') }}</span>
               <strong class="info-value">{{ item.characters.join('、') }}</strong>
             </article>
 
             <article v-if="item.tags && item.tags.length" class="info-tile">
-              <span class="info-label">自定义标签</span>
+              <span class="info-label">{{ t('goods.detail.customTags') }}</span>
               <strong class="info-value">{{ item.tags.map((tag) => `#${tag}`).join('、') }}</strong>
             </article>
 
             <article class="info-tile">
-              <span class="info-label">{{ item.isWishlist ? '预计入手日期' : '购入日期' }}</span>
+              <span class="info-label">{{ item.isWishlist ? t('goods.detail.expectedDate') : t('goods.detail.purchaseDate') }}</span>
               <strong class="info-value">{{ acquiredAtDisplayText }}</strong>
             </article>
 
             <article v-if="showOfficialPriceTile" class="info-tile">
-              <span class="info-label">价格</span>
+              <span class="info-label">{{ t('goods.detail.officialPrice') }}</span>
               <strong class="info-value">{{ officialPriceText }}</strong>
             </article>
 
             <article v-if="showActualPriceTile" class="info-tile">
-              <span class="info-label">入手价</span>
+              <span class="info-label">{{ t('goods.detail.actualPrice') }}</span>
               <strong class="info-value">{{ actualPriceDisplayText }}</strong>
             </article>
 
             <article v-if="!item.isWishlist && hasShippingFee" class="info-tile">
-              <span class="info-label">邮费</span>
+              <span class="info-label">{{ t('goods.detail.shippingFee') }}</span>
               <strong class="info-value">{{ actualPriceCurrencySymbol }}{{ item.shippingFee }}</strong>
             </article>
 
             <article v-if="item.storageLocation" class="info-tile">
-              <span class="info-label">收纳位置</span>
+              <span class="info-label">{{ t('common.storageLocation') }}</span>
               <strong class="info-value">{{ item.storageLocation }}</strong>
             </article>
 
             <article v-if="variantText" class="info-tile">
-              <span class="info-label">款式</span>
+              <span class="info-label">{{ t('common.variant') }}</span>
               <strong class="info-value">{{ variantText }}</strong>
             </article>
 
             <article v-if="!item.isWishlist && hasUnitHoldingDays" class="info-tile">
-              <span class="info-label">逐份时长</span>
+              <span class="info-label">{{ t('goods.detail.unitHoldingDays') }}</span>
               <strong class="info-value">{{ unitHoldingDaysText }}</strong>
             </article>
 
             <article v-else-if="!item.isWishlist && holdingDays !== null" class="info-tile">
               <span class="info-label">{{ detailStatusLabel }}</span>
-              <strong class="info-value">{{ holdingDays }} 天</strong>
+              <strong class="info-value">{{ holdingDays }} {{ t('common.days') }}</strong>
             </article>
 
             <article v-if="item.quantity > 1" class="info-tile">
-              <span class="info-label">数量</span>
-              <strong class="info-value">{{ item.quantity }} 件</strong>
+              <span class="info-label">{{ t('common.quantity') }}</span>
+              <strong class="info-value">{{ item.quantity }} {{ t('common.items') }}</strong>
             </article>
 
           </div>
@@ -170,10 +170,10 @@
         <section v-if="item.note" class="note-section">
             <div class="section-head section-head--split">
             <div>
-              <p class="section-label">附加信息</p>
-              <h2 class="section-title">备注</h2>
+              <p class="section-label">{{ t('goods.detail.extraInfo') }}</p>
+              <h2 class="section-title">{{ t('common.note') }}</h2>
             </div>
-            <button v-if="isNoteMarkdown" class="section-head__copy" type="button" @click="copyNoteMarkdown">复制 markdown</button>
+            <button v-if="isNoteMarkdown" class="section-head__copy" type="button" @click="copyNoteMarkdown">{{ t('goods.detail.copyMarkdown') }}</button>
           </div>
 
           <article class="note-card">
@@ -183,8 +183,8 @@
 
         <section v-if="trackList.length" class="note-section">
           <div class="section-head">
-            <p class="section-label">音乐信息</p>
-            <h2 class="section-title">专辑曲目</h2>
+            <p class="section-label">{{ t('goods.detail.musicInfo') }}</p>
+            <h2 class="section-title">{{ t('goods.detail.albumTracks') }}</h2>
           </div>
 
           <EventTrackList :tracks="trackList" />
@@ -195,8 +195,8 @@
     <EmptyState
       v-else
       icon="✦"
-      title="找不到这件收藏"
-      description="它可能已被删除，或者当前数据还没有完成同步。"
+      :title="t('goods.detail.notFound')"
+      :description="t('goods.detail.notFoundDesc')"
     />
 
     <Transition name="dialog-fade">
@@ -212,12 +212,12 @@
             </svg>
           </div>
 
-          <h2 class="dialog-title">移到回收站？</h2>
-          <p class="dialog-desc">{{ item?.name || '该收藏' }} 会先进入回收站，之后仍然可以恢复。</p>
+          <h2 class="dialog-title">{{ t('common.moveToTrash') }}</h2>
+          <p class="dialog-desc">{{ item?.name || t('common.thisCollection') }} {{ t('common.moveToTrashDesc') }}</p>
 
           <div class="dialog-actions">
-            <button class="dialog-btn dialog-btn--ghost" type="button" @click="closeDeleteDialog">取消</button>
-            <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">移入回收站</button>
+            <button class="dialog-btn dialog-btn--ghost" type="button" @click="closeDeleteDialog">{{ t('common.cancel') }}</button>
+            <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">{{ t('common.trash') }}</button>
           </div>
         </div>
       </div>
@@ -248,7 +248,9 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
@@ -379,10 +381,10 @@ function hasPriceValue(value) {
   return value !== '' && value != null
 }
 const heroPriceLabel = computed(() => {
-  if (!item.value) return '价格'
-  if (unitActualPriceAmountText.value) return '价格'
-  if (item.value.isWishlist) return '目标价格'
-  return hasActualPriceValue(item.value.actualPrice) ? '到手价' : '价格'
+  if (!item.value) return t('goods.detail.officialPrice')
+  if (unitActualPriceAmountText.value) return t('goods.detail.officialPrice')
+  if (item.value.isWishlist) return t('goods.detail.targetPrice')
+  return hasActualPriceValue(item.value.actualPrice) ? t('goods.detail.landedPrice') : t('goods.detail.officialPrice')
 })
 const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
 const noteHtml = computed(() => renderMarkdown(item.value?.note || ''))
@@ -422,10 +424,10 @@ const heroPriceCNYHint = computed(() => {
   return `≈ ¥${cny.toFixed(2)}`
 })
 const officialPriceText = computed(() => {
-  if (!hasPriceValue(item.value?.price)) return '未填写'
+  if (!hasPriceValue(item.value?.price)) return t('common.unfilled')
   const sym = itemCurrencySymbol.value
   const cnyHint = officialPriceCNYHint.value
-  const text = item.value.points ? `${sym}${item.value.price} +${item.value.points}积分` : `${sym}${item.value.price}`
+  const text = item.value.points ? `${sym}${item.value.price} +${item.value.points}${t('goods.detail.points')}` : `${sym}${item.value.price}`
   return cnyHint ? `${text} ${cnyHint}` : text
 })
 const officialPriceCNYHint = computed(() => {
@@ -465,8 +467,9 @@ const actualPriceDisplayText = computed(() => {
   if (unitActualPriceText.value) return unitActualPriceText.value
   const sym = actualPriceCurrencySymbol.value
   const cnyHint = actualPriceCNYHint.value
-  const text = hasActualPriceValue(item.value?.actualPrice) ? `${sym}${item.value.actualPrice}` : '未填写'
-  return (text !== '未填写' && cnyHint) ? `${text} ${cnyHint}` : text
+  const unfilled = t('common.unfilled')
+  const text = hasActualPriceValue(item.value?.actualPrice) ? `${sym}${item.value.actualPrice}` : unfilled
+  return (text !== unfilled && cnyHint) ? `${text} ${cnyHint}` : text
 })
 const actualPriceCNYHint = computed(() => {
   const it = item.value
@@ -505,13 +508,13 @@ const unitAcquiredAtText = computed(() => {
   return deduped.join(' / ')
 })
 const acquiredAtDisplayText = computed(() => {
-  if (!item.value) return '未填写'
+  if (!item.value) return t('common.unfilled')
 
   if (!item.value.isWishlist && unitAcquiredAtText.value) {
     return unitAcquiredAtText.value
   }
 
-  return item.value.acquiredAt || '未填写'
+  return item.value.acquiredAt || t('common.unfilled')
 })
 
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
@@ -613,7 +616,7 @@ const unitHoldingDaysText = computed(() => {
   const list = unitHoldingDaysList.value
   if (list.length === 0) return ''
   return list
-    .map((entry) => `${entry.days} 天 (${entry.status})`)
+    .map((entry) => `${entry.days} ${t('common.days')} (${entry.status})`)
     .join(' / ')
 })
 
@@ -653,9 +656,9 @@ const statusChipText = computed(() => {
 
 const detailStatusLabel = computed(() => {
   const it = item.value
-  if (!it) return '持有时长'
+  if (!it) return t('goods.detail.holdingDays')
   const primary = resolvePrimaryStatusForItem(it)
-  if (primary === '已拥有' || !primary) return '持有时长'
+  if (primary === '已拥有' || !primary) return t('goods.detail.holdingDays')
   return hasMultipleStatusEntries.value ? formatCollectStatusSummary(it) : primary
 })
 
@@ -814,7 +817,7 @@ watch(
 )
 
 function getImageKindLabel(kind) {
-  return GOODS_IMAGE_KIND_OPTIONS.find((option) => option.value === kind)?.label || '图片'
+  return GOODS_IMAGE_KIND_OPTIONS.find((option) => option.value === kind)?.label || t('common.image')
 }
 
 </script>

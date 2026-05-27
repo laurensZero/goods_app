@@ -188,7 +188,7 @@
       <div v-if="showDeleteDialog" class="dialog-overlay" @click.self="showDeleteDialog = false">
         <div class="dialog-card">
           <h3 class="dialog-title">删除活动</h3>
-          <p class="dialog-message">确认删除“{{ event.name }}”吗？删除后将无法恢复。</p>
+          <p class="dialog-message">确认删除"{{ event.name }}"吗？删除后将无法恢复。</p>
           <div class="dialog-actions">
             <button class="dialog-btn" type="button" @click="showDeleteDialog = false">取消</button>
             <button class="dialog-btn danger" type="button" @click="handleDelete">删除</button>
