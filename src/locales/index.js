@@ -23,6 +23,26 @@ import zhShare from './zh-CN/share.json'
 import zhTrash from './zh-CN/trash.json'
 import zhMy from './zh-CN/my.json'
 
+import enCommon from './en/common.json'
+import enNav from './en/nav.json'
+import enGoods from './en/goods.json'
+import enHome from './en/home.json'
+import enSearch from './en/search.json'
+import enManage from './en/manage.json'
+import enEvents from './en/events.json'
+import enRecharge from './en/recharge.json'
+import enSync from './en/sync.json'
+import enTheme from './en/theme.json'
+import enImport from './en/import.json'
+import enAbout from './en/about.json'
+import enValidation from './en/validation.json'
+import enStatus from './en/status.json'
+import enToast from './en/toast.json'
+import enLeaderboard from './en/leaderboard.json'
+import enShare from './en/share.json'
+import enTrash from './en/trash.json'
+import enMy from './en/my.json'
+
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'en']
 const DEFAULT_LOCALE = 'zh-CN'
@@ -63,38 +83,37 @@ const zhCNMessages = {
   ...zhMy
 }
 
+const enMessages = {
+  ...enCommon,
+  ...enNav,
+  ...enGoods,
+  ...enHome,
+  ...enSearch,
+  ...enManage,
+  ...enEvents,
+  ...enRecharge,
+  ...enSync,
+  ...enTheme,
+  ...enImport,
+  ...enAbout,
+  ...enValidation,
+  ...enStatus,
+  ...enToast,
+  ...enLeaderboard,
+  ...enShare,
+  ...enTrash,
+  ...enMy
+}
+
 const i18n = createI18n({
   legacy: false,
   locale: detectLocale(),
   fallbackLocale: FALLBACK_LOCALE,
   messages: {
-    'zh-CN': zhCNMessages
+    'zh-CN': zhCNMessages,
+    'en': enMessages
   }
 })
-
-const messageLoaders = {
-  en: () => Promise.all([
-    import('./en/common.json'),
-    import('./en/nav.json'),
-    import('./en/goods.json'),
-    import('./en/home.json'),
-    import('./en/search.json'),
-    import('./en/manage.json'),
-    import('./en/events.json'),
-    import('./en/recharge.json'),
-    import('./en/sync.json'),
-    import('./en/theme.json'),
-    import('./en/import.json'),
-    import('./en/about.json'),
-    import('./en/validation.json'),
-    import('./en/status.json'),
-    import('./en/toast.json'),
-    import('./en/leaderboard.json'),
-    import('./en/share.json'),
-    import('./en/trash.json'),
-    import('./en/my.json')
-  ]).then((modules) => Object.assign({}, ...modules.map((m) => m.default)))
-}
 
 function syncVantLocale(locale) {
   if (locale === 'en') {
@@ -107,11 +126,6 @@ function syncVantLocale(locale) {
 export async function setLocale(locale) {
   if (!SUPPORTED_LOCALES.includes(locale)) return
   if (i18n.global.locale.value === locale) return
-
-  if (!i18n.global.availableLocales.includes(locale)) {
-    const messages = await messageLoaders[locale]()
-    i18n.global.setLocaleMessage(locale, messages)
-  }
 
   i18n.global.locale.value = locale
   document.documentElement.lang = locale
