@@ -42,8 +42,8 @@
             <div class="settings-action-panel__inline-export" style="margin-top: 24px;">
               <div class="export-picker__head">
                 <div>
-                  <p class="export-picker__label">自定义导出</p>
-                  <h3 class="export-picker__title">选择要导出的数据</h3>
+                  <p class="export-picker__label">{{ t('manage.exportCustom') }}</p>
+                  <h3 class="export-picker__title">{{ t('manage.exportSelectData') }}</h3>
                 </div>
                 <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
                   {{ allExportSectionsSelected ? t('common.deselectAll') : t('common.selectAll') }}
