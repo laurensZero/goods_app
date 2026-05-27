@@ -11,9 +11,9 @@
       <div v-if="!isTablet" class="batch-edit-sheet__handle" />
 
       <section class="batch-edit-hero">
-        <p class="batch-edit-hero__label">批量编辑</p>
-        <h2 class="batch-edit-hero__title">修改 {{ selectedCount }} 件谷子</h2>
-        <p class="batch-edit-hero__desc">只会应用这次填写的字段，留空的内容保持原值。</p>
+        <p class="batch-edit-hero__label">{{ t('goods.batch.batchEditLabel') }}</p>
+        <h2 class="batch-edit-hero__title">{{ t('goods.batch.modifyItems', { count: selectedCount }) }}</h2>
+        <p class="batch-edit-hero__desc">{{ t('goods.batch.onlyAppliedFields') }}</p>
       </section>
 
       <section class="batch-edit-section">
@@ -26,8 +26,8 @@
             @click="toggleMarkAsOwned"
           >
             <div class="mark-owned-copy">
-              <span class="field-label">批量标记已入手</span>
-              <p class="mark-owned-desc">勾选后会把这些心愿移到收藏；未填写购入日期时自动写入今天。</p>
+              <span class="field-label">{{ t('goods.batch.markAsOwned') }}</span>
+              <p class="mark-owned-desc">{{ t('goods.batch.markAsOwnedDesc') }}</p>
             </div>
             <span class="mark-owned-check" aria-hidden="true">
               <svg v-if="form.markAsOwned" viewBox="0 0 24 24" fill="none">
@@ -38,17 +38,17 @@
 
           <label class="field">
             <div class="field-head">
-              <span class="field-label">分类</span>
-              <button class="field-add-btn" type="button" @click="toggleQuickCreate('category')">快速新增</button>
+              <span class="field-label">{{ t('common.category') }}</span>
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('category')">{{ t('goods.batch.quickAdd') }}</button>
             </div>
-            <AppSelect v-model="form.category" :options="presets.categories" placeholder="留空则不修改" />
+            <AppSelect v-model="form.category" :options="presets.categories" :placeholder="t('goods.batch.leaveEmptyNoChange')" />
             <QuickPresetCreator
               v-if="quickCreateTarget === 'category'"
               :show="quickCreateTarget === 'category'"
               v-model="quickCategoryName"
-              placeholder="输入分类名称"
+              :placeholder="t('goods.batch.inputCategoryName')"
               :maxlength="20"
-              submit-text="新增分类"
+              :submit-text="t('goods.batch.newCategory')"
               @cancel="closeQuickCreate"
               @submit="submitQuickCategory"
             />
@@ -57,16 +57,16 @@
           <label class="field">
             <div class="field-head">
               <span class="field-label">IP</span>
-              <button class="field-add-btn" type="button" @click="toggleQuickCreate('ip')">快速新增</button>
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('ip')">{{ t('goods.batch.quickAdd') }}</button>
             </div>
-            <AppSelect v-model="form.ip" :options="presets.ips" placeholder="留空则不修改" />
+            <AppSelect v-model="form.ip" :options="presets.ips" :placeholder="t('goods.batch.leaveEmptyNoChange')" />
             <QuickPresetCreator
               v-if="quickCreateTarget === 'ip'"
               :show="quickCreateTarget === 'ip'"
               v-model="quickIpName"
-              placeholder="输入 IP 名称"
+              :placeholder="t('goods.batch.inputIpName')"
               :maxlength="40"
-              submit-text="新增 IP"
+              :submit-text="t('goods.batch.newIp')"
               @cancel="closeQuickCreate"
               @submit="submitQuickIp"
             />
@@ -74,20 +74,20 @@
 
           <div class="field">
             <div class="field-head">
-              <span class="field-label">角色</span>
-              <button class="field-add-btn" type="button" @click="toggleQuickCreate('character')">快速新增</button>
+              <span class="field-label">{{ t('common.character') }}</span>
+              <button class="field-add-btn" type="button" @click="toggleQuickCreate('character')">{{ t('goods.batch.quickAdd') }}</button>
             </div>
             <div class="multi-select" :class="{ 'multi-select--open': showCharPicker }">
               <button class="multi-select__trigger" type="button" @click="toggleCharPicker">
                 <div class="multi-select__content">
-                  <span v-if="form.characters.length === 0" class="multi-select__placeholder">留空则不修改</span>
+                  <span v-if="form.characters.length === 0" class="multi-select__placeholder">{{ t('goods.batch.leaveEmptyNoChange') }}</span>
                   <div v-else class="multi-select__chips">
                     <span v-for="character in form.characters" :key="character" class="multi-select__chip">
                       {{ character }}
                       <button
                         class="multi-select__chip-remove"
                         type="button"
-                        aria-label="移除角色"
+                        :aria-label="t('common.aria.removeCharacter')"
                         @click.stop="toggleChar(character)"
                       >
                         ×
@@ -120,7 +120,7 @@
                       <path d="M5 13L9 17L19 7" />
                     </svg>
                   </button>
-                  <div v-if="availableCharacters.length === 0" class="multi-select__empty">暂无可选角色</div>
+                  <div v-if="availableCharacters.length === 0" class="multi-select__empty">{{ t('goods.batch.noCharactersAvailable') }}</div>
                 </div>
               </transition>
             </div>
@@ -129,13 +129,13 @@
               v-if="quickCreateTarget === 'character'"
               :show="quickCreateTarget === 'character'"
               v-model="quickCharacterName"
-              placeholder="输入角色名称"
+              :placeholder="t('goods.batch.inputCharacterName')"
               :maxlength="30"
-              submit-text="新增角色"
+              :submit-text="t('goods.batch.newCharacter')"
               :secondary-value="quickCharacterIp"
               :secondary-options="quickCharacterIpOptions"
-              :secondary-label="form.ip ? '当前将归到已选 IP' : '选择角色归属 IP'"
-              secondary-placeholder="不设置 IP"
+              :secondary-label="form.ip ? t('goods.batch.currentIpLabel') : t('goods.batch.selectCharacterIp')"
+              :secondary-placeholder="t('goods.batch.noIp')"
               @update:secondary-value="quickCharacterIp = $event"
               @cancel="closeQuickCreate"
               @submit="submitQuickCharacter"
@@ -143,32 +143,32 @@
           </div>
 
           <label class="field">
-            <span class="field-label">标签</span>
-            <TagInput v-model="form.tags" placeholder="留空则不修改" />
+            <span class="field-label">{{ t('common.tag') }}</span>
+            <TagInput v-model="form.tags" :placeholder="t('goods.batch.leaveEmptyNoChange')" />
           </label>
 
           <label class="field">
-            <span class="field-label">收藏状态</span>
-            <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" placeholder="留空则不修改" />
+            <span class="field-label">{{ t('goods.editor.collectStatus') }}</span>
+            <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" :placeholder="t('goods.batch.leaveEmptyNoChange')" />
           </label>
 
           <div class="field">
             <div class="field-head">
-              <span class="field-label">收纳位置</span>
+              <span class="field-label">{{ t('common.storageLocation') }}</span>
             </div>
             <StorageLocationInput
               v-model="form.storageLocation"
               :options="storageLocationOptions"
               :quick-create="true"
-              placeholder="留空则不修改"
+              :placeholder="t('goods.batch.leaveEmptyNoChange')"
             />
           </div>
 
           <label class="field">
-            <span class="field-label">购入日期</span>
+            <span class="field-label">{{ t('goods.editor.purchaseDate') }}</span>
             <button class="date-field" type="button" @pointerdown="flushActiveInput" @click="openDatePicker">
               <span :class="{ 'date-field__value--placeholder': !form.acquiredAt }">
-                {{ form.acquiredAt || '留空则不修改' }}
+                {{ form.acquiredAt || t('goods.batch.leaveEmptyNoChange') }}
               </span>
               <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -180,7 +180,7 @@
           </label>
 
           <label class="field" :class="{ 'field--error': priceError }">
-            <span class="field-label">价格（¥）</span>
+            <span class="field-label">{{ t('goods.editor.priceLabel') }}（¥）</span>
             <input
               v-model="form.price"
               class="field-input"
@@ -188,7 +188,7 @@
               min="0"
               step="0.01"
               inputmode="decimal"
-              placeholder="留空则不修改"
+              :placeholder="t('goods.batch.leaveEmptyNoChange')"
               :aria-invalid="Boolean(priceError)"
               @keydown="preventNegativeInput"
               @input="sanitizePriceInput"
@@ -197,7 +197,7 @@
           </label>
 
           <label class="field">
-            <span class="field-label">邮费（¥）</span>
+            <span class="field-label">{{ t('goods.editor.shippingFee') }}（¥）</span>
             <input
               v-model="form.shippingFee"
               class="field-input"
@@ -205,7 +205,7 @@
               min="0"
               step="0.01"
               inputmode="decimal"
-              placeholder="留空则不修改"
+              :placeholder="t('goods.batch.leaveEmptyNoChange')"
               @keydown="preventNegativeInput"
               @input="sanitizeShippingFeeInput"
             />
@@ -214,9 +214,9 @@
       </section>
 
       <div class="batch-edit-actions">
-        <button class="confirm-btn confirm-btn--ghost" type="button" @click="close">取消</button>
+        <button class="confirm-btn confirm-btn--ghost" type="button" @click="close">{{ t('common.cancel') }}</button>
         <button class="confirm-btn confirm-btn--danger" type="button" :disabled="!canSubmit" @click="apply">
-          应用修改
+          {{ t('goods.batch.applyChanges') }}
         </button>
       </div>
     </div>
@@ -227,7 +227,7 @@
     v-model="datePickerValue"
     :z-index="220"
     :is-tablet="isTablet"
-    title="选择购入日期"
+    :title="t('goods.batch.selectPurchaseDate')"
     :min-date="minDate"
     :max-date="maxDate"
     @confirm="onDateConfirm"
@@ -236,6 +236,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
@@ -248,6 +249,8 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import TagInput from '@/components/common/TagInput.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -356,7 +359,7 @@ const quickCharacterIpOptions = computed(() => {
   }
 
   return [
-    { label: '不设置 IP', value: NO_IP_OPTION },
+    { label: t('goods.batch.noIp'), value: NO_IP_OPTION },
     ...presets.ips.map((ip) => ({ label: ip, value: ip }))
   ]
 })

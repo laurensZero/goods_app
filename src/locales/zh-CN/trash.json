@@ -1,0 +1,14 @@
+{
+  "trash.restore": "恢复",
+  "trash.emptyTitle": "回收站为空",
+  "trash.emptyDesc": "没有已删除的谷子",
+  "trash.restoreAll": "全部恢复",
+  "trash.emptyTrash": "清空回收站",
+  "trash.confirmEmpty": "确认清空回收站？",
+  "trash.confirmEmptyDesc": "清空后无法恢复",
+  "trash.permanentDelete": "永久删除",
+  "trash.confirmPermanent": "确认永久删除？",
+  "trash.confirmPermanentDesc": "此操作不可逆",
+  "trash.deletedAt": "删除于",
+  "trash.quantity": "数量"
+}

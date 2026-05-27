@@ -13,18 +13,21 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   icon: { type: String, default: '✦' },
   title: { type: String, default: '' },
   description: { type: String, default: '' },
-  message: { type: String, default: '暂无数据' },
+  message: { type: String, default: '' },
   actionText: { type: String, default: '' }
 })
 
 defineEmits(['action'])
 
-const resolvedTitle = computed(() => props.title || props.message)
+const resolvedTitle = computed(() => props.title || props.message || t('common.noData'))
 const resolvedDescription = computed(() => (props.title ? props.description : ''))
 </script>
 

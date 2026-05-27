@@ -1,0 +1,15 @@
+{
+  "validation.required": "{field}不能为空",
+  "validation.maxLength": "{field}最多 {max} 个字符",
+  "validation.minLength": "{field}最少 {min} 个字符",
+  "validation.invalidEmail": "请输入有效的邮箱地址",
+  "validation.invalidUrl": "请输入有效的 URL",
+  "validation.invalidNumber": "请输入有效的数字",
+  "validation.invalidPrice": "请输入有效的非负价格",
+  "validation.priceOutOfRange": "价格超出合理范围",
+  "validation.invalidDate": "请输入有效的日期",
+  "validation.invalidPhone": "请输入有效的手机号",
+  "validation.passwordMismatch": "两次输入的密码不一致",
+  "validation.nameRequired": "名称不能为空",
+  "validation.nameTooLong": "名称最多 {max} 个字符"
+}

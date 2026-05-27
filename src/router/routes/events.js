@@ -3,26 +3,26 @@ export default [
     path: '/events/add',
     name: 'event-add',
     component: () => import('@/views/EventAddView.vue'),
-    meta: { title: '添加活动' }
+    meta: { titleKey: 'nav.addEvent' }
   },
   {
     path: '/events/link-goods',
     name: 'event-link-goods',
     component: () => import('@/views/EventGoodsPickerView.vue'),
-    meta: { title: '选择关联谷子' }
+    meta: { titleKey: 'nav.linkGoods' }
   },
   {
     path: '/events/edit/:id',
     name: 'event-edit',
     component: () => import('@/views/EventAddView.vue'),
-    meta: { title: '编辑活动' },
+    meta: { titleKey: 'nav.editEvent' },
     props: true
   },
   {
     path: '/events/:id',
     name: 'event-detail',
     component: () => import('@/views/EventDetailView.vue'),
-    meta: { title: '活动详情' },
+    meta: { titleKey: 'nav.eventDetail' },
     props: true
   }
 ]

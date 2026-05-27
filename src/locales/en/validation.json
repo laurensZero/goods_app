@@ -1,0 +1,15 @@
+{
+  "validation.required": "{field} is required",
+  "validation.maxLength": "{field} must be at most {max} characters",
+  "validation.minLength": "{field} must be at least {min} characters",
+  "validation.invalidEmail": "Please enter a valid email address",
+  "validation.invalidUrl": "Please enter a valid URL",
+  "validation.invalidNumber": "Please enter a valid number",
+  "validation.invalidPrice": "Please enter a valid non-negative price",
+  "validation.priceOutOfRange": "Price is out of reasonable range",
+  "validation.invalidDate": "Please enter a valid date",
+  "validation.invalidPhone": "Please enter a valid phone number",
+  "validation.passwordMismatch": "Passwords do not match",
+  "validation.nameRequired": "Name is required",
+  "validation.nameTooLong": "Name must be at most {max} characters"
+}

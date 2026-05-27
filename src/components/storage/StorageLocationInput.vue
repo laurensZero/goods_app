@@ -1,7 +1,7 @@
 <template>
   <div class="storage-location-input">
     <div class="storage-location-summary" :class="{ 'storage-location-summary--empty': !modelValue }">
-      {{ modelValue || placeholder }}
+      {{ modelValue || (placeholder || t('goods.editor.storageLocationPlaceholder')) }}
     </div>
 
     <div class="storage-location-levels">
@@ -10,7 +10,7 @@
         :key="level.depth"
         class="storage-location-level"
       >
-        <span class="storage-location-level__label">第 {{ level.depth + 1 }} 级</span>
+        <span class="storage-location-level__label">{{ t('storage.levelN', { n: level.depth + 1 }) }}</span>
         <AppSelect
           :model-value="level.selectedId"
           :options="level.options"
@@ -30,7 +30,7 @@
           <path d="M8 3V13" />
           <path d="M3 8H13" />
         </svg>
-        新建第一层位置
+        {{ t('storage.createFirstLevel') }}
       </button>
       <button
         v-if="deepestSelectedId"
@@ -52,7 +52,7 @@
       v-model="quickCreateName"
       :placeholder="quickCreatePlaceholder"
       :maxlength="20"
-      submit-text="新增位置"
+      :submit-text="t('storage.addLocation')"
       @cancel="closeQuickCreate"
       @submit="submitQuickCreate"
     />
@@ -61,9 +61,12 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usePresetsStore } from '@/stores/presets'
 import AppSelect from '@/components/common/AppSelect.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -76,7 +79,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: '未设置收纳位置'
+    default: ''
   },
   quickCreate: {
     type: Boolean,
@@ -114,10 +117,10 @@ const levelConfigs = computed(() => {
     levels.push({
       depth,
       selectedId,
-      placeholder: depth === 0 ? '选择一级位置' : `选择第 ${depth + 1} 级位置`,
+      placeholder: depth === 0 ? t('storage.selectFirstLevel') : t('storage.selectLevelN', { n: depth + 1 }),
       options: [
         {
-          label: depth === 0 ? '不设置' : '到这里为止',
+          label: depth === 0 ? t('storage.notSet') : t('storage.stopHere'),
           value: ''
         },
         ...children.map((child) => ({
@@ -146,13 +149,13 @@ const levelConfigs = computed(() => {
 })
 
 const quickCreateButtonText = computed(() =>
-  deepestSelectedId.value ? '新建下一级位置' : '新建一级位置'
+  deepestSelectedId.value ? t('storage.createNextLevel') : t('storage.createFirstLevel')
 )
 
 const quickCreatePlaceholder = computed(() =>
   deepestSelectedPath.value
-    ? `新增到 ${deepestSelectedPath.value} 下`
-    : '输入一级位置名称'
+    ? t('storage.addToPath', { path: deepestSelectedPath.value })
+    : t('storage.inputFirstLevelName')
 )
 
 watch(

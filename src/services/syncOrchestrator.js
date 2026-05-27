@@ -941,7 +941,7 @@ export function createSyncOrchestrator({
       if (remoteEventData?.updatedAt || remoteManifest?.lastSyncAt) {
         await ctx.saveEventLastSyncedAt(remoteEventData?.updatedAt || remoteManifest.lastSyncAt)
       }
-      return { action: 'no_changes', statusMessage: '数据已经是最新', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
+      return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
     }
 
     const localPayload = await trackSyncStep('整理本地收藏/回收站数据', () => payload.buildSyncPayload({ existingImageGist }), {
@@ -972,7 +972,7 @@ export function createSyncOrchestrator({
         })
       }
       catch (e) { wrapSyncError(e, PHASE_PUSH) }
-      return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
+      return { action: 'pushed', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
     }
 
     // If we reach here and event data diff or images might involve events, build event payload lazily
@@ -998,11 +998,11 @@ export function createSyncOrchestrator({
         let imageStats
         try { imageStats = await pushToRemote(gist, existingImageGist, existingRechargeGist, existingEventGist, ctx) }
         catch (e) { wrapSyncError(e, PHASE_PUSH) }
-        return { action: 'pushed', statusMessage: '首次上传到 Supabase', ...conflict.getLocalChangesSince(localSyncTime), ...imageStats }
+        return { action: 'pushed', statusMessage: 'sync.firstSupabaseUpload', ...conflict.getLocalChangesSince(localSyncTime), ...imageStats }
       }
       if (localChanges.hasChanges) {
         return {
-          action: 'conflict', statusMessage: '检测到冲突',
+          action: 'conflict', statusMessage: 'sync.conflictDetected',
           conflictData: {
             remoteTime: remoteManifest.lastSyncAt, remoteDevice: remoteManifest.deviceId,
             localTime: ctx.lastSyncedAt, localModifiedTime: ctx.getLatestLocalModifiedAt(),
@@ -1023,7 +1023,7 @@ export function createSyncOrchestrator({
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-      return { action: 'pulled', statusMessage: '拉取完成', ...result }
+      return { action: 'pulled', ...result }
     }
 
     let imageStats
@@ -1040,7 +1040,7 @@ export function createSyncOrchestrator({
       })
     }
     catch (e) { wrapSyncError(e, PHASE_PUSH) }
-    return { action: 'pushed', statusMessage: '上传完成', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
+    return { action: 'pushed', ...conflict.getLocalChangesSince(remoteTime || localSyncTime), ...imageStats }
   }
 
   // ── Public: pullOnly ──
@@ -1099,7 +1099,7 @@ export function createSyncOrchestrator({
 
     // No manifest on remote = nothing to pull, don't delete local data
     if (!remoteManifest) {
-      return { action: 'no_changes', statusMessage: '远端无数据，跳过拉取' }
+      return { action: 'no_changes', statusMessage: 'sync.noRemoteDataSkipPull' }
     }
 
     // Silent 模式（Realtime/visibilitychange 触发）：跳过冲突弹窗，直接拉取
@@ -1113,7 +1113,7 @@ export function createSyncOrchestrator({
       )
       if (!hasAnyDiff) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-        return { action: 'no_changes', statusMessage: '数据已是最新' }
+        return { action: 'no_changes' }
       }
       let result
       try {
@@ -1128,7 +1128,7 @@ export function createSyncOrchestrator({
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-      return { action: 'pulled', statusMessage: '同步完成', ...result }
+      return { action: 'pulled', statusMessage: 'sync.syncComplete', ...result }
     }
 
     if (localChanges.hasChanges) {
@@ -1140,10 +1140,10 @@ export function createSyncOrchestrator({
       )
       if (!hasPullConflict) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-        return { action: 'no_changes', statusMessage: '数据已是最新' }
+        return { action: 'no_changes' }
       }
       return {
-        action: 'conflict', statusMessage: '检测到远端数据',
+        action: 'conflict', statusMessage: 'sync.remoteDataDetected',
         conflictData: { ...diff, rechargeGist: existingRechargeGist, eventGist: existingEventGist, isPullOnly: true }
       }
     }
@@ -1159,7 +1159,7 @@ export function createSyncOrchestrator({
 
     if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff && !pullBudgetContentDiff) {
       if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-      return { action: 'no_changes', statusMessage: '数据已是最新' }
+      return { action: 'no_changes' }
     }
 
     let result
@@ -1175,7 +1175,7 @@ export function createSyncOrchestrator({
       }, ctx)
     } catch (e) { wrapSyncError(e, PHASE_PULL) }
     await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-    return { action: 'pulled', statusMessage: '拉取完成', ...result }
+    return { action: 'pulled', ...result }
   }
 
   // ── Public: resolveConflict ──
@@ -1204,20 +1204,20 @@ export function createSyncOrchestrator({
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest?.lastSyncAt || new Date().toISOString())
-      return { action: 'pulled', statusMessage: '拉取完成', ...result }
+      return { action: 'pulled', ...result }
     }
 
     let imageStats
     try { imageStats = await pushToRemote(ctx.conflictData.gist, null, ctx.conflictData.rechargeGist || null, ctx.conflictData.eventGist || null, ctx) }
     catch (e) { wrapSyncError(e, PHASE_PUSH) }
-    return { action: 'pushed', statusMessage: '上传完成', ...imageStats }
+    return { action: 'pushed', ...imageStats }
   }
 
   // ── Public: resolvePullConflict ──
 
   async function resolvePullConflict(ctx, confirm) {
     activeBackend = ctx.backend || backend
-    if (!confirm) return { action: 'cancelled', statusMessage: '已取消' }
+    if (!confirm) return { action: 'cancelled', statusMessage: 'sync.pullCancelled' }
 
     let remoteManifest
     try { remoteManifest = await activeBackend.getManifest(ctx.conflictData.gist) }
@@ -1234,7 +1234,7 @@ export function createSyncOrchestrator({
         hydrateGoodsImages: hasGoodsContentDiff, hydrateTrashImages: hasGoodsContentDiff, hydrateEventImages: hasEventContentDiff
       }, ctx)
     } catch (e) { wrapSyncError(e, PHASE_PULL) }
-    return { action: 'pulled', statusMessage: '拉取完成', ...result }
+    return { action: 'pulled', ...result }
   }
 
   return { fullSync, pullOnly, resolveConflict, resolvePullConflict }

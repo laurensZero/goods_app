@@ -23,26 +23,29 @@
     </div>
 
     <div class="quick-create-actions">
-      <button type="button" class="quick-create-btn quick-create-btn--ghost" @click="emit('cancel')">取消</button>
-      <button type="button" class="quick-create-btn quick-create-btn--primary" @click="emit('submit')">{{ submitText }}</button>
+      <button type="button" class="quick-create-btn quick-create-btn--ghost" @click="emit('cancel')">{{ t('common.cancel') }}</button>
+      <button type="button" class="quick-create-btn quick-create-btn--primary" @click="emit('submit')">{{ submitText || t('common.save') }}</button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '' },
   maxlength: { type: Number, default: 40 },
-  submitText: { type: String, default: '保存' },
+  submitText: { type: String, default: '' },
   secondaryValue: { type: String, default: '' },
   secondaryOptions: { type: Array, default: () => [] },
   secondaryLabel: { type: String, default: '' },
-  secondaryPlaceholder: { type: String, default: '请选择' }
+  secondaryPlaceholder: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:modelValue', 'update:secondaryValue', 'submit', 'cancel'])
