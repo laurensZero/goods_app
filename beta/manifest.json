@@ -1,9 +1,9 @@
 {
-  "version": "20260527.2",
-  "url": "bundle-20260527.2.zip",
-  "hash": "f1790628bfb35636d9fd0f083acc113f6dc1fcf37e0530f6341491db2a0aa97c",
+  "version": "20260527.3",
+  "url": "bundle-20260527.3.zip",
+  "hash": "83362af99de920a6727933935e935572acebf20285e10378c38be84525cfa29f",
   "minNativeVersion": null,
-  "notes": "- feat: 多语种适配 (i18n) - 中英文双语支持\n  - 安装 vue-i18n v10 + @intlify/unplugin-vue-i18n\n  - 创建 src/locales/ 目录，15 个翻译模块 × 2 种语言\n  - 所有路由 title 改为 titleKey，使用 t() 翻译\n  - TabBar、所有视图、组件、store、utils、services 改造\n  - 语言切换组件集成到设置页面\n  - 英文翻译懒加载，Vant Locale 同步\n\n- fix: 修复语言切换持久化 + 平板端语言设置页面\n  - 英文消息改为同步加载，修复刷新后语言重置问题\n  - 设置页新增独立语言设置入口（桌面侧栏 + 详情面板）\n  - LanguageSwitcher 组件同时支持移动端和桌面端\n\n- feat: 添加更多翻译文本",
+  "notes": "- feat: 重构商品返回动画逻辑，新增共享组合式函数以优化代码复用",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-27T13:43:07Z"
+  "publishedAt": "2026-05-27T14:40:07Z"
 }

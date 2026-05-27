@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260527.3",
+    "url": "bundle-20260527.3.zip",
+    "hash": "83362af99de920a6727933935e935572acebf20285e10378c38be84525cfa29f",
+    "minNativeVersion": null,
+    "notes": "- feat: 重构商品返回动画逻辑，新增共享组合式函数以优化代码复用",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-27T14:40:07Z"
+  },
+  {
     "version": "20260527.2",
     "url": "bundle-20260527.2.zip",
     "hash": "f1790628bfb35636d9fd0f083acc113f6dc1fcf37e0530f6341491db2a0aa97c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化组件卸载时的清理逻辑，避免内存泄漏；更新路由懒加载方式以提升性能；重构媒体播放器缓存逻辑，使用 LRU 策略管理缓存\n\n- feat: 重构多个组件的样式，移除冗余的过渡动画；新增共享样式文件以统一确认对话框和浮动按钮的样式\n\n- feat: 新增页面滚动绑定功能，重构多个视图以使用共享的滚动管理逻辑；优化更新相关的工具函数",
     "updateLevel": "silent",
     "publishedAt": "2026-05-27T13:09:26Z"
-  },
-  {
-    "version": "20260526.5",
-    "url": "bundle-20260526.5.zip",
-    "hash": "21f0f4a9031864424d56ff111f17726b3b1134a8ec4d626ce41eb9f721d5068d",
-    "minNativeVersion": null,
-    "notes": "- feat: 调整界面文本和样式，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-26T14:46:24Z"
   }
 ]
