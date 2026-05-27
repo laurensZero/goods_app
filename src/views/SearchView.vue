@@ -316,6 +316,7 @@
             <SearchGoodsCard
               v-for="(item, i) in row.items"
               :key="item.id"
+              v-memo="[item, selectionMode, selectedIds.has(item.id)]"
               :item="item"
               :data-goods-id="item.id"
               :data-scroll-index="row.startIndex + i"

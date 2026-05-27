@@ -31,15 +31,10 @@ export function createSyncOrchestrator({
     MANIFEST_FILENAME
   } = constants
 
-  // ── Dynamic backend selection ──
-  // Set by public entry points (fullSync/pullOnly/resolveConflict/resolvePullConflict)
-  // to allow ctx.backend to override the closure-injected backend.
-  let activeBackend = backend
-
   // ── Internal: read JSON from Gist with logging + decryption ──
 
-  async function readJson(opts) {
-    return activeBackend.readJson(opts)
+  async function readJson(be, opts) {
+    return be.readJson(opts)
   }
 
   async function applyRemoteBudgetSettings(settings) {
@@ -178,6 +173,7 @@ export function createSyncOrchestrator({
   }
 
   async function pullFromRemote(gist, remoteManifest, rechargeGist, eventGist, options, ctx) {
+    const be = ctx.backend || backend
     const shouldHydrateGoodsImages = options.hydrateGoodsImages !== false
     const shouldHydrateTrashImages = options.hydrateTrashImages !== false
     const shouldHydrateEventImages = options.hydrateEventImages !== false
@@ -185,7 +181,7 @@ export function createSyncOrchestrator({
     const enableIncrementalGoods = options.incrementalGoods === true
     const enableIncrementalEvents = options.incrementalEvents === true
     const enableIncrementalRecharge = options.incrementalRecharge === true
-    const isSupabaseBackend = typeof activeBackend.getImagePublicUrl === 'function'
+    const isSupabaseBackend = typeof be.getImagePublicUrl === 'function'
 
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
@@ -197,7 +193,7 @@ export function createSyncOrchestrator({
     const localEventLatestTs = getLatestEventTimestamp(eventsStore.list || [])
     const useIncrementalEventPull = enableIncrementalEvents && isSupabaseBackend && localEventLatestTs > 0
 
-    const remoteData = await readJson({
+    const remoteData = await readJson(be, {
       title: '读取 Data',
       gist,
       fileName: DATA_FILENAME,
@@ -219,7 +215,7 @@ export function createSyncOrchestrator({
     const localRechargeLatestTs = getLatestRechargeTimestamp(localRechargeSnapshot)
     const useIncrementalRechargePull = shouldPullRecharge && enableIncrementalRecharge && isSupabaseBackend && localRechargeLatestTs > 0
     const rechargeData = shouldPullRecharge
-      ? await readJson({
+      ? await readJson(be, {
           title: '正式拉取 RechargeData',
           gist,
           fileName: RECHARGE_DATA_FILENAME,
@@ -237,7 +233,7 @@ export function createSyncOrchestrator({
         })
       : { recharge: localRechargeSnapshot, rechargeTrash: [] }
 
-    const eventData = await readJson({
+    const eventData = await readJson(be, {
       title: '正式拉取 EventsData',
       gist,
       fileName: EVENT_DATA_FILENAME,
@@ -442,11 +438,12 @@ export function createSyncOrchestrator({
   // ── Internal: push to remote ──
 
   async function pushToRemote(existingGist, existingImageGist, existingRechargeGist, existingEventGist, ctx, uploadPlan = null) {
+    const be = ctx.backend || backend
     const shouldWriteData = uploadPlan ? uploadPlan.hasDataDiff !== false : true
     const shouldWriteRecharge = uploadPlan ? uploadPlan.hasRechargeDataDiff !== false : true
     const shouldWriteEvent = uploadPlan ? uploadPlan.hasEventDataDiff !== false : true
-    const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof activeBackend.getImagePublicUrl === 'function'
-    let imageGist = existingImageGist || await activeBackend.ensureImageGist()
+    const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof be.getImagePublicUrl === 'function'
+    let imageGist = existingImageGist || await be.ensureImageGist()
 
     // Debug: log incremental/uploadPlan state to help diagnose unexpected full uploads
     try {
@@ -467,11 +464,11 @@ export function createSyncOrchestrator({
           const cloudContent = imageGist.files[firstFileName]?.content || ''
           const cloudIsPlaintext = cloudContent.startsWith('data:image/')
           const cloudIsEncrypted = !cloudIsPlaintext && cloudContent.length > 0
-          if (cloudIsEncrypted !== activeBackend.isEncryptionEnabled()) {
+          if (cloudIsEncrypted !== be.isEncryptionEnabled()) {
             imageGist = null
-            return `状态不一致（本地${activeBackend.isEncryptionEnabled() ? '加密' : '明文'}，云端${cloudIsEncrypted ? '加密' : '明文'}），触发重传`
+            return `状态不一致（本地${be.isEncryptionEnabled() ? '加密' : '明文'}，云端${cloudIsEncrypted ? '加密' : '明文'}），触发重传`
           }
-          return `状态一致（${activeBackend.isEncryptionEnabled() ? '加密' : '明文'}），无需重传`
+          return `状态一致（${be.isEncryptionEnabled() ? '加密' : '明文'}），无需重传`
         }, { startDetail: '对比本地和云端加密状态', category: 'image', successDetail: (msg) => msg })
       }
     }
@@ -507,32 +504,32 @@ export function createSyncOrchestrator({
     const imageUpdates = { ...imageFiles, ...eventImageFiles, ...imageCleanupFiles }
 
     if (Object.keys(imageUpdates).length > 0) {
-      if (!imageGist) imageGist = await activeBackend.ensureImageGist()
-      try { await activeBackend.writeImages(imageGist.id, imageUpdates) }
+      if (!imageGist) imageGist = await be.ensureImageGist()
+      try { await be.writeImages(imageGist.id, imageUpdates) }
       catch (e) { wrapSyncError(e, PHASE_UPLOAD_IMAGES) }
     }
 
     // Replace gist-image:// URIs in syncData with actual public URLs before writing to database.
     // This ensures the database always has valid URLs, not placeholder gist-image:// references.
-    if (activeBackend.getImagePublicUrl) {
+    if (be.getImagePublicUrl) {
       for (const item of [...syncData.goods, ...syncData.trash]) {
         if (!Array.isArray(item.images)) continue
         for (const img of item.images) {
           if (img.gistFileName && allReferencedImageFiles.has(img.gistFileName)) {
-            img.uri = activeBackend.getImagePublicUrl(img.gistFileName)
+            img.uri = be.getImagePublicUrl(img.gistFileName)
           }
         }
       }
       for (const event of (eventSyncData?.events || [])) {
         const coverFileName = event.coverImageData?.gistFileName
         if (coverFileName && allReferencedImageFiles.has(coverFileName)) {
-          event.coverImage = activeBackend.getImagePublicUrl(coverFileName)
+          event.coverImage = be.getImagePublicUrl(coverFileName)
         }
         if (Array.isArray(event.photos)) {
           for (const photo of event.photos) {
             const photoFileName = String(photo?.gistFileName || '').trim()
             if (photoFileName && allReferencedImageFiles.has(photoFileName)) {
-              photo.uri = activeBackend.getImagePublicUrl(photoFileName)
+              photo.uri = be.getImagePublicUrl(photoFileName)
             }
           }
         }
@@ -787,7 +784,7 @@ export function createSyncOrchestrator({
       }
       try {
         await trackSyncStep('更新远端数据', () =>
-          activeBackend.writeData(existingGist?.id || activeBackend.getDataGistId(), dataMap, writeOptions || undefined),
+          be.writeData(existingGist?.id || be.getDataGistId(), dataMap, writeOptions || undefined),
           { startDetail: '上传选中的同步文件', category: 'sync', successDetail: () => '远端数据已更新' }
         )
       } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
@@ -804,8 +801,8 @@ export function createSyncOrchestrator({
         if (images[i]?.gistFileName) {
           const entry = { ...images[i] }
           // Use public URL for Supabase, fallback to gist-image:// for Gist
-          if (activeBackend.getImagePublicUrl) {
-            entry.uri = activeBackend.getImagePublicUrl(entry.gistFileName)
+          if (be.getImagePublicUrl) {
+            entry.uri = be.getImagePublicUrl(entry.gistFileName)
           }
           imageMap.set(i, entry)
         }
@@ -814,7 +811,7 @@ export function createSyncOrchestrator({
     }
     await goodsStore.markImagesAsRemote(preparedImagesByItemId)
 
-    if (activeBackend.getImagePublicUrl) {
+    if (be.getImagePublicUrl) {
       const eventsStore = useEventsStore()
       const preparedMediaByEventId = new Map()
       for (const event of (eventSyncData?.events || [])) {
@@ -838,7 +835,7 @@ export function createSyncOrchestrator({
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
 
-    const dataGistId = activeBackend.getDataGistId()
+    const dataGistId = be.getDataGistId()
     if (ctx.rechargeGistId && ctx.rechargeGistId !== dataGistId) await ctx.saveRechargeGistId('')
     if (ctx.eventGistId && ctx.eventGistId !== dataGistId) await ctx.saveEventGistId('')
 
@@ -848,12 +845,12 @@ export function createSyncOrchestrator({
   // ── Public: fullSync ──
 
   async function fullSync(ctx) {
-    activeBackend = ctx.backend || backend
+    const be = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
 
     let gist
     try {
-      gist = await activeBackend.ensureDataGist({
+      gist = await be.ensureDataGist({
         buildSyncPayload: payload.buildSyncPayload,
         buildRechargeSyncData: payload.buildRechargeSyncData,
         buildEventSyncPayload: payload.buildEventSyncPayload,
@@ -863,7 +860,7 @@ export function createSyncOrchestrator({
 
     let remoteManifest
     try {
-      remoteManifest = await readJson({
+      remoteManifest = await readJson(be, {
         title: '读取 manifest', gist, fileName: MANIFEST_FILENAME,
         startDetail: '检查远端同步摘要', category: 'pull',
         successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
@@ -871,9 +868,9 @@ export function createSyncOrchestrator({
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
-    const existingRechargeGist = await activeBackend.getExistingRechargeGist()
-    const existingEventGist = await activeBackend.getExistingEventGist()
-    const existingImageGist = await activeBackend.getExistingImageGist(remoteManifest)
+    const existingRechargeGist = await be.getExistingRechargeGist()
+    const existingEventGist = await be.getExistingEventGist()
+    const existingImageGist = await be.getExistingImageGist(remoteManifest)
     const rechargeStore = useRechargeStore()
     const localRechargeData = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const localEventData = payload.buildEventSyncData()
@@ -884,7 +881,7 @@ export function createSyncOrchestrator({
 
     let remoteData, remoteRechargeData, remoteEventData
     try {
-      remoteData = await readJson({
+      remoteData = await readJson(be, {
         title: '读取 Data', gist, fileName: DATA_FILENAME,
         startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
         successDetail: (parsed) => {
@@ -896,7 +893,7 @@ export function createSyncOrchestrator({
 
       const shouldReadRechargePrecheck = !!remoteRechargeTs && remoteRechargeTs > localRechargeLatestTs
       remoteRechargeData = shouldReadRechargePrecheck
-        ? (await readJson({
+        ? (await readJson(be, {
             title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
             startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
             successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
@@ -905,7 +902,7 @@ export function createSyncOrchestrator({
 
       const shouldReadEventPrecheck = !!remoteEventTs && remoteEventTs > localEventLatestTs
       remoteEventData = shouldReadEventPrecheck
-        ? (await readJson({
+        ? (await readJson(be, {
             title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
             startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
             successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
@@ -965,7 +962,7 @@ export function createSyncOrchestrator({
           hasRechargeDataDiff: false,
           hasEventDataDiff: false,
           hasPendingImageChanges: true,
-          incremental: typeof activeBackend.getImagePublicUrl === 'function',
+          incremental: typeof be.getImagePublicUrl === 'function',
           remoteData,
           remoteRechargeData,
           remoteEventData
@@ -1033,7 +1030,7 @@ export function createSyncOrchestrator({
         hasRechargeDataDiff,
         hasEventDataDiff,
         hasPendingImageChanges,
-        incremental: typeof activeBackend.getImagePublicUrl === 'function',
+        incremental: typeof be.getImagePublicUrl === 'function',
         remoteData,
         remoteRechargeData,
         remoteEventData
@@ -1046,22 +1043,22 @@ export function createSyncOrchestrator({
   // ── Public: pullOnly ──
 
   async function pullOnly(ctx, { silent = false, forceRecharge = false, sourceTable = 'manual' } = {}) {
-    activeBackend = ctx.backend || backend
+    const be = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
     let gist, existingRechargeGist, existingEventGist
     try {
       [gist, existingRechargeGist, existingEventGist] = await Promise.all([
-        activeBackend.getDataGist(),
-        activeBackend.getExistingRechargeGist(),
-        activeBackend.getExistingEventGist()
+        be.getDataGist(),
+        be.getExistingRechargeGist(),
+        be.getExistingEventGist()
       ])
     } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
     if (!gist) throw new Error('未找到远端数据')
-    const isSupabaseBackend = typeof activeBackend.getImagePublicUrl === 'function'
+    const isSupabaseBackend = typeof be.getImagePublicUrl === 'function'
 
     let remoteManifest, remoteRechargeData, remoteEventData
     try {
-      remoteManifest = await readJson({ title: '读取 manifest', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
+      remoteManifest = await readJson(be, { title: '读取 manifest', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
         successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' })
 
       const rechargeStore = useRechargeStore()
@@ -1072,13 +1069,13 @@ export function createSyncOrchestrator({
 
       ;[remoteRechargeData, remoteEventData] = await Promise.all([
         (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
-          ? readJson({ title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
+          ? readJson(be, { title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
               fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
               successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
             }).then((result) => result || { recharge: [], rechargeTrash: [] })
           : Promise.resolve({ recharge: localRechargeSnapshot, rechargeTrash: [] }),
         (!triggeredByRealtime || sourceTable === 'events')
-        ? readJson({ title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
+        ? readJson(be, { title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
           fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
           successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
         }).then((result) => result || { events: [] })
@@ -1181,11 +1178,11 @@ export function createSyncOrchestrator({
   // ── Public: resolveConflict ──
 
   async function resolveConflict(ctx, useRemote) {
-    activeBackend = ctx.backend || backend
+    const be = ctx.backend || backend
     if (useRemote) {
       let remoteManifest
       try {
-        remoteManifest = await readJson({
+        remoteManifest = await readJson(be, {
           title: '读取 manifest', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
           startDetail: '读取冲突远端摘要', category: 'pull',
           successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
@@ -1216,11 +1213,11 @@ export function createSyncOrchestrator({
   // ── Public: resolvePullConflict ──
 
   async function resolvePullConflict(ctx, confirm) {
-    activeBackend = ctx.backend || backend
+    const be = ctx.backend || backend
     if (!confirm) return { action: 'cancelled', statusMessage: 'sync.pullCancelled' }
 
     let remoteManifest
-    try { remoteManifest = await activeBackend.getManifest(ctx.conflictData.gist) }
+    try { remoteManifest = await be.getManifest(ctx.conflictData.gist) }
     catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     const hasGoodsContentDiff = !!(
       ctx.conflictData.remoteOnlyGoods > 0 || ctx.conflictData.remoteOnlyCollection > 0 || ctx.conflictData.remoteOnlyWishlist > 0

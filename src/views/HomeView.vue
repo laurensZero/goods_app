@@ -186,8 +186,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
-import { useHomeScrollRestore } from '@/composables/scroll/useHomeScrollRestore'
-import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
+import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useHomeTimeline } from '@/composables/home/useHomeTimeline'
 import { useHomeGoodsList } from '@/composables/home/useHomeGoodsList'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
@@ -337,7 +336,7 @@ const {
   clearStoredScrollState,
   resetStoredScrollOnReload,
   cancelPendingRestore
-} = useHomeScrollRestore(pageBodyRef)
+} = createPageScrollRestore('home')(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 

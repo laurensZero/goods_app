@@ -132,6 +132,7 @@
                 <EventCard
                   v-for="event in sortedEvents"
                   :key="event.id"
+                  v-memo="[event, selectionMode, selectedIds.has(event.id)]"
                   :event="event"
                   :selection-mode="selectionMode"
                   :selected="selectedIds.has(event.id)"
@@ -176,6 +177,7 @@
                           <EventCard
                             v-for="event in monthGroup.items"
                             :key="event.id"
+                            v-memo="[event, selectionMode, selectedIds.has(event.id)]"
                             :event="event"
                             :selection-mode="selectionMode"
                             :selected="selectedIds.has(event.id)"
@@ -268,7 +270,7 @@ import EventCard from '@/components/events/EventCard.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
-import { useEventsScrollRestore } from '@/composables/scroll/useEventsScrollRestore'
+import { createPageScrollRestore } from '@/composables/scroll'
 import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
@@ -354,7 +356,7 @@ const {
   clearDisplayedScrollPosition,
   resetStoredScrollOnReload,
   cancelPendingRestore
-} = useEventsScrollRestore(pageBodyRef)
+} = createPageScrollRestore('events')(pageBodyRef)
 
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 

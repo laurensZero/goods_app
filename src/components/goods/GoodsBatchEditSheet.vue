@@ -614,8 +614,9 @@ defineExpose({
   max-height: 90dvh;
   padding: 12px 16px 0;
   background:
-    radial-gradient(circle at top, rgba(20, 20, 22, 0.05), transparent 42%),
-    #f5f5f7;
+    radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%),
+    var(--app-bg);
+  color: var(--app-text);
 }
 
 .batch-edit-sheet__handle {
@@ -623,7 +624,7 @@ defineExpose({
   height: 5px;
   margin: 0 auto 18px;
   border-radius: 999px;
-  background: rgba(20, 20, 22, 0.12);
+  background: var(--app-chip-bg);
 }
 
 .batch-edit-hero {
@@ -687,6 +688,7 @@ defineExpose({
   border-radius: var(--radius-small);
   background: rgba(199, 55, 93, 0.08);
   color: inherit;
+
   text-align: left;
 }
 
@@ -777,7 +779,7 @@ defineExpose({
   width: 100%;
   min-height: 48px;
   padding: 0 14px;
-  border: 1px solid rgba(20, 20, 22, 0.08);
+  border: 1px solid var(--app-input-border);
   border-radius: 16px;
   background: var(--app-surface);
   color: var(--app-text);
@@ -790,8 +792,8 @@ defineExpose({
 }
 
 .field-input:focus {
-  border-color: rgba(20, 20, 22, 0.16);
-  box-shadow: 0 0 0 3px rgba(20, 20, 22, 0.04);
+  border-color: var(--app-input-focus-border);
+  box-shadow: 0 0 0 3px var(--app-input-focus-ring);
   outline: none;
 }
 
@@ -812,7 +814,7 @@ defineExpose({
   width: 100%;
   min-height: 48px;
   padding: 0 14px;
-  border: 1px solid rgba(20, 20, 22, 0.08);
+  border: 1px solid var(--app-input-border);
   border-radius: 16px;
   background: var(--app-surface);
   color: var(--app-text);
@@ -825,8 +827,8 @@ defineExpose({
 }
 
 .date-field:focus-visible {
-  border-color: rgba(20, 20, 22, 0.16);
-  box-shadow: 0 0 0 3px rgba(20, 20, 22, 0.04);
+  border-color: var(--app-input-focus-border);
+  box-shadow: 0 0 0 3px var(--app-input-focus-ring);
   outline: none;
 }
 
@@ -860,7 +862,7 @@ defineExpose({
   width: 100%;
   min-height: 48px;
   padding: 10px 14px;
-  border: 1px solid rgba(20, 20, 22, 0.08);
+  border: 1px solid var(--app-input-border);
   border-radius: 16px;
   background: var(--app-surface);
   color: var(--app-text);
@@ -874,8 +876,8 @@ defineExpose({
 
 .multi-select--open .multi-select__trigger,
 .multi-select__trigger:focus-visible {
-  border-color: rgba(20, 20, 22, 0.16);
-  box-shadow: 0 0 0 3px rgba(20, 20, 22, 0.04);
+  border-color: var(--app-input-focus-border);
+  box-shadow: 0 0 0 3px var(--app-input-focus-ring);
   outline: none;
 }
 
@@ -903,8 +905,8 @@ defineExpose({
   max-width: 100%;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(20, 20, 22, 0.08);
-  color: var(--app-text);
+  background: var(--app-chip-bg);
+  color: var(--app-chip-text);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
@@ -918,7 +920,7 @@ defineExpose({
   height: 18px;
   border: none;
   border-radius: 50%;
-  background: rgba(20, 20, 22, 0.12);
+  background: var(--app-chip-bg);
   color: var(--app-text-secondary);
   font-size: 12px;
   line-height: 1;
@@ -949,9 +951,9 @@ defineExpose({
   max-height: 240px;
   overflow-y: auto;
   padding: 8px;
-  border: 1px solid rgba(20, 20, 22, 0.05);
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: var(--app-surface);
+  background: var(--app-panel-bg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
 
@@ -965,18 +967,18 @@ defineExpose({
   border: none;
   border-radius: 12px;
   background: transparent;
-  color: #141416;
+  color: var(--app-text);
   font-size: 15px;
   text-align: left;
   transition: background 0.16s ease, color 0.16s ease;
 }
 
 .multi-select__option:active {
-  background: #f5f5f7;
+  background: var(--app-bg);
 }
 
 .multi-select__option--active {
-  background: rgba(20, 20, 22, 0.06);
+  background: var(--app-chip-bg);
   font-weight: 600;
 }
 
@@ -985,7 +987,7 @@ defineExpose({
   height: 16px;
   margin-left: 10px;
   flex-shrink: 0;
-  stroke: #141416;
+  stroke: var(--app-text);
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -993,7 +995,7 @@ defineExpose({
 
 .multi-select__empty {
   padding: 14px 12px;
-  color: #8e8e93;
+  color: var(--app-text-tertiary);
   font-size: 14px;
   text-align: center;
 }
@@ -1031,8 +1033,8 @@ defineExpose({
 }
 
 .confirm-btn--danger {
-  background: #141416;
-  color: #ffffff;
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 /* ── 平板：居中对话框样式 ── */
@@ -1055,54 +1057,38 @@ defineExpose({
     border: none;
   }
 
-:global(html.theme-dark) .batch-edit-sheet {
-    background: var(--app-surface) !important;
-    color: var(--app-text);
-  }
-
-:global(html.theme-dark .batch-edit-sheet .app-select__value--placeholder),
-:global(html.theme-dark .batch-edit-sheet .multi-select__placeholder) {
-    color: rgba(245, 245, 247, 0.72) !important;
+:global(html.theme-dark .batch-edit-sheet .app-select__value--placeholder) {
+    color: var(--app-placeholder) !important;
     font-weight: 500;
   }
 
-:global(html.theme-dark .batch-edit-sheet .app-select__arrow),
-:global(html.theme-dark .batch-edit-sheet .multi-select__arrow) {
-    stroke: rgba(245, 245, 247, 0.72) !important;
+:global(html.theme-dark .batch-edit-sheet .app-select__arrow) {
+    stroke: var(--app-placeholder) !important;
   }
 
-:global(html.theme-dark .batch-edit-sheet .app-select__panel),
-:global(html.theme-dark .batch-edit-sheet .multi-select__panel) {
-    border-color: rgba(255, 255, 255, 0.08) !important;
-    background: rgba(24, 24, 28, 0.96) !important;
+:global(html.theme-dark .batch-edit-sheet .app-select__panel) {
+    border-color: var(--app-panel-border) !important;
+    background: var(--app-panel-bg) !important;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42) !important;
   }
 
-:global(html.theme-dark .batch-edit-sheet .app-select__option),
-:global(html.theme-dark .batch-edit-sheet .multi-select__option) {
-    color: #f5f5f7 !important;
+:global(html.theme-dark .batch-edit-sheet .app-select__option) {
+    color: var(--app-text) !important;
     font-weight: 500;
   }
 
-:global(html.theme-dark .batch-edit-sheet .app-select__option--active),
-:global(html.theme-dark .batch-edit-sheet .multi-select__option--active) {
+:global(html.theme-dark .batch-edit-sheet .app-select__option--active) {
     background: rgba(255, 255, 255, 0.10) !important;
-    color: #f5f5f7 !important;
+    color: var(--app-text) !important;
     font-weight: 600;
   }
 
-:global(html.theme-dark .batch-edit-sheet .app-select__check),
-:global(html.theme-dark .batch-edit-sheet .multi-select__check) {
-    stroke: #f5f5f7 !important;
+:global(html.theme-dark .batch-edit-sheet .app-select__check) {
+    stroke: var(--app-text) !important;
   }
 
-:global(html.theme-dark .batch-edit-sheet .app-select__empty),
-:global(html.theme-dark .batch-edit-sheet .multi-select__empty) {
-    color: rgba(245, 245, 247, 0.68) !important;
-  }
-
-:global(html.theme-dark) .batch-edit-sheet__handle {
-    background: rgba(255, 255, 255, 0.15);
+:global(html.theme-dark .batch-edit-sheet .app-select__empty) {
+    color: var(--app-text-tertiary) !important;
   }
 
 :global(html.theme-dark) .mark-owned-card {
@@ -1120,63 +1106,19 @@ defineExpose({
 :global(html.theme-dark) .date-field,
   :global(html.theme-dark) .multi-select__trigger,
   :global(html.theme-dark) .field-input {
-    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--app-input-border) !important;
     background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass)) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
-  }
-
-:global(html.theme-dark .multi-select__panel) {
-    border-color: rgba(255, 255, 255, 0.08) !important;
-    background: rgba(24, 24, 28, 0.96) !important;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42) !important;
+    box-shadow: inset 0 1px 0 var(--app-input-focus-ring) !important;
   }
 
 :global(html.theme-dark .multi-select__chip) {
-    border: 1px solid rgba(124, 154, 216, 0.30) !important;
-    background: #1c3558 !important;
-    color: #8ab4f8 !important;
+    border: 1px solid var(--app-chip-accent-border) !important;
+    background: var(--app-chip-accent-bg) !important;
+    color: var(--app-chip-accent-text) !important;
   }
 
 :global(html.theme-dark .multi-select__chip-remove) {
     background: rgba(255, 255, 255, 0.16) !important;
-    color: #f5f5f7 !important;
-  }
-
-:global(html.theme-dark .multi-select__option) {
-    color: #f5f5f7 !important;
-  }
-
-:global(html.theme-dark .multi-select__option:active) {
-    background: rgba(255, 255, 255, 0.08) !important;
-  }
-
-:global(html.theme-dark .multi-select__option--active) {
-    background: rgba(255, 255, 255, 0.10) !important;
-    color: #f5f5f7 !important;
-  }
-
-:global(html.theme-dark .multi-select__check) {
-    stroke: #f5f5f7 !important;
-  }
-
-:global(html.theme-dark) .confirm-btn--danger {
-    background: #f5f5f7;
-    color: #141416;
-  }
-
-  :global(html.theme-dark) .batch-edit-hero {
-    color: var(--app-text);
-  }
-
-  :global(html.theme-dark) .batch-edit-hero__label {
-    color: var(--app-text-secondary);
-  }
-
-  :global(html.theme-dark) .batch-edit-hero__title {
-    color: var(--app-text);
-  }
-
-  :global(html.theme-dark) .batch-edit-hero__desc {
-    color: var(--app-text-secondary);
+    color: var(--app-text) !important;
   }
 </style>
