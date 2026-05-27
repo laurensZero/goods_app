@@ -396,7 +396,8 @@ import {
   normalizeGoodsFilterConditions
 } from '@/utils/goods/filters'
 import { buildStorageLocationPath, normalizeStorageLocationValue, splitStorageLocationPath } from '@/utils/storageLocations'
-import { getHeroBackDurationMs, hasPendingGoodsHeroBack, prepareGoodsHeroForward, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import SearchBar from '@/components/common/SearchBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -446,6 +447,23 @@ const acquiredDatePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YY
 const batchEditSheetRef = ref(null)
 const pageBodyRef = ref(null)
 const selectionHeaderTop = ref(0)
+
+const {
+  tryPlayNativeGoodsBackHero,
+  cancelGoodsBackHeroRetry,
+  scheduleGoodsBackHeroRetry: scheduleGoodsBackHeroRetryBase
+} = useGoodsBackHero({ rootRef: pageBodyRef, maxRetryFrames: 8 })
+
+function scheduleGoodsBackHeroRetry() {
+  scheduleGoodsBackHeroRetryBase(0, {
+    onGiveUp: () => {
+      if (hasPendingGoodsHeroBack(route.fullPath)) {
+        clearRouteTransitionFallback()
+      }
+    }
+  })
+}
+
 const SELECTION_HEADER_HEIGHT = 64
 const searchDisplayReady = ref(!hasPendingGoodsHeroBack(route.fullPath))
 const minDate = new Date(2000, 0, 1)
@@ -1039,50 +1057,6 @@ async function confirmDelete() {
 async function applyBatchEditPayload(payload) {
   await store.updateMultipleGoods(selectedIds.value, payload)
   exitSelectionModeQuiet()
-}
-
-function resolveGoodsCardCover(id) {
-  const escaped = CSS.escape(id)
-  const rootEl = document.querySelector(`[data-goods-id="${escaped}"]`) || null
-  if (rootEl) {
-    const coverInsideCard = rootEl.querySelector(`[data-goods-hero-id="${escaped}"]`) || null
-    if (coverInsideCard) return coverInsideCard
-  }
-  const directCover = document.querySelector(`[data-goods-hero-id="${escaped}"]`) || null
-  if (directCover) return directCover
-  return rootEl
-}
-
-function tryPlayNativeGoodsBackHero() {
-  return playGoodsHeroBack({
-    currentPath: route.fullPath,
-    resolveTargetEl: resolveGoodsCardCover
-  })
-}
-
-let goodsBackHeroRetryRaf = null
-function scheduleGoodsBackHeroRetry() {
-  cancelGoodsBackHeroRetry()
-  let retryCount = 0
-  function retry() {
-    if (retryCount >= 8) {
-      if (hasPendingGoodsHeroBack(route.fullPath)) {
-        clearRouteTransitionFallback()
-      }
-      return
-    }
-    const played = tryPlayNativeGoodsBackHero()
-    if (played) return
-    retryCount++
-    goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
-  }
-  goodsBackHeroRetryRaf = window.requestAnimationFrame(retry)
-}
-
-function cancelGoodsBackHeroRetry() {
-  if (!goodsBackHeroRetryRaf) return
-  window.cancelAnimationFrame(goodsBackHeroRetryRaf)
-  goodsBackHeroRetryRaf = null
 }
 
 let selectionScrollRaf = 0
