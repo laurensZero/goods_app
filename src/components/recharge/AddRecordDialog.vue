@@ -5,16 +5,16 @@
     </Transition>
 
     <Transition name="dialog-pop">
-      <section v-if="show" class="dialog" role="dialog" aria-modal="true" :aria-label="isEditMode ? '编辑充值记录' : '新增充值记录'">
-        <p class="dialog-label">{{ isEditMode ? '编辑记录' : '新增记录' }}</p>
-        <h3 class="dialog-title">{{ isEditMode ? '更新充值信息' : '添加充值信息' }}</h3>
+      <section v-if="show" class="dialog" role="dialog" aria-modal="true" :aria-label="isEditMode ? t('recharge.editRecord') : t('recharge.addRecord')">
+        <p class="dialog-label">{{ isEditMode ? t('recharge.dialog.editLabel') : t('recharge.dialog.addLabel') }}</p>
+        <h3 class="dialog-title">{{ isEditMode ? t('recharge.dialog.editTitle') : t('recharge.dialog.addTitle') }}</h3>
 
         <div class="dialog-fields">
           <template v-if="mode === 'preset'">
             <div class="preset-section">
               <div class="preset-section__head">
-                <label class="field-label">数据源</label>
-                <p class="field-tip">先选游戏，再选档位</p>
+                <label class="field-label">{{ t('recharge.dialog.dataSource') }}</label>
+                <p class="field-tip">{{ t('recharge.dialog.dataSourceTip') }}</p>
               </div>
 
               <div class="preset-grid preset-grid--source">
@@ -27,7 +27,7 @@
                 >
                   <div class="preset-card__body">
                     <p class="preset-card__title">{{ entry.displayName }}</p>
-                    <p class="preset-card__meta">{{ entry.regionLabel }} · {{ entry.optionCount }} 个档位</p>
+                    <p class="preset-card__meta">{{ entry.regionLabel }} · {{ t('recharge.dialog.tiers', { count: entry.optionCount }) }}</p>
                   </div>
                 </button>
               </div>
@@ -35,8 +35,8 @@
 
             <div class="preset-section">
               <div class="preset-section__head">
-                <label class="field-label">数据源档位</label>
-                <p class="field-tip">{{ selectedPresetGame ? '选择后会自动填充项目和金额' : '请先选择一个数据源' }}</p>
+                <label class="field-label">{{ t('recharge.dialog.dataTier') }}</label>
+                <p class="field-tip">{{ selectedPresetGame ? t('recharge.dialog.tierTip') : t('recharge.dialog.selectGameFirst') }}</p>
               </div>
 
               <div v-if="presetOptionCards.length > 0" class="preset-grid preset-grid--option">
@@ -64,25 +64,25 @@
                 </button>
               </div>
 
-              <div v-else class="preset-empty">选择数据源后，这里会显示对应档位。</div>
+              <div v-else class="preset-empty">{{ t('recharge.dialog.tierPlaceholder') }}</div>
             </div>
           </template>
 
           <template v-if="mode !== 'preset'">
-            <label class="field-label">游戏</label>
-            <AppSelect v-model="form.game" :options="gameSelectOptions" placeholder="请选择游戏" />
+            <label class="field-label">{{ t('recharge.dialog.game') }}</label>
+            <AppSelect v-model="form.game" :options="gameSelectOptions" :placeholder="t('recharge.dialog.gamePlaceholder')" />
 
-            <label class="field-label">充值项目</label>
-            <input v-model.trim="form.itemName" class="field-input" type="text" placeholder="例如：月卡 / 大月卡" />
+            <label class="field-label">{{ t('recharge.dialog.itemName') }}</label>
+            <input v-model.trim="form.itemName" class="field-input" type="text" :placeholder="t('recharge.dialog.itemNamePlaceholder')" />
 
-            <label class="field-label">金额（元）</label>
-            <input v-model="form.amount" class="field-input" type="number" min="0" step="1" placeholder="请输入金额" />
+            <label class="field-label">{{ t('recharge.dialog.amount') }}</label>
+            <input v-model="form.amount" class="field-input" type="number" min="0" step="1" :placeholder="t('recharge.dialog.amountPlaceholder')" />
           </template>
 
-          <label class="field-label">日期</label>
+          <label class="field-label">{{ t('recharge.dialog.date') }}</label>
           <button type="button" class="date-field" @click="openDatePicker">
             <span :class="{ 'date-field__value--placeholder': !form.chargedAt }">
-              {{ form.chargedAt || '请选择日期' }}
+              {{ form.chargedAt || t('recharge.dialog.datePlaceholder') }}
             </span>
             <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -92,18 +92,18 @@
             </svg>
           </button>
 
-          <label class="field-label">备注（选填）</label>
-          <textarea v-model.trim="form.note" class="field-textarea" rows="3" placeholder="可填写备注" />
+          <label class="field-label">{{ t('recharge.dialog.note') }}</label>
+          <textarea v-model.trim="form.note" class="field-textarea" rows="3" :placeholder="t('recharge.dialog.notePlaceholder')" />
 
-          <label class="field-label">图片链接（选填）</label>
+          <label class="field-label">{{ t('recharge.dialog.imageUrl') }}</label>
           <input v-model.trim="form.image" class="field-input" type="url" placeholder="https://" />
         </div>
 
         <p v-if="errorText" class="error-text">{{ errorText }}</p>
 
         <div class="dialog-actions">
-          <button type="button" class="btn btn--ghost" @click="close">取消</button>
-          <button type="button" class="btn btn--primary" @click="submit">{{ isEditMode ? '保存修改' : '添加记录' }}</button>
+          <button type="button" class="btn btn--ghost" @click="close">{{ t('common.cancel') }}</button>
+          <button type="button" class="btn btn--primary" @click="submit">{{ isEditMode ? t('recharge.dialog.saveEdit') : t('recharge.dialog.saveNew') }}</button>
         </div>
       </section>
     </Transition>
@@ -113,7 +113,7 @@
       v-model="datePickerValue"
       :z-index="2000"
       :is-tablet="isTabletViewport"
-      title="选择日期"
+      :title="t('recharge.dialog.date')"
       :min-date="minDate"
       :max-date="maxDate"
       @confirm="onDateConfirm"
@@ -123,7 +123,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
+
+const { t } = useI18n()
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -323,36 +326,36 @@ function submit() {
   const amountText = String(form.amount ?? '').trim()
 
   if (!amountText) {
-    errorText.value = '请输入金额，再继续保存'
+    errorText.value = t('recharge.dialog.errorAmount')
     return
   }
 
   const amountValidation = validatePrice(amountText)
 
   if (!amountValidation.valid) {
-    errorText.value = amountValidation.message.replace(/价格/g, '金额')
+    errorText.value = amountValidation.message
     return
   }
 
   const amountNumber = Number(amountText)
 
   if (amountNumber < 0) {
-    errorText.value = '金额不能为负数'
+    errorText.value = t('recharge.dialog.errorNegative')
     return
   }
 
   if (!form.game) {
-    errorText.value = '请选择游戏，再继续保存'
+    errorText.value = t('recharge.dialog.errorGame')
     return
   }
 
   if (!form.itemName) {
-    errorText.value = '请输入充值项目名称，再继续保存'
+    errorText.value = t('recharge.dialog.errorItem')
     return
   }
 
   if (!form.chargedAt || Number.isNaN(new Date(form.chargedAt).getTime())) {
-    errorText.value = '日期格式无效，请重新选择日期'
+    errorText.value = t('recharge.dialog.errorDate')
     return
   }
 

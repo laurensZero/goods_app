@@ -67,6 +67,25 @@ export const useGoodsStore = defineStore('goods', () => {
     )].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
   )
 
+  /** 角色 → 收藏谷子数量（多角色商品按比例分摊） */
+  const characterCountMap = computed(() => {
+    const map = new Map()
+    for (const item of collectionList.value) {
+      if (!Array.isArray(item.characters)) continue
+      const qty = Number(item.quantity) || 1
+      const chars = item.characters
+      if (chars.length === 1) {
+        map.set(chars[0], (map.get(chars[0]) || 0) + qty)
+      } else if (chars.length > 1) {
+        const share = qty / chars.length
+        for (const c of chars) {
+          map.set(c, (map.get(c) || 0) + share)
+        }
+      }
+    }
+    return map
+  })
+
   //  View enrichment
 
   const { viewList } = createViewList(list)
@@ -223,6 +242,7 @@ export const useGoodsStore = defineStore('goods', () => {
     trashList,
     collectionList,
     wishlistList,
+    characterCountMap,
     viewList,
     collectionViewList,
     wishlistViewList,

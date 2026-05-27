@@ -70,6 +70,8 @@
   "common.note": "备注",
   "common.variant": "款式",
   "common.storageLocation": "收纳位置",
+  "common.currency": "币种",
+  "common.thisCollection": "这件谷子",
   "common.markAsOwned": "标记为已入手",
   "common.moveToTrash": "移到回收站？",
   "common.moveToTrashDesc": "会先进入回收站，之后仍然可以恢复。",

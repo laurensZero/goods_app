@@ -282,5 +282,15 @@
   "manage.storage.renameTitle": "重命名",
   "manage.storage.saveName": "保存名称",
   "manage.category.goodsCount": "{count} 件谷子",
-  "manage.character.goodsCount": "{count} 件谷子"
+  "manage.character.goodsCount": "{count} 件谷子",
+  "manage.category.count": "{count} 个分类",
+  "manage.category.current": "当前分类",
+  "manage.character.count": "{count} 个角色",
+  "manage.character.current": "当前角色",
+  "manage.ip.current": "当前 IP",
+  "manage.storage.createChildHint": "在当前位置下新建子位置",
+  "manage.storage.nfcAlertMessage": "请将 NFC 标签靠近手机背面",
+  "manage.storage.nfcFailed": "NFC 写入失败",
+  "manage.storage.nfcSuccess": "NFC 绑定成功",
+  "manage.storage.renameHint": "输入新的位置名称"
 }

@@ -216,13 +216,14 @@
                 </p>
                 <div v-if="!variantSectionCollapsed" class="variant-grid">
                   <button
-                    v-for="v in parsedVariants"
+                    v-for="v in sortedParsedVariants"
                     :key="v.key || v.text"
                     type="button"
                     class="variant-btn"
                     :class="{ 'variant-btn--selected': isVariantSelected(v) }"
                     @click="handleVariantSelect(v)"
                   >
+                    <div v-if="isVariantSuggested(v)" class="variant-suggest-tag">{{ t('import.guessYouWant') }}</div>
                     <div v-if="v.cover_url || v.img_url" class="variant-img-wrap">
                       <img :src="v.cover_url || v.img_url" class="variant-img" />
                     </div>
@@ -472,13 +473,14 @@
               </span>
               <div class="variant-grid">
                 <button
-                  v-for="v in batchEditVariants"
+                  v-for="v in sortedBatchEditVariants"
                   :key="v.key"
                   type="button"
                   class="variant-btn"
                   :class="{ 'variant-btn--selected': batchEditSelectedVariantKey === v.key }"
                   @click="handleBatchVariantSelect(v)"
                 >
+                  <div v-if="isVariantSuggested(v)" class="variant-suggest-tag">{{ t('import.guessYouWant') }}</div>
                   <div class="variant-img-wrap">
                     <img
                       class="variant-img"
@@ -616,6 +618,40 @@ const router = useRouter()
 const route = useRoute()
 const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
+
+// 每个 IP 谷子数 top5 的角色集合（用于款式推荐）
+const topCharactersPerIp = computed(() => {
+  const countMap = goodsStore.characterCountMap
+  const ipBuckets = new Map()
+  for (const { name, ip } of presets.characters) {
+    if (!name) continue
+    const count = countMap.get(name) || 0
+    if (count <= 0) continue
+    const key = ip || ''
+    if (!ipBuckets.has(key)) ipBuckets.set(key, [])
+    ipBuckets.get(key).push({ name, count })
+  }
+  const result = new Set()
+  for (const bucket of ipBuckets.values()) {
+    bucket.sort((a, b) => b.count - a.count)
+    for (const { name } of bucket.slice(0, 5)) {
+      result.add(name)
+    }
+  }
+  return result
+})
+
+function isVariantSuggested(variant) {
+  const name = normalizeCharacterName(variant.text)
+  return name ? topCharactersPerIp.value.has(name) : false
+}
+
+function getVariantCharacterCount(variant) {
+  const name = normalizeCharacterName(variant.text)
+  if (!name) return 0
+  return goodsStore.characterCountMap.get(name) || 0
+}
+
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? t('import.wishlistTitle') : t('import.mihoyo'))
 const quickSearchLabel = computed(() => isWishlistMode.value ? t('import.wishlistQuickSearch') : t('import.mihoyoQuickSearch'))
@@ -1488,6 +1524,19 @@ const selectedVariantKey = ref('')  // 当前选中的 SKU key
 const selectedVariantName = ref('')  // 选中款式清洗后的显示名
 const selectedCharacterName = ref('')  // 选中款式对应的角色名（会归并 A/B/C/D 尾缀）
 const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
+
+// 按角色谷子数量降序排列的款式列表（推荐在前）
+const sortedParsedVariants = computed(() => {
+  const variants = parsedVariants.value
+  if (!variants.length) return variants
+  return [...variants].sort((a, b) => getVariantCharacterCount(b) - getVariantCharacterCount(a))
+})
+
+const sortedBatchEditVariants = computed(() => {
+  const variants = batchEditVariants.value
+  if (!variants.length) return variants
+  return [...variants].sort((a, b) => getVariantCharacterCount(b) - getVariantCharacterCount(a))
+})
 
 // ── 日期选择器 ──
 const showDatePicker = ref(false)

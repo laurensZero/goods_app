@@ -46,6 +46,8 @@
       </section>
 
       <HomeGoodsToolbar
+        :section-label="t('home.title')"
+        :title="t('home.toolbar.allGoods')"
         :total-quantity="totalQuantity"
         :sort-direction="sortDirection"
         :sort-mode="sortMode"
@@ -193,7 +195,7 @@ import { useDensityGridViewport } from '@/composables/home/useDensityGridViewpor
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
-import { HOME_SORT_OPTIONS } from '@/utils/goods/homeSort'
+import { createHomeSortOptions } from '@/utils/goods/homeSort'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
@@ -310,13 +312,14 @@ const {
   toggleExpandedTimelineItem,
   clearExpandedTimelineItem,
   restoreHomePreferences
-} = useHomePreferences(windowWidth)
+} = useHomePreferences(windowWidth, { t })
 
-const timelineSortOptions = HOME_SORT_OPTIONS.filter((option) => option.value === 'acquiredAt')
+const translatedSortOptions = computed(() => createHomeSortOptions(t))
+const timelineSortOptions = computed(() => translatedSortOptions.value.filter((option) => option.value === 'acquiredAt'))
 const toolbarSortOptions = computed(() => (
   displayDensity.value === 'timeline'
-    ? (timelineSortOptions.length ? timelineSortOptions : HOME_SORT_OPTIONS)
-    : HOME_SORT_OPTIONS
+    ? (timelineSortOptions.value.length ? timelineSortOptions.value : translatedSortOptions.value)
+    : translatedSortOptions.value
 ))
 
 const {

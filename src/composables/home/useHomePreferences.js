@@ -1,4 +1,4 @@
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 import { normalizeHomeSortMode } from '@/utils/goods/homeSort'
 
@@ -10,13 +10,13 @@ const DEFAULT_STORAGE_KEYS = {
   expandedTimelineItem: 'goods-app:home-timeline-expanded-item'
 }
 
-const densityModes = [
+const DEFAULT_DENSITY_MODES = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
   { value: 'compact', label: '紧凑', columns: 4 }
 ]
 
-const densityColumnsMap = Object.fromEntries(densityModes.map((mode) => [mode.value, mode.columns]))
+const densityColumnsMap = Object.fromEntries(DEFAULT_DENSITY_MODES.map((mode) => [mode.value, mode.columns]))
 
 const densityBreakpoints = {
   comfortable: [
@@ -42,9 +42,18 @@ const densityBreakpoints = {
 export function useHomePreferences(windowWidth, options = {}) {
   const {
     storageKeys = DEFAULT_STORAGE_KEYS,
-    allowTimeline = true
+    allowTimeline = true,
+    t = null
   } = options
   const displayModeStorageKey = storageKeys.displayMode || storageKeys.gridDensity
+  const densityModes = computed(() =>
+    t
+      ? DEFAULT_DENSITY_MODES.map((mode) => ({
+          ...mode,
+          label: t(`home.density.${mode.value}`)
+        }))
+      : DEFAULT_DENSITY_MODES
+  )
   const displayDensity = ref('comfortable')
   const sortDirection = ref('desc')
   const sortMode = ref('createdAt')
@@ -124,7 +133,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     const storedDisplayMode = localStorage.getItem(displayModeStorageKey)
     if (allowTimeline && storedDisplayMode === 'timeline') {
       const storedGridDensity = localStorage.getItem(storageKeys.gridDensity)
-      if (storedGridDensity && densityModes.find((mode) => mode.value === storedGridDensity)) {
+      if (storedGridDensity && DEFAULT_DENSITY_MODES.find((mode) => mode.value === storedGridDensity)) {
         lastNonTimelineDensity = storedGridDensity
       }
       displayDensity.value = 'timeline'
@@ -132,7 +141,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     }
 
     const storedDensity = storedDisplayMode || localStorage.getItem(storageKeys.gridDensity)
-    if (!storedDensity || !densityModes.find((mode) => mode.value === storedDensity)) return
+    if (!storedDensity || !DEFAULT_DENSITY_MODES.find((mode) => mode.value === storedDensity)) return
 
     lastNonTimelineDensity = storedDensity
     displayDensity.value = storedDensity

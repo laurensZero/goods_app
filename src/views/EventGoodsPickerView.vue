@@ -14,8 +14,8 @@
             </button>
 
             <div>
-              <p class="hero-label">LINK GOODS</p>
-              <h1 class="hero-title">选择关联谷子</h1>
+              <p class="hero-label">{{ t('events.picker.linkGoods') }}</p>
+              <h1 class="hero-title">{{ t('events.picker.selectGoods') }}</h1>
             </div>
           </div>
         </div>
@@ -26,14 +26,14 @@
           v-model.trim="keyword"
           class="picker-search"
           type="text"
-          placeholder="搜索名称、分类、IP"
+          :placeholder="t('events.picker.searchPlaceholder')"
         />
       </section>
 
       <section class="toolbar-section">
         <div class="toolbar-copy">
-          <p class="toolbar-label">可选收藏</p>
-          <h2 class="toolbar-title">全部谷子 <span>{{ filteredGoodsList.length }} 件</span></h2>
+          <p class="toolbar-label">{{ t('events.picker.availableGoods') }}</p>
+          <h2 class="toolbar-title">{{ t('events.picker.allGoods') }} <span>{{ t('leaderboard.items', { count: filteredGoodsList.length }) }}</span></h2>
         </div>
 
         <div class="toolbar-actions">
@@ -53,8 +53,8 @@
       </section>
 
       <section class="summary-strip">
-        <span class="summary-strip__selected">已选择 {{ selectedIds.size }} 项</span>
-        <span class="summary-strip__total">共 {{ filteredGoodsList.length }} 项可选</span>
+        <span class="summary-strip__selected">{{ t('events.picker.selected', { count: selectedIds.size }) }}</span>
+        <span class="summary-strip__total">{{ t('events.picker.totalAvailable', { count: filteredGoodsList.length }) }}</span>
       </section>
 
       <GoodsCardGridSection
@@ -71,17 +71,17 @@
       <section v-else class="empty-wrap">
         <EmptyState
           icon="🔎"
-          title="没有匹配的谷子"
-          description="换个关键词试试，或者直接返回继续编辑活动。"
+          :title="t('events.picker.noMatch')"
+          :description="t('events.picker.noMatchDesc')"
         />
       </section>
     </main>
 
     <Teleport to="body">
       <div class="picker-actions">
-        <button class="picker-action picker-action--ghost" type="button" @click="handleBack">取消</button>
+        <button class="picker-action picker-action--ghost" type="button" @click="handleBack">{{ t('events.picker.cancel') }}</button>
         <button class="picker-action picker-action--primary" type="button" @click="confirmSelection">
-          完成{{ selectedIds.size > 0 ? ` (${selectedIds.size})` : '' }}
+          {{ t('events.picker.done') }}{{ selectedIds.size > 0 ? ` (${selectedIds.size})` : '' }}
         </button>
       </div>
     </Teleport>
@@ -98,7 +98,7 @@
         <div v-if="!isTablet" class="sort-sheet__handle" />
         <div class="sort-sheet__head">
           <div>
-            <p class="sort-sheet__label">排序方式</p>
+            <p class="sort-sheet__label">{{ t('home.toolbar.sortMethod') }}</p>
             <h3 class="sort-sheet__title">{{ currentSortOption.label }}</h3>
           </div>
           <button class="sort-sheet__dir-btn" type="button" @click="toggleSortDirection">
@@ -127,6 +127,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -155,6 +156,7 @@ const SORT_OPTIONS = [
 const router = useRouter()
 const route = useRoute()
 const goodsStore = useGoodsStore()
+const { t } = useI18n()
 const keyword = ref('')
 const pickerDisplayReady = ref(false)
 const showSortSheet = ref(false)

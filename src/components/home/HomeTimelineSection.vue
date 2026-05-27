@@ -3,7 +3,7 @@
     <div v-for="yearGroup in yearGroups" :key="yearGroup.year" class="tl-year-block">
       <div class="tl-year-header">
         <span class="tl-year-num">{{ yearGroup.year }}</span>
-        <span class="tl-year-meta">{{ yearGroup.yearCount }} 件 / {{ formatPrice(yearGroup.yearTotal) }}</span>
+        <span class="tl-year-meta">{{ t('leaderboard.items', { count: yearGroup.yearCount }) }} / {{ formatPrice(yearGroup.yearTotal) }}</span>
       </div>
 
       <div
@@ -18,9 +18,9 @@
         </div>
         <div class="tl-month-content">
           <div class="tl-month-header">
-            <span class="tl-month-label">{{ monthGroup.month }} 月</span>
+            <span class="tl-month-label">{{ monthGroup.month }}{{ t('events.monthSuffix') }}</span>
             <div class="tl-month-meta">
-              <span class="tl-month-count">{{ monthGroup.count }} 件</span>
+              <span class="tl-month-count">{{ t('leaderboard.items', { count: monthGroup.count }) }}</span>
               <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
             </div>
           </div>
@@ -67,9 +67,9 @@
       </div>
       <div class="tl-month-content">
         <div class="tl-month-header">
-          <span class="tl-month-label">日期未知</span>
+          <span class="tl-month-label">{{ t('home.timeline.unknownDate') }}</span>
           <div class="tl-month-meta">
-            <span class="tl-month-count">{{ unknownItems.length }} 件</span>
+            <span class="tl-month-count">{{ t('leaderboard.items', { count: unknownItems.length }) }}</span>
           </div>
         </div>
         <div class="tl-thumb-grid">
@@ -110,9 +110,12 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import TimelineExpandCard from '@/components/home/TimelineExpandCard.vue'
+
+const { t } = useI18n()
 
 defineProps({
   yearGroups: { type: Array, required: true },

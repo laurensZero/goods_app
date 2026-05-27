@@ -4,7 +4,7 @@
     :class="{ 'event-add-page--navigating': isNavigatingToPicker, 'event-add-page--restoring': !pageDisplayReady }"
   >
     <main class="page-body">
-      <NavBar :title="isEdit ? '编辑活动' : '添加活动'" show-back />
+      <NavBar :title="isEdit ? t('events.addEdit.editTitle') : t('events.addEdit.addTitle')" show-back />
       <form class="editor-form" @submit.prevent="handleSubmit">
         <section class="editor-shell">
           <aside class="preview-column">
@@ -14,7 +14,7 @@
                 <LazyCachedImage
                   v-if="form.coverImage"
                   :src="form.coverImage"
-                  :alt="form.name || '活动封面预览'"
+                  :alt="form.name || t('events.addEdit.eventCover')"
                   :lazy="false"
                   :image-attrs="{ class: 'preview-card__image' }"
                 />
@@ -22,9 +22,9 @@
               </div>
 
               <article class="preview-copy-card">
-                <p class="preview-copy-card__label">{{ isEdit ? '编辑活动' : '新增活动' }}</p>
+                <p class="preview-copy-card__label">{{ isEdit ? t('events.addEdit.editLabel') : t('events.addEdit.newLabel') }}</p>
                 <h1 class="preview-copy-card__title">{{ heroTitle }}</h1>
-                <p class="preview-copy-card__desc">记录展会、市集、交换会和线下活动，把时间、地点、照片和关联谷子整理到同一张卡片里。</p>
+                <p class="preview-copy-card__desc">{{ t('events.addEdit.heroDesc') }}</p>
               </article>
             </div>
           </aside>
@@ -32,19 +32,19 @@
             <section class="form-column">
               <section class="hero-panel">
                 <article class="hero-panel__card">
-                  <p class="hero-panel__label">{{ isEdit ? 'EDIT EVENT' : 'NEW EVENT' }}</p>
+                  <p class="hero-panel__label">{{ isEdit ? t('events.addEdit.editLabel') : t('events.addEdit.newLabel') }}</p>
                   <h2 class="hero-panel__title">{{ heroTitle }}</h2>
                   <div class="hero-panel__metrics">
                     <div class="metric-box">
-                      <span class="metric-box__label">关联谷子</span>
+                      <span class="metric-box__label">{{ t('events.addEdit.linkedGoodsCount') }}</span>
                       <strong class="metric-box__value">{{ linkedGoodsList.length }}</strong>
                     </div>
                   <div class="metric-box">
-                    <span class="metric-box__label">活动照片</span>
+                    <span class="metric-box__label">{{ t('events.addEdit.eventPhotos') }}</span>
                     <strong class="metric-box__value">{{ form.photos.length }}</strong>
                   </div>
                   <div v-if="form.type === 'concert'" class="metric-box">
-                    <span class="metric-box__label">曲目</span>
+                    <span class="metric-box__label">{{ t('events.addEdit.tracks') }}</span>
                     <strong class="metric-box__value">{{ form.tracks.length }}</strong>
                   </div>
                   </div>
@@ -58,18 +58,18 @@
                   <section v-show="activeTab === 'basic'" class="tab-panel">
                     <div class="section-head">
                       <p class="section-label">Basics</p>
-                      <h2 class="section-title">基础信息</h2>
+                      <h2 class="section-title">{{ t('events.addEdit.basicInfo') }}</h2>
                     </div>
 
                     <div class="field-card">
                       <div class="field-grid">
                         <label class="field field--full field--tablet-half" :class="{ 'field--error': nameError }">
-                          <span class="field-label">活动名称 <span class="required">*</span></span>
+                          <span class="field-label">{{ t('events.addEdit.eventName') }} <span class="required">*</span></span>
                           <input
                             v-model="form.name"
                             ref="nameInputRef"
                             type="text"
-                            placeholder="比如：CP30 同人展、谷子交换会"
+                            :placeholder="t('events.addEdit.eventNamePlaceholder')"
                             required
                             :aria-invalid="Boolean(nameError)"
                             @input="syncField('name', $event)"
@@ -82,31 +82,31 @@
                         </label>
 
                         <div class="field field--half">
-                          <span class="field-label">活动类型</span>
-                          <AppSelect v-model="form.type" :options="typeOptions" placeholder="请选择活动类型" />
+                          <span class="field-label">{{ t('events.addEdit.eventType') }}</span>
+                          <AppSelect v-model="form.type" :options="typeOptions" :placeholder="t('events.addEdit.eventTypePlaceholder')" />
                         </div>
 
                         <div class="field field--full">
-                          <span class="field-label">自定义标签</span>
-                          <TagInput v-model="form.tags" placeholder="例如：首发、限定、签售" />
+                          <span class="field-label">{{ t('events.addEdit.customTags') }}</span>
+                          <TagInput v-model="form.tags" :placeholder="t('events.addEdit.customTagsPlaceholder')" />
                         </div>
 
                         <div class="field field--full">
-                          <span class="field-label">活动封面</span>
+                          <span class="field-label">{{ t('events.addEdit.eventCover') }}</span>
                           <button type="button" class="media-picker" @click="pickCoverImage">
                             <div class="media-picker__preview" :class="{ 'media-picker__preview--empty': !form.coverImage }">
                               <LazyCachedImage
                                 v-if="form.coverImage"
                                 :src="form.coverImage"
-                                alt="活动封面"
+                                :alt="t('events.addEdit.eventCover')"
                                 :lazy="false"
                                 :image-attrs="{ class: 'media-picker__preview-img' }"
                               />
-                              <span v-else>封面</span>
+                              <span v-else>{{ t('events.addEdit.eventCover') }}</span>
                             </div>
                             <div class="media-picker__copy">
-                              <strong>{{ form.coverImage ? '更换封面' : '选择封面' }}</strong>
-                              <span>建议使用海报、门票、现场图或者最能代表这场活动的一张照片。</span>
+                              <strong>{{ form.coverImage ? t('events.addEdit.changeCover') : t('events.addEdit.selectCover') }}</strong>
+                              <span>{{ t('events.addEdit.coverHint') }}</span>
                             </div>
                           </button>
                         </div>
@@ -117,16 +117,16 @@
                   <section v-show="activeTab === 'schedule'" class="tab-panel">
                     <div class="section-head">
                       <p class="section-label">Schedule</p>
-                      <h2 class="section-title">时间和地点</h2>
+                      <h2 class="section-title">{{ t('events.addEdit.timeAndLocation') }}</h2>
                     </div>
 
                     <div class="field-card">
                       <div class="field-grid">
                         <label class="field field--half">
-                          <span class="field-label">开始日期</span>
+                          <span class="field-label">{{ t('events.addEdit.startDate') }}</span>
                           <button class="date-field" type="button" @click="openDatePicker('start')">
                             <span :class="{ 'date-field__value--placeholder': !form.startDate }">
-                              {{ form.startDate || '请选择日期' }}
+                              {{ form.startDate || t('events.addEdit.selectDate') }}
                             </span>
                             <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                               <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -138,10 +138,10 @@
                         </label>
 
                         <label class="field field--half">
-                          <span class="field-label">结束日期</span>
+                          <span class="field-label">{{ t('events.addEdit.endDate') }}</span>
                           <button class="date-field" type="button" @click="openDatePicker('end')">
                             <span :class="{ 'date-field__value--placeholder': !form.endDate }">
-                              {{ form.endDate || (form.startDate || '默认与开始日期一致') }}
+                              {{ form.endDate || (form.startDate || t('events.addEdit.defaultToStart')) }}
                             </span>
                             <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                               <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -153,11 +153,11 @@
                         </label>
 
                         <label class="field field--full">
-                          <span class="field-label">活动地点</span>
+                          <span class="field-label">{{ t('events.addEdit.location') }}</span>
                           <input
                             v-model="form.location"
                             type="text"
-                            placeholder="比如：上海新国际博览中心"
+                            :placeholder="t('events.addEdit.locationPlaceholder')"
                             @input="syncField('location', $event)"
                             @blur="syncField('location', $event)"
                             @change="syncField('location', $event)"
@@ -172,13 +172,13 @@
                   <section v-show="activeTab === 'ticket'" class="tab-panel">
                     <div class="section-head">
                       <p class="section-label">Ticket & Goods</p>
-                      <h2 class="section-title">票务和关联谷子</h2>
+                      <h2 class="section-title">{{ t('events.addEdit.ticketAndGoods') }}</h2>
                     </div>
 
                     <div class="field-card">
                       <div class="field-grid">
                         <label class="field field--half" :class="{ 'field--error': ticketPriceError }">
-                          <span class="field-label">门票价格（元）</span>
+                          <span class="field-label">{{ t('events.addEdit.ticketPrice') }}</span>
                           <input
                             v-model="form.ticketPrice"
                             ref="ticketPriceInputRef"
@@ -194,15 +194,15 @@
                         <div class="field field--full expense-section">
                           <div class="expense-section__head">
                             <div>
-                              <span class="field-label">其他费用</span>
-                              <p class="expense-section__hint">可自行添加住宿、交通等明细，留空行会自动忽略。</p>
+                              <span class="field-label">{{ t('events.addEdit.otherExpenses') }}</span>
+                              <p class="expense-section__hint">{{ t('events.addEdit.otherExpensesHint') }}</p>
                             </div>
                             <button type="button" class="outline-action outline-action--compact" @click="addOtherExpense">
                               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M12 5V19" />
                                 <path d="M5 12H19" />
                               </svg>
-                              <span>添加费用</span>
+                              <span>{{ t('events.addEdit.addExpense') }}</span>
                             </button>
                           </div>
 
@@ -210,18 +210,18 @@
                             <article v-for="(expense, index) in form.otherExpenses" :key="expense.id || index" class="expense-item">
                               <div class="expense-item__grid">
                                 <label class="field field--half" :class="{ 'field--error': otherExpenseValidation[index]?.nameError }">
-                                  <span class="field-label">费用名称</span>
+                                  <span class="field-label">{{ t('events.addEdit.expenseName') }}</span>
                                   <input
                                     :value="expense.name"
                                     type="text"
-                                    placeholder="比如：住宿费、交通费"
+                                    :placeholder="t('events.addEdit.expenseNamePlaceholder')"
                                     @input="updateOtherExpenseField(index, 'name', $event)"
                                   />
                                   <span v-if="otherExpenseValidation[index]?.nameError" class="field-error">{{ otherExpenseValidation[index].nameError }}</span>
                                 </label>
 
                                 <label class="field field--half" :class="{ 'field--error': otherExpenseValidation[index]?.amountError }">
-                                  <span class="field-label">金额（元）</span>
+                                  <span class="field-label">{{ t('events.addEdit.expenseAmount') }}</span>
                                   <input
                                     :value="expense.amount"
                                     type="number"
@@ -234,18 +234,18 @@
                                 </label>
                               </div>
 
-                              <button type="button" class="expense-item__remove" @click="removeOtherExpense(index)">删除</button>
+                              <button type="button" class="expense-item__remove" @click="removeOtherExpense(index)">{{ t('events.addEdit.deleteExpense') }}</button>
                             </article>
                           </div>
-                          <p v-else class="expense-section__empty">点击右侧按钮添加住宿、交通等费用。</p>
+                          <p v-else class="expense-section__empty">{{ t('events.addEdit.otherExpensesEmpty') }}</p>
                         </div>
 
                         <label v-if="form.type === 'exhibition'" class="field field--half">
-                          <span class="field-label">票种</span>
+                          <span class="field-label">{{ t('events.addEdit.ticketType') }}</span>
                           <input
                             v-model="form.ticketType"
                             type="text"
-                            placeholder="比如：早鸟票、VIP票、普通票"
+                            :placeholder="t('events.addEdit.ticketTypePlaceholder')"
                             @input="syncField('ticketType', $event)"
                             @blur="syncField('ticketType', $event)"
                             @change="syncField('ticketType', $event)"
@@ -255,11 +255,11 @@
                         </label>
 
                         <label v-if="form.type === 'concert'" class="field field--half">
-                          <span class="field-label">座位</span>
+                          <span class="field-label">{{ t('events.addEdit.seat') }}</span>
                           <input
                             v-model="form.seatInfo"
                             type="text"
-                            placeholder="比如：内场A区 12排 8座"
+                            :placeholder="t('events.addEdit.seatPlaceholder')"
                             @input="syncField('seatInfo', $event)"
                             @blur="syncField('seatInfo', $event)"
                             @change="syncField('seatInfo', $event)"
@@ -269,7 +269,7 @@
                         </label>
 
                         <div class="field field--full">
-                          <span class="field-label">关联谷子</span>
+                          <span class="field-label">{{ t('events.addEdit.linkedGoods') }}</span>
 
                           <div v-if="linkedGoodsList.length > 0" class="linked-goods">
                             <div v-for="goods in linkedGoodsList" :key="goods.id" class="linked-goods__item">
@@ -290,7 +290,7 @@
                               <path d="M12 5V19" />
                               <path d="M5 12H19" />
                             </svg>
-                            <span>{{ linkedGoodsList.length > 0 ? '继续添加关联谷子' : '选择关联谷子' }}</span>
+                            <span>{{ linkedGoodsList.length > 0 ? t('events.addEdit.continueAddGoods') : t('events.addEdit.selectGoods') }}</span>
                           </button>
                         </div>
                       </div>
@@ -300,13 +300,13 @@
                   <section v-show="activeTab === 'gallery'" class="tab-panel">
                     <div class="section-head">
                       <p class="section-label">Gallery & Notes</p>
-                      <h2 class="section-title">照片和备注</h2>
+                      <h2 class="section-title">{{ t('events.addEdit.photosAndNotes') }}</h2>
                     </div>
 
                     <div class="field-card">
                       <div class="field-grid">
                         <div class="field field--full">
-                          <span class="field-label">活动照片</span>
+                          <span class="field-label">{{ t('events.addEdit.eventPhotosLabel') }}</span>
                           <div class="photo-upload-grid">
                             <button type="button" class="photo-upload__add" @click="pickPhoto">
                               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -318,7 +318,7 @@
                             <div v-for="(photo, index) in form.photos" :key="photo.id || index" class="photo-upload__item">
                               <LazyCachedImage
                                 :src="photo.uri"
-                                :alt="photo.caption || `照片 ${index + 1}`"
+                                :alt="photo.caption || `${t('events.addEdit.eventPhotosLabel')} ${index + 1}`"
                                 :image-attrs="{ class: 'photo-upload__img' }"
                               />
                               <button type="button" class="photo-upload__remove" @click="removePhoto(index)">×</button>
@@ -327,12 +327,12 @@
                         </div>
 
                         <label class="field field--full field--textarea">
-                          <span class="field-label">备注</span>
+                          <span class="field-label">{{ t('events.addEdit.notes') }}</span>
                           <textarea
                             v-model="form.description"
                             ref="descInputRef"
                             rows="5"
-                            placeholder="记录一下这场活动的感受、收获、排队情况，或者下次还想补的东西。"
+                            :placeholder="t('events.addEdit.notesPlaceholder')"
                             @input="syncField('description', $event)"
                             @blur="syncField('description', $event)"
                             @change="syncField('description', $event)"
@@ -347,7 +347,7 @@
                   <section v-if="form.type === 'concert'" v-show="activeTab === 'music'" class="tab-panel">
                     <div class="section-head">
                       <p class="section-label">Setlist</p>
-                      <h2 class="section-title">演唱会曲目</h2>
+                      <h2 class="section-title">{{ t('events.addEdit.concertSetlist') }}</h2>
                     </div>
 
                     <div class="field-card">
@@ -363,7 +363,7 @@
 
     <Teleport to="body">
       <div class="float-footer">
-        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">{{ isEdit ? '保存修改' : '保存活动' }}</button>
+        <button class="btn-primary btn-float" type="button" @pointerdown="flushActiveInput" @click="handleSubmit">{{ isEdit ? t('events.addEdit.saveEdit') : t('events.addEdit.saveNew') }}</button>
       </div>
     </Teleport>
 
@@ -372,7 +372,7 @@
       v-model="datePickerValue"
       :z-index="2000"
       :is-tablet="isTabletViewport"
-      :title="datePickerTarget === 'start' ? '选择开始日期' : '选择结束日期'"
+      :title="datePickerTarget === 'start' ? t('events.addEdit.selectStartDate') : t('events.addEdit.selectEndDate')"
       :min-date="minDate"
       :max-date="maxDate"
       @confirm="onDateConfirm"
@@ -384,6 +384,7 @@
 <script setup>
 import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { Capacitor } from '@capacitor/core'
 import { pickLinkedLocalImage } from '@/utils/image/localImage'
@@ -408,15 +409,17 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'EventAddView' })
 
+const { t } = useI18n()
+
 const props = defineProps({
   id: { type: String, default: '' }
 })
 
-const TYPE_OPTIONS = [
-  { label: '展会', value: 'exhibition' },
-  { label: '音乐会', value: 'concert' },
-  { label: '其他', value: 'other' }
-]
+const typeOptions = computed(() => [
+  { label: t('events.typeExhibition'), value: 'exhibition' },
+  { label: t('events.typeConcert'), value: 'concert' },
+  { label: t('events.typeOther'), value: 'other' }
+])
 
 const router = useRouter()
 const route = useRoute()
@@ -453,7 +456,7 @@ const isEdit = computed(() => !!props.id || !!route.params.id)
 const editId = computed(() => props.id || route.params.id)
 const heroTitle = computed(() => {
   if (form.name) return form.name
-  return isEdit.value ? '调整这场活动的记录信息' : '记录一场新的线下活动'
+  return isEdit.value ? t('events.addEdit.editHeroTitle') : t('events.addEdit.newHeroTitle')
 })
 
 const nameError = ref('')
@@ -470,18 +473,17 @@ const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 const { isTabletViewport, updateViewport } = useTabletViewport()
 
-const typeOptions = TYPE_OPTIONS
 const activeTab = ref('basic')
 const tabItems = computed(() => {
   const items = [
-    { key: 'basic', label: '基础', badge: Boolean(nameError.value || !String(form.name || '').trim()) },
-    { key: 'schedule', label: '时间地点' },
-    { key: 'ticket', label: '票务与谷子', badge: Boolean(ticketPriceError.value || hasOtherExpenseValidationError.value) },
-    { key: 'gallery', label: '照片备注' }
+    { key: 'basic', label: t('events.addEdit.basics'), badge: Boolean(nameError.value || !String(form.name || '').trim()) },
+    { key: 'schedule', label: t('events.addEdit.schedule') },
+    { key: 'ticket', label: t('events.addEdit.ticketGoods'), badge: Boolean(ticketPriceError.value || hasOtherExpenseValidationError.value) },
+    { key: 'gallery', label: t('events.addEdit.galleryNotes') }
   ]
 
   if (form.type === 'concert') {
-    items.push({ key: 'music', label: '曲目' })
+    items.push({ key: 'music', label: t('events.addEdit.tracks') })
   }
 
   return items
@@ -522,9 +524,9 @@ const otherExpenseValidation = computed(() => (
       return { nameError: '', amountError: '' }
     }
 
-    const amountResult = amount ? validateNumericPrice(amount) : { valid: false, message: '请输入费用金额' }
+    const amountResult = amount ? validateNumericPrice(amount) : { valid: false, message: t('events.addEdit.priceRequired') }
     return {
-      nameError: name ? '' : '请输入费用名称',
+      nameError: name ? '' : t('events.addEdit.expenseNameRequired'),
       amountError: amountResult.valid ? '' : amountResult.message
     }
   })
@@ -684,7 +686,7 @@ async function loadEditData() {
 }
 
 function validateName() {
-  const result = validateTextName(form.name, { label: '活动名称' })
+  const result = validateTextName(form.name, { label: t('events.addEdit.eventName') })
   if (result.valid) {
     nameError.value = ''
     return true

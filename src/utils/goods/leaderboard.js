@@ -12,50 +12,46 @@ export const LEADERBOARD_METRIC_OPTIONS = [
   { label: '均价', value: 'averageUnitPrice' }
 ]
 
+export function createLeaderboardDimensionOptions(t) {
+  return [
+    { label: t('leaderboard.dimension.character'), value: 'character' },
+    { label: t('leaderboard.dimension.ip'), value: 'ip' },
+    { label: t('leaderboard.dimension.category'), value: 'category' },
+    { label: t('leaderboard.dimension.storageLocation'), value: 'storageLocation' },
+    { label: t('leaderboard.dimension.month'), value: 'month' }
+  ]
+}
+
+export function createLeaderboardMetricOptions(t) {
+  return [
+    { label: t('leaderboard.metric.quantity'), value: 'quantity' },
+    { label: t('leaderboard.metric.totalValue'), value: 'totalValue' },
+    { label: t('leaderboard.metric.averageUnitPrice'), value: 'averageUnitPrice' }
+  ]
+}
+
 const DIMENSION_CONFIG = {
   character: {
-    emptyLabel: '未设置角色',
-    title: '角色排行',
-    heroLabel: 'Character Ranking',
     getValues(item) {
       return Array.isArray(item.characters) ? item.characters : []
-    },
-    getMeta(item, presetCharacterIpMap) {
-      return String(item.ip || '').trim() || presetCharacterIpMap.get(String(item.label || '').trim()) || ''
     }
   },
   ip: {
-    emptyLabel: '未设置 IP',
-    title: 'IP 排行',
-    heroLabel: 'IP Ranking',
-    description: '',
     getValues(item) {
       return item.ip ? [item.ip] : []
     }
   },
   category: {
-    emptyLabel: '未分类',
-    title: '分类排行',
-    heroLabel: 'Category Ranking',
-    description: '',
     getValues(item) {
       return item.category ? [item.category] : []
     }
   },
   storageLocation: {
-    emptyLabel: '未设置位置',
-    title: '存放位置排行',
-    heroLabel: 'Storage Ranking',
-    description: '',
     getValues(item) {
       return item.storageLocation ? [item.storageLocation] : []
     }
   },
   month: {
-    emptyLabel: '未记录日期',
-    title: '月度购入排行',
-    heroLabel: 'Monthly Ranking',
-    description: '',
     getValues(item) {
       return item.timelineYearMonth ? [item.timelineYearMonth] : []
     }
@@ -74,12 +70,27 @@ function getEntrySortLabel(entry, dimension) {
   return entry.label.localeCompare ? entry.label.localeCompare(entry.label, 'zh-Hans-CN') : 0
 }
 
-export function getLeaderboardDimensionMeta(dimension) {
-  return getDimensionConfig(dimension)
+export function getLeaderboardDimensionMeta(dimension, t) {
+  const config = getDimensionConfig(dimension)
+  if (t) {
+    return {
+      ...config,
+      emptyLabel: t(`leaderboard.empty.${dimension}`),
+      title: t(`leaderboard.title.${dimension}`),
+      heroLabel: t(`leaderboard.title.${dimension}`)
+    }
+  }
+  return {
+    ...config,
+    emptyLabel: '',
+    title: '',
+    heroLabel: ''
+  }
 }
 
-export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = new Map()) {
+export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = new Map(), t) {
   const config = getDimensionConfig(dimension)
+  const emptyLabel = t ? t(`leaderboard.empty.${dimension}`) : ''
   const map = new Map()
   let emptyCount = 0
 
@@ -138,9 +149,9 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
 
     if (values.length === 0) {
       emptyCount += 1
-      const emptyEntry = map.get(config.emptyLabel) || {
-        key: config.emptyLabel,
-        label: config.emptyLabel,
+      const emptyEntry = map.get(emptyLabel) || {
+        key: emptyLabel,
+        label: emptyLabel,
         meta: '',
         quantity: 0,
         totalValue: 0,
@@ -230,7 +241,7 @@ export function sortLeaderboardEntries(entries, metric, dimension) {
   })
 }
 
-export function formatLeaderboardMetricValue(entry, metric) {
+export function formatLeaderboardMetricValue(entry, metric, t) {
   switch (metric) {
     case 'totalValue':
       return `¥ ${Number(entry.totalValue || 0).toFixed(2)}`
@@ -238,6 +249,6 @@ export function formatLeaderboardMetricValue(entry, metric) {
       return `¥ ${Number(entry.averageUnitPrice || 0).toFixed(2)}`
     case 'quantity':
     default:
-      return `${formatQuantityValue(entry.quantity)} 件`
+      return t ? t('leaderboard.items', { count: formatQuantityValue(entry.quantity) }) : `${formatQuantityValue(entry.quantity)} 件`
   }
 }

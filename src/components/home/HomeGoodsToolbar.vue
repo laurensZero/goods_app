@@ -3,7 +3,7 @@
     <div class="goods-header-row">
       <div class="goods-header-left">
         <p class="section-label">{{ sectionLabel }}</p>
-        <h2 class="section-title">{{ title }}<span class="goods-count"> {{ totalQuantity }} 件</span></h2>
+        <h2 class="section-title">{{ title }}<span class="goods-count"> {{ t('leaderboard.items', { count: totalQuantity }) }}</span></h2>
       </div>
 
       <div class="goods-header-btns">
@@ -42,7 +42,7 @@
           v-if="showTimelineToggle"
           type="button"
           :class="['timeline-toggle', { 'timeline-toggle--active': displayDensity === 'timeline' }]"
-          aria-label="切换时间线视图"
+          :aria-label="t('home.toolbar.timelineAria')"
           @click="$emit('toggle-timeline')"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -56,7 +56,7 @@
         v-if="displayDensity !== 'timeline'"
         class="density-switch"
         :style="densitySwitchStyle"
-        aria-label="展示密度切换"
+        :aria-label="t('home.toolbar.densityAria')"
       >
         <span class="density-switch__indicator" aria-hidden="true" />
         <button
@@ -84,7 +84,7 @@
       <div v-if="!isTablet" class="sort-sheet__handle" />
       <div class="sort-sheet__head">
         <div>
-          <p class="sort-sheet__label">排序方式</p>
+          <p class="sort-sheet__label">{{ t('home.toolbar.sortMethod') }}</p>
           <h3 class="sort-sheet__title">{{ currentSortOption.label }}</h3>
         </div>
         <button class="sort-sheet__dir-btn" type="button" @click="handleDirectionToggle">
@@ -112,7 +112,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
+
+const { t } = useI18n()
 
 const LONG_PRESS_DELAY_MS = 420
 const TABLET_BREAKPOINT = 900
@@ -145,20 +148,21 @@ function handleResize() {
 
 const currentSortOption = computed(() =>
   props.sortOptions.find((option) => option.value === props.sortMode) || props.sortOptions[0] || {
-    label: '排序',
-    ascLabel: '升序',
-    descLabel: '降序'
+    label: t('home.toolbar.sortMethod'),
+    ascLabel: t('home.toolbar.asc'),
+    descLabel: t('home.toolbar.desc')
   }
 )
 const currentDirectionLabel = computed(() => (
   props.sortDirection === 'asc' ? currentSortOption.value.ascLabel : currentSortOption.value.descLabel
 ))
 const hasMultipleSortOptions = computed(() => props.sortOptions.length > 1)
-const sortButtonLabel = computed(() => (
-  hasMultipleSortOptions.value
-    ? `当前按${currentSortOption.value.label}${props.sortDirection === 'asc' ? '升序' : '降序'}，点击切换升降序，长按选择排序方式`
-    : `当前按${currentSortOption.value.label}${props.sortDirection === 'asc' ? '升序' : '降序'}，点击切换升降序`
-))
+const sortButtonLabel = computed(() => {
+  const dir = props.sortDirection === 'asc' ? t('home.toolbar.asc') : t('home.toolbar.desc')
+  return hasMultipleSortOptions.value
+    ? `${currentSortOption.value.label}${dir}`
+    : `${currentSortOption.value.label}${dir}`
+})
 const densityModeCount = computed(() => Math.max(props.densityModes.length, 1))
 const activeDensityIndex = computed(() => {
   const index = props.densityModes.findIndex((mode) => mode.value === props.displayDensity)
