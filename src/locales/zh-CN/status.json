@@ -1,0 +1,20 @@
+{
+  "status.pendingShipment": "待发货",
+  "status.pendingPayment": "待补款",
+  "status.pendingPostage": "待补邮",
+  "status.owned": "已拥有",
+  "status.lost": "丢失",
+  "status.gifted": "已赠出",
+  "status.wantToSell": "想出",
+  "status.sold": "已出",
+  "status.forSale": "在售",
+  "status.short.pendingShipment": "待发",
+  "status.short.pendingPayment": "补款",
+  "status.short.pendingPostage": "补邮",
+  "status.short.owned": "已拥",
+  "status.short.lost": "丢失",
+  "status.short.gifted": "已赠",
+  "status.short.wantToSell": "想出",
+  "status.short.sold": "已出",
+  "status.short.forSale": "在售"
+}

@@ -7,14 +7,14 @@
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">EVENTS ARCHIVE</p>
-          <h1 class="hero-title">活动记录</h1>
+          <h1 class="hero-title">{{ t('events.title') }}</h1>
         </div>
 
         <div class="hero-actions">
           <button
             class="hero-search"
             type="button"
-            :aria-label="showSearch ? '关闭搜索' : '搜索活动'"
+            :aria-label="showSearch ? t('events.closeSearch') : t('events.openSearch')"
             @click="toggleSearch"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -47,21 +47,21 @@
 
               <p class="summary-value">
                 <span class="summary-count">{{ eventsStore.list.length }}</span>
-                <span class="summary-unit">场活动</span>
+                <span class="summary-unit">{{ t('events.eventsUnit') }}</span>
               </p>
             </div>
 
             <div class="summary-metrics">
               <div class="metric-chip">
-                <span class="metric-chip__label">票务总额</span>
+                <span class="metric-chip__label">{{ t('events.ticketTotal') }}</span>
                 <strong>{{ formatPrice(eventsStore.totalTicketAll) }}</strong>
               </div>
               <div class="metric-chip">
-                <span class="metric-chip__label">关联谷子</span>
+                <span class="metric-chip__label">{{ t('events.linkedGoodsCount') }}</span>
                 <strong>{{ totalLinkedGoods }}</strong>
               </div>
               <div class="metric-chip">
-                <span class="metric-chip__label">活动照片</span>
+                <span class="metric-chip__label">{{ t('events.eventPhotos') }}</span>
                 <strong>{{ totalPhotos }}</strong>
               </div>
             </div>
@@ -71,15 +71,15 @@
 
       <section v-if="eventsStore.list.length > 0" class="toolbar-section">
         <div class="toolbar-copy">
-          <p class="toolbar-label">{{ searchKeyword ? '搜索结果' : '我的活动' }}</p>
+          <p class="toolbar-label">{{ searchKeyword ? t('events.searchResults') : t('events.myEvents') }}</p>
           <h2 class="toolbar-title">
-            {{ searchKeyword ? '匹配活动' : '全部活动' }}
-            <span>{{ filteredEvents.length }} 场</span>
+            {{ searchKeyword ? t('events.matchingEvents') : t('events.allEvents') }}
+            <span>{{ filteredEvents.length }} {{ t('common.events_count') }}</span>
           </h2>
         </div>
 
         <div class="toolbar-actions">
-          <div class="view-switch" :style="viewSwitchStyle" aria-label="活动展示方式切换">
+          <div class="view-switch" :style="viewSwitchStyle" :aria-label="t('events.viewSwitchAria')">
             <span class="view-switch__indicator" aria-hidden="true" />
             <button
               v-for="option in viewOptions"
@@ -95,7 +95,7 @@
           <button
             type="button"
             :class="['sort-toggle', { 'sort-toggle--asc': sortDirection === 'asc' }]"
-            :aria-label="sortDirection === 'asc' ? '当前按时间升序，点击切换降序' : '当前按时间降序，点击切换升序'"
+            :aria-label="sortDirection === 'asc' ? t('events.sortAscAria') : t('events.sortDescAria')"
             @click="toggleSortDirection"
           >
             <svg class="sort-toggle__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -117,7 +117,7 @@
           <div class="search-panel">
             <SearchBar
               v-model="searchKeyword"
-              placeholder="搜索活动名称、地点、标签"
+              :placeholder="t('events.searchPlaceholder')"
               autofocus
             />
           </div>
@@ -147,7 +147,7 @@
                 <div class="events-year-block">
                   <div v-if="!yearGroup.isUndated" class="events-year-header">
                     <span class="events-year-num">{{ yearGroup.year }}</span>
-                    <span class="events-year-meta">{{ yearGroup.yearCount }} 场 / {{ formatPrice(yearGroup.yearTotal) }}</span>
+                    <span class="events-year-meta">{{ yearGroup.yearCount }} {{ t('common.events_count') }} / {{ formatPrice(yearGroup.yearTotal) }}</span>
                   </div>
 
                   <template v-for="(monthGroup, midx) in yearGroup.months" :key="monthGroup.yearMonth">
@@ -164,10 +164,10 @@
                         <div class="month-head">
                           <div>
                             <template v-if="monthGroup.isUndated">
-                              <h3 class="month-title">未设置日期</h3>
+                              <h3 class="month-title">{{ t('events.undated') }}</h3>
                             </template>
                             <template v-else>
-                              <span class="month-timeline-label">{{ monthGroup.month }} 月</span>
+                              <span class="month-timeline-label">{{ monthGroup.month }} {{ t('events.monthSuffix') }}</span>
                             </template>
                           </div>
                         </div>
@@ -197,17 +197,17 @@
       <section v-else-if="eventsStore.list.length > 0" class="empty-wrap">
         <EmptyState
           icon="⌕"
-          title="没有找到匹配的活动"
-          description="试试换个关键词，或者关闭搜索看看全部活动。"
+          :title="t('events.noMatch')"
+          :description="t('events.noMatchDesc')"
         />
       </section>
 
       <section v-else class="empty-wrap">
         <EmptyState
           icon="✦"
-          title="还没有活动记录"
-          description="把展会、市集、交换会和线下活动整理进来，这里就会像收藏页一样排成完整档案。"
-          action-text="添加第一场活动"
+          :title="t('events.noEvents')"
+          :description="t('events.longDesc')"
+          :action-text="t('events.addFirst')"
           @action="goToAdd"
         />
       </section>
@@ -219,7 +219,7 @@
         v-if="!selectionMode"
         class="fab"
         type="button"
-        aria-label="添加活动"
+        :aria-label="t('events.addActivity')"
         @click="goToAdd"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -249,7 +249,7 @@
               <path d="M19 6l-1 14H6L5 6" />
               <path d="M10 11v6M14 11v6" />
             </svg>
-            删除{{ selectedIds.size > 0 ? ` (${selectedIds.size})` : '' }}
+            {{ t('common.delete') }}{{ selectedIds.size > 0 ? ` (${selectedIds.size})` : '' }}
           </button>
         </div>
       </Transition>
@@ -259,6 +259,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
@@ -326,16 +327,18 @@ function unbindAndroidBackButton() {
   removeAndroidBackListener = null
 }
 
-const viewOptions = [
-  { value: 'grid', label: '平铺' },
-  { value: 'timeline', label: '时间线' }
-]
+const { t } = useI18n()
 
-const EVENT_TYPE_LABELS = {
-  exhibition: '展会',
-  concert: '音乐会',
-  other: '其他'
-}
+const viewOptions = computed(() => [
+  { value: 'grid', label: t('events.gridView') },
+  { value: 'timeline', label: t('events.timelineView') }
+])
+
+const EVENT_TYPE_LABELS = computed(() => ({
+  exhibition: t('events.typeExhibition'),
+  concert: t('events.typeConcert'),
+  other: t('events.typeOther')
+}))
 
 const {
   getScrollEl,
@@ -366,7 +369,7 @@ const filteredEvents = computed(() => {
       event.description,
       event.startDate,
       event.endDate,
-      EVENT_TYPE_LABELS[event.type] || '',
+      EVENT_TYPE_LABELS.value[event.type] || '',
       ...(Array.isArray(event.tags) ? event.tags : []),
       ...(Array.isArray(event.tracks) ? event.tracks.flatMap((track) => [track?.title, track?.artist, track?.album]) : [])
     ]
@@ -468,8 +471,8 @@ const totalPhotos = computed(() =>
 )
 
 const viewSwitchStyle = computed(() => ({
-  '--view-switch-count': String(viewOptions.length),
-  '--view-switch-index': String(Math.max(viewOptions.findIndex((item) => item.value === viewMode.value), 0))
+  '--view-switch-count': String(viewOptions.value.length),
+  '--view-switch-index': String(Math.max(viewOptions.value.findIndex((item) => item.value === viewMode.value), 0))
 }))
 
 const selectionHeaderStyle = computed(() => ({

@@ -1,44 +1,44 @@
 <template>
   <div v-if="hasSuggestions" class="tag-suggestion-panel">
     <div class="tag-suggestion-panel__header">
-      <span class="tag-suggestion-panel__title">✨ 智能填写建议</span>
-      <button class="tag-suggestion-panel__apply-all" @click="applyAll">应用全部</button>
+      <span class="tag-suggestion-panel__title">✨ {{ t('goods.suggestion.title') }}</span>
+      <button class="tag-suggestion-panel__apply-all" @click="applyAll">{{ t('goods.suggestion.applyAll') }}</button>
     </div>
 
     <!-- 类别建议 -->
     <div v-if="suggestions.categorySuggestion" class="suggestion-item">
       <div class="suggestion-item__main">
-        <span class="suggestion-item__label">分类</span>
+        <span class="suggestion-item__label">{{ t('common.category') }}</span>
         <span class="suggestion-item__value">{{ suggestions.categorySuggestion.value }}</span>
         <span class="suggestion-item__confidence" :class="`confidence--${suggestions.categorySuggestion.confidence}`">
           {{ formatConfidence(suggestions.categorySuggestion.confidence) }}
         </span>
       </div>
       <div class="suggestion-item__actions">
-        <button class="btn-action" @click="applyField('category', suggestions.categorySuggestion.value)">应用</button>
-        <button class="btn-action btn-action--danger" @click="ignoreField('category')">忽略</button>
+        <button class="btn-action" @click="applyField('category', suggestions.categorySuggestion.value)">{{ t('goods.suggestion.apply') }}</button>
+        <button class="btn-action btn-action--danger" @click="ignoreField('category')">{{ t('goods.suggestion.ignore') }}</button>
       </div>
     </div>
 
     <!-- IP建议 -->
     <div v-if="suggestions.ipSuggestion" class="suggestion-item">
       <div class="suggestion-item__main">
-        <span class="suggestion-item__label">IP</span>
+        <span class="suggestion-item__label">{{ t('common.ip') }}</span>
         <span class="suggestion-item__value">{{ suggestions.ipSuggestion.value }}</span>
         <span class="suggestion-item__confidence" :class="`confidence--${suggestions.ipSuggestion.confidence}`">
           {{ formatConfidence(suggestions.ipSuggestion.confidence) }}
         </span>
       </div>
       <div class="suggestion-item__actions">
-        <button class="btn-action" @click="applyField('ip', suggestions.ipSuggestion.value)">应用</button>
-        <button class="btn-action btn-action--danger" @click="ignoreField('ip')">忽略</button>
+        <button class="btn-action" @click="applyField('ip', suggestions.ipSuggestion.value)">{{ t('goods.suggestion.apply') }}</button>
+        <button class="btn-action btn-action--danger" @click="ignoreField('ip')">{{ t('goods.suggestion.ignore') }}</button>
       </div>
     </div>
 
     <!-- 角色建议 -->
     <div v-if="suggestions.characterSuggestions && suggestions.characterSuggestions.length > 0" class="suggestion-item">
       <div class="suggestion-item__main">
-        <span class="suggestion-item__label">角色</span>
+        <span class="suggestion-item__label">{{ t('common.character') }}</span>
         <span class="suggestion-item__value">
           <span v-for="(char, idx) in suggestions.characterSuggestions" :key="idx" class="tag">
             {{ char.value }}
@@ -46,15 +46,15 @@
         </span>
       </div>
       <div class="suggestion-item__actions">
-        <button class="btn-action" @click="applyField('characters', suggestions.characterSuggestions.map(c => c.value))">应用</button>
-        <button class="btn-action btn-action--danger" @click="ignoreField('characters')">忽略</button>
+        <button class="btn-action" @click="applyField('characters', suggestions.characterSuggestions.map(c => c.value))">{{ t('goods.suggestion.apply') }}</button>
+        <button class="btn-action btn-action--danger" @click="ignoreField('characters')">{{ t('goods.suggestion.ignore') }}</button>
       </div>
     </div>
 
     <!-- 标签建议 -->
     <div v-if="suggestions.tagSuggestions && suggestions.tagSuggestions.length > 0" class="suggestion-item">
       <div class="suggestion-item__main">
-        <span class="suggestion-item__label">标签</span>
+        <span class="suggestion-item__label">{{ t('common.tag') }}</span>
         <span class="suggestion-item__value">
           <span v-for="(tag, idx) in suggestions.tagSuggestions" :key="idx" class="tag">
             {{ tag.value }}
@@ -62,8 +62,8 @@
         </span>
       </div>
       <div class="suggestion-item__actions">
-        <button class="btn-action" @click="applyField('tags', suggestions.tagSuggestions.map(t => t.value))">应用</button>
-        <button class="btn-action btn-action--danger" @click="ignoreField('tags')">忽略</button>
+        <button class="btn-action" @click="applyField('tags', suggestions.tagSuggestions.map(tag => tag.value))">{{ t('goods.suggestion.apply') }}</button>
+        <button class="btn-action btn-action--danger" @click="ignoreField('tags')">{{ t('goods.suggestion.ignore') }}</button>
       </div>
     </div>
   </div>
@@ -71,6 +71,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   suggestions: {
@@ -96,11 +99,11 @@ const hasSuggestions = computed(() => {
 
 const formatConfidence = (level) => {
   const map = {
-    'high': '极高',
-    'medium': '较好',
-    'low': '一般'
+    'high': t('goods.suggestion.confidenceHigh'),
+    'medium': t('goods.suggestion.confidenceMedium'),
+    'low': t('goods.suggestion.confidenceLow')
   }
-  return map[level] || '未知'
+  return map[level] || t('goods.suggestion.confidenceUnknown')
 }
 
 const applyField = (field, value) => {

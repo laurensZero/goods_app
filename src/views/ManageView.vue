@@ -1,12 +1,12 @@
 <template>
   <div class="page manage-page" :class="{ 'manage-page--restoring': !manageDisplayReady }">
     <main ref="pageBodyRef" class="page-body">
-      <NavBar title="设置" show-back />
+      <NavBar :title="t('manage.title')" show-back />
 
       <section v-if="isDesktopSettingsViewport" class="settings-workspace">
         <aside class="settings-sidebar">
           <div class="settings-group">
-            <p class="settings-group__label">Settings</p>
+            <p class="settings-group__label">{{ t('manage.settings') }}</p>
             <div class="settings-nav">
               <button
                 v-for="entry in manageEntries"
@@ -46,7 +46,7 @@
                   <h3 class="export-picker__title">选择要导出的数据</h3>
                 </div>
                 <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
-                  {{ allExportSectionsSelected ? '清空' : '全选' }}
+                  {{ allExportSectionsSelected ? t('common.deselectAll') : t('common.selectAll') }}
                 </button>
               </div>
 
@@ -71,16 +71,16 @@
               </div>
               <div class="export-picker__actions" style="margin-top: 16px;">
                 <button class="export-picker__action" type="button" @click="confirmExportSelection" style="width: 100%;">
-                  开始导出
+                  {{ t('manage.exportStart') }}
                 </button>
               </div>
             </div>
           </div>
 
           <div v-else-if="activeManageEntry.key === 'import'" class="settings-action-panel">
-            <p class="settings-action-panel__text">从现有备份文件恢复或合并数据。</p>
+            <p class="settings-action-panel__text">{{ t('manage.importDescText') }}</p>
             <div class="settings-action-panel__actions">
-              <button type="button" class="detail-action detail-action--primary" @click="triggerImport">选择备份文件</button>
+              <button type="button" class="detail-action detail-action--primary" @click="triggerImport">{{ t('manage.importSelectFile') }}</button>
             </div>
           </div>
 
@@ -140,6 +140,16 @@
             </button>
           </div>
         </div>
+
+        <div class="mobile-group">
+          <div class="mobile-group__head">
+            <p class="mobile-group__label">Language</p>
+            <h2 class="mobile-group__title">{{ t('manage.language') }}</h2>
+          </div>
+          <div class="language-switcher-wrap">
+            <LanguageSwitcher />
+          </div>
+        </div>
       </section>
 
       <Popup
@@ -153,11 +163,11 @@
           <div class="export-picker__handle" />
           <div class="export-picker__head">
             <div>
-              <p class="export-picker__label">导出内容</p>
-              <h3 class="export-picker__title">选择要导出的数据</h3>
+              <p class="export-picker__label">{{ t('manage.exportContent') }}</p>
+              <h3 class="export-picker__title">{{ t('manage.exportSelectData') }}</h3>
             </div>
             <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
-              {{ allExportSectionsSelected ? '清空' : '全选' }}
+              {{ allExportSectionsSelected ? t('common.deselectAll') : t('common.selectAll') }}
             </button>
           </div>
           <div class="export-picker__options">
@@ -181,10 +191,10 @@
           </div>
           <div class="export-picker__actions">
             <button class="export-picker__action export-picker__action--ghost" type="button" @click="closeExportPicker">
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button class="export-picker__action" type="button" @click="confirmExportSelection">
-              开始导出
+              {{ t('manage.exportStart') }}
             </button>
           </div>
         </div>
@@ -201,8 +211,11 @@
 
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { Popup } from 'vant'
+
+const { t } = useI18n()
 import { Capacitor } from '@capacitor/core'
 import { useManageScrollRestore } from '@/composables/scroll/useManageScrollRestore'
 import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
@@ -210,6 +223,7 @@ import { useManageExport, exportSectionOptions } from '@/composables/manage/useM
 import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 
 // Lazy-loaded sub-pages
 const CategoryManageView = defineAsyncComponent(() => import('@/views/CategoryManageView.vue'))

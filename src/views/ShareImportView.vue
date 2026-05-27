@@ -1,6 +1,6 @@
 <template>
   <div class="page share-import-page">
-    <NavBar title="导入分享" show-back @back="handleBack" />
+    <NavBar :title="t('import.share')" show-back @back="handleBack" />
 
     <main class="page-body">
       <!-- Code input (when no gistId from deep link) -->
@@ -13,14 +13,14 @@
             </svg>
           </div>
           <div class="input-body">
-            <p class="input-hint">输入分享码，一键导入谷子</p>
+            <p class="input-hint">{{ t('import.shareInputHint') }}</p>
             <div class="input-row">
               <input
                 ref="codeInputRef"
                 v-model="codeInput"
                 type="text"
                 class="code-input"
-                placeholder="粘贴分享码或链接"
+                :placeholder="t('import.sharePlaceholder')"
                 autocapitalize="off"
                 autocomplete="off"
                 autocorrect="off"
@@ -28,14 +28,14 @@
                 @keydown.enter.prevent="handleFetch"
               />
               <button class="btn-fetch" type="button" :disabled="fetching || !codeInput.trim()" @click="handleFetch">
-                {{ fetching ? '获取中' : '获取' }}
+                {{ fetching ? t('import.fetching') : t('import.fetch') }}
               </button>
             </div>
             <p v-if="fetchError" class="fetch-error">{{ fetchError }}</p>
           </div>
         </div>
 
-        <div class="qr-divider"><span>或</span></div>
+        <div class="qr-divider"><span>{{ t('import.or') }}</span></div>
 
         <div class="qr-scanner-card">
           <div class="qr-frame">
@@ -49,7 +49,7 @@
               <rect x="3" y="14" width="7" height="7" rx="1.2" />
               <rect x="14" y="14" width="7" height="7" rx="1.2" />
             </svg>
-            <p class="qr-frame-hint">{{ scanning ? '正在识别...' : '将二维码对准框内' }}</p>
+            <p class="qr-frame-hint">{{ scanning ? t('import.scanning') : t('import.qrHint') }}</p>
           </div>
           <div class="qr-actions">
             <button class="btn-qr btn-qr--camera" type="button" :disabled="fetching || scanning" @click="handleScan('camera')">
@@ -59,7 +59,7 @@
                 <path d="M15 3h2a2 2 0 0 1 2 2v2" /><path d="M21 9v2" />
                 <circle cx="12" cy="12" r="3.5" />
               </svg>
-              <span>拍照扫描</span>
+              <span>{{ t('import.scanCamera') }}</span>
             </button>
             <button class="btn-qr btn-qr--gallery" type="button" :disabled="fetching || scanning" @click="handleScan('gallery')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -67,7 +67,7 @@
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <path d="M21 15l-5-5L5 21" />
               </svg>
-              <span>从相册选择</span>
+              <span>{{ t('import.scanGallery') }}</span>
             </button>
           </div>
           <p v-if="scanError" class="fetch-error">{{ scanError }}</p>
@@ -78,7 +78,7 @@
       <section v-if="fetching" class="loading-section">
         <div class="load-card">
           <span class="load-spinner" />
-          <p class="load-text">正在获取分享数据...</p>
+          <p class="load-text">{{ t('import.fetchingShareData') }}</p>
         </div>
       </section>
 
@@ -86,9 +86,9 @@
       <transition name="result-fade">
         <section v-if="payload && !fetching" class="preview-section">
           <div class="section-head">
-            <p class="section-label">分享内容</p>
-            <h2 class="section-title">{{ payload.goods.length }} 件谷子</h2>
-            <p class="section-sub">分享于 {{ formatSharedAt(payload.sharedAt) }}</p>
+            <p class="section-label">{{ t('import.shareContent') }}</p>
+            <h2 class="section-title">{{ t('import.shareGoodsCount', { count: payload.goods.length }) }}</h2>
+            <p class="section-sub">{{ t('import.sharedAt', { date: formatSharedAt(payload.sharedAt) }) }}</p>
           </div>
 
           <div class="goods-list">
@@ -121,7 +121,7 @@
                   <span v-for="ch in item.characters" :key="ch" class="char-chip">{{ ch }}</span>
                 </div>
               </div>
-              <span v-if="importedIndexes.has(idx)" class="imported-badge">已导入</span>
+              <span v-if="importedIndexes.has(idx)" class="imported-badge">{{ t('import.alreadyImported') }}</span>
             </div>
           </div>
         </section>
@@ -134,7 +134,7 @@
     <!-- Import button -->
     <Teleport to="body">
       <div v-if="payload && !fetching && remainingCount > 0" class="float-footer">
-        <div class="import-target-switch" role="tablist" aria-label="导入目标">
+        <div class="import-target-switch" role="tablist" :aria-label="t('import.importTarget')">
           <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
           <button
             type="button"
@@ -144,7 +144,7 @@
             :aria-selected="importTarget === 'collection'"
             @click="importTarget = 'collection'"
           >
-            导入收藏
+            {{ t('common.importToCollection') }}
           </button>
           <button
             type="button"
@@ -154,11 +154,11 @@
             :aria-selected="importTarget === 'wishlist'"
             @click="importTarget = 'wishlist'"
           >
-            导入心愿
+            {{ t('common.importToWishlist') }}
           </button>
         </div>
         <button class="btn-primary btn-float" :disabled="importing" @click="handleImport">
-          {{ importing ? '导入中...' : `导入全部 (${remainingCount})` }}
+          {{ importing ? t('import.importing') : t('import.importAll', { count: remainingCount }) }}
         </button>
       </div>
     </Teleport>
@@ -167,6 +167,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import { useRoute, useRouter } from 'vue-router'
@@ -176,6 +177,7 @@ import { extractIdsFromInput } from '@/utils/share/goods'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { formatCurrency } from '@/utils/format'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -210,7 +212,7 @@ const scanning = ref(false)
 async function handleFetch() {
   const { gistId: id, shareId: sid } = extractIdsFromInput(codeInput.value)
   if (!id) {
-    fetchError.value = '请输入有效的分享码或链接'
+    fetchError.value = t('import.errorInvalidShareCode')
     return
   }
   await doFetch(id, sid)
@@ -222,7 +224,7 @@ function loadImageFromSrc(src) {
     img.decoding = 'async'
     img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('二维码图片加载失败'))
+    img.onerror = () => reject(new Error(t('import.qrLoadFailed')))
     img.src = src
   })
 }
@@ -239,7 +241,7 @@ async function decodeQrTextFromImage(src) {
   canvas.height = height
 
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  if (!ctx) throw new Error('当前设备不支持扫码识别')
+  if (!ctx) throw new Error(t('import.qrNotSupported'))
 
   ctx.drawImage(image, 0, 0, width, height)
   const imageData = ctx.getImageData(0, 0, width, height)
@@ -259,17 +261,17 @@ async function handleScan() {
       source: CameraSource.Prompt,
       resultType: CameraResultType.Uri,
       quality: 92,
-      promptLabelHeader: '扫码导入',
-      promptLabelPhoto: '从相册选择',
-      promptLabelPicture: '拍摄二维码'
+      promptLabelHeader: t('import.scanImport'),
+      promptLabelPhoto: t('import.scanGallery'),
+      promptLabelPicture: t('import.scanQrCode')
     })
 
     const src = String(photo?.webPath || photo?.path || '').trim()
-    if (!src) throw new Error('未获取到二维码图片')
+    if (!src) throw new Error(t('import.qrImageNotFound'))
 
     const text = await decodeQrTextFromImage(src)
     if (!text) {
-      fetchError.value = '未识别到二维码，请重试或手动输入'
+      fetchError.value = t('import.qrNotRecognized')
       return
     }
 
@@ -280,7 +282,7 @@ async function handleScan() {
     if (message && /cancel|canceled|cancelled/i.test(message)) {
       return
     }
-    fetchError.value = e?.message || '扫码失败，请稍后重试'
+    fetchError.value = e?.message || t('import.scanFailed')
   } finally {
     scanning.value = false
   }

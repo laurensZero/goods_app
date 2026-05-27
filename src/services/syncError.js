@@ -1,3 +1,5 @@
+import i18n from '@/locales'
+
 // Sync phase constants
 export const PHASE_ENSURE_GIST = 'ensure_gist'
 export const PHASE_READ_MANIFEST = 'read_manifest'
@@ -16,26 +18,39 @@ export const CAUSE_SERVER = 'server'
 export const CAUSE_DATA_FORMAT = 'data_format'
 export const CAUSE_UNKNOWN = 'unknown'
 
-// Phase display names (Chinese)
-const PHASE_NAMES = {
-  [PHASE_ENSURE_GIST]: '初始化同步空间',
-  [PHASE_READ_MANIFEST]: '读取同步摘要',
-  [PHASE_READ_REMOTE]: '读取云端数据',
-  [PHASE_DIFF]: '对比数据差异',
-  [PHASE_PULL]: '拉取云端数据',
-  [PHASE_PUSH]: '上传本地数据',
-  [PHASE_UPLOAD_IMAGES]: '上传图片',
-  [PHASE_WRITE_DATA]: '写入数据文件'
+// Phase i18n key mapping
+const PHASE_KEY_MAP = {
+  [PHASE_ENSURE_GIST]: 'sync.phase.ensureGist',
+  [PHASE_READ_MANIFEST]: 'sync.phase.readManifest',
+  [PHASE_READ_REMOTE]: 'sync.phase.readRemote',
+  [PHASE_DIFF]: 'sync.phase.diff',
+  [PHASE_PULL]: 'sync.phase.pull',
+  [PHASE_PUSH]: 'sync.phase.push',
+  [PHASE_UPLOAD_IMAGES]: 'sync.phase.uploadImages',
+  [PHASE_WRITE_DATA]: 'sync.phase.writeData'
 }
 
-// Cause display names and suggestions (Chinese)
-const CAUSE_INFO = {
-  [CAUSE_NETWORK]: { name: '网络异常', suggestion: '请检查网络连接后重试' },
-  [CAUSE_RATE_LIMIT]: { name: '请求过于频繁', suggestion: '请求过于频繁，请稍后再试' },
-  [CAUSE_AUTH]: { name: '认证失败', suggestion: '认证已过期，请重新登录' },
-  [CAUSE_SERVER]: { name: '服务端异常', suggestion: '云端服务异常，请稍后再试' },
-  [CAUSE_DATA_FORMAT]: { name: '数据格式错误', suggestion: '数据格式异常，请联系开发者' },
-  [CAUSE_UNKNOWN]: { name: '未知错误', suggestion: '未知错误，请稍后再试' }
+// Cause i18n key mapping
+const CAUSE_KEY_MAP = {
+  [CAUSE_NETWORK]: { nameKey: 'sync.cause.network', suggestionKey: 'sync.cause.networkSuggestion' },
+  [CAUSE_RATE_LIMIT]: { nameKey: 'sync.cause.rateLimit', suggestionKey: 'sync.cause.rateLimitSuggestion' },
+  [CAUSE_AUTH]: { nameKey: 'sync.cause.auth', suggestionKey: 'sync.cause.authSuggestion' },
+  [CAUSE_SERVER]: { nameKey: 'sync.cause.server', suggestionKey: 'sync.cause.serverSuggestion' },
+  [CAUSE_DATA_FORMAT]: { nameKey: 'sync.cause.dataFormat', suggestionKey: 'sync.cause.dataFormatSuggestion' },
+  [CAUSE_UNKNOWN]: { nameKey: 'sync.cause.unknown', suggestionKey: 'sync.cause.unknownSuggestion' }
+}
+
+function getPhaseName(phase) {
+  const key = PHASE_KEY_MAP[phase]
+  return key ? i18n.global.t(key) : phase
+}
+
+function getCauseInfo(cause) {
+  const mapping = CAUSE_KEY_MAP[cause] || CAUSE_KEY_MAP[CAUSE_UNKNOWN]
+  return {
+    name: i18n.global.t(mapping.nameKey),
+    suggestion: i18n.global.t(mapping.suggestionKey)
+  }
 }
 
 export class SyncError extends Error {
@@ -100,11 +115,11 @@ export function wrapSyncError(error, phase) {
   if (error instanceof SyncError) throw error
 
   const { cause, retryable } = inferCause(error)
-  const phaseName = PHASE_NAMES[phase] || phase
-  const causeInfo = CAUSE_INFO[cause] || CAUSE_INFO[CAUSE_UNKNOWN]
+  const phaseName = getPhaseName(phase)
+  const causeInfo = getCauseInfo(cause)
 
   throw new SyncError({
-    message: `${phaseName}失败：${error?.message || '未知错误'}`,
+    message: i18n.global.t('sync.phaseFailed', { phase: phaseName, error: error?.message || i18n.global.t('sync.cause.unknown') }),
     phase,
     cause,
     retryable,
@@ -117,7 +132,7 @@ export function wrapSyncError(error, phase) {
  * Used for syncStatus in the store.
  */
 export function buildSyncErrorStatus(syncError) {
-  const phaseName = PHASE_NAMES[syncError.phase] || syncError.phase
-  const causeInfo = CAUSE_INFO[syncError.cause] || CAUSE_INFO[CAUSE_UNKNOWN]
-  return `${phaseName}${causeInfo.name}：${syncError.suggestion}`
+  const phaseName = getPhaseName(syncError.phase)
+  const causeInfo = getCauseInfo(syncError.cause)
+  return i18n.global.t('sync.causeStatus', { phase: phaseName, cause: causeInfo.name, suggestion: syncError.suggestion })
 }

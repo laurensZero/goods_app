@@ -1,0 +1,22 @@
+{
+  "recharge.title": "Recharge",
+  "recharge.addRecord": "Add Recharge Record",
+  "recharge.editRecord": "Edit Recharge Record",
+  "recharge.noRecords": "No recharge records yet",
+  "recharge.noRecordsDesc": "Track your recharge spending",
+  "recharge.addFirst": "Add your first record",
+  "recharge.amount": "Amount",
+  "recharge.date": "Recharge Date",
+  "recharge.type": "Recharge Type",
+  "recharge.note": "Note",
+  "recharge.saveRecord": "Save Record",
+  "recharge.deleteRecord": "Delete Record",
+  "recharge.confirmDelete": "Delete this record?",
+  "recharge.monthCard": "Monthly Card",
+  "recharge.monthCardCalendar": "Monthly Card Calendar",
+  "recharge.totalRecharge": "Total Recharge",
+  "recharge.thisMonth": "This Month",
+  "recharge.recentRecords": "Recent Records",
+  "recharge.rechargeArchive": "Recharge Archive",
+  "recharge.searchAria": "Search"
+}

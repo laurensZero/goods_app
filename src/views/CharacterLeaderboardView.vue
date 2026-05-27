@@ -4,7 +4,7 @@
       <section class="hero-section">
         <div class="hero-copy">
           <p class="section-label">{{ dimensionMeta.heroLabel }}</p>
-          <h1 class="section-title">数据统计</h1>
+          <h1 class="section-title">{{ t('leaderboard.title') }}</h1>
           <p class="section-desc">{{ dimensionMeta.description }}</p>
         </div>
 
@@ -21,19 +21,19 @@
       <section class="summary-section">
         <div class="summary-grid">
           <article class="summary-card">
-            <span class="summary-kicker">统计维度</span>
+            <span class="summary-kicker">{{ t('leaderboard.dimension') }}</span>
             <strong class="summary-value">{{ selectedDimensionLabel }}</strong>
           </article>
           <article class="summary-card">
-            <span class="summary-kicker">分组数量</span>
+            <span class="summary-kicker">{{ t('leaderboard.groupCount') }}</span>
             <strong class="summary-value">{{ entries.length }}</strong>
           </article>
           <article class="summary-card">
-            <span class="summary-kicker">总件数</span>
+            <span class="summary-kicker">{{ t('leaderboard.totalItems') }}</span>
             <strong class="summary-value">{{ totalQuantityText }}</strong>
           </article>
           <article class="summary-card">
-            <span class="summary-kicker">未设置项</span>
+            <span class="summary-kicker">{{ t('leaderboard.unsetItems') }}</span>
             <strong class="summary-value">{{ emptyGroupCount }}</strong>
           </article>
         </div>
@@ -41,7 +41,7 @@
 
       <section class="controls-section">
         <div class="control-group">
-          <p class="control-label">统计维度</p>
+          <p class="control-label">{{ t('leaderboard.dimension') }}</p>
           <div class="chip-row">
             <button
               v-for="dimension in LEADERBOARD_DIMENSION_OPTIONS"
@@ -56,7 +56,7 @@
         </div>
 
         <div class="control-group">
-          <p class="control-label">排序指标</p>
+          <p class="control-label">{{ t('leaderboard.sortMetric') }}</p>
           <div class="chip-row">
             <button
               v-for="metric in LEADERBOARD_METRIC_OPTIONS"
@@ -74,12 +74,12 @@
       <section class="charts-section">
         <div class="charts-grid">
           <div class="chart-card">
-            <h3 class="chart-title">按当前维度占比</h3>
+            <h3 class="chart-title">{{ t('leaderboard.dimensionRatio') }}</h3>
             <PieChart :entries="entries" labelKey="label" valueKey="quantity" />
           </div>
 
           <div class="chart-card">
-            <h3 class="chart-title">Top 10 项目（按选中指标）</h3>
+            <h3 class="chart-title">{{ t('leaderboard.top10') }}</h3>
             <BarChart :entries="sortedEntries.slice(0,10)" :labelKey="'label'" :valueKey="selectedMetric" :inverse="true" />
           </div>
         </div>
@@ -118,9 +118,9 @@
                 <p class="ranking-value">{{ formatLeaderboardMetricValue(entry, selectedMetric) }}</p>
               </div>
               <div class="ranking-meta">
-                <span class="ranking-chip">{{ entry.quantity }} 件</span>
-                <span class="ranking-chip">总价 ¥{{ entry.totalValue.toFixed(2) }}</span>
-                <span class="ranking-chip">均价 ¥{{ entry.averageUnitPrice.toFixed(2) }}</span>
+                <span class="ranking-chip">{{ t('leaderboard.items', { count: entry.quantity }) }}</span>
+                <span class="ranking-chip">{{ t('leaderboard.totalPrice', { price: entry.totalValue.toFixed(2) }) }}</span>
+                <span class="ranking-chip">{{ t('leaderboard.avgPrice', { price: entry.averageUnitPrice.toFixed(2) }) }}</span>
               </div>
             </div>
           </article>
@@ -129,8 +129,8 @@
         <EmptyState
           v-else
           icon="📊"
-          title="还没有统计数据"
-          description="先录入一些收藏，再回来查看多维统计。"
+          :title="t('leaderboard.emptyTitle')"
+          :description="t('leaderboard.emptyDesc')"
         />
       </section>
     </main>
@@ -143,6 +143,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -166,12 +167,13 @@ const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
-const HOME_TOP_OPTIONS = [
-  { value: 'goods', label: '收藏' },
-  { value: 'wishlist', label: '心愿' },
-  { value: 'stats', label: '统计' }
-]
+const HOME_TOP_OPTIONS = computed(() => [
+  { value: 'goods', label: t('common.collection') },
+  { value: 'wishlist', label: t('common.wishlist') },
+  { value: 'stats', label: t('leaderboard.stats') }
+])
 
+const { t } = useI18n()
 const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
@@ -312,7 +314,7 @@ const totalQuantity = computed(() => entries.value.reduce((sum, entry) => sum + 
 const totalQuantityText = computed(() => formatLeaderboardMetricValue({ quantity: totalQuantity.value }, 'quantity'))
 const dimensionMeta = computed(() => getLeaderboardDimensionMeta(selectedDimension.value))
 const selectedDimensionLabel = computed(() =>
-  LEADERBOARD_DIMENSION_OPTIONS.find((item) => item.value === selectedDimension.value)?.label || '角色'
+  LEADERBOARD_DIMENSION_OPTIONS.find((item) => item.value === selectedDimension.value)?.label || t('common.character')
 )
 </script>
 

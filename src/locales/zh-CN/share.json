@@ -1,0 +1,16 @@
+{
+  "share.active": "活跃",
+  "share.allShares": "所有分享",
+  "share.cannotReadData": "无法读取数据",
+  "share.confirmDelete": "确认删除",
+  "share.copyGistId": "复制 Gist ID",
+  "share.deleteDesc": "删除后无法恢复",
+  "share.deleteTitle": "删除分享",
+  "share.disabled": "已停用",
+  "share.processing": "处理中...",
+  "share.deleting": "删除中...",
+  "share.refresh": "刷新",
+  "share.reload": "重新加载",
+  "share.shared": "已分享",
+  "share.unnamed": "未命名"
+}

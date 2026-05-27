@@ -10,12 +10,12 @@
     </Transition>
 
     <Transition name="sheet-slide" @after-leave="view = 'options'">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="view === 'share-import' ? '从分享码导入' : '选择添加方式'">
+      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="view === 'share-import' ? t('goods.addMethod.importFromShare') : t('goods.addMethod.selectTitle')">
         <div class="sheet-handle" aria-hidden="true" />
 
         <!-- ============ 选项列表 ============ -->
         <template v-if="view === 'options'">
-          <p class="sheet-title">选择添加方式</p>
+          <p class="sheet-title">{{ t('goods.addMethod.selectTitle') }}</p>
 
           <div class="sheet-options">
             <!-- 手动添加 -->
@@ -28,8 +28,8 @@
                 </svg>
               </span>
               <div class="option-body">
-                <p class="option-title">手动添加</p>
-                <p class="option-desc">自己填写名称、分类、价格等信息</p>
+                <p class="option-title">{{ t('goods.addMethod.manualAdd') }}</p>
+                <p class="option-desc">{{ t('goods.addMethod.manualAddDesc') }}</p>
               </div>
               <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -50,8 +50,8 @@
                 </svg>
               </span>
               <div class="option-body">
-                <p class="option-title">批量添加</p>
-                <p class="option-desc">选择多张图片，快速创建多个谷子</p>
+                <p class="option-title">{{ t('goods.addMethod.batchAdd') }}</p>
+                <p class="option-desc">{{ t('goods.addMethod.batchAddDesc') }}</p>
               </div>
               <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -69,8 +69,8 @@
                 </svg>
               </span>
               <div class="option-body">
-                <p class="option-title">从米游铺导入</p>
-                <p class="option-desc">粘贴商品链接，自动填充信息</p>
+                <p class="option-title">{{ t('goods.addMethod.importFromMihoyo') }}</p>
+                <p class="option-desc">{{ t('goods.addMethod.importFromMihoyoDesc') }}</p>
               </div>
               <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -89,8 +89,8 @@
                 </svg>
               </span>
               <div class="option-body">
-                <p class="option-title">从分享码导入</p>
-                <p class="option-desc">粘贴好友分享的谷子链接或分享码</p>
+                <p class="option-title">{{ t('goods.addMethod.importFromShare') }}</p>
+                <p class="option-desc">{{ t('goods.addMethod.importFromShareDesc') }}</p>
               </div>
               <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -109,8 +109,8 @@
                 </svg>
               </span>
               <div class="option-body">
-                <p class="option-title">从淘宝订单导入</p>
-                <p class="option-desc">导入淘宝导出的 .xlsx 订单文件</p>
+                <p class="option-title">{{ t('goods.addMethod.importFromTaobao') }}</p>
+                <p class="option-desc">{{ t('goods.addMethod.importFromTaobaoDesc') }}</p>
               </div>
               <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -118,7 +118,7 @@
             </button>
           </div>
 
-          <button class="sheet-cancel" type="button" @click="close">取消</button>
+          <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
         </template>
 
         <!-- ============ 分享码导入 ============ -->
@@ -129,7 +129,7 @@
                 <path d="M15 6l-6 6 6 6" />
               </svg>
             </button>
-            <p class="share-title">从分享码导入</p>
+            <p class="share-title">{{ t('goods.addMethod.importFromShare') }}</p>
           </div>
 
           <!-- 输入区域 -->
@@ -148,7 +148,7 @@
                     v-model="codeInput"
                     type="text"
                     class="share-code-input"
-                    placeholder="粘贴分享码或链接"
+                    :placeholder="t('goods.addMethod.pasteShareCode')"
                     autocapitalize="off"
                     autocomplete="off"
                     autocorrect="off"
@@ -156,7 +156,7 @@
                     @keydown.enter.prevent="handleFetch"
                   />
                   <button class="share-fetch-btn" type="button" :disabled="shareFetching || !codeInput.trim()" @click="handleFetch">
-                    {{ shareFetching ? '获取中' : '获取' }}
+                    {{ shareFetching ? t('goods.addMethod.fetching') : t('goods.addMethod.fetch') }}
                   </button>
                 </div>
                 <p v-if="shareError" class="share-error">{{ shareError }}</p>
@@ -167,13 +167,13 @@
           <!-- Loading -->
           <div v-if="shareFetching" class="share-loading">
             <span class="share-spinner" />
-            <p class="share-loading-text">正在获取分享数据...</p>
+            <p class="share-loading-text">{{ t('goods.addMethod.fetchingShareData') }}</p>
           </div>
 
           <!-- 预览 & 导入 -->
           <template v-if="sharePayload && !shareFetching">
             <div class="share-preview-head">
-              <p class="share-preview-count">{{ sharePayload.goods.length }} 件谷子</p>
+              <p class="share-preview-count">{{ t('goods.addMethod.goodsCount', { count: sharePayload.goods.length }) }}</p>
               <p v-if="sharePayload.sharedAt" class="share-preview-date">{{ formatSharedAt(sharePayload.sharedAt) }}</p>
             </div>
 
@@ -204,19 +204,19 @@
                     <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
                   </div>
                 </div>
-                <span v-if="shareImportedIndexes.has(idx)" class="share-imported-badge">已导入</span>
+                <span v-if="shareImportedIndexes.has(idx)" class="share-imported-badge">{{ t('goods.addMethod.imported') }}</span>
               </div>
             </div>
 
-            <div class="import-target-switch" role="tablist" aria-label="导入目标">
+            <div class="import-target-switch" role="tablist" :aria-label="t('common.importToCollection') + '/' + t('common.importToWishlist')">
               <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
-              <button type="button" class="import-target-tab" :class="{ active: importTarget === 'collection' }" role="tab" :aria-selected="importTarget === 'collection'" @click="importTarget = 'collection'">导入收藏</button>
-              <button type="button" class="import-target-tab" :class="{ active: importTarget === 'wishlist' }" role="tab" :aria-selected="importTarget === 'wishlist'" @click="importTarget = 'wishlist'">导入心愿</button>
+              <button type="button" class="import-target-tab" :class="{ active: importTarget === 'collection' }" role="tab" :aria-selected="importTarget === 'collection'" @click="importTarget = 'collection'">{{ t('common.importToCollection') }}</button>
+              <button type="button" class="import-target-tab" :class="{ active: importTarget === 'wishlist' }" role="tab" :aria-selected="importTarget === 'wishlist'" @click="importTarget = 'wishlist'">{{ t('common.importToWishlist') }}</button>
             </div>
 
             <div v-if="shareRemainingCount > 0" class="share-import-footer">
               <button class="share-import-btn" :disabled="shareImporting" @click="handleImport">
-                {{ shareImporting ? '导入中...' : `导入全部 (${shareRemainingCount})` }}
+                {{ shareImporting ? t('goods.addMethod.importing') : t('goods.addMethod.importAll', { count: shareRemainingCount }) }}
               </button>
             </div>
           </template>
@@ -228,9 +228,12 @@
 
 <script setup>
 import { ref, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { formatCurrency } from '@/utils/format'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -272,7 +275,7 @@ const codeInput = ref('')
 function handleFetch() {
   const { gistId: id, shareId: sid } = extractIdsFromInput(codeInput.value)
   if (!id) {
-    shareError.value = '请输入有效的分享码或链接'
+    shareError.value = t('goods.addMethod.enterValidShareCode')
     return
   }
   doFetch(id, sid)

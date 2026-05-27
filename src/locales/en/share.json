@@ -1,0 +1,16 @@
+{
+  "share.active": "Active",
+  "share.allShares": "All Shares",
+  "share.cannotReadData": "Cannot read data",
+  "share.confirmDelete": "Confirm Delete",
+  "share.copyGistId": "Copy Gist ID",
+  "share.deleteDesc": "Cannot be undone after deletion",
+  "share.deleteTitle": "Delete Share",
+  "share.disabled": "Disabled",
+  "share.processing": "Processing...",
+  "share.deleting": "Deleting...",
+  "share.refresh": "Refresh",
+  "share.reload": "Reload",
+  "share.shared": "Shared",
+  "share.unnamed": "Unnamed"
+}

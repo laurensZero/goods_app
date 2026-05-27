@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import i18n from '@/locales'
 
 import tabRoutes from './routes/tabs'
 import goodsRoutes from './routes/goods'
@@ -51,7 +52,9 @@ window.addEventListener('popstate', () => {
 })
 
 router.beforeEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} - 谷子收藏` : '谷子收藏'
+  const { t } = i18n.global
+  const title = to.meta.titleKey ? t(to.meta.titleKey) : (to.meta.title || '')
+  document.title = title ? `${title} - ${t('common.appName')}` : t('common.appName')
   const htmlEl = document.documentElement
   if (isPopstateNavigation) {
     htmlEl.classList.add('is-back')

@@ -10,30 +10,30 @@ export default [
     path: '/home',
     name: 'home',
     component: HomeView,
-    meta: { title: '我的谷子', keepAlive: true, showTabBar: true }
+    meta: { titleKey: 'nav.home', keepAlive: true, showTabBar: true }
   },
   {
     path: '/recharge',
     name: 'recharge',
     component: RechargeView,
-    meta: { title: '充值', keepAlive: true, showTabBar: true }
+    meta: { titleKey: 'nav.recharge', keepAlive: true, showTabBar: true }
   },
   {
     path: '/wishlist',
     name: 'wishlist',
     component: WishlistView,
-    meta: { title: '心愿单', keepAlive: true, showTabBar: true }
+    meta: { titleKey: 'nav.wishlist', keepAlive: true, showTabBar: true }
   },
   {
     path: '/manage',
     name: 'manage',
     component: MyView,
-    meta: { title: '我的', keepAlive: true, showTabBar: true }
+    meta: { titleKey: 'nav.my', keepAlive: true, showTabBar: true }
   },
   {
     path: '/events',
     name: 'events',
     component: EventsView,
-    meta: { title: '活动记录', keepAlive: true, showTabBar: true }
+    meta: { titleKey: 'nav.events', keepAlive: true, showTabBar: true }
   }
 ]

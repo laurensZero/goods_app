@@ -5,15 +5,15 @@
         <h3 class="tree-node__name">{{ node.name }}</h3>
         <p class="tree-node__path">{{ node.path }}</p>
         <p class="tree-node__meta">
-          {{ stats.itemCount }} 件记录 · {{ stats.quantity }} 个
+          {{ t('storage.itemRecords', { count: stats.itemCount }) }} · {{ t('storage.quantityCount', { count: stats.quantity }) }}
         </p>
       </div>
 
       <div class="tree-node__actions">
-        <button type="button" class="tree-node__action tree-node__action--nfc" @click="$emit('write-nfc', node)">绑定 NFC</button>
-        <button type="button" class="tree-node__action" @click="$emit('add-child', node)">新增子级</button>
-        <button type="button" class="tree-node__action" @click="$emit('rename', node)">重命名</button>
-        <button type="button" class="tree-node__action tree-node__action--danger" @click="$emit('remove', node)">删除</button>
+        <button type="button" class="tree-node__action tree-node__action--nfc" @click="$emit('write-nfc', node)">{{ t('storage.bindNfc') }}</button>
+        <button type="button" class="tree-node__action" @click="$emit('add-child', node)">{{ t('storage.addChild') }}</button>
+        <button type="button" class="tree-node__action" @click="$emit('rename', node)">{{ t('storage.rename') }}</button>
+        <button type="button" class="tree-node__action tree-node__action--danger" @click="$emit('remove', node)">{{ t('common.delete') }}</button>
       </div>
     </div>
 
@@ -34,10 +34,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 defineOptions({
   name: 'StorageLocationTreeNode'
 })
+
+const { t } = useI18n()
 
 const props = defineProps({
   node: {
