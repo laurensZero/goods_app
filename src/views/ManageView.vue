@@ -84,6 +84,13 @@
             </div>
           </div>
 
+          <div v-else-if="activeManageEntry.key === 'language'" class="settings-action-panel">
+            <p class="settings-action-panel__text">{{ t('manage.languageDesc') }}</p>
+            <div style="margin-top: 20px;">
+              <LanguageSwitcher />
+            </div>
+          </div>
+
           <div
             v-else-if="activeManageComponent"
             :class="[
@@ -533,6 +540,7 @@ onBeforeRouteLeave(() => {
 .import-icon { background: rgba(50, 200, 140, 0.12); color: #28c880; }
 .sync-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
 .share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
+.lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
 
 .settings-nav__copy,
 .mobile-entry__copy {
