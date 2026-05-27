@@ -963,15 +963,6 @@ watch(yearlyBudgetInput, (value) => {
   writePersisted(YEARLY_BUDGET_STORAGE_KEY, normalized)
 })
 
-// 确保当商品数据发生变化时（包括数组内部变更），预算进度会被重新计算并触发视图更新。
-watch(
-  () => goodsStore.list,
-  () => {
-    // 空处理函数；watch 的触发会使相关 computed 重新评估并更新模板
-  },
-  { deep: true }
-)
-
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)

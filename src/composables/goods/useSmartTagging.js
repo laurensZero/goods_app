@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
@@ -25,6 +25,13 @@ export function useSmartTagging(form) {
 
   // 延时计算，防抖
   let timeoutId = null
+
+  onBeforeUnmount(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+  })
 
   watch(
     () => [form.name, form.note, form.characters],

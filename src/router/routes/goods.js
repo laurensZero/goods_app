@@ -1,5 +1,3 @@
-import DetailView from '@/views/DetailView.vue'
-
 export default [
   {
     path: '/search',
@@ -22,7 +20,7 @@ export default [
   {
     path: '/detail/:id',
     name: 'detail',
-    component: DetailView,
+    component: () => import('@/views/DetailView.vue'),
     meta: { title: '谷子详情' },
     props: true
   },
