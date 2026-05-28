@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.7",
+    "url": "bundle-20260528.7.zip",
+    "hash": "56f5d63bb98a12f46846835f9d075a7c77e829ee3dffa4e445ff7c4dd0493a6b",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化米游铺Cookie管理，移除不必要的保存功能，更新提示信息",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T14:36:13Z"
+  },
+  {
     "version": "20260528.6",
     "url": "bundle-20260528.6.zip",
     "hash": "0d42b5a1ad091d1a397f038bce0d57f08b8c2fb1ce0891c3ed6ea556ba166916",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化购物车功能，增强错误提示和Cookie管理，重构Toast逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-28T14:15:46Z"
-  },
-  {
-    "version": "20260528.4",
-    "url": "bundle-20260528.4.zip",
-    "hash": "49c5e190700d4b78b90977101fb70c19d0ebff68ff172620e6f18d132167dfd2",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加商品加入购物车功能，支持SKU选择和米游铺Cookie管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T12:52:38Z"
   }
 ]
