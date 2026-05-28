@@ -169,7 +169,7 @@ const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 const HOME_TOP_OPTIONS = computed(() => [
   { value: 'goods', label: t('common.collection') },
-  { value: 'wishlist', label: t('common.wishlist') },
+  { value: 'wishlist', label: t('nav.tabWishlist') },
   { value: 'stats', label: t('leaderboard.stats') }
 ])
 const LEADERBOARD_DIMENSION_OPTIONS = computed(() => createLeaderboardDimensionOptions(t))
