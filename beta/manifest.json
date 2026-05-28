@@ -1,9 +1,9 @@
 {
-  "version": "20260528.3",
-  "url": "bundle-20260528.3.zip",
-  "hash": "c955530eb95999491e220efb1dcaab9d7e88d2598957455f694042bb426afad1",
+  "version": "20260528.4",
+  "url": "bundle-20260528.4.zip",
+  "hash": "49c5e190700d4b78b90977101fb70c19d0ebff68ff172620e6f18d132167dfd2",
   "minNativeVersion": null,
-  "notes": "- feat: 更新充值记录翻译，添加记录和游戏计数的本地化支持；优化详情页，添加米游铺按钮",
+  "notes": "- feat: 添加商品加入购物车功能，支持SKU选择和米游铺Cookie管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T12:08:59Z"
+  "publishedAt": "2026-05-28T12:52:38Z"
 }
