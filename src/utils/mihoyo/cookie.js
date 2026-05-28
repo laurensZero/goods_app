@@ -1,6 +1,9 @@
 import { readPersisted, writePersisted, removePersisted } from '@/utils/platform/storage'
+import { Capacitor } from '@capacitor/core'
+import { Preferences } from '@capacitor/preferences'
 
 const STORAGE_KEY = 'mihoyo_cookie_state'
+const NATIVE_STORAGE_KEY = 'mihoyo_native_session'
 
 function getDefaultState() {
   return {
@@ -53,6 +56,24 @@ export async function loadMihoyoCookieState() {
       // fall through
     }
   }
+
+  // 安卓原生端可能把 Cookie 存在另一个 key
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { value: nativeValue } = await Preferences.get({ key: NATIVE_STORAGE_KEY })
+      if (nativeValue && nativeValue.trim()) {
+        return {
+          cookie: nativeValue.trim(),
+          updatedAt: '',
+          invalidAt: '',
+          invalidReason: ''
+        }
+      }
+    } catch {
+      // fall through
+    }
+  }
+
   return readLocalState()
 }
 
