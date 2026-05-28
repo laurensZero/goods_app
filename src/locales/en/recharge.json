@@ -63,6 +63,8 @@
   "recharge.clearFilters": "Clear filters",
   "recharge.view.records": "Records",
   "recharge.view.leaderboard_short": "Rank",
+  "recharge.count.records": "{count} records",
+  "recharge.count.games": "{count} games",
   "recharge.uncategorized": "Uncategorized",
   "recharge.deleteDescriptionMultiple": "The selected {count} recharge records will be permanently deleted and cannot be recovered.",
   "recharge.deleteDescriptionSingle": "This will be permanently deleted, continue?",

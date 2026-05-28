@@ -2,6 +2,13 @@
   <div class="page detail-page" :class="{ 'detail-page--entry-lock': detailEntryScrollLockActive }">
     <NavBar :title="item ? (item.isWishlist ? t('goods.detail.wishlistTitle') : t('goods.detail.collectionTitle')) : t('nav.goodsDetail')" show-back @back="handleBackNavigation">
       <template #right>
+        <button v-if="item?.goodsId" class="nav-icon-btn" type="button" aria-label="米游铺" @click="openMihoyoGoods">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </button>
         <button class="nav-icon-btn" type="button" :aria-label="t('common.aria.edit')" @click="handleEditGoods">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20H21" />
@@ -668,6 +675,12 @@ function handleDelete() {
 
 function handleEditGoods() {
   runWithRouteTransition(() => router.push(`/edit/${props.id}`), { direction: 'forward' })
+}
+
+function openMihoyoGoods() {
+  const goodsId = item.value?.goodsId
+  if (!goodsId) return
+  window.open(`https://www.mihoyogift.com/goods/${goodsId}`, '_blank')
 }
 
 function closeDeleteDialog() {
