@@ -62,11 +62,25 @@ export async function loadMihoyoCookieState() {
     try {
       const { value: nativeValue } = await Preferences.get({ key: NATIVE_STORAGE_KEY })
       if (nativeValue && nativeValue.trim()) {
-        return {
-          cookie: nativeValue.trim(),
-          updatedAt: '',
-          invalidAt: '',
-          invalidReason: ''
+        try {
+          const parsed = JSON.parse(nativeValue)
+          const cookie = String(parsed.cookie || '').trim()
+          if (cookie) {
+            return {
+              cookie,
+              updatedAt: String(parsed.updated_at || parsed.updatedAt || '').trim(),
+              invalidAt: '',
+              invalidReason: ''
+            }
+          }
+        } catch {
+          // 如果不是 JSON，直接作为 cookie 字符串
+          return {
+            cookie: nativeValue.trim(),
+            updatedAt: '',
+            invalidAt: '',
+            invalidReason: ''
+          }
         }
       }
     } catch {

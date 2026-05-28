@@ -297,7 +297,7 @@ import ShareSheet from '@/components/goods/ShareSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
-import { loadMihoyoCookieState, saveMihoyoCookie } from '@/utils/mihoyo/cookie'
+import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
@@ -395,8 +395,6 @@ const showShareSheet = ref(false)
 const activeImageId = ref('')
 const mihoyoCookie = ref('')
 const showCartDialog = ref(false)
-const showCookieDialog = ref(false)
-const cookieInput = ref('')
 const cartSkus = ref([])
 const selectedSkuId = ref(null)
 const cartLoading = ref(false)
@@ -752,10 +750,9 @@ async function handleAddToCart() {
     }
   }
 
-  // 如果还是没有Cookie，显示输入对话框
+  // 如果还是没有Cookie，提示用户去导入页面登录
   if (!mihoyoCookie.value) {
-    showToast('未登录，请先输入Cookie')
-    showCookieDialog.value = true
+    showToast('请先在购物车导入页面登录米游铺')
     return
   }
 
@@ -831,24 +828,6 @@ async function doAddToCart(skuId) {
   } finally {
     cartLoading.value = false
   }
-}
-
-async function saveCookie() {
-  const cookie = cookieInput.value.trim()
-  if (!cookie) {
-    showToast('请输入Cookie')
-    return
-  }
-  mihoyoCookie.value = cookie
-  showCookieDialog.value = false
-  // 保存到本地存储
-  try {
-    await saveMihoyoCookie(cookie)
-  } catch {
-    // ignore
-  }
-  // 自动触发加入购物车
-  handleAddToCart()
 }
 
 function closeDeleteDialog() {
