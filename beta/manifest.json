@@ -1,9 +1,9 @@
 {
-  "version": "20260528.10",
-  "url": "bundle-20260528.10.zip",
-  "hash": "4a8528093cebe8ef753abe8b2aeccea3d1869174b8382933057368eaccc14a30",
+  "version": "20260528.11",
+  "url": "bundle-20260528.11.zip",
+  "hash": "4ac1fffc0843e5918d376ec1c93954654dbb8b7a23bda90a7d387531a4de91c9",
   "minNativeVersion": null,
-  "notes": "- feat: 增加安卓原生端直接读取保存的Cookie功能",
+  "notes": "- feat: 增加安卓原生端获取保存的Cookie功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T15:05:04Z"
+  "publishedAt": "2026-05-28T15:08:50Z"
 }
