@@ -1,9 +1,9 @@
 {
-  "version": "20260528.2",
-  "url": "bundle-20260528.2.zip",
-  "hash": "45f2f39a8d526821d052a8d3422a7c2ce3e4070d401be7f9c1e0b6ea6f1e82b7",
+  "version": "20260528.3",
+  "url": "bundle-20260528.3.zip",
+  "hash": "c955530eb95999491e220efb1dcaab9d7e88d2598957455f694042bb426afad1",
   "minNativeVersion": null,
-  "notes": "- feat: 更新购物车导入信息，优化可导入商品和订单的显示格式\n\n- feat: 添加国际化支持，更新充值相关组件和翻译",
+  "notes": "- feat: 更新充值记录翻译，添加记录和游戏计数的本地化支持；优化详情页，添加米游铺按钮",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T05:03:32Z"
+  "publishedAt": "2026-05-28T12:08:59Z"
 }
