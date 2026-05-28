@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.8",
+    "url": "bundle-20260528.8.zip",
+    "hash": "7ca54c91746171d78d033ada4dc2d4d10f0fe1f757a7f2bd11295c3e47e2df4c",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强Cookie管理，支持同时保存到Capacitor Preferences，优化更新逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T14:47:46Z"
+  },
+  {
     "version": "20260528.7",
     "url": "bundle-20260528.7.zip",
     "hash": "56f5d63bb98a12f46846835f9d075a7c77e829ee3dffa4e445ff7c4dd0493a6b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 支持安卓原生端的Cookie存储，添加对NATIVE_STORAGE_KEY的处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-28T14:25:31Z"
-  },
-  {
-    "version": "20260528.5",
-    "url": "bundle-20260528.5.zip",
-    "hash": "484dbb87c4cf74151822a098c8c1952d30f666a96cdf3e362351544ea720b752",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化购物车功能，增强错误提示和Cookie管理，重构Toast逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T14:15:46Z"
   }
 ]
