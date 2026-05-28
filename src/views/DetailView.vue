@@ -298,8 +298,7 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
 import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
+import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
@@ -752,17 +751,12 @@ async function handleAddToCart() {
     }
   }
 
-  // 安卓原生端：直接读取原生保存的 Cookie
-  if (!mihoyoCookie.value && Capacitor.isNativePlatform()) {
+  // 安卓原生端：通过原生插件直接获取 Cookie
+  if (!mihoyoCookie.value) {
     try {
-      const { value: nativeValue } = await Preferences.get({ key: 'mihoyo_native_session' })
-      if (nativeValue) {
-        try {
-          const parsed = JSON.parse(nativeValue)
-          mihoyoCookie.value = String(parsed.cookie || '').trim()
-        } catch {
-          mihoyoCookie.value = nativeValue.trim()
-        }
+      const nativeCookie = await getNativeMihoyoCookie()
+      if (nativeCookie) {
+        mihoyoCookie.value = nativeCookie
       }
     } catch {
       // ignore
