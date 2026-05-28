@@ -975,6 +975,133 @@ export async function fetchGoodsCategoryList(shopCode) {
   }
 }
 
+/**
+ * 加入购物车
+ * @param {Object} params
+ * @param {string} params.goodsId - 商品ID
+ * @param {number} params.skuId - SKU ID
+ * @param {string} params.shopCode - 店铺代码
+ * @param {number} [params.nums=1] - 数量
+ * @param {string} params.cookie - 米游铺Cookie
+ * @returns {Promise<{success: boolean, message?: string}>}
+ */
+export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) {
+  if (!goodsId || skuId == null || !cookie) {
+    return { success: false, message: '参数不完整' }
+  }
+
+  const body = {
+    goods_id: String(goodsId),
+    sku_id: Number(skuId),
+    nums: Number(nums) || 1,
+    shop_code: String(shopCode || ''),
+    old_sku_id: null,
+    inner_source: ''
+  }
+
+  try {
+    let json
+    if (Capacitor.isNativePlatform()) {
+      const apiUrl = `${API_BASE}/common/homeishop/v1/shop_car/add_goods_to_shop_car`
+      const res = await CapacitorHttp.post({
+        url: apiUrl,
+        headers: {
+          'Content-Type': 'application/json;charset=UTF-8',
+          'Cookie': cookie,
+          'Referer': 'https://www.mihoyogift.com/',
+          'Origin': 'https://www.mihoyogift.com',
+          'x-rpc-language': 'zh-cn',
+          'x-rpc-mall-platform': 'web',
+        },
+        data: body
+      })
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      // Web 环境：使用 x-cookie-forward 头，由 Vite 代理转换为真正的 Cookie
+      const proxyPath = '/mihoyo-api/common/homeishop/v1/shop_car/add_goods_to_shop_car'
+      const res = await fetchWithPlatformBridge(proxyPath, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json;charset=UTF-8',
+          'Referer': 'https://www.mihoyogift.com/',
+          'Origin': 'https://www.mihoyogift.com',
+          'x-rpc-language': 'zh-cn',
+          'x-rpc-mall-platform': 'web',
+          'x-cookie-forward': encodeURIComponent(cookie),
+        },
+        body: JSON.stringify(body)
+      })
+      if (!res.ok) return { success: false, message: `请求失败（${res.status}）` }
+      json = await res.json()
+    }
+
+    console.log('[addToCart] response:', json)
+    if (json.retcode === 0) {
+      return { success: true }
+    }
+    return { success: false, message: json.message || `错误码：${json.retcode}` }
+  } catch (e) {
+    return { success: false, message: e.message || '网络错误' }
+  }
+}
+
+/**
+ * 获取商品详情（含SKU ID）
+ * @param {string} goodsId
+ * @returns {Promise<{shopCode: string, skus: Array<{id: number, text: string, key: string}>}>}
+ */
+export async function fetchGoodsDetailForCart(goodsId) {
+  if (!goodsId) return { shopCode: '', skus: [] }
+
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+
+  try {
+    let json
+    if (Capacitor.isNativePlatform()) {
+      const apiUrl = `${API_BASE}/common/homeishop/v1/goods/detail?goods_id=${goodsId}`
+      const res = await CapacitorHttp.get({ url: apiUrl, headers: reqHeaders })
+      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+    } else {
+      const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
+      if (!res.ok) return { shopCode: '', skus: [] }
+      json = await res.json()
+    }
+
+    console.log('[fetchGoodsDetailForCart] API response:', json)
+
+    const detail = json?.data?.goods?.detail || json?.data?.detail || json?.data?.goods || null
+    console.log('[fetchGoodsDetailForCart] detail:', detail)
+    console.log('[fetchGoodsDetailForCart] sale_attrs:', detail?.sale_attrs)
+    console.log('[fetchGoodsDetailForCart] skus:', detail?.skus)
+
+    if (!detail) return { shopCode: '', skus: [] }
+
+    const shopCode = String(detail?.shop_code || detail?.shop?.shop_code || json?.data?.goods?.shop_code || '').trim()
+
+    // 构建SKU列表：从skus对象中获取
+    const skus = []
+    if (detail?.skus && typeof detail.skus === 'object') {
+      for (const [key, sku] of Object.entries(detail.skus)) {
+        if (!sku || !sku.id) continue
+        skus.push({
+          id: sku.id,
+          text: sku.attr || sku.name || `SKU ${sku.id}`,
+          key: String(key)
+        })
+      }
+    }
+
+    console.log('[fetchGoodsDetailForCart] final skus:', skus)
+    return { shopCode, skus }
+  } catch (e) {
+    console.error('[fetchGoodsDetailForCart] error:', e)
+    return { shopCode: '', skus: [] }
+  }
+}
+
 export async function searchGoodsSpuList({
   shopCode,
   categoryId,

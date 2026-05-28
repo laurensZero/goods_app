@@ -544,20 +544,27 @@ export function createSyncOrchestrator({
       imageFileCount: allReferencedImageFiles.size,
       imageUpdatedAt: Object.keys(imageUpdates).length > 0 ? syncTimestamp : ''
     }
+    // When skipping full payload build (image-only sync), still compute accurate counts from local stores
+    const rechargeForCount = shouldWriteRecharge
+      ? rechargeSyncData.recharge
+      : useRechargeStore().exportBackup({ includeDeleted: false, stripImage: true })
+    const eventsForCount = shouldWriteEvent
+      ? (eventSyncData.events || [])
+      : (useEventsStore().list || [])
     const counts = {
       collectionCount: syncData.goods.filter(g => !g.isWishlist).length,
       wishlistCount: syncData.goods.filter(g => g.isWishlist).length,
       trashCount: syncData.trash.length,
-      rechargeCount: rechargeSyncData.recharge.length,
-      eventCount: eventSyncData.events.length,
+      rechargeCount: rechargeForCount.length,
+      eventCount: eventsForCount.length,
       budgetMonthly: normalizeBudgetValue(syncData?.budgetSettings?.monthly),
       budgetYearly: normalizeBudgetValue(syncData?.budgetSettings?.yearly),
       rechargeUpdatedAt: (() => {
-        const ts = getLatestRechargeTimestamp(rechargeSyncData.recharge)
+        const ts = getLatestRechargeTimestamp(rechargeForCount)
         return ts > 0 ? new Date(ts).toISOString() : ''
       })(),
       eventUpdatedAt: (() => {
-        const timestamps = (eventSyncData.events || []).map((item) => Number(item?.updatedAt) || 0)
+        const timestamps = eventsForCount.map((item) => Number(item?.updatedAt) || 0)
         const ts = Math.max(0, ...timestamps)
         return ts > 0 ? new Date(ts).toISOString() : ''
       })()

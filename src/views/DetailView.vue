@@ -2,6 +2,13 @@
   <div class="page detail-page" :class="{ 'detail-page--entry-lock': detailEntryScrollLockActive }">
     <NavBar :title="item ? (item.isWishlist ? t('goods.detail.wishlistTitle') : t('goods.detail.collectionTitle')) : t('nav.goodsDetail')" show-back @back="handleBackNavigation">
       <template #right>
+        <button v-if="item?.goodsId" class="nav-icon-btn" type="button" aria-label="加入购物车" :disabled="cartLoading" @click="handleAddToCart">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          </svg>
+        </button>
         <button v-if="item?.goodsId" class="nav-icon-btn" type="button" aria-label="米游铺" @click="openMihoyoGoods">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -230,7 +237,40 @@
       </div>
     </Transition>
 
+    <!-- SKU选择对话框 -->
+    <Transition name="dialog-fade">
+      <div v-if="showCartDialog" class="dialog-overlay" @click="showCartDialog = false">
+        <div class="dialog-card" @click.stop>
+          <h2 class="dialog-title">选择规格</h2>
+          <p class="dialog-desc">{{ item?.name }}</p>
+
+          <div class="sku-list">
+            <button
+              v-for="sku in cartSkus"
+              :key="sku.id"
+              :class="['sku-option', { 'sku-option--selected': selectedSkuId === sku.id }]"
+              type="button"
+              @click="selectedSkuId = sku.id"
+            >
+              {{ sku.text }}
+            </button>
+          </div>
+
+          <div class="dialog-actions">
+            <button class="dialog-btn dialog-btn--ghost" type="button" @click="showCartDialog = false">取消</button>
+            <button class="dialog-btn dialog-btn--primary" type="button" :disabled="cartLoading || !selectedSkuId" @click="doAddToCart(selectedSkuId)">
+              {{ cartLoading ? '加入中...' : '加入购物车' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <ShareSheet :show="showShareSheet" :goods-items="item ? [item] : []" @close="showShareSheet = false" />
+
+    <Transition name="toast-fade">
+      <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
+    </Transition>
   </div>
 </template>
 
@@ -256,6 +296,9 @@ import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
+import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
+import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
@@ -350,6 +393,15 @@ const trackList = computed(() =>
 const showDeleteDialog = ref(false)
 const showShareSheet = ref(false)
 const activeImageId = ref('')
+const mihoyoCookie = ref('')
+const showCartDialog = ref(false)
+const showCookieDialog = ref(false)
+const cookieInput = ref('')
+const cartSkus = ref([])
+const selectedSkuId = ref(null)
+const cartLoading = ref(false)
+const cartShopCode = ref('')
+const { toastMsg, showToast } = useToast()
 
 const colorMap = {
   手办: ['#2c2c2e', '#3a3a3c'],
@@ -681,6 +733,122 @@ function openMihoyoGoods() {
   const goodsId = item.value?.goodsId
   if (!goodsId) return
   window.open(`https://www.mihoyogift.com/goods/${goodsId}`, '_blank')
+}
+
+async function handleAddToCart() {
+  const goodsId = item.value?.goodsId
+  if (!goodsId) return
+
+  // 如果没有Cookie，尝试加载
+  if (!mihoyoCookie.value) {
+    try {
+      const cookieState = await loadMihoyoCookieState()
+      mihoyoCookie.value = cookieState.cookie || ''
+    } catch {
+      // ignore
+    }
+  }
+
+  // 如果还是没有Cookie，显示输入对话框
+  if (!mihoyoCookie.value) {
+    showCookieDialog.value = true
+    return
+  }
+
+  cartLoading.value = true
+  try {
+    // 获取商品详情（SKU信息）
+    const { shopCode, skus } = await fetchGoodsDetailForCart(goodsId)
+    cartShopCode.value = shopCode
+
+    if (skus.length === 0) {
+      // 没有SKU信息，无法加入购物车
+      showToast('无法获取商品规格信息')
+      return
+    }
+
+    if (skus.length === 1) {
+      // 只有一个SKU，直接加入购物车
+      await doAddToCart(skus[0].id)
+      return
+    }
+
+    // 多个SKU，尝试用已保存的 variant 匹配
+    const savedVariant = String(item.value?.variant || '').trim()
+    console.log('[handleAddToCart] savedVariant:', savedVariant)
+    if (savedVariant) {
+      // 用 variant 作为关键词，在 SKU 文本中查找包含匹配
+      const matchedSku = skus.find(sku =>
+        sku.text.includes(savedVariant) || savedVariant.includes(sku.text)
+      )
+      console.log('[handleAddToCart] matchedSku:', matchedSku)
+      if (matchedSku) {
+        await doAddToCart(matchedSku.id)
+        return
+      }
+    }
+
+    // 没有匹配到或者没有 variant，显示选择器
+    cartSkus.value = skus
+    selectedSkuId.value = skus[0].id
+    showCartDialog.value = true
+  } catch (e) {
+    showToast('获取商品信息失败：' + (e.message || '未知错误'))
+  } finally {
+    cartLoading.value = false
+  }
+}
+
+async function doAddToCart(skuId) {
+  if (skuId == null || !mihoyoCookie.value) {
+    showToast('参数错误')
+    return
+  }
+
+  cartLoading.value = true
+  try {
+    const result = await addToCart({
+      goodsId: item.value.goodsId,
+      skuId,
+      shopCode: cartShopCode.value,
+      nums: 1,
+      cookie: mihoyoCookie.value
+    })
+
+    if (result.success) {
+      showToast('已加入购物车')
+      showCartDialog.value = false
+    } else {
+      showToast('加入购物车失败：' + (result.message || '未知错误'))
+    }
+  } catch (e) {
+    showToast('加入购物车失败：' + (e.message || '网络错误'))
+  } finally {
+    cartLoading.value = false
+  }
+}
+
+function saveCookie() {
+  const cookie = cookieInput.value.trim()
+  if (!cookie) {
+    showToast('请输入Cookie')
+    return
+  }
+  mihoyoCookie.value = cookie
+  showCookieDialog.value = false
+  // 保存到本地存储
+  try {
+    localStorage.setItem('mihoyo_cookie_state', JSON.stringify({
+      cookie,
+      updatedAt: new Date().toISOString(),
+      invalidAt: '',
+      invalidReason: ''
+    }))
+  } catch {
+    // ignore
+  }
+  // 自动触发加入购物车
+  handleAddToCart()
 }
 
 function closeDeleteDialog() {
@@ -1450,6 +1618,44 @@ function getImageKindLabel(kind) {
   color: #ffffff;
 }
 
+.dialog-btn--primary {
+  background: #141416;
+  color: #ffffff;
+}
+
+.dialog-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sku-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sku-option {
+  padding: 8px 16px;
+  border: 2px solid var(--app-surface-soft);
+  border-radius: 12px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.sku-option--selected {
+  border-color: #141416;
+  background: #141416;
+  color: #ffffff;
+}
+
+.sku-option:active {
+  transform: scale(0.96);
+}
+
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
   transition: opacity 180ms ease;
@@ -1539,6 +1745,22 @@ function getImageKindLabel(kind) {
     color: #ff8a80;
   }
 
+:global(html.theme-dark) .dialog-btn--primary {
+    background: #f5f5f7;
+    color: #141416;
+  }
+
+:global(html.theme-dark) .sku-option {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+:global(html.theme-dark) .sku-option--selected {
+    border-color: #f5f5f7;
+    background: #f5f5f7;
+    color: #141416;
+  }
+
 /* 强制覆盖，避免已编译样式或外部 scope 覆盖导致不生效 */
 :global(html.theme-dark) .detail-page .nav-icon-btn {
     background: var(--app-glass) !important;
@@ -1549,4 +1771,42 @@ function getImageKindLabel(kind) {
 :global(html.theme-dark) .detail-page .nav-icon-btn.danger {
     color: #ff8a80 !important;
   }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(80px + max(env(safe-area-inset-bottom), 12px) + 12px);
+  z-index: 999;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(calc(100vw - 32px), 420px);
+  padding: 11px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--app-glass-border);
+  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+}
 </style>
