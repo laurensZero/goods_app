@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.2",
+    "url": "bundle-20260528.2.zip",
+    "hash": "45f2f39a8d526821d052a8d3422a7c2ce3e4070d401be7f9c1e0b6ea6f1e82b7",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新购物车导入信息，优化可导入商品和订单的显示格式\n\n- feat: 添加国际化支持，更新充值相关组件和翻译",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T05:03:32Z"
+  },
+  {
     "version": "20260528.1",
     "url": "bundle-20260528.1.zip",
     "hash": "6a02cee9b5bfebb640aa46c5ef361168791685ab2db4f102ca241c4040306467",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更多翻译",
     "updateLevel": "silent",
     "publishedAt": "2026-05-27T15:46:26Z"
-  },
-  {
-    "version": "20260527.4",
-    "url": "bundle-20260527.4.zip",
-    "hash": "a2f3da9e0eebea862e601bf0f094e5eeed88eec196d6ec37b01ab49e97ec91c8",
-    "minNativeVersion": null,
-    "notes": "- feat: 重构代码",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-27T15:06:52Z"
   }
 ]
