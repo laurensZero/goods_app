@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.10",
+    "url": "bundle-20260528.10.zip",
+    "hash": "4a8528093cebe8ef753abe8b2aeccea3d1869174b8382933057368eaccc14a30",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加安卓原生端直接读取保存的Cookie功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T15:05:04Z"
+  },
+  {
     "version": "20260528.9",
     "url": "bundle-20260528.9.zip",
     "hash": "964ac96c5b1f3753fc1543e0265efd3363845684701c7bf30a926ab0b8a1ca33",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强Cookie管理，支持同时保存到Capacitor Preferences，优化更新逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-28T14:47:46Z"
-  },
-  {
-    "version": "20260528.7",
-    "url": "bundle-20260528.7.zip",
-    "hash": "56f5d63bb98a12f46846835f9d075a7c77e829ee3dffa4e445ff7c4dd0493a6b",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化米游铺Cookie管理，移除不必要的保存功能，更新提示信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T14:36:13Z"
   }
 ]
