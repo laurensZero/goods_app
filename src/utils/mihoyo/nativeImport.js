@@ -13,3 +13,13 @@ export async function importMihoyoOrdersWithSession() {
 export async function importMihoyoCartWithSession() {
   return MihoyoSessionImport.importCart()
 }
+
+export async function getNativeMihoyoCookie() {
+  if (!canUseNativeMihoyoImport()) return ''
+  try {
+    const result = await MihoyoSessionImport.getSavedCookie()
+    return result?.cookie || ''
+  } catch {
+    return ''
+  }
+}

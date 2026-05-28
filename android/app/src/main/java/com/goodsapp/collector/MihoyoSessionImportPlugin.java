@@ -51,6 +51,17 @@ public class MihoyoSessionImportPlugin extends Plugin {
         tryWithSavedCookie(call, MihoyoSessionImportActivity.MODE_CART);
     }
 
+    @PluginMethod
+    public void getSavedCookie(PluginCall call) {
+        SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String savedCookie = prefs.getString(KEY_COOKIE, "").trim();
+
+        JSObject result = new JSObject();
+        result.put("cookie", savedCookie);
+        result.put("hasCookie", !savedCookie.isEmpty());
+        call.resolve(result);
+    }
+
     private void tryWithSavedCookie(PluginCall call, String mode) {
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedCookie = prefs.getString(KEY_COOKIE, "").trim();
