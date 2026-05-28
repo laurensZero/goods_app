@@ -1,9 +1,9 @@
 {
-  "version": "20260528.8",
-  "url": "bundle-20260528.8.zip",
-  "hash": "7ca54c91746171d78d033ada4dc2d4d10f0fe1f757a7f2bd11295c3e47e2df4c",
+  "version": "20260528.9",
+  "url": "bundle-20260528.9.zip",
+  "hash": "964ac96c5b1f3753fc1543e0265efd3363845684701c7bf30a926ab0b8a1ca33",
   "minNativeVersion": null,
-  "notes": "- feat: 增强Cookie管理，支持同时保存到Capacitor Preferences，优化更新逻辑",
+  "notes": "- feat: 增加安卓原生端导入成功后同步Cookie到Web端存储的功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T14:47:46Z"
+  "publishedAt": "2026-05-28T14:56:22Z"
 }

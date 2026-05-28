@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.9",
+    "url": "bundle-20260528.9.zip",
+    "hash": "964ac96c5b1f3753fc1543e0265efd3363845684701c7bf30a926ab0b8a1ca33",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加安卓原生端导入成功后同步Cookie到Web端存储的功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T14:56:22Z"
+  },
+  {
     "version": "20260528.8",
     "url": "bundle-20260528.8.zip",
     "hash": "7ca54c91746171d78d033ada4dc2d4d10f0fe1f757a7f2bd11295c3e47e2df4c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化米游铺Cookie管理，移除不必要的保存功能，更新提示信息",
     "updateLevel": "silent",
     "publishedAt": "2026-05-28T14:36:13Z"
-  },
-  {
-    "version": "20260528.6",
-    "url": "bundle-20260528.6.zip",
-    "hash": "0d42b5a1ad091d1a397f038bce0d57f08b8c2fb1ce0891c3ed6ea556ba166916",
-    "minNativeVersion": null,
-    "notes": "- feat: 支持安卓原生端的Cookie存储，添加对NATIVE_STORAGE_KEY的处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T14:25:31Z"
   }
 ]
