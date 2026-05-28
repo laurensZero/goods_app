@@ -333,6 +333,32 @@ onMounted(async () => {
   await startFetch({ silentCookieExpired: true })
 })
 
+// 安卓原生端导入成功后，同步 Cookie 到 Web 端存储
+async function syncNativeCookieToWeb() {
+  try {
+    const { Preferences } = await import('@capacitor/preferences')
+    const { value } = await Preferences.get({ key: 'mihoyo_native_session' })
+    if (value) {
+      const parsed = JSON.parse(value)
+      const cookie = String(parsed.cookie || '').trim()
+      if (cookie) {
+        const cookieState = {
+          cookie,
+          updatedAt: parsed.updated_at || new Date().toISOString(),
+          invalidAt: '',
+          invalidReason: ''
+        }
+        await Preferences.set({
+          key: 'mihoyo_cookie_state',
+          value: JSON.stringify(cookieState)
+        })
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
 const startFetch = async (options = {}) => {
   if (canUseNativeImport) {
     step.value = 'loading'
@@ -342,6 +368,8 @@ const startFetch = async (options = {}) => {
       rawGroups.value = Array.isArray(list) ? list : []
       selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
       step.value = 'list'
+      // 同步 Cookie 到 Web 端存储
+      await syncNativeCookieToWeb()
     } catch (error) {
       openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.confirmLoginRetry'))
       step.value = 'cookie'
