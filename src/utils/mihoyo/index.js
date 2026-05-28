@@ -986,7 +986,9 @@ export async function fetchGoodsCategoryList(shopCode) {
  * @returns {Promise<{success: boolean, message?: string}>}
  */
 export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) {
+  console.log('[addToCart] called with:', { goodsId, skuId, shopCode, nums, cookieLength: cookie?.length })
   if (!goodsId || skuId == null || !cookie) {
+    console.log('[addToCart] 参数不完整')
     return { success: false, message: '参数不完整' }
   }
 
@@ -1002,6 +1004,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
   try {
     let json
     if (Capacitor.isNativePlatform()) {
+      console.log('[addToCart] using CapacitorHttp')
       const apiUrl = `${API_BASE}/common/homeishop/v1/shop_car/add_goods_to_shop_car`
       const res = await CapacitorHttp.post({
         url: apiUrl,
@@ -1017,6 +1020,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
       })
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
+      console.log('[addToCart] using fetch proxy')
       // Web 环境：使用 x-cookie-forward 头，由 Vite 代理转换为真正的 Cookie
       const proxyPath = '/mihoyo-api/common/homeishop/v1/shop_car/add_goods_to_shop_car'
       const res = await fetchWithPlatformBridge(proxyPath, {
@@ -1041,6 +1045,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
     }
     return { success: false, message: json.message || `错误码：${json.retcode}` }
   } catch (e) {
+    console.error('[addToCart] error:', e)
     return { success: false, message: e.message || '网络错误' }
   }
 }

@@ -297,7 +297,7 @@ import ShareSheet from '@/components/goods/ShareSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
-import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
+import { loadMihoyoCookieState, saveMihoyoCookie } from '@/utils/mihoyo/cookie'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
@@ -737,7 +737,10 @@ function openMihoyoGoods() {
 
 async function handleAddToCart() {
   const goodsId = item.value?.goodsId
-  if (!goodsId) return
+  if (!goodsId) {
+    showToast('商品ID不存在')
+    return
+  }
 
   // 如果没有Cookie，尝试加载
   if (!mihoyoCookie.value) {
@@ -751,6 +754,7 @@ async function handleAddToCart() {
 
   // 如果还是没有Cookie，显示输入对话框
   if (!mihoyoCookie.value) {
+    showToast('未登录，请先输入Cookie')
     showCookieDialog.value = true
     return
   }
@@ -801,10 +805,11 @@ async function handleAddToCart() {
 
 async function doAddToCart(skuId) {
   if (skuId == null || !mihoyoCookie.value) {
-    showToast('参数错误')
+    showToast('参数错误: skuId=' + skuId)
     return
   }
 
+  showToast('正在加入购物车...')
   cartLoading.value = true
   try {
     const result = await addToCart({
@@ -819,16 +824,16 @@ async function doAddToCart(skuId) {
       showToast('已加入购物车')
       showCartDialog.value = false
     } else {
-      showToast('加入购物车失败：' + (result.message || '未知错误'))
+      showToast('失败: ' + (result.message || '未知错误'))
     }
   } catch (e) {
-    showToast('加入购物车失败：' + (e.message || '网络错误'))
+    showToast('异常: ' + (e.message || '网络错误'))
   } finally {
     cartLoading.value = false
   }
 }
 
-function saveCookie() {
+async function saveCookie() {
   const cookie = cookieInput.value.trim()
   if (!cookie) {
     showToast('请输入Cookie')
@@ -838,12 +843,7 @@ function saveCookie() {
   showCookieDialog.value = false
   // 保存到本地存储
   try {
-    localStorage.setItem('mihoyo_cookie_state', JSON.stringify({
-      cookie,
-      updatedAt: new Date().toISOString(),
-      invalidAt: '',
-      invalidReason: ''
-    }))
+    await saveMihoyoCookie(cookie)
   } catch {
     // ignore
   }

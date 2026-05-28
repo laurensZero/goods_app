@@ -416,6 +416,7 @@ import { useSyncStore } from '@/stores/sync'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
+import { useToast } from '@/composables/useToast'
 import packageJson from '../../package.json'
 import capacitorConfig from '../../capacitor.config.json'
 
@@ -443,10 +444,7 @@ const feedbackBody = ref('')
 const feedbackError = ref('')
 const isSubmittingFeedback = ref(false)
 const isClearingCutoutModel = ref(false)
-const toastMsg = ref('')
-let toastTimer = null
-let lastToastText = ''
-let lastToastAt = 0
+const { toastMsg, showToast } = useToast()
 
 const appIconSrc = `${import.meta.env.BASE_URL}favicon.svg`
 const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
@@ -610,24 +608,6 @@ function formatSyncTime(isoString) {
 
 function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
-}
-
-function showToast(message, duration = 2600) {
-  const nextMessage = String(message || '').trim()
-  if (!nextMessage) return
-
-  const now = Date.now()
-  if (nextMessage === lastToastText && now - lastToastAt < 1200) {
-    return
-  }
-
-  lastToastText = nextMessage
-  lastToastAt = now
-  toastMsg.value = nextMessage
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => {
-    toastMsg.value = ''
-  }, duration)
 }
 
 async function copyText(text, successMessage = t('toast.copySuccess')) {

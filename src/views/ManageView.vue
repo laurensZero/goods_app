@@ -221,6 +221,7 @@ import { computed, defineAsyncComponent, nextTick, onActivated, onBeforeUnmount,
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { Popup } from 'vant'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 import { Capacitor } from '@capacitor/core'
@@ -245,27 +246,10 @@ const ShareManageView = defineAsyncComponent(() => import('@/views/ShareManageVi
 defineOptions({ name: 'ManageView' })
 
 const router = useRouter()
+const { toastMsg, showToast } = useToast()
 
 function goManageChild(path) {
   runManageForwardNavigation(() => router.push(path))
-}
-
-// ---- toast ----
-const toastMsg = ref('')
-let toastTimer = null
-let lastToastText = ''
-let lastToastAt = 0
-
-const showToast = (message, duration = 2600) => {
-  const nextMessage = String(message || '').trim()
-  if (!nextMessage) return
-  const now = Date.now()
-  if (nextMessage === lastToastText && now - lastToastAt < 1200) return
-  lastToastText = nextMessage
-  lastToastAt = now
-  toastMsg.value = nextMessage
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMsg.value = '' }, duration)
 }
 
 async function ensureEventsReady() {}
