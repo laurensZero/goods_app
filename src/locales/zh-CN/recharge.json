@@ -63,6 +63,8 @@
   "recharge.clearFilters": "清空筛选",
   "recharge.view.records": "记录",
   "recharge.view.leaderboard_short": "排行",
+  "recharge.count.records": "{count} 条记录",
+  "recharge.count.games": "{count} 款游戏",
   "recharge.uncategorized": "未分类游戏",
   "recharge.deleteDescriptionMultiple": "选中的 {count} 条充值记录会被直接删除，删除后无法恢复。",
   "recharge.deleteDescriptionSingle": "删除后无法恢复，是否继续？",

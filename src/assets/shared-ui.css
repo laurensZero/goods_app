@@ -50,13 +50,16 @@
 }
 
 .sheet-slide-leave-active {
-  transition: transform 0.24s ease, opacity 0.18s ease;
+  transition: transform 0.24s ease;
 }
 
-.sheet-slide-enter-from,
-.sheet-slide-leave-to {
+.sheet-slide-enter-from {
   transform: translateX(-50%) translateY(100%);
   opacity: 0.6;
+}
+
+.sheet-slide-leave-to {
+  transform: translateX(-50%) translateY(100%);
 }
 
 /* ── Float Footer (centered floating save button) ── */
