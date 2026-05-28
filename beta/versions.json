@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.6",
+    "url": "bundle-20260528.6.zip",
+    "hash": "0d42b5a1ad091d1a397f038bce0d57f08b8c2fb1ce0891c3ed6ea556ba166916",
+    "minNativeVersion": null,
+    "notes": "- feat: 支持安卓原生端的Cookie存储，添加对NATIVE_STORAGE_KEY的处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T14:25:31Z"
+  },
+  {
     "version": "20260528.5",
     "url": "bundle-20260528.5.zip",
     "hash": "484dbb87c4cf74151822a098c8c1952d30f666a96cdf3e362351544ea720b752",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加商品加入购物车功能，支持SKU选择和米游铺Cookie管理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-28T12:52:38Z"
-  },
-  {
-    "version": "20260528.3",
-    "url": "bundle-20260528.3.zip",
-    "hash": "c955530eb95999491e220efb1dcaab9d7e88d2598957455f694042bb426afad1",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新充值记录翻译，添加记录和游戏计数的本地化支持；优化详情页，添加米游铺按钮",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T12:08:59Z"
   }
 ]

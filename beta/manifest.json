@@ -1,9 +1,9 @@
 {
-  "version": "20260528.5",
-  "url": "bundle-20260528.5.zip",
-  "hash": "484dbb87c4cf74151822a098c8c1952d30f666a96cdf3e362351544ea720b752",
+  "version": "20260528.6",
+  "url": "bundle-20260528.6.zip",
+  "hash": "0d42b5a1ad091d1a397f038bce0d57f08b8c2fb1ce0891c3ed6ea556ba166916",
   "minNativeVersion": null,
-  "notes": "- feat: 优化购物车功能，增强错误提示和Cookie管理，重构Toast逻辑",
+  "notes": "- feat: 支持安卓原生端的Cookie存储，添加对NATIVE_STORAGE_KEY的处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T14:15:46Z"
+  "publishedAt": "2026-05-28T14:25:31Z"
 }
