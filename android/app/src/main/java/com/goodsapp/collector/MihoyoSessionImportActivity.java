@@ -346,13 +346,31 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
         String cookie = session != null ? session.cookieHeader : "";
         if (cookie.isEmpty()) return;
 
+        // 保存到原生 SharedPreferences
         SharedPreferences prefs = getSharedPreferences(COOKIE_PREFS_NAME, Context.MODE_PRIVATE);
         SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
         isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String updatedAt = isoFormat.format(new Date());
         prefs.edit()
             .putString(COOKIE_PREFS_KEY_COOKIE, cookie)
-            .putString(COOKIE_PREFS_KEY_UPDATED_AT, isoFormat.format(new Date()))
+            .putString(COOKIE_PREFS_KEY_UPDATED_AT, updatedAt)
             .apply();
+
+        // 同时保存到 Capacitor Preferences 插件可以读取的位置
+        // 使用 Capacitor Preferences 的默认 SharedPreferences 名称
+        try {
+            SharedPreferences capacitorPrefs = getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
+            JSONObject cookieState = new JSONObject();
+            cookieState.put("cookie", cookie);
+            cookieState.put("updatedAt", updatedAt);
+            cookieState.put("invalidAt", "");
+            cookieState.put("invalidReason", "");
+            capacitorPrefs.edit()
+                .putString("mihoyo_cookie_state", cookieState.toString())
+                .apply();
+        } catch (Exception ignored) {
+            // 忽略同步失败
+        }
     }
 
     static boolean isCookieExpiredError(String errorMessage) {

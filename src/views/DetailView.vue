@@ -257,9 +257,9 @@
           </div>
 
           <div class="dialog-actions">
-            <button class="dialog-btn dialog-btn--ghost" type="button" @click="showCartDialog = false">取消</button>
+            <button class="dialog-btn dialog-btn--ghost" type="button" @click="showCartDialog = false">{{ t('common.cancel') }}</button>
             <button class="dialog-btn dialog-btn--primary" type="button" :disabled="cartLoading || !selectedSkuId" @click="doAddToCart(selectedSkuId)">
-              {{ cartLoading ? '加入中...' : '加入购物车' }}
+              {{ cartLoading ? t('toast.addingToCart') : t('common.addToCart') }}
             </button>
           </div>
         </div>
@@ -736,7 +736,7 @@ function openMihoyoGoods() {
 async function handleAddToCart() {
   const goodsId = item.value?.goodsId
   if (!goodsId) {
-    showToast('商品ID不存在')
+    showToast(t('toast.goodsIdNotFound'))
     return
   }
 
@@ -752,7 +752,7 @@ async function handleAddToCart() {
 
   // 如果还是没有Cookie，提示用户去导入页面登录
   if (!mihoyoCookie.value) {
-    showToast('请先在购物车导入页面登录米游铺')
+    showToast(t('toast.pleaseLoginMihoyo'))
     return
   }
 
@@ -764,7 +764,7 @@ async function handleAddToCart() {
 
     if (skus.length === 0) {
       // 没有SKU信息，无法加入购物车
-      showToast('无法获取商品规格信息')
+      showToast(t('toast.cannotGetSkuInfo'))
       return
     }
 
@@ -776,13 +776,11 @@ async function handleAddToCart() {
 
     // 多个SKU，尝试用已保存的 variant 匹配
     const savedVariant = String(item.value?.variant || '').trim()
-    console.log('[handleAddToCart] savedVariant:', savedVariant)
     if (savedVariant) {
       // 用 variant 作为关键词，在 SKU 文本中查找包含匹配
       const matchedSku = skus.find(sku =>
         sku.text.includes(savedVariant) || savedVariant.includes(sku.text)
       )
-      console.log('[handleAddToCart] matchedSku:', matchedSku)
       if (matchedSku) {
         await doAddToCart(matchedSku.id)
         return
@@ -794,7 +792,7 @@ async function handleAddToCart() {
     selectedSkuId.value = skus[0].id
     showCartDialog.value = true
   } catch (e) {
-    showToast('获取商品信息失败：' + (e.message || '未知错误'))
+    showToast(t('toast.getSkuInfoFailed', { error: e.message || t('toast.unknownError') }))
   } finally {
     cartLoading.value = false
   }
@@ -802,11 +800,11 @@ async function handleAddToCart() {
 
 async function doAddToCart(skuId) {
   if (skuId == null || !mihoyoCookie.value) {
-    showToast('参数错误: skuId=' + skuId)
+    showToast(t('toast.parameterError'))
     return
   }
 
-  showToast('正在加入购物车...')
+  showToast(t('toast.addingToCart'))
   cartLoading.value = true
   try {
     const result = await addToCart({
@@ -818,13 +816,13 @@ async function doAddToCart(skuId) {
     })
 
     if (result.success) {
-      showToast('已加入购物车')
+      showToast(t('toast.addedToCart'))
       showCartDialog.value = false
     } else {
-      showToast('失败: ' + (result.message || '未知错误'))
+      showToast(t('toast.addToCartFailed', { error: result.message || t('toast.unknownError') }))
     }
   } catch (e) {
-    showToast('异常: ' + (e.message || '网络错误'))
+    showToast(t('toast.addToCartError', { error: e.message || t('toast.networkError') }))
   } finally {
     cartLoading.value = false
   }
