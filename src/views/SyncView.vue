@@ -754,6 +754,7 @@ import { showSuccessToast, showFailToast } from 'vant'
 import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from '@/composables/useToast'
 
 const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common/GithubLoginDialog.vue'))
 
@@ -780,7 +781,7 @@ const githubLoginStatus = ref('')
 const githubLoginError = ref('')
 const isRequestingGithubDeviceCode = ref(false)
 const isPollingGithubLogin = ref(false)
-const toastMsg = ref('')
+const { toastMsg, showToast } = useToast()
 const syncNoticeText = computed(() => syncStore.syncNotice?.message || '')
 const syncNoticeLevel = computed(() => syncStore.syncNotice?.level || 'error')
 const gistInfo = ref(null)
@@ -904,7 +905,6 @@ function toggleLogGroup(key) {
   }
   expandedLogGroups.value = next
 }
-let toastTimer = null
 
 watch(() => syncStore.conflictData, (val) => {
   if (val?.isPullOnly) {
@@ -1064,14 +1064,6 @@ function formatLogDuration(durationMs) {
 
   const seconds = numericDuration / 1000
   return `${seconds >= 10 ? seconds.toFixed(1) : seconds.toFixed(2)}s`
-}
-
-function showToast(message, duration = 2600) {
-  toastMsg.value = message
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => {
-    toastMsg.value = ''
-  }, duration)
 }
 
 async function loadGistInfo() {
