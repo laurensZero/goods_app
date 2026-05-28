@@ -13,7 +13,7 @@
             <path d="M19 6l-1 14H6L5 6" />
             <path d="M10 11v6M14 11v6" />
           </svg>
-          删除{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
+          {{ t('common.delete') }}<span v-if="selectedCount > 0"> ({{ selectedCount }})</span>
         </button>
 
         <button
@@ -26,7 +26,7 @@
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          编辑
+          {{ t('common.edit') }}
         </button>
       </div>
     </Transition>
@@ -40,6 +40,8 @@ defineProps({
 })
 
 defineEmits(['delete', 'edit'])
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 </script>
 
 <style scoped>

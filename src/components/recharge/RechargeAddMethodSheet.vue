@@ -5,9 +5,9 @@
     </Transition>
 
     <Transition name="sheet-slide">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" aria-label="选择添加方式">
+      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('recharge.addMethod.title')">
         <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">选择添加方式</p>
+        <p class="sheet-title">{{ t('recharge.addMethod.title') }}</p>
 
         <div class="sheet-options">
           <button class="sheet-option" type="button" @click="onManual">
@@ -19,8 +19,8 @@
               </svg>
             </span>
             <div class="option-body">
-              <p class="option-title">手动添加</p>
-              <p class="option-desc">手动填写游戏、项目和金额</p>
+              <p class="option-title">{{ t('recharge.addMethod.manual.title') }}</p>
+              <p class="option-desc">{{ t('recharge.addMethod.manual.desc') }}</p>
             </div>
             <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -37,8 +37,8 @@
               </svg>
             </span>
             <div class="option-body">
-              <p class="option-title">从数据源选择</p>
-              <p class="option-desc">从抓取到的充值档位中快速选择</p>
+              <p class="option-title">{{ t('recharge.addMethod.preset.title') }}</p>
+              <p class="option-desc">{{ t('recharge.addMethod.preset.desc') }}</p>
             </div>
             <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
@@ -46,7 +46,7 @@
           </button>
         </div>
 
-        <button class="sheet-cancel" type="button" @click="close">取消</button>
+        <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
       </div>
     </Transition>
   </Teleport>
@@ -56,6 +56,10 @@
 defineProps({
   modelValue: { type: Boolean, default: false }
 })
+
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['update:modelValue', 'manual', 'preset'])
 
