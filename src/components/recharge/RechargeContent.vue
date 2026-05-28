@@ -11,7 +11,7 @@
   <section class="summary-section">
     <SummaryCard
       :total-value="totalAmountText"
-      label="Recharge Value"
+      :label="t('recharge.summary.value')"
       storage-key="goods-app:recharge-total-value-hidden"
       :show-tips="false"
       :trend-items="activeRecords"
@@ -21,16 +21,16 @@
 
   <section class="toolbar-section">
     <div class="toolbar-copy">
-      <p class="section-label">充值记录</p>
+      <p class="section-label">{{ t('recharge.recordsLabel') }}</p>
       <div class="toolbar-head">
         <h2 class="section-title">
-          {{ activeView === 'records' ? '全部记录' : '游戏排行' }}
+          {{ activeView === 'records' ? t('recharge.view.allRecords') : t('recharge.view.leaderboard') }}
           <span class="section-count"> {{ viewCountText }}</span>
         </h2>
 
         <div class="toolbar-actions">
           <button v-if="false" type="button" class="ghost-btn ghost-btn--link" @click="openMonthCardCalendar">
-            月卡
+            {{ t('recharge.monthCard') }}
           </button>
 
           <div class="view-switch" :style="viewSwitchStyle">
@@ -52,8 +52,8 @@
 
     <Transition name="search-drop">
       <div v-if="showSearchBar || keyword" class="search-row">
-        <SearchBar v-model="keyword" placeholder="搜索项目、备注或游戏" />
-        <button v-if="hasFilters" type="button" class="ghost-btn" @click="resetFilters">清空</button>
+        <SearchBar v-model="keyword" :placeholder="t('recharge.searchPlaceholder')" />
+        <button v-if="hasFilters" type="button" class="ghost-btn" @click="resetFilters">{{ t('common.clear') }}</button>
       </div>
     </Transition>
 
@@ -65,15 +65,15 @@
     <div v-if="hasVisibleRecords" :key="activeView" class="recharge-view">
       <section v-if="activeView === 'leaderboard'" class="stats-section">
         <article class="stat-card">
-          <p class="stat-card__label">本月充值</p>
+          <p class="stat-card__label">{{ t('recharge.thisMonth') }}</p>
           <p class="stat-card__value">¥{{ formatAmount(currentMonthTotal) }}</p>
         </article>
         <article class="stat-card">
-          <p class="stat-card__label">平均单笔</p>
+          <p class="stat-card__label">{{ t('recharge.avgPer') }}</p>
           <p class="stat-card__value">¥{{ formatAmount(averageAmount) }}</p>
         </article>
         <article class="stat-card">
-          <p class="stat-card__label">最高消费游戏</p>
+          <p class="stat-card__label">{{ t('recharge.topGame') }}</p>
           <p class="stat-card__value stat-card__value--text">{{ topGameName }}</p>
           <p class="stat-card__meta">¥{{ formatAmount(topGameAmount) }}</p>
         </article>
@@ -95,10 +95,10 @@
             <div class="timeline-month__content">
               <header class="timeline-month__head">
                 <div>
-                  <p class="timeline-month__label">月份</p>
+                  <p class="timeline-month__label">{{ t('recharge.month') }}</p>
                   <h3 class="timeline-month__title">{{ group.label }}</h3>
                 </div>
-                <p class="timeline-month__meta">¥{{ formatAmount(group.amount) }} · {{ group.items.length }} 笔</p>
+                <p class="timeline-month__meta">¥{{ formatAmount(group.amount) }} · {{ t('recharge.recordsCount', { count: group.items.length }) }}</p>
               </header>
 
               <div class="record-list">
@@ -124,7 +124,7 @@
                 <p class="leaderboard-item__name">{{ item.game }}</p>
                 <p class="leaderboard-item__amount">¥{{ formatAmount(item.amount) }}</p>
               </div>
-              <p class="leaderboard-item__meta">{{ item.count }} 笔 · 平均 ¥{{ formatAmount(item.averageAmount) }}</p>
+              <p class="leaderboard-item__meta">{{ t('recharge.leaderboard.meta', { count: item.count, avg: formatAmount(item.averageAmount) }) }}</p>
               <div class="leaderboard-item__track">
                 <span class="leaderboard-item__fill" :style="{ width: item.sharePercent + '%' }" />
               </div>
@@ -137,9 +137,9 @@
     <div v-else class="empty-wrap">
       <EmptyState
         :icon="hasFilters ? '⌕' : '✦'"
-        :title="hasFilters ? '没有匹配的充值记录' : '还没有充值记录'"
-        :description="hasFilters ? '换个关键词或筛选条件试试。' : '添加第一笔充值后，这里会自动生成记录和排行。'"
-        :action-text="hasFilters ? '清空筛选' : '添加记录'"
+        :title="hasFilters ? t('recharge.noMatches') : t('recharge.noRecords')"
+        :description="hasFilters ? t('recharge.noMatchesDesc') : t('recharge.noRecordsDesc')"
+        :action-text="hasFilters ? t('recharge.clearFilters') : t('recharge.addRecord')"
         @action="hasFilters ? resetFilters() : openAddMethodSheet()"
       />
     </div>
@@ -229,12 +229,12 @@ const hasMonthCardData = computed(() => activeRecords.value.some((record) => {
 
 const viewOptions = computed(() => {
   const options = [
-    { value: 'records', label: '记录' },
-    { value: 'leaderboard', label: '排行' }
+    { value: 'records', label: t('recharge.view.records') },
+    { value: 'leaderboard', label: t('recharge.view.leaderboard_short') }
   ]
 
   if (hasMonthCardData.value) {
-    options.push({ value: 'month-card', label: '月卡' })
+    options.push({ value: 'month-card', label: t('recharge.monthCard') })
   }
 
   return options
@@ -289,7 +289,7 @@ const leaderboard = computed(() => {
   const total = filteredTotalAmount.value || 1
 
   for (const record of filteredRecords.value) {
-    const key = record.game || '未分类游戏'
+    const key = record.game || t('recharge.uncategorized')
     if (!groups.has(key)) {
       groups.set(key, {
         game: key,
@@ -312,7 +312,7 @@ const leaderboard = computed(() => {
     }))
 })
 
-const topGameName = computed(() => leaderboard.value[0]?.game || '暂无数据')
+const topGameName = computed(() => leaderboard.value[0]?.game || t('common.noData'))
 const topGameAmount = computed(() => leaderboard.value[0]?.amount || 0)
 
 const monthGroups = computed(() => {
@@ -339,8 +339,8 @@ const monthGroups = computed(() => {
 
 const viewCountText = computed(() => (
   activeView.value === 'leaderboard'
-    ? `${leaderboard.value.length} 个游戏`
-    : `${filteredRecords.value.length} 条记录`
+    ? t('recharge.count.games', { count: leaderboard.value.length })
+    : t('recharge.count.records', { count: filteredRecords.value.length })
 ))
 
 const viewSwitchStyle = computed(() => ({
@@ -350,12 +350,12 @@ const viewSwitchStyle = computed(() => ({
 
 const rechargeImageUrls = computed(() => collectRechargeImageUrls(activeRecords.value))
 const isAddOverlayOpen = computed(() => showAddDialog.value || showAddMethodSheet.value)
-const deleteConfirmTitle = '确认删除？'
-const deleteConfirmActionText = '删除'
+const deleteConfirmTitle = computed(() => t('recharge.confirmDelete'))
+const deleteConfirmActionText = computed(() => t('common.delete'))
 const deleteConfirmDescription = computed(() => (
   selectedIds.value.size > 1
-    ? `选中的 ${selectedIds.value.size} 条充值记录会被直接删除，删除后无法恢复。`
-    : '删除后无法恢复，是否继续？'
+    ? t('recharge.deleteDescriptionMultiple', { count: selectedIds.value.size })
+    : t('recharge.deleteDescriptionSingle')
 ))
 
 function closeSelectionOverlays() {

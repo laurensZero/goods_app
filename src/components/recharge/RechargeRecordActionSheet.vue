@@ -10,18 +10,18 @@
         class="sheet-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="充值记录操作"
+        :aria-label="t('recharge.recordAction.title')"
       >
         <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">充值记录操作</p>
-        <p class="sheet-record">{{ record?.itemName || '未命名项目' }}</p>
+        <p class="sheet-title">{{ t('recharge.recordAction.title') }}</p>
+        <p class="sheet-record">{{ record?.itemName || t('recharge.unnamedItem') }}</p>
 
         <div class="sheet-options">
           <button class="sheet-option" type="button" @click="onEdit">
             <span class="option-icon">编</span>
             <div class="option-body">
-              <p class="option-title">编辑记录</p>
-              <p class="option-desc">修改项目、金额、日期和备注</p>
+              <p class="option-title">{{ t('recharge.recordAction.editTitle') }}</p>
+              <p class="option-desc">{{ t('recharge.recordAction.editDesc') }}</p>
             </div>
           </button>
 
@@ -30,13 +30,13 @@
           <button class="sheet-option sheet-option--danger" type="button" @click="onDelete">
             <span class="option-icon option-icon--danger">删</span>
             <div class="option-body">
-              <p class="option-title">移至回收站</p>
-              <p class="option-desc">长按后再执行删除，避免误触</p>
+              <p class="option-title">{{ t('recharge.recordAction.moveToTrash') }}</p>
+              <p class="option-desc">{{ t('recharge.recordAction.moveToTrashDesc') }}</p>
             </div>
           </button>
         </div>
 
-        <button class="sheet-cancel" type="button" @click="close">取消</button>
+        <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
       </div>
     </Transition>
   </Teleport>
@@ -47,6 +47,9 @@ defineProps({
   modelValue: { type: Boolean, default: false },
   record: { type: Object, default: null }
 })
+
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const emit = defineEmits(['update:modelValue', 'edit', 'delete'])
 
