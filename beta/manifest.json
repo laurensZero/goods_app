@@ -1,9 +1,9 @@
 {
-  "version": "20260527.5",
-  "url": "bundle-20260527.5.zip",
-  "hash": "bed58cbe13a74e73ff4683c8afd3d83d722e35e1c7e89ec7063cc40501ae71a8",
+  "version": "20260528.1",
+  "url": "bundle-20260528.1.zip",
+  "hash": "6a02cee9b5bfebb640aa46c5ef361168791685ab2db4f102ca241c4040306467",
   "minNativeVersion": null,
-  "notes": "- feat: 更多翻译",
+  "notes": "- feat: 更新翻译，优化商品和心愿单相关标签",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-27T15:46:26Z"
+  "publishedAt": "2026-05-28T02:08:54Z"
 }
