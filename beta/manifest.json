@@ -1,9 +1,9 @@
 {
-  "version": "20260528.4",
-  "url": "bundle-20260528.4.zip",
-  "hash": "49c5e190700d4b78b90977101fb70c19d0ebff68ff172620e6f18d132167dfd2",
+  "version": "20260528.5",
+  "url": "bundle-20260528.5.zip",
+  "hash": "484dbb87c4cf74151822a098c8c1952d30f666a96cdf3e362351544ea720b752",
   "minNativeVersion": null,
-  "notes": "- feat: 添加商品加入购物车功能，支持SKU选择和米游铺Cookie管理",
+  "notes": "- feat: 优化购物车功能，增强错误提示和Cookie管理，重构Toast逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T12:52:38Z"
+  "publishedAt": "2026-05-28T14:15:46Z"
 }

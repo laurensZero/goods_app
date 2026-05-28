@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260528.5",
+    "url": "bundle-20260528.5.zip",
+    "hash": "484dbb87c4cf74151822a098c8c1952d30f666a96cdf3e362351544ea720b752",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化购物车功能，增强错误提示和Cookie管理，重构Toast逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-28T14:15:46Z"
+  },
+  {
     "version": "20260528.4",
     "url": "bundle-20260528.4.zip",
     "hash": "49c5e190700d4b78b90977101fb70c19d0ebff68ff172620e6f18d132167dfd2",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新充值记录翻译，添加记录和游戏计数的本地化支持；优化详情页，添加米游铺按钮",
     "updateLevel": "silent",
     "publishedAt": "2026-05-28T12:08:59Z"
-  },
-  {
-    "version": "20260528.2",
-    "url": "bundle-20260528.2.zip",
-    "hash": "45f2f39a8d526821d052a8d3422a7c2ce3e4070d401be7f9c1e0b6ea6f1e82b7",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新购物车导入信息，优化可导入商品和订单的显示格式\n\n- feat: 添加国际化支持，更新充值相关组件和翻译",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T05:03:32Z"
   }
 ]
