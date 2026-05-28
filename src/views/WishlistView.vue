@@ -188,7 +188,7 @@ function persistCollectionTab(tab) {
 
 const HOME_TOP_OPTIONS = computed(() => [
   { value: 'goods', label: t('common.collection') },
-  { value: 'wishlist', label: t('common.wishlist') },
+  { value: 'wishlist', label: t('nav.tabWishlist') },
   { value: 'stats', label: t('nav.tabStats') }
 ])
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
