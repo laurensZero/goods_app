@@ -179,6 +179,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SearchBar from '@/components/common/SearchBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -197,6 +198,7 @@ import { preloadImages } from '@/utils/image/cache'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
+const { t } = useI18n()
 const rechargeStore = useRechargeStore()
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
