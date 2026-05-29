@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260529.5",
+    "url": "bundle-20260529.5.zip",
+    "hash": "b5d995f072033b842f2f94177e56328141a93d306e77ebab520c779fd974ab1d",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化多个异步操作为并行执行，提升性能；重构部分代码以减少查找时间复杂度",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-29T14:52:52Z"
+  },
+  {
     "version": "20260529.4",
     "url": "bundle-20260529.4.zip",
     "hash": "15adf5d4a4bfaffb1b1c61c38979b6fcac3332f4344d4ac9616e868badbfef53",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化趋势统计计算，合并多个计算为单次遍历；改进图片上传并发处理；更新同步冲突处理提示",
     "updateLevel": "silent",
     "publishedAt": "2026-05-29T12:29:27Z"
-  },
-  {
-    "version": "20260529.2",
-    "url": "bundle-20260529.2.zip",
-    "hash": "33ab70396107bc88a7e13c52f97475792983f96241cbe84b3cd9f9a61ff163ac",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化同步服务，增加并发处理和排序字符串化功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-29T12:13:58Z"
   }
 ]
