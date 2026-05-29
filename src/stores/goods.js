@@ -55,10 +55,21 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  Computed getters
 
-  const getById = computed(() => (id) => list.value.find((item) => item.id === id))
-  const getTrashById = computed(() => (id) => trashList.value.find((item) => item.id === id))
-  const collectionList = computed(() => list.value.filter((item) => !item.isWishlist))
-  const wishlistList = computed(() => list.value.filter((item) => item.isWishlist))
+  const _goodsByIdMap = computed(() => new Map(list.value.map((item) => [item.id, item])))
+  const getById = computed(() => (id) => _goodsByIdMap.value.get(id))
+  const _trashByIdMap = computed(() => new Map(trashList.value.map((item) => [item.id, item])))
+  const getTrashById = computed(() => (id) => _trashByIdMap.value.get(id))
+  // Single-pass partition instead of two separate filters
+  const _partitioned = computed(() => {
+    const collection = []
+    const wishlist = []
+    for (const item of list.value) {
+      (item.isWishlist ? wishlist : collection).push(item)
+    }
+    return { collection, wishlist }
+  })
+  const collectionList = computed(() => _partitioned.value.collection)
+  const wishlistList = computed(() => _partitioned.value.wishlist)
   const storageLocations = computed(() =>
     [...new Set(
       collectionList.value

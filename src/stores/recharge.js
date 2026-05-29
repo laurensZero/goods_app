@@ -30,8 +30,13 @@ function isValidRechargeRecord(item) {
 }
 
 function sortByDateDesc(list) {
+  // Pre-extract timestamps to avoid O(n log n) Date parsing in comparator
+  const tsCache = new Map()
+  for (const item of list) {
+    tsCache.set(item, new Date(item.chargedAt).getTime() || 0)
+  }
   return [...list].sort((a, b) => {
-    const dateDiff = new Date(b.chargedAt).getTime() - new Date(a.chargedAt).getTime()
+    const dateDiff = tsCache.get(b) - tsCache.get(a)
     if (dateDiff !== 0) return dateDiff
     return Number(b.updatedAt || 0) - Number(a.updatedAt || 0)
   })
@@ -303,7 +308,9 @@ export const useRechargeStore = defineStore('recharge', () => {
         incoming.image = existing.image
       }
 
-      if (JSON.stringify(incoming) !== JSON.stringify(existing)) {
+      if (Number(incoming.updatedAt || 0) !== Number(existing.updatedAt || 0)
+        || String(incoming.chargedAt || '') !== String(existing.chargedAt || '')
+        || Number(incoming.amount || 0) !== Number(existing.amount || 0)) {
         updated += 1
       }
     }

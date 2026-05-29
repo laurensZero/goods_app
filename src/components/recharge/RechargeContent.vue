@@ -491,9 +491,7 @@ async function confirmDelete() {
     return
   }
 
-  for (const id of selectedIds.value) {
-    await rechargeStore.permanentDelete(id)
-  }
+  await Promise.all(selectedIds.value.map((id) => rechargeStore.permanentDelete(id)))
 
   showDeleteConfirm.value = false
   exitSelectionModeQuiet()

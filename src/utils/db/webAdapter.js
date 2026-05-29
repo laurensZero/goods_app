@@ -38,6 +38,30 @@ async function _saveBinaryToIDB(sqlDb) {
 
 export function createWebAdapter() {
   let _db = null
+  let _saveTimer = null
+  let _savePromise = null
+
+  function _scheduleSave() {
+    if (_saveTimer) return
+    _saveTimer = setTimeout(async () => {
+      _saveTimer = null
+      _savePromise = _saveBinaryToIDB(_db)
+      await _savePromise
+      _savePromise = null
+    }, 100)
+  }
+
+  async function _flushSave() {
+    if (_saveTimer) {
+      clearTimeout(_saveTimer)
+      _saveTimer = null
+      _savePromise = _saveBinaryToIDB(_db)
+      await _savePromise
+      _savePromise = null
+    } else if (_savePromise) {
+      await _savePromise
+    }
+  }
 
   return {
     async open() {
@@ -45,23 +69,31 @@ export function createWebAdapter() {
       const SQL = await initSqlJs({ locateFile: () => '/assets/sql-wasm.wasm' })
       const saved = await _loadBinaryFromIDB()
       _db = saved ? new SQL.Database(saved) : new SQL.Database()
+      // Flush pending saves before page unload to prevent data loss
+      window.addEventListener('beforeunload', () => {
+        if (_saveTimer) {
+          clearTimeout(_saveTimer)
+          _saveTimer = null
+          _saveBinaryToIDB(_db)
+        }
+      })
     },
 
     async execute(sql) {
       _db.run(sql)
-      await _saveBinaryToIDB(_db)
+      _scheduleSave()
     },
 
     async run(sql, params) {
       _db.run(sql, params)
-      await _saveBinaryToIDB(_db)
+      _scheduleSave()
     },
 
     async executeSet(stmts) {
       for (const { statement, values } of stmts) {
         _db.run(statement, values)
       }
-      await _saveBinaryToIDB(_db)
+      _scheduleSave()
     },
 
     async query(sql, params = []) {
@@ -76,6 +108,10 @@ export function createWebAdapter() {
       const result = _db.exec(`PRAGMA table_info(${safeName})`)
       if (!result.length) return new Set()
       return new Set(result[0].values.map(row => row[1]))
+    },
+
+    async flush() {
+      await _flushSave()
     }
   }
 }
