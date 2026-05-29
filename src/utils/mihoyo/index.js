@@ -1040,10 +1040,21 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
     }
 
     console.log('[addToCart] response:', json)
-    if (json.retcode === 0) {
-      return { success: true }
+
+    // 外层 retcode 检查
+    if (json.retcode !== 0) {
+      return { success: false, message: json.message || `错误码：${json.retcode}` }
     }
-    return { success: false, message: json.message || `错误码：${json.retcode}` }
+
+    // 内层 data.code 检查：0=成功，2=购物车满
+    const dataCode = json.data?.code ?? 0
+    if (dataCode === 0) {
+      return { success: true, message: 'OK' }
+    }
+    if (dataCode === 2) {
+      return { success: false, message: '购物车已满', cartFull: true }
+    }
+    return { success: false, message: `错误码：${dataCode}` }
   } catch (e) {
     console.error('[addToCart] error:', e)
     return { success: false, message: e.message || '网络错误' }

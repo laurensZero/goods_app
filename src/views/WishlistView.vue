@@ -128,12 +128,16 @@
     <GoodsSelectionActionBar
       :show="selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
+      :cart-item-count="cartItemCount"
       @delete="batchDelete"
       @share="batchShare"
       @edit="batchEdit"
+      @add-to-cart="batchAddToCart"
     />
 
     <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
+
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -163,8 +167,13 @@ import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
+import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
+import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
+import { useToast } from '@/composables/useToast'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
@@ -684,6 +693,110 @@ function batchShare() {
 async function applyBatchEditPayload(payload) {
   await store.updateMultipleGoods(selectedIds.value, payload)
   exitSelectionModeQuiet()
+}
+
+// 批量加入米游铺购物车
+const { toastMsg, showToast } = useToast()
+const cartItemCount = ref(0)
+const isBatchAddingToCart = ref(false)
+
+async function getMihoyoCookie() {
+  // 先尝试 Web 端存储
+  try {
+    const cookieState = await loadMihoyoCookieState()
+    if (cookieState.cookie) return cookieState.cookie
+  } catch {
+    // ignore
+  }
+  // 再尝试安卓原生端
+  try {
+    const nativeCookie = await getNativeMihoyoCookie()
+    if (nativeCookie) return nativeCookie
+  } catch {
+    // ignore
+  }
+  return ''
+}
+
+async function batchAddToCart() {
+  if (selectedIds.value.size === 0 || isBatchAddingToCart.value) return
+
+  const cookie = await getMihoyoCookie()
+  if (!cookie) {
+    showToast(t('toast.pleaseLoginMihoyo'))
+    return
+  }
+
+  // 获取有 goodsId 的选中物品
+  const itemsWithGoodsId = selectedGoodsItems.value.filter(item => item.goodsId)
+  if (itemsWithGoodsId.length === 0) {
+    showToast(t('toast.cannotGetSkuInfo'))
+    return
+  }
+
+  isBatchAddingToCart.value = true
+  let successCount = 0
+  let failCount = 0
+  let cartFull = false
+
+  for (const item of itemsWithGoodsId) {
+    if (cartFull) break
+
+    try {
+      // 获取商品详情（SKU信息）
+      const { shopCode, skus } = await fetchGoodsDetailForCart(item.goodsId)
+      if (skus.length === 0) {
+        failCount++
+        continue
+      }
+
+      // 尝试匹配 SKU
+      let skuId = skus[0].id
+      const savedVariant = String(item.variant || '').trim()
+      if (savedVariant && skus.length > 1) {
+        const matchedSku = skus.find(sku =>
+          sku.text.includes(savedVariant) || savedVariant.includes(sku.text)
+        )
+        if (matchedSku) skuId = matchedSku.id
+      }
+
+      // 加入购物车
+      const result = await addToCart({
+        goodsId: item.goodsId,
+        skuId,
+        shopCode,
+        nums: 1,
+        cookie
+      })
+
+      if (result.success) {
+        successCount++
+        cartItemCount.value++
+      } else if (result.cartFull) {
+        cartFull = true
+      } else {
+        failCount++
+      }
+    } catch {
+      failCount++
+    }
+
+    // 避免请求太快，添加小延迟
+    await new Promise(resolve => setTimeout(resolve, 200))
+  }
+
+  isBatchAddingToCart.value = false
+
+  // 显示结果
+  if (successCount > 0 && failCount === 0) {
+    showToast(t('toast.batchAddToCartSuccess', { count: successCount }))
+  } else if (successCount > 0 && failCount > 0) {
+    showToast(t('toast.batchAddToCartPartial', { success: successCount, fail: failCount }))
+  } else if (cartFull) {
+    showToast(t('toast.cartFull'))
+  } else {
+    showToast(t('toast.batchAddToCartFailed'))
+  }
 }
 
 onMounted(async () => {

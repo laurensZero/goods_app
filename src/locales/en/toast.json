@@ -35,5 +35,9 @@
   "toast.addingToCart": "Adding to cart...",
   "toast.addedToCart": "Added to cart",
   "toast.addToCartFailed": "Failed to add to cart: {error}",
-  "toast.addToCartError": "Error adding to cart: {error}"
+  "toast.addToCartError": "Error adding to cart: {error}",
+  "toast.batchAddToCartSuccess": "Added {count} items to cart",
+  "toast.batchAddToCartPartial": "Added {success} items, {fail} failed",
+  "toast.batchAddToCartFailed": "Failed to add to cart",
+  "toast.cartFull": "Cart is full, please clear your cart first"
 }

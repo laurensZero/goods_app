@@ -723,9 +723,7 @@
         </div>
       </Transition>
 
-      <Transition name="toast-fade">
-        <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
-      </Transition>
+      <AppToast :message="toastMsg" />
     </main>
   </div>
 </template>
@@ -753,6 +751,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { showSuccessToast, showFailToast } from 'vant'
 import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 

@@ -145,6 +145,7 @@
   "goods.selection.delete": "Delete",
   "goods.selection.share": "Share",
   "goods.selection.batchEdit": "Batch Edit",
+  "goods.selection.addToCart": "Add to Cart",
   "goods.batch.batchEditLabel": "Batch Edit",
   "goods.batch.modifyItems": "Modify {count} items",
   "goods.batch.onlyAppliedFields": "Only fields filled in this session will be applied; empty fields keep their original values.",

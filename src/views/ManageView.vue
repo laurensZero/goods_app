@@ -209,9 +209,7 @@
 
       <input ref="importFileRef" type="file" accept=".json" hidden @change="handleImport" />
 
-      <Transition name="toast-fade">
-        <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
-      </Transition>
+      <AppToast :message="toastMsg" />
     </main>
   </div>
 </template>
@@ -231,6 +229,7 @@ import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
+import AppToast from '@/components/common/AppToast.vue'
 
 // Lazy-loaded sub-pages
 const CategoryManageView = defineAsyncComponent(() => import('@/views/CategoryManageView.vue'))
@@ -1038,35 +1037,6 @@ onBeforeRouteLeave(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
-}
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(80px + max(env(safe-area-inset-bottom), 12px) + 12px);
-  z-index: 999;
-  width: max-content;
-  max-width: min(calc(100vw - 32px), 420px);
-  padding: 11px 16px;
-  border: 1px solid var(--app-glass-border);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
-  color: var(--app-text);
-  box-shadow: var(--app-shadow);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.45;
-  text-align: center;
-  transform: translateX(-50%);
-  pointer-events: none;
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(8px);
 }
 
 @media (max-width: 1199px) {
