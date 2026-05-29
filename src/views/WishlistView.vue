@@ -263,6 +263,7 @@ const {
   restoreActivatedScrollPosition,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
+  clearStoredScrollState,
   resetStoredScrollOnReload,
   cancelPendingRestore
 } = createPageScrollRestore('wishlist')(pageBodyRef)
@@ -585,6 +586,8 @@ function goToAdd() {
   openAddSheet()
 }
 
+let shouldScrollToTopOnActivated = false
+
 async function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
   showAddSheet.value = false
@@ -614,6 +617,7 @@ async function handleBatchAdd() {
 }
 
 function goToImport() {
+  shouldScrollToTopOnActivated = true
   navigateFromAddSheet('/import?mode=wishlist', 'wishlist:goToImport')
 }
 
@@ -712,6 +716,16 @@ onActivated(async () => {
   isWishlistActive.value = true
   cancelGoodsBackHeroRetry()
   clearWishlistBackHeroDeferredRestoreTimer()
+  if (shouldScrollToTopOnActivated) {
+    shouldScrollToTopOnActivated = false
+    clearDisplayedScrollPosition()
+    clearStoredScrollState()
+    wishlistDisplayReady.value = true
+    bindPageScroll()
+    updateScrollTopButtonVisibility()
+    bindAndroidBackButton()
+    return
+  }
   if (shouldMaskWishlistDisplay()) {
     wishlistDisplayReady.value = false
   }

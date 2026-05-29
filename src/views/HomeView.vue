@@ -408,6 +408,8 @@ function handleHeroSearch() {
   )
 }
 
+let shouldScrollToTopOnActivated = false
+
 function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
   homeDisplayReady.value = false
@@ -562,6 +564,7 @@ function syncAddMotionContext() {
 }
 
 function handleImport() {
+  shouldScrollToTopOnActivated = true
   navigateFromAddSheet('/import', 'home:handleImport')
 }
 
@@ -913,6 +916,17 @@ onActivated(async () => {
   isHomeActive.value = true
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
+  if (shouldScrollToTopOnActivated) {
+    shouldScrollToTopOnActivated = false
+    clearStoredScrollState()
+    setScrollTop(0, 'both')
+    homeDisplayReady.value = true
+    bindPageScroll()
+    updateSelectionHeaderPosition()
+    updateScrollTopButtonVisibility()
+    bindAndroidBackButton()
+    return
+  }
   if (shouldMaskHomeDisplay() || hasPendingGoodsHeroBack(route.fullPath)) {
     homeDisplayReady.value = false
   }
