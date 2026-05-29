@@ -1,9 +1,9 @@
 {
-  "version": "20260529.1",
-  "url": "bundle-20260529.1.zip",
-  "hash": "9b02b250f356df7b4007c3688aebf7b9014e9d79ebb2513631bc397650dc3793",
+  "version": "20260529.2",
+  "url": "bundle-20260529.2.zip",
+  "hash": "33ab70396107bc88a7e13c52f97475792983f96241cbe84b3cd9f9a61ff163ac",
   "minNativeVersion": null,
-  "notes": "- feat: 增加在激活时滚动到顶部的功能，优化导入流程",
+  "notes": "- feat: 优化同步服务，增加并发处理和排序字符串化功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-29T11:47:37Z"
+  "publishedAt": "2026-05-29T12:13:58Z"
 }
