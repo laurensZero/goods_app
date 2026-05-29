@@ -121,13 +121,15 @@ function normalizeStorageLocationSnapshot(list) {
   // Backward compatibility for older sync payloads that stored only path strings.
   if (list.every((item) => typeof item === 'string')) {
     const nodes = []
+    const nodeIndex = new Map()
 
     for (const rawPath of list) {
       const parts = splitStorageLocationPath(rawPath)
       let parentId = ''
 
       for (const part of parts) {
-        const existing = nodes.find((node) => node.parentId === parentId && node.name === part)
+        const key = `${parentId}::${part}`
+        const existing = nodeIndex.get(key)
         if (existing) {
           parentId = existing.id
           continue
@@ -139,6 +141,7 @@ function normalizeStorageLocationSnapshot(list) {
           parentId
         }
         nodes.push(node)
+        nodeIndex.set(key, node)
         parentId = node.id
       }
     }
@@ -275,10 +278,16 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function init() {
-    categories.value = await readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES)
-    ips.value = await readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS)
-    characters.value = await readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS)
-    storageLocations.value = await readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS)
+    const [cat, ip, chr, loc] = await Promise.all([
+      readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
+      readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
+      readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
+      readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS)
+    ])
+    categories.value = cat
+    ips.value = ip
+    characters.value = chr
+    storageLocations.value = loc
 
     if (!Array.isArray(categories.value)) categories.value = cloneList(DEFAULT_CATEGORIES)
     if (!Array.isArray(ips.value)) ips.value = cloneList(DEFAULT_IPS)
@@ -347,6 +356,8 @@ export const usePresetsStore = defineStore('presets', () => {
     if (!Array.isArray(paths) || paths.length === 0) return false
 
     const next = [...storageLocations.value]
+    // Build index for O(1) lookup by parentId::name
+    const nodeIndex = new Map(next.map((node) => [`${node.parentId}::${node.name}`, node]))
     let changed = false
 
     for (const rawPath of paths) {
@@ -354,7 +365,8 @@ export const usePresetsStore = defineStore('presets', () => {
       let parentId = ''
 
       for (const part of parts) {
-        const existed = next.find((node) => node.parentId === parentId && node.name === part)
+        const key = `${parentId}::${part}`
+        const existed = nodeIndex.get(key)
         if (existed) {
           parentId = existed.id
           continue
@@ -366,6 +378,7 @@ export const usePresetsStore = defineStore('presets', () => {
           parentId
         }
         next.push(node)
+        nodeIndex.set(key, node)
         parentId = node.id
         changed = true
       }

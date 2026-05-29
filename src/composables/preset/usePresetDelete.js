@@ -30,9 +30,7 @@ export function usePresetDelete({ getAffected, patch, removePreset }) {
     showDeleteConfirm.value = false
     const name = pendingDeleteName.value
     const affected = getAffected(store.list, name)
-    for (const item of affected) {
-      await store.updateGoods(item.id, patch(item, name))
-    }
+    await Promise.all(affected.map((item) => store.updateGoods(item.id, patch(item, name))))
     await removePreset(name)
     pendingDeleteName.value = ''
     affectedCount.value = 0

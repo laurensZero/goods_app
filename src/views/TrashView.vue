@@ -132,9 +132,7 @@ function deleteItem(id) {
 
 async function restoreAll() {
   const ids = store.trashViewList.map((item) => item.id)
-  for (const id of ids) {
-    await store.restoreTrashItem(id)
-  }
+  await Promise.all(ids.map((id) => store.restoreTrashItem(id)))
 }
 
 function emptyAll() {

@@ -163,11 +163,17 @@ export function createTrashViewList(trashList) {
     trashViewCache = newMap
     viewMap.value = newMap
 
+    // Pre-extract sort keys to avoid Map lookups in every comparison
+    const vm = viewMap.value
+    const sortKeys = new Map(newList.map((item) => {
+      const vi = vm.get(item.id)?.viewItem
+      return [item.id, { deleted: vi?.deletedTime || 0, acquired: vi?.acquiredTime || 0 }]
+    }))
     const sortedIds = [...newList]
       .sort((a, b) => {
-        const va = viewMap.value.get(a.id)?.viewItem
-        const vb = viewMap.value.get(b.id)?.viewItem
-        return (vb?.deletedTime - va?.deletedTime) || (vb?.acquiredTime - va?.acquiredTime)
+        const ka = sortKeys.get(a.id)
+        const kb = sortKeys.get(b.id)
+        return (kb.deleted - ka.deleted) || (kb.acquired - ka.acquired)
       })
       .map((i) => i.id)
     viewOrder.value = sortedIds
@@ -200,7 +206,15 @@ export function createTrashViewList(trashList) {
  * @param {import('vue').ComputedRef} viewList
  */
 export function createFilteredViewLists(viewList) {
-  const collectionViewList = computed(() => viewList.value.filter((item) => !item.isWishlist))
-  const wishlistViewList = computed(() => viewList.value.filter((item) => item.isWishlist))
+  const _partitioned = computed(() => {
+    const collection = []
+    const wishlist = []
+    for (const item of viewList.value) {
+      (item.isWishlist ? wishlist : collection).push(item)
+    }
+    return { collection, wishlist }
+  })
+  const collectionViewList = computed(() => _partitioned.value.collection)
+  const wishlistViewList = computed(() => _partitioned.value.wishlist)
   return { collectionViewList, wishlistViewList }
 }

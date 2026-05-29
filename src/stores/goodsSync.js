@@ -88,12 +88,15 @@ async function updateGoodsBackup(items, list) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(list.value.map((item) => [item.id, item]))
-  const updatedItems = []
 
-  for (const remoteItem of items) {
+  // Filter items that need updating first (cheap), then restore in parallel (expensive I/O)
+  const candidates = items.filter((remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
-    if (!localItem || !shouldApplyRemoteBackup(localItem, remoteItem)) continue
+    return localItem && shouldApplyRemoteBackup(localItem, remoteItem)
+  })
 
+  const results = await Promise.all(candidates.map(async (remoteItem) => {
+    const localItem = existingMap.get(remoteItem.id)
     const restoredRemote = await restoreImportedGoodsItem(remoteItem)
     const normalized = normalizeGoodsInput({
       ...localItem,
@@ -104,12 +107,20 @@ async function updateGoodsBackup(items, list) {
       updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
     }, remoteItem.id)
     const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
-    const idx = list.value.findIndex((item) => item.id === remoteItem.id)
+    return { normalized, removedPaths, id: remoteItem.id }
+  }))
+
+  const updatedItems = []
+  const cleanupPaths = []
+  for (const { normalized, removedPaths, id } of results) {
+    const idx = list.value.findIndex((item) => item.id === id)
     if (idx === -1) continue
     list.value[idx] = normalized
     updatedItems.push(normalized)
-    await deleteManagedLocalImages(removedPaths)
+    if (removedPaths.length > 0) cleanupPaths.push(...removedPaths)
   }
+
+  if (cleanupPaths.length > 0) await deleteManagedLocalImages(cleanupPaths)
 
   if (updatedItems.length > 0) {
     triggerRef(list)
@@ -144,29 +155,38 @@ async function updateTrashBackup(items, trashList) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
-  const updatedItems = []
 
-  for (const remoteItem of items) {
+  const candidates = items.filter((remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
-    if (localItem && shouldApplyRemoteBackup(localItem, remoteItem)) {
-      const idx = trashList.value.findIndex(g => g.id === remoteItem.id)
-      if (idx !== -1) {
-        const restoredRemote = await restoreImportedGoodsItem(remoteItem)
-        const normalized = normalizeTrashItem({
-          ...localItem,
-          ...restoredRemote,
-          __imagesExplicit: true,
-          image: '',
-          coverImage: '',
-          updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
-        }, remoteItem.id)
-        const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
-        trashList.value[idx] = normalized
-        updatedItems.push(normalized)
-        await deleteManagedLocalImages(removedPaths)
-      }
-    }
+    return localItem && shouldApplyRemoteBackup(localItem, remoteItem)
+  })
+
+  const results = await Promise.all(candidates.map(async (remoteItem) => {
+    const localItem = existingMap.get(remoteItem.id)
+    const restoredRemote = await restoreImportedGoodsItem(remoteItem)
+    const normalized = normalizeTrashItem({
+      ...localItem,
+      ...restoredRemote,
+      __imagesExplicit: true,
+      image: '',
+      coverImage: '',
+      updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
+    }, remoteItem.id)
+    const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
+    return { normalized, removedPaths, id: remoteItem.id }
+  }))
+
+  const updatedItems = []
+  const cleanupPaths = []
+  for (const { normalized, removedPaths, id } of results) {
+    const idx = trashList.value.findIndex((item) => item.id === id)
+    if (idx === -1) continue
+    trashList.value[idx] = normalized
+    updatedItems.push(normalized)
+    if (removedPaths.length > 0) cleanupPaths.push(...removedPaths)
   }
+
+  if (cleanupPaths.length > 0) await deleteManagedLocalImages(cleanupPaths)
 
   if (updatedItems.length > 0) {
     triggerRef(trashList)

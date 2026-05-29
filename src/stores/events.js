@@ -85,7 +85,8 @@ export const useEventsStore = defineStore('events', () => {
     list.value.reduce((sum, item) => sum + parseNumericPrice(item.ticketPrice), 0)
   )
 
-  const getById = computed(() => (id) => list.value.find((item) => item.id === id))
+  const _eventsByIdMap = computed(() => new Map(list.value.map((item) => [item.id, item])))
+  const getById = computed(() => (id) => _eventsByIdMap.value.get(id))
 
   async function init() {
     try {
@@ -227,12 +228,15 @@ export const useEventsStore = defineStore('events', () => {
     let updated = 0
     let removed = 0
 
+    // Build Map for O(1) lookup instead of O(n) .find() per incoming item
+    const existingMap = new Map(list.value.map((item) => [item.id, item]))
+
     for (const event of incoming) {
       if (!event?.id) continue
 
       incomingIds.add(event.id)
 
-      const existing = list.value.find((item) => item.id === event.id)
+      const existing = existingMap.get(event.id)
       if (!existing) {
         const now = Date.now()
         const record = {

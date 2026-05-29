@@ -161,16 +161,12 @@ export function createSyncOrchestrator({
   }
 
   function getRemoteWatermark(remoteManifest, remoteData, rechargeData, eventData) {
-    const timestamps = []
-    const manifestTs = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
-    if (manifestTs > 0) timestamps.push(manifestTs)
-    for (const item of remoteData?.goods || []) timestamps.push(getItemTimestamp(item))
-    for (const item of remoteData?.trash || []) timestamps.push(getItemTimestamp(item))
-    for (const item of rechargeData?.recharge || []) timestamps.push(getItemTimestamp(item))
-    for (const item of rechargeData?.rechargeTrash || []) timestamps.push(getItemTimestamp(item))
-    for (const item of eventData?.events || []) timestamps.push(Number(item?.updatedAt) || 0)
-    let max = 0
-    for (const ts of timestamps) { if (ts > max) max = ts }
+    let max = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
+    for (const item of remoteData?.goods || []) { const ts = getItemTimestamp(item); if (ts > max) max = ts }
+    for (const item of remoteData?.trash || []) { const ts = getItemTimestamp(item); if (ts > max) max = ts }
+    for (const item of rechargeData?.recharge || []) { const ts = getItemTimestamp(item); if (ts > max) max = ts }
+    for (const item of rechargeData?.rechargeTrash || []) { const ts = getItemTimestamp(item); if (ts > max) max = ts }
+    for (const item of eventData?.events || []) { const ts = Number(item?.updatedAt) || 0; if (ts > max) max = ts }
     return max
   }
 
@@ -356,7 +352,7 @@ export function createSyncOrchestrator({
     }
 
     if (trashIdsToRemove.size > 0) {
-      for (const id of trashIdsToRemove) await goodsStore.deleteTrashItem(id)
+      await Promise.all([...trashIdsToRemove].map((id) => goodsStore.deleteTrashItem(id)))
     }
     if (goodsToImport.length > 0) {
       await goodsStore.importGoodsBackup(goodsToImport)
@@ -398,7 +394,7 @@ export function createSyncOrchestrator({
         .filter((item) => getItemTimestamp(item) <= remoteWatermark)
         .map((item) => item.id)
       if (localOnlyGoodsIds.length > 0) await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
-      if (localOnlyTrashIds.length > 0) { for (const id of localOnlyTrashIds) await goodsStore.deleteTrashItem(id) }
+      if (localOnlyTrashIds.length > 0) { await Promise.all(localOnlyTrashIds.map((id) => goodsStore.deleteTrashItem(id))) }
     }
 
     const remoteRecharge = Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []
@@ -924,8 +920,10 @@ export function createSyncOrchestrator({
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     const goodsStore = useGoodsStore()
-    const localComparableState = await payload.buildComparableSyncStateFromData({ goods: goodsStore.list, trash: goodsStore.trashList, presets: await ctx.buildPresetsData() })
-    const remoteComparableState = await payload.buildComparableSyncStateFromData(remoteData, {
+    // Build local and remote comparable states in parallel where possible
+    const presetsData = await ctx.buildPresetsData()
+    const localComparableState = payload.buildComparableSyncStateFromData({ goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData })
+    const remoteComparableState = payload.buildComparableSyncStateFromData(remoteData, {
       budgetSettings: {
         monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
         yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
