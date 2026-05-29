@@ -1,9 +1,9 @@
 {
-  "version": "20260529.3",
-  "url": "bundle-20260529.3.zip",
-  "hash": "838839b5d1ea4bc0fad8ce33ff62dc49b9ff795f5d8de935ccfbe228bb0b520f",
+  "version": "20260529.4",
+  "url": "bundle-20260529.4.zip",
+  "hash": "15adf5d4a4bfaffb1b1c61c38979b6fcac3332f4344d4ac9616e868badbfef53",
   "minNativeVersion": null,
-  "notes": "- feat: 优化趋势统计计算，合并多个计算为单次遍历；改进图片上传并发处理；更新同步冲突处理提示",
+  "notes": "- feat: 添加批量添加购物车功能，优化购物车满的提示；重构 Toast 组件以统一提示样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-29T12:29:27Z"
+  "publishedAt": "2026-05-29T12:45:34Z"
 }

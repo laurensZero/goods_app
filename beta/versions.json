@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260529.4",
+    "url": "bundle-20260529.4.zip",
+    "hash": "15adf5d4a4bfaffb1b1c61c38979b6fcac3332f4344d4ac9616e868badbfef53",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加批量添加购物车功能，优化购物车满的提示；重构 Toast 组件以统一提示样式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-29T12:45:34Z"
+  },
+  {
     "version": "20260529.3",
     "url": "bundle-20260529.3.zip",
     "hash": "838839b5d1ea4bc0fad8ce33ff62dc49b9ff795f5d8de935ccfbe228bb0b520f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化同步服务，增加并发处理和排序字符串化功能",
     "updateLevel": "silent",
     "publishedAt": "2026-05-29T12:13:58Z"
-  },
-  {
-    "version": "20260529.1",
-    "url": "bundle-20260529.1.zip",
-    "hash": "9b02b250f356df7b4007c3688aebf7b9014e9d79ebb2513631bc397650dc3793",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加在激活时滚动到顶部的功能，优化导入流程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-29T11:47:37Z"
   }
 ]
