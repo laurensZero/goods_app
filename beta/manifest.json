@@ -1,9 +1,9 @@
 {
-  "version": "20260528.11",
-  "url": "bundle-20260528.11.zip",
-  "hash": "4ac1fffc0843e5918d376ec1c93954654dbb8b7a23bda90a7d387531a4de91c9",
+  "version": "20260529.1",
+  "url": "bundle-20260529.1.zip",
+  "hash": "9b02b250f356df7b4007c3688aebf7b9014e9d79ebb2513631bc397650dc3793",
   "minNativeVersion": null,
-  "notes": "- feat: 增加安卓原生端获取保存的Cookie功能",
+  "notes": "- feat: 增加在激活时滚动到顶部的功能，优化导入流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-28T15:08:50Z"
+  "publishedAt": "2026-05-29T11:47:37Z"
 }
