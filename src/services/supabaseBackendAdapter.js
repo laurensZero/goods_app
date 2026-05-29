@@ -573,32 +573,45 @@ export function createSupabaseBackendAdapter({
       let uploaded = 0
       let failed = 0
 
-      for (const [filePath, fileObj] of entries) {
-        const storagePath = toStoragePath(filePath)
-        const bucketName = resolveStorageBucketByPath(storagePath)
-        try {
-          if (!fileObj || !fileObj.content) {
-            await db.storage.from(bucketName).remove([storagePath])
-            continue
-          }
+      // Process 3 images concurrently to balance speed and resource usage
+      const CONCURRENT_UPLOADS = 3
+      let index = 0
+      async function uploadWorker() {
+        while (index < entries.length) {
+          const i = index++
+          const [filePath, fileObj] = entries[i]
+          const storagePath = toStoragePath(filePath)
+          const bucketName = resolveStorageBucketByPath(storagePath)
+          try {
+            if (!fileObj || !fileObj.content) {
+              await db.storage.from(bucketName).remove([storagePath])
+              continue
+            }
 
-          const response = await fetch(fileObj.content)
-          const blob = await response.blob()
-          const { error } = await db.storage.from(bucketName).upload(storagePath, blob, {
-            upsert: true,
-            contentType: blob.type || 'image/jpeg'
-          })
-          if (error) {
-            console.warn(`[supabase] upload failed for ${storagePath}:`, error.message)
+            const response = await fetch(fileObj.content)
+            const blob = await response.blob()
+            const { error } = await db.storage.from(bucketName).upload(storagePath, blob, {
+              upsert: true,
+              contentType: blob.type || 'image/jpeg'
+            })
+            if (error) {
+              console.warn(`[supabase] upload failed for ${storagePath}:`, error.message)
+              failed++
+            } else {
+              uploaded++
+            }
+          } catch (e) {
+            console.warn(`[supabase] upload error for ${storagePath}:`, e.message)
             failed++
-          } else {
-            uploaded++
           }
-        } catch (e) {
-          console.warn(`[supabase] upload error for ${storagePath}:`, e.message)
-          failed++
         }
       }
+
+      const workers = Array.from(
+        { length: Math.min(CONCURRENT_UPLOADS, entries.length) },
+        () => uploadWorker()
+      )
+      await Promise.all(workers)
 
       return `上传完成: ${uploaded} 成功, ${failed} 失败`
     }, {

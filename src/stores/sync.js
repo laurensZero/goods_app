@@ -369,7 +369,8 @@ export const useSyncStore = defineStore('sync', () => {
       ...recharge.map((item) => getItemTimestamp(item)),
       ...(eventsStore.list || []).map((item) => Number(item?.updatedAt) || 0)
     ]
-    const latest = Math.max(0, ...timestamps)
+    let latest = 0
+    for (const ts of timestamps) { if (ts > latest) latest = ts }
     return latest > 0 ? new Date(latest).toISOString() : ''
   }
 
@@ -720,9 +721,11 @@ export const useSyncStore = defineStore('sync', () => {
     token.value = ''; githubLogin.value = ''; githubAvatarUrl.value = ''; githubScopes.value = ''; githubAuthMethod.value = ''
     gistId.value = ''; imageGistId.value = ''; rechargeGistId.value = ''; eventGistId.value = ''
     lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
-    await writeSyncKey(TOKEN_KEY, ''); await writeSyncKey(GIST_ID_KEY, ''); await writeSyncKey(IMAGE_GIST_ID_KEY, '')
-    await writeSyncKey(RECHARGE_GIST_ID_KEY, ''); await writeSyncKey(EVENT_GIST_ID_KEY, '')
-    await writeSyncKey(LAST_SYNC_KEY, ''); await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    await Promise.all([
+      writeSyncKey(TOKEN_KEY, ''), writeSyncKey(GIST_ID_KEY, ''), writeSyncKey(IMAGE_GIST_ID_KEY, ''),
+      writeSyncKey(RECHARGE_GIST_ID_KEY, ''), writeSyncKey(EVENT_GIST_ID_KEY, ''),
+      writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    ])
     await clearGitHubMeta()
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null

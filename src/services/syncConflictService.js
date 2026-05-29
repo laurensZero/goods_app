@@ -198,18 +198,6 @@ export function createSyncConflictService({
       buildTimestampRecordMap(remoteEventData.events || [])
     )
     const hasBudgetDiff = localBudgetData.monthly !== remoteBudgetData.monthly || localBudgetData.yearly !== remoteBudgetData.yearly
-    const imageDiff = countComparableRecordDiff(
-      buildImageReferenceMap({
-        goods: [...resolvedLocal.goodsMap.values()],
-        trash: [...resolvedLocal.trashMap.values()],
-        events: localEventData.events || []
-      }),
-      buildImageReferenceMap({
-        goods: remoteGoods,
-        trash: remoteTrash,
-        events: remoteEventData.events || []
-      })
-    )
 
     const localImageMap = buildImageReferenceMap({
       goods: [...resolvedLocal.goodsMap.values()],
@@ -221,6 +209,7 @@ export function createSyncConflictService({
       trash: remoteTrash,
       events: remoteEventData.events || []
     })
+    const imageDiff = countComparableRecordDiff(localImageMap, remoteImageMap)
     const localOnlyImageKeys = [...localImageMap.keys()].filter((key) => !remoteImageMap.has(key))
     const remoteOnlyImageKeys = [...remoteImageMap.keys()].filter((key) => !localImageMap.has(key))
 
@@ -270,7 +259,10 @@ export function createSyncConflictService({
       localBudgetMonthly: localBudgetData.monthly,
       localBudgetYearly: localBudgetData.yearly,
       remoteBudgetMonthly: remoteBudgetData.monthly,
-      remoteBudgetYearly: remoteBudgetData.yearly
+      remoteBudgetYearly: remoteBudgetData.yearly,
+      remoteData,
+      remoteRechargeData,
+      remoteEventData
     }
   }
 

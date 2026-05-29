@@ -169,7 +169,9 @@ export function createSyncOrchestrator({
     for (const item of rechargeData?.recharge || []) timestamps.push(getItemTimestamp(item))
     for (const item of rechargeData?.rechargeTrash || []) timestamps.push(getItemTimestamp(item))
     for (const item of eventData?.events || []) timestamps.push(Number(item?.updatedAt) || 0)
-    return Math.max(0, ...timestamps)
+    let max = 0
+    for (const ts of timestamps) { if (ts > max) max = ts }
+    return max
   }
 
   async function pullFromRemote(gist, remoteManifest, rechargeGist, eventGist, options, ctx) {
@@ -193,23 +195,28 @@ export function createSyncOrchestrator({
     const localEventLatestTs = getLatestEventTimestamp(eventsStore.list || [])
     const useIncrementalEventPull = enableIncrementalEvents && isSupabaseBackend && localEventLatestTs > 0
 
-    const remoteData = await readJson(be, {
-      title: '读取 Data',
-      gist,
-      fileName: DATA_FILENAME,
-      startDetail: useIncrementalGoodsPull ? '读取收藏、心愿单和回收站（增量）' : '读取收藏、心愿单和回收站',
-      category: 'pull',
-      required: true,
-      missingMessage: '远端数据为空',
-      incrementalSince: useIncrementalGoodsPull ? localGoodsLatestTs : 0,
-      successDetail: (parsed) => {
-        if (!parsed) return '未找到远端主数据'
-        const goods = Array.isArray(parsed.goods) ? parsed.goods : []
-        const trash = Array.isArray(parsed.trash) ? parsed.trash : []
-        const counts = countWishlistSplit(goods)
-        return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}${useIncrementalGoodsPull ? '（增量）' : ''}`
-      }
-    }) || { goods: [], trash: [], presets: {} }
+    const cachedRemoteData = options.cachedRemoteData
+    const canUseCachedData = cachedRemoteData && !useIncrementalGoodsPull
+
+    const remoteData = canUseCachedData
+      ? cachedRemoteData
+      : await readJson(be, {
+          title: '读取 Data',
+          gist,
+          fileName: DATA_FILENAME,
+          startDetail: useIncrementalGoodsPull ? '读取收藏、心愿单和回收站（增量）' : '读取收藏、心愿单和回收站',
+          category: 'pull',
+          required: true,
+          missingMessage: '远端数据为空',
+          incrementalSince: useIncrementalGoodsPull ? localGoodsLatestTs : 0,
+          successDetail: (parsed) => {
+            if (!parsed) return '未找到远端主数据'
+            const goods = Array.isArray(parsed.goods) ? parsed.goods : []
+            const trash = Array.isArray(parsed.trash) ? parsed.trash : []
+            const counts = countWishlistSplit(goods)
+            return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}${useIncrementalGoodsPull ? '（增量）' : ''}`
+          }
+        }) || { goods: [], trash: [], presets: {} }
 
     const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const localRechargeLatestTs = getLatestRechargeTimestamp(localRechargeSnapshot)
@@ -328,14 +335,14 @@ export function createSyncOrchestrator({
 
     if (remoteData.presets) await presets.replacePresetsSnapshot(remoteData.presets)
 
-    const resolvedRemote = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
-    const remoteGoods = [...resolvedRemote.goodsMap.values()]
-    const remoteTrash = [...resolvedRemote.trashMap.values()]
+    const remoteGoods = [...remoteResolved.goodsMap.values()]
+    const remoteTrash = [...remoteResolved.trashMap.values()]
 
     const goodsToImport = [], goodsToUpdate = []
     const trashIdsToRemove = new Set()
-    const localGoodsMap = new Map(goodsStore.list.map((item) => [item.id, item]))
-    const localTrashMap = new Map(goodsStore.trashList.map((item) => [item.id, item]))
+    // Reuse localResolved maps from earlier (data hasn't changed yet)
+    const localGoodsMap = localResolved.goodsMap
+    const localTrashMap = localResolved.trashMap
 
     for (const remoteItem of remoteGoods) {
       const localItem = localGoodsMap.get(remoteItem.id)
@@ -867,9 +874,11 @@ export function createSyncOrchestrator({
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
-    const existingRechargeGist = await be.getExistingRechargeGist()
-    const existingEventGist = await be.getExistingEventGist()
-    const existingImageGist = await be.getExistingImageGist(remoteManifest)
+    const [existingRechargeGist, existingEventGist, existingImageGist] = await Promise.all([
+      be.getExistingRechargeGist(),
+      be.getExistingEventGist(),
+      be.getExistingImageGist(remoteManifest)
+    ])
     const rechargeStore = useRechargeStore()
     const localRechargeData = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const localEventData = payload.buildEventSyncData()
@@ -1015,7 +1024,8 @@ export function createSyncOrchestrator({
           pullRecharge: hasRechargeDataDiff,
           incrementalGoods: true,
           incrementalEvents: true,
-          incrementalRecharge: true
+          incrementalRecharge: true,
+          cachedRemoteData: remoteData
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -1120,7 +1130,8 @@ export function createSyncOrchestrator({
           pullRecharge: hasRechargeContentDiff,
           incrementalGoods: true,
           incrementalEvents: true,
-          incrementalRecharge: true
+          incrementalRecharge: true,
+          cachedRemoteData: diff.remoteData
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -1167,7 +1178,8 @@ export function createSyncOrchestrator({
         pullRecharge: pullRechargeContentDiff,
         incrementalGoods: true,
         incrementalEvents: true,
-        incrementalRecharge: true
+        incrementalRecharge: true,
+        cachedRemoteData: diff.remoteData
       }, ctx)
     } catch (e) { wrapSyncError(e, PHASE_PULL) }
     await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)

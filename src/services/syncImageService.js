@@ -1,4 +1,5 @@
 import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
+import { processWithConcurrency } from '@/utils/sync/shared'
 
 export function createSyncImageService({
   backend,
@@ -20,7 +21,7 @@ export function createSyncImageService({
     const targetItemIds = options.targetItemIds instanceof Set ? options.targetItemIds : null
     const fileCache = new Map()
 
-    return Promise.all((items || []).map(async (item) => {
+    return processWithConcurrency(items || [], async (item) => {
       try {
         const itemId = String(item?.id || '').trim()
         if (targetItemIds && !targetItemIds.has(itemId)) {
@@ -83,14 +84,14 @@ export function createSyncImageService({
         console.warn(`[sync] hydrateRemoteItemsWithImages: item ${item?.id || '?'} failed, keeping original:`, e)
         return item
       }
-    }))
+    })
   }
 
   async function hydrateEventCoversWithImages(events, imageGist, imageStats, options = {}) {
     const targetEventIds = options.targetEventIds instanceof Set ? options.targetEventIds : null
     const fileCache = new Map()
 
-    return Promise.all((events || []).map(async (event) => {
+    return processWithConcurrency(events || [], async (event) => {
       const eventId = String(event?.id || '').trim()
       if (targetEventIds && !targetEventIds.has(eventId)) {
         return event
@@ -184,7 +185,7 @@ export function createSyncImageService({
         coverImageData: nextCoverImageData,
         photos: nextPhotos
       }
-    }))
+    })
   }
 
   function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
