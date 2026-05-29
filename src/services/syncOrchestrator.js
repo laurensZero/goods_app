@@ -261,15 +261,11 @@ export function createSyncOrchestrator({
     const changedGoodsIds = collectChangedGoodsIds(localResolved, remoteResolved, ctx.shouldApplyRemoteItem)
     const changedTrashIds = collectChangedTrashIds(localResolved, remoteResolved, ctx.shouldApplyRemoteItem)
     const changedEventIds = collectChangedEventIds(eventsStore.list || [], Array.isArray(eventData?.events) ? eventData.events : [])
-    const goodsTrashCompare = countComparableRecordDiff(
-      buildComparableRecordMap([...localResolved.goodsMap.values(), ...localResolved.trashMap.values()]),
-      buildComparableRecordMap([...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()])
-    )
+    const localGoodsTrashMap = buildComparableRecordMap([...localResolved.goodsMap.values(), ...localResolved.trashMap.values()])
+    const remoteGoodsTrashMap = buildComparableRecordMap([...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()])
+    const goodsTrashCompare = countComparableRecordDiff(localGoodsTrashMap, remoteGoodsTrashMap)
     const goodsTrashIncrementalCompare = useIncrementalGoodsPull
-      ? countIncrementalComparableDiff(
-          buildComparableRecordMap([...localResolved.goodsMap.values(), ...localResolved.trashMap.values()]),
-          buildComparableRecordMap([...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()])
-        )
+      ? countIncrementalComparableDiff(localGoodsTrashMap, remoteGoodsTrashMap)
       : goodsTrashCompare
     const localRechargeMap = buildComparableRecordMap(localRechargeSnapshot)
     const remoteRechargeMap = buildComparableRecordMap(Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : [])
@@ -278,15 +274,11 @@ export function createSyncOrchestrator({
       : (useIncrementalRechargePull
           ? countIncrementalComparableDiff(localRechargeMap, remoteRechargeMap)
           : countComparableRecordDiff(localRechargeMap, remoteRechargeMap))
-    const eventCompareBase = countComparableRecordDiff(
-      buildComparableRecordMap(eventsStore.list || []),
-      buildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
-    )
+    const localEventMap = buildComparableRecordMap(eventsStore.list || [])
+    const remoteEventMap = buildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
+    const eventCompareBase = countComparableRecordDiff(localEventMap, remoteEventMap)
     const eventCompare = useIncrementalEventPull
-      ? countIncrementalComparableDiff(
-          buildComparableRecordMap(eventsStore.list || []),
-          buildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
-        )
+      ? countIncrementalComparableDiff(localEventMap, remoteEventMap)
       : eventCompareBase
 
     const hasDataChangesBeforeImages = (
