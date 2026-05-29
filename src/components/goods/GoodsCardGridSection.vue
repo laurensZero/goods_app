@@ -120,11 +120,13 @@ const _observedEls = new WeakSet()
 function forceRepaint(el) {
   if (!el) return
   try {
+    // Use requestAnimationFrame to defer will-change cleanup and avoid synchronous layout thrash
     el.style.willChange = 'transform'
-    void el.offsetHeight
-    setTimeout(() => {
-      if (el && el.style) el.style.willChange = ''
-    }, 120)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (el && el.style) el.style.willChange = ''
+      })
+    })
   } catch (e) {}
 }
 
@@ -389,7 +391,12 @@ onMounted(() => {
 })
 
 watch(
-  () => props.items && props.items.map((i) => String(i.id || '')).join(','),
+  () => {
+    const items = props.items
+    if (!items || items.length === 0) return '0'
+    // Compare length + first/last IDs as a cheap change proxy
+    return `${items.length}:${items[0]?.id}:${items[items.length - 1]?.id}`
+  },
   () => {
     observeCurrentCards()
   }

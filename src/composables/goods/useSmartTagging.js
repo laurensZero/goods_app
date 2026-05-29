@@ -1,4 +1,4 @@
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
@@ -21,6 +21,38 @@ export function useSmartTagging(form) {
     ip: false,
     characters: false,
     tags: false
+  })
+
+  // Cache extracted tags and characters from goods list - only recompute when list changes
+  const cachedGoodsDerivedPresets = computed(() => {
+    const charMap = {}
+    const extractedTags = new Set()
+
+    if (presetsStore.characters?.length) {
+      presetsStore.characters.forEach(c => {
+        if (!c.name) return
+        const ip = c.ip || 'unknown'
+        if (!charMap[ip]) charMap[ip] = []
+        charMap[ip].push(c.name)
+      })
+    }
+
+    if (goodsStore?.list?.length) {
+      goodsStore.list.forEach(item => {
+        if (item.tags && item.tags.length) {
+          item.tags.forEach(t => extractedTags.add(t))
+        }
+        if (item.characters && item.characters.length) {
+          const ip = item.ip || 'unknown'
+          if (!charMap[ip]) charMap[ip] = []
+          item.characters.forEach(c => {
+            if (!charMap[ip].includes(c)) charMap[ip].push(c)
+          })
+        }
+      })
+    }
+
+    return { charMap, extractedTags }
   })
 
   // 延时计算，防抖
@@ -56,34 +88,8 @@ export function useSmartTagging(form) {
       return
     }
 
-    // 拼装 dynamicPresets
-    // 假设 characters 在 store 结构是 [{name, ip}, ...] ，需要转为 suggestTags 接受的 {'ip1': ['char1', 'char2']} 结构
-    const charMap = {}
-    if (presetsStore.characters?.length) {
-      presetsStore.characters.forEach(c => {
-        if (!c.name) return
-        const ip = c.ip || 'unknown'
-        if (!charMap[ip]) charMap[ip] = []
-        charMap[ip].push(c.name)
-      })
-    }
-
-    // 提取已被标记为标签和角色的数据
-    const extractedTags = new Set()
-    if (goodsStore?.list?.length) {
-      goodsStore.list.forEach(item => {
-        if (item.tags && item.tags.length) {
-          item.tags.forEach(t => extractedTags.add(t))
-        }
-        if (item.characters && item.characters.length) {
-          const ip = item.ip || 'unknown'
-          if (!charMap[ip]) charMap[ip] = []
-          item.characters.forEach(c => {
-            if (!charMap[ip].includes(c)) charMap[ip].push(c)
-          })
-        }
-      })
-    }
+    // 拼装 dynamicPresets — use cached goods-derived data
+    const { charMap, extractedTags } = cachedGoodsDerivedPresets.value
 
     const dynamicPresets = {
       categories: presetsStore.categories || [],

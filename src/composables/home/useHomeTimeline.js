@@ -151,9 +151,10 @@ export function useHomeTimeline({
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths
 }) {
-  const timelineEntries = computed(() => (
-    buildTimelineEntries(goodsList.value).sort((a, b) => compareTimelineEntries(a, b, sortDirection.value))
-  ))
+  const timelineEntries = computed(() => {
+    if (displayDensity.value !== 'timeline') return []
+    return buildTimelineEntries(goodsList.value).sort((a, b) => compareTimelineEntries(a, b, sortDirection.value))
+  })
 
   const timelineYearGroups = computed(() => {
     const yearGroups = []

@@ -222,58 +222,48 @@ function getTrendTimestamp(item) {
   return Number.isFinite(timestamp) ? timestamp : (Number(rawValue) || 0)
 }
 
-const trendSeries = computed(() => {
-  if (!hasTrendData.value) return Array.from({ length: 30 }, () => 0)
-
-  const today = new Date()
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+// Single-pass computation for all trend stats to avoid 4 separate full-list scans
+// Single-pass computation for all trend stats to avoid 4 separate full-list scans
+const trendStats = computed(() => {
   const buckets = Array.from({ length: 30 }, () => 0)
+  let recentCount = 0
+  let monthCount = 0
+  let monthAmount = 0
 
-  for (const item of props.trendItems) {
-    const trendTimestamp = getTrendTimestamp(item)
-    if (!trendTimestamp) continue
+  if (hasTrendData.value) {
+    const today = new Date()
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+    const sevenDayStart = startOfToday - (29 * MS_PER_DAY)
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
 
-    const dayIndex = Math.floor((startOfToday - new Date(trendTimestamp).setHours(0, 0, 0, 0)) / MS_PER_DAY)
-    if (dayIndex < 0 || dayIndex > 29) continue
+    for (const item of props.trendItems) {
+      const trendTimestamp = getTrendTimestamp(item)
+      if (!trendTimestamp) continue
 
-    buckets[29 - dayIndex] += parseTrendValue(item)
+      const value = parseTrendValue(item)
+
+      const dayIndex = Math.floor((startOfToday - new Date(trendTimestamp).setHours(0, 0, 0, 0)) / MS_PER_DAY)
+      if (dayIndex >= 0 && dayIndex <= 29) {
+        buckets[29 - dayIndex] += value
+      }
+
+      if (trendTimestamp >= sevenDayStart) recentCount++
+      if (trendTimestamp >= monthStart) {
+        monthCount++
+        monthAmount += value
+      }
+    }
   }
 
-  return buckets
+  const recentAmount = buckets.reduce((sum, v) => sum + v, 0)
+  return { buckets, recentCount, recentAmount, monthCount, monthAmount }
 })
 
-const recentChangeCount = computed(() => {
-  const today = new Date()
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  const sevenDayStart = startOfToday - (29 * MS_PER_DAY)
-
-  return props.trendItems.reduce((count, item) => {
-    const trendTimestamp = getTrendTimestamp(item)
-    return trendTimestamp >= sevenDayStart ? count + 1 : count
-  }, 0)
-})
-
-const recentChangeAmount = computed(() => trendSeries.value.reduce((sum, value) => sum + value, 0))
-
-const monthChangeCount = computed(() => {
-  const today = new Date()
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
-
-  return props.trendItems.reduce((count, item) => {
-    const trendTimestamp = getTrendTimestamp(item)
-    return trendTimestamp >= monthStart ? count + 1 : count
-  }, 0)
-})
-
-const monthChangeAmount = computed(() => {
-  const today = new Date()
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
-
-  return props.trendItems.reduce((sum, item) => {
-    const trendTimestamp = getTrendTimestamp(item)
-    return trendTimestamp >= monthStart ? sum + parseTrendValue(item) : sum
-  }, 0)
-})
+const trendSeries = computed(() => trendStats.value.buckets)
+const recentChangeCount = computed(() => trendStats.value.recentCount)
+const recentChangeAmount = computed(() => trendStats.value.recentAmount)
+const monthChangeCount = computed(() => trendStats.value.monthCount)
+const monthChangeAmount = computed(() => trendStats.value.monthAmount)
 
 const trendLinePath = computed(() => buildTrendPath(trendSeries.value, false))
 const trendAreaPath = computed(() => buildTrendPath(trendSeries.value, true))

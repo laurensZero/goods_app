@@ -82,7 +82,7 @@ export function createViewList(list) {
     }
 
     for (const item of oldList) {
-      if (!newList.some((i) => i.id === item.id)) {
+      if (!newMap.has(item.id)) {
         changed = true
         newMap.delete(item.id)
       }
@@ -153,7 +153,7 @@ export function createTrashViewList(trashList) {
     }
 
     for (const item of oldList) {
-      if (!newList.some((i) => i.id === item.id)) {
+      if (!newMap.has(item.id)) {
         changed = true
         newMap.delete(item.id)
       }

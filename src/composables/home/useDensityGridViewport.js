@@ -2,15 +2,20 @@ export function useDensityGridViewport({
   getScrollEl,
   getActiveScrollSource
 }) {
+  // Cache the computed style check to avoid forcing style recalculation on every call
+  let _cachedEl = null
+  let _cachedCanUse = false
+
   function canUseElementViewport() {
     const el = getScrollEl?.()
     if (!el) return false
+    if (el === _cachedEl) return _cachedCanUse
 
     const overflowY = window.getComputedStyle?.(el)?.overflowY || ''
     const allowsElementScroll = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
-    if (!allowsElementScroll) return false
-
-    return (el.scrollHeight - el.clientHeight) > 1
+    _cachedCanUse = allowsElementScroll && (el.scrollHeight - el.clientHeight) > 1
+    _cachedEl = el
+    return _cachedCanUse
   }
 
   function getDensityScrollSource() {

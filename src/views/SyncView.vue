@@ -1307,7 +1307,7 @@ async function handleSyncConflict(useRemote) {
       let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {
-      showToast(t('sync.uploadComplete'), 3500)
+      showToast(t('sync.reuploaded'), 3500)
     }
     await loadGistInfo()
   } catch (error) {
