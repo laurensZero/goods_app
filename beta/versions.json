@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260529.3",
+    "url": "bundle-20260529.3.zip",
+    "hash": "838839b5d1ea4bc0fad8ce33ff62dc49b9ff795f5d8de935ccfbe228bb0b520f",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化趋势统计计算，合并多个计算为单次遍历；改进图片上传并发处理；更新同步冲突处理提示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-29T12:29:27Z"
+  },
+  {
     "version": "20260529.2",
     "url": "bundle-20260529.2.zip",
     "hash": "33ab70396107bc88a7e13c52f97475792983f96241cbe84b3cd9f9a61ff163ac",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加在激活时滚动到顶部的功能，优化导入流程",
     "updateLevel": "silent",
     "publishedAt": "2026-05-29T11:47:37Z"
-  },
-  {
-    "version": "20260528.11",
-    "url": "bundle-20260528.11.zip",
-    "hash": "4ac1fffc0843e5918d376ec1c93954654dbb8b7a23bda90a7d387531a4de91c9",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加安卓原生端获取保存的Cookie功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-28T15:08:50Z"
   }
 ]

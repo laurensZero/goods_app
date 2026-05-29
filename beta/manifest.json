@@ -1,9 +1,9 @@
 {
-  "version": "20260529.2",
-  "url": "bundle-20260529.2.zip",
-  "hash": "33ab70396107bc88a7e13c52f97475792983f96241cbe84b3cd9f9a61ff163ac",
+  "version": "20260529.3",
+  "url": "bundle-20260529.3.zip",
+  "hash": "838839b5d1ea4bc0fad8ce33ff62dc49b9ff795f5d8de935ccfbe228bb0b520f",
   "minNativeVersion": null,
-  "notes": "- feat: 优化同步服务，增加并发处理和排序字符串化功能",
+  "notes": "- feat: 优化趋势统计计算，合并多个计算为单次遍历；改进图片上传并发处理；更新同步冲突处理提示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-29T12:13:58Z"
+  "publishedAt": "2026-05-29T12:29:27Z"
 }
