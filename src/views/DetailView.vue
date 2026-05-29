@@ -268,9 +268,7 @@
 
     <ShareSheet :show="showShareSheet" :goods-items="item ? [item] : []" @close="showShareSheet = false" />
 
-    <Transition name="toast-fade">
-      <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
-    </Transition>
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -292,6 +290,7 @@ import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nat
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
@@ -1761,42 +1760,4 @@ function getImageKindLabel(kind) {
 :global(html.theme-dark) .detail-page .nav-icon-btn.danger {
     color: #ff8a80 !important;
   }
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(80px + max(env(safe-area-inset-bottom), 12px) + 12px);
-  z-index: 999;
-  box-sizing: border-box;
-  width: max-content;
-  max-width: min(calc(100vw - 32px), 420px);
-  padding: 11px 16px;
-  border-radius: 18px;
-  border: 1px solid var(--app-glass-border);
-  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
-  color: var(--app-text);
-  box-shadow: var(--app-shadow);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.45;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  text-align: center;
-  transform: translateX(-50%);
-  pointer-events: none;
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(8px);
-}
 </style>

@@ -15,6 +15,14 @@
           </svg>
           {{ t('goods.selection.delete') }}{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
         </button>
+        <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('addToCart')">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          </svg>
+          {{ t('goods.selection.addToCart') }}{{ cartItemCount > 0 ? ` (${cartItemCount})` : '' }}
+        </button>
         <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('share')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
@@ -42,10 +50,11 @@ const { t } = useI18n()
 
 defineProps({
   show: { type: Boolean, default: false },
-  selectedCount: { type: Number, default: 0 }
+  selectedCount: { type: Number, default: 0 },
+  cartItemCount: { type: Number, default: 0 }
 })
 
-defineEmits(['delete', 'edit', 'share'])
+defineEmits(['delete', 'edit', 'share', 'addToCart'])
 </script>
 
 <style scoped>
@@ -70,15 +79,19 @@ defineEmits(['delete', 'edit', 'share'])
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 50px;
+  gap: 4px;
+  min-height: 50px;
+  padding: 8px 4px;
   border: none;
   border-radius: 14px;
   background: color-mix(in srgb, var(--app-glass) 72%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
   transition: transform 0.14s ease, opacity 0.14s ease;
 }
 

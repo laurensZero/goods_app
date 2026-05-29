@@ -396,9 +396,7 @@
       </div>
     </Transition>
 
-    <Transition name="toast-fade">
-      <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
-    </Transition>
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -408,6 +406,7 @@ import { readPersisted, writePersisted, removePersisted } from '@/utils/platform
 import { App as CapacitorApp } from '@capacitor/app'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useGoodsStore } from '@/stores/goods'

@@ -145,6 +145,7 @@
   "goods.selection.delete": "删除",
   "goods.selection.share": "分享",
   "goods.selection.batchEdit": "批量修改",
+  "goods.selection.addToCart": "加入购物车",
   "goods.batch.batchEditLabel": "批量编辑",
   "goods.batch.modifyItems": "修改 {count} 件谷子",
   "goods.batch.onlyAppliedFields": "只会应用这次填写的字段，留空的内容保持原值。",

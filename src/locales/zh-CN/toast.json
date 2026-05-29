@@ -35,5 +35,9 @@
   "toast.addingToCart": "正在加入购物车...",
   "toast.addedToCart": "已加入购物车",
   "toast.addToCartFailed": "加入购物车失败：{error}",
-  "toast.addToCartError": "加入购物车异常：{error}"
+  "toast.addToCartError": "加入购物车异常：{error}",
+  "toast.batchAddToCartSuccess": "成功加入 {count} 件商品到购物车",
+  "toast.batchAddToCartPartial": "成功 {success} 件，失败 {fail} 件",
+  "toast.batchAddToCartFailed": "加入购物车失败",
+  "toast.cartFull": "购物车已满，请先清理购物车"
 }
