@@ -23,11 +23,12 @@ export function base64urlEncode (bytes) {
   if (!(bytes instanceof Uint8Array)) {
     throw new Error('base64urlEncode: 输入必须为 Uint8Array')
   }
+  // Chunked conversion to avoid O(n²) string concatenation
+  const CHUNK = 8192
   let binary = ''
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK))
   }
-  // 标准 base64 → base64url 转换
   return btoa(binary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')

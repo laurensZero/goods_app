@@ -57,12 +57,78 @@ export function sortObjectKeys(value) {
     }, {})
 }
 
+/**
+ * Single-pass sorted-key JSON.stringify — avoids intermediate object allocation
+ * that sortObjectKeys + JSON.stringify creates.
+ */
+export function sortedStringify(value) {
+  if (value === null || value === undefined) return 'null'
+  if (typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number') return Object.is(value, -0) ? 'null' : String(value)
+  if (typeof value === 'boolean') return String(value)
+
+  if (Array.isArray(value)) {
+    let result = '['
+    for (let i = 0; i < value.length; i++) {
+      if (i > 0) result += ','
+      const v = value[i]
+      result += (v === undefined || typeof v === 'function') ? 'null' : sortedStringify(v)
+    }
+    return result + ']'
+  }
+
+  if (typeof value === 'object') {
+    const keys = Object.keys(value).sort()
+    let result = '{'
+    let first = true
+    for (const key of keys) {
+      const v = value[key]
+      if (v === undefined || typeof v === 'function') continue
+      if (!first) result += ','
+      first = false
+      result += JSON.stringify(key) + ':' + sortedStringify(v)
+    }
+    return result + '}'
+  }
+
+  return undefined
+}
+
+function yieldToMain() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+/**
+ * Process items with bounded concurrency and yield to main thread between items
+ * so the UI stays responsive during heavy sync work.
+ */
+export async function processWithConcurrency(items, fn, concurrency = 3) {
+  if (items.length === 0) return []
+  const results = new Array(items.length)
+  let index = 0
+
+  async function worker() {
+    while (index < items.length) {
+      const i = index++
+      results[i] = await fn(items[i])
+      await yieldToMain()
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker()
+  )
+  await Promise.all(workers)
+  return results
+}
+
 export function buildComparableRecordMap(items = []) {
   const map = new Map()
   for (const item of items) {
     const id = String(item?.id || '').trim()
     if (!id) continue
-    map.set(id, JSON.stringify(sortObjectKeys(item)))
+    map.set(id, sortedStringify(item))
   }
   return map
 }

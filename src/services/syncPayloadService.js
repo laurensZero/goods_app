@@ -1,5 +1,6 @@
 import {
   buildComparableRecordMap,
+  processWithConcurrency,
   buildEventCoverFilename,
   buildEventPhotoFilename,
   buildImageFilename,
@@ -7,7 +8,7 @@ import {
   getItemTimestamp,
   parseImageDataUrl,
   resolveGoodsTrashMaps,
-  sortObjectKeys,
+  sortedStringify,
   normalizeBudgetValue,
   readBudgetSettings
 } from '@/utils/sync/shared'
@@ -397,23 +398,17 @@ export function createSyncPayloadService({
     const imageFiles = {}
     const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
 
-    const goods = await Promise.all(
-      sourceGoods
-        .filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
-        .map(async (item) => {
-          const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
-          return sanitizeGoodsItemForSync(item, preparedImages)
-        })
-    )
+    const filteredGoods = sourceGoods.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+    const goods = await processWithConcurrency(filteredGoods, async (item) => {
+      const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+      return sanitizeGoodsItemForSync(item, preparedImages)
+    })
 
-    const trash = await Promise.all(
-      sourceTrash
-        .filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
-        .map(async (item) => {
-          const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
-          return sanitizeGoodsItemForSync(item, preparedImages)
-        })
-    )
+    const filteredTrash = sourceTrash.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+    const trash = await processWithConcurrency(filteredTrash, async (item) => {
+      const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+      return sanitizeGoodsItemForSync(item, preparedImages)
+    })
 
     imageStats.imageFileCount = referencedImageFiles.size
 
@@ -464,27 +459,25 @@ export function createSyncPayloadService({
     const referencedImageFiles = new Set()
     const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
 
-    const events = await Promise.all(
-      eventsStore.list.map(async (item) => {
-        let processedCoverImage = null
-        if (item.coverImage) {
-          processedCoverImage = await prepareEventCoverForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
-        }
-        const processedPhotos = await prepareEventPhotosForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+    const events = await processWithConcurrency(eventsStore.list, async (item) => {
+      let processedCoverImage = null
+      if (item.coverImage) {
+        processedCoverImage = await prepareEventCoverForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+      }
+      const processedPhotos = await prepareEventPhotosForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
 
-        return {
-          ...item,
-          coverImage: processedCoverImage?.uri || item.coverImage,
-          coverImageData: processedCoverImage,
-          photos: processedPhotos,
-          ticketType: String(item.ticketType || '').trim(),
-          seatInfo: String(item.seatInfo || '').trim(),
-          otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],
-          linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
-          tags: Array.isArray(item.tags) ? item.tags : []
-        }
-      })
-    )
+      return {
+        ...item,
+        coverImage: processedCoverImage?.uri || item.coverImage,
+        coverImageData: processedCoverImage,
+        photos: processedPhotos,
+        ticketType: String(item.ticketType || '').trim(),
+        seatInfo: String(item.seatInfo || '').trim(),
+        otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],
+        linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
+        tags: Array.isArray(item.tags) ? item.tags : []
+      }
+    })
 
     imageStats.imageFileCount = referencedImageFiles.size
 
@@ -522,41 +515,37 @@ export function createSyncPayloadService({
   async function buildComparableSyncStateFromData(data, { budgetSettings = null } = {}) {
     const resolved = resolveGoodsTrashMaps(data?.goods || [], data?.trash || [])
     const goods = [...resolved.goodsMap.values()]
-      .map((item) => sortObjectKeys(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     const trash = [...resolved.trashMap.values()]
-      .map((item) => sortObjectKeys(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     const presetsData = data?.presets || await buildPresetsData()
     const resolvedBudgetSettings = budgetSettings || data?.budgetSettings
       ? normalizeBudgetSettings(budgetSettings || data.budgetSettings)
       : await readBudgetSettings()
 
-    return JSON.stringify(sortObjectKeys({
+    return sortedStringify({
       goods,
       trash,
       presets: presetsData,
       budgetSettings: resolvedBudgetSettings
-    }))
+    })
   }
 
   function buildComparableRechargeStateFromData(data) {
     const recharge = (Array.isArray(data?.recharge) ? data.recharge : [])
-      .map((item) => sortObjectKeys(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     const rechargeTrash = (Array.isArray(data?.rechargeTrash) ? data.rechargeTrash : [])
-      .map((item) => sortObjectKeys(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
 
-    return JSON.stringify(sortObjectKeys({ recharge, rechargeTrash }))
+    return sortedStringify({ recharge, rechargeTrash })
   }
 
   function buildComparableEventStateFromData(data) {
     const events = (Array.isArray(data?.events) ? data.events : [])
-      .map((item) => sortObjectKeys(normalizeEventForComparison(item)))
+      .map((item) => normalizeEventForComparison(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
 
-    return JSON.stringify(sortObjectKeys({ events }))
+    return sortedStringify({ events })
   }
 
   function buildManifest(imageStats = {}, timestamp = new Date().toISOString(), counts = {}) {
