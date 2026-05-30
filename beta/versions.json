@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260530.4",
+    "url": "bundle-20260530.4.zip",
+    "hash": "31dc855d57bb306630b9327bd9161c4b92bbb7de073fbb4be0baad3f9d9d9262",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化异步操作并行执行，重构视图列表逻辑以支持收藏和愿望列表\n\n- refactor: 性能优化",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-30T10:40:31Z"
+  },
+  {
     "version": "20260530.3",
     "url": "bundle-20260530.3.zip",
     "hash": "fad85c43c6766b618c7f9d83774fcaaa32b6b44f57033a36bf4c84bdbd8d20fc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 拆分代码",
     "updateLevel": "silent",
     "publishedAt": "2026-05-30T08:47:34Z"
-  },
-  {
-    "version": "20260530.1",
-    "url": "bundle-20260530.1.zip",
-    "hash": "035a16602fc069e3aa044d7e49eaeef698ad78848e65e8f23fe3cc2f14db7b79",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加多选图片选择功能，优化图片选择器样式；重构相关逻辑以支持多图处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-30T05:18:09Z"
   }
 ]

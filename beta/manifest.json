@@ -1,9 +1,9 @@
 {
-  "version": "20260530.3",
-  "url": "bundle-20260530.3.zip",
-  "hash": "fad85c43c6766b618c7f9d83774fcaaa32b6b44f57033a36bf4c84bdbd8d20fc",
+  "version": "20260530.4",
+  "url": "bundle-20260530.4.zip",
+  "hash": "31dc855d57bb306630b9327bd9161c4b92bbb7de073fbb4be0baad3f9d9d9262",
   "minNativeVersion": null,
-  "notes": "- feat: 优化数据处理逻辑，合并多个异步操作为并行执行；重构视图列表创建逻辑以支持收藏和愿望列表",
+  "notes": "- feat: 优化异步操作并行执行，重构视图列表逻辑以支持收藏和愿望列表\n\n- refactor: 性能优化",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-30T09:04:56Z"
+  "publishedAt": "2026-05-30T10:40:31Z"
 }
