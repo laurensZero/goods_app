@@ -1,4 +1,4 @@
-import { hasRecentlyDecodedImage, markImageDecoded, preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
+import { hasRecentlyDecodedImage, markImageDecoded, preloadImages, refreshCachedImage, setImagePreloadPaused } from '@/utils/image/cache'
 
 const FORWARD_DURATION_MS = 390
 const BACK_DURATION_MS = 350
@@ -251,6 +251,25 @@ function readImageSource(el) {
   }
   const img = el.querySelector('img')
   return img?.currentSrc || img?.src || ''
+}
+
+function readOriginalImageSource(el) {
+  if (!el) return ''
+  const lazyRoot = el.querySelector?.('.lazy-image-root') || el.closest?.('.lazy-image-root')
+  if (lazyRoot) {
+    const originalSrc = lazyRoot.dataset?.originalSrc || lazyRoot.getAttribute('data-original-src') || ''
+    if (originalSrc) return originalSrc
+  }
+  let img = null
+  if (String(el.tagName || '').toUpperCase() === 'IMG') {
+    img = el
+  } else {
+    img = el.querySelector('img')
+  }
+  if (!img) return ''
+  const src = img.getAttribute('src') || ''
+  if (src && !src.startsWith('blob:') && !src.startsWith('data:')) return src
+  return ''
 }
 
 function readFallbackText(el) {
@@ -534,6 +553,17 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       sourceImageReady = await waitForImageDecode(snapshot.imageSrc, 420)
       if (sourceImageReady) {
         markImageDecoded(snapshot.imageSrc)
+      } else if (snapshot.imageOriginalSrc) {
+        try {
+          const freshSrc = await refreshCachedImage(snapshot.imageOriginalSrc)
+          if (freshSrc && freshSrc !== snapshot.imageSrc) {
+            snapshot.imageSrc = freshSrc
+            const heroImg = node.querySelector('[data-hero-media="image"]')
+            if (heroImg) heroImg.src = freshSrc
+            sourceImageReady = await waitForImageDecode(freshSrc, 350)
+            if (sourceImageReady) markImageDecoded(freshSrc)
+          }
+        } catch {}
       }
     }
   }
@@ -720,6 +750,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     height: rect.height,
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
+    imageOriginalSrc: readOriginalImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -780,6 +811,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     height: rect.height,
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
+    imageOriginalSrc: readOriginalImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -853,6 +885,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     height: rect.height,
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
+    imageOriginalSrc: readOriginalImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -912,6 +945,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     height: rect.height,
     radius: readRadius(sourceEl),
     imageSrc: readImageSource(sourceEl),
+    imageOriginalSrc: readOriginalImageSource(sourceEl),
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)

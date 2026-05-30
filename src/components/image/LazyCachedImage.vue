@@ -64,7 +64,8 @@ const rootAttrs = computed(() => {
     ...rest,
     class: _class,
     style: _style,
-    'data-lazy-image-ready': isImageReady.value ? 'true' : 'false'
+    'data-lazy-image-ready': isImageReady.value ? 'true' : 'false',
+    'data-original-src': props.src || ''
   }
 })
 const imageAttrs = computed(() => {
