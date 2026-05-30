@@ -261,21 +261,21 @@
                   autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
                   placeholder="https://..." />
               </label>
-              <!-- 图片选择器：横向滚动所有可用图 -->
+              <!-- 图片选择器：横向滚动所有可用图（支持多选） -->
               <div v-if="parsedImages.length > 1" class="field">
-                <span class="field-label">{{ t('import.selectImage') }}</span>
+                <span class="field-label">{{ t('import.selectImages') }} <span v-if="form.images.length > 1" class="img-picker-count">{{ form.images.length }}</span></span>
                 <div class="img-picker-scroll">
                   <button
                     v-for="(imgUrl, idx) in parsedImages"
                     :key="idx"
                     type="button"
                     class="img-picker-item"
-                    :class="{ 'img-picker-item--active': form.image === imgUrl }"
-                    @click="form.image = imgUrl"
+                    :class="{ 'img-picker-item--active': form.images.includes(imgUrl) }"
+                    @click="toggleFormImage(imgUrl)"
                   >
                     <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
                     <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
-                    <div v-if="form.image === imgUrl" class="img-picker-check">✓</div>
+                    <div v-if="form.images.includes(imgUrl)" class="img-picker-check">✓</div>
                   </button>
                 </div>
               </div>
@@ -501,21 +501,21 @@
                 </div>
               </div>
             </div>
-            <!-- 图片选择 -->
+            <!-- 图片选择（支持多选） -->
             <div v-if="batchEditImages.length > 1" class="field">
-              <span class="field-label">{{ t('import.selectImage') }}</span>
+              <span class="field-label">{{ t('import.selectImages') }} <span v-if="batchEditForm.images.length > 1" class="img-picker-count">{{ batchEditForm.images.length }}</span></span>
               <div class="img-picker-scroll">
                 <button
                   v-for="(imgUrl, idx) in batchEditImages"
                   :key="idx"
                   type="button"
                   class="img-picker-item"
-                  :class="{ 'img-picker-item--active': batchEditForm.image === imgUrl }"
-                  @click="batchEditForm.image = imgUrl"
+                  :class="{ 'img-picker-item--active': batchEditForm.images.includes(imgUrl) }"
+                  @click="toggleBatchEditImage(imgUrl)"
                 >
                   <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
                   <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
-                  <div v-if="batchEditForm.image === imgUrl" class="img-picker-check">✓</div>
+                  <div v-if="batchEditForm.images.includes(imgUrl)" class="img-picker-check">✓</div>
                 </button>
               </div>
             </div>
@@ -855,7 +855,7 @@ const batchItems = ref([]) // { url, status: 'pending'|'parsing'|'ready'|'error'
 const batchParsing = ref(false)
 const editingBatchIdx = ref(-1)
 const batchEditForm = reactive({
-  name: '', category: '', ip: '', image: '', price: '',
+  name: '', category: '', ip: '', image: '', images: [], price: '',
   notes: '', tags: [], characters: [], purchaseDate: '', variant: '',
 })
 const batchEditPriceError = ref('')
@@ -1294,6 +1294,7 @@ async function handleBatchImport() {
         ip: resolvedIp || '',
         goodsId: result.goodsId || '',
         image: allImgs[0] || '',
+        images: hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs],
         price: result.price != null ? String(result.price) : '',
         notes: '',
         characters: resolvedCharacters,
@@ -1364,6 +1365,7 @@ function cloneBatchItemData(data) {
     ...data,
     characters: Array.isArray(data.characters) ? data.characters : [],
     tags: Array.isArray(data.tags) ? data.tags : [],
+    images: Array.isArray(data.images) ? [...data.images] : [],
     baseParsedImages: Array.isArray(data.baseParsedImages) ? data.baseParsedImages : [],
     parsedImages: Array.isArray(data.parsedImages) ? data.parsedImages : [],
     variants: Array.isArray(data.variants) ? data.variants : [],
@@ -1383,6 +1385,7 @@ function openBatchEdit(idx) {
     category: item.data.category,
     ip: item.data.ip,
     image: item.data.image,
+    images: Array.isArray(item.data.images) ? [...item.data.images] : [item.data.image].filter(Boolean),
     price: item.data.price,
     notes: item.data.notes,
     tags: Array.isArray(item.data.tags) ? [...item.data.tags] : [],
@@ -1420,6 +1423,7 @@ function saveBatchEdit() {
     category: batchEditForm.category,
     ip: batchEditForm.ip,
     image: batchEditForm.image,
+    images: [...batchEditForm.images],
     price: batchEditForm.price === '' ? '' : Number(batchEditForm.price),
     notes: batchEditForm.notes,
     tags: [...batchEditForm.tags],
@@ -1442,10 +1446,13 @@ function applyBatchVariantMedia(variant) {
 
   if (raw) {
     batchEditImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
+    // 只选款式图
+    batchEditForm.images = [raw]
     batchEditForm.image = raw
   } else {
     batchEditImages.value = nextImages
-    batchEditForm.image = nextImages[0] || batchEditForm.image
+    batchEditForm.images = [nextImages[0] || ''].filter(Boolean)
+    batchEditForm.image = batchEditForm.images[0] || nextImages[0] || batchEditForm.image
   }
 
   if (variant?.price != null) {
@@ -1461,6 +1468,7 @@ function handleBatchVariantSelect(v) {
     batchEditSelectedCharacterName.value = ''
     batchEditSaveAsCharacter.value = false
     batchEditImages.value = [...batchEditBaseImages.value]
+    batchEditForm.images = [...batchEditBaseImages.value]
     batchEditForm.image = batchEditBaseImages.value[0] || ''
   } else {
     batchEditSelectedVariantKey.value = v.key
@@ -1493,6 +1501,7 @@ async function saveAllBatch() {
         ip: item.data.ip,
         goodsId: item.data.goodsId || '',
         image: item.data.image,
+        images: Array.isArray(item.data.images) ? item.data.images : [],
         price: item.data.price === '' ? null : Number(item.data.price),
         source: '米游铺',
         purchaseDate: item.data.purchaseDate,
@@ -1552,6 +1561,7 @@ const form = reactive({
   ip: '',
   goodsId: '',
   image: '',
+  images: [],
   price: '',
   source: '米游铺',
   purchaseDate: '',
@@ -1806,16 +1816,41 @@ function normalizeSearchHintText(value) {
     .trim()
 }
 
+// ── 图片多选切换 ──
+function toggleFormImage(imgUrl) {
+  const idx = form.images.indexOf(imgUrl)
+  if (idx >= 0) {
+    form.images.splice(idx, 1)
+  } else {
+    form.images.push(imgUrl)
+  }
+  // 同步主图：始终以第一张选中的图为主图
+  form.image = form.images[0] || ''
+}
+
+function toggleBatchEditImage(imgUrl) {
+  const idx = batchEditForm.images.indexOf(imgUrl)
+  if (idx >= 0) {
+    batchEditForm.images.splice(idx, 1)
+  } else {
+    batchEditForm.images.push(imgUrl)
+  }
+  batchEditForm.image = batchEditForm.images[0] || ''
+}
+
 function applySelectedVariantMedia(variant) {
   const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
   const nextImages = [...parsedBaseImages.value]
 
   if (raw) {
     parsedImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
+    // 只选款式图
+    form.images = [raw]
     form.image = raw
   } else {
     parsedImages.value = nextImages
-    form.image = nextImages[0] || form.image
+    form.images = [nextImages[0] || ''].filter(Boolean)
+    form.image = form.images[0] || nextImages[0] || form.image
   }
 
   if (variant?.price != null) {
@@ -1872,6 +1907,7 @@ function handleVariantSelect(v) {
     saveAsCharacter.value = false
     variantSectionCollapsed.value = false
     parsedImages.value = [...parsedBaseImages.value]
+    form.images = [...parsedBaseImages.value]
     form.image = parsedBaseImages.value[0] || ''
     applyPreferredSearchCharacter()
   } else {
@@ -1953,6 +1989,7 @@ async function handleParse() {
   variantSectionCollapsed.value = false
   parsedImages.value = []
   parsedBaseImages.value = []
+  form.images = []
   applyPreferredSearchCharacter()
   selectedVariantKey.value = ''
 
@@ -1973,7 +2010,8 @@ async function handleParse() {
       .filter((u, i, arr) => arr.indexOf(u) === i)  // 去重
     parsedBaseImages.value = allImgs
     parsedImages.value = [...allImgs]
-    // 默认选第一张（封面）
+    // 有款式时只选封面，无款式时全选
+    form.images = hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs]
     form.image = allImgs[0] || result.image || ''
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
@@ -1996,6 +2034,8 @@ async function handleParse() {
           if (extras.length) {
             parsedBaseImages.value = [...parsedBaseImages.value, ...extras]
             parsedImages.value = [...parsedBaseImages.value]
+            // 异步补充的图也默认选中
+            form.images = [...form.images, ...extras.filter(u => !form.images.includes(u))]
           }
         }
         autoSelectSingleVariant()
@@ -2113,6 +2153,7 @@ async function handleSave() {
       goodsId: form.goodsId || '',
       variant: selectedVariantName.value,
       image: form.image,
+      images: form.images,
       price: form.price === '' ? null : Number(form.price),
       source: form.source,
       purchaseDate: form.purchaseDate,

@@ -378,7 +378,6 @@ onBeforeUnmount(() => {
   if (pageScrollRaf) { cancelAnimationFrame(pageScrollRaf); pageScrollRaf = 0 }
   unbindPageScroll()
   if (!hasPendingRestore() && !isRouteLeaving) rememberCurrentScrollPosition()
-  clearTimeout(toastTimer)
   window.removeEventListener('resize', handleResize)
   cleanupExportTimers()
 })

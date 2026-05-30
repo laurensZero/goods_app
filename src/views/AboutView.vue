@@ -856,7 +856,6 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  clearTimeout(toastTimer)
 })
 
 // ======== 资源空间计算 ========

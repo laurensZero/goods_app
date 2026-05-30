@@ -54,6 +54,7 @@
   "import.autoRecognized": "Auto-recognized",
   "import.imageUrl": "Image URL",
   "import.selectImage": "Select Image",
+  "import.selectImages": "Select Images (multi)",
   "import.imageAlt": "Image {index}",
   "import.cover": "Cover",
   "import.targetInfo": "Target Info",

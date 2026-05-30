@@ -1,3 +1,6 @@
+import { nextTick } from 'vue'
+import router from '@/router'
+
 let pendingDetailReturnPath = ''
 let pendingDetailTransitionKind = ''
 
@@ -30,32 +33,40 @@ function animateScene(scene, direction) {
   })
 }
 
+function scheduleAnimation(direction) {
+  requestAnimationFrame(() => {
+    const scene = getRouteScene()
+    if (scene) {
+      animateScene(scene, direction)
+    } else {
+      // Lazy route — component not yet in DOM, retry next frame.
+      requestAnimationFrame(() => {
+        const scene = getRouteScene()
+        if (scene) animateScene(scene, direction)
+      })
+    }
+  })
+}
+
 function runSlideTransition(navigate, direction) {
   const result = navigate()
-
-  const schedule = () => {
-    requestAnimationFrame(() => {
-      const scene = getRouteScene()
-      if (scene) {
-        animateScene(scene, direction)
-      } else {
-        // Lazy route — component not yet in DOM, retry next frame.
-        requestAnimationFrame(() => {
-          const scene = getRouteScene()
-          if (scene) animateScene(scene, direction)
-        })
-      }
-    })
-  }
 
   // Wait for vue-router promise so the new route component is mounted
   // before animating.  Without this the animation may target the old
   // route-scene that KeepAlive is about to cache, leaving stale inline
   // styles in the cached DOM that cause a flash on reactivation.
+  //
+  // router.back() / history.back() returns undefined (not a Promise).
+  // nextTick alone is insufficient because route guards are async — the
+  // component swap hasn't happened yet when nextTick fires.  We hook
+  // into router.afterEach + nextTick to guarantee the DOM is updated.
   if (result && typeof result.then === 'function') {
-    result.then(schedule)
+    result.then(() => scheduleAnimation(direction))
   } else {
-    schedule()
+    const stop = router.afterEach(() => {
+      stop()
+      nextTick(() => scheduleAnimation(direction))
+    })
   }
 }
 
