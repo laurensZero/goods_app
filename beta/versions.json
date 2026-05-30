@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260530.2",
+    "url": "bundle-20260530.2.zip",
+    "hash": "3620b56e6dcb1162b9cdf0d8c1591693cedcf5bb32f7cae2645256bd1ab0f8d6",
+    "minNativeVersion": null,
+    "notes": "- feat: 拆分代码",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-30T08:47:34Z"
+  },
+  {
     "version": "20260530.1",
     "url": "bundle-20260530.1.zip",
     "hash": "035a16602fc069e3aa044d7e49eaeef698ad78848e65e8f23fe3cc2f14db7b79",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化多个异步操作为并行执行，提升性能；重构部分代码以减少查找时间复杂度",
     "updateLevel": "silent",
     "publishedAt": "2026-05-29T14:52:52Z"
-  },
-  {
-    "version": "20260529.4",
-    "url": "bundle-20260529.4.zip",
-    "hash": "15adf5d4a4bfaffb1b1c61c38979b6fcac3332f4344d4ac9616e868badbfef53",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加批量添加购物车功能，优化购物车满的提示；重构 Toast 组件以统一提示样式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-29T12:45:34Z"
   }
 ]
