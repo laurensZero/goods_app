@@ -24,12 +24,16 @@ export function createSupabaseBackendAdapter({
   const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'image', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'syncedBy']
   const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'syncedBy']
   const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'syncedBy']
+  const GOODS_GROUP_COLS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'coverMode', 'coverItemId', 'displayMode', 'note', 'syncedBy']
+  const GOODS_GROUP_ITEM_COLS = ['id', 'groupId', 'goodsId', 'sortOrder', 'syncedBy']
 
   // snake_case SELECT column lists — excludes auto-generated columns (e.g. created_at)
   // that would cause comparison diffs between local and remote data
   const GOODS_SELECT_COLS = 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, image, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, trashed, updated_at'
   const RECHARGE_SELECT_COLS = 'id, game, item_name, amount, charged_at, note, deleted, updated_at'
   const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, other_expenses, tracks, linked_goods_ids, tags, updated_at, created_at'
+  const GOODS_GROUP_SELECT_COLS = 'id, name, type, summary_mode, total_amount, cover_mode, cover_item_id, display_mode, note, updated_at, created_at'
+  const GOODS_GROUP_ITEM_SELECT_COLS = 'id, group_id, goods_id, sort_order, updated_at, created_at'
   const GOODS_IMAGE_BUCKET = 'goods-images'
   const EVENT_PHOTO_BUCKET = 'event-photos'
 
@@ -272,7 +276,7 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'data.json') {
         const incrementalSinceMs = Number(incrementalSince) || 0
-        const [goodsRes, trashRes, presetsRes] = await Promise.all([
+        const [goodsRes, trashRes, presetsRes, groupsRes, groupItemsRes] = await Promise.all([
           withRetry(() => {
             let query = db.from('goods').select(GOODS_SELECT_COLS).or('trashed.is.null,trashed.eq.0')
             if (incrementalSinceMs > 0) {
@@ -287,10 +291,26 @@ export function createSupabaseBackendAdapter({
             }
             return query
           }),
-          withRetry(() => db.from('sync_presets').select('*').eq('id', 'default').limit(1))
+          withRetry(() => db.from('sync_presets').select('*').eq('id', 'default').limit(1)),
+          withRetry(() => {
+            let query = db.from('goods_groups').select(GOODS_GROUP_SELECT_COLS)
+            if (incrementalSinceMs > 0) {
+              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+            }
+            return query
+          }),
+          withRetry(() => {
+            let query = db.from('goods_group_items').select(GOODS_GROUP_ITEM_SELECT_COLS)
+            if (incrementalSinceMs > 0) {
+              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+            }
+            return query
+          })
         ])
         if (goodsRes.error) throw new Error(`读取 goods 失败: ${goodsRes.error.message}`)
         if (trashRes.error) throw new Error(`读取 trash 失败: ${trashRes.error.message}`)
+        if (groupsRes.error) console.warn('[supabase] 读取 goods_groups 警告:', groupsRes.error.message)
+        if (groupItemsRes.error) console.warn('[supabase] 读取 goods_group_items 警告:', groupItemsRes.error.message)
 
         const normalizeGoodsRows = (rows) => rows.map((row) => {
           const item = toCamelCase(row)
@@ -300,6 +320,20 @@ export function createSupabaseBackendAdapter({
         })
 
         const presets = presetsRes.data && presetsRes.data.length > 0 ? toCamelCase(presetsRes.data[0]) : { categories: '[]', ips: '[]', characters: '[]', storageLocations: '[]' }
+
+        const goodsGroups = (groupsRes.data || []).map(row => {
+          const item = toCamelCase(row)
+          item.updatedAt = normalizeTimestamp(item.updatedAt)
+          if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+          return item
+        })
+        const goodsGroupItems = (groupItemsRes.data || []).map(row => {
+          const item = toCamelCase(row)
+          item.updatedAt = normalizeTimestamp(item.updatedAt)
+          if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+          return item
+        })
+
         return {
           parsed: {
             goods: normalizeGoodsRows(goodsRes.data || []),
@@ -309,7 +343,9 @@ export function createSupabaseBackendAdapter({
               ips: safeParseJsonArray(presets.ips),
               characters: safeParseJsonArray(presets.characters),
               storageLocations: safeParseJsonArray(presets.storageLocations)
-            }
+            },
+            goodsGroups,
+            goodsGroupItems
           },
           source: 'Supabase'
         }
@@ -516,6 +552,41 @@ export function createSupabaseBackendAdapter({
           )
           if (error) console.warn('[supabase] presets upsert warning:', error.message)
         }
+
+        // Sync goods_groups
+        const goodsGroups = Array.isArray(content.goodsGroups) ? content.goodsGroups : []
+        if (goodsGroups.length > 0) {
+          const groupRows = goodsGroups.map(item => toSnakeCase({
+            ...pickCols(item, GOODS_GROUP_COLS),
+            totalAmount: Number(item.totalAmount) || 0,
+            updatedAt: toTimestamp(item.updatedAt),
+            createdAt: toTimestamp(item.createdAt),
+            syncedBy: currentDeviceId
+          }))
+          await syncTableRows(db, 'goods_groups', groupRows, {
+            label: 'goods_groups',
+            incremental,
+            deleteIds: []
+          })
+        }
+
+        // Sync goods_group_items
+        const goodsGroupItems = Array.isArray(content.goodsGroupItems) ? content.goodsGroupItems : []
+        if (goodsGroupItems.length > 0) {
+          const itemRows = goodsGroupItems.map(item => toSnakeCase({
+            ...pickCols(item, GOODS_GROUP_ITEM_COLS),
+            sortOrder: Number(item.sortOrder) || 0,
+            updatedAt: toTimestamp(item.updatedAt),
+            createdAt: toTimestamp(item.createdAt),
+            syncedBy: currentDeviceId
+          }))
+          await syncTableRows(db, 'goods_group_items', itemRows, {
+            label: 'goods_group_items',
+            incremental,
+            deleteIds: []
+          })
+        }
+
         continue
       }
 

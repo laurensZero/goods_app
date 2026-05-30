@@ -48,4 +48,33 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 4,
+    description: 'Create goods_groups and goods_group_items tables',
+    up: async (db) => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS goods_groups (
+          id           TEXT PRIMARY KEY NOT NULL,
+          name         TEXT NOT NULL DEFAULT '',
+          type         TEXT NOT NULL DEFAULT 'collection',
+          summaryMode  TEXT DEFAULT 'auto',
+          totalAmount  REAL DEFAULT 0,
+          coverMode    TEXT DEFAULT 'auto',
+          coverItemId  TEXT DEFAULT '',
+          displayMode  TEXT DEFAULT 'list',
+          note         TEXT DEFAULT '',
+          createdAt    INTEGER DEFAULT 0,
+          updatedAt    INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS goods_group_items (
+          id        TEXT PRIMARY KEY NOT NULL,
+          groupId   TEXT NOT NULL,
+          goodsId   TEXT NOT NULL,
+          sortOrder INTEGER DEFAULT 0,
+          createdAt INTEGER DEFAULT 0,
+          updatedAt INTEGER DEFAULT 0
+        );
+      `)
+    }
+  },
 ]

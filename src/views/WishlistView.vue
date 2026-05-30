@@ -68,9 +68,9 @@
       <GoodsListSkeleton v-if="!store.isReady" />
 
       <GoodsCardGridSection
-        v-else-if="goodsList.length > 0"
+        v-else-if="displayList.length > 0"
         ref="goodsGridSectionRef"
-        :items="visibleGoodsList"
+        :items="visibleDisplayList"
         :density="displayDensity"
         :grid-style="goodsGridStyle"
         :index-offset="visibleGoodsStartIndex"
@@ -83,6 +83,7 @@
         @long-press="enterSelectionMode"
         @toggle-select="toggleSelect"
         @open-detail="openDetail"
+        @open-group="openGroupDetail"
       />
 
       <section v-else class="empty-wrap">
@@ -128,14 +129,34 @@
     <GoodsSelectionActionBar
       :show="selectionMode && !showBatchEditSheet"
       :selected-count="selectedIds.size"
+      :selected-group-count="selectedGroupCount"
+      :selected-goods-count="selectedGoodsCount"
       :cart-item-count="cartItemCount"
+      :add-to-group-mode="!!selectedGroupTargetId"
       @delete="batchDelete"
+      @dissolve-group="batchDissolveGroups"
       @share="batchShare"
       @edit="batchEdit"
       @add-to-cart="batchAddToCart"
+      @create-group="openCreateGroupSheet"
+      @add-to-group="addToSelectedGroup"
     />
 
     <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
+
+    <CreateGroupSheet
+      v-model:show="showCreateGroupSheet"
+      group-type="wishlist"
+      :initial-goods-ids="Array.from(selectedIds)"
+      @created="handleGroupCreated"
+    />
+
+    <GroupFolderSheet
+      v-model:show="showGroupFolder"
+      :group-id="activeGroupId"
+      :density="displayDensity"
+      @before-navigate="markGroupRestore"
+    />
 
     <AppToast :message="toastMsg" />
   </div>
@@ -146,6 +167,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
@@ -165,6 +187,8 @@ import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
+import CreateGroupSheet from '@/components/goods/CreateGroupSheet.vue'
+import GroupFolderSheet from '@/components/goods/GroupFolderSheet.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
 import AppToast from '@/components/common/AppToast.vue'
@@ -216,6 +240,7 @@ const ROW_HEIGHT_MAP = {
 const router = useRouter()
 const route = useRoute()
 const store = useGoodsStore()
+const goodsGroupStore = useGoodsGroupStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const windowWidth = ref(window.innerWidth)
@@ -223,6 +248,7 @@ const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const showShareSheet = ref(false)
+const showCreateGroupSheet = ref(false)
 const batchEditSheetRef = ref(null)
 const isWishlistActive = ref(true)
 const wishlistDisplayReady = ref(true)
@@ -311,14 +337,85 @@ function getInitialVisibleCount() {
 
 const visibleGoodsStartIndex = ref(0)
 const visibleGoodsRenderCount = ref(getInitialVisibleCount())
-const shouldVirtualizeGoodsList = computed(() => goodsList.value.length > GOODS_GRID_MAX_RENDER_CARDS)
+const shouldVirtualizeGoodsList = computed(() => displayList.value.length > GOODS_GRID_MAX_RENDER_CARDS)
 const visibleGoodsEndIndex = computed(() =>
   shouldVirtualizeGoodsList.value
-    ? Math.min(goodsList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
-    : goodsList.value.length
+    ? Math.min(displayList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
+    : displayList.value.length
 )
 
 const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
+
+// Goods groups — merged into displayList with goods
+const groupViewItems = computed(() => {
+  const goodsMap = new Map(store.list.map(g => [g.id, g]))
+  const viewMap = new Map(store.viewList.map(g => [g.id, g]))
+  return goodsGroupStore.wishlistGroups.map(group => {
+    const members = goodsGroupStore.groupItemsOf(group.id)
+      .map(i => goodsMap.get(i.goodsId))
+      .filter(Boolean)
+    const totalPrice = members.reduce((sum, g) => {
+      const view = viewMap.get(g.id)
+      return sum + (Number(view?.totalValueNumber) || 0)
+    }, 0)
+    return {
+      id: group.id,
+      _type: 'group',
+      _group: group,
+      _members: members,
+      _totalPrice: totalPrice,
+      name: group.name,
+      updatedAt: group.updatedAt
+    }
+  })
+})
+const groupIdsSet = computed(() => new Set(groupViewItems.value.map(g => g.id)))
+const hasSelectedGroup = computed(() => [...selectedIds.value].some(id => groupIdsSet.value.has(id)))
+const selectedGroupTargetId = computed(() => {
+  const selGroups = [...selectedIds.value].filter(id => groupIdsSet.value.has(id))
+  const selGoods = [...selectedIds.value].filter(id => !groupIdsSet.value.has(id))
+  return selGroups.length === 1 && selGoods.length > 0 ? selGroups[0] : ''
+})
+const selectedGroupCount = computed(() => [...selectedIds.value].filter(id => groupIdsSet.value.has(id)).length)
+const selectedGoodsCount = computed(() => [...selectedIds.value].filter(id => !groupIdsSet.value.has(id)).length)
+
+const groupedGoodsIds = computed(() => {
+  const ids = new Set()
+  for (const item of goodsGroupStore.groupItemList) {
+    ids.add(item.goodsId)
+  }
+  return ids
+})
+const displayList = computed(() => [
+  ...groupViewItems.value,
+  ...goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
+])
+const visibleDisplayList = computed(() =>
+  displayList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
+)
+const GROUP_RESTORE_KEY = '__groupRestoreW'
+const showGroupFolder = ref(false)
+const activeGroupId = ref('')
+let navigatingFromGroup = false
+
+function openGroupDetail(groupId) {
+  activeGroupId.value = groupId
+  showGroupFolder.value = true
+}
+
+function markGroupRestore() {
+  navigatingFromGroup = true
+  if (activeGroupId.value) {
+    sessionStorage.setItem(GROUP_RESTORE_KEY, activeGroupId.value)
+  }
+}
+
+watch(showGroupFolder, (open) => {
+  if (!open && !navigatingFromGroup) {
+    sessionStorage.removeItem(GROUP_RESTORE_KEY)
+  }
+  navigatingFromGroup = false
+})
 const visibleGoodsList = computed(() =>
   shouldVirtualizeGoodsList.value
     ? goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
@@ -348,7 +445,7 @@ const densityFlip = useGoodsGridDensityFlip({
   getFlipViewportRect,
   getContainerScrollOffset,
   isLowPerfDevice,
-  getItemCount: () => goodsList.value.length
+  getItemCount: () => displayList.value.length
 })
 
 const goodsGridStyle = computed(() => ({
@@ -367,7 +464,7 @@ const visibleGoodsHeadSpacerHeight = computed(() => {
 
 const visibleGoodsTailSpacerHeight = computed(() => {
   if (!shouldVirtualizeGoodsList.value) return 0
-  const remainingItems = Math.max(0, goodsList.value.length - visibleGoodsEndIndex.value)
+  const remainingItems = Math.max(0, displayList.value.length - visibleGoodsEndIndex.value)
   if (!remainingItems) return 0
 
   const cols = getResponsiveCols(displayDensity.value)
@@ -427,7 +524,7 @@ function resolveGoodsViewportHeight(options = {}) {
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   if (!shouldVirtualizeGoodsList.value) {
     visibleGoodsStartIndex.value = 0
-    visibleGoodsRenderCount.value = goodsList.value.length
+    visibleGoodsRenderCount.value = displayList.value.length
     return
   }
 
@@ -440,8 +537,8 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
-  const startIndex = Math.min(goodsList.value.length, startRow * cols)
-  const remainingItems = Math.max(0, goodsList.value.length - startIndex)
+  const startIndex = Math.min(displayList.value.length, startRow * cols)
+  const remainingItems = Math.max(0, displayList.value.length - startIndex)
   const renderCount = Math.min(
     remainingItems,
     Math.min(
@@ -460,7 +557,7 @@ function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
 function syncVisibleTimelineMonthCount() {}
 
 watch(
-  [() => goodsList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
+  [() => displayList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
   () => {
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
   },
@@ -685,6 +782,15 @@ async function confirmDelete() {
   exitSelectionModeQuiet()
 }
 
+async function batchDissolveGroups() {
+  const groupIds = [...selectedIds.value].filter(id => groupIdsSet.value.has(id))
+  if (groupIds.length === 0) return
+  for (const gid of groupIds) {
+    await goodsGroupStore.removeGroup(gid)
+  }
+  exitSelectionModeQuiet()
+}
+
 function batchEdit() {
   if (selectedIds.value.size === 0) return
   showBatchEditSheet.value = true
@@ -693,6 +799,27 @@ function batchEdit() {
 function batchShare() {
   if (selectedIds.value.size === 0) return
   showShareSheet.value = true
+}
+
+function openCreateGroupSheet() {
+  if (selectedIds.value.size < 2) return
+  showCreateGroupSheet.value = true
+}
+
+async function addToSelectedGroup() {
+  const targetId = selectedGroupTargetId.value
+  if (!targetId) return
+  const goodsIds = [...selectedIds.value].filter(id => !groupIdsSet.value.has(id))
+  if (goodsIds.length === 0) return
+  await goodsGroupStore.addItemsToGroup(targetId, goodsIds)
+  exitSelectionModeQuiet()
+}
+
+function handleGroupCreated(group) {
+  showCreateGroupSheet.value = false
+  exitSelectionModeQuiet()
+  activeGroupId.value = group.id
+  showGroupFolder.value = true
 }
 
 async function applyBatchEditPayload(payload) {
@@ -834,6 +961,14 @@ onActivated(async () => {
   isWishlistActive.value = true
   cancelGoodsBackHeroRetry()
   clearWishlistBackHeroDeferredRestoreTimer()
+
+  // Restore group folder sheet if returning from detail that was opened from the sheet
+  const restoreGroupId = sessionStorage.getItem(GROUP_RESTORE_KEY)
+  if (restoreGroupId) {
+    sessionStorage.removeItem(GROUP_RESTORE_KEY)
+    activeGroupId.value = restoreGroupId
+    showGroupFolder.value = true
+  }
   if (shouldScrollToTopOnActivated) {
     shouldScrollToTopOnActivated = false
     clearDisplayedScrollPosition()

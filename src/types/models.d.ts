@@ -106,3 +106,28 @@ export interface EventItem {
   createdAt: number
   updatedAt: number
 }
+
+/** 谷子组 */
+export interface GoodsGroup {
+  id: string
+  name: string
+  type: 'collection' | 'wishlist'
+  summaryMode: 'auto' | 'manual'
+  totalAmount: number
+  coverMode: 'auto' | 'manual'
+  coverItemId: string
+  displayMode: 'stack' | 'list'
+  note: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** 谷子组成员关系 */
+export interface GoodsGroupItem {
+  id: string
+  groupId: string
+  goodsId: string
+  sortOrder: number
+  createdAt: number
+  updatedAt: number
+}

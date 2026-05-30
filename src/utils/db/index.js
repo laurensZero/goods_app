@@ -119,6 +119,33 @@ const CREATE_RECHARGE_TABLE_SQL = `
   );
 `
 
+const CREATE_GOODS_GROUPS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS goods_groups (
+    id           TEXT PRIMARY KEY NOT NULL,
+    name         TEXT NOT NULL DEFAULT '',
+    type         TEXT NOT NULL DEFAULT 'collection',
+    summaryMode  TEXT DEFAULT 'auto',
+    totalAmount  REAL DEFAULT 0,
+    coverMode    TEXT DEFAULT 'auto',
+    coverItemId  TEXT DEFAULT '',
+    displayMode  TEXT DEFAULT 'list',
+    note         TEXT DEFAULT '',
+    createdAt    INTEGER DEFAULT 0,
+    updatedAt    INTEGER DEFAULT 0
+  );
+`
+
+const CREATE_GOODS_GROUP_ITEMS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS goods_group_items (
+    id        TEXT PRIMARY KEY NOT NULL,
+    groupId   TEXT NOT NULL,
+    goodsId   TEXT NOT NULL,
+    sortOrder INTEGER DEFAULT 0,
+    createdAt INTEGER DEFAULT 0,
+    updatedAt INTEGER DEFAULT 0
+  );
+`
+
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
 const LATEST_VERSION = MIGRATIONS.length
 
@@ -181,6 +208,27 @@ const RECHARGE_REQUIRED_COLUMNS = [
   ['note', "TEXT DEFAULT ''"],
   ['image', "TEXT DEFAULT ''"],
   ['deleted', 'INTEGER DEFAULT 0'],
+  ['updatedAt', 'INTEGER DEFAULT 0']
+]
+
+const GOODS_GROUPS_REQUIRED_COLUMNS = [
+  ['name', "TEXT NOT NULL DEFAULT ''"],
+  ['type', "TEXT NOT NULL DEFAULT 'collection'"],
+  ['summaryMode', "TEXT DEFAULT 'auto'"],
+  ['totalAmount', 'REAL DEFAULT 0'],
+  ['coverMode', "TEXT DEFAULT 'auto'"],
+  ['coverItemId', "TEXT DEFAULT ''"],
+  ['displayMode', "TEXT DEFAULT 'list'"],
+  ['note', "TEXT DEFAULT ''"],
+  ['createdAt', 'INTEGER DEFAULT 0'],
+  ['updatedAt', 'INTEGER DEFAULT 0']
+]
+
+const GOODS_GROUP_ITEMS_REQUIRED_COLUMNS = [
+  ['groupId', "TEXT NOT NULL"],
+  ['goodsId', "TEXT NOT NULL"],
+  ['sortOrder', 'INTEGER DEFAULT 0'],
+  ['createdAt', 'INTEGER DEFAULT 0'],
   ['updatedAt', 'INTEGER DEFAULT 0']
 ]
 
@@ -377,16 +425,22 @@ export async function initDB() {
       CREATE_RECHARGE_TABLE_SQL,
       CREATE_VERSION_TABLE_SQL
     ].map(sql => sql.trim()).filter(Boolean).join(';\n') + ';'
-    
+
     await db.execute(allCreateSQL)
     isInitialized = true
   }
   const createTablesTime = performance.now() - t2
 
+  // Always ensure new tables exist (CREATE TABLE IF NOT EXISTS is idempotent)
+  await db.execute(CREATE_GOODS_GROUPS_TABLE_SQL)
+  await db.execute(CREATE_GOODS_GROUP_ITEMS_TABLE_SQL)
+
   const t2b = performance.now()
   await _ensureTableColumns('goods', GOODS_REQUIRED_COLUMNS)
   await _ensureTableColumns('events', EVENTS_REQUIRED_COLUMNS)
   await _ensureTableColumns('recharge_records', RECHARGE_REQUIRED_COLUMNS)
+  await _ensureTableColumns('goods_groups', GOODS_GROUPS_REQUIRED_COLUMNS)
+  await _ensureTableColumns('goods_group_items', GOODS_GROUP_ITEMS_REQUIRED_COLUMNS)
   const backfillColumnsTime = performance.now() - t2b
 
   // Always check version and run migrations
@@ -647,6 +701,191 @@ export async function deleteRechargeRecords(ids) {
     await db.executeSet(stmts)
   } catch (e) {
     console.error('[db] deleteRechargeRecords failed:', e)
+    throw e
+  }
+}
+
+// ── Goods Groups CRUD ──
+
+const GROUPS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_groups (id,name,type,summaryMode,totalAmount,coverMode,coverItemId,displayMode,note,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+
+const GROUP_ITEMS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_group_items (id,groupId,goodsId,sortOrder,createdAt,updatedAt) VALUES (?,?,?,?,?,?)'
+
+function prepareGroupRecord(group) {
+  const now = Date.now()
+  return [
+    group.id,
+    group.name || '',
+    group.type || 'collection',
+    group.summaryMode || 'auto',
+    Number(group.totalAmount) || 0,
+    group.coverMode || 'auto',
+    group.coverItemId || '',
+    group.displayMode || 'list',
+    group.note || '',
+    group.createdAt || now,
+    group.updatedAt || now
+  ]
+}
+
+function prepareGroupItemRecord(item) {
+  const now = Date.now()
+  return [
+    item.id,
+    item.groupId,
+    item.goodsId,
+    Number(item.sortOrder) || 0,
+    item.createdAt || now,
+    item.updatedAt || now
+  ]
+}
+
+/** @returns {Promise<import('@/types/models').GoodsGroup[]>} */
+export async function getGroups() {
+  if (!isInitialized) {
+    try {
+      await initDB()
+    } catch (e) {
+      console.error('[db] initDB retry failed in getGroups:', e)
+      throw e
+    }
+  }
+  try {
+    const rows = await db.query('SELECT * FROM goods_groups ORDER BY updatedAt DESC')
+    return rows.map(r => ({
+      ...r,
+      totalAmount: Number(r.totalAmount) || 0,
+      createdAt: Number(r.createdAt) || 0,
+      updatedAt: Number(r.updatedAt) || 0
+    }))
+  } catch (e) {
+    console.error('[db] getGroups failed:', e)
+    throw e
+  }
+}
+
+/** @param {object} group */
+export async function addGroup(group) {
+  try {
+    await db.run(GROUPS_INSERT_SQL, prepareGroupRecord(group))
+  } catch (e) {
+    console.error('[db] addGroup failed:', e)
+    throw e
+  }
+}
+
+/** @param {object[]} groups */
+export async function saveGroups(groups) {
+  if (!groups || groups.length === 0) return
+  try {
+    const stmts = groups.map(group => ({
+      statement: GROUPS_INSERT_SQL,
+      values: prepareGroupRecord(group)
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] saveGroups failed:', e)
+    throw e
+  }
+}
+
+/** @param {string[]} ids */
+export async function deleteGroups(ids) {
+  if (!ids || ids.length === 0) return
+  try {
+    const stmts = ids.map(id => ({
+      statement: 'DELETE FROM goods_groups WHERE id = ?',
+      values: [id]
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] deleteGroups failed:', e)
+    throw e
+  }
+}
+
+/** @returns {Promise<import('@/types/models').GoodsGroupItem[]>} */
+export async function getGroupItems() {
+  if (!isInitialized) {
+    try {
+      await initDB()
+    } catch (e) {
+      console.error('[db] initDB retry failed in getGroupItems:', e)
+      throw e
+    }
+  }
+  try {
+    const rows = await db.query('SELECT * FROM goods_group_items ORDER BY sortOrder ASC')
+    return rows.map(r => ({
+      ...r,
+      sortOrder: Number(r.sortOrder) || 0,
+      createdAt: Number(r.createdAt) || 0,
+      updatedAt: Number(r.updatedAt) || 0
+    }))
+  } catch (e) {
+    console.error('[db] getGroupItems failed:', e)
+    throw e
+  }
+}
+
+/** @param {object} item */
+export async function addGroupItem(item) {
+  try {
+    await db.run(GROUP_ITEMS_INSERT_SQL, prepareGroupItemRecord(item))
+  } catch (e) {
+    console.error('[db] addGroupItem failed:', e)
+    throw e
+  }
+}
+
+/** @param {object[]} items */
+export async function saveGroupItems(items) {
+  if (!items || items.length === 0) return
+  try {
+    const stmts = items.map(item => ({
+      statement: GROUP_ITEMS_INSERT_SQL,
+      values: prepareGroupItemRecord(item)
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] saveGroupItems failed:', e)
+    throw e
+  }
+}
+
+/** @param {string[]} ids */
+export async function deleteGroupItems(ids) {
+  if (!ids || ids.length === 0) return
+  try {
+    const stmts = ids.map(id => ({
+      statement: 'DELETE FROM goods_group_items WHERE id = ?',
+      values: [id]
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] deleteGroupItems failed:', e)
+    throw e
+  }
+}
+
+/** @param {string} groupId */
+export async function deleteGroupItemsByGroupId(groupId) {
+  if (!groupId) return
+  try {
+    await db.run('DELETE FROM goods_group_items WHERE groupId = ?', [groupId])
+  } catch (e) {
+    console.error('[db] deleteGroupItemsByGroupId failed:', e)
+    throw e
+  }
+}
+
+/** @param {string} goodsId */
+export async function deleteGroupItemsByGoodsId(goodsId) {
+  if (!goodsId) return
+  try {
+    await db.run('DELETE FROM goods_group_items WHERE goodsId = ?', [goodsId])
+  } catch (e) {
+    console.error('[db] deleteGroupItemsByGoodsId failed:', e)
     throw e
   }
 }

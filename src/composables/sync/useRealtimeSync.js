@@ -49,7 +49,7 @@ export function useRealtimeSync({ syncStore }) {
       const db = getSupabaseClient()
       if (!db) return
 
-      const tables = ['goods', 'events', 'recharge_records']
+      const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
       let builder = db.channel('data-realtime')
       for (const table of tables) {
         builder = builder.on('postgres_changes', { event: '*', schema: 'public', table }, handleRemoteChange)

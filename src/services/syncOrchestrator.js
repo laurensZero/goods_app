@@ -21,6 +21,7 @@ export function createSyncOrchestrator({
   useRechargeStore,
   useEventsStore,
   usePresetsStore,
+  useGoodsGroupStore,
   trackSyncStep,
   constants
 }) {
@@ -421,6 +422,16 @@ export function createSyncOrchestrator({
         total: eventData.events.length
       }
       await ctx.saveEventLastSyncedAt(eventData.updatedAt || remoteManifest?.lastSyncAt || new Date().toISOString())
+    }
+
+    // Handle goods groups
+    if (useGoodsGroupStore) {
+      const goodsGroupStore = useGoodsGroupStore()
+      const remoteGroups = Array.isArray(remoteData.goodsGroups) ? remoteData.goodsGroups : []
+      const remoteGroupItems = Array.isArray(remoteData.goodsGroupItems) ? remoteData.goodsGroupItems : []
+      if (remoteGroups.length > 0 || remoteGroupItems.length > 0) {
+        await goodsGroupStore.updateGroupsBackup(remoteGroups, remoteGroupItems)
+      }
     }
 
     return {

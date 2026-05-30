@@ -1,0 +1,347 @@
+// @ts-check
+import { defineStore } from 'pinia'
+import { ref, shallowRef, computed } from 'vue'
+import { triggerRef } from 'vue'
+import {
+  getGroups,
+  getGroupItems,
+  saveGroups,
+  saveGroupItems,
+  deleteGroups,
+  deleteGroupItems,
+  deleteGroupItemsByGroupId
+} from '@/utils/db/index'
+
+function generateGroupId() {
+  return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function generateGroupItemId() {
+  return `gi_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+export const useGoodsGroupStore = defineStore('goodsGroup', () => {
+  /** @type {import('vue').ShallowRef<import('@/types/models').GoodsGroup[]>} */
+  const groupList = shallowRef([])
+  /** @type {import('vue').ShallowRef<import('@/types/models').GoodsGroupItem[]>} */
+  const groupItemList = shallowRef([])
+  const isReady = ref(false)
+
+  // ── Computed getters ──
+
+  const _groupByIdMap = computed(() => new Map(groupList.value.map(g => [g.id, g])))
+  const getGroupById = computed(() => (id) => _groupByIdMap.value.get(id))
+
+  const collectionGroups = computed(() => groupList.value.filter(g => g.type === 'collection'))
+  const wishlistGroups = computed(() => groupList.value.filter(g => g.type === 'wishlist'))
+
+  /** 获取某个组的成员关系列表（按 sortOrder 排序） */
+  const groupItemsOf = computed(() => (groupId) => {
+    return groupItemList.value
+      .filter(item => item.groupId === groupId)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+  })
+
+  /** 反向查询：某个谷子所属的组 ID */
+  const getGoodsGroupId = computed(() => (goodsId) => {
+    const item = groupItemList.value.find(i => i.goodsId === goodsId)
+    return item ? item.groupId : null
+  })
+
+  /** 获取某个组及其成员的 goods 数据（需要传入 goodsStore.list） */
+  const getGroupWithItems = computed(() => (groupId, goodsList) => {
+    const group = _groupByIdMap.value.get(groupId)
+    if (!group) return null
+    const items = groupItemList.value
+      .filter(i => i.groupId === groupId)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+    const goodsMap = new Map(goodsList.map(g => [g.id, g]))
+    const memberGoods = items
+      .map(i => goodsMap.get(i.goodsId))
+      .filter(Boolean)
+    return { group, items, memberGoods }
+  })
+
+  // ── Init ──
+
+  async function init() {
+    const [groupsResult, itemsResult] = await Promise.allSettled([getGroups(), getGroupItems()])
+
+    if (groupsResult.status === 'fulfilled') {
+      groupList.value = groupsResult.value
+    } else {
+      console.error('[goodsGroup] init: getGroups failed:', groupsResult.reason)
+      groupList.value = []
+    }
+
+    if (itemsResult.status === 'fulfilled') {
+      groupItemList.value = itemsResult.value
+    } else {
+      console.error('[goodsGroup] init: getGroupItems failed:', itemsResult.reason)
+      groupItemList.value = []
+    }
+
+    isReady.value = true
+  }
+
+  // ── CRUD: Groups ──
+
+  async function addGroup(data) {
+    const now = Date.now()
+    const group = {
+      id: generateGroupId(),
+      name: data.name || '',
+      type: data.type || 'collection',
+      summaryMode: data.summaryMode || 'auto',
+      totalAmount: Number(data.totalAmount) || 0,
+      coverMode: data.coverMode || 'auto',
+      coverItemId: data.coverItemId || '',
+      displayMode: data.displayMode || 'list',
+      note: data.note || '',
+      createdAt: now,
+      updatedAt: now
+    }
+    groupList.value = [group, ...groupList.value]
+    triggerRef(groupList)
+    try {
+      await saveGroups([group])
+    } catch (e) {
+      console.error('[goodsGroup] addGroup DB write failed:', e)
+      throw e
+    }
+    return group
+  }
+
+  async function updateGroup(id, data) {
+    const idx = groupList.value.findIndex(g => g.id === id)
+    if (idx === -1) return null
+
+    const updated = {
+      ...groupList.value[idx],
+      ...data,
+      id, // 保持 ID 不变
+      updatedAt: Date.now()
+    }
+    groupList.value = [...groupList.value.slice(0, idx), updated, ...groupList.value.slice(idx + 1)]
+    triggerRef(groupList)
+    try {
+      await saveGroups([updated])
+    } catch (e) {
+      console.error('[goodsGroup] updateGroup DB write failed:', e)
+      throw e
+    }
+    return updated
+  }
+
+  async function removeGroup(id) {
+    const idx = groupList.value.findIndex(g => g.id === id)
+    if (idx === -1) return
+
+    groupList.value = [...groupList.value.slice(0, idx), ...groupList.value.slice(idx + 1)]
+    // 同时移除组内所有成员关系
+    groupItemList.value = groupItemList.value.filter(i => i.groupId !== id)
+    triggerRef(groupList)
+    triggerRef(groupItemList)
+    try {
+      await Promise.all([deleteGroups([id]), deleteGroupItemsByGroupId(id)])
+    } catch (e) {
+      console.error('[goodsGroup] removeGroup DB write failed:', e)
+      throw e
+    }
+  }
+
+  // ── CRUD: Group Items ──
+
+  async function addItemsToGroup(groupId, goodsIds) {
+    const now = Date.now()
+    const existingGoodsIds = new Set(
+      groupItemList.value.filter(i => i.groupId === groupId).map(i => i.goodsId)
+    )
+    const maxSortOrder = Math.max(0, ...groupItemList.value.filter(i => i.groupId === groupId).map(i => i.sortOrder))
+
+    const newItems = goodsIds
+      .filter(gid => !existingGoodsIds.has(gid))
+      .map((gid, index) => ({
+        id: generateGroupItemId(),
+        groupId,
+        goodsId: gid,
+        sortOrder: maxSortOrder + index + 1,
+        createdAt: now,
+        updatedAt: now
+      }))
+
+    if (newItems.length === 0) return []
+
+    groupItemList.value = [...groupItemList.value, ...newItems]
+    triggerRef(groupItemList)
+    try {
+      await saveGroupItems(newItems)
+    } catch (e) {
+      console.error('[goodsGroup] addItemsToGroup DB write failed:', e)
+      throw e
+    }
+    return newItems
+  }
+
+  async function removeItemsFromGroup(goodsIds) {
+    const goodsIdSet = new Set(goodsIds)
+    const removed = groupItemList.value.filter(i => goodsIdSet.has(i.goodsId))
+    if (removed.length === 0) return
+
+    groupItemList.value = groupItemList.value.filter(i => !goodsIdSet.has(i.goodsId))
+    triggerRef(groupItemList)
+    try {
+      await deleteGroupItems(removed.map(i => i.id))
+    } catch (e) {
+      console.error('[goodsGroup] removeItemsFromGroup DB write failed:', e)
+      throw e
+    }
+  }
+
+  async function updateGroupItem(id, data) {
+    const idx = groupItemList.value.findIndex(i => i.id === id)
+    if (idx === -1) return null
+
+    const updated = {
+      ...groupItemList.value[idx],
+      ...data,
+      id,
+      updatedAt: Date.now()
+    }
+    groupItemList.value = [...groupItemList.value.slice(0, idx), updated, ...groupItemList.value.slice(idx + 1)]
+    triggerRef(groupItemList)
+    try {
+      await saveGroupItems([updated])
+    } catch (e) {
+      console.error('[goodsGroup] updateGroupItem DB write failed:', e)
+      throw e
+    }
+    return updated
+  }
+
+  async function moveItemToGroup(goodsId, targetGroupId) {
+    const existing = groupItemList.value.find(i => i.goodsId === goodsId)
+    if (existing) {
+      // 已在某个组中，更新 groupId
+      return updateGroupItem(existing.id, { groupId: targetGroupId })
+    } else {
+      // 不在任何组中，新增
+      const items = await addItemsToGroup(targetGroupId, [goodsId])
+      return items[0] || null
+    }
+  }
+
+  async function reorderGroupItems(groupId, orderedGoodsIds) {
+    const now = Date.now()
+    const itemsMap = new Map(
+      groupItemList.value
+        .filter(i => i.groupId === groupId)
+        .map(i => [i.goodsId, i])
+    )
+
+    const updatedItems = []
+    for (let idx = 0; idx < orderedGoodsIds.length; idx++) {
+      const gid = orderedGoodsIds[idx]
+      const item = itemsMap.get(gid)
+      if (item && item.sortOrder !== idx) {
+        updatedItems.push({ ...item, sortOrder: idx, updatedAt: now })
+      }
+    }
+
+    if (updatedItems.length === 0) return
+
+    const updatedIds = new Set(updatedItems.map(i => i.id))
+    groupItemList.value = groupItemList.value.map(i =>
+      updatedIds.has(i.id) ? updatedItems.find(u => u.id === i.id) : i
+    )
+    triggerRef(groupItemList)
+    try {
+      await saveGroupItems(updatedItems)
+    } catch (e) {
+      console.error('[goodsGroup] reorderGroupItems DB write failed:', e)
+      throw e
+    }
+  }
+
+  // ── Sync helpers ──
+
+  async function refreshGroupList() {
+    const [groups, items] = await Promise.all([getGroups(), getGroupItems()])
+    groupList.value = groups
+    groupItemList.value = items
+  }
+
+  async function importGroupsBackup(groups, items) {
+    if (Array.isArray(groups) && groups.length > 0) {
+      groupList.value = groups
+      await saveGroups(groups)
+    }
+    if (Array.isArray(items) && items.length > 0) {
+      groupItemList.value = items
+      await saveGroupItems(items)
+    }
+  }
+
+  async function updateGroupsBackup(groups, items) {
+    if (Array.isArray(groups)) {
+      const remoteMap = new Map(groups.map(g => [g.id, g]))
+      const merged = groupList.value.map(local => {
+        const remote = remoteMap.get(local.id)
+        if (!remote) return local
+        return (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local
+      })
+      // 添加远端有、本地没有的
+      const localIds = new Set(groupList.value.map(g => g.id))
+      for (const remote of groups) {
+        if (!localIds.has(remote.id)) merged.push(remote)
+      }
+      groupList.value = merged
+      await saveGroups(merged)
+    }
+    if (Array.isArray(items)) {
+      const remoteMap = new Map(items.map(i => [i.id, i]))
+      const merged = groupItemList.value.map(local => {
+        const remote = remoteMap.get(local.id)
+        if (!remote) return local
+        return (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local
+      })
+      const localIds = new Set(groupItemList.value.map(i => i.id))
+      for (const remote of items) {
+        if (!localIds.has(remote.id)) merged.push(remote)
+      }
+      groupItemList.value = merged
+      await saveGroupItems(merged)
+    }
+  }
+
+  return {
+    // State
+    groupList,
+    groupItemList,
+    isReady,
+
+    // Getters
+    getGroupById,
+    collectionGroups,
+    wishlistGroups,
+    groupItemsOf,
+    getGoodsGroupId,
+    getGroupWithItems,
+
+    // CRUD
+    init,
+    addGroup,
+    updateGroup,
+    removeGroup,
+    addItemsToGroup,
+    removeItemsFromGroup,
+    updateGroupItem,
+    moveItemToGroup,
+    reorderGroupItems,
+
+    // Sync
+    refreshGroupList,
+    importGroupsBackup,
+    updateGroupsBackup
+  }
+})

@@ -22,6 +22,7 @@ import zhLeaderboard from './zh-CN/leaderboard.json'
 import zhShare from './zh-CN/share.json'
 import zhTrash from './zh-CN/trash.json'
 import zhMy from './zh-CN/my.json'
+import zhGoodsGroup from './zh-CN/goodsGroup.json'
 
 import enCommon from './en/common.json'
 import enNav from './en/nav.json'
@@ -42,6 +43,7 @@ import enLeaderboard from './en/leaderboard.json'
 import enShare from './en/share.json'
 import enTrash from './en/trash.json'
 import enMy from './en/my.json'
+import enGoodsGroup from './en/goodsGroup.json'
 
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'en']
@@ -80,7 +82,8 @@ const zhCNMessages = {
   ...zhLeaderboard,
   ...zhShare,
   ...zhTrash,
-  ...zhMy
+  ...zhMy,
+  ...zhGoodsGroup
 }
 
 const enMessages = {
@@ -102,7 +105,8 @@ const enMessages = {
   ...enLeaderboard,
   ...enShare,
   ...enTrash,
-  ...enMy
+  ...enMy,
+  ...enGoodsGroup
 }
 
 const i18n = createI18n({

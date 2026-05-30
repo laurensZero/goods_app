@@ -5,15 +5,15 @@
         <button
           class="sel-action-btn sel-action-btn--danger"
           type="button"
-          :disabled="selectedCount === 0"
-          @click="$emit('delete')"
+          :disabled="deleteDisabled"
+          @click="$emit(deleteEvent)"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-1 14H6L5 6" />
             <path d="M10 11v6M14 11v6" />
           </svg>
-          {{ t('goods.selection.delete') }}{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
+          {{ deleteLabel }}
         </button>
         <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('addToCart')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -22,6 +22,20 @@
             <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
           </svg>
           {{ t('goods.selection.addToCart') }}{{ cartItemCount > 0 ? ` (${cartItemCount})` : '' }}
+        </button>
+        <button
+          class="sel-action-btn"
+          type="button"
+          :disabled="addToGroupMode ? selectedCount < 2 : selectedCount < 2"
+          @click="$emit(addToGroupMode ? 'addToGroup' : 'createGroup')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <path d="M17.5 14v7M14 17.5h7" />
+          </svg>
+          {{ addToGroupMode ? t('goodsGroup.addToGroup') : t('goodsGroup.createGroup') }}
         </button>
         <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('share')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -44,17 +58,40 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-defineProps({
+const props = defineProps({
   show: { type: Boolean, default: false },
   selectedCount: { type: Number, default: 0 },
-  cartItemCount: { type: Number, default: 0 }
+  selectedGroupCount: { type: Number, default: 0 },
+  selectedGoodsCount: { type: Number, default: 0 },
+  cartItemCount: { type: Number, default: 0 },
+  addToGroupMode: { type: Boolean, default: false }
 })
 
-defineEmits(['delete', 'edit', 'share', 'addToCart'])
+defineEmits(['delete', 'dissolveGroup', 'edit', 'share', 'addToCart', 'createGroup', 'addToGroup'])
+
+const deleteDisabled = computed(() => {
+  if (props.selectedCount === 0) return true
+  // Mixed selection (groups + goods) → disabled
+  if (props.selectedGroupCount > 0 && props.selectedGoodsCount > 0) return true
+  return false
+})
+
+const deleteLabel = computed(() => {
+  if (props.selectedGroupCount > 0 && props.selectedGoodsCount === 0) {
+    return `${t('goodsGroup.dissolveGroup')} (${props.selectedGroupCount})`
+  }
+  return `${t('goods.selection.delete')} (${props.selectedCount})`
+})
+
+const deleteEvent = computed(() => {
+  if (props.selectedGroupCount > 0 && props.selectedGoodsCount === 0) return 'dissolveGroup'
+  return 'delete'
+})
 </script>
 
 <style scoped>
@@ -134,11 +171,17 @@ defineEmits(['delete', 'edit', 'share', 'addToCart'])
     left: 50%;
     right: auto;
     bottom: max(12px, env(safe-area-inset-bottom));
-    width: min(100vw, 430px);
+    width: min(100vw, 520px);
     padding: 10px var(--page-padding);
     border: 1px solid var(--app-glass-border);
     border-radius: 22px;
     transform: translateX(-50%);
+  }
+
+  .sel-action-btn {
+    font-size: 12px;
+    padding: 8px 2px;
+    gap: 3px;
   }
 }
 
