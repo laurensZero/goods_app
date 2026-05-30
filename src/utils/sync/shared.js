@@ -94,6 +94,92 @@ export function sortedStringify(value) {
   return undefined
 }
 
+const YIELD_BATCH_SIZE = 20
+
+/**
+ * Async version of sortedStringify that yields to the main thread periodically
+ * during large array serialization to keep the UI responsive.
+ *
+ * Handles both top-level arrays and objects with array-valued properties.
+ */
+export async function asyncSortedStringify(value) {
+  let callCount = 0
+
+  function stringify(v) {
+    if (v === null || v === undefined) return 'null'
+    if (typeof v === 'string') return JSON.stringify(v)
+    if (typeof v === 'number') return Object.is(v, -0) ? 'null' : String(v)
+    if (typeof v === 'boolean') return String(v)
+
+    if (Array.isArray(v)) {
+      let result = '['
+      for (let i = 0; i < v.length; i++) {
+        if (i > 0) result += ','
+        const item = v[i]
+        result += (item === undefined || typeof item === 'function') ? 'null' : stringify(item)
+      }
+      return result + ']'
+    }
+
+    if (typeof v === 'object') {
+      const keys = Object.keys(v).sort()
+      let result = '{'
+      let first = true
+      for (const key of keys) {
+        const item = v[key]
+        if (item === undefined || typeof item === 'function') continue
+        if (!first) result += ','
+        first = false
+        result += JSON.stringify(key) + ':' + stringify(item)
+      }
+      return result + '}'
+    }
+
+    return undefined
+  }
+
+  async function asyncStringifyArray(arr) {
+    const parts = []
+    let result = '['
+    for (let i = 0; i < arr.length; i++) {
+      if (i > 0) result += ','
+      const v = arr[i]
+      result += (v === undefined || typeof v === 'function') ? 'null' : stringify(v)
+      if (++callCount % YIELD_BATCH_SIZE === 0) {
+        parts.push(result)
+        result = ''
+        await yieldToMain()
+      }
+    }
+    return parts.join('') + result + ']'
+  }
+
+  if (Array.isArray(value)) {
+    return asyncStringifyArray(value)
+  }
+
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort()
+    let result = '{'
+    let first = true
+    for (const key of keys) {
+      const v = value[key]
+      if (v === undefined || typeof v === 'function') continue
+      if (!first) result += ','
+      first = false
+      result += JSON.stringify(key) + ':'
+      if (Array.isArray(v) && v.length > YIELD_BATCH_SIZE) {
+        result += await asyncStringifyArray(v)
+      } else {
+        result += stringify(v)
+      }
+    }
+    return result + '}'
+  }
+
+  return stringify(value)
+}
+
 function yieldToMain() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
@@ -129,6 +215,18 @@ export function buildComparableRecordMap(items = []) {
     const id = String(item?.id || '').trim()
     if (!id) continue
     map.set(id, sortedStringify(item))
+  }
+  return map
+}
+
+export async function asyncBuildComparableRecordMap(items = []) {
+  const map = new Map()
+  let count = 0
+  for (const item of items) {
+    const id = String(item?.id || '').trim()
+    if (!id) continue
+    map.set(id, sortedStringify(item))
+    if (++count % YIELD_BATCH_SIZE === 0) await yieldToMain()
   }
   return map
 }

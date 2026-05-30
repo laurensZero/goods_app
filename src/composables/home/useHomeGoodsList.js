@@ -8,17 +8,15 @@ export function useHomeGoodsList(store, sortMode, sortDirection) {
     const items = sortHomeGoodsList(store.collectionViewList, sortMode.value, sortDirection.value)
     let totalVal = 0
     let totalQty = 0
-
-    for (let i = 0; i < items.length; i++) {
-        if (!EXCLUDED_VALUE_STATUSES.has(items[i].collectStatus)) {
-          totalVal += items[i].totalValueNumber
-          totalQty += items[i].quantityNumber
-        }
-    }
-
     const byId = new Map()
+
     for (let i = 0; i < items.length; i++) {
-        byId.set(items[i].id, items[i])
+        const item = items[i]
+        byId.set(item.id, item)
+        if (!EXCLUDED_VALUE_STATUSES.has(item.collectStatus)) {
+          totalVal += item.totalValueNumber
+          totalQty += item.quantityNumber
+        }
     }
 
     return {

@@ -13,9 +13,14 @@ const currentHash = ref('')
 
 export function useClipboardImport() {
   const router = useRouter()
+  let lastCheckTime = 0
+  const CHECK_COOLDOWN_MS = 2000
 
   const checkClipboard = async () => {
     if (showPrompt.value) return // 正在提示时不再重复检测
+    const now = Date.now()
+    if (now - lastCheckTime < CHECK_COOLDOWN_MS) return
+    lastCheckTime = now
     try {
       const { value } = await Clipboard.read()
       if (!value) return

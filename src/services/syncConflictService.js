@@ -1,5 +1,5 @@
 import {
-  buildComparableRecordMap,
+  asyncBuildComparableRecordMap,
   buildImageReferenceMap,
   buildTimestampRecordMap,
   countComparableRecordDiff,
@@ -194,10 +194,11 @@ export function createSyncConflictService({
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
-    const rechargeDiff = countComparableRecordDiff(
-      buildComparableRecordMap(localRechargeData.recharge || []),
-      buildComparableRecordMap(remoteRechargeData.recharge || [])
-    )
+    const [localRechargeMap, remoteRechargeMap] = await Promise.all([
+      asyncBuildComparableRecordMap(localRechargeData.recharge || []),
+      asyncBuildComparableRecordMap(remoteRechargeData.recharge || [])
+    ])
+    const rechargeDiff = countComparableRecordDiff(localRechargeMap, remoteRechargeMap)
     const eventDiff = countComparableRecordDiff(
       buildTimestampRecordMap(localEventData.events || []),
       buildTimestampRecordMap(remoteEventData.events || [])

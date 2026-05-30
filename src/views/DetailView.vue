@@ -630,7 +630,7 @@ watch(
     if (images.some((image) => image.id === activeImageId.value)) return
     activeImageId.value = images.find((image) => image.isPrimary)?.id || images[0].id
   },
-  { immediate: true, deep: true }
+  { immediate: true }
 )
 
 const unitHoldingDaysList = computed(() => {

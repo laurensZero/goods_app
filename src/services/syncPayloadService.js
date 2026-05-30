@@ -1,5 +1,4 @@
 import {
-  buildComparableRecordMap,
   processWithConcurrency,
   buildEventCoverFilename,
   buildEventPhotoFilename,
@@ -8,7 +7,7 @@ import {
   getItemTimestamp,
   parseImageDataUrl,
   resolveGoodsTrashMaps,
-  sortedStringify,
+  asyncSortedStringify,
   normalizeBudgetValue,
   readBudgetSettings
 } from '@/utils/sync/shared'
@@ -523,7 +522,7 @@ export function createSyncPayloadService({
       ? normalizeBudgetSettings(budgetSettings || data.budgetSettings)
       : await readBudgetSettings()
 
-    return sortedStringify({
+    return asyncSortedStringify({
       goods,
       trash,
       presets: presetsData,
@@ -531,21 +530,21 @@ export function createSyncPayloadService({
     })
   }
 
-  function buildComparableRechargeStateFromData(data) {
+  async function buildComparableRechargeStateFromData(data) {
     const recharge = (Array.isArray(data?.recharge) ? data.recharge : [])
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     const rechargeTrash = (Array.isArray(data?.rechargeTrash) ? data.rechargeTrash : [])
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
 
-    return sortedStringify({ recharge, rechargeTrash })
+    return asyncSortedStringify({ recharge, rechargeTrash })
   }
 
-  function buildComparableEventStateFromData(data) {
+  async function buildComparableEventStateFromData(data) {
     const events = (Array.isArray(data?.events) ? data.events : [])
       .map((item) => normalizeEventForComparison(item))
       .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
 
-    return sortedStringify({ events })
+    return asyncSortedStringify({ events })
   }
 
   function buildManifest(imageStats = {}, timestamp = new Date().toISOString(), counts = {}) {

@@ -47,11 +47,42 @@ function writeNativeCacheMeta(meta) {
   }
 }
 
+// Batched LRU metadata: keep in memory, flush to localStorage periodically
+let _lruMetaCache = null
+let _lruMetaDirty = false
+let _lruFlushTimer = null
+const LRU_FLUSH_INTERVAL_MS = 5000
+
+function getLruMeta() {
+  if (_lruMetaCache === null) {
+    _lruMetaCache = readNativeCacheMeta()
+  }
+  return _lruMetaCache
+}
+
+function markLruDirty() {
+  _lruMetaDirty = true
+  if (!_lruFlushTimer) {
+    _lruFlushTimer = setTimeout(() => {
+      _lruFlushTimer = null
+      flushLruMeta()
+    }, LRU_FLUSH_INTERVAL_MS)
+  }
+}
+
+function flushLruMeta() {
+  if (_lruMetaDirty && _lruMetaCache) {
+    writeNativeCacheMeta(_lruMetaCache)
+    _lruMetaDirty = false
+  }
+}
+
 async function evictNativeCacheIfNeeded() {
   if (!isNative()) return
 
   const maxBytes = getNativeCacheLimitBytes()
-  let meta = readNativeCacheMeta()
+  flushLruMeta()
+  let meta = getLruMeta()
 
   let files = []
   try {
@@ -80,7 +111,8 @@ async function evictNativeCacheIfNeeded() {
 
   let total = Object.values(meta).reduce((sum, item) => sum + (Number(item?.size) || 0), 0)
   if (total <= maxBytes) {
-    writeNativeCacheMeta(meta)
+    _lruMetaCache = meta
+    flushLruMeta()
     return
   }
 
@@ -101,18 +133,19 @@ async function evictNativeCacheIfNeeded() {
     delete meta[name]
   }
 
-  writeNativeCacheMeta(meta)
+  _lruMetaCache = meta
+  flushLruMeta()
 }
 
 function touchNativeCacheEntry(filename, size = null) {
   if (!isNative()) return
-  const meta = readNativeCacheMeta()
+  const meta = getLruMeta()
   const current = meta[filename] || {}
   meta[filename] = {
     size: size == null ? Math.max(0, Number(current.size) || 0) : Math.max(0, Number(size) || 0),
     lastAccess: Date.now()
   }
-  writeNativeCacheMeta(meta)
+  markLruDirty()
 }
 
 function blobToBase64(blob) {
@@ -438,6 +471,9 @@ async function getFromCapacitorFS(url) {
  * @param {string} url
  * @param {Blob} blob
  */
+let _writesSinceEviction = 0
+const EVICT_EVERY_N_WRITES = 10
+
 async function putToCapacitorFS(url, blob) {
   if (!isNative()) return
   try {
@@ -455,7 +491,11 @@ async function putToCapacitorFS(url, blob) {
       directory: CAP_DIR
     })
     touchNativeCacheEntry(filename, blob.size)
-    await evictNativeCacheIfNeeded()
+    _writesSinceEviction += 1
+    if (_writesSinceEviction >= EVICT_EVERY_N_WRITES) {
+      _writesSinceEviction = 0
+      await evictNativeCacheIfNeeded()
+    }
   } catch { /* 写入失败不影响主流程 */ }
 }
 
@@ -737,6 +777,11 @@ export function clearMemoryCache() {
   })
   memoryCache.clear()
   clearDecodedImageState()
+  if (_lruFlushTimer) {
+    clearTimeout(_lruFlushTimer)
+    _lruFlushTimer = null
+  }
+  flushLruMeta()
 }
 
 export async function clearAllCache() {

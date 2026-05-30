@@ -74,7 +74,7 @@ export function useSmartTagging(form) {
         calculateSuggestions(newName, newNote, newChars)
       }, 300)
     },
-    { immediate: true, deep: true }
+    { immediate: true }
   )
 
   function calculateSuggestions(name, note, chars = []) {
