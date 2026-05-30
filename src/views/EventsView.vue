@@ -383,25 +383,25 @@ const filteredEvents = computed(() => {
   })
 })
 
-const sortedEvents = computed(() => {
-  return [...filteredEvents.value].sort((left, right) => {
-    const getEvtTime = (evt) => {
-      if (evt?.startDate) {
-        const d = new Date(evt.startDate.replace(/-/g, '/'))
-        if (!Number.isNaN(d.getTime())) return d.getTime()
-      }
-      return evt?.createdAt || 0
+// Merged: sort + group into a single pass
+const groupedEventsByYear = computed(() => {
+  const getEvtTime = (evt) => {
+    if (evt?.startDate) {
+      const d = new Date(evt.startDate.replace(/-/g, '/'))
+      if (!Number.isNaN(d.getTime())) return d.getTime()
     }
+    return evt?.createdAt || 0
+  }
+
+  const sorted = [...filteredEvents.value].sort((left, right) => {
     const tA = getEvtTime(left)
     const tB = getEvtTime(right)
     return sortDirection.value === 'asc' ? tA - tB : tB - tA
   })
-})
 
-const groupedEvents = computed(() => {
+  // Group by year-month in a single pass
   const grouped = {}
-
-  for (const event of sortedEvents.value) {
+  for (const event of sorted) {
     let sourceDate = event?.startDate || ''
     if (!sourceDate && event?.createdAt) {
       const d = new Date(event.createdAt)
@@ -421,41 +421,38 @@ const groupedEvents = computed(() => {
     return sortDirection.value === 'asc' ? a.localeCompare(b) : b.localeCompare(a)
   })
 
-  return sortedKeys.map((yearMonth) => {
+  // Build month groups and year groups in one pass
+  const yearGroupsMap = new Map()
+  const yearOrder = []
+
+  for (const yearMonth of sortedKeys) {
     const isUndated = yearMonth === 'undated'
     const [year, month] = isUndated ? ['', ''] : yearMonth.split('-')
     const items = grouped[yearMonth]
+    const totalTicket = items.reduce((sum, item) => sum + (Number.parseFloat(item.ticketPrice) || 0), 0)
 
-    return {
+    const monthGroup = {
       yearMonth,
       year: isUndated ? '' : year,
       month: isUndated ? '' : String(parseInt(month, 10)),
       isUndated,
       count: items.length,
-      totalTicket: items.reduce((sum, item) => sum + (Number.parseFloat(item.ticketPrice) || 0), 0),
+      totalTicket,
       items
     }
-  })
-})
 
-const groupedEventsByYear = computed(() => {
-  const monthGroups = groupedEvents.value
-  const yearGroupsMap = new Map()
-  const yearOrder = []
-
-  for (const monthGroup of monthGroups) {
-    const key = monthGroup.year || 'undated'
-    if (!yearGroupsMap.has(key)) {
-      yearGroupsMap.set(key, {
+    const yearKey = monthGroup.year || 'undated'
+    if (!yearGroupsMap.has(yearKey)) {
+      yearGroupsMap.set(yearKey, {
         year: monthGroup.year,
         isUndated: monthGroup.isUndated,
         months: [],
         yearTotal: 0,
         yearCount: 0
       })
-      yearOrder.push(key)
+      yearOrder.push(yearKey)
     }
-    const yearGroup = yearGroupsMap.get(key)
+    const yearGroup = yearGroupsMap.get(yearKey)
     yearGroup.months.push(monthGroup)
     yearGroup.yearCount += monthGroup.count
     yearGroup.yearTotal += monthGroup.totalTicket
@@ -464,13 +461,41 @@ const groupedEventsByYear = computed(() => {
   return yearOrder.map(key => yearGroupsMap.get(key))
 })
 
-const totalLinkedGoods = computed(() =>
-  eventsStore.list.reduce((sum, event) => sum + (Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0), 0)
-)
+// Derive groupedEvents from groupedEventsByYear for backward compatibility
+const groupedEvents = computed(() => {
+  const result = []
+  for (const yearGroup of groupedEventsByYear.value) {
+    for (const monthGroup of yearGroup.months) {
+      result.push(monthGroup)
+    }
+  }
+  return result
+})
 
-const totalPhotos = computed(() =>
-  eventsStore.list.reduce((sum, event) => sum + (Array.isArray(event.photos) ? event.photos.length : 0), 0)
-)
+// Derive sortedEvents from groupedEvents for backward compatibility
+const sortedEvents = computed(() => {
+  const result = []
+  for (const monthGroup of groupedEvents.value) {
+    for (const item of monthGroup.items) {
+      result.push(item)
+    }
+  }
+  return result
+})
+
+// Merged: totalLinkedGoods + totalPhotos in a single pass
+const _eventTotals = computed(() => {
+  let linkedGoods = 0
+  let photos = 0
+  for (const event of eventsStore.list) {
+    linkedGoods += Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0
+    photos += Array.isArray(event.photos) ? event.photos.length : 0
+  }
+  return { linkedGoods, photos }
+})
+
+const totalLinkedGoods = computed(() => _eventTotals.value.linkedGoods)
+const totalPhotos = computed(() => _eventTotals.value.photos)
 
 const viewSwitchStyle = computed(() => ({
   '--view-switch-count': String(viewOptions.value.length),

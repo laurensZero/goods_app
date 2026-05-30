@@ -1,5 +1,5 @@
 // @ts-check
-import { ref, computed, watch } from 'vue'
+import { ref, shallowRef, computed, watch } from 'vue'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import {
   parseAcquiredTime,
@@ -61,7 +61,7 @@ export function createViewList(list) {
   let viewCache = new Map()
   let cachedRatesRef = null
 
-  const viewMap = ref(new Map())
+  const viewMap = shallowRef(new Map())
   const viewOrder = ref([])
 
   watch(list, (newList, oldList) => {
@@ -127,7 +127,7 @@ export function createTrashViewList(trashList) {
   let trashViewCache = new Map()
   let trashCachedRatesRef = null
 
-  const viewMap = ref(new Map())
+  const viewMap = shallowRef(new Map())
   const viewOrder = ref([])
 
   watch(trashList, (newList, oldList) => {

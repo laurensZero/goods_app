@@ -45,14 +45,12 @@ export const useEventsStore = defineStore('events', () => {
   const list = shallowRef([])
   const isReady = ref(false)
 
-  const sortedList = computed(() =>
-    [...list.value].sort((a, b) => getSortDate(b).localeCompare(getSortDate(a)))
-  )
-
+  // Merged: sort + group into a single computed (eliminates intermediate sortedList copy)
   const groupedByMonth = computed(() => {
+    const sorted = [...list.value].sort((a, b) => getSortDate(b).localeCompare(getSortDate(a)))
     const grouped = {}
 
-    for (const event of sortedList.value) {
+    for (const event of sorted) {
       const yearMonth = getYearMonth(event.startDate)
       const key = yearMonth && yearMonth.length >= 7 ? yearMonth : 'undated'
       if (!grouped[key]) grouped[key] = []
@@ -79,6 +77,17 @@ export const useEventsStore = defineStore('events', () => {
           items
         }
       })
+  })
+
+  // Derive sortedList from groupedByMonth for backward compatibility
+  const sortedList = computed(() => {
+    const result = []
+    for (const group of groupedByMonth.value) {
+      for (const item of group.items) {
+        result.push(item)
+      }
+    }
+    return result
   })
 
   const totalTicketAll = computed(() =>

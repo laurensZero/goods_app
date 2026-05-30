@@ -1,4 +1,4 @@
-import { buildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest } from '@/utils/sync/shared'
+import { asyncBuildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest } from '@/utils/sync/shared'
 import { Capacitor } from '@capacitor/core'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
@@ -264,21 +264,23 @@ export function createSyncOrchestrator({
     const changedGoodsIds = collectChangedGoodsIds(localResolved, remoteResolved, ctx.shouldApplyRemoteItem)
     const changedTrashIds = collectChangedTrashIds(localResolved, remoteResolved, ctx.shouldApplyRemoteItem)
     const changedEventIds = collectChangedEventIds(eventsStore.list || [], Array.isArray(eventData?.events) ? eventData.events : [])
-    const localGoodsTrashMap = buildComparableRecordMap([...localResolved.goodsMap.values(), ...localResolved.trashMap.values()])
-    const remoteGoodsTrashMap = buildComparableRecordMap([...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()])
+    const [localGoodsTrashMap, remoteGoodsTrashMap, localRechargeMap, remoteRechargeMap, localEventMap, remoteEventMap] = await Promise.all([
+      asyncBuildComparableRecordMap([...localResolved.goodsMap.values(), ...localResolved.trashMap.values()]),
+      asyncBuildComparableRecordMap([...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()]),
+      asyncBuildComparableRecordMap(localRechargeSnapshot),
+      asyncBuildComparableRecordMap(Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []),
+      asyncBuildComparableRecordMap(eventsStore.list || []),
+      asyncBuildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
+    ])
     const goodsTrashCompare = countComparableRecordDiff(localGoodsTrashMap, remoteGoodsTrashMap)
     const goodsTrashIncrementalCompare = useIncrementalGoodsPull
       ? countIncrementalComparableDiff(localGoodsTrashMap, remoteGoodsTrashMap)
       : goodsTrashCompare
-    const localRechargeMap = buildComparableRecordMap(localRechargeSnapshot)
-    const remoteRechargeMap = buildComparableRecordMap(Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : [])
     const rechargeCompare = !shouldPullRecharge
       ? { remoteTotal: localRechargeMap.size, remoteOnly: 0, localOnly: 0, updated: 0 }
       : (useIncrementalRechargePull
           ? countIncrementalComparableDiff(localRechargeMap, remoteRechargeMap)
           : countComparableRecordDiff(localRechargeMap, remoteRechargeMap))
-    const localEventMap = buildComparableRecordMap(eventsStore.list || [])
-    const remoteEventMap = buildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
     const eventCompareBase = countComparableRecordDiff(localEventMap, remoteEventMap)
     const eventCompare = useIncrementalEventPull
       ? countIncrementalComparableDiff(localEventMap, remoteEventMap)
@@ -356,8 +358,10 @@ export function createSyncOrchestrator({
     }
     if (goodsToImport.length > 0) {
       await goodsStore.importGoodsBackup(goodsToImport)
-      await presets.syncCharactersFromGoods(goodsToImport)
-      await presets.syncStorageLocationsFromPaths(goodsToImport.map((item) => item.storageLocation).filter(Boolean))
+      await Promise.all([
+        presets.syncCharactersFromGoods(goodsToImport),
+        presets.syncStorageLocationsFromPaths(goodsToImport.map((item) => item.storageLocation).filter(Boolean))
+      ])
     }
     await goodsStore.updateGoodsBackup(goodsToUpdate)
 
@@ -468,31 +472,32 @@ export function createSyncOrchestrator({
       }
     }
 
-    const { syncData, imageStats, imageFiles, referencedImageFiles } = await trackSyncStep('整理收藏/回收站同步数据',
-      () => payload.buildSyncPayload({ existingImageGist: imageGist }),
-      { startDetail: '读取本地收藏、回收站和图片', category: 'local', successDetail: (p) => `收藏 ${p.syncData.goods.length}，回收站 ${p.syncData.trash.length}，图片 ${p.imageStats.imageFileCount} 个` }
-    )
-    let rechargeSyncData = { recharge: [], rechargeTrash: [] }
-    if (shouldWriteRecharge) {
-      rechargeSyncData = await trackSyncStep('整理充值同步数据',
-        () => payload.buildRechargeSyncData({ incremental: false }),
-        { startDetail: '读取本地充值记录', category: 'local', successDetail: (p) => `充值 ${p.recharge.length} 条` }
-      )
-    }
-    let eventSyncData = { events: [] }
-    let eventImageStats = { imageFileCount: 0 }
-    let eventImageFiles = {}
-    let eventReferencedImageFiles = []
-    if (shouldWriteEvent) {
-      const ev = await trackSyncStep('整理活动同步数据',
-        () => payload.buildEventSyncPayload({ existingImageGist: imageGist }),
-        { startDetail: '读取活动和封面图片', category: 'local', successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个` }
-      )
-      eventSyncData = ev.eventData || { events: [] }
-      eventImageStats = ev.imageStats || { imageFileCount: 0 }
-      eventImageFiles = ev.imageFiles || {}
-      eventReferencedImageFiles = ev.referencedImageFiles || []
-    }
+    // Build goods, recharge and event payloads in parallel where possible
+    const [goodsResult, rechargeResult, eventResult] = await Promise.all([
+      trackSyncStep('整理收藏/回收站同步数据',
+        () => payload.buildSyncPayload({ existingImageGist: imageGist }),
+        { startDetail: '读取本地收藏、回收站和图片', category: 'local', successDetail: (p) => `收藏 ${p.syncData.goods.length}，回收站 ${p.syncData.trash.length}，图片 ${p.imageStats.imageFileCount} 个` }
+      ),
+      shouldWriteRecharge
+        ? trackSyncStep('整理充值同步数据',
+            () => payload.buildRechargeSyncData({ incremental: false }),
+            { startDetail: '读取本地充值记录', category: 'local', successDetail: (p) => `充值 ${p.recharge.length} 条` }
+          )
+        : Promise.resolve({ recharge: [], rechargeTrash: [] }),
+      shouldWriteEvent
+        ? trackSyncStep('整理活动同步数据',
+            () => payload.buildEventSyncPayload({ existingImageGist: imageGist }),
+            { startDetail: '读取活动和封面图片', category: 'local', successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个` }
+          )
+        : Promise.resolve(null)
+    ])
+
+    const { syncData, imageStats, imageFiles, referencedImageFiles } = goodsResult
+    const rechargeSyncData = rechargeResult
+    const eventSyncData = eventResult?.eventData || { events: [] }
+    const eventImageStats = eventResult?.imageStats || { imageFileCount: 0 }
+    const eventImageFiles = eventResult?.imageFiles || {}
+    const eventReferencedImageFiles = eventResult?.referencedImageFiles || []
 
     const allReferencedImageFiles = new Set([...referencedImageFiles, ...eventReferencedImageFiles])
     const imageCleanupFiles = image.buildImageCleanupFiles(imageGist, allReferencedImageFiles)
@@ -569,53 +574,39 @@ export function createSyncOrchestrator({
     const dataMap = {}
     const writeOptions = isSupabaseIncrementalUpload ? { incremental: true, deleteIdsByFile: {} } : null
 
-    function buildRowsDiff(localRows = [], remoteRows = []) {
+    async function buildRowsDiff(localRows = [], remoteRows = []) {
       const stripMeta = (r) => {
         if (!r || typeof r !== 'object') return r
         const copy = { ...r }
-        // remove sync metadata that is intentionally different per-device
         delete copy.syncedBy
         delete copy.synced_by
         return copy
       }
-      // Normalize image/cover fields to gistFileName only to avoid diffs caused by different public URLs
       function normalizeForDiff(item) {
         if (!item || typeof item !== 'object') return item
         const out = { ...item }
-        // goods images
         if (Array.isArray(out.images)) {
           out.images = out.images.map((img) => {
             if (!img || typeof img !== 'object') return { id: img?.id || '', gistFileName: '' }
             const gistFileName = String(img.gistFileName || '').trim() || (typeof img.uri === 'string' && img.uri.startsWith('gist-image://') ? img.uri.slice('gist-image://'.length) : '')
             return { id: String(img.id || '').trim(), gistFileName }
           })
-          // sort images by id for stable comparable representation
           out.images.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
         }
-        // remove legacy single-image field to avoid structure mismatch
         if (out.image !== undefined) delete out.image
-        // event cover
         if (out.coverImageData && typeof out.coverImageData === 'object') {
           out.coverImageData = { gistFileName: String(out.coverImageData.gistFileName || '').trim() }
         }
-        // remove coverImage string to avoid url/publicUrl difference
         if (out.coverImage !== undefined) delete out.coverImage
-        // normalize boolean/numeric fields to stable types to avoid trivial diffs
         try {
-          // isWishlist: normalize to 0/1
           if (out.isWishlist === undefined || out.isWishlist === null) out.isWishlist = 0
           else if (typeof out.isWishlist === 'string') out.isWishlist = (out.isWishlist === '1' || out.isWishlist.toLowerCase() === 'true') ? 1 : 0
           else out.isWishlist = out.isWishlist ? 1 : 0
-
-          // points: ensure null rather than undefined
           if (out.points === undefined) out.points = null
-
-          // updatedAt: normalize to Number
           if (out.updatedAt !== undefined && out.updatedAt !== null) out.updatedAt = Number(out.updatedAt) || 0
         } catch (e) {
           // ignore
         }
-        // event photos
         if (Array.isArray(out.photos)) {
           out.photos = out.photos.map((p) => {
             if (!p || typeof p !== 'object') return { id: p?.id || '', gistFileName: '' }
@@ -629,42 +620,10 @@ export function createSyncOrchestrator({
 
       const normalizedLocal = localRows.map(stripMeta)
       const normalizedRemote = remoteRows.map(stripMeta)
-      const localMap = buildComparableRecordMap(normalizedLocal.map(normalizeForDiff))
-      const remoteMap = buildComparableRecordMap(normalizedRemote.map(normalizeForDiff))
-      try {
-        // Debug sample comparison: show comparable strings for the first differing id
-        const sample = normalizedLocal[0] || normalizedRemote[0]
-        const sampleId = String(sample?.id || '').trim()
-        if (sampleId) {
-          const lstr = localMap.get(sampleId)
-          const rstr = remoteMap.get(sampleId)
-          if (!Capacitor.isNativePlatform()) {
-            // eslint-disable-next-line no-console
-            console.log('[sync] compare sample id=', sampleId, 'localStrLen=', lstr?.length || 0, 'remoteStrLen=', rstr?.length || 0)
-          }
-          if (lstr !== rstr) {
-            let idx = -1
-            const la = lstr || ''
-            const ra = rstr || ''
-            const max = Math.min(la.length, ra.length)
-            for (let i = 0; i < max; i++) {
-              if (la[i] !== ra[i]) { idx = i; break }
-            }
-            if (idx === -1 && la.length !== ra.length) idx = max
-            if (!Capacitor.isNativePlatform()) {
-              // eslint-disable-next-line no-console
-              console.log('[sync] first diff index=', idx, 'localChunk=', (la || '').slice(Math.max(0, idx - 20), idx + 20), 'remoteChunk=', (ra || '').slice(Math.max(0, idx - 20), idx + 20))
-            }
-          } else {
-            if (!Capacitor.isNativePlatform()) {
-              // eslint-disable-next-line no-console
-              console.log('[sync] sample comparable strings equal')
-            }
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
+      const [localMap, remoteMap] = await Promise.all([
+        asyncBuildComparableRecordMap(normalizedLocal.map(normalizeForDiff)),
+        asyncBuildComparableRecordMap(normalizedRemote.map(normalizeForDiff))
+      ])
       return localRows.filter((item) => {
         const id = String(item?.id || '').trim()
         if (!id) return false
@@ -683,34 +642,10 @@ export function createSyncOrchestrator({
       const localTrashRows = syncData.trash || []
       const remoteGoodsRows = uploadPlan.remoteData.goods || []
       const remoteTrashRows = uploadPlan.remoteData.trash || []
-      // Compute diffs and log samples to debug unexpected full diffs
-      const goodsDiffRows = buildRowsDiff(localGoodsRows, remoteGoodsRows)
-      const trashDiffRows = buildRowsDiff(localTrashRows, remoteTrashRows)
-      try {
-        if (!Capacitor.isNativePlatform()) {
-          // eslint-disable-next-line no-console
-          console.log('[sync] incremental diff counts: localGoods=', localGoodsRows.length, 'remoteGoods=', remoteGoodsRows.length, 'goodsDiff=', goodsDiffRows.length)
-        }
-        // sample a diff item to inspect field differences
-        if (goodsDiffRows.length > 0) {
-          const sampleId = String(goodsDiffRows[0]?.id || goodsDiffRows[0])
-          const localSample = localGoodsRows.find((r) => String(r?.id || '').trim() === String(sampleId).trim())
-          const remoteSample = remoteGoodsRows.find((r) => String(r?.id || '').trim() === String(sampleId).trim())
-          const strip = (r) => {
-            if (!r || typeof r !== 'object') return r
-            const c = { ...r }
-            delete c.syncedBy
-            delete c.synced_by
-            return c
-          }
-          if (!Capacitor.isNativePlatform()) {
-            // eslint-disable-next-line no-console
-            console.log('[sync] goods diff sample id=', sampleId, 'local=', strip(localSample), 'remote=', strip(remoteSample))
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
+      const [goodsDiffRows, trashDiffRows] = await Promise.all([
+        buildRowsDiff(localGoodsRows, remoteGoodsRows),
+        buildRowsDiff(localTrashRows, remoteTrashRows)
+      ])
 
       dataMap[DATA_FILENAME] = {
         content: {
@@ -729,7 +664,7 @@ export function createSyncOrchestrator({
 
     if (shouldWriteRecharge) {
       if (isSupabaseIncrementalUpload && uploadPlan?.remoteRechargeData) {
-        const rechargeRows = buildRowsDiff(rechargeSyncData.recharge || [], uploadPlan.remoteRechargeData.recharge || [])
+        const rechargeRows = await buildRowsDiff(rechargeSyncData.recharge || [], uploadPlan.remoteRechargeData.recharge || [])
         dataMap[RECHARGE_DATA_FILENAME] = {
           content: {
             ...rechargeSyncData,
@@ -745,7 +680,7 @@ export function createSyncOrchestrator({
 
     if (shouldWriteEvent) {
       if (isSupabaseIncrementalUpload && uploadPlan?.remoteEventData) {
-        const eventRows = buildRowsDiff(eventSyncData.events || [], uploadPlan.remoteEventData.events || [])
+        const eventRows = await buildRowsDiff(eventSyncData.events || [], uploadPlan.remoteEventData.events || [])
         dataMap[EVENT_DATA_FILENAME] = {
           content: {
             ...eventSyncData,
@@ -930,17 +865,26 @@ export function createSyncOrchestrator({
       payload.readBudgetSettings()
     ])
 
-    const localComparableState = payload.buildComparableSyncStateFromData(
-      { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData },
-      { budgetSettings: localBudgetSettings }
-    )
-    const remoteComparableState = payload.buildComparableSyncStateFromData(remoteData, {
-      budgetSettings: resolvedBudgetSettings
-    })
-    const localRechargeComparableState = payload.buildComparableRechargeStateFromData(localRechargeData)
-    const remoteRechargeComparableState = payload.buildComparableRechargeStateFromData(remoteRechargeData)
-    const localEventComparableState = payload.buildComparableEventStateFromData(localEventData)
-    const remoteEventComparableState = payload.buildComparableEventStateFromData(remoteEventData)
+    const [
+      localComparableState,
+      remoteComparableState,
+      localRechargeComparableState,
+      remoteRechargeComparableState,
+      localEventComparableState,
+      remoteEventComparableState
+    ] = await Promise.all([
+      payload.buildComparableSyncStateFromData(
+        { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData },
+        { budgetSettings: localBudgetSettings }
+      ),
+      payload.buildComparableSyncStateFromData(remoteData, {
+        budgetSettings: resolvedBudgetSettings
+      }),
+      payload.buildComparableRechargeStateFromData(localRechargeData),
+      payload.buildComparableRechargeStateFromData(remoteRechargeData),
+      payload.buildComparableEventStateFromData(localEventData),
+      payload.buildComparableEventStateFromData(remoteEventData)
+    ])
 
     const hasDataDiff = localComparableState !== remoteComparableState
     const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
@@ -1101,11 +1045,18 @@ export function createSyncOrchestrator({
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-    const localEventState = payload.buildComparableEventStateFromData(payload.buildEventSyncData())
-    const remoteEventState = payload.buildComparableEventStateFromData(remoteEventData)
+    const [
+      localEventState,
+      remoteEventState,
+      localRechargeState,
+      remoteRechargeState
+    ] = await Promise.all([
+      payload.buildComparableEventStateFromData(payload.buildEventSyncData()),
+      payload.buildComparableEventStateFromData(remoteEventData),
+      payload.buildComparableRechargeStateFromData(payload.buildRechargeSyncData({ incremental: false })),
+      payload.buildComparableRechargeStateFromData(remoteRechargeData)
+    ])
     const hasEventContentDiff = localEventState !== remoteEventState
-    const localRechargeState = payload.buildComparableRechargeStateFromData(payload.buildRechargeSyncData({ incremental: false }))
-    const remoteRechargeState = payload.buildComparableRechargeStateFromData(remoteRechargeData)
     const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 

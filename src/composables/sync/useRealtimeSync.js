@@ -10,18 +10,31 @@ export function useRealtimeSync({ syncStore }) {
   const isConnected = ref(false)
   let pullDebounceTimer = null
 
+  let pendingPullTable = null
+
   function handleRemoteChange(payload) {
     const row = payload.new || payload.old
     if (!row) return
     const table = String(payload?.table || '')
     // 过滤自己设备的写入
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
+    pendingPullTable = table
     // debounce 300ms 合并短时间内的多次事件
     if (pullDebounceTimer) clearTimeout(pullDebounceTimer)
-      pullDebounceTimer = setTimeout(async () => {
-      if (syncStore.isSyncing || syncStore.isPulling) return
+    pullDebounceTimer = setTimeout(async () => {
+      const targetTable = pendingPullTable
+      pendingPullTable = null
+      if (syncStore.isSyncing || syncStore.isPulling) {
+        // Retry after current sync completes instead of dropping
+        setTimeout(async () => {
+          if (!syncStore.isSyncing && !syncStore.isPulling) {
+            try { await syncStore.pullOnly({ silent: true, forceRecharge: targetTable === 'recharge_records', source: targetTable }) } catch { /* ignore */ }
+          }
+        }, 2000)
+        return
+      }
       try {
-        await syncStore.pullOnly({ silent: true, forceRecharge: table === 'recharge_records', source: table })
+        await syncStore.pullOnly({ silent: true, forceRecharge: targetTable === 'recharge_records', source: targetTable })
       } catch {
         // silent fail
       }

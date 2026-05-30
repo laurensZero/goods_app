@@ -53,6 +53,34 @@ export async function addGoods(data, list, onMutate) {
 }
 
 /**
+ * Batch add multiple goods items — single triggerRef + single DB transaction.
+ * @param {object[]} itemsData
+ * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
+ * @param {() => void} [onMutate]
+ */
+export async function addGoodsBatch(itemsData, list, onMutate) {
+  const now = Date.now()
+  const incoming = itemsData.map((data, i) => {
+    const imagesExplicit = Array.isArray(data?.images)
+    return normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now + i }, String(now + i))
+  })
+
+  for (const item of incoming) {
+    list.value.unshift(item)
+  }
+  triggerRef(list)
+
+  try {
+    await saveItems(incoming)
+  } catch (e) {
+    console.error('[goods] addGoodsBatch DB write failed:', e)
+    throw e
+  }
+  onMutate?.()
+  return incoming
+}
+
+/**
  * @param {string} id
  * @param {object} data
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list

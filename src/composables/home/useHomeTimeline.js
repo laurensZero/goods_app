@@ -221,25 +221,21 @@ export function useHomeTimeline({
     return map
   })
 
-  const timelineItemIndexById = computed(() => {
-    const map = new Map()
+  // Merged: build itemIndexById and entryById in a single pass over timelineEntries
+  const _timelineMaps = computed(() => {
+    const itemIndexById = new Map()
+    const entryById = new Map()
 
     timelineEntries.value.forEach((item, index) => {
-      map.set(item.id, index)
+      itemIndexById.set(item.id, index)
+      entryById.set(item.id, item)
     })
 
-    return map
+    return { itemIndexById, entryById }
   })
 
-  const timelineEntryById = computed(() => {
-    const map = new Map()
-
-    timelineEntries.value.forEach((item) => {
-      map.set(item.id, item)
-    })
-
-    return map
-  })
+  const timelineItemIndexById = computed(() => _timelineMaps.value.itemIndexById)
+  const timelineEntryById = computed(() => _timelineMaps.value.entryById)
 
   const timelineUnknownItemIds = computed(() =>
     new Set(

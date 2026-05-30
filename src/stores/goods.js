@@ -190,6 +190,7 @@ export const useGoodsStore = defineStore('goods', () => {
   //  CRUD wrappers
 
   function addGoods(data) { return crud.addGoods(data, list, autoPushGoods) }
+  function addGoodsBatch(itemsData) { return crud.addGoodsBatch(itemsData, list, autoPushGoods) }
   function updateGoods(id, data) { return crud.updateGoods(id, data, list, autoPushGoods) }
   function updateMultipleGoods(ids, data) { return crud.updateMultipleGoods(ids, data, list, autoPushGoods) }
   function removeGoods(id) { return crud.removeGoods(id, list, trashList, persistTrash, autoPushGoods) }
@@ -269,6 +270,7 @@ export const useGoodsStore = defineStore('goods', () => {
     getTrashById,
     init,
     addGoods,
+    addGoodsBatch,
     updateGoods,
     updateMultipleGoods,
     removeGoods,

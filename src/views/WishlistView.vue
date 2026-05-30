@@ -287,12 +287,17 @@ const {
 } = useGoodsBackHero({ getScrollEl, rootRef: pageBodyRef, maxRetryFrames: 40, guardTimeoutMs: 620 })
 
 const baseGoodsList = computed(() => store.wishlistViewList)
-const totalQuantity = computed(() => (
-  baseGoodsList.value.reduce((sum, item) => sum + item.quantityNumber, 0)
-))
-const totalValue = computed(() => (
-  baseGoodsList.value.reduce((sum, item) => sum + item.totalValueNumber, 0).toFixed(2)
-))
+const _wishlistTotals = computed(() => {
+  let qty = 0
+  let val = 0
+  for (const item of baseGoodsList.value) {
+    qty += item.quantityNumber
+    val += item.totalValueNumber
+  }
+  return { qty, val: val.toFixed(2) }
+})
+const totalQuantity = computed(() => _wishlistTotals.value.qty)
+const totalValue = computed(() => _wishlistTotals.value.val)
 const wishlistTipsItems = computed(() => [
   t('home.wishlist.budgetTip1'),
   t('home.wishlist.budgetTip2'),

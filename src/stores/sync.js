@@ -134,11 +134,13 @@ export const useSyncStore = defineStore('sync', () => {
     githubScopes.value = nextScopes
     githubAuthMethod.value = nextAuthMethod
 
-    await writeSyncKey(GITHUB_LOGIN_KEY, nextLogin)
-    await writeSyncKey(GITHUB_USER_ID_KEY, nextUserId)
-    await writeSyncKey(GITHUB_AVATAR_URL_KEY, nextAvatarUrl)
-    await writeSyncKey(GITHUB_SCOPES_KEY, nextScopes)
-    await writeSyncKey(GITHUB_AUTH_METHOD_KEY, nextAuthMethod)
+    await Promise.all([
+      writeSyncKey(GITHUB_LOGIN_KEY, nextLogin),
+      writeSyncKey(GITHUB_USER_ID_KEY, nextUserId),
+      writeSyncKey(GITHUB_AVATAR_URL_KEY, nextAvatarUrl),
+      writeSyncKey(GITHUB_SCOPES_KEY, nextScopes),
+      writeSyncKey(GITHUB_AUTH_METHOD_KEY, nextAuthMethod)
+    ])
   }
 
   async function clearGitHubMeta() {
@@ -520,7 +522,7 @@ export const useSyncStore = defineStore('sync', () => {
           message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
-    }, 2000)
+    }, 8000)
   }
 
   // ── Public API ──
@@ -531,9 +533,14 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(TOKEN_KEY, newToken)
     gistId.value = ''; imageGistId.value = ''; rechargeGistId.value = ''; eventGistId.value = ''
     lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
-    await writeSyncKey(GIST_ID_KEY, ''); await writeSyncKey(IMAGE_GIST_ID_KEY, '')
-    await writeSyncKey(RECHARGE_GIST_ID_KEY, ''); await writeSyncKey(EVENT_GIST_ID_KEY, '')
-    await writeSyncKey(LAST_SYNC_KEY, ''); await writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    await Promise.all([
+      writeSyncKey(GIST_ID_KEY, ''),
+      writeSyncKey(IMAGE_GIST_ID_KEY, ''),
+      writeSyncKey(RECHARGE_GIST_ID_KEY, ''),
+      writeSyncKey(EVENT_GIST_ID_KEY, ''),
+      writeSyncKey(LAST_SYNC_KEY, ''),
+      writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+    ])
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     await persistGitHubMeta(meta)

@@ -118,99 +118,110 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
       error: ''
     }))
 
-    for (const [entryIndex, entry] of entries.entries()) {
-      const item = batchItems.value[entryIndex]
-      if (!item) continue
-      item.status = 'parsing'
-      const group = { url: entry.url, count: entry.count, data: null, error: '' }
-      try {
-        const result = await parseMihoyoUrl(entry.url)
-        const extractedCharacters = extractCharsFromVariants(result.variants)
-        const taggingResult = getTaggingSuggestions(
-          {
-            name: result.name,
-            note: '',
-            chars: extractedCharacters,
-          },
-          staticDictionaries,
-          {
-            categories: presets.categories || [],
-            ips: presets.ips || [],
-            characters: historicalContext.characters,
-            tags: historicalContext.tags,
-          }
-        )
-        const resolvedIp = result.ip || (taggingResult.ipSuggestion && taggingResult.ipSuggestion.score >= 0.6 ? taggingResult.ipSuggestion.value : '') || ''
-        const resolvedCategory = detectCategory(result.name, historicalContext) || (taggingResult.categorySuggestion && taggingResult.categorySuggestion.score >= 0.6 ? taggingResult.categorySuggestion.value : '') || ''
-        const resolvedCharacters = extractedCharacters.length > 0
-          ? [extractedCharacters[0]]
-          : (taggingResult.characterSuggestions?.[0]?.score >= 0.4
-            ? [taggingResult.characterSuggestions[0].value]
-            : [])
+    // Parse URLs with bounded concurrency (3 at a time)
+    const CONCURRENCY = 3
+    let nextIndex = 0
 
-        if (resolvedIp && !presets.ips.includes(resolvedIp)) presets.addIp(resolvedIp)
-        if (resolvedCategory && !presets.categories.includes(resolvedCategory)) presets.addCategory(resolvedCategory)
-        const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
-        const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
-          .map(u => (u || '').split('?')[0])
-          .filter(Boolean)
-          .filter((u, i, arr) => arr.indexOf(u) === i)
-        group.data = {
-          name: result.name?.trim() || '',
-          category: resolvedCategory || '',
-          ip: resolvedIp || '',
-          goodsId: result.goodsId || '',
-          image: allImgs[0] || '',
-          images: hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs],
-          price: result.price != null ? String(result.price) : '',
-          notes: '',
-          characters: resolvedCharacters,
-          purchaseDate: '',
-          variant: '',
-          selectedVariantKey: '',
-          baseParsedImages: allImgs,
-          parsedImages: allImgs,
-          variants: result.variants || [],
-        }
-        updateHistoricalTagContextFromItem({
-          ip: group.data.ip,
-          characters: group.data.characters,
-          tags: group.data.tags,
-        })
-        parsedGroups.push(group)
-        if (result.goodsId) {
-          fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, skuVariants, coverUrl, mainImages }) => {
-            const sourceVariants = skuVariants.length
-              ? skuVariants
-              : group.data.variants
-            const mergedVariants = sourceVariants.map(v => ({
-              ...v,
-              cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
-              price: v.price ?? skuPrices[v.key] ?? null,
-            }))
-            group.data.variants.splice(0, group.data.variants.length, ...mergedVariants)
-            if (!group.data.variants.length) {
-              const extras = mainImages
-                .map(u => (u || '').split('?')[0])
-                .filter(u => u && !group.data.baseParsedImages.includes(u))
-              if (extras.length) {
-                group.data.baseParsedImages.splice(0, group.data.baseParsedImages.length, ...group.data.baseParsedImages, ...extras)
-                group.data.parsedImages.splice(0, group.data.parsedImages.length, ...group.data.baseParsedImages)
-              }
+    async function parseNext() {
+      while (nextIndex < entries.length) {
+        const entryIndex = nextIndex++
+        const entry = entries[entryIndex]
+        const item = batchItems.value[entryIndex]
+        if (!item) continue
+        item.status = 'parsing'
+        const group = { url: entry.url, count: entry.count, data: null, error: '' }
+        try {
+          const result = await parseMihoyoUrl(entry.url)
+          const extractedCharacters = extractCharsFromVariants(result.variants)
+          const taggingResult = getTaggingSuggestions(
+            {
+              name: result.name,
+              note: '',
+              chars: extractedCharacters,
+            },
+            staticDictionaries,
+            {
+              categories: presets.categories || [],
+              ips: presets.ips || [],
+              characters: historicalContext.characters,
+              tags: historicalContext.tags,
             }
-          }).catch(() => {})
+          )
+          const resolvedIp = result.ip || (taggingResult.ipSuggestion && taggingResult.ipSuggestion.score >= 0.6 ? taggingResult.ipSuggestion.value : '') || ''
+          const resolvedCategory = detectCategory(result.name, historicalContext) || (taggingResult.categorySuggestion && taggingResult.categorySuggestion.score >= 0.6 ? taggingResult.categorySuggestion.value : '') || ''
+          const resolvedCharacters = extractedCharacters.length > 0
+            ? [extractedCharacters[0]]
+            : (taggingResult.characterSuggestions?.[0]?.score >= 0.4
+              ? [taggingResult.characterSuggestions[0].value]
+              : [])
+
+          if (resolvedIp && !presets.ips.includes(resolvedIp)) presets.addIp(resolvedIp)
+          if (resolvedCategory && !presets.categories.includes(resolvedCategory)) presets.addCategory(resolvedCategory)
+          const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
+          const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
+            .map(u => (u || '').split('?')[0])
+            .filter(Boolean)
+            .filter((u, i, arr) => arr.indexOf(u) === i)
+          group.data = {
+            name: result.name?.trim() || '',
+            category: resolvedCategory || '',
+            ip: resolvedIp || '',
+            goodsId: result.goodsId || '',
+            image: allImgs[0] || '',
+            images: hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs],
+            price: result.price != null ? String(result.price) : '',
+            notes: '',
+            characters: resolvedCharacters,
+            purchaseDate: '',
+            variant: '',
+            selectedVariantKey: '',
+            baseParsedImages: allImgs,
+            parsedImages: allImgs,
+            variants: result.variants || [],
+          }
+          updateHistoricalTagContextFromItem({
+            ip: group.data.ip,
+            characters: group.data.characters,
+            tags: group.data.tags,
+          })
+          parsedGroups.push(group)
+          if (result.goodsId) {
+            fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, skuVariants, coverUrl, mainImages }) => {
+              const sourceVariants = skuVariants.length
+                ? skuVariants
+                : group.data.variants
+              const mergedVariants = sourceVariants.map(v => ({
+                ...v,
+                cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
+                price: v.price ?? skuPrices[v.key] ?? null,
+              }))
+              group.data.variants.splice(0, group.data.variants.length, ...mergedVariants)
+              if (!group.data.variants.length) {
+                const extras = mainImages
+                  .map(u => (u || '').split('?')[0])
+                  .filter(u => u && !group.data.baseParsedImages.includes(u))
+                if (extras.length) {
+                  group.data.baseParsedImages.splice(0, group.data.baseParsedImages.length, ...group.data.baseParsedImages, ...extras)
+                  group.data.parsedImages.splice(0, group.data.parsedImages.length, ...group.data.baseParsedImages)
+                }
+              }
+            }).catch(() => {})
+          }
+          item.status = 'ready'
+          item.data = cloneBatchItemData(group.data)
+          item.error = ''
+        } catch (e) {
+          const message = e.message || '解析失败'
+          item.status = 'error'
+          item.error = message
+          parsedGroups.push({ url: entry.url, count: 1, data: null, error: message, status: 'error' })
         }
-        item.status = 'ready'
-        item.data = cloneBatchItemData(group.data)
-        item.error = ''
-      } catch (e) {
-        const message = e.message || '解析失败'
-        item.status = 'error'
-        item.error = message
-        parsedGroups.push({ url: entry.url, count: 1, data: null, error: message, status: 'error' })
-        continue
       }
     }
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, entries.length) }, () => parseNext())
+    await Promise.all(workers)
+
     batchItems.value = parsedGroups.flatMap((group) => {
       if (group.status === 'error') return [group]
       return Array.from({ length: group.count }, () => ({
@@ -346,42 +357,55 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
 
   async function saveAllBatch() {
     savingAll.value = true
-    for (const item of batchItems.value) {
-      if (item.status !== 'ready') continue
-      item.status = 'saving'
-      try {
-        for (const charName of item.data.characters) {
-          if (!presets.characters.some(c => (typeof c === 'string' ? c : c.name) === charName)) {
-            presets.addCharacter(charName, item.data.ip || '')
-          }
+
+    // Collect all ready items
+    const readyItems = batchItems.value.filter((item) => item.status === 'ready')
+
+    // Sync presets first (characters, IPs, categories)
+    for (const item of readyItems) {
+      for (const charName of item.data.characters) {
+        if (!presets.characters.some(c => (typeof c === 'string' ? c : c.name) === charName)) {
+          presets.addCharacter(charName, item.data.ip || '')
         }
-        await goodsStore.addGoods({
-          name: item.data.name?.trim() || '',
-          category: item.data.category,
-          ip: item.data.ip,
-          goodsId: item.data.goodsId || '',
-          image: item.data.image,
-          images: Array.isArray(item.data.images) ? item.data.images : [],
-          price: item.data.price === '' ? null : Number(item.data.price),
-          source: '米游铺',
-          purchaseDate: item.data.purchaseDate,
-          notes: item.data.notes,
-          tags: Array.isArray(item.data.tags) ? item.data.tags : [],
-          characters: item.data.characters,
-          variant: item.data.variant || undefined,
-          isWishlist: isWishlistMode.value,
-        })
+      }
+    }
+
+    // Batch add all items in one DB transaction + single triggerRef
+    try {
+      const itemsData = readyItems.map((item) => ({
+        name: item.data.name?.trim() || '',
+        category: item.data.category,
+        ip: item.data.ip,
+        goodsId: item.data.goodsId || '',
+        image: item.data.image,
+        images: Array.isArray(item.data.images) ? item.data.images : [],
+        price: item.data.price === '' ? null : Number(item.data.price),
+        source: '米游铺',
+        purchaseDate: item.data.purchaseDate,
+        notes: item.data.notes,
+        tags: Array.isArray(item.data.tags) ? item.data.tags : [],
+        characters: item.data.characters,
+        variant: item.data.variant || undefined,
+        isWishlist: isWishlistMode.value,
+      }))
+
+      await goodsStore.addGoodsBatch(itemsData)
+
+      for (const item of readyItems) {
         updateHistoricalTagContextFromItem({
           ip: item.data.ip,
           characters: item.data.characters,
           tags: item.data.tags,
         })
         item.status = 'saved'
-      } catch (e) {
+      }
+    } catch (e) {
+      for (const item of readyItems) {
         item.status = 'error'
         item.error = e.message || '保存失败'
       }
     }
+
     savingAll.value = false
     runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   }
