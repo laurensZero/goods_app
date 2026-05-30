@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260530.3",
+    "url": "bundle-20260530.3.zip",
+    "hash": "fad85c43c6766b618c7f9d83774fcaaa32b6b44f57033a36bf4c84bdbd8d20fc",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化数据处理逻辑，合并多个异步操作为并行执行；重构视图列表创建逻辑以支持收藏和愿望列表",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-30T09:04:56Z"
+  },
+  {
     "version": "20260530.2",
     "url": "bundle-20260530.2.zip",
     "hash": "3620b56e6dcb1162b9cdf0d8c1591693cedcf5bb32f7cae2645256bd1ab0f8d6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加多选图片选择功能，优化图片选择器样式；重构相关逻辑以支持多图处理",
     "updateLevel": "silent",
     "publishedAt": "2026-05-30T05:18:09Z"
-  },
-  {
-    "version": "20260529.5",
-    "url": "bundle-20260529.5.zip",
-    "hash": "b5d995f072033b842f2f94177e56328141a93d306e77ebab520c779fd974ab1d",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化多个异步操作为并行执行，提升性能；重构部分代码以减少查找时间复杂度",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-29T14:52:52Z"
   }
 ]
