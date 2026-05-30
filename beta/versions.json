@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260530.6",
+    "url": "bundle-20260530.6.zip",
+    "hash": "3c52993f88ef28c05583cca3b0e4e923deacc2e015fac5e4585dc5ac213e930d",
+    "minNativeVersion": null,
+    "notes": "- feat: 简化购物车和组相关的文本描述",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-30T15:03:53Z"
+  },
+  {
     "version": "20260530.5",
     "url": "bundle-20260530.5.zip",
     "hash": "ced09c46ab58af040df5444415672c6e1c75fe6498ec7d980c3d5bc97562ed5f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化异步操作并行执行，重构视图列表逻辑以支持收藏和愿望列表\n\n- refactor: 性能优化",
     "updateLevel": "silent",
     "publishedAt": "2026-05-30T10:40:31Z"
-  },
-  {
-    "version": "20260530.3",
-    "url": "bundle-20260530.3.zip",
-    "hash": "fad85c43c6766b618c7f9d83774fcaaa32b6b44f57033a36bf4c84bdbd8d20fc",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化数据处理逻辑，合并多个异步操作为并行执行；重构视图列表创建逻辑以支持收藏和愿望列表",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-30T09:04:56Z"
   }
 ]
