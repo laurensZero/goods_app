@@ -1,4 +1,4 @@
-import { asyncBuildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest } from '@/utils/sync/shared'
+import { asyncBuildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
 import { Capacitor } from '@capacitor/core'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
@@ -873,7 +873,7 @@ export function createSyncOrchestrator({
     }
     const [presetsData, localBudgetSettings] = await Promise.all([
       ctx.buildPresetsData(),
-      payload.readBudgetSettings()
+      readBudgetSettings()
     ])
 
     const [

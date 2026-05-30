@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed } from 'vue'
 import { triggerRef } from 'vue'
+import { useSyncStore } from '@/stores/sync'
 import {
   getGroups,
   getGroupItems,
@@ -62,6 +63,10 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     return { group, items, memberGoods }
   })
 
+  function autoPush() {
+    useSyncStore().autoPushGoods()
+  }
+
   // ── Init ──
 
   async function init() {
@@ -109,6 +114,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] addGroup DB write failed:', e)
       throw e
     }
+    autoPush()
     return group
   }
 
@@ -130,6 +136,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] updateGroup DB write failed:', e)
       throw e
     }
+    autoPush()
     return updated
   }
 
@@ -148,6 +155,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] removeGroup DB write failed:', e)
       throw e
     }
+    autoPush()
   }
 
   // ── CRUD: Group Items ──
@@ -180,6 +188,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] addItemsToGroup DB write failed:', e)
       throw e
     }
+    autoPush()
     return newItems
   }
 
@@ -196,6 +205,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] removeItemsFromGroup DB write failed:', e)
       throw e
     }
+    autoPush()
   }
 
   async function updateGroupItem(id, data) {
@@ -216,6 +226,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] updateGroupItem DB write failed:', e)
       throw e
     }
+    autoPush()
     return updated
   }
 
@@ -261,6 +272,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       console.error('[goodsGroup] reorderGroupItems DB write failed:', e)
       throw e
     }
+    autoPush()
   }
 
   // ── Sync helpers ──
