@@ -41,7 +41,8 @@ import {
 } from '@/stores/goodsStorageOps'
 import {
   createViewList,
-  createTrashViewList
+  createTrashViewList,
+  createFilteredViewLists
 } from '@/stores/goodsViewList'
 import * as crud from '@/stores/goodsCrud'
 
@@ -99,7 +100,8 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  View enrichment
 
-  const { viewList, collectionViewList, wishlistViewList } = createViewList(list)
+  const { viewList } = createViewList(list)
+  const { collectionViewList, wishlistViewList } = createFilteredViewLists(viewList)
   const trashViewList = createTrashViewList(trashList)
 
   //  Persistence
@@ -180,6 +182,7 @@ export const useGoodsStore = defineStore('goods', () => {
       console.error('[goods] init: readPersistedTrash failed, starting with empty trash:', trashResult.reason)
       trashList.value = []
     }
+
     isReady.value = true
     void startMigrationsInBackground()
   }

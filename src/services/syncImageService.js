@@ -84,7 +84,7 @@ export function createSyncImageService({
         console.warn(`[sync] hydrateRemoteItemsWithImages: item ${item?.id || '?'} failed, keeping original:`, e)
         return item
       }
-    })
+    }, 6)
   }
 
   async function hydrateEventCoversWithImages(events, imageGist, imageStats, options = {}) {
@@ -185,7 +185,7 @@ export function createSyncImageService({
         coverImageData: nextCoverImageData,
         photos: nextPhotos
       }
-    })
+    }, 6)
   }
 
   function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {

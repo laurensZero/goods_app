@@ -581,6 +581,7 @@ export function createSyncPayloadService({
     buildComparableSyncStateFromData,
     buildComparableRechargeStateFromData,
     buildComparableEventStateFromData,
-    buildManifest
+    buildManifest,
+    readBudgetSettings
   }
 }

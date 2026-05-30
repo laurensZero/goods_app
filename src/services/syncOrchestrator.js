@@ -920,18 +920,26 @@ export function createSyncOrchestrator({
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     const goodsStore = useGoodsStore()
-    // Build local and remote comparable states in parallel where possible
-    const presetsData = await ctx.buildPresetsData()
-    const localComparableState = payload.buildComparableSyncStateFromData({ goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData })
+    // Build all comparable states — parallelize the async presets/budget reads
+    const resolvedBudgetSettings = {
+      monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
+      yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
+    }
+    const [presetsData, localBudgetSettings] = await Promise.all([
+      ctx.buildPresetsData(),
+      payload.readBudgetSettings()
+    ])
+
+    const localComparableState = payload.buildComparableSyncStateFromData(
+      { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData },
+      { budgetSettings: localBudgetSettings }
+    )
     const remoteComparableState = payload.buildComparableSyncStateFromData(remoteData, {
-      budgetSettings: {
-        monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
-        yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
-      }
+      budgetSettings: resolvedBudgetSettings
     })
-    const localRechargeComparableState = payload.buildComparableRechargeStateFromData(payload.buildRechargeSyncData({ incremental: false }))
+    const localRechargeComparableState = payload.buildComparableRechargeStateFromData(localRechargeData)
     const remoteRechargeComparableState = payload.buildComparableRechargeStateFromData(remoteRechargeData)
-    const localEventComparableState = payload.buildComparableEventStateFromData(payload.buildEventSyncData())
+    const localEventComparableState = payload.buildComparableEventStateFromData(localEventData)
     const remoteEventComparableState = payload.buildComparableEventStateFromData(remoteEventData)
 
     const hasDataDiff = localComparableState !== remoteComparableState

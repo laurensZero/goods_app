@@ -232,7 +232,7 @@ export const useEventsStore = defineStore('events', () => {
     const existingMap = new Map(list.value.map((item) => [item.id, item]))
 
     const recordsToSave = []
-    const cleanupPathSets = []
+    const cleanupPaths = new Set()
 
     for (const event of incoming) {
       if (!event?.id) continue
@@ -242,7 +242,7 @@ export const useEventsStore = defineStore('events', () => {
       const existing = existingMap.get(event.id)
       if (!existing) {
         const now = Date.now()
-        const record = {
+        recordsToSave.push({
           id: event.id,
           name: String(event.name || '').trim(),
           type: String(event.type || '').trim(),
@@ -262,8 +262,7 @@ export const useEventsStore = defineStore('events', () => {
           tags: Array.isArray(event.tags) ? event.tags : [],
           createdAt: event.createdAt || now,
           updatedAt: event.updatedAt || now
-        }
-        recordsToSave.push(record)
+        })
         added += 1
         continue
       }
@@ -298,18 +297,18 @@ export const useEventsStore = defineStore('events', () => {
         }
         next.tracks = normalizeTracks(next.tracks)
         recordsToSave.push(next)
-        cleanupPathSets.push(diffRemovedManagedImagePaths(existing, next))
+        for (const path of diffRemovedManagedImagePaths(existing, next)) {
+          cleanupPaths.add(path)
+        }
         updated += 1
       }
     }
 
-    // Batch write all new and updated records in a single DB transaction
     if (recordsToSave.length > 0) {
       await saveEvents(recordsToSave)
     }
-    // Clean up removed images in parallel
-    if (cleanupPathSets.length > 0) {
-      await Promise.all(cleanupPathSets.map((paths) => deleteManagedLocalImages(paths)))
+    if (cleanupPaths.size > 0) {
+      await deleteManagedLocalImages(cleanupPaths)
     }
 
     if (reconcileMissing) {
@@ -332,8 +331,7 @@ export const useEventsStore = defineStore('events', () => {
             removedPaths.add(path)
           }
         }
-        await deleteEvents(missingIds)
-        await deleteManagedLocalImages(removedPaths)
+        await Promise.all([deleteEvents(missingIds), deleteManagedLocalImages(removedPaths)])
       }
     }
 
