@@ -69,8 +69,7 @@ export async function updateGoods(id, data, list, onMutate) {
   list.value[idx] = next
   triggerRef(list)
   try {
-    await addItem(next)
-    await deleteManagedLocalImages(removedPaths)
+    await Promise.all([addItem(next), deleteManagedLocalImages(removedPaths)])
   } catch (e) {
     console.error('[goods] updateGoods DB write failed:', e)
     throw e

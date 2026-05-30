@@ -41,8 +41,7 @@ import {
 } from '@/stores/goodsStorageOps'
 import {
   createViewList,
-  createTrashViewList,
-  createFilteredViewLists
+  createTrashViewList
 } from '@/stores/goodsViewList'
 import * as crud from '@/stores/goodsCrud'
 
@@ -70,13 +69,14 @@ export const useGoodsStore = defineStore('goods', () => {
   })
   const collectionList = computed(() => _partitioned.value.collection)
   const wishlistList = computed(() => _partitioned.value.wishlist)
-  const storageLocations = computed(() =>
-    [...new Set(
-      collectionList.value
-        .map((item) => normalizeStorageLocationValue(item.storageLocation || ''))
-        .filter(Boolean)
-    )].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
-  )
+  const storageLocations = computed(() => {
+    const set = new Set()
+    for (const item of collectionList.value) {
+      const loc = normalizeStorageLocationValue(item.storageLocation || '')
+      if (loc) set.add(loc)
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+  })
 
   /** 角色 → 收藏谷子数量（多角色商品按比例分摊） */
   const characterCountMap = computed(() => {
@@ -99,8 +99,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  View enrichment
 
-  const { viewList } = createViewList(list)
-  const { collectionViewList, wishlistViewList } = createFilteredViewLists(viewList)
+  const { viewList, collectionViewList, wishlistViewList } = createViewList(list)
   const trashViewList = createTrashViewList(trashList)
 
   //  Persistence
@@ -161,21 +160,24 @@ export const useGoodsStore = defineStore('goods', () => {
   //  Init
 
   async function init() {
-    try {
-      list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
-    } catch (e) {
-      console.error('[goods] init: getItems failed, starting with empty list:', e)
+    const [itemsResult, trashResult] = await Promise.allSettled([getItems(), readPersistedTrash()])
+
+    if (itemsResult.status === 'fulfilled') {
+      list.value = itemsResult.value.map((item) => normalizeGoodsInput(item, item.id))
+    } else {
+      console.error('[goods] init: getItems failed, starting with empty list:', itemsResult.reason)
       list.value = []
       import('vant').then(({ showFailToast }) => {
         import('@/locales').then(({ default: i18n }) => {
-          showFailToast(i18n.global.t('toast.dataLoadFailed', { error: (e && e.message) || i18n.global.t('goods.unknownError') }))
+          showFailToast(i18n.global.t('toast.dataLoadFailed', { error: (itemsResult.reason && itemsResult.reason.message) || i18n.global.t('goods.unknownError') }))
         }).catch(() => {})
       }).catch(() => {})
     }
-    try {
-      trashList.value = (await readPersistedTrash()).map((item) => normalizeTrashItem(item, item.id))
-    } catch (e) {
-      console.error('[goods] init: readPersistedTrash failed, starting with empty trash:', e)
+
+    if (trashResult.status === 'fulfilled') {
+      trashList.value = trashResult.value.map((item) => normalizeTrashItem(item, item.id))
+    } else {
+      console.error('[goods] init: readPersistedTrash failed, starting with empty trash:', trashResult.reason)
       trashList.value = []
     }
     isReady.value = true

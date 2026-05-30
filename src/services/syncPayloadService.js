@@ -402,13 +402,13 @@ export function createSyncPayloadService({
     const goods = await processWithConcurrency(filteredGoods, async (item) => {
       const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
       return sanitizeGoodsItemForSync(item, preparedImages)
-    })
+    }, 6)
 
     const filteredTrash = sourceTrash.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
     const trash = await processWithConcurrency(filteredTrash, async (item) => {
       const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
       return sanitizeGoodsItemForSync(item, preparedImages)
-    })
+    }, 6)
 
     imageStats.imageFileCount = referencedImageFiles.size
 
@@ -477,7 +477,7 @@ export function createSyncPayloadService({
         linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
         tags: Array.isArray(item.tags) ? item.tags : []
       }
-    })
+    }, 6)
 
     imageStats.imageFileCount = referencedImageFiles.size
 
