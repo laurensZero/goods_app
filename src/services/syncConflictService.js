@@ -174,6 +174,11 @@ export function createSyncConflictService({
     for (const remoteItem of remoteTrash) {
       if (!localTrashMap.has(remoteItem.id) && !localGoodsMap.has(remoteItem.id)) {
         remoteOnlyTrash += 1
+      } else if (localGoodsMap.has(remoteItem.id) && !localTrashMap.has(remoteItem.id)) {
+        const localItem = localGoodsMap.get(remoteItem.id)
+        if (shouldApplyRemoteItem(localItem, remoteItem)) {
+          updatedGoods += 1
+        }
       }
     }
 

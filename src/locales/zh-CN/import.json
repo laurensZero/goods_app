@@ -54,6 +54,7 @@
   "import.autoRecognized": "自动识别",
   "import.imageUrl": "图片链接",
   "import.selectImage": "选择保存的图片",
+  "import.selectImages": "选择保存的图片（可多选）",
   "import.imageAlt": "图片 {index}",
   "import.cover": "封面",
   "import.targetInfo": "目标信息",

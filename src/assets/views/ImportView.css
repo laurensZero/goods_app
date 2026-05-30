@@ -1103,6 +1103,22 @@
   line-height: 1;
 }
 
+.img-picker-count {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #2070c0;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
 /* ── 日期选择器按钮 ── */
 .date-field {
   display: flex;

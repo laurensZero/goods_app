@@ -70,6 +70,24 @@ export function isExportableGoodsImage(entry) {
 export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   if (!entry) return null
 
+  // 支持纯字符串 URL
+  if (typeof entry === 'string') {
+    const uri = entry.trim()
+    if (!uri) return null
+    return {
+      id: createGoodsImageId(),
+      uri,
+      kind: fallbackIndex === 0 ? 'primary' : 'custom',
+      label: '',
+      storageMode: inferGoodsImageStorageMode(uri, ''),
+      localPath: '',
+      gistFileName: parseGistImageUri(uri),
+      mimeType: '',
+      fileSize: 0,
+      isPrimary: fallbackIndex === 0,
+    }
+  }
+
   const rawUri = String(entry.uri || entry.url || entry.image || '').trim()
   const gistFileName = String(entry.gistFileName || parseGistImageUri(rawUri)).trim()
   const uri = rawUri || buildGistImageUri(gistFileName)
