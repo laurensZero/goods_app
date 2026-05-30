@@ -4,12 +4,11 @@
     teleport="body"
     :position="popupPosition"
     round
-    :class="['group-folder-popup', { 'group-folder-popup--tablet': isTablet }]"
+    :class="['group-folder-popup', { 'group-folder-popup--tablet': isTablet, 'group-folder-popup--instant': skipOpenAnimation }]"
+    @opened="onSheetOpened"
   >
     <div class="group-folder">
       <div v-if="!isTablet" class="group-folder__handle" />
-
-      <!-- Header -->
       <div class="group-folder__header">
         <div class="group-folder__info">
           <span class="group-folder__name">{{ group?.name || t('goodsGroup.untitled') }}</span>
@@ -19,19 +18,16 @@
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 20H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16.5 3.5a2.12 2.12 0 013 3L8 18l-4 1 1-4 12.5-11.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </button>
       </div>
-
-      <!-- Member goods grid -->
       <div class="group-folder__grid" :style="gridStyle">
         <GoodsCard
           v-for="item in memberGoods"
           :key="item.id"
           :item="item"
           :density="density"
+          :data-goods-hero-id="item.id"
           @open-detail="openDetail"
         />
       </div>
-
-      <!-- Add member -->
       <button class="group-folder__add" type="button" @click="showAddSheet = true">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
         <span>{{ t('goodsGroup.addMember') }}</span>
@@ -86,13 +82,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Popup, showSuccessToast } from 'vant'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { prepareGoodsHeroForward, playGoodsHeroBack, hasPendingGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 import GroupEditSheet from '@/components/goods/GroupEditSheet.vue'
 import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
@@ -120,6 +117,21 @@ const showProxy = computed({
 const showEditSheet = ref(false)
 const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
+const skipOpenAnimation = ref(false)
+
+// Skip Popup animation when returning from detail (hero back pending)
+watch(() => props.show, (open) => {
+  if (open) {
+    const currentPath = router.currentRoute.value.fullPath
+    skipOpenAnimation.value = hasPendingGoodsHeroBack(currentPath)
+    if (skipOpenAnimation.value) {
+      // Instant path: trigger hero back after DOM is ready
+      nextTick(() => onSheetOpened())
+    }
+  } else {
+    skipOpenAnimation.value = false
+  }
+})
 
 const group = computed(() => goodsGroupStore.getGroupById(props.groupId))
 const groupItems = computed(() => goodsGroupStore.groupItemsOf(props.groupId))
@@ -151,9 +163,32 @@ const gridStyle = computed(() => ({
 
 function openDetail(payload) {
   const goodsId = typeof payload === 'object' ? payload.id : payload
+  const sourceEl = typeof payload === 'object' ? payload.sourceEl : null
   emit('before-navigate')
+  prepareGoodsHeroForward({ goodsId, sourceEl: sourceEl || null })
   emit('update:show', false)
   router.push(`/detail/${goodsId}`)
+}
+
+function resolveGoodsCardCover(goodsId) {
+  const el = document.querySelector(`[data-goods-hero-id="${CSS.escape(goodsId)}"]`)
+  return el
+}
+
+function onSheetOpened() {
+  // Try to play back hero animation after sheet opens (returning from detail)
+  const currentPath = router.currentRoute.value.fullPath
+  if (!hasPendingGoodsHeroBack(currentPath)) return
+  let retry = 0
+  const tryPlay = () => {
+    const played = playGoodsHeroBack({
+      currentPath,
+      resolveTargetEl: resolveGoodsCardCover
+    })
+    if (played || retry++ >= 12) return
+    requestAnimationFrame(tryPlay)
+  }
+  nextTick(() => tryPlay())
 }
 
 async function handleGroupUpdate(id, data) {
@@ -208,6 +243,17 @@ async function handleAddMembers() {
     radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%),
     var(--app-bg);
   color: var(--app-text);
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.group-folder::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 .group-folder__handle {
@@ -276,8 +322,6 @@ async function handleAddMembers() {
   display: grid;
   gap: var(--card-gap, 12px);
   align-items: start;
-  overflow-y: auto;
-  max-height: 60dvh;
   padding: 0 4px;
 }
 
@@ -314,6 +358,19 @@ async function handleAddMembers() {
   background: var(--app-surface) !important;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42);
   border: none;
+}
+
+/* Instant mode: disable ALL Popup transitions/animations for hero back */
+.group-folder-popup--instant,
+.group-folder-popup--instant :deep(.van-overlay),
+.group-folder-popup--instant :deep(.van-popup),
+.group-folder-popup--instant :deep(.van-fade-enter-active),
+.group-folder-popup--instant :deep(.van-fade-leave-active),
+.group-folder-popup--instant :deep(.van-popup-slide-enter-active),
+.group-folder-popup--instant :deep(.van-popup-slide-leave-active) {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+  transition-delay: 0s !important;
 }
 
 /* Confirm dialog — matches GoodsDeleteConfirm style */
