@@ -919,7 +919,9 @@ onActivated(async () => {
   if (shouldScrollToTopOnActivated) {
     shouldScrollToTopOnActivated = false
     clearStoredScrollState()
-    setScrollTop(0, 'both')
+    const el = getScrollEl()
+    if (el) el.scrollTop = 0
+    else window.scrollTo(0, 0)
     homeDisplayReady.value = true
     bindPageScroll()
     updateSelectionHeaderPosition()
