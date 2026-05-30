@@ -584,7 +584,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
@@ -603,15 +603,21 @@ import {
   parseMihoyoUrl,
   isMihoyoGiftUrl,
   fetchGoodsDetail,
-  searchGoodsList,
-  fetchGoodsCategoryList,
-  searchGoodsSpuList,
   getMihoyoShopCodeByIp,
-  MIHOYO_ROLE_SHOP_CODES
 } from '@/utils/mihoyo/index'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { validatePrice } from '@/utils/validate'
 import { resizeTextarea } from '@/utils/textarea'
+import {
+  cleanVariantText,
+  extractCharName,
+  extractCharsFromVariants,
+  displayVariantText,
+  normalizeCharacterName,
+  isLikelyCharName,
+} from '@/utils/variantText'
+import { useImportSearch, normalizeSearchHintText } from '@/composables/import/useImportSearch'
+import { useBatchImport } from '@/composables/import/useBatchImport'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -677,6 +683,8 @@ const urlPlaceholder = computed(() =>
 )
 const parseButtonText = computed(() => t('import.parse'))
 
+const { isTabletViewport, updateViewport } = useTabletViewport()
+
 const urlInputRef = ref(null)
 const urlInput = ref('')
 const notesTextareaRef = ref(null)
@@ -685,48 +693,6 @@ const parsing = ref(false)
 const parseError = ref('')
 const formPriceError = ref('')
 const parsed = ref(false)
-const searchKeyword = ref('')
-
-const { isTabletViewport, updateViewport } = useTabletViewport()
-const searchResults = ref([])
-const searchExpanded = ref(false)
-const searching = ref(false)
-const searchLoadingMore = ref(false)
-const searchError = ref('')
-const variantSearchHint = ref('')
-const selectedSearchCharacter = ref('')
-const selectedSearchGoodsId = ref('')
-const searchLoadMoreRef = ref(null)
-const SEARCH_RESULTS_COLLAPSED_COUNT = 6
-const SEARCH_RESULTS_EXPANDED_COUNT = 24
-const searchSession = reactive({
-  requestId: 0,
-  mode: '',
-  keyword: '',
-  page: 0,
-  hasMore: false,
-  roleTargets: []
-})
-const searchResultVariantCoverCache = new Map()
-let searchResultsObserver = null
-let searchScrollCleanup = null
-let ensureSearchFillPromise = null
-
-const visibleSearchResults = computed(() => (
-  searchExpanded.value
-    ? searchResults.value
-    : searchResults.value.slice(0, SEARCH_RESULTS_COLLAPSED_COUNT)
-))
-
-const showSearchToggle = computed(() => (
-  searchResults.value.length > SEARCH_RESULTS_COLLAPSED_COUNT
-))
-const searchHasMore = computed(() => searchSession.hasMore)
-const showSearchLoadMoreStatus = computed(() => (
-  searchExpanded.value
-  && visibleSearchResults.value.length > 0
-  && (searchLoadingMore.value || searchHasMore.value)
-))
 
 const wishlistCharacterOptions = computed(() => {
   const seen = new Map()
@@ -748,783 +714,28 @@ const wishlistCharacterOptions = computed(() => {
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
 })
 
-const mihoyoRoleCategoryCache = new Map()
+// ── Composables ──
+const {
+  searchKeyword, searchResults, searchExpanded, searching, searchLoadingMore, searchError,
+  variantSearchHint, selectedSearchCharacter, selectedSearchGoodsId, searchLoadMoreRef,
+  visibleSearchResults, showSearchToggle, searchHasMore, showSearchLoadMoreStatus,
+  handleGoodsSearch, toggleSearchExpanded, selectSearchResult, shortenUrl, resetSearchState
+} = useImportSearch({ goodsStore, wishlistCharacterOptions, setUrlInputValue, handleParse })
 
-function normalizeRoleCategoryName(name) {
-  return String(name || '')
-    .trim()
-    .replace(/\(/g, '（')
-    .replace(/\)/g, '）')
-    .replace(/\s+/g, '')
-}
-
-function extractRoleCategories(categories) {
-  const roleGroup = (categories || []).find((item) => String(item?.name || '').trim() === '角色分类')
-  return Array.isArray(roleGroup?.child) ? roleGroup.child : []
-}
-
-async function getRoleCategoriesForShop(shopCode) {
-  const normalizedShopCode = String(shopCode || '').trim()
-  if (!normalizedShopCode) return []
-  if (!mihoyoRoleCategoryCache.has(normalizedShopCode)) {
-    const categories = await fetchGoodsCategoryList(normalizedShopCode)
-    mihoyoRoleCategoryCache.set(normalizedShopCode, extractRoleCategories(categories))
-  }
-  return mihoyoRoleCategoryCache.get(normalizedShopCode) || []
-}
-
-async function resolveRoleSearchTargets(keyword) {
-  const normalizedKeyword = normalizeRoleCategoryName(keyword)
-  if (!normalizedKeyword) return []
-
-  const preferredCharacter = wishlistCharacterOptions.value.find(
-    (item) => normalizeRoleCategoryName(item.name) === normalizedKeyword
-  )
-  const preferredShopCode = getMihoyoShopCodeByIp(preferredCharacter?.ip)
-  const shopCodes = preferredShopCode
-    ? [preferredShopCode]
-    : MIHOYO_ROLE_SHOP_CODES
-
-  const targets = []
-
-  for (const shopCode of shopCodes) {
-    const categories = await getRoleCategoriesForShop(shopCode)
-    const matchedCategory = categories.find((item) => normalizeRoleCategoryName(item?.name) === normalizedKeyword)
-    if (!matchedCategory?.id) continue
-    targets.push({
-      shopCode,
-      categoryId: matchedCategory.id,
-      categoryName: String(matchedCategory.name || '').trim()
-    })
-  }
-
-  return targets
-}
-
-function parseBatchUrlEntries(text) {
-  const lines = String(text || '').split(/\r?\n/)
-  const entries = []
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-    if (!line) continue
-
-    const urlMatches = [...line.matchAll(/https?:\/\/\S+/gi)]
-    if (!urlMatches.length) continue
-
-    if (urlMatches.length > 1) {
-      for (const urlMatch of urlMatches) {
-        const url = urlMatch[0].replace(/[),.，。；;]+$/, '')
-        if (isMihoyoGiftUrl(url)) {
-          entries.push({ url, count: 1 })
-        }
-      }
-      continue
-    }
-
-    const urlMatch = urlMatches[0]
-    const url = urlMatch[0].replace(/[),.，。；;]+$/, '')
-    if (!isMihoyoGiftUrl(url)) continue
-
-    const before = line.slice(0, urlMatch.index).trim()
-    const after = line.slice(urlMatch.index + urlMatch[0].length).trim()
-    const countSource = `${before} ${after}`.replace(/[×＊]/g, 'x')
-    const countMatch = countSource.match(/(?:^|[^\d])(\d+)(?:\D*$)/)
-    const count = countMatch ? Math.max(1, Number.parseInt(countMatch[1], 10) || 1) : 1
-
-    entries.push({ url, count })
-  }
-
-  return entries
-}
-
-// 多 URL 批量导入状态
-const urlEntries = computed(() => parseBatchUrlEntries(urlInput.value || ''))
-const batchMode = computed(() => urlEntries.value.length > 1 || urlEntries.value.some(entry => entry.count > 1))
-const batchTotalCount = computed(() => urlEntries.value.reduce((sum, entry) => sum + entry.count, 0))
-const batchParseButtonText = computed(() => {
-  const entryCount = urlEntries.value.length
-  if (!entryCount) return t('import.batchParse')
-  return t('import.batchParseButtonText', { entries: entryCount, total: batchTotalCount.value })
-})
-const batchReadyCount = computed(() => batchItems.value.filter(item => item.status === 'ready' || item.status === 'saved').length)
-const batchErrorCount = computed(() => batchItems.value.filter(item => item.status === 'error').length)
-// 批量步骤: 'input' | 'parsing' | 'list'
-const batchStep = ref('input')
-const batchItems = ref([]) // { url, status: 'pending'|'parsing'|'ready'|'error'|'saved', data, error }
-const batchParsing = ref(false)
-const editingBatchIdx = ref(-1)
-const batchEditForm = reactive({
-  name: '', category: '', ip: '', image: '', images: [], price: '',
-  notes: '', tags: [], characters: [], purchaseDate: '', variant: '',
-})
-const batchEditPriceError = ref('')
-const batchEditImages = ref([])
-const batchEditBaseImages = ref([])
-const batchEditVariants = ref([])           // SKU 变体列表 { text, key, img_url, cover_url? }
-const batchEditSelectedVariantKey = ref('') // 当前选中款式 key
-const batchEditSelectedCharacterName = ref('')
-const batchEditSaveAsCharacter = ref(false)
-const savingAll = ref(false)
-
-// 用户编辑输入时重置批量状态
-watch(urlInput, () => {
-  if (batchStep.value !== 'input') {
-    batchStep.value = 'input'
-    batchItems.value = []
-  }
+const {
+  batchStep, batchItems, batchParsing, savingAll, editingBatchIdx,
+  batchEditForm, batchEditPriceError, batchEditImages, batchEditBaseImages,
+  batchEditVariants, batchEditSelectedVariantKey, batchEditSelectedCharacterName,
+  batchEditSaveAsCharacter, urlEntries, batchMode, batchTotalCount,
+  batchParseButtonText, batchReadyCount, batchErrorCount,
+  handleBatchImport, openBatchEdit, saveBatchEdit, handleBatchVariantSelect,
+  toggleBatchSaveAsCharacter, toggleBatchEditImage, saveAllBatch, resetBatchState
+} = useBatchImport({
+  urlInput, urlInputRef, syncUrlInput, isWishlistMode,
+  ensureHistoricalTagContext, updateHistoricalTagContextFromItem, detectCategory
 })
 
-watch(isWishlistMode, (active) => {
-  if (!active) {
-    searchKeyword.value = ''
-    searchResults.value = []
-    searchExpanded.value = false
-    searchLoadingMore.value = false
-    searchError.value = ''
-    variantSearchHint.value = ''
-    selectedSearchCharacter.value = ''
-    selectedSearchGoodsId.value = ''
-    resetSearchSession()
-  }
-}, { immediate: true })
 
-watch(searchKeyword, (value) => {
-  if (value.trim() !== selectedSearchCharacter.value) {
-    selectedSearchCharacter.value = ''
-  }
-
-  if (value.trim() !== searchSession.keyword) {
-    searchSession.hasMore = false
-  }
-})
-
-watch(
-  [searchExpanded, () => visibleSearchResults.value.length, searchHasMore, searchLoadingMore],
-  () => {
-    void reconnectSearchObserver()
-    bindSearchScrollListener()
-  }
-)
-
-async function handleGoodsSearch() {
-  const keyword = searchKeyword.value.trim()
-  variantSearchHint.value = normalizeSearchHintText(keyword)
-  searchError.value = ''
-  searchExpanded.value = false
-  searchLoadingMore.value = false
-
-  if (!keyword) {
-    searchResults.value = []
-    selectedSearchGoodsId.value = ''
-    resetSearchSession()
-    return
-  }
-
-  searching.value = true
-  try {
-    const results = await runSearchPage({ keyword, append: false })
-    if (!results.length) {
-      searchError.value = t('import.searchNoResults')
-    }
-  } catch (error) {
-    searchResults.value = []
-    selectedSearchGoodsId.value = ''
-    resetSearchSession()
-    searchError.value = error?.message || t('import.searchFailed')
-  } finally {
-    searching.value = false
-  }
-}
-
-function toggleSearchExpanded() {
-  searchExpanded.value = !searchExpanded.value
-  if (searchExpanded.value) {
-    void ensureSearchResultsScrollable()
-  }
-}
-
-function resetSearchSession() {
-  searchSession.mode = ''
-  searchSession.keyword = ''
-  searchSession.page = 0
-  searchSession.hasMore = false
-  searchSession.roleTargets = []
-}
-
-function getSearchResultKey(item) {
-  return `${item?.shop_code || ''}:${item?.goods_id || ''}`
-}
-
-function getSearchResultCover(item) {
-  return String(item?.search_cover_url || item?.cover_url || '').trim()
-}
-
-function mergeSearchResults(list, { append = false } = {}) {
-  const deduped = new Map()
-
-  if (append) {
-    for (const item of searchResults.value) {
-      deduped.set(getSearchResultKey(item), item)
-    }
-  }
-
-  for (const item of list) {
-    const key = getSearchResultKey(item)
-    if (!deduped.has(key)) {
-      deduped.set(key, item)
-    }
-  }
-
-  return [...deduped.values()]
-}
-
-function resolvePreferredVariantCover(variants, keyword) {
-  const hint = normalizeSearchHintText(keyword).toLowerCase()
-  if (!hint || !Array.isArray(variants) || variants.length <= 1) return ''
-
-  const exactCharMatches = variants.filter((variant) => (
-    normalizeCharacterName(variant?.text).trim().toLowerCase() === hint
-  ))
-  if (exactCharMatches.length) {
-    const target = exactCharMatches[exactCharMatches.length - 1]
-    return String(target?.cover_url || target?.img_url || '').trim()
-  }
-
-  const fuzzyMatches = variants.filter((variant) => {
-    const displayText = displayVariantText(variant?.text).trim().toLowerCase()
-    const normalizedChar = normalizeCharacterName(variant?.text).trim().toLowerCase()
-    const rawText = String(variant?.text || '').trim().toLowerCase()
-
-    return displayText.includes(hint) || normalizedChar.includes(hint) || rawText.includes(hint)
-  })
-  if (fuzzyMatches.length) {
-    const target = fuzzyMatches[fuzzyMatches.length - 1]
-    return String(target?.cover_url || target?.img_url || '').trim()
-  }
-
-  return ''
-}
-
-async function enhanceSearchResultImages(list, keyword) {
-  const hint = normalizeSearchHintText(keyword)
-  if (!hint || !Array.isArray(list) || !list.length) return
-
-  await Promise.allSettled(list.map(async (item) => {
-    const goodsId = String(item?.goods_id || '').trim()
-    if (!goodsId) return
-
-    const cacheKey = `${goodsId}::${hint}`
-    if (searchResultVariantCoverCache.has(cacheKey)) {
-      const cachedCover = searchResultVariantCoverCache.get(cacheKey)
-      if (cachedCover) {
-        item.search_cover_url = cachedCover
-      }
-      return
-    }
-
-    const { skuCovers, skuVariants, coverUrl } = await fetchGoodsDetail(goodsId)
-    if (!Array.isArray(skuVariants) || skuVariants.length <= 1) {
-      searchResultVariantCoverCache.set(cacheKey, '')
-      return
-    }
-
-    const variants = skuVariants.map((variant) => ({
-      ...variant,
-      cover_url: skuCovers?.[variant.key] || variant.cover_url || coverUrl || '',
-    }))
-    const preferredCover = resolvePreferredVariantCover(variants, hint)
-    searchResultVariantCoverCache.set(cacheKey, preferredCover)
-
-    if (preferredCover) {
-      item.search_cover_url = preferredCover
-    }
-  }))
-}
-
-async function fetchRoleSearchPage(roleTargets, page) {
-  if (!roleTargets.length) return { items: [], hasMore: false }
-
-  const groupedResults = await Promise.all(
-    roleTargets.map((target) =>
-      searchGoodsSpuList({
-        shopCode: target.shopCode,
-        categoryId: target.categoryId,
-        pageSize: SEARCH_RESULTS_EXPANDED_COUNT,
-        page,
-        random: false,
-      })
-    )
-  )
-
-  const merged = mergeSearchResults(groupedResults.flat())
-  const hasMore = groupedResults.some((items) => items.length >= SEARCH_RESULTS_EXPANDED_COUNT)
-  return { items: merged, hasMore }
-}
-
-async function runSearchPage({ keyword, append }) {
-  const currentRequestId = append ? searchSession.requestId : searchSession.requestId + 1
-  if (!append) {
-    searchSession.requestId = currentRequestId
-  }
-
-  const page = append ? searchSession.page + 1 : 1
-  let mode = append ? searchSession.mode : ''
-  let roleTargets = append ? [...searchSession.roleTargets] : []
-  let items = []
-  let hasMore = false
-
-  if (!append) {
-    roleTargets = await resolveRoleSearchTargets(keyword)
-    if (roleTargets.length) {
-      mode = 'role'
-      const roleResult = await fetchRoleSearchPage(roleTargets, page)
-      items = roleResult.items
-      hasMore = roleResult.hasMore
-    }
-
-    if (!items.length) {
-      mode = 'keyword'
-      roleTargets = []
-      items = await searchGoodsList(keyword, SEARCH_RESULTS_EXPANDED_COUNT, page)
-      hasMore = items.length >= SEARCH_RESULTS_EXPANDED_COUNT
-    }
-  } else if (mode === 'role') {
-    const roleResult = await fetchRoleSearchPage(roleTargets, page)
-    items = roleResult.items
-    hasMore = roleResult.hasMore
-  } else {
-    mode = 'keyword'
-    items = await searchGoodsList(keyword, SEARCH_RESULTS_EXPANDED_COUNT, page)
-    hasMore = items.length >= SEARCH_RESULTS_EXPANDED_COUNT
-  }
-
-  if (currentRequestId !== searchSession.requestId) {
-    return []
-  }
-
-  searchSession.mode = mode
-  searchSession.keyword = keyword
-  searchSession.page = page
-  searchSession.hasMore = hasMore
-  searchSession.roleTargets = roleTargets
-  searchResults.value = mergeSearchResults(items, { append })
-  void enhanceSearchResultImages(searchResults.value, keyword)
-  return items
-}
-
-async function loadMoreSearchResults() {
-  if (!searchExpanded.value || !searchHasMore.value || searchLoadingMore.value || searching.value) return
-  const keyword = searchSession.keyword || searchKeyword.value.trim()
-  if (!keyword) return
-
-  searchLoadingMore.value = true
-  try {
-    await runSearchPage({ keyword, append: true })
-  } catch (error) {
-    searchError.value = error?.message || t('import.loadMoreFailed')
-  } finally {
-    searchLoadingMore.value = false
-    if (searchExpanded.value && searchHasMore.value) {
-      void ensureSearchResultsScrollable()
-    }
-  }
-}
-
-async function ensureSearchResultsScrollable() {
-  if (ensureSearchFillPromise) return ensureSearchFillPromise
-
-  ensureSearchFillPromise = (async () => {
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      if (!searchExpanded.value || !searchHasMore.value || searchLoadingMore.value || searching.value) break
-
-      await nextTick()
-      const scrollRoot = document.querySelector('.import-page .page-body')
-      if (!(scrollRoot instanceof Element)) break
-
-      const remaining = scrollRoot.scrollHeight - scrollRoot.clientHeight
-      if (remaining > 180) break
-
-      await loadMoreSearchResults()
-    }
-  })()
-
-  try {
-    await ensureSearchFillPromise
-  } finally {
-    ensureSearchFillPromise = null
-  }
-}
-
-function disconnectSearchObserver() {
-  if (!searchResultsObserver) return
-  searchResultsObserver.disconnect()
-  searchResultsObserver = null
-}
-
-function unbindSearchScrollListener() {
-  searchScrollCleanup?.()
-  searchScrollCleanup = null
-}
-
-function bindSearchScrollListener() {
-  unbindSearchScrollListener()
-  if (!searchExpanded.value || !searchHasMore.value) return
-
-  const scrollRoot = document.querySelector('.import-page .page-body')
-  const target = scrollRoot instanceof Element ? scrollRoot : window
-  const handleScroll = () => {
-    if (!searchExpanded.value || !searchHasMore.value || searchLoadingMore.value || searching.value) return
-
-    const remaining = scrollRoot instanceof Element
-      ? scrollRoot.scrollHeight - scrollRoot.scrollTop - scrollRoot.clientHeight
-      : document.documentElement.scrollHeight - window.scrollY - window.innerHeight
-
-    if (remaining <= 220) {
-      void loadMoreSearchResults()
-    }
-  }
-
-  target.addEventListener('scroll', handleScroll, { passive: true })
-  searchScrollCleanup = () => {
-    target.removeEventListener('scroll', handleScroll)
-  }
-}
-
-async function reconnectSearchObserver() {
-  disconnectSearchObserver()
-  if (!searchExpanded.value || !searchHasMore.value || searchLoadingMore.value || !searchLoadMoreRef.value) return
-
-  await nextTick()
-  if (!searchExpanded.value || !searchHasMore.value || searchLoadingMore.value || !searchLoadMoreRef.value) return
-
-  const scrollRoot = document.querySelector('.import-page .page-body')
-  searchResultsObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        void loadMoreSearchResults()
-      }
-    },
-    {
-      root: scrollRoot instanceof Element ? scrollRoot : null,
-      rootMargin: '0px 0px 280px 0px',
-      threshold: 0.01
-    }
-  )
-  searchResultsObserver.observe(searchLoadMoreRef.value)
-}
-
-async function selectSearchResult(item) {
-  if (!item?.goods_id) return
-
-  selectedSearchGoodsId.value = String(item.goods_id)
-  variantSearchHint.value = normalizeSearchHintText(selectedSearchCharacter.value || searchKeyword.value.trim())
-  setUrlInputValue(`https://www.mihoyogift.com/goods/${item.goods_id}`)
-  await nextTick()
-  await handleParse()
-}
-
-function shortenUrl(url) {
-  try {
-    const u = new URL(url)
-    const path = u.pathname.split('/').filter(Boolean).join('/')
-    return path.length > 38 ? path.slice(0, 38) + '…' : path
-  } catch {
-    return url.length > 38 ? url.slice(0, 38) + '…' : url
-  }
-}
-
-async function handleBatchImport() {
-  syncUrlInput()
-  const entries = urlEntries.value
-  if (!entries.length) return
-  parseError.value = ''
-  batchStep.value = 'parsing'
-  batchParsing.value = true
-  const historicalContext = ensureHistoricalTagContext()
-  const parsedGroups = []
-  batchItems.value = entries.map(({ url, count }) => ({
-    url,
-    count,
-    status: 'pending',
-    data: null,
-    error: ''
-  }))
-
-  for (const [entryIndex, entry] of entries.entries()) {
-    const item = batchItems.value[entryIndex]
-    if (!item) continue
-    item.status = 'parsing'
-    const group = { url: entry.url, count: entry.count, data: null, error: '' }
-    try {
-      const result = await parseMihoyoUrl(entry.url)
-      const extractedCharacters = extractCharsFromVariants(result.variants)
-      const taggingResult = getTaggingSuggestions(
-        {
-          name: result.name,
-          note: '',
-          chars: extractedCharacters,
-        },
-        staticDictionaries,
-        {
-          categories: presets.categories || [],
-          ips: presets.ips || [],
-          characters: historicalContext.characters,
-          tags: historicalContext.tags,
-        }
-      )
-      const resolvedIp = result.ip || (taggingResult.ipSuggestion && taggingResult.ipSuggestion.score >= 0.6 ? taggingResult.ipSuggestion.value : '') || ''
-      const resolvedCategory = detectCategory(result.name, historicalContext) || (taggingResult.categorySuggestion && taggingResult.categorySuggestion.score >= 0.6 ? taggingResult.categorySuggestion.value : '') || ''
-      const resolvedCharacters = extractedCharacters.length > 0
-        ? [extractedCharacters[0]]
-        : (taggingResult.characterSuggestions?.[0]?.score >= 0.4
-          ? [taggingResult.characterSuggestions[0].value]
-          : [])
-
-      if (resolvedIp && !presets.ips.includes(resolvedIp)) presets.addIp(resolvedIp)
-      if (resolvedCategory && !presets.categories.includes(resolvedCategory)) presets.addCategory(resolvedCategory)
-      const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
-      const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
-        .map(u => (u || '').split('?')[0])
-        .filter(Boolean)
-        .filter((u, i, arr) => arr.indexOf(u) === i)
-      group.data = {
-        name: result.name?.trim() || '',
-        category: resolvedCategory || '',
-        ip: resolvedIp || '',
-        goodsId: result.goodsId || '',
-        image: allImgs[0] || '',
-        images: hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs],
-        price: result.price != null ? String(result.price) : '',
-        notes: '',
-        characters: resolvedCharacters,
-        purchaseDate: '',
-        variant: '',
-        selectedVariantKey: '',
-        baseParsedImages: allImgs,
-        parsedImages: allImgs,
-        variants: result.variants || [],
-        goodsId: result.goodsId || '',
-      }
-      updateHistoricalTagContextFromItem({
-        ip: group.data.ip,
-        characters: group.data.characters,
-        tags: group.data.tags,
-      })
-      parsedGroups.push(group)
-      // 异步补全 SKU cover_url + 价格（不阻塞列表显示）
-      if (result.goodsId) {
-        fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, skuVariants, coverUrl, mainImages }) => {
-          const sourceVariants = skuVariants.length
-            ? skuVariants
-            : group.data.variants
-          const mergedVariants = sourceVariants.map(v => ({
-            ...v,
-            cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
-            price: v.price ?? skuPrices[v.key] ?? null,
-          }))
-          group.data.variants.splice(0, group.data.variants.length, ...mergedVariants)
-          if (!group.data.variants.length) {
-            const extras = mainImages
-              .map(u => (u || '').split('?')[0])
-              .filter(u => u && !group.data.baseParsedImages.includes(u))
-            if (extras.length) {
-              group.data.baseParsedImages.splice(0, group.data.baseParsedImages.length, ...group.data.baseParsedImages, ...extras)
-              group.data.parsedImages.splice(0, group.data.parsedImages.length, ...group.data.baseParsedImages)
-            }
-          }
-        }).catch(() => {})
-      }
-      item.status = 'ready'
-      item.data = cloneBatchItemData(group.data)
-      item.error = ''
-    } catch (e) {
-      const message = e.message || '解析失败'
-      item.status = 'error'
-      item.error = message
-      parsedGroups.push({ url: entry.url, count: 1, data: null, error: message, status: 'error' })
-      continue
-    }
-  }
-  batchItems.value = parsedGroups.flatMap((group) => {
-    if (group.status === 'error') return [group]
-    return Array.from({ length: group.count }, () => ({
-      url: group.url,
-      status: 'ready',
-      data: cloneBatchItemData(group.data),
-      error: ''
-    }))
-  })
-  batchParsing.value = false
-  batchStep.value = 'list'
-}
-
-function cloneBatchItemData(data) {
-  if (!data) return null
-  return {
-    ...data,
-    characters: Array.isArray(data.characters) ? data.characters : [],
-    tags: Array.isArray(data.tags) ? data.tags : [],
-    images: Array.isArray(data.images) ? [...data.images] : [],
-    baseParsedImages: Array.isArray(data.baseParsedImages) ? data.baseParsedImages : [],
-    parsedImages: Array.isArray(data.parsedImages) ? data.parsedImages : [],
-    variants: Array.isArray(data.variants) ? data.variants : [],
-  }
-}
-
-function openBatchEdit(idx) {
-  const item = batchItems.value[idx]
-  if (!item?.data) return
-  batchEditPriceError.value = ''
-  editingBatchIdx.value = idx
-  const initialCharacterName = Array.isArray(item.data.characters) && item.data.characters.length === 1
-    ? String(item.data.characters[0] || '').trim()
-    : ''
-  Object.assign(batchEditForm, {
-    name: item.data.name,
-    category: item.data.category,
-    ip: item.data.ip,
-    image: item.data.image,
-    images: Array.isArray(item.data.images) ? [...item.data.images] : [item.data.image].filter(Boolean),
-    price: item.data.price,
-    notes: item.data.notes,
-    tags: Array.isArray(item.data.tags) ? [...item.data.tags] : [],
-    characters: initialCharacterName ? [initialCharacterName] : [],
-    purchaseDate: item.data.purchaseDate,
-    variant: item.data.variant || '',
-  })
-  batchEditBaseImages.value = [...(item.data.baseParsedImages || item.data.parsedImages || [])]
-  batchEditImages.value = [...batchEditBaseImages.value]
-  batchEditVariants.value = item.data.variants || []
-  batchEditSelectedVariantKey.value = item.data.selectedVariantKey || ''
-  batchEditSelectedCharacterName.value = initialCharacterName
-  batchEditSaveAsCharacter.value = Boolean(initialCharacterName)
-  if (batchEditSelectedVariantKey.value) {
-    const selected = batchEditVariants.value.find((variant) => variant.key === batchEditSelectedVariantKey.value)
-    if (selected) {
-      applyBatchVariantMedia(selected)
-    }
-  }
-}
-
-function saveBatchEdit() {
-  const idx = editingBatchIdx.value
-  if (idx < 0) return
-  batchEditPriceError.value = ''
-
-  const priceValidation = validatePrice(batchEditForm.price)
-  if (!priceValidation.valid) {
-    batchEditPriceError.value = priceValidation.message
-    return
-  }
-
-  Object.assign(batchItems.value[idx].data, {
-    name: batchEditForm.name,
-    category: batchEditForm.category,
-    ip: batchEditForm.ip,
-    image: batchEditForm.image,
-    images: [...batchEditForm.images],
-    price: batchEditForm.price === '' ? '' : Number(batchEditForm.price),
-    notes: batchEditForm.notes,
-    tags: [...batchEditForm.tags],
-    characters: batchEditSaveAsCharacter.value && batchEditSelectedCharacterName.value
-      ? [batchEditSelectedCharacterName.value]
-      : [],
-    purchaseDate: batchEditForm.purchaseDate,
-    variant: batchEditForm.variant,
-    selectedVariantKey: batchEditSelectedVariantKey.value,
-    baseParsedImages: [...batchEditBaseImages.value],
-    parsedImages: [...batchEditImages.value],
-  })
-  editingBatchIdx.value = -1
-}
-
-// ── 批量编辑中选择款式 ──
-function applyBatchVariantMedia(variant) {
-  const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
-  const nextImages = [...batchEditBaseImages.value]
-
-  if (raw) {
-    batchEditImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
-    // 只选款式图
-    batchEditForm.images = [raw]
-    batchEditForm.image = raw
-  } else {
-    batchEditImages.value = nextImages
-    batchEditForm.images = [nextImages[0] || ''].filter(Boolean)
-    batchEditForm.image = batchEditForm.images[0] || nextImages[0] || batchEditForm.image
-  }
-
-  if (variant?.price != null) {
-    batchEditForm.price = variant.price
-  }
-}
-
-function handleBatchVariantSelect(v) {
-  if (batchEditSelectedVariantKey.value === v.key) {
-    // 取消选中
-    batchEditSelectedVariantKey.value = ''
-    batchEditForm.variant = ''
-    batchEditSelectedCharacterName.value = ''
-    batchEditSaveAsCharacter.value = false
-    batchEditImages.value = [...batchEditBaseImages.value]
-    batchEditForm.images = [...batchEditBaseImages.value]
-    batchEditForm.image = batchEditBaseImages.value[0] || ''
-  } else {
-    batchEditSelectedVariantKey.value = v.key
-    batchEditForm.variant = displayVariantText(v.text)
-    const candidateCharacterName = normalizeCharacterName(v.text)
-    batchEditSelectedCharacterName.value = isLikelyCharName(candidateCharacterName) ? candidateCharacterName : ''
-    batchEditSaveAsCharacter.value = Boolean(batchEditSelectedCharacterName.value)
-    applyBatchVariantMedia(v)
-  }
-}
-
-function toggleBatchSaveAsCharacter() {
-  batchEditSaveAsCharacter.value = !batchEditSaveAsCharacter.value
-}
-
-async function saveAllBatch() {
-  savingAll.value = true
-  for (const item of batchItems.value) {
-    if (item.status !== 'ready') continue
-    item.status = 'saving'
-    try {
-      for (const charName of item.data.characters) {
-        if (!presets.characters.some(c => (typeof c === 'string' ? c : c.name) === charName)) {
-          presets.addCharacter(charName, item.data.ip || '')
-        }
-      }
-      await goodsStore.addGoods({
-        name: item.data.name?.trim() || '',
-        category: item.data.category,
-        ip: item.data.ip,
-        goodsId: item.data.goodsId || '',
-        image: item.data.image,
-        images: Array.isArray(item.data.images) ? item.data.images : [],
-        price: item.data.price === '' ? null : Number(item.data.price),
-        source: '米游铺',
-        purchaseDate: item.data.purchaseDate,
-        notes: item.data.notes,
-        tags: Array.isArray(item.data.tags) ? item.data.tags : [],
-        characters: item.data.characters,
-        variant: item.data.variant || undefined,
-        isWishlist: isWishlistMode.value,
-      })
-      updateHistoricalTagContextFromItem({
-        ip: item.data.ip,
-        characters: item.data.characters,
-        tags: item.data.tags,
-      })
-      item.status = 'saved'
-    } catch (e) {
-      item.status = 'error'
-      item.error = e.message || '保存失败'
-    }
-  }
-  savingAll.value = false
-  runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
-}
 const parsedImages = ref([])  // 当前商品可用图
 const parsedBaseImages = ref([])  // 不区分款式的基础图
 const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
@@ -1609,50 +820,6 @@ function applyPreferredSearchCharacter() {
   form.characters = preferredName ? [preferredName] : []
 }
 
-// ── 展示用：只去【】括号和尾款，保留周年对应信息 ──
-// 例："二周年贺图款" → "二周年贺图"   "兹白【预售，5月初】" → "兹白"
-function cleanVariantText(text) {
-  if (!text) return text
-  let s = text
-  s = s.replace(/【[^】]*】/g, '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '')
-  s = s.replace(/预售[^、，,）)】]*/g, '').replace(/预计[^、，,）)】]*/g, '')
-  s = s.replace(/^\s*[\/／]+\s*/g, '').replace(/\s*[\/／]+\s*$/g, '')
-  s = s.trim()
-  if (s.endsWith('款')) s = s.slice(0, -1)
-  return s.trim() || text.trim()
-}
-
-// ── 从单条款式文本提取纯角色名 ──
-// 例："兹白【预售，5月初】" → "兹白"   "钒离款" → "钒离"
-function extractCharName(text) {
-  if (!text) return null
-  let s = text
-  s = s.replace(/【[^】]*】/g, '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '')
-  s = s.replace(/^\s*[\/／]+\s*/g, '').replace(/\s*[\/／]+\s*$/g, '')
-  s = s.trim()
-  if (s.endsWith('款')) s = s.slice(0, -1)
-  s = s.replace(/^[二三四五六七八九十]+周年/, '')  // 中文周年前缀
-  s = s.replace(/^\d+周年/, '')                                       // 数字周年前缀
-  s = s.replace(/^(纪念|联动|活动|限定|特别|典藏|豪华|普通|标准|完整|初始|全)/, '')
-  s = s.trim()
-  return s || null
-}
-
-// ── 从款式文本提取角色名 ──
-function extractCharsFromVariants(variants) {
-  if (!variants?.length) return []
-  const result = []
-  for (const v of variants) {
-    const text = typeof v === 'string' ? v : v.text
-    const name = extractCharName(text)
-    if (!name || name.length < 2 || name.length > 8) continue
-    if (/^[A-Za-z0-9\s]+$/.test(name)) continue
-    if (/^[ABCDEF]$/.test(name)) continue
-    result.push(name)
-  }
-  return [...new Set(result)]
-}
-
 let historicalTagContextCache = null
 
 function createHistoricalTagContext() {
@@ -1734,54 +901,6 @@ function buildHistoricalTagContext() {
   }
 }
 
-// ── 判断某个变体是否已被用户选中（用 key 追踪，防止同名误判）──
-function isVariantSelected(v) {
-  return selectedVariantKey.value === v.key
-}
-
-// ── 判断清洗后的文本是否像角色名 ──
-// 排除：周年贺图、款式描述、颜色、礼盒、套组等常见非角色词
-const NON_CHAR_WORDS = [
-  '贺图', '贺卡', '周年', '配色', '全套', '套组', '套装', '组合', '合集',
-  '随机', '加购', '赠品', '礼盒', '礼品', '礼包', '福袋', '特典',
-  '联名', '联动', '合作', '纪念', '限定', '典藏', '豪华', '版本',
-  '白色', '黑色', '红色', '蓝色', '绿色', '黄色', '粉色', '紫色', '橙色', '棕色',
-  '标准', '普通', '完整', '初始', '全部', '其他', '同款', '款', '新年', '年版'
-]
-function isLikelyCharName(name) {
-  if (!name) return false
-  if (name.length < 1 || name.length > 8) return false
-  if (/^[A-Za-z0-9\s]+$/.test(name)) return false      // 纯英数
-  if (/^\d{4}年?$/.test(name)) return false            // 新增：2024 或 2024年
-  if (/\d+周年/.test(name)) return false               // 新增：2周年等
-  if (!/[\u4e00-\u9fff]/.test(name)) return false      // 必须含汉字
-  if (NON_CHAR_WORDS.some(kw => name.includes(kw))) return false
-  return true
-}
-
-function displayVariantText(text) {
-  return preserveGenderQualifier(cleanVariantText(text), text)
-}
-
-function normalizeCharacterName(text) {
-  const name = displayVariantText(text).trim()
-  return name.replace(/\s*([ABCD])$/i, '').trim()
-}
-
-function preserveGenderQualifier(cleanedText, originalText) {
-  const base = cleanedText?.trim() || ''
-  const source = String(originalText || '')
-  const match = source.match(/[（(]\s*(男|女|男女|男款|女款)\s*[）)]/)
-
-  if (!match || !base) return base || source.trim()
-
-  const qualifier = match[1]
-  if (base.includes(`（${qualifier}）`) || base.includes(`(${qualifier})`)) {
-    return base
-  }
-
-  return `${base}（${qualifier}）`
-}
 
 function syncUrlInput(event) {
   if (event?.target) {
@@ -1808,14 +927,6 @@ function setUrlInputValue(value) {
   }
 }
 
-function normalizeSearchHintText(value) {
-  return String(value || '')
-    .trim()
-    .replace(/[「」『』【】《》〈〉]/g, '')
-    .replace(/^["'""‘’]+|["'""‘’]+$/g, '')
-    .trim()
-}
-
 // ── 图片多选切换 ──
 function toggleFormImage(imgUrl) {
   const idx = form.images.indexOf(imgUrl)
@@ -1826,16 +937,6 @@ function toggleFormImage(imgUrl) {
   }
   // 同步主图：始终以第一张选中的图为主图
   form.image = form.images[0] || ''
-}
-
-function toggleBatchEditImage(imgUrl) {
-  const idx = batchEditForm.images.indexOf(imgUrl)
-  if (idx >= 0) {
-    batchEditForm.images.splice(idx, 1)
-  } else {
-    batchEditForm.images.push(imgUrl)
-  }
-  batchEditForm.image = batchEditForm.images[0] || ''
 }
 
 function applySelectedVariantMedia(variant) {
@@ -2173,14 +1274,7 @@ async function handleSave() {
 }
 
 onMounted(() => {
-  bindSearchScrollListener()
-  void reconnectSearchObserver()
   updateViewport()
-})
-
-onBeforeUnmount(() => {
-  unbindSearchScrollListener()
-  disconnectSearchObserver()
 })
 </script>
 
