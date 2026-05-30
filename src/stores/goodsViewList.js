@@ -63,6 +63,8 @@ export function createViewList(list) {
 
   const viewMap = ref(new Map())
   const viewOrder = ref([])
+  const collectionOrder = ref([])
+  const wishlistOrder = ref([])
 
   watch(list, (newList, oldList) => {
     const exchangeRate = useExchangeRateStore()
@@ -73,12 +75,22 @@ export function createViewList(list) {
     const newMap = new Map(viewCache)
     let changed = false
 
+    const newCollectionIds = []
+    const newWishlistIds = []
+
     for (const item of newList) {
       const cached = viewCache.get(item.id)
-      if (cached && cached.srcItem === item && !ratesChanged) continue
+      if (cached && cached.srcItem === item && !ratesChanged) {
+        // Still track partition for unchanged items
+        if (item.isWishlist) newWishlistIds.push(item.id)
+        else newCollectionIds.push(item.id)
+        continue
+      }
       changed = true
       const viewItem = enrichItem(item, exchangeRate)
       newMap.set(item.id, { viewItem, srcItem: item })
+      if (item.isWishlist) newWishlistIds.push(item.id)
+      else newCollectionIds.push(item.id)
     }
 
     for (const item of oldList) {
@@ -99,6 +111,8 @@ export function createViewList(list) {
     ) {
       viewOrder.value = newOrder
     }
+    collectionOrder.value = newCollectionIds
+    wishlistOrder.value = newWishlistIds
   }, { flush: 'sync' })
 
   watch(() => useExchangeRateStore().rates, () => {
@@ -113,8 +127,10 @@ export function createViewList(list) {
   })
 
   const viewList = computed(() => viewOrder.value.map((id) => viewMap.value.get(id)?.viewItem).filter(Boolean))
+  const collectionViewList = computed(() => collectionOrder.value.map((id) => viewMap.value.get(id)?.viewItem).filter(Boolean))
+  const wishlistViewList = computed(() => wishlistOrder.value.map((id) => viewMap.value.get(id)?.viewItem).filter(Boolean))
 
-  return { viewList, viewMap, viewOrder }
+  return { viewList, viewMap, viewOrder, collectionViewList, wishlistViewList }
 }
 
 /**
@@ -199,22 +215,4 @@ export function createTrashViewList(trashList) {
   const viewList = computed(() => viewOrder.value.map((id) => viewMap.value.get(id)?.viewItem).filter(Boolean))
 
   return viewList
-}
-
-/**
- * Creates filtered view lists for collection and wishlist items.
- * @param {import('vue').ComputedRef} viewList
- */
-export function createFilteredViewLists(viewList) {
-  const _partitioned = computed(() => {
-    const collection = []
-    const wishlist = []
-    for (const item of viewList.value) {
-      (item.isWishlist ? wishlist : collection).push(item)
-    }
-    return { collection, wishlist }
-  })
-  const collectionViewList = computed(() => _partitioned.value.collection)
-  const wishlistViewList = computed(() => _partitioned.value.wishlist)
-  return { collectionViewList, wishlistViewList }
 }

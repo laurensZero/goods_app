@@ -1,7 +1,7 @@
 // @ts-check
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, triggerRef } from 'vue'
-import { addEvent, deleteEvents, getEvents } from '@/utils/db/index'
+import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/tracks'
 import { buildGistImageUri, parseGistImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
@@ -231,6 +231,9 @@ export const useEventsStore = defineStore('events', () => {
     // Build Map for O(1) lookup instead of O(n) .find() per incoming item
     const existingMap = new Map(list.value.map((item) => [item.id, item]))
 
+    const recordsToSave = []
+    const cleanupPathSets = []
+
     for (const event of incoming) {
       if (!event?.id) continue
 
@@ -260,7 +263,7 @@ export const useEventsStore = defineStore('events', () => {
           createdAt: event.createdAt || now,
           updatedAt: event.updatedAt || now
         }
-        await addEvent(record)
+        recordsToSave.push(record)
         added += 1
         continue
       }
@@ -294,10 +297,19 @@ export const useEventsStore = defineStore('events', () => {
           updatedAt: shouldBackfillCoverImageData ? existingUpdatedAt : event.updatedAt
         }
         next.tracks = normalizeTracks(next.tracks)
-        await addEvent(next)
-        await deleteManagedLocalImages(diffRemovedManagedImagePaths(existing, next))
+        recordsToSave.push(next)
+        cleanupPathSets.push(diffRemovedManagedImagePaths(existing, next))
         updated += 1
       }
+    }
+
+    // Batch write all new and updated records in a single DB transaction
+    if (recordsToSave.length > 0) {
+      await saveEvents(recordsToSave)
+    }
+    // Clean up removed images in parallel
+    if (cleanupPathSets.length > 0) {
+      await Promise.all(cleanupPathSets.map((paths) => deleteManagedLocalImages(paths)))
     }
 
     if (reconcileMissing) {
@@ -332,7 +344,7 @@ export const useEventsStore = defineStore('events', () => {
   async function markMediaAsRemote(preparedMediaByEventId) {
     if (!(preparedMediaByEventId instanceof Map) || preparedMediaByEventId.size === 0) return
 
-    let hasUpdates = false
+    const updatedRecords = []
     for (let index = 0; index < list.value.length; index += 1) {
       const current = list.value[index]
       const payload = preparedMediaByEventId.get(current?.id)
@@ -346,11 +358,11 @@ export const useEventsStore = defineStore('events', () => {
       }
 
       list.value[index] = next
-      hasUpdates = true
-      await addEvent(next)
+      updatedRecords.push(next)
     }
 
-    if (hasUpdates) {
+    if (updatedRecords.length > 0) {
+      await saveEvents(updatedRecords)
       triggerRef(list)
       // Notify image cache to refresh object URLs so UI picks up updated public URLs
       try {
