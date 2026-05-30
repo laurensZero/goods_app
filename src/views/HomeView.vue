@@ -939,15 +939,18 @@ onMounted(async () => {
 onActivated(async () => {
   isRouteLeaving = false
   isHomeActive.value = true
-  cancelGoodsBackHeroRetry()
-  clearHomeBackHeroDeferredRestoreTimer()
 
   // Restore group folder sheet if returning from detail that was opened from the sheet
   const restoreGroupId = sessionStorage.getItem(GROUP_RESTORE_KEY)
-  if (restoreGroupId) {
+  const isGroupRestore = !!restoreGroupId
+  if (isGroupRestore) {
     sessionStorage.removeItem(GROUP_RESTORE_KEY)
     activeGroupId.value = restoreGroupId
     showGroupFolder.value = true
+    // Don't cancel hero back — the group sheet will play it via onSheetOpened
+  } else {
+    cancelGoodsBackHeroRetry()
+    clearHomeBackHeroDeferredRestoreTimer()
   }
   if (shouldScrollToTopOnActivated) {
     shouldScrollToTopOnActivated = false
@@ -976,22 +979,23 @@ onActivated(async () => {
   )
   await nextTick()
   syncAddMotionContext()
-  // Try to hide the hero target synchronously before lifting the mask.
-  // scheduleGoodsBackHeroRetry() only queues a rAF — if the target is
-  // already in the DOM (which it should be after nextTick+layout), we
-  // can apply hideElement in this same frame so the user never sees the
-  // target card uncovered.  If the target isn't ready yet, keep the mask
-  // on and let the retry callback unmask when it succeeds.
-  const played = tryPlayNativeGoodsBackHero()
-  if (played) {
+
+  if (isGroupRestore) {
+    // Group sheet handles hero back via onSheetOpened — skip main list hero
     homeDisplayReady.value = true
-  } else if (hasPendingGoodsHeroBack(route.fullPath)) {
-    scheduleGoodsBackHeroRetry(0, {
-      onPlayed: () => { homeDisplayReady.value = true },
-      onGiveUp: () => { homeDisplayReady.value = true }
-    })
   } else {
-    homeDisplayReady.value = true
+    // Try to hide the hero target synchronously before lifting the mask.
+    const played = tryPlayNativeGoodsBackHero()
+    if (played) {
+      homeDisplayReady.value = true
+    } else if (hasPendingGoodsHeroBack(route.fullPath)) {
+      scheduleGoodsBackHeroRetry(0, {
+        onPlayed: () => { homeDisplayReady.value = true },
+        onGiveUp: () => { homeDisplayReady.value = true }
+      })
+    } else {
+      homeDisplayReady.value = true
+    }
   }
   bindPageScroll()
   updateSelectionHeaderPosition()
