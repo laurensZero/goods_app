@@ -29,6 +29,14 @@
             <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
         </button>
+        <button class="nav-icon-btn" type="button" :aria-label="t('goodsGroup.addToGroup')" @click="showAddToGroupSheet = true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <path d="M17.5 14v7M14 17.5h7" />
+          </svg>
+        </button>
         <button class="nav-icon-btn danger" type="button" :aria-label="t('common.aria.delete')" @click="handleDelete">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3 6H21" />
@@ -268,6 +276,12 @@
 
     <ShareSheet :show="showShareSheet" :goods-items="item ? [item] : []" @close="showShareSheet = false" />
 
+    <AddToGroupSheet
+      v-model:show="showAddToGroupSheet"
+      :group-type="item?.isWishlist ? 'wishlist' : 'collection'"
+      :goods-ids="item ? [item.id] : []"
+    />
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -293,6 +307,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
+import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
@@ -392,6 +407,7 @@ const trackList = computed(() =>
 )
 const showDeleteDialog = ref(false)
 const showShareSheet = ref(false)
+const showAddToGroupSheet = ref(false)
 const activeImageId = ref('')
 const mihoyoCookie = ref('')
 const showCartDialog = ref(false)

@@ -18,6 +18,7 @@ import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
 import { useExchangeRateStore } from './stores/exchangeRate'
 import { useRechargeStore } from './stores/recharge'
+import { useGoodsGroupStore } from './stores/goodsGroup'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
@@ -150,6 +151,7 @@ async function bootstrap() {
   const store = useGoodsStore()
   const eventsStore = useEventsStore()
   const rechargeStore = useRechargeStore()
+  const goodsGroupStore = useGoodsGroupStore()
   const presets = usePresetsStore()
   const filterPresets = useFilterPresetsStore()
   const theme = useThemeStore()
@@ -177,10 +179,10 @@ async function bootstrap() {
     console.warn('[bootstrap] presets.syncPresetsIfNeeded failed:', e)
   })
   
-  // events + recharge 延迟到 App 挂载后（不影响首屏）
+  // events + recharge + goodsGroup 延迟到 App 挂载后（不影响首屏）
   const deferredStoreInit = async () => {
     try {
-      await Promise.all([eventsStore.init(), rechargeStore.init()])
+      await Promise.all([eventsStore.init(), rechargeStore.init(), goodsGroupStore.init()])
     } catch (e) {
       console.error('[bootstrap] deferred store init failed:', e)
     }

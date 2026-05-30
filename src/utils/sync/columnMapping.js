@@ -44,7 +44,17 @@ const CAMEL_TO_SNAKE = {
   budgetMonthly: 'budget_monthly',
   budgetYearly: 'budget_yearly',
   // sync_presets
-  storageLocations: 'storage_locations'
+  storageLocations: 'storage_locations',
+  // goods_groups
+  summaryMode: 'summary_mode',
+  totalAmount: 'total_amount',
+  coverMode: 'cover_mode',
+  coverItemId: 'cover_item_id',
+  displayMode: 'display_mode',
+  // goods_group_items
+  groupId: 'group_id',
+  goodsId: 'goods_id',
+  sortOrder: 'sort_order'
 }
 
 const SNAKE_TO_CAMEL = Object.fromEntries(

@@ -25,6 +25,13 @@ export default [
     props: true
   },
   {
+    path: '/group/:id',
+    name: 'group-detail',
+    component: () => import('@/views/GroupDetailView.vue'),
+    meta: { titleKey: 'nav.groupDetail' },
+    props: true
+  },
+  {
     path: '/edit/:id',
     name: 'edit',
     component: () => import('@/views/EditItemView.vue'),

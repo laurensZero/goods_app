@@ -14,23 +14,40 @@
         aria-hidden="true"
         :style="{ height: `${beforeSpacerHeight}px` }"
       />
-      <GoodsCard
-        v-for="(item, index) in items"
-        :key="item.id"
-        :ref="(instance) => setCardRef(item.id, instance)"
-        :item="item"
-        :density="density"
-        :transitioning="transitioning"
-        :motion-style="cardMotionStyles[item.id]"
-        :data-goods-id="item.id"
-        :data-scroll-anchor="'goods-card'"
-        :data-scroll-index="index + indexOffset"
-        :selected="selectedIds?.has?.(item.id) ?? false"
-        :selection-mode="selectionMode"
-        @long-press="emit('long-press', item.id)"
-        @toggle-select="emit('toggle-select', item.id)"
-        @open-detail="(payload) => emit('open-detail', payload || item.id)"
-      />
+      <template v-for="(item, index) in items" :key="item.id">
+        <GroupCard
+          v-if="item._type === 'group'"
+          :ref="(instance) => setCardRef(item.id, instance)"
+          :group="item._group"
+          :items="item._members"
+          :total-price="item._totalPrice || 0"
+          :density="density"
+          :selected="selectedIds?.has?.(item.id) ?? false"
+          :selection-mode="selectionMode"
+          :data-goods-id="item.id"
+          :data-scroll-anchor="'goods-card'"
+          :data-scroll-index="index + indexOffset"
+          @long-press="emit('long-press', item.id)"
+          @toggle-select="emit('toggle-select', item.id)"
+          @open-group="(groupId) => emit('open-group', groupId)"
+        />
+        <GoodsCard
+          v-else
+          :ref="(instance) => setCardRef(item.id, instance)"
+          :item="item"
+          :density="density"
+          :transitioning="transitioning"
+          :motion-style="cardMotionStyles[item.id]"
+          :data-goods-id="item.id"
+          :data-scroll-anchor="'goods-card'"
+          :data-scroll-index="index + indexOffset"
+          :selected="selectedIds?.has?.(item.id) ?? false"
+          :selection-mode="selectionMode"
+          @long-press="emit('long-press', item.id)"
+          @toggle-select="emit('toggle-select', item.id)"
+          @open-detail="(payload) => emit('open-detail', payload || item.id)"
+        />
+      </template>
       <div
         v-if="afterSpacerHeight > 0"
         class="goods-list-spacer"
@@ -45,6 +62,7 @@
 import { nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
+import GroupCard from '@/components/goods/GroupCard.vue'
 import { shouldBlockGoodsCardRepaint } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'GoodsCardGridSection' })
@@ -108,7 +126,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
+const emit = defineEmits(['long-press', 'toggle-select', 'open-detail', 'open-group'])
 
 const goodsListEl = ref(null)
 const cardRefs = new Map()

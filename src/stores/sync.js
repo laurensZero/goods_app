@@ -5,6 +5,7 @@ import { useGoodsStore } from './goods'
 import { useEventsStore } from './events'
 import { usePresetsStore, normalizeCharacterName } from './presets'
 import { useRechargeStore } from '@/stores/recharge'
+import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
 import { createSyncOrchestrator } from '@/services/syncOrchestrator'
@@ -295,7 +296,7 @@ export const useSyncStore = defineStore('sync', () => {
     buildComparableEventStateFromData, buildManifest
   } = createSyncPayloadService({
     deviceIdRef: deviceId, imageGistIdRef: imageGistId, lastSyncedAtRef: lastSyncedAt,
-    buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore,
+    buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore, useGoodsGroupStore,
     readLocalImageAsDataUrl, compressImageToBlob, imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
   })
 
@@ -339,7 +340,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   const orchestrator = createSyncOrchestrator({
     backend, payload: payloadService, image: imageService, conflict: conflictService,
-    useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, trackSyncStep,
+    useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, useGoodsGroupStore, trackSyncStep,
     constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME }
   })
 

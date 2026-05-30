@@ -97,6 +97,33 @@ CREATE TABLE IF NOT EXISTS sync_presets (
   storage_locations JSONB DEFAULT '[]'
 );
 
+-- goods_groups 表（谷子组）
+CREATE TABLE IF NOT EXISTS goods_groups (
+  id           TEXT PRIMARY KEY NOT NULL,
+  name         TEXT NOT NULL DEFAULT '',
+  type         TEXT NOT NULL DEFAULT 'collection',
+  summary_mode TEXT DEFAULT 'auto',
+  total_amount REAL DEFAULT 0,
+  cover_mode   TEXT DEFAULT 'auto',
+  cover_item_id TEXT DEFAULT '',
+  display_mode TEXT DEFAULT 'list',
+  note         TEXT DEFAULT '',
+  updated_at   TIMESTAMPTZ DEFAULT now(),
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  synced_by    TEXT DEFAULT ''
+);
+
+-- goods_group_items 表（谷子组成员关系）
+CREATE TABLE IF NOT EXISTS goods_group_items (
+  id         TEXT PRIMARY KEY NOT NULL,
+  group_id   TEXT NOT NULL REFERENCES goods_groups(id) ON DELETE CASCADE,
+  goods_id   TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  synced_by  TEXT DEFAULT ''
+);
+
 -- Realtime: synced_by 列（标记写入设备，用于过滤自己的 Realtime 事件）
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -107,11 +134,17 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
 ALTER PUBLICATION supabase_realtime ADD TABLE goods;
 ALTER PUBLICATION supabase_realtime ADD TABLE events;
 ALTER PUBLICATION supabase_realtime ADD TABLE recharge_records;
+ALTER PUBLICATION supabase_realtime ADD TABLE goods_groups;
+ALTER PUBLICATION supabase_realtime ADD TABLE goods_group_items;
 
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_goods_updated_at ON goods(updated_at);
 CREATE INDEX IF NOT EXISTS idx_events_updated_at ON events(updated_at);
 CREATE INDEX IF NOT EXISTS idx_recharge_updated_at ON recharge_records(updated_at);
+CREATE INDEX IF NOT EXISTS idx_goods_groups_updated_at ON goods_groups(updated_at);
+CREATE INDEX IF NOT EXISTS idx_goods_group_items_group_id ON goods_group_items(group_id);
+CREATE INDEX IF NOT EXISTS idx_goods_group_items_goods_id ON goods_group_items(goods_id);
+CREATE INDEX IF NOT EXISTS idx_goods_group_items_updated_at ON goods_group_items(updated_at);
 
 -- 禁用 RLS（用户自备项目，不需要行级安全）
 ALTER TABLE goods DISABLE ROW LEVEL SECURITY;
@@ -119,6 +152,8 @@ ALTER TABLE events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE recharge_records DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_manifest DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_presets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE goods_groups DISABLE ROW LEVEL SECURITY;
+ALTER TABLE goods_group_items DISABLE ROW LEVEL SECURITY;
 
 -- Supabase Data API GRANT 权限配置（May 30, 2026 变更）
 -- https://supabase.com/docs/guides/database/postgres/schema#access-control
@@ -147,6 +182,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO service_role;
+
+-- goods_groups 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO service_role;
+
+-- goods_group_items 表权限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO service_role;
 
 -- Storage RLS policy: allow anon full access to goods-images bucket
 CREATE POLICY "Allow anon access to goods-images" ON storage.objects

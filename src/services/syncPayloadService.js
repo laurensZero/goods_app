@@ -29,6 +29,7 @@ export function createSyncPayloadService({
   useGoodsStore,
   useRechargeStore,
   useEventsStore,
+  useGoodsGroupStore,
   readLocalImageAsDataUrl,
   compressImageToBlob,
   imageFileSizeLimit
@@ -413,6 +414,11 @@ export function createSyncPayloadService({
 
     const budgetSettings = await readBudgetSettings()
 
+    // Include goods groups
+    const goodsGroupStore = useGoodsGroupStore()
+    const goodsGroups = goodsGroupStore.groupList || []
+    const goodsGroupItems = goodsGroupStore.groupItemList || []
+
     return {
       syncData: {
         version: SYNC_PAYLOAD_VERSION,
@@ -421,7 +427,9 @@ export function createSyncPayloadService({
         goods,
         trash,
         presets: await buildPresetsData(),
-        budgetSettings
+        budgetSettings,
+        goodsGroups,
+        goodsGroupItems
       },
       imageStats,
       imageFiles,

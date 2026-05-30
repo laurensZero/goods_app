@@ -38,7 +38,7 @@ import { useAppStartup } from '@/composables/useAppStartup'
 const route = useRoute()
 const syncStore = useSyncStore()
 
-const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView']
+const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView']
 const showTabBar = computed(() => route.meta.showTabBar === true)
 
 function getKeepAliveKey(currentRoute) {
