@@ -1,9 +1,9 @@
 {
-  "version": "20260531.6",
-  "url": "bundle-20260531.6.zip",
-  "hash": "e7600f773f2557ed496098b29323ccaca7920d84c5429e3d4a3a51f02398ed3c",
+  "version": "20260531.7",
+  "url": "bundle-20260531.7.zip",
+  "hash": "fd0a8353a0b2cb6e5ca005a7177a2526b9cac1b33a572daacba3bc6deadaec42",
   "minNativeVersion": null,
-  "notes": "- feat: 优化缓存数据使用逻辑和同步延迟时间",
+  "notes": "- feat: 优化价格显示逻辑，增加密度模式下的CNY提示",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-31T09:50:06Z"
+  "publishedAt": "2026-05-31T10:06:06Z"
 }
