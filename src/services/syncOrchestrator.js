@@ -195,7 +195,7 @@ export function createSyncOrchestrator({
     const useIncrementalEventPull = enableIncrementalEvents && isSupabaseBackend && localEventLatestTs > 0
 
     const cachedRemoteData = options.cachedRemoteData
-    const canUseCachedData = cachedRemoteData && !useIncrementalGoodsPull
+    const canUseCachedData = !!cachedRemoteData
 
     const remoteData = canUseCachedData
       ? cachedRemoteData

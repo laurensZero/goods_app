@@ -527,7 +527,7 @@ export const useSyncStore = defineStore('sync', () => {
           message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
-    }, 8000)
+    }, 2000)
   }
 
   // ── Public API ──
