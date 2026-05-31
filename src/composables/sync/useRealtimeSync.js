@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
 /**
  * Supabase Realtime 订阅 composable
- * 监听 goods/events/recharge_records 表的变更，过滤自己的写入，触发 pullOnly
+ * 监听主数据表的变更，过滤自己的写入，触发 pullOnly
  */
 export function useRealtimeSync({ syncStore }) {
   const channel = ref(null)

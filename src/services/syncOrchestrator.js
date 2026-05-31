@@ -1,4 +1,4 @@
-import { asyncBuildComparableRecordMap, buildImageSyncStats, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
+import { asyncBuildComparableRecordMap, buildImageSyncStats, buildTimestampRecordMap, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
 import { Capacitor } from '@capacitor/core'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
@@ -189,8 +189,8 @@ export function createSyncOrchestrator({
     const presets = usePresetsStore()
     const eventsStore = useEventsStore()
 
-    const localGoodsLatestTs = getLatestGoodsTrashTimestamp(goodsStore.list, goodsStore.trashList)
-    const useIncrementalGoodsPull = enableIncrementalGoods && isSupabaseBackend && localGoodsLatestTs > 0
+    const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
+    const useIncrementalGoodsPull = enableIncrementalGoods && isSupabaseBackend && localSyncTime > 0
     const localEventLatestTs = getLatestEventTimestamp(eventsStore.list || [])
     const useIncrementalEventPull = enableIncrementalEvents && isSupabaseBackend && localEventLatestTs > 0
 
@@ -207,7 +207,7 @@ export function createSyncOrchestrator({
           category: 'pull',
           required: true,
           missingMessage: '远端数据为空',
-          incrementalSince: useIncrementalGoodsPull ? localGoodsLatestTs : 0,
+          incrementalSince: useIncrementalGoodsPull ? localSyncTime : 0,
           successDetail: (parsed) => {
             if (!parsed) return '未找到远端主数据'
             const goods = Array.isArray(parsed.goods) ? parsed.goods : []
@@ -260,7 +260,6 @@ export function createSyncOrchestrator({
       yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
     })
 
-    const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
     const remoteWatermark = getRemoteWatermark(remoteManifest, remoteData, rechargeData, eventData)
     const localResolved = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const remoteResolved = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
@@ -279,6 +278,17 @@ export function createSyncOrchestrator({
     const goodsTrashIncrementalCompare = useIncrementalGoodsPull
       ? countIncrementalComparableDiff(localGoodsTrashMap, remoteGoodsTrashMap)
       : goodsTrashCompare
+    const goodsGroupStore = useGoodsGroupStore()
+    const localGroupMap = buildTimestampRecordMap(goodsGroupStore.groupList || [])
+    const remoteGroupMap = buildTimestampRecordMap(Array.isArray(remoteData?.goodsGroups) ? remoteData.goodsGroups : [])
+    const localGroupItemMap = buildTimestampRecordMap(goodsGroupStore.groupItemList || [])
+    const remoteGroupItemMap = buildTimestampRecordMap(Array.isArray(remoteData?.goodsGroupItems) ? remoteData.goodsGroupItems : [])
+    const groupCompare = useIncrementalGoodsPull
+      ? countIncrementalComparableDiff(localGroupMap, remoteGroupMap)
+      : countComparableRecordDiff(localGroupMap, remoteGroupMap)
+    const groupItemCompare = useIncrementalGoodsPull
+      ? countIncrementalComparableDiff(localGroupItemMap, remoteGroupItemMap)
+      : countComparableRecordDiff(localGroupItemMap, remoteGroupItemMap)
     const rechargeCompare = !shouldPullRecharge
       ? { remoteTotal: localRechargeMap.size, remoteOnly: 0, localOnly: 0, updated: 0 }
       : (useIncrementalRechargePull
@@ -291,6 +301,8 @@ export function createSyncOrchestrator({
 
     const hasDataChangesBeforeImages = (
       goodsTrashIncrementalCompare.remoteOnly > 0 || goodsTrashIncrementalCompare.localOnly > 0 || goodsTrashIncrementalCompare.updated > 0
+      || groupCompare.remoteOnly > 0 || groupCompare.localOnly > 0 || groupCompare.updated > 0
+      || groupItemCompare.remoteOnly > 0 || groupItemCompare.localOnly > 0 || groupItemCompare.updated > 0
       || rechargeCompare.remoteOnly > 0 || rechargeCompare.localOnly > 0 || rechargeCompare.updated > 0
       || eventCompare.remoteOnly > 0 || eventCompare.localOnly > 0 || eventCompare.updated > 0
     )
@@ -428,7 +440,6 @@ export function createSyncOrchestrator({
 
     // Handle goods groups
     if (useGoodsGroupStore) {
-      const goodsGroupStore = useGoodsGroupStore()
       const remoteGroups = Array.isArray(remoteData.goodsGroups) ? remoteData.goodsGroups : []
       const remoteGroupItems = Array.isArray(remoteData.goodsGroupItems) ? remoteData.goodsGroupItems : []
       if (remoteGroups.length > 0 || remoteGroupItems.length > 0) {
@@ -653,24 +664,34 @@ export function createSyncOrchestrator({
     if (shouldWriteData && isSupabaseIncrementalUpload && uploadPlan?.remoteData) {
       const localGoodsRows = syncData.goods || []
       const localTrashRows = syncData.trash || []
+      const localGroupRows = syncData.goodsGroups || []
+      const localGroupItemRows = syncData.goodsGroupItems || []
       const remoteGoodsRows = uploadPlan.remoteData.goods || []
       const remoteTrashRows = uploadPlan.remoteData.trash || []
-      const [goodsDiffRows, trashDiffRows] = await Promise.all([
+      const remoteGroupRows = uploadPlan.remoteData.goodsGroups || []
+      const remoteGroupItemRows = uploadPlan.remoteData.goodsGroupItems || []
+      const [goodsDiffRows, trashDiffRows, groupDiffRows, groupItemDiffRows] = await Promise.all([
         buildRowsDiff(localGoodsRows, remoteGoodsRows),
-        buildRowsDiff(localTrashRows, remoteTrashRows)
+        buildRowsDiff(localTrashRows, remoteTrashRows),
+        buildRowsDiff(localGroupRows, remoteGroupRows),
+        buildRowsDiff(localGroupItemRows, remoteGroupItemRows)
       ])
 
       dataMap[DATA_FILENAME] = {
         content: {
           ...syncData,
           goods: goodsDiffRows,
-          trash: trashDiffRows
+          trash: trashDiffRows,
+          goodsGroups: groupDiffRows,
+          goodsGroupItems: groupItemDiffRows
         }
       }
       writeOptions.deleteIdsByFile[DATA_FILENAME] = buildDeleteIds(
         [...localGoodsRows, ...localTrashRows],
         [...remoteGoodsRows, ...remoteTrashRows]
       )
+      writeOptions.deleteIdsByFile.goodsGroups = buildDeleteIds(localGroupRows, remoteGroupRows)
+      writeOptions.deleteIdsByFile.goodsGroupItems = buildDeleteIds(localGroupItemRows, remoteGroupItemRows)
     } else if (shouldWriteData) {
       dataMap[DATA_FILENAME] = { content: syncData }
     }

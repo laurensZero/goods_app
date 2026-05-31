@@ -555,7 +555,8 @@ export function createSupabaseBackendAdapter({
 
         // Sync goods_groups
         const goodsGroups = Array.isArray(content.goodsGroups) ? content.goodsGroups : []
-        if (goodsGroups.length > 0) {
+        const goodsGroupDeleteIds = deleteIdsByFile.goodsGroups || []
+        if (goodsGroups.length > 0 || goodsGroupDeleteIds.length > 0) {
           const groupRows = goodsGroups.map(item => toSnakeCase({
             ...pickCols(item, GOODS_GROUP_COLS),
             totalAmount: Number(item.totalAmount) || 0,
@@ -566,13 +567,14 @@ export function createSupabaseBackendAdapter({
           await syncTableRows(db, 'goods_groups', groupRows, {
             label: 'goods_groups',
             incremental,
-            deleteIds: []
+            deleteIds: goodsGroupDeleteIds
           })
         }
 
         // Sync goods_group_items
         const goodsGroupItems = Array.isArray(content.goodsGroupItems) ? content.goodsGroupItems : []
-        if (goodsGroupItems.length > 0) {
+        const goodsGroupItemDeleteIds = deleteIdsByFile.goodsGroupItems || []
+        if (goodsGroupItems.length > 0 || goodsGroupItemDeleteIds.length > 0) {
           const itemRows = goodsGroupItems.map(item => toSnakeCase({
             ...pickCols(item, GOODS_GROUP_ITEM_COLS),
             sortOrder: Number(item.sortOrder) || 0,
@@ -583,7 +585,7 @@ export function createSupabaseBackendAdapter({
           await syncTableRows(db, 'goods_group_items', itemRows, {
             label: 'goods_group_items',
             incremental,
-            deleteIds: []
+            deleteIds: goodsGroupItemDeleteIds
           })
         }
 
