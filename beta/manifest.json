@@ -1,9 +1,9 @@
 {
-  "version": "20260531.7",
-  "url": "bundle-20260531.7.zip",
-  "hash": "fd0a8353a0b2cb6e5ca005a7177a2526b9cac1b33a572daacba3bc6deadaec42",
+  "version": "20260531.8",
+  "url": "bundle-20260531.8.zip",
+  "hash": "e06c39a1e56f12f7e164eb14db7ad65f52cfa50f67be16f1a5c4cf3c1685d1ce",
   "minNativeVersion": null,
-  "notes": "- feat: 优化价格显示逻辑，增加密度模式下的CNY提示",
+  "notes": "- feat: 添加更多操作按钮及其弹出层功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-31T10:06:06Z"
+  "publishedAt": "2026-05-31T13:16:33Z"
 }
