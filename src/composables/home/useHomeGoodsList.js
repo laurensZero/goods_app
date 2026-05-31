@@ -10,9 +10,10 @@ const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
  * @param {object} [groupStore] - goodsGroup store (optional)
  * @param {object} [exchangeRate] - exchangeRate store (optional)
  */
-export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate) {
+export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate, externalList) {
   const listData = computed(() => {
-    const items = sortHomeGoodsList(store.collectionViewList, sortMode.value, sortDirection.value)
+    const sourceItems = externalList?.value ?? store.collectionViewList
+    const items = sortHomeGoodsList(sourceItems, sortMode.value, sortDirection.value)
     let totalVal = 0
     let totalQty = 0
     const byId = new Map()

@@ -3,7 +3,7 @@
     <div class="goods-header-row">
       <div class="goods-header-left">
         <p class="section-label">{{ sectionLabel }}</p>
-        <h2 class="section-title">{{ title }}<span class="goods-count"> {{ t('leaderboard.items', { count: totalQuantity }) }}</span></h2>
+        <h2 class="section-title">{{ title }}<span class="goods-count"> {{ t('leaderboard.items', { count: totalQuantity }) }}</span><span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span></h2>
       </div>
 
       <div class="goods-header-btns">
@@ -130,7 +130,8 @@ const props = defineProps({
   isSortAnimating: { type: Boolean, default: false },
   displayDensity: { type: String, required: true },
   densityModes: { type: Array, required: true },
-  showTimelineToggle: { type: Boolean, default: true }
+  showTimelineToggle: { type: Boolean, default: true },
+  activeFilterCount: { type: Number, default: 0 }
 })
 
 const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode'])
@@ -259,6 +260,18 @@ onBeforeUnmount(() => {
   color: var(--app-text-tertiary);
   font-size: 16px;
   font-weight: 400;
+}
+
+.filter-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border-radius: 8px;
+  background: var(--color-primary, #07c160);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: middle;
 }
 
 .section-label {

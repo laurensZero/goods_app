@@ -12,7 +12,7 @@
         </div>
 
         <div class="hero-actions">
-          <button class="hero-search" type="button" :aria-label="t('home.wishlist.searchAria')" @click="openSearch">
+          <button :class="['hero-search', { 'hero-search--active': searchActiveFilterCount > 0 }]" type="button" :aria-label="t('home.wishlist.searchAria')" @click="openSearch">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20L16.65 16.65" />
@@ -60,6 +60,7 @@
         :display-density="displayDensity"
         :density-modes="densityModes"
         :show-timeline-toggle="false"
+        :active-filter-count="searchActiveFilterCount"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortMode"
         @set-density="setDisplayDensityWithFlip"
@@ -158,6 +159,34 @@
       @before-navigate="markGroupRestore"
     />
 
+    <SearchFilterPopup
+      v-model:visible="showSearchPopup"
+      :filters="searchFilters"
+      :category-options="searchCategoryOptions"
+      :ip-options="searchIpOptions"
+      :character-options="searchCharacterOptions"
+      :visible-character-options="searchVisibleCharacterOptions"
+      :has-collapsed-character-options="searchHasCollapsedCharacterOptions"
+      :show-all-character-options="searchShowAllCharacterOptions"
+      :storage-location-tree="[]"
+      :has-unassigned-storage-location="false"
+      :active-filter-count="searchActiveFilterCount"
+      scope="wishlist"
+      :search-presets="searchPresetsList"
+      :active-preset-id="searchActivePresetId"
+      :active-preset-name="searchActivePresetName"
+      :format-preset-summary="searchFormatPresetSummary"
+      @update-keyword="handleSearchUpdateKeyword"
+      @update-field="handleSearchUpdateField"
+      @toggle-filter="handleSearchToggleFilter"
+      @toggle-character-expand="handleSearchToggleCharacterExpand"
+      @reset="searchResetFilters"
+      @select-preset="searchApplyPreset"
+      @save-preset="searchSaveNewPreset"
+      @update-preset="searchUpdateActivePreset"
+      @remove-preset="searchRemovePreset"
+    />
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -202,6 +231,10 @@ import { useToast } from '@/composables/useToast'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
+import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
+import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
+import { usePresetsStore } from '@/stores/presets'
+import { useFilterPresetsStore } from '@/stores/filterPresets'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -241,6 +274,8 @@ const ROW_HEIGHT_MAP = {
 const router = useRouter()
 const route = useRoute()
 const store = useGoodsStore()
+const presetsStore = usePresetsStore()
+const filterPresetsStore = useFilterPresetsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
@@ -286,6 +321,32 @@ const {
     expandedTimelineItem: 'goods-app:wishlist-expanded-item-unused'
   }
 })
+
+const {
+  filters: searchFilters,
+  activeFilterCount: searchActiveFilterCount,
+  filteredItems: searchFilteredList,
+  categoryOptions: searchCategoryOptions,
+  ipOptions: searchIpOptions,
+  characterOptions: searchCharacterOptions,
+  visibleCharacterOptions: searchVisibleCharacterOptions,
+  hasCollapsedCharacterOptions: searchHasCollapsedCharacterOptions,
+  showAllCharacterOptions: searchShowAllCharacterOptions,
+  hasUnassignedStorageLocation: searchHasUnassignedStorageLocation,
+  storageLocationTree: searchStorageLocationTree,
+  searchPresets: searchPresetsList,
+  activePresetId: searchActivePresetId,
+  activePresetName: searchActivePresetName,
+  applyPreset: searchApplyPreset,
+  saveNewPreset: searchSaveNewPreset,
+  updateActivePreset: searchUpdateActivePreset,
+  removePreset: searchRemovePreset,
+  resetFilters: searchResetFilters,
+  toggleFilterValue: searchToggleFilterValue,
+  formatPresetSummary: searchFormatPresetSummary
+} = useGoodsSearch(computed(() => store.wishlistViewList), { scope: 'wishlist' })
+
+const showSearchPopup = ref(false)
 
 const {
   getScrollEl,
@@ -369,7 +430,7 @@ const visibleGoodsEndIndex = computed(() =>
     : displayList.value.length
 )
 
-const goodsList = computed(() => sortHomeGoodsList(baseGoodsList.value, sortMode.value, sortDirection.value))
+const goodsList = computed(() => sortHomeGoodsList(searchFilteredList.value, sortMode.value, sortDirection.value))
 
 // Goods groups — merged into displayList with goods
 const groupViewItems = computed(() => {
@@ -669,16 +730,13 @@ function openDetail(id) {
 }
 
 function openSearch() {
-  saveScrollPosition(true, 'wishlist:openSearch')
-  runWithRouteTransition(
-    () => router.push('/search?scope=wishlist'),
-    {
-      direction: 'forward',
-      preferFallback: true,
-      detailTransitionKind: 'search-enter'
-    }
-  )
+  showSearchPopup.value = true
 }
+
+function handleSearchUpdateKeyword(value) { searchFilters.keyword = value }
+function handleSearchUpdateField({ key, value }) { searchFilters[key] = value }
+function handleSearchToggleFilter({ key, value }) { searchToggleFilterValue(key, value) }
+function handleSearchToggleCharacterExpand() { searchShowAllCharacterOptions.value = !searchShowAllCharacterOptions.value }
 
 function persistHomeMode(mode) {
   const normalizedMode = mode === 'recharge' ? 'recharge' : 'goods'
@@ -1175,6 +1233,21 @@ onBeforeRouteLeave(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.hero-search--active {
+  position: relative;
+}
+
+.hero-search--active::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary, #07c160);
 }
 </style>
 

@@ -344,3 +344,49 @@ export function applyGoodsFilters(list, input) {
 
   return sortGoodsList(filtered, filters.sortBy)
 }
+
+export function filterGoodsList(list, input) {
+  const filters = normalizeGoodsFilterConditions(input)
+  const keyword = filters.keyword.toLowerCase()
+  const priceMin = parseNumberLike(filters.priceMin)
+  const priceMax = parseNumberLike(filters.priceMax)
+  const presetFloor = getDatePresetFloor(filters.acquiredPreset)
+  const customFrom = filters.acquiredPreset === 'custom' ? parseDateLike(filters.acquiredFrom) : 0
+  const customTo = filters.acquiredPreset === 'custom'
+    ? parseDateLike(filters.acquiredTo ? `${filters.acquiredTo}T23:59:59.999` : '')
+    : 0
+
+  return list.filter((item) => {
+    const matchesKeyword = !keyword || buildSearchText(item).includes(keyword)
+    if (!matchesKeyword) return false
+
+    if (!matchesSingleValue(filters.categories, item.category, GOODS_FILTER_SPECIAL_VALUES.uncategorized)) return false
+    if (!matchesSingleValue(filters.ips, item.ip, GOODS_FILTER_SPECIAL_VALUES.noIp)) return false
+    if (!includesAny(filters.characters, item.characters, GOODS_FILTER_SPECIAL_VALUES.noCharacter)) return false
+    if (!matchesStorageLocationValue(filters.storageLocations, item.storageLocation, GOODS_FILTER_SPECIAL_VALUES.noStorageLocation)) return false
+
+    if (priceMin != null && Number(item.priceNumber || 0) < priceMin) return false
+    if (priceMax != null && Number(item.priceNumber || 0) > priceMax) return false
+
+    if (presetFloor > 0 && Number(item.acquiredTime || 0) < presetFloor) return false
+
+    if (filters.acquiredPreset === 'custom') {
+      const acquiredTime = Number(item.acquiredTime || 0)
+      if ((customFrom || customTo) && !acquiredTime) return false
+      if (customFrom && acquiredTime < customFrom) return false
+      if (customTo && acquiredTime > customTo) return false
+    }
+
+    const hasImage = Array.isArray(item.images) ? item.images.length > 0 : Boolean(item.coverImage)
+    if (filters.hasImage === 'yes' && !hasImage) return false
+    if (filters.hasImage === 'no' && hasImage) return false
+
+    const hasNote = Boolean(String(item.note || '').trim())
+    if (filters.hasNote === 'yes' && !hasNote) return false
+    if (filters.hasNote === 'no' && hasNote) return false
+
+    if (!matchesCollectStatusFilter(filters.collectStatuses, item)) return false
+
+    return true
+  })
+}
