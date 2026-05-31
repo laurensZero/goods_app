@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.3",
+    "url": "bundle-20260531.3.zip",
+    "hash": "4cc1e7ee5334cb4d8d9b58fd2d6b1e87d6e1e92f1e48a870d0c1f35d81aee400",
+    "minNativeVersion": null,
+    "notes": "- feat: 谷子组云同步",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T08:43:13Z"
+  },
+  {
     "version": "20260531.2",
     "url": "bundle-20260531.2.zip",
     "hash": "f09869bb6269581c095d7064e3316e987a24d6aa23b5356e4f2351642f16bd4a",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复上传失败 feat: 谷子组自动触发上传\n\n- feat: 谷子组币种支持 添加谷子组hero动画",
     "updateLevel": "silent",
     "publishedAt": "2026-05-31T06:13:47Z"
-  },
-  {
-    "version": "20260530.6",
-    "url": "bundle-20260530.6.zip",
-    "hash": "3c52993f88ef28c05583cca3b0e4e923deacc2e015fac5e4585dc5ac213e930d",
-    "minNativeVersion": null,
-    "notes": "- feat: 简化购物车和组相关的文本描述",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-30T15:03:53Z"
   }
 ]
