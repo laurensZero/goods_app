@@ -19,6 +19,7 @@ export function createSyncConflictService({
   useGoodsStore,
   useRechargeStore,
   useEventsStore,
+  useGoodsGroupStore,
   shouldApplyRemoteItem,
   getExistingRechargeGist,
   getExistingEventGist,
@@ -34,16 +35,21 @@ export function createSyncConflictService({
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
+    const goodsGroupStore = useGoodsGroupStore()
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const goods = [...resolvedLocal.goodsMap.values()]
     const trash = [...resolvedLocal.trashMap.values()]
     const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const events = eventsStore.list || []
+    const groups = goodsGroupStore.groupList || []
+    const groupItems = goodsGroupStore.groupItemList || []
 
     const updatedGoods = goods.filter((item) => getItemTimestamp(item) > timestamp).length
     const updatedTrash = trash.filter((item) => getItemTimestamp(item) > timestamp).length
     const updatedRecharge = recharge.filter((item) => getItemTimestamp(item) > timestamp).length
     const updatedEvents = events.filter((item) => (Number(item.updatedAt) || 0) > timestamp).length
+    const updatedGroups = groups.filter((item) => (Number(item.updatedAt) || 0) > timestamp).length
+    const updatedGroupItems = groupItems.filter((item) => (Number(item.updatedAt) || 0) > timestamp).length
 
     return {
       updatedGoods,
@@ -54,7 +60,11 @@ export function createSyncConflictService({
       totalRecharge: recharge.length,
       totalEvents: events.length,
       updatedEvents,
-      hasChanges: updatedGoods > 0 || updatedTrash > 0 || updatedRecharge > 0 || updatedEvents > 0
+      updatedGroups,
+      updatedGroupItems,
+      totalGroups: groups.length,
+      totalGroupItems: groupItems.length,
+      hasChanges: updatedGoods > 0 || updatedTrash > 0 || updatedRecharge > 0 || updatedEvents > 0 || updatedGroups > 0 || updatedGroupItems > 0
     }
   }
 
@@ -203,6 +213,17 @@ export function createSyncConflictService({
       buildTimestampRecordMap(localEventData.events || []),
       buildTimestampRecordMap(remoteEventData.events || [])
     )
+
+    const goodsGroupStore = useGoodsGroupStore()
+    const groupDiff = countComparableRecordDiff(
+      buildTimestampRecordMap(goodsGroupStore.groupList || []),
+      buildTimestampRecordMap(remoteData?.goodsGroups || [])
+    )
+    const groupItemDiff = countComparableRecordDiff(
+      buildTimestampRecordMap(goodsGroupStore.groupItemList || []),
+      buildTimestampRecordMap(remoteData?.goodsGroupItems || [])
+    )
+
     const hasBudgetDiff = localBudgetData.monthly !== remoteBudgetData.monthly || localBudgetData.yearly !== remoteBudgetData.yearly
 
     const localImageMap = buildImageReferenceMap({
@@ -250,6 +271,14 @@ export function createSyncConflictService({
       remoteOnlyEvents: eventDiff.remoteOnly,
       updatedEvents: eventDiff.updated,
       localOnlyEvents: eventDiff.localOnly,
+      remoteGroupCount: groupDiff.remoteTotal,
+      remoteOnlyGroups: groupDiff.remoteOnly,
+      updatedGroups: groupDiff.updated,
+      localOnlyGroups: groupDiff.localOnly,
+      remoteGroupItemCount: groupItemDiff.remoteTotal,
+      remoteOnlyGroupItems: groupItemDiff.remoteOnly,
+      updatedGroupItems: groupItemDiff.updated,
+      localOnlyGroupItems: groupItemDiff.localOnly,
       remoteImageCount: imageDiff.remoteTotal,
       remoteOnlyImages: imageDiff.remoteOnly,
       updatedImages: imageDiff.updated,

@@ -530,11 +530,18 @@ export function createSyncPayloadService({
       ? normalizeBudgetSettings(budgetSettings || data.budgetSettings)
       : await readBudgetSettings()
 
+    const goodsGroups = (data?.goodsGroups || [])
+      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+    const goodsGroupItems = (data?.goodsGroupItems || [])
+      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+
     return asyncSortedStringify({
       goods,
       trash,
       presets: presetsData,
-      budgetSettings: resolvedBudgetSettings
+      budgetSettings: resolvedBudgetSettings,
+      goodsGroups,
+      goodsGroupItems
     })
   }
 
