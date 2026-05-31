@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.6",
+    "url": "bundle-20260531.6.zip",
+    "hash": "e7600f773f2557ed496098b29323ccaca7920d84c5429e3d4a3a51f02398ed3c",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化缓存数据使用逻辑和同步延迟时间",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T09:50:06Z"
+  },
+  {
     "version": "20260531.5",
     "url": "bundle-20260531.5.zip",
     "hash": "b42ab232bf0bca212d06082f3a76d0021593efb5dae49f7553408f487429ab3a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加获取待返回hero商品ID的功能并优化弹出层动画逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-05-31T09:04:38Z"
-  },
-  {
-    "version": "20260531.3",
-    "url": "bundle-20260531.3.zip",
-    "hash": "4cc1e7ee5334cb4d8d9b58fd2d6b1e87d6e1e92f1e48a870d0c1f35d81aee400",
-    "minNativeVersion": null,
-    "notes": "- feat: 谷子组云同步",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-31T08:43:13Z"
   }
 ]
