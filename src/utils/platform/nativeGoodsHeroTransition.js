@@ -154,6 +154,10 @@ export function hasPendingGoodsHeroBack(currentPath = '') {
   return isPendingBackHeroValid(pendingBackHero, currentPath)
 }
 
+export function getPendingBackHeroGoodsId() {
+  return pendingBackHero?.goodsId || ''
+}
+
 export function hasPendingEventHeroBack(currentPath = '') {
   return isPendingBackHeroValid(pendingBackEventHero, currentPath)
 }
