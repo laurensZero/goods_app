@@ -1,9 +1,9 @@
 {
-  "version": "20260530.6",
-  "url": "bundle-20260530.6.zip",
-  "hash": "3c52993f88ef28c05583cca3b0e4e923deacc2e015fac5e4585dc5ac213e930d",
+  "version": "20260531.1",
+  "url": "bundle-20260531.1.zip",
+  "hash": "35d794e217444c408fc29baeeb724f28beb2efc05aa7c77e57fba5c11ec96518",
   "minNativeVersion": null,
-  "notes": "- feat: 简化购物车和组相关的文本描述",
+  "notes": "- fix: 修复上传失败 feat: 谷子组自动触发上传\n\n- feat: 谷子组币种支持 添加谷子组hero动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-30T15:03:53Z"
+  "publishedAt": "2026-05-31T06:13:47Z"
 }

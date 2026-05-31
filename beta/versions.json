@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.1",
+    "url": "bundle-20260531.1.zip",
+    "hash": "35d794e217444c408fc29baeeb724f28beb2efc05aa7c77e57fba5c11ec96518",
+    "minNativeVersion": null,
+    "notes": "- fix: 修复上传失败 feat: 谷子组自动触发上传\n\n- feat: 谷子组币种支持 添加谷子组hero动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T06:13:47Z"
+  },
+  {
     "version": "20260530.6",
     "url": "bundle-20260530.6.zip",
     "hash": "3c52993f88ef28c05583cca3b0e4e923deacc2e015fac5e4585dc5ac213e930d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 搭建 Vitest 自动化单元测试体系\n  - 安装 vitest + @vue/test-utils + happy-dom\n  - 创建 vitest.config.js 独立配置\n  - 添加 test / test:watch 脚本\n  - 20 个测试文件覆盖 utils、stores、services 中的纯逻辑函数（388 个测试用例）\n  - 覆盖云同步模块：columnMapping、shared、cryptoManager、syncRetry、syncError 等\n  - GitHub Actions CI：PR 和 main 分支自动跑测试\n\n- feat: 添加原始图像源读取功能，优化图像缓存刷新逻辑\n\n- feat: 谷子组\n\n- feat: 优化组文件夹弹窗动画，支持从详情页返回时跳过动画",
     "updateLevel": "silent",
     "publishedAt": "2026-05-30T14:49:31Z"
-  },
-  {
-    "version": "20260530.4",
-    "url": "bundle-20260530.4.zip",
-    "hash": "31dc855d57bb306630b9327bd9161c4b92bbb7de073fbb4be0baad3f9d9d9262",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化异步操作并行执行，重构视图列表逻辑以支持收藏和愿望列表\n\n- refactor: 性能优化",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-30T10:40:31Z"
   }
 ]
