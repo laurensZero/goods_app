@@ -25,20 +25,15 @@ export function useDeepLinks() {
     let storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
     storagePath = storagePath.replace(/\/$/, '')
 
-    const stateKey = 'searchViewState:collection'
-    const nextState = buildNfcSearchState(storagePath)
+    // Store NFC filter for HomeView to pick up
+    localStorage.setItem('goods-app:nfc-storage-filter', JSON.stringify({
+      storageLocations: [storagePath],
+      timestamp: Date.now()
+    }))
 
-    await router.push({
-      path: '/search',
-      query: {
-        scope: 'collection',
-        action: 'nfc',
-        nfc: `${Date.now()}`
-      },
-      state: {
-        [stateKey]: nextState
-      }
-    }).catch(() => {})
+    window.dispatchEvent(new CustomEvent('goods-app:nfc-storage-filter'))
+
+    await router.push('/home').catch(() => {})
 
     return true
   }
@@ -66,12 +61,6 @@ export function useDeepLinks() {
     return false
   }
 
-  function isOneShotNfcSearchRoute(currentRoute) {
-    if (!currentRoute) return false
-    if (String(currentRoute.path || '') !== '/search') return false
-    return String(currentRoute.query?.action || '').toLowerCase() === 'nfc'
-  }
-
   onMounted(async () => {
     if (!Capacitor.isNativePlatform()) return
 
@@ -91,11 +80,6 @@ export function useDeepLinks() {
       }
     } catch (e) {
       console.warn('[app] getLaunchUrl failed:', e)
-    }
-
-    // NFC 跳转是一次性动作：普通冷启动时不应重复停留在带 action=nfc 的搜索页。
-    if (!handledStartupExternalUrl && isOneShotNfcSearchRoute(route)) {
-      await router.replace('/home').catch(() => {})
     }
 
     try {
