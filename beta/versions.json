@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.5",
+    "url": "bundle-20260531.5.zip",
+    "hash": "b42ab232bf0bca212d06082f3a76d0021593efb5dae49f7553408f487429ab3a",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新云同步",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T09:38:43Z"
+  },
+  {
     "version": "20260531.4",
     "url": "bundle-20260531.4.zip",
     "hash": "3e4278c6ca46bc7f4f9a0e9abf597009a11a08b6bc1e84e8c2f9b2efec0dee94",
@@ -16,14 +25,5 @@
     "notes": "- feat: 谷子组云同步",
     "updateLevel": "silent",
     "publishedAt": "2026-05-31T08:43:13Z"
-  },
-  {
-    "version": "20260531.2",
-    "url": "bundle-20260531.2.zip",
-    "hash": "f09869bb6269581c095d7064e3316e987a24d6aa23b5356e4f2351642f16bd4a",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化谷子组动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-31T06:43:23Z"
   }
 ]
