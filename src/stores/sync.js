@@ -326,6 +326,7 @@ export const useSyncStore = defineStore('sync', () => {
     useGoodsStore,
     useRechargeStore,
     useEventsStore,
+    useGoodsGroupStore,
     shouldApplyRemoteItem,
     getExistingRechargeGist: () => activeBackend.getExistingRechargeGist(),
     getExistingEventGist: () => activeBackend.getExistingEventGist(),
@@ -364,13 +365,16 @@ export const useSyncStore = defineStore('sync', () => {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
+    const goodsGroupStore = useGoodsGroupStore()
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const timestamps = [
       ...[...resolvedLocal.goodsMap.values()].map((item) => getItemTimestamp(item)),
       ...[...resolvedLocal.trashMap.values()].map((item) => getItemTimestamp(item)),
       ...recharge.map((item) => getItemTimestamp(item)),
-      ...(eventsStore.list || []).map((item) => Number(item?.updatedAt) || 0)
+      ...(eventsStore.list || []).map((item) => Number(item?.updatedAt) || 0),
+      ...(goodsGroupStore.groupList || []).map((item) => Number(item?.updatedAt) || 0),
+      ...(goodsGroupStore.groupItemList || []).map((item) => Number(item?.updatedAt) || 0)
     ]
     let latest = 0
     for (const ts of timestamps) { if (ts > latest) latest = ts }

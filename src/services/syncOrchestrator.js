@@ -168,6 +168,8 @@ export function createSyncOrchestrator({
     for (const item of rechargeData?.recharge || []) { const ts = getItemTimestamp(item); if (ts > max) max = ts }
     for (const item of rechargeData?.rechargeTrash || []) { const ts = getItemTimestamp(item); if (ts > max) max = ts }
     for (const item of eventData?.events || []) { const ts = Number(item?.updatedAt) || 0; if (ts > max) max = ts }
+    for (const item of remoteData?.goodsGroups || []) { const ts = Number(item?.updatedAt) || 0; if (ts > max) max = ts }
+    for (const item of remoteData?.goodsGroupItems || []) { const ts = Number(item?.updatedAt) || 0; if (ts > max) max = ts }
     return max
   }
 
@@ -884,10 +886,13 @@ export function createSyncOrchestrator({
       localEventComparableState,
       remoteEventComparableState
     ] = await Promise.all([
-      payload.buildComparableSyncStateFromData(
-        { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData },
-        { budgetSettings: localBudgetSettings }
-      ),
+      (() => {
+        const goodsGroupStore = useGoodsGroupStore()
+        return payload.buildComparableSyncStateFromData(
+          { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData, goodsGroups: goodsGroupStore.groupList, goodsGroupItems: goodsGroupStore.groupItemList },
+          { budgetSettings: localBudgetSettings }
+        )
+      })(),
       payload.buildComparableSyncStateFromData(remoteData, {
         budgetSettings: resolvedBudgetSettings
       }),
@@ -1084,6 +1089,8 @@ export function createSyncOrchestrator({
         || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0
         || diff.remoteOnlyEvents > 0 || diff.updatedEvents > 0
         || diff.hasBudgetDiff
+        || diff.remoteOnlyGroups > 0 || diff.updatedGroups > 0 || diff.localOnlyGroups > 0
+        || diff.remoteOnlyGroupItems > 0 || diff.updatedGroupItems > 0 || diff.localOnlyGroupItems > 0
       )
       if (!hasAnyDiff) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -1112,6 +1119,8 @@ export function createSyncOrchestrator({
         diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
         || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
         || hasRechargeContentDiff || hasEventContentDiff || diff.hasBudgetDiff
+        || diff.remoteOnlyGroups > 0 || diff.updatedGroups > 0 || diff.localOnlyGroups > 0
+        || diff.remoteOnlyGroupItems > 0 || diff.updatedGroupItems > 0 || diff.localOnlyGroupItems > 0
       )
       if (!hasPullConflict) {
         if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -1131,8 +1140,12 @@ export function createSyncOrchestrator({
     const pullRechargeContentDiff = hasRechargeContentDiff
     const pullEventContentDiff = hasEventContentDiff
     const pullBudgetContentDiff = diff.hasBudgetDiff
+    const pullGroupContentDiff = !!(
+      diff.remoteOnlyGroups > 0 || diff.updatedGroups > 0 || diff.localOnlyGroups > 0
+      || diff.remoteOnlyGroupItems > 0 || diff.updatedGroupItems > 0 || diff.localOnlyGroupItems > 0
+    )
 
-    if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff && !pullBudgetContentDiff) {
+    if (!pullGoodsContentDiff && !pullRechargeContentDiff && !pullEventContentDiff && !pullBudgetContentDiff && !pullGroupContentDiff) {
       if (remoteManifest.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       return { action: 'no_changes' }
     }
