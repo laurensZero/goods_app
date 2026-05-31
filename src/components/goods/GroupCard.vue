@@ -42,7 +42,7 @@
       <div class="group-card__bottom">
         <span class="group-card__price">
           {{ formattedPrice }}
-          <span v-if="priceCNYHint" class="group-card__price-cny">{{ priceCNYHint }}</span>
+          <span v-if="priceCNYHint && density !== 'compact'" class="group-card__price-cny">{{ priceCNYHint }}</span>
         </span>
         <span class="group-card__count">{{ itemCount }} {{ t('goodsGroup.items') }}</span>
       </div>
@@ -90,12 +90,6 @@ let gestureMoved = false
 const itemCount = computed(() => props.items.length)
 const currencySymbol = computed(() => CURRENCY_MAP[props.currency]?.symbol || '¥')
 
-// Original price with currency symbol
-const formattedPrice = computed(() => {
-  const v = props.totalPrice || 0
-  return `${currencySymbol.value}${Number.isInteger(v) ? String(v) : v.toFixed(2)}`
-})
-
 // CNY hint: convert via exchangeRate store directly for reactivity
 const priceCNYHint = computed(() => {
   if (props.currency === 'CNY') return ''
@@ -106,6 +100,16 @@ const priceCNYHint = computed(() => {
   const cny = exchangeRate.convertToCNY(v, props.currency)
   if (!cny || cny <= 0) return ''
   return `≈ ¥${cny.toFixed(2)}`
+})
+
+// Original price with currency symbol (compact mode: show CNY converted price instead)
+const formattedPrice = computed(() => {
+  const v = props.totalPrice || 0
+  if (props.density === 'compact' && props.currency !== 'CNY') {
+    const cny = exchangeRate.convertToCNY(v, props.currency)
+    if (cny && cny > 0) return `¥${cny.toFixed(2)}`
+  }
+  return `${currencySymbol.value}${Number.isInteger(v) ? String(v) : v.toFixed(2)}`
 })
 
 const thumbnails = computed(() => {
