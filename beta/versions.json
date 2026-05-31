@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.4",
+    "url": "bundle-20260531.4.zip",
+    "hash": "3e4278c6ca46bc7f4f9a0e9abf597009a11a08b6bc1e84e8c2f9b2efec0dee94",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加获取待返回hero商品ID的功能并优化弹出层动画逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T09:04:38Z"
+  },
+  {
     "version": "20260531.3",
     "url": "bundle-20260531.3.zip",
     "hash": "4cc1e7ee5334cb4d8d9b58fd2d6b1e87d6e1e92f1e48a870d0c1f35d81aee400",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化谷子组动画",
     "updateLevel": "silent",
     "publishedAt": "2026-05-31T06:43:23Z"
-  },
-  {
-    "version": "20260531.1",
-    "url": "bundle-20260531.1.zip",
-    "hash": "35d794e217444c408fc29baeeb724f28beb2efc05aa7c77e57fba5c11ec96518",
-    "minNativeVersion": null,
-    "notes": "- fix: 修复上传失败 feat: 谷子组自动触发上传\n\n- feat: 谷子组币种支持 添加谷子组hero动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-31T06:13:47Z"
   }
 ]
