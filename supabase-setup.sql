@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS goods_groups (
   type         TEXT NOT NULL DEFAULT 'collection',
   summary_mode TEXT DEFAULT 'auto',
   total_amount REAL DEFAULT 0,
+  currency     TEXT DEFAULT 'CNY',
   cover_mode   TEXT DEFAULT 'auto',
   cover_item_id TEXT DEFAULT '',
   display_mode TEXT DEFAULT 'list',
@@ -129,6 +130,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
+ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'CNY';
 
 -- 启用 Realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE goods;

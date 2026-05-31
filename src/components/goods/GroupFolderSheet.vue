@@ -12,7 +12,7 @@
       <div class="group-folder__header">
         <div class="group-folder__info">
           <span class="group-folder__name">{{ group?.name || t('goodsGroup.untitled') }}</span>
-          <span class="group-folder__meta">{{ memberGoods.length }} {{ t('goodsGroup.items') }} · {{ displayTotalPrice }}</span>
+          <span class="group-folder__meta">{{ memberGoods.length }} {{ t('goodsGroup.items') }} · {{ displayTotalPrice }}<template v-if="totalPriceCNYHint"> · {{ totalPriceCNYHint }}</template></span>
         </div>
         <button class="group-folder__edit-btn" type="button" @click="showEditSheet = true">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 20H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16.5 3.5a2.12 2.12 0 013 3L8 18l-4 1 1-4 12.5-11.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -24,7 +24,7 @@
           :key="item.id"
           :item="item"
           :density="density"
-          :data-goods-hero-id="item.id"
+          :data-goods-id="item.id"
           @open-detail="openDetail"
         />
       </div>
@@ -83,13 +83,16 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Popup, showSuccessToast } from 'vant'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
+import { CURRENCY_MAP } from '@/constants/currencies'
 import { prepareGoodsHeroForward, playGoodsHeroBack, hasPendingGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { setPendingDetailReturnPath } from '@/utils/routeTransition'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 import GroupEditSheet from '@/components/goods/GroupEditSheet.vue'
 import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
@@ -102,9 +105,11 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'before-navigate'])
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const goodsStore = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
+const exchangeRate = useExchangeRateStore()
 const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
 onMounted(() => updateViewport())
 
@@ -140,14 +145,30 @@ const memberGoods = computed(() => {
   return groupItems.value.map(i => goodsMap.get(i.goodsId)).filter(Boolean)
 })
 
+const groupCurrency = computed(() => group.value?.currency || 'CNY')
+const currencySymbol = computed(() => CURRENCY_MAP[groupCurrency.value]?.symbol || '¥')
+
 const displayTotalPrice = computed(() => {
-  if (!group.value) return '0'
-  if (group.value.summaryMode === 'manual') return String(group.value.totalAmount || 0)
+  if (!group.value) return `${currencySymbol.value}0`
+  if (group.value.summaryMode === 'manual') {
+    const amount = Number(group.value.totalAmount) || 0
+    return `${currencySymbol.value}${Number.isInteger(amount) ? String(amount) : amount.toFixed(2)}`
+  }
   const sum = memberGoods.value.reduce((acc, g) => {
     const price = parseFloat(g.actualPrice || g.price || '0')
     return acc + (isNaN(price) ? 0 : price)
   }, 0)
-  return sum.toFixed(2)
+  return `${currencySymbol.value}${sum.toFixed(2)}`
+})
+
+const totalPriceCNYHint = computed(() => {
+  if (!group.value || groupCurrency.value === 'CNY') return ''
+  if (group.value.summaryMode === 'manual') {
+    const amount = Number(group.value.totalAmount) || 0
+    const cny = exchangeRate.convertToCNY(amount, groupCurrency.value)
+    return `≈¥${cny.toFixed(2)}`
+  }
+  return ''
 })
 
 const gridCols = computed(() => {
@@ -165,6 +186,7 @@ function openDetail(payload) {
   const goodsId = typeof payload === 'object' ? payload.id : payload
   const sourceEl = typeof payload === 'object' ? payload.sourceEl : null
   emit('before-navigate')
+  setPendingDetailReturnPath(route.fullPath)
   prepareGoodsHeroForward({ goodsId, sourceEl: sourceEl || null })
   emit('update:show', false)
   router.push(`/detail/${goodsId}`)

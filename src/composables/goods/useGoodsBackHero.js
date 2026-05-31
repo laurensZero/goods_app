@@ -1,5 +1,5 @@
 import { useRoute } from 'vue-router'
-import { hasPendingGoodsHeroBack, getHeroBackDurationMs, playGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroBack, getHeroBackDurationMs, playGoodsHeroBack, cleanupAllHeroes } from '@/utils/platform/nativeGoodsHeroTransition'
 
 /**
  * Shared composable for goods card hero back animation (resolve, retry, cancel).
@@ -7,14 +7,14 @@ import { hasPendingGoodsHeroBack, getHeroBackDurationMs, playGoodsHeroBack } fro
  * @param {Object} options
  * @param {() => HTMLElement|null} options.getScrollEl - Returns the scroll container element
  * @param {import('vue').Ref} options.rootRef - Ref to the page root element (fallback for scrollEl)
- * @param {number} [options.maxRetryFrames=12] - Max rAF retry attempts
- * @param {number} [options.guardTimeoutMs=320] - Timeout for deferred restore guard
+ * @param {number} [options.maxRetryFrames=25] - Max rAF retry attempts
+ * @param {number} [options.guardTimeoutMs=500] - Timeout for deferred restore guard
  */
 export function useGoodsBackHero({
   getScrollEl,
   rootRef,
-  maxRetryFrames = 12,
-  guardTimeoutMs = 320
+  maxRetryFrames = 25,
+  guardTimeoutMs = 500
 } = {}) {
   const route = useRoute()
 
@@ -38,10 +38,11 @@ export function useGoodsBackHero({
     return cardRoot
   }
 
-  function tryPlayNativeGoodsBackHero() {
+  function tryPlayNativeGoodsBackHero(onReady) {
     return playGoodsHeroBack({
       currentPath: route.fullPath,
-      resolveTargetEl: resolveGoodsCardCover
+      resolveTargetEl: resolveGoodsCardCover,
+      onReady
     })
   }
 
@@ -61,7 +62,7 @@ export function useGoodsBackHero({
     cancelGoodsBackHeroRetry()
     retryRaf = window.requestAnimationFrame(() => {
       retryRaf = 0
-      const played = tryPlayNativeGoodsBackHero()
+      const played = tryPlayNativeGoodsBackHero(hooks?.onReady)
       if (played) {
         hooks?.onPlayed?.()
         return
@@ -71,6 +72,7 @@ export function useGoodsBackHero({
         return
       }
       if (attempt + 1 >= maxRetryFrames) {
+        cleanupAllHeroes()
         hooks?.onGiveUp?.()
         return
       }

@@ -9,9 +9,10 @@ import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
  * @param {import('vue').ComputedRef} goodsList - 单品列表 (已排序)
  * @param {import('vue').Ref} groupItemList - 组成员关系列表
  * @param {import('vue').Ref} allGoodsList - 全量 goods 列表 (用于查找组成员)
+ * @param {object} [exchangeRate] - exchangeRate store (optional)
  * @returns {{ mixedList: import('vue').ComputedRef }}
  */
-export function useGoodsGroupList(groups, goodsList, groupItemList, allGoodsList) {
+export function useGoodsGroupList(groups, goodsList, groupItemList, allGoodsList, exchangeRate) {
   /** 为每个组构建 view 对象（类似 GoodsItem 的 shape，兼容 GoodsCardGridSection） */
   const groupViewItems = computed(() => {
     const goodsMap = new Map(allGoodsList.value.map(g => [g.id, g]))
@@ -25,13 +26,19 @@ export function useGoodsGroupList(groups, goodsList, groupItemList, allGoodsList
 
       // 计算总价
       let totalPrice = 0
+      let totalPriceCNY = 0
+      let currency = 'CNY'
+
       if (group.summaryMode === 'manual') {
-        totalPrice = group.totalAmount || 0
+        totalPrice = Number(group.totalAmount) || 0
+        currency = group.currency || 'CNY'
+        totalPriceCNY = exchangeRate ? exchangeRate.convertToCNY(totalPrice, currency) : totalPrice
       } else {
-        totalPrice = members.reduce((sum, g) => {
+        totalPriceCNY = members.reduce((sum, g) => {
           const price = parseFloat(g.actualPrice || g.price || '0')
           return sum + (isNaN(price) ? 0 : price)
         }, 0)
+        totalPrice = totalPriceCNY
       }
 
       // 获取封面图
@@ -52,6 +59,9 @@ export function useGoodsGroupList(groups, goodsList, groupItemList, allGoodsList
         _type: 'group',
         _group: group,
         _members: members,
+        _totalPrice: totalPrice,
+        _totalPriceCNY: totalPriceCNY,
+        _currency: currency,
         // GoodsCard 兼容字段
         name: group.name || '',
         coverImage,
@@ -67,8 +77,8 @@ export function useGoodsGroupList(groups, goodsList, groupItemList, allGoodsList
         isWishlist: group.type === 'wishlist',
         updatedAt: group.updatedAt,
         // view 增强字段
-        priceCNYNumber: totalPrice,
-        totalValueNumber: totalPrice,
+        priceCNYNumber: totalPriceCNY,
+        totalValueNumber: totalPriceCNY,
         quantityNumber: members.length
       }
     })

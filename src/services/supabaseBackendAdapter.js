@@ -24,7 +24,7 @@ export function createSupabaseBackendAdapter({
   const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'image', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'syncedBy']
   const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'syncedBy']
   const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'syncedBy']
-  const GOODS_GROUP_COLS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'coverMode', 'coverItemId', 'displayMode', 'note', 'syncedBy']
+  const GOODS_GROUP_COLS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'currency', 'coverMode', 'coverItemId', 'displayMode', 'note', 'syncedBy']
   const GOODS_GROUP_ITEM_COLS = ['id', 'groupId', 'goodsId', 'sortOrder', 'syncedBy']
 
   // snake_case SELECT column lists — excludes auto-generated columns (e.g. created_at)
@@ -32,7 +32,7 @@ export function createSupabaseBackendAdapter({
   const GOODS_SELECT_COLS = 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, image, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, trashed, updated_at'
   const RECHARGE_SELECT_COLS = 'id, game, item_name, amount, charged_at, note, deleted, updated_at'
   const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, other_expenses, tracks, linked_goods_ids, tags, updated_at, created_at'
-  const GOODS_GROUP_SELECT_COLS = 'id, name, type, summary_mode, total_amount, cover_mode, cover_item_id, display_mode, note, updated_at, created_at'
+  const GOODS_GROUP_SELECT_COLS = 'id, name, type, summary_mode, total_amount, currency, cover_mode, cover_item_id, display_mode, note, updated_at, created_at'
   const GOODS_GROUP_ITEM_SELECT_COLS = 'id, group_id, goods_id, sort_order, updated_at, created_at'
   const GOODS_IMAGE_BUCKET = 'goods-images'
   const EVENT_PHOTO_BUCKET = 'event-photos'

@@ -167,7 +167,8 @@ const resolvedTipsItems = computed(() => props.tipsItems || [
   t('home.summary.tip1'),
   t('home.summary.tip2'),
   t('home.summary.tip3'),
-  t('home.summary.tip4')
+  t('home.summary.tip4'),
+  t('home.summary.tip5')
 ])
 
 const intPart = computed(() => props.totalValue.split('.')[0])

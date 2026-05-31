@@ -527,9 +527,19 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const baseDuration = Number(options.duration) || FORWARD_DURATION_MS
   const direction = options.direction === 'back' ? 'back' : 'forward'
   const targetEl = options.targetEl || null
-  const overlayZIndex = direction === 'back'
+  let overlayZIndex = direction === 'back'
     ? HERO_BACK_OVERLAY_Z_INDEX
     : HERO_FORWARD_OVERLAY_Z_INDEX
+  // Boost z-index when target is inside a popup/overlay (e.g. Vant Popup)
+  if (targetEl && typeof targetEl.closest === 'function') {
+    const popup = targetEl.closest('.van-popup, .van-overlay, [role="dialog"]')
+    if (popup) {
+      const popupZ = Number.parseInt(window.getComputedStyle(popup).zIndex, 10)
+      if (Number.isFinite(popupZ) && popupZ >= overlayZIndex) {
+        overlayZIndex = popupZ + 10
+      }
+    }
+  }
   const sourceShadow = snapshot.boxShadow && snapshot.boxShadow !== 'none'
     ? snapshot.boxShadow
     : 'none'
@@ -648,6 +658,7 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     if (sourceImageReady) {
       hideElement(targetEl)
     }
+    options.onReady?.()
 
     if (transformOnly) {
       const { scaleX, scaleY } = resolveTransformOnlyTarget(snapshot, targetRect)
@@ -822,7 +833,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   }
 }
 
-export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
+export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady }) {
   if (!pendingBackHero) return false
   if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
     cleanupAllHeroes()
@@ -841,11 +852,6 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
     return false
   }
 
-  if (!isHeroImageReady(targetEl)) {
-    // Don't cleanup - let the caller retry when image is ready
-    return false
-  }
-
   const releaseScrollLock = lockBackScroll(
     targetEl,
     Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
@@ -860,7 +866,8 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl }) {
     {
       duration: BACK_DURATION_MS,
       direction: 'back',
-      targetEl
+      targetEl,
+      onReady
     }
   ).finally(() => {
     releaseScrollLock()
@@ -971,12 +978,6 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetRect = readRect(targetEl)
   if (!targetRect) {
     cleanupAllHeroes()
-    return false
-  }
-
-  if (!isHeroImageReady(targetEl)) {
-    // Let the caller retry once the event cover image has actually decoded.
-    // This avoids animating a gray lazy-image placeholder after app resume.
     return false
   }
 

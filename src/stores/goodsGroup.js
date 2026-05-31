@@ -99,6 +99,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       type: data.type || 'collection',
       summaryMode: data.summaryMode || 'auto',
       totalAmount: Number(data.totalAmount) || 0,
+      currency: data.currency || 'CNY',
       coverMode: data.coverMode || 'auto',
       coverItemId: data.coverItemId || '',
       displayMode: data.displayMode || 'list',

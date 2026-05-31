@@ -192,6 +192,7 @@ watch(
       return
     }
     hasLoadError.value = false
+    isImageLoading.value = true
     const cached = peekCachedImage(url)
     if (cached) {
       resolvedSrc.value = cached

@@ -126,6 +126,7 @@ const CREATE_GOODS_GROUPS_TABLE_SQL = `
     type         TEXT NOT NULL DEFAULT 'collection',
     summaryMode  TEXT DEFAULT 'auto',
     totalAmount  REAL DEFAULT 0,
+    currency     TEXT DEFAULT 'CNY',
     coverMode    TEXT DEFAULT 'auto',
     coverItemId  TEXT DEFAULT '',
     displayMode  TEXT DEFAULT 'list',
@@ -216,6 +217,7 @@ const GOODS_GROUPS_REQUIRED_COLUMNS = [
   ['type', "TEXT NOT NULL DEFAULT 'collection'"],
   ['summaryMode', "TEXT DEFAULT 'auto'"],
   ['totalAmount', 'REAL DEFAULT 0'],
+  ['currency', "TEXT DEFAULT 'CNY'"],
   ['coverMode', "TEXT DEFAULT 'auto'"],
   ['coverItemId', "TEXT DEFAULT ''"],
   ['displayMode', "TEXT DEFAULT 'list'"],
@@ -707,7 +709,7 @@ export async function deleteRechargeRecords(ids) {
 
 // ── Goods Groups CRUD ──
 
-const GROUPS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_groups (id,name,type,summaryMode,totalAmount,coverMode,coverItemId,displayMode,note,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+const GROUPS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_groups (id,name,type,summaryMode,totalAmount,currency,coverMode,coverItemId,displayMode,note,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
 
 const GROUP_ITEMS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_group_items (id,groupId,goodsId,sortOrder,createdAt,updatedAt) VALUES (?,?,?,?,?,?)'
 
@@ -719,6 +721,7 @@ function prepareGroupRecord(group) {
     group.type || 'collection',
     group.summaryMode || 'auto',
     Number(group.totalAmount) || 0,
+    group.currency || 'CNY',
     group.coverMode || 'auto',
     group.coverItemId || '',
     group.displayMode || 'list',

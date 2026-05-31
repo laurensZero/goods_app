@@ -40,7 +40,10 @@
       <h3 class="group-card__name">{{ group.name || t('goodsGroup.untitled') }}</h3>
       <div class="group-card__spacer" />
       <div class="group-card__bottom">
-        <span class="group-card__price">{{ formattedPrice }}</span>
+        <span class="group-card__price">
+          {{ formattedPrice }}
+          <span v-if="priceCNYHint" class="group-card__price-cny">{{ priceCNYHint }}</span>
+        </span>
         <span class="group-card__count">{{ itemCount }} {{ t('goodsGroup.items') }}</span>
       </div>
     </div>
@@ -60,16 +63,21 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
+import { CURRENCY_MAP } from '@/constants/currencies'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   group: { type: Object, required: true },
   items: { type: Array, default: () => [] },
   totalPrice: { type: Number, default: 0 },
+  currency: { type: String, default: 'CNY' },
   density: { type: String, default: 'comfortable' },
   selected: { type: Boolean, default: false },
   selectionMode: { type: Boolean, default: false }
 })
+
+const exchangeRate = useExchangeRateStore()
 
 const emit = defineEmits(['open-group', 'long-press', 'toggle-select'])
 const { t } = useI18n()
@@ -80,9 +88,24 @@ let touchStartY = 0
 let gestureMoved = false
 
 const itemCount = computed(() => props.items.length)
+const currencySymbol = computed(() => CURRENCY_MAP[props.currency]?.symbol || '¥')
+
+// Original price with currency symbol
 const formattedPrice = computed(() => {
   const v = props.totalPrice || 0
-  return `¥${Number.isInteger(v) ? String(v) : v.toFixed(2)}`
+  return `${currencySymbol.value}${Number.isInteger(v) ? String(v) : v.toFixed(2)}`
+})
+
+// CNY hint: convert via exchangeRate store directly for reactivity
+const priceCNYHint = computed(() => {
+  if (props.currency === 'CNY') return ''
+  const v = props.totalPrice || 0
+  if (v <= 0) return ''
+  // Read exchangeRate.rates to establish reactive dependency
+  const rates = exchangeRate.rates
+  const cny = exchangeRate.convertToCNY(v, props.currency)
+  if (!cny || cny <= 0) return ''
+  return `≈ ¥${cny.toFixed(2)}`
 })
 
 const thumbnails = computed(() => {
@@ -217,16 +240,20 @@ function handleClick() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 3px;
+  gap: 4px;
   border-radius: calc(var(--radius-card, 18px) - 6px);
   overflow: hidden;
   aspect-ratio: 1;
+  background: var(--app-surface, #fff);
+  padding: 0;
 }
 
 .group-card__thumb {
   aspect-ratio: 1;
   overflow: hidden;
   background: var(--app-surface-muted, #f0f0f2);
+  border-radius: 10px;
+  padding: 3px;
 }
 
 .group-card__thumb-img {
@@ -234,12 +261,14 @@ function handleClick() {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 7px;
 }
 
 .group-card__thumb-empty {
   width: 100%;
   height: 100%;
   background: var(--app-surface-muted, #f0f0f2);
+  border-radius: 7px;
 }
 
 /* Body — matches GoodsCard .card-body layout */
@@ -286,6 +315,12 @@ function handleClick() {
   letter-spacing: 0;
 }
 
+.group-card__price-cny {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--app-text-tertiary);
+}
+
 .group-card__count {
   font-size: 11px;
   color: var(--app-text-tertiary);
@@ -298,7 +333,7 @@ function handleClick() {
 }
 
 .group-card--compact .group-card__grid {
-  gap: 2px;
+  gap: 3px;
 }
 
 .group-card--compact .group-card__name {

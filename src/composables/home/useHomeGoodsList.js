@@ -3,20 +3,54 @@ import { sortHomeGoodsList } from '@/utils/goods/homeSort'
 
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
-export function useHomeGoodsList(store, sortMode, sortDirection) {
+/**
+ * @param {object} store - goods store
+ * @param {import('vue').Ref} sortMode
+ * @param {import('vue').Ref} sortDirection
+ * @param {object} [groupStore] - goodsGroup store (optional)
+ * @param {object} [exchangeRate] - exchangeRate store (optional)
+ */
+export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate) {
   const listData = computed(() => {
     const items = sortHomeGoodsList(store.collectionViewList, sortMode.value, sortDirection.value)
     let totalVal = 0
     let totalQty = 0
     const byId = new Map()
 
+    // Build set of goodsIds belonging to manual-price groups
+    const manualGroupMemberIds = new Set()
+    const manualGroups = new Map() // groupId -> group
+    if (groupStore) {
+      for (const group of groupStore.collectionGroups) {
+        if (group.summaryMode === 'manual') {
+          manualGroups.set(group.id, group)
+          for (const item of groupStore.groupItemsOf(group.id)) {
+            manualGroupMemberIds.add(item.goodsId)
+          }
+        }
+      }
+    }
+
     for (let i = 0; i < items.length; i++) {
         const item = items[i]
         byId.set(item.id, item)
         if (!EXCLUDED_VALUE_STATUSES.has(item.collectStatus)) {
-          totalVal += item.totalValueNumber
+          // Skip items that belong to manual-price groups (their group total will be added below)
+          if (!manualGroupMemberIds.has(item.id)) {
+            totalVal += item.totalValueNumber
+          }
           totalQty += item.quantityNumber
         }
+    }
+
+    // Add manual group totals (converted to CNY)
+    for (const [, group] of manualGroups) {
+      const amount = Number(group.totalAmount) || 0
+      if (exchangeRate) {
+        totalVal += exchangeRate.convertToCNY(amount, group.currency || 'CNY')
+      } else {
+        totalVal += amount
+      }
     }
 
     return {
