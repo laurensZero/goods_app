@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.2",
+    "url": "bundle-20260531.2.zip",
+    "hash": "f09869bb6269581c095d7064e3316e987a24d6aa23b5356e4f2351642f16bd4a",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化谷子组动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T06:43:23Z"
+  },
+  {
     "version": "20260531.1",
     "url": "bundle-20260531.1.zip",
     "hash": "35d794e217444c408fc29baeeb724f28beb2efc05aa7c77e57fba5c11ec96518",
@@ -16,14 +25,5 @@
     "notes": "- feat: 简化购物车和组相关的文本描述",
     "updateLevel": "silent",
     "publishedAt": "2026-05-30T15:03:53Z"
-  },
-  {
-    "version": "20260530.5",
-    "url": "bundle-20260530.5.zip",
-    "hash": "ced09c46ab58af040df5444415672c6e1c75fe6498ec7d980c3d5bc97562ed5f",
-    "minNativeVersion": null,
-    "notes": "- feat: 搭建 Vitest 自动化单元测试体系\n  - 安装 vitest + @vue/test-utils + happy-dom\n  - 创建 vitest.config.js 独立配置\n  - 添加 test / test:watch 脚本\n  - 20 个测试文件覆盖 utils、stores、services 中的纯逻辑函数（388 个测试用例）\n  - 覆盖云同步模块：columnMapping、shared、cryptoManager、syncRetry、syncError 等\n  - GitHub Actions CI：PR 和 main 分支自动跑测试\n\n- feat: 添加原始图像源读取功能，优化图像缓存刷新逻辑\n\n- feat: 谷子组\n\n- feat: 优化组文件夹弹窗动画，支持从详情页返回时跳过动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-30T14:49:31Z"
   }
 ]

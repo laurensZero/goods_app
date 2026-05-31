@@ -1,9 +1,9 @@
 {
-  "version": "20260531.1",
-  "url": "bundle-20260531.1.zip",
-  "hash": "35d794e217444c408fc29baeeb724f28beb2efc05aa7c77e57fba5c11ec96518",
+  "version": "20260531.2",
+  "url": "bundle-20260531.2.zip",
+  "hash": "f09869bb6269581c095d7064e3316e987a24d6aa23b5356e4f2351642f16bd4a",
   "minNativeVersion": null,
-  "notes": "- fix: 修复上传失败 feat: 谷子组自动触发上传\n\n- feat: 谷子组币种支持 添加谷子组hero动画",
+  "notes": "- feat: 优化谷子组动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-31T06:13:47Z"
+  "publishedAt": "2026-05-31T06:43:23Z"
 }
