@@ -91,7 +91,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
-import { prepareGoodsHeroForward, playGoodsHeroBack, hasPendingGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { prepareGoodsHeroForward, playGoodsHeroBack, hasPendingGoodsHeroBack, getPendingBackHeroGoodsId } from '@/utils/platform/nativeGoodsHeroTransition'
 import { setPendingDetailReturnPath } from '@/utils/routeTransition'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 import GroupEditSheet from '@/components/goods/GroupEditSheet.vue'
@@ -193,27 +193,82 @@ function openDetail(payload) {
 }
 
 function resolveGoodsCardCover(goodsId) {
-  // Search within this popup only, not the entire document,
-  // to avoid matching cards in the background view (e.g. WishlistView main grid)
+  // Search within this popup only to avoid matching cards in the background view
   const popup = document.querySelector('.group-folder-popup')
   const root = popup || document
   return root.querySelector(`[data-goods-hero-id="${CSS.escape(goodsId)}"]`)
 }
 
+function readElementRect(el) {
+  if (!el) return null
+  const rect = el.getBoundingClientRect()
+  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
+    return null
+  }
+  if (rect.width <= 0 || rect.height <= 0) return null
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+    bottom: rect.bottom
+  }
+}
+
+function isRectStable(prevRect, nextRect, tolerance = 0.5) {
+  if (!prevRect || !nextRect) return false
+  return Math.abs(prevRect.left - nextRect.left) <= tolerance &&
+    Math.abs(prevRect.top - nextRect.top) <= tolerance &&
+    Math.abs(prevRect.width - nextRect.width) <= tolerance &&
+    Math.abs(prevRect.height - nextRect.height) <= tolerance
+}
+
+function isBottomPopupSettled(popup) {
+  if (!popup || isTablet.value) return true
+  const rect = readElementRect(popup)
+  if (!rect) return false
+  if (rect.top >= window.innerHeight - 1 || rect.bottom > window.innerHeight + 1) return false
+
+  const transform = window.getComputedStyle(popup).transform
+  if (!transform || transform === 'none') return true
+
+  const matrixValues = transform.match(/matrix(3d)?\(([^)]+)\)/)
+  if (!matrixValues) return true
+  const values = matrixValues[2].split(',').map((value) => Number.parseFloat(value.trim()))
+  const translateY = matrixValues[1] === '3d' ? values[13] : values[5]
+  return !Number.isFinite(translateY) || Math.abs(translateY) <= 0.5
+}
+
 function onSheetOpened() {
-  // Try to play back hero animation after sheet opens (returning from detail)
   const currentPath = router.currentRoute.value.fullPath
   if (!hasPendingGoodsHeroBack(currentPath)) return
+
+  const pendingGoodsId = getPendingBackHeroGoodsId()
   let retry = 0
+  let previousTargetRect = null
   const tryPlay = () => {
+    const popup = document.querySelector('.group-folder-popup')
+    const targetEl = pendingGoodsId ? resolveGoodsCardCover(pendingGoodsId) : null
+    const nextTargetRect = readElementRect(targetEl)
+    const ready = isBottomPopupSettled(popup) && isRectStable(previousTargetRect, nextTargetRect)
+    previousTargetRect = nextTargetRect
+
+    if (!ready) {
+      if (retry++ >= 30) return
+      requestAnimationFrame(tryPlay)
+      return
+    }
+
     const played = playGoodsHeroBack({
       currentPath,
       resolveTargetEl: resolveGoodsCardCover
     })
-    if (played || retry++ >= 12) return
+    if (played || retry++ >= 30) {
+      return
+    }
     requestAnimationFrame(tryPlay)
   }
-  nextTick(() => tryPlay())
+  requestAnimationFrame(tryPlay)
 }
 
 async function handleGroupUpdate(id, data) {
