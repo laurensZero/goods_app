@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260531.9",
+    "url": "bundle-20260531.9.zip",
+    "hash": "2353ee07067cd37d289e075d81b4c14ba104bbfafc787276ecb94777514f9f6e",
+    "minNativeVersion": null,
+    "notes": "- feat: 全选搜索",
+    "updateLevel": "silent",
+    "publishedAt": "2026-05-31T15:39:06Z"
+  },
+  {
     "version": "20260531.8",
     "url": "bundle-20260531.8.zip",
     "hash": "e06c39a1e56f12f7e164eb14db7ad65f52cfa50f67be16f1a5c4cf3c1685d1ce",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化价格显示逻辑，增加密度模式下的CNY提示",
     "updateLevel": "silent",
     "publishedAt": "2026-05-31T10:06:06Z"
-  },
-  {
-    "version": "20260531.6",
-    "url": "bundle-20260531.6.zip",
-    "hash": "e7600f773f2557ed496098b29323ccaca7920d84c5429e3d4a3a51f02398ed3c",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化缓存数据使用逻辑和同步延迟时间",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-31T09:50:06Z"
   }
 ]
