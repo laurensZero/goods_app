@@ -193,8 +193,11 @@ function openDetail(payload) {
 }
 
 function resolveGoodsCardCover(goodsId) {
-  const el = document.querySelector(`[data-goods-hero-id="${CSS.escape(goodsId)}"]`)
-  return el
+  // Search within this popup only, not the entire document,
+  // to avoid matching cards in the background view (e.g. WishlistView main grid)
+  const popup = document.querySelector('.group-folder-popup')
+  const root = popup || document
+  return root.querySelector(`[data-goods-hero-id="${CSS.escape(goodsId)}"]`)
 }
 
 function onSheetOpened() {
