@@ -2,39 +2,10 @@
   <div class="page detail-page" :class="{ 'detail-page--entry-lock': detailEntryScrollLockActive }">
     <NavBar :title="item ? (item.isWishlist ? t('goods.detail.wishlistTitle') : t('goods.detail.collectionTitle')) : t('nav.goodsDetail')" show-back @back="handleBackNavigation">
       <template #right>
-        <button v-if="item?.goodsId" class="nav-icon-btn" type="button" aria-label="加入购物车" :disabled="cartLoading" @click="handleAddToCart">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="9" cy="21" r="1" />
-            <circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-          </svg>
-        </button>
-        <button v-if="item?.goodsId" class="nav-icon-btn" type="button" aria-label="米游铺" @click="openMihoyoGoods">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-        </button>
         <button class="nav-icon-btn" type="button" :aria-label="t('common.aria.edit')" @click="handleEditGoods">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 20H21" />
             <path d="M16.5 3.5A2.12 2.12 0 0 1 19.5 6.5L8 18L4 19L5 15L16.5 3.5Z" />
-          </svg>
-        </button>
-        <button class="nav-icon-btn" type="button" :aria-label="t('common.aria.share')" @click="showShareSheet = true">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-        </button>
-        <button class="nav-icon-btn" type="button" :aria-label="t('goodsGroup.addToGroup')" @click="showAddToGroupSheet = true">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <path d="M17.5 14v7M14 17.5h7" />
           </svg>
         </button>
         <button class="nav-icon-btn danger" type="button" :aria-label="t('common.aria.delete')" @click="handleDelete">
@@ -44,6 +15,13 @@
             <path d="M19 6L18 20H6L5 6" />
             <path d="M10 11V17" />
             <path d="M14 11V17" />
+          </svg>
+        </button>
+        <button ref="moreBtnRef" class="nav-icon-btn" type="button" :aria-label="t('common.aria.more')" @click="toggleMorePopover">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="12" cy="19" r="1.5" />
           </svg>
         </button>
       </template>
@@ -274,6 +252,45 @@
       </div>
     </Transition>
 
+    <Teleport to="body">
+      <div v-if="showMoreSheet" class="more-popover-overlay" @click="showMoreSheet = false" />
+      <div v-if="showMoreSheet" class="more-popover" :style="morePopoverStyle">
+        <button v-if="item?.goodsId" class="more-popover__item" type="button" :disabled="cartLoading" @click="showMoreSheet = false; handleAddToCart()">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          </svg>
+          <span>{{ cartLoading ? t('common.loading') : t('detail.addToCart', '加入购物车') }}</span>
+        </button>
+        <button v-if="item?.goodsId" class="more-popover__item" type="button" @click="showMoreSheet = false; openMihoyoGoods()">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+          <span>{{ t('detail.mihoyoshop', '米游铺') }}</span>
+        </button>
+        <button class="more-popover__item" type="button" @click="showMoreSheet = false; showAddToGroupSheet = true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <path d="M17.5 14v7M14 17.5h7" />
+          </svg>
+          <span>{{ t('goodsGroup.addToGroup') }}</span>
+        </button>
+        <button class="more-popover__item" type="button" @click="showMoreSheet = false; showShareSheet = true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          <span>{{ t('common.aria.share') }}</span>
+        </button>
+      </div>
+    </Teleport>
+
     <ShareSheet :show="showShareSheet" :goods-items="item ? [item] : []" @close="showShareSheet = false" />
 
     <AddToGroupSheet
@@ -408,6 +425,25 @@ const trackList = computed(() =>
 const showDeleteDialog = ref(false)
 const showShareSheet = ref(false)
 const showAddToGroupSheet = ref(false)
+const showMoreSheet = ref(false)
+const moreBtnRef = ref(null)
+const morePopoverStyle = ref({})
+function toggleMorePopover() {
+  if (showMoreSheet.value) {
+    showMoreSheet.value = false
+    return
+  }
+  const btn = moreBtnRef.value?.$el || moreBtnRef.value
+  if (btn) {
+    const rect = btn.getBoundingClientRect()
+    morePopoverStyle.value = {
+      position: 'fixed',
+      top: `${rect.bottom + 6}px`,
+      right: `${window.innerWidth - rect.right}px`
+    }
+  }
+  showMoreSheet.value = true
+}
 const activeImageId = ref('')
 const mihoyoCookie = ref('')
 const showCartDialog = ref(false)
@@ -1776,4 +1812,33 @@ function getImageKindLabel(kind) {
 :global(html.theme-dark) .detail-page .nav-icon-btn.danger {
     color: #ff8a80 !important;
   }
+</style>
+
+<style>
+.more-popover-overlay { position: fixed; inset: 0; z-index: 9998; }
+.more-popover {
+  z-index: 9999;
+  min-width: 170px;
+  background: var(--app-glass-strong, rgba(255,255,255,0.72));
+  border: 1px solid var(--app-glass-border, rgba(255,255,255,0.52));
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06);
+  padding: 0;
+  backdrop-filter: blur(var(--app-frost-soft-blur, 16px)) saturate(1.8);
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur, 16px)) saturate(1.8);
+  animation: more-popover-in 0.15s ease;
+}
+html.theme-dark .more-popover { box-shadow: 0 4px 24px rgba(0,0,0,0.36), 0 0 0 0.5px rgba(255,255,255,0.08); }
+@keyframes more-popover-in { from { opacity: 0; transform: scale(0.92) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.more-popover__item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 12px 18px; border: none; background: none;
+  font-size: 15px; color: var(--app-text); cursor: pointer;
+  -webkit-tap-highlight-color: transparent; white-space: nowrap;
+}
+.more-popover__item:hover { background: var(--app-surface-muted, rgba(0,0,0,0.04)); }
+.more-popover__item:active { background: var(--app-surface-muted, rgba(0,0,0,0.08)); }
+.more-popover__item:disabled { opacity: 0.4; }
+.more-popover__item svg { width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 </style>

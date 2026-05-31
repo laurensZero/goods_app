@@ -84,6 +84,7 @@
   "common.aria.edit": "Edit",
   "common.aria.share": "Share",
   "common.aria.delete": "Delete",
+  "common.aria.more": "More",
   "common.aria.close": "Close",
   "common.aria.removeCharacter": "Remove Character",
   "common.aria.enableEncryption": "Enable Gist Encryption",

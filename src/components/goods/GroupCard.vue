@@ -3,9 +3,11 @@
     :class="['group-card', `group-card--${density}`, { 'group-card--selected': selected, 'group-card--selecting': selectionMode }]"
     @click="handleClick"
     @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
     @touchend.prevent="onTouchEnd"
     @touchcancel="onTouchCancel"
     @mousedown="onMouseDown"
+    @mousemove="onMouseMove"
     @mouseup="onMouseUp"
     @mouseleave="onMouseLeave"
   >
@@ -82,10 +84,13 @@ const exchangeRate = useExchangeRateStore()
 const emit = defineEmits(['open-group', 'long-press', 'toggle-select'])
 const { t } = useI18n()
 
+const TOUCH_TAP_THRESHOLD = 12
+const MOUSE_TAP_THRESHOLD = 6
 let longPressTimer = null
 let touchStartX = 0
 let touchStartY = 0
 let gestureMoved = false
+let longPressTriggered = false
 
 const itemCount = computed(() => props.items.length)
 const currencySymbol = computed(() => CURRENCY_MAP[props.currency]?.symbol || '¥')
@@ -138,59 +143,75 @@ function getItemThumbnail(item) {
   return getPrimaryGoodsImageUrl(item.images, item.coverImage || item.image) || null
 }
 
-function onTouchStart(e) {
-  const touch = e.touches[0]
-  touchStartX = touch.clientX
-  touchStartY = touch.clientY
+function startLongPress(x, y) {
+  touchStartX = x
+  touchStartY = y
   gestureMoved = false
+  longPressTriggered = false
   longPressTimer = setTimeout(() => {
-    longPressTimer = null
+    longPressTriggered = true
+    try { navigator.vibrate?.(50) } catch {}
     emit('long-press')
   }, 500)
 }
 
-function onTouchEnd() {
+function cancelLongPress() {
   if (longPressTimer) {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
-  if (gestureMoved) return
+}
+
+function onTouchStart(e) {
+  const touch = e.touches[0]
+  startLongPress(touch.clientX, touch.clientY)
+}
+
+function onTouchMove(e) {
+  const touch = e.touches[0]
+  const dx = Math.abs(touch.clientX - touchStartX)
+  const dy = Math.abs(touch.clientY - touchStartY)
+  if (dx > TOUCH_TAP_THRESHOLD || dy > TOUCH_TAP_THRESHOLD) {
+    gestureMoved = true
+    cancelLongPress()
+  }
+}
+
+function onTouchEnd(e) {
+  cancelLongPress()
+  e.preventDefault()
+  if (longPressTriggered || gestureMoved) return
   handleClick()
 }
 
 function onTouchCancel() {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
-  }
   gestureMoved = true
+  cancelLongPress()
 }
 
 function onMouseDown(event) {
   if (event.button !== 0) return
-  touchStartX = event.clientX
-  touchStartY = event.clientY
-  gestureMoved = false
-  longPressTimer = setTimeout(() => {
-    longPressTimer = null
-    emit('long-press')
-  }, 500)
+  startLongPress(event.clientX, event.clientY)
+}
+
+function onMouseMove(event) {
+  const dx = Math.abs(event.clientX - touchStartX)
+  const dy = Math.abs(event.clientY - touchStartY)
+  if (dx > MOUSE_TAP_THRESHOLD || dy > MOUSE_TAP_THRESHOLD) {
+    gestureMoved = true
+    cancelLongPress()
+  }
 }
 
 function onMouseUp() {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
-  }
-  if (!gestureMoved) handleClick()
+  cancelLongPress()
+  if (longPressTriggered || gestureMoved) return
+  handleClick()
 }
 
 function onMouseLeave() {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
-  }
   gestureMoved = true
+  cancelLongPress()
 }
 
 function handleClick() {
