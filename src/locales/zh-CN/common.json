@@ -84,6 +84,7 @@
   "common.aria.edit": "编辑",
   "common.aria.share": "分享",
   "common.aria.delete": "删除",
+  "common.aria.more": "更多",
   "common.aria.close": "关闭",
   "common.aria.removeCharacter": "移除角色",
   "common.aria.enableEncryption": "启用 Gist 加密",
