@@ -1,5 +1,5 @@
 <template>
-  <div ref="pageRootRef" class="group-detail-view">
+  <div ref="pageRootRef" class="group-detail-view" :class="{ 'group-detail-view--restoring': !displayReady }">
     <!-- Header -->
     <header class="group-detail-header">
       <button class="header-back-btn" @click="handleBack">
@@ -19,6 +19,7 @@
       <div class="group-summary-item">
         <span class="summary-label">{{ t('goodsGroup.totalPrice') }}</span>
         <span class="summary-value">{{ displayTotalPrice }}</span>
+        <span v-if="totalPriceCNYHint" class="summary-cny-hint">{{ totalPriceCNYHint }}</span>
       </div>
       <div class="group-summary-item">
         <span class="summary-label">{{ t('goodsGroup.memberCount') }}</span>
@@ -84,16 +85,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onActivated, onBeforeUnmount, onDeactivated } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, nextTick, onActivated, onMounted, onBeforeUnmount, onDeactivated } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { showConfirmDialog, showSuccessToast } from 'vant'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
+import { CURRENCY_MAP } from '@/constants/currencies'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
+import { hasPendingGoodsHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { createPageScrollRestore } from '@/composables/scroll'
-import { prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -109,9 +113,11 @@ const props = defineProps({
 
 const groupId = computed(() => props.id)
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const goodsStore = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
+const exchangeRate = useExchangeRateStore()
 
 // Refs
 const pageRootRef = ref(null)
@@ -120,6 +126,7 @@ const gridSectionRef = ref(null)
 const showEditSheet = ref(false)
 const showAddMemberSheet = ref(false)
 const displayDensity = ref('comfortable')
+const displayReady = ref(true)
 
 // Scroll management
 const {
@@ -140,16 +147,30 @@ const memberGoods = computed(() => {
     .filter(Boolean)
 })
 
+const groupCurrency = computed(() => groupData.value?.currency || 'CNY')
+const currencySymbol = computed(() => CURRENCY_MAP[groupCurrency.value]?.symbol || '¥')
+
 const displayTotalPrice = computed(() => {
-  if (!groupData.value) return '0'
+  if (!groupData.value) return `${currencySymbol.value}0`
   if (groupData.value.summaryMode === 'manual') {
-    return String(groupData.value.totalAmount || 0)
+    const amount = Number(groupData.value.totalAmount) || 0
+    return `${currencySymbol.value}${Number.isInteger(amount) ? String(amount) : amount.toFixed(2)}`
   }
   const sum = memberGoods.value.reduce((acc, g) => {
     const price = parseFloat(g.actualPrice || g.price || '0')
     return acc + (isNaN(price) ? 0 : price)
   }, 0)
-  return sum.toFixed(2)
+  return `${currencySymbol.value}${sum.toFixed(2)}`
+})
+
+const totalPriceCNYHint = computed(() => {
+  if (!groupData.value || groupCurrency.value === 'CNY') return ''
+  if (groupData.value.summaryMode === 'manual') {
+    const amount = Number(groupData.value.totalAmount) || 0
+    const cny = exchangeRate.convertToCNY(amount, groupCurrency.value)
+    return `≈¥${cny.toFixed(2)}`
+  }
+  return ''
 })
 
 // Selection — pass memberGoods so the watch source is valid
@@ -167,7 +188,7 @@ const {
 // Hero back animation
 const {
   scheduleGoodsBackHeroRetry,
-  deferActivatedRestoreAfterGoodsBackHero,
+  tryPlayNativeGoodsBackHero,
   clearDeferredRestoreTimer,
   cancelGoodsBackHeroRetry
 } = useGoodsBackHero({ getScrollEl, rootRef: pageBodyRef })
@@ -225,21 +246,86 @@ async function handleAddMembers(groupId) {
   showSuccessToast(t('goodsGroup.membersAdded'))
 }
 
+// Android back button
+function handleAndroidBackButton(event) {
+  if (showEditSheet.value) {
+    showEditSheet.value = false
+    event.preventDefault()
+    return
+  }
+  if (showAddMemberSheet.value) {
+    showAddMemberSheet.value = false
+    event.preventDefault()
+    return
+  }
+  if (selectionMode.value) {
+    exitSelectionMode()
+    event.preventDefault()
+    return
+  }
+  event.preventDefault()
+  handleBack()
+}
+
+let cleanupBackButton = null
+
+function bindBackButton() {
+  if (cleanupBackButton) return
+  cleanupBackButton = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindBackButton() {
+  if (cleanupBackButton) {
+    cleanupBackButton()
+    cleanupBackButton = null
+  }
+}
+
 // Lifecycle
-onActivated(() => {
+onMounted(() => {
+  bindBackButton()
+})
+
+onActivated(async () => {
+  bindBackButton()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()
-  deferActivatedRestoreAfterGoodsBackHero(() => {
-    restoreActivatedScrollPosition(() => {}, () => {})
-  })
+
+  const hasPending = hasPendingGoodsHeroBack(route.fullPath)
+  if (hasPending) {
+    displayReady.value = false
+  }
+
+  const revealMask = () => { displayReady.value = true }
+
+  await restoreActivatedScrollPosition(() => {}, () => {})
+  await nextTick()
+
+  const played = tryPlayNativeGoodsBackHero(revealMask)
+  if (played) {
+    // Don't reveal yet — onReady callback will fire when overlay is ready
+    // Fallback in case onReady never fires
+    window.setTimeout(revealMask, 600)
+  } else if (hasPendingGoodsHeroBack(route.fullPath)) {
+    scheduleGoodsBackHeroRetry(0, {
+      onReady: revealMask,
+      onPlayed: () => {},
+      onGiveUp: revealMask
+    })
+  } else {
+    revealMask()
+  }
 })
 
 onDeactivated(() => {
+  unbindBackButton()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()
+  displayReady.value = true
 })
 
 onBeforeUnmount(() => {
+  unbindBackButton()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()
 })
@@ -250,6 +336,10 @@ onBeforeUnmount(() => {
   min-height: 100dvh;
   background: var(--app-bg-gradient);
   padding-bottom: 80px;
+}
+
+.group-detail-view--restoring {
+  visibility: hidden;
 }
 
 .group-detail-header {
@@ -336,6 +426,12 @@ onBeforeUnmount(() => {
   font-size: 18px;
   font-weight: 600;
   color: var(--app-text);
+}
+
+.summary-cny-hint {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  margin-top: 1px;
 }
 
 .group-detail-body {

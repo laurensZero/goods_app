@@ -44,14 +44,17 @@
 
         <label v-if="editSummaryMode === 'manual'" class="field">
           <span class="field-label">{{ t('goodsGroup.manualPrice') }}</span>
-          <div class="field-card">
-            <input
-              v-model="editTotalAmount"
-              class="field-input"
-              type="number"
-              placeholder="0.00"
-              @blur="handleTotalAmountChange"
-            />
+          <div class="manual-price-row">
+            <div class="field-card field-card--price">
+              <input
+                v-model="editTotalAmount"
+                class="field-input"
+                type="number"
+                placeholder="0.00"
+                @blur="handleTotalAmountChange"
+              />
+            </div>
+            <AppSelect :model-value="editCurrency" :options="currencyOptions" :placeholder="t('goodsGroup.priceCurrency')" class="currency-select" @update:model-value="handleCurrencyChange" />
           </div>
         </label>
 
@@ -171,6 +174,8 @@ import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
+import { CURRENCIES } from '@/constants/currencies'
+import AppSelect from '@/components/common/AppSelect.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
@@ -193,6 +198,7 @@ const showProxy = computed({
 const editName = ref('')
 const editSummaryMode = ref('auto')
 const editTotalAmount = ref('')
+const editCurrency = ref('CNY')
 const editCoverMode = ref('auto')
 const editCoverItemId = ref('')
 const editNote = ref('')
@@ -203,6 +209,7 @@ watch(() => props.group, (g) => {
   editName.value = g.name || ''
   editSummaryMode.value = g.summaryMode || 'auto'
   editTotalAmount.value = g.totalAmount ? String(g.totalAmount) : ''
+  editCurrency.value = g.currency || 'CNY'
   editCoverMode.value = g.coverMode || 'auto'
   editCoverItemId.value = g.coverItemId || ''
   editNote.value = g.note || ''
@@ -218,6 +225,10 @@ const coverModes = computed(() => [
   { value: 'manual', label: t('goodsGroup.coverModeManual') }
 ])
 
+const currencyOptions = computed(() =>
+  CURRENCIES.map((c) => ({ label: `${c.symbol} ${c.name}`, value: c.code }))
+)
+
 function getGoodsThumb(goods) {
   return getPrimaryGoodsImageUrl(goods.images, goods.coverImage || goods.image) || null
 }
@@ -230,6 +241,11 @@ function handleNameChange() {
 function handleTotalAmountChange() {
   const amount = parseFloat(editTotalAmount.value) || 0
   if (amount !== props.group.totalAmount) emit('update', props.group.id, { totalAmount: amount })
+}
+
+function handleCurrencyChange(value) {
+  editCurrency.value = value
+  emit('update', props.group.id, { currency: value })
 }
 
 function handleNoteChange() {
@@ -335,6 +351,29 @@ function handleRemoveMember(goodsId) {
   display: flex;
   padding: 4px;
   gap: 4px;
+}
+
+.manual-price-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.manual-price-row .field-card--price {
+  flex: 1;
+  min-width: 0;
+}
+
+.currency-select {
+  width: 135px;
+  flex-shrink: 0;
+}
+
+.currency-select :deep(.app-select__trigger) {
+  height: var(--input-height, 48px);
+  border-radius: var(--radius-card, 18px);
+  background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
 }
 
 .field-card--action {

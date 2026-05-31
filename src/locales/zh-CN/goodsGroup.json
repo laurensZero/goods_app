@@ -24,6 +24,8 @@
   "goodsGroup.priceModeAuto": "自动汇总",
   "goodsGroup.priceModeManual": "手动设置",
   "goodsGroup.manualPrice": "手动总价",
+  "goodsGroup.priceCurrency": "币种",
+  "goodsGroup.groupTotalCNY": "约 ¥{amount}",
   "goodsGroup.coverMode": "封面模式",
   "goodsGroup.coverModeAuto": "自动",
   "goodsGroup.coverModeManual": "手动指定",

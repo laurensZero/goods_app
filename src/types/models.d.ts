@@ -114,6 +114,7 @@ export interface GoodsGroup {
   type: 'collection' | 'wishlist'
   summaryMode: 'auto' | 'manual'
   totalAmount: number
+  currency: string
   coverMode: 'auto' | 'manual'
   coverItemId: string
   displayMode: 'stack' | 'list'

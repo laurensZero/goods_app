@@ -24,6 +24,8 @@
   "goodsGroup.priceModeAuto": "Auto Sum",
   "goodsGroup.priceModeManual": "Manual",
   "goodsGroup.manualPrice": "Manual Price",
+  "goodsGroup.priceCurrency": "Currency",
+  "goodsGroup.groupTotalCNY": "~¥{amount}",
   "goodsGroup.coverMode": "Cover Mode",
   "goodsGroup.coverModeAuto": "Auto",
   "goodsGroup.coverModeManual": "Manual",

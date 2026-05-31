@@ -21,6 +21,7 @@
           :group="item._group"
           :items="item._members"
           :total-price="item._totalPrice || 0"
+          :currency="item._currency || 'CNY'"
           :density="density"
           :selected="selectedIds?.has?.(item.id) ?? false"
           :selection-mode="selectionMode"

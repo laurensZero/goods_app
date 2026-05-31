@@ -207,6 +207,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
@@ -246,6 +247,7 @@ const { t } = useI18n()
 
 const store = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
+const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const batchEditSheetRef = ref(null)
@@ -872,6 +874,12 @@ function handleAndroidBackButton(event) {
     return
   }
 
+  if (showGroupFolder.value) {
+    showGroupFolder.value = false
+    event.preventDefault()
+    return
+  }
+
   if (selectionMode.value) {
     exitSelectionMode()
     event.preventDefault()
@@ -1058,7 +1066,7 @@ onBeforeRouteLeave(() => {
   unbindPageScroll()
 })
 
-const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection)
+const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection, goodsGroupStore, exchangeRate)
 
 // Goods groups — merged into displayList with goods
 const groupViewItems = computed(() => {
@@ -1068,16 +1076,31 @@ const groupViewItems = computed(() => {
     const members = goodsGroupStore.groupItemsOf(group.id)
       .map(i => goodsMap.get(i.goodsId))
       .filter(Boolean)
-    const totalPrice = members.reduce((sum, g) => {
-      const view = viewMap.get(g.id)
-      return sum + (Number(view?.totalValueNumber) || 0)
-    }, 0)
+
+    let totalPrice = 0
+    let totalPriceCNY = 0
+    let currency = 'CNY'
+
+    if (group.summaryMode === 'manual') {
+      totalPrice = Number(group.totalAmount) || 0
+      currency = group.currency || 'CNY'
+      totalPriceCNY = exchangeRate.convertToCNY(totalPrice, currency)
+    } else {
+      totalPriceCNY = members.reduce((sum, g) => {
+        const view = viewMap.get(g.id)
+        return sum + (Number(view?.totalValueNumber) || 0)
+      }, 0)
+      totalPrice = totalPriceCNY
+    }
+
     return {
       id: group.id,
       _type: 'group',
       _group: group,
       _members: members,
       _totalPrice: totalPrice,
+      _totalPriceCNY: totalPriceCNY,
+      _currency: currency,
       name: group.name,
       updatedAt: group.updatedAt
     }

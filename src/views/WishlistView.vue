@@ -168,6 +168,7 @@ import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
@@ -241,6 +242,7 @@ const router = useRouter()
 const route = useRoute()
 const store = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
+const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const windowWidth = ref(window.innerWidth)
@@ -316,10 +318,32 @@ const baseGoodsList = computed(() => store.wishlistViewList)
 const _wishlistTotals = computed(() => {
   let qty = 0
   let val = 0
+
+  // Build set of goodsIds belonging to manual-price wishlist groups
+  const manualGroupMemberIds = new Set()
+  const manualGroups = new Map()
+  for (const group of goodsGroupStore.wishlistGroups) {
+    if (group.summaryMode === 'manual') {
+      manualGroups.set(group.id, group)
+      for (const item of goodsGroupStore.groupItemsOf(group.id)) {
+        manualGroupMemberIds.add(item.goodsId)
+      }
+    }
+  }
+
   for (const item of baseGoodsList.value) {
     qty += item.quantityNumber
-    val += item.totalValueNumber
+    if (!manualGroupMemberIds.has(item.id)) {
+      val += item.totalValueNumber
+    }
   }
+
+  // Add manual group totals (converted to CNY)
+  for (const [, group] of manualGroups) {
+    const amount = Number(group.totalAmount) || 0
+    val += exchangeRate.convertToCNY(amount, group.currency || 'CNY')
+  }
+
   return { qty, val: val.toFixed(2) }
 })
 const totalQuantity = computed(() => _wishlistTotals.value.qty)
@@ -328,7 +352,8 @@ const wishlistTipsItems = computed(() => [
   t('home.wishlist.budgetTip1'),
   t('home.wishlist.budgetTip2'),
   t('home.wishlist.budgetTip3'),
-  t('home.wishlist.budgetTip4')
+  t('home.wishlist.budgetTip4'),
+  t('home.wishlist.budgetTip5')
 ])
 
 function getInitialVisibleCount() {
@@ -354,16 +379,31 @@ const groupViewItems = computed(() => {
     const members = goodsGroupStore.groupItemsOf(group.id)
       .map(i => goodsMap.get(i.goodsId))
       .filter(Boolean)
-    const totalPrice = members.reduce((sum, g) => {
-      const view = viewMap.get(g.id)
-      return sum + (Number(view?.totalValueNumber) || 0)
-    }, 0)
+
+    let totalPrice = 0
+    let totalPriceCNY = 0
+    let currency = 'CNY'
+
+    if (group.summaryMode === 'manual') {
+      totalPrice = Number(group.totalAmount) || 0
+      currency = group.currency || 'CNY'
+      totalPriceCNY = exchangeRate.convertToCNY(totalPrice, currency)
+    } else {
+      totalPriceCNY = members.reduce((sum, g) => {
+        const view = viewMap.get(g.id)
+        return sum + (Number(view?.totalValueNumber) || 0)
+      }, 0)
+      totalPrice = totalPriceCNY
+    }
+
     return {
       id: group.id,
       _type: 'group',
       _group: group,
       _members: members,
       _totalPrice: totalPrice,
+      _totalPriceCNY: totalPriceCNY,
+      _currency: currency,
       name: group.name,
       updatedAt: group.updatedAt
     }
@@ -754,6 +794,12 @@ function handleAndroidBackButton(event) {
     return
   }
 
+  if (showGroupFolder.value) {
+    showGroupFolder.value = false
+    event.preventDefault()
+    return
+  }
+
   if (selectionMode.value) {
     exitSelectionMode()
     event.preventDefault()
@@ -964,7 +1010,8 @@ onActivated(async () => {
 
   // Restore group folder sheet if returning from detail that was opened from the sheet
   const restoreGroupId = sessionStorage.getItem(GROUP_RESTORE_KEY)
-  if (restoreGroupId) {
+  const isGroupRestore = !!restoreGroupId
+  if (isGroupRestore) {
     sessionStorage.removeItem(GROUP_RESTORE_KEY)
     activeGroupId.value = restoreGroupId
     showGroupFolder.value = true
@@ -985,7 +1032,11 @@ onActivated(async () => {
   await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
   await nextTick()
   wishlistDisplayReady.value = true
-  scheduleGoodsBackHeroRetry()
+  if (!isGroupRestore) {
+    // Don't run hero back here when sheet is being restored —
+    // GroupFolderSheet handles it via onSheetOpened
+    scheduleGoodsBackHeroRetry()
+  }
   bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
