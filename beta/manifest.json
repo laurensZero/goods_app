@@ -1,9 +1,9 @@
 {
-  "version": "20260601.3",
-  "url": "bundle-20260601.3.zip",
-  "hash": "ffc91dc36c64d1391f18eab5cb9a972217ab2de703b95d02c98ae8d340c2d074",
+  "version": "20260601.4",
+  "url": "bundle-20260601.4.zip",
+  "hash": "4f86c9a4d57c0ba92754c1420390bda7ff5156a4caa000d16e1fff26c7a9d66a",
   "minNativeVersion": null,
-  "notes": "- refactor: 清理旧搜索",
+  "notes": "- feat: 优化Markdown渲染逻辑，延迟加载相关模块并支持动态更新",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-01T03:49:24Z"
+  "publishedAt": "2026-06-01T07:35:04Z"
 }
