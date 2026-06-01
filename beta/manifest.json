@@ -1,9 +1,9 @@
 {
-  "version": "20260601.5",
-  "url": "bundle-20260601.5.zip",
-  "hash": "4e12ffa36da29bb42ecc018b706a34337f3342c93886ef56c4dbfe3dee3dde4f",
+  "version": "20260601.3",
+  "url": "bundle-20260601.3.zip",
+  "hash": "ffc91dc36c64d1391f18eab5cb9a972217ab2de703b95d02c98ae8d340c2d074",
   "minNativeVersion": null,
-  "notes": "- feat: 添加重置筛选按钮，优化筛选体验",
+  "notes": "- refactor: 清理旧搜索",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-01T11:33:17Z"
+  "publishedAt": "2026-06-01T03:49:24Z"
 }
