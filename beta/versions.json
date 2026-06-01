@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260601.2",
+    "url": "bundle-20260601.2.zip",
+    "hash": "f2b161a534a8e2d579a80801cdd8b3684beabb37fc28f3988da408980de53727",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加日期选择器功能，优化日期选择逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-01T03:22:36Z"
+  },
+  {
     "version": "20260601.1",
     "url": "bundle-20260601.1.zip",
     "hash": "73c0b7dbe26c6c5795e7a7ebe9f43297451bbcbda5a04b6c5c121b841830c6e6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 全选搜索",
     "updateLevel": "silent",
     "publishedAt": "2026-05-31T15:39:06Z"
-  },
-  {
-    "version": "20260531.8",
-    "url": "bundle-20260531.8.zip",
-    "hash": "e06c39a1e56f12f7e164eb14db7ad65f52cfa50f67be16f1a5c4cf3c1685d1ce",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加更多操作按钮及其弹出层功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-31T13:16:33Z"
   }
 ]

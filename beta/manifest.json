@@ -1,9 +1,9 @@
 {
-  "version": "20260601.1",
-  "url": "bundle-20260601.1.zip",
-  "hash": "73c0b7dbe26c6c5795e7a7ebe9f43297451bbcbda5a04b6c5c121b841830c6e6",
+  "version": "20260601.2",
+  "url": "bundle-20260601.2.zip",
+  "hash": "f2b161a534a8e2d579a80801cdd8b3684beabb37fc28f3988da408980de53727",
   "minNativeVersion": null,
-  "notes": "- feat: 优化后退按钮处理逻辑，支持在搜索弹窗打开时关闭弹窗",
+  "notes": "- feat: 添加日期选择器功能，优化日期选择逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-01T01:07:23Z"
+  "publishedAt": "2026-06-01T03:22:36Z"
 }
