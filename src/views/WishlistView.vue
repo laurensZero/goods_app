@@ -841,6 +841,12 @@ function shouldMaskWishlistDisplay() {
 }
 
 function handleAndroidBackButton(event) {
+  if (showSearchPopup.value) {
+    showSearchPopup.value = false
+    event.preventDefault()
+    return
+  }
+
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
     return
