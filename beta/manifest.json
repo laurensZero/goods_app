@@ -1,9 +1,9 @@
 {
-  "version": "20260531.9",
-  "url": "bundle-20260531.9.zip",
-  "hash": "2353ee07067cd37d289e075d81b4c14ba104bbfafc787276ecb94777514f9f6e",
+  "version": "20260601.1",
+  "url": "bundle-20260601.1.zip",
+  "hash": "73c0b7dbe26c6c5795e7a7ebe9f43297451bbcbda5a04b6c5c121b841830c6e6",
   "minNativeVersion": null,
-  "notes": "- feat: 全选搜索",
+  "notes": "- feat: 优化后退按钮处理逻辑，支持在搜索弹窗打开时关闭弹窗",
   "updateLevel": "silent",
-  "publishedAt": "2026-05-31T15:39:06Z"
+  "publishedAt": "2026-06-01T01:07:23Z"
 }
