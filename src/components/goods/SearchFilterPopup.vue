@@ -217,7 +217,7 @@
                     </button>
                   </div>
                   <div v-if="filters.acquiredPreset === 'custom'" class="range-row range-row--date">
-                    <button class="date-field" type="button" @click="$emit('update-field', { key: '_openDatePicker', value: 'from' })">
+                    <button class="date-field" type="button" @click="openDatePicker('from')">
                       <span :class="{ 'date-field__value--placeholder': !filters.acquiredFrom }">
                         {{ filters.acquiredFrom || t('search.startDate') }}
                       </span>
@@ -229,7 +229,7 @@
                       </svg>
                     </button>
                     <span class="range-gap">-</span>
-                    <button class="date-field" type="button" @click="$emit('update-field', { key: '_openDatePicker', value: 'to' })">
+                    <button class="date-field" type="button" @click="openDatePicker('to')">
                       <span :class="{ 'date-field__value--placeholder': !filters.acquiredTo }">
                         {{ filters.acquiredTo || t('search.endDate') }}
                       </span>
@@ -347,6 +347,17 @@
           {{ t('common.close') }}
         </button>
       </footer>
+
+      <AppDatePicker
+        v-model:show="showDatePicker"
+        v-model="datePickerValue"
+        :z-index="3000"
+        :is-tablet="isTablet"
+        :title="datePickerTarget === 'from' ? t('search.selectAcquiredFrom') : t('search.selectAcquiredTo')"
+        :min-date="minDate"
+        :max-date="maxDate"
+        @confirm="onDateConfirm"
+      />
     </div>
   </Popup>
 </template>
@@ -358,6 +369,8 @@ import { useI18n } from 'vue-i18n'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import SearchBar from '@/components/common/SearchBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import AppDatePicker from '@/components/common/AppDatePicker.vue'
+import { formatDate } from '@/utils/format'
 import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
 import {
   GOODS_FILTER_SPECIAL_VALUES,
@@ -418,6 +431,47 @@ const presetDraftName = ref('')
 const advancedExpanded = ref(false)
 
 const isFiltering = computed(() => props.activeFilterCount > 0 || (props.filters.keyword && props.filters.keyword.trim()))
+
+// Date picker
+const showDatePicker = ref(false)
+const datePickerTarget = ref('from')
+const datePickerValue = ref([])
+const minDate = new Date(2000, 0, 1)
+const maxDate = new Date(2100, 11, 31)
+
+function normalizeDateParts(dateString) {
+  const [fallbackYear, fallbackMonth, fallbackDay] = formatDate(new Date(), 'YYYY-MM-DD').split('-')
+  if (!dateString) return [fallbackYear, fallbackMonth, fallbackDay]
+  const [year = fallbackYear, month = fallbackMonth, day = fallbackDay] = `${dateString}`.split('-')
+  return [year, month.padStart(2, '0'), day.padStart(2, '0')]
+}
+
+function openDatePicker(target) {
+  datePickerTarget.value = target
+  const dateString = target === 'from' ? props.filters.acquiredFrom : (props.filters.acquiredTo || props.filters.acquiredFrom)
+  datePickerValue.value = normalizeDateParts(dateString)
+  showDatePicker.value = true
+}
+
+function onDateConfirm({ selectedValues }) {
+  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+  const dateString = `${year}-${month}-${day}`
+
+  if (datePickerTarget.value === 'from') {
+    emit('update-field', { key: 'acquiredFrom', value: dateString })
+    if (props.filters.acquiredTo && props.filters.acquiredTo < dateString) {
+      emit('update-field', { key: 'acquiredTo', value: dateString })
+    }
+  } else {
+    emit('update-field', { key: 'acquiredTo', value: dateString })
+    if (props.filters.acquiredFrom && props.filters.acquiredFrom > dateString) {
+      emit('update-field', { key: 'acquiredFrom', value: dateString })
+    }
+  }
+
+  datePickerValue.value = [year, month, day]
+  showDatePicker.value = false
+}
 </script>
 
 <style scoped>
