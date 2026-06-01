@@ -1,9 +1,9 @@
 {
-  "version": "20260601.2",
-  "url": "bundle-20260601.2.zip",
-  "hash": "f2b161a534a8e2d579a80801cdd8b3684beabb37fc28f3988da408980de53727",
+  "version": "20260601.3",
+  "url": "bundle-20260601.3.zip",
+  "hash": "ffc91dc36c64d1391f18eab5cb9a972217ab2de703b95d02c98ae8d340c2d074",
   "minNativeVersion": null,
-  "notes": "- feat: 添加日期选择器功能，优化日期选择逻辑",
+  "notes": "- refactor: 清理旧搜索",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-01T03:22:36Z"
+  "publishedAt": "2026-06-01T03:49:24Z"
 }

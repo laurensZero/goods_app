@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260601.3",
+    "url": "bundle-20260601.3.zip",
+    "hash": "ffc91dc36c64d1391f18eab5cb9a972217ab2de703b95d02c98ae8d340c2d074",
+    "minNativeVersion": null,
+    "notes": "- refactor: 清理旧搜索",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-01T03:49:24Z"
+  },
+  {
     "version": "20260601.2",
     "url": "bundle-20260601.2.zip",
     "hash": "f2b161a534a8e2d579a80801cdd8b3684beabb37fc28f3988da408980de53727",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化后退按钮处理逻辑，支持在搜索弹窗打开时关闭弹窗",
     "updateLevel": "silent",
     "publishedAt": "2026-06-01T01:07:23Z"
-  },
-  {
-    "version": "20260531.9",
-    "url": "bundle-20260531.9.zip",
-    "hash": "2353ee07067cd37d289e075d81b4c14ba104bbfafc787276ecb94777514f9f6e",
-    "minNativeVersion": null,
-    "notes": "- feat: 全选搜索",
-    "updateLevel": "silent",
-    "publishedAt": "2026-05-31T15:39:06Z"
   }
 ]
