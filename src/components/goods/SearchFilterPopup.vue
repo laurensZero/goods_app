@@ -373,7 +373,7 @@ onMounted(() => updateViewport())
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 const popupStyle = computed(() => isTablet.value
   ? { width: 'min(900px, calc(100vw - 32px))', height: 'calc(100vh - 32px)' }
-  : { height: '100%' }
+  : { height: '85vh' }
 )
 
 const emit = defineEmits([
