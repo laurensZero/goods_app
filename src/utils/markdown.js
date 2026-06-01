@@ -1,8 +1,3 @@
-import MarkdownIt from 'markdown-it'
-import mkTask from 'markdown-it-task-lists'
-import DOMPurify from 'dompurify'
-import hljs from 'highlight.js'
-
 export function detectMarkdownContent(value) {
   const text = String(value || '').trim()
   if (!text) return false
@@ -22,28 +17,47 @@ export function detectMarkdownContent(value) {
   ].some((pattern) => pattern.test(text))
 }
 
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true,
-  highlight: (str, lang) => {
-    try {
-      if (lang && hljs.getLanguage(lang)) {
-        return `<pre><code class="hljs">${hljs.highlight(str, { language: lang }).value}</code></pre>`
-      }
-      const res = hljs.highlightAuto(str)
-      return `<pre><code class="hljs">${res.value}</code></pre>`
-    } catch (e) {
-      return `<pre><code>${md.utils.escapeHtml(str)}</code></pre>`
-    }
-  }
-})
-md.use(mkTask, { enabled: true })
+let mdInstance = null
 
-export function renderMarkdown(value) {
+async function getMarkdownIt() {
+  if (mdInstance) return mdInstance
+
+  const [
+    { default: MarkdownIt },
+    { default: mkTask },
+    { default: hljs }
+  ] = await Promise.all([
+    import('markdown-it'),
+    import('markdown-it-task-lists'),
+    import('highlight.js')
+  ])
+
+  mdInstance = new MarkdownIt({
+    html: false,
+    linkify: true,
+    typographer: true,
+    highlight: (str, lang) => {
+      try {
+        if (lang && hljs.getLanguage(lang)) {
+          return `<pre><code class="hljs">${hljs.highlight(str, { language: lang }).value}</code></pre>`
+        }
+        const res = hljs.highlightAuto(str)
+        return `<pre><code class="hljs">${res.value}</code></pre>`
+      } catch (e) {
+        return `<pre><code>${mdInstance.utils.escapeHtml(str)}</code></pre>`
+      }
+    }
+  })
+  mdInstance.use(mkTask, { enabled: true })
+  return mdInstance
+}
+
+export async function renderMarkdown(value) {
+  const md = await getMarkdownIt()
   const src = String(value || '')
   const rendered = md.render(src)
   try {
+    const { default: DOMPurify } = await import('dompurify')
     return DOMPurify.sanitize(rendered)
   } catch (e) {
     return rendered

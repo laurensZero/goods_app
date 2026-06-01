@@ -496,7 +496,10 @@ const heroPriceLabel = computed(() => {
   return hasActualPriceValue(item.value.actualPrice) ? t('goods.detail.landedPrice') : t('goods.detail.officialPrice')
 })
 const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
-const noteHtml = computed(() => renderMarkdown(item.value?.note || ''))
+const noteHtml = ref('')
+watch(() => item.value?.note || '', async (note) => {
+  noteHtml.value = note ? await renderMarkdown(note) : ''
+}, { immediate: true })
 const isNoteMarkdown = computed(() => detectMarkdownContent(item.value?.note || ''))
 
 async function copyNoteMarkdown() {

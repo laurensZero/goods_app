@@ -1,6 +1,13 @@
-import { applySegmentationMask, preload, segmentForeground } from '@imgly/background-removal'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+
+let imglyModule = null
+async function getImgly() {
+  if (!imglyModule) {
+    imglyModule = await import('@imgly/background-removal')
+  }
+  return imglyModule
+}
 
 let hasSuccessfulCutout = false
 const MODEL_READY_STORAGE_KEY = 'goods-app:cutout-model-ready'
@@ -531,6 +538,7 @@ export function useImageCutout() {
           preloadConfig.publicPath = localPublicPath
         }
 
+        const { preload } = await getImgly()
         await preload(preloadConfig)
       })()
         .then(() => {
@@ -597,6 +605,7 @@ export function useImageCutout() {
       removeConfig.publicPath = localPublicPath
     }
 
+    const { segmentForeground } = await getImgly()
     const maskBlob = await segmentForeground(preparedInput.blob, removeConfig)
     emitProgress(88, '修复主体颜色中...')
     const refinedMask = await refineCutoutMask(maskBlob, preparedInput.referenceCanvas)
@@ -628,6 +637,7 @@ export function useImageCutout() {
       applyConfig.publicPath = localPublicPath
     }
 
+    const { applySegmentationMask } = await getImgly()
     const cutoutBlob = await applySegmentationMask(preparedBlob, maskBlob, applyConfig)
     return finalizeCutoutResult(cutoutBlob, meta)
   }
@@ -686,6 +696,7 @@ export function useImageCutout() {
           removeConfig.publicPath = localPublicPath
         }
 
+        const { segmentForeground, applySegmentationMask } = await getImgly()
         return segmentForeground(preparedInput.blob, removeConfig)
           .then(async (maskBlob) => {
             emitProgress(88, '修复主体颜色中...')
