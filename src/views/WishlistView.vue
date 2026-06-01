@@ -19,6 +19,19 @@
             </svg>
           </button>
 
+          <button
+            v-if="searchActiveFilterCount > 0"
+            class="hero-reset"
+            type="button"
+            aria-label="重置筛选"
+            @click="searchResetFilters()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 6L6 18" />
+              <path d="M6 6L18 18" />
+            </svg>
+          </button>
+
           <HomeViewModeSwitch
             model-value="wishlist"
             :options="HOME_TOP_OPTIONS"
@@ -1254,6 +1267,39 @@ onBeforeRouteLeave(() => {
   height: 8px;
   border-radius: 50%;
   background: var(--color-primary, #07c160);
+}
+
+.hero-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-surface, #fff);
+  color: var(--app-text-secondary, #666);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: transform 0.14s ease, opacity 0.14s ease;
+}
+
+.hero-reset:active {
+  transform: scale(0.92);
+  opacity: 0.8;
+}
+
+.hero-reset svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.hero-actions :deep(.mode-switch__item) {
+  min-width: 48px;
+  padding: 0 8px;
 }
 </style>
 
