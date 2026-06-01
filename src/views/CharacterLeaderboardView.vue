@@ -321,6 +321,11 @@ const selectedDimensionLabel = computed(() =>
 </script>
 
 <style scoped>
+.hero-actions :deep(.mode-switch__item) {
+  min-width: 48px;
+  padding: 0 8px;
+}
+
 .leaderboard-page--top-jump .page-body {
   animation: top-jump-mask-strong 260ms ease-out;
 }
