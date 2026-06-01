@@ -1,8 +1,8 @@
-import HomeView from '@/views/HomeView.vue'
-import RechargeView from '@/views/RechargeView.vue'
-import WishlistView from '@/views/WishlistView.vue'
-import MyView from '@/views/MyView.vue'
-import EventsView from '@/views/EventsView.vue'
+const HomeView = () => import('@/views/HomeView.vue')
+const RechargeView = () => import('@/views/RechargeView.vue')
+const WishlistView = () => import('@/views/WishlistView.vue')
+const MyView = () => import('@/views/MyView.vue')
+const EventsView = () => import('@/views/EventsView.vue')
 
 export default [
   { path: '/', redirect: '/home' },

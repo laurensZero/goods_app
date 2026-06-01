@@ -72,7 +72,9 @@ export default defineConfig({
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'ui-library': ['vant'],
           'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences'],
-          'db-engine': ['@capacitor-community/sqlite', 'sql.js']
+          'db-engine': ['@capacitor-community/sqlite', 'sql.js'],
+          'chart-engine': ['echarts'],
+          'cutout-engine': ['@imgly/background-removal']
         }
       }
     }

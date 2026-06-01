@@ -11,7 +11,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps({
@@ -27,7 +27,11 @@ const props = defineProps({
 
 const normalizedContent = computed(() => String(props.content || '').trim())
 const showPreview = computed(() => detectMarkdownContent(normalizedContent.value))
-const previewHtml = computed(() => (showPreview.value ? renderMarkdown(normalizedContent.value) : ''))
+const previewHtml = ref('')
+
+watch(() => ({ show: showPreview.value, content: normalizedContent.value }), async ({ show, content }) => {
+  previewHtml.value = show ? await renderMarkdown(content) : ''
+}, { immediate: true })
 const copied = ref(false)
 
 async function copyMarkdown() {

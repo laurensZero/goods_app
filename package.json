@@ -51,8 +51,7 @@
     "vant": "^4.9.22",
     "vue": "^3.4.0",
     "vue-i18n": "^10.0.7",
-    "vue-router": "^4.3.0",
-    "vue-virtual-scroller": "^2.0.0-beta.10"
+    "vue-router": "^4.3.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.2.0",
