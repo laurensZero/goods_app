@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260601.5",
+    "url": "bundle-20260601.5.zip",
+    "hash": "4e12ffa36da29bb42ecc018b706a34337f3342c93886ef56c4dbfe3dee3dde4f",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加重置筛选按钮，优化筛选体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-01T11:33:17Z"
+  },
+  {
     "version": "20260601.4",
     "url": "bundle-20260601.4.zip",
     "hash": "4f86c9a4d57c0ba92754c1420390bda7ff5156a4caa000d16e1fff26c7a9d66a",
@@ -16,14 +25,5 @@
     "notes": "- refactor: 清理旧搜索",
     "updateLevel": "silent",
     "publishedAt": "2026-06-01T03:49:24Z"
-  },
-  {
-    "version": "20260601.2",
-    "url": "bundle-20260601.2.zip",
-    "hash": "f2b161a534a8e2d579a80801cdd8b3684beabb37fc28f3988da408980de53727",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加日期选择器功能，优化日期选择逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-01T03:22:36Z"
   }
 ]

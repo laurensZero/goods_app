@@ -1,9 +1,9 @@
 {
-  "version": "20260601.4",
-  "url": "bundle-20260601.4.zip",
-  "hash": "4f86c9a4d57c0ba92754c1420390bda7ff5156a4caa000d16e1fff26c7a9d66a",
+  "version": "20260601.5",
+  "url": "bundle-20260601.5.zip",
+  "hash": "4e12ffa36da29bb42ecc018b706a34337f3342c93886ef56c4dbfe3dee3dde4f",
   "minNativeVersion": null,
-  "notes": "- feat: 优化Markdown渲染逻辑，延迟加载相关模块并支持动态更新",
+  "notes": "- feat: 添加重置筛选按钮，优化筛选体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-01T07:35:04Z"
+  "publishedAt": "2026-06-01T11:33:17Z"
 }
