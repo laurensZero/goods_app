@@ -1,11 +1,5 @@
 export default [
   {
-    path: '/search',
-    name: 'search',
-    component: () => import('@/views/SearchView.vue'),
-    meta: { titleKey: 'nav.search' }
-  },
-  {
     path: '/add',
     name: 'add',
     component: () => import('@/views/AddItemView.vue'),
