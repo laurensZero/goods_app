@@ -135,6 +135,7 @@ const cardMotionStyles = reactive({})
 
 let _cardObserver = null
 const _observedEls = new WeakSet()
+const _repaintedEls = new WeakSet()
 
 function forceRepaint(el) {
   if (!el) return
@@ -157,9 +158,16 @@ function createCardObserver() {
       const target = entry.target
       if (entry.isIntersecting && target) {
         if (!shouldBlockGoodsCardRepaint()) {
-          try {
-            forceRepaint(target)
-          } catch (e) {}
+          // Only force-repaint cards entering the viewport for the first time.
+          // Cards re-observed after a hero animation block are already fully
+          // rendered — calling forceRepaint on them causes compositor layer
+          // promotion/demotion flashes (the will-change: transform trick).
+          if (!_repaintedEls.has(target)) {
+            _repaintedEls.add(target)
+            try {
+              forceRepaint(target)
+            } catch (e) {}
+          }
         }
         try { _cardObserver.unobserve(target) } catch (e) {}
         try { _observedEls.delete(target) } catch (e) {}
