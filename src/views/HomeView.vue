@@ -188,6 +188,7 @@
     />
 
     <GroupFolderSheet
+      ref="groupFolderSheetRef"
       v-model:show="showGroupFolder"
       :group-id="activeGroupId"
       :density="displayDensity"
@@ -965,6 +966,10 @@ function handleAndroidBackButton(event) {
   }
 
   if (showGroupFolder.value) {
+    if (groupFolderSheetRef.value?.consumeBack()) {
+      event.preventDefault()
+      return
+    }
     showGroupFolder.value = false
     event.preventDefault()
     return
@@ -1230,6 +1235,7 @@ const visibleDisplayList = computed(() =>
 )
 const GROUP_RESTORE_KEY = '__groupRestore'
 const showGroupFolder = ref(false)
+const groupFolderSheetRef = ref(null)
 const activeGroupId = ref('')
 let navigatingFromGroup = false
 

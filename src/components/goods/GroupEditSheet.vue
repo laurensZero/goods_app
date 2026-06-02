@@ -271,6 +271,16 @@ function handleCoverSelect(goodsId) {
 function handleRemoveMember(goodsId) {
   emit('remove-member', [goodsId])
 }
+
+function consumeBack() {
+  if (showCoverPicker.value) {
+    showCoverPicker.value = false
+    return true
+  }
+  return false
+}
+
+defineExpose({ consumeBack })
 </script>
 
 <style scoped>
