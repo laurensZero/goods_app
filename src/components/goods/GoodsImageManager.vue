@@ -296,16 +296,16 @@ async function handleQuickEditSave(result) {
   if (!result?.file || !editingTargetId.value) return
 
   try {
-    const localUri = await saveLocalImage(result.file)
+    const saved = await saveLocalImage(result.file)
     emitImages(images.value.map((image) => {
       if (image.id !== editingTargetId.value) return image
         return {
           ...image,
-          uri: localUri,
-          localUri,
+          uri: saved.uri,
+          localUri: saved.uri,
           remoteUri: '',
-          storageMode: inferGoodsImageStorageMode(localUri),
-          localPath: '',
+          storageMode: inferGoodsImageStorageMode(saved.uri),
+          localPath: saved.localPath,
         gistFileName: '',
         mimeType: '',
         fileSize: 0

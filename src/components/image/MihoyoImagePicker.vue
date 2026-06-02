@@ -157,7 +157,7 @@ async function handleQuickEditorSave(result) {
   if (!result?.file) return
   uploading.value = true
   try {
-    const localUri = await saveLocalImage(result.file)
+    const { uri: localUri } = await saveLocalImage(result.file)
     // 清除米游铺款式选择状态（本地图片不需要）
     variants.value = []
     fetchState.value = ''
