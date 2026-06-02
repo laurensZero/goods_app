@@ -837,7 +837,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   }
 }
 
-export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady, onComplete }) {
+export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady }) {
   if (!pendingBackHero) return false
   if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
     cleanupAllHeroes()
@@ -875,7 +875,6 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady, 
     }
   ).finally(() => {
     releaseScrollLock()
-    try { onComplete?.() } catch (e) {}
   })
 
   pendingBackHero = null

@@ -1087,20 +1087,12 @@ onActivated(async () => {
     homeDisplayReady.value = true
   } else {
     // Try to hide the hero target synchronously before lifting the mask.
-    // Keep the page hidden (homeDisplayReady=false) during the hero animation
-    // to prevent force-repaint flashes on newly-created cards. The hero
-    // overlay covers the page, so hiding it has no visual effect. The
-    // onComplete callback lifts the mask after the overlay is removed.
-    const played = tryPlayNativeGoodsBackHero(null, () => {
-      homeDisplayReady.value = true
-    })
+    const played = tryPlayNativeGoodsBackHero()
     if (played) {
-      // homeDisplayReady stays false — onComplete will set it to true
-      // when the hero animation finishes and overlay is removed.
+      homeDisplayReady.value = true
     } else if (hasPendingGoodsHeroBack(route.fullPath)) {
       scheduleGoodsBackHeroRetry(0, {
-        onPlayed: () => {},
-        onComplete: () => { homeDisplayReady.value = true },
+        onPlayed: () => { homeDisplayReady.value = true },
         onGiveUp: () => { homeDisplayReady.value = true }
       })
     } else {
