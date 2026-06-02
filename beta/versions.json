@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260602.8",
+    "url": "bundle-20260602.8.zip",
+    "hash": "152277bf8ee4b83a59f1dcf8efce40d10ce4ebd13748c590306104557d5d87bc",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化编译速度",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-02T10:22:42Z"
+  },
+  {
     "version": "20260602.7",
     "url": "bundle-20260602.7.zip",
     "hash": "7d53f5f728512fd38b531c6bdf63ce880bdd683c80d8775275e2ffab5441a222",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化卡片重绘逻辑，仅在首次进入视口时强制重绘",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T08:28:14Z"
-  },
-  {
-    "version": "20260602.5",
-    "url": "bundle-20260602.5.zip",
-    "hash": "f3830184ec8b8eb40104410126a502d3fe89c04c55b42c0d8b5c9d541ad635a5",
-    "minNativeVersion": null,
-    "notes": "- feat: 在GoodsImageManager中添加goodsId属性，更新图片时持久化到数据库",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T05:30:18Z"
   }
 ]
