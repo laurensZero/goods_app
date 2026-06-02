@@ -339,7 +339,7 @@
               <div class="field-card">
                 <div class="field">
                   <span class="field-label">{{ t('goods.editor.imageGallery') }}</span>
-                  <GoodsImageManager v-model="form.images" :hint="form.characters[0] || ''" />
+                  <GoodsImageManager v-model="form.images" :hint="form.characters[0] || ''" :goods-id="editId" />
                 </div>
               </div>
             </section>
