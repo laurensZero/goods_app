@@ -135,8 +135,7 @@ const cardMotionStyles = reactive({})
 
 let _cardObserver = null
 const _observedEls = new WeakSet()
-const _repaintedEls = new WeakSet()
-let _reobserveAfterBlockTimer = 0
+const _repaintedIds = new Set()
 
 function forceRepaint(el) {
   if (!el) return
@@ -151,34 +150,9 @@ function forceRepaint(el) {
   } catch (e) {}
 }
 
-function reobserveAllCards() {
-  if (!_cardObserver) return
-  for (const item of props.items) {
-    const instance = cardRefs.get(String(item.id || ''))
-    const el = getElement(instance)
-    if (!el || !_observedEls.has(el)) continue
-    if (_repaintedEls.has(el)) continue
-    // Unobserve then re-observe to trigger the observer callback
-    try { _cardObserver.unobserve(el) } catch (e) {}
-    try { _observedEls.delete(el) } catch (e) {}
-    try {
-      _cardObserver.observe(el)
-      _observedEls.add(el)
-    } catch (e) {}
-  }
-}
-
-function scheduleReobserveAfterBlock() {
-  if (_reobserveAfterBlockTimer) return
-  _reobserveAfterBlockTimer = window.setInterval(() => {
-    if (shouldBlockGoodsCardRepaint()) return
-    window.clearInterval(_reobserveAfterBlockTimer)
-    _reobserveAfterBlockTimer = 0
-    // Block expired — re-trigger observers for cards that were kept alive
-    // during the hero animation block. The observer callback will now
-    // call forceRepaint (block is gone) and unobserve.
-    reobserveAllCards()
-  }, 100)
+function getGoodsIdFromEl(el) {
+  if (!el) return ''
+  return el.dataset?.goodsId || el.getAttribute?.('data-goods-id') || ''
 }
 
 function createCardObserver() {
@@ -189,21 +163,20 @@ function createCardObserver() {
       const target = entry.target
       if (entry.isIntersecting && target) {
         if (!shouldBlockGoodsCardRepaint()) {
-          // Only force-repaint cards entering the viewport for the first time.
-          // Cards re-observed after a hero animation block are already fully
-          // rendered — calling forceRepaint on them causes compositor layer
-          // promotion/demotion flashes (the will-change: transform trick).
-          if (!_repaintedEls.has(target)) {
-            _repaintedEls.add(target)
+          // Track by goods ID (not DOM element) so the guard survives Vue
+          // element recreation during hero animation slice changes.
+          const goodsId = getGoodsIdFromEl(target)
+          if (goodsId && _repaintedIds.has(goodsId)) {
+            // Already force-repainted before — skip to avoid compositor flash.
+          } else {
+            if (goodsId) _repaintedIds.add(goodsId)
             try {
               forceRepaint(target)
             } catch (e) {}
           }
-          try { _cardObserver.unobserve(target) } catch (e) {}
-          try { _observedEls.delete(target) } catch (e) {}
         }
-        // When block is active: skip forceRepaint AND keep observer alive.
-        // scheduleReobserveAfterBlock() will re-trigger after block expires.
+        try { _cardObserver.unobserve(target) } catch (e) {}
+        try { _observedEls.delete(target) } catch (e) {}
       }
     }
   }, { threshold: 0.02 })
@@ -223,11 +196,6 @@ async function observeCurrentCards() {
       _cardObserver.observe(el)
       _observedEls.add(el)
     } catch (e) {}
-  }
-  // If hero animation block is active, schedule a deferred force-repaint
-  // for cards that are observed but can't be force-repainted yet.
-  if (shouldBlockGoodsCardRepaint()) {
-    scheduleReobserveAfterBlock()
   }
 }
 
@@ -469,8 +437,6 @@ watch(
 
 onBeforeUnmount(() => {
   if (motionClearTimer) window.clearTimeout(motionClearTimer)
-  if (_reobserveAfterBlockTimer) window.clearInterval(_reobserveAfterBlockTimer)
-  _reobserveAfterBlockTimer = 0
   cancelMotionRetry()
   clearMotionStyles()
   try { _cardObserver?.disconnect() } catch (e) {}
