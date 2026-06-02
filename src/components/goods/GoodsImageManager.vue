@@ -156,12 +156,14 @@ import {
 } from '@/utils/goods/images'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
+import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
-  hint: { type: String, default: '' }
+  hint: { type: String, default: '' },
+  goodsId: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -295,10 +297,16 @@ async function openQuickEdit(image) {
         const ext = blob.type.includes('png') ? 'png' : (blob.type.includes('webp') ? 'webp' : 'jpg')
         const file = new File([blob], `restored_${Date.now()}.${ext}`, { type: blob.type })
         const saved = await saveLocalImage(file)
-        emitImages(images.value.map((img) => {
+        const updatedImages = images.value.map((img) => {
           if (img.id !== image.id) return img
           return { ...img, uri: saved.uri, localUri: saved.uri, localPath: saved.localPath, storageMode: inferGoodsImageStorageMode(saved.uri) }
-        }))
+        })
+        emitImages(updatedImages)
+        // 持久化到数据库，避免下次进入时再次丢失
+        if (props.goodsId) {
+          const goodsStore = useGoodsStore()
+          goodsStore.updateGoods(props.goodsId, { images: updatedImages })
+        }
         dataUrl = cloudDataUrl
       }
     }
