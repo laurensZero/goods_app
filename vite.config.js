@@ -66,15 +66,18 @@ export default defineConfig({
     }
   },
   build: {
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks: {
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'vue-vendor': ['vue', 'vue-router', 'pinia', 'vue-i18n'],
           'ui-library': ['vant'],
-          'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences'],
+          'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences', '@capgo/capacitor-updater', '@capawesome/capacitor-file-picker'],
           'db-engine': ['@capacitor-community/sqlite', 'sql.js'],
           'chart-engine': ['echarts'],
-          'cutout-engine': ['@imgly/background-removal']
+          'cutout-engine': ['@imgly/background-removal'],
+          'sync-engine': ['@supabase/supabase-js'],
+          'tauri-runtime': ['@tauri-apps/api']
         }
       }
     }
