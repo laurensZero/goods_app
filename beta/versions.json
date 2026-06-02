@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260602.3",
+    "url": "bundle-20260602.3.zip",
+    "hash": "1e51b9aac1a460702fe46ecb6c8cc19c88927ed9417df3b4ad9c79680522c0c2",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强本地图片读取功能，添加警告回调以处理错误情况",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-02T04:54:11Z"
+  },
+  {
     "version": "20260602.2",
     "url": "bundle-20260602.2.zip",
     "hash": "7f22de38d03131926a2780508992c61b52273a036e13134225c9f1dd052d9568",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新saveLocalImage函数，返回uri和localPath，优化图片保存逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T03:08:10Z"
-  },
-  {
-    "version": "20260601.3",
-    "url": "bundle-20260601.3.zip",
-    "hash": "ffc91dc36c64d1391f18eab5cb9a972217ab2de703b95d02c98ae8d340c2d074",
-    "minNativeVersion": null,
-    "notes": "- refactor: 清理旧搜索",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-01T03:49:24Z"
   }
 ]
