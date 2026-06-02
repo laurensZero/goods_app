@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260602.9",
+    "url": "bundle-20260602.9.zip",
+    "hash": "4629b0545ea761d5e4a0794009534fb3842316418286cbb87600fbd1a2731f00",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化英雄动画处理逻辑，移除onComplete回调并调整重绘调度",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-02T11:43:34Z"
+  },
+  {
     "version": "20260602.8",
     "url": "bundle-20260602.8.zip",
     "hash": "152277bf8ee4b83a59f1dcf8efce40d10ce4ebd13748c590306104557d5d87bc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加onComplete回调以优化英雄动画完成后的处理逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T10:02:03Z"
-  },
-  {
-    "version": "20260602.6",
-    "url": "bundle-20260602.6.zip",
-    "hash": "52b5216dcaca62b428b0c7bcd0f883ce0feee7178b8cbe3d39c8a9be9bbc5945",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化卡片重绘逻辑，仅在首次进入视口时强制重绘",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T08:28:14Z"
   }
 ]
