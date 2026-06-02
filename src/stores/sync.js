@@ -345,6 +345,19 @@ export const useSyncStore = defineStore('sync', () => {
     constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME }
   })
 
+  async function restoreImageFromCloud(gistFileName) {
+    const name = String(gistFileName || '').trim()
+    if (!name) return null
+    const resolvedBackend = activeBackend
+    if (!resolvedBackend?.readImage) return null
+    const imageGist = await imageService.resolveRemoteImageGist().catch(() => null)
+    if (!imageGist) return null
+    try {
+      const dataUrl = await resolvedBackend.readImage(imageGist, name)
+      return String(dataUrl || '').startsWith('data:image/') ? dataUrl : null
+    } catch { return null }
+  }
+
   // ── Helpers ──
 
   async function buildPresetsData() {
@@ -755,6 +768,7 @@ export const useSyncStore = defineStore('sync', () => {
     clearConflict, resetConfig,
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
     syncBackend, supabaseUrl, supabaseAnonKey,
-    saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode
+    saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
+    restoreImageFromCloud
   }
 })

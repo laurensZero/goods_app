@@ -156,6 +156,7 @@ import {
 } from '@/utils/goods/images'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
+import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
 
 const props = defineProps({
@@ -281,9 +282,30 @@ async function openQuickEdit(image) {
 
   isPreparingEdit.value = true
   try {
-    const dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '', showToast)
+    let dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '')
+
+    // 本地文件丢失，尝试从云端恢复
+    if (!dataUrl?.startsWith('data:image/') && image.gistFileName) {
+      showToast('本地图片丢失，正在从云端恢复…')
+      const syncStore = useSyncStore()
+      const cloudDataUrl = await syncStore.restoreImageFromCloud(image.gistFileName)
+      if (cloudDataUrl?.startsWith('data:image/')) {
+        const response = await fetch(cloudDataUrl)
+        const blob = await response.blob()
+        const ext = blob.type.includes('png') ? 'png' : (blob.type.includes('webp') ? 'webp' : 'jpg')
+        const file = new File([blob], `restored_${Date.now()}.${ext}`, { type: blob.type })
+        const saved = await saveLocalImage(file)
+        emitImages(images.value.map((img) => {
+          if (img.id !== image.id) return img
+          return { ...img, uri: saved.uri, localUri: saved.uri, localPath: saved.localPath, storageMode: inferGoodsImageStorageMode(saved.uri) }
+        }))
+        dataUrl = cloudDataUrl
+      }
+    }
+
     if (!dataUrl?.startsWith('data:image/')) {
-      throw new Error('当前图片暂不支持编辑')
+      showToast('图片文件已丢失，请重新添加图片')
+      return
     }
 
     const sourceFile = dataUrlToFile(dataUrl, image.id)
@@ -291,13 +313,7 @@ async function openQuickEdit(image) {
     editingSourceFile.value = sourceFile
     showQuickEditor.value = true
   } catch (error) {
-    console.error('[image-manager] 打开图片编辑失败', {
-      error: error?.message,
-      uri: image?.uri?.substring(0, 120),
-      localPath: image?.localPath,
-      storageMode: image?.storageMode,
-    })
-    showToast(`编辑失败: ${error?.message || '未知错误'}`)
+    console.error('[image-manager] 打开图片编辑失败', error)
   } finally {
     isPreparingEdit.value = false
   }
@@ -314,10 +330,8 @@ async function handleQuickEditSave(result) {
           ...image,
           uri: saved.uri,
           localUri: saved.uri,
-          remoteUri: '',
           storageMode: inferGoodsImageStorageMode(saved.uri),
           localPath: saved.localPath,
-        gistFileName: '',
         mimeType: '',
         fileSize: 0
       }
