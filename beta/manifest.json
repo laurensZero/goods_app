@@ -1,9 +1,9 @@
 {
-  "version": "20260601.3",
-  "url": "bundle-20260601.3.zip",
-  "hash": "ffc91dc36c64d1391f18eab5cb9a972217ab2de703b95d02c98ae8d340c2d074",
+  "version": "20260602.1",
+  "url": "bundle-20260602.1.zip",
+  "hash": "f18d343553fd74ec75994ad0918c512908c4895cb82e82185f549a0400650606",
   "minNativeVersion": null,
-  "notes": "- refactor: 清理旧搜索",
+  "notes": "- feat: 更新saveLocalImage函数，返回uri和localPath，优化图片保存逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-01T03:49:24Z"
+  "publishedAt": "2026-06-02T03:08:10Z"
 }
