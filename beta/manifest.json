@@ -1,9 +1,9 @@
 {
-  "version": "20260602.5",
-  "url": "bundle-20260602.5.zip",
-  "hash": "f3830184ec8b8eb40104410126a502d3fe89c04c55b42c0d8b5c9d541ad635a5",
+  "version": "20260602.6",
+  "url": "bundle-20260602.6.zip",
+  "hash": "52b5216dcaca62b428b0c7bcd0f883ce0feee7178b8cbe3d39c8a9be9bbc5945",
   "minNativeVersion": null,
-  "notes": "- feat: 在GoodsImageManager中添加goodsId属性，更新图片时持久化到数据库",
+  "notes": "- feat: 优化卡片重绘逻辑，仅在首次进入视口时强制重绘",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-02T05:30:18Z"
+  "publishedAt": "2026-06-02T08:28:14Z"
 }
