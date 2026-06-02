@@ -1,9 +1,9 @@
 {
-  "version": "20260602.3",
-  "url": "bundle-20260602.3.zip",
-  "hash": "1e51b9aac1a460702fe46ecb6c8cc19c88927ed9417df3b4ad9c79680522c0c2",
+  "version": "20260602.4",
+  "url": "bundle-20260602.4.zip",
+  "hash": "1fb25d160bf814423035af457fb87a0e828d4b0218eeb3041a1567f04354d39f",
   "minNativeVersion": null,
-  "notes": "- feat: 增强本地图片读取功能，添加警告回调以处理错误情况",
+  "notes": "- feat: 添加云端恢复本地图片功能，优化图片读取逻辑和错误处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-02T04:54:11Z"
+  "publishedAt": "2026-06-02T05:13:57Z"
 }
