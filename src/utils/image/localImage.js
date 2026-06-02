@@ -8,7 +8,7 @@ export async function saveLocalImage(file) {
   const dataUrl = await fileToDataUrl(file)
 
   if (!Capacitor.isNativePlatform()) {
-    return dataUrl
+    return { uri: dataUrl, localPath: '' }
   }
 
   const ext = (file.name?.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
@@ -27,7 +27,7 @@ export async function saveLocalImage(file) {
     directory: Directory.Data,
   })
 
-  return Capacitor.convertFileSrc(uri)
+  return { uri: Capacitor.convertFileSrc(uri), localPath: filename }
 }
 
 export async function pickLinkedLocalImages(limit) {
@@ -39,8 +39,8 @@ export async function pickLinkedLocalImages(limit) {
     if (!files.length) return []
     const results = []
     for (const file of files) {
-      const uri = await saveLocalImage(file)
-      results.push({ uri, localPath: '', storageMode: 'linked-local' })
+      const saved = await saveLocalImage(file)
+      results.push({ uri: saved.uri, localPath: saved.localPath, storageMode: 'linked-local' })
     }
     return results
   }
@@ -66,11 +66,11 @@ export async function pickLinkedLocalImage() {
     })
     if (!file) return null
 
-    const uri = await saveLocalImage(file)
+    const saved = await saveLocalImage(file)
 
     return {
-      uri,
-      localPath: '',
+      uri: saved.uri,
+      localPath: saved.localPath,
       storageMode: 'linked-local'
     }
   }
@@ -301,6 +301,15 @@ export async function readLocalImageAsDataUrl(uri, localPath = '') {
 
   const nativePathDataUrl = await readNativePathAsDataUrl(localPath)
   if (nativePathDataUrl) return nativePathDataUrl
+
+  if (Capacitor.isNativePlatform() && localPath && localPath !== appLocalPath) {
+    try {
+      const { data } = await Filesystem.readFile({ path: localPath, directory: Directory.Data })
+      return `data:${inferImageMimeFromPath(localPath)};base64,${data}`
+    } catch (_) {
+      // fall through
+    }
+  }
 
   try {
     const response = await fetch(uri)
