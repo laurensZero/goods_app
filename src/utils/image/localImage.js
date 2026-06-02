@@ -287,47 +287,40 @@ async function readNativePathAsDataUrl(path) {
 
 export async function readLocalImageAsDataUrl(uri, localPath = '', onWarn) {
   const warn = typeof onWarn === 'function' ? onWarn : () => {}
-  if (!uri) { warn('uri 为空'); return null }
+  if (!uri) return null
   if (uri.startsWith('data:')) return uri
 
-  const appLocalPath = Capacitor.isNativePlatform() ? extractAppLocalPath(uri) : null
-  if (appLocalPath) {
+  const isNative = Capacitor.isNativePlatform()
+  const appLocalPath = isNative ? extractAppLocalPath(uri) : null
+
+  if (isNative && appLocalPath) {
     try {
       const { data } = await Filesystem.readFile({ path: appLocalPath, directory: Directory.Data })
       return `data:${inferImageMimeFromPath(appLocalPath)};base64,${data}`
-    } catch (error) {
-      warn(`本地读取失败: ${appLocalPath}`)
-      console.warn('[localImage] failed to read app image (Directory.Data)', appLocalPath, error)
-    }
-  } else if (Capacitor.isNativePlatform()) {
-    warn('路径提取失败')
+    } catch (_) {}
   }
 
   const nativePathDataUrl = await readNativePathAsDataUrl(localPath)
   if (nativePathDataUrl) return nativePathDataUrl
 
-  if (Capacitor.isNativePlatform() && localPath && localPath !== appLocalPath) {
+  if (isNative && localPath && localPath !== appLocalPath) {
     try {
       const { data } = await Filesystem.readFile({ path: localPath, directory: Directory.Data })
       return `data:${inferImageMimeFromPath(localPath)};base64,${data}`
-    } catch (_) {
-      warn(`备用读取失败: ${localPath}`)
-    }
+    } catch (_) {}
   }
 
   try {
     const response = await fetch(uri)
-    if (!response.ok) {
-      warn(`fetch 失败: ${response.status}`)
-      return null
-    }
+    if (!response.ok) return null
     const blob = await response.blob()
     return await blobToDataUrl(blob)
-  } catch (error) {
-    warn(`网络读取失败: ${error?.message || ''}`)
-    console.warn('[localImage] failed to read image uri for export', uri, error)
-    return null
+  } catch (_) {}
+
+  if (isNative) {
+    warn('图片文件已丢失，请重新添加图片')
   }
+  return null
 }
 
 export async function restoreLocalImageFromDataUrl(dataUrl) {
