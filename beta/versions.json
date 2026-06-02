@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260602.5",
+    "url": "bundle-20260602.5.zip",
+    "hash": "f3830184ec8b8eb40104410126a502d3fe89c04c55b42c0d8b5c9d541ad635a5",
+    "minNativeVersion": null,
+    "notes": "- feat: 在GoodsImageManager中添加goodsId属性，更新图片时持久化到数据库",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-02T05:30:18Z"
+  },
+  {
     "version": "20260602.4",
     "url": "bundle-20260602.4.zip",
     "hash": "1fb25d160bf814423035af457fb87a0e828d4b0218eeb3041a1567f04354d39f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强本地图片读取功能，添加警告回调以处理错误情况",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T04:54:11Z"
-  },
-  {
-    "version": "20260602.2",
-    "url": "bundle-20260602.2.zip",
-    "hash": "7f22de38d03131926a2780508992c61b52273a036e13134225c9f1dd052d9568",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强图片编辑错误处理，添加用户友好的提示信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T03:22:37Z"
   }
 ]
