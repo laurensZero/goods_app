@@ -136,6 +136,7 @@ const cardMotionStyles = reactive({})
 let _cardObserver = null
 const _observedEls = new WeakSet()
 const _repaintedEls = new WeakSet()
+let _reobserveAfterBlockTimer = 0
 
 function forceRepaint(el) {
   if (!el) return
@@ -148,6 +149,36 @@ function forceRepaint(el) {
       })
     })
   } catch (e) {}
+}
+
+function reobserveAllCards() {
+  if (!_cardObserver) return
+  for (const item of props.items) {
+    const instance = cardRefs.get(String(item.id || ''))
+    const el = getElement(instance)
+    if (!el || !_observedEls.has(el)) continue
+    if (_repaintedEls.has(el)) continue
+    // Unobserve then re-observe to trigger the observer callback
+    try { _cardObserver.unobserve(el) } catch (e) {}
+    try { _observedEls.delete(el) } catch (e) {}
+    try {
+      _cardObserver.observe(el)
+      _observedEls.add(el)
+    } catch (e) {}
+  }
+}
+
+function scheduleReobserveAfterBlock() {
+  if (_reobserveAfterBlockTimer) return
+  _reobserveAfterBlockTimer = window.setInterval(() => {
+    if (shouldBlockGoodsCardRepaint()) return
+    window.clearInterval(_reobserveAfterBlockTimer)
+    _reobserveAfterBlockTimer = 0
+    // Block expired — re-trigger observers for cards that were kept alive
+    // during the hero animation block. The observer callback will now
+    // call forceRepaint (block is gone) and unobserve.
+    reobserveAllCards()
+  }, 100)
 }
 
 function createCardObserver() {
@@ -168,9 +199,11 @@ function createCardObserver() {
               forceRepaint(target)
             } catch (e) {}
           }
+          try { _cardObserver.unobserve(target) } catch (e) {}
+          try { _observedEls.delete(target) } catch (e) {}
         }
-        try { _cardObserver.unobserve(target) } catch (e) {}
-        try { _observedEls.delete(target) } catch (e) {}
+        // When block is active: skip forceRepaint AND keep observer alive.
+        // scheduleReobserveAfterBlock() will re-trigger after block expires.
       }
     }
   }, { threshold: 0.02 })
@@ -190,6 +223,11 @@ async function observeCurrentCards() {
       _cardObserver.observe(el)
       _observedEls.add(el)
     } catch (e) {}
+  }
+  // If hero animation block is active, schedule a deferred force-repaint
+  // for cards that are observed but can't be force-repainted yet.
+  if (shouldBlockGoodsCardRepaint()) {
+    scheduleReobserveAfterBlock()
   }
 }
 
@@ -431,6 +469,8 @@ watch(
 
 onBeforeUnmount(() => {
   if (motionClearTimer) window.clearTimeout(motionClearTimer)
+  if (_reobserveAfterBlockTimer) window.clearInterval(_reobserveAfterBlockTimer)
+  _reobserveAfterBlockTimer = 0
   cancelMotionRetry()
   clearMotionStyles()
   try { _cardObserver?.disconnect() } catch (e) {}
