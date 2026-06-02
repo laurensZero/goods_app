@@ -1,9 +1,9 @@
 {
-  "version": "20260602.10",
-  "url": "bundle-20260602.10.zip",
-  "hash": "3dd43cbea54504f20156e609b3269660076e00b1a4116dde6801fd9c22150655",
+  "version": "20260602.11",
+  "url": "bundle-20260602.11.zip",
+  "hash": "a14b8fa6a66f926be97365e3ff7443f279d82a96328f8c02023303987d5601c2",
   "minNativeVersion": null,
-  "notes": "- feat: 添加Android返回按钮处理逻辑，优化GroupEditSheet和GroupFolderSheet的返回行为",
+  "notes": "- feat: 优化卡片重绘逻辑，使用商品ID跟踪已重绘的卡片以避免合成闪烁",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-02T13:25:55Z"
+  "publishedAt": "2026-06-02T14:14:30Z"
 }

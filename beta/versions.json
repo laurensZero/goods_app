@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260602.11",
+    "url": "bundle-20260602.11.zip",
+    "hash": "a14b8fa6a66f926be97365e3ff7443f279d82a96328f8c02023303987d5601c2",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化卡片重绘逻辑，使用商品ID跟踪已重绘的卡片以避免合成闪烁",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-02T14:14:30Z"
+  },
+  {
     "version": "20260602.10",
     "url": "bundle-20260602.10.zip",
     "hash": "3dd43cbea54504f20156e609b3269660076e00b1a4116dde6801fd9c22150655",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化英雄动画处理逻辑，移除onComplete回调并调整重绘调度",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T11:43:34Z"
-  },
-  {
-    "version": "20260602.8",
-    "url": "bundle-20260602.8.zip",
-    "hash": "152277bf8ee4b83a59f1dcf8efce40d10ce4ebd13748c590306104557d5d87bc",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化编译速度",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T10:22:42Z"
   }
 ]
