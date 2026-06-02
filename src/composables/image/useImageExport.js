@@ -1,4 +1,7 @@
-import Pica from 'pica'
+async function loadPica() {
+  const mod = await import('pica')
+  return mod.default || mod
+}
 
 const DEFAULT_TARGET_MAX_BYTES = 1024 * 1024
 const DEFAULT_EDGE_STEPS = [1600, 1440, 1280, 1152, 1024]
@@ -30,6 +33,7 @@ async function compressImageToBlob(dataUrlOrBlob, options = {}) {
     inputBlob = await response.blob()
   }
 
+  const Pica = await loadPica()
   const picaInstance = Pica()
   const result = await compressUnderTargetImpl(inputBlob, {
     targetMaxBytes,
@@ -137,7 +141,11 @@ async function binarySearchQuality({ canvas, format, targetMaxBytes, qLow, qHigh
   }
 }
 
-async function compressUnderTargetImpl(inputBlob, options = {}, picaInstance = Pica()) {
+async function compressUnderTargetImpl(inputBlob, options = {}, picaInstance = null) {
+  if (!picaInstance) {
+    const Pica = await loadPica()
+    picaInstance = Pica()
+  }
   const targetMaxBytes = Number(options.targetMaxBytes) > 0 ? Number(options.targetMaxBytes) : DEFAULT_TARGET_MAX_BYTES
   const preferredFormat = options.preferredFormat || 'image/jpeg'
   const qualityMax = clamp(Number(options.qualityMax) || 0.92, 0.5, 1)
@@ -194,9 +202,18 @@ async function compressUnderTargetImpl(inputBlob, options = {}, picaInstance = P
 }
 
 export function useImageExport() {
-  const picaInstance = Pica()
+  let picaInstance = null
+
+  async function ensurePica() {
+    if (!picaInstance) {
+      const Pica = await loadPica()
+      picaInstance = Pica()
+    }
+    return picaInstance
+  }
 
   async function enhanceForProductShot(inputBlob, options = {}) {
+    await ensurePica()
     const sourceCanvas = await decodeBlobToCanvas(inputBlob)
     const adjustedCanvas = applyCanvasAdjustmentsToCanvas(sourceCanvas, {
       brightness: options.brightness ?? 12,
@@ -246,6 +263,7 @@ export function useImageExport() {
   }
 
   async function compressUnderTarget(inputBlob, options = {}) {
+    await ensurePica()
     return await compressUnderTargetImpl(inputBlob, options, picaInstance)
   }
 
