@@ -138,6 +138,7 @@
       :source-file="editingSourceFile"
       @save="handleQuickEditSave"
     />
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -153,7 +154,8 @@ import {
   inferGoodsImageStorageMode,
   normalizeGoodsImageList
 } from '@/utils/goods/images'
-import { showFailToast } from 'vant'
+import AppToast from '@/components/common/AppToast.vue'
+import { useToast } from '@/composables/useToast'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
 
 const props = defineProps({
@@ -162,6 +164,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const { toastMsg, showToast } = useToast()
 
 const remotePickerRef = ref(null)
 const draftRemoteUrl = ref('')
@@ -277,7 +281,7 @@ async function openQuickEdit(image) {
 
   isPreparingEdit.value = true
   try {
-    const dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '')
+    const dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '', showToast)
     if (!dataUrl?.startsWith('data:image/')) {
       throw new Error('当前图片暂不支持编辑')
     }
@@ -293,7 +297,7 @@ async function openQuickEdit(image) {
       localPath: image?.localPath,
       storageMode: image?.storageMode,
     })
-    showFailToast(`编辑失败: ${error?.message || '未知错误'}`)
+    showToast(`编辑失败: ${error?.message || '未知错误'}`)
   } finally {
     isPreparingEdit.value = false
   }

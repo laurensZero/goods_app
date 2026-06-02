@@ -285,8 +285,9 @@ async function readNativePathAsDataUrl(path) {
   }
 }
 
-export async function readLocalImageAsDataUrl(uri, localPath = '') {
-  if (!uri) return null
+export async function readLocalImageAsDataUrl(uri, localPath = '', onWarn) {
+  const warn = typeof onWarn === 'function' ? onWarn : () => {}
+  if (!uri) { warn('uri 为空'); return null }
   if (uri.startsWith('data:')) return uri
 
   const appLocalPath = Capacitor.isNativePlatform() ? extractAppLocalPath(uri) : null
@@ -295,8 +296,11 @@ export async function readLocalImageAsDataUrl(uri, localPath = '') {
       const { data } = await Filesystem.readFile({ path: appLocalPath, directory: Directory.Data })
       return `data:${inferImageMimeFromPath(appLocalPath)};base64,${data}`
     } catch (error) {
-      console.warn('[localImage] failed to read app image for export', appLocalPath, error)
+      warn(`本地读取失败: ${appLocalPath}`)
+      console.warn('[localImage] failed to read app image (Directory.Data)', appLocalPath, error)
     }
+  } else if (Capacitor.isNativePlatform()) {
+    warn('路径提取失败')
   }
 
   const nativePathDataUrl = await readNativePathAsDataUrl(localPath)
@@ -307,16 +311,20 @@ export async function readLocalImageAsDataUrl(uri, localPath = '') {
       const { data } = await Filesystem.readFile({ path: localPath, directory: Directory.Data })
       return `data:${inferImageMimeFromPath(localPath)};base64,${data}`
     } catch (_) {
-      // fall through
+      warn(`备用读取失败: ${localPath}`)
     }
   }
 
   try {
     const response = await fetch(uri)
-    if (!response.ok) return null
+    if (!response.ok) {
+      warn(`fetch 失败: ${response.status}`)
+      return null
+    }
     const blob = await response.blob()
     return await blobToDataUrl(blob)
   } catch (error) {
+    warn(`网络读取失败: ${error?.message || ''}`)
     console.warn('[localImage] failed to read image uri for export', uri, error)
     return null
   }
