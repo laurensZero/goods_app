@@ -153,6 +153,7 @@ import {
   inferGoodsImageStorageMode,
   normalizeGoodsImageList
 } from '@/utils/goods/images'
+import { showFailToast } from 'vant'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
 
 const props = defineProps({
@@ -286,7 +287,13 @@ async function openQuickEdit(image) {
     editingSourceFile.value = sourceFile
     showQuickEditor.value = true
   } catch (error) {
-    console.error('[image-manager] 打开图片编辑失败', error)
+    console.error('[image-manager] 打开图片编辑失败', {
+      error: error?.message,
+      uri: image?.uri?.substring(0, 120),
+      localPath: image?.localPath,
+      storageMode: image?.storageMode,
+    })
+    showFailToast(`编辑失败: ${error?.message || '未知错误'}`)
   } finally {
     isPreparingEdit.value = false
   }
