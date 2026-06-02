@@ -38,11 +38,12 @@ export function useGoodsBackHero({
     return cardRoot
   }
 
-  function tryPlayNativeGoodsBackHero(onReady) {
+  function tryPlayNativeGoodsBackHero(onReady, onComplete) {
     return playGoodsHeroBack({
       currentPath: route.fullPath,
       resolveTargetEl: resolveGoodsCardCover,
-      onReady
+      onReady,
+      onComplete
     })
   }
 
@@ -62,7 +63,7 @@ export function useGoodsBackHero({
     cancelGoodsBackHeroRetry()
     retryRaf = window.requestAnimationFrame(() => {
       retryRaf = 0
-      const played = tryPlayNativeGoodsBackHero(hooks?.onReady)
+      const played = tryPlayNativeGoodsBackHero(hooks?.onReady, hooks?.onComplete)
       if (played) {
         hooks?.onPlayed?.()
         return
