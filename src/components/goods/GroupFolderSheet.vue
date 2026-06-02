@@ -37,6 +37,7 @@
     <!-- Edit sheet -->
     <GroupEditSheet
       v-if="group"
+      ref="groupEditSheetRef"
       v-model:show="showEditSheet"
       :group="group"
       :member-goods="memberGoods"
@@ -82,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Popup, showSuccessToast } from 'vant'
@@ -93,6 +94,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { prepareGoodsHeroForward, playGoodsHeroBack, hasPendingGoodsHeroBack, getPendingBackHeroGoodsId } from '@/utils/platform/nativeGoodsHeroTransition'
 import { setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 import GroupEditSheet from '@/components/goods/GroupEditSheet.vue'
 import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
@@ -123,6 +125,7 @@ const showEditSheet = ref(false)
 const showAddSheet = ref(false)
 const showDeleteConfirm = ref(false)
 const skipOpenAnimation = ref(false)
+const groupEditSheetRef = ref(null)
 
 // Skip Popup animation when returning from detail (hero back pending)
 watch(() => props.show, (open) => {
@@ -270,6 +273,72 @@ function onSheetOpened() {
   }
   requestAnimationFrame(tryPlay)
 }
+
+// Android back button
+function handleAndroidBackButton(event) {
+  if (showDeleteConfirm.value) {
+    showDeleteConfirm.value = false
+    event.preventDefault()
+    return
+  }
+  if (showEditSheet.value) {
+    if (groupEditSheetRef.value?.consumeBack()) {
+      event.preventDefault()
+      return
+    }
+    showEditSheet.value = false
+    event.preventDefault()
+    return
+  }
+  if (showAddSheet.value) {
+    showAddSheet.value = false
+    event.preventDefault()
+    return
+  }
+}
+
+let cleanupBackButton = null
+
+function bindBackButton() {
+  if (cleanupBackButton) return
+  cleanupBackButton = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindBackButton() {
+  if (cleanupBackButton) {
+    cleanupBackButton()
+    cleanupBackButton = null
+  }
+}
+
+watch(() => props.show, (open) => {
+  if (open) {
+    bindBackButton()
+  } else {
+    unbindBackButton()
+  }
+})
+
+onBeforeUnmount(() => unbindBackButton())
+
+function consumeBack() {
+  if (showDeleteConfirm.value) {
+    showDeleteConfirm.value = false
+    return true
+  }
+  if (showEditSheet.value) {
+    if (groupEditSheetRef.value?.consumeBack()) return true
+    showEditSheet.value = false
+    return true
+  }
+  if (showAddSheet.value) {
+    showAddSheet.value = false
+    return true
+  }
+  return false
+}
+
+defineExpose({ consumeBack })
 
 async function handleGroupUpdate(id, data) {
   await goodsGroupStore.updateGroup(id, data)
