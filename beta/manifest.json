@@ -1,9 +1,9 @@
 {
-  "version": "20260602.11",
-  "url": "bundle-20260602.11.zip",
-  "hash": "a14b8fa6a66f926be97365e3ff7443f279d82a96328f8c02023303987d5601c2",
+  "version": "20260603.1",
+  "url": "bundle-20260603.1.zip",
+  "hash": "301cb5d8873831bd7a91fb610daa87703a5513290c8a0a3470a002c270a0efb6",
   "minNativeVersion": null,
-  "notes": "- feat: 优化卡片重绘逻辑，使用商品ID跟踪已重绘的卡片以避免合成闪烁",
+  "notes": "- feat: 添加函数以检查选定变体，增强变体选择逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-02T14:14:30Z"
+  "publishedAt": "2026-06-03T01:09:44Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260603.1",
+    "url": "bundle-20260603.1.zip",
+    "hash": "301cb5d8873831bd7a91fb610daa87703a5513290c8a0a3470a002c270a0efb6",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加函数以检查选定变体，增强变体选择逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-03T01:09:44Z"
+  },
+  {
     "version": "20260602.11",
     "url": "bundle-20260602.11.zip",
     "hash": "a14b8fa6a66f926be97365e3ff7443f279d82a96328f8c02023303987d5601c2",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加Android返回按钮处理逻辑，优化GroupEditSheet和GroupFolderSheet的返回行为",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T13:25:55Z"
-  },
-  {
-    "version": "20260602.9",
-    "url": "bundle-20260602.9.zip",
-    "hash": "4629b0545ea761d5e4a0794009534fb3842316418286cbb87600fbd1a2731f00",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化英雄动画处理逻辑，移除onComplete回调并调整重绘调度",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T11:43:34Z"
   }
 ]
