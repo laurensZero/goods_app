@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260603.2",
+    "url": "bundle-20260603.2.zip",
+    "hash": "0d4f0c79c2eac883e03ea8b143b058c1ae5849c96618a3d00be161a6c4db22a1",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加谷子组显示模式功能，支持置顶、跟随排序和隐藏选项",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-03T10:12:35Z"
+  },
+  {
     "version": "20260603.1",
     "url": "bundle-20260603.1.zip",
     "hash": "301cb5d8873831bd7a91fb610daa87703a5513290c8a0a3470a002c270a0efb6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化卡片重绘逻辑，使用商品ID跟踪已重绘的卡片以避免合成闪烁",
     "updateLevel": "silent",
     "publishedAt": "2026-06-02T14:14:30Z"
-  },
-  {
-    "version": "20260602.10",
-    "url": "bundle-20260602.10.zip",
-    "hash": "3dd43cbea54504f20156e609b3269660076e00b1a4116dde6801fd9c22150655",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加Android返回按钮处理逻辑，优化GroupEditSheet和GroupFolderSheet的返回行为",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T13:25:55Z"
   }
 ]

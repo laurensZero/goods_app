@@ -1,9 +1,9 @@
 {
-  "version": "20260603.1",
-  "url": "bundle-20260603.1.zip",
-  "hash": "301cb5d8873831bd7a91fb610daa87703a5513290c8a0a3470a002c270a0efb6",
+  "version": "20260603.2",
+  "url": "bundle-20260603.2.zip",
+  "hash": "0d4f0c79c2eac883e03ea8b143b058c1ae5849c96618a3d00be161a6c4db22a1",
   "minNativeVersion": null,
-  "notes": "- feat: 添加函数以检查选定变体，增强变体选择逻辑",
+  "notes": "- feat: 添加谷子组显示模式功能，支持置顶、跟随排序和隐藏选项",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-03T01:09:44Z"
+  "publishedAt": "2026-06-03T10:12:35Z"
 }
