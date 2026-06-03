@@ -50,5 +50,12 @@
   "home.sort.nameAsc": "名称 A-Z",
   "home.sort.price": "价格",
   "home.sort.priceDesc": "价格高到低",
-  "home.sort.priceAsc": "价格低到高"
+  "home.sort.priceAsc": "价格低到高",
+  "home.toolbar.groupDisplay": "谷子组显示",
+  "home.groupDisplay.pinned": "置顶显示",
+  "home.groupDisplay.pinnedDesc": "谷子组始终显示在列表顶部",
+  "home.groupDisplay.chronological": "跟随排序",
+  "home.groupDisplay.chronologicalDesc": "谷子组与单品按相同方式混排",
+  "home.groupDisplay.hidden": "不显示组",
+  "home.groupDisplay.hiddenDesc": "组内谷子作为独立条目显示"
 }

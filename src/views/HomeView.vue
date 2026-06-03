@@ -69,10 +69,13 @@
         :display-density="displayDensity"
         :density-modes="densityModes"
         :active-filter-count="searchActiveFilterCount"
+        :group-display-mode="groupDisplayMode"
+        :group-display-options="groupDisplayOptions"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortMode"
         @toggle-timeline="toggleTimelineMode"
         @set-density="setDisplayDensityWithFlip"
+        @set-group-display-mode="setGroupDisplayMode"
       />
 
       <Transition name="goods-view-switch" mode="out-in">
@@ -377,6 +380,7 @@ const {
   displayDensity,
   sortDirection,
   sortMode,
+  groupDisplayMode,
   expandedTimelineItemId,
   isDensityAnimating,
   isSortAnimating,
@@ -385,6 +389,7 @@ const {
   toggleTimelineMode,
   toggleSortDirection,
   setSortMode,
+  setGroupDisplayMode,
   toggleExpandedTimelineItem,
   clearExpandedTimelineItem,
   restoreHomePreferences
@@ -393,6 +398,7 @@ const {
 const {
   filters: searchFilters,
   activeFilterCount: searchActiveFilterCount,
+  isFiltering: searchIsFiltering,
   filteredItems: searchFilteredList,
   categoryOptions: searchCategoryOptions,
   ipOptions: searchIpOptions,
@@ -423,6 +429,24 @@ const toolbarSortOptions = computed(() => (
     ? (timelineSortOptions.value.length ? timelineSortOptions.value : translatedSortOptions.value)
     : translatedSortOptions.value
 ))
+
+const groupDisplayOptions = computed(() => [
+  {
+    value: 'pinned',
+    label: t('home.groupDisplay.pinned'),
+    description: t('home.groupDisplay.pinnedDesc')
+  },
+  {
+    value: 'chronological',
+    label: t('home.groupDisplay.chronological'),
+    description: t('home.groupDisplay.chronologicalDesc')
+  },
+  {
+    value: 'hidden',
+    label: t('home.groupDisplay.hidden'),
+    description: t('home.groupDisplay.hiddenDesc')
+  }
+])
 
 const {
   getScrollEl,
@@ -1195,6 +1219,7 @@ const groupViewItems = computed(() => {
 
     return {
       id: group.id,
+      sortId: group.id,
       _type: 'group',
       _group: group,
       _members: members,
@@ -1202,7 +1227,12 @@ const groupViewItems = computed(() => {
       _totalPriceCNY: totalPriceCNY,
       _currency: currency,
       name: group.name,
-      updatedAt: group.updatedAt
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+      // Fields for sortHomeGoodsList compatibility
+      createdTime: group.createdAt,
+      acquiredTime: group.createdAt,
+      totalValueNumber: totalPriceCNY
     }
   })
 })
@@ -1224,10 +1254,31 @@ const groupedGoodsIds = computed(() => {
   }
   return ids
 })
-const displayList = computed(() => [
-  ...groupViewItems.value,
-  ...goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
-])
+const displayList = computed(() => {
+  // When filtering, break apart groups and show individual goods
+  if (searchIsFiltering.value) {
+    return goodsList.value
+  }
+
+  // When groups are hidden, show all goods as individual items
+  if (groupDisplayMode.value === 'hidden') {
+    return goodsList.value
+  }
+
+  // When pinned (default), show groups at top
+  if (groupDisplayMode.value === 'pinned') {
+    return [
+      ...groupViewItems.value,
+      ...goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
+    ]
+  }
+
+  // When chronological, mix groups into the list following the main sort
+  const groups = groupViewItems.value.map(g => ({ ...g, _isGroupView: true }))
+  const ungroupedGoods = goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
+  const mixed = [...groups, ...ungroupedGoods]
+  return sortHomeGoodsList(mixed, sortMode.value, sortDirection.value)
+})
 const visibleDisplayList = computed(() =>
   displayDensity.value === 'timeline'
     ? goodsList.value
@@ -1578,6 +1629,11 @@ function handleGroupCreated(group) {
   exitSelectionModeQuiet()
   activeGroupId.value = group.id
   showGroupFolder.value = true
+
+  // Auto-switch to pinned mode when creating a new group
+  if (groupDisplayMode.value === 'hidden') {
+    setGroupDisplayMode('pinned')
+  }
 }
 
 async function applyBatchEditPayload(payload) {
