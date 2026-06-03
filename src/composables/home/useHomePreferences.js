@@ -7,7 +7,14 @@ const DEFAULT_STORAGE_KEYS = {
   gridDensity: 'goods-app:home-grid-density',
   sortDirection: 'goods-app:home-sort-direction',
   sortMode: 'goods-app:home-sort-mode',
+  groupDisplayMode: 'goods-app:home-group-display-mode',
   expandedTimelineItem: 'goods-app:home-timeline-expanded-item'
+}
+
+export const GROUP_DISPLAY_MODES = {
+  pinned: 'pinned',
+  chronological: 'chronological',
+  hidden: 'hidden'
 }
 
 const DEFAULT_DENSITY_MODES = [
@@ -57,6 +64,7 @@ export function useHomePreferences(windowWidth, options = {}) {
   const displayDensity = ref('comfortable')
   const sortDirection = ref('desc')
   const sortMode = ref('createdAt')
+  const groupDisplayMode = ref(GROUP_DISPLAY_MODES.pinned)
   const expandedTimelineItemId = ref(null)
   const isDensityAnimating = ref(false)
   const isSortAnimating = ref(false)
@@ -129,6 +137,11 @@ export function useHomePreferences(windowWidth, options = {}) {
     sortMode.value = normalized
   }
 
+  function setGroupDisplayMode(mode) {
+    if (!GROUP_DISPLAY_MODES[mode] || groupDisplayMode.value === mode) return
+    groupDisplayMode.value = mode
+  }
+
   function restoreDisplayDensity() {
     const storedDisplayMode = localStorage.getItem(displayModeStorageKey)
     if (allowTimeline && storedDisplayMode === 'timeline') {
@@ -158,6 +171,13 @@ export function useHomePreferences(windowWidth, options = {}) {
     sortMode.value = normalizeHomeSortMode(localStorage.getItem(storageKeys.sortMode))
   }
 
+  function restoreGroupDisplayMode() {
+    const stored = localStorage.getItem(storageKeys.groupDisplayMode)
+    if (GROUP_DISPLAY_MODES[stored]) {
+      groupDisplayMode.value = stored
+    }
+  }
+
   function restoreExpandedTimelineItem() {
     if (!allowTimeline) {
       expandedTimelineItemId.value = null
@@ -170,6 +190,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     restoreSortMode()
     restoreSortDirection()
     restoreDisplayDensity()
+    restoreGroupDisplayMode()
     restoreExpandedTimelineItem()
   }
 
@@ -200,6 +221,10 @@ export function useHomePreferences(windowWidth, options = {}) {
     localStorage.setItem(storageKeys.sortMode, value)
   })
 
+  watch(groupDisplayMode, (value) => {
+    localStorage.setItem(storageKeys.groupDisplayMode, value)
+  })
+
   watch(expandedTimelineItemId, (value) => {
     if (!allowTimeline) return
     if (value) {
@@ -221,6 +246,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     displayDensity,
     sortDirection,
     sortMode,
+    groupDisplayMode,
     expandedTimelineItemId,
     isDensityAnimating,
     isSortAnimating,
@@ -229,11 +255,13 @@ export function useHomePreferences(windowWidth, options = {}) {
     toggleTimelineMode,
     toggleSortDirection,
     setSortMode,
+    setGroupDisplayMode,
     toggleExpandedTimelineItem,
     clearExpandedTimelineItem,
     restoreDisplayDensity,
     restoreSortDirection,
     restoreSortMode,
+    restoreGroupDisplayMode,
     restoreExpandedTimelineItem,
     restoreHomePreferences,
     clearDensityAnimationTimer,

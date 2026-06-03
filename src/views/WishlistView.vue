@@ -74,9 +74,12 @@
         :density-modes="densityModes"
         :show-timeline-toggle="false"
         :active-filter-count="searchActiveFilterCount"
+        :group-display-mode="groupDisplayMode"
+        :group-display-options="groupDisplayOptions"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortMode"
         @set-density="setDisplayDensityWithFlip"
+        @set-group-display-mode="setGroupDisplayMode"
       />
 
       <GoodsListSkeleton v-if="!store.isReady" />
@@ -318,12 +321,14 @@ const {
   displayDensity,
   sortDirection,
   sortMode,
+  groupDisplayMode,
   isDensityAnimating,
   isSortAnimating,
   getResponsiveCols,
   setDisplayDensity,
   toggleSortDirection,
   setSortMode,
+  setGroupDisplayMode,
   restoreHomePreferences
 } = useHomePreferences(windowWidth, {
   allowTimeline: false,
@@ -331,6 +336,7 @@ const {
     gridDensity: 'goods-app:wishlist-grid-density',
     sortDirection: 'goods-app:wishlist-sort-direction',
     sortMode: 'goods-app:wishlist-sort-mode',
+    groupDisplayMode: 'goods-app:wishlist-group-display-mode',
     expandedTimelineItem: 'goods-app:wishlist-expanded-item-unused'
   }
 })
@@ -338,6 +344,7 @@ const {
 const {
   filters: searchFilters,
   activeFilterCount: searchActiveFilterCount,
+  isFiltering: searchIsFiltering,
   filteredItems: searchFilteredList,
   categoryOptions: searchCategoryOptions,
   ipOptions: searchIpOptions,
@@ -360,6 +367,24 @@ const {
 } = useGoodsSearch(computed(() => store.wishlistViewList), { scope: 'wishlist' })
 
 const showSearchPopup = ref(false)
+
+const groupDisplayOptions = computed(() => [
+  {
+    value: 'pinned',
+    label: t('home.groupDisplay.pinned'),
+    description: t('home.groupDisplay.pinnedDesc')
+  },
+  {
+    value: 'chronological',
+    label: t('home.groupDisplay.chronological'),
+    description: t('home.groupDisplay.chronologicalDesc')
+  },
+  {
+    value: 'hidden',
+    label: t('home.groupDisplay.hidden'),
+    description: t('home.groupDisplay.hiddenDesc')
+  }
+])
 
 const {
   getScrollEl,
@@ -472,6 +497,7 @@ const groupViewItems = computed(() => {
 
     return {
       id: group.id,
+      sortId: group.id,
       _type: 'group',
       _group: group,
       _members: members,
@@ -479,7 +505,12 @@ const groupViewItems = computed(() => {
       _totalPriceCNY: totalPriceCNY,
       _currency: currency,
       name: group.name,
-      updatedAt: group.updatedAt
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+      // Fields for sortHomeGoodsList compatibility
+      createdTime: group.createdAt,
+      acquiredTime: group.createdAt,
+      totalValueNumber: totalPriceCNY
     }
   })
 })
@@ -500,10 +531,31 @@ const groupedGoodsIds = computed(() => {
   }
   return ids
 })
-const displayList = computed(() => [
-  ...groupViewItems.value,
-  ...goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
-])
+const displayList = computed(() => {
+  // When filtering, break apart groups and show individual goods
+  if (searchIsFiltering.value) {
+    return goodsList.value
+  }
+
+  // When groups are hidden, show all goods as individual items
+  if (groupDisplayMode.value === 'hidden') {
+    return goodsList.value
+  }
+
+  // When pinned (default), show groups at top
+  if (groupDisplayMode.value === 'pinned') {
+    return [
+      ...groupViewItems.value,
+      ...goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
+    ]
+  }
+
+  // When chronological, mix groups into the list following the main sort
+  const groups = groupViewItems.value.map(g => ({ ...g, _isGroupView: true }))
+  const ungroupedGoods = goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
+  const mixed = [...groups, ...ungroupedGoods]
+  return sortHomeGoodsList(mixed, sortMode.value, sortDirection.value)
+})
 const visibleDisplayList = computed(() =>
   displayList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
 )
@@ -943,6 +995,11 @@ function handleGroupCreated(group) {
   exitSelectionModeQuiet()
   activeGroupId.value = group.id
   showGroupFolder.value = true
+
+  // Auto-switch to pinned mode when creating a new group
+  if (groupDisplayMode.value === 'hidden') {
+    setGroupDisplayMode('pinned')
+  }
 }
 
 async function applyBatchEditPayload(payload) {

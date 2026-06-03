@@ -50,5 +50,12 @@
   "home.sort.nameAsc": "A-Z",
   "home.sort.price": "Price",
   "home.sort.priceDesc": "High to Low",
-  "home.sort.priceAsc": "Low to High"
+  "home.sort.priceAsc": "Low to High",
+  "home.toolbar.groupDisplay": "Group Display",
+  "home.groupDisplay.pinned": "Pinned",
+  "home.groupDisplay.pinnedDesc": "Groups always shown at top",
+  "home.groupDisplay.chronological": "Follow Sort",
+  "home.groupDisplay.chronologicalDesc": "Groups mixed with items using same sort",
+  "home.groupDisplay.hidden": "Hidden",
+  "home.groupDisplay.hiddenDesc": "Group items shown as individual entries"
 }

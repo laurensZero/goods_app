@@ -106,6 +106,24 @@
           </span>
         </button>
       </div>
+
+      <div v-if="groupDisplayOptions.length > 0" class="sort-sheet__divider" />
+
+      <div v-if="groupDisplayOptions.length > 0" class="sort-sheet__section">
+        <p class="sort-sheet__section-label">{{ t('home.toolbar.groupDisplay') }}</p>
+        <div class="sort-sheet__options">
+          <button
+            v-for="option in groupDisplayOptions"
+            :key="option.value"
+            type="button"
+            :class="['sort-sheet__option', { 'sort-sheet__option--active': groupDisplayMode === option.value }]"
+            @click="selectGroupDisplayMode(option.value)"
+          >
+            <span class="sort-sheet__option-name">{{ option.label }}</span>
+            <span class="sort-sheet__option-meta">{{ option.description }}</span>
+          </button>
+        </div>
+      </div>
     </div>
   </Popup>
 </template>
@@ -131,10 +149,12 @@ const props = defineProps({
   displayDensity: { type: String, required: true },
   densityModes: { type: Array, required: true },
   showTimelineToggle: { type: Boolean, default: true },
-  activeFilterCount: { type: Number, default: 0 }
+  activeFilterCount: { type: Number, default: 0 },
+  groupDisplayMode: { type: String, default: 'pinned' },
+  groupDisplayOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode'])
 
 const showSortSheet = ref(false)
 const windowWidth = ref(window.innerWidth)
@@ -216,6 +236,11 @@ function handleDirectionToggle() {
 
 function selectSortMode(value) {
   emit('set-sort-mode', value)
+  showSortSheet.value = false
+}
+
+function selectGroupDisplayMode(value) {
+  emit('set-group-display-mode', value)
   showSortSheet.value = false
 }
 
@@ -604,6 +629,18 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   flex-shrink: 0;
   background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-glass));
+}
+
+.sort-sheet__divider {
+  height: 1px;
+  margin: 14px 0;
+  background: var(--app-border);
+}
+
+.sort-sheet__section-label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  margin-bottom: 10px;
 }
 
 .sort-sheet__options {
