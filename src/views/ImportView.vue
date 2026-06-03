@@ -647,6 +647,10 @@ const topCharactersPerIp = computed(() => {
   return result
 })
 
+function isVariantSelected(variant) {
+  return selectedVariantKey.value === variant.key
+}
+
 function isVariantSuggested(variant) {
   const name = normalizeCharacterName(variant.text)
   return name ? topCharactersPerIp.value.has(name) : false
