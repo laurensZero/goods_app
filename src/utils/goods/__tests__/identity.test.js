@@ -9,6 +9,7 @@ import {
   extractVariantFromNote,
   stripVariantFromNote,
   buildNoteWithVariant,
+  buildGoodsIdentityAliases,
   getGoodsVariant
 } from '../identity'
 
@@ -147,5 +148,43 @@ describe('getGoodsVariant', () => {
 
   it('returns empty for null', () => {
     expect(getGoodsVariant(null)).toBe('')
+  })
+})
+
+describe('buildGoodsIdentityAliases', () => {
+  it('matches full imported name against base name plus variant', () => {
+    const imported = {
+      name: '女生宿舍系列拍立得套组',
+      variant: '流萤款A'
+    }
+
+    expect(buildGoodsIdentityAliases(imported)).toContain('女生宿舍系列拍立得套组-流萤款A||')
+  })
+
+  it('adds exact name alias for image-keyed goods without variant', () => {
+    const existing = {
+      name: '女生宿舍系列拍立得套组-流萤款A',
+      coverImage: 'https://example.com/a.jpg'
+    }
+
+    expect(buildGoodsIdentityAliases(existing)).toContain('女生宿舍系列拍立得套组-流萤款A||')
+  })
+
+  it('matches duplicate full name plus variant against exact full name', () => {
+    const imported = {
+      name: '女生宿舍系列拍立得套组-流萤款A',
+      variant: '流萤款A'
+    }
+
+    expect(buildGoodsIdentityAliases(imported)).toContain('女生宿舍系列拍立得套组-流萤款A||')
+  })
+
+  it('matches character-prefixed name against exact full name', () => {
+    const imported = {
+      name: '知更鸟系列Q版立绘马口铁徽章',
+      characters: ['知更鸟']
+    }
+
+    expect(buildGoodsIdentityAliases(imported)).toContain('知更鸟系列Q版立绘马口铁徽章||')
   })
 })
