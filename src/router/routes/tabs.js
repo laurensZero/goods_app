@@ -4,8 +4,19 @@ const WishlistView = () => import('@/views/WishlistView.vue')
 const MyView = () => import('@/views/MyView.vue')
 const EventsView = () => import('@/views/EventsView.vue')
 
+const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
+
+function resolveDefaultTab() {
+  try {
+    const stored = localStorage.getItem(COLLECTION_TAB_STORAGE_KEY)
+    if (stored === 'wishlist') return '/wishlist'
+    if (stored === 'stats') return '/leaderboard/characters'
+  } catch {}
+  return '/home'
+}
+
 export default [
-  { path: '/', redirect: '/home' },
+  { path: '/', redirect: () => resolveDefaultTab() },
   {
     path: '/home',
     name: 'home',
