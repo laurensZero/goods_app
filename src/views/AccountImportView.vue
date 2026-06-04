@@ -273,7 +273,7 @@ import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { Capacitor } from '@capacitor/core'
 import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo/index'
-import { buildGoodsIdentityKey } from '@/utils/goods/identity'
+import { buildGoodsIdentityAliases, buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
 
 defineOptions({ name: 'AccountImportView' })
@@ -320,17 +320,14 @@ function closeErrorDialog() {
   showErrorDialog.value = false
 }
 
-// 已导入的商品键（名称 + 款式），直接按当前收藏实时计算
-function _itemImportKey(item) {
-  return buildGoodsIdentityKey(item)
-}
+// 已导入的商品键（名称 + 款式/完整名称别名），直接按当前收藏实时计算
 const importedItemKeys = computed(() =>
-  new Set(store.collectionList.map((item) => _itemImportKey(item)))
+  new Set(store.collectionList.flatMap((item) => [...buildGoodsIdentityAliases(item)]))
 )
 
 // 商品是否已导入
 function isItemImported(item) {
-  return importedItemKeys.value.has(_itemImportKey(item))
+  return [...buildGoodsIdentityAliases(item)].some((key) => importedItemKeys.value.has(key))
 }
 // 订单是否已全部导入（所有非退款商品均已导入）
 function isOrderImported(po) {

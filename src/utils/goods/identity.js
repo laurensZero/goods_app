@@ -109,3 +109,56 @@ export function buildGoodsIdentityKey(item) {
 
   return `${name}||`
 }
+
+function pushIdentityAlias(aliases, name, variant = '') {
+  const normalizedName = normalizeGoodsName(name)
+  const normalizedVariant = normalizeGoodsVariant(variant)
+  if (!normalizedName) return
+  aliases.add(`${normalizedName}||${normalizedVariant}`)
+}
+
+function getCompositeVariantNames(name, variant) {
+  const normalizedName = normalizeGoodsName(name)
+  const normalizedVariant = normalizeGoodsVariant(variant)
+  if (!normalizedName || !normalizedVariant) return []
+
+  return [
+    `${normalizedName}-${normalizedVariant}`,
+    `${normalizedName} - ${normalizedVariant}`,
+    `${normalizedName}${normalizedVariant}`,
+  ]
+}
+
+function nameContainsVariant(name, variant) {
+  const normalizedName = normalizeGoodsName(name)
+  const normalizedVariant = normalizeGoodsVariant(variant)
+  if (!normalizedName || !normalizedVariant) return false
+
+  return normalizedName.includes(normalizedVariant)
+}
+
+export function buildGoodsIdentityAliases(item) {
+  const aliases = new Set()
+  const name = normalizeGoodsName(item?.name)
+  const variant = getGoodsVariant(item)
+  const primaryKey = buildGoodsIdentityKey(item)
+
+  if (primaryKey) aliases.add(primaryKey)
+
+  if (!name) return aliases
+
+  if (!variant) {
+    pushIdentityAlias(aliases, name)
+    return aliases
+  }
+
+  pushIdentityAlias(aliases, name, variant)
+  if (nameContainsVariant(name, variant)) {
+    pushIdentityAlias(aliases, name)
+  }
+  for (const compositeName of getCompositeVariantNames(name, variant)) {
+    pushIdentityAlias(aliases, compositeName)
+  }
+
+  return aliases
+}
