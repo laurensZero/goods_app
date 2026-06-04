@@ -1,9 +1,9 @@
 {
-  "version": "20260603.2",
-  "url": "bundle-20260603.2.zip",
-  "hash": "0d4f0c79c2eac883e03ea8b143b058c1ae5849c96618a3d00be161a6c4db22a1",
+  "version": "20260604.1",
+  "url": "bundle-20260604.1.zip",
+  "hash": "e25d27482ec958809e7a781dbaefe3561b1d74b69081a63343f076c63325b390",
   "minNativeVersion": null,
-  "notes": "- feat: 添加谷子组显示模式功能，支持置顶、跟随排序和隐藏选项",
+  "notes": "- feat: 修改根路径重定向逻辑，使用本地存储的值确定默认标签",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-03T10:12:35Z"
+  "publishedAt": "2026-06-04T11:50:16Z"
 }

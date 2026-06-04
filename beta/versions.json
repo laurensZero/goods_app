@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260604.1",
+    "url": "bundle-20260604.1.zip",
+    "hash": "e25d27482ec958809e7a781dbaefe3561b1d74b69081a63343f076c63325b390",
+    "minNativeVersion": null,
+    "notes": "- feat: 修改根路径重定向逻辑，使用本地存储的值确定默认标签",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-04T11:50:16Z"
+  },
+  {
     "version": "20260603.2",
     "url": "bundle-20260603.2.zip",
     "hash": "0d4f0c79c2eac883e03ea8b143b058c1ae5849c96618a3d00be161a6c4db22a1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加函数以检查选定变体，增强变体选择逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-06-03T01:09:44Z"
-  },
-  {
-    "version": "20260602.11",
-    "url": "bundle-20260602.11.zip",
-    "hash": "a14b8fa6a66f926be97365e3ff7443f279d82a96328f8c02023303987d5601c2",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化卡片重绘逻辑，使用商品ID跟踪已重绘的卡片以避免合成闪烁",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-02T14:14:30Z"
   }
 ]
