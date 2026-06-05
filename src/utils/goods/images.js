@@ -111,6 +111,22 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   }
 }
 
+function buildGoodsImageDedupKey(uri) {
+  const value = String(uri || '').trim()
+  if (!value) return ''
+
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${parsed.pathname}`
+    }
+  } catch {
+    // Non-URL values such as content:// and gist-image:// should keep exact matching.
+  }
+
+  return value
+}
+
 /**
  * @param {unknown} rawImages
  * @param {string} fallbackImage
@@ -125,8 +141,9 @@ export function normalizeGoodsImageList(rawImages, fallbackImage = '') {
   const normalized = sourceList
     .map((entry, index) => normalizeGoodsImageEntry(entry, index))
     .filter((entry) => {
-      if (!entry || seenUris.has(entry.uri)) return false
-      seenUris.add(entry.uri)
+      const dedupKey = buildGoodsImageDedupKey(entry?.uri)
+      if (!entry || seenUris.has(dedupKey)) return false
+      seenUris.add(dedupKey)
       return true
     })
 
