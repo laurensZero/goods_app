@@ -81,10 +81,11 @@ export function createViewList(list) {
       newMap.set(item.id, { viewItem, srcItem: item })
     }
 
-    for (const item of oldList) {
-      if (!newMap.has(item.id)) {
+    const newIdSet = new Set(newList.map((i) => i.id))
+    for (const id of newMap.keys()) {
+      if (!newIdSet.has(id)) {
         changed = true
-        newMap.delete(item.id)
+        newMap.delete(id)
       }
     }
 
@@ -152,10 +153,11 @@ export function createTrashViewList(trashList) {
       newMap.set(item.id, { viewItem, srcItem: item })
     }
 
-    for (const item of oldList) {
-      if (!newMap.has(item.id)) {
+    const newIdSet = new Set(newList.map((i) => i.id))
+    for (const id of newMap.keys()) {
+      if (!newIdSet.has(id)) {
         changed = true
-        newMap.delete(item.id)
+        newMap.delete(id)
       }
     }
 
