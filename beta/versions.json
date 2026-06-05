@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260605.2",
+    "url": "bundle-20260605.2.zip",
+    "hash": "745487f7063d48046b4840ebc920aec8e092d333ffa98c52ff18f9503f4a5281",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新主题描述，增强可读性和一致性；调整回收站删除时间格式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-05T15:34:06Z"
+  },
+  {
     "version": "20260605.1",
     "url": "bundle-20260605.1.zip",
     "hash": "3211f9d0a88fbb0fd2d549ac9fdac0b6893ba8e8f66a6cbde5008299d7f83243",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加构建商品身份别名的功能，优化商品导入逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-06-04T12:31:42Z"
-  },
-  {
-    "version": "20260604.1",
-    "url": "bundle-20260604.1.zip",
-    "hash": "e25d27482ec958809e7a781dbaefe3561b1d74b69081a63343f076c63325b390",
-    "minNativeVersion": null,
-    "notes": "- feat: 修改根路径重定向逻辑，使用本地存储的值确定默认标签",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-04T11:50:16Z"
   }
 ]

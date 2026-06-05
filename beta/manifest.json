@@ -1,9 +1,9 @@
 {
-  "version": "20260605.1",
-  "url": "bundle-20260605.1.zip",
-  "hash": "3211f9d0a88fbb0fd2d549ac9fdac0b6893ba8e8f66a6cbde5008299d7f83243",
+  "version": "20260605.2",
+  "url": "bundle-20260605.2.zip",
+  "hash": "745487f7063d48046b4840ebc920aec8e092d333ffa98c52ff18f9503f4a5281",
   "minNativeVersion": null,
-  "notes": "- feat: 添加去重功能，优化商品图片列表的处理逻辑",
+  "notes": "- feat: 更新主题描述，增强可读性和一致性；调整回收站删除时间格式",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-05T12:42:58Z"
+  "publishedAt": "2026-06-05T15:34:06Z"
 }
