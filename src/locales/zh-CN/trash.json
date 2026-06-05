@@ -9,7 +9,7 @@
   "trash.permanentDelete": "永久删除",
   "trash.confirmPermanent": "确认永久删除？",
   "trash.confirmPermanentDesc": "此操作不可逆",
-  "trash.deletedAt": "删除于",
+  "trash.deletedAt": "删除于{date}",
   "trash.quantity": "数量",
   "trash.deleteConfirmDesc": "删除后无法恢复",
   "trash.deleteConfirmTitle": "确认删除",
