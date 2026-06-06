@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260606.2",
+    "url": "bundle-20260606.2.zip",
+    "hash": "73c19115ab0751c6245b1b0c3572c8b50c733ce6ffe0aab65f7595e925d2d668",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新充值摘要标签，统一英文和中文语言文件中的字段",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-06T07:15:32Z"
+  },
+  {
     "version": "20260606.1",
     "url": "bundle-20260606.1.zip",
     "hash": "d846b1834f918df8f5ff46d141c9185b8887108fc43f51072815cdcb2cf0375d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新主题描述，增强可读性和一致性；调整回收站删除时间格式",
     "updateLevel": "silent",
     "publishedAt": "2026-06-05T15:34:06Z"
-  },
-  {
-    "version": "20260605.1",
-    "url": "bundle-20260605.1.zip",
-    "hash": "3211f9d0a88fbb0fd2d549ac9fdac0b6893ba8e8f66a6cbde5008299d7f83243",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加去重功能，优化商品图片列表的处理逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-05T12:42:58Z"
   }
 ]
