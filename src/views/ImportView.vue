@@ -723,7 +723,7 @@ const {
   searchKeyword, searchResults, searchExpanded, searching, searchLoadingMore, searchError,
   variantSearchHint, selectedSearchCharacter, selectedSearchGoodsId, searchLoadMoreRef,
   visibleSearchResults, showSearchToggle, searchHasMore, showSearchLoadMoreStatus,
-  handleGoodsSearch, toggleSearchExpanded, selectSearchResult, shortenUrl, resetSearchState
+  getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult, shortenUrl, resetSearchState
 } = useImportSearch({ goodsStore, wishlistCharacterOptions, setUrlInputValue, handleParse })
 
 const {
