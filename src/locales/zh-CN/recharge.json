@@ -48,7 +48,7 @@
   "recharge.dialog.errorDate": "日期格式无效，请重新选择日期",
   "recharge.dialog.errorNegative": "金额不能为负数",
   "recharge.dialog.tiers": "{count} 个档位",
-  "recharge.summary.value": "充值金额",
+
   "recharge.recordsLabel": "充值记录",
   "recharge.view.allRecords": "全部记录",
   "recharge.view.leaderboard": "游戏排行",

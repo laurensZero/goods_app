@@ -11,7 +11,7 @@
   <section class="summary-section">
     <SummaryCard
       :total-value="totalAmountText"
-      :label="t('recharge.summary.value')"
+      label="RECHARGE VALUE"
       storage-key="goods-app:recharge-total-value-hidden"
       :show-tips="false"
       :trend-items="activeRecords"
