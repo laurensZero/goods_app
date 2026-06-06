@@ -1,9 +1,9 @@
 {
-  "version": "20260605.2",
-  "url": "bundle-20260605.2.zip",
-  "hash": "745487f7063d48046b4840ebc920aec8e092d333ffa98c52ff18f9503f4a5281",
+  "version": "20260606.1",
+  "url": "bundle-20260606.1.zip",
+  "hash": "d846b1834f918df8f5ff46d141c9185b8887108fc43f51072815cdcb2cf0375d",
   "minNativeVersion": null,
-  "notes": "- feat: 更新主题描述，增强可读性和一致性；调整回收站删除时间格式",
+  "notes": "- fix: 米游铺搜索返回白屏",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-05T15:34:06Z"
+  "publishedAt": "2026-06-06T02:01:07Z"
 }
