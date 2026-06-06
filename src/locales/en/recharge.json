@@ -48,7 +48,7 @@
   "recharge.dialog.errorDate": "Invalid date format, please select again",
   "recharge.dialog.errorNegative": "Amount cannot be negative",
   "recharge.dialog.tiers": "{count} tiers",
-  "recharge.summary.value": "Recharge Value",
+
   "recharge.recordsLabel": "Recharge Records",
   "recharge.view.allRecords": "All Records",
   "recharge.view.leaderboard": "Leaderboard",
