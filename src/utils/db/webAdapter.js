@@ -1,6 +1,9 @@
+import { createLogger } from '@/utils/logger'
+
 const IDB_NAME = 'goods_idb'
 const IDB_STORE = 'db'
 const IDB_KEY = 'goods_app'
+const log = createLogger('db:web')
 
 function _openIDB() {
   return new Promise((resolve, reject) => {
@@ -33,7 +36,7 @@ async function _saveBinaryToIDB(sqlDb) {
       tx.oncomplete = resolve
       tx.onerror = () => reject(tx.error)
     })
-  } catch (e) { console.warn('[DB] save to IDB failed:', e) }
+  } catch (e) { log.warn('idb:save:failed', e) }
 }
 
 export function createWebAdapter() {
@@ -69,6 +72,7 @@ export function createWebAdapter() {
       const SQL = await initSqlJs({ locateFile: () => '/assets/sql-wasm.wasm' })
       const saved = await _loadBinaryFromIDB()
       _db = saved ? new SQL.Database(saved) : new SQL.Database()
+      log.debug('open:done', { restoredFromIdb: Boolean(saved), byteLength: saved?.byteLength || saved?.length || 0 })
       // Flush pending saves before page unload to prevent data loss
       window.addEventListener('beforeunload', () => {
         if (_saveTimer) {

@@ -10,6 +10,9 @@ import {
 import { encrypt, decrypt, isEncrypted } from '@/utils/sync/cryptoManager'
 import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { withRetry } from './syncRetry'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('sync:gist')
 
 export function createGistBackendAdapter({
   tokenRef,
@@ -85,7 +88,7 @@ export function createGistBackendAdapter({
     try {
       matched = await listGists(tokenRef.value, 'goods-app-images')
     } catch (e) {
-      console.error('[sync] ensureImageGist: listGists failed:', e)
+      log.error('gist:image:list:failed', e)
       throw e
     }
     if (matched.length > 0) {
@@ -99,7 +102,7 @@ export function createGistBackendAdapter({
         'README.md': { content: '# goods-app image store\n\nThis gist stores synced local images.' }
       })
     } catch (e) {
-      console.error('[sync] ensureImageGist: createGist failed:', e)
+      log.error('gist:image:create:failed', e)
       throw e
     }
 
@@ -124,7 +127,7 @@ export function createGistBackendAdapter({
     try {
       matched = await listGists(tokenRef.value, 'goods-app-recharge-sync')
     } catch (e) {
-      console.error('[sync] ensureRechargeGist: listGists failed:', e)
+      log.error('gist:recharge:list:failed', e)
       throw e
     }
     if (matched.length > 0) {
@@ -136,7 +139,7 @@ export function createGistBackendAdapter({
     try {
       legacyCandidates = await listGists(tokenRef.value, 'goods-app-sync')
     } catch (e) {
-      console.error('[sync] ensureRechargeGist: listGists (legacy) failed:', e)
+      log.error('gist:recharge:list-legacy:failed', e)
       throw e
     }
     const legacyMatch = legacyCandidates.find((gist) => gist?.files?.[RECHARGE_DATA_FILENAME])
@@ -152,7 +155,7 @@ export function createGistBackendAdapter({
         [RECHARGE_DATA_FILENAME]: { content: JSON.stringify(rechargeData) }
       })
     } catch (e) {
-      console.error('[sync] ensureRechargeGist: createGist failed:', e)
+      log.error('gist:recharge:create:failed', e)
       throw e
     }
 
@@ -177,7 +180,7 @@ export function createGistBackendAdapter({
     try {
       matched = await listGists(tokenRef.value, 'goods-app-events-sync')
     } catch (e) {
-      console.error('[sync] ensureEventGist: listGists failed:', e)
+      log.error('gist:event:list:failed', e)
       throw e
     }
     if (matched.length > 0) {
@@ -192,7 +195,7 @@ export function createGistBackendAdapter({
       eventData = payload.eventData
       imageFiles = payload.imageFiles
     } catch (e) {
-      console.error('[sync] ensureEventGist: buildEventSyncPayload failed:', e)
+      log.error('gist:event:build-payload:failed', e)
       throw e
     }
 
@@ -200,7 +203,7 @@ export function createGistBackendAdapter({
       try {
         await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
       } catch (e) {
-        console.error('[sync] ensureEventGist: updateGist (images) failed:', e)
+        log.error('gist:event:update-images:failed', { imageCount: Object.keys(imageFiles).length }, e)
         throw e
       }
     }
@@ -211,7 +214,7 @@ export function createGistBackendAdapter({
         [EVENT_DATA_FILENAME]: { content: JSON.stringify(eventData) }
       })
     } catch (e) {
-      console.error('[sync] ensureEventGist: createGist failed:', e)
+      log.error('gist:event:create:failed', e)
       throw e
     }
 
@@ -236,7 +239,7 @@ export function createGistBackendAdapter({
     try {
       matched = await listGists(tokenRef.value, 'goods-app-sync')
     } catch (e) {
-      console.error('[sync] ensureDataGist: listGists failed:', e)
+      log.error('gist:data:list:failed', e)
       throw e
     }
     if (matched.length > 0) {
@@ -258,7 +261,7 @@ export function createGistBackendAdapter({
     try {
       existingImageGist = await ensureImageGist()
     } catch (e) {
-      console.error('[sync] ensureDataGist: ensureImageGist failed:', e)
+      log.error('gist:data:ensure-image:failed', e)
       throw e
     }
 
@@ -272,7 +275,7 @@ export function createGistBackendAdapter({
       const eventPayload = await buildEventSyncPayload({ existingImageGist })
       eventData = eventPayload.eventData
     } catch (e) {
-      console.error('[sync] ensureDataGist: buildSyncPayload failed:', e)
+      log.error('gist:data:build-payload:failed', e)
       throw e
     }
 
@@ -280,7 +283,7 @@ export function createGistBackendAdapter({
       try {
         await updateGist(tokenRef.value, existingImageGist.id, imageFiles)
       } catch (e) {
-        console.error('[sync] ensureDataGist: updateGist (images) failed:', e)
+        log.error('gist:data:update-images:failed', { imageCount: Object.keys(imageFiles).length }, e)
         throw e
       }
     }
@@ -295,14 +298,14 @@ export function createGistBackendAdapter({
         [MANIFEST_FILENAME]: { content: JSON.stringify(manifest) }
       })
     } catch (e) {
-      console.error('[sync] ensureDataGist: createGist failed:', e)
+      log.error('gist:data:create:failed', e)
       throw e
     }
 
     try {
       await saveGistId(created.id)
     } catch (e) {
-      console.error('[sync] ensureDataGist: saveGistId failed:', e)
+      log.error('gist:data:save-id:failed', e)
       throw e
     }
     return created
@@ -405,7 +408,7 @@ export function createGistBackendAdapter({
 
       let parsed
       if (isEncrypted(content)) {
-        console.log(`[解密] ${fileName} 检测到加密数据`)
+        log.debug('data:decrypt:detected', { fileName, source })
         const key = await ensureEncryptionKey()
         if (!key) {
           throw new Error('检测到加密数据，但加密密钥未初始化。请重新登录 GitHub 或禁用加密。')
@@ -416,7 +419,7 @@ export function createGistBackendAdapter({
         } catch (e) {
           throw new Error(`${fileName} 解密后 JSON 解析失败: ${e.message}`)
         }
-        console.log(`[解密] ${fileName} 解密成功`)
+        log.debug('data:decrypt:done', { fileName, source })
       } else {
         try {
           parsed = JSON.parse(content)
@@ -506,14 +509,17 @@ export function createGistBackendAdapter({
                 }
               }
             } catch (e) {
-              console.warn('图片加密失败，以明文上传:', e)
+              log.warn('image:encrypt:failed-plaintext-upload', { batchSize: batch.length }, e)
             }
           }
           return withRetry(() => updateGist(tokenRef.value, gistId, encryptedBatch))
         }))
         const failures = results.filter(r => r.status === 'rejected')
         if (failures.length > 0) {
-          console.error(`[sync] ${failures.length}/${chunk.length} image batch(es) failed:`, failures.map(r => r.reason))
+          log.error('image:batch-upload:failed', {
+            failed: failures.length,
+            total: chunk.length
+          }, failures.map(r => r.reason))
         }
       }
       return `${totalBatches} 批已全部上传`
@@ -553,10 +559,10 @@ export function createGistBackendAdapter({
     try {
       const key = await ensureEncryptionKey()
       if (!key) return JSON.stringify(data)
-      console.log(`[加密] ${fileName} 已加密`)
+      log.debug('data:encrypt:done', { fileName })
       return await encrypt(data, key)
     } catch (e) {
-      console.warn('加密失败，以明文上传:', e)
+      log.warn('data:encrypt:failed-plaintext-upload', { fileName }, e)
       return JSON.stringify(data)
     }
   }

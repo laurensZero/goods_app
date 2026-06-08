@@ -22,6 +22,7 @@ import { useGoodsGroupStore } from './stores/goodsGroup'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
+import { createLogger } from './utils/logger'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -32,6 +33,8 @@ const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'manage'
 ])
 const LAST_NATIVE_APP_VERSION_KEY = 'last_native_app_version'
+const log = createLogger('bootstrap')
+const updaterLog = createLogger('updater')
 
 async function notifyUpdaterReady() {
   if (!Capacitor.isNativePlatform()) return
@@ -39,7 +42,7 @@ async function notifyUpdaterReady() {
   try {
     await CapacitorUpdater.notifyAppReady()
   } catch (error) {
-    console.warn('[updater] notifyAppReady failed:', error)
+    updaterLog.warn('ready:notify:failed', error)
   }
 }
 
@@ -60,12 +63,12 @@ async function reconcileBundlesAfterNativeUpdate() {
       return
     }
 
-    console.log(`[updater] Native app updated from ${storedVersion} to ${currentAppVersion}. Reconciling bundles...`)
+    updaterLog.info('native-update:reconcile:start', { from: storedVersion, to: currentAppVersion })
 
     const nextBundle = await CapacitorUpdater.getNextBundle().catch(() => null)
     if (nextBundle?.id && nextBundle.id !== 'builtin') {
       await CapacitorUpdater.next({ id: 'builtin' }).catch((error) => {
-        console.warn('[updater] Failed to clear next bundle after native update:', error)
+        updaterLog.warn('native-update:clear-next-bundle:failed', { nextBundleId: nextBundle.id }, error)
       })
     }
 
@@ -73,14 +76,15 @@ async function reconcileBundlesAfterNativeUpdate() {
     for (const bundle of bundles) {
       if (bundle?.id && bundle.id !== 'builtin') {
         await CapacitorUpdater.delete({ id: bundle.id }).catch((error) => {
-          console.warn(`[updater] Failed to delete obsolete bundle ${bundle.id}:`, error)
+          updaterLog.warn('native-update:delete-obsolete-bundle:failed', { bundleId: bundle.id }, error)
         })
       }
     }
 
     await Preferences.set({ key: LAST_NATIVE_APP_VERSION_KEY, value: currentAppVersion })
+    updaterLog.info('native-update:reconcile:done', { from: storedVersion, to: currentAppVersion })
   } catch (error) {
-    console.warn('[updater] Native update reconciliation failed:', error)
+    updaterLog.warn('native-update:reconcile:failed', error)
   }
 }
 
@@ -133,7 +137,7 @@ async function bootstrap() {
   try {
     await initDB()
   } catch (e) {
-    console.error('[DB] initDB failed — running without SQLite storage:', e)
+    log.error('db:init:failed', e)
     // 延迟导入 Toast，避免循环依赖
     import('vant').then(({ showFailToast }) => {
       showFailToast(i18n.global.t('toast.dbInitFailed', { error: e.message || String(e) }))
@@ -167,16 +171,16 @@ async function bootstrap() {
     await Promise.all([store.init(), presets.init(), filterPresets.init()])
     timings.storesInit = performance.now() - t3
   } catch (e) {
-    console.error('[bootstrap] store init failed:', e)
+    log.error('stores:init:failed', e)
   }
   
   // 非阻塞式初始化 - 不延迟 DOM 挂载
   // exchangeRate, presets 同步（后台执行）
   exchangeRate.init().catch((e) => {
-    console.warn('[bootstrap] exchangeRate.init failed:', e)
+    log.warn('exchange-rate:init:failed', e)
   })
   presets.syncPresetsIfNeeded(store.list, store.storageLocations).catch((e) => {
-    console.warn('[bootstrap] presets.syncPresetsIfNeeded failed:', e)
+    log.warn('presets:sync-if-needed:failed', e)
   })
   
   // events + recharge + goodsGroup 延迟到 App 挂载后（不影响首屏）
@@ -184,7 +188,7 @@ async function bootstrap() {
     try {
       await Promise.all([eventsStore.init(), rechargeStore.init(), goodsGroupStore.init()])
     } catch (e) {
-      console.error('[bootstrap] deferred store init failed:', e)
+      log.error('stores:deferred-init:failed', e)
     }
   }
 
@@ -192,7 +196,7 @@ async function bootstrap() {
   try {
     await router.isReady()
   } catch (e) {
-    console.error('[bootstrap] router.isReady failed:', e)
+    log.error('router:ready:failed', e)
   }
   timings.routerReady = performance.now() - t4
   setupAndroidBackButton()
@@ -202,18 +206,16 @@ async function bootstrap() {
   app.mount('#app')
   timings.mount = performance.now() - t5
   
-  // 打出启动时间统计（仅开发环境）
   timings.total = performance.now() - startTime
-  if (import.meta.env.DEV) {
-    console.log(
-      '[bootstrap] startup timings (ms):\n' +
-      Object.entries(timings).map(([k, v]) => `  ${k}: ${v.toFixed(1)}`).join('\n')
-    )
-  }
+  log.debug('startup:timings', Object.fromEntries(
+    Object.entries(timings).map(([key, value]) => [key, Number(value.toFixed(1))])
+  ))
   
   // 顺序很重要：先挂载 DOM，再初始化重的 store
   void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()
 }
 
-bootstrap().catch(console.error)
+bootstrap().catch((error) => {
+  log.error('fatal', error)
+})

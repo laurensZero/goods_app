@@ -18,8 +18,10 @@ import { Capacitor } from '@capacitor/core'
 import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goods/images'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 import { MIGRATIONS } from './migrations'
+import { createLogger } from '@/utils/logger'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
+const log = createLogger('db')
 
 /**
  * @typedef {Object} DatabaseAdapter
@@ -461,17 +463,14 @@ export async function initDB() {
   const migrationsTime = performance.now() - t4
   isSchemaSynced = true
 
-  // Log detailed timings only in development
-  if (import.meta.env.DEV) {
-    console.log(
-      '[db] initDB detailed timings (ms):\n' +
-      `  db.open: ${openTime.toFixed(1)}\n` +
-      `  createTables: ${createTablesTime.toFixed(1)}\n` +
-      `  backfillColumns: ${backfillColumnsTime.toFixed(1)}\n` +
-      `  versionCheck: ${versionCheckTime.toFixed(1)}\n` +
-      `  migrations: ${migrationsTime.toFixed(1)}`
-    )
-  }
+  log.debug('init:timings', {
+    adapter: IS_NATIVE ? 'native' : 'web',
+    openMs: Number(openTime.toFixed(1)),
+    createTablesMs: Number(createTablesTime.toFixed(1)),
+    backfillColumnsMs: Number(backfillColumnsTime.toFixed(1)),
+    versionCheckMs: Number(versionCheckTime.toFixed(1)),
+    migrationsMs: Number(migrationsTime.toFixed(1))
+  })
 }
 
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
