@@ -1,9 +1,9 @@
 {
-  "version": "20260606.2",
-  "url": "bundle-20260606.2.zip",
-  "hash": "73c19115ab0751c6245b1b0c3572c8b50c733ce6ffe0aab65f7595e925d2d668",
+  "version": "20260608.1",
+  "url": "bundle-20260608.1.zip",
+  "hash": "5fcd3d0ee13ccb811a8d6ae54ab1fec4be9963bf1cdf7a946eaa6c2be9c75ef5",
   "minNativeVersion": null,
-  "notes": "- feat: 更新充值摘要标签，统一英文和中文语言文件中的字段",
+  "notes": "- feat: 日志系统",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-06T07:15:32Z"
+  "publishedAt": "2026-06-08T09:40:01Z"
 }
