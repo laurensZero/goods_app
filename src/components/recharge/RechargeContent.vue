@@ -196,10 +196,12 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { createLogger } from '@/utils/logger'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
 const { t } = useI18n()
 const rechargeStore = useRechargeStore()
+const log = createLogger('recharge-ui')
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
 const keyword = ref('')
@@ -382,6 +384,10 @@ function formatAmount(value) {
 }
 
 function resetFilters() {
+  log.debug('filters:reset', {
+    hadKeyword: Boolean(keyword.value.trim()),
+    hadGameFilter: Boolean(gameFilter.value)
+  })
   keyword.value = ''
   gameFilter.value = ''
 }
@@ -389,24 +395,29 @@ function resetFilters() {
 function toggleSearch() {
   if (showSearchBar.value && !keyword.value.trim()) {
     showSearchBar.value = false
+    log.debug('search:toggle', { visible: false })
     return
   }
 
   showSearchBar.value = true
+  log.debug('search:toggle', { visible: true, hasKeyword: Boolean(keyword.value.trim()) })
 }
 
 function openCreate() {
   editingRecord.value = null
   addMode.value = 'manual'
   showAddDialog.value = true
+  log.debug('dialog:create', { mode: addMode.value })
 }
 
 function openAddMethodSheet() {
   editingRecord.value = null
   showAddMethodSheet.value = true
+  log.debug('add-method:open')
 }
 
 function openMonthCardCalendar() {
+  log.debug('month-card:open')
   emit('open-month-card')
 }
 
@@ -422,10 +433,12 @@ function compareGameOrder(left, right) {
 
 function handleViewOptionClick(value) {
   if (value === 'month-card') {
+    log.debug('view:month-card-request')
     openMonthCardCalendar()
     return
   }
 
+  log.debug('view:select', { from: activeView.value, to: value })
   activeView.value = value
 }
 
@@ -433,28 +446,38 @@ function openCreateManual() {
   editingRecord.value = null
   addMode.value = 'manual'
   showAddDialog.value = true
+  log.debug('dialog:create', { mode: addMode.value })
 }
 
 function openCreatePreset() {
   editingRecord.value = null
   addMode.value = 'preset'
   showAddDialog.value = true
+  log.debug('dialog:create', { mode: addMode.value })
 }
 
 function openEdit(record) {
   editingRecord.value = record
   addMode.value = 'manual'
   showAddDialog.value = true
+  log.debug('dialog:edit', {
+    id: record?.id,
+    game: record?.game,
+    amount: Number(record?.amount || 0),
+    chargedAt: record?.chargedAt
+  })
 }
 
 function handleRecordHold(record) {
   if (!record?.id || activeView.value !== 'records') return
   enterSelectionMode(record.id)
+  log.debug('selection:enter', { id: record.id })
 }
 
 function handleRecordClick(record) {
   if (!selectionMode.value || !record?.id) return
   toggleSelect(record.id)
+  log.debug('selection:toggle', { id: record.id, selectedCount: selectedIds.value.size })
 }
 
 function editSelectedRecord() {
@@ -465,11 +488,34 @@ function editSelectedRecord() {
 
 async function saveRecord(payload) {
   const wasEditingExistingRecord = Boolean(editingRecord.value?.id)
+  const mode = wasEditingExistingRecord ? 'edit' : 'create'
+  const recordId = editingRecord.value?.id || ''
+  log.debug('record:save:start', {
+    mode,
+    id: recordId,
+    addMode: addMode.value,
+    game: payload?.game,
+    amount: Number(payload?.amount || 0),
+    chargedAt: payload?.chargedAt
+  })
 
-  if (editingRecord.value?.id) {
-    await rechargeStore.updateRecord(editingRecord.value.id, payload)
-  } else {
-    await rechargeStore.addRecord(payload)
+  try {
+    let result
+    if (editingRecord.value?.id) {
+      result = await rechargeStore.updateRecord(editingRecord.value.id, payload)
+    } else {
+      result = await rechargeStore.addRecord(payload)
+    }
+
+    log.debug('record:save:done', {
+      mode,
+      id: result?.id || recordId,
+      success: Boolean(result),
+      total: activeRecords.value.length
+    })
+  } catch (error) {
+    log.error('record:save:failed', { mode, id: recordId }, error)
+    throw error
   }
 
   showAddDialog.value = false
@@ -483,15 +529,30 @@ async function saveRecord(payload) {
 function deleteSelectedRecords() {
   if (selectedIds.value.size === 0) return
   showDeleteConfirm.value = true
+  log.debug('selection:delete-request', { selectedCount: selectedIds.value.size })
 }
 
 async function confirmDelete() {
   if (selectedIds.value.size === 0) {
     showDeleteConfirm.value = false
+    log.debug('selection:delete:skipped', { reason: 'empty' })
     return
   }
 
-  await Promise.all(selectedIds.value.map((id) => rechargeStore.permanentDelete(id)))
+  const ids = Array.from(selectedIds.value)
+  log.debug('selection:delete:start', { selectedCount: ids.length })
+
+  try {
+    const results = await Promise.all(ids.map((id) => rechargeStore.permanentDelete(id)))
+    log.debug('selection:delete:done', {
+      requested: ids.length,
+      deleted: results.filter(Boolean).length,
+      total: activeRecords.value.length
+    })
+  } catch (error) {
+    log.error('selection:delete:failed', { selectedCount: ids.length }, error)
+    throw error
+  }
 
   showDeleteConfirm.value = false
   exitSelectionModeQuiet()
@@ -503,6 +564,7 @@ function syncAddScrollLock(active) {
 
 function syncRechargeImagePreload(urls = []) {
   if (!Array.isArray(urls) || urls.length === 0) return
+  log.debug('images:preload', { count: urls.length })
   preloadImages(urls)
 }
 
@@ -544,6 +606,7 @@ function scrollToTop() {
   const pageBody = pageBodyEl.value
   scrollToTopAnimated(() => pageBody, 260)
   updateScrollTopButtonVisibility()
+  log.debug('scroll:top', { source: pageBody ? 'page-body' : 'window' })
 }
 
 function handleAndroidBackButton(event) {
@@ -584,7 +647,10 @@ function unbindAndroidBackButton() {
 
 onMounted(async () => {
   await rechargeStore.init()
-  rechargeStore.clearInvalidRecords()
+  log.debug('mounted:init-done', { records: activeRecords.value.length })
+  rechargeStore.clearInvalidRecords().catch((error) => {
+    log.error('mounted:cleanup-invalid:failed', error)
+  })
   resolvePageBodyEl()
   bindScrollListeners()
   updateScrollTopButtonVisibility()
@@ -616,6 +682,7 @@ watch(selectionMode, (active) => {
 })
 
 watch(activeView, (value) => {
+  log.debug('view:changed', { value, selectionMode: selectionMode.value })
   if (value !== 'records' && selectionMode.value) {
     exitSelectionModeQuiet()
   }

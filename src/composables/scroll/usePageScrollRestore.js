@@ -1,6 +1,9 @@
 import { nextTick } from 'vue'
 import { setWindowScrollTop } from '@/utils/scrollPosition'
 import { isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('scroll-restore')
 
 export function createPageScrollRestore(pageName, selector) {
   return (pageBodyRef) => usePageScrollRestore(pageBodyRef, {
@@ -20,15 +23,13 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   let savedScrollState = null
   let activeScrollSource = null
   let restoreSessionId = 0
-  const DEBUG_SCROLL_RESTORE = false
 
   function debugLog(message, payload = null) {
-    if (!DEBUG_SCROLL_RESTORE) return
     if (payload === null) {
-      console.log(`[scroll-restore:${storageKey}] ${message}`)
+      log.debug(message, { storageKey })
       return
     }
-    console.log(`[scroll-restore:${storageKey}] ${message}`, payload)
+    log.debug(message, { storageKey, ...payload })
   }
 
   // Guardrail:
@@ -409,7 +410,7 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     // Route transitions still persist anchor data via saveScrollPosition().
     const state = buildScrollState(top, source, false)
     writeScrollState(state)
-    if (shouldLog || DEBUG_SCROLL_RESTORE) {
+    if (shouldLog) {
       debugLog('rememberCurrentScrollPosition', { reason, state })
     }
   }

@@ -3,8 +3,10 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db/index'
 import { useSyncStore } from '@/stores/sync'
+import { createLogger } from '@/utils/logger'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'
+const log = createLogger('recharge')
 
 function normalizeRecord(input = {}) {
   const now = Date.now()
@@ -108,8 +110,15 @@ export const useRechargeStore = defineStore('recharge', () => {
       const normalized = rows.map((item) => normalizeRecord(item))
       const valid = normalized.filter((item) => isValidRechargeRecord(item) && !item.deleted)
       records.value = valid
+      log.debug('load:db', {
+        rows: rows.length,
+        normalized: normalized.length,
+        active: valid.length,
+        deleted: normalized.filter((item) => item.deleted).length,
+        invalid: normalized.filter((item) => !isValidRechargeRecord(item)).length
+      })
     } catch (error) {
-      console.error('[recharge] load from DB failed:', error)
+      log.error('load:failed', error)
       records.value = []
     }
   }
@@ -117,11 +126,17 @@ export const useRechargeStore = defineStore('recharge', () => {
   async function migrateFromLocalStorage() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) return
+      if (!raw) {
+        log.debug('migration:localStorage:skipped', { reason: 'empty' })
+        return
+      }
 
       const parsed = JSON.parse(raw)
       if (!Array.isArray(parsed) || parsed.length === 0) {
         localStorage.removeItem(STORAGE_KEY)
+        log.debug('migration:localStorage:skipped', {
+          reason: Array.isArray(parsed) ? 'empty-array' : 'invalid-shape'
+        })
         return
       }
 
@@ -133,33 +148,58 @@ export const useRechargeStore = defineStore('recharge', () => {
       }
 
       localStorage.removeItem(STORAGE_KEY)
-      console.log(`[recharge] migrated ${valid.length} records from localStorage to SQLite`)
+      log.debug('migration:localStorage', {
+        parsed: parsed.length,
+        migrated: valid.length,
+        invalid: normalized.length - valid.length
+      })
     } catch (error) {
-      console.error('[recharge] migration from localStorage failed:', error)
+      log.error('migration:failed', error)
     }
   }
 
   async function init() {
-    if (isReady.value) return
+    if (isReady.value) {
+      log.debug('init:skipped', { reason: 'ready', records: records.value.length })
+      return
+    }
+    log.debug('init:start')
     await migrateFromLocalStorage()
     await loadFromDB()
     isReady.value = true
+    log.debug('init:done', { records: records.value.length })
   }
 
   async function addRecord(data = {}) {
     const next = normalizeRecord(data)
     if (!isValidRechargeRecord(next)) {
+      log.debug('record:add:skipped', { reason: 'invalid', amount: next.amount })
       return null
     }
-    await addRechargeRecord(next)
-    records.value.unshift(next)
-    useSyncStore().autoPushGoods()
-    return next
+    try {
+      await addRechargeRecord(next)
+      records.value.unshift(next)
+      useSyncStore().autoPushGoods()
+      log.debug('record:add:done', {
+        id: next.id,
+        game: next.game,
+        amount: next.amount,
+        chargedAt: next.chargedAt,
+        total: records.value.length
+      })
+      return next
+    } catch (error) {
+      log.error('record:add:failed', { id: next.id }, error)
+      throw error
+    }
   }
 
   async function updateRecord(id, data = {}) {
     const index = records.value.findIndex((item) => item.id === id)
-    if (index < 0) return false
+    if (index < 0) {
+      log.debug('record:update:skipped', { id, reason: 'not-found' })
+      return false
+    }
 
     const next = normalizeRecord({
       ...records.value[index],
@@ -169,13 +209,25 @@ export const useRechargeStore = defineStore('recharge', () => {
     })
 
     if (!isValidRechargeRecord(next)) {
+      log.debug('record:update:skipped', { id, reason: 'invalid', amount: next.amount })
       return false
     }
 
-    await addRechargeRecord(next)
-    records.value[index] = next
-    useSyncStore().autoPushGoods()
-    return true
+    try {
+      await addRechargeRecord(next)
+      records.value[index] = next
+      useSyncStore().autoPushGoods()
+      log.debug('record:update:done', {
+        id,
+        game: next.game,
+        amount: next.amount,
+        chargedAt: next.chargedAt
+      })
+      return true
+    } catch (error) {
+      log.error('record:update:failed', { id }, error)
+      throw error
+    }
   }
 
   async function deleteRecord(target) {
@@ -184,7 +236,10 @@ export const useRechargeStore = defineStore('recharge', () => {
       return permanentDelete(id)
     }
 
-    if (!target || typeof target !== 'object') return false
+    if (!target || typeof target !== 'object') {
+      log.debug('record:delete:skipped', { reason: 'invalid-target' })
+      return false
+    }
 
     const index = records.value.findIndex((item) => (
       item.game === target.game
@@ -195,7 +250,10 @@ export const useRechargeStore = defineStore('recharge', () => {
       && item.image === target.image
     ))
 
-    if (index < 0) return false
+    if (index < 0) {
+      log.debug('record:delete:skipped', { reason: 'not-found' })
+      return false
+    }
 
     return permanentDelete(records.value[index].id)
   }
@@ -206,25 +264,43 @@ export const useRechargeStore = defineStore('recharge', () => {
 
   async function permanentDelete(id) {
     const next = records.value.filter((item) => item.id !== id)
-    if (next.length === records.value.length) return false
-    await deleteRechargeRecords([id])
-    records.value = next
-    useSyncStore().autoPushGoods()
-    return true
+    if (next.length === records.value.length) {
+      log.debug('record:delete:skipped', { id, reason: 'not-found' })
+      return false
+    }
+    try {
+      await deleteRechargeRecords([id])
+      records.value = next
+      useSyncStore().autoPushGoods()
+      log.debug('record:delete:done', { id, total: records.value.length })
+      return true
+    } catch (error) {
+      log.error('record:delete:failed', { id }, error)
+      throw error
+    }
   }
 
   async function clearInvalidRecords() {
     const next = records.value.filter((item) => isValidRechargeRecord(item) && !item.deleted)
-    if (next.length === records.value.length) return 0
+    if (next.length === records.value.length) {
+      log.debug('records:cleanup:skipped', { total: records.value.length })
+      return 0
+    }
     const removed = records.value.length - next.length
     const removedIds = records.value
       .filter((item) => !next.includes(item))
       .map((item) => item.id)
-    if (removedIds.length > 0) {
-      await deleteRechargeRecords(removedIds)
+    try {
+      if (removedIds.length > 0) {
+        await deleteRechargeRecords(removedIds)
+      }
+      records.value = next
+      log.debug('records:cleanup:done', { removed, total: records.value.length })
+      return removed
+    } catch (error) {
+      log.error('records:cleanup:failed', { removed }, error)
+      throw error
     }
-    records.value = next
-    return removed
   }
 
   function exportBackup({ includeDeleted = true, stripImage = true } = {}) {
@@ -235,7 +311,9 @@ export const useRechargeStore = defineStore('recharge', () => {
 
   async function importBackup(list = [], { reconcileMissing = false, preserveLocalNewerThan = 0 } = {}) {
     if (!Array.isArray(list) || list.length === 0) {
-      return { added: 0, updated: 0, removed: 0, skipped: 0, total: records.value.length }
+      const result = { added: 0, updated: 0, removed: 0, skipped: 0, total: records.value.length }
+      log.debug('backup:import:skipped', { reason: 'empty', result })
+      return result
     }
 
     const currentMap = new Map(records.value.map((item) => [item.id, item]))
@@ -282,13 +360,32 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
 
     if (added === 0 && updated === 0 && removed === 0) {
-      return { added, updated, removed, skipped, total: records.value.length }
+      const result = { added, updated, removed, skipped, total: records.value.length }
+      log.debug('backup:import:noop', {
+        incoming: list.length,
+        reconcileMissing,
+        preserveLocalNewerThan: Boolean(preserveLocalNewerThan),
+        result
+      })
+      return result
     }
 
     const merged = Array.from(currentMap.values())
-    await saveRechargeRecords(merged)
-    records.value = merged
-    return { added, updated, removed, skipped, total: records.value.length }
+    try {
+      await saveRechargeRecords(merged)
+      records.value = merged
+      const result = { added, updated, removed, skipped, total: records.value.length }
+      log.debug('backup:import:done', {
+        incoming: list.length,
+        reconcileMissing,
+        preserveLocalNewerThan: Boolean(preserveLocalNewerThan),
+        result
+      })
+      return result
+    } catch (error) {
+      log.error('backup:import:failed', { incoming: list.length }, error)
+      throw error
+    }
   }
 
   async function replaceBackup(list = []) {
@@ -316,14 +413,24 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
 
     const incoming = Array.from(incomingMap.values())
-    await saveRechargeRecords(incoming)
-    records.value = incoming
-
-    return {
+    const result = {
       added,
       updated,
       removed: Math.max(0, currentMap.size - incomingMap.size),
-      total: records.value.length
+      total: incoming.length
+    }
+
+    try {
+      await saveRechargeRecords(incoming)
+      records.value = incoming
+      log.debug('backup:replace:done', {
+        incoming: Array.isArray(list) ? list.length : 0,
+        result
+      })
+      return result
+    } catch (error) {
+      log.error('backup:replace:failed', { incoming: Array.isArray(list) ? list.length : 0 }, error)
+      throw error
     }
   }
 

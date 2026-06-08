@@ -15,12 +15,14 @@
 import { CapacitorHttp, Capacitor } from '@capacitor/core'
 import { normalizeGoodsVariant } from '@/utils/goods/identity'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { createLogger } from '@/utils/logger'
 
 const API_BASE = 'https://api-mall.mihoyogift.com'
 const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
 const API_GOODS_SEARCH  = `${API_BASE}/common/homeishop/v1/search/search_goods_list`
 const API_GOODS_SPU_LIST = `${API_BASE}/common/homeishop/v1/goods/search_goods_spu_list`
 const API_CATEGORY_LIST = `${API_BASE}/common/homeishop/v1/category/get_category_list`
+const log = createLogger('mihoyo')
 
 const MIHOYO_SHOP_CODE_BY_IP = {
   '原神': 'ys',
@@ -986,9 +988,15 @@ export async function fetchGoodsCategoryList(shopCode) {
  * @returns {Promise<{success: boolean, message?: string}>}
  */
 export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) {
-  console.log('[addToCart] called with:', { goodsId, skuId, shopCode, nums, cookieLength: cookie?.length })
+  log.debug('cart:add:start', { goodsId, skuId, shopCode, nums, cookieLength: cookie?.length || 0 })
   if (!goodsId || skuId == null || !cookie) {
-    console.log('[addToCart] 参数不完整')
+    log.debug('cart:add:skipped', {
+      reason: 'missing-params',
+      hasGoodsId: Boolean(goodsId),
+      hasSkuId: skuId != null,
+      hasCookie: Boolean(cookie),
+      shopCode
+    })
     return { success: false, message: '参数不完整' }
   }
 
@@ -1004,7 +1012,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
   try {
     let json
     if (Capacitor.isNativePlatform()) {
-      console.log('[addToCart] using CapacitorHttp')
+      log.debug('cart:add:transport', { transport: 'capacitor-http' })
       const apiUrl = `${API_BASE}/common/homeishop/v1/shop_car/add_goods_to_shop_car`
       const res = await CapacitorHttp.post({
         url: apiUrl,
@@ -1020,7 +1028,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
       })
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
-      console.log('[addToCart] using fetch proxy')
+      log.debug('cart:add:transport', { transport: 'fetch-proxy' })
       // Web 环境：使用 x-cookie-forward 头，由 Vite 代理转换为真正的 Cookie
       const proxyPath = '/mihoyo-api/common/homeishop/v1/shop_car/add_goods_to_shop_car'
       const res = await fetchWithPlatformBridge(proxyPath, {
@@ -1039,7 +1047,12 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
       json = await res.json()
     }
 
-    console.log('[addToCart] response:', json)
+    log.debug('cart:add:response', {
+      retcode: json?.retcode,
+      message: json?.message,
+      dataCode: json?.data?.code,
+      cartFull: json?.data?.code === 2
+    })
 
     // 外层 retcode 检查
     if (json.retcode !== 0) {
@@ -1056,7 +1069,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
     }
     return { success: false, message: `错误码：${dataCode}` }
   } catch (e) {
-    console.error('[addToCart] error:', e)
+    log.error('cart:add:failed', { goodsId, skuId, shopCode }, e)
     return { success: false, message: e.message || '网络错误' }
   }
 }
@@ -1068,6 +1081,7 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
  */
 export async function fetchGoodsDetailForCart(goodsId) {
   if (!goodsId) return { shopCode: '', skus: [] }
+  log.debug('goods-detail:cart:start', { goodsId })
 
   const reqHeaders = {
     'Referer': 'https://www.mihoyogift.com/',
@@ -1077,21 +1091,26 @@ export async function fetchGoodsDetailForCart(goodsId) {
   try {
     let json
     if (Capacitor.isNativePlatform()) {
+      log.debug('goods-detail:cart:transport', { goodsId, transport: 'capacitor-http' })
       const apiUrl = `${API_BASE}/common/homeishop/v1/goods/detail?goods_id=${goodsId}`
       const res = await CapacitorHttp.get({ url: apiUrl, headers: reqHeaders })
       json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
     } else {
+      log.debug('goods-detail:cart:transport', { goodsId, transport: 'fetch-proxy' })
       const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
       if (!res.ok) return { shopCode: '', skus: [] }
       json = await res.json()
     }
 
-    console.log('[fetchGoodsDetailForCart] API response:', json)
-
     const detail = json?.data?.goods?.detail || json?.data?.detail || json?.data?.goods || null
-    console.log('[fetchGoodsDetailForCart] detail:', detail)
-    console.log('[fetchGoodsDetailForCart] sale_attrs:', detail?.sale_attrs)
-    console.log('[fetchGoodsDetailForCart] skus:', detail?.skus)
+    log.debug('goods-detail:cart:response', {
+      goodsId,
+      retcode: json?.retcode,
+      message: json?.message,
+      hasDetail: Boolean(detail),
+      saleAttrCount: Array.isArray(detail?.sale_attrs) ? detail.sale_attrs.length : 0,
+      rawSkuCount: detail?.skus && typeof detail.skus === 'object' ? Object.keys(detail.skus).length : 0
+    })
 
     if (!detail) return { shopCode: '', skus: [] }
 
@@ -1110,10 +1129,15 @@ export async function fetchGoodsDetailForCart(goodsId) {
       }
     }
 
-    console.log('[fetchGoodsDetailForCart] final skus:', skus)
+    log.debug('goods-detail:cart:done', {
+      goodsId,
+      shopCode,
+      skuCount: skus.length,
+      skuIds: skus.map((item) => item.id)
+    })
     return { shopCode, skus }
   } catch (e) {
-    console.error('[fetchGoodsDetailForCart] error:', e)
+    log.error('goods-detail:cart:failed', { goodsId }, e)
     return { shopCode: '', skus: [] }
   }
 }
@@ -1183,4 +1207,3 @@ export function cartShopToGoodsList(shop) {
     .map((item, index) => cartItemToGoods(shop, item, index))
     .filter((item) => item.name)
 }
-

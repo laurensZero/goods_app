@@ -1,9 +1,11 @@
 import { asyncBuildComparableRecordMap, buildImageSyncStats, buildTimestampRecordMap, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, toTimestampMs, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
-import { Capacitor } from '@capacitor/core'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { wrapSyncError, PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA } from './syncError'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('sync:orchestrator')
 
 /**
  * Stateless sync orchestrator. All sync logic lives here.
@@ -197,6 +199,15 @@ export function createSyncOrchestrator({
     const cachedRemoteData = options.cachedRemoteData
     const canUseCachedData = !!cachedRemoteData
 
+    log.debug('pull:start', {
+      useIncrementalGoodsPull,
+      useIncrementalEventPull,
+      shouldPullRecharge,
+      cachedRemoteData: canUseCachedData,
+      localSyncTime,
+      localEventLatestTs
+    })
+
     const remoteData = canUseCachedData
       ? cachedRemoteData
       : await readJson(be, {
@@ -306,6 +317,18 @@ export function createSyncOrchestrator({
       || rechargeCompare.remoteOnly > 0 || rechargeCompare.localOnly > 0 || rechargeCompare.updated > 0
       || eventCompare.remoteOnly > 0 || eventCompare.localOnly > 0 || eventCompare.updated > 0
     )
+
+    log.debug('pull:compare', {
+      goodsTrash: goodsTrashIncrementalCompare,
+      groups: groupCompare,
+      groupItems: groupItemCompare,
+      recharge: rechargeCompare,
+      events: eventCompare,
+      changedGoods: changedGoodsIds.size,
+      changedTrash: changedTrashIds.size,
+      changedEvents: changedEventIds.size,
+      hasDataChangesBeforeImages
+    })
 
     if (!hasDataChangesBeforeImages) {
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -447,6 +470,18 @@ export function createSyncOrchestrator({
       }
     }
 
+    log.debug('pull:done', {
+      importedGoods: goodsToImport.length,
+      updatedGoods: goodsToUpdate.length,
+      importedTrash: trashToImport.length,
+      updatedTrash: trashToUpdate.length,
+      importedRecharge: rechargeApplyResult.added,
+      updatedRecharge: rechargeApplyResult.updated,
+      importedEvents: eventApplyResult.added,
+      updatedEvents: eventApplyResult.updated,
+      restoredImages: imageStats.restoredImages
+    })
+
     return {
       importedGoods: goodsToImport.length, updatedGoods: goodsToUpdate.length,
       importedTrash: trashToImport.length, updatedTrash: trashToUpdate.length,
@@ -468,17 +503,16 @@ export function createSyncOrchestrator({
     const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof be.getImagePublicUrl === 'function'
     let imageGist = existingImageGist || await be.ensureImageGist()
 
-    // Debug: log incremental/uploadPlan state to help diagnose unexpected full uploads
-    try {
-      if (!Capacitor.isNativePlatform()) {
-        // eslint-disable-next-line no-console
-        console.log('[sync] pushToRemote: isSupabaseIncrementalUpload=', Boolean(isSupabaseIncrementalUpload), 'uploadPlanKeys=', uploadPlan ? Object.keys(uploadPlan) : null)
-        // eslint-disable-next-line no-console
-        console.log('[sync] pushToRemote: uploadPlan.remoteData=', !!(uploadPlan && uploadPlan.remoteData), 'remoteRechargeData=', !!(uploadPlan && uploadPlan.remoteRechargeData), 'remoteEventData=', !!(uploadPlan && uploadPlan.remoteEventData))
-      }
-    } catch (e) {
-      // ignore
-    }
+    log.debug('push:start', {
+      shouldWriteData,
+      shouldWriteRecharge,
+      shouldWriteEvent,
+      isSupabaseIncrementalUpload: Boolean(isSupabaseIncrementalUpload),
+      uploadPlanKeys: uploadPlan ? Object.keys(uploadPlan) : [],
+      hasRemoteData: Boolean(uploadPlan?.remoteData),
+      hasRemoteRechargeData: Boolean(uploadPlan?.remoteRechargeData),
+      hasRemoteEventData: Boolean(uploadPlan?.remoteEventData)
+    })
 
     if (imageGist?.files) {
       const firstFileName = Object.keys(imageGist.files).find(f => f !== 'README.md')
@@ -746,10 +780,18 @@ export function createSyncOrchestrator({
           }
           return acc
         }, {})
-        if (!Capacitor.isNativePlatform()) {
-          // eslint-disable-next-line no-console
-          console.log('[sync] writeData payload summary:', debugFiles, 'writeOptions=', writeOptions)
-        }
+        const writeOptionsSummary = writeOptions
+          ? {
+              incremental: Boolean(writeOptions.incremental),
+              deleteIdsByFile: Object.fromEntries(
+                Object.entries(writeOptions.deleteIdsByFile || {}).map(([fileName, ids]) => [
+                  fileName,
+                  Array.isArray(ids) ? ids.length : 0
+                ])
+              )
+            }
+          : null
+        log.debug('push:write-data-summary', { files: debugFiles, writeOptions: writeOptionsSummary })
       } catch (e) {
         // ignore
       }
