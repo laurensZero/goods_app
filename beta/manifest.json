@@ -1,9 +1,9 @@
 {
-  "version": "20260608.1",
-  "url": "bundle-20260608.1.zip",
-  "hash": "5fcd3d0ee13ccb811a8d6ae54ab1fec4be9963bf1cdf7a946eaa6c2be9c75ef5",
+  "version": "20260609.1",
+  "url": "bundle-20260609.1.zip",
+  "hash": "7fc33e4f28b88c48fd7488ff129f50a772e5d3736c4a5491a5ef23ccab465fa7",
   "minNativeVersion": null,
-  "notes": "- feat: 日志系统",
+  "notes": "- 扫码跳转存储位置\n\n- feat: 重构米游铺导入相关",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-08T09:40:01Z"
+  "publishedAt": "2026-06-09T14:15:51Z"
 }

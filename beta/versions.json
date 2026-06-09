@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260609.1",
+    "url": "bundle-20260609.1.zip",
+    "hash": "7fc33e4f28b88c48fd7488ff129f50a772e5d3736c4a5491a5ef23ccab465fa7",
+    "minNativeVersion": null,
+    "notes": "- 扫码跳转存储位置\n\n- feat: 重构米游铺导入相关",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-09T14:15:51Z"
+  },
+  {
     "version": "20260608.1",
     "url": "bundle-20260608.1.zip",
     "hash": "5fcd3d0ee13ccb811a8d6ae54ab1fec4be9963bf1cdf7a946eaa6c2be9c75ef5",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新充值摘要标签，统一英文和中文语言文件中的字段",
     "updateLevel": "silent",
     "publishedAt": "2026-06-06T07:15:32Z"
-  },
-  {
-    "version": "20260606.1",
-    "url": "bundle-20260606.1.zip",
-    "hash": "d846b1834f918df8f5ff46d141c9185b8887108fc43f51072815cdcb2cf0375d",
-    "minNativeVersion": null,
-    "notes": "- fix: 米游铺搜索返回白屏",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-06T02:01:07Z"
   }
 ]

@@ -7,12 +7,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
   <!-- Open Graph for WeChat/QQ preview cards -->
-  <meta property="og:title" content="分享谷子" />
-  <meta property="og:description" content="来收谷子！点击链接一键导入" />
+  <meta property="og:title" content="打开 Goods App" />
+  <meta property="og:description" content="打开分享或收纳位置" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Goods App" />
 
-  <title>分享谷子 - Goods App</title>
+  <title>打开 Goods App</title>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -266,9 +266,9 @@
       </a>
       <p class="download-hint" id="download-hint"></p>
     </div>
-    <p class="footer-text">
+    <p class="footer-text" id="fallback-text">
       如果无法打开，请复制分享码手动导入：<br />
-      <code id="share-code"></code>
+      <code id="fallback-code"></code>
     </p>
   </div>
 
@@ -288,18 +288,74 @@
       const params = new URLSearchParams(window.location.search)
       const gistId = (params.get('g') || '').trim()
       const shareId = (params.get('s') || '').trim()
+      const storageParam = (params.get('storage') || '').trim()
+      const storagePathParam = (params.get('storagePath') || '').trim()
+      const fallbackTextEl = document.getElementById('fallback-text')
+      const fallbackCodeEl = document.getElementById('fallback-code')
 
-      if (!gistId) {
+      function parseStorageDeepLink(value) {
+        var text = String(value || '').trim()
+        var prefix = 'goodsapp://storage/'
+        if (!text || text.indexOf(prefix) !== 0) return ''
+        try {
+          return decodeURIComponent(text.slice(prefix.length)).replace(/\/$/, '').trim()
+        } catch (e) {
+          return ''
+        }
+      }
+
+      var deepLink = ''
+      var fallbackCode = ''
+      var isStorageLink = false
+
+      if (storageParam) {
+        var storagePath = parseStorageDeepLink(storageParam)
+        if (!storagePath) {
+          document.getElementById('status-title').textContent = '链接无效'
+          document.getElementById('status-desc').textContent = '缺少有效的收纳位置参数'
+          document.getElementById('open-btn').style.display = 'none'
+          fallbackTextEl.style.display = 'none'
+          return
+        }
+
+        deepLink = 'goodsapp://storage/' + encodeURIComponent(storagePath)
+        fallbackCode = storagePath
+        isStorageLink = true
+      } else if (storagePathParam) {
+        var fallbackStoragePath = storagePathParam.replace(/\/$/, '').trim()
+        if (!fallbackStoragePath) {
+          document.getElementById('status-title').textContent = '链接无效'
+          document.getElementById('status-desc').textContent = '缺少有效的收纳位置参数'
+          document.getElementById('open-btn').style.display = 'none'
+          fallbackTextEl.style.display = 'none'
+          return
+        }
+
+        deepLink = 'goodsapp://storage/' + encodeURIComponent(fallbackStoragePath)
+        fallbackCode = fallbackStoragePath
+        isStorageLink = true
+      }
+
+      if (!isStorageLink && !gistId) {
         document.getElementById('status-title').textContent = '链接无效'
         document.getElementById('status-desc').textContent = '缺少必需的分享参数'
         document.getElementById('open-btn').style.display = 'none'
+        fallbackTextEl.style.display = 'none'
         return
       }
 
-      const deepLink = 'goodsapp://share/' + encodeURIComponent(gistId) + '?s=' + encodeURIComponent(shareId)
-      const shareCode = shareId ? gistId + '-' + shareId : gistId
+      if (!isStorageLink) {
+        deepLink = 'goodsapp://share/' + encodeURIComponent(gistId) + '?s=' + encodeURIComponent(shareId)
+        fallbackCode = shareId ? gistId + '-' + shareId : gistId
+      }
 
-      document.getElementById('share-code').textContent = shareCode
+      if (isStorageLink) {
+        document.getElementById('status-title').textContent = '正在打开收纳位置...'
+        document.getElementById('status-desc').textContent = '如未自动跳转，请点击下方按钮'
+        fallbackTextEl.firstChild.nodeValue = '如果无法打开，请复制收纳位置后在 App 内筛选：'
+      }
+
+      fallbackCodeEl.textContent = fallbackCode
       document.getElementById('open-btn').href = deepLink
 
       var msgEl = document.getElementById('msg')
