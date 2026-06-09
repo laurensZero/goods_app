@@ -3,13 +3,16 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
-import staticDictionaries from '@/constants/tagging-dictionaries.json'
 import { parseMihoyoUrl, isMihoyoGiftUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
 import { validatePrice } from '@/utils/validate'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { extractCharsFromVariants, displayVariantText, normalizeCharacterName, isLikelyCharName } from '@/utils/variantText'
-import { normalizeSearchHintText } from './useImportSearch'
+import {
+  applyMihoyoVariantMedia,
+  getDefaultMihoyoImages,
+  normalizeMihoyoImageList,
+  resolveMihoyoImportDraft,
+  resolveMihoyoVariantDraft,
+} from '@/utils/mihoyo/importResolver'
 
 function parseBatchUrlEntries(text) {
   const lines = String(text || '').split(/\r?\n/)
@@ -61,7 +64,7 @@ function cloneBatchItemData(data) {
   }
 }
 
-export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlistMode, ensureHistoricalTagContext, updateHistoricalTagContextFromItem, detectCategory }) {
+export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlistMode, ensureHistoricalTagContext, updateHistoricalTagContextFromItem }) {
   const { t } = useI18n()
   const router = useRouter()
   const goodsStore = useGoodsStore()
@@ -108,7 +111,6 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
     if (!entries.length) return
     batchStep.value = 'parsing'
     batchParsing.value = true
-    const historicalContext = ensureHistoricalTagContext()
     const parsedGroups = []
     batchItems.value = entries.map(({ url, count }) => ({
       url,
@@ -132,53 +134,28 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
         const group = { url: entry.url, count: entry.count, data: null, error: '' }
         try {
           const result = await parseMihoyoUrl(entry.url)
-          const extractedCharacters = extractCharsFromVariants(result.variants)
-          const taggingResult = getTaggingSuggestions(
-            {
-              name: result.name,
-              note: '',
-              chars: extractedCharacters,
-            },
-            staticDictionaries,
-            {
-              categories: presets.categories || [],
-              ips: presets.ips || [],
-              characters: historicalContext.characters,
-              tags: historicalContext.tags,
-            }
-          )
-          const resolvedIp = result.ip || (taggingResult.ipSuggestion && taggingResult.ipSuggestion.score >= 0.6 ? taggingResult.ipSuggestion.value : '') || ''
-          const resolvedCategory = detectCategory(result.name, historicalContext) || (taggingResult.categorySuggestion && taggingResult.categorySuggestion.score >= 0.6 ? taggingResult.categorySuggestion.value : '') || ''
-          const resolvedCharacters = extractedCharacters.length > 0
-            ? [extractedCharacters[0]]
-            : (taggingResult.characterSuggestions?.[0]?.score >= 0.4
-              ? [taggingResult.characterSuggestions[0].value]
-              : [])
+          const draft = resolveMihoyoImportDraft(result, {
+            context: ensureHistoricalTagContext(),
+          })
 
-          if (resolvedIp && !presets.ips.includes(resolvedIp)) presets.addIp(resolvedIp)
-          if (resolvedCategory && !presets.categories.includes(resolvedCategory)) presets.addCategory(resolvedCategory)
-          const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
-          const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
-            .map(u => (u || '').split('?')[0])
-            .filter(Boolean)
-            .filter((u, i, arr) => arr.indexOf(u) === i)
-          const defaultImages = [allImgs[0]].filter(Boolean)
+          if (draft.ip && !presets.ips.includes(draft.ip)) presets.addIp(draft.ip)
+          if (draft.category && !presets.categories.includes(draft.category)) presets.addCategory(draft.category)
           group.data = {
-            name: result.name?.trim() || '',
-            category: resolvedCategory || '',
-            ip: resolvedIp || '',
-            goodsId: result.goodsId || '',
-            image: allImgs[0] || '',
-            images: defaultImages,
-            price: result.price != null ? String(result.price) : '',
+            name: draft.name || '',
+            category: draft.category || '',
+            ip: draft.ip || '',
+            goodsId: draft.goodsId || '',
+            image: draft.image || '',
+            images: [...draft.images],
+            price: draft.price !== '' ? String(draft.price) : '',
             notes: '',
-            characters: resolvedCharacters,
+            characters: [...draft.characters],
             purchaseDate: '',
             variant: '',
             selectedVariantKey: '',
-            baseParsedImages: allImgs,
-            parsedImages: allImgs,
-            variants: result.variants || [],
+            baseParsedImages: [...draft.baseParsedImages],
+            parsedImages: [...draft.parsedImages],
+            variants: [...draft.variants],
           }
           updateHistoricalTagContextFromItem({
             ip: group.data.ip,
@@ -202,8 +179,16 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
                   .map(u => (u || '').split('?')[0])
                   .filter(u => u && !group.data.baseParsedImages.includes(u))
                 if (extras.length) {
-                  group.data.baseParsedImages.splice(0, group.data.baseParsedImages.length, ...group.data.baseParsedImages, ...extras)
+                  group.data.baseParsedImages.splice(
+                    0,
+                    group.data.baseParsedImages.length,
+                    ...normalizeMihoyoImageList([...group.data.baseParsedImages, ...extras])
+                  )
                   group.data.parsedImages.splice(0, group.data.parsedImages.length, ...group.data.baseParsedImages)
+                  if (!group.data.images.length) {
+                    group.data.images.splice(0, group.data.images.length, ...getDefaultMihoyoImages(group.data.baseParsedImages))
+                    group.data.image = group.data.images[0] || group.data.image
+                  }
                 }
               }
             }).catch(() => {})
@@ -304,21 +289,13 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
   }
 
   function applyBatchVariantMedia(variant) {
-    const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
-    const nextImages = [...batchEditBaseImages.value]
+    const media = applyMihoyoVariantMedia(variant, batchEditBaseImages.value, batchEditForm.image)
+    batchEditImages.value = media.parsedImages
+    batchEditForm.images = media.images
+    batchEditForm.image = media.image
 
-    if (raw) {
-      batchEditImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
-      batchEditForm.images = [raw]
-      batchEditForm.image = raw
-    } else {
-      batchEditImages.value = nextImages
-      batchEditForm.images = [nextImages[0] || ''].filter(Boolean)
-      batchEditForm.image = batchEditForm.images[0] || nextImages[0] || batchEditForm.image
-    }
-
-    if (variant?.price != null) {
-      batchEditForm.price = variant.price
+    if (media.price != null) {
+      batchEditForm.price = media.price
     }
   }
 
@@ -329,13 +306,22 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
       batchEditSelectedCharacterName.value = ''
       batchEditSaveAsCharacter.value = false
       batchEditImages.value = [...batchEditBaseImages.value]
-      batchEditForm.images = [batchEditBaseImages.value[0] || ''].filter(Boolean)
+      batchEditForm.images = getDefaultMihoyoImages(batchEditBaseImages.value)
       batchEditForm.image = batchEditBaseImages.value[0] || ''
     } else {
       batchEditSelectedVariantKey.value = v.key
-      batchEditForm.variant = displayVariantText(v.text)
-      const candidateCharacterName = normalizeCharacterName(v.text)
-      batchEditSelectedCharacterName.value = isLikelyCharName(candidateCharacterName) ? candidateCharacterName : ''
+      const resolvedVariant = resolveMihoyoVariantDraft({
+        name: batchEditForm.name,
+        variant: v,
+        context: ensureHistoricalTagContext(),
+        currentCategory: batchEditForm.category,
+      })
+      batchEditForm.variant = resolvedVariant.variantName
+      batchEditSelectedCharacterName.value = resolvedVariant.selectedCharacterName
+      if (resolvedVariant.category) {
+        if (!presets.categories.includes(resolvedVariant.category)) presets.addCategory(resolvedVariant.category)
+        batchEditForm.category = resolvedVariant.category
+      }
       batchEditSaveAsCharacter.value = Boolean(batchEditSelectedCharacterName.value)
       applyBatchVariantMedia(v)
     }

@@ -206,6 +206,11 @@ import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { canUseNativeMihoyoImport, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
 import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo/index'
+import {
+  addMihoyoImportContextItem,
+  buildMihoyoImportContext,
+  resolveMihoyoImportDraft,
+} from '@/utils/mihoyo/importResolver'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -260,12 +265,28 @@ const importedItemKeys = computed(() =>
   new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
 )
 
+function createMihoyoImportContext() {
+  return buildMihoyoImportContext({
+    goodsList: store.list || [],
+    presetCharacters: presets.characters || [],
+    categories: presets.categories || [],
+    ips: presets.ips || [],
+  })
+}
+
+function normalizeMihoyoImportItem(item, context) {
+  const normalized = resolveMihoyoImportDraft(item, { context })
+  addMihoyoImportContextItem(context, normalized)
+  return normalized
+}
+
 const processedGroups = computed(() =>
-  rawGroups.value
-    .map((group) => {
+  {
+    const context = createMihoyoImportContext()
+    return rawGroups.value.map((group) => {
       const map = new Map()
       for (const item of cartShopToGoodsList(group)) {
-        const normalizedItem = { ...item }
+        const normalizedItem = normalizeMihoyoImportItem(item, context)
 
         // 不再把售罄视为不可导入；售罄仅作为信息保留在 `._soldOut`
         // `_isEffective` 的判定已在 `cartItemToGoods` 中调整为忽略售罄字段
@@ -285,6 +306,7 @@ const processedGroups = computed(() =>
       }
     })
     .filter((group) => group.goods.length > 0)
+  }
 )
 
 const selectableGoods = computed(() =>
