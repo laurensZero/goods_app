@@ -597,8 +597,6 @@ import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
-import staticDictionaries from '@/constants/tagging-dictionaries.json'
 import {
   parseMihoyoUrl,
   isMihoyoGiftUrl,
@@ -609,13 +607,18 @@ import { commitActiveInput } from '@/utils/commitActiveInput'
 import { validatePrice } from '@/utils/validate'
 import { resizeTextarea } from '@/utils/textarea'
 import {
-  cleanVariantText,
-  extractCharName,
-  extractCharsFromVariants,
   displayVariantText,
   normalizeCharacterName,
-  isLikelyCharName,
 } from '@/utils/variantText'
+import {
+  addMihoyoImportContextItem,
+  applyMihoyoVariantMedia,
+  buildMihoyoImportContext,
+  getDefaultMihoyoImages,
+  normalizeMihoyoImageList,
+  resolveMihoyoImportDraft,
+  resolveMihoyoVariantDraft,
+} from '@/utils/mihoyo/importResolver'
 import { useImportSearch, normalizeSearchHintText } from '@/composables/import/useImportSearch'
 import { useBatchImport } from '@/composables/import/useBatchImport'
 
@@ -736,7 +739,7 @@ const {
   toggleBatchSaveAsCharacter, toggleBatchEditImage, saveAllBatch, resetBatchState
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
-  ensureHistoricalTagContext, updateHistoricalTagContextFromItem, detectCategory
+  ensureHistoricalTagContext, updateHistoricalTagContextFromItem
 })
 
 
@@ -748,6 +751,7 @@ const selectedVariantKey = ref('')  // 当前选中的 SKU key
 const selectedVariantName = ref('')  // 选中款式清洗后的显示名
 const selectedCharacterName = ref('')  // 选中款式对应的角色名（会归并 A/B/C/D 尾缀）
 const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
+const resolvedBaseCharacters = ref([])
 
 // 按角色谷子数量降序排列的款式列表（推荐在前）
 const sortedParsedVariants = computed(() => {
@@ -819,49 +823,16 @@ const preferredSearchCharacterName = computed(() =>
   normalizeSearchHintText(selectedSearchCharacter.value || searchKeyword.value)
 )
 
-function applyPreferredSearchCharacter() {
-  const preferredName = preferredSearchCharacterName.value
-  form.characters = preferredName ? [preferredName] : []
-}
-
 let historicalTagContextCache = null
 
-function createHistoricalTagContext() {
-  return {
-    characters: {},
-    tags: new Set(),
-  }
-}
-
 function seedHistoricalTagContextFromGoods() {
-  const context = createHistoricalTagContext()
-
-  if (goodsStore?.list?.length) {
-    goodsStore.list.forEach((item) => {
-      const ip = String(item?.ip || 'unknown').trim() || 'unknown'
-
-      if (Array.isArray(item?.characters)) {
-        for (const character of item.characters) {
-          const value = String(character || '').trim()
-          if (!value || /\d{4}年?/.test(value) || /周年/.test(value)) continue
-          if (!context.characters[ip]) context.characters[ip] = []
-          if (!context.characters[ip].includes(value)) {
-            context.characters[ip].push(value)
-          }
-        }
-      }
-
-      if (Array.isArray(item?.tags)) {
-        for (const tag of item.tags) {
-          const value = String(tag || '').trim()
-          if (value) context.tags.add(value)
-        }
-      }
-    })
-  }
-
-  historicalTagContextCache = context
-  return context
+  historicalTagContextCache = buildMihoyoImportContext({
+    goodsList: goodsStore?.list || [],
+    presetCharacters: presets.characters || [],
+    categories: presets.categories || [],
+    ips: presets.ips || [],
+  })
+  return historicalTagContextCache
 }
 
 function ensureHistoricalTagContext() {
@@ -870,39 +841,7 @@ function ensureHistoricalTagContext() {
 
 function updateHistoricalTagContextFromItem(item) {
   const context = ensureHistoricalTagContext()
-  const ip = String(item?.ip || 'unknown').trim() || 'unknown'
-
-  if (Array.isArray(item?.characters)) {
-    for (const character of item.characters) {
-      const value = String(character || '').trim()
-      if (!value || /\d{4}年?/.test(value) || /周年/.test(value)) continue
-      if (!context.characters[ip]) context.characters[ip] = []
-      if (!context.characters[ip].includes(value)) {
-        context.characters[ip].push(value)
-      }
-    }
-  }
-
-  if (Array.isArray(item?.tags)) {
-    for (const tag of item.tags) {
-      const value = String(tag || '').trim()
-      if (value) context.tags.add(value)
-    }
-  }
-
-  return context
-}
-
-function buildHistoricalCharacterMap() {
-  return ensureHistoricalTagContext().characters
-}
-
-function buildHistoricalTagContext() {
-  const context = ensureHistoricalTagContext()
-  return {
-    characters: context.characters,
-    tags: [...context.tags],
-  }
+  return addMihoyoImportContextItem(context, item)
 }
 
 
@@ -944,22 +883,13 @@ function toggleFormImage(imgUrl) {
 }
 
 function applySelectedVariantMedia(variant) {
-  const raw = (variant?.cover_url || variant?.img_url || '').split('?')[0]
-  const nextImages = [...parsedBaseImages.value]
+  const media = applyMihoyoVariantMedia(variant, parsedBaseImages.value, form.image)
+  parsedImages.value = media.parsedImages
+  form.images = media.images
+  form.image = media.image
 
-  if (raw) {
-    parsedImages.value = [raw, ...nextImages.filter((url) => url !== raw)]
-    // 只选款式图
-    form.images = [raw]
-    form.image = raw
-  } else {
-    parsedImages.value = nextImages
-    form.images = [nextImages[0] || ''].filter(Boolean)
-    form.image = form.images[0] || nextImages[0] || form.image
-  }
-
-  if (variant?.price != null) {
-    form.price = variant.price
+  if (media.price != null) {
+    form.price = media.price
   }
 }
 
@@ -989,19 +919,6 @@ function autoSelectSingleVariant() {
 }
 
 // ── 智能推算 ──
-function evalVariantTags(v) {
-  const combinedText = [form.name, displayVariantText(v.text)].filter(Boolean).join(' ')
-  const presetsStore = usePresetsStore()
-  const historicalContext = ensureHistoricalTagContext()
-
-  return getTaggingSuggestions({ name: combinedText, note: '' }, staticDictionaries, {
-    categories: presetsStore.categories || [],
-    ips: presetsStore.ips || [],
-    characters: historicalContext.characters,
-    tags: [...historicalContext.tags],
-  })
-}
-
 // ── 用户点击款式按钮：单选 + 自动匹配 SKU 专属图 ──
 function handleVariantSelect(v) {
   if (selectedVariantKey.value === v.key) {
@@ -1012,38 +929,24 @@ function handleVariantSelect(v) {
     saveAsCharacter.value = false
     variantSectionCollapsed.value = false
     parsedImages.value = [...parsedBaseImages.value]
-    form.images = [parsedBaseImages.value[0] || ''].filter(Boolean)
+    form.images = getDefaultMihoyoImages(parsedBaseImages.value)
     form.image = parsedBaseImages.value[0] || ''
-    applyPreferredSearchCharacter()
+    form.characters = [...resolvedBaseCharacters.value]
   } else {
     selectedVariantKey.value = v.key
-    const variantName = displayVariantText(v.text)
-    const variantCharacterName = normalizeCharacterName(v.text)
-    const preferredCharacterName = preferredSearchCharacterName.value
-    selectedVariantName.value = variantName
+    const resolvedVariant = resolveMihoyoVariantDraft({
+      name: form.name,
+      variant: v,
+      context: ensureHistoricalTagContext(),
+      preferredCharacter: selectedSearchCharacter.value ? preferredSearchCharacterName.value : '',
+      currentCategory: form.category,
+    })
+    selectedVariantName.value = resolvedVariant.variantName
+    selectedCharacterName.value = resolvedVariant.selectedCharacterName
 
-    // 默认回落
-    let fallbackChar = preferredCharacterName
-    if (isLikelyCharName(variantCharacterName)) {
-      fallbackChar = variantCharacterName
-    }
-    
-    // 动态智能推算
-    const tagResult = evalVariantTags(v)
-    
-    // 角色推断
-    if (tagResult.characterSuggestions?.length > 0 && tagResult.characterSuggestions[0].score >= 0.4) {
-      selectedCharacterName.value = tagResult.characterSuggestions[0].value
-    } else {
-      selectedCharacterName.value = fallbackChar
-    }
-
-    // 分类推断
-    if (tagResult.categorySuggestion && tagResult.categorySuggestion.score >= 0.6) {
-      const presets = usePresetsStore()
-      const newCat = tagResult.categorySuggestion.value
-      if (!presets.categories.includes(newCat)) presets.addCategory(newCat)
-      form.category = newCat
+    if (resolvedVariant.category) {
+      if (!presets.categories.includes(resolvedVariant.category)) presets.addCategory(resolvedVariant.category)
+      form.category = resolvedVariant.category
     }
 
     saveAsCharacter.value = Boolean(selectedCharacterName.value)
@@ -1058,23 +961,6 @@ function toggleSaveAsCharacter() {
   form.characters = saveAsCharacter.value && selectedCharacterName.value
     ? [selectedCharacterName.value]
     : []
-}
-
-// ── 自动匹配分类（关键词）──
-function detectCategory(name, historicalContext = null) {
-  if (!name) return ''
-    
-    const presetsStore = usePresetsStore()
-    const context = historicalContext || ensureHistoricalTagContext()
-    const result = getTaggingSuggestions({ name, note: '' }, staticDictionaries, {
-      categories: presetsStore.categories || [], ips: presetsStore.ips || [],
-      characters: context.characters, tags: [...context.tags]
-    })
-    
-    if (result.categorySuggestion && result.categorySuggestion.score >= 0.6) {
-      return result.categorySuggestion.value
-    }
-    return ''
 }
 
 async function handleParse() {
@@ -1094,30 +980,33 @@ async function handleParse() {
   variantSectionCollapsed.value = false
   parsedImages.value = []
   parsedBaseImages.value = []
+  resolvedBaseCharacters.value = []
   form.images = []
-  applyPreferredSearchCharacter()
   selectedVariantKey.value = ''
 
   try {
     const result = await parseMihoyoUrl(url)
+    const draft = resolveMihoyoImportDraft(result, {
+      context: ensureHistoricalTagContext(),
+      preferredCharacter: selectedSearchCharacter.value ? preferredSearchCharacterName.value : '',
+    })
 
     // 1. 填入基础字段
-    form.name = result.name || ''
-    form.image = result.image || ''
-    form.price = result.price != null ? result.price : ''
-    form.goodsId = result.goodsId || ''
+    form.name = draft.name || ''
+    form.category = draft.category || ''
+    form.ip = draft.ip || ''
+    form.image = draft.image || ''
+    form.images = [...draft.images]
+    form.price = draft.price !== '' ? draft.price : ''
+    form.goodsId = draft.goodsId || ''
+    form.characters = [...draft.characters]
+    resolvedBaseCharacters.value = [...draft.characters]
+    parsedBaseImages.value = [...draft.baseParsedImages]
+    parsedImages.value = [...draft.parsedImages]
+    parsedVariants.value = [...draft.variants]
 
-    // 收集所有可用图（去重，去掉 OSS resize 参数）
-    const hasVariants = Array.isArray(result.variants) && result.variants.length > 0
-    const allImgs = [result.image, ...(hasVariants ? [] : (result.banners || []))]
-      .map(u => (u || '').split('?')[0])  // 去 OSS resize 参数
-      .filter(Boolean)
-      .filter((u, i, arr) => arr.indexOf(u) === i)  // 去重
-    parsedBaseImages.value = allImgs
-    parsedImages.value = [...allImgs]
-    // 默认只选择首图，其他图片作为候选供手动多选
-    form.images = [allImgs[0]].filter(Boolean)
-    form.image = allImgs[0] || result.image || ''
+    if (form.ip && !presets.ips.includes(form.ip)) presets.addIp(form.ip)
+    if (form.category && !presets.categories.includes(form.category)) presets.addCategory(form.category)
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
     if (result.goodsId) {
@@ -1137,10 +1026,10 @@ async function handleParse() {
             .map(u => (u || '').split('?')[0])
             .filter(u => u && !parsedBaseImages.value.includes(u))
           if (extras.length) {
-            parsedBaseImages.value = [...parsedBaseImages.value, ...extras]
+            parsedBaseImages.value = normalizeMihoyoImageList([...parsedBaseImages.value, ...extras])
             parsedImages.value = [...parsedBaseImages.value]
             if (!form.images.length) {
-              form.images = [parsedBaseImages.value[0]].filter(Boolean)
+              form.images = getDefaultMihoyoImages(parsedBaseImages.value)
               form.image = form.images[0] || form.image
             }
           }
@@ -1154,26 +1043,6 @@ async function handleParse() {
       }).catch(() => {})
     }
 
-    // 2. 自动添加 IP（如果预设里没有）
-    if (result.ip) {
-      if (!presets.ips.includes(result.ip)) {
-        presets.addIp(result.ip)
-      }
-      form.ip = result.ip
-    }
-
-    // 3. 自动检测分类
-    const detectedCat = detectCategory(result.name)
-    if (detectedCat) {
-      if (!presets.categories.includes(detectedCat)) {
-        presets.addCategory(detectedCat)
-      }
-      form.category = detectedCat
-    }
-
-    // 4. 填充变体选项，并先把搜索角色写入角色字段作为默认值
-    parsedVariants.value = result.variants || []
-    applyPreferredSearchCharacter()
     selectedVariantKey.value = ''  // 重置选中状态
     autoSelectSingleVariant()
     autoSelectVariantByHint()

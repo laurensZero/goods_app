@@ -273,6 +273,11 @@ import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { Capacitor } from '@capacitor/core'
 import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo/index'
+import {
+  addMihoyoImportContextItem,
+  buildMihoyoImportContext,
+  resolveMihoyoImportDraft,
+} from '@/utils/mihoyo/importResolver'
 import { buildGoodsIdentityAliases, buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
 
@@ -379,12 +384,28 @@ function isItemStatusWorthy(item) {
   return statusText.length > 0 && !SKIP_STATUS_SET.has(statusText)
 }
 
+function createMihoyoImportContext() {
+  return buildMihoyoImportContext({
+    goodsList: store.list || [],
+    presetCharacters: presets.characters || [],
+    categories: presets.categories || [],
+    ips: presets.ips || [],
+  })
+}
+
+function normalizeMihoyoImportItem(item, context) {
+  const normalized = resolveMihoyoImportDraft(item, { context })
+  addMihoyoImportContextItem(context, normalized)
+  return normalized
+}
+
 // ── Computed ───────────────────────────────────────────────────
 /** 按订单分组，每组含该订单所有商品（同名项合并数量） */
 const processedOrders = computed(() =>
-  rawOrders.value
-    .map((order) => {
-      const rawGoods = orderToGoodsList(order)
+  {
+    const context = createMihoyoImportContext()
+    return rawOrders.value.map((order) => {
+      const rawGoods = orderToGoodsList(order).map((item) => normalizeMihoyoImportItem(item, context))
       // 同一订单内同名同款式（名称+角色）的商品合并数量
       const nameMap = new Map()
       for (const g of rawGoods) {
@@ -405,6 +426,7 @@ const processedOrders = computed(() =>
       }
     })
     .filter((po) => po.goods.length > 0)
+  }
 )
 
 /** 所有商品展平后的列表（用于全选/计数/导入） */
