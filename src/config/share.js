@@ -10,7 +10,7 @@
  * To use a custom domain or different hosting, change SHARE_BASE below.
  */
 
-const SHARE_BASE = 'https://laurenszero.github.io/goods_app/share.html'
+export const SHARE_LANDING_URL = 'https://laurenszero.github.io/goods_app/share.html'
 
 /**
  * Build the full share URL for a given gistId and shareId.
@@ -22,5 +22,5 @@ export function buildShareUrl(gistId, shareId) {
   if (shareId) {
     params.set('s', shareId)
   }
-  return `${SHARE_BASE}?${params.toString()}`
+  return `${SHARE_LANDING_URL}?${params.toString()}`
 }

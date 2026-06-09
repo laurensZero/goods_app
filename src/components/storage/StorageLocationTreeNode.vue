@@ -10,6 +10,7 @@
       </div>
 
       <div class="tree-node__actions">
+        <button type="button" class="tree-node__action tree-node__action--qr" @click="$emit('show-qr', node)">{{ t('storage.qr.action') }}</button>
         <button type="button" class="tree-node__action tree-node__action--nfc" @click="$emit('write-nfc', node)">{{ t('storage.bindNfc') }}</button>
         <button type="button" class="tree-node__action" @click="$emit('add-child', node)">{{ t('storage.addChild') }}</button>
         <button type="button" class="tree-node__action" @click="$emit('rename', node)">{{ t('storage.rename') }}</button>
@@ -23,6 +24,7 @@
         :key="child.id"
         :node="child"
         :stats-by-id="statsById"
+        @show-qr="$emit('show-qr', $event)"
         @write-nfc="$emit('write-nfc', $event)"
         @add-child="$emit('add-child', $event)"
         @rename="$emit('rename', $event)"
@@ -53,7 +55,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['write-nfc', 'add-child', 'rename', 'remove'])
+defineEmits(['show-qr', 'write-nfc', 'add-child', 'rename', 'remove'])
 
 const stats = computed(() =>
   props.statsById[props.node.id] || { itemCount: 0, quantity: 0 }
@@ -122,6 +124,10 @@ const stats = computed(() =>
 
 .tree-node__action--nfc {
   color: var(--app-primary);
+}
+
+.tree-node__action--qr {
+  color: #2d8f6f;
 }
 
 .tree-node__children {

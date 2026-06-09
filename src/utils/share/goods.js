@@ -449,6 +449,18 @@ export function extractIdsFromInput(input) {
   if (linkMatch) return { gistId: linkMatch[1], shareId: linkMatch[2] || '' }
 
   // 2. Try share landing page URL: share.html?g=<gistId>&s=<shareId>
+  try {
+    const urlMatch = text.match(/https?:\/\/[^\s]+share\.html[^\s]*/)
+    const landingUrl = urlMatch ? new URL(urlMatch[0]) : null
+    if (landingUrl) {
+      const gistId = landingUrl.searchParams.get('g') || ''
+      const shareId = landingUrl.searchParams.get('s') || ''
+      if (/^[a-zA-Z0-9]+$/.test(gistId)) return { gistId, shareId }
+    }
+  } catch {
+    // fall through to legacy pattern matching
+  }
+
   const landingMatch = text.match(/share\.html\?g=([a-zA-Z0-9]+)(?:&s=([a-zA-Z0-9]+))?/)
   if (landingMatch) return { gistId: landingMatch[1], shareId: landingMatch[2] || '' }
 

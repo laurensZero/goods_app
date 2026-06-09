@@ -1,10 +1,27 @@
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import { extractIdsFromInput } from '@/utils/share/goods'
+import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
+
+const CAMERA_CONSTRAINTS = {
+  video: {
+    facingMode: { ideal: 'environment' },
+    width: { ideal: 960 },
+    height: { ideal: 720 },
+    frameRate: { ideal: 24 }
+  },
+  audio: false
+}
+
+const NATIVE_SCAN_DELAY_MS = 220
+const CANVAS_SCAN_DELAY_MS = 420
+const VIDEO_CANVAS_SCAN_SIZE = 256
+const VIDEO_CROP_RATIO = 0.9
+const GALLERY_SCAN_MAX_EDGE = 1400
 
 export function useQrScanner() {
   const { t } = useI18n()
@@ -19,12 +36,81 @@ export function useQrScanner() {
   const scannerHint = ref('')
   let scannerStream = null
   let scannerTimer = 0
+  let scannerLoopToken = 0
   let scannerResolved = false
   let scannerBusy = false
+  let scannerCanvasContext = null
+  let barcodeDetector = null
+  let barcodeDetectorUnavailable = false
+  let nativeVideoDetectorDisabled = false
+  let nativeVideoMissCount = 0
 
   function onScannerVideoReady() {
     scannerReady.value = true
     startScannerLoop()
+  }
+
+  function getCanvasContext(canvas) {
+    if (!canvas) return null
+    if (!scannerCanvasContext) {
+      scannerCanvasContext = canvas.getContext('2d', {
+        alpha: false,
+        willReadFrequently: true
+      })
+    }
+    return scannerCanvasContext
+  }
+
+  function setCanvasSize(canvas, size) {
+    if (!canvas) return
+    if (canvas.width === size && canvas.height === size) return
+    canvas.width = size
+    canvas.height = size
+    scannerCanvasContext = null
+  }
+
+  async function getBarcodeDetector() {
+    if (barcodeDetectorUnavailable) return null
+    if (barcodeDetector) return barcodeDetector
+
+    const Detector = globalThis.BarcodeDetector
+    if (!Detector) {
+      barcodeDetectorUnavailable = true
+      return null
+    }
+
+    try {
+      if (typeof Detector.getSupportedFormats === 'function') {
+        const formats = await Detector.getSupportedFormats()
+        if (Array.isArray(formats) && !formats.includes('qr_code')) {
+          barcodeDetectorUnavailable = true
+          return null
+        }
+      }
+      barcodeDetector = new Detector({ formats: ['qr_code'] })
+      return barcodeDetector
+    } catch {
+      barcodeDetectorUnavailable = true
+      return null
+    }
+  }
+
+  async function decodeQrWithNativeDetector(source) {
+    const detector = await getBarcodeDetector()
+    if (!detector) return { available: false, text: '' }
+
+    try {
+      const results = await detector.detect(source)
+      const match = Array.isArray(results)
+        ? results.find((item) => String(item?.rawValue || '').trim())
+        : null
+      return {
+        available: true,
+        text: String(match?.rawValue || '').trim()
+      }
+    } catch {
+      return { available: false, text: '' }
+    }
   }
 
   function loadImageFromSrc(src) {
@@ -39,8 +125,10 @@ export function useQrScanner() {
   }
 
   async function decodeQrFromImageElement(image) {
-    const maxEdge = 1600
-    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+    const nativeResult = await decodeQrWithNativeDetector(image)
+    if (nativeResult.text) return nativeResult.text
+
+    const scale = Math.min(1, GALLERY_SCAN_MAX_EDGE / Math.max(image.width, image.height))
     const width = Math.max(1, Math.floor(image.width * scale))
     const height = Math.max(1, Math.floor(image.height * scale))
 
@@ -60,52 +148,119 @@ export function useQrScanner() {
     return String(result?.data || '').trim()
   }
 
-  async function decodeQrFromVideoFrame() {
-    if (scannerBusy) return ''
-    const video = scannerVideoRef.value
-    const canvas = scannerCanvasRef.value
-    if (!video || !canvas || video.readyState < 2) return ''
-
+  function decodeQrFromVideoFrameByCanvas(video, canvas) {
     const vw = video.videoWidth
     const vh = video.videoHeight
     if (!vw || !vh) return ''
 
+    const sourceSize = Math.floor(Math.min(vw, vh) * VIDEO_CROP_RATIO)
+    const sx = Math.max(0, Math.floor((vw - sourceSize) / 2))
+    const sy = Math.max(0, Math.floor((vh - sourceSize) / 2))
+
+    setCanvasSize(canvas, VIDEO_CANVAS_SCAN_SIZE)
+    const ctx = getCanvasContext(canvas)
+    if (!ctx) return ''
+
+    ctx.drawImage(video, sx, sy, sourceSize, sourceSize, 0, 0, VIDEO_CANVAS_SCAN_SIZE, VIDEO_CANVAS_SCAN_SIZE)
+    const imageData = ctx.getImageData(0, 0, VIDEO_CANVAS_SCAN_SIZE, VIDEO_CANVAS_SCAN_SIZE)
+
+    const result = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    })
+
+    return String(result?.data || '').trim()
+  }
+
+  async function decodeQrFromVideoFrame() {
+    if (scannerBusy || scannerResolved) return ''
+    const video = scannerVideoRef.value
+    const canvas = scannerCanvasRef.value
+    if (!video || !canvas || video.readyState < 2) return ''
+
     scannerBusy = true
 
     try {
-      const size = Math.min(vw, vh)
-      const sx = Math.floor((vw - size) / 2)
-      const sy = Math.floor((vh - size) / 2)
+      if (!nativeVideoDetectorDisabled) {
+        const nativeResult = await decodeQrWithNativeDetector(video)
+        if (nativeResult.text) {
+          nativeVideoMissCount = 0
+          return nativeResult.text
+        }
 
-      const outSize = 320
-      canvas.width = outSize
-      canvas.height = outSize
+        if (nativeResult.available) {
+          nativeVideoMissCount += 1
+          // Native detection is cheap enough for regular polling. Run the
+          // jsQR fallback occasionally in case the WebView detector misses.
+          if (nativeVideoMissCount % 6 !== 0) return ''
+        } else {
+          nativeVideoDetectorDisabled = true
+        }
+      }
 
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })
-      if (!ctx) return ''
-
-      ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize)
-      const imageData = ctx.getImageData(0, 0, outSize, outSize)
-
-      const result = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert'
-      })
-
-      return String(result?.data || '').trim()
+      return decodeQrFromVideoFrameByCanvas(video, canvas)
     } finally {
       scannerBusy = false
     }
+  }
+
+  function getNextScanDelay(durationMs) {
+    const base = nativeVideoDetectorDisabled ? CANVAS_SCAN_DELAY_MS : NATIVE_SCAN_DELAY_MS
+    if (!Number.isFinite(durationMs) || durationMs <= 0) return base
+    return Math.max(base, Math.min(720, Math.round(durationMs * 2.5)))
+  }
+
+  function scheduleScannerTick(delayMs, token = scannerLoopToken) {
+    if (scannerTimer || scannerResolved || !showScanner.value) return
+    scannerTimer = window.setTimeout(() => {
+      scannerTimer = 0
+      void runScannerTick(token)
+    }, delayMs)
+  }
+
+  async function runScannerTick(token) {
+    if (token !== scannerLoopToken || scannerResolved || !showScanner.value) return
+
+    if (document.visibilityState === 'hidden') {
+      scheduleScannerTick(700, token)
+      return
+    }
+
+    const startedAt = performance.now()
+    try {
+      const text = await decodeQrFromVideoFrame()
+      if (text) {
+        await onScannerQRFound(text)
+        return
+      }
+    } catch {
+      // skip frame errors
+    }
+
+    scheduleScannerTick(getNextScanDelay(performance.now() - startedAt), token)
   }
 
   async function onScannerQRFound(text) {
     if (scannerResolved) return
     scannerResolved = true
 
+    const storagePath = parseStorageQrUrl(text)
+    if (storagePath) {
+      stopScanner()
+      persistStorageQrFilter(storagePath)
+      showScanner.value = false
+      scanError.value = ''
+      runWithRouteTransition(
+        () => router.push('/home'),
+        { direction: 'forward' }
+      )
+      return
+    }
+
     const { gistId, shareId } = extractIdsFromInput(text)
-    stopScanner()
 
     if (!gistId) {
-      scannerHint.value = t('my.scanInvalidShareCode')
+      stopScannerLoop()
+      scannerHint.value = t('my.scanInvalidQrCode')
       setTimeout(() => {
         scannerResolved = false
         scannerHint.value = t('my.scannerHint')
@@ -114,6 +269,7 @@ export function useQrScanner() {
       return
     }
 
+    stopScanner()
     const query = shareId ? { s: shareId } : {}
     showScanner.value = false
     scanError.value = ''
@@ -125,22 +281,14 @@ export function useQrScanner() {
 
   function startScannerLoop() {
     stopScannerLoop()
-    scannerTimer = window.setInterval(async () => {
-      if (scannerResolved) return
-      try {
-        const text = await decodeQrFromVideoFrame()
-        if (text) {
-          await onScannerQRFound(text)
-        }
-      } catch {
-        // skip frame errors
-      }
-    }, 300)
+    scannerLoopToken += 1
+    scheduleScannerTick(120, scannerLoopToken)
   }
 
   function stopScannerLoop() {
+    scannerLoopToken += 1
     if (scannerTimer) {
-      clearInterval(scannerTimer)
+      clearTimeout(scannerTimer)
       scannerTimer = 0
     }
   }
@@ -151,6 +299,7 @@ export function useQrScanner() {
       scannerStream.getTracks().forEach((track) => track.stop())
       scannerStream = null
     }
+    scannerCanvasContext = null
   }
 
   function closeScanner() {
@@ -164,18 +313,22 @@ export function useQrScanner() {
     scanning.value = true
     scanError.value = ''
     scannerResolved = false
+    nativeVideoDetectorDisabled = false
+    nativeVideoMissCount = 0
     showScanner.value = true
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await nextTick()
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
-        audio: false
-      })
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('getUserMedia unavailable')
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS)
       scannerStream = stream
       if (scannerVideoRef.value) {
         scannerVideoRef.value.srcObject = stream
+        await scannerVideoRef.value.play?.().catch(() => {})
       }
       scannerHint.value = t('my.scannerHint')
     } catch {
@@ -202,9 +355,20 @@ export function useQrScanner() {
           return
         }
 
+        const storagePath = parseStorageQrUrl(text)
+        if (storagePath) {
+          persistStorageQrFilter(storagePath)
+          scanning.value = false
+          runWithRouteTransition(
+            () => router.push('/home'),
+            { direction: 'forward' }
+          )
+          return
+        }
+
         const { gistId, shareId } = extractIdsFromInput(text)
         if (!gistId) {
-          scanError.value = t('my.scanInvalidContent')
+          scanError.value = t('my.scanInvalidQrContent')
           scanning.value = false
           return
         }

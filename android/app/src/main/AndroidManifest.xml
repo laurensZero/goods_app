@@ -55,6 +55,17 @@
                 <data android:scheme="goodsapp" android:host="share" />
             </intent-filter>
 
+            <!-- HTTPS landing page links from external QR scanners / chat apps -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="laurenszero.github.io"
+                    android:path="/goods_app/share.html" />
+            </intent-filter>
+
         </activity>
         <activity
             android:name=".MihoyoSessionImportActivity"
