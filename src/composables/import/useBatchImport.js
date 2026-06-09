@@ -162,13 +162,14 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
             .map(u => (u || '').split('?')[0])
             .filter(Boolean)
             .filter((u, i, arr) => arr.indexOf(u) === i)
+          const defaultImages = [allImgs[0]].filter(Boolean)
           group.data = {
             name: result.name?.trim() || '',
             category: resolvedCategory || '',
             ip: resolvedIp || '',
             goodsId: result.goodsId || '',
             image: allImgs[0] || '',
-            images: hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs],
+            images: defaultImages,
             price: result.price != null ? String(result.price) : '',
             notes: '',
             characters: resolvedCharacters,
@@ -328,7 +329,7 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
       batchEditSelectedCharacterName.value = ''
       batchEditSaveAsCharacter.value = false
       batchEditImages.value = [...batchEditBaseImages.value]
-      batchEditForm.images = [...batchEditBaseImages.value]
+      batchEditForm.images = [batchEditBaseImages.value[0] || ''].filter(Boolean)
       batchEditForm.image = batchEditBaseImages.value[0] || ''
     } else {
       batchEditSelectedVariantKey.value = v.key

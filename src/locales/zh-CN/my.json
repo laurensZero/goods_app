@@ -77,5 +77,7 @@
   "my.loginSuccess": "GitHub 登录成功（{login}）",
   "my.promptScanImport": "扫码导入",
   "my.promptFromGallery": "从相册选择",
-  "my.promptTakePhoto": "拍摄二维码"
+  "my.promptTakePhoto": "拍摄二维码",
+  "my.scanInvalidQrCode": "未识别到有效二维码，请重试",
+  "my.scanInvalidQrContent": "二维码内容不是有效的分享码或收纳位置码"
 }

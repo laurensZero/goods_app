@@ -1,54 +1,30 @@
 import { onMounted, onBeforeUnmount } from 'vue'
 import { App as CapApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useClipboardImport } from '@/composables/useClipboardImport'
+import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
+import { extractIdsFromInput } from '@/utils/share/goods'
 
 export function useDeepLinks() {
-  const route = useRoute()
   const router = useRouter()
   const { triggerSharePrompt } = useClipboardImport()
 
   let removeAppUrlOpenListener = null
   let removeNativeNfcListener = null
 
-  function buildNfcSearchState(storagePath) {
-    return {
-      filters: { storageLocations: [storagePath] },
-      advancedExpanded: false
-    }
-  }
-
   async function navigateByStorageNfc(url) {
-    if (!url || !url.startsWith('goodsapp://storage/')) return false
+    const storagePath = parseStorageQrUrl(url)
+    if (!storagePath) return false
 
-    let storagePath = decodeURIComponent(url.replace('goodsapp://storage/', ''))
-    storagePath = storagePath.replace(/\/$/, '')
-
-    // Store NFC filter for HomeView to pick up
-    localStorage.setItem('goods-app:nfc-storage-filter', JSON.stringify({
-      storageLocations: [storagePath],
-      timestamp: Date.now()
-    }))
-
-    window.dispatchEvent(new CustomEvent('goods-app:nfc-storage-filter'))
-
+    persistStorageQrFilter(storagePath)
     await router.push('/home').catch(() => {})
-
     return true
   }
 
   async function navigateByShareLink(url) {
-    if (!url || !url.startsWith('goodsapp://share/')) return false
-
-    const match = url.match(/goodsapp:\/\/share\/([a-zA-Z0-9]+)(?:\?(.*))?/)
-    if (!match) return false
-
-    const gistId = match[1]
+    const { gistId, shareId } = extractIdsFromInput(url)
     if (!gistId || !/^[a-zA-Z0-9]+$/.test(gistId)) return false
-
-    const queryString = match[2] || ''
-    const shareId = queryString ? new URLSearchParams(queryString).get('s') || '' : ''
 
     triggerSharePrompt(gistId, shareId)
 

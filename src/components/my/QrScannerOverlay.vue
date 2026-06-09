@@ -79,9 +79,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  background: color-mix(in srgb, var(--app-overlay) 92%, transparent);
 }
 
 .scanner-dialog {

@@ -291,6 +291,7 @@ import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
 import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useFilterPresetsStore } from '@/stores/filterPresets'
+import { STORAGE_FILTER_EVENT, STORAGE_FILTER_STORAGE_KEY } from '@/utils/storageQr'
 
 defineOptions({ name: 'HomeView' })
 const { t } = useI18n()
@@ -532,9 +533,9 @@ function handleSearchToggleFilter({ key, value }) { searchToggleFilterValue(key,
 function handleSearchToggleCharacterExpand() { searchShowAllCharacterOptions.value = !searchShowAllCharacterOptions.value }
 
 function checkNfcStorageFilter() {
-  const nfcFilterRaw = localStorage.getItem('goods-app:nfc-storage-filter')
+  const nfcFilterRaw = localStorage.getItem(STORAGE_FILTER_STORAGE_KEY)
   if (!nfcFilterRaw) return
-  localStorage.removeItem('goods-app:nfc-storage-filter')
+  localStorage.removeItem(STORAGE_FILTER_STORAGE_KEY)
   try {
     const nfcFilter = JSON.parse(nfcFilterRaw)
     if (nfcFilter.storageLocations?.length) {
@@ -1037,7 +1038,7 @@ onMounted(async () => {
   homeDisplayReady.value = true
   restoreHomePreferences()
   window.addEventListener('resize', _onResize, { passive: true })
-  window.addEventListener('goods-app:nfc-storage-filter', checkNfcStorageFilter)
+  window.addEventListener(STORAGE_FILTER_EVENT, checkNfcStorageFilter)
   await refresh()
   if (sessionId !== mountBootstrapSession) return
   syncVisibleGoodsCount()
@@ -1151,7 +1152,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('goods-app:nfc-storage-filter', checkNfcStorageFilter)
+  window.removeEventListener(STORAGE_FILTER_EVENT, checkNfcStorageFilter)
   if (addMotionRaf) {
     window.cancelAnimationFrame(addMotionRaf)
     addMotionRaf = 0

@@ -1012,7 +1012,7 @@ function handleVariantSelect(v) {
     saveAsCharacter.value = false
     variantSectionCollapsed.value = false
     parsedImages.value = [...parsedBaseImages.value]
-    form.images = [...parsedBaseImages.value]
+    form.images = [parsedBaseImages.value[0] || ''].filter(Boolean)
     form.image = parsedBaseImages.value[0] || ''
     applyPreferredSearchCharacter()
   } else {
@@ -1115,8 +1115,8 @@ async function handleParse() {
       .filter((u, i, arr) => arr.indexOf(u) === i)  // 去重
     parsedBaseImages.value = allImgs
     parsedImages.value = [...allImgs]
-    // 有款式时只选封面，无款式时全选
-    form.images = hasVariants ? [allImgs[0]].filter(Boolean) : [...allImgs]
+    // 默认只选择首图，其他图片作为候选供手动多选
+    form.images = [allImgs[0]].filter(Boolean)
     form.image = allImgs[0] || result.image || ''
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
@@ -1139,8 +1139,10 @@ async function handleParse() {
           if (extras.length) {
             parsedBaseImages.value = [...parsedBaseImages.value, ...extras]
             parsedImages.value = [...parsedBaseImages.value]
-            // 异步补充的图也默认选中
-            form.images = [...form.images, ...extras.filter(u => !form.images.includes(u))]
+            if (!form.images.length) {
+              form.images = [parsedBaseImages.value[0]].filter(Boolean)
+              form.image = form.images[0] || form.image
+            }
           }
         }
         autoSelectSingleVariant()

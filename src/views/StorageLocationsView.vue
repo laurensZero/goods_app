@@ -64,6 +64,7 @@
             :key="node.id"
             :node="node"
             :stats-by-id="statsById"
+            @show-qr="handleShowQr"
             @write-nfc="handleWriteNfc"
             @add-child="openCreateChild"
             @rename="openRename"
@@ -86,6 +87,12 @@
       :message="nfcDialogMessage"
       :node-name="currentNfcNode?.name"
       @cancel="cancelNfc"
+    />
+
+    <StorageQrDialog
+      :show="showQrDialog"
+      :node="currentQrNode"
+      @close="closeQrDialog"
     />
 
     <PresetDeleteConfirm
@@ -111,6 +118,8 @@ import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 import StorageLocationTreeNode from '@/components/storage/StorageLocationTreeNode.vue'
 import NfcWriteDialog from '@/components/storage/NfcWriteDialog.vue'
+import StorageQrDialog from '@/components/storage/StorageQrDialog.vue'
+import { buildStorageDeepLink } from '@/utils/storageQr'
 
 const { t } = useI18n()
 const store = useGoodsStore()
@@ -126,6 +135,8 @@ const showNfcDialog = ref(false)
 const nfcDialogStatus = ref('scanning')
 const nfcDialogMessage = ref('')
 const currentNfcNode = ref(null)
+const showQrDialog = ref(false)
+const currentQrNode = ref(null)
 
 const statsById = computed(() => {
   const stats = {}
@@ -199,7 +210,7 @@ const editorPlaceholder = computed(() => {
 })
 
 const editorSubmitText = computed(() =>
-  editorMode.value === 'rename' ? t('manage.storage.saveName') : t('manage.storage.addLocation')
+  editorMode.value === 'rename' ? t('manage.storage.saveName') : t('storage.addLocation')
 )
 
 const NFC_ANDROID_READER_MODE_FLAGS = 0x01 | 0x02 | 0x04 | 0x08 | 0x100
@@ -266,7 +277,7 @@ async function handleWriteNfc(node) {
     
     // Write URI + Android Application Record to improve app launch reliability.
     const encoder = new TextEncoder()
-    const uri = `goodsapp://storage/${encodeURIComponent(node.path)}`
+    const uri = buildStorageDeepLink(node.path)
     const uriPayload = [0x00, ...Array.from(encoder.encode(uri))]
     const aarType = Array.from(encoder.encode(NFC_ANDROID_AAR_TYPE))
     const packagePayload = Array.from(encoder.encode(NFC_APP_PACKAGE_NAME))
@@ -303,6 +314,16 @@ async function handleWriteNfc(node) {
     nfcDialogMessage.value = t('manage.storage.nfcFailed', { error: error.message || '' })
     try { await CapacitorNfc.stopScanning() } catch {}
   }
+}
+
+function handleShowQr(node) {
+  currentQrNode.value = node
+  showQrDialog.value = true
+}
+
+function closeQrDialog() {
+  showQrDialog.value = false
+  currentQrNode.value = null
 }
 
 async function cancelNfc() {

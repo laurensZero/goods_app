@@ -292,5 +292,16 @@
   "manage.storage.nfcAlertMessage": "Please hold the NFC tag near the back of your phone",
   "manage.storage.nfcFailed": "NFC write failed",
   "manage.storage.nfcSuccess": "NFC binding successful",
-  "manage.storage.renameHint": "Enter a new location name"
+  "manage.storage.renameHint": "Enter a new location name",
+  "storage.qr.action": "QR Label",
+  "storage.qr.label": "Storage QR",
+  "storage.qr.title": "Box QR Label",
+  "storage.qr.desc": "Print or save this QR code. Scanning it filters collection items in this storage location.",
+  "storage.qr.linkLabel": "QR content",
+  "storage.qr.copyLink": "Copy Link",
+  "storage.qr.copySuccess": "Storage location link copied",
+  "storage.qr.download": "Download QR",
+  "storage.qr.generating": "Generating...",
+  "storage.qr.generateFailed": "Failed to generate QR",
+  "storage.qr.imageAlt": "Storage QR code for {name}"
 }
