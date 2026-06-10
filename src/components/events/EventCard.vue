@@ -260,7 +260,7 @@ onBeforeUnmount(() => {
 
 .event-card--selected {
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--app-primary) 72%, white),
+    0 0 0 2px color-mix(in srgb, var(--app-chip-accent-text) 72%, white),
     var(--app-shadow);
 }
 

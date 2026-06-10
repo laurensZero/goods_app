@@ -66,10 +66,10 @@ onUnmounted(stopTimer)
   margin-top: 6px;
   padding: 6px 10px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 8%, transparent);
   font-size: 13px;
   font-weight: 500;
-  color: var(--app-primary);
+  color: var(--app-chip-accent-text);
 }
 
 .sale-countdown-icon {

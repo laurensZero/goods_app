@@ -145,7 +145,7 @@ function handleConfirm() {
 }
 
 .dt-picker-btn--confirm {
-  color: var(--app-primary);
+  color: var(--app-chip-accent-text);
   font-weight: 600;
 }
 
