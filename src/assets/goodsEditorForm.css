@@ -436,7 +436,7 @@
 }
 
 .sale-reminder-switch--active {
-  background: var(--app-primary);
+  background: var(--app-chip-accent-text);
 }
 
 .sale-reminder-switch--active span {
@@ -475,9 +475,9 @@
 }
 
 .sale-reminder-chip--active {
-  border-color: color-mix(in srgb, var(--app-primary) 42%, transparent);
-  background: color-mix(in srgb, var(--app-primary) 12%, var(--app-surface));
-  color: var(--app-primary);
+  border-color: color-mix(in srgb, var(--app-chip-accent-text) 42%, transparent);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 12%, var(--app-surface));
+  color: var(--app-chip-accent-text);
 }
 
 .sale-reminder-chip:disabled,
@@ -582,8 +582,8 @@
   height: 22px;
 }
 .points-toggle-btn--active {
-  background: color-mix(in srgb, var(--app-primary) 12%, #fff);
-  color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 12%, #fff);
+  color: var(--app-chip-accent-text);
 }
 .points-input-wrap {
   display: flex;

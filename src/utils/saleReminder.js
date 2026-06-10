@@ -136,6 +136,9 @@ export async function ensureSaleReminderPermission({ request = false, exact = fa
   let exactStatus = { exact_alarm: 'granted' }
   if (Capacitor.getPlatform() === 'android' && exact) {
     exactStatus = await LocalNotifications.checkExactNotificationSetting().catch(() => ({ exact_alarm: 'prompt' }))
+    if (request && exactStatus.exact_alarm !== 'granted') {
+      exactStatus = await LocalNotifications.changeExactNotificationSetting().catch(() => exactStatus)
+    }
   }
 
   return {
@@ -235,6 +238,7 @@ export async function scheduleSaleReminderForItem(item) {
 
   const permission = await ensureSaleReminderPermission({ request: false, exact: true })
   if (permission.display !== 'granted') return { scheduled: 0, permission }
+  if (permission.exact_alarm && permission.exact_alarm !== 'granted') return { scheduled: 0, permission }
 
   await ensureSaleReminderChannel()
   await LocalNotifications.schedule({ notifications })
@@ -275,6 +279,7 @@ export async function syncSaleReminderNotifications(items = []) {
 
   const permission = await ensureSaleReminderPermission({ request: false, exact: true })
   if (permission.display !== 'granted') return { scheduled: 0, permission, native: true }
+  if (permission.exact_alarm && permission.exact_alarm !== 'granted') return { scheduled: 0, permission, native: true }
 
   const notificationsToSchedule = [...targetById.values()]
   if (notificationsToSchedule.length > 0) {

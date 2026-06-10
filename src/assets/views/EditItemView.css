@@ -277,8 +277,8 @@
   height: 22px;
 }
 .points-toggle-btn--active {
-  background: color-mix(in srgb, var(--app-primary) 12%, #fff);
-  color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 12%, #fff);
+  color: var(--app-chip-accent-text);
 }
 .points-input-wrap {
   display: flex;

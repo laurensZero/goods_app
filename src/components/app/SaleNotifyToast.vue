@@ -217,7 +217,7 @@ function handleAction(item, action) {
   width: 22px;
   height: 22px;
   margin-top: 1px;
-  color: var(--app-primary);
+  color: var(--app-chip-accent-text);
 }
 .sale-notify-icon svg {
   width: 100%;
@@ -225,7 +225,7 @@ function handleAction(item, action) {
 }
 .sale-notify-icon--success { color: #34c759; }
 .sale-notify-icon--warn { color: #ff9500; }
-.sale-notify-icon--update { color: var(--app-primary); }
+.sale-notify-icon--update { color: var(--app-chip-accent-text); }
 
 .sale-notify-body {
   flex: 1;
@@ -252,7 +252,7 @@ function handleAction(item, action) {
 .sale-notify-countdown-text {
   font-size: 12px;
   font-weight: 600;
-  color: var(--app-primary);
+  color: var(--app-chip-accent-text);
   margin-top: 3px;
   letter-spacing: 0.3px;
 }
@@ -282,13 +282,13 @@ function handleAction(item, action) {
 }
 
 .sale-notify-action-btn--primary {
-  background: color-mix(in srgb, var(--app-primary) 12%, transparent);
-  border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
-  color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--app-chip-accent-text) 30%, transparent);
+  color: var(--app-chip-accent-text);
 }
 
 .sale-notify-action-btn--primary:active {
-  background: color-mix(in srgb, var(--app-primary) 22%, transparent);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 22%, transparent);
 }
 
 .sale-notify-close {
@@ -315,7 +315,7 @@ function handleAction(item, action) {
   bottom: 0;
   height: 3px;
   width: 100%;
-  background: color-mix(in srgb, var(--app-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 60%, transparent);
   border-radius: 0 0 16px 16px;
   transform-origin: left;
   animation: sale-notify-shrink linear forwards;
