@@ -538,6 +538,79 @@
                     </div>
                   </div>
                 </label>
+
+                <section v-if="form.isWishlist" class="field sale-reminder-field">
+                  <div class="sale-reminder-head">
+                    <div>
+                      <span class="field-label">{{ t('goods.editor.saleReminder') }}</span>
+                      <p class="field-hint">{{ t('goods.editor.saleReminderDesc') }}</p>
+                    </div>
+                    <button
+                      type="button"
+                      :class="['sale-reminder-switch', { 'sale-reminder-switch--active': form.saleReminderEnabled }]"
+                      :aria-pressed="form.saleReminderEnabled"
+                      @click="setSaleReminderEnabled(!form.saleReminderEnabled)"
+                    >
+                      <span />
+                    </button>
+                  </div>
+
+                  <label class="unit-date-field">
+                    <span class="field-label">{{ t('goods.editor.saleAt') }}</span>
+                    <button
+                      type="button"
+                      class="sale-datetime-display"
+                      :disabled="!form.saleReminderEnabled"
+                      @click="openSaleDateTimePicker"
+                    >
+                      {{ form.saleAt ? formatSaleAtDisplay(form.saleAt) : t('goods.editor.selectSaleTime') || '选择开售时间' }}
+                    </button>
+                    <SaleCountdown v-if="form.saleAt && form.saleReminderEnabled" :sale-at="form.saleAt" />
+                  </label>
+
+                  <div class="sale-reminder-offsets" :class="{ 'sale-reminder-offsets--disabled': !form.saleReminderEnabled }">
+                    <span class="field-label">{{ t('goods.editor.remindBefore') }}</span>
+                    <div class="sale-reminder-chips">
+                      <button
+                        v-for="offset in saleReminderPresetOffsets"
+                        :key="offset"
+                        type="button"
+                        :disabled="!form.saleReminderEnabled"
+                        :class="['sale-reminder-chip', { 'sale-reminder-chip--active': form.saleReminderOffsets.includes(offset) }]"
+                        @click="toggleSaleReminderOffset(offset)"
+                      >
+                        {{ formatSaleReminderOffset(offset) }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="sale-reminder-custom" :class="{ 'sale-reminder-offsets--disabled': !form.saleReminderEnabled }">
+                    <input
+                      v-model.number="customSaleReminderMinutes"
+                      type="number"
+                      min="0"
+                      step="1"
+                      :disabled="!form.saleReminderEnabled"
+                      :placeholder="t('goods.editor.customReminderPlaceholder')"
+                      @keydown.enter.prevent="addCustomSaleReminder"
+                    />
+                    <button type="button" :disabled="!form.saleReminderEnabled" @click="addCustomSaleReminder">
+                      {{ t('common.add') }}
+                    </button>
+                  </div>
+
+                  <div v-if="customSaleReminderOffsets.length" class="sale-reminder-custom-list">
+                    <button
+                      v-for="offset in customSaleReminderOffsets"
+                      :key="offset"
+                      type="button"
+                      class="sale-reminder-custom-pill"
+                      @click="removeSaleReminderOffset(offset)"
+                    >
+                      {{ formatSaleReminderOffset(offset) }} ×
+                    </button>
+                  </div>
+                </section>
               </div>
             </section>
 
@@ -616,6 +689,16 @@
       :max-date="maxDate"
       @confirm="onUnitDateConfirm"
     />
+
+    <AppDateTimePicker
+      v-model:show="showSaleDateTimePicker"
+      v-model="form.saleAt"
+      :z-index="2002"
+      :is-tablet="isTabletViewport"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onSaleDateTimeConfirm"
+    />
   </div>
 </template>
 
@@ -626,6 +709,8 @@ import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
+import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
+import SaleCountdown from '@/components/goods/SaleCountdown.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import FormTabNav from '@/components/goods/FormTabNav.vue'
@@ -643,6 +728,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useRouter } from 'vue-router'
 import { resizeTextarea } from '@/utils/textarea'
 import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
+import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay } from '@/utils/saleReminder'
 
 const { t } = useI18n()
 
@@ -686,6 +772,7 @@ const {
   noteInputRef,
   showDatePicker,
   showUnitDatePicker,
+  showSaleDateTimePicker,
   showCharPicker,
   datePickerValue,
   unitDatePickerValue,
@@ -713,6 +800,10 @@ const {
   submitQuickCharacter,
   toggleChar,
   setWishlist,
+  setSaleReminderEnabled,
+  toggleSaleReminderOffset,
+  addSaleReminderOffset,
+  removeSaleReminderOffset,
   hasActualPriceValue,
   normalizeUnitDateAt,
   clearUnitAcquiredAtList,
@@ -725,8 +816,10 @@ const {
   syncAllUnitPricesFromActualPrice,
   openDatePicker,
   openUnitDatePicker,
+  openSaleDateTimePicker,
   onDateConfirm,
   onUnitDateConfirm,
+  onSaleDateTimeConfirm,
   syncField,
   syncFieldLater,
   closeQuickCreate
@@ -796,6 +889,31 @@ const collectStatusOptions = computed(() => [
   { label: t('status.onSale'), value: '在售' }
 ])
 const currencySymbol = computed(() => CURRENCY_MAP[form.currency]?.symbol || '¥')
+const saleReminderPresetOffsets = SALE_REMINDER_PRESET_OFFSETS
+const customSaleReminderMinutes = ref('')
+const customSaleReminderOffsets = computed(() =>
+  form.saleReminderOffsets.filter((offset) => !saleReminderPresetOffsets.includes(offset))
+)
+function formatSaleReminderOffset(offset) {
+  const minutes = Number(offset)
+  const key = {
+    1440: 'goods.editor.reminderBeforeOneDay',
+    60: 'goods.editor.reminderBeforeOneHour',
+    10: 'goods.editor.reminderBeforeTenMinutes',
+    0: 'goods.editor.reminderAtSale'
+  }[minutes]
+  if (key) return t(key)
+  if (minutes % 1440 === 0) return t('goods.editor.reminderBeforeDays', { count: minutes / 1440 })
+  if (minutes % 60 === 0) return t('goods.editor.reminderBeforeHours', { count: minutes / 60 })
+  return t('goods.editor.reminderBeforeMinutes', { count: minutes })
+}
+function addCustomSaleReminder() {
+  const minutes = Number(customSaleReminderMinutes.value)
+  if (!Number.isInteger(minutes) || minutes < 0) return
+  if (addSaleReminderOffset(minutes)) {
+    customSaleReminderMinutes.value = ''
+  }
+}
 const activeTab = ref('basic')
 const tabItems = computed(() => {
   const items = [

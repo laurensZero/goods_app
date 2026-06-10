@@ -62,6 +62,9 @@ export interface GoodsItem {
   actualPrice: string
   points: number | undefined
   acquiredAt: string
+  saleAt: string
+  saleReminderEnabled: boolean
+  saleReminderOffsets: number[]
   unitAcquiredAtList: string[]
   unitActualPriceList: string[]
   unitCharacterList: string[]

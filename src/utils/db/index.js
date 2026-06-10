@@ -65,6 +65,9 @@ const CREATE_TABLE_SQL = `
     price      TEXT DEFAULT '',
     actualPrice TEXT DEFAULT '',
     acquiredAt TEXT DEFAULT '',
+    saleAt TEXT DEFAULT '',
+    saleReminderEnabled INTEGER DEFAULT 0,
+    saleReminderOffsets TEXT DEFAULT '[]',
     unitAcquiredAtList TEXT DEFAULT '[]',
     unitActualPriceList TEXT DEFAULT '[]',
     unitCharacterList TEXT DEFAULT '[]',
@@ -165,6 +168,9 @@ const GOODS_REQUIRED_COLUMNS = [
   ['price', "TEXT DEFAULT ''"],
   ['actualPrice', "TEXT DEFAULT ''"],
   ['acquiredAt', "TEXT DEFAULT ''"],
+  ['saleAt', "TEXT DEFAULT ''"],
+  ['saleReminderEnabled', 'INTEGER DEFAULT 0'],
+  ['saleReminderOffsets', "TEXT DEFAULT '[]'"],
   ['unitAcquiredAtList', "TEXT DEFAULT '[]'"],
   ['unitActualPriceList', "TEXT DEFAULT '[]'"],
   ['unitCharacterList', "TEXT DEFAULT '[]'"],
@@ -270,6 +276,9 @@ function prepareGoodsRecord(item) {
     price = '',
     actualPrice = '',
     acquiredAt = '',
+    saleAt = '',
+    saleReminderEnabled = false,
+    saleReminderOffsets = [],
     unitAcquiredAtList = [],
     unitActualPriceList = [],
     unitCharacterList = [],
@@ -301,6 +310,7 @@ function prepareGoodsRecord(item) {
     unitPricesStr: JSON.stringify(Array.isArray(unitActualPriceList) ? unitActualPriceList : []),
     unitCharactersStr: JSON.stringify(Array.isArray(unitCharacterList) ? unitCharacterList : []),
     unitCollectStatusStr: JSON.stringify(Array.isArray(unitCollectStatusList) ? unitCollectStatusList : []),
+    saleReminderOffsetsStr: JSON.stringify(Array.isArray(saleReminderOffsets) ? saleReminderOffsets : []),
     imagesStr: JSON.stringify(Array.isArray(images) ? images : []),
     tracksStr: JSON.stringify(Array.isArray(tracks) ? tracks : []),
     storageLocation,
@@ -308,6 +318,8 @@ function prepareGoodsRecord(item) {
     price,
     actualPrice,
     acquiredAt,
+    saleAt,
+    saleReminderEnabled: normalizeWishlistFlag(saleReminderEnabled) ? 1 : 0,
     currency,
     actualPriceCurrency,
     qty: Math.max(1, Number(quantity) || 1),
@@ -328,10 +340,10 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -484,13 +496,15 @@ export async function getItems() {
     }
   }
   try {
-    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
+    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee FROM goods ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
       isWishlist: normalizeWishlistFlag(r.isWishlist),
       goodsId: String(r.goodsId || '').trim(),
       characters: parseJsonArray(r.characters),
       tags: parseJsonArray(r.tags),
+      saleReminderEnabled: normalizeWishlistFlag(r.saleReminderEnabled),
+      saleReminderOffsets: parseJsonArray(r.saleReminderOffsets),
       unitAcquiredAtList: parseJsonArray(r.unitAcquiredAtList),
       unitActualPriceList: parseJsonArray(r.unitActualPriceList),
       unitCharacterList: parseJsonArray(r.unitCharacterList),

@@ -10,6 +10,12 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import {
+  SALE_REMINDER_DEFAULT_OFFSETS,
+  ensureSaleReminderPermission,
+  normalizeSaleAt,
+  normalizeSaleReminderOffsets
+} from '@/utils/saleReminder'
 
 const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
 
@@ -40,6 +46,9 @@ export function useGoodsEditorForm(options = {}) {
     actualPrice: '',
     points: '',
     acquiredAt: '',
+    saleAt: '',
+    saleReminderEnabled: false,
+    saleReminderOffsets: [...SALE_REMINDER_DEFAULT_OFFSETS],
     images: [],
     tracks: [],
     note: '',
@@ -74,6 +83,7 @@ export function useGoodsEditorForm(options = {}) {
   const noteInputRef = ref(null)
   const showDatePicker = ref(false)
   const showUnitDatePicker = ref(false)
+  const showSaleDateTimePicker = ref(false)
   const showCharPicker = ref(false)
   const datePickerValue = ref(toDatePickerValue(form.acquiredAt))
   const unitDatePickerValue = ref(toDatePickerValue(form.acquiredAt))
@@ -186,6 +196,10 @@ export function useGoodsEditorForm(options = {}) {
         return
       }
 
+      form.saleReminderEnabled = false
+      form.saleAt = ''
+      form.saleReminderOffsets = []
+
       if (mode === 'add' && !form.acquiredAt && !hasCustomAcquiredAt.value) {
         form.acquiredAt = today
       }
@@ -234,6 +248,12 @@ export function useGoodsEditorForm(options = {}) {
         showPointsInput.value = !!item.points
         showActualPriceInput.value = hasActualPriceValue(item.actualPrice)
         form.acquiredAt = item.acquiredAt ?? ''
+        form.saleAt = item.saleAt ?? ''
+        form.saleReminderEnabled = Boolean(item.saleReminderEnabled)
+        form.saleReminderOffsets = normalizeSaleReminderOffsets(item.saleReminderOffsets)
+        if (form.saleReminderEnabled && form.saleReminderOffsets.length === 0) {
+          form.saleReminderOffsets = [...SALE_REMINDER_DEFAULT_OFFSETS]
+        }
         form.images = item.images ? [...item.images] : []
         form.tracks = Array.isArray(item.tracks) ? [...item.tracks] : []
         form.note = item.note ?? ''
@@ -312,6 +332,21 @@ export function useGoodsEditorForm(options = {}) {
       return
     }
     priceError.value = ''
+
+    if (!form.isWishlist) {
+      form.saleAt = ''
+      form.saleReminderEnabled = false
+      form.saleReminderOffsets = []
+    } else {
+      form.saleAt = normalizeSaleAt(form.saleAt)
+      form.saleReminderOffsets = normalizeSaleReminderOffsets(form.saleReminderOffsets)
+      if (form.saleReminderEnabled && form.saleReminderOffsets.length === 0) {
+        form.saleReminderOffsets = [...SALE_REMINDER_DEFAULT_OFFSETS]
+      }
+      if (form.saleReminderEnabled) {
+        await ensureSaleReminderPermission({ request: true, exact: true }).catch(() => null)
+      }
+    }
 
     if (mode === 'edit') {
       const updatedId = await store.updateGoods(editId, { ...form })
@@ -431,6 +466,40 @@ export function useGoodsEditorForm(options = {}) {
 
   function setWishlist(nextValue) {
     form.isWishlist = nextValue
+    if (nextValue && form.saleReminderOffsets.length === 0) {
+      form.saleReminderOffsets = [...SALE_REMINDER_DEFAULT_OFFSETS]
+    }
+  }
+
+  function setSaleReminderEnabled(nextValue) {
+    form.saleReminderEnabled = Boolean(nextValue)
+    if (form.saleReminderEnabled && form.saleReminderOffsets.length === 0) {
+      form.saleReminderOffsets = [...SALE_REMINDER_DEFAULT_OFFSETS]
+    }
+  }
+
+  function toggleSaleReminderOffset(offsetMinutes) {
+    const offset = Number(offsetMinutes)
+    if (!Number.isInteger(offset) || offset < 0) return
+    const current = new Set(normalizeSaleReminderOffsets(form.saleReminderOffsets))
+    if (current.has(offset)) current.delete(offset)
+    else current.add(offset)
+    form.saleReminderOffsets = [...current].sort((a, b) => b - a)
+  }
+
+  function addSaleReminderOffset(offsetMinutes) {
+    const offset = Number(offsetMinutes)
+    if (!Number.isInteger(offset) || offset < 0) return false
+    const current = new Set(normalizeSaleReminderOffsets(form.saleReminderOffsets))
+    current.add(offset)
+    form.saleReminderOffsets = [...current].sort((a, b) => b - a)
+    return true
+  }
+
+  function removeSaleReminderOffset(offsetMinutes) {
+    const offset = Number(offsetMinutes)
+    const current = normalizeSaleReminderOffsets(form.saleReminderOffsets).filter((value) => value !== offset)
+    form.saleReminderOffsets = current
   }
 
   function hasActualPriceValue(value) {
@@ -487,6 +556,21 @@ export function useGoodsEditorForm(options = {}) {
   function clearUnitCollectStatusList() {
     form.unitCollectStatusList = []
     showUnitCollectStatusInput.value = false
+  }
+
+  function clearSaleReminder() {
+    form.saleAt = ''
+    form.saleReminderEnabled = false
+    form.saleReminderOffsets = []
+  }
+
+  function openSaleDateTimePicker() {
+    showSaleDateTimePicker.value = true
+  }
+
+  function onSaleDateTimeConfirm(value) {
+    form.saleAt = value || ''
+    showSaleDateTimePicker.value = false
   }
 
   function syncUnitAcquiredAtListLength() {
@@ -684,6 +768,7 @@ export function useGoodsEditorForm(options = {}) {
     noteInputRef,
     showDatePicker,
     showUnitDatePicker,
+    showSaleDateTimePicker,
     showCharPicker,
     datePickerValue,
     unitDatePickerValue,
@@ -713,6 +798,13 @@ export function useGoodsEditorForm(options = {}) {
     submitQuickCharacter,
     toggleChar,
     setWishlist,
+    setSaleReminderEnabled,
+    toggleSaleReminderOffset,
+    addSaleReminderOffset,
+    removeSaleReminderOffset,
+    clearSaleReminder,
+    openSaleDateTimePicker,
+    onSaleDateTimeConfirm,
     hasActualPriceValue,
     normalizeUnitDateValue,
     normalizeUnitDateAt,

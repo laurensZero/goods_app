@@ -12,6 +12,7 @@ import {
   mergeGoodsRecord,
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
+import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/saleReminder'
 
 /**
  * @param {object} data
@@ -37,6 +38,7 @@ export async function addGoods(data, list, onMutate) {
       throw e
     }
     onMutate?.()
+    void scheduleSaleReminderForItem(list.value[existingIndex])
     return list.value[existingIndex]
   }
 
@@ -49,6 +51,7 @@ export async function addGoods(data, list, onMutate) {
     throw e
   }
   onMutate?.()
+  void scheduleSaleReminderForItem(incoming)
   return incoming
 }
 
@@ -77,6 +80,9 @@ export async function addGoodsBatch(itemsData, list, onMutate) {
     throw e
   }
   onMutate?.()
+  for (const item of incoming) {
+    void scheduleSaleReminderForItem(item)
+  }
   return incoming
 }
 
@@ -103,6 +109,9 @@ export async function updateGoods(id, data, list, onMutate) {
     throw e
   }
   onMutate?.()
+  void cancelSaleReminderNotifications(previous.id, previous.saleReminderOffsets)
+    .then(() => scheduleSaleReminderForItem(next))
+    .catch(() => {})
   return id
 }
 
@@ -117,10 +126,12 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
   const imagesExplicit = Array.isArray(data?.images)
   const now = Date.now()
   const removedPaths = new Set()
+  const previousItems = []
 
   list.value = list.value.map((item) => {
     if (!ids.has(item.id)) return item
     changed = true
+    previousItems.push(item)
     const next = normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }, item.id)
     for (const path of diffRemovedManagedImagePaths(item, next)) {
       removedPaths.add(path)
@@ -138,6 +149,12 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
       throw e
     }
     onMutate?.()
+    for (const item of updatedItems) {
+      const previous = previousItems.find((entry) => entry.id === item.id)
+      void cancelSaleReminderNotifications(item.id, previous?.saleReminderOffsets)
+        .then(() => scheduleSaleReminderForItem(item))
+        .catch(() => {})
+    }
   }
 }
 
@@ -163,6 +180,7 @@ export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
   try {
     await Promise.all([
       deleteItems([id]),
+      cancelSaleReminderNotifications(id, item.saleReminderOffsets),
       persistTrash()
     ])
   } catch (e) {
@@ -196,6 +214,7 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
   try {
     await Promise.all([
       deleteItems(Array.from(ids)),
+      ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)),
       persistTrash()
     ])
   } catch (e) {
@@ -234,6 +253,7 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
     throw e
   }
   onMutate?.()
+  void scheduleSaleReminderForItem(restored)
   return restored
 }
 
@@ -251,6 +271,7 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
   trashList.value = next
   try {
     await persistTrash()
+    await cancelSaleReminderNotifications(id, existing?.saleReminderOffsets)
     await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
   } catch (e) {
     console.error('[goods] deleteTrashItem DB write failed:', e)
@@ -266,8 +287,9 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
  */
 export async function emptyTrash(trashList, persistTrash, onMutate) {
   if (trashList.value.length === 0) return
+  const removedItems = [...trashList.value]
   const removedPaths = new Set()
-  for (const item of trashList.value) {
+  for (const item of removedItems) {
     for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
       removedPaths.add(path)
     }
@@ -275,6 +297,7 @@ export async function emptyTrash(trashList, persistTrash, onMutate) {
   trashList.value = []
   try {
     await persistTrash()
+    await Promise.all(removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)))
     await deleteManagedLocalImages(removedPaths)
   } catch (e) {
     console.error('[goods] emptyTrash DB write failed:', e)
@@ -293,9 +316,9 @@ export async function deleteGoodsPermanently(ids, list, onMutate) {
   if (targetIds.length === 0) return 0
 
   const targetIdSet = new Set(targetIds)
+  const removedItems = list.value.filter((item) => targetIdSet.has(item.id))
   const removedPaths = new Set()
-  for (const item of list.value) {
-    if (!targetIdSet.has(item.id)) continue
+  for (const item of removedItems) {
     for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
       removedPaths.add(path)
     }
@@ -308,6 +331,7 @@ export async function deleteGoodsPermanently(ids, list, onMutate) {
   triggerRef(list)
   try {
     await deleteItems(targetIds)
+    await Promise.all(removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)))
     await deleteManagedLocalImages(removedPaths)
   } catch (e) {
     console.error('[goods] deleteGoodsPermanently DB write failed:', e)

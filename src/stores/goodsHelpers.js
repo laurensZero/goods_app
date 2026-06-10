@@ -53,6 +53,38 @@ function normalizeSingleDateValue(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
 }
 
+function normalizeSaleAtValue(value) {
+  const normalized = String(value || '').trim().replace(' ', 'T').slice(0, 16)
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized) ? normalized : ''
+}
+
+function normalizeBooleanFlag(value) {
+  if (value === true || value === 1) return true
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === '1' || normalized === 'true'
+  }
+  return false
+}
+
+function normalizeSaleReminderOffsetList(list) {
+  if (!Array.isArray(list)) {
+    if (typeof list !== 'string' || !list.trim()) return []
+    try {
+      const parsed = JSON.parse(list)
+      list = Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  return [...new Set(
+    list
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value >= 0 && value <= 43200)
+  )].sort((a, b) => b - a)
+}
+
 function normalizeUnitAcquiredAtList(list, quantity) {
   const quantityNumber = parseQuantity(quantity)
   if (quantityNumber < 2 || !Array.isArray(list)) return []
@@ -243,6 +275,7 @@ function diffRemovedManagedImagePaths(previousItem, nextItem) {
  * @returns {import('@/types/models').GoodsItem}
  */
 function normalizeGoodsInput(data, fallbackId = '') {
+  const isWishlist = normalizeWishlistFlag(data.isWishlist)
   const variant = getGoodsVariant(data)
   const hasImagesArray = Array.isArray(data?.images)
   const imagesExplicit = data?.__imagesExplicit === true && hasImagesArray
@@ -251,19 +284,19 @@ function normalizeGoodsInput(data, fallbackId = '') {
   const images = normalizeGoodsImageList(shouldUseImagesArray ? data.images : undefined, fallbackImage)
   const coverImage = getPrimaryGoodsImageUrl(images, fallbackImage)
 
-  const unitActualPriceList = normalizeWishlistFlag(data.isWishlist)
+  const unitActualPriceList = isWishlist
     ? []
     : normalizeUnitActualPriceList(data.unitActualPriceList || data.purchasePriceList, data.quantity)
-  const unitCharacterList = normalizeWishlistFlag(data.isWishlist)
+  const unitCharacterList = isWishlist
     ? []
     : normalizeUnitCharacterList(data.unitCharacterList, data.quantity)
-  const unitCollectStatusList = normalizeWishlistFlag(data.isWishlist)
+  const unitCollectStatusList = isWishlist
     ? []
     : normalizeUnitCollectStatusList(data.unitCollectStatusList || data.purchaseStatusList, data.quantity)
-  const resolvedUnitActualPriceTotal = normalizeWishlistFlag(data.isWishlist)
+  const resolvedUnitActualPriceTotal = isWishlist
     ? ''
     : resolveCompleteUnitActualPriceTotal(unitActualPriceList, data.quantity)
-  const normalizedActualPrice = normalizeWishlistFlag(data.isWishlist)
+  const normalizedActualPrice = isWishlist
     ? ''
     : (resolvedUnitActualPriceTotal || normalizePriceValue(data.actualPrice))
 
@@ -273,7 +306,7 @@ function normalizeGoodsInput(data, fallbackId = '') {
     category: String(data.category || '').trim(),
     ip: String(data.ip || '').trim(),
     goodsId: String(data.goodsId || data.goods_id || '').trim(),
-    isWishlist: normalizeWishlistFlag(data.isWishlist),
+    isWishlist,
     characters: normalizeCharacterList(data.characters),
     tags: normalizeTagList(data.tags),
     storageLocation: normalizeStorageLocationValue(data.storageLocation || data.location || ''),
@@ -282,7 +315,10 @@ function normalizeGoodsInput(data, fallbackId = '') {
     actualPrice: normalizedActualPrice,
     points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
     acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
-    unitAcquiredAtList: normalizeWishlistFlag(data.isWishlist)
+    saleAt: isWishlist ? normalizeSaleAtValue(data.saleAt || data.sale_at || '') : '',
+    saleReminderEnabled: isWishlist && normalizeBooleanFlag(data.saleReminderEnabled || data.sale_reminder_enabled),
+    saleReminderOffsets: isWishlist ? normalizeSaleReminderOffsetList(data.saleReminderOffsets || data.sale_reminder_offsets) : [],
+    unitAcquiredAtList: isWishlist
       ? []
       : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
     unitActualPriceList,
@@ -337,6 +373,9 @@ function mergeGoodsRecord(existing, incoming) {
     actualPrice: existing.actualPrice === '' || existing.actualPrice == null ? incoming.actualPrice : existing.actualPrice,
     points: existing.points ?? incoming.points,
     acquiredAt: existing.acquiredAt || incoming.acquiredAt,
+    saleAt: existing.saleAt || incoming.saleAt,
+    saleReminderEnabled: Boolean(existing.saleReminderEnabled || incoming.saleReminderEnabled),
+    saleReminderOffsets: existing.saleReminderOffsets?.length ? existing.saleReminderOffsets : incoming.saleReminderOffsets,
     unitAcquiredAtList: normalizeUnitAcquiredAtList(
       [...(existing.unitAcquiredAtList || []), ...(incoming.unitAcquiredAtList || [])],
       mergedQuantity
@@ -372,6 +411,8 @@ export {
   parseQuantity,
   parseDeletedTime,
   normalizePriceValue,
+  normalizeSaleAtValue,
+  normalizeSaleReminderOffsetList,
   normalizeWishlistFlag,
   normalizeCollectStatus,
   resolveEffectivePriceValue,

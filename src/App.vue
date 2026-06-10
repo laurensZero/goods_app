@@ -18,6 +18,7 @@
     <AppUpdateDialog />
 
     <ClipboardDialog />
+    <SaleNotifyToast :notifications="saleNotifyList" @dismiss="saleNotifyDismiss" />
   </div>
 </template>
 
@@ -29,14 +30,23 @@ import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
 import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
 import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
+import SaleNotifyToast from '@/components/app/SaleNotifyToast.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { useSyncStore } from '@/stores/sync'
 import { useRealtimeSync } from '@/composables/sync/useRealtimeSync'
 import { useDeepLinks } from '@/composables/useDeepLinks'
 import { useAppStartup } from '@/composables/useAppStartup'
+import { useGoodsStore } from '@/stores/goods'
+import { useWebUpdateStore } from '@/stores/webUpdate'
+import { useInAppSaleNotify } from '@/composables/useInAppSaleNotify'
 
 const route = useRoute()
 const syncStore = useSyncStore()
+const goodsStore = useGoodsStore()
+const webUpdateStore = useWebUpdateStore()
+
+const { notifications: saleNotifyList, dismiss: saleNotifyDismiss, start: startSaleNotify } = useInAppSaleNotify(goodsStore, syncStore, webUpdateStore)
+startSaleNotify()
 
 const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView']
 const showTabBar = computed(() => route.meta.showTabBar === true)

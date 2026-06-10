@@ -395,6 +395,146 @@
   color: var(--app-placeholder);
 }
 
+.field-hint {
+  margin-top: 4px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sale-reminder-field {
+  gap: 14px;
+}
+
+.sale-reminder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sale-reminder-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 14%, transparent);
+  padding: 3px;
+  transition: background 0.16s ease;
+}
+
+.sale-reminder-switch span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--app-surface);
+  box-shadow: 0 2px 8px rgba(20, 20, 22, 0.18);
+  transition: transform 0.16s ease;
+}
+
+.sale-reminder-switch--active {
+  background: var(--app-primary);
+}
+
+.sale-reminder-switch--active span {
+  transform: translateX(20px);
+}
+
+.sale-reminder-input--disabled,
+.sale-reminder-offsets--disabled {
+  opacity: 0.55;
+}
+
+.sale-reminder-offsets,
+.sale-reminder-custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sale-reminder-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sale-reminder-chip,
+.sale-reminder-custom-pill {
+  min-height: 36px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 12px;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.sale-reminder-chip--active {
+  border-color: color-mix(in srgb, var(--app-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--app-primary) 12%, var(--app-surface));
+  color: var(--app-primary);
+}
+
+.sale-reminder-chip:disabled,
+.sale-reminder-custom button:disabled,
+.sale-reminder-custom input:disabled {
+  cursor: not-allowed;
+}
+
+.sale-reminder-custom {
+  display: flex;
+  gap: 8px;
+}
+
+.sale-reminder-custom input {
+  min-width: 0;
+  flex: 1;
+}
+
+.sale-reminder-custom button {
+  min-width: 68px;
+  border: none;
+  border-radius: 14px;
+  background: #141416;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 14px;
+}
+
+.sale-reminder-custom-pill {
+  width: fit-content;
+}
+
+.sale-datetime-display {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sale-datetime-display:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sale-datetime-display:not(:disabled):active {
+  background: var(--app-surface-soft);
+}
+
 /* 价格行：input + 积分按钮 */
 .price-row {
   display: flex;
@@ -442,8 +582,8 @@
   height: 22px;
 }
 .points-toggle-btn--active {
-  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
-  color: var(--color-accent);
+  background: color-mix(in srgb, var(--app-primary) 12%, #fff);
+  color: var(--app-primary);
 }
 .points-input-wrap {
   display: flex;

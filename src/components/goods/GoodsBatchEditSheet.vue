@@ -532,6 +532,9 @@ async function apply() {
   if (form.markAsOwned) {
     payload.isWishlist = false
     payload.acquiredAt = form.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
+    payload.saleAt = ''
+    payload.saleReminderEnabled = false
+    payload.saleReminderOffsets = []
   }
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
