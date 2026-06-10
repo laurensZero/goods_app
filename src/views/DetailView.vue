@@ -124,6 +124,11 @@
               <strong class="info-value">{{ acquiredAtDisplayText }}</strong>
             </article>
 
+            <article v-if="item.isWishlist && saleAtDisplayText" class="info-tile">
+              <span class="info-label">{{ t('goods.detail.saleAt') }}</span>
+              <strong class="info-value">{{ saleAtDisplayText }}</strong>
+            </article>
+
             <article v-if="showOfficialPriceTile" class="info-tile">
               <span class="info-label">{{ t('goods.detail.officialPrice') }}</span>
               <strong class="info-value">{{ officialPriceText }}</strong>
@@ -314,6 +319,7 @@ import { CURRENCY_MAP } from '@/constants/currencies'
 import { formatCollectStatusSummary, getCollectStatusEntries, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
 import { getGoodsVariant } from '@/utils/goods/identity'
+import { formatSaleAtDisplay } from '@/utils/saleReminder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
@@ -629,6 +635,8 @@ const acquiredAtDisplayText = computed(() => {
   return item.value.acquiredAt || t('common.unfilled')
 })
 
+const saleAtDisplayText = computed(() => formatSaleAtDisplay(item.value?.saleAt || ''))
+
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
 const DETAIL_ENTRY_SCROLL_LOCK_MS = 380
 const detailEntryScrollLockActive = ref(false)
@@ -909,7 +917,10 @@ async function markAsOwned() {
   if (!item.value) return
   await store.updateGoods(props.id, {
     isWishlist: false,
-    acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
+    acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD'),
+    saleAt: '',
+    saleReminderEnabled: false,
+    saleReminderOffsets: []
   })
 
   const targetPath = '/home'

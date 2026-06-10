@@ -1,0 +1,271 @@
+import { ref, watch, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  parseSaleAt,
+  normalizeSaleReminderEnabled,
+  normalizeSaleReminderOffsets,
+  SALE_REMINDER_DEFAULT_OFFSETS
+} from '@/utils/saleReminder'
+import { formatDate } from '@/utils/format'
+
+const NOTIFY_DURATION = 6000
+
+/**
+ * 应用内通知管理器 — 右上角弹窗，支持操作按钮、滑动消除、倒计时自动消失。
+ *
+ * 通知来源：
+ *  1. 开售提醒（轮询）
+ *  2. 后台同步结果（watch syncStore.syncNotice）
+ *  3. OTA 更新就绪（watch webUpdateStore / appUpdateStore）
+ */
+export function useInAppSaleNotify(goodsStore, syncStore, webUpdateStore) {
+  const notifications = ref([])
+  const router = useRouter()
+  let pollTimer = null
+  const firedKeys = new Set()
+
+  // ---- generic push ----
+
+  function push({ text, subText, goodsId, iconType, duration, actions, saleAt } = {}) {
+    if (!text) return
+    const notification = {
+      id: Date.now() + Math.random(),
+      goodsId: goodsId ? String(goodsId) : '',
+      text,
+      subText: subText || '',
+      iconType: iconType || 'bell',
+      saleAt: saleAt || '',
+      createdAt: Date.now(),
+      actions: actions || []
+    }
+
+    notifications.value = [...notifications.value, notification].slice(-3)
+
+    setTimeout(() => {
+      dismiss(notification.id)
+    }, duration || NOTIFY_DURATION)
+  }
+
+  function dismiss(id) {
+    notifications.value = notifications.value.filter((n) => n.id !== id)
+  }
+
+  function clearAll() {
+    notifications.value = []
+  }
+
+  // ---- 1. Sale reminder polling ----
+
+  function buildKey(goodsId, offset) {
+    return `${goodsId}:${offset}`
+  }
+
+  function checkDueReminders() {
+    const list = goodsStore?.list
+    if (!Array.isArray(list) || list.length === 0) return
+
+    const now = Date.now()
+
+    for (const item of list) {
+      if (!item?.isWishlist) continue
+      if (!normalizeSaleReminderEnabled(item.saleReminderEnabled)) continue
+
+      const saleDate = parseSaleAt(item.saleAt)
+      if (!saleDate) continue
+
+      const saleTimeMs = saleDate.getTime()
+      const offsets = normalizeSaleReminderOffsets(item.saleReminderOffsets)
+      const reminderOffsets = offsets.length ? offsets : SALE_REMINDER_DEFAULT_OFFSETS
+
+      for (const offset of reminderOffsets) {
+        const triggerAt = saleTimeMs - offset * 60000
+        const key = buildKey(item.id, offset)
+
+        if (firedKeys.has(key)) continue
+
+        const diff = now - triggerAt
+        if (diff >= -45000 && diff <= 45000) {
+          firedKeys.add(key)
+          pushSaleNotification(item, offset)
+        }
+      }
+    }
+  }
+
+  function pushSaleNotification(item, offsetMinutes) {
+    const name = String(item.name || '谷子').trim() || '谷子'
+    const offsetText = formatOffsetText(offsetMinutes)
+    const isAtSaleTime = offsetMinutes <= 0
+
+    push({
+      goodsId: item.id,
+      iconType: 'bell',
+      text: isAtSaleTime ? `${name} 开售了` : `${name} ${offsetText}开售`,
+      subText: isAtSaleTime ? '现在到开售时间了' : `开售时间：${formatSaleTime(item.saleAt)}`,
+      saleAt: isAtSaleTime ? '' : item.saleAt,
+      actions: isAtSaleTime
+        ? [
+            {
+              key: 'detail',
+              label: '查看详情',
+              callback: () => goToDetail(item.id)
+            },
+            {
+              key: 'acquired',
+              label: '已入手',
+              primary: true,
+              callback: () => markAsAcquired(item)
+            }
+          ]
+        : [
+            {
+              key: 'detail',
+              label: '查看详情',
+              primary: true,
+              callback: () => goToDetail(item.id)
+            }
+          ]
+    })
+  }
+
+  async function markAsAcquired(item) {
+    if (!item?.id) return
+    try {
+      await goodsStore.updateGoods(item.id, {
+        isWishlist: false,
+        acquiredAt: item.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD'),
+        saleAt: '',
+        saleReminderEnabled: false,
+        saleReminderOffsets: []
+      })
+    } catch {
+      // silent fail
+    }
+  }
+
+  function goToDetail(goodsId) {
+    if (!goodsId) return
+    router.push(`/detail/${encodeURIComponent(goodsId)}`).catch(() => {})
+  }
+
+  // ---- 2. Sync notice watcher ----
+
+  let lastSyncNoticeId = ''
+
+  function watchSync() {
+    if (!syncStore?.syncNotice) return
+
+    watch(
+      () => syncStore.syncNotice,
+      (notice) => {
+        if (!notice?.id || notice.id === lastSyncNoticeId) return
+        lastSyncNoticeId = notice.id
+
+        // 只弹自动同步的通知，手动同步用户自己能看到
+        if (notice.source === 'manual') return
+
+        if (notice.level === 'error') {
+          push({
+            iconType: 'warn',
+            text: '同步失败',
+            subText: notice.message || '后台同步出错',
+            actions: [
+              {
+                key: 'retry',
+                label: '重试',
+                primary: true,
+                callback: () => syncStore.fullSync({ source: 'manual' }).catch(() => {})
+              }
+            ]
+          })
+        } else if (notice.level === 'success') {
+          push({
+            iconType: 'success',
+            text: '同步完成',
+            subText: notice.message || '数据已是最新'
+          })
+        }
+      },
+      { deep: true }
+    )
+  }
+
+  // ---- 3. OTA update watcher ----
+
+  let lastWebUpdateReady = false
+
+  function watchWebUpdate() {
+    if (!webUpdateStore) return
+
+    watch(
+      () => ({
+        downloading: webUpdateStore.isDownloading,
+        pendingId: webUpdateStore.pendingBundleId,
+        pendingVersion: webUpdateStore.pendingVersion
+      }),
+      (curr) => {
+        const isReady = !curr.downloading && !!curr.pendingId
+        if (isReady && !lastWebUpdateReady) {
+          push({
+            iconType: 'update',
+            text: '新版本已就绪',
+            subText: curr.pendingVersion ? `版本 ${curr.pendingVersion} 可用` : '重启即可更新',
+            duration: 10000,
+            actions: [
+              {
+                key: 'apply',
+                label: '立即更新',
+                primary: true,
+                callback: () => webUpdateStore.applyPendingUpdateNow()
+              }
+            ]
+          })
+        }
+        lastWebUpdateReady = isReady
+      },
+      { immediate: true }
+    )
+  }
+
+  // ---- lifecycle ----
+
+  function start() {
+    if (pollTimer) return
+    checkDueReminders()
+    pollTimer = window.setInterval(checkDueReminders, 30000)
+    watchSync()
+    watchWebUpdate()
+  }
+
+  function stop() {
+    if (pollTimer) {
+      window.clearInterval(pollTimer)
+      pollTimer = null
+    }
+  }
+
+  onUnmounted(stop)
+
+  return {
+    notifications,
+    push,
+    dismiss,
+    clearAll,
+    start,
+    stop
+  }
+}
+
+function formatOffsetText(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return ''
+  if (minutes % 1440 === 0) return `提前 ${minutes / 1440} 天`
+  if (minutes % 60 === 0) return `提前 ${minutes / 60} 小时`
+  return `提前 ${minutes} 分钟`
+}
+
+function formatSaleTime(value) {
+  const date = parseSaleAt(value)
+  if (!date) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}

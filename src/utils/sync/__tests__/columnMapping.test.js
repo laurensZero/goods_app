@@ -8,6 +8,9 @@ describe('toSnakeCase', () => {
     expect(toSnakeCase({ storageLocation: 'A' })).toEqual({ storage_location: 'A' })
     expect(toSnakeCase({ actualPrice: 100 })).toEqual({ actual_price: 100 })
     expect(toSnakeCase({ acquiredAt: '2024-01-01' })).toEqual({ acquired_at: '2024-01-01' })
+    expect(toSnakeCase({ saleAt: '2026-06-18T20:00' })).toEqual({ sale_at: '2026-06-18T20:00' })
+    expect(toSnakeCase({ saleReminderEnabled: true })).toEqual({ sale_reminder_enabled: true })
+    expect(toSnakeCase({ saleReminderOffsets: [60, 0] })).toEqual({ sale_reminder_offsets: [60, 0] })
     expect(toSnakeCase({ coverImage: 'url' })).toEqual({ cover_image: 'url' })
     expect(toSnakeCase({ updatedAt: 123 })).toEqual({ updated_at: 123 })
     expect(toSnakeCase({ createdAt: 456 })).toEqual({ created_at: 456 })
@@ -37,6 +40,9 @@ describe('toCamelCase', () => {
     expect(toCamelCase({ is_wishlist: true })).toEqual({ isWishlist: true })
     expect(toCamelCase({ storage_location: 'A' })).toEqual({ storageLocation: 'A' })
     expect(toCamelCase({ actual_price: 100 })).toEqual({ actualPrice: 100 })
+    expect(toCamelCase({ sale_at: '2026-06-18T20:00' })).toEqual({ saleAt: '2026-06-18T20:00' })
+    expect(toCamelCase({ sale_reminder_enabled: true })).toEqual({ saleReminderEnabled: true })
+    expect(toCamelCase({ sale_reminder_offsets: [60, 0] })).toEqual({ saleReminderOffsets: [60, 0] })
   })
 
   it('passes through unknown keys unchanged', () => {
@@ -74,6 +80,9 @@ describe('round-trip conversion', () => {
       storageLocation: 'A / B',
       actualPrice: 99.5,
       acquiredAt: '2024-01-01',
+      saleAt: '2026-06-18T20:00',
+      saleReminderEnabled: true,
+      saleReminderOffsets: [60, 0],
       coverImage: 'url',
       updatedAt: 123,
       createdAt: 456,

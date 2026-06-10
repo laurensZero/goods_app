@@ -68,6 +68,7 @@
   "common.price": "Price",
   "common.quantity": "Quantity",
   "common.date": "Date",
+  "common.time": "Time",
   "common.note": "Note",
   "common.variant": "Variant",
   "common.storageLocation": "Storage Location",

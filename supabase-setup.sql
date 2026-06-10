@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS goods (
   price TEXT DEFAULT '',
   actual_price TEXT DEFAULT '',
   acquired_at TEXT DEFAULT '',
+  sale_at TEXT DEFAULT '',
+  sale_reminder_enabled INTEGER DEFAULT 0,
+  sale_reminder_offsets JSONB DEFAULT '[]',
   unit_acquired_at_list JSONB DEFAULT '[]',
   unit_actual_price_list JSONB DEFAULT '[]',
   unit_character_list JSONB DEFAULT '[]',
@@ -127,6 +130,9 @@ CREATE TABLE IF NOT EXISTS goods_group_items (
 
 -- Realtime: synced_by 列（标记写入设备，用于过滤自己的 Realtime 事件）
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_at TEXT DEFAULT '';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_enabled INTEGER DEFAULT 0;
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_offsets JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;

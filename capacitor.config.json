@@ -17,6 +17,10 @@
       "autoDeletePrevious": true,
       "resetWhenUpdate": true
     },
+    "LocalNotifications": {
+      "iconColor": "#7C5CFF",
+      "presentationOptions": ["badge", "sound", "banner", "list"]
+    },
     "CapacitorSQLite": {
       "androidIsEncryption": false,
       "androidBiometric": {

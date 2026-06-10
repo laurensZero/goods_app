@@ -77,4 +77,20 @@ export const MIGRATIONS = [
       `)
     }
   },
+  {
+    version: 5,
+    description: 'Persist sale reminder fields',
+    up: async (db) => {
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('saleAt')) {
+        await db.run("ALTER TABLE goods ADD COLUMN saleAt TEXT DEFAULT ''")
+      }
+      if (!cols.has('saleReminderEnabled')) {
+        await db.run('ALTER TABLE goods ADD COLUMN saleReminderEnabled INTEGER DEFAULT 0')
+      }
+      if (!cols.has('saleReminderOffsets')) {
+        await db.run("ALTER TABLE goods ADD COLUMN saleReminderOffsets TEXT DEFAULT '[]'")
+      }
+    }
+  },
 ]
