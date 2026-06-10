@@ -1,9 +1,9 @@
 {
-  "version": "20260610.1",
-  "url": "bundle-20260610.1.zip",
-  "hash": "e79816130cf7e0891b443d7f0decdd36e4238cb59ce963515852fab7e1f69679",
+  "version": "20260610.2",
+  "url": "bundle-20260610.2.zip",
+  "hash": "165983d3d74cb7d43ab1c0ff91a4e068b6b4acbc84731d7b20bb7ceabea8dcbe",
   "minNativeVersion": null,
-  "notes": "- feat: 开售时间提醒",
+  "notes": "- feat: 更新未来通知构建逻辑，添加偏移过滤和时间格式化",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-10T07:02:20Z"
+  "publishedAt": "2026-06-10T07:06:06Z"
 }

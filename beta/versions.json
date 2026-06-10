@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260610.2",
+    "url": "bundle-20260610.2.zip",
+    "hash": "165983d3d74cb7d43ab1c0ff91a4e068b6b4acbc84731d7b20bb7ceabea8dcbe",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新未来通知构建逻辑，添加偏移过滤和时间格式化",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-10T07:06:06Z"
+  },
+  {
     "version": "20260610.1",
     "url": "bundle-20260610.1.zip",
     "hash": "e79816130cf7e0891b443d7f0decdd36e4238cb59ce963515852fab7e1f69679",
@@ -16,14 +25,5 @@
     "notes": "- 扫码跳转存储位置\n\n- feat: 重构米游铺导入相关",
     "updateLevel": "silent",
     "publishedAt": "2026-06-09T14:15:51Z"
-  },
-  {
-    "version": "20260608.1",
-    "url": "bundle-20260608.1.zip",
-    "hash": "5fcd3d0ee13ccb811a8d6ae54ab1fec4be9963bf1cdf7a946eaa6c2be9c75ef5",
-    "minNativeVersion": null,
-    "notes": "- feat: 日志系统",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-08T09:40:01Z"
   }
 ]
