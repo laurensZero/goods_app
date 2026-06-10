@@ -1,9 +1,9 @@
 {
-  "version": "20260609.1",
-  "url": "bundle-20260609.1.zip",
-  "hash": "7fc33e4f28b88c48fd7488ff129f50a772e5d3736c4a5491a5ef23ccab465fa7",
+  "version": "20260610.1",
+  "url": "bundle-20260610.1.zip",
+  "hash": "e79816130cf7e0891b443d7f0decdd36e4238cb59ce963515852fab7e1f69679",
   "minNativeVersion": null,
-  "notes": "- 扫码跳转存储位置\n\n- feat: 重构米游铺导入相关",
+  "notes": "- feat: 开售时间提醒",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-09T14:15:51Z"
+  "publishedAt": "2026-06-10T07:02:20Z"
 }
