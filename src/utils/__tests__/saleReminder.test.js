@@ -48,11 +48,16 @@ describe('saleReminder', () => {
   })
 
   it('builds future notifications and filters past offsets', () => {
+    // 15 分钟后开售：60 分钟偏移已过（过滤），10 和 0 分钟偏移在未来（保留）
+    const future = new Date(Date.now() + 15 * 60000)
+    const pad = (n) => String(n).padStart(2, '0')
+    const saleAt = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`
+
     const notifications = buildSaleReminderNotifications({
       id: 'goods-1',
       name: '测试谷子',
       isWishlist: true,
-      saleAt: '2026-06-09T10:30',
+      saleAt,
       saleReminderEnabled: true,
       saleReminderOffsets: [60, 10, 0]
     })
