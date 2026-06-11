@@ -51,6 +51,8 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
 import { showFailToast, showSuccessToast } from 'vant'
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
 import { buildStorageQrUrl } from '@/utils/storageQr'
 
 const { t } = useI18n()
@@ -116,15 +118,47 @@ function sanitizeFilename(value) {
     .slice(0, 60) || 'storage'
 }
 
-function downloadQr() {
+async function downloadQr() {
   if (!qrDataUrl.value) return
 
-  const link = document.createElement('a')
-  link.href = qrDataUrl.value
-  link.download = `${sanitizeFilename(nodePath.value)}_QR.png`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+  const filename = `${sanitizeFilename(nodePath.value)}_QR.png`
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const base64 = qrDataUrl.value.includes(',')
+        ? qrDataUrl.value.split(',')[1]
+        : qrDataUrl.value
+      const folder = 'Pictures/GoodsApp'
+
+      try {
+        await Filesystem.writeFile({
+          path: `${folder}/${filename}`,
+          data: base64,
+          directory: Directory.ExternalStorage,
+          recursive: true
+        })
+      } catch {
+        // Fallback: Documents app-private but accessible via file manager
+        await Filesystem.writeFile({
+          path: `GoodsApp/${filename}`,
+          data: base64,
+          directory: Directory.Documents,
+          recursive: true
+        })
+      }
+
+      showSuccessToast(t('storage.qr.saved'))
+    } catch {
+      showFailToast(t('storage.qr.saveFailed'))
+    }
+  } else {
+    const link = document.createElement('a')
+    link.href = qrDataUrl.value
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 }
 </script>
 
