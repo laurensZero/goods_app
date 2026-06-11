@@ -40,3 +40,6 @@ project(':capgo-capacitor-nfc').projectDir = new File('../node_modules/@capgo/ca
 
 include ':capgo-capacitor-updater'
 project(':capgo-capacitor-updater').projectDir = new File('../node_modules/@capgo/capacitor-updater/android')
+
+include ':ebarooni-capacitor-calendar'
+project(':ebarooni-capacitor-calendar').projectDir = new File('../node_modules/@ebarooni/capacitor-calendar/android')

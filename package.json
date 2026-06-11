@@ -31,6 +31,7 @@
     "@capawesome/capacitor-file-picker": "^8.0.2",
     "@capgo/capacitor-nfc": "^8.0.24",
     "@capgo/capacitor-updater": "^8.45.0",
+    "@ebarooni/capacitor-calendar": "^8.0.2",
     "@imgly/background-removal": "^1.7.0",
     "@intlify/unplugin-vue-i18n": "^4.0.0",
     "@supabase/supabase-js": "^2.105.4",

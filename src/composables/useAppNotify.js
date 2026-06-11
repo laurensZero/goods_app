@@ -84,7 +84,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
         if (firedKeys.has(key)) continue
 
         const diff = now - triggerAt
-        if (diff >= -45000 && diff <= 45000) {
+        if (diff >= -300000 && diff <= 45000) {
           firedKeys.add(key)
           pushSaleNotification(item, offset)
         }
@@ -292,10 +292,17 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
 
   // ---- lifecycle ----
 
+  function onVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      checkDueReminders()
+    }
+  }
+
   function start() {
     if (pollTimer) return
     checkDueReminders()
     pollTimer = window.setInterval(checkDueReminders, 30000)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     watchSync()
     watchWebUpdate()
     watchAppUpdate()
@@ -306,6 +313,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       window.clearInterval(pollTimer)
       pollTimer = null
     }
+    document.removeEventListener('visibilitychange', onVisibilityChange)
   }
 
   onUnmounted(stop)
