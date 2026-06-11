@@ -300,7 +300,9 @@
   "storage.qr.linkLabel": "二维码内容",
   "storage.qr.copyLink": "复制链接",
   "storage.qr.copySuccess": "已复制收纳位置链接",
-  "storage.qr.download": "下载 QR",
+  "storage.qr.download": "保存 QR",
+  "storage.qr.saved": "已保存到相册",
+  "storage.qr.saveFailed": "保存失败",
   "storage.qr.generating": "生成中...",
   "storage.qr.generateFailed": "生成 QR 失败",
   "storage.qr.imageAlt": "{name} 的收纳位置二维码"

@@ -300,7 +300,9 @@
   "storage.qr.linkLabel": "QR content",
   "storage.qr.copyLink": "Copy Link",
   "storage.qr.copySuccess": "Storage location link copied",
-  "storage.qr.download": "Download QR",
+  "storage.qr.download": "Save QR",
+  "storage.qr.saved": "Saved to gallery",
+  "storage.qr.saveFailed": "Save failed",
   "storage.qr.generating": "Generating...",
   "storage.qr.generateFailed": "Failed to generate QR",
   "storage.qr.imageAlt": "Storage QR code for {name}"
