@@ -1,9 +1,9 @@
 {
-  "version": "20260611.2",
-  "url": "bundle-20260611.2.zip",
-  "hash": "e249d74940dba13bdeaa1769d3c387cfaba807f2e550a1e8db4c1a6f096a9e08",
+  "version": "20260611.3",
+  "url": "bundle-20260611.3.zip",
+  "hash": "e24ca8f64f930d5eeb9a6dbbd3d5cc1c39d615973974b633138d21b1dd0f35c3",
   "minNativeVersion": null,
-  "notes": "- feat: 启用代码混淆和资源缩减，更新 ProGuard 配置以优化构建\n\n- feat: 跳转时提醒",
+  "notes": "- feat: 优化处理传入应用 URL 的逻辑，避免重复处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-11T08:38:21Z"
+  "publishedAt": "2026-06-11T10:34:15Z"
 }

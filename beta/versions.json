@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260611.3",
+    "url": "bundle-20260611.3.zip",
+    "hash": "e24ca8f64f930d5eeb9a6dbbd3d5cc1c39d615973974b633138d21b1dd0f35c3",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化处理传入应用 URL 的逻辑，避免重复处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-11T10:34:15Z"
+  },
+  {
     "version": "20260611.2",
     "url": "bundle-20260611.2.zip",
     "hash": "e249d74940dba13bdeaa1769d3c387cfaba807f2e550a1e8db4c1a6f096a9e08",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新二维码下载功能，支持保存到相册并添加相关提示信息",
     "updateLevel": "silent",
     "publishedAt": "2026-06-11T07:08:10Z"
-  },
-  {
-    "version": "20260610.3",
-    "url": "bundle-20260610.3.zip",
-    "hash": "beada6444bb6b210b3587aacc6e10b6bb20f6729f4fc056eca21002179156028",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新组件样式，使用新的强调色替代主色",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-10T07:53:46Z"
   }
 ]
