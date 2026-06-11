@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260611.1",
+    "url": "bundle-20260611.1.zip",
+    "hash": "dcb1a7087b2ec6eafd2649296970ef5c6f4249a98de7b17c1c3b66a7932feefb",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新二维码下载功能，支持保存到相册并添加相关提示信息",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-11T07:08:10Z"
+  },
+  {
     "version": "20260610.3",
     "url": "bundle-20260610.3.zip",
     "hash": "beada6444bb6b210b3587aacc6e10b6bb20f6729f4fc056eca21002179156028",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新未来通知构建逻辑，添加偏移过滤和时间格式化",
     "updateLevel": "silent",
     "publishedAt": "2026-06-10T07:06:06Z"
-  },
-  {
-    "version": "20260610.1",
-    "url": "bundle-20260610.1.zip",
-    "hash": "e79816130cf7e0891b443d7f0decdd36e4238cb59ce963515852fab7e1f69679",
-    "minNativeVersion": null,
-    "notes": "- feat: 开售时间提醒",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-10T07:02:20Z"
   }
 ]

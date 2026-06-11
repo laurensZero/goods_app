@@ -1,9 +1,9 @@
 {
-  "version": "20260610.3",
-  "url": "bundle-20260610.3.zip",
-  "hash": "beada6444bb6b210b3587aacc6e10b6bb20f6729f4fc056eca21002179156028",
+  "version": "20260611.1",
+  "url": "bundle-20260611.1.zip",
+  "hash": "dcb1a7087b2ec6eafd2649296970ef5c6f4249a98de7b17c1c3b66a7932feefb",
   "minNativeVersion": null,
-  "notes": "- feat: 更新组件样式，使用新的强调色替代主色",
+  "notes": "- feat: 更新二维码下载功能，支持保存到相册并添加相关提示信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-10T07:53:46Z"
+  "publishedAt": "2026-06-11T07:08:10Z"
 }
