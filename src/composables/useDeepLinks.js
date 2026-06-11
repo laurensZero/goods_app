@@ -12,6 +12,19 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
 
   let removeAppUrlOpenListener = null
   let removeNativeNfcListener = null
+  let lastHandledUrl = ''
+  let lastHandledTime = 0
+
+  async function handleIncomingAppUrl(url) {
+    const now = Date.now()
+    if (url === lastHandledUrl && now - lastHandledTime < 3000) return false
+    lastHandledUrl = url
+    lastHandledTime = now
+
+    if (await navigateByStorageNfc(url)) return true
+    if (await navigateByShareLink(url)) return true
+    return false
+  }
 
   async function navigateByStorageNfc(url) {
     const storagePath = parseStorageQrUrl(url)
@@ -34,12 +47,6 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
     triggerSharePrompt(gistId, shareId)
 
     return true
-  }
-
-  async function handleIncomingAppUrl(url) {
-    if (await navigateByStorageNfc(url)) return true
-    if (await navigateByShareLink(url)) return true
-    return false
   }
 
   onMounted(async () => {
