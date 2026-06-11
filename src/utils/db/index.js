@@ -452,11 +452,13 @@ export async function initDB() {
   await db.execute(CREATE_GOODS_GROUP_ITEMS_TABLE_SQL)
 
   const t2b = performance.now()
-  await _ensureTableColumns('goods', GOODS_REQUIRED_COLUMNS)
-  await _ensureTableColumns('events', EVENTS_REQUIRED_COLUMNS)
-  await _ensureTableColumns('recharge_records', RECHARGE_REQUIRED_COLUMNS)
-  await _ensureTableColumns('goods_groups', GOODS_GROUPS_REQUIRED_COLUMNS)
-  await _ensureTableColumns('goods_group_items', GOODS_GROUP_ITEMS_REQUIRED_COLUMNS)
+  await Promise.all([
+    _ensureTableColumns('goods', GOODS_REQUIRED_COLUMNS),
+    _ensureTableColumns('events', EVENTS_REQUIRED_COLUMNS),
+    _ensureTableColumns('recharge_records', RECHARGE_REQUIRED_COLUMNS),
+    _ensureTableColumns('goods_groups', GOODS_GROUPS_REQUIRED_COLUMNS),
+    _ensureTableColumns('goods_group_items', GOODS_GROUP_ITEMS_REQUIRED_COLUMNS)
+  ])
   const backfillColumnsTime = performance.now() - t2b
 
   // Always check version and run migrations
