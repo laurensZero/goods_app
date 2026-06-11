@@ -22,6 +22,7 @@ dependencies {
     implementation project(':capawesome-capacitor-file-picker')
     implementation project(':capgo-capacitor-nfc')
     implementation project(':capgo-capacitor-updater')
+    implementation project(':ebarooni-capacitor-calendar')
 
 }
 

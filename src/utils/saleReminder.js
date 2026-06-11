@@ -2,6 +2,16 @@ import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import router from '@/router'
 
+let Calendar = null
+async function getCalendar() {
+  if (Calendar) return Calendar
+  try {
+    const mod = await import('@ebarooni/capacitor-calendar')
+    Calendar = mod.CapacitorCalendar || mod.default
+  } catch {}
+  return Calendar
+}
+
 export const SALE_REMINDER_DEFAULT_OFFSETS = [1440, 60, 10, 0]
 export const SALE_REMINDER_PRESET_OFFSETS = [1440, 60, 10, 0]
 export const SALE_REMINDER_CHANNEL_ID = 'sale-reminders'
@@ -214,7 +224,7 @@ export function buildSaleReminderNotifications(item) {
         autoCancel: true,
         schedule: {
           at: triggerAt,
-          allowWhileIdle: offset <= 10
+          allowWhileIdle: true
         },
         extra: {
           type: 'sale-reminder',
@@ -292,6 +302,95 @@ export async function syncSaleReminderNotifications(items = []) {
     permission,
     native: true
   }
+}
+
+// ---- Calendar events (system-level, survives app kill) ----
+
+const CALENDAR_EVENT_MAP_KEY = 'goods_sale_calendar_events'
+
+function readCalendarEventMap() {
+  try {
+    return JSON.parse(localStorage.getItem(CALENDAR_EVENT_MAP_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function writeCalendarEventMap(map) {
+  try {
+    localStorage.setItem(CALENDAR_EVENT_MAP_KEY, JSON.stringify(map))
+  } catch {}
+}
+
+function saveCalendarEventId(goodsId, eventId) {
+  if (!goodsId || !eventId) return
+  const map = readCalendarEventMap()
+  map[String(goodsId)] = String(eventId)
+  writeCalendarEventMap(map)
+}
+
+function removeCalendarEventId(goodsId) {
+  if (!goodsId) return
+  const map = readCalendarEventMap()
+  delete map[String(goodsId)]
+  writeCalendarEventMap(map)
+}
+
+export function getCalendarEventId(goodsId) {
+  if (!goodsId) return ''
+  const map = readCalendarEventMap()
+  return map[String(goodsId)] || ''
+}
+
+export async function createSaleCalendarEvent(item) {
+  if (!item?.id || !shouldScheduleSaleReminder(item)) return ''
+  const cal = await getCalendar()
+  if (!cal) return ''
+
+  const saleDate = parseSaleAt(item.saleAt)
+  if (!saleDate) return ''
+
+  const saleTimeMs = saleDate.getTime()
+  const offsets = normalizeSaleReminderOffsets(item.saleReminderOffsets)
+  const reminderOffsets = offsets.length ? offsets : SALE_REMINDER_DEFAULT_OFFSETS
+  const titleName = String(item.name || '谷子').trim() || '谷子'
+  const saleTimeText = formatSaleAtDisplay(item.saleAt)
+
+  // 先删旧的
+  const existingId = getCalendarEventId(item.id)
+  if (existingId) await deleteSaleCalendarEvent(existingId)
+
+  // alerts 用负数表示提前 N 分钟
+  const alerts = reminderOffsets.filter((o) => o > 0).map((o) => -o)
+  if (!alerts.includes(0)) alerts.push(0)
+
+  try {
+    const result = await cal.createEvent({
+      title: `🛒 ${titleName} 开售`,
+      description: `开售时间：${saleTimeText}\n由谷子收纳自动创建`,
+      startDate: saleTimeMs,
+      endDate: saleTimeMs + 30 * 60 * 1000,
+      alerts
+    })
+    const newId = result?.id || ''
+    if (newId) saveCalendarEventId(item.id, newId)
+    return newId
+  } catch {
+    return ''
+  }
+}
+
+export async function deleteSaleCalendarEvent(eventId) {
+  if (!eventId) return
+  const cal = await getCalendar()
+  if (!cal) return
+  try {
+    await cal.deleteEvent({ id: String(eventId) })
+  } catch {}
+}
+
+export function clearSaleCalendarEventId(goodsId) {
+  removeCalendarEventId(goodsId)
 }
 
 let notificationActionListener = null

@@ -12,7 +12,14 @@ import {
   mergeGoodsRecord,
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
-import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/saleReminder'
+import {
+  cancelSaleReminderNotifications,
+  scheduleSaleReminderForItem,
+  createSaleCalendarEvent,
+  deleteSaleCalendarEvent,
+  getCalendarEventId,
+  clearSaleCalendarEventId
+} from '@/utils/saleReminder'
 
 /**
  * @param {object} data
@@ -39,6 +46,7 @@ export async function addGoods(data, list, onMutate) {
     }
     onMutate?.()
     void scheduleSaleReminderForItem(list.value[existingIndex])
+    void createSaleCalendarEvent(list.value[existingIndex]).catch(() => {})
     return list.value[existingIndex]
   }
 
@@ -52,6 +60,7 @@ export async function addGoods(data, list, onMutate) {
   }
   onMutate?.()
   void scheduleSaleReminderForItem(incoming)
+  void createSaleCalendarEvent(incoming).catch(() => {})
   return incoming
 }
 
@@ -112,6 +121,7 @@ export async function updateGoods(id, data, list, onMutate) {
   void cancelSaleReminderNotifications(previous.id, previous.saleReminderOffsets)
     .then(() => scheduleSaleReminderForItem(next))
     .catch(() => {})
+  void createSaleCalendarEvent(next).catch(() => {})
   return id
 }
 
@@ -181,6 +191,7 @@ export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
     await Promise.all([
       deleteItems([id]),
       cancelSaleReminderNotifications(id, item.saleReminderOffsets),
+      deleteSaleCalendarEvent(getCalendarEventId(id)),
       persistTrash()
     ])
   } catch (e) {
@@ -215,6 +226,7 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
     await Promise.all([
       deleteItems(Array.from(ids)),
       ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)),
+      ...removedItems.map((item) => deleteSaleCalendarEvent(getCalendarEventId(item.id))),
       persistTrash()
     ])
   } catch (e) {
@@ -254,6 +266,7 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
   }
   onMutate?.()
   void scheduleSaleReminderForItem(restored)
+  void createSaleCalendarEvent(restored).catch(() => {})
   return restored
 }
 
@@ -272,6 +285,7 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
   try {
     await persistTrash()
     await cancelSaleReminderNotifications(id, existing?.saleReminderOffsets)
+    await deleteSaleCalendarEvent(getCalendarEventId(id))
     await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
   } catch (e) {
     console.error('[goods] deleteTrashItem DB write failed:', e)
