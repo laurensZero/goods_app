@@ -295,7 +295,7 @@
   "manage.storage.renameHint": "输入新的位置名称",
   "storage.qr.action": "QR 标签",
   "storage.qr.label": "收纳 QR",
-  "storage.qr.title": "盒子 QR 标签",
+  "storage.qr.title": "QR 标签",
   "storage.qr.desc": "打印或保存这个二维码，扫码后会自动筛选这个收纳位置的谷子。",
   "storage.qr.linkLabel": "二维码内容",
   "storage.qr.copyLink": "复制链接",
