@@ -1,9 +1,9 @@
 {
-  "version": "20260611.1",
-  "url": "bundle-20260611.1.zip",
-  "hash": "dcb1a7087b2ec6eafd2649296970ef5c6f4249a98de7b17c1c3b66a7932feefb",
+  "version": "20260611.2",
+  "url": "bundle-20260611.2.zip",
+  "hash": "e249d74940dba13bdeaa1769d3c387cfaba807f2e550a1e8db4c1a6f096a9e08",
   "minNativeVersion": null,
-  "notes": "- feat: 更新二维码下载功能，支持保存到相册并添加相关提示信息",
+  "notes": "- feat: 启用代码混淆和资源缩减，更新 ProGuard 配置以优化构建\n\n- feat: 跳转时提醒",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-11T07:08:10Z"
+  "publishedAt": "2026-06-11T08:38:21Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260611.2",
+    "url": "bundle-20260611.2.zip",
+    "hash": "e249d74940dba13bdeaa1769d3c387cfaba807f2e550a1e8db4c1a6f096a9e08",
+    "minNativeVersion": null,
+    "notes": "- feat: 启用代码混淆和资源缩减，更新 ProGuard 配置以优化构建\n\n- feat: 跳转时提醒",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-11T08:38:21Z"
+  },
+  {
     "version": "20260611.1",
     "url": "bundle-20260611.1.zip",
     "hash": "dcb1a7087b2ec6eafd2649296970ef5c6f4249a98de7b17c1c3b66a7932feefb",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新组件样式，使用新的强调色替代主色",
     "updateLevel": "silent",
     "publishedAt": "2026-06-10T07:53:46Z"
-  },
-  {
-    "version": "20260610.2",
-    "url": "bundle-20260610.2.zip",
-    "hash": "165983d3d74cb7d43ab1c0ff91a4e068b6b4acbc84731d7b20bb7ceabea8dcbe",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新未来通知构建逻辑，添加偏移过滤和时间格式化",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-10T07:06:06Z"
   }
 ]
