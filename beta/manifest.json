@@ -1,9 +1,9 @@
 {
-  "version": "20260611.4",
-  "url": "bundle-20260611.4.zip",
-  "hash": "9eb0349594180276d2d1e55f4259c47b516132844578b4950e554048f6720828",
+  "version": "20260611.5",
+  "url": "bundle-20260611.5.zip",
+  "hash": "7a5841bed09d00da99d4d9649713fd6d0edeb9c1b4f46b7e752fec8dc6ce0ca9",
   "minNativeVersion": null,
-  "notes": "- feat: 更新二维码标题，简化描述为“QR 标签”",
+  "notes": "- feat: 增加应用更新通知功能，支持检测新版本并推送更新提醒",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-11T10:35:40Z"
+  "publishedAt": "2026-06-11T10:51:03Z"
 }

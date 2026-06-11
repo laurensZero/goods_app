@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260611.5",
+    "url": "bundle-20260611.5.zip",
+    "hash": "7a5841bed09d00da99d4d9649713fd6d0edeb9c1b4f46b7e752fec8dc6ce0ca9",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加应用更新通知功能，支持检测新版本并推送更新提醒",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-11T10:51:03Z"
+  },
+  {
     "version": "20260611.4",
     "url": "bundle-20260611.4.zip",
     "hash": "9eb0349594180276d2d1e55f4259c47b516132844578b4950e554048f6720828",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化处理传入应用 URL 的逻辑，避免重复处理",
     "updateLevel": "silent",
     "publishedAt": "2026-06-11T10:34:15Z"
-  },
-  {
-    "version": "20260611.2",
-    "url": "bundle-20260611.2.zip",
-    "hash": "e249d74940dba13bdeaa1769d3c387cfaba807f2e550a1e8db4c1a6f096a9e08",
-    "minNativeVersion": null,
-    "notes": "- feat: 启用代码混淆和资源缩减，更新 ProGuard 配置以优化构建\n\n- feat: 跳转时提醒",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-11T08:38:21Z"
   }
 ]
