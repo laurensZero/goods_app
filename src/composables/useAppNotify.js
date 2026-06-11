@@ -18,7 +18,7 @@ const NOTIFY_DURATION = 6000
  *  2. 后台同步结果（watch syncStore.syncNotice）
  *  3. OTA 更新就绪（watch webUpdateStore / appUpdateStore）
  */
-export function useAppNotify(goodsStore, syncStore, webUpdateStore) {
+export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore) {
   const notifications = ref([])
   const router = useRouter()
   let pollTimer = null
@@ -193,10 +193,12 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore) {
   // ---- 3. OTA update watcher ----
 
   let lastWebUpdateReady = false
+  let lastWebUpdateAvailableNotified = false
 
   function watchWebUpdate() {
     if (!webUpdateStore) return
 
+    // 下载完成 → 就绪通知
     watch(
       () => ({
         downloading: webUpdateStore.isDownloading,
@@ -225,6 +227,67 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore) {
       },
       { immediate: true }
     )
+
+    // 更新可用 → 弹 toast（覆盖静默/自动下载场景）
+    watch(
+      () => webUpdateStore.lastStatus,
+      (status) => {
+        if (status === 'available' && !lastWebUpdateAvailableNotified) {
+          lastWebUpdateAvailableNotified = true
+          push({
+            iconType: 'update',
+            text: '发现新版本',
+            subText: webUpdateStore.latestVersion ? `v${webUpdateStore.latestVersion} 可用` : '有新的资源更新',
+            duration: 10000,
+            actions: [
+              {
+                key: 'download',
+                label: '下载更新',
+                primary: true,
+                callback: () => webUpdateStore.downloadAndPrepareUpdate().catch(() => {})
+              }
+            ]
+          })
+        }
+        if (status === 'latest' || status === 'error') {
+          lastWebUpdateAvailableNotified = false
+        }
+      }
+    )
+  }
+
+  // ---- 4. APK update watcher ----
+
+  let lastAppUpdateAvailableNotified = false
+
+  function watchAppUpdate() {
+    if (!appUpdateStore) return
+
+    watch(
+      () => appUpdateStore.lastStatus,
+      (status) => {
+        if (status === 'available' && !lastAppUpdateAvailableNotified) {
+          lastAppUpdateAvailableNotified = true
+          push({
+            iconType: 'update',
+            text: '发现新版本',
+            subText: appUpdateStore.latestVersion ? `v${appUpdateStore.latestVersion} 可用` : '有新的应用更新',
+            duration: 10000,
+            actions: [
+              {
+                key: 'download',
+                label: '下载更新',
+                primary: true,
+                callback: () => appUpdateStore.downloadAndInstallUpdate().catch(() => {})
+              }
+            ]
+          })
+        }
+        if (status === 'latest' || status === 'error') {
+          lastAppUpdateAvailableNotified = false
+        }
+      }
+    )
   }
 
   // ---- lifecycle ----
@@ -235,6 +298,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore) {
     pollTimer = window.setInterval(checkDueReminders, 30000)
     watchSync()
     watchWebUpdate()
+    watchAppUpdate()
   }
 
   function stop() {
