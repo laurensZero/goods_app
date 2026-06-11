@@ -1,9 +1,9 @@
 {
-  "version": "20260611.3",
-  "url": "bundle-20260611.3.zip",
-  "hash": "e24ca8f64f930d5eeb9a6dbbd3d5cc1c39d615973974b633138d21b1dd0f35c3",
+  "version": "20260611.4",
+  "url": "bundle-20260611.4.zip",
+  "hash": "9eb0349594180276d2d1e55f4259c47b516132844578b4950e554048f6720828",
   "minNativeVersion": null,
-  "notes": "- feat: 优化处理传入应用 URL 的逻辑，避免重复处理",
+  "notes": "- feat: 更新二维码标题，简化描述为“QR 标签”",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-11T10:34:15Z"
+  "publishedAt": "2026-06-11T10:35:40Z"
 }
