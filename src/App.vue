@@ -38,14 +38,16 @@ import { useDeepLinks } from '@/composables/useDeepLinks'
 import { useAppStartup } from '@/composables/useAppStartup'
 import { useGoodsStore } from '@/stores/goods'
 import { useWebUpdateStore } from '@/stores/webUpdate'
+import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
 
 const route = useRoute()
 const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
 const webUpdateStore = useWebUpdateStore()
+const appUpdateStore = useAppUpdateStore()
 
-const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore)
+const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore)
 startAppNotify()
 
 const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView']
