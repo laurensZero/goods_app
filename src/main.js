@@ -136,26 +136,14 @@ async function bootstrap() {
 
   void notifyUpdaterReady()
 
-  // 初始化 SQLite（原生用 Capacitor，Web 用 sql.js）
-  const t1 = performance.now()
-  try {
-    await initDB()
-  } catch (e) {
-    log.error('db:init:failed', e)
-    // 延迟导入 Toast，避免循环依赖
-    import('vant').then(({ showFailToast }) => {
-      showFailToast(i18n.global.t('toast.dbInitFailed', { error: e.message || String(e) }))
-    }).catch(() => {})
-  }
-  timings.initDB = performance.now() - t1
-
+  // 创建 Vue 应用和 Pinia（这些是同步的，很快）
   const app = createApp(App)
   const pinia = createPinia()
   app.use(i18n)
   app.use(pinia)
   app.use(router)
 
-  // 从 SQLite 预加载数据，再挂载 DOM
+  // 获取 store 实例（此时还未初始化数据）
   const store = useGoodsStore()
   const eventsStore = useEventsStore()
   const rechargeStore = useRechargeStore()
@@ -164,29 +152,47 @@ async function bootstrap() {
   const filterPresets = useFilterPresetsStore()
   const theme = useThemeStore()
   const exchangeRate = useExchangeRateStore()
+
+  // ── 并行启动不互相依赖的初始化 ──
+  // theme.init() 和 presets.init() 只读 Preferences，不依赖 DB
+  // initDB() 是其他 store 的前置依赖
+  const t1 = performance.now()
+  const [,] = await Promise.all([
+    // DB 初始化（其他 store 依赖它）
+    initDB().catch((e) => {
+      log.error('db:init:failed', e)
+      import('vant').then(({ showFailToast }) => {
+        showFailToast(i18n.global.t('toast.dbInitFailed', { error: e.message || String(e) }))
+      }).catch(() => {})
+    }),
+    // 主题初始化（只读 Preferences，可并行）
+    theme.init().catch((e) => {
+      log.warn('theme:init:failed', e)
+    }),
+    // 预设初始化（只读 Preferences，可并行）
+    presets.init().catch((e) => {
+      log.warn('presets:init:failed', e)
+    })
+  ])
+  timings.parallelInit = performance.now() - t1
+
+  // ── DB 就绪后，初始化依赖 DB 的 store ──
+  const t2 = performance.now()
   try {
-    const t2 = performance.now()
-    await theme.init()
-    timings.themeInit = performance.now() - t2
-    
-    // 只初始化关键 store（阻塞）— goods / presets / filterPresets 对主页必须
-    // events / recharge 可以延迟到 App 挂载后，不影响首屏
-    const t3 = performance.now()
-    await Promise.all([store.init(), presets.init(), filterPresets.init()])
-    timings.storesInit = performance.now() - t3
+    await Promise.all([store.init(), filterPresets.init()])
   } catch (e) {
     log.error('stores:init:failed', e)
   }
-  
+  timings.storesInit = performance.now() - t2
+
   // 非阻塞式初始化 - 不延迟 DOM 挂载
-  // exchangeRate, presets 同步（后台执行）
   exchangeRate.init().catch((e) => {
     log.warn('exchange-rate:init:failed', e)
   })
   presets.syncPresetsIfNeeded(store.list, store.storageLocations).catch((e) => {
     log.warn('presets:sync-if-needed:failed', e)
   })
-  
+
   // events + recharge + goodsGroup 延迟到 App 挂载后（不影响首屏）
   const deferredStoreInit = async () => {
     try {
@@ -196,27 +202,27 @@ async function bootstrap() {
     }
   }
 
-  const t4 = performance.now()
+  const t3 = performance.now()
   try {
     await router.isReady()
   } catch (e) {
     log.error('router:ready:failed', e)
   }
-  timings.routerReady = performance.now() - t4
+  timings.routerReady = performance.now() - t3
   setupAndroidBackButton()
   setupAndroidResumeListener(theme)
   void registerSaleReminderNotificationNavigation()
   watchSaleReminderNotifications(store)
-  
-  const t5 = performance.now()
+
+  const t4 = performance.now()
   app.mount('#app')
-  timings.mount = performance.now() - t5
-  
+  timings.mount = performance.now() - t4
+
   timings.total = performance.now() - startTime
   log.debug('startup:timings', Object.fromEntries(
     Object.entries(timings).map(([key, value]) => [key, Number(value.toFixed(1))])
   ))
-  
+
   // 顺序很重要：先挂载 DOM，再初始化重的 store
   void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()

@@ -4,7 +4,8 @@
   "webDir": "dist",
   "android": {
     "allowMixedContent": true,
-    "captureInput": false
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
   },
   "plugins": {
     "CapacitorHttp": {
