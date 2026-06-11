@@ -18,7 +18,7 @@ const NOTIFY_DURATION = 6000
  *  2. 后台同步结果（watch syncStore.syncNotice）
  *  3. OTA 更新就绪（watch webUpdateStore / appUpdateStore）
  */
-export function useInAppSaleNotify(goodsStore, syncStore, webUpdateStore) {
+export function useAppNotify(goodsStore, syncStore, webUpdateStore) {
   const notifications = ref([])
   const router = useRouter()
   let pollTimer = null

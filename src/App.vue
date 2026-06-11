@@ -18,7 +18,7 @@
     <AppUpdateDialog />
 
     <ClipboardDialog />
-    <SaleNotifyToast :notifications="saleNotifyList" @dismiss="saleNotifyDismiss" />
+    <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
   </div>
 </template>
 
@@ -30,7 +30,7 @@ import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
 import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
 import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
-import SaleNotifyToast from '@/components/app/SaleNotifyToast.vue'
+import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { useSyncStore } from '@/stores/sync'
 import { useRealtimeSync } from '@/composables/sync/useRealtimeSync'
@@ -38,15 +38,15 @@ import { useDeepLinks } from '@/composables/useDeepLinks'
 import { useAppStartup } from '@/composables/useAppStartup'
 import { useGoodsStore } from '@/stores/goods'
 import { useWebUpdateStore } from '@/stores/webUpdate'
-import { useInAppSaleNotify } from '@/composables/useInAppSaleNotify'
+import { useAppNotify } from '@/composables/useAppNotify'
 
 const route = useRoute()
 const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
 const webUpdateStore = useWebUpdateStore()
 
-const { notifications: saleNotifyList, dismiss: saleNotifyDismiss, start: startSaleNotify } = useInAppSaleNotify(goodsStore, syncStore, webUpdateStore)
-startSaleNotify()
+const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore)
+startAppNotify()
 
 const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView']
 const showTabBar = computed(() => route.meta.showTabBar === true)
@@ -60,7 +60,17 @@ function getRouteKey(currentRoute) {
 }
 
 useRealtimeSync({ syncStore })
-useDeepLinks()
+useDeepLinks({
+  onStorageNavigate(storagePath) {
+    const displayName = decodeURIComponent(storagePath).split('/').filter(Boolean).join(' > ') || '未知位置'
+    pushNotify({
+      iconType: 'bell',
+      text: '已跳转到收纳位置',
+      subText: displayName,
+      duration: 4000
+    })
+  }
+})
 useAppStartup()
 </script>
 
