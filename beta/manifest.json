@@ -1,9 +1,9 @@
 {
-  "version": "20260611.5",
-  "url": "bundle-20260611.5.zip",
-  "hash": "7a5841bed09d00da99d4d9649713fd6d0edeb9c1b4f46b7e752fec8dc6ce0ca9",
+  "version": "20260611.6",
+  "url": "bundle-20260611.6.zip",
+  "hash": "4c9af35934df25cb02206b97290a0acae75ed25514dfd7490af607429edb6722",
   "minNativeVersion": null,
-  "notes": "- feat: 增加应用更新通知功能，支持检测新版本并推送更新提醒",
+  "notes": "- feat: 添加日历事件管理功能，集成日历插件以支持销售提醒事件的创建和删除",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-11T10:51:03Z"
+  "publishedAt": "2026-06-11T13:22:52Z"
 }

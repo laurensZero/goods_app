@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260611.6",
+    "url": "bundle-20260611.6.zip",
+    "hash": "4c9af35934df25cb02206b97290a0acae75ed25514dfd7490af607429edb6722",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加日历事件管理功能，集成日历插件以支持销售提醒事件的创建和删除",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-11T13:22:52Z"
+  },
+  {
     "version": "20260611.5",
     "url": "bundle-20260611.5.zip",
     "hash": "7a5841bed09d00da99d4d9649713fd6d0edeb9c1b4f46b7e752fec8dc6ce0ca9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新二维码标题，简化描述为“QR 标签”",
     "updateLevel": "silent",
     "publishedAt": "2026-06-11T10:35:40Z"
-  },
-  {
-    "version": "20260611.3",
-    "url": "bundle-20260611.3.zip",
-    "hash": "e24ca8f64f930d5eeb9a6dbbd3d5cc1c39d615973974b633138d21b1dd0f35c3",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化处理传入应用 URL 的逻辑，避免重复处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-11T10:34:15Z"
   }
 ]
