@@ -6,7 +6,7 @@ import { useClipboardImport } from '@/composables/useClipboardImport'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
 import { extractIdsFromInput } from '@/utils/share/goods'
 
-export function useDeepLinks() {
+export function useDeepLinks({ onStorageNavigate } = {}) {
   const router = useRouter()
   const { triggerSharePrompt } = useClipboardImport()
 
@@ -19,6 +19,11 @@ export function useDeepLinks() {
 
     persistStorageQrFilter(storagePath)
     await router.push('/home').catch(() => {})
+
+    if (onStorageNavigate) {
+      onStorageNavigate(storagePath)
+    }
+
     return true
   }
 

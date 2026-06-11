@@ -1,40 +1,40 @@
 <template>
-  <div class="sale-notify-container">
-    <TransitionGroup name="sale-notify-slide">
+  <div class="app-notify-container">
+    <TransitionGroup name="app-notify-slide">
       <div
         v-for="item in notifications"
         :key="item.id"
-        class="sale-notify-toast"
+        class="app-notify-toast"
         :style="getSwipeStyle(item)"
         @click="handleClick(item)"
         @touchstart.passive="onTouchStart($event, item)"
         @touchmove.passive="onTouchMove($event, item)"
         @touchend="onTouchEnd($event, item)"
       >
-        <div class="sale-notify-icon" :class="`sale-notify-icon--${item.iconType || 'bell'}`">
+        <div class="app-notify-icon" :class="`app-notify-icon--${item.iconType || 'bell'}`">
           <svg v-if="item.iconType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           <svg v-else-if="item.iconType === 'warn'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <svg v-else-if="item.iconType === 'update'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         </div>
-        <div class="sale-notify-body">
-          <div class="sale-notify-title">{{ item.text }}</div>
-          <div class="sale-notify-sub">{{ item.subText }}</div>
-          <div v-if="item.saleAt && countdowns[item.id]" class="sale-notify-countdown-text">{{ countdowns[item.id] }}</div>
-          <div v-if="item.actions?.length" class="sale-notify-actions">
+        <div class="app-notify-body">
+          <div class="app-notify-title">{{ item.text }}</div>
+          <div class="app-notify-sub">{{ item.subText }}</div>
+          <div v-if="item.saleAt && countdowns[item.id]" class="app-notify-countdown-text">{{ countdowns[item.id] }}</div>
+          <div v-if="item.actions?.length" class="app-notify-actions">
             <button
               v-for="action in item.actions"
               :key="action.key"
-              class="sale-notify-action-btn"
-              :class="{ 'sale-notify-action-btn--primary': action.primary }"
+              class="app-notify-action-btn"
+              :class="{ 'app-notify-action-btn--primary': action.primary }"
               @click.stop="handleAction(item, action)"
             >
               {{ action.label }}
             </button>
           </div>
         </div>
-        <button class="sale-notify-close" @click.stop="dismiss(item.id)">✕</button>
-        <div class="sale-notify-countdown" :style="getCountdownStyle(item)" />
+        <button class="app-notify-close" @click.stop="dismiss(item.id)">✕</button>
+        <div class="app-notify-countdown" :style="getCountdownStyle(item)" />
       </div>
     </TransitionGroup>
   </div>
@@ -175,7 +175,7 @@ function handleAction(item, action) {
 </script>
 
 <style scoped>
-.sale-notify-container {
+.app-notify-container {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   right: 12px;
@@ -187,7 +187,7 @@ function handleAction(item, action) {
   width: min(calc(100vw - 24px), 320px);
 }
 
-.sale-notify-toast {
+.app-notify-toast {
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -207,32 +207,32 @@ function handleAction(item, action) {
   will-change: transform, opacity;
 }
 
-.sale-notify-toast:active {
+.app-notify-toast:active {
   opacity: 0.85;
   transform: scale(0.98);
 }
 
-.sale-notify-icon {
+.app-notify-icon {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
   margin-top: 1px;
   color: var(--app-chip-accent-text);
 }
-.sale-notify-icon svg {
+.app-notify-icon svg {
   width: 100%;
   height: 100%;
 }
-.sale-notify-icon--success { color: #34c759; }
-.sale-notify-icon--warn { color: #ff9500; }
-.sale-notify-icon--update { color: var(--app-chip-accent-text); }
+.app-notify-icon--success { color: #34c759; }
+.app-notify-icon--warn { color: #ff9500; }
+.app-notify-icon--update { color: var(--app-chip-accent-text); }
 
-.sale-notify-body {
+.app-notify-body {
   flex: 1;
   min-width: 0;
 }
 
-.sale-notify-title {
+.app-notify-title {
   font-size: 14px;
   font-weight: 600;
   color: var(--app-text);
@@ -242,14 +242,14 @@ function handleAction(item, action) {
   white-space: nowrap;
 }
 
-.sale-notify-sub {
+.app-notify-sub {
   font-size: 12px;
   color: var(--app-text-secondary);
   line-height: 1.3;
   margin-top: 2px;
 }
 
-.sale-notify-countdown-text {
+.app-notify-countdown-text {
   font-size: 12px;
   font-weight: 600;
   color: var(--app-chip-accent-text);
@@ -257,13 +257,13 @@ function handleAction(item, action) {
   letter-spacing: 0.3px;
 }
 
-.sale-notify-actions {
+.app-notify-actions {
   display: flex;
   gap: 6px;
   margin-top: 8px;
 }
 
-.sale-notify-action-btn {
+.app-notify-action-btn {
   flex: 1;
   padding: 5px 10px;
   border-radius: 8px;
@@ -277,21 +277,21 @@ function handleAction(item, action) {
   -webkit-tap-highlight-color: transparent;
 }
 
-.sale-notify-action-btn:active {
+.app-notify-action-btn:active {
   opacity: 0.7;
 }
 
-.sale-notify-action-btn--primary {
+.app-notify-action-btn--primary {
   background: color-mix(in srgb, var(--app-chip-accent-text) 12%, transparent);
   border-color: color-mix(in srgb, var(--app-chip-accent-text) 30%, transparent);
   color: var(--app-chip-accent-text);
 }
 
-.sale-notify-action-btn--primary:active {
+.app-notify-action-btn--primary:active {
   background: color-mix(in srgb, var(--app-chip-accent-text) 22%, transparent);
 }
 
-.sale-notify-close {
+.app-notify-close {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
@@ -309,7 +309,7 @@ function handleAction(item, action) {
 }
 
 /* ---- countdown bar ---- */
-.sale-notify-countdown {
+.app-notify-countdown {
   position: absolute;
   left: 0;
   bottom: 0;
@@ -318,34 +318,34 @@ function handleAction(item, action) {
   background: color-mix(in srgb, var(--app-chip-accent-text) 60%, transparent);
   border-radius: 0 0 16px 16px;
   transform-origin: left;
-  animation: sale-notify-shrink linear forwards;
+  animation: app-notify-shrink linear forwards;
 }
 
-@keyframes sale-notify-shrink {
+@keyframes app-notify-shrink {
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
 }
 
 /* ---- slide transition ---- */
-.sale-notify-slide-enter-active {
+.app-notify-slide-enter-active {
   transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sale-notify-slide-leave-active {
+.app-notify-slide-leave-active {
   transition: all 0.25s cubic-bezier(0.55, 0, 1, 0.45);
 }
 
-.sale-notify-slide-enter-from {
+.app-notify-slide-enter-from {
   opacity: 0;
   transform: translateX(60px) scale(0.92);
 }
 
-.sale-notify-slide-leave-to {
+.app-notify-slide-leave-to {
   opacity: 0;
   transform: translateX(60px) scale(0.92);
 }
 
-.sale-notify-slide-move {
+.app-notify-slide-move {
   transition: transform 0.3s ease;
 }
 </style>
