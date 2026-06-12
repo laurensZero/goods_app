@@ -313,7 +313,12 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function syncSystemAppearance({ forceApply = false } = {}) {
-    if (!canUseDom() || !mediaQueryList) return
+    if (!canUseDom()) return
+
+    // 从后台恢复时重新查询系统主题，Android WebView 在后台不会实时更新 matchMedia 状态
+    if (forceApply || !mediaQueryList) {
+      mediaQueryList = window.matchMedia(SYSTEM_DARK_QUERY)
+    }
 
     const nextAppearance = mediaQueryList.matches ? 'dark' : 'light'
     const shouldApplyTheme = appearancePreference.value === APPEARANCE_PREFERENCES.system
