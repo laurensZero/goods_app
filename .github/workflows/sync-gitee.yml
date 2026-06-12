@@ -115,6 +115,13 @@ jobs:
           SNAPSHOT_MESSAGE: "chore: sync gh-pages snapshot"
         run: node scripts/create_gitee_snapshot.mjs
 
+      - name: Delete old gitee gh-pages branch
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          # 删除 Gitee 远端旧的 gh-pages 分支，避免旧 bundle 对象残留导致仓库体积膨胀
+          git push gitee --delete gh-pages || echo "gh-pages branch does not exist on gitee yet, skipping delete"
+
       - name: Push clean snapshot to gitee
         if: steps.check.outputs.enabled == 'true'
         run: |
