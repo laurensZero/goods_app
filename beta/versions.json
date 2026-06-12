@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260612.1",
+    "url": "bundle-20260612.1.zip",
+    "hash": "d96b4e0332e370342acfca66e8853fcf0e143e3b5570d4bac4b4364c0b41d3da",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化系统外观同步逻辑，确保在后台恢复时正确查询系统主题",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-12T11:26:02Z"
+  },
+  {
     "version": "20260611.6",
     "url": "bundle-20260611.6.zip",
     "hash": "4c9af35934df25cb02206b97290a0acae75ed25514dfd7490af607429edb6722",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加应用更新通知功能，支持检测新版本并推送更新提醒",
     "updateLevel": "silent",
     "publishedAt": "2026-06-11T10:51:03Z"
-  },
-  {
-    "version": "20260611.4",
-    "url": "bundle-20260611.4.zip",
-    "hash": "9eb0349594180276d2d1e55f4259c47b516132844578b4950e554048f6720828",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新二维码标题，简化描述为“QR 标签”",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-11T10:35:40Z"
   }
 ]
