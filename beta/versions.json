@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260612.2",
+    "url": "bundle-20260612.2.zip",
+    "hash": "9c79c87fd1c08996e3162cae356903d0685f49b0af7c033e3ab016b568aa9b05",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加主题切换的视图过渡效果，支持圆形揭示动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-12T12:19:19Z"
+  },
+  {
     "version": "20260612.1",
     "url": "bundle-20260612.1.zip",
     "hash": "d96b4e0332e370342acfca66e8853fcf0e143e3b5570d4bac4b4364c0b41d3da",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加日历事件管理功能，集成日历插件以支持销售提醒事件的创建和删除",
     "updateLevel": "silent",
     "publishedAt": "2026-06-11T13:22:52Z"
-  },
-  {
-    "version": "20260611.5",
-    "url": "bundle-20260611.5.zip",
-    "hash": "7a5841bed09d00da99d4d9649713fd6d0edeb9c1b4f46b7e752fec8dc6ce0ca9",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加应用更新通知功能，支持检测新版本并推送更新提醒",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-11T10:51:03Z"
   }
 ]

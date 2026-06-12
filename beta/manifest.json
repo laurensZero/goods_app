@@ -1,9 +1,9 @@
 {
-  "version": "20260612.1",
-  "url": "bundle-20260612.1.zip",
-  "hash": "d96b4e0332e370342acfca66e8853fcf0e143e3b5570d4bac4b4364c0b41d3da",
+  "version": "20260612.2",
+  "url": "bundle-20260612.2.zip",
+  "hash": "9c79c87fd1c08996e3162cae356903d0685f49b0af7c033e3ab016b568aa9b05",
   "minNativeVersion": null,
-  "notes": "- feat: 优化系统外观同步逻辑，确保在后台恢复时正确查询系统主题",
+  "notes": "- feat: 添加主题切换的视图过渡效果，支持圆形揭示动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-12T11:26:02Z"
+  "publishedAt": "2026-06-12T12:19:19Z"
 }
