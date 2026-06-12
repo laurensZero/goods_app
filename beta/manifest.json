@@ -1,9 +1,9 @@
 {
-  "version": "20260612.2",
-  "url": "bundle-20260612.2.zip",
-  "hash": "9c79c87fd1c08996e3162cae356903d0685f49b0af7c033e3ab016b568aa9b05",
+  "version": "20260612.3",
+  "url": "bundle-20260612.3.zip",
+  "hash": "7a57919ed09fb7985b942ca96d24b29d486fd7b122b442ab90e42c9d1ca289f7",
   "minNativeVersion": null,
-  "notes": "- feat: 添加主题切换的视图过渡效果，支持圆形揭示动画",
+  "notes": "- feat: 增加日历事件创建时的权限检查，优化错误处理和日志输出",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-12T12:19:19Z"
+  "publishedAt": "2026-06-12T14:37:28Z"
 }
