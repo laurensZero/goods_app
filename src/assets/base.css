@@ -719,3 +719,52 @@ html.theme-dark .batch-edit-popup.van-popup .batch-edit-sheet {
 html.theme-dark .van-popup {
   --van-popup-background: var(--app-surface);
 }
+
+/* ── View Transition: circular reveal for theme switching ────────── */
+
+/* The root transition name enables snapshotting the entire page */
+html {
+  view-transition-name: root;
+}
+
+/* Speed up the transition (default is too slow for a theme toggle) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.8s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Old snapshot: just hold in place, no fade or movement */
+::view-transition-old(root) {
+  animation: vt-old-hold 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* New snapshot: circular clip-path reveal from the click origin */
+::view-transition-new(root) {
+  animation: vt-circle-expand 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Hold the old frame steady */
+@keyframes vt-old-hold {
+  from { opacity: 1; }
+  to   { opacity: 1; }
+}
+
+/* Expand a circle from the click point to cover the viewport.
+   --vt-x / --vt-y are set dynamically by useThemeTransition.js */
+@keyframes vt-circle-expand {
+  from {
+    clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+}
+
+/* Respect reduced-motion: disable animation, instant swap */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0s;
+  }
+}

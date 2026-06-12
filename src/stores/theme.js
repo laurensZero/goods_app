@@ -312,6 +312,18 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
+  function applyThemeWithTransition() {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion || typeof document.startViewTransition !== 'function') {
+      applyTheme()
+      return
+    }
+    // Origin defaults to screen center for system-triggered changes
+    document.documentElement.style.setProperty('--vt-x', `${window.innerWidth / 2}px`)
+    document.documentElement.style.setProperty('--vt-y', `${window.innerHeight / 2}px`)
+    document.startViewTransition(() => applyTheme())
+  }
+
   function syncSystemAppearance({ forceApply = false } = {}) {
     if (!canUseDom()) return
 
@@ -323,11 +335,19 @@ export const useThemeStore = defineStore('theme', () => {
     const nextAppearance = mediaQueryList.matches ? 'dark' : 'light'
     const shouldApplyTheme = appearancePreference.value === APPEARANCE_PREFERENCES.system
       && (forceApply || systemAppearance.value !== nextAppearance)
+    // Only animate on genuine runtime system changes, not init or visibility re-sync
+    const shouldAnimate = !forceApply && initialized.value
+      && appearancePreference.value === APPEARANCE_PREFERENCES.system
+      && systemAppearance.value !== nextAppearance
 
     systemAppearance.value = nextAppearance
 
     if (shouldApplyTheme) {
-      applyTheme()
+      if (shouldAnimate) {
+        applyThemeWithTransition()
+      } else {
+        applyTheme()
+      }
     }
   }
 
