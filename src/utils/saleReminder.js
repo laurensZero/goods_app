@@ -345,10 +345,25 @@ export function getCalendarEventId(goodsId) {
 export async function createSaleCalendarEvent(item) {
   if (!item?.id || !shouldScheduleSaleReminder(item)) return ''
   const cal = await getCalendar()
-  if (!cal) return ''
+  if (!cal) { console.warn('[calendar] plugin not available'); return '' }
 
   const saleDate = parseSaleAt(item.saleAt)
   if (!saleDate) return ''
+
+  // 检查日历权限，未授权时才请求
+  try {
+    let permResult = await cal.checkPermission({ scope: 'readCalendar' }).then(r => r?.result).catch(() => '')
+    if (permResult !== 'granted') {
+      const req = await cal.requestFullCalendarAccess()
+      if (req?.result !== 'granted') {
+        console.warn('[calendar] permission denied:', req?.result)
+        return ''
+      }
+    }
+  } catch (e) {
+    console.warn('[calendar] permission check failed:', e)
+    return ''
+  }
 
   const saleTimeMs = saleDate.getTime()
   const offsets = normalizeSaleReminderOffsets(item.saleReminderOffsets)
@@ -373,9 +388,13 @@ export async function createSaleCalendarEvent(item) {
       alerts
     })
     const newId = result?.id || ''
-    if (newId) saveCalendarEventId(item.id, newId)
+    if (newId) {
+      saveCalendarEventId(item.id, newId)
+      console.log('[calendar] event created:', newId, titleName)
+    }
     return newId
-  } catch {
+  } catch (e) {
+    console.warn('[calendar] createEvent failed:', e)
     return ''
   }
 }
