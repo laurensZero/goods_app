@@ -209,7 +209,8 @@
             :key="option.value"
             type="button"
             :class="['mode-card', { 'mode-card--active': themeStore.appearancePreference === option.value }]"
-            @click="themeStore.setAppearancePreference(option.value)"
+            @pointerdown="captureTransitionOrigin"
+            @click="toggleAppearanceWithTransition(option.value)"
           >
             <div class="mode-copy">
               <p class="mode-name">{{ t(option.labelKey) }}</p>
@@ -328,6 +329,7 @@ import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/con
 import NavBar from '@/components/common/NavBar.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { captureTransitionOrigin, toggleAppearanceWithTransition } from '@/composables/useThemeTransition'
 import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
 
