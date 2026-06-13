@@ -1,9 +1,9 @@
 {
-  "version": "20260613.1",
-  "url": "bundle-20260613.1.zip",
-  "hash": "7d03cd7c8ea2801c82d0d3cfb89e810ae7f57060b947864aabea3b237cf158b3",
+  "version": "20260613.2",
+  "url": "bundle-20260613.2.zip",
+  "hash": "6dc9212fc30a126c2d01cc800c79bd7b713f2636a62ef4f45255c4e9a6311f3b",
   "minNativeVersion": null,
-  "notes": "- feat: 增强通知功能，添加查看详情按钮并优化日历事件管理逻辑",
+  "notes": "- feat: 添加拼音搜索功能，优化多个组件的搜索逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-13T03:11:51Z"
+  "publishedAt": "2026-06-13T08:07:16Z"
 }
