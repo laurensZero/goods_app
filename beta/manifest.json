@@ -1,9 +1,9 @@
 {
-  "version": "20260613.3",
-  "url": "bundle-20260613.3.zip",
-  "hash": "21821e087e3a06108861978adbd4d99549cff096fe26d753b8bd577885e1ace9",
+  "version": "20260613.4",
+  "url": "bundle-20260613.4.zip",
+  "hash": "9e857df598bc1ff87be9ddb4f9ce8a1bf61237bc48f7d99905680f3d69ebcdbc",
   "minNativeVersion": null,
-  "notes": "- feat: 更新查看详情按钮的路由，指向新的管理页面",
+  "notes": "- feat: 优化远程数据读取逻辑，简化充值和活动数据的预检流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-13T09:25:24Z"
+  "publishedAt": "2026-06-13T09:46:17Z"
 }
