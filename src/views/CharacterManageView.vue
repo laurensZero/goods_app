@@ -209,6 +209,7 @@ import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
+import { pinyinIncludes } from '@/utils/pinyin'
 import NavBar from '@/components/common/NavBar.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 
@@ -250,7 +251,7 @@ const filteredCharacters = computed(() => {
 
   if (searchKey.value.trim()) {
     const keyword = searchKey.value.trim().toLowerCase()
-    list = list.filter((character) => character.name.toLowerCase().includes(keyword))
+    list = list.filter((character) => pinyinIncludes(character.name, keyword))
   }
 
   if (selectedIp.value === EMPTY_IP_FILTER) {

@@ -138,6 +138,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
+import { pinyinIncludes } from '@/utils/pinyin'
 import NavBar from '@/components/common/NavBar.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 
@@ -168,7 +169,7 @@ const editSheetStyle = computed(() => ({
 const filteredIps = computed(() => {
   if (!searchKey.value.trim()) return presets.ips
   const keyword = searchKey.value.trim().toLowerCase()
-  return presets.ips.filter((ip) => ip.toLowerCase().includes(keyword))
+  return presets.ips.filter((ip) => pinyinIncludes(ip, keyword))
 })
 
 const goodsCountMap = computed(() => {

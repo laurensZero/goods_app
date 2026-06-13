@@ -48,6 +48,7 @@
     "markdown-it-task-lists": "^2.1.1",
     "pica": "^9.0.1",
     "pinia": "^2.1.0",
+    "pinyin-pro": "^3.28.1",
     "qrcode": "^1.5.4",
     "sql.js": "^1.11.0",
     "vant": "^4.9.22",
