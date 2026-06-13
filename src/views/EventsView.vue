@@ -276,6 +276,7 @@ import { useEventsStore } from '@/stores/events'
 import { formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { pinyinIncludes } from '@/utils/pinyin'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
@@ -365,7 +366,7 @@ const filteredEvents = computed(() => {
   if (!keyword) return eventsStore.list
 
   return eventsStore.list.filter((event) => {
-    const haystack = [
+    const parts = [
       event.name,
       event.location,
       event.description,
@@ -374,12 +375,13 @@ const filteredEvents = computed(() => {
       EVENT_TYPE_LABELS.value[event.type] || '',
       ...(Array.isArray(event.tags) ? event.tags : []),
       ...(Array.isArray(event.tracks) ? event.tracks.flatMap((track) => [track?.title, track?.artist, track?.album]) : [])
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
+    ].filter(Boolean)
 
-    return haystack.includes(keyword)
+    // 原文匹配
+    if (parts.join(' ').toLowerCase().includes(keyword)) return true
+
+    // 拼音匹配（仅对含中文的字段）
+    return parts.some((part) => pinyinIncludes(String(part), keyword))
   })
 })
 

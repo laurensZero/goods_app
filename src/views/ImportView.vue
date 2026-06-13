@@ -621,6 +621,7 @@ import {
 } from '@/utils/mihoyo/importResolver'
 import { useImportSearch, normalizeSearchHintText } from '@/composables/import/useImportSearch'
 import { useBatchImport } from '@/composables/import/useBatchImport'
+import { pinyinIncludes } from '@/utils/pinyin'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -901,7 +902,8 @@ function autoSelectVariantByHint() {
     const text = String(variant.text || '').trim().toLowerCase()
     const display = displayVariantText(variant.text).trim().toLowerCase()
     const normalizedChar = normalizeCharacterName(variant.text).trim().toLowerCase()
-    return text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)
+    if (text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)) return true
+    return pinyinIncludes(variant.text, hint) || pinyinIncludes(displayVariantText(variant.text), hint)
   })
 
   if (matched.length === 1) {

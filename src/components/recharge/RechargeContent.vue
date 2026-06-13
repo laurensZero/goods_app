@@ -197,6 +197,7 @@ import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { createLogger } from '@/utils/logger'
+import { pinyinIncludes } from '@/utils/pinyin'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
 const { t } = useI18n()
@@ -252,10 +253,9 @@ const filteredRecords = computed(() => {
   return activeRecords.value.filter((record) => {
     if (gameFilter.value && record.game !== gameFilter.value) return false
     if (!text) return true
-    return [record.game, record.itemName, record.note]
-      .join(' ')
-      .toLowerCase()
-      .includes(text)
+    const parts = [record.game, record.itemName, record.note].filter(Boolean)
+    if (parts.join(' ').toLowerCase().includes(text)) return true
+    return parts.some((part) => pinyinIncludes(String(part), text))
   })
 })
 

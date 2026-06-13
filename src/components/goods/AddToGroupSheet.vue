@@ -131,6 +131,7 @@ import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import CreateGroupSheet from './CreateGroupSheet.vue'
+import { pinyinIncludes } from '@/utils/pinyin'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -182,9 +183,9 @@ const filteredGoods = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(g =>
-      g.name.toLowerCase().includes(q) ||
-      (g.ip && g.ip.toLowerCase().includes(q)) ||
-      (g.characters && g.characters.some(c => c.toLowerCase().includes(q)))
+      pinyinIncludes(g.name, q) ||
+      (g.ip && pinyinIncludes(g.ip, q)) ||
+      (g.characters && g.characters.some(c => pinyinIncludes(c, q)))
     )
   }
   if (filterCategory.value) {

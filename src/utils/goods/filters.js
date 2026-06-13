@@ -1,4 +1,5 @@
 import { isStorageLocationUnderPrefix, normalizeStorageLocationValue } from '@/utils/storageLocations'
+import { toPinyinSearchText } from '@/utils/pinyin'
 import { validatePrice } from '@/utils/validate'
 import { getCollectStatusEntries, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 
@@ -128,10 +129,20 @@ function buildSearchText(item) {
     ...(Array.isArray(item.tags) ? item.tags : [])
   ]
 
-  return textParts
+  const plainText = textParts
     .map((part) => String(part || '').trim().toLowerCase())
     .filter(Boolean)
     .join('\n')
+
+  // 为包含中文的字段追加拼音（全拼 + 首字母）
+  const pinyinParts = textParts
+    .map((part) => String(part || '').trim())
+    .filter((part) => part && /[一-鿿]/.test(part))
+    .map((part) => toPinyinSearchText(part))
+
+  if (!pinyinParts.length) return plainText
+
+  return `${plainText}\n${pinyinParts.join('\n')}`
 }
 
 function includesAny(selected, actualList, emptyToken) {
