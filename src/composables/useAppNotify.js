@@ -215,6 +215,11 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             duration: 10000,
             actions: [
               {
+                key: 'detail',
+                label: '查看详情',
+                callback: () => router.push('/about')
+              },
+              {
                 key: 'apply',
                 label: '立即更新',
                 primary: true,
@@ -240,6 +245,11 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             subText: webUpdateStore.latestVersion ? `v${webUpdateStore.latestVersion} 可用` : '有新的资源更新',
             duration: 10000,
             actions: [
+              {
+                key: 'detail',
+                label: '查看详情',
+                callback: () => router.push('/about')
+              },
               {
                 key: 'download',
                 label: '下载更新',
@@ -274,6 +284,11 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             subText: appUpdateStore.latestVersion ? `v${appUpdateStore.latestVersion} 可用` : '有新的应用更新',
             duration: 10000,
             actions: [
+              {
+                key: 'detail',
+                label: '查看详情',
+                callback: () => router.push('/about')
+              },
               {
                 key: 'download',
                 label: '下载更新',

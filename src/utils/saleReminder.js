@@ -3,12 +3,21 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 import router from '@/router'
 
 let Calendar = null
+let calendarLoadFailed = false
 async function getCalendar() {
   if (Calendar) return Calendar
+  if (calendarLoadFailed) return null
   try {
     const mod = await import('@ebarooni/capacitor-calendar')
     Calendar = mod.CapacitorCalendar || mod.default
-  } catch {}
+    if (!Calendar) {
+      console.warn('[calendar] module loaded but CapacitorCalendar not found, keys:', Object.keys(mod))
+      calendarLoadFailed = true
+    }
+  } catch (e) {
+    console.warn('[calendar] dynamic import failed:', e)
+    calendarLoadFailed = true
+  }
   return Calendar
 }
 
@@ -181,6 +190,10 @@ async function ensureSaleReminderChannel() {
 }
 
 export async function cancelSaleReminderNotifications(goodsId, offsets = SALE_REMINDER_DEFAULT_OFFSETS) {
+  // Also delete calendar event
+  const calId = getCalendarEventId(goodsId)
+  if (calId) deleteSaleCalendarEvent(calId).catch(() => {})
+
   if (!isNativeNotificationAvailable() || !goodsId) return
   const ids = new Set(getSaleReminderNotificationIds(goodsId, offsets))
   try {
@@ -238,7 +251,12 @@ export function buildSaleReminderNotifications(item) {
 }
 
 export async function scheduleSaleReminderForItem(item) {
-  if (!isNativeNotificationAvailable() || !item?.id) return { scheduled: 0, permission: null }
+  if (!item?.id) return { scheduled: 0, permission: null }
+
+  // Calendar event (works even when app is killed)
+  void syncCalendarEventForItem(item)
+
+  if (!isNativeNotificationAvailable()) return { scheduled: 0, permission: null, native: false }
 
   await cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)
   if (!shouldScheduleSaleReminder(item)) return { scheduled: 0, permission: null }
@@ -253,6 +271,20 @@ export async function scheduleSaleReminderForItem(item) {
   await ensureSaleReminderChannel()
   await LocalNotifications.schedule({ notifications })
   return { scheduled: notifications.length, permission }
+}
+
+async function syncCalendarEventForItem(item) {
+  try {
+    if (shouldScheduleSaleReminder(item)) {
+      await createSaleCalendarEvent(item)
+    } else {
+      // 取消提醒时删除日历事件
+      const existingId = getCalendarEventId(item.id)
+      if (existingId) await deleteSaleCalendarEvent(existingId)
+    }
+  } catch (e) {
+    console.warn('[calendar] syncCalendarEventForItem failed:', e)
+  }
 }
 
 export async function syncSaleReminderNotifications(items = []) {
@@ -343,7 +375,8 @@ export function getCalendarEventId(goodsId) {
 }
 
 export async function createSaleCalendarEvent(item) {
-  if (!item?.id || !shouldScheduleSaleReminder(item)) return ''
+  console.log('[calendar] createSaleCalendarEvent called, id:', item?.id, 'wishlist:', item?.isWishlist, 'enabled:', item?.saleReminderEnabled, 'saleAt:', item?.saleAt)
+  if (!item?.id || !shouldScheduleSaleReminder(item)) { console.log('[calendar] skipped — not eligible'); return '' }
   const cal = await getCalendar()
   if (!cal) { console.warn('[calendar] plugin not available'); return '' }
 
