@@ -798,8 +798,15 @@ async function handleStartWebUpdate() {
 
   const succeeded = await webUpdateStore.downloadAndPrepareUpdate()
   if (succeeded) {
-    showWebUpdateRestartDialog.value = true
-    return
+    if (!IS_NATIVE) {
+      window.location.reload()
+      return
+    }
+    showToast(t('about.applyingUpdate'), 1800)
+    const activated = await webUpdateStore.applyPendingUpdateNow()
+    if (!activated) {
+      showToast(webUpdateStore.lastError || t('about.updateFailed'), 3200)
+    }
   }
 }
 
