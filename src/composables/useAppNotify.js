@@ -217,7 +217,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
               {
                 key: 'detail',
                 label: '查看详情',
-                callback: () => router.push('/about')
+                callback: () => router.push('/manage/about')
               },
               {
                 key: 'apply',
@@ -248,7 +248,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
               {
                 key: 'detail',
                 label: '查看详情',
-                callback: () => router.push('/about')
+                callback: () => router.push('/manage/about')
               },
               {
                 key: 'download',
@@ -287,7 +287,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
               {
                 key: 'detail',
                 label: '查看详情',
-                callback: () => router.push('/about')
+                callback: () => router.push('/manage/about')
               },
               {
                 key: 'download',
