@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260614.3",
+    "url": "bundle-20260614.3.zip",
+    "hash": "8cb55e05ca5b4749a9681553c9557ef275299f321e27ba665a42fcab8153465d",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加自动重试机制以处理图片加载错误",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-14T09:38:29Z"
+  },
+  {
     "version": "20260614.2",
     "url": "bundle-20260614.2.zip",
     "hash": "cfbd484e21fe371df1e368c32dc337ed9dc83cd97dedc09bab4d2682b835be28",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加谷子费用显示，优化费用部分的逻辑和展示",
     "updateLevel": "silent",
     "publishedAt": "2026-06-14T09:23:17Z"
-  },
-  {
-    "version": "20260613.4",
-    "url": "bundle-20260613.4.zip",
-    "hash": "9e857df598bc1ff87be9ddb4f9ce8a1bf61237bc48f7d99905680f3d69ebcdbc",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化远程数据读取逻辑，简化充值和活动数据的预检流程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-13T09:46:17Z"
   }
 ]

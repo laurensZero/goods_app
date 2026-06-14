@@ -1,9 +1,9 @@
 {
-  "version": "20260614.2",
-  "url": "bundle-20260614.2.zip",
-  "hash": "cfbd484e21fe371df1e368c32dc337ed9dc83cd97dedc09bab4d2682b835be28",
+  "version": "20260614.3",
+  "url": "bundle-20260614.3.zip",
+  "hash": "8cb55e05ca5b4749a9681553c9557ef275299f321e27ba665a42fcab8153465d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化计算逻辑，修复链接商品价格计算中的潜在错误",
+  "notes": "- feat: 添加自动重试机制以处理图片加载错误",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-14T09:28:26Z"
+  "publishedAt": "2026-06-14T09:38:29Z"
 }
