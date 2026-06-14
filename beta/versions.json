@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260614.1",
+    "url": "bundle-20260614.1.zip",
+    "hash": "181b8f485432ebcf2561ec0dbea44ae30e07d254b21f50930f6c6a20cefaa46c",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加谷子费用显示，优化费用部分的逻辑和展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-14T09:23:17Z"
+  },
+  {
     "version": "20260613.4",
     "url": "bundle-20260613.4.zip",
     "hash": "9e857df598bc1ff87be9ddb4f9ce8a1bf61237bc48f7d99905680f3d69ebcdbc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新查看详情按钮的路由，指向新的管理页面",
     "updateLevel": "silent",
     "publishedAt": "2026-06-13T09:25:24Z"
-  },
-  {
-    "version": "20260613.2",
-    "url": "bundle-20260613.2.zip",
-    "hash": "6dc9212fc30a126c2d01cc800c79bd7b713f2636a62ef4f45255c4e9a6311f3b",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加拼音搜索功能，优化多个组件的搜索逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-13T08:07:16Z"
   }
 ]

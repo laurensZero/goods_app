@@ -1,9 +1,9 @@
 {
-  "version": "20260613.4",
-  "url": "bundle-20260613.4.zip",
-  "hash": "9e857df598bc1ff87be9ddb4f9ce8a1bf61237bc48f7d99905680f3d69ebcdbc",
+  "version": "20260614.1",
+  "url": "bundle-20260614.1.zip",
+  "hash": "181b8f485432ebcf2561ec0dbea44ae30e07d254b21f50930f6c6a20cefaa46c",
   "minNativeVersion": null,
-  "notes": "- feat: 优化远程数据读取逻辑，简化充值和活动数据的预检流程",
+  "notes": "- feat: 添加谷子费用显示，优化费用部分的逻辑和展示",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-13T09:46:17Z"
+  "publishedAt": "2026-06-14T09:23:17Z"
 }
