@@ -101,7 +101,7 @@
             </article>
           </section>
 
-          <section v-if="otherExpenseItems.length > 0" class="expense-section">
+          <section v-if="showExpenseSection" class="expense-section">
             <div class="section-head">
               <p class="section-label">{{ t('events.detail.expenses') }}</p>
               <h2 class="section-title">{{ t('events.detail.otherExpenses') }}</h2>
@@ -110,10 +110,16 @@
             <article class="expense-card">
               <div class="expense-card__summary">
                 <span>{{ t('events.detail.total') }}</span>
-                <strong>¥{{ Math.round(otherExpenseTotalAmount * 100) / 100 }}</strong>
+                <strong>¥{{ Math.round(expenseSectionTotalAmount * 100) / 100 }}</strong>
               </div>
 
               <div class="expense-list">
+                <div v-if="linkedGoodsTotalPrice > 0" class="expense-row">
+                  <div class="expense-row__copy">
+                    <strong>{{ t('events.detail.goodsCost') }}</strong>
+                  </div>
+                  <span class="expense-row__amount">¥{{ Math.round(linkedGoodsTotalPrice * 100) / 100 }}</span>
+                </div>
                 <div v-for="expense in otherExpenseItems" :key="expense.id" class="expense-row">
                   <div class="expense-row__copy">
                     <strong>{{ expense.name }}</strong>
@@ -398,6 +404,11 @@ const otherExpenseItems = computed(() => (
 const otherExpenseTotalAmount = computed(() => (
   otherExpenseItems.value.reduce((sum, item) => sum + (Number.parseFloat(item.amount) || 0), 0)
 ))
+const linkedGoodsTotalPrice = computed(() =>
+  linkedGoodsList.value.reduce((sum, item) => sum + (Number.parseFloat(String(item?.actualPrice || '').trim()) || 0), 0)
+)
+const showExpenseSection = computed(() => otherExpenseItems.value.length > 0 || linkedGoodsTotalPrice.value > 0)
+const expenseSectionTotalAmount = computed(() => otherExpenseTotalAmount.value + linkedGoodsTotalPrice.value)
 
 function clearDetailEntryScrollLockTimer() {
   if (!detailEntryScrollLockTimer) return
@@ -510,8 +521,8 @@ const infoItems = computed(() => {
   if (hasTicketPrice.value) {
     items.push({ label: t('events.detail.ticketPrice'), value: `¥${ticketPriceAmount.value}` })
   }
-  if (otherExpenseItems.value.length > 0) {
-    items.push({ label: t('events.detail.otherExpensesLabel'), value: `¥${Math.round(otherExpenseTotalAmount.value * 100) / 100}` })
+  if (showExpenseSection.value) {
+    items.push({ label: t('events.detail.otherExpensesLabel'), value: `¥${Math.round(expenseSectionTotalAmount.value * 100) / 100}` })
   }
   if (event.value.type === 'exhibition' && String(event.value.ticketType || '').trim()) {
     items.push({ label: t('events.detail.ticketType'), value: String(event.value.ticketType || '').trim() })

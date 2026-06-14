@@ -121,6 +121,7 @@
   "events.detail.notes": "Notes",
   "events.detail.expenses": "Expenses",
   "events.detail.otherExpenses": "Other Expenses",
+  "events.detail.goodsCost": "Goods Cost",
   "events.detail.total": "Total",
   "events.detail.concertSetlist": "Concert Setlist",
   "events.detail.collapse": "Collapse",
