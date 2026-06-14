@@ -405,7 +405,7 @@ const otherExpenseTotalAmount = computed(() => (
   otherExpenseItems.value.reduce((sum, item) => sum + (Number.parseFloat(item.amount) || 0), 0)
 ))
 const linkedGoodsTotalPrice = computed(() =>
-  linkedGoodsList.value.reduce((sum, item) => sum + (Number.parseFloat(String(item?.actualPrice || '').trim()) || 0), 0)
+  linkedGoodsList.value.reduce((sum, item) => sum + (Number.parseFloat(String(item?.actualPrice || item?.price || '').trim()) || 0), 0)
 )
 const showExpenseSection = computed(() => otherExpenseItems.value.length > 0 || linkedGoodsTotalPrice.value > 0)
 const expenseSectionTotalAmount = computed(() => otherExpenseTotalAmount.value + linkedGoodsTotalPrice.value)
