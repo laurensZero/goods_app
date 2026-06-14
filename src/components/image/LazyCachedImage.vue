@@ -2,6 +2,7 @@
   <div ref="rootRef" v-bind="rootAttrs" class="lazy-image-root">
     <img
       v-if="resolvedSrc && !showFallback"
+      :key="retryKey"
       v-bind="imageAttrs"
       :class="['lazy-image-element', { 'lazy-image-element--hidden': showSkeleton }]"
       :src="resolvedSrc || undefined"
@@ -94,6 +95,8 @@ let loadRequestId = 0
 let imageCacheRefreshHandler = null
 let skeletonDelayTimer = null
 let forceDecodeValidationOnCacheHit = false
+const retryKey = ref(0)
+const MAX_AUTO_RETRY = 3
 
 function clearSkeletonDelayTimer() {
   if (skeletonDelayTimer != null) {
@@ -224,6 +227,7 @@ watch(
   () => props.src,
   () => {
     hasLoadError.value = false
+    retryKey.value = 0
   },
   { immediate: true }
 )
@@ -231,10 +235,16 @@ watch(
 function onImageLoad() {
   hasLoadError.value = false
   isImageLoading.value = false
+  retryKey.value = 0
   if (resolvedSrc.value) markImageDecoded(resolvedSrc.value)
 }
 
 function onImageError() {
+  if (retryKey.value < MAX_AUTO_RETRY) {
+    retryKey.value += 1
+    isImageLoading.value = true
+    return
+  }
   hasLoadError.value = true
   isImageLoading.value = false
   resolvedSrc.value = ''
