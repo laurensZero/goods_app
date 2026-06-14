@@ -194,6 +194,8 @@
   "storage.nfc.scanPrompt": "请将手机背面靠近 NFC 贴纸以写入\n{name}",
   "manage.language": "语言设置",
   "manage.languageDesc": "切换应用显示语言",
+  "manage.languageSwitch": "选择语言",
+  "manage.languageSwitchDesc": "选择应用界面显示的语言",
   "manage.category.delete": "删除分类",
   "manage.ip.delete": "删除 IP",
   "manage.character.delete": "删除角色",

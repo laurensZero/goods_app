@@ -48,6 +48,12 @@ export default [
     meta: { titleKey: 'nav.about' }
   },
   {
+    path: '/manage/language',
+    name: 'manage-language',
+    component: () => import('@/views/LanguageView.vue'),
+    meta: { titleKey: 'nav.language' }
+  },
+  {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),
