@@ -1,9 +1,9 @@
 {
-  "version": "20260614.3",
-  "url": "bundle-20260614.3.zip",
-  "hash": "8cb55e05ca5b4749a9681553c9557ef275299f321e27ba665a42fcab8153465d",
+  "version": "20260614.4",
+  "url": "bundle-20260614.4.zip",
+  "hash": "c65a2caa77a49cacb430ca04924eaa22082d959926180be7b96d2bb43b0360f0",
   "minNativeVersion": null,
-  "notes": "- feat: 添加自动重试机制以处理图片加载错误",
+  "notes": "- feat: 添加语言设置页面及相关功能，支持语言切换\n\n- feat: 优化同步数据提示文本，提升用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-14T09:38:29Z"
+  "publishedAt": "2026-06-14T14:06:11Z"
 }
