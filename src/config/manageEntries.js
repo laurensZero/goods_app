@@ -172,6 +172,18 @@ export function useManageEntries() {
       stats: [{ label: t('manage.statUsage'), value: t('manage.statShareManage') }, { label: t('manage.statDependency'), value: t('manage.statGithubToken') }]
     },
     {
+      key: 'language', group: 'app', title: t('manage.language'), kicker: 'Language',
+      meta: t('manage.languageDesc'),
+      detail: t('manage.languageDesc'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'lang-icon',
+      iconPaths: ['M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Z', 'M2 12h20', 'M12 2a15.3 15.3 0 0 1 4 10a15.3 15.3 0 0 1-4 10a15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2Z'],
+      path: '/manage/language',
+      stats: []
+    },
+    {
       key: 'about', group: 'app', title: t('manage.about'), kicker: t('manage.aboutKicker'),
       meta: t('manage.aboutMeta'),
       detail: t('manage.aboutDetail'),
@@ -182,19 +194,6 @@ export function useManageEntries() {
       iconPaths: ['M12 10v6', 'M12 7h.01', 'M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z'],
       path: '/manage/about',
       stats: [{ label: t('manage.statContentType'), value: t('manage.statInfoVersion') }, { label: t('manage.statTiming'), value: t('manage.statTroubleshootReview') }]
-    },
-    {
-      key: 'language', group: 'app', title: t('manage.language'), kicker: 'Language',
-      meta: t('manage.languageDesc'),
-      detail: t('manage.languageDesc'),
-      summary: '',
-      recommendation: '',
-      primaryLabel: '', secondaryLabel: '',
-      iconMode: 'svg', iconClass: 'lang-icon',
-      iconPaths: ['M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Z', 'M2 12h20', 'M12 2a15.3 15.3 0 0 1 4 10a15.3 15.3 0 0 1-4 10a15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2Z'],
-      path: null,
-      action: 'language',
-      stats: []
     }
   ])
 

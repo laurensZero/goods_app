@@ -194,6 +194,8 @@
   "storage.nfc.scanPrompt": "Place the back of your phone near the NFC sticker to write\n{name}",
   "manage.language": "Language",
   "manage.languageDesc": "Switch application display language",
+  "manage.languageSwitch": "Select Language",
+  "manage.languageSwitchDesc": "Choose the language for the application interface",
   "manage.category.delete": "Delete Category",
   "manage.ip.delete": "Delete IP",
   "manage.character.delete": "Delete Character",

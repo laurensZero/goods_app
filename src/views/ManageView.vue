@@ -84,21 +84,14 @@
             </div>
           </div>
 
-          <div v-else-if="activeManageEntry.key === 'language'" class="settings-action-panel">
-            <p class="settings-action-panel__text">{{ t('manage.languageDesc') }}</p>
-            <div style="margin-top: 20px;">
-              <LanguageSwitcher />
-            </div>
-          </div>
-
           <div
             v-else-if="activeManageComponent"
             :class="[
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares'].includes(activeManageEntry.key),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares'].includes(activeManageEntry.key),
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language'].includes(activeManageEntry.key),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language'].includes(activeManageEntry.key),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageEntry.key)
               }
             ]"
@@ -145,16 +138,6 @@
                 <path d="M9 6l6 6-6 6" />
               </svg>
             </button>
-          </div>
-        </div>
-
-        <div class="mobile-group">
-          <div class="mobile-group__head">
-            <p class="mobile-group__label">Language</p>
-            <h2 class="mobile-group__title">{{ t('manage.language') }}</h2>
-          </div>
-          <div class="language-switcher-wrap">
-            <LanguageSwitcher />
           </div>
         </div>
       </section>
@@ -228,7 +211,6 @@ import { useManageExport, exportSectionOptions } from '@/composables/manage/useM
 import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
-import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import AppToast from '@/components/common/AppToast.vue'
 
 // Lazy-loaded sub-pages
@@ -241,6 +223,7 @@ const TrashView = defineAsyncComponent(() => import('@/views/TrashView.vue'))
 const SyncView = defineAsyncComponent(() => import('@/views/SyncView.vue'))
 const AboutView = defineAsyncComponent(() => import('@/views/AboutView.vue'))
 const ShareManageView = defineAsyncComponent(() => import('@/views/ShareManageView.vue'))
+const LanguageView = defineAsyncComponent(() => import('@/views/LanguageView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
@@ -280,7 +263,7 @@ const activeManageEntry = computed(() =>
 const manageComponentMap = {
   categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
-  sync: SyncView, shares: ShareManageView, about: AboutView
+  sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView
 }
 
 const activeManageComponent = computed(() => manageComponentMap[activeManageEntry.value?.key] || null)
