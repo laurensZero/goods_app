@@ -529,7 +529,6 @@ onBeforeRouteLeave(() => {
 }
 
 .settings-nav__meta,
-.mobile-entry__desc,
 .settings-detail__desc,
 .detail-summary__text,
 .export-picker__option-desc {
@@ -537,6 +536,14 @@ onBeforeRouteLeave(() => {
   color: var(--app-text-secondary);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.mobile-entry__desc {
+  margin-top: 4px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+  min-height: 2.4em;
 }
 
 .settings-detail {
