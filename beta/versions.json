@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260614.2",
+    "url": "bundle-20260614.2.zip",
+    "hash": "cfbd484e21fe371df1e368c32dc337ed9dc83cd97dedc09bab4d2682b835be28",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化计算逻辑，修复链接商品价格计算中的潜在错误",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-14T09:28:26Z"
+  },
+  {
     "version": "20260614.1",
     "url": "bundle-20260614.1.zip",
     "hash": "181b8f485432ebcf2561ec0dbea44ae30e07d254b21f50930f6c6a20cefaa46c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化远程数据读取逻辑，简化充值和活动数据的预检流程",
     "updateLevel": "silent",
     "publishedAt": "2026-06-13T09:46:17Z"
-  },
-  {
-    "version": "20260613.3",
-    "url": "bundle-20260613.3.zip",
-    "hash": "21821e087e3a06108861978adbd4d99549cff096fe26d753b8bd577885e1ace9",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新查看详情按钮的路由，指向新的管理页面",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-13T09:25:24Z"
   }
 ]

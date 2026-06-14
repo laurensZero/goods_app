@@ -1,9 +1,9 @@
 {
-  "version": "20260614.1",
-  "url": "bundle-20260614.1.zip",
-  "hash": "181b8f485432ebcf2561ec0dbea44ae30e07d254b21f50930f6c6a20cefaa46c",
+  "version": "20260614.2",
+  "url": "bundle-20260614.2.zip",
+  "hash": "cfbd484e21fe371df1e368c32dc337ed9dc83cd97dedc09bab4d2682b835be28",
   "minNativeVersion": null,
-  "notes": "- feat: 添加谷子费用显示，优化费用部分的逻辑和展示",
+  "notes": "- feat: 优化计算逻辑，修复链接商品价格计算中的潜在错误",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-14T09:23:17Z"
+  "publishedAt": "2026-06-14T09:28:26Z"
 }
