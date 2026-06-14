@@ -121,6 +121,7 @@
   "events.detail.notes": "备注",
   "events.detail.expenses": "费用",
   "events.detail.otherExpenses": "其他费用",
+  "events.detail.goodsCost": "谷子费用",
   "events.detail.total": "总计",
   "events.detail.concertSetlist": "演唱会曲目",
   "events.detail.collapse": "收起",
