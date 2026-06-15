@@ -35,7 +35,8 @@ const chartOption = computed(() => {
         function fmtNumberByKey(k, v) {
           const n = Number(v || 0)
           if (!Number.isFinite(n)) return '0'
-          if (k === 'totalValue' || k === 'averageUnitPrice') {
+          if (k === 'officialTotalValue' || k === 'actualTotalValue'
+            || k === 'officialAvgPrice' || k === 'actualAvgPrice') {
             return `¥ ${n.toFixed(2)}`
           }
           const s = n.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')

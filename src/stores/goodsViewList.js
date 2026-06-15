@@ -22,6 +22,8 @@ function computePriceFields(item, exchangeRate) {
   const actualPriceNumber = parseNumericPrice(item.actualPrice)
   const effectivePriceNumber = parseNumericPrice(resolveEffectivePriceValue(item))
   const priceCNYNumber = exchangeRate.convertToCNY(effectivePriceNumber, item.currency)
+  const officialPriceCNYNumber = exchangeRate.convertToCNY(officialPriceNumber, item.currency)
+  const actualPriceCNYNumber = exchangeRate.convertToCNY(actualPriceNumber, item.currency)
   const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(item))
   const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, item.currency)
   return {
@@ -30,6 +32,8 @@ function computePriceFields(item, exchangeRate) {
     actualPriceNumber,
     effectivePriceNumber,
     priceCNYNumber,
+    officialPriceCNYNumber,
+    actualPriceCNYNumber,
     quantityNumber,
     totalValueNumber: collectionTotalCNYNumber
   }
