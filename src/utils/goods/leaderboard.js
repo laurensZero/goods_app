@@ -8,8 +8,10 @@ export const LEADERBOARD_DIMENSION_OPTIONS = [
 
 export const LEADERBOARD_METRIC_OPTIONS = [
   { label: '总件数', value: 'quantity' },
-  { label: '总花费', value: 'totalValue' },
-  { label: '均价', value: 'averageUnitPrice' }
+  { label: '原价总价', value: 'officialTotalValue' },
+  { label: '入手价总价', value: 'actualTotalValue' },
+  { label: '原价均价', value: 'officialAvgPrice' },
+  { label: '入手价均价', value: 'actualAvgPrice' }
 ]
 
 export function createLeaderboardDimensionOptions(t) {
@@ -25,8 +27,10 @@ export function createLeaderboardDimensionOptions(t) {
 export function createLeaderboardMetricOptions(t) {
   return [
     { label: t('leaderboard.metric.quantity'), value: 'quantity' },
-    { label: t('leaderboard.metric.totalValue'), value: 'totalValue' },
-    { label: t('leaderboard.metric.averageUnitPrice'), value: 'averageUnitPrice' }
+    { label: t('leaderboard.metric.officialTotalValue'), value: 'officialTotalValue' },
+    { label: t('leaderboard.metric.actualTotalValue'), value: 'actualTotalValue' },
+    { label: t('leaderboard.metric.officialAvgPrice'), value: 'officialAvgPrice' },
+    { label: t('leaderboard.metric.actualAvgPrice'), value: 'actualAvgPrice' }
   ]
 }
 
@@ -114,6 +118,10 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
 
     if (hasExactUnitCharacters) {
       const unitValueShare = quantityNumber > 0 ? totalValueNumber / quantityNumber : 0
+      const officialPrice = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
+      const actualPrice = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0) > 0
+        ? Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
+        : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
       const seenLabels = new Set()
 
       for (const label of unitCharacters) {
@@ -123,6 +131,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
           meta: '',
           quantity: 0,
           totalValue: 0,
+          officialTotalValue: 0,
+          actualTotalValue: 0,
           itemCount: 0,
           averageUnitPrice: 0,
           latestAcquiredTime: 0,
@@ -131,6 +141,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
 
         current.quantity += 1
         current.totalValue += unitValueShare
+        current.officialTotalValue += officialPrice
+        current.actualTotalValue += actualPrice
         if (!seenLabels.has(label)) {
           current.itemCount += 1
           seenLabels.add(label)
@@ -155,14 +167,24 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
         meta: '',
         quantity: 0,
         totalValue: 0,
+        officialTotalValue: 0,
+        actualTotalValue: 0,
         itemCount: 0,
         averageUnitPrice: 0,
         latestAcquiredTime: 0,
         isEmpty: true
       }
 
+      const itemOfficialTotal = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0) * Number(item.quantityNumber || 0)
+      const itemActualPrice = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0) > 0
+        ? Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
+        : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
+      const itemActualTotal = itemActualPrice * Number(item.quantityNumber || 0)
+
       emptyEntry.quantity += Number(item.quantityNumber || 0)
       emptyEntry.totalValue += Number(item.totalValueNumber || 0)
+      emptyEntry.officialTotalValue += itemOfficialTotal
+      emptyEntry.actualTotalValue += itemActualTotal
       emptyEntry.itemCount += 1
       emptyEntry.latestAcquiredTime = Math.max(emptyEntry.latestAcquiredTime, Number(item.acquiredTime || 0))
       map.set(emptyEntry.key, emptyEntry)
@@ -172,6 +194,12 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     const shareFactor = dimension === 'character' && values.length > 1 ? 1 / values.length : 1
     const quantityShare = quantityNumber * shareFactor
     const totalValueShare = totalValueNumber * shareFactor
+    const officialPrice = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
+    const actualPrice = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0) > 0
+      ? Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
+      : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
+    const officialTotalShare = officialPrice * quantityNumber * shareFactor
+    const actualTotalShare = actualPrice * quantityNumber * shareFactor
 
     for (const label of values) {
       const current = map.get(label) || {
@@ -180,6 +208,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
         meta: '',
         quantity: 0,
         totalValue: 0,
+        officialTotalValue: 0,
+        actualTotalValue: 0,
         itemCount: 0,
         averageUnitPrice: 0,
         latestAcquiredTime: 0,
@@ -188,6 +218,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
 
       current.quantity += quantityShare
       current.totalValue += totalValueShare
+      current.officialTotalValue += officialTotalShare
+      current.actualTotalValue += actualTotalShare
       current.itemCount += 1
       current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
 
@@ -203,7 +235,9 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     .filter((entry) => !entry.isEmpty)
     .map((entry) => ({
       ...entry,
-      averageUnitPrice: entry.quantity > 0 ? entry.totalValue / entry.quantity : 0
+      averageUnitPrice: entry.quantity > 0 ? entry.totalValue / entry.quantity : 0,
+      officialAvgPrice: entry.quantity > 0 ? entry.officialTotalValue / entry.quantity : 0,
+      actualAvgPrice: entry.quantity > 0 ? entry.actualTotalValue / entry.quantity : 0
     }))
 
   return {
@@ -229,7 +263,7 @@ export function sortLeaderboardEntries(entries, metric, dimension) {
     const diff = Number(b[metric] || 0) - Number(a[metric] || 0)
     if (diff !== 0) return diff
 
-    if (b.totalValue !== a.totalValue) return b.totalValue - a.totalValue
+    if (b.officialTotalValue !== a.officialTotalValue) return b.officialTotalValue - a.officialTotalValue
     if (b.quantity !== a.quantity) return b.quantity - a.quantity
     if (b.itemCount !== a.itemCount) return b.itemCount - a.itemCount
 
@@ -243,10 +277,14 @@ export function sortLeaderboardEntries(entries, metric, dimension) {
 
 export function formatLeaderboardMetricValue(entry, metric, t) {
   switch (metric) {
-    case 'totalValue':
-      return `¥ ${Number(entry.totalValue || 0).toFixed(2)}`
-    case 'averageUnitPrice':
-      return `¥ ${Number(entry.averageUnitPrice || 0).toFixed(2)}`
+    case 'officialTotalValue':
+      return `¥ ${Number(entry.officialTotalValue || 0).toFixed(2)}`
+    case 'actualTotalValue':
+      return `¥ ${Number(entry.actualTotalValue || 0).toFixed(2)}`
+    case 'officialAvgPrice':
+      return `¥ ${Number(entry.officialAvgPrice || 0).toFixed(2)}`
+    case 'actualAvgPrice':
+      return `¥ ${Number(entry.actualAvgPrice || 0).toFixed(2)}`
     case 'quantity':
     default:
       return t ? t('leaderboard.items', { count: formatQuantityValue(entry.quantity) }) : `${formatQuantityValue(entry.quantity)} 件`

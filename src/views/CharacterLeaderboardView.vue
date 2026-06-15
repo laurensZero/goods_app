@@ -119,8 +119,10 @@
               </div>
               <div class="ranking-meta">
                 <span class="ranking-chip">{{ t('leaderboard.items', { count: entry.quantity }) }}</span>
-                <span class="ranking-chip">{{ t('leaderboard.totalPrice', { price: entry.totalValue.toFixed(2) }) }}</span>
-                <span class="ranking-chip">{{ t('leaderboard.avgPrice', { price: entry.averageUnitPrice.toFixed(2) }) }}</span>
+                <span class="ranking-chip ranking-chip--official">{{ t('leaderboard.officialTotalPrice', { price: entry.officialTotalValue.toFixed(2) }) }}</span>
+                <span class="ranking-chip ranking-chip--actual">{{ t('leaderboard.actualTotalPrice', { price: entry.actualTotalValue.toFixed(2) }) }}</span>
+                <span class="ranking-chip ranking-chip--official">{{ t('leaderboard.officialAvgPrice', { price: entry.officialAvgPrice.toFixed(2) }) }}</span>
+                <span class="ranking-chip ranking-chip--actual">{{ t('leaderboard.actualAvgPrice', { price: entry.actualAvgPrice.toFixed(2) }) }}</span>
               </div>
             </div>
           </article>
@@ -626,6 +628,23 @@ const selectedDimensionLabel = computed(() =>
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   font-size: 12px;
+}
+
+.ranking-chip--official {
+  background: color-mix(in srgb, #6b7280 10%, transparent);
+  color: var(--app-text-secondary);
+}
+
+.ranking-chip--actual {
+  background: color-mix(in srgb, #10b981 10%, transparent);
+  color: #0d9668;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ranking-chip--actual {
+    background: color-mix(in srgb, #34d399 10%, transparent);
+    color: #6ee7b7;
+  }
 }
 
 @media (max-width: 640px) {
