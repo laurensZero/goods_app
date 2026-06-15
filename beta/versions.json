@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260615.1",
+    "url": "bundle-20260615.1.zip",
+    "hash": "92b930aa51169862f5f15ea54e26a221b207c3d38b8781312bd14869f88e642a",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新排行榜相关字段和显示逻辑，支持官方和实际价格的展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-15T10:08:45Z"
+  },
+  {
     "version": "20260614.4",
     "url": "bundle-20260614.4.zip",
     "hash": "c65a2caa77a49cacb430ca04924eaa22082d959926180be7b96d2bb43b0360f0",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加自动重试机制以处理图片加载错误",
     "updateLevel": "silent",
     "publishedAt": "2026-06-14T09:38:29Z"
-  },
-  {
-    "version": "20260614.2",
-    "url": "bundle-20260614.2.zip",
-    "hash": "cfbd484e21fe371df1e368c32dc337ed9dc83cd97dedc09bab4d2682b835be28",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化计算逻辑，修复链接商品价格计算中的潜在错误",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-14T09:28:26Z"
   }
 ]
