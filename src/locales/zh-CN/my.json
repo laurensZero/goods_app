@@ -68,7 +68,7 @@
   "my.sublineRecentSync": "最近同步 {time}",
   "my.sublineConfigSaved": "同步配置已保存，可继续前往云同步页检查远端数据。",
   "my.sublineNotConfigured": "当前尚未配置同步，建议先完成 GitHub 登录。",
-  "my.summaryLastSync": "上次同步 {time}，可继续查看远端 Gist 和差异。",
+  "my.summaryLastSync": "上次同步 {time}",
   "my.summaryConnected": "已连接 GitHub，建议完成一次同步以建立远端基线。",
   "my.summaryNotConnected": "还没有建立同步基线，登录 GitHub 后可在多设备之间同步收藏数据。",
   "my.rateNotFetched": "尚未获取",

@@ -68,7 +68,7 @@
   "my.sublineRecentSync": "Last synced {time}",
   "my.sublineConfigSaved": "Sync config saved. You can proceed to the sync page to check remote data.",
   "my.sublineNotConfigured": "Sync not configured yet. Please complete GitHub login first.",
-  "my.summaryLastSync": "Last synced {time}. Continue to view remote Gist and diffs.",
+  "my.summaryLastSync": "Last synced {time}",
   "my.summaryConnected": "GitHub connected. Recommended to sync once to establish remote baseline.",
   "my.summaryNotConnected": "No sync baseline yet. Login to GitHub to sync collection data across devices.",
   "my.rateNotFetched": "Not fetched yet",

@@ -208,63 +208,68 @@ export function createSyncOrchestrator({
       localEventLatestTs
     })
 
-    const remoteData = canUseCachedData
-      ? cachedRemoteData
-      : await readJson(be, {
-          title: '读取 Data',
-          gist,
-          fileName: DATA_FILENAME,
-          startDetail: useIncrementalGoodsPull ? '读取收藏、心愿单和回收站（增量）' : '读取收藏、心愿单和回收站',
-          category: 'pull',
-          required: true,
-          missingMessage: '远端数据为空',
-          incrementalSince: useIncrementalGoodsPull ? localSyncTime : 0,
-          successDetail: (parsed) => {
-            if (!parsed) return '未找到远端主数据'
-            const goods = Array.isArray(parsed.goods) ? parsed.goods : []
-            const trash = Array.isArray(parsed.trash) ? parsed.trash : []
-            const counts = countWishlistSplit(goods)
-            return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}${useIncrementalGoodsPull ? '（增量）' : ''}`
-          }
-        }) || { goods: [], trash: [], presets: {} }
-
     const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
     const localRechargeLatestTs = getLatestRechargeTimestamp(localRechargeSnapshot)
     const useIncrementalRechargePull = shouldPullRecharge && enableIncrementalRecharge && isSupabaseBackend && localRechargeLatestTs > 0
-    const rechargeData = shouldPullRecharge
-      ? await readJson(be, {
-          title: '正式拉取 RechargeData',
-          gist,
-          fileName: RECHARGE_DATA_FILENAME,
-          startDetail: useIncrementalRechargePull ? '读取充值记录（增量）' : '读取充值记录',
-          category: 'pull',
-          fallbackGist: rechargeGist,
-          fallbackFileName: RECHARGE_DATA_FILENAME,
-          incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
-          successDetail: (parsed, source) => {
-            if (!parsed) return '未找到充值数据'
-            const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-            const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-            return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条${useIncrementalRechargePull ? '（增量）' : ''}`
-          }
-        })
-      : { recharge: localRechargeSnapshot, rechargeTrash: [] }
 
-    const eventData = await readJson(be, {
-      title: '正式拉取 EventsData',
-      gist,
-      fileName: EVENT_DATA_FILENAME,
-      startDetail: useIncrementalEventPull ? '读取活动数据（增量）' : '读取活动数据',
-      category: 'pull',
-      fallbackGist: eventGist,
-      fallbackFileName: EVENT_DATA_FILENAME,
-      incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
-      successDetail: (parsed, source) => {
-        if (!parsed) return '未找到活动数据'
-        const events = Array.isArray(parsed.events) ? parsed.events : []
-        return `${source}，活动 ${events.length} 场${useIncrementalEventPull ? '（增量）' : ''}`
-      }
-    })
+    const [rawRemoteData, rawRechargeData, rawEventData] = await Promise.all([
+      canUseCachedData
+        ? Promise.resolve(cachedRemoteData)
+        : readJson(be, {
+            title: '读取 Data',
+            gist,
+            fileName: DATA_FILENAME,
+            startDetail: useIncrementalGoodsPull ? '读取收藏、心愿单和回收站（增量）' : '读取收藏、心愿单和回收站',
+            category: 'pull',
+            required: true,
+            missingMessage: '远端数据为空',
+            incrementalSince: useIncrementalGoodsPull ? localSyncTime : 0,
+            successDetail: (parsed) => {
+              if (!parsed) return '未找到远端主数据'
+              const goods = Array.isArray(parsed.goods) ? parsed.goods : []
+              const trash = Array.isArray(parsed.trash) ? parsed.trash : []
+              const counts = countWishlistSplit(goods)
+              return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}${useIncrementalGoodsPull ? '（增量）' : ''}`
+            }
+          }),
+      shouldPullRecharge
+        ? readJson(be, {
+            title: '正式拉取 RechargeData',
+            gist,
+            fileName: RECHARGE_DATA_FILENAME,
+            startDetail: useIncrementalRechargePull ? '读取充值记录（增量）' : '读取充值记录',
+            category: 'pull',
+            fallbackGist: rechargeGist,
+            fallbackFileName: RECHARGE_DATA_FILENAME,
+            incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
+            successDetail: (parsed, source) => {
+              if (!parsed) return '未找到充值数据'
+              const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+              const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+              return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条${useIncrementalRechargePull ? '（增量）' : ''}`
+            }
+          })
+        : Promise.resolve(null),
+      readJson(be, {
+        title: '正式拉取 EventsData',
+        gist,
+        fileName: EVENT_DATA_FILENAME,
+        startDetail: useIncrementalEventPull ? '读取活动数据（增量）' : '读取活动数据',
+        category: 'pull',
+        fallbackGist: eventGist,
+        fallbackFileName: EVENT_DATA_FILENAME,
+        incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
+        successDetail: (parsed, source) => {
+          if (!parsed) return '未找到活动数据'
+          const events = Array.isArray(parsed.events) ? parsed.events : []
+          return `${source}，活动 ${events.length} 场${useIncrementalEventPull ? '（增量）' : ''}`
+        }
+      })
+    ])
+
+    const remoteData = rawRemoteData || { goods: [], trash: [], presets: {} }
+    const rechargeData = rawRechargeData || (shouldPullRecharge ? { recharge: localRechargeSnapshot, rechargeTrash: [] } : { recharge: localRechargeSnapshot, rechargeTrash: [] })
+    const eventData = rawEventData
 
     await applyRemoteBudgetSettings({
       monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
@@ -347,26 +352,37 @@ export function createSyncOrchestrator({
     const imageStats = buildImageSyncStats()
     const imageGist = await image.resolveRemoteImageGist(remoteManifest)
 
+    // 图片水合：三个数据集互不依赖，并行执行
+    const hydrationPromises = []
     if (shouldHydrateGoodsImages) {
-      const before = imageStats.restoredImages
-      remoteData.goods = await trackSyncStep('恢复收藏图片', () =>
-        image.hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats, { targetItemIds: changedGoodsIds }),
-        { startDetail: '正在恢复收藏条目图片', category: 'image', successDetail: () => `恢复 ${imageStats.restoredImages - before} 张收藏图片` }
+      hydrationPromises.push(
+        trackSyncStep('恢复收藏图片', async () => {
+          const before = imageStats.restoredImages
+          remoteData.goods = await image.hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats, { targetItemIds: changedGoodsIds })
+          return imageStats.restoredImages - before
+        }, { startDetail: '正在恢复收藏条目图片', category: 'image', successDetail: (count) => `恢复 ${count} 张收藏图片` })
       )
     }
     if (shouldHydrateTrashImages) {
-      const before = imageStats.restoredImages
-      remoteData.trash = await trackSyncStep('恢复回收站图片', () =>
-        image.hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats, { targetItemIds: changedTrashIds }),
-        { startDetail: '正在恢复回收站条目图片', category: 'image', successDetail: () => `恢复 ${imageStats.restoredImages - before} 张回收站图片` }
+      hydrationPromises.push(
+        trackSyncStep('恢复回收站图片', async () => {
+          const before = imageStats.restoredImages
+          remoteData.trash = await image.hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats, { targetItemIds: changedTrashIds })
+          return imageStats.restoredImages - before
+        }, { startDetail: '正在恢复回收站条目图片', category: 'image', successDetail: (count) => `恢复 ${count} 张回收站图片` })
       )
     }
     if (shouldHydrateEventImages && eventData && Array.isArray(eventData.events)) {
-      const before = imageStats.restoredImages
-      eventData.events = await trackSyncStep('恢复活动封面与照片', () =>
-        image.hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, { targetEventIds: changedEventIds }),
-        { startDetail: '正在恢复活动封面与照片', category: 'image', successDetail: () => `恢复 ${imageStats.restoredImages - before} 张活动图片` }
+      hydrationPromises.push(
+        trackSyncStep('恢复活动封面与照片', async () => {
+          const before = imageStats.restoredImages
+          eventData.events = await image.hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, { targetEventIds: changedEventIds })
+          return imageStats.restoredImages - before
+        }, { startDetail: '正在恢复活动封面与照片', category: 'image', successDetail: (count) => `恢复 ${count} 张活动图片` })
       )
+    }
+    if (hydrationPromises.length > 0) {
+      await Promise.all(hydrationPromises)
     }
 
     if (remoteData.presets) await presets.replacePresetsSnapshot(remoteData.presets)
@@ -439,35 +455,30 @@ export function createSyncOrchestrator({
       if (localOnlyTrashIds.length > 0) { await Promise.all(localOnlyTrashIds.map((id) => goodsStore.deleteTrashItem(id))) }
     }
 
+    // 充值、活动、分组三个 store 互不依赖，并行写入
     const remoteRecharge = Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []
     const remoteRechargeLegacy = Array.isArray(remoteData.rechargeRecords) ? remoteData.rechargeRecords : []
-    const rechargeApplyResult = shouldPullRecharge
-      ? await rechargeStore.importBackup([...remoteRecharge, ...remoteRechargeLegacy], {
-          reconcileMissing: !useIncrementalRechargePull,
-          preserveLocalNewerThan: remoteWatermark
-        })
-      : { added: 0, updated: 0, removed: 0, skipped: 0, total: localRechargeSnapshot.length }
 
-    let eventApplyResult = { added: 0, updated: 0, removed: 0, total: 0 }
-    if (eventData && Array.isArray(eventData.events)) {
-      const eventsStore = useEventsStore()
-      eventApplyResult = {
-        ...(await eventsStore.importEventsBackup(eventData.events, {
-          reconcileMissing: !useIncrementalEventPull,
-          preserveLocalNewerThan: remoteWatermark
-        })),
-        total: eventData.events.length
-      }
+    const [rechargeApplyResult, eventApplyResult] = await Promise.all([
+      shouldPullRecharge
+        ? rechargeStore.importBackup([...remoteRecharge, ...remoteRechargeLegacy], {
+            reconcileMissing: !useIncrementalRechargePull,
+            preserveLocalNewerThan: remoteWatermark
+          })
+        : Promise.resolve({ added: 0, updated: 0, removed: 0, skipped: 0, total: localRechargeSnapshot.length }),
+      (eventData && Array.isArray(eventData.events))
+        ? eventsStore.importEventsBackup(eventData.events, {
+            reconcileMissing: !useIncrementalEventPull,
+            preserveLocalNewerThan: remoteWatermark
+          }).then((result) => ({ ...result, total: eventData.events.length }))
+        : Promise.resolve({ added: 0, updated: 0, removed: 0, total: 0 }),
+      (goodsGroupStore && Array.isArray(remoteData.goodsGroups) && (remoteData.goodsGroups.length > 0 || (Array.isArray(remoteData.goodsGroupItems) && remoteData.goodsGroupItems.length > 0)))
+        ? goodsGroupStore.updateGroupsBackup(remoteData.goodsGroups || [], remoteData.goodsGroupItems || [])
+        : Promise.resolve()
+    ])
+
+    if (eventApplyResult.total > 0) {
       await ctx.saveEventLastSyncedAt(eventData.updatedAt || remoteManifest?.lastSyncAt || new Date().toISOString())
-    }
-
-    // Handle goods groups
-    if (useGoodsGroupStore) {
-      const remoteGroups = Array.isArray(remoteData.goodsGroups) ? remoteData.goodsGroups : []
-      const remoteGroupItems = Array.isArray(remoteData.goodsGroupItems) ? remoteData.goodsGroupItems : []
-      if (remoteGroups.length > 0 || remoteGroupItems.length > 0) {
-        await goodsGroupStore.updateGroupsBackup(remoteGroups, remoteGroupItems)
-      }
     }
 
     log.debug('pull:done', {
@@ -892,27 +903,30 @@ export function createSyncOrchestrator({
 
     let remoteData, remoteRechargeData, remoteEventData
     try {
-      remoteData = await readJson(be, {
-        title: '读取 Data', gist, fileName: DATA_FILENAME,
-        startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
-        successDetail: (parsed) => {
-          if (!parsed) return '未找到远端主数据'
-          const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
-          return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${(parsed.trash || []).length}`
-        }
-      }) || { goods: [], trash: [], presets: {} }
-
-      remoteRechargeData = await readJson(be, {
-        title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
-        startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-        successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
-      }) || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
-
-      remoteEventData = await readJson(be, {
-        title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
-        startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-        successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
-      }) || { events: [] }
+      const [rawRemoteData, rawRechargeData, rawEventData] = await Promise.all([
+        readJson(be, {
+          title: '读取 Data', gist, fileName: DATA_FILENAME,
+          startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
+          successDetail: (parsed) => {
+            if (!parsed) return '未找到远端主数据'
+            const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
+            return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${(parsed.trash || []).length}`
+          }
+        }),
+        readJson(be, {
+          title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
+          startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+          successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+        }),
+        readJson(be, {
+          title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
+          startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
+          successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+        })
+      ])
+      remoteData = rawRemoteData || { goods: [], trash: [], presets: {} }
+      remoteRechargeData = rawRechargeData || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
+      remoteEventData = rawEventData || { events: [] }
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
 
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
