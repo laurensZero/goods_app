@@ -15,6 +15,7 @@
           <svg v-if="item.iconType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           <svg v-else-if="item.iconType === 'warn'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <svg v-else-if="item.iconType === 'update'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <svg v-else-if="item.iconType === 'syncing'" class="app-notify-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
           <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         </div>
         <div class="app-notify-body">
@@ -34,7 +35,7 @@
           </div>
         </div>
         <button class="app-notify-close" @click.stop="dismiss(item.id)">✕</button>
-        <div class="app-notify-countdown" :style="getCountdownStyle(item)" />
+        <div v-if="!item.persistent" class="app-notify-countdown" :style="getCountdownStyle(item)" />
       </div>
     </TransitionGroup>
   </div>
@@ -128,7 +129,7 @@ function onTouchMove(e, item) {
 function onTouchEnd(e, item) {
   const state = swipeState[item.id]
   if (!state) return
-  if (state.locked === 'h' && Math.abs(state.dx) > 80) {
+  if (state.locked === 'h' && Math.abs(state.dx) > 80 && !item.persistent) {
     dismiss(item.id)
   } else {
     state.dx = 0
@@ -149,8 +150,9 @@ function getSwipeStyle(item) {
 
 // ---- countdown ----
 function getCountdownStyle(item) {
+  const duration = item.duration || props.duration
   const elapsed = Date.now() - (item.createdAt || Date.now())
-  const remaining = Math.max(0, props.duration - elapsed)
+  const remaining = Math.max(0, duration - elapsed)
   return {
     animationDuration: `${remaining}ms`
   }
@@ -165,7 +167,9 @@ function handleClick(item) {
   if (item.goodsId && !item.actions?.length) {
     router.push(`/detail/${encodeURIComponent(item.goodsId)}`).catch(() => {})
   }
-  dismiss(item.id)
+  if (!item.persistent) {
+    dismiss(item.id)
+  }
 }
 
 function handleAction(item, action) {
@@ -226,6 +230,7 @@ function handleAction(item, action) {
 .app-notify-icon--success { color: #34c759; }
 .app-notify-icon--warn { color: #ff9500; }
 .app-notify-icon--update { color: var(--app-chip-accent-text); }
+.app-notify-icon--syncing { color: var(--app-chip-accent-text); }
 
 .app-notify-body {
   flex: 1;
@@ -324,6 +329,15 @@ function handleAction(item, action) {
 @keyframes app-notify-shrink {
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
+}
+
+.app-notify-spin {
+  animation: app-notify-rotate 1s linear infinite;
+}
+
+@keyframes app-notify-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ---- slide transition ---- */

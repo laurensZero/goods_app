@@ -26,24 +26,37 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
 
   // ---- generic push ----
 
-  function push({ text, subText, goodsId, iconType, duration, actions, saleAt } = {}) {
+  function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key } = {}) {
     if (!text) return
+    const effectiveDuration = duration || NOTIFY_DURATION
     const notification = {
       id: Date.now() + Math.random(),
+      key: key || '',
       goodsId: goodsId ? String(goodsId) : '',
       text,
       subText: subText || '',
       iconType: iconType || 'bell',
       saleAt: saleAt || '',
       createdAt: Date.now(),
-      actions: actions || []
+      duration: effectiveDuration,
+      actions: actions || [],
+      persistent: !!persistent
     }
 
     notifications.value = [...notifications.value, notification].slice(-3)
 
-    setTimeout(() => {
-      dismiss(notification.id)
-    }, duration || NOTIFY_DURATION)
+    if (!persistent) {
+      setTimeout(() => {
+        dismiss(notification.id)
+      }, effectiveDuration)
+    }
+
+    return notification.id
+  }
+
+  function dismissByKey(key) {
+    if (!key) return
+    notifications.value = notifications.value.filter((n) => n.key !== key)
   }
 
   function dismiss(id) {
@@ -153,7 +166,53 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
   let lastSyncNoticeId = ''
 
   function watchSync() {
-    if (!syncStore?.syncNotice) return
+    if (!syncStore) return
+
+    // 同步中 → 持久化通知；同步结束 → 自动关闭 + 成功/失败提示
+    watch(
+      () => syncStore.isSyncing,
+      (syncing) => {
+        if (syncing) {
+          dismissByKey('sync-error')
+          push({
+            iconType: 'syncing',
+            text: '正在同步中',
+            subText: '请稍候…',
+            persistent: true,
+            key: 'syncing'
+          })
+        } else {
+          dismissByKey('syncing')
+          if (syncStore.lastError) {
+            push({
+              iconType: 'warn',
+              text: '同步失败',
+              subText: syncStore.lastError,
+              persistent: true,
+              key: 'sync-error',
+              actions: [
+                {
+                  key: 'retry',
+                  label: '重试',
+                  primary: true,
+                  callback: () => syncStore.fullSync({ source: 'manual' }).catch(() => {})
+                }
+              ]
+            })
+          } else {
+            push({
+              iconType: 'success',
+              text: '同步成功',
+              subText: '数据已是最新',
+              duration: 3500
+            })
+          }
+        }
+      },
+      {}
+    )
+
+    if (!syncStore.syncNotice) return
 
     watch(
       () => syncStore.syncNotice,
@@ -161,30 +220,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
         if (!notice?.id || notice.id === lastSyncNoticeId) return
         lastSyncNoticeId = notice.id
 
-        // 只弹自动同步的通知，手动同步用户自己能看到
-        if (notice.source === 'manual') return
-
-        if (notice.level === 'error') {
-          push({
-            iconType: 'warn',
-            text: '同步失败',
-            subText: notice.message || '后台同步出错',
-            actions: [
-              {
-                key: 'retry',
-                label: '重试',
-                primary: true,
-                callback: () => syncStore.fullSync({ source: 'manual' }).catch(() => {})
-              }
-            ]
-          })
-        } else if (notice.level === 'success') {
-          push({
-            iconType: 'success',
-            text: '同步完成',
-            subText: notice.message || '数据已是最新'
-          })
-        }
+        // 同步结果通知已由 isSyncing watcher 统一处理，
+        // 此处仅保留给未来可能的其他 notice 类型扩展
       },
       { deep: true }
     )
@@ -337,6 +374,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     notifications,
     push,
     dismiss,
+    dismissByKey,
     clearAll,
     start,
     stop
