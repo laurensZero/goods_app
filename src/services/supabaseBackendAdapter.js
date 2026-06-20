@@ -127,6 +127,30 @@ export function createSupabaseBackendAdapter({
     return String(value ?? '')
   }
 
+  const PAGE_SIZE = 1000
+
+  /**
+   * Paginate through all matching rows for a Supabase query.
+   * Supabase defaults to returning at most 1000 rows per request;
+   * this helper fetches all pages by re-invoking the builder factory.
+   *
+   * @param {() => object} queryFactory - function that returns a fresh query builder each call
+   */
+  async function fetchAllRows(queryFactory) {
+    const allRows = []
+    let from = 0
+    while (true) {
+      const to = from + PAGE_SIZE - 1
+      const { data, error } = await withRetry(() => queryFactory().range(from, to))
+      if (error) throw error
+      if (!data || data.length === 0) break
+      allRows.push(...data)
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
+    }
+    return allRows
+  }
+
   const UPSERT_CHUNK_SIZE = 200
 
   async function batchUpsert(db, tableName, rows, options = {}) {
@@ -185,10 +209,7 @@ export function createSupabaseBackendAdapter({
       return
     }
 
-    const { data: existingRows, error: existingError } = await withRetry(() =>
-      db.from(tableName).select('id')
-    )
-    if (existingError) throw new Error(`读取 ${label} 现有记录失败: ${existingError.message}`)
+    const existingRows = await fetchAllRows(() => db.from(tableName).select('id'))
 
     const staleIds = (existingRows || [])
       .map((row) => row.id)
@@ -276,41 +297,36 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'data.json') {
         const incrementalSinceMs = Number(incrementalSince) || 0
-        const [goodsRes, trashRes, presetsRes, groupsRes, groupItemsRes] = await Promise.all([
-          withRetry(() => {
-            let query = db.from('goods').select(GOODS_SELECT_COLS).or('trashed.is.null,trashed.eq.0')
-            if (incrementalSinceMs > 0) {
-              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-            }
-            return query
-          }),
-          withRetry(() => {
-            let query = db.from('goods').select(GOODS_SELECT_COLS).eq('trashed', 1)
-            if (incrementalSinceMs > 0) {
-              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-            }
-            return query
-          }),
+        const buildGoodsQuery = (trashed) => () => {
+          let query = db.from('goods').select(GOODS_SELECT_COLS)
+          query = trashed ? query.eq('trashed', 1) : query.or('trashed.is.null,trashed.eq.0')
+          if (incrementalSinceMs > 0) {
+            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+          }
+          return query
+        }
+        const buildGroupsQuery = () => () => {
+          let query = db.from('goods_groups').select(GOODS_GROUP_SELECT_COLS)
+          if (incrementalSinceMs > 0) {
+            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+          }
+          return query
+        }
+        const buildGroupItemsQuery = () => () => {
+          let query = db.from('goods_group_items').select(GOODS_GROUP_ITEM_SELECT_COLS)
+          if (incrementalSinceMs > 0) {
+            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
+          }
+          return query
+        }
+
+        const [goodsData, trashData, presetsRes, groupsData, groupItemsData] = await Promise.all([
+          fetchAllRows(buildGoodsQuery(false)),
+          fetchAllRows(buildGoodsQuery(true)),
           withRetry(() => db.from('sync_presets').select('*').eq('id', 'default').limit(1)),
-          withRetry(() => {
-            let query = db.from('goods_groups').select(GOODS_GROUP_SELECT_COLS)
-            if (incrementalSinceMs > 0) {
-              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-            }
-            return query
-          }),
-          withRetry(() => {
-            let query = db.from('goods_group_items').select(GOODS_GROUP_ITEM_SELECT_COLS)
-            if (incrementalSinceMs > 0) {
-              query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-            }
-            return query
-          })
+          fetchAllRows(buildGroupsQuery()),
+          fetchAllRows(buildGroupItemsQuery())
         ])
-        if (goodsRes.error) throw new Error(`读取 goods 失败: ${goodsRes.error.message}`)
-        if (trashRes.error) throw new Error(`读取 trash 失败: ${trashRes.error.message}`)
-        if (groupsRes.error) console.warn('[supabase] 读取 goods_groups 警告:', groupsRes.error.message)
-        if (groupItemsRes.error) console.warn('[supabase] 读取 goods_group_items 警告:', groupItemsRes.error.message)
 
         const normalizeGoodsRows = (rows) => rows.map((row) => {
           const item = toCamelCase(row)
@@ -321,13 +337,13 @@ export function createSupabaseBackendAdapter({
 
         const presets = presetsRes.data && presetsRes.data.length > 0 ? toCamelCase(presetsRes.data[0]) : { categories: '[]', ips: '[]', characters: '[]', storageLocations: '[]' }
 
-        const goodsGroups = (groupsRes.data || []).map(row => {
+        const goodsGroups = (groupsData || []).map(row => {
           const item = toCamelCase(row)
           item.updatedAt = normalizeTimestamp(item.updatedAt)
           if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
           return item
         })
-        const goodsGroupItems = (groupItemsRes.data || []).map(row => {
+        const goodsGroupItems = (groupItemsData || []).map(row => {
           const item = toCamelCase(row)
           item.updatedAt = normalizeTimestamp(item.updatedAt)
           if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
@@ -336,8 +352,8 @@ export function createSupabaseBackendAdapter({
 
         return {
           parsed: {
-            goods: normalizeGoodsRows(goodsRes.data || []),
-            trash: normalizeGoodsRows(trashRes.data || []),
+            goods: normalizeGoodsRows(goodsData || []),
+            trash: normalizeGoodsRows(trashData || []),
             presets: {
               categories: safeParseJsonArray(presets.categories),
               ips: safeParseJsonArray(presets.ips),
@@ -353,14 +369,13 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'recharge-data.json') {
         const incrementalSinceMs = Number(incrementalSince) || 0
-        const { data, error } = await withRetry(() => {
+        const data = await fetchAllRows(() => {
           let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS)
           if (incrementalSinceMs > 0) {
             query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
           }
           return query
         })
-        if (error) throw new Error(`读取 recharge 失败: ${error.message}`)
         const recharge = []
         const rechargeTrash = []
         for (const row of data || []) {
@@ -378,14 +393,13 @@ export function createSupabaseBackendAdapter({
 
       if (fileName === 'events-data.json') {
         const incrementalSinceMs = Number(incrementalSince) || 0
-        const { data, error } = await withRetry(() => {
+        const data = await fetchAllRows(() => {
           let query = db.from('events').select(EVENT_SELECT_COLS)
           if (incrementalSinceMs > 0) {
             query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
           }
           return query
         })
-        if (error) throw new Error(`读取 events 失败: ${error.message}`)
         const events = (data || []).map((row) => {
           const item = toCamelCase(row)
           item.updatedAt = normalizeTimestamp(item.updatedAt)
