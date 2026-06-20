@@ -99,7 +99,7 @@ export function useRealtimeSync({ syncStore }) {
         if (!localChanges.hasChanges) return
 
         try {
-          await syncStore.fullSync()
+          await syncStore.fullSync({ source: 'visibility' })
         } catch {
           // silent fail on background sync
         }
@@ -111,7 +111,7 @@ export function useRealtimeSync({ syncStore }) {
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
       if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
-        try { await syncStore.pullOnly() } catch { /* ignore */ }
+        try { await syncStore.pullOnly({ source: 'visibility' }) } catch { /* ignore */ }
       }
     }, 5000)
   }

@@ -169,20 +169,28 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     if (!syncStore) return
 
     // 同步中 → 持久化通知；同步结束 → 自动关闭 + 成功/失败提示
+    // visibility 来源的同步不显示通知
     watch(
       () => syncStore.isSyncing,
       (syncing) => {
+        const source = syncStore.syncSource
+        const silentSource = source === 'visibility'
+
         if (syncing) {
           dismissByKey('sync-error')
-          push({
-            iconType: 'syncing',
-            text: '正在同步中',
-            subText: '请稍候…',
-            persistent: true,
-            key: 'syncing'
-          })
+          if (!silentSource) {
+            push({
+              iconType: 'syncing',
+              text: '正在同步中',
+              subText: '请稍候…',
+              persistent: true,
+              key: 'syncing'
+            })
+          }
         } else {
           dismissByKey('syncing')
+          if (silentSource) return
+
           if (syncStore.lastError) {
             push({
               iconType: 'warn',
