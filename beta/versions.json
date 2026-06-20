@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260620.3",
+    "url": "bundle-20260620.3.zip",
+    "hash": "0be5811212548d374a2f2377761790be1023ca5a49d00b3fbd6d4f799daef7bf",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加同步来源支持，优化通知显示逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-20T11:44:52Z"
+  },
+  {
     "version": "20260620.2",
     "url": "bundle-20260620.2.zip",
     "hash": "b2df57caefafa8c73b15bc6c2a0568bee0d3cf316d230355061f31d016c9a53f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加同步状态通知，支持持久化和自动关闭功能",
     "updateLevel": "silent",
     "publishedAt": "2026-06-20T11:16:36Z"
-  },
-  {
-    "version": "20260615.1",
-    "url": "bundle-20260615.1.zip",
-    "hash": "92b930aa51169862f5f15ea54e26a221b207c3d38b8781312bd14869f88e642a",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新排行榜相关字段和显示逻辑，支持官方和实际价格的展示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-15T10:08:45Z"
   }
 ]

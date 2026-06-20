@@ -1,9 +1,9 @@
 {
-  "version": "20260620.2",
-  "url": "bundle-20260620.2.zip",
-  "hash": "b2df57caefafa8c73b15bc6c2a0568bee0d3cf316d230355061f31d016c9a53f",
+  "version": "20260620.3",
+  "url": "bundle-20260620.3.zip",
+  "hash": "0be5811212548d374a2f2377761790be1023ca5a49d00b3fbd6d4f799daef7bf",
   "minNativeVersion": null,
-  "notes": "- feat: 增加并行处理能力，提升图片上传和同步性能",
+  "notes": "- feat: 添加同步来源支持，优化通知显示逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-20T11:34:33Z"
+  "publishedAt": "2026-06-20T11:44:52Z"
 }
