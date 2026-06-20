@@ -1,9 +1,9 @@
 {
-  "version": "20260620.4",
-  "url": "bundle-20260620.4.zip",
-  "hash": "985cd28ecf4d51d89078d33fe2374f7efdb209e722ceb681dea7d48a1f3ee177",
+  "version": "20260620.5",
+  "url": "bundle-20260620.5.zip",
+  "hash": "e20bf4f907620f6c9293fa96e45a4911ad0c02435bf75900158df412673f3089",
   "minNativeVersion": null,
-  "notes": "- feat: 添加分页功能以支持从 Supabase 查询中获取所有匹配行",
+  "notes": "- feat: 通知管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-20T13:13:42Z"
+  "publishedAt": "2026-06-20T14:16:35Z"
 }
