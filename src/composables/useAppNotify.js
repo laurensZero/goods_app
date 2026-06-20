@@ -7,6 +7,7 @@ import {
   SALE_REMINDER_DEFAULT_OFFSETS
 } from '@/utils/saleReminder'
 import { formatDate } from '@/utils/format'
+import { useNotifySettingsStore } from '@/stores/notifySettings'
 
 const NOTIFY_DURATION = 6000
 
@@ -24,11 +25,23 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
   let pollTimer = null
   const firedKeys = new Set()
 
+  // 获取通知设置 store
+  const notifySettingsStore = useNotifySettingsStore()
+
   // ---- generic push ----
 
-  function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key } = {}) {
+  function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key, forceAutoClose } = {}) {
     if (!text) return
-    const effectiveDuration = duration || NOTIFY_DURATION
+
+    // 检查通知是否启用
+    if (!notifySettingsStore.effectiveSettings.enabled) return null
+
+    // 检查该类型通知是否启用
+    if (!notifySettingsStore.isNotifyTypeEnabled(iconType)) return null
+
+    // 使用设置中的时长，如果没有指定的话
+    const effectiveDuration = duration || notifySettingsStore.effectiveSettings.duration || NOTIFY_DURATION
+
     const notification = {
       id: Date.now() + Math.random(),
       key: key || '',
@@ -43,9 +56,13 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       persistent: !!persistent
     }
 
-    notifications.value = [...notifications.value, notification].slice(-3)
+    // 使用设置中的最大显示数量
+    const maxVisible = notifySettingsStore.effectiveSettings.maxVisible
+    notifications.value = [...notifications.value, notification].slice(-maxVisible)
 
-    if (!persistent) {
+    // 自动关闭逻辑：如果设置了 forceAutoClose 或者启用了自动关闭且不是持久化通知
+    const shouldAutoClose = forceAutoClose || (!persistent && notifySettingsStore.effectiveSettings.autoClose)
+    if (shouldAutoClose) {
       setTimeout(() => {
         dismiss(notification.id)
       }, effectiveDuration)
@@ -243,7 +260,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
   function watchWebUpdate() {
     if (!webUpdateStore) return
 
-    // 下载完成 → 就绪通知
+    // 下载完成 → 自动重启更新
     watch(
       () => ({
         downloading: webUpdateStore.isDownloading,
@@ -253,25 +270,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       (curr) => {
         const isReady = !curr.downloading && !!curr.pendingId
         if (isReady && !lastWebUpdateReady) {
-          push({
-            iconType: 'update',
-            text: '新版本已就绪',
-            subText: curr.pendingVersion ? `版本 ${curr.pendingVersion} 可用` : '重启即可更新',
-            duration: 10000,
-            actions: [
-              {
-                key: 'detail',
-                label: '查看详情',
-                callback: () => router.push('/manage/about')
-              },
-              {
-                key: 'apply',
-                label: '立即更新',
-                primary: true,
-                callback: () => webUpdateStore.applyPendingUpdateNow()
-              }
-            ]
-          })
+          // 下载完成，自动应用更新
+          webUpdateStore.applyPendingUpdateNow()
         }
         lastWebUpdateReady = isReady
       },
@@ -299,7 +299,9 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
                 key: 'download',
                 label: '下载更新',
                 primary: true,
-                callback: () => webUpdateStore.downloadAndPrepareUpdate().catch(() => {})
+                callback: () => {
+                  webUpdateStore.downloadAndPrepareUpdate().catch(() => {})
+                }
               }
             ]
           })

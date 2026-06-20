@@ -1,0 +1,1053 @@
+<template>
+  <div class="page notify-settings-page">
+    <main ref="pageBodyRef" class="page-body">
+      <NavBar :title="t('notifySettings.title')" show-back />
+
+      <section class="notify-hero">
+        <div class="notify-hero__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+        </div>
+        <div class="notify-hero__copy">
+          <p class="notify-hero__label">NOTIFICATION</p>
+          <h1 class="notify-hero__title">{{ t('notifySettings.title') }}</h1>
+          <p class="notify-hero__desc">{{ t('notifySettings.description') }}</p>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-card">
+          <div class="settings-card__header">
+            <p class="settings-card__label">GLOBAL</p>
+            <h2 class="settings-card__title">{{ t('notifySettings.globalSettings') }}</h2>
+          </div>
+
+          <div class="settings-list">
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--main">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 01-3.46 0" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.enableNotifications') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.enableNotificationsDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.enableNotifications')">
+                <input
+                  :checked="settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('enabled', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section" :class="{ 'settings-section--disabled': !settings.enabled }">
+        <div class="settings-card">
+          <div class="settings-card__header">
+            <p class="settings-card__label">TYPES</p>
+            <h2 class="settings-card__title">{{ t('notifySettings.notificationTypes') }}</h2>
+          </div>
+
+          <div class="settings-list">
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--sale">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.saleReminder') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.saleReminderDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.saleReminder')">
+                <input
+                  :checked="settings.saleReminder"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('saleReminder', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--syncing">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 11-6.219-8.56" />
+                    <polyline points="21 3 21 9 15 9" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.syncing') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.syncingDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.syncing')">
+                <input
+                  :checked="settings.syncing"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('syncing', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--success">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.syncSuccess') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.syncSuccessDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.syncSuccess')">
+                <input
+                  :checked="settings.syncSuccess"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('syncSuccess', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.syncError') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.syncErrorDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.syncError')">
+                <input
+                  :checked="settings.syncError"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('syncError', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--update">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.updateAvailable') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.updateAvailableDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.updateAvailable')">
+                <input
+                  :checked="settings.updateAvailable"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('updateAvailable', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section" :class="{ 'settings-section--disabled': !settings.enabled }">
+        <div class="settings-card">
+          <div class="settings-card__header">
+            <p class="settings-card__label">DISPLAY</p>
+            <h2 class="settings-card__title">{{ t('notifySettings.displaySettings') }}</h2>
+          </div>
+
+          <div class="settings-list">
+            <div class="settings-item settings-item--column">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--display">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.position') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.positionDesc') }}</span>
+                </div>
+              </div>
+              <div class="position-picker">
+                <button
+                  v-for="pos in positionOptions"
+                  :key="pos.value"
+                  type="button"
+                  class="position-option"
+                  :class="{ 'position-option--active': currentPosition === pos.value }"
+                  :disabled="!settings.enabled"
+                  @click="updatePosition(pos.value)"
+                >
+                  {{ pos.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--display">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.maxVisible') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.maxVisibleDesc') }}</span>
+                </div>
+              </div>
+              <div class="number-picker">
+                <button
+                  type="button"
+                  class="number-picker__btn"
+                  :disabled="!settings.enabled || currentMaxVisible <= 1"
+                  @click="updateMaxVisible(currentMaxVisible - 1)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <span class="number-picker__value">{{ currentMaxVisible }}</span>
+                <button
+                  type="button"
+                  class="number-picker__btn"
+                  :disabled="!settings.enabled || currentMaxVisible >= 5"
+                  @click="updateMaxVisible(currentMaxVisible + 1)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--display">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.autoClose') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.autoCloseDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.autoClose')">
+                <input
+                  :checked="settings.autoClose"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('autoClose', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div v-if="settings.autoClose" class="settings-item settings-item--slider">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--display">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.duration') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.durationDesc') }}</span>
+                </div>
+                <div class="duration-display">
+                  <span class="duration-value">{{ durationSliderValue }}</span>
+                  <span class="duration-unit">{{ t('notifySettings.seconds') }}</span>
+                </div>
+              </div>
+              <div class="slider-wrapper">
+                <input
+                  v-model="durationSliderValue"
+                  class="notify-slider"
+                  type="range"
+                  min="2"
+                  max="15"
+                  step="1"
+                  :disabled="!settings.enabled"
+                  @change="updateDuration"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="isMobileDevice" class="settings-section" :class="{ 'settings-section--disabled': !settings.enabled }">
+        <div class="settings-card">
+          <div class="settings-card__header">
+            <p class="settings-card__label">FEEDBACK</p>
+            <h2 class="settings-card__title">{{ t('notifySettings.feedbackSettings') }}</h2>
+          </div>
+
+          <div class="settings-list">
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--feedback">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.sound') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.soundDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.sound')">
+                <input
+                  :checked="settings.sound"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('sound', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--feedback">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 8l2 2-2 2 2 2-2 2" />
+                    <path d="M22 8l-2 2 2 2-2 2 2 2" />
+                    <rect x="8" y="2" width="8" height="20" rx="2" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.vibration') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.vibrationDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.vibration')">
+                <input
+                  :checked="settings.vibration"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('vibration', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-card">
+          <div class="settings-card__header">
+            <p class="settings-card__label">ACTIONS</p>
+            <h2 class="settings-card__title">{{ t('notifySettings.actions') }}</h2>
+          </div>
+
+          <div class="settings-list">
+            <button type="button" class="settings-action-btn" @click="testNotification">
+              <span class="settings-action-btn__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </span>
+              <span class="settings-action-btn__text">{{ t('notifySettings.testNotification') }}</span>
+            </button>
+
+            <button type="button" class="settings-action-btn settings-action-btn--danger" @click="resetSettings">
+              <span class="settings-action-btn__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+              </span>
+              <span class="settings-action-btn__text">{{ t('notifySettings.resetDefaults') }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <AppToast :message="toastMsg" />
+    </main>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import NavBar from '@/components/common/NavBar.vue'
+import AppToast from '@/components/common/AppToast.vue'
+import { useToast } from '@/composables/useToast'
+import { useNotifySettingsStore } from '@/stores/notifySettings'
+
+defineOptions({ name: 'NotifySettingsView' })
+
+const { t } = useI18n()
+const { toastMsg, showToast } = useToast()
+
+const notifySettingsStore = useNotifySettingsStore()
+
+// 检测是否是移动端
+const isMobileDevice = ref(false)
+onMounted(() => {
+  isMobileDevice.value = typeof navigator !== 'undefined'
+    ? (navigator.userAgentData?.mobile ?? /Mobile|iPhone|iPod|Windows Phone/i.test(navigator.userAgent || ''))
+    : false
+})
+
+// 设置引用
+const settings = computed(() => notifySettingsStore.settings)
+
+// 当前设备对应的位置设置
+const currentPosition = computed(() => {
+  if (notifySettingsStore.isTabletViewport) {
+    return settings.value.padPosition
+  }
+  return settings.value.position
+})
+
+// 当前设备对应的最大显示数量
+const currentMaxVisible = ref(3)
+onMounted(() => {
+  currentMaxVisible.value = notifySettingsStore.isTabletViewport
+    ? settings.value.padMaxVisible
+    : settings.value.maxVisible
+})
+
+// 当前设备对应的自动关闭时长
+const durationSliderValue = ref(6)
+onMounted(() => {
+  const duration = notifySettingsStore.isTabletViewport
+    ? settings.value.padDuration
+    : settings.value.duration
+  durationSliderValue.value = duration / 1000
+})
+
+// 位置选项
+const positionOptions = computed(() => [
+  { value: 'top-left', label: t('notifySettings.topLeft') },
+  { value: 'top-center', label: t('notifySettings.topCenter') },
+  { value: 'top-right', label: t('notifySettings.topRight') }
+])
+
+// 保存单个设置
+function saveSetting(key, value) {
+  notifySettingsStore.updateSetting(key, value)
+}
+
+// 更新位置
+function updatePosition(value) {
+  if (notifySettingsStore.isTabletViewport) {
+    notifySettingsStore.updateSetting('padPosition', value)
+  } else {
+    notifySettingsStore.updateSetting('position', value)
+  }
+}
+
+// 更新最大显示数量
+function updateMaxVisible(value) {
+  currentMaxVisible.value = value
+  if (notifySettingsStore.isTabletViewport) {
+    notifySettingsStore.updateSetting('padMaxVisible', value)
+  } else {
+    notifySettingsStore.updateSetting('maxVisible', value)
+  }
+}
+
+// 更新自动关闭时长
+function updateDuration() {
+  const durationMs = durationSliderValue.value * 1000
+  if (notifySettingsStore.isTabletViewport) {
+    notifySettingsStore.updateSetting('padDuration', durationMs)
+  } else {
+    notifySettingsStore.updateSetting('duration', durationMs)
+  }
+}
+
+// 测试通知
+function testNotification() {
+  window.dispatchEvent(new CustomEvent('app-notify-test', {
+    detail: {
+      iconType: 'bell',
+      text: t('notifySettings.testTitle'),
+      subText: t('notifySettings.testMessage'),
+      duration: durationSliderValue.value * 1000,
+      forceAutoClose: true
+    }
+  }))
+}
+
+// 重置设置
+function resetSettings() {
+  notifySettingsStore.resetToDefaults()
+  currentMaxVisible.value = notifySettingsStore.isTabletViewport ? 5 : 3
+  const duration = notifySettingsStore.isTabletViewport ? 8000 : 6000
+  durationSliderValue.value = duration / 1000
+}
+</script>
+
+<style scoped>
+.notify-settings-page {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top right, rgba(255, 149, 0, 0.12), transparent 28%),
+    radial-gradient(circle at left 30%, rgba(255, 59, 48, 0.08), transparent 30%),
+    var(--app-bg-gradient);
+}
+
+.page-body {
+  min-height: 100dvh;
+  padding: 0 var(--page-padding) 120px;
+}
+
+/* Hero Section */
+.notify-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.notify-hero__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+  flex-shrink: 0;
+}
+
+.notify-hero__icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.notify-hero__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.notify-hero__label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.notify-hero__title {
+  margin: 4px 0 0;
+  color: var(--app-text);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.notify-hero__desc {
+  margin: 8px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Settings Sections */
+.settings-section {
+  margin-top: 16px;
+}
+
+.settings-section--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.settings-card {
+  padding: 20px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  box-shadow: var(--app-shadow);
+}
+
+.settings-card__header {
+  margin-bottom: 16px;
+}
+
+.settings-card__label {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-card__title {
+  margin: 4px 0 0;
+  color: var(--app-text);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Settings List */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+}
+
+.settings-item--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.settings-item--slider {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px;
+}
+
+.settings-item__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-item--slider .settings-item__info {
+  flex-wrap: wrap;
+}
+
+.settings-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.settings-item__icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings-item__icon--main {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
+.settings-item__icon--sale {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
+.settings-item__icon--syncing {
+  background: rgba(88, 86, 214, 0.12);
+  color: #5856d6;
+}
+
+.settings-item__icon--success {
+  background: rgba(52, 199, 89, 0.12);
+  color: #34c759;
+}
+
+.settings-item__icon--error {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
+.settings-item__icon--update {
+  background: rgba(0, 122, 255, 0.12);
+  color: #007aff;
+}
+
+.settings-item__icon--display {
+  background: rgba(52, 199, 89, 0.12);
+  color: #34c759;
+}
+
+.settings-item__icon--feedback {
+  background: rgba(175, 82, 222, 0.12);
+  color: #af52de;
+}
+
+.settings-item__title {
+  display: block;
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.settings-item__desc {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--app-surface-muted, #e5e5ea);
+  transition: background-color 0.25s ease;
+  border-radius: 31px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--app-chip-accent-text);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+:global(html.theme-dark) .toggle-slider {
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+:global(html.theme-dark) .toggle-slider::before {
+  background-color: #f5f5f7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Position Picker */
+.position-picker {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.position-option {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.position-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.position-option--active {
+  background: var(--app-text);
+  color: var(--app-surface);
+  border-color: var(--app-text);
+}
+
+/* Number Picker */
+.number-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.number-picker__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.number-picker__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.number-picker__btn:not(:disabled):active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.number-picker__btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.number-picker__value {
+  min-width: 32px;
+  text-align: center;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Duration Display */
+.duration-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.duration-value {
+  color: var(--app-text);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.duration-unit {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+/* Slider */
+.slider-wrapper {
+  width: 100%;
+  padding: 0 4px;
+}
+
+.notify-slider {
+  width: 100%;
+  height: 8px;
+  appearance: none;
+  background: color-mix(in srgb, var(--app-text) 12%, transparent);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.notify-slider::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  appearance: none;
+  background: var(--app-surface);
+  border: 3px solid var(--app-text);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.notify-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--app-surface);
+  border: 3px solid var(--app-text);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.notify-slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.notify-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+.notify-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+}
+
+/* Action Buttons */
+.settings-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-action-btn:active {
+  transform: scale(0.98);
+}
+
+.settings-action-btn--danger {
+  color: #ff3b30;
+}
+
+.settings-action-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(0, 122, 255, 0.12);
+  color: #007aff;
+  flex-shrink: 0;
+}
+
+.settings-action-btn--danger .settings-action-btn__icon {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
+.settings-action-btn__icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings-action-btn__text {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (min-width: 768px) {
+  .settings-card {
+    padding: 24px;
+  }
+
+  .settings-item {
+    padding: 16px;
+  }
+
+  .position-picker {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .page-body {
+    padding-bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
+  .notify-hero__title {
+    font-size: 24px;
+  }
+
+  .settings-card {
+    padding: 16px;
+  }
+
+  .settings-item {
+    padding: 12px;
+  }
+}
+</style>

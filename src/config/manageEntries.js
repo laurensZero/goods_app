@@ -184,6 +184,18 @@ export function useManageEntries() {
       stats: []
     },
     {
+      key: 'notifications', group: 'app', title: t('manage.notifications'), kicker: 'Notification',
+      meta: t('manage.notificationsDesc'),
+      detail: t('manage.notificationsDesc'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'notify-icon',
+      iconPaths: ['M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9', 'M13.73 21a2 2 0 01-3.46 0'],
+      path: '/manage/notifications',
+      stats: []
+    },
+    {
       key: 'about', group: 'app', title: t('manage.about'), kicker: t('manage.aboutKicker'),
       meta: t('manage.aboutMeta'),
       detail: t('manage.aboutDetail'),

@@ -54,6 +54,12 @@ export default [
     meta: { titleKey: 'nav.language' }
   },
   {
+    path: '/manage/notifications',
+    name: 'manage-notifications',
+    component: () => import('@/views/NotifySettingsView.vue'),
+    meta: { titleKey: 'nav.notificationSettings' }
+  },
+  {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),
