@@ -90,9 +90,9 @@
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language'].includes(activeManageEntry.key),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language'].includes(activeManageEntry.key),
-                'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageEntry.key)
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications'].includes(activeManageEntry.key),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications'].includes(activeManageEntry.key),
+                'settings-embedded--hero-textless': ['theme', 'trash', 'storage', 'notifications'].includes(activeManageEntry.key)
               }
             ]"
           >
@@ -224,6 +224,7 @@ const SyncView = defineAsyncComponent(() => import('@/views/SyncView.vue'))
 const AboutView = defineAsyncComponent(() => import('@/views/AboutView.vue'))
 const ShareManageView = defineAsyncComponent(() => import('@/views/ShareManageView.vue'))
 const LanguageView = defineAsyncComponent(() => import('@/views/LanguageView.vue'))
+const NotifySettingsView = defineAsyncComponent(() => import('@/views/NotifySettingsView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
@@ -263,7 +264,8 @@ const activeManageEntry = computed(() =>
 const manageComponentMap = {
   categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
-  sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView
+  sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
+  notifications: NotifySettingsView
 }
 
 const activeManageComponent = computed(() => manageComponentMap[activeManageEntry.value?.key] || null)
@@ -505,6 +507,7 @@ onBeforeRouteLeave(() => {
 .sync-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
 .share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
+.notify-icon { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
 
 .settings-nav__copy,
 .mobile-entry__copy {

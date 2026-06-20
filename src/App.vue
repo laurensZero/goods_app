@@ -50,6 +50,13 @@ const appUpdateStore = useAppUpdateStore()
 const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore)
 startAppNotify()
 
+// 监听测试通知事件
+window.addEventListener('app-notify-test', (e) => {
+  if (e.detail) {
+    pushNotify(e.detail)
+  }
+})
+
 const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView']
 const showTabBar = computed(() => route.meta.showTabBar === true)
 

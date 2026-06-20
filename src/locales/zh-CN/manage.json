@@ -196,6 +196,8 @@
   "manage.languageDesc": "切换应用显示语言",
   "manage.languageSwitch": "选择语言",
   "manage.languageSwitchDesc": "选择应用界面显示的语言",
+  "manage.notifications": "通知设置",
+  "manage.notificationsDesc": "自定义应用内通知的显示方式和内容",
   "manage.category.delete": "删除分类",
   "manage.ip.delete": "删除 IP",
   "manage.character.delete": "删除角色",

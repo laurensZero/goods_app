@@ -196,6 +196,8 @@
   "manage.languageDesc": "Switch application display language",
   "manage.languageSwitch": "Select Language",
   "manage.languageSwitchDesc": "Choose the language for the application interface",
+  "manage.notifications": "Notification Settings",
+  "manage.notificationsDesc": "Customize how and what notifications appear in the app",
   "manage.category.delete": "Delete Category",
   "manage.ip.delete": "Delete IP",
   "manage.character.delete": "Delete Character",

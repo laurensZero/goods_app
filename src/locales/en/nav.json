@@ -37,5 +37,6 @@
   "nav.tabStats": "Stats",
   "nav.tabEvents": "Events",
   "nav.tabRecharge": "Recharge",
-  "nav.tabMy": "My"
+  "nav.tabMy": "My",
+  "nav.notificationSettings": "Notification Settings"
 }

@@ -1,5 +1,5 @@
 <template>
-  <div class="app-notify-container">
+  <div class="app-notify-container" :style="containerStyle">
     <TransitionGroup name="app-notify-slide">
       <div
         v-for="item in notifications"
@@ -35,16 +35,17 @@
           </div>
         </div>
         <button class="app-notify-close" @click.stop="dismiss(item.id)">✕</button>
-        <div v-if="!item.persistent" class="app-notify-countdown" :style="getCountdownStyle(item)" />
+        <div v-if="!item.persistent" class="app-notify-countdown" :style="{ width: countdownProgress[item.id] ?? '100%' }" />
       </div>
     </TransitionGroup>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, watch, onUnmounted } from 'vue'
+import { reactive, ref, watch, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { parseSaleAt } from '@/utils/saleReminder'
+import { useNotifySettingsStore } from '@/stores/notifySettings'
 
 const props = defineProps({
   notifications: { type: Array, default: () => [] },
@@ -53,6 +54,38 @@ const props = defineProps({
 
 const emit = defineEmits(['dismiss'])
 const router = useRouter()
+const notifySettingsStore = useNotifySettingsStore()
+
+// 计算容器样式
+const containerStyle = computed(() => {
+  const position = notifySettingsStore.effectiveSettings.position || 'top-right'
+  const style = {
+    position: 'fixed',
+    top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+    zIndex: 9998,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    pointerEvents: 'none',
+    width: 'min(calc(100vw - 24px), 320px)'
+  }
+
+  switch (position) {
+    case 'top-left':
+      style.left = '12px'
+      break
+    case 'top-center':
+      style.left = '50%'
+      style.transform = 'translateX(-50%)'
+      break
+    case 'top-right':
+    default:
+      style.right = '12px'
+      break
+  }
+
+  return style
+})
 
 // ---- sale countdown ----
 const countdowns = reactive({})
@@ -148,15 +181,73 @@ function getSwipeStyle(item) {
   }
 }
 
-// ---- countdown ----
-function getCountdownStyle(item) {
+// ---- countdown progress (requestAnimationFrame) ----
+const countdownProgress = reactive({})
+const countdownTimers = new Map()
+
+function startCountdown(item) {
+  if (countdownTimers.has(item.id)) return
+
   const duration = item.duration || props.duration
-  const elapsed = Date.now() - (item.createdAt || Date.now())
-  const remaining = Math.max(0, duration - elapsed)
-  return {
-    animationDuration: `${remaining}ms`
+  const createdAt = item.createdAt || Date.now()
+  let rafId = null
+
+  // 立即设置初始值
+  countdownProgress[item.id] = '100%'
+
+  function tick() {
+    const elapsed = Date.now() - createdAt
+    const progress = Math.max(0, 1 - elapsed / duration)
+    countdownProgress[item.id] = `${progress * 100}%`
+
+    if (progress > 0) {
+      rafId = requestAnimationFrame(tick)
+      countdownTimers.set(item.id, rafId)
+    } else {
+      countdownTimers.delete(item.id)
+      // 保持 0% 而不是删除，避免闪烁
+    }
   }
+
+  rafId = requestAnimationFrame(tick)
+  countdownTimers.set(item.id, rafId)
 }
+
+function stopCountdown(id) {
+  const rafId = countdownTimers.get(id)
+  if (rafId) {
+    cancelAnimationFrame(rafId)
+    countdownTimers.delete(id)
+  }
+  // 不删除 countdownProgress[id]，保持最后的进度值，避免消失时闪烁到 100%
+}
+
+// 监听通知列表变化，启动/停止倒计时
+watch(() => props.notifications, (newList, oldList) => {
+  const newIds = new Set(newList.map(n => n.id))
+  const oldIds = new Set((oldList || []).map(n => n.id))
+
+  // 启动新通知的倒计时
+  for (const item of newList) {
+    if (!item.persistent && !oldIds.has(item.id)) {
+      startCountdown(item)
+    }
+  }
+
+  // 停止已消失通知的倒计时
+  for (const id of oldIds) {
+    if (!newIds.has(id)) {
+      stopCountdown(id)
+    }
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  for (const rafId of countdownTimers.values()) {
+    cancelAnimationFrame(rafId)
+  }
+  countdownTimers.clear()
+})
 
 // ---- actions ----
 function dismiss(id) {
@@ -180,15 +271,7 @@ function handleAction(item, action) {
 
 <style scoped>
 .app-notify-container {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: 12px;
-  z-index: 9998;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-  width: min(calc(100vw - 24px), 320px);
+  /* 样式已通过 JavaScript 动态设置 */
 }
 
 .app-notify-toast {
@@ -319,16 +402,9 @@ function handleAction(item, action) {
   left: 0;
   bottom: 0;
   height: 3px;
-  width: 100%;
   background: color-mix(in srgb, var(--app-chip-accent-text) 60%, transparent);
   border-radius: 0 0 16px 16px;
-  transform-origin: left;
-  animation: app-notify-shrink linear forwards;
-}
-
-@keyframes app-notify-shrink {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
+  transition: width 50ms linear;
 }
 
 .app-notify-spin {
