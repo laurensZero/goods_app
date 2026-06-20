@@ -108,6 +108,7 @@ export const useSyncStore = defineStore('sync', () => {
   const syncSuggestion = ref(null)
   const syncNotice = ref(null)
   const conflictData = ref(null)
+  const syncSource = ref('') // 当前同步来源：'manual' | 'auto' | 'realtime' | 'visibility'
 
   const isConfigured = computed(() => {
     if (syncBackend.value === 'supabase') {
@@ -600,6 +601,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function fullSync({ source = 'manual', maxRetries = 1 } = {}) {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     ensureBackendReady()
+    syncSource.value = source
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = i18n.global.t('sync.syncing')
@@ -641,6 +643,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (isSyncing.value) return
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error(i18n.global.t('sync.notConfigured'))
+    syncSource.value = source
     isSyncing.value = true; isPulling.value = true; lastError.value = ''
     if (!silent) conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
@@ -761,7 +764,7 @@ export const useSyncStore = defineStore('sync', () => {
     token, githubLogin, githubAvatarUrl, githubScopes, githubAuthMethod,
     gistId, imageGistId, rechargeGistId, eventGistId,
     lastSyncedAt, eventLastSyncedAt, deviceId,
-    isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData,
+    isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
     isConfigured, init, saveToken, checkTokenValidity,
     getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
     autoPushGoods,
