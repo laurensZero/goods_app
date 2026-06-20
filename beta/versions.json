@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260620.2",
+    "url": "bundle-20260620.2.zip",
+    "hash": "b2df57caefafa8c73b15bc6c2a0568bee0d3cf316d230355061f31d016c9a53f",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加并行处理能力，提升图片上传和同步性能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-20T11:34:33Z"
+  },
+  {
     "version": "20260620.1",
     "url": "bundle-20260620.1.zip",
     "hash": "6f9775d1df47d1e07cd211bfb4a9c7550f6b6d35f687d099001e9b0b38d5b9ad",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新排行榜相关字段和显示逻辑，支持官方和实际价格的展示",
     "updateLevel": "silent",
     "publishedAt": "2026-06-15T10:08:45Z"
-  },
-  {
-    "version": "20260614.4",
-    "url": "bundle-20260614.4.zip",
-    "hash": "c65a2caa77a49cacb430ca04924eaa22082d959926180be7b96d2bb43b0360f0",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加语言设置页面及相关功能，支持语言切换\n\n- feat: 优化同步数据提示文本，提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-14T14:06:11Z"
   }
 ]
