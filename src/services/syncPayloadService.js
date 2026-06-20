@@ -402,13 +402,13 @@ export function createSyncPayloadService({
     const goods = await processWithConcurrency(filteredGoods, async (item) => {
       const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
       return sanitizeGoodsItemForSync(item, preparedImages)
-    }, 6)
+    }, 8)
 
     const filteredTrash = sourceTrash.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
     const trash = await processWithConcurrency(filteredTrash, async (item) => {
       const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
       return sanitizeGoodsItemForSync(item, preparedImages)
-    }, 6)
+    }, 8)
 
     imageStats.imageFileCount = referencedImageFiles.size
 

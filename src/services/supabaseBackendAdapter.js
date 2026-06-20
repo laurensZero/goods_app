@@ -650,8 +650,8 @@ export function createSupabaseBackendAdapter({
       let uploaded = 0
       let failed = 0
 
-      // Process 3 images concurrently to balance speed and resource usage
-      const CONCURRENT_UPLOADS = 3
+      // Process 5 images concurrently for faster uploads
+      const CONCURRENT_UPLOADS = 5
       let index = 0
       async function uploadWorker() {
         while (index < entries.length) {
