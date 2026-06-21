@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
-import { useSyncStore } from '@/stores/sync'
+import { createAutoPush } from '@/stores/storeCore'
 import {
   buildStorageLocationPath,
   normalizeStorageLocationValue,
@@ -273,9 +273,7 @@ export const usePresetsStore = defineStore('presets', () => {
     await writePersistedList(STORAGE_KEY_LOC, storageLocations.value)
   }
 
-  function autoPushPresets() {
-    useSyncStore().autoPushGoods('presets')
-  }
+  const autoPushPresets = createAutoPush('presets')
 
   async function init() {
     const [cat, ip, chr, loc] = await Promise.all([
