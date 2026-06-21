@@ -190,7 +190,26 @@ export function createSupabaseBackendAdapter({
 
   async function syncTableRows(db, tableName, rows, { label = tableName, incremental = false, deleteIds = [] } = {}) {
     if (rows.length > 0) {
-      await batchUpsert(db, tableName, rows, { onConflict: 'id' })
+      let rowsToUpsert = rows
+      // In incremental mode, skip rows whose updated_at hasn't changed to avoid redundant realtime events
+      if (incremental && rows[0]?.updated_at != null) {
+        const ids = rows.map(r => r.id).filter(Boolean)
+        if (ids.length > 0) {
+          try {
+            const existing = await fetchAllRows(() =>
+              db.from(tableName).select('id, updated_at').in('id', ids)
+            )
+            const existingMap = new Map((existing || []).map(r => [r.id, r.updated_at]))
+            rowsToUpsert = rows.filter(r => !existingMap.has(r.id) || existingMap.get(r.id) !== r.updated_at)
+          } catch {
+            // If the pre-check fails, fall back to upserting all rows
+            rowsToUpsert = rows
+          }
+        }
+      }
+      if (rowsToUpsert.length > 0) {
+        await batchUpsert(db, tableName, rowsToUpsert, { onConflict: 'id' })
+      }
     }
 
     if (incremental) {

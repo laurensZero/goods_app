@@ -198,6 +198,8 @@ export function createSyncOrchestrator({
     const useIncrementalEventPull = enableIncrementalEvents && isSupabaseBackend && localEventLatestTs > 0
 
     const cachedRemoteData = options.cachedRemoteData
+    const cachedRemoteRechargeData = options.cachedRemoteRechargeData
+    const cachedRemoteEventData = options.cachedRemoteEventData
     const canUseCachedData = !!cachedRemoteData
 
     log.debug('pull:start', {
@@ -205,6 +207,8 @@ export function createSyncOrchestrator({
       useIncrementalEventPull,
       shouldPullRecharge,
       cachedRemoteData: canUseCachedData,
+      cachedRemoteRecharge: !!cachedRemoteRechargeData,
+      cachedRemoteEvents: !!cachedRemoteEventData,
       localSyncTime,
       localEventLatestTs
     })
@@ -233,39 +237,43 @@ export function createSyncOrchestrator({
               return i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.successIncremental' : 'sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
             }
           }),
-      shouldPullRecharge
-        ? readJson(be, {
-            title: i18n.global.t('sync.step.readRecharge'),
+      (cachedRemoteRechargeData != null)
+        ? Promise.resolve(cachedRemoteRechargeData)
+        : (shouldPullRecharge
+            ? readJson(be, {
+                title: i18n.global.t('sync.step.readRecharge'),
+                gist,
+                fileName: RECHARGE_DATA_FILENAME,
+                startDetail: i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.startIncremental' : 'sync.step.readRecharge.start'),
+                category: 'pull',
+                fallbackGist: rechargeGist,
+                fallbackFileName: RECHARGE_DATA_FILENAME,
+                incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
+                successDetail: (parsed, source) => {
+                  if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
+                  const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+                  const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+                  return i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.successWithTrashIncremental' : 'sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
+                }
+              })
+            : Promise.resolve(null)),
+      (cachedRemoteEventData != null)
+        ? Promise.resolve(cachedRemoteEventData)
+        : readJson(be, {
+            title: i18n.global.t('sync.step.readEvents'),
             gist,
-            fileName: RECHARGE_DATA_FILENAME,
-            startDetail: i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.startIncremental' : 'sync.step.readRecharge.start'),
+            fileName: EVENT_DATA_FILENAME,
+            startDetail: i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.startIncremental' : 'sync.step.readEvents.start'),
             category: 'pull',
-            fallbackGist: rechargeGist,
-            fallbackFileName: RECHARGE_DATA_FILENAME,
-            incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
+            fallbackGist: eventGist,
+            fallbackFileName: EVENT_DATA_FILENAME,
+            incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
             successDetail: (parsed, source) => {
-              if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
-              const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-              const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-              return i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.successWithTrashIncremental' : 'sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
+              if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
+              const events = Array.isArray(parsed.events) ? parsed.events : []
+              return i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.successIncremental' : 'sync.step.readEvents.success', { source, count: events.length })
             }
           })
-        : Promise.resolve(null),
-      readJson(be, {
-        title: i18n.global.t('sync.step.readEvents'),
-        gist,
-        fileName: EVENT_DATA_FILENAME,
-        startDetail: i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.startIncremental' : 'sync.step.readEvents.start'),
-        category: 'pull',
-        fallbackGist: eventGist,
-        fallbackFileName: EVENT_DATA_FILENAME,
-        incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
-        successDetail: (parsed, source) => {
-          if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
-          const events = Array.isArray(parsed.events) ? parsed.events : []
-          return i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.successIncremental' : 'sync.step.readEvents.success', { source, count: events.length })
-        }
-      })
     ])
 
     const remoteData = rawRemoteData || { goods: [], trash: [], presets: {} }
@@ -1033,53 +1041,44 @@ export function createSyncOrchestrator({
       monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
       yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
     }
-    const [presetsData, localBudgetSettings] = await Promise.all([
-      isGoodsDirty ? ctx.buildPresetsData() : Promise.resolve(null),
-      (isGoodsDirty || isBudgetDirty) ? readBudgetSettings() : Promise.resolve(null)
-    ])
+    const localBudgetSettings = await ((isGoodsDirty || isBudgetDirty) ? readBudgetSettings() : Promise.resolve(null))
 
-    const [
-      localComparableState,
-      remoteComparableState,
-      localRechargeComparableState,
-      remoteRechargeComparableState,
-      localEventComparableState,
-      remoteEventComparableState
-    ] = await Promise.all([
-      (isGoodsDirty && !hasDirtyGoodsIds)
-        ? (() => {
-            const goodsGroupStore = useGoodsGroupStore()
-            return payload.buildComparableSyncStateFromData(
-              { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData, goodsGroups: goodsGroupStore.groupList, goodsGroupItems: goodsGroupStore.groupItemList },
-              { budgetSettings: localBudgetSettings }
-            )
-          })()
-        : Promise.resolve(null),
-      (isGoodsDirty && !hasDirtyGoodsIds)
-        ? payload.buildComparableSyncStateFromData(remoteData, {
-            budgetSettings: resolvedBudgetSettings
-          })
-        : Promise.resolve(null),
-      isRechargeDirty
-        ? payload.buildComparableRechargeStateFromData(localRechargeData)
-        : Promise.resolve(null),
-      isRechargeDirty
-        ? payload.buildComparableRechargeStateFromData(remoteRechargeData)
-        : Promise.resolve(null),
-      isEventsDirty
-        ? payload.buildComparableEventStateFromData(localEventData)
-        : Promise.resolve(null),
-      isEventsDirty
-        ? payload.buildComparableEventStateFromData(remoteEventData)
-        : Promise.resolve(null)
-    ])
-
-    // Fast path: dirty goods IDs means we know there's a diff, skip comparison
-    const hasDataDiff = hasDirtyGoodsIds ? true : (isGoodsDirty ? (localComparableState !== remoteComparableState) : false)
+    // Lightweight timestamp-based comparison (replaces expensive asyncSortedStringify)
+    let hasDataDiff = hasDirtyGoodsIds
+    if (isGoodsDirty && !hasDirtyGoodsIds) {
+      const goodsGroupStore = useGoodsGroupStore()
+      const goodsDiff = countComparableRecordDiff(
+        buildTimestampRecordMap([...resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList).goodsMap.values(), ...resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList).trashMap.values()]),
+        buildTimestampRecordMap([...resolveGoodsTrashMaps(remoteData?.goods || [], remoteData?.trash || []).goodsMap.values(), ...resolveGoodsTrashMaps(remoteData?.goods || [], remoteData?.trash || []).trashMap.values()])
+      )
+      const groupsDiff = countComparableRecordDiff(
+        buildTimestampRecordMap(goodsGroupStore.groupList || []),
+        buildTimestampRecordMap(remoteData?.goodsGroups || [])
+      )
+      const groupItemsDiff = countComparableRecordDiff(
+        buildTimestampRecordMap(goodsGroupStore.groupItemList || []),
+        buildTimestampRecordMap(remoteData?.goodsGroupItems || [])
+      )
+      hasDataDiff = goodsDiff.remoteOnly > 0 || goodsDiff.localOnly > 0 || goodsDiff.updated > 0
+        || groupsDiff.remoteOnly > 0 || groupsDiff.localOnly > 0 || groupsDiff.updated > 0
+        || groupItemsDiff.remoteOnly > 0 || groupItemsDiff.localOnly > 0 || groupItemsDiff.updated > 0
+    }
     // Clean domains (not dirty, no remote read): always no diff — no local changes to push,
     // and we skipped the remote read so nothing to pull either.
-    const hasRechargeDataDiff = isRechargeDirty ? (localRechargeComparableState !== remoteRechargeComparableState) : false
-    const hasEventDataDiff = isEventsDirty ? (localEventComparableState !== remoteEventComparableState) : false
+    const hasRechargeDataDiff = isRechargeDirty ? (() => {
+      const diff = countComparableRecordDiff(
+        buildTimestampRecordMap(localRechargeData?.recharge || []),
+        buildTimestampRecordMap(remoteRechargeData?.recharge || [])
+      )
+      return diff.remoteOnly > 0 || diff.localOnly > 0 || diff.updated > 0
+    })() : false
+    const hasEventDataDiff = isEventsDirty ? (() => {
+      const diff = countComparableRecordDiff(
+        buildTimestampRecordMap(localEventData?.events || []),
+        buildTimestampRecordMap(remoteEventData?.events || [])
+      )
+      return diff.remoteOnly > 0 || diff.localOnly > 0 || diff.updated > 0
+    })() : false
     // Budget is stored in manifest (budgetMonthly/budgetYearly) — no remote data read needed.
     const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
       normalizeBudgetValue(localBudgetSettings.monthly) !== normalizeBudgetValue(resolvedBudgetSettings.monthly) ||
@@ -1203,6 +1202,7 @@ export function createSyncOrchestrator({
 
   async function pullOnly(ctx, { silent = false, forceRecharge = false, sourceTable = 'manual' } = {}) {
     const be = ctx.backend || backend
+    const eventsStore = useEventsStore()
     await ctx.ensureEventsStoreReady()
     let gist, existingRechargeGist, existingEventGist
     try {
@@ -1245,19 +1245,19 @@ export function createSyncOrchestrator({
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-    const [
-      localEventState,
-      remoteEventState,
-      localRechargeState,
-      remoteRechargeState
-    ] = await Promise.all([
-      payload.buildComparableEventStateFromData(payload.buildEventSyncData()),
-      payload.buildComparableEventStateFromData(remoteEventData),
-      payload.buildComparableRechargeStateFromData(payload.buildRechargeSyncData({ incremental: false })),
-      payload.buildComparableRechargeStateFromData(remoteRechargeData)
-    ])
-    const hasEventContentDiff = localEventState !== remoteEventState
-    const hasRechargeContentDiff = localRechargeState !== remoteRechargeState
+    // Lightweight timestamp-based diff for recharge/events (avoids full sortedStringify)
+    const rechargeStore = useRechargeStore()
+    const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const rechargeDiff = countComparableRecordDiff(
+      buildTimestampRecordMap(localRechargeSnapshot || []),
+      buildTimestampRecordMap(Array.isArray(remoteRechargeData?.recharge) ? remoteRechargeData.recharge : [])
+    )
+    const hasRechargeContentDiff = rechargeDiff.remoteOnly > 0 || rechargeDiff.updated > 0
+    const eventDiff = countComparableRecordDiff(
+      buildTimestampRecordMap(eventsStore.list || []),
+      buildTimestampRecordMap(Array.isArray(remoteEventData?.events) ? remoteEventData.events : [])
+    )
+    const hasEventContentDiff = eventDiff.remoteOnly > 0 || eventDiff.updated > 0
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     // No manifest on remote = nothing to pull, don't delete local data
@@ -1267,7 +1267,7 @@ export function createSyncOrchestrator({
 
     // Silent 模式（Realtime/visibilitychange 触发）：跳过冲突弹窗，直接拉取
     if (silent) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge, sourceTable })
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge, sourceTable, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
       const hasAnyDiff = !!(
         diff.remoteOnlyGoods > 0 || diff.updatedGoods > 0 || diff.localOnlyGoods > 0
         || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0
@@ -1290,7 +1290,9 @@ export function createSyncOrchestrator({
           incrementalGoods: true,
           incrementalEvents: true,
           incrementalRecharge: true,
-          cachedRemoteData: diff.remoteData
+          cachedRemoteData: diff.remoteData,
+          cachedRemoteRechargeData: diff.remoteRechargeData,
+          cachedRemoteEventData: diff.remoteEventData
         }, ctx)
       } catch (e) { wrapSyncError(e, PHASE_PULL) }
       await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -1298,7 +1300,7 @@ export function createSyncOrchestrator({
     }
 
     if (localChanges.hasChanges) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable })
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
       const hasPullConflict = !!(
         diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
         || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
@@ -1316,7 +1318,7 @@ export function createSyncOrchestrator({
       }
     }
 
-    const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable })
+    const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
     const pullGoodsContentDiff = !!(
       diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
       || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
@@ -1344,7 +1346,9 @@ export function createSyncOrchestrator({
         incrementalGoods: true,
         incrementalEvents: true,
         incrementalRecharge: true,
-        cachedRemoteData: diff.remoteData
+        cachedRemoteData: diff.remoteData,
+        cachedRemoteRechargeData: diff.remoteRechargeData,
+        cachedRemoteEventData: diff.remoteEventData
       }, ctx)
     } catch (e) { wrapSyncError(e, PHASE_PULL) }
     await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)

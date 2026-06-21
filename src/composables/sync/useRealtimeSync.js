@@ -10,7 +10,28 @@ export function useRealtimeSync({ syncStore }) {
   const isConnected = ref(false)
   let pullDebounceTimer = null
 
-  let pendingPullTable = null
+  let pendingPullTables = new Set()
+  let retryTimer = null
+
+  function doPull(tables, forceRecharge) {
+    if (syncStore.isSyncing || syncStore.isPulling) {
+      // Already running — schedule ONE retry after it finishes
+      if (!retryTimer) {
+        retryTimer = setTimeout(async () => {
+          retryTimer = null
+          if (!syncStore.isSyncing && !syncStore.isPulling) {
+            try { await syncStore.pullOnly({ silent: true, forceRecharge, source: tables[0] || 'realtime' }) } catch { /* ignore */ }
+          }
+        }, 2000)
+      }
+      return
+    }
+    try {
+      void syncStore.pullOnly({ silent: true, forceRecharge, source: tables[0] || 'realtime' })
+    } catch {
+      // silent fail
+    }
+  }
 
   function handleRemoteChange(payload) {
     const row = payload.new || payload.old
@@ -18,27 +39,14 @@ export function useRealtimeSync({ syncStore }) {
     const table = String(payload?.table || '')
     // 过滤自己设备的写入
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
-    pendingPullTable = table
-    // debounce 300ms 合并短时间内的多次事件
+    pendingPullTables.add(table)
+    // debounce 500ms，每次新事件重置计时器，等所有事件到达后再拉取
     if (pullDebounceTimer) clearTimeout(pullDebounceTimer)
-    pullDebounceTimer = setTimeout(async () => {
-      const targetTable = pendingPullTable
-      pendingPullTable = null
-      if (syncStore.isSyncing || syncStore.isPulling) {
-        // Retry after current sync completes instead of dropping
-        setTimeout(async () => {
-          if (!syncStore.isSyncing && !syncStore.isPulling) {
-            try { await syncStore.pullOnly({ silent: true, forceRecharge: targetTable === 'recharge_records', source: targetTable }) } catch { /* ignore */ }
-          }
-        }, 2000)
-        return
-      }
-      try {
-        await syncStore.pullOnly({ silent: true, forceRecharge: targetTable === 'recharge_records', source: targetTable })
-      } catch {
-        // silent fail
-      }
-    }, 300)
+    pullDebounceTimer = setTimeout(() => {
+      const tables = [...pendingPullTables]
+      pendingPullTables.clear()
+      doPull(tables, tables.includes('recharge_records'))
+    }, 500)
   }
 
   async function subscribe() {
@@ -74,6 +82,7 @@ export function useRealtimeSync({ syncStore }) {
 
   function unsubscribe() {
     if (pullDebounceTimer) { clearTimeout(pullDebounceTimer); pullDebounceTimer = null }
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
     if (visibilityDebounceTimer) { clearTimeout(visibilityDebounceTimer); visibilityDebounceTimer = null }
     if (channel.value) {
       channel.value.unsubscribe()

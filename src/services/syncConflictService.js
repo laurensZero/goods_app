@@ -1,5 +1,4 @@
 import {
-  asyncBuildComparableRecordMap,
   buildImageReferenceMap,
   buildTimestampRecordMap,
   countComparableRecordDiff,
@@ -68,7 +67,7 @@ export function createSyncConflictService({
     }
   }
 
-  async function buildPullConflictData(gist, remoteManifest, { forceRecharge = false, sourceTable = 'manual' } = {}) {
+  async function buildPullConflictData(gist, remoteManifest, { forceRecharge = false, sourceTable = 'manual', cachedRemoteData = null, cachedRemoteRechargeData = null, cachedRemoteEventData = null } = {}) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
@@ -80,7 +79,7 @@ export function createSyncConflictService({
     const existingEventGist = getExistingEventGist
       ? await getExistingEventGist()
       : await currentBackend.getExistingEventGist()
-    const remoteData = await currentBackend.readJson({
+    const remoteData = cachedRemoteData || await currentBackend.readJson({
       title: i18n.global.t('sync.step.readData'),
       gist,
       fileName: 'data.json',
@@ -103,42 +102,44 @@ export function createSyncConflictService({
     const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
     const triggeredByRealtime = typeof sourceTable === 'string' && sourceTable !== 'manual'
     const localEventData = buildEventSyncData()
-    const remoteRechargeData = (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
-      ? (await currentBackend.readJson({
-          title: i18n.global.t('sync.step.readRecharge'),
-          gist,
-          fileName: 'recharge-data.json',
-          startDetail: i18n.global.t('sync.step.readRecharge.start'),
-          category: 'pull',
-          fallbackGist: existingRechargeGist,
-          fallbackFileName: 'recharge-data.json',
-          successDetail: (parsed, source) => {
-            if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
-            const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-            const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-            return i18n.global.t('sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
-          }
-        }) || {
-          recharge: Array.isArray(remoteData?.recharge) ? remoteData.recharge : [],
-          rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
-        })
-      : { recharge: localRechargeData.recharge || [], rechargeTrash: [] }
-    const remoteEventData = (!triggeredByRealtime || sourceTable === 'events')
-      ? (await currentBackend.readJson({
-          title: i18n.global.t('sync.step.readEvents'),
-          gist,
-          fileName: 'events-data.json',
-          startDetail: i18n.global.t('sync.step.readEvents.start'),
-          category: 'pull',
-          fallbackGist: existingEventGist,
-          fallbackFileName: 'events-data.json',
-          successDetail: (parsed, source) => {
-            if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
-            const events = Array.isArray(parsed.events) ? parsed.events : []
-            return i18n.global.t('sync.step.readEvents.success', { source, count: events.length })
-          }
-        }) || { events: [] })
-      : { events: [] }
+    const remoteRechargeData = cachedRemoteRechargeData
+      ?? ((shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
+        ? (await currentBackend.readJson({
+            title: i18n.global.t('sync.step.readRecharge'),
+            gist,
+            fileName: 'recharge-data.json',
+            startDetail: i18n.global.t('sync.step.readRecharge.start'),
+            category: 'pull',
+            fallbackGist: existingRechargeGist,
+            fallbackFileName: 'recharge-data.json',
+            successDetail: (parsed, source) => {
+              if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
+              const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+              const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+              return i18n.global.t('sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
+            }
+          }) || {
+            recharge: Array.isArray(remoteData?.recharge) ? remoteData.recharge : [],
+            rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
+          })
+        : { recharge: localRechargeData.recharge || [], rechargeTrash: [] })
+    const remoteEventData = cachedRemoteEventData
+      ?? ((!triggeredByRealtime || sourceTable === 'events')
+        ? (await currentBackend.readJson({
+            title: i18n.global.t('sync.step.readEvents'),
+            gist,
+            fileName: 'events-data.json',
+            startDetail: i18n.global.t('sync.step.readEvents.start'),
+            category: 'pull',
+            fallbackGist: existingEventGist,
+            fallbackFileName: 'events-data.json',
+            successDetail: (parsed, source) => {
+              if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
+              const events = Array.isArray(parsed.events) ? parsed.events : []
+              return i18n.global.t('sync.step.readEvents.success', { source, count: events.length })
+            }
+          }) || { events: [] })
+        : { events: [] })
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
     let remoteGoods = []
@@ -204,11 +205,10 @@ export function createSyncConflictService({
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
-    const [localRechargeMap, remoteRechargeMap] = await Promise.all([
-      asyncBuildComparableRecordMap(localRechargeData.recharge || []),
-      asyncBuildComparableRecordMap(remoteRechargeData.recharge || [])
-    ])
-    const rechargeDiff = countComparableRecordDiff(localRechargeMap, remoteRechargeMap)
+    const rechargeDiff = countComparableRecordDiff(
+      buildTimestampRecordMap(localRechargeData.recharge || []),
+      buildTimestampRecordMap(remoteRechargeData.recharge || [])
+    )
     const eventDiff = countComparableRecordDiff(
       buildTimestampRecordMap(localEventData.events || []),
       buildTimestampRecordMap(remoteEventData.events || [])
