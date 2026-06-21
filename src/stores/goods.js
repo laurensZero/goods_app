@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { ref, shallowRef, computed } from 'vue'
 import { getItems } from '@/utils/db/index'
 import { normalizeStorageLocationValue } from '@/utils/storageLocations'
-import { useSyncStore } from '@/stores/sync'
+import { createByIdLookup, createAutoPush } from '@/stores/storeCore'
 import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goodsHelpers'
 import {
   readPersistedTrash,
@@ -55,10 +55,8 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  Computed getters
 
-  const _goodsByIdMap = computed(() => new Map(list.value.map((item) => [item.id, item])))
-  const getById = computed(() => (id) => _goodsByIdMap.value.get(id))
-  const _trashByIdMap = computed(() => new Map(trashList.value.map((item) => [item.id, item])))
-  const getTrashById = computed(() => (id) => _trashByIdMap.value.get(id))
+  const getById = createByIdLookup(list)
+  const getTrashById = createByIdLookup(trashList)
   // Single-pass partition instead of two separate filters
   const _partitioned = computed(() => {
     const collection = []
@@ -112,11 +110,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  Sync helper
 
-  function autoPushGoods(ids) {
-    const syncStore = useSyncStore()
-    syncStore.autoPushGoods('goods')
-    if (ids && ids.length > 0) syncStore.markGoodsIdsDirty(ids)
-  }
+  const autoPushGoods = createAutoPush('goods')
 
   let migrationPromise = null
 

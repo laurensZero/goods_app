@@ -1,8 +1,8 @@
 // @ts-check
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db/index'
-import { useSyncStore } from '@/stores/sync'
+import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 import { createLogger } from '@/utils/logger'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'
@@ -32,7 +32,6 @@ function isValidRechargeRecord(item) {
 }
 
 function sortByDateDesc(list) {
-  // Pre-extract timestamps to avoid O(n log n) Date parsing in comparator
   const tsCache = new Map()
   for (const item of list) {
     tsCache.set(item, new Date(item.chargedAt).getTime() || 0)
@@ -82,8 +81,21 @@ function buildLatestRecordMap(list = []) {
 }
 
 export const useRechargeStore = defineStore('recharge', () => {
-  const records = ref([])
-  const isReady = ref(false)
+  const core = createStoreCore({
+    name: 'recharge',
+    dbGet: getRechargeRecords,
+    dbSave: saveRechargeRecords,
+    dbDelete: deleteRechargeRecords,
+    normalizer: normalizeRecord,
+    validator: isValidRechargeRecord,
+    syncDomain: 'recharge'
+  })
+
+  const { list: records, isReady, getById, init: coreInit, add, update, remove, removeMultiple, refreshList, importBackup: coreImportBackup } = core
+
+  const triggerSync = createAutoPush('recharge')
+
+  // ── Recharge-specific computed ──
 
   const activeRecords = computed(() => records.value.filter((item) => !item.deleted))
   const deletedRecords = computed(() => records.value.filter((item) => item.deleted))
@@ -104,24 +116,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     }))
   })
 
-  async function loadFromDB() {
-    try {
-      const rows = await getRechargeRecords()
-      const normalized = rows.map((item) => normalizeRecord(item))
-      const valid = normalized.filter((item) => isValidRechargeRecord(item) && !item.deleted)
-      records.value = valid
-      log.debug('load:db', {
-        rows: rows.length,
-        normalized: normalized.length,
-        active: valid.length,
-        deleted: normalized.filter((item) => item.deleted).length,
-        invalid: normalized.filter((item) => !isValidRechargeRecord(item)).length
-      })
-    } catch (error) {
-      log.error('load:failed', error)
-      records.value = []
-    }
-  }
+  // ── Init with migration ──
 
   async function migrateFromLocalStorage() {
     try {
@@ -165,10 +160,13 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
     log.debug('init:start')
     await migrateFromLocalStorage()
-    await loadFromDB()
-    isReady.value = true
+    await coreInit()
+    // Filter out deleted records after core init loads everything
+    records.value = records.value.filter((item) => !item.deleted)
     log.debug('init:done', { records: records.value.length })
   }
+
+  // ── Recharge-specific CRUD ──
 
   async function addRecord(data = {}) {
     const next = normalizeRecord(data)
@@ -179,7 +177,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       await addRechargeRecord(next)
       records.value.unshift(next)
-      useSyncStore().autoPushGoods('recharge')
+      triggerSync()
       log.debug('record:add:done', {
         id: next.id,
         game: next.game,
@@ -216,7 +214,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       await addRechargeRecord(next)
       records.value[index] = next
-      useSyncStore().autoPushGoods('recharge')
+      triggerSync()
       log.debug('record:update:done', {
         id,
         game: next.game,
@@ -271,7 +269,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       await deleteRechargeRecords([id])
       records.value = next
-      useSyncStore().autoPushGoods('recharge')
+      triggerSync()
       log.debug('record:delete:done', { id, total: records.value.length })
       return true
     } catch (error) {
@@ -303,6 +301,8 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
   }
 
+  // ── Backup ──
+
   function exportBackup({ includeDeleted = true, stripImage = true } = {}) {
     return records.value
       .filter((item) => includeDeleted || !item.deleted)
@@ -332,6 +332,7 @@ export const useRechargeStore = defineStore('recharge', () => {
         continue
       }
 
+      // Preserve existing image if incoming has none
       if (!incoming.image && existing.image) {
         incoming.image = existing.image
       }
@@ -442,6 +443,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     sortedRecords,
     totalAmount,
     groupedByGame,
+    getById,
     init,
     addRecord,
     updateRecord,

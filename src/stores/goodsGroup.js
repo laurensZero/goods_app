@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed } from 'vue'
 import { triggerRef } from 'vue'
-import { useSyncStore } from '@/stores/sync'
+import { createAutoPush } from '@/stores/storeCore'
 import {
   getGroups,
   getGroupItems,
@@ -63,9 +63,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     return { group, items, memberGoods }
   })
 
-  function autoPush() {
-    useSyncStore().autoPushGoods('group')
-  }
+  const autoPush = createAutoPush('group')
 
   // ── Init ──
 

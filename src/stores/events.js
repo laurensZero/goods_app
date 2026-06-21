@@ -1,13 +1,13 @@
 // @ts-check
 import { defineStore } from 'pinia'
-import { computed, ref, shallowRef, triggerRef } from 'vue'
+import { computed, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/tracks'
 import { buildGistImageUri, parseGistImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
 import { signalImageCacheRefresh } from '@/utils/image/cache'
-import { useSyncStore } from '@/stores/sync'
 import { parseNumericPrice } from '@/stores/goodsHelpers'
+import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 
 function normalizeOtherExpenses(expenses) {
   if (!Array.isArray(expenses)) return []
@@ -40,12 +40,58 @@ function diffRemovedManagedImagePaths(previousEvent, nextEvent) {
   return [...previousPaths].filter((path) => !nextPaths.has(path))
 }
 
-export const useEventsStore = defineStore('events', () => {
-  /** @type {import('vue').ShallowRef<import('@/types/models').EventItem[]>} */
-  const list = shallowRef([])
-  const isReady = ref(false)
+function normalizeEvent(data) {
+  const now = Date.now()
+  const id = data.id || String(now)
+  return {
+    id,
+    name: String(data.name || '').trim(),
+    type: String(data.type || '').trim(),
+    startDate: String(data.startDate || '').trim(),
+    endDate: String(data.endDate || data.startDate || '').trim(),
+    location: String(data.location || '').trim(),
+    description: String(data.description || '').trim(),
+    coverImage: String(data.coverImage || '').trim(),
+    coverImageData: data.coverImageData ? { ...data.coverImageData } : null,
+    photos: Array.isArray(data.photos) ? data.photos : [],
+    tracks: normalizeTracks(data.tracks),
+    ticketPrice: String(data.ticketPrice || '').trim(),
+    ticketType: String(data.ticketType || '').trim(),
+    seatInfo: String(data.seatInfo || '').trim(),
+    otherExpenses: normalizeOtherExpenses(data.otherExpenses),
+    linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    createdAt: data.createdAt || now,
+    updatedAt: data.updatedAt || now
+  }
+}
 
-  // Merged: sort + group into a single computed (eliminates intermediate sortedList copy)
+export const useEventsStore = defineStore('events', () => {
+  const core = createStoreCore({
+    name: 'events',
+    useShallowRef: true,
+    dbGet: getEvents,
+    dbSave: saveEvents,
+    dbDelete: deleteEvents,
+    normalizer: normalizeEvent,
+    syncDomain: 'events',
+    onAfterDelete: async (deletedItems) => {
+      const paths = new Set()
+      for (const item of deletedItems) {
+        for (const path of collectManagedLocalImagePathsFromEvent(item)) {
+          paths.add(path)
+        }
+      }
+      if (paths.size > 0) await deleteManagedLocalImages(paths)
+    }
+  })
+
+  const { list, isReady, getById, init: coreInit, add, update, remove, removeMultiple, refreshList, importBackup: coreImportBackup } = core
+
+  const triggerSync = createAutoPush('events')
+
+  // ── Events-specific computed ──
+
   const groupedByMonth = computed(() => {
     const sorted = [...list.value].sort((a, b) => getSortDate(b).localeCompare(getSortDate(a)))
     const grouped = {}
@@ -79,7 +125,6 @@ export const useEventsStore = defineStore('events', () => {
       })
   })
 
-  // Derive sortedList from groupedByMonth for backward compatibility
   const sortedList = computed(() => {
     const result = []
     for (const group of groupedByMonth.value) {
@@ -94,51 +139,23 @@ export const useEventsStore = defineStore('events', () => {
     list.value.reduce((sum, item) => sum + parseNumericPrice(item.ticketPrice), 0)
   )
 
-  const _eventsByIdMap = computed(() => new Map(list.value.map((item) => [item.id, item])))
-  const getById = computed(() => (id) => _eventsByIdMap.value.get(id))
+  // ── Init ──
 
   async function init() {
-    try {
-      list.value = await getEvents()
-    } catch (e) {
-      console.error('[events] init: getEvents failed, starting with empty list:', e)
-      list.value = []
-    }
-    isReady.value = true
+    if (isReady.value) return
+    await coreInit()
   }
 
-  async function addEventRecord(data) {
-    const now = Date.now()
-    const id = data.id || String(now)
-    const record = {
-      id,
-      name: String(data.name || '').trim(),
-      type: String(data.type || '').trim(),
-      startDate: String(data.startDate || '').trim(),
-      endDate: String(data.endDate || data.startDate || '').trim(),
-      location: String(data.location || '').trim(),
-      description: String(data.description || '').trim(),
-      coverImage: String(data.coverImage || '').trim(),
-      coverImageData: data.coverImageData ? { ...data.coverImageData } : null,
-      photos: Array.isArray(data.photos) ? data.photos : [],
-      tracks: normalizeTracks(data.tracks),
-      ticketPrice: String(data.ticketPrice || '').trim(),
-      ticketType: String(data.ticketType || '').trim(),
-      seatInfo: String(data.seatInfo || '').trim(),
-      otherExpenses: normalizeOtherExpenses(data.otherExpenses),
-      linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
-      tags: Array.isArray(data.tags) ? data.tags : [],
-      createdAt: data.createdAt || now,
-      updatedAt: data.updatedAt || now
-    }
+  // ── CRUD wrappers ──
 
-    const existingIndex = list.value.findIndex((item) => item.id === id)
+  async function addEventRecord(data) {
+    const record = normalizeEvent(data)
+    const existingIndex = list.value.findIndex((item) => item.id === record.id)
     if (existingIndex !== -1) {
       list.value[existingIndex] = { ...list.value[existingIndex], ...record }
     } else {
       list.value.unshift(record)
     }
-
     triggerRef(list)
     try {
       await addEvent(record)
@@ -146,7 +163,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] addEventRecord DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods('events')
+    triggerSync()
     return record
   }
 
@@ -157,8 +174,8 @@ export const useEventsStore = defineStore('events', () => {
     const previous = list.value[index]
     const normalizedData = {
       ...data,
-        tracks: normalizeTracks(data?.tracks),
-        otherExpenses: normalizeOtherExpenses(data?.otherExpenses)
+      tracks: normalizeTracks(data?.tracks),
+      otherExpenses: normalizeOtherExpenses(data?.otherExpenses)
     }
 
     const next = {
@@ -178,7 +195,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] updateEventRecord DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods('events')
+    triggerSync()
     return id
   }
 
@@ -194,7 +211,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] removeEventRecord DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods('events')
+    triggerSync()
   }
 
   async function removeMultipleEventRecords(ids) {
@@ -218,17 +235,10 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] removeMultipleEventRecords DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods('events')
+    triggerSync()
   }
 
-  async function refreshList() {
-    try {
-      list.value = await getEvents()
-    } catch (e) {
-      console.error('[events] refreshList failed:', e)
-      throw e
-    }
-  }
+  // ── Backup import (events-specific: coverImageData backfill, image cleanup) ──
 
   async function importEventsBackup(events, { reconcileMissing = false, preserveLocalNewerThan = 0 } = {}) {
     const incoming = Array.isArray(events) ? events : []
@@ -237,7 +247,6 @@ export const useEventsStore = defineStore('events', () => {
     let updated = 0
     let removed = 0
 
-    // Build Map for O(1) lookup instead of O(n) .find() per incoming item
     const existingMap = new Map(list.value.map((item) => [item.id, item]))
 
     const recordsToSave = []
@@ -251,27 +260,7 @@ export const useEventsStore = defineStore('events', () => {
       const existing = existingMap.get(event.id)
       if (!existing) {
         const now = Date.now()
-        recordsToSave.push({
-          id: event.id,
-          name: String(event.name || '').trim(),
-          type: String(event.type || '').trim(),
-          startDate: String(event.startDate || '').trim(),
-          endDate: String(event.endDate || event.startDate || '').trim(),
-          location: String(event.location || '').trim(),
-          description: String(event.description || '').trim(),
-          coverImage: String(event.coverImage || '').trim(),
-          coverImageData: event.coverImageData ? { ...event.coverImageData } : null,
-          photos: Array.isArray(event.photos) ? event.photos : [],
-          tracks: normalizeTracks(event.tracks),
-          ticketPrice: String(event.ticketPrice || '').trim(),
-          ticketType: String(event.ticketType || '').trim(),
-          seatInfo: String(event.seatInfo || '').trim(),
-          otherExpenses: normalizeOtherExpenses(event.otherExpenses),
-          linkedGoodsIds: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds : [],
-          tags: Array.isArray(event.tags) ? event.tags : [],
-          createdAt: event.createdAt || now,
-          updatedAt: event.updatedAt || now
-        })
+        recordsToSave.push(normalizeEvent({ ...event, createdAt: event.createdAt || now, updatedAt: event.updatedAt || now }))
         added += 1
         continue
       }
@@ -348,6 +337,8 @@ export const useEventsStore = defineStore('events', () => {
     return { added, updated, removed }
   }
 
+  // ── Mark media as remote ──
+
   async function markMediaAsRemote(preparedMediaByEventId) {
     if (!(preparedMediaByEventId instanceof Map) || preparedMediaByEventId.size === 0) return
 
@@ -371,7 +362,6 @@ export const useEventsStore = defineStore('events', () => {
     if (updatedRecords.length > 0) {
       await saveEvents(updatedRecords)
       triggerRef(list)
-      // Notify image cache to refresh object URLs so UI picks up updated public URLs
       try {
         signalImageCacheRefresh('resume')
       } catch (e) {
