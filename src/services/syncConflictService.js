@@ -6,7 +6,6 @@ import {
   countWishlistSplit,
   getItemTimestamp,
   resolveGoodsTrashMaps,
-  toTimestampMs,
   normalizeBudgetValue,
   shouldPullRechargeByManifest,
   readBudgetSettings
