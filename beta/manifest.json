@@ -1,9 +1,9 @@
 {
-  "version": "20260620.5",
-  "url": "bundle-20260620.5.zip",
-  "hash": "e20bf4f907620f6c9293fa96e45a4911ad0c02435bf75900158df412673f3089",
+  "version": "20260621.1",
+  "url": "bundle-20260621.1.zip",
+  "hash": "9118ec07a0ba15c0178f3d4d8b36a9e8cfe7c11cf24f22b02a4a845dbb73c379",
   "minNativeVersion": null,
-  "notes": "- feat: 通知管理",
+  "notes": "- feat: 优化全同步逻辑，支持脏域处理并减少不必要的远程读取\n\n- feat: 补充同步相关翻译",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-20T14:16:35Z"
+  "publishedAt": "2026-06-21T11:25:52Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260621.1",
+    "url": "bundle-20260621.1.zip",
+    "hash": "9118ec07a0ba15c0178f3d4d8b36a9e8cfe7c11cf24f22b02a4a845dbb73c379",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化全同步逻辑，支持脏域处理并减少不必要的远程读取\n\n- feat: 补充同步相关翻译",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-21T11:25:52Z"
+  },
+  {
     "version": "20260620.5",
     "url": "bundle-20260620.5.zip",
     "hash": "e20bf4f907620f6c9293fa96e45a4911ad0c02435bf75900158df412673f3089",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加分页功能以支持从 Supabase 查询中获取所有匹配行",
     "updateLevel": "silent",
     "publishedAt": "2026-06-20T13:13:42Z"
-  },
-  {
-    "version": "20260620.3",
-    "url": "bundle-20260620.3.zip",
-    "hash": "0be5811212548d374a2f2377761790be1023ca5a49d00b3fbd6d4f799daef7bf",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加同步来源支持，优化通知显示逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-20T11:44:52Z"
   }
 ]
