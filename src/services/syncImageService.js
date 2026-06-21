@@ -1,5 +1,6 @@
 import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
 import { processWithConcurrency } from '@/utils/sync/shared'
+import i18n from '@/locales'
 
 export function createSyncImageService({
   backend,
@@ -37,24 +38,24 @@ export function createSyncImageService({
 
           const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
           if (!gistFileName) {
-            throw new Error(`图片引用无效：${item?.name || item?.id || '未命名条目'}`)
+            throw new Error(i18n.global.t('sync.error.imageRefInvalid', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
           }
           if (!imageGist) {
-            throw new Error('远端数据包含图片引用，但未找到图片存储')
+            throw new Error(i18n.global.t('sync.error.imageGistMissing'))
           }
 
           if (!fileCache.has(gistFileName)) {
-            const imageDataUrl = await trackSyncStep(`读取图片文件 ${gistFileName}`, async () => {
+            const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readImageFile', { name: gistFileName }), async () => {
               const fetched = await resolveBackend().readImage(imageGist, gistFileName)
 
               if (!String(fetched || '').startsWith('data:image/')) {
-                throw new Error(`远端图片缺失：${gistFileName}`)
+                throw new Error(i18n.global.t('sync.error.remoteImageMissing', { name: gistFileName }))
               }
               return fetched
             }, {
-              startDetail: item?.name ? `条目：${item.name}` : '正在恢复图片',
+              startDetail: item?.name ? i18n.global.t('sync.step.restoreItem.start', { name: item.name }) : i18n.global.t('sync.step.restoreItem.startFallback'),
               category: 'image',
-              successDetail: () => `已恢复条目 ${item?.name || item?.id || gistFileName} 的图片`
+              successDetail: () => i18n.global.t('sync.step.restoreItem.success', { name: item?.name || item?.id || gistFileName })
             })
             fileCache.set(gistFileName, imageDataUrl)
           }
@@ -109,16 +110,16 @@ export function createSyncImageService({
           if (gistFileName) {
             try {
               if (!fileCache.has(gistFileName)) {
-                const imageDataUrl = await trackSyncStep(`读取活动封面文件 ${gistFileName}`, async () => {
+                const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readEventCoverFile', { name: gistFileName }), async () => {
                   const fetched = await resolveBackend().readImage(imageGist, gistFileName)
                   if (!String(fetched || '').startsWith('data:image/')) {
-                    throw new Error(`远端活动封面缺失：${gistFileName}`)
+                    throw new Error(i18n.global.t('sync.error.remoteCoverMissing', { name: gistFileName }))
                   }
                   return fetched
                 }, {
-                  startDetail: event?.name ? `活动：${event.name}` : '正在恢复封面',
+                  startDetail: event?.name ? i18n.global.t('sync.step.restoreEventCover.start', { name: event.name }) : i18n.global.t('sync.step.restoreEventCover.startFallback'),
                   category: 'image',
-                  successDetail: () => `已恢复活动 ${event?.name || event?.id || gistFileName} 的封面`
+                  successDetail: () => i18n.global.t('sync.step.restoreEventCover.success', { name: event?.name || event?.id || gistFileName })
                 })
                 fileCache.set(gistFileName, imageDataUrl)
               }
@@ -151,16 +152,16 @@ export function createSyncImageService({
 
           try {
             if (!fileCache.has(gistFileName)) {
-              const imageDataUrl = await trackSyncStep(`读取活动照片文件 ${gistFileName}`, async () => {
+              const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readEventPhotoFile', { name: gistFileName }), async () => {
                 const fetched = await resolveBackend().readImage(imageGist, gistFileName)
                 if (!String(fetched || '').startsWith('data:image/')) {
-                  throw new Error(`远端活动照片缺失：${gistFileName}`)
+                  throw new Error(i18n.global.t('sync.error.remotePhotoMissing', { name: gistFileName }))
                 }
                 return fetched
               }, {
-                startDetail: event?.name ? `活动：${event.name}` : '正在恢复活动照片',
+                startDetail: event?.name ? i18n.global.t('sync.step.restoreEventPhoto.start', { name: event.name }) : i18n.global.t('sync.step.restoreEventPhoto.startFallback'),
                 category: 'image',
-                successDetail: () => `已恢复活动 ${(event?.name || event?.id || '?')} 的第 ${index + 1} 张照片`
+                successDetail: () => i18n.global.t('sync.step.restoreEventPhoto.success', { name: event?.name || event?.id || '?', index: index + 1 })
               })
               fileCache.set(gistFileName, imageDataUrl)
             }

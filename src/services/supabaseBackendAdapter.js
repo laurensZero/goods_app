@@ -4,6 +4,7 @@ import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry, withTimeout } from './syncRetry'
 import { EVENT_PHOTO_PREFIX } from '@/constants/syncConstants'
+import i18n from '@/locales'
 
 export function createSupabaseBackendAdapter({
   trackSyncStep,
@@ -100,7 +101,7 @@ export function createSupabaseBackendAdapter({
     if (data) return { id: bucketName }
 
     if (error && !isBucketNotFoundError(error)) {
-      throw new Error(`读取 bucket 失败: ${error.message}`)
+      throw new Error(i18n.global.t('sync.error.supabaseReadBucketFailed', { error: error.message }))
     }
 
     const { error: createError } = await db.storage.createBucket(bucketName, { public: true })
@@ -110,7 +111,7 @@ export function createSupabaseBackendAdapter({
         console.warn('[supabase] createBucket permission denied, skip auto-create:', createError.message)
         return { id: bucketName }
       }
-      throw new Error(`创建 bucket 失败: ${createError.message}`)
+      throw new Error(i18n.global.t('sync.error.supabaseCreateBucketFailed', { error: createError.message }))
     }
     return { id: bucketName }
   }
@@ -161,7 +162,7 @@ export function createSupabaseBackendAdapter({
       )
       if (error) {
         console.error(`[supabase] upsert ${tableName} 失败 (chunk ${i}-${i + chunk.length}):`, error)
-        throw new Error(`写入 ${tableName} 失败: ${error.message} (code: ${error.code || '?'})`)
+        throw new Error(i18n.global.t('sync.error.supabaseWriteFailed', { table: tableName, error: `${error.message} (code: ${error.code || '?'})` }))
       }
     }
   }
@@ -174,7 +175,7 @@ export function createSupabaseBackendAdapter({
       const { error } = await withRetry(() =>
         db.from(tableName).delete().in('id', chunk)
       )
-      if (error) throw new Error(`删除 ${tableName} 旧记录失败: ${error.message}`)
+      if (error) throw new Error(i18n.global.t('sync.error.supabaseDeleteFailed', { table: tableName, error: error.message }))
     }
   }
 
@@ -205,7 +206,7 @@ export function createSupabaseBackendAdapter({
       const { error } = await withRetry(() =>
         db.from(tableName).delete().neq('id', '')
       )
-      if (error) throw new Error(`清空 ${label} 失败: ${error.message}`)
+      if (error) throw new Error(i18n.global.t('sync.error.supabaseClearFailed', { label, error: error.message }))
       return
     }
 
@@ -499,7 +500,7 @@ export function createSupabaseBackendAdapter({
         )
         if (error) {
           const isMissingColumn = String(error.message || '').includes('column')
-          if (!isMissingColumn) throw new Error(`写入 manifest 失败: ${error.message}`)
+          if (!isMissingColumn) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
 
           const fallbackManifestRow = toSnakeCase({
             id: 'default',
@@ -518,7 +519,7 @@ export function createSupabaseBackendAdapter({
           ;({ error } = await withRetry(() =>
             db.from('sync_manifest').upsert(fallbackManifestRow)
           ))
-          if (error) throw new Error(`写入 manifest 失败: ${error.message}`)
+          if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
         }
         continue
       }
@@ -659,7 +660,7 @@ export function createSupabaseBackendAdapter({
     if (!imageFiles || Object.keys(imageFiles).length === 0) return
     const db = getDb()
 
-    await trackSyncStep('上传图片到 Supabase Storage', async () => {
+    await trackSyncStep(i18n.global.t('sync.step.uploadSupabaseImages'), async () => {
       const entries = Object.entries(imageFiles)
       let uploaded = 0
       let failed = 0
@@ -704,11 +705,11 @@ export function createSupabaseBackendAdapter({
       )
       await Promise.all(workers)
 
-      return `上传完成: ${uploaded} 成功, ${failed} 失败`
+      return i18n.global.t('sync.step.uploadSupabaseImages.result', { uploaded, failed })
     }, {
-      startDetail: `上传 ${Object.keys(imageFiles).length} 张图片`,
+      startDetail: i18n.global.t('sync.step.uploadSupabaseImages.start', { count: Object.keys(imageFiles).length }),
       category: 'image',
-      successDetail: () => '图片已上传到 Supabase Storage'
+      successDetail: () => i18n.global.t('sync.step.uploadSupabaseImages.success')
     })
   }
 
