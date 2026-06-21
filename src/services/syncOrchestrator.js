@@ -1138,7 +1138,7 @@ export function createSyncOrchestrator({
     if (!gist) throw new Error(i18n.global.t('sync.error.remoteDataEmpty'))
     const isSupabaseBackend = typeof be.getImagePublicUrl === 'function'
 
-    let remoteManifest, remoteRechargeData, remoteEventData
+    let remoteManifest, remoteData, remoteRechargeData, remoteEventData
     try {
       remoteManifest = await readJson(be, { title: i18n.global.t('sync.step.readManifest'), gist, fileName: MANIFEST_FILENAME, startDetail: i18n.global.t('sync.step.readManifest.detail'), category: 'pull',
         successDetail: (parsed) => parsed ? i18n.global.t('sync.step.readManifest.success.hasId', { id: parsed.imageGistId || i18n.global.t('sync.notConfigured') }) : i18n.global.t('sync.step.readManifest.success.missing') })
@@ -1149,7 +1149,17 @@ export function createSyncOrchestrator({
       // If pull was triggered by realtime for a specific table, avoid reading unrelated heavy files
       const triggeredByRealtime = typeof sourceTable === 'string' && sourceTable !== 'manual'
 
-      ;[remoteRechargeData, remoteEventData] = await Promise.all([
+      // Read all remote data in parallel — single pass, shared with buildPullConflictData and pullFromRemote
+      ;[remoteData, remoteRechargeData, remoteEventData] = await Promise.all([
+        readJson(be, { title: i18n.global.t('sync.step.readData'), gist, fileName: DATA_FILENAME, startDetail: i18n.global.t('sync.step.readData.start'), category: 'pull',
+          successDetail: (parsed) => {
+            if (!parsed) return i18n.global.t('sync.step.readData.notFound')
+            const goods = Array.isArray(parsed.goods) ? parsed.goods : []
+            const trash = Array.isArray(parsed.trash) ? parsed.trash : []
+            const counts = countWishlistSplit(goods)
+            return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
+          }
+        }),
         (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
           ? readJson(be, { title: i18n.global.t('sync.step.readRecharge'), gist, fileName: RECHARGE_DATA_FILENAME, startDetail: i18n.global.t('sync.step.readRecharge.start'), category: 'pull',
               fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
@@ -1188,7 +1198,7 @@ export function createSyncOrchestrator({
 
     // Silent 模式（Realtime/visibilitychange 触发）：跳过冲突弹窗，直接拉取
     if (silent) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge, sourceTable, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { forceRecharge, sourceTable, cachedRemoteData: remoteData, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
       const hasAnyDiff = !!(
         diff.remoteOnlyGoods > 0 || diff.updatedGoods > 0 || diff.localOnlyGoods > 0
         || diff.remoteOnlyRecharge > 0 || diff.updatedRecharge > 0
@@ -1211,7 +1221,7 @@ export function createSyncOrchestrator({
           incrementalGoods: true,
           incrementalEvents: true,
           incrementalRecharge: true,
-          cachedRemoteData: diff.remoteData,
+          cachedRemoteData: remoteData,
           cachedRemoteRechargeData: diff.remoteRechargeData,
           cachedRemoteEventData: diff.remoteEventData
         }, ctx)
@@ -1221,7 +1231,7 @@ export function createSyncOrchestrator({
     }
 
     if (localChanges.hasChanges) {
-      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
+      const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable, cachedRemoteData: remoteData, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
       const hasPullConflict = !!(
         diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
         || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
@@ -1239,7 +1249,7 @@ export function createSyncOrchestrator({
       }
     }
 
-    const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
+    const diff = await conflict.buildPullConflictData(gist, remoteManifest, { sourceTable, cachedRemoteData: remoteData, cachedRemoteRechargeData: remoteRechargeData, cachedRemoteEventData: remoteEventData })
     const pullGoodsContentDiff = !!(
       diff.remoteOnlyGoods > 0 || diff.remoteOnlyCollection > 0 || diff.remoteOnlyWishlist > 0 || diff.remoteOnlyTrash > 0
       || diff.updatedGoods > 0 || diff.localOnlyGoods > 0 || diff.localOnlyCollection > 0 || diff.localOnlyWishlist > 0 || diff.localOnlyTrash > 0
@@ -1267,7 +1277,7 @@ export function createSyncOrchestrator({
         incrementalGoods: true,
         incrementalEvents: true,
         incrementalRecharge: true,
-        cachedRemoteData: diff.remoteData,
+        cachedRemoteData: remoteData,
         cachedRemoteRechargeData: diff.remoteRechargeData,
         cachedRemoteEventData: diff.remoteEventData
       }, ctx)

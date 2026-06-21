@@ -1,6 +1,7 @@
-import { sortedStringify, yieldToMain } from './shared'
+import { sortedStringify } from './shared'
 
 const YIELD_BATCH_SIZE = 20
+function yieldToMain() { return new Promise(resolve => setTimeout(resolve, 0)) }
 
 /**
  * Build a Map<id, fingerprint> for each item using the given strategy.
