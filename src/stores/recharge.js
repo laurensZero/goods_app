@@ -179,7 +179,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       await addRechargeRecord(next)
       records.value.unshift(next)
-      useSyncStore().autoPushGoods()
+      useSyncStore().autoPushGoods('recharge')
       log.debug('record:add:done', {
         id: next.id,
         game: next.game,
@@ -216,7 +216,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       await addRechargeRecord(next)
       records.value[index] = next
-      useSyncStore().autoPushGoods()
+      useSyncStore().autoPushGoods('recharge')
       log.debug('record:update:done', {
         id,
         game: next.game,
@@ -271,7 +271,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     try {
       await deleteRechargeRecords([id])
       records.value = next
-      useSyncStore().autoPushGoods()
+      useSyncStore().autoPushGoods('recharge')
       log.debug('record:delete:done', { id, total: records.value.length })
       return true
     } catch (error) {

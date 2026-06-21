@@ -868,9 +868,22 @@ export function createSyncOrchestrator({
 
   // ── Public: fullSync ──
 
-  async function fullSync(ctx) {
+  async function fullSync(ctx, options = {}) {
     const be = ctx.backend || backend
     await ctx.ensureEventsStoreReady()
+
+    // ── Dirty domain optimization ──
+    // When called from auto-push, we know which domains changed locally.
+    // Skip reading remote data and building payloads for clean domains.
+    const dirty = options.dirtyDomains
+    const isRechargeDirty = !dirty || dirty.has('recharge')
+    const isEventsDirty = !dirty || dirty.has('events')
+    const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('group')
+
+    log.debug('fullSync:start', {
+      dirtyDomains: dirty ? [...dirty] : 'all',
+      isGoodsDirty, isRechargeDirty, isEventsDirty
+    })
 
     let gist
     try {
@@ -897,13 +910,11 @@ export function createSyncOrchestrator({
       be.getExistingEventGist(),
       be.getExistingImageGist(remoteManifest)
     ])
-    const rechargeStore = useRechargeStore()
-    const localRechargeData = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
-    const localEventData = payload.buildEventSyncData()
 
+    // Only read remote data for dirty domains — skip clean domains to save I/O
     let remoteData, remoteRechargeData, remoteEventData
     try {
-      const [rawRemoteData, rawRechargeData, rawEventData] = await Promise.all([
+      const remoteReads = [
         readJson(be, {
           title: '读取 Data', gist, fileName: DATA_FILENAME,
           startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
@@ -912,22 +923,40 @@ export function createSyncOrchestrator({
             const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
             return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${(parsed.trash || []).length}`
           }
-        }),
-        readJson(be, {
-          title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
-          startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-          successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
-        }),
-        readJson(be, {
-          title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
-          startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-          successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
         })
-      ])
-      remoteData = rawRemoteData || { goods: [], trash: [], presets: {} }
-      remoteRechargeData = rawRechargeData || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
-      remoteEventData = rawEventData || { events: [] }
+      ]
+      if (isRechargeDirty) {
+        remoteReads.push(
+          readJson(be, {
+            title: '读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
+            startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+            successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+          })
+        )
+      }
+      if (isEventsDirty) {
+        remoteReads.push(
+          readJson(be, {
+            title: '读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
+            startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
+            successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+          })
+        )
+      }
+
+      const results = await Promise.all(remoteReads)
+      remoteData = results[0] || { goods: [], trash: [], presets: {} }
+      let resultIdx = 1
+      if (isRechargeDirty) {
+        remoteRechargeData = results[resultIdx++] || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
+      }
+      if (isEventsDirty) {
+        remoteEventData = results[resultIdx++] || { events: [] }
+      }
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
+
+    remoteRechargeData = remoteRechargeData || { recharge: [], rechargeTrash: [] }
+    remoteEventData = remoteEventData || { events: [] }
 
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
@@ -935,6 +964,10 @@ export function createSyncOrchestrator({
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     const goodsStore = useGoodsStore()
+    const rechargeStore = useRechargeStore()
+    const localRechargeData = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const localEventData = payload.buildEventSyncData()
+
     // Build all comparable states — parallelize the async presets/budget reads
     const resolvedBudgetSettings = {
       monthly: remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly,
@@ -963,16 +996,28 @@ export function createSyncOrchestrator({
       payload.buildComparableSyncStateFromData(remoteData, {
         budgetSettings: resolvedBudgetSettings
       }),
-      payload.buildComparableRechargeStateFromData(localRechargeData),
-      payload.buildComparableRechargeStateFromData(remoteRechargeData),
-      payload.buildComparableEventStateFromData(localEventData),
-      payload.buildComparableEventStateFromData(remoteEventData)
+      isRechargeDirty
+        ? payload.buildComparableRechargeStateFromData(localRechargeData)
+        : Promise.resolve(null),
+      isRechargeDirty
+        ? payload.buildComparableRechargeStateFromData(remoteRechargeData)
+        : Promise.resolve(null),
+      isEventsDirty
+        ? payload.buildComparableEventStateFromData(localEventData)
+        : Promise.resolve(null),
+      isEventsDirty
+        ? payload.buildComparableEventStateFromData(remoteEventData)
+        : Promise.resolve(null)
     ])
 
     const hasDataDiff = localComparableState !== remoteComparableState
-    const hasRechargeDataDiff = localRechargeComparableState !== remoteRechargeComparableState
-    const hasEventDataDiff = localEventComparableState !== remoteEventComparableState
+    // Clean domains (not dirty, no remote read): always no diff — no local changes to push,
+    // and we skipped the remote read so nothing to pull either.
+    const hasRechargeDataDiff = isRechargeDirty ? (localRechargeComparableState !== remoteRechargeComparableState) : false
+    const hasEventDataDiff = isEventsDirty ? (localEventComparableState !== remoteEventComparableState) : false
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff
+
+    log.debug('fullSync:compare', { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, isRechargeDirty, isEventsDirty })
 
     if (!hasEffectiveDiff) {
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)

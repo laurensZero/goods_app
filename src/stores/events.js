@@ -146,7 +146,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] addEventRecord DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('events')
     return record
   }
 
@@ -178,7 +178,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] updateEventRecord DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('events')
     return id
   }
 
@@ -194,7 +194,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] removeEventRecord DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('events')
   }
 
   async function removeMultipleEventRecords(ids) {
@@ -218,7 +218,7 @@ export const useEventsStore = defineStore('events', () => {
       console.error('[events] removeMultipleEventRecords DB write failed:', e)
       throw e
     }
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('events')
   }
 
   async function refreshList() {

@@ -274,7 +274,7 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   function autoPushPresets() {
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('presets')
   }
 
   async function init() {
