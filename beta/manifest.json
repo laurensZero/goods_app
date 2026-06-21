@@ -1,9 +1,9 @@
 {
-  "version": "20260621.4",
-  "url": "bundle-20260621.4.zip",
-  "hash": "183e604b7d7e087add09f0f9d9216ef7065100b04fa0d45ca4e3adfa90bda8fc",
+  "version": "20260621.5",
+  "url": "bundle-20260621.5.zip",
+  "hash": "fdfe83432990b1b7a36ed1af60e58c06927bce6467d4153557dc4bf7ac5e5d3c",
   "minNativeVersion": null,
-  "notes": "- feat: 加快增量拉取",
+  "notes": "- feat: 优化实时同步逻辑，支持增量拉取和缓存数据处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-21T12:45:57Z"
+  "publishedAt": "2026-06-21T13:06:08Z"
 }

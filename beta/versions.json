@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260621.5",
+    "url": "bundle-20260621.5.zip",
+    "hash": "fdfe83432990b1b7a36ed1af60e58c06927bce6467d4153557dc4bf7ac5e5d3c",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化实时同步逻辑，支持增量拉取和缓存数据处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-21T13:06:08Z"
+  },
+  {
     "version": "20260621.4",
     "url": "bundle-20260621.4.zip",
     "hash": "183e604b7d7e087add09f0f9d9216ef7065100b04fa0d45ca4e3adfa90bda8fc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 引入共享的存储核心工具，简化CRUD和初始化逻辑\n\n- feat: 删除Supabase对加密的检测",
     "updateLevel": "silent",
     "publishedAt": "2026-06-21T12:22:24Z"
-  },
-  {
-    "version": "20260621.2",
-    "url": "bundle-20260621.2.zip",
-    "hash": "74158586276a2d2aa72065f06a3f31d6e0a6a9f05c48808806bab95a187d097f",
-    "minNativeVersion": null,
-    "notes": "- fix: 修复测试用例中的定时器恢复逻辑，确保在每次测试后正确恢复状态\n\n- feat: 优化数据推送和脏域管理\n\n- feat: 增强同步逻辑，支持脏域处理和特定商品ID的快速路径",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-21T12:00:45Z"
   }
 ]
