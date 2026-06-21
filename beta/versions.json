@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260621.4",
+    "url": "bundle-20260621.4.zip",
+    "hash": "183e604b7d7e087add09f0f9d9216ef7065100b04fa0d45ca4e3adfa90bda8fc",
+    "minNativeVersion": null,
+    "notes": "- feat: 加快增量拉取",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-21T12:45:57Z"
+  },
+  {
     "version": "20260621.3",
     "url": "bundle-20260621.3.zip",
     "hash": "6d8cfc50edba7fc50074c4cebacdf7020fb60ef636dec9e0731ec6e378e6183f",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复测试用例中的定时器恢复逻辑，确保在每次测试后正确恢复状态\n\n- feat: 优化数据推送和脏域管理\n\n- feat: 增强同步逻辑，支持脏域处理和特定商品ID的快速路径",
     "updateLevel": "silent",
     "publishedAt": "2026-06-21T12:00:45Z"
-  },
-  {
-    "version": "20260621.1",
-    "url": "bundle-20260621.1.zip",
-    "hash": "9118ec07a0ba15c0178f3d4d8b36a9e8cfe7c11cf24f22b02a4a845dbb73c379",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化全同步逻辑，支持脏域处理并减少不必要的远程读取\n\n- feat: 补充同步相关翻译",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-21T11:25:52Z"
   }
 ]
