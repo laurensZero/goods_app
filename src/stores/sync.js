@@ -504,6 +504,18 @@ export const useSyncStore = defineStore('sync', () => {
   let syncTimeoutId = null
   let autoPushTimer = null
   let pendingAutoPush = false
+  const dirtyDomains = new Set()
+
+  function markDomainDirty(domain) {
+    if (domain) dirtyDomains.add(domain)
+  }
+
+  function consumeDirtyDomains() {
+    if (dirtyDomains.size === 0) return null
+    const domains = new Set(dirtyDomains)
+    dirtyDomains.clear()
+    return domains
+  }
 
   function flushPendingAutoPush() {
     if (!pendingAutoPush) return
@@ -523,8 +535,9 @@ export const useSyncStore = defineStore('sync', () => {
     }, 0)
   }
 
-  function autoPushGoods() {
+  function autoPushGoods(domain) {
     if (!isSupabaseMode()) return
+    markDomainDirty(domain)
      if (isPulling.value || isSyncing.value) {
       pendingAutoPush = true
       return
@@ -615,8 +628,9 @@ export const useSyncStore = defineStore('sync', () => {
     }, SYNC_TIMEOUT_MS)
 
     try {
+      const domains = consumeDirtyDomains()
       const result = await withRetry(
-        () => orchestrator.fullSync(buildSyncContext()),
+        () => orchestrator.fullSync(buildSyncContext(), { dirtyDomains: domains }),
         { maxRetries, baseDelay: 1200 }
       )
       if (result.conflictData) conflictData.value = result.conflictData

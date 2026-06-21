@@ -113,7 +113,7 @@ export const useGoodsStore = defineStore('goods', () => {
   //  Sync helper
 
   function autoPushGoods() {
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('goods')
   }
 
   let migrationPromise = null

@@ -64,7 +64,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   })
 
   function autoPush() {
-    useSyncStore().autoPushGoods()
+    useSyncStore().autoPushGoods('group')
   }
 
   // ── Init ──
