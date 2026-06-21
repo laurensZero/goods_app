@@ -1,4 +1,5 @@
-import { asyncBuildComparableRecordMap, buildImageSyncStats, buildTimestampRecordMap, countComparableRecordDiff, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
+import { asyncBuildComparableRecordMap, buildImageSyncStats, countWishlistSplit, getItemTimestamp, resolveGoodsTrashMaps, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
+import { compareState, compareStateSync } from '@/utils/sync/stateCompare'
 import { parseGistImageUri } from '@/utils/goods/images'
 import { writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
@@ -68,26 +69,6 @@ export function createSyncOrchestrator({
       latest = Math.max(latest, Number(item?.updatedAt) || 0)
     }
     return latest
-  }
-
-  function countIncrementalComparableDiff(localMap, remoteMap) {
-    let remoteOnly = 0
-    let updated = 0
-    for (const [id, remoteValue] of remoteMap.entries()) {
-      if (!localMap.has(id)) {
-        remoteOnly += 1
-        continue
-      }
-      if (localMap.get(id) !== remoteValue) {
-        updated += 1
-      }
-    }
-    return {
-      remoteTotal: remoteMap.size,
-      remoteOnly,
-      localOnly: 0,
-      updated
-    }
   }
 
   // ── Internal: pull from remote ──
@@ -292,100 +273,56 @@ export function createSyncOrchestrator({
     const changedTrashIds = collectChangedTrashIds(localResolved, remoteResolved, ctx.shouldApplyRemoteItem)
     const changedEventIds = collectChangedEventIds(eventsStore.list || [], Array.isArray(eventData?.events) ? eventData.events : [])
 
-    // Groups/groupItems always use lightweight timestamp maps
+    // Unified comparison — 'timestamp' for incremental (fast), 'content' for full pull (exact)
     const goodsGroupStore = useGoodsGroupStore()
-    const localGroupMap = buildTimestampRecordMap(goodsGroupStore.groupList || [])
-    const remoteGroupMap = buildTimestampRecordMap(Array.isArray(remoteData?.goodsGroups) ? remoteData.goodsGroups : [])
-    const localGroupItemMap = buildTimestampRecordMap(goodsGroupStore.groupItemList || [])
-    const remoteGroupItemMap = buildTimestampRecordMap(Array.isArray(remoteData?.goodsGroupItems) ? remoteData.goodsGroupItems : [])
-
-    // For incremental pull: changed*Ids already identified diffs via timestamp comparison;
-    // reuse those results + lightweight timestamp maps to skip expensive sortedStringify on all local data.
-    // For full pull: serialize every record for content-based comparison.
     const isIncrementalPull = useIncrementalGoodsPull || useIncrementalEventPull || useIncrementalRechargePull
+    const strategy = isIncrementalPull ? 'timestamp' : 'content'
 
-    let goodsTrashCompare, rechargeCompare, eventCompare
+    const localGoodsTrash = [...localResolved.goodsMap.values(), ...localResolved.trashMap.values()]
+    const remoteGoodsTrash = [...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()]
+    const localRechargeArr = localRechargeSnapshot
+    const remoteRechargeArr = Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []
+    const localEvents = eventsStore.list || []
+    const remoteEvents = Array.isArray(eventData?.events) ? eventData.events : []
 
-    if (isIncrementalPull) {
-      const groupCompare = countIncrementalComparableDiff(localGroupMap, remoteGroupMap)
-      const groupItemCompare = countIncrementalComparableDiff(localGroupItemMap, remoteGroupItemMap)
-      const localRechargeTsMap = buildTimestampRecordMap(localRechargeSnapshot)
-      const remoteRechargeTsMap = buildTimestampRecordMap(Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : [])
-      rechargeCompare = !shouldPullRecharge
-        ? { remoteTotal: localRechargeTsMap.size, remoteOnly: 0, localOnly: 0, updated: 0 }
-        : countIncrementalComparableDiff(localRechargeTsMap, remoteRechargeTsMap)
-      // changed*Ids capture all goods/trash/event diffs; groups use timestamp maps above
-      const incrementalHasChanges = (
-        changedGoodsIds.size > 0 || changedTrashIds.size > 0 || changedEventIds.size > 0
-        || groupCompare.remoteOnly > 0 || groupCompare.updated > 0
-        || groupItemCompare.remoteOnly > 0 || groupItemCompare.updated > 0
-        || rechargeCompare.remoteOnly > 0 || rechargeCompare.updated > 0
-      )
-      goodsTrashCompare = { remoteTotal: 0, remoteOnly: changedGoodsIds.size + changedTrashIds.size, localOnly: 0, updated: 0 }
-      eventCompare = { remoteTotal: 0, remoteOnly: changedEventIds.size, localOnly: 0, updated: 0 }
+    const [goodsTrashCompare, groupCompare, groupItemCompare, rechargeCompare, eventCompare] = await Promise.all([
+      isIncrementalPull
+        ? Promise.resolve({ remoteTotal: 0, remoteOnly: changedGoodsIds.size + changedTrashIds.size, localOnly: 0, updated: 0, hasChanges: changedGoodsIds.size > 0 || changedTrashIds.size > 0 })
+        : compareState(localGoodsTrash, remoteGoodsTrash, { strategy }),
+      compareState(goodsGroupStore.groupList || [], Array.isArray(remoteData?.goodsGroups) ? remoteData.goodsGroups : [], { strategy, incremental: isIncrementalPull }),
+      compareState(goodsGroupStore.groupItemList || [], Array.isArray(remoteData?.goodsGroupItems) ? remoteData.goodsGroupItems : [], { strategy, incremental: isIncrementalPull }),
+      !shouldPullRecharge
+        ? Promise.resolve({ remoteTotal: localRechargeArr.length, remoteOnly: 0, localOnly: 0, updated: 0, hasChanges: false })
+        : compareState(localRechargeArr, remoteRechargeArr, { strategy, incremental: isIncrementalPull }),
+      isIncrementalPull
+        ? Promise.resolve({ remoteTotal: 0, remoteOnly: changedEventIds.size, localOnly: 0, updated: 0, hasChanges: changedEventIds.size > 0 })
+        : compareState(localEvents, remoteEvents, { strategy })
+    ])
 
-      log.debug('pull:compare:incremental', {
-        goodsTrash: goodsTrashCompare,
-        groups: groupCompare,
-        groupItems: groupItemCompare,
-        recharge: rechargeCompare,
-        events: eventCompare,
-        changedGoods: changedGoodsIds.size,
-        changedTrash: changedTrashIds.size,
-        changedEvents: changedEventIds.size,
-        hasDataChangesBeforeImages: incrementalHasChanges
-      })
+    const hasDataChangesBeforeImages = (
+      goodsTrashCompare.hasChanges || groupCompare.hasChanges || groupItemCompare.hasChanges
+      || rechargeCompare.hasChanges || eventCompare.hasChanges
+    )
 
-      if (!incrementalHasChanges) {
-        if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-        if (eventData?.updatedAt || remoteManifest?.lastSyncAt) {
-          await ctx.saveEventLastSyncedAt(eventData?.updatedAt || remoteManifest.lastSyncAt)
-        }
-        return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteWatermark || localSyncTime) }
+    log.debug('pull:compare', {
+      strategy,
+      goodsTrash: goodsTrashCompare,
+      groups: groupCompare,
+      groupItems: groupItemCompare,
+      recharge: rechargeCompare,
+      events: eventCompare,
+      changedGoods: changedGoodsIds.size,
+      changedTrash: changedTrashIds.size,
+      changedEvents: changedEventIds.size,
+      hasDataChangesBeforeImages
+    })
+
+    if (!hasDataChangesBeforeImages) {
+      if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+      if (eventData?.updatedAt || remoteManifest?.lastSyncAt) {
+        await ctx.saveEventLastSyncedAt(eventData?.updatedAt || remoteManifest.lastSyncAt)
       }
-    } else {
-      const [localGoodsTrashMap, remoteGoodsTrashMap, localRechargeMap, remoteRechargeMap, localEventMap, remoteEventMap] = await Promise.all([
-        asyncBuildComparableRecordMap([...localResolved.goodsMap.values(), ...localResolved.trashMap.values()]),
-        asyncBuildComparableRecordMap([...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()]),
-        asyncBuildComparableRecordMap(localRechargeSnapshot),
-        asyncBuildComparableRecordMap(Array.isArray(rechargeData?.recharge) ? rechargeData.recharge : []),
-        asyncBuildComparableRecordMap(eventsStore.list || []),
-        asyncBuildComparableRecordMap(Array.isArray(eventData?.events) ? eventData.events : [])
-      ])
-      goodsTrashCompare = countComparableRecordDiff(localGoodsTrashMap, remoteGoodsTrashMap)
-      const groupCompare = countComparableRecordDiff(localGroupMap, remoteGroupMap)
-      const groupItemCompare = countComparableRecordDiff(localGroupItemMap, remoteGroupItemMap)
-      rechargeCompare = !shouldPullRecharge
-        ? { remoteTotal: localRechargeMap.size, remoteOnly: 0, localOnly: 0, updated: 0 }
-        : countComparableRecordDiff(localRechargeMap, remoteRechargeMap)
-      eventCompare = countComparableRecordDiff(localEventMap, remoteEventMap)
-
-      log.debug('pull:compare', {
-        goodsTrash: goodsTrashCompare,
-        groups: groupCompare,
-        groupItems: groupItemCompare,
-        recharge: rechargeCompare,
-        events: eventCompare,
-        changedGoods: changedGoodsIds.size,
-        changedTrash: changedTrashIds.size,
-        changedEvents: changedEventIds.size
-      })
-
-      const hasDataChangesBeforeImages = (
-        goodsTrashCompare.remoteOnly > 0 || goodsTrashCompare.localOnly > 0 || goodsTrashCompare.updated > 0
-        || groupCompare.remoteOnly > 0 || groupCompare.localOnly > 0 || groupCompare.updated > 0
-        || groupItemCompare.remoteOnly > 0 || groupItemCompare.localOnly > 0 || groupItemCompare.updated > 0
-        || rechargeCompare.remoteOnly > 0 || rechargeCompare.localOnly > 0 || rechargeCompare.updated > 0
-        || eventCompare.remoteOnly > 0 || eventCompare.localOnly > 0 || eventCompare.updated > 0
-      )
-
-      if (!hasDataChangesBeforeImages) {
-        if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
-        if (eventData?.updatedAt || remoteManifest?.lastSyncAt) {
-          await ctx.saveEventLastSyncedAt(eventData?.updatedAt || remoteManifest.lastSyncAt)
-        }
-        return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteWatermark || localSyncTime) }
-      }
+      return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteWatermark || localSyncTime) }
     }
 
     const imageStats = buildImageSyncStats()
@@ -1043,42 +980,28 @@ export function createSyncOrchestrator({
     }
     const localBudgetSettings = await ((isGoodsDirty || isBudgetDirty) ? readBudgetSettings() : Promise.resolve(null))
 
-    // Lightweight timestamp-based comparison (replaces expensive asyncSortedStringify)
+    // Unified timestamp-based comparison
     let hasDataDiff = hasDirtyGoodsIds
     if (isGoodsDirty && !hasDirtyGoodsIds) {
       const goodsGroupStore = useGoodsGroupStore()
-      const goodsDiff = countComparableRecordDiff(
-        buildTimestampRecordMap([...resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList).goodsMap.values(), ...resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList).trashMap.values()]),
-        buildTimestampRecordMap([...resolveGoodsTrashMaps(remoteData?.goods || [], remoteData?.trash || []).goodsMap.values(), ...resolveGoodsTrashMaps(remoteData?.goods || [], remoteData?.trash || []).trashMap.values()])
+      const localResolved = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
+      const remoteResolved = resolveGoodsTrashMaps(remoteData?.goods || [], remoteData?.trash || [])
+      const goodsDiff = compareStateSync(
+        [...localResolved.goodsMap.values(), ...localResolved.trashMap.values()],
+        [...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()]
       )
-      const groupsDiff = countComparableRecordDiff(
-        buildTimestampRecordMap(goodsGroupStore.groupList || []),
-        buildTimestampRecordMap(remoteData?.goodsGroups || [])
-      )
-      const groupItemsDiff = countComparableRecordDiff(
-        buildTimestampRecordMap(goodsGroupStore.groupItemList || []),
-        buildTimestampRecordMap(remoteData?.goodsGroupItems || [])
-      )
-      hasDataDiff = goodsDiff.remoteOnly > 0 || goodsDiff.localOnly > 0 || goodsDiff.updated > 0
-        || groupsDiff.remoteOnly > 0 || groupsDiff.localOnly > 0 || groupsDiff.updated > 0
-        || groupItemsDiff.remoteOnly > 0 || groupItemsDiff.localOnly > 0 || groupItemsDiff.updated > 0
+      const groupsDiff = compareStateSync(goodsGroupStore.groupList || [], remoteData?.goodsGroups || [])
+      const groupItemsDiff = compareStateSync(goodsGroupStore.groupItemList || [], remoteData?.goodsGroupItems || [])
+      hasDataDiff = goodsDiff.hasChanges || groupsDiff.hasChanges || groupItemsDiff.hasChanges
     }
     // Clean domains (not dirty, no remote read): always no diff — no local changes to push,
     // and we skipped the remote read so nothing to pull either.
-    const hasRechargeDataDiff = isRechargeDirty ? (() => {
-      const diff = countComparableRecordDiff(
-        buildTimestampRecordMap(localRechargeData?.recharge || []),
-        buildTimestampRecordMap(remoteRechargeData?.recharge || [])
-      )
-      return diff.remoteOnly > 0 || diff.localOnly > 0 || diff.updated > 0
-    })() : false
-    const hasEventDataDiff = isEventsDirty ? (() => {
-      const diff = countComparableRecordDiff(
-        buildTimestampRecordMap(localEventData?.events || []),
-        buildTimestampRecordMap(remoteEventData?.events || [])
-      )
-      return diff.remoteOnly > 0 || diff.localOnly > 0 || diff.updated > 0
-    })() : false
+    const hasRechargeDataDiff = isRechargeDirty
+      ? compareStateSync(localRechargeData?.recharge || [], remoteRechargeData?.recharge || []).hasChanges
+      : false
+    const hasEventDataDiff = isEventsDirty
+      ? compareStateSync(localEventData?.events || [], remoteEventData?.events || []).hasChanges
+      : false
     // Budget is stored in manifest (budgetMonthly/budgetYearly) — no remote data read needed.
     const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
       normalizeBudgetValue(localBudgetSettings.monthly) !== normalizeBudgetValue(resolvedBudgetSettings.monthly) ||
@@ -1245,19 +1168,17 @@ export function createSyncOrchestrator({
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-    // Lightweight timestamp-based diff for recharge/events (avoids full sortedStringify)
+    // Lightweight timestamp-based diff for recharge/events
     const rechargeStore = useRechargeStore()
     const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
-    const rechargeDiff = countComparableRecordDiff(
-      buildTimestampRecordMap(localRechargeSnapshot || []),
-      buildTimestampRecordMap(Array.isArray(remoteRechargeData?.recharge) ? remoteRechargeData.recharge : [])
-    )
-    const hasRechargeContentDiff = rechargeDiff.remoteOnly > 0 || rechargeDiff.updated > 0
-    const eventDiff = countComparableRecordDiff(
-      buildTimestampRecordMap(eventsStore.list || []),
-      buildTimestampRecordMap(Array.isArray(remoteEventData?.events) ? remoteEventData.events : [])
-    )
-    const hasEventContentDiff = eventDiff.remoteOnly > 0 || eventDiff.updated > 0
+    const hasRechargeContentDiff = compareStateSync(
+      localRechargeSnapshot || [],
+      Array.isArray(remoteRechargeData?.recharge) ? remoteRechargeData.recharge : []
+    ).hasChanges
+    const hasEventContentDiff = compareStateSync(
+      eventsStore.list || [],
+      Array.isArray(remoteEventData?.events) ? remoteEventData.events : []
+    ).hasChanges
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     // No manifest on remote = nothing to pull, don't delete local data
