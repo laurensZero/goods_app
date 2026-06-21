@@ -515,6 +515,7 @@ export function createSyncOrchestrator({
     const hasBudgetDiff = uploadPlan?.hasBudgetDiff === true
     const hasDirtyGoodsIds = uploadPlan?.dirtyGoodsIds === true
     const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof be.getImagePublicUrl === 'function'
+    const isSupabaseBackend = typeof be.getImagePublicUrl === 'function'
     let imageGist = existingImageGist || await be.ensureImageGist()
 
     log.debug('push:start', {
@@ -528,7 +529,7 @@ export function createSyncOrchestrator({
       hasRemoteEventData: Boolean(uploadPlan?.remoteEventData)
     })
 
-    if (imageGist?.files) {
+    if (imageGist?.files && !isSupabaseBackend) {
       const firstFileName = Object.keys(imageGist.files).find(f => f !== 'README.md')
       if (firstFileName) {
         await trackSyncStep(i18n.global.t('sync.step.checkEncryption'), async () => {
