@@ -464,11 +464,19 @@ export const useSyncStore = defineStore('sync', () => {
       try { await ensureEncryptionKey() } catch { encryptionEnabled.value = false }
     }
 
-    // Restore persisted dirty domains (survives app restart)
-    const savedDirty = await readSyncKey(DIRTY_DOMAINS_KEY)
+    // Restore persisted dirty state (survives app restart)
+    const [savedDirty, savedDirtyIds] = await Promise.all([
+      readSyncKey(DIRTY_DOMAINS_KEY),
+      readSyncKey(DIRTY_GOODS_IDS_KEY)
+    ])
     if (savedDirty) {
       for (const d of savedDirty.split(',')) {
         if (d.trim()) dirtyDomains.add(d.trim())
+      }
+    }
+    if (savedDirtyIds) {
+      for (const id of savedDirtyIds.split(',')) {
+        if (id.trim()) dirtyGoodsIds.add(id.trim())
       }
     }
 
@@ -514,13 +522,24 @@ export const useSyncStore = defineStore('sync', () => {
   let autoPushTimer = null
   let pendingAutoPush = false
   const DIRTY_DOMAINS_KEY = 'sync_dirty_domains'
+  const DIRTY_GOODS_IDS_KEY = 'sync_dirty_goods_ids'
   const dirtyDomains = new Set()
+  const dirtyGoodsIds = new Set()
 
   function markDomainDirty(domain) {
     if (domain) {
       dirtyDomains.add(domain)
       writeSyncKey(DIRTY_DOMAINS_KEY, [...dirtyDomains].join(','))
     }
+  }
+
+  function markGoodsIdsDirty(ids) {
+    if (!ids) return
+    const arr = Array.isArray(ids) ? ids : [ids]
+    for (const id of arr) {
+      if (id) dirtyGoodsIds.add(String(id))
+    }
+    writeSyncKey(DIRTY_GOODS_IDS_KEY, [...dirtyGoodsIds].join(','))
   }
 
   function consumeDirtyDomains() {
@@ -537,6 +556,15 @@ export const useSyncStore = defineStore('sync', () => {
       dirtyDomains.clear()
     }
     writeSyncKey(DIRTY_DOMAINS_KEY, dirtyDomains.size > 0 ? [...dirtyDomains].join(',') : '')
+  }
+
+  function clearDirtyGoodsIds(consumed) {
+    if (consumed) {
+      for (const id of consumed) dirtyGoodsIds.delete(id)
+    } else {
+      dirtyGoodsIds.clear()
+    }
+    writeSyncKey(DIRTY_GOODS_IDS_KEY, dirtyGoodsIds.size > 0 ? [...dirtyGoodsIds].join(',') : '')
   }
 
   function flushPendingAutoPush() {
@@ -651,13 +679,15 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       const domains = consumeDirtyDomains()
+      const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
-        () => orchestrator.fullSync(buildSyncContext(), { dirtyDomains: domains }),
+        () => orchestrator.fullSync(buildSyncContext(), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
         { maxRetries, baseDelay: 1200 }
       )
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
       clearDirtyDomains(domains)
+      clearDirtyGoodsIds(goodsIds)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
@@ -804,7 +834,7 @@ export const useSyncStore = defineStore('sync', () => {
     isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
     isConfigured, init, saveToken, checkTokenValidity,
     getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
-    autoPushGoods,
+    autoPushGoods, markGoodsIdsDirty,
     clearConflict, resetConfig,
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
     syncBackend, supabaseUrl, supabaseAnonKey,

@@ -37,7 +37,7 @@ export async function addGoods(data, list, onMutate) {
       console.error('[goods] addGoods (merge) DB write failed:', e)
       throw e
     }
-    onMutate?.()
+    onMutate?.([list.value[existingIndex].id])
     void scheduleSaleReminderForItem(list.value[existingIndex])
     return list.value[existingIndex]
   }
@@ -50,7 +50,7 @@ export async function addGoods(data, list, onMutate) {
     console.error('[goods] addGoods DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.([incoming.id])
   void scheduleSaleReminderForItem(incoming)
   return incoming
 }
@@ -79,7 +79,7 @@ export async function addGoodsBatch(itemsData, list, onMutate) {
     console.error('[goods] addGoodsBatch DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.(incoming.map((item) => item.id))
   for (const item of incoming) {
     void scheduleSaleReminderForItem(item)
   }
@@ -108,7 +108,7 @@ export async function updateGoods(id, data, list, onMutate) {
     console.error('[goods] updateGoods DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.([id])
   void cancelSaleReminderNotifications(previous.id, previous.saleReminderOffsets)
     .then(() => scheduleSaleReminderForItem(next))
     .catch(() => {})
@@ -148,7 +148,7 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
       console.error('[goods] updateMultipleGoods DB write failed:', e)
       throw e
     }
-    onMutate?.()
+    onMutate?.([...ids])
     for (const item of updatedItems) {
       const previous = previousItems.find((entry) => entry.id === item.id)
       void cancelSaleReminderNotifications(item.id, previous?.saleReminderOffsets)
@@ -187,7 +187,7 @@ export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
     console.error('[goods] removeGoods DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.([id])
 }
 
 /**
@@ -221,7 +221,7 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
     console.error('[goods] removeMultipleGoods DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.([...ids])
 }
 
 /**
@@ -252,7 +252,7 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
     console.error('[goods] restoreTrashItem DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.([id])
   void scheduleSaleReminderForItem(restored)
   return restored
 }
@@ -277,7 +277,7 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
     console.error('[goods] deleteTrashItem DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.([id])
 }
 
 /**
@@ -303,7 +303,7 @@ export async function emptyTrash(trashList, persistTrash, onMutate) {
     console.error('[goods] emptyTrash DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.(removedItems.map((item) => item.id))
 }
 
 /**
@@ -337,6 +337,6 @@ export async function deleteGoodsPermanently(ids, list, onMutate) {
     console.error('[goods] deleteGoodsPermanently DB write failed:', e)
     throw e
   }
-  onMutate?.()
+  onMutate?.(targetIds)
   return targetIds.length
 }

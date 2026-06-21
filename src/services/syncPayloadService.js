@@ -388,7 +388,7 @@ export function createSyncPayloadService({
     return preparedPhotos
   }
 
-  async function buildSyncPayload({ incremental = false, existingImageGist = null } = {}) {
+  async function buildSyncPayload({ incremental = false, existingImageGist = null, dirtyIds = null } = {}) {
     const goodsStore = useGoodsStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
@@ -399,13 +399,20 @@ export function createSyncPayloadService({
     const imageFiles = {}
     const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
 
-    const filteredGoods = sourceGoods.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+    let filteredGoods = sourceGoods.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+    // Fast path: only process specific dirty items
+    if (dirtyIds && dirtyIds.size > 0) {
+      filteredGoods = filteredGoods.filter((item) => dirtyIds.has(item.id))
+    }
     const goods = await processWithConcurrency(filteredGoods, async (item) => {
       const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
       return sanitizeGoodsItemForSync(item, preparedImages)
     }, 8)
 
-    const filteredTrash = sourceTrash.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+    let filteredTrash = sourceTrash.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
+    if (dirtyIds && dirtyIds.size > 0) {
+      filteredTrash = filteredTrash.filter((item) => dirtyIds.has(item.id))
+    }
     const trash = await processWithConcurrency(filteredTrash, async (item) => {
       const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
       return sanitizeGoodsItemForSync(item, preparedImages)

@@ -513,6 +513,7 @@ export function createSyncOrchestrator({
     const shouldWriteRecharge = uploadPlan ? uploadPlan.hasRechargeDataDiff !== false : true
     const shouldWriteEvent = uploadPlan ? uploadPlan.hasEventDataDiff !== false : true
     const hasBudgetDiff = uploadPlan?.hasBudgetDiff === true
+    const hasDirtyGoodsIds = uploadPlan?.dirtyGoodsIds === true
     const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof be.getImagePublicUrl === 'function'
     let imageGist = existingImageGist || await be.ensureImageGist()
 
@@ -622,10 +623,14 @@ export function createSyncOrchestrator({
     const eventsForCount = shouldWriteEvent
       ? (eventSyncData.events || [])
       : (useEventsStore().list || [])
+    // When using dirtyGoodsIds fast path, syncData only has filtered items.
+    // Use full local store data for accurate manifest counts.
+    const fullGoodsList = hasDirtyGoodsIds ? useGoodsStore().list : syncData.goods
+    const fullTrashList = hasDirtyGoodsIds ? useGoodsStore().trashList : syncData.trash
     const counts = {
-      collectionCount: syncData.goods.filter(g => !g.isWishlist).length,
-      wishlistCount: syncData.goods.filter(g => g.isWishlist).length,
-      trashCount: syncData.trash.length,
+      collectionCount: fullGoodsList.filter(g => !g.isWishlist).length,
+      wishlistCount: fullGoodsList.filter(g => g.isWishlist).length,
+      trashCount: fullTrashList.length,
       rechargeCount: rechargeForCount.length,
       eventCount: eventsForCount.length,
       budgetMonthly: normalizeBudgetValue(syncData?.budgetSettings?.monthly),
@@ -708,7 +713,17 @@ export function createSyncOrchestrator({
       return [...remoteIdSet].filter((id) => !localIdSet.has(id))
     }
 
-    if (shouldWriteData && isSupabaseIncrementalUpload && uploadPlan?.remoteData) {
+    if (shouldWriteData && isSupabaseIncrementalUpload && hasDirtyGoodsIds) {
+      // Fast path: only upsert dirty items, skip diff/delete logic
+      dataMap[DATA_FILENAME] = {
+        content: {
+          ...syncData,
+          goods: syncData.goods || [],
+          trash: syncData.trash || []
+        }
+      }
+      // No deleteIds — we're only upserting specific items, not reconciling
+    } else if (shouldWriteData && isSupabaseIncrementalUpload && uploadPlan?.remoteData) {
       const localGoodsRows = syncData.goods || []
       const localTrashRows = syncData.trash || []
       const localGroupRows = syncData.goodsGroups || []
@@ -878,14 +893,18 @@ export function createSyncOrchestrator({
     // When called from auto-push, we know which domains changed locally.
     // Skip reading remote data and building payloads for clean domains.
     const dirty = options.dirtyDomains
+    const dirtyIds = options.dirtyGoodsIds // Set<string> — specific goods IDs that changed
     const isRechargeDirty = !dirty || dirty.has('recharge')
     const isEventsDirty = !dirty || dirty.has('events')
     const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('group')
     const isBudgetDirty = !dirty || dirty.has('budget')
+    // Fast path: if we have specific dirty goods IDs, skip remote goods read entirely
+    const hasDirtyGoodsIds = dirtyIds && dirtyIds.size > 0
 
     log.debug('fullSync:start', {
       dirtyDomains: dirty ? [...dirty] : 'all',
-      isGoodsDirty, isRechargeDirty, isEventsDirty
+      dirtyGoodsIds: hasDirtyGoodsIds ? dirtyIds.size : 0,
+      isGoodsDirty, isRechargeDirty, isEventsDirty, hasDirtyGoodsIds
     })
 
     let gist
@@ -914,11 +933,12 @@ export function createSyncOrchestrator({
       be.getExistingImageGist(remoteManifest)
     ])
 
-    // Only read remote data for dirty domains — skip clean domains to save I/O
+    // Only read remote data for dirty domains — skip clean domains to save I/O.
+    // Fast path: when we have specific dirty goods IDs, skip remote goods read entirely.
     let remoteData, remoteRechargeData, remoteEventData
     try {
       const remoteReads = []
-      if (isGoodsDirty) {
+      if (isGoodsDirty && !hasDirtyGoodsIds) {
         remoteReads.push(
           readJson(be, {
             title: i18n.global.t('sync.step.readData'), gist, fileName: DATA_FILENAME,
@@ -995,7 +1015,7 @@ export function createSyncOrchestrator({
       localEventComparableState,
       remoteEventComparableState
     ] = await Promise.all([
-      isGoodsDirty
+      (isGoodsDirty && !hasDirtyGoodsIds)
         ? (() => {
             const goodsGroupStore = useGoodsGroupStore()
             return payload.buildComparableSyncStateFromData(
@@ -1004,7 +1024,7 @@ export function createSyncOrchestrator({
             )
           })()
         : Promise.resolve(null),
-      isGoodsDirty
+      (isGoodsDirty && !hasDirtyGoodsIds)
         ? payload.buildComparableSyncStateFromData(remoteData, {
             budgetSettings: resolvedBudgetSettings
           })
@@ -1023,7 +1043,8 @@ export function createSyncOrchestrator({
         : Promise.resolve(null)
     ])
 
-    const hasDataDiff = isGoodsDirty ? (localComparableState !== remoteComparableState) : false
+    // Fast path: dirty goods IDs means we know there's a diff, skip comparison
+    const hasDataDiff = hasDirtyGoodsIds ? true : (isGoodsDirty ? (localComparableState !== remoteComparableState) : false)
     // Clean domains (not dirty, no remote read): always no diff — no local changes to push,
     // and we skipped the remote read so nothing to pull either.
     const hasRechargeDataDiff = isRechargeDirty ? (localRechargeComparableState !== remoteRechargeComparableState) : false
@@ -1045,7 +1066,7 @@ export function createSyncOrchestrator({
       return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
     }
 
-    const localPayload = await trackSyncStep(i18n.global.t('sync.step.buildLocalGoodsPayload'), () => payload.buildSyncPayload({ existingImageGist }), {
+    const localPayload = await trackSyncStep(i18n.global.t('sync.step.buildLocalGoodsPayload'), () => payload.buildSyncPayload({ existingImageGist, dirtyIds: hasDirtyGoodsIds ? dirtyIds : null }), {
       startDetail: i18n.global.t('sync.step.buildLocalGoodsPayload.start'), category: 'local',
       successDetail: (p) => i18n.global.t('sync.step.buildLocalGoodsPayload.success', { collection: p.syncData.goods.length, trash: p.syncData.trash.length, images: p.imageStats.imageFileCount })
     })
@@ -1136,6 +1157,7 @@ export function createSyncOrchestrator({
         hasEventDataDiff,
         hasBudgetDiff,
         hasPendingImageChanges,
+        dirtyGoodsIds: hasDirtyGoodsIds,
         incremental: typeof be.getImagePublicUrl === 'function',
         remoteData,
         remoteRechargeData,
