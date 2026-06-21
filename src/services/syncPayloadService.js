@@ -1,3 +1,4 @@
+import i18n from '@/locales'
 import {
   processWithConcurrency,
   buildEventCoverFilename,
@@ -140,12 +141,12 @@ export function createSyncPayloadService({
 
       let imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)
       if (!imageDataUrl?.startsWith('data:image/')) {
-        throw new Error(`图片读取失败：${item?.name || item?.id || '未命名条目'}`)
+        throw new Error(i18n.global.t('sync.error.imageReadFailed', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
       }
 
       let parsedData = parseImageDataUrl(imageDataUrl)
       if (!parsedData) {
-        throw new Error(`图片格式不支持：${item?.name || item?.id || '未命名条目'}`)
+        throw new Error(i18n.global.t('sync.error.imageFormatUnsupported', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
       }
 
       if (parsedData.fileSize > imageFileSizeLimit) {
@@ -155,7 +156,7 @@ export function createSyncPayloadService({
           format: 'image/jpeg'
         })
         if (!compressedBlob) {
-          throw new Error(`图片压缩失败：${item?.name || item?.id || '未命名条目'}`)
+          throw new Error(i18n.global.t('sync.error.imageCompressFailed', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
         }
         const reader = new FileReader()
         const compressedDataUrl = await new Promise((resolve, reject) => {
@@ -165,7 +166,7 @@ export function createSyncPayloadService({
         })
         const compressedParsed = parseImageDataUrl(compressedDataUrl)
         if (!compressedParsed) {
-          throw new Error(`图片压缩后格式无效：${item?.name || item?.id || '未命名条目'}`)
+          throw new Error(i18n.global.t('sync.error.imageFormatInvalid', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
         }
         parsedData = compressedParsed
         imageDataUrl = compressedDataUrl

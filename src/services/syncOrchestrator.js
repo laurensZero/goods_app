@@ -4,6 +4,7 @@ import { writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { wrapSyncError, PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA } from './syncError'
 import { createLogger } from '@/utils/logger'
+import i18n from '@/locales'
 
 const log = createLogger('sync:orchestrator')
 
@@ -216,53 +217,53 @@ export function createSyncOrchestrator({
       canUseCachedData
         ? Promise.resolve(cachedRemoteData)
         : readJson(be, {
-            title: '读取 Data',
+            title: i18n.global.t('sync.step.readData'),
             gist,
             fileName: DATA_FILENAME,
-            startDetail: useIncrementalGoodsPull ? '读取收藏、心愿单和回收站（增量）' : '读取收藏、心愿单和回收站',
+            startDetail: i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.startIncremental' : 'sync.step.readData.start'),
             category: 'pull',
             required: true,
-            missingMessage: '远端数据为空',
+            missingMessage: i18n.global.t('sync.step.readData.empty'),
             incrementalSince: useIncrementalGoodsPull ? localSyncTime : 0,
             successDetail: (parsed) => {
-              if (!parsed) return '未找到远端主数据'
+              if (!parsed) return i18n.global.t('sync.step.readData.notFound')
               const goods = Array.isArray(parsed.goods) ? parsed.goods : []
               const trash = Array.isArray(parsed.trash) ? parsed.trash : []
               const counts = countWishlistSplit(goods)
-              return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}${useIncrementalGoodsPull ? '（增量）' : ''}`
+              return i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.successIncremental' : 'sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
             }
           }),
       shouldPullRecharge
         ? readJson(be, {
-            title: '正式拉取 RechargeData',
+            title: i18n.global.t('sync.step.readRecharge'),
             gist,
             fileName: RECHARGE_DATA_FILENAME,
-            startDetail: useIncrementalRechargePull ? '读取充值记录（增量）' : '读取充值记录',
+            startDetail: i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.startIncremental' : 'sync.step.readRecharge.start'),
             category: 'pull',
             fallbackGist: rechargeGist,
             fallbackFileName: RECHARGE_DATA_FILENAME,
             incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
             successDetail: (parsed, source) => {
-              if (!parsed) return '未找到充值数据'
+              if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
               const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
               const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-              return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条${useIncrementalRechargePull ? '（增量）' : ''}`
+              return i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.successWithTrashIncremental' : 'sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
             }
           })
         : Promise.resolve(null),
       readJson(be, {
-        title: '正式拉取 EventsData',
+        title: i18n.global.t('sync.step.readEvents'),
         gist,
         fileName: EVENT_DATA_FILENAME,
-        startDetail: useIncrementalEventPull ? '读取活动数据（增量）' : '读取活动数据',
+        startDetail: i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.startIncremental' : 'sync.step.readEvents.start'),
         category: 'pull',
         fallbackGist: eventGist,
         fallbackFileName: EVENT_DATA_FILENAME,
         incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
         successDetail: (parsed, source) => {
-          if (!parsed) return '未找到活动数据'
+          if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
           const events = Array.isArray(parsed.events) ? parsed.events : []
-          return `${source}，活动 ${events.length} 场${useIncrementalEventPull ? '（增量）' : ''}`
+          return i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.successIncremental' : 'sync.step.readEvents.success', { source, count: events.length })
         }
       })
     ])
@@ -356,29 +357,29 @@ export function createSyncOrchestrator({
     const hydrationPromises = []
     if (shouldHydrateGoodsImages) {
       hydrationPromises.push(
-        trackSyncStep('恢复收藏图片', async () => {
+        trackSyncStep(i18n.global.t('sync.step.restoreCollectionImages'), async () => {
           const before = imageStats.restoredImages
           remoteData.goods = await image.hydrateRemoteItemsWithImages(remoteData.goods || [], imageGist, imageStats, { targetItemIds: changedGoodsIds })
           return imageStats.restoredImages - before
-        }, { startDetail: '正在恢复收藏条目图片', category: 'image', successDetail: (count) => `恢复 ${count} 张收藏图片` })
+        }, { startDetail: i18n.global.t('sync.step.restoreCollectionImages.start'), category: 'image', successDetail: (count) => i18n.global.t('sync.step.restoreCollectionImages.success', { count }) })
       )
     }
     if (shouldHydrateTrashImages) {
       hydrationPromises.push(
-        trackSyncStep('恢复回收站图片', async () => {
+        trackSyncStep(i18n.global.t('sync.step.restoreTrashImages'), async () => {
           const before = imageStats.restoredImages
           remoteData.trash = await image.hydrateRemoteItemsWithImages(remoteData.trash || [], imageGist, imageStats, { targetItemIds: changedTrashIds })
           return imageStats.restoredImages - before
-        }, { startDetail: '正在恢复回收站条目图片', category: 'image', successDetail: (count) => `恢复 ${count} 张回收站图片` })
+        }, { startDetail: i18n.global.t('sync.step.restoreTrashImages.start'), category: 'image', successDetail: (count) => i18n.global.t('sync.step.restoreTrashImages.success', { count }) })
       )
     }
     if (shouldHydrateEventImages && eventData && Array.isArray(eventData.events)) {
       hydrationPromises.push(
-        trackSyncStep('恢复活动封面与照片', async () => {
+        trackSyncStep(i18n.global.t('sync.step.restoreEventImages'), async () => {
           const before = imageStats.restoredImages
           eventData.events = await image.hydrateEventCoversWithImages(eventData.events, imageGist, imageStats, { targetEventIds: changedEventIds })
           return imageStats.restoredImages - before
-        }, { startDetail: '正在恢复活动封面与照片', category: 'image', successDetail: (count) => `恢复 ${count} 张活动图片` })
+        }, { startDetail: i18n.global.t('sync.step.restoreEventImages.start'), category: 'image', successDetail: (count) => i18n.global.t('sync.step.restoreEventImages.success', { count }) })
       )
     }
     if (hydrationPromises.length > 0) {
@@ -528,35 +529,35 @@ export function createSyncOrchestrator({
     if (imageGist?.files) {
       const firstFileName = Object.keys(imageGist.files).find(f => f !== 'README.md')
       if (firstFileName) {
-        await trackSyncStep('检查图片加密状态', async () => {
+        await trackSyncStep(i18n.global.t('sync.step.checkEncryption'), async () => {
           const cloudContent = imageGist.files[firstFileName]?.content || ''
           const cloudIsPlaintext = cloudContent.startsWith('data:image/')
           const cloudIsEncrypted = !cloudIsPlaintext && cloudContent.length > 0
           if (cloudIsEncrypted !== be.isEncryptionEnabled()) {
             imageGist = null
-            return `状态不一致（本地${be.isEncryptionEnabled() ? '加密' : '明文'}，云端${cloudIsEncrypted ? '加密' : '明文'}），触发重传`
+            return i18n.global.t('sync.step.checkEncryption.mismatch', { local: be.isEncryptionEnabled() ? i18n.global.t('sync.step.encryption.encrypted') : i18n.global.t('sync.step.encryption.plaintext'), cloud: cloudIsEncrypted ? i18n.global.t('sync.step.encryption.encrypted') : i18n.global.t('sync.step.encryption.plaintext') })
           }
-          return `状态一致（${be.isEncryptionEnabled() ? '加密' : '明文'}），无需重传`
-        }, { startDetail: '对比本地和云端加密状态', category: 'image', successDetail: (msg) => msg })
+          return i18n.global.t('sync.step.checkEncryption.match', { state: be.isEncryptionEnabled() ? i18n.global.t('sync.step.encryption.encrypted') : i18n.global.t('sync.step.encryption.plaintext') })
+        }, { startDetail: i18n.global.t('sync.step.checkEncryption.start'), category: 'image', successDetail: (msg) => msg })
       }
     }
 
     // Build goods, recharge and event payloads in parallel where possible
     const [goodsResult, rechargeResult, eventResult] = await Promise.all([
-      trackSyncStep('整理收藏/回收站同步数据',
+      trackSyncStep(i18n.global.t('sync.step.buildGoodsPayload'),
         () => payload.buildSyncPayload({ existingImageGist: imageGist }),
-        { startDetail: '读取本地收藏、回收站和图片', category: 'local', successDetail: (p) => `收藏 ${p.syncData.goods.length}，回收站 ${p.syncData.trash.length}，图片 ${p.imageStats.imageFileCount} 个` }
+        { startDetail: i18n.global.t('sync.step.buildGoodsPayload.start'), category: 'local', successDetail: (p) => i18n.global.t('sync.step.buildGoodsPayload.success', { collection: p.syncData.goods.length, trash: p.syncData.trash.length, images: p.imageStats.imageFileCount }) }
       ),
       shouldWriteRecharge
-        ? trackSyncStep('整理充值同步数据',
+        ? trackSyncStep(i18n.global.t('sync.step.buildRechargePayload'),
             () => payload.buildRechargeSyncData({ incremental: false }),
-            { startDetail: '读取本地充值记录', category: 'local', successDetail: (p) => `充值 ${p.recharge.length} 条` }
+            { startDetail: i18n.global.t('sync.step.buildRechargePayload.start'), category: 'local', successDetail: (p) => i18n.global.t('sync.step.buildRechargePayload.success', { count: p.recharge.length }) }
           )
         : Promise.resolve({ recharge: [], rechargeTrash: [] }),
       shouldWriteEvent
-        ? trackSyncStep('整理活动同步数据',
+        ? trackSyncStep(i18n.global.t('sync.step.buildEventPayload'),
             () => payload.buildEventSyncPayload({ existingImageGist: imageGist }),
-            { startDetail: '读取活动和封面图片', category: 'local', successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个` }
+            { startDetail: i18n.global.t('sync.step.buildEventPayload.start'), category: 'local', successDetail: (p) => i18n.global.t('sync.step.buildEventPayload.success', { count: p.eventData.events.length, images: p.imageStats.imageFileCount }) }
           )
         : Promise.resolve(null)
     ])
@@ -807,9 +808,9 @@ export function createSyncOrchestrator({
         // ignore
       }
       try {
-        await trackSyncStep('更新远端数据', () =>
+        await trackSyncStep(i18n.global.t('sync.step.pushData'), () =>
           be.writeData(existingGist?.id || be.getDataGistId(), dataMap, writeOptions || undefined),
-          { startDetail: '上传选中的同步文件', category: 'sync', successDetail: () => '远端数据已更新' }
+          { startDetail: i18n.global.t('sync.step.pushData.start'), category: 'sync', successDetail: () => i18n.global.t('sync.step.pushData.success') }
         )
       } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
     }
@@ -898,9 +899,9 @@ export function createSyncOrchestrator({
     let remoteManifest
     try {
       remoteManifest = await readJson(be, {
-        title: '读取 manifest', gist, fileName: MANIFEST_FILENAME,
-        startDetail: '检查远端同步摘要', category: 'pull',
-        successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
+        title: i18n.global.t('sync.step.readManifest'), gist, fileName: MANIFEST_FILENAME,
+        startDetail: i18n.global.t('sync.step.readManifest.detail'), category: 'pull',
+        successDetail: (parsed) => parsed ? i18n.global.t('sync.step.readManifest.success.hasId', { id: parsed.imageGistId || i18n.global.t('sync.notConfigured') }) : i18n.global.t('sync.step.readManifest.success.missing')
       })
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
@@ -916,30 +917,30 @@ export function createSyncOrchestrator({
     try {
       const remoteReads = [
         readJson(be, {
-          title: '读取 Data', gist, fileName: DATA_FILENAME,
-          startDetail: '读取收藏、心愿单和回收站', category: 'pull', required: true, missingMessage: '远端数据为空',
+          title: i18n.global.t('sync.step.readData'), gist, fileName: DATA_FILENAME,
+          startDetail: i18n.global.t('sync.step.readData.start'), category: 'pull', required: true, missingMessage: i18n.global.t('sync.step.readData.empty'),
           successDetail: (parsed) => {
-            if (!parsed) return '未找到远端主数据'
+            if (!parsed) return i18n.global.t('sync.step.readData.notFound')
             const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
-            return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${(parsed.trash || []).length}`
+            return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: (parsed.trash || []).length })
           }
         })
       ]
       if (isRechargeDirty) {
         remoteReads.push(
           readJson(be, {
-            title: '读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME,
-            startDetail: '读取充值记录', category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-            successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+            title: i18n.global.t('sync.step.readRecharge'), gist, fileName: RECHARGE_DATA_FILENAME,
+            startDetail: i18n.global.t('sync.step.readRecharge.start'), category: 'pull', fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
+            successDetail: (parsed, source) => parsed ? i18n.global.t('sync.step.readRecharge.success', { source, count: (parsed.recharge || []).length }) : i18n.global.t('sync.step.readRecharge.notFound')
           })
         )
       }
       if (isEventsDirty) {
         remoteReads.push(
           readJson(be, {
-            title: '读取 EventsData', gist, fileName: EVENT_DATA_FILENAME,
-            startDetail: '读取活动数据', category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-            successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+            title: i18n.global.t('sync.step.readEvents'), gist, fileName: EVENT_DATA_FILENAME,
+            startDetail: i18n.global.t('sync.step.readEvents.start'), category: 'pull', fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
+            successDetail: (parsed, source) => parsed ? i18n.global.t('sync.step.readEvents.success', { source, count: (parsed.events || []).length }) : i18n.global.t('sync.step.readEvents.notFound')
           })
         )
       }
@@ -1027,9 +1028,9 @@ export function createSyncOrchestrator({
       return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
     }
 
-    const localPayload = await trackSyncStep('整理本地收藏/回收站数据', () => payload.buildSyncPayload({ existingImageGist }), {
-      startDetail: '读取本地收藏、回收站和图片', category: 'local',
-      successDetail: (p) => `收藏 ${p.syncData.goods.length}，回收站 ${p.syncData.trash.length}，图片 ${p.imageStats.imageFileCount} 个`
+    const localPayload = await trackSyncStep(i18n.global.t('sync.step.buildLocalGoodsPayload'), () => payload.buildSyncPayload({ existingImageGist }), {
+      startDetail: i18n.global.t('sync.step.buildLocalGoodsPayload.start'), category: 'local',
+      successDetail: (p) => i18n.global.t('sync.step.buildLocalGoodsPayload.success', { collection: p.syncData.goods.length, trash: p.syncData.trash.length, images: p.imageStats.imageFileCount })
     })
     // Delay building event payload until necessary (events payload is heavy due to images)
     let localEventPayload = null
@@ -1061,9 +1062,9 @@ export function createSyncOrchestrator({
     // If we reach here and event data diff or images might involve events, build event payload lazily
     // Build when there is an event data diff OR when there are pending image changes to process
     if (!localEventPayload && (hasEventDataDiff || hasPendingImageChanges)) {
-      localEventPayload = await trackSyncStep('整理本地活动数据', () => payload.buildEventSyncPayload({ existingImageGist }), {
-        startDetail: '读取活动和封面图片', category: 'local',
-        successDetail: (p) => `活动 ${p.eventData.events.length} 场，图片 ${p.imageStats.imageFileCount} 个`
+      localEventPayload = await trackSyncStep(i18n.global.t('sync.step.buildLocalEventPayload'), () => payload.buildEventSyncPayload({ existingImageGist }), {
+        startDetail: i18n.global.t('sync.step.buildLocalEventPayload.start'), category: 'local',
+        successDetail: (p) => i18n.global.t('sync.step.buildLocalEventPayload.success', { count: p.eventData.events.length, images: p.imageStats.imageFileCount })
       })
       // merge referenced images and recompute cleanup/pending flags
       for (const f of (localEventPayload.referencedImageFiles || [])) allReferencedImageFiles.add(f)
@@ -1140,13 +1141,13 @@ export function createSyncOrchestrator({
         be.getExistingEventGist()
       ])
     } catch (e) { wrapSyncError(e, PHASE_ENSURE_GIST) }
-    if (!gist) throw new Error('未找到远端数据')
+    if (!gist) throw new Error(i18n.global.t('sync.error.remoteDataEmpty'))
     const isSupabaseBackend = typeof be.getImagePublicUrl === 'function'
 
     let remoteManifest, remoteRechargeData, remoteEventData
     try {
-      remoteManifest = await readJson(be, { title: '读取 manifest', gist, fileName: MANIFEST_FILENAME, startDetail: '检查远端同步摘要', category: 'pull',
-        successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest' })
+      remoteManifest = await readJson(be, { title: i18n.global.t('sync.step.readManifest'), gist, fileName: MANIFEST_FILENAME, startDetail: i18n.global.t('sync.step.readManifest.detail'), category: 'pull',
+        successDetail: (parsed) => parsed ? i18n.global.t('sync.step.readManifest.success.hasId', { id: parsed.imageGistId || i18n.global.t('sync.notConfigured') }) : i18n.global.t('sync.step.readManifest.success.missing') })
 
       const rechargeStore = useRechargeStore()
       const localRechargeSnapshot = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
@@ -1156,15 +1157,15 @@ export function createSyncOrchestrator({
 
       ;[remoteRechargeData, remoteEventData] = await Promise.all([
         (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
-          ? readJson(be, { title: '预检读取 RechargeData', gist, fileName: RECHARGE_DATA_FILENAME, startDetail: '读取充值记录', category: 'pull',
+          ? readJson(be, { title: i18n.global.t('sync.step.readRecharge'), gist, fileName: RECHARGE_DATA_FILENAME, startDetail: i18n.global.t('sync.step.readRecharge.start'), category: 'pull',
               fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME,
-              successDetail: (parsed, source) => parsed ? `${source}，充值 ${(parsed.recharge || []).length} 条` : '未找到充值数据'
+              successDetail: (parsed, source) => parsed ? i18n.global.t('sync.step.readRecharge.success', { source, count: (parsed.recharge || []).length }) : i18n.global.t('sync.step.readRecharge.notFound')
             }).then((result) => result || { recharge: [], rechargeTrash: [] })
           : Promise.resolve({ recharge: localRechargeSnapshot, rechargeTrash: [] }),
         (!triggeredByRealtime || sourceTable === 'events')
-        ? readJson(be, { title: '预检读取 EventsData', gist, fileName: EVENT_DATA_FILENAME, startDetail: '读取活动数据', category: 'pull',
+        ? readJson(be, { title: i18n.global.t('sync.step.readEvents'), gist, fileName: EVENT_DATA_FILENAME, startDetail: i18n.global.t('sync.step.readEvents.start'), category: 'pull',
           fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME,
-          successDetail: (parsed, source) => parsed ? `${source}，活动 ${(parsed.events || []).length} 场` : '未找到活动数据'
+          successDetail: (parsed, source) => parsed ? i18n.global.t('sync.step.readEvents.success', { source, count: (parsed.events || []).length }) : i18n.global.t('sync.step.readEvents.notFound')
         }).then((result) => result || { events: [] })
         : Promise.resolve({ events: [] })
       ])
@@ -1287,9 +1288,9 @@ export function createSyncOrchestrator({
       let remoteManifest
       try {
         remoteManifest = await readJson(be, {
-          title: '读取 manifest', gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
-          startDetail: '读取冲突远端摘要', category: 'pull',
-          successDetail: (parsed) => parsed ? `图片存储 ${parsed.imageGistId || '未配置'}` : '未找到 manifest'
+          title: i18n.global.t('sync.step.readManifest'), gist: ctx.conflictData.gist, fileName: MANIFEST_FILENAME,
+          startDetail: i18n.global.t('sync.step.readConflictManifest'), category: 'pull',
+          successDetail: (parsed) => parsed ? i18n.global.t('sync.step.readManifest.success.hasId', { id: parsed.imageGistId || i18n.global.t('sync.notConfigured') }) : i18n.global.t('sync.step.readManifest.success.missing')
         })
       } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
       const hasGoodsContentDiff = !!(

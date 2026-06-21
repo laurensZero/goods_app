@@ -1,3 +1,4 @@
+import i18n from '@/locales'
 import { SyncError, CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_SERVER } from './syncError'
 
 const OPERATION_TIMEOUT_MS = 60_000
@@ -10,7 +11,7 @@ export function withTimeout(fn, ms = OPERATION_TIMEOUT_MS) {
   return Promise.race([
     fn(),
     new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`操作超时（${Math.round(ms / 1000)}s）`)), ms)
+      setTimeout(() => reject(new Error(i18n.global.t('sync.error.operationTimeout', { seconds: Math.round(ms / 1000) }))), ms)
     )
   ])
 }
@@ -26,7 +27,7 @@ function isRetryable(error) {
 
   // Network / timeout errors
   if (error?.name === 'AbortError' || error?.name === 'TypeError') return true
-  if (msg.includes('timeout') || msg.includes('超时')) return true
+  if (msg.includes('timeout') || msg.includes('超时') || msg.includes('timed out')) return true
   if (msg.includes('network') || msg.includes('网络')) return true
   if (msg.includes('fetch') || msg.includes('连接')) return true
   if (msg.includes('econnrefused') || msg.includes('econnreset') || msg.includes('enotfound')) return true

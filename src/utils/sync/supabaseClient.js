@@ -1,4 +1,5 @@
 // src/utils/supabaseClient.js
+import i18n from '@/locales'
 import { createClient } from '@supabase/supabase-js'
 
 let supabase = null
@@ -14,7 +15,7 @@ let _initKey = ''
 
 export function initSupabaseClient(url, anonKey) {
   if (!url || !anonKey) {
-    throw new Error('Supabase URL 和 Anon Key 不能为空')
+    throw new Error(i18n.global.t('sync.error.supabaseConfigEmpty'))
   }
   if (supabase && _initUrl === url && _initKey === anonKey) {
     return supabase
@@ -37,7 +38,7 @@ export function initSupabaseClient(url, anonKey) {
  */
 export function getSupabaseClient() {
   if (!supabase) {
-    throw new Error('Supabase Client 未初始化，请先配置 Supabase 连接')
+    throw new Error(i18n.global.t('sync.error.supabaseClientNotInit'))
   }
   return supabase
 }
@@ -54,20 +55,20 @@ export async function testSupabaseConnection(url, anonKey) {
     const { error } = await client.from('goods').select('id').limit(1)
     if (error) {
       if (error.message.includes('does not exist') || error.code === '42P01') {
-        return { ok: false, error: '表不存在，请先执行建表脚本' }
+        return { ok: false, error: i18n.global.t('sync.error.supabaseTableMissing') }
       }
       if (error.code === 'PGRST301' || error.message.includes('JWT')) {
-        return { ok: false, error: 'Anon Key 无效' }
+        return { ok: false, error: i18n.global.t('sync.error.supabaseKeyInvalid') }
       }
       if (error.code === '406' || error.message.includes('Not Acceptable')) {
-        return { ok: false, error: '权限不足，请执行建表脚本中的 GRANT 语句' }
+        return { ok: false, error: i18n.global.t('sync.error.supabasePermissionDenied') }
       }
       return { ok: false, error: error.message }
     }
     return { ok: true }
   } catch (e) {
     if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
-      return { ok: false, error: '网络连接失败，请检查 URL 是否正确' }
+      return { ok: false, error: i18n.global.t('sync.error.supabaseNetworkFailed') }
     }
     return { ok: false, error: e.message }
   }

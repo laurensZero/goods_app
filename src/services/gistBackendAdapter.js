@@ -11,6 +11,7 @@ import { encrypt, decrypt, isEncrypted } from '@/utils/sync/cryptoManager'
 import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { withRetry } from './syncRetry'
 import { createLogger } from '@/utils/logger'
+import i18n from '@/locales'
 
 const log = createLogger('sync:gist')
 
@@ -65,7 +66,7 @@ export function createGistBackendAdapter({
 
   function ensureAuthorized(error) {
     if (String(error?.message || '').includes('401')) {
-      throw new Error('Token 无效或已过期，请重新配置')
+      throw new Error(i18n.global.t('sync.error.tokenInvalid'))
     }
   }
 
@@ -318,7 +319,7 @@ export function createGistBackendAdapter({
     if (!remoteImageGistId) return null
 
     try {
-      const gist = await trackSyncStep('检查图片 Gist', async () => {
+      const gist = await trackSyncStep(i18n.global.t('sync.step.checkImageGist'), async () => {
         const fetched = await getGist(tokenRef.value, remoteImageGistId)
         if (fetched && remoteImageGistId !== imageGistIdRef.value) {
           await saveImageGistId(remoteImageGistId)
@@ -327,7 +328,7 @@ export function createGistBackendAdapter({
       }, {
         startDetail: `Gist ${remoteImageGistId}`,
         category: 'image',
-        successDetail: (result) => (result ? `已连接 ${remoteImageGistId}` : '未找到图片 Gist')
+        successDetail: (result) => (result ? i18n.global.t('sync.step.checkImageGist.connected', { id: remoteImageGistId }) : i18n.global.t('sync.step.checkImageGist.notFound'))
       })
       return gist || null
     } catch (error) {
@@ -341,13 +342,13 @@ export function createGistBackendAdapter({
     if (!targetRechargeGistId) return null
 
     try {
-      const gist = await trackSyncStep('检查充值 Gist', async () => {
+      const gist = await trackSyncStep(i18n.global.t('sync.step.checkRechargeGist'), async () => {
         const fetched = await getGist(tokenRef.value, targetRechargeGistId)
         return fetched || null
       }, {
         startDetail: `Gist ${targetRechargeGistId}`,
         category: 'recharge',
-        successDetail: (result) => (result ? `已连接 ${targetRechargeGistId}` : '未找到充值 Gist')
+        successDetail: (result) => (result ? i18n.global.t('sync.step.checkRechargeGist.connected', { id: targetRechargeGistId }) : i18n.global.t('sync.step.checkRechargeGist.notFound'))
       })
       return gist || null
     } catch (error) {
@@ -361,13 +362,13 @@ export function createGistBackendAdapter({
     if (!targetEventGistId) return null
 
     try {
-      const gist = await trackSyncStep('检查活动 Gist', async () => {
+      const gist = await trackSyncStep(i18n.global.t('sync.step.checkEventGist'), async () => {
         const fetched = await getGist(tokenRef.value, targetEventGistId)
         return fetched || null
       }, {
         startDetail: `Gist ${targetEventGistId}`,
         category: 'event',
-        successDetail: (result) => (result ? `已连接 ${targetEventGistId}` : '未找到活动 Gist')
+        successDetail: (result) => (result ? i18n.global.t('sync.step.checkEventGist.connected', { id: targetEventGistId }) : i18n.global.t('sync.step.checkEventGist.notFound'))
       })
       return gist || null
     } catch (error) {
@@ -392,16 +393,16 @@ export function createGistBackendAdapter({
   }) {
     const result = await trackSyncStep(title, async () => {
       let content = await withRetry(() => getGistFileContent(tokenRef.value, gist, fileName))
-      let source = '主 Gist'
+      let source = i18n.global.t('sync.source.mainGist')
 
       if (!content && fallbackGist) {
         content = await withRetry(() => getGistFileContent(tokenRef.value, fallbackGist, fallbackFileName))
-        source = '备用 Gist'
+        source = i18n.global.t('sync.source.fallbackGist')
       }
 
       if (!content) {
         if (required) {
-          throw new Error(missingMessage || `未找到 ${fileName}`)
+          throw new Error(missingMessage || i18n.global.t('sync.error.fileNotFound', { fileName }))
         }
         return null
       }
@@ -411,20 +412,20 @@ export function createGistBackendAdapter({
         log.debug('data:decrypt:detected', { fileName, source })
         const key = await ensureEncryptionKey()
         if (!key) {
-          throw new Error('检测到加密数据，但加密密钥未初始化。请重新登录 GitHub 或禁用加密。')
+          throw new Error(i18n.global.t('sync.error.encryptionKeyMissing'))
         }
         const decrypted = await decrypt(content, key)
         try {
           parsed = JSON.parse(decrypted)
         } catch (e) {
-          throw new Error(`${fileName} 解密后 JSON 解析失败: ${e.message}`)
+          throw new Error(i18n.global.t('sync.error.decryptJsonFailed', { fileName, error: e.message }))
         }
         log.debug('data:decrypt:done', { fileName, source })
       } else {
         try {
           parsed = JSON.parse(content)
         } catch (e) {
-          throw new Error(`${fileName} JSON 解析失败: ${e.message}`)
+          throw new Error(i18n.global.t('sync.error.jsonParseFailed', { fileName, error: e.message }))
         }
       }
 
@@ -437,7 +438,7 @@ export function createGistBackendAdapter({
       category,
       successDetail: (value) => {
         if (!successDetail) return ''
-        return successDetail(value?.parsed ?? null, value?.source || '主 Gist')
+        return successDetail(value?.parsed ?? null, value?.source || i18n.global.t('sync.source.mainGist'))
       }
     })
 
@@ -488,7 +489,7 @@ export function createGistBackendAdapter({
       })
     }
 
-    await trackSyncStep(`上传图片 Gist (${totalBatches} 批并发)`, async () => {
+    await trackSyncStep(i18n.global.t('sync.step.uploadImageGist', { batches: totalBatches }), async () => {
       for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
         const chunk = batches.slice(i, i + MAX_CONCURRENT)
         const results = await Promise.allSettled(chunk.map(async ({ batch }) => {
@@ -522,11 +523,11 @@ export function createGistBackendAdapter({
           }, failures.map(r => r.reason))
         }
       }
-      return `${totalBatches} 批已全部上传`
+      return i18n.global.t('sync.step.uploadImageGist.batchDone', { batches: totalBatches })
     }, {
-      startDetail: `并发上传 ${totalBatches} 批图片（每批 ${BATCH_SIZE} 张，并发 ${MAX_CONCURRENT}）`,
+      startDetail: i18n.global.t('sync.step.uploadImageGist.start', { batches: totalBatches, batchSize: BATCH_SIZE, concurrent: MAX_CONCURRENT }),
       category: 'image',
-      successDetail: () => '图片 Gist 已更新'
+      successDetail: () => i18n.global.t('sync.step.uploadImageGist.success')
     })
   }
 

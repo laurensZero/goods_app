@@ -11,6 +11,7 @@ import {
   shouldPullRechargeByManifest,
   readBudgetSettings
 } from '@/utils/sync/shared'
+import i18n from '@/locales'
 
 export function createSyncConflictService({
   backend,
@@ -81,17 +82,17 @@ export function createSyncConflictService({
       ? await getExistingEventGist()
       : await currentBackend.getExistingEventGist()
     const remoteData = await currentBackend.readJson({
-      title: '预检读取 Data',
+      title: i18n.global.t('sync.step.readData'),
       gist,
       fileName: 'data.json',
-      startDetail: '读取收藏、心愿单和回收站',
+      startDetail: i18n.global.t('sync.step.readData.start'),
       category: 'pull',
       successDetail: (parsed) => {
-        if (!parsed) return '未找到远端主数据'
+        if (!parsed) return i18n.global.t('sync.step.readData.notFound')
         const goods = Array.isArray(parsed.goods) ? parsed.goods : []
         const trash = Array.isArray(parsed.trash) ? parsed.trash : []
         const counts = countWishlistSplit(goods)
-        return `收藏 ${counts.collection}，心愿单 ${counts.wishlist}，回收站 ${trash.length}`
+        return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
       }
     })
     const localRechargeData = buildRechargeSyncData({ incremental: false })
@@ -105,18 +106,18 @@ export function createSyncConflictService({
     const localEventData = buildEventSyncData()
     const remoteRechargeData = (shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
       ? (await currentBackend.readJson({
-          title: '预检读取 RechargeData',
+          title: i18n.global.t('sync.step.readRecharge'),
           gist,
           fileName: 'recharge-data.json',
-          startDetail: '读取充值记录',
+          startDetail: i18n.global.t('sync.step.readRecharge.start'),
           category: 'pull',
           fallbackGist: existingRechargeGist,
           fallbackFileName: 'recharge-data.json',
           successDetail: (parsed, source) => {
-            if (!parsed) return '未找到充值数据'
+            if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
             const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
             const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-            return `${source}，充值 ${recharge.length} 条，回收站 ${rechargeTrash.length} 条`
+            return i18n.global.t('sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
           }
         }) || {
           recharge: Array.isArray(remoteData?.recharge) ? remoteData.recharge : [],
@@ -125,17 +126,17 @@ export function createSyncConflictService({
       : { recharge: localRechargeData.recharge || [], rechargeTrash: [] }
     const remoteEventData = (!triggeredByRealtime || sourceTable === 'events')
       ? (await currentBackend.readJson({
-          title: '预检读取 EventsData',
+          title: i18n.global.t('sync.step.readEvents'),
           gist,
           fileName: 'events-data.json',
-          startDetail: '读取活动数据',
+          startDetail: i18n.global.t('sync.step.readEvents.start'),
           category: 'pull',
           fallbackGist: existingEventGist,
           fallbackFileName: 'events-data.json',
           successDetail: (parsed, source) => {
-            if (!parsed) return '未找到活动数据'
+            if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
             const events = Array.isArray(parsed.events) ? parsed.events : []
-            return `${source}，活动 ${events.length} 场`
+            return i18n.global.t('sync.step.readEvents.success', { source, count: events.length })
           }
         }) || { events: [] })
       : { events: [] }
