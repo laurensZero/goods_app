@@ -1,6 +1,5 @@
 import {
   buildImageReferenceMap,
-  buildTimestampRecordMap,
   countComparableRecordDiff,
   countWishlistSplit,
   getItemTimestamp,
@@ -9,6 +8,7 @@ import {
   shouldPullRechargeByManifest,
   readBudgetSettings
 } from '@/utils/sync/shared'
+import { compareStateSync } from '@/utils/sync/stateCompare'
 import i18n from '@/locales'
 
 export function createSyncConflictService({
@@ -205,24 +205,12 @@ export function createSyncConflictService({
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
-    const rechargeDiff = countComparableRecordDiff(
-      buildTimestampRecordMap(localRechargeData.recharge || []),
-      buildTimestampRecordMap(remoteRechargeData.recharge || [])
-    )
-    const eventDiff = countComparableRecordDiff(
-      buildTimestampRecordMap(localEventData.events || []),
-      buildTimestampRecordMap(remoteEventData.events || [])
-    )
+    const rechargeDiff = compareStateSync(localRechargeData.recharge || [], remoteRechargeData.recharge || [])
+    const eventDiff = compareStateSync(localEventData.events || [], remoteEventData.events || [])
 
     const goodsGroupStore = useGoodsGroupStore()
-    const groupDiff = countComparableRecordDiff(
-      buildTimestampRecordMap(goodsGroupStore.groupList || []),
-      buildTimestampRecordMap(remoteData?.goodsGroups || [])
-    )
-    const groupItemDiff = countComparableRecordDiff(
-      buildTimestampRecordMap(goodsGroupStore.groupItemList || []),
-      buildTimestampRecordMap(remoteData?.goodsGroupItems || [])
-    )
+    const groupDiff = compareStateSync(goodsGroupStore.groupList || [], remoteData?.goodsGroups || [])
+    const groupItemDiff = compareStateSync(goodsGroupStore.groupItemList || [], remoteData?.goodsGroupItems || [])
 
     const hasBudgetDiff = localBudgetData.monthly !== remoteBudgetData.monthly || localBudgetData.yearly !== remoteBudgetData.yearly
 
