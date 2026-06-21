@@ -463,6 +463,15 @@ export const useSyncStore = defineStore('sync', () => {
     if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
       try { await ensureEncryptionKey() } catch { encryptionEnabled.value = false }
     }
+
+    // Restore persisted dirty domains (survives app restart)
+    const savedDirty = await readSyncKey(DIRTY_DOMAINS_KEY)
+    if (savedDirty) {
+      for (const d of savedDirty.split(',')) {
+        if (d.trim()) dirtyDomains.add(d.trim())
+      }
+    }
+
     isInitialized.value = true
 
     if (token.value && !gistId.value) {
@@ -504,17 +513,30 @@ export const useSyncStore = defineStore('sync', () => {
   let syncTimeoutId = null
   let autoPushTimer = null
   let pendingAutoPush = false
+  const DIRTY_DOMAINS_KEY = 'sync_dirty_domains'
   const dirtyDomains = new Set()
 
   function markDomainDirty(domain) {
-    if (domain) dirtyDomains.add(domain)
+    if (domain) {
+      dirtyDomains.add(domain)
+      writeSyncKey(DIRTY_DOMAINS_KEY, [...dirtyDomains].join(','))
+    }
   }
 
   function consumeDirtyDomains() {
     if (dirtyDomains.size === 0) return null
-    const domains = new Set(dirtyDomains)
-    dirtyDomains.clear()
-    return domains
+    return new Set(dirtyDomains)
+  }
+
+  function clearDirtyDomains(consumed) {
+    // Only clear the domains that were consumed by the sync.
+    // New domains added during the sync are preserved.
+    if (consumed) {
+      for (const d of consumed) dirtyDomains.delete(d)
+    } else {
+      dirtyDomains.clear()
+    }
+    writeSyncKey(DIRTY_DOMAINS_KEY, dirtyDomains.size > 0 ? [...dirtyDomains].join(',') : '')
   }
 
   function flushPendingAutoPush() {
@@ -635,6 +657,7 @@ export const useSyncStore = defineStore('sync', () => {
       )
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
+      clearDirtyDomains(domains)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))

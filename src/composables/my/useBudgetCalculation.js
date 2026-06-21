@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { useGoodsStore } from '@/stores/goods'
+import { useSyncStore } from '@/stores/sync'
 import { useI18n } from 'vue-i18n'
 
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
@@ -136,6 +137,7 @@ export function useBudgetCalculation() {
       return
     }
     writePersisted(MONTHLY_BUDGET_STORAGE_KEY, normalized)
+    useSyncStore().autoPushGoods('budget')
   })
 
   watch(yearlyBudgetInput, (value) => {
@@ -145,6 +147,7 @@ export function useBudgetCalculation() {
       return
     }
     writePersisted(YEARLY_BUDGET_STORAGE_KEY, normalized)
+    useSyncStore().autoPushGoods('budget')
   })
 
   return {

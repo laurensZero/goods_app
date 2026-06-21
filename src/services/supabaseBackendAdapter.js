@@ -259,7 +259,23 @@ export function createSupabaseBackendAdapter({
 
   // ── Existing lookups ──
 
+  // Cache image file listing to avoid expensive Storage API calls on every sync.
+  // Auto-push fires every ~2s; listing all files is O(n) and slow.
+  const IMAGE_GIST_CACHE_TTL = 30_000 // 30 seconds
+  let imageGistCache = null
+  let imageGistCacheTime = 0
+
+  function invalidateImageGistCache() {
+    imageGistCache = null
+    imageGistCacheTime = 0
+  }
+
   async function getExistingImageGist() {
+    const now = Date.now()
+    if (imageGistCache && (now - imageGistCacheTime) < IMAGE_GIST_CACHE_TTL) {
+      return imageGistCache
+    }
+
     const db = getDb()
     const files = {}
 
@@ -272,7 +288,10 @@ export function createSupabaseBackendAdapter({
       files[fileName] = { name: fileName }
       files[fileName + '.txt'] = { name: fileName }
     }
-    return { id: GOODS_IMAGE_BUCKET, files }
+    const result = { id: GOODS_IMAGE_BUCKET, files }
+    imageGistCache = result
+    imageGistCacheTime = now
+    return result
   }
 
   async function getExistingRechargeGist() {
@@ -704,6 +723,9 @@ export function createSupabaseBackendAdapter({
         () => uploadWorker()
       )
       await Promise.all(workers)
+
+      // Invalidate image cache so next sync sees the newly uploaded files
+      invalidateImageGistCache()
 
       return i18n.global.t('sync.step.uploadSupabaseImages.result', { uploaded, failed })
     }, {

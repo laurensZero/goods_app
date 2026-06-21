@@ -512,6 +512,7 @@ export function createSyncOrchestrator({
     const shouldWriteData = uploadPlan ? uploadPlan.hasDataDiff !== false : true
     const shouldWriteRecharge = uploadPlan ? uploadPlan.hasRechargeDataDiff !== false : true
     const shouldWriteEvent = uploadPlan ? uploadPlan.hasEventDataDiff !== false : true
+    const hasBudgetDiff = uploadPlan?.hasBudgetDiff === true
     const isSupabaseIncrementalUpload = uploadPlan?.incremental === true && typeof be.getImagePublicUrl === 'function'
     let imageGist = existingImageGist || await be.ensureImageGist()
 
@@ -773,7 +774,7 @@ export function createSyncOrchestrator({
       }
     }
 
-    if (Object.keys(imageUpdates).length > 0 || Object.keys(dataMap).length > 0) {
+    if (Object.keys(imageUpdates).length > 0 || Object.keys(dataMap).length > 0 || hasBudgetDiff) {
       dataMap[MANIFEST_FILENAME] = { content: manifest }
     }
 
@@ -880,6 +881,7 @@ export function createSyncOrchestrator({
     const isRechargeDirty = !dirty || dirty.has('recharge')
     const isEventsDirty = !dirty || dirty.has('events')
     const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('group')
+    const isBudgetDirty = !dirty || dirty.has('budget')
 
     log.debug('fullSync:start', {
       dirtyDomains: dirty ? [...dirty] : 'all',
@@ -915,17 +917,20 @@ export function createSyncOrchestrator({
     // Only read remote data for dirty domains — skip clean domains to save I/O
     let remoteData, remoteRechargeData, remoteEventData
     try {
-      const remoteReads = [
-        readJson(be, {
-          title: i18n.global.t('sync.step.readData'), gist, fileName: DATA_FILENAME,
-          startDetail: i18n.global.t('sync.step.readData.start'), category: 'pull', required: true, missingMessage: i18n.global.t('sync.step.readData.empty'),
-          successDetail: (parsed) => {
-            if (!parsed) return i18n.global.t('sync.step.readData.notFound')
-            const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
-            return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: (parsed.trash || []).length })
-          }
-        })
-      ]
+      const remoteReads = []
+      if (isGoodsDirty) {
+        remoteReads.push(
+          readJson(be, {
+            title: i18n.global.t('sync.step.readData'), gist, fileName: DATA_FILENAME,
+            startDetail: i18n.global.t('sync.step.readData.start'), category: 'pull', required: true, missingMessage: i18n.global.t('sync.step.readData.empty'),
+            successDetail: (parsed) => {
+              if (!parsed) return i18n.global.t('sync.step.readData.notFound')
+              const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
+              return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: (parsed.trash || []).length })
+            }
+          })
+        )
+      }
       if (isRechargeDirty) {
         remoteReads.push(
           readJson(be, {
@@ -946,16 +951,19 @@ export function createSyncOrchestrator({
       }
 
       const results = await Promise.all(remoteReads)
-      remoteData = results[0] || { goods: [], trash: [], presets: {} }
-      let resultIdx = 1
+      let resultIdx = 0
+      if (isGoodsDirty) {
+        remoteData = results[resultIdx++] || { goods: [], trash: [], presets: {} }
+      }
       if (isRechargeDirty) {
-        remoteRechargeData = results[resultIdx++] || { recharge: Array.isArray(remoteData.recharge) ? remoteData.recharge : [], rechargeTrash: Array.isArray(remoteData.rechargeTrash) ? remoteData.rechargeTrash : [] }
+        remoteRechargeData = results[resultIdx++] || { recharge: [], rechargeTrash: [] }
       }
       if (isEventsDirty) {
         remoteEventData = results[resultIdx++] || { events: [] }
       }
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
 
+    remoteData = remoteData || { goods: [], trash: [], presets: {} }
     remoteRechargeData = remoteRechargeData || { recharge: [], rechargeTrash: [] }
     remoteEventData = remoteEventData || { events: [] }
 
@@ -975,8 +983,8 @@ export function createSyncOrchestrator({
       yearly: remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly
     }
     const [presetsData, localBudgetSettings] = await Promise.all([
-      ctx.buildPresetsData(),
-      readBudgetSettings()
+      isGoodsDirty ? ctx.buildPresetsData() : Promise.resolve(null),
+      (isGoodsDirty || isBudgetDirty) ? readBudgetSettings() : Promise.resolve(null)
     ])
 
     const [
@@ -987,16 +995,20 @@ export function createSyncOrchestrator({
       localEventComparableState,
       remoteEventComparableState
     ] = await Promise.all([
-      (() => {
-        const goodsGroupStore = useGoodsGroupStore()
-        return payload.buildComparableSyncStateFromData(
-          { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData, goodsGroups: goodsGroupStore.groupList, goodsGroupItems: goodsGroupStore.groupItemList },
-          { budgetSettings: localBudgetSettings }
-        )
-      })(),
-      payload.buildComparableSyncStateFromData(remoteData, {
-        budgetSettings: resolvedBudgetSettings
-      }),
+      isGoodsDirty
+        ? (() => {
+            const goodsGroupStore = useGoodsGroupStore()
+            return payload.buildComparableSyncStateFromData(
+              { goods: goodsStore.list, trash: goodsStore.trashList, presets: presetsData, goodsGroups: goodsGroupStore.groupList, goodsGroupItems: goodsGroupStore.groupItemList },
+              { budgetSettings: localBudgetSettings }
+            )
+          })()
+        : Promise.resolve(null),
+      isGoodsDirty
+        ? payload.buildComparableSyncStateFromData(remoteData, {
+            budgetSettings: resolvedBudgetSettings
+          })
+        : Promise.resolve(null),
       isRechargeDirty
         ? payload.buildComparableRechargeStateFromData(localRechargeData)
         : Promise.resolve(null),
@@ -1011,14 +1023,19 @@ export function createSyncOrchestrator({
         : Promise.resolve(null)
     ])
 
-    const hasDataDiff = localComparableState !== remoteComparableState
+    const hasDataDiff = isGoodsDirty ? (localComparableState !== remoteComparableState) : false
     // Clean domains (not dirty, no remote read): always no diff — no local changes to push,
     // and we skipped the remote read so nothing to pull either.
     const hasRechargeDataDiff = isRechargeDirty ? (localRechargeComparableState !== remoteRechargeComparableState) : false
     const hasEventDataDiff = isEventsDirty ? (localEventComparableState !== remoteEventComparableState) : false
-    const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff
+    // Budget is stored in manifest (budgetMonthly/budgetYearly) — no remote data read needed.
+    const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
+      normalizeBudgetValue(localBudgetSettings.monthly) !== normalizeBudgetValue(resolvedBudgetSettings.monthly) ||
+      normalizeBudgetValue(localBudgetSettings.yearly) !== normalizeBudgetValue(resolvedBudgetSettings.yearly)
+    )
+    const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff
 
-    log.debug('fullSync:compare', { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, isRechargeDirty, isEventsDirty })
+    log.debug('fullSync:compare', { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, isRechargeDirty, isEventsDirty, isBudgetDirty })
 
     if (!hasEffectiveDiff) {
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -1117,6 +1134,7 @@ export function createSyncOrchestrator({
         hasDataDiff,
         hasRechargeDataDiff,
         hasEventDataDiff,
+        hasBudgetDiff,
         hasPendingImageChanges,
         incremental: typeof be.getImagePublicUrl === 'function',
         remoteData,
