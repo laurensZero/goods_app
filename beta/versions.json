@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260621.6",
+    "url": "bundle-20260621.6.zip",
+    "hash": "93c5da18bdd331470752ce4edb27c5376e58fc77b0c4d3020fec395e5ca3d976",
+    "minNativeVersion": null,
+    "notes": "- feat: 引入状态比较工具，优化增量同步逻辑，简化数据差异计算\n\n- feat: 优化同步逻辑，增加并行读取远程数据，简化数据处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-21T13:25:56Z"
+  },
+  {
     "version": "20260621.5",
     "url": "bundle-20260621.5.zip",
     "hash": "fdfe83432990b1b7a36ed1af60e58c06927bce6467d4153557dc4bf7ac5e5d3c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 加快增量拉取",
     "updateLevel": "silent",
     "publishedAt": "2026-06-21T12:45:57Z"
-  },
-  {
-    "version": "20260621.3",
-    "url": "bundle-20260621.3.zip",
-    "hash": "6d8cfc50edba7fc50074c4cebacdf7020fb60ef636dec9e0731ec6e378e6183f",
-    "minNativeVersion": null,
-    "notes": "- feat: 引入共享的存储核心工具，简化CRUD和初始化逻辑\n\n- feat: 删除Supabase对加密的检测",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-21T12:22:24Z"
   }
 ]
