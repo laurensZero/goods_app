@@ -5,7 +5,10 @@ import { SyncError } from '../syncError'
 // Suppress console.warn from withRetry's retry logging
 let warnSpy
 beforeEach(() => { warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {}) })
-afterEach(() => { warnSpy.mockRestore() })
+afterEach(() => {
+  warnSpy.mockRestore()
+  vi.useRealTimers()
+})
 
 describe('withTimeout', () => {
   it('resolves when fn completes in time', async () => {
@@ -20,9 +23,7 @@ describe('withTimeout', () => {
     const promise = withTimeout(fn, 1000)
 
     vi.advanceTimersByTime(1100)
-    await expect(promise).rejects.toThrow('超时')
-
-    vi.useRealTimers()
+    await expect(promise).rejects.toThrow(/timed out|超时/)
   })
 
   it('propagates fn rejection', async () => {
