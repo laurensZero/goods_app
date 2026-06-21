@@ -112,8 +112,10 @@ export const useGoodsStore = defineStore('goods', () => {
 
   //  Sync helper
 
-  function autoPushGoods() {
-    useSyncStore().autoPushGoods('goods')
+  function autoPushGoods(ids) {
+    const syncStore = useSyncStore()
+    syncStore.autoPushGoods('goods')
+    if (ids && ids.length > 0) syncStore.markGoodsIdsDirty(ids)
   }
 
   let migrationPromise = null
