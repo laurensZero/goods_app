@@ -1,9 +1,9 @@
 {
-  "version": "20260621.6",
-  "url": "bundle-20260621.6.zip",
-  "hash": "93c5da18bdd331470752ce4edb27c5376e58fc77b0c4d3020fec395e5ca3d976",
+  "version": "20260625.1",
+  "url": "bundle-20260625.1.zip",
+  "hash": "dff9e0cbb9365f24a2437ce9d393ca9480aed0c9b7d782d6c35fd38456e9ba4e",
   "minNativeVersion": null,
-  "notes": "- feat: 引入状态比较工具，优化增量同步逻辑，简化数据差异计算\n\n- feat: 优化同步逻辑，增加并行读取远程数据，简化数据处理",
+  "notes": "- feat: 更新文本",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-21T13:25:56Z"
+  "publishedAt": "2026-06-25T09:57:49Z"
 }
