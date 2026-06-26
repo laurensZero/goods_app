@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260626.1",
+    "url": "bundle-20260626.1.zip",
+    "hash": "95a926e404d1529620c0719fdb31dff5b4b7ac41ce13bafecdaf494476fdfd30",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化同步逻辑，直接从 Supabase 拉取和推送数据，简化数据处理流程",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-26T08:53:02Z"
+  },
+  {
     "version": "20260625.1",
     "url": "bundle-20260625.1.zip",
     "hash": "dff9e0cbb9365f24a2437ce9d393ca9480aed0c9b7d782d6c35fd38456e9ba4e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 引入状态比较工具，优化增量同步逻辑，简化数据差异计算\n\n- feat: 优化同步逻辑，增加并行读取远程数据，简化数据处理",
     "updateLevel": "silent",
     "publishedAt": "2026-06-21T13:25:56Z"
-  },
-  {
-    "version": "20260621.5",
-    "url": "bundle-20260621.5.zip",
-    "hash": "fdfe83432990b1b7a36ed1af60e58c06927bce6467d4153557dc4bf7ac5e5d3c",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化实时同步逻辑，支持增量拉取和缓存数据处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-21T13:06:08Z"
   }
 ]

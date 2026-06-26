@@ -1,9 +1,9 @@
 {
-  "version": "20260625.1",
-  "url": "bundle-20260625.1.zip",
-  "hash": "dff9e0cbb9365f24a2437ce9d393ca9480aed0c9b7d782d6c35fd38456e9ba4e",
+  "version": "20260626.1",
+  "url": "bundle-20260626.1.zip",
+  "hash": "95a926e404d1529620c0719fdb31dff5b4b7ac41ce13bafecdaf494476fdfd30",
   "minNativeVersion": null,
-  "notes": "- feat: 更新文本",
+  "notes": "- feat: 优化同步逻辑，直接从 Supabase 拉取和推送数据，简化数据处理流程",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-25T09:57:49Z"
+  "publishedAt": "2026-06-26T08:53:02Z"
 }
