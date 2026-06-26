@@ -1,9 +1,9 @@
 {
-  "version": "20260626.1",
-  "url": "bundle-20260626.1.zip",
-  "hash": "95a926e404d1529620c0719fdb31dff5b4b7ac41ce13bafecdaf494476fdfd30",
+  "version": "20260626.2",
+  "url": "bundle-20260626.2.zip",
+  "hash": "3a3a4f5bbef5981838c9cef298502998eadee07662cce568ac66dbdbb39e5a81",
   "minNativeVersion": null,
-  "notes": "- feat: 优化同步逻辑，直接从 Supabase 拉取和推送数据，简化数据处理流程",
+  "notes": "- feat: 优化事件数据处理逻辑，支持从数组或对象格式解析事件结果",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-26T08:53:02Z"
+  "publishedAt": "2026-06-26T09:59:44Z"
 }

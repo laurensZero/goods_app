@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260626.2",
+    "url": "bundle-20260626.2.zip",
+    "hash": "3a3a4f5bbef5981838c9cef298502998eadee07662cce568ac66dbdbb39e5a81",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化事件数据处理逻辑，支持从数组或对象格式解析事件结果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-26T09:59:44Z"
+  },
+  {
     "version": "20260626.1",
     "url": "bundle-20260626.1.zip",
     "hash": "95a926e404d1529620c0719fdb31dff5b4b7ac41ce13bafecdaf494476fdfd30",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新文本",
     "updateLevel": "silent",
     "publishedAt": "2026-06-25T09:57:49Z"
-  },
-  {
-    "version": "20260621.6",
-    "url": "bundle-20260621.6.zip",
-    "hash": "93c5da18bdd331470752ce4edb27c5376e58fc77b0c4d3020fec395e5ca3d976",
-    "minNativeVersion": null,
-    "notes": "- feat: 引入状态比较工具，优化增量同步逻辑，简化数据差异计算\n\n- feat: 优化同步逻辑，增加并行读取远程数据，简化数据处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-21T13:25:56Z"
   }
 ]
