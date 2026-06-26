@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260626.4",
+    "url": "bundle-20260626.4.zip",
+    "hash": "9abf8b509cf43ee5c4eaced6d54419f96f37766941f02ec8fd0428098c7f2673",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新图像恢复逻辑，返回恢复的图像数量以优化同步反馈",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-26T12:16:13Z"
+  },
+  {
     "version": "20260626.3",
     "url": "bundle-20260626.3.zip",
     "hash": "cc7d2851646f0f77c1fedc80afe90241a228d68e18bbf35372df62a5bce18f70",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化事件数据处理逻辑，支持从数组或对象格式解析事件结果",
     "updateLevel": "silent",
     "publishedAt": "2026-06-26T09:59:44Z"
-  },
-  {
-    "version": "20260626.1",
-    "url": "bundle-20260626.1.zip",
-    "hash": "95a926e404d1529620c0719fdb31dff5b4b7ac41ce13bafecdaf494476fdfd30",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化同步逻辑，直接从 Supabase 拉取和推送数据，简化数据处理流程",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-26T08:53:02Z"
   }
 ]
