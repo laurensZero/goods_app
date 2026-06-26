@@ -1562,5 +1562,275 @@ export function createSyncOrchestrator({
     return { action: 'pulled', ...result }
   }
 
-  return { fullSync, pullOnly, resolveConflict, resolvePullConflict }
+  // ── Public: fastPull (realtime fast path) ──
+  // Only reads the changed table(s), skips manifest, merges directly into local stores.
+  // Falls back to pullOnly on failure.
+
+  async function fastPull(ctx, { tables = [], since = 0 } = {}) {
+    const be = ctx.backend || backend
+    if (!be.pullDomainRows) throw new Error('FAST_PULL_NOT_SUPPORTED')
+
+    const goodsStore = useGoodsStore()
+    const rechargeStore = useRechargeStore()
+    const eventsStore = useEventsStore()
+    const goodsGroupStore = useGoodsGroupStore()
+    const presetsStore = usePresetsStore()
+
+    // Determine which domains to pull based on changed tables
+    const tableSet = new Set(tables)
+    const pullGoods = tableSet.has('goods')
+    const pullRecharge = tableSet.has('recharge_records')
+    const pullEvents = tableSet.has('events')
+    const pullGroups = tableSet.has('goods_groups') || tableSet.has('goods_group_items')
+
+    // Pull only the changed domains in parallel
+    const results = {}
+    const pullTasks = []
+
+    if (pullGoods) {
+      pullTasks.push(
+        be.pullDomainRows('goods', { since }).then(data => {
+          results.goods = data.goods || []
+          results.trash = data.trash || []
+        })
+      )
+    }
+
+    if (pullRecharge) {
+      pullTasks.push(
+        be.pullDomainRows('recharge', { since }).then(data => {
+          results.recharge = data.recharge || []
+          results.rechargeTrash = data.rechargeTrash || []
+        })
+      )
+    }
+
+    if (pullEvents) {
+      pullTasks.push(
+        be.pullDomainRows('events', { since }).then(data => {
+          results.events = data || []
+        })
+      )
+    }
+
+    if (pullGroups) {
+      pullTasks.push(
+        be.pullDomainRows('groups', { since }).then(data => {
+          results.groups = data || []
+        }),
+        be.pullDomainRows('groupItems', { since }).then(data => {
+          results.groupItems = data || []
+        })
+      )
+    }
+
+    // Presets — always read (small, cheap)
+    pullTasks.push(
+      (async () => {
+        try {
+          const db = be.getDb()
+          const { data } = await db.from('sync_presets').select('*').eq('id', 'default').single()
+          if (data) {
+            results.presets = {
+              categories: Array.isArray(data.categories) ? data.categories : (typeof data.categories === 'string' ? JSON.parse(data.categories) : []),
+              ips: Array.isArray(data.ips) ? data.ips : (typeof data.ips === 'string' ? JSON.parse(data.ips) : []),
+              characters: Array.isArray(data.characters) ? data.characters : (typeof data.characters === 'string' ? JSON.parse(data.characters) : []),
+              storageLocations: Array.isArray(data.storage_locations) ? data.storage_locations : (typeof data.storage_locations === 'string' ? JSON.parse(data.storage_locations) : [])
+            }
+          }
+        } catch { /* presets read failure is non-fatal */ }
+      })()
+    )
+
+    await Promise.all(pullTasks)
+
+    // Compute the max updated_at across all pulled rows — use as lastSyncedAt
+    let maxRemoteTs = since || 0
+    function trackTs(items) {
+      for (const item of (items || [])) {
+        const ts = Number(item?.updatedAt) || 0
+        if (ts > maxRemoteTs) maxRemoteTs = ts
+      }
+    }
+    trackTs(results.goods); trackTs(results.trash)
+    trackTs(results.recharge); trackTs(results.rechargeTrash)
+    trackTs(results.events)
+    trackTs(results.groups); trackTs(results.groupItems)
+
+    // Image hydration for Supabase: restore gist-image:// references to public URLs
+    const isSupabaseBackend = typeof be.getImagePublicUrl === 'function'
+    if (isSupabaseBackend && pullGoods) {
+      try {
+        const imageGist = await image.resolveRemoteImageGist(null)
+        const imageStats = { restoredImages: 0 }
+        if ((results.goods || []).length > 0) {
+          results.goods = await image.hydrateRemoteItemsWithImages(results.goods, imageGist, imageStats)
+        }
+        if ((results.trash || []).length > 0) {
+          results.trash = await image.hydrateRemoteItemsWithImages(results.trash, imageGist, imageStats)
+        }
+      } catch { /* image hydration failure is non-fatal for fast pull */ }
+    }
+
+    // Merge into local stores
+    const mergeTasks = []
+
+    if (results.goods || results.trash) {
+      const goods = results.goods || []
+      const trash = results.trash || []
+      // Import new items first, then update existing ones
+      if (goods.length > 0) {
+        mergeTasks.push(goodsStore.importGoodsBackup(goods))
+        mergeTasks.push(goodsStore.updateGoodsBackup(goods))
+      }
+      if (trash.length > 0) {
+        mergeTasks.push(goodsStore.importTrashBackup(trash))
+        mergeTasks.push(goodsStore.updateTrashBackup(trash))
+      }
+    }
+
+    if (results.recharge || results.rechargeTrash) {
+      mergeTasks.push(
+        rechargeStore.importBackup(
+          [...(results.recharge || []), ...(results.rechargeTrash || [])],
+          { reconcileMissing: false }
+        )
+      )
+    }
+
+    if (results.events) {
+      mergeTasks.push(
+        eventsStore.importEventsBackup(results.events, { reconcileMissing: false })
+      )
+    }
+
+    if (results.groups || results.groupItems) {
+      mergeTasks.push(
+        goodsGroupStore.updateGroupsBackup(results.groups || [], results.groupItems || [])
+      )
+    }
+
+    // Presets sync
+    if (results.presets) {
+      mergeTasks.push(presetsStore.replacePresetsSnapshot(results.presets))
+    }
+
+    if (mergeTasks.length > 0) await Promise.all(mergeTasks)
+
+    // Update timestamps — use actual remote max, not local clock
+    const syncTimestamp = maxRemoteTs > 0 ? new Date(maxRemoteTs).toISOString() : new Date().toISOString()
+    await ctx.saveLastSyncedAt(syncTimestamp)
+    if (results.events && results.events.length > 0) {
+      await ctx.saveEventLastSyncedAt(syncTimestamp)
+    }
+
+    const pulled = {
+      goods: (results.goods || []).length,
+      trash: (results.trash || []).length,
+      recharge: (results.recharge || []).length,
+      events: (results.events || []).length,
+      groups: (results.groups || []).length
+    }
+
+    return { action: 'pulled', ...pulled }
+  }
+
+  // ── Public: pushDirtyItems (fast path) ──
+  // Directly upsert specific dirty items to Supabase without reading remote data or diffing.
+  // Skips manifest read, remote data read, image listing, and diff computation.
+  // Falls back to fullSync if non-goods domains are dirty.
+
+  async function pushDirtyItems(ctx, { dirtyIds } = {}) {
+    const be = ctx.backend || backend
+    if (!be.pushDomainRows) throw new Error('FAST_PATH_NOT_SUPPORTED')
+    const goodsStore = useGoodsStore()
+
+    const itemsToPush = []
+    const trashToPush = []
+    for (const id of dirtyIds) {
+      const item = goodsStore.list.find(g => g.id === id)
+      if (item) { itemsToPush.push(item); continue }
+      const trashItem = goodsStore.trashList.find(g => g.id === id)
+      if (trashItem) trashToPush.push(trashItem)
+    }
+
+    if (itemsToPush.length === 0 && trashToPush.length === 0) {
+      // Items not found in local store — likely deleted. Fall back to full sync.
+      throw new Error('FAST_PATH_ITEMS_NOT_FOUND')
+    }
+
+    // If any item has local-only images (not yet uploaded), fall back to full sync
+    for (const item of [...itemsToPush, ...trashToPush]) {
+      const images = item?.images
+      if (!Array.isArray(images)) continue
+      for (const img of images) {
+        const uri = String(img?.uri || '')
+        if (uri.startsWith('data:image/') || uri.startsWith('blob:') || uri.startsWith('file:')) {
+          throw new Error('FAST_PATH_HAS_LOCAL_IMAGES')
+        }
+      }
+    }
+
+    const db = be.getDb()
+    const currentDeviceId = ctx.deviceId || ''
+
+    // Push items directly — no remote read, no diff
+    const pushTasks = []
+    if (itemsToPush.length > 0) {
+      pushTasks.push(be.pushDomainRows('goods', { localItems: itemsToPush, deleteIds: [] }))
+    }
+    if (trashToPush.length > 0) {
+      pushTasks.push(be.pushDomainRows('goods', { localItems: trashToPush, deleteIds: [], isTrash: true }))
+    }
+
+    // Presets
+    try {
+      const presetsData = await ctx.buildPresetsData()
+      const presetsRow = {
+        id: 'default',
+        categories: JSON.stringify(presetsData.categories || []),
+        ips: JSON.stringify(presetsData.ips || []),
+        characters: JSON.stringify(presetsData.characters || []),
+        storage_locations: JSON.stringify(presetsData.storageLocations || [])
+      }
+      pushTasks.push(db.from('sync_presets').upsert(presetsRow, { onConflict: 'id' }))
+    } catch { /* presets push failure is non-fatal */ }
+
+    // Read existing manifest to preserve fields we don't update (image_count, budget, etc.)
+    let existingManifest = null
+    try {
+      const { data } = await db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
+      if (data && data.length > 0) existingManifest = data[0]
+    } catch { /* will use defaults */ }
+
+    await Promise.all(pushTasks)
+
+    // Update manifest — merge with existing to preserve all fields
+    const syncTimestamp = new Date().toISOString()
+    const manifestRow = {
+      id: 'default',
+      synced_at: syncTimestamp,
+      device_id: currentDeviceId,
+      collection_count: goodsStore.list.filter(g => !g.isWishlist).length,
+      wishlist_count: goodsStore.list.filter(g => g.isWishlist).length,
+      goods_count: goodsStore.list.length,
+      trash_count: goodsStore.trashList.length,
+      recharge_count: (useRechargeStore().records || []).length,
+      event_count: useEventsStore().list.length,
+      // Preserve existing fields we don't recalculate in fast path
+      image_count: existingManifest?.image_count ?? 0,
+      image_bucket: existingManifest?.image_bucket ?? 'goods-images',
+      recharge_updated_at: existingManifest?.recharge_updated_at ?? null,
+      event_updated_at: existingManifest?.event_updated_at ?? null,
+      budget_monthly: existingManifest?.budget_monthly ?? 0,
+      budget_yearly: existingManifest?.budget_yearly ?? 0
+    }
+    await db.from('sync_manifest').upsert(manifestRow)
+
+    await ctx.saveLastSyncedAt(syncTimestamp)
+
+    return { action: 'pushed', pushedItems: itemsToPush.length, pushedTrash: trashToPush.length }
+  }
+
+  return { fullSync, pullOnly, fastPull, resolveConflict, resolvePullConflict, pushDirtyItems }
 }
