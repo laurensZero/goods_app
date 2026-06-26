@@ -117,10 +117,12 @@ export function createSyncOrchestrator({
       }
 
       // 5. Hydrate images + merge
+      let restoredCount = 0
       await trackSyncStep(
         i18n.global.t('sync.step.restoreCollectionImages'),
         async () => {
-          await hydrateRemoteImages(image, be, remoteData, diff)
+          const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
+          restoredCount = imgStats?.restoredImages || 0
           await mergeToLocal(stores, remoteData, {
             reconcileMissing: true, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
@@ -129,10 +131,7 @@ export function createSyncOrchestrator({
         {
           startDetail: i18n.global.t('sync.step.restoreCollectionImages.start'),
           category: 'image',
-          successDetail: () => {
-            const counts = countPullChanges(remoteData)
-            return i18n.global.t('sync.step.restoreCollectionImages.success', { count: counts.importedGoods })
-          }
+          successDetail: () => i18n.global.t('sync.step.restoreCollectionImages.success', { count: restoredCount })
         }
       )
       if (remoteData.manifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteData.manifest.lastSyncAt)
@@ -335,10 +334,12 @@ export function createSyncOrchestrator({
       }
       // Pull — reuse diff from earlier if available, otherwise compute now
       const diff = goodsDiff || diffLocalRemote(stores, remoteData)
+      let restoredCount = 0
       await trackSyncStep(
         i18n.global.t('sync.phase.pull'),
         async () => {
-          await hydrateRemoteImages(image, be, remoteData, diff)
+          const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
+          restoredCount = imgStats?.restoredImages || 0
           await mergeToLocal(stores, remoteData, {
             reconcileMissing: true, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
@@ -347,10 +348,7 @@ export function createSyncOrchestrator({
         {
           startDetail: i18n.global.t('sync.step.restoreCollectionImages.start'),
           category: 'pull',
-          successDetail: () => {
-            const counts = countPullChanges(remoteData)
-            return i18n.global.t('sync.step.restoreCollectionImages.success', { count: counts.importedGoods })
-          }
+          successDetail: () => i18n.global.t('sync.step.restoreCollectionImages.success', { count: restoredCount })
         }
       )
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
