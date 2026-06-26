@@ -1215,7 +1215,7 @@ async function handleSync() {
   if (syncStore.isSyncing) return
 
   try {
-    const result = await syncStore.fullSync()
+    const result = await syncStore.sync()
 
     if (!result) {
       showToast(t('sync.uploadComplete'))
@@ -1261,7 +1261,7 @@ async function handlePull() {
   if (syncStore.isSyncing) return
 
   try {
-    const result = await syncStore.pullOnly()
+    const result = await syncStore.pull()
 
     if (result?.action === 'pulled') {
       const parts = buildPullResultParts(result)

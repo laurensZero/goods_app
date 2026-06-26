@@ -220,7 +220,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
                   key: 'retry',
                   label: '重试',
                   primary: true,
-                  callback: () => syncStore.fullSync({ source: 'manual' }).catch(() => {})
+                  callback: () => syncStore.sync({ source: 'manual' }).catch(() => {})
                 }
               ]
             })
