@@ -198,64 +198,153 @@ export function createSyncOrchestrator({
     const localRechargeLatestTs = getLatestRechargeTimestamp(localRechargeSnapshot)
     const useIncrementalRechargePull = shouldPullRecharge && enableIncrementalRecharge && isSupabaseBackend && localRechargeLatestTs > 0
 
-    const [rawRemoteData, rawRechargeData, rawEventData] = await Promise.all([
-      canUseCachedData
-        ? Promise.resolve(cachedRemoteData)
-        : readJson(be, {
-            title: i18n.global.t('sync.step.readData'),
-            gist,
-            fileName: DATA_FILENAME,
-            startDetail: i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.startIncremental' : 'sync.step.readData.start'),
-            category: 'pull',
-            required: true,
-            missingMessage: i18n.global.t('sync.step.readData.empty'),
-            incrementalSince: useIncrementalGoodsPull ? localSyncTime : 0,
-            successDetail: (parsed) => {
-              if (!parsed) return i18n.global.t('sync.step.readData.notFound')
-              const goods = Array.isArray(parsed.goods) ? parsed.goods : []
-              const trash = Array.isArray(parsed.trash) ? parsed.trash : []
-              const counts = countWishlistSplit(goods)
-              return i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.successIncremental' : 'sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
+    // ── Fetch remote data ──
+    // Supabase direct path: pullDomainRows bypasses JSON layer
+    // Gist/fallback path: readJson via JSON interface
+    let rawRemoteData, rawRechargeData, rawEventData
+
+    if (isSupabaseBackend && be.pullDomainRows) {
+      const safePull = async (domain, opts) => {
+        try { return await be.pullDomainRows(domain, opts) }
+        catch (e) { log.warn(`pull:${domain}-failed`, e); return domain === 'goods' ? { goods: [], trash: [] } : domain === 'recharge' ? { recharge: [], rechargeTrash: [] } : [] }
+      }
+
+      const sinceGoods = useIncrementalGoodsPull ? localSyncTime : 0
+      const sinceRecharge = useIncrementalRechargePull ? localRechargeLatestTs : 0
+      const sinceEvents = useIncrementalEventPull ? localEventLatestTs : 0
+
+      const [goodsResult, rechargeResult, eventsResult, groupsResult, groupItemsResult] = await Promise.all([
+        canUseCachedData
+          ? Promise.resolve(cachedRemoteData)
+          : trackSyncStep(
+              i18n.global.t('sync.step.readData'),
+              () => safePull('goods', { since: sinceGoods }),
+              { startDetail: i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.startIncremental' : 'sync.step.readData.start'), category: 'pull', successDetail: (r) => {
+                const goods = r?.goods || []
+                const trash = r?.trash || []
+                const counts = countWishlistSplit(goods)
+                return i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.successIncremental' : 'sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
+              }}
+            ),
+        (cachedRemoteRechargeData != null)
+          ? Promise.resolve(cachedRemoteRechargeData)
+          : (shouldPullRecharge
+              ? trackSyncStep(
+                  i18n.global.t('sync.step.readRecharge'),
+                  () => safePull('recharge', { since: sinceRecharge }),
+                  { startDetail: i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.startIncremental' : 'sync.step.readRecharge.start'), category: 'pull', successDetail: (r) => {
+                    const recharge = r?.recharge || []
+                    const rechargeTrash = r?.rechargeTrash || []
+                    return i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.successWithTrashIncremental' : 'sync.step.readRecharge.successWithTrash', { source: 'Supabase', count: recharge.length, trash: rechargeTrash.length })
+                  }}
+                )
+              : Promise.resolve(null)),
+        (cachedRemoteEventData != null)
+          ? Promise.resolve(cachedRemoteEventData)
+          : trackSyncStep(
+              i18n.global.t('sync.step.readEvents'),
+              () => safePull('events', { since: sinceEvents }),
+              { startDetail: i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.startIncremental' : 'sync.step.readEvents.start'), category: 'pull', successDetail: (events) => {
+                return i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.successIncremental' : 'sync.step.readEvents.success', { source: 'Supabase', count: (events || []).length })
+              }}
+            ),
+        canUseCachedData
+          ? Promise.resolve(cachedRemoteData?.goodsGroups || [])
+          : safePull('groups', { since: sinceGoods }),
+        canUseCachedData
+          ? Promise.resolve(cachedRemoteData?.goodsGroupItems || [])
+          : safePull('groupItems', { since: sinceGoods })
+      ])
+
+      // Assemble rawRemoteData in the same shape as readJson returns
+      const goodsResultData = goodsResult || { goods: [], trash: [] }
+      let remotePresets = {}
+      if (!canUseCachedData) {
+        try {
+          const db = be.getDb()
+          const { data } = await db.from('sync_presets').select('*').eq('id', 'default').single()
+          if (data) {
+            remotePresets = {
+              categories: Array.isArray(data.categories) ? data.categories : (typeof data.categories === 'string' ? JSON.parse(data.categories) : []),
+              ips: Array.isArray(data.ips) ? data.ips : (typeof data.ips === 'string' ? JSON.parse(data.ips) : []),
+              characters: Array.isArray(data.characters) ? data.characters : (typeof data.characters === 'string' ? JSON.parse(data.characters) : []),
+              storageLocations: Array.isArray(data.storage_locations) ? data.storage_locations : (typeof data.storage_locations === 'string' ? JSON.parse(data.storage_locations) : [])
             }
-          }),
-      (cachedRemoteRechargeData != null)
-        ? Promise.resolve(cachedRemoteRechargeData)
-        : (shouldPullRecharge
-            ? readJson(be, {
-                title: i18n.global.t('sync.step.readRecharge'),
-                gist,
-                fileName: RECHARGE_DATA_FILENAME,
-                startDetail: i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.startIncremental' : 'sync.step.readRecharge.start'),
-                category: 'pull',
-                fallbackGist: rechargeGist,
-                fallbackFileName: RECHARGE_DATA_FILENAME,
-                incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
-                successDetail: (parsed, source) => {
-                  if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
-                  const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-                  const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-                  return i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.successWithTrashIncremental' : 'sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
-                }
-              })
-            : Promise.resolve(null)),
-      (cachedRemoteEventData != null)
-        ? Promise.resolve(cachedRemoteEventData)
-        : readJson(be, {
-            title: i18n.global.t('sync.step.readEvents'),
-            gist,
-            fileName: EVENT_DATA_FILENAME,
-            startDetail: i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.startIncremental' : 'sync.step.readEvents.start'),
-            category: 'pull',
-            fallbackGist: eventGist,
-            fallbackFileName: EVENT_DATA_FILENAME,
-            incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
-            successDetail: (parsed, source) => {
-              if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
-              const events = Array.isArray(parsed.events) ? parsed.events : []
-              return i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.successIncremental' : 'sync.step.readEvents.success', { source, count: events.length })
-            }
-          })
-    ])
+          }
+        } catch (e) { log.warn('pull:presets-failed', e) }
+      } else {
+        remotePresets = cachedRemoteData?.presets || {}
+      }
+
+      rawRemoteData = {
+        goods: goodsResultData.goods || [],
+        trash: goodsResultData.trash || [],
+        presets: remotePresets,
+        goodsGroups: groupsResult || [],
+        goodsGroupItems: groupItemsResult || []
+      }
+      rawRechargeData = rechargeResult
+      rawEventData = eventsResult ? { events: eventsResult } : null
+    } else {
+      ;[rawRemoteData, rawRechargeData, rawEventData] = await Promise.all([
+        canUseCachedData
+          ? Promise.resolve(cachedRemoteData)
+          : readJson(be, {
+              title: i18n.global.t('sync.step.readData'),
+              gist,
+              fileName: DATA_FILENAME,
+              startDetail: i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.startIncremental' : 'sync.step.readData.start'),
+              category: 'pull',
+              required: true,
+              missingMessage: i18n.global.t('sync.step.readData.empty'),
+              incrementalSince: useIncrementalGoodsPull ? localSyncTime : 0,
+              successDetail: (parsed) => {
+                if (!parsed) return i18n.global.t('sync.step.readData.notFound')
+                const goods = Array.isArray(parsed.goods) ? parsed.goods : []
+                const trash = Array.isArray(parsed.trash) ? parsed.trash : []
+                const counts = countWishlistSplit(goods)
+                return i18n.global.t(useIncrementalGoodsPull ? 'sync.step.readData.successIncremental' : 'sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
+              }
+            }),
+        (cachedRemoteRechargeData != null)
+          ? Promise.resolve(cachedRemoteRechargeData)
+          : (shouldPullRecharge
+              ? readJson(be, {
+                  title: i18n.global.t('sync.step.readRecharge'),
+                  gist,
+                  fileName: RECHARGE_DATA_FILENAME,
+                  startDetail: i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.startIncremental' : 'sync.step.readRecharge.start'),
+                  category: 'pull',
+                  fallbackGist: rechargeGist,
+                  fallbackFileName: RECHARGE_DATA_FILENAME,
+                  incrementalSince: useIncrementalRechargePull ? localRechargeLatestTs : 0,
+                  successDetail: (parsed, source) => {
+                    if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
+                    const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
+                    const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
+                    return i18n.global.t(useIncrementalRechargePull ? 'sync.step.readRecharge.successWithTrashIncremental' : 'sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
+                  }
+                })
+              : Promise.resolve(null)),
+        (cachedRemoteEventData != null)
+          ? Promise.resolve(cachedRemoteEventData)
+          : readJson(be, {
+              title: i18n.global.t('sync.step.readEvents'),
+              gist,
+              fileName: EVENT_DATA_FILENAME,
+              startDetail: i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.startIncremental' : 'sync.step.readEvents.start'),
+              category: 'pull',
+              fallbackGist: eventGist,
+              fallbackFileName: EVENT_DATA_FILENAME,
+              incrementalSince: useIncrementalEventPull ? localEventLatestTs : 0,
+              successDetail: (parsed, source) => {
+                if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
+                const events = Array.isArray(parsed.events) ? parsed.events : []
+                return i18n.global.t(useIncrementalEventPull ? 'sync.step.readEvents.successIncremental' : 'sync.step.readEvents.success', { source, count: events.length })
+              }
+            })
+      ])
+    }
 
     const remoteData = rawRemoteData || { goods: [], trash: [], presets: {} }
     const rechargeData = rawRechargeData || (shouldPullRecharge ? { recharge: localRechargeSnapshot, rechargeTrash: [] } : { recharge: localRechargeSnapshot, rechargeTrash: [] })
@@ -623,6 +712,130 @@ export function createSyncOrchestrator({
     }
     const manifest = payload.buildManifest(mergedImageStats, syncTimestamp, counts)
 
+    // ── Supabase direct path: push rows directly, bypass dataMap/JSON layer ──
+    if (isSupabaseBackend && be.pushDomainRows) {
+      const pushOpts = isSupabaseIncrementalUpload && uploadPlan?.remoteData
+        ? { remoteItems: uploadPlan.remoteData }  // diff mode
+        : {}                                       // full upsert mode
+
+      const pushTasks = []
+
+      if (shouldWriteData) {
+        const remoteGoods = pushOpts.remoteItems?.goods || null
+        const remoteTrash = pushOpts.remoteItems?.trash || null
+
+        if (hasDirtyGoodsIds) {
+          // Fast path: only upsert specific dirty items, no delete reconciliation
+          pushTasks.push(
+            be.pushDomainRows('goods', { localItems: syncData.goods || [], deleteIds: [] }),
+            be.pushDomainRows('goods', { localItems: syncData.trash || [], deleteIds: [], isTrash: true })
+          )
+        } else {
+          pushTasks.push(
+            be.pushDomainRows('goods', { localItems: syncData.goods || [], remoteItems: remoteGoods }),
+            be.pushDomainRows('goods', { localItems: syncData.trash || [], remoteItems: remoteTrash, isTrash: true })
+          )
+        }
+
+        // Groups
+        pushTasks.push(
+          be.pushDomainRows('groups', {
+            localItems: syncData.goodsGroups || [],
+            remoteItems: pushOpts.remoteItems?.goodsGroups || null
+          }),
+          be.pushDomainRows('groupItems', {
+            localItems: syncData.goodsGroupItems || [],
+            remoteItems: pushOpts.remoteItems?.goodsGroupItems || null
+          })
+        )
+      }
+
+      if (shouldWriteRecharge) {
+        const localRecharge = rechargeSyncData.recharge || []
+        const localRechargeTrash = rechargeSyncData.rechargeTrash || []
+        const remoteRecharge = isSupabaseIncrementalUpload && uploadPlan?.remoteRechargeData
+          ? (uploadPlan.remoteRechargeData.recharge || [])
+          : null
+        const remoteRechargeTrash = isSupabaseIncrementalUpload && uploadPlan?.remoteRechargeData
+          ? (uploadPlan.remoteRechargeData.rechargeTrash || [])
+          : null
+        pushTasks.push(
+          be.pushDomainRows('recharge', { localItems: localRecharge, remoteItems: remoteRecharge }),
+          be.pushDomainRows('recharge', { localItems: localRechargeTrash, remoteItems: remoteRechargeTrash, isTrash: true })
+        )
+      }
+
+      if (shouldWriteEvent) {
+        const remoteEvents = isSupabaseIncrementalUpload && uploadPlan?.remoteEventData
+          ? uploadPlan.remoteEventData.events
+          : null
+        pushTasks.push(
+          be.pushDomainRows('events', { localItems: eventSyncData.events || [], remoteItems: remoteEvents })
+        )
+      }
+
+      if (pushTasks.length > 0) {
+        try {
+          await trackSyncStep(i18n.global.t('sync.step.pushData'), () =>
+            Promise.all(pushTasks),
+            { startDetail: i18n.global.t('sync.step.pushData.start'), category: 'sync', successDetail: () => i18n.global.t('sync.step.pushData.success') }
+          )
+        } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+      }
+
+      // Presets
+      if (syncData.presets && shouldWriteData) {
+        try {
+          const db = be.getDb()
+          const presetsRow = {
+            id: 'default',
+            categories: JSON.stringify(syncData.presets.categories || []),
+            ips: JSON.stringify(syncData.presets.ips || []),
+            characters: JSON.stringify(syncData.presets.characters || []),
+            storage_locations: JSON.stringify(syncData.presets.storageLocations || [])
+          }
+          await db.from('sync_presets').upsert(presetsRow, { onConflict: 'id' })
+        } catch (e) {
+          log.warn('push:presets-failed', e)
+        }
+      }
+
+      // Manifest
+      if (Object.keys(imageUpdates).length > 0 || shouldWriteData || shouldWriteRecharge || shouldWriteEvent || hasBudgetDiff) {
+        try {
+          const db = be.getDb()
+          const manifestRow = {
+            id: 'default',
+            synced_at: manifest.lastSyncAt,
+            device_id: manifest.deviceId || '',
+            collection_count: manifest.collectionCount || 0,
+            wishlist_count: manifest.wishlistCount || 0,
+            image_count: manifest.imageCount || 0,
+            goods_count: manifest.goodsCount || 0,
+            trash_count: manifest.trashCount || 0,
+            recharge_count: manifest.rechargeCount || 0,
+            event_count: manifest.eventCount || 0,
+            image_bucket: manifest.imageGistId || 'goods-images',
+            recharge_updated_at: manifest.rechargeUpdatedAt || null,
+            event_updated_at: manifest.eventUpdatedAt || null,
+            budget_monthly: manifest.budgetMonthly || 0,
+            budget_yearly: manifest.budgetYearly || 0
+          }
+          await db.from('sync_manifest').upsert(manifestRow)
+        } catch (e) {
+          log.warn('push:manifest-failed', e)
+        }
+      }
+
+      log.debug('push:direct-done', {
+        goods: (syncData.goods || []).length,
+        trash: (syncData.trash || []).length,
+        recharge: (rechargeSyncData.recharge || []).length,
+        events: (eventSyncData.events || []).length,
+        incremental: isSupabaseIncrementalUpload
+      })
+    } else {
+    // ── Gist / fallback path: build dataMap, write via JSON interface ──
     const dataMap = {}
     const writeOptions = isSupabaseIncrementalUpload ? { incremental: true, deleteIdsByFile: {} } : null
 
@@ -806,6 +1019,7 @@ export function createSyncOrchestrator({
         )
       } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
     }
+    } // end Gist/fallback path
 
     // Update local image entries so future syncs can dedup
     const goodsStore = useGoodsStore()
