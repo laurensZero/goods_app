@@ -67,6 +67,24 @@ function normalizeVersionHistoryItem(item) {
   }
 }
 
+function formatPublishedAtToBeijing(utcIsoString) {
+  const raw = String(utcIsoString || '').trim()
+  if (!raw) return ''
+
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return raw
+
+  return date.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
 function buildCumulativeReleaseNotesPreview(historyItems, currentVersion, latestVersion, fallbackNotes = '') {
   const current = normalizeVersionTag(currentVersion)
   const latest = normalizeVersionTag(latestVersion)
@@ -89,7 +107,7 @@ function buildCumulativeReleaseNotesPreview(historyItems, currentVersion, latest
   filtered.forEach((item) => {
     lines.push(`v${item.version}`)
     if (item.publishedAt) {
-      lines.push(`发布时间：${item.publishedAt}`)
+      lines.push(`发布时间：${formatPublishedAtToBeijing(item.publishedAt)}`)
     }
 
     const note = buildReleaseNotesPreview(item.notes)
