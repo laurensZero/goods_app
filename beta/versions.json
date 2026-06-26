@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260626.5",
+    "url": "bundle-20260626.5.zip",
+    "hash": "19233fca1180c9692efd94fa85c13d7570de75ce1e53cd390ec89d498f29c19c",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加格式化发布时间为北京时间的功能，优化发布记录显示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-26T15:37:32Z"
+  },
+  {
     "version": "20260626.4",
     "url": "bundle-20260626.4.zip",
     "hash": "9abf8b509cf43ee5c4eaced6d54419f96f37766941f02ec8fd0428098c7f2673",
@@ -16,14 +25,5 @@
     "notes": "- feat: 引入快速拉取和推送功能，优化实时同步逻辑，支持增量数据处理\n\n- refactor: 重构同步系统",
     "updateLevel": "silent",
     "publishedAt": "2026-06-26T11:40:11Z"
-  },
-  {
-    "version": "20260626.2",
-    "url": "bundle-20260626.2.zip",
-    "hash": "3a3a4f5bbef5981838c9cef298502998eadee07662cce568ac66dbdbb39e5a81",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化事件数据处理逻辑，支持从数组或对象格式解析事件结果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-26T09:59:44Z"
   }
 ]

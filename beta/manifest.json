@@ -1,9 +1,9 @@
 {
-  "version": "20260626.4",
-  "url": "bundle-20260626.4.zip",
-  "hash": "9abf8b509cf43ee5c4eaced6d54419f96f37766941f02ec8fd0428098c7f2673",
+  "version": "20260626.5",
+  "url": "bundle-20260626.5.zip",
+  "hash": "19233fca1180c9692efd94fa85c13d7570de75ce1e53cd390ec89d498f29c19c",
   "minNativeVersion": null,
-  "notes": "- feat: 更新图像恢复逻辑，返回恢复的图像数量以优化同步反馈",
+  "notes": "- feat: 添加格式化发布时间为北京时间的功能，优化发布记录显示",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-26T12:16:13Z"
+  "publishedAt": "2026-06-26T15:37:32Z"
 }
