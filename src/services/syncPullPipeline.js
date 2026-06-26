@@ -187,12 +187,13 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
 
 /**
  * Hydrate remote items with images (restore gist-image:// or public URLs).
+ * @returns {{ restoredImages: number }}
  */
 export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
-  if (!imageService) return
+  const imageStats = { restoredImages: 0 }
+  if (!imageService) return imageStats
 
   const imageGist = await imageService.resolveRemoteImageGist(remoteData.manifest)
-  const imageStats = { restoredImages: 0 }
 
   const hydrationTasks = []
   if ((remoteData.goods || []).length > 0 && diff.changedGoodsIds.size > 0) {
@@ -215,6 +216,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
   }
 
   if (hydrationTasks.length > 0) await Promise.all(hydrationTasks)
+  return imageStats
 }
 
 /**
