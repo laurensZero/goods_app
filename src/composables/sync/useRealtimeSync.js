@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
 /**
  * Supabase Realtime 订阅 composable
- * 监听主数据表的变更，过滤自己的写入，触发 pullOnly
+ * 监听主数据表的变更，过滤自己的写入，触发 pullFast（只读变更的表）
  */
 export function useRealtimeSync({ syncStore }) {
   const channel = ref(null)
@@ -13,21 +13,22 @@ export function useRealtimeSync({ syncStore }) {
   let pendingPullTables = new Set()
   let retryTimer = null
 
-  function doPull(tables, forceRecharge) {
+  function doPull(tables) {
     if (syncStore.isSyncing || syncStore.isPulling) {
       // Already running — schedule ONE retry after it finishes
       if (!retryTimer) {
         retryTimer = setTimeout(async () => {
           retryTimer = null
           if (!syncStore.isSyncing && !syncStore.isPulling) {
-            try { await syncStore.pullOnly({ silent: true, forceRecharge, source: tables[0] || 'realtime' }) } catch { /* ignore */ }
+            try { await syncStore.pullFast({ tables, since: syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0 }) } catch { /* ignore */ }
           }
         }, 2000)
       }
       return
     }
+    const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
     try {
-      void syncStore.pullOnly({ silent: true, forceRecharge, source: tables[0] || 'realtime' })
+      void syncStore.pullFast({ tables, since })
     } catch {
       // silent fail
     }
@@ -45,7 +46,7 @@ export function useRealtimeSync({ syncStore }) {
     pullDebounceTimer = setTimeout(() => {
       const tables = [...pendingPullTables]
       pendingPullTables.clear()
-      doPull(tables, tables.includes('recharge_records'))
+      doPull(tables)
     }, 500)
   }
 
@@ -65,10 +66,18 @@ export function useRealtimeSync({ syncStore }) {
       channel.value = builder.subscribe((status) => {
           isConnected.value = status === 'SUBSCRIBED'
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            // Supabase 会自动重连，重连成功后做一次 catch-up pull
+            // Supabase 会自动重连，重连成功后增量 catch-up
             setTimeout(async () => {
               if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
-                try { await syncStore.pullOnly({ silent: true }) } catch { /* ignore */ }
+                const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+                const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
+                try {
+                  if (since > 0) {
+                    await syncStore.pullFast({ tables, since })
+                  } else {
+                    await syncStore.pullOnly({ silent: true })
+                  }
+                } catch { /* ignore */ }
               }
             }, 3000)
           }
@@ -116,11 +125,13 @@ export function useRealtimeSync({ syncStore }) {
       return
     }
 
-    // Supabase 模式：回到前台时拉取最新数据
+    // Supabase 模式：回到前台时拉取最新数据（用 pullFast 只读变更）
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
       if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
-        try { await syncStore.pullOnly({ source: 'visibility' }) } catch { /* ignore */ }
+        const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+        const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
+        try { await syncStore.pullFast({ tables, since }) } catch { /* ignore */ }
       }
     }, 5000)
   }

@@ -585,6 +585,47 @@ export const useSyncStore = defineStore('sync', () => {
     }, 0)
   }
 
+  // Fast path: push specific dirty items directly without reading remote data
+  async function pushDirtyItemsFast(ids) {
+    if (isSyncing.value || isPulling.value) {
+      pendingAutoPush = true
+      return
+    }
+    ensureBackendReady()
+    isSyncing.value = true
+    syncSource.value = 'auto'
+    lastError.value = ''
+
+    clearSyncTimeout()
+    syncTimeoutId = setTimeout(() => {
+      console.warn('[sync] 快速推送超时（1 分钟），强制重置')
+      resetSyncingState()
+    }, 60_000)
+
+    try {
+      const result = await orchestrator.pushDirtyItems(buildSyncContext(), { dirtyIds: ids })
+      clearDirtyGoodsIds(new Set(ids))
+      clearSyncTimeout()
+      isSyncing.value = false
+      return result
+    } catch (error) {
+      clearSyncTimeout()
+      isSyncing.value = false
+      // Fast path failed — fall back to full sync
+      console.warn('[sync] 快速推送失败，回退到完整同步:', error.message)
+      try {
+        await fullSync({ source: 'auto' })
+      } catch (fallbackError) {
+        applySyncError(fallbackError, '')
+        publishSyncNotice({
+          source: 'auto',
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || fallbackError?.message || ''
+        })
+      }
+    }
+  }
+
   function autoPushGoods(domain) {
     if (!isSupabaseMode()) return
     markDomainDirty(domain)
@@ -592,6 +633,20 @@ export const useSyncStore = defineStore('sync', () => {
       pendingAutoPush = true
       return
     }
+
+    // Fast path: only goods IDs dirty, no other domains → push directly with short debounce
+    const hasOnlyGoodsIds = dirtyGoodsIds.size > 0 && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
+    if (hasOnlyGoodsIds) {
+      if (autoPushTimer) clearTimeout(autoPushTimer)
+      const ids = [...dirtyGoodsIds]
+      autoPushTimer = setTimeout(async () => {
+        autoPushTimer = null
+        await pushDirtyItemsFast(ids)
+      }, 300)
+      return
+    }
+
+    // Standard path: multiple domains dirty → full sync with longer debounce
     if (autoPushTimer) clearTimeout(autoPushTimer)
     autoPushTimer = setTimeout(async () => {
       autoPushTimer = null
@@ -749,6 +804,33 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  // Fast pull: only reads changed tables, skips manifest, merges directly.
+  // Used by realtime sync for quick catch-up. Falls back to pullOnly on failure.
+  async function pullFast({ tables = [], since = 0 } = {}) {
+    if (isSyncing.value || isPulling.value) return
+    ensureBackendReady()
+    isSyncing.value = true; isPulling.value = true
+    syncSource.value = 'realtime'
+
+    try {
+      const result = await orchestrator.fastPull(buildSyncContext(), { tables, since })
+      return result
+    } catch (error) {
+      // Fast pull failed — fall back to full pullOnly
+      console.warn('[sync] 快速拉取失败，回退到完整拉取:', error.message)
+      isPulling.value = false
+      isSyncing.value = false
+      try {
+        return await pullOnly({ silent: true, source: 'realtime' })
+      } catch {
+        // ignore fallback errors
+      }
+    } finally {
+      isPulling.value = false
+      isSyncing.value = false
+    }
+  }
+
   async function resolveConflict(useRemote, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value) return
     isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
@@ -833,7 +915,7 @@ export const useSyncStore = defineStore('sync', () => {
     lastSyncedAt, eventLastSyncedAt, deviceId,
     isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
     isConfigured, init, saveToken, checkTokenValidity,
-    getLocalChangesSinceLastSync, fullSync, pullOnly, resolveConflict, resolvePullConflict,
+    getLocalChangesSinceLastSync, fullSync, pullOnly, pullFast, resolveConflict, resolvePullConflict,
     autoPushGoods, markGoodsIdsDirty,
     clearConflict, resetConfig,
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,

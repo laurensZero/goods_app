@@ -69,10 +69,16 @@ export function useAppStartup() {
         // silent fail on startup pull
       }
     }
-    // Supabase 模式：应用启动时也做一次拉取以防错过 realtime 推送
+    // Supabase 模式：应用启动时增量拉取（只读上次同步后变更的行）
     if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
+      const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+      const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
       try {
-        await syncStore.pullOnly({ silent: true })
+        if (since > 0) {
+          await syncStore.pullFast({ tables, since })
+        } else {
+          await syncStore.pullOnly({ silent: true })
+        }
       } catch {
         // silent fail on startup pull
       }
