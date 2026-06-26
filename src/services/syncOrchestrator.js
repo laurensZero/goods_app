@@ -284,7 +284,10 @@ export function createSyncOrchestrator({
         goodsGroupItems: groupItemsResult || []
       }
       rawRechargeData = rechargeResult
-      rawEventData = eventsResult ? { events: eventsResult } : null
+      // eventsResult from pullDomainRows is an array; from cache it's already { events: [...] }
+      rawEventData = eventsResult
+        ? (Array.isArray(eventsResult) ? { events: eventsResult } : eventsResult)
+        : null
     } else {
       ;[rawRemoteData, rawRechargeData, rawEventData] = await Promise.all([
         canUseCachedData
