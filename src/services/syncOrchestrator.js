@@ -3,6 +3,7 @@
 // The store only manages state/persistence and delegates to this.
 
 import { buildImageSyncStats, countWishlistSplit, getItemTimestamp, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
+import { parseGistImageUri, normalizeGoodsImageList } from '@/utils/goods/images'
 import { compareStateSync } from '@/utils/sync/stateCompare'
 import { wrapSyncError, PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_WRITE_DATA } from './syncError'
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
@@ -205,7 +206,7 @@ export function createSyncOrchestrator({
     try {
       const { data } = await db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
       if (data && data.length > 0) existingManifest = data[0]
-    } catch { /* use defaults */ }
+    } catch { /* will skip manifest update below */ }
 
     // Push items + presets in parallel
     const pushTasks = []
@@ -226,27 +227,30 @@ export function createSyncOrchestrator({
 
     await Promise.all(pushTasks)
 
-    // Update manifest
-    const syncTimestamp = new Date().toISOString()
-    const manifestRow = {
-      id: 'default',
-      synced_at: syncTimestamp,
-      device_id: currentDeviceId,
-      collection_count: goodsStore.list.filter(g => !g.isWishlist).length,
-      wishlist_count: goodsStore.list.filter(g => g.isWishlist).length,
-      goods_count: goodsStore.list.length,
-      trash_count: goodsStore.trashList.length,
-      recharge_count: (useRechargeStore().records || []).length,
-      event_count: useEventsStore().list.length,
-      image_count: existingManifest?.image_count ?? 0,
-      image_bucket: existingManifest?.image_bucket ?? 'goods-images',
-      recharge_updated_at: existingManifest?.recharge_updated_at ?? null,
-      event_updated_at: existingManifest?.event_updated_at ?? null,
-      budget_monthly: existingManifest?.budget_monthly ?? 0,
-      budget_yearly: existingManifest?.budget_yearly ?? 0
+    // Update manifest — skip if we couldn't read the existing one to avoid
+    // overwriting real values (image_count, timestamps, etc.) with zeros
+    if (existingManifest) {
+      const syncTimestamp = new Date().toISOString()
+      const manifestRow = {
+        id: 'default',
+        synced_at: syncTimestamp,
+        device_id: currentDeviceId,
+        collection_count: goodsStore.list.filter(g => !g.isWishlist).length,
+        wishlist_count: goodsStore.list.filter(g => g.isWishlist).length,
+        goods_count: goodsStore.list.length,
+        trash_count: goodsStore.trashList.length,
+        recharge_count: (useRechargeStore().records || []).length,
+        event_count: useEventsStore().list.length,
+        image_count: existingManifest.image_count ?? 0,
+        image_bucket: existingManifest.image_bucket ?? 'goods-images',
+        recharge_updated_at: existingManifest.recharge_updated_at ?? null,
+        event_updated_at: existingManifest.event_updated_at ?? null,
+        budget_monthly: existingManifest.budget_monthly ?? 0,
+        budget_yearly: existingManifest.budget_yearly ?? 0
+      }
+      await db.from('sync_manifest').upsert(manifestRow)
+      await ctx.saveLastSyncedAt(syncTimestamp)
     }
-    await db.from('sync_manifest').upsert(manifestRow)
-    await ctx.saveLastSyncedAt(syncTimestamp)
 
     return { action: 'pushed', pushedItems: itemsToPush.length, pushedTrash: trashToPush.length }
   }
@@ -361,6 +365,31 @@ export function createSyncOrchestrator({
 
   // ── Push implementation ──
 
+  /**
+   * Count all unique gist-referenced image files across all goods + events.
+   * Used to get the true total when dirty-goods filtering only processes a subset.
+   */
+  function countAllReferencedImageFiles(goodsStore, eventsStore) {
+    const files = new Set()
+    const collect = (item) => {
+      for (const img of normalizeGoodsImageList(item?.images, item?.coverImage || item?.image || '')) {
+        const name = img?.gistFileName || parseGistImageUri(img?.uri)
+        if (name) files.add(name)
+      }
+    }
+    for (const g of goodsStore.list) collect(g)
+    for (const t of goodsStore.trashList) collect(t)
+    for (const ev of (eventsStore.list || [])) {
+      const cover = String(ev?.coverImageData?.gistFileName || parseGistImageUri(ev?.coverImage)).trim()
+      if (cover) files.add(cover)
+      for (const p of (Array.isArray(ev?.photos) ? ev.photos : [])) {
+        const name = String(p?.gistFileName || parseGistImageUri(p?.uri)).trim()
+        if (name) files.add(name)
+      }
+    }
+    return files.size
+  }
+
   async function doPush(ctx, stores, be, opts = {}) {
     const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds } = opts
 
@@ -389,6 +418,12 @@ export function createSyncOrchestrator({
         }
       }
     )
+
+    // When only dirty items were processed, imageStats only counts their images.
+    // The manifest needs the TOTAL image count across all items.
+    if (hasDirtyGoodsIds) {
+      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore)
+    }
 
     // Build manifest
     const syncTimestamp = new Date().toISOString()
