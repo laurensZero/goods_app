@@ -10,7 +10,7 @@ import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
 import { createSyncOrchestrator } from '@/services/syncOrchestrator'
 import { createGistBackendAdapter } from '@/services/gistBackendAdapter'
-import { createSupabaseBackendAdapter } from '@/services/supabaseBackendAdapter'
+import { createSupabaseBackendAdapter } from '@/services/supabaseAdapter/index'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { withRetry } from '@/services/syncRetry'
@@ -580,78 +580,28 @@ export const useSyncStore = defineStore('sync', () => {
     autoPushTimer = setTimeout(() => {
       autoPushTimer = null
       if (!isPulling.value && !isSyncing.value) {
-        void fullSync({ source: 'auto' })
+        void doSync({ source: 'auto' })
       }
     }, 0)
-  }
-
-  // Fast path: push specific dirty items directly without reading remote data
-  async function pushDirtyItemsFast(ids) {
-    if (isSyncing.value || isPulling.value) {
-      pendingAutoPush = true
-      return
-    }
-    ensureBackendReady()
-    isSyncing.value = true
-    syncSource.value = 'auto'
-    lastError.value = ''
-
-    clearSyncTimeout()
-    syncTimeoutId = setTimeout(() => {
-      console.warn('[sync] 快速推送超时（1 分钟），强制重置')
-      resetSyncingState()
-    }, 60_000)
-
-    try {
-      const result = await orchestrator.pushDirtyItems(buildSyncContext(), { dirtyIds: ids })
-      clearDirtyGoodsIds(new Set(ids))
-      clearSyncTimeout()
-      isSyncing.value = false
-      return result
-    } catch (error) {
-      clearSyncTimeout()
-      isSyncing.value = false
-      // Fast path failed — fall back to full sync
-      console.warn('[sync] 快速推送失败，回退到完整同步:', error.message)
-      try {
-        await fullSync({ source: 'auto' })
-      } catch (fallbackError) {
-        applySyncError(fallbackError, '')
-        publishSyncNotice({
-          source: 'auto',
-          level: 'error',
-          message: syncSuggestion.value || syncStatus.value || fallbackError?.message || ''
-        })
-      }
-    }
   }
 
   function autoPushGoods(domain) {
     if (!isSupabaseMode()) return
     markDomainDirty(domain)
-     if (isPulling.value || isSyncing.value) {
+    if (isPulling.value || isSyncing.value) {
       pendingAutoPush = true
       return
     }
 
-    // Fast path: only goods IDs dirty, no other domains → push directly with short debounce
+    // Debounce: short for goods-only edits, longer for multi-domain
     const hasOnlyGoodsIds = dirtyGoodsIds.size > 0 && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
-    if (hasOnlyGoodsIds) {
-      if (autoPushTimer) clearTimeout(autoPushTimer)
-      const ids = [...dirtyGoodsIds]
-      autoPushTimer = setTimeout(async () => {
-        autoPushTimer = null
-        await pushDirtyItemsFast(ids)
-      }, 300)
-      return
-    }
+    const debounceMs = hasOnlyGoodsIds ? 300 : 2000
 
-    // Standard path: multiple domains dirty → full sync with longer debounce
     if (autoPushTimer) clearTimeout(autoPushTimer)
     autoPushTimer = setTimeout(async () => {
       autoPushTimer = null
       try {
-        await fullSync({ source: 'auto' })
+        await doSync({ source: 'auto' })
       } catch (error) {
         publishSyncNotice({
           source: 'auto',
@@ -659,7 +609,7 @@ export const useSyncStore = defineStore('sync', () => {
           message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
         })
       }
-    }, 2000)
+    }, debounceMs)
   }
 
   // ── Public API ──
@@ -716,7 +666,8 @@ export const useSyncStore = defineStore('sync', () => {
     isPulling.value = false
   }
 
-  async function fullSync({ source = 'manual', maxRetries = 1 } = {}) {
+  // Internal sync implementation (called by public sync() and autoPushGoods)
+  async function doSync({ source = 'manual', maxRetries = 1 } = {}) {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     ensureBackendReady()
     syncSource.value = source
@@ -724,7 +675,6 @@ export const useSyncStore = defineStore('sync', () => {
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = i18n.global.t('sync.syncing')
 
-    // Safety net: force-reset isSyncing if the entire sync hangs
     clearSyncTimeout()
     syncTimeoutId = setTimeout(() => {
       console.warn('[sync] 同步超时（3 分钟），强制重置 isSyncing')
@@ -736,7 +686,7 @@ export const useSyncStore = defineStore('sync', () => {
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
-        () => orchestrator.fullSync(buildSyncContext(), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
+        () => orchestrator.sync(buildSyncContext(), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
         { maxRetries, baseDelay: 1200 }
       )
       if (result.conflictData) conflictData.value = result.conflictData
@@ -761,7 +711,48 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  async function pullOnly({ silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
+  // Public sync: merges fullSync + autoPushGoods + pushDirtyItemsFast
+  async function sync(opts = {}) {
+    return doSync(opts)
+  }
+
+  // Public pull: merges pullOnly + pullFast
+  // If tables/since provided → incremental pull (fast path)
+  // Otherwise → full pull with conflict detection
+  async function pull({ tables, since, silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
+    const isIncremental = tables && since > 0
+
+    if (isIncremental) {
+      // Fast incremental pull
+      if (isSyncing.value || isPulling.value) return
+      ensureBackendReady()
+      isSyncing.value = true; isPulling.value = true
+      syncSource.value = source
+
+      try {
+        const result = await orchestrator.pull(buildSyncContext(), { tables, since })
+        return result
+      } catch (error) {
+        // Incremental failed — fall back to full pull via orchestrator directly
+        // Don't reset flags to avoid race with autoPushGoods
+        console.warn('[sync] 增量拉取失败，回退到完整拉取:', error.message)
+        try {
+          const result = await withRetry(
+            () => orchestrator.pull(buildSyncContext(), { silent: true }),
+            { maxRetries, baseDelay: 1200 }
+          )
+          syncStatus.value = translateStatusMessage(result)
+          return result
+        } catch (fallbackError) {
+          applySyncError(fallbackError, i18n.global.t('sync.pullFailed', { error: '' }))
+          throw fallbackError
+        }
+      } finally {
+        isPulling.value = false; isSyncing.value = false
+      }
+    }
+
+    // Full pull
     if (isSyncing.value) return
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error(i18n.global.t('sync.notConfigured'))
@@ -780,7 +771,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       const result = await withRetry(
-        () => orchestrator.pullOnly(buildSyncContext(), { silent, forceRecharge, sourceTable: source }),
+        () => orchestrator.pull(buildSyncContext(), { silent, forceRecharge }),
         { maxRetries, baseDelay: 1200 }
       )
       if (!silent && result.conflictData) conflictData.value = result.conflictData
@@ -801,33 +792,6 @@ export const useSyncStore = defineStore('sync', () => {
       isPulling.value = false
       isSyncing.value = false
       flushPendingAutoPush()
-    }
-  }
-
-  // Fast pull: only reads changed tables, skips manifest, merges directly.
-  // Used by realtime sync for quick catch-up. Falls back to pullOnly on failure.
-  async function pullFast({ tables = [], since = 0 } = {}) {
-    if (isSyncing.value || isPulling.value) return
-    ensureBackendReady()
-    isSyncing.value = true; isPulling.value = true
-    syncSource.value = 'realtime'
-
-    try {
-      const result = await orchestrator.fastPull(buildSyncContext(), { tables, since })
-      return result
-    } catch (error) {
-      // Fast pull failed — fall back to full pullOnly
-      console.warn('[sync] 快速拉取失败，回退到完整拉取:', error.message)
-      isPulling.value = false
-      isSyncing.value = false
-      try {
-        return await pullOnly({ silent: true, source: 'realtime' })
-      } catch {
-        // ignore fallback errors
-      }
-    } finally {
-      isPulling.value = false
-      isSyncing.value = false
     }
   }
 
@@ -915,7 +879,7 @@ export const useSyncStore = defineStore('sync', () => {
     lastSyncedAt, eventLastSyncedAt, deviceId,
     isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
     isConfigured, init, saveToken, checkTokenValidity,
-    getLocalChangesSinceLastSync, fullSync, pullOnly, pullFast, resolveConflict, resolvePullConflict,
+    getLocalChangesSinceLastSync, sync, pull, resolveConflict, resolvePullConflict,
     autoPushGoods, markGoodsIdsDirty,
     clearConflict, resetConfig,
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,

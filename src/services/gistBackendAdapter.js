@@ -568,6 +568,60 @@ export function createGistBackendAdapter({
     }
   }
 
+  // ── Unified domain interface (thin wrappers over readJson/writeData) ──
+
+  async function readDomainRows(domain, { since = 0 } = {}) {
+    // Gist doesn't support incremental reads — always read full JSON
+    const gist = await getDataGist()
+    if (!gist) return domain === 'goods' ? { goods: [], trash: [] } : domain === 'recharge' ? { recharge: [], rechargeTrash: [] } : []
+
+    if (domain === 'goods') {
+      const parsed = await readJson({ title: 'read goods', gist, fileName: DATA_FILENAME })
+      return { goods: parsed?.goods || [], trash: parsed?.trash || [] }
+    }
+    if (domain === 'recharge') {
+      const existingRechargeGist = await getExistingRechargeGist()
+      const parsed = await readJson({ title: 'read recharge', gist, fileName: RECHARGE_DATA_FILENAME, fallbackGist: existingRechargeGist, fallbackFileName: RECHARGE_DATA_FILENAME })
+      return parsed ? { recharge: parsed.recharge || [], rechargeTrash: parsed.rechargeTrash || [] } : { recharge: [], rechargeTrash: [] }
+    }
+    if (domain === 'events') {
+      const existingEventGist = await getExistingEventGist()
+      const parsed = await readJson({ title: 'read events', gist, fileName: EVENT_DATA_FILENAME, fallbackGist: existingEventGist, fallbackFileName: EVENT_DATA_FILENAME })
+      return parsed?.events || []
+    }
+    if (domain === 'groups') {
+      const parsed = await readJson({ title: 'read groups', gist, fileName: DATA_FILENAME })
+      return parsed?.goodsGroups || []
+    }
+    if (domain === 'groupItems') {
+      const parsed = await readJson({ title: 'read group items', gist, fileName: DATA_FILENAME })
+      return parsed?.goodsGroupItems || []
+    }
+    return []
+  }
+
+  async function writeDomainRows(domain, { localItems = [] } = {}) {
+    const gistId = getDataGistId()
+    if (!gistId) throw new Error('No data gist configured')
+
+    if (domain === 'goods') {
+      const dataMap = { [DATA_FILENAME]: { content: { goods: localItems, trash: [] } } }
+      await writeData(gistId, dataMap)
+      return
+    }
+    if (domain === 'recharge') {
+      const dataMap = { [RECHARGE_DATA_FILENAME]: { content: { recharge: localItems, rechargeTrash: [] } } }
+      await writeData(gistId, dataMap)
+      return
+    }
+    if (domain === 'events') {
+      const dataMap = { [EVENT_DATA_FILENAME]: { content: { events: localItems } } }
+      await writeData(gistId, dataMap)
+      return
+    }
+    // groups/groupItems are stored inside data.json — not supported as separate writes
+  }
+
   return createSyncBackendAdapter({
     ensureDataGist,
     ensureImageGist,
@@ -583,6 +637,8 @@ export function createGistBackendAdapter({
     getManifest,
     isEncryptionEnabled,
     getDataGistId,
-    getDataGist
+    getDataGist,
+    readDomainRows,
+    writeDomainRows
   })
 }

@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
 /**
  * Supabase Realtime 订阅 composable
- * 监听主数据表的变更，过滤自己的写入，触发 pullFast（只读变更的表）
+ * 监听主数据表的变更，过滤自己的写入，触发 pull（增量模式）
  */
 export function useRealtimeSync({ syncStore }) {
   const channel = ref(null)
@@ -15,12 +15,12 @@ export function useRealtimeSync({ syncStore }) {
 
   function doPull(tables) {
     if (syncStore.isSyncing || syncStore.isPulling) {
-      // Already running — schedule ONE retry after it finishes
       if (!retryTimer) {
         retryTimer = setTimeout(async () => {
           retryTimer = null
           if (!syncStore.isSyncing && !syncStore.isPulling) {
-            try { await syncStore.pullFast({ tables, since: syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0 }) } catch { /* ignore */ }
+            const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
+            try { await syncStore.pull({ tables, since }) } catch { /* ignore */ }
           }
         }, 2000)
       }
@@ -28,7 +28,7 @@ export function useRealtimeSync({ syncStore }) {
     }
     const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
     try {
-      void syncStore.pullFast({ tables, since })
+      void syncStore.pull({ tables, since })
     } catch {
       // silent fail
     }
@@ -38,10 +38,8 @@ export function useRealtimeSync({ syncStore }) {
     const row = payload.new || payload.old
     if (!row) return
     const table = String(payload?.table || '')
-    // 过滤自己设备的写入
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
     pendingPullTables.add(table)
-    // debounce 500ms，每次新事件重置计时器，等所有事件到达后再拉取
     if (pullDebounceTimer) clearTimeout(pullDebounceTimer)
     pullDebounceTimer = setTimeout(() => {
       const tables = [...pendingPullTables]
@@ -66,17 +64,12 @@ export function useRealtimeSync({ syncStore }) {
       channel.value = builder.subscribe((status) => {
           isConnected.value = status === 'SUBSCRIBED'
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            // Supabase 会自动重连，重连成功后增量 catch-up
             setTimeout(async () => {
               if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
                 const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
                 const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
                 try {
-                  if (since > 0) {
-                    await syncStore.pullFast({ tables, since })
-                  } else {
-                    await syncStore.pullOnly({ silent: true })
-                  }
+                  await syncStore.pull({ tables, since })
                 } catch { /* ignore */ }
               }
             }, 3000)
@@ -100,7 +93,6 @@ export function useRealtimeSync({ syncStore }) {
     }
   }
 
-  // syncStore.init() 完成后 isSupabaseMode() 才可靠，用 watcher 延迟订阅
   watch(() => syncStore.syncBackend, (backend) => {
     if (backend === 'supabase') {
       subscribe()
@@ -117,7 +109,7 @@ export function useRealtimeSync({ syncStore }) {
         if (!localChanges.hasChanges) return
 
         try {
-          await syncStore.fullSync({ source: 'visibility' })
+          await syncStore.sync({ source: 'visibility' })
         } catch {
           // silent fail on background sync
         }
@@ -125,19 +117,18 @@ export function useRealtimeSync({ syncStore }) {
       return
     }
 
-    // Supabase 模式：回到前台时拉取最新数据（用 pullFast 只读变更）
+    // Supabase 模式：回到前台时增量拉取
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
       if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
         const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
         const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
-        try { await syncStore.pullFast({ tables, since }) } catch { /* ignore */ }
+        try { await syncStore.pull({ tables, since }) } catch { /* ignore */ }
       }
     }, 5000)
   }
 
   onMounted(() => {
-    // init 已完成时直接订阅，否则等 watcher 触发
     if (syncStore.isSupabaseMode()) {
       subscribe()
     }
