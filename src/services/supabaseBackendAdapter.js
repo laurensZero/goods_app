@@ -2,6 +2,7 @@
 import { createSyncBackendAdapter } from './syncBackendAdapter'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { toSnakeCase, toCamelCase, mapRowsToCamelCase } from '@/utils/sync/columnMapping'
+import { asyncBuildComparableRecordMap } from '@/utils/sync/shared'
 import { withRetry, withTimeout } from './syncRetry'
 import { EVENT_PHOTO_PREFIX } from '@/constants/syncConstants'
 import i18n from '@/locales'
@@ -770,6 +771,338 @@ export function createSupabaseBackendAdapter({
     }
   }
 
+  // ── Direct row operations (bypass JSON layer) ──
+
+  // camelCase items → snake_case DB rows, per domain
+  function toGoodsRows(items, isTrash = false) {
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    return items.map(item => toSnakeCase({
+      ...pickCols(item, GOODS_COLS),
+      isWishlist: item.isWishlist ? 1 : 0,
+      saleReminderEnabled: item.saleReminderEnabled ? 1 : 0,
+      saleReminderOffsets: Array.isArray(item.saleReminderOffsets) ? item.saleReminderOffsets : [],
+      trashed: isTrash ? 1 : 0,
+      quantity: Number(item.quantity) || 1,
+      points: item.points != null ? Number(item.points) : null,
+      updatedAt: toTimestamp(item.updatedAt),
+      syncedBy: currentDeviceId
+    }))
+  }
+
+  function toEventRows(items) {
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    return items.map(item => toSnakeCase({
+      ...pickCols(item, EVENT_COLS),
+      updatedAt: toTimestamp(item.updatedAt),
+      createdAt: toTimestamp(item.createdAt),
+      syncedBy: currentDeviceId
+    }))
+  }
+
+  function toGroupRows(items) {
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    return items.map(item => toSnakeCase({
+      ...pickCols(item, GOODS_GROUP_COLS),
+      totalAmount: Number(item.totalAmount) || 0,
+      updatedAt: toTimestamp(item.updatedAt),
+      createdAt: toTimestamp(item.createdAt),
+      syncedBy: currentDeviceId
+    }))
+  }
+
+  function toGroupItemRows(items) {
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    return items.map(item => toSnakeCase({
+      ...pickCols(item, GOODS_GROUP_ITEM_COLS),
+      sortOrder: Number(item.sortOrder) || 0,
+      updatedAt: toTimestamp(item.updatedAt),
+      createdAt: toTimestamp(item.createdAt),
+      syncedBy: currentDeviceId
+    }))
+  }
+
+  // Compute which rows actually changed (camelCase comparison, same logic as orchestrator's buildRowsDiff)
+  async function computeDiffRows(localRows = [], remoteRows = []) {
+    const stripMeta = (r) => {
+      if (!r || typeof r !== 'object') return r
+      const copy = { ...r }
+      delete copy.syncedBy
+      delete copy.synced_by
+      return copy
+    }
+    function normalizeForDiff(item) {
+      if (!item || typeof item !== 'object') return item
+      const out = { ...item }
+      if (Array.isArray(out.images)) {
+        out.images = out.images.map((img) => {
+          if (!img || typeof img !== 'object') return { id: img?.id || '', gistFileName: '' }
+          const gistFileName = String(img.gistFileName || '').trim() || (typeof img.uri === 'string' && img.uri.startsWith('gist-image://') ? img.uri.slice('gist-image://'.length) : '')
+          return { id: String(img.id || '').trim(), gistFileName }
+        })
+        out.images.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+      }
+      if (out.image !== undefined) delete out.image
+      if (out.coverImageData && typeof out.coverImageData === 'object') {
+        out.coverImageData = { gistFileName: String(out.coverImageData.gistFileName || '').trim() }
+      }
+      if (out.coverImage !== undefined) delete out.coverImage
+      if (out.isWishlist === undefined || out.isWishlist === null) out.isWishlist = 0
+      else if (typeof out.isWishlist === 'string') out.isWishlist = (out.isWishlist === '1' || out.isWishlist.toLowerCase() === 'true') ? 1 : 0
+      else out.isWishlist = out.isWishlist ? 1 : 0
+      if (out.points === undefined) out.points = null
+      if (out.updatedAt !== undefined && out.updatedAt !== null) out.updatedAt = Number(out.updatedAt) || 0
+      if (Array.isArray(out.photos)) {
+        out.photos = out.photos.map((p) => {
+          if (!p || typeof p !== 'object') return { id: p?.id || '', gistFileName: '' }
+          const gistFileName = String(p.gistFileName || '').trim() || (typeof p.uri === 'string' && p.uri.startsWith('gist-image://') ? p.uri.slice('gist-image://'.length) : '')
+          return { id: String(p.id || '').trim(), gistFileName }
+        })
+        out.photos.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+      }
+      return out
+    }
+
+    const normalizedLocal = localRows.map(stripMeta).map(normalizeForDiff)
+    const normalizedRemote = remoteRows.map(stripMeta).map(normalizeForDiff)
+    const [localMap, remoteMap] = await Promise.all([
+      asyncBuildComparableRecordMap(normalizedLocal),
+      asyncBuildComparableRecordMap(normalizedRemote)
+    ])
+    return localRows.filter((item) => {
+      const id = String(item?.id || '').trim()
+      if (!id) return false
+      return localMap.get(id) !== remoteMap.get(id)
+    })
+  }
+
+  function computeDeleteIds(localRows = [], remoteRows = []) {
+    const localIdSet = new Set(localRows.map(item => String(item?.id || '').trim()).filter(Boolean))
+    const remoteIdSet = new Set(remoteRows.map(item => String(item?.id || '').trim()).filter(Boolean))
+    return [...remoteIdSet].filter(id => !localIdSet.has(id))
+  }
+
+  /**
+   * Push rows directly to Supabase, bypassing JSON dataMap layer.
+   * Accepts camelCase items from the orchestrator, converts to snake_case, diffs, and upserts.
+   *
+   * @param {'goods'|'recharge'|'events'|'groups'} domain
+   * @param {object} opts
+   * @param {Array} opts.localItems - camelCase items from local store
+   * @param {Array} [opts.remoteItems] - camelCase items from remote (for diff). If omitted, upserts all localItems.
+   * @param {Array} [opts.deleteIds] - IDs to delete. If remoteItems provided, computed automatically.
+   * @param {boolean} [opts.isTrash] - goods only: mark as trashed
+   */
+  async function pushDomainRows(domain, { localItems = [], remoteItems = null, deleteIds = null, isTrash = false } = {}) {
+    const db = getDb()
+
+    if (domain === 'goods') {
+      let rowsToUpsert = toGoodsRows(localItems, isTrash)
+      let idsToDelete = deleteIds
+      let isIncremental = deleteIds !== null
+
+      if (remoteItems !== null && idsToDelete === null) {
+        // Diff mode: only upsert changed rows, delete stale remote rows
+        const diffItems = await computeDiffRows(localItems, remoteItems)
+        rowsToUpsert = toGoodsRows(diffItems, isTrash)
+        idsToDelete = computeDeleteIds(localItems, remoteItems)
+        isIncremental = true
+      }
+
+      await syncTableRows(db, 'goods', rowsToUpsert, {
+        label: 'goods',
+        incremental: isIncremental,
+        deleteIds: idsToDelete || []
+      })
+      return
+    }
+
+    if (domain === 'recharge') {
+      let rowsToUpsert = localItems.map(item => toRechargeRow(item, typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || ''), isTrash)).filter(Boolean)
+      let idsToDelete = deleteIds
+      let isIncremental = deleteIds !== null
+
+      if (remoteItems !== null && idsToDelete === null) {
+        const diffItems = await computeDiffRows(localItems, remoteItems)
+        rowsToUpsert = diffItems.map(item => toRechargeRow(item, typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || ''), isTrash)).filter(Boolean)
+        idsToDelete = computeDeleteIds(localItems, remoteItems)
+        isIncremental = true
+      }
+
+      await syncTableRows(db, 'recharge_records', rowsToUpsert, {
+        label: 'recharge_records',
+        incremental: isIncremental,
+        deleteIds: idsToDelete || []
+      })
+      return
+    }
+
+    if (domain === 'events') {
+      let rowsToUpsert = toEventRows(localItems)
+      let idsToDelete = deleteIds
+      let isIncremental = deleteIds !== null
+
+      if (remoteItems !== null && idsToDelete === null) {
+        const diffItems = await computeDiffRows(localItems, remoteItems)
+        rowsToUpsert = toEventRows(diffItems)
+        idsToDelete = computeDeleteIds(localItems, remoteItems)
+        isIncremental = true
+      }
+
+      await syncTableRows(db, 'events', rowsToUpsert, {
+        label: 'events',
+        incremental: isIncremental,
+        deleteIds: idsToDelete || []
+      })
+      return
+    }
+
+    if (domain === 'groups') {
+      let rowsToUpsert = toGroupRows(localItems)
+      let idsToDelete = deleteIds
+      let isIncremental = deleteIds !== null
+
+      if (remoteItems !== null && idsToDelete === null) {
+        const diffItems = await computeDiffRows(localItems, remoteItems)
+        rowsToUpsert = toGroupRows(diffItems)
+        idsToDelete = computeDeleteIds(localItems, remoteItems)
+        isIncremental = true
+      }
+
+      await syncTableRows(db, 'goods_groups', rowsToUpsert, {
+        label: 'goods_groups',
+        incremental: isIncremental,
+        deleteIds: idsToDelete || []
+      })
+      return
+    }
+
+    if (domain === 'groupItems') {
+      let rowsToUpsert = toGroupItemRows(localItems)
+      let idsToDelete = deleteIds
+      let isIncremental = deleteIds !== null
+
+      if (remoteItems !== null && idsToDelete === null) {
+        const diffItems = await computeDiffRows(localItems, remoteItems)
+        rowsToUpsert = toGroupItemRows(diffItems)
+        idsToDelete = computeDeleteIds(localItems, remoteItems)
+        isIncremental = true
+      }
+
+      await syncTableRows(db, 'goods_group_items', rowsToUpsert, {
+        label: 'goods_group_items',
+        incremental: isIncremental,
+        deleteIds: idsToDelete || []
+      })
+      return
+    }
+  }
+
+  /**
+   * Pull rows directly from Supabase, returning camelCase objects (no JSON wrapper).
+   *
+   * @param {'goods'|'recharge'|'events'|'groups'|'groupItems'} domain
+   * @param {object} [opts]
+   * @param {number} [opts.since] - incremental: only rows updated after this timestamp (ms)
+   * @returns {Array|object} camelCase items (goods returns { goods, trash })
+   */
+  async function pullDomainRows(domain, { since = 0 } = {}) {
+    const db = getDb()
+    const sinceMs = Number(since) || 0
+
+    if (domain === 'goods') {
+      const buildQuery = (trashed) => () => {
+        let query = db.from('goods').select(GOODS_SELECT_COLS)
+        query = trashed ? query.eq('trashed', 1) : query.or('trashed.is.null,trashed.eq.0')
+        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        return query
+      }
+      const [goodsData, trashData] = await Promise.all([
+        fetchAllRows(buildQuery(false)),
+        fetchAllRows(buildQuery(true))
+      ])
+      const mapRow = (row) => {
+        const item = toCamelCase(row)
+        item.isWishlist = Number(item.isWishlist) === 1
+        item.saleReminderEnabled = Number(item.saleReminderEnabled) === 1
+        item.quantity = Number(item.quantity) || 1
+        item.updatedAt = normalizeTimestamp(item.updatedAt)
+        return item
+      }
+      return {
+        goods: (goodsData || []).map(mapRow),
+        trash: (trashData || []).map(mapRow)
+      }
+    }
+
+    if (domain === 'recharge') {
+      const data = await fetchAllRows(() => {
+        let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS)
+        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        return query
+      })
+      const recharge = []
+      const rechargeTrash = []
+      for (const row of (data || [])) {
+        const item = toCamelCase(row)
+        item.updatedAt = normalizeTimestamp(item.updatedAt)
+        if (Number(row.deleted) === 1) rechargeTrash.push(item)
+        else recharge.push(item)
+      }
+      return { recharge, rechargeTrash }
+    }
+
+    if (domain === 'events') {
+      const data = await fetchAllRows(() => {
+        let query = db.from('events').select(EVENT_SELECT_COLS)
+        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        return query
+      })
+      return (data || []).map(row => {
+        const item = toCamelCase(row)
+        item.updatedAt = normalizeTimestamp(item.updatedAt)
+        item.createdAt = normalizeTimestamp(item.createdAt)
+        item.coverImageData = safeParseJsonArray(item.coverImageData) || {}
+        if (typeof item.coverImageData !== 'object') item.coverImageData = {}
+        item.photos = safeParseJsonArray(item.photos)
+        item.linkedGoodsIds = safeParseJsonArray(item.linkedGoodsIds)
+        item.tags = safeParseJsonArray(item.tags)
+        item.tracks = safeParseJsonArray(item.tracks)
+        item.otherExpenses = safeParseJsonArray(item.otherExpenses)
+        return item
+      })
+    }
+
+    if (domain === 'groups') {
+      const data = await fetchAllRows(() => {
+        let query = db.from('goods_groups').select(GOODS_GROUP_SELECT_COLS)
+        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        return query
+      })
+      return (data || []).map(row => {
+        const item = toCamelCase(row)
+        item.updatedAt = normalizeTimestamp(item.updatedAt)
+        item.createdAt = normalizeTimestamp(item.createdAt)
+        return item
+      })
+    }
+
+    if (domain === 'groupItems') {
+      const data = await fetchAllRows(() => {
+        let query = db.from('goods_group_items').select(GOODS_GROUP_ITEM_SELECT_COLS)
+        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        return query
+      })
+      return (data || []).map(row => {
+        const item = toCamelCase(row)
+        item.updatedAt = normalizeTimestamp(item.updatedAt)
+        item.createdAt = normalizeTimestamp(item.createdAt)
+        return item
+      })
+    }
+
+    return []
+  }
+
   // ── Supabase-specific helpers ──
 
   function getDataGistId() {
@@ -808,6 +1141,9 @@ export function createSupabaseBackendAdapter({
     isEncryptionEnabled,
     getDataGistId,
     getDataGist,
-    getImagePublicUrl
+    getImagePublicUrl,
+    pushDomainRows,
+    pullDomainRows,
+    getDb
   })
 }
