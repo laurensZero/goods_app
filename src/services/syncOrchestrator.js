@@ -52,7 +52,7 @@ export function createSyncOrchestrator({
     const { tables, since = 0, silent = false, forceRecharge = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
-    const isIncremental = since > 0 && !!be.readDomainRows
+    const isIncremental = since > 0 && (!!be.readDomainRows || !!be.pullAll)
 
     try {
       // 1. Read remote data
@@ -125,7 +125,7 @@ export function createSyncOrchestrator({
           const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
           restoredCount = imgStats?.restoredImages || 0
           await mergeToLocal(stores, remoteData, {
-            reconcileMissing: true, diff,
+            reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
           })
         },
@@ -321,7 +321,7 @@ export function createSyncOrchestrator({
           const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
           restoredCount = imgStats?.restoredImages || 0
           await mergeToLocal(stores, remoteData, {
-            reconcileMissing: true, diff,
+            reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
           })
         },
