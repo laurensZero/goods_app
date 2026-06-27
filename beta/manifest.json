@@ -1,9 +1,9 @@
 {
-  "version": "20260627.5",
-  "url": "bundle-20260627.5.zip",
-  "hash": "0628ae62781355dacd71572cd8db4124ffee5fd0c5fe68ba0ef9ac45118750d2",
+  "version": "20260627.6",
+  "url": "bundle-20260627.6.zip",
+  "hash": "7008207943538b382398fb9d6c645209fdf0c3d247edce52fe0a7ad7d1c7989f",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 canQuickPush 函数以支持 pushAll 选项，增强快速推送逻辑",
+  "notes": "- feat: 添加自动更新 updated_at 的触发器，确保数据表在插入或更新时自动更新时间戳",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-27T09:03:07Z"
+  "publishedAt": "2026-06-27T10:48:25Z"
 }

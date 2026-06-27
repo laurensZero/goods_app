@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260627.6",
+    "url": "bundle-20260627.6.zip",
+    "hash": "7008207943538b382398fb9d6c645209fdf0c3d247edce52fe0a7ad7d1c7989f",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加自动更新 updated_at 的触发器，确保数据表在插入或更新时自动更新时间戳",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-27T10:48:25Z"
+  },
+  {
     "version": "20260627.5",
     "url": "bundle-20260627.5.zip",
     "hash": "0628ae62781355dacd71572cd8db4124ffee5fd0c5fe68ba0ef9ac45118750d2",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化数据同步逻辑，处理 Supabase RPC 返回的 JSON 字符串并增强增量同步支持",
     "updateLevel": "silent",
     "publishedAt": "2026-06-27T04:10:24Z"
-  },
-  {
-    "version": "20260627.3",
-    "url": "bundle-20260627.3.zip",
-    "hash": "2cc5dd7787564bdf757a5cef0498f37c7a0a7eaf0aeeeea817b00867c0b1353f",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加统一的推送和拉取接口，优化数据同步逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-27T03:35:01Z"
   }
 ]
