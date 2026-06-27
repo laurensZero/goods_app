@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260627.2",
+    "url": "bundle-20260627.2.zip",
+    "hash": "9f1139ce6b4255e7bfbec8d1429df69e634bb60337120794a5088df615c7af44",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 Supabase RPC 函数以接收非 count 参数并实时计算 manifest 中的计数字段",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-27T03:14:40Z"
+  },
+  {
     "version": "20260627.1",
     "url": "bundle-20260627.1.zip",
     "hash": "3f938bf3d83eab2ad55b52a3bec015bd4c91030941a9bc476f9f46e87e1ca6d7",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化同步逻辑，添加图像计数功能以准确统计所有商品和事件的图像文件",
     "updateLevel": "silent",
     "publishedAt": "2026-06-26T15:54:20Z"
-  },
-  {
-    "version": "20260626.5",
-    "url": "bundle-20260626.5.zip",
-    "hash": "19233fca1180c9692efd94fa85c13d7570de75ce1e53cd390ec89d498f29c19c",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加格式化发布时间为北京时间的功能，优化发布记录显示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-26T15:37:32Z"
   }
 ]
