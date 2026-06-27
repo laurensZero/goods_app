@@ -304,5 +304,110 @@ export function createReader({ getDb, trackSyncStep }) {
     return []
   }
 
-  return { readJson, getManifest, readPresets, pullDomainRows }
+  async function pullAll({ since = 0 } = {}) {
+    const db = getDb()
+    const sinceParam = since > 0 ? new Date(since).toISOString() : null
+
+    const { data, error } = await withRetry(() =>
+      db.rpc('sync_pull', { p_since: sinceParam })
+    )
+    if (error) throw error
+
+    // goods normalization
+    const mapGoods = (row) => {
+      const item = toCamelCase(row)
+      item.isWishlist = Number(item.isWishlist) === 1
+      item.saleReminderEnabled = Number(item.saleReminderEnabled) === 1
+      item.quantity = Number(item.quantity) || 1
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      return item
+    }
+
+    // recharge normalization
+    const recharge = []
+    const rechargeTrash = []
+    for (const row of (data.recharge || [])) {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.deleted = Boolean(item.deleted)
+      if (Number(row.deleted) === 1) rechargeTrash.push(item)
+      else recharge.push(item)
+    }
+    for (const row of (data.recharge_trash || [])) {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.deleted = true
+      rechargeTrash.push(item)
+    }
+
+    // events normalization
+    const events = (data.events || []).map((row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+      item.coverImageData = safeParseJsonArray(item.coverImageData) || {}
+      if (typeof item.coverImageData !== 'object') item.coverImageData = {}
+      item.photos = safeParseJsonArray(item.photos)
+      item.linkedGoodsIds = safeParseJsonArray(item.linkedGoodsIds)
+      item.tags = safeParseJsonArray(item.tags)
+      item.tracks = safeParseJsonArray(item.tracks)
+      item.otherExpenses = safeParseJsonArray(item.otherExpenses)
+      return item
+    })
+
+    // groups normalization
+    const groups = (data.groups || []).map((row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+      return item
+    })
+
+    // group_items normalization
+    const groupItems = (data.group_items || []).map((row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+      return item
+    })
+
+    // manifest normalization
+    const manifestRow = data.manifest
+    const manifest = manifestRow ? (() => {
+      const m = toCamelCase(manifestRow)
+      return {
+        ...m,
+        lastSyncAt: m.syncedAt || m.lastSyncAt || '',
+        imageGistId: m.imageBucket || m.imageGistId || '',
+        budgetMonthly: Number(m.budgetMonthly) || 0,
+        budgetYearly: Number(m.budgetYearly) || 0
+      }
+    })() : null
+
+    // presets normalization
+    const presetsRow = data.presets
+    const presets = presetsRow ? (() => {
+      const p = toCamelCase(presetsRow)
+      return {
+        categories: safeParseJsonArray(p.categories),
+        ips: safeParseJsonArray(p.ips),
+        characters: safeParseJsonArray(p.characters),
+        storageLocations: safeParseJsonArray(p.storageLocations)
+      }
+    })() : null
+
+    return {
+      manifest,
+      goods: (data.goods || []).map(mapGoods),
+      trash: (data.goods_trash || []).map(mapGoods),
+      recharge,
+      rechargeTrash,
+      events,
+      groups,
+      groupItems,
+      presets
+    }
+  }
+
+  return { readJson, getManifest, readPresets, pullDomainRows, pullAll }
 }

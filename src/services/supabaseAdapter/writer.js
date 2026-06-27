@@ -320,5 +320,50 @@ export function createWriter({ getDb, deviceIdRef }) {
     }
   }
 
-  return { writeData, writeManifest, writePresets, pushDomainRows }
+  async function pushAll({
+    goods = [], goodsTrash = [], groups = [], groupItems = [],
+    recharge = [], rechargeTrash = [], events = [],
+    presets = null,
+    deleteGoods = [], deleteGroups = [], deleteGroupItems = [],
+    deleteRecharge = [], deleteEvents = [],
+    deviceId = '', syncedAt = new Date().toISOString(),
+    imageBucket = 'goods-images',
+    budgetMonthly = 0, budgetYearly = 0,
+    rechargeUpdatedAt = null, eventUpdatedAt = null
+  } = {}) {
+    const db = getDb()
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '') || deviceId
+
+    const { error } = await withRetry(() => db.rpc('sync_push', {
+      p_goods: toGoodsRows(goods, deviceIdRef, false),
+      p_goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true),
+      p_groups: toGroupRows(groups, deviceIdRef),
+      p_group_items: toGroupItemRows(groupItems, deviceIdRef),
+      p_recharge: recharge.map(r => toRechargeRow(r, currentDeviceId, false)).filter(Boolean),
+      p_recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true)).filter(Boolean),
+      p_events: toEventRows(events, deviceIdRef),
+      p_presets: presets ? {
+        categories: JSON.stringify(presets.categories || []),
+        ips: JSON.stringify(presets.ips || []),
+        characters: JSON.stringify(presets.characters || []),
+        storage_locations: JSON.stringify(presets.storageLocations || [])
+      } : {},
+      p_delete_goods: deleteGoods || [],
+      p_delete_groups: deleteGroups || [],
+      p_delete_group_items: deleteGroupItems || [],
+      p_delete_recharge: deleteRecharge || [],
+      p_delete_events: deleteEvents || [],
+      p_device_id: currentDeviceId,
+      p_synced_at: syncedAt,
+      p_image_bucket: imageBucket,
+      p_budget_monthly: budgetMonthly,
+      p_budget_yearly: budgetYearly,
+      p_recharge_updated_at: rechargeUpdatedAt || null,
+      p_event_updated_at: eventUpdatedAt || null
+    }))
+
+    if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
+  }
+
+  return { writeData, writeManifest, writePresets, pushDomainRows, pushAll }
 }
