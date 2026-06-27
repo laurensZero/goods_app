@@ -156,6 +156,15 @@ CREATE INDEX IF NOT EXISTS idx_goods_group_items_group_id ON goods_group_items(g
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_goods_id ON goods_group_items(goods_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_updated_at ON goods_group_items(updated_at);
 
+-- 自动更新 updated_at 触发器
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER goods_updated_at BEFORE INSERT OR UPDATE ON goods FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER events_updated_at BEFORE INSERT OR UPDATE ON events FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER recharge_records_updated_at BEFORE INSERT OR UPDATE ON recharge_records FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER goods_groups_updated_at BEFORE INSERT OR UPDATE ON goods_groups FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER goods_group_items_updated_at BEFORE INSERT OR UPDATE ON goods_group_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- 禁用 RLS（用户自备项目，不需要行级安全）
 ALTER TABLE goods DISABLE ROW LEVEL SECURITY;
 ALTER TABLE events DISABLE ROW LEVEL SECURITY;
