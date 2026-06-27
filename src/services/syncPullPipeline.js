@@ -29,66 +29,22 @@ export async function readRemoteData(be, { tables = null, since = 0, readManifes
   // Helper to wrap a task with trackSyncStep if available
   const wrapStep = (title, task, opts) => trackSyncStep ? trackSyncStep(title, task, opts) : task()
 
-  if (be.readDomainRows) {
-    // Supabase direct path — parallel reads
-    const tableSet = tables ? new Set(tables) : null
-    const readTasks = []
-
-    if (!tableSet || tableSet.has('goods')) {
-      readTasks.push(
-        wrapStep(
-          i18n.global.t('sync.step.readData'),
-          () => be.readDomainRows('goods', { since }),
-          { startDetail: i18n.global.t('sync.step.readData.start'), category: 'pull',
-            successDetail: (data) => { const g = data?.goods || []; const t = data?.trash || []; const c = countWishlistSplit(g); return i18n.global.t('sync.step.readData.success', { collection: c.collection, wishlist: c.wishlist, trash: t.length }) } }
-        ).then(data => { result.goods = data.goods || []; result.trash = data.trash || [] })
-      )
-    }
-    if (!tableSet || tableSet.has('recharge_records')) {
-      readTasks.push(
-        wrapStep(
-          i18n.global.t('sync.step.readRecharge'),
-          () => be.readDomainRows('recharge', { since }),
-          { startDetail: i18n.global.t('sync.step.readRecharge.start'), category: 'pull',
-            successDetail: (data) => i18n.global.t('sync.step.readRecharge.success', { source: 'Supabase', count: (data?.recharge || []).length }) }
-        ).then(data => { result.recharge = data.recharge || []; result.rechargeTrash = data.rechargeTrash || [] })
-      )
-    }
-    if (!tableSet || tableSet.has('events')) {
-      readTasks.push(
-        wrapStep(
-          i18n.global.t('sync.step.readEvents'),
-          () => be.readDomainRows('events', { since }),
-          { startDetail: i18n.global.t('sync.step.readEvents.start'), category: 'pull',
-            successDetail: (data) => i18n.global.t('sync.step.readEvents.success', { source: 'Supabase', count: (data || []).length }) }
-        ).then(data => { result.events = Array.isArray(data) ? data : [] })
-      )
-    }
-    if (!tableSet || tableSet.has('goods_groups')) {
-      readTasks.push(
-        be.readDomainRows('groups', { since }).then(data => { result.groups = Array.isArray(data) ? data : [] })
-      )
-    }
-    if (!tableSet || tableSet.has('goods_group_items')) {
-      readTasks.push(
-        be.readDomainRows('groupItems', { since }).then(data => { result.groupItems = Array.isArray(data) ? data : [] })
-      )
-    }
-    if (readManifest) {
-      const readManifestFn = be.readManifest || be.getManifest
-      if (readManifestFn) {
-        readTasks.push(
-          readManifestFn.call(be).then(m => { result.manifest = m })
-        )
+  if (be.pullAll) {
+    // Supabase path — single RPC
+    const pullData = await wrapStep(
+      i18n.global.t('sync.step.readData'),
+      () => be.pullAll({ since }),
+      {
+        startDetail: i18n.global.t('sync.step.readData.start'),
+        category: 'pull',
+        successDetail: (data) => {
+          const g = data?.goods || []
+          const c = countWishlistSplit(g)
+          return i18n.global.t('sync.step.readData.success', { collection: c.collection, wishlist: c.wishlist, trash: (data?.trash || []).length })
+        }
       }
-    }
-    if (readPresets && be.readPresets) {
-      readTasks.push(
-        be.readPresets().then(p => { result.presets = p }).catch(e => log.warn('readPresets failed', e))
-      )
-    }
-
-    await Promise.all(readTasks)
+    )
+    return pullData
   } else {
     // Gist path — readJson with fallbacks (readJson already has trackSyncStep inside)
     const [remoteData, remoteRecharge, remoteEvents, manifest] = await Promise.all([

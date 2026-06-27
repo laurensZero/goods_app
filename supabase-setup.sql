@@ -270,3 +270,231 @@ $fn$ LANGUAGE sql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) TO anon;
 GRANT EXECUTE ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) TO authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- sync_pull: 一次返回所有表数据 + manifest + presets
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION sync_pull(p_since TIMESTAMPTZ DEFAULT NULL)
+RETURNS jsonb AS $fn$
+  SELECT jsonb_build_object(
+    'manifest',     (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.id = 'default'),
+    'goods',        (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND (g.trashed IS NULL OR g.trashed = 0)),
+    'goods_trash',  (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND g.trashed = 1),
+    'groups',       (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE p_since IS NULL OR gg.updated_at > p_since),
+    'group_items',  (SELECT COALESCE(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE p_since IS NULL OR ggi.updated_at > p_since),
+    'recharge',     (SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND (r.deleted IS NULL OR r.deleted != 1)),
+    'recharge_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1),
+    'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE p_since IS NULL OR e.updated_at > p_since),
+    'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.id = 'default')
+  );
+$fn$ LANGUAGE sql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO anon;
+GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- sync_push: 一次接收所有数据，内部 upsert/delete + 算 count + 写 manifest
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION sync_push(
+  p_goods            jsonb DEFAULT '[]',
+  p_goods_trash      jsonb DEFAULT '[]',
+  p_groups           jsonb DEFAULT '[]',
+  p_group_items      jsonb DEFAULT '[]',
+  p_recharge         jsonb DEFAULT '[]',
+  p_recharge_trash   jsonb DEFAULT '[]',
+  p_events           jsonb DEFAULT '[]',
+  p_presets          jsonb DEFAULT '{}',
+  p_delete_goods     text[] DEFAULT '{}',
+  p_delete_groups    text[] DEFAULT '{}',
+  p_delete_group_items text[] DEFAULT '{}',
+  p_delete_recharge  text[] DEFAULT '{}',
+  p_delete_events    text[] DEFAULT '{}',
+  p_device_id        text DEFAULT '',
+  p_synced_at        timestamptz DEFAULT now(),
+  p_image_bucket     text DEFAULT 'goods-images',
+  p_budget_monthly   real DEFAULT 0,
+  p_budget_yearly    real DEFAULT 0,
+  p_recharge_updated_at timestamptz DEFAULT NULL,
+  p_event_updated_at timestamptz DEFAULT NULL
+)
+RETURNS void AS $fn$
+BEGIN
+  -- 1. Delete
+  IF array_length(p_delete_goods, 1) > 0 THEN
+    DELETE FROM goods WHERE id = ANY(p_delete_goods);
+  END IF;
+  IF array_length(p_delete_groups, 1) > 0 THEN
+    DELETE FROM goods_groups WHERE id = ANY(p_delete_groups);
+  END IF;
+  IF array_length(p_delete_group_items, 1) > 0 THEN
+    DELETE FROM goods_group_items WHERE id = ANY(p_delete_group_items);
+  END IF;
+  IF array_length(p_delete_recharge, 1) > 0 THEN
+    DELETE FROM recharge_records WHERE id = ANY(p_delete_recharge);
+  END IF;
+  IF array_length(p_delete_events, 1) > 0 THEN
+    DELETE FROM events WHERE id = ANY(p_delete_events);
+  END IF;
+
+  -- 2. Upsert goods
+  IF jsonb_array_length(p_goods) > 0 THEN
+    INSERT INTO goods
+    SELECT * FROM jsonb_populate_recordset(null::goods, p_goods)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, category = EXCLUDED.category, ip = EXCLUDED.ip,
+      goods_id = EXCLUDED.goods_id, is_wishlist = EXCLUDED.is_wishlist,
+      trashed = EXCLUDED.trashed, characters = EXCLUDED.characters, tags = EXCLUDED.tags,
+      storage_location = EXCLUDED.storage_location, variant = EXCLUDED.variant,
+      price = EXCLUDED.price, actual_price = EXCLUDED.actual_price,
+      acquired_at = EXCLUDED.acquired_at, sale_at = EXCLUDED.sale_at,
+      sale_reminder_enabled = EXCLUDED.sale_reminder_enabled,
+      sale_reminder_offsets = EXCLUDED.sale_reminder_offsets,
+      unit_acquired_at_list = EXCLUDED.unit_acquired_at_list,
+      unit_actual_price_list = EXCLUDED.unit_actual_price_list,
+      unit_character_list = EXCLUDED.unit_character_list,
+      image = EXCLUDED.image, images = EXCLUDED.images,
+      tracks = EXCLUDED.tracks, note = EXCLUDED.note,
+      quantity = EXCLUDED.quantity, points = EXCLUDED.points,
+      currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
+      collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
+      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 3. Upsert goods_trash（同表，trashed=1）
+  IF jsonb_array_length(p_goods_trash) > 0 THEN
+    INSERT INTO goods
+    SELECT * FROM jsonb_populate_recordset(null::goods, p_goods_trash)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, category = EXCLUDED.category, ip = EXCLUDED.ip,
+      goods_id = EXCLUDED.goods_id, is_wishlist = EXCLUDED.is_wishlist,
+      trashed = EXCLUDED.trashed, characters = EXCLUDED.characters, tags = EXCLUDED.tags,
+      storage_location = EXCLUDED.storage_location, variant = EXCLUDED.variant,
+      price = EXCLUDED.price, actual_price = EXCLUDED.actual_price,
+      acquired_at = EXCLUDED.acquired_at, sale_at = EXCLUDED.sale_at,
+      sale_reminder_enabled = EXCLUDED.sale_reminder_enabled,
+      sale_reminder_offsets = EXCLUDED.sale_reminder_offsets,
+      unit_acquired_at_list = EXCLUDED.unit_acquired_at_list,
+      unit_actual_price_list = EXCLUDED.unit_actual_price_list,
+      unit_character_list = EXCLUDED.unit_character_list,
+      image = EXCLUDED.image, images = EXCLUDED.images,
+      tracks = EXCLUDED.tracks, note = EXCLUDED.note,
+      quantity = EXCLUDED.quantity, points = EXCLUDED.points,
+      currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
+      collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
+      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 4. Upsert groups
+  IF jsonb_array_length(p_groups) > 0 THEN
+    INSERT INTO goods_groups
+    SELECT * FROM jsonb_populate_recordset(null::goods_groups, p_groups)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, type = EXCLUDED.type, summary_mode = EXCLUDED.summary_mode,
+      total_amount = EXCLUDED.total_amount, currency = EXCLUDED.currency,
+      cover_mode = EXCLUDED.cover_mode, cover_item_id = EXCLUDED.cover_item_id,
+      display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 5. Upsert group_items
+  IF jsonb_array_length(p_group_items) > 0 THEN
+    INSERT INTO goods_group_items
+    SELECT * FROM jsonb_populate_recordset(null::goods_group_items, p_group_items)
+    ON CONFLICT (id) DO UPDATE SET
+      group_id = EXCLUDED.group_id, goods_id = EXCLUDED.goods_id,
+      sort_order = EXCLUDED.sort_order,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 6. Upsert recharge
+  IF jsonb_array_length(p_recharge) > 0 THEN
+    INSERT INTO recharge_records
+    SELECT * FROM jsonb_populate_recordset(null::recharge_records, p_recharge)
+    ON CONFLICT (id) DO UPDATE SET
+      game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
+      charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
+      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 7. Upsert recharge_trash（同表，deleted=1）
+  IF jsonb_array_length(p_recharge_trash) > 0 THEN
+    INSERT INTO recharge_records
+    SELECT * FROM jsonb_populate_recordset(null::recharge_records, p_recharge_trash)
+    ON CONFLICT (id) DO UPDATE SET
+      game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
+      charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
+      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 8. Upsert events
+  IF jsonb_array_length(p_events) > 0 THEN
+    INSERT INTO events
+    SELECT * FROM jsonb_populate_recordset(null::events, p_events)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, type = EXCLUDED.type,
+      start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
+      location = EXCLUDED.location, description = EXCLUDED.description,
+      cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
+      photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
+      ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
+      other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
+      linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by;
+  END IF;
+
+  -- 9. Upsert presets
+  IF p_presets != '{}'::jsonb THEN
+    INSERT INTO sync_presets (id, categories, ips, characters, storage_locations)
+    VALUES ('default',
+      COALESCE((p_presets->>'categories')::jsonb, '[]'::jsonb),
+      COALESCE((p_presets->>'ips')::jsonb, '[]'::jsonb),
+      COALESCE((p_presets->>'characters')::jsonb, '[]'::jsonb),
+      COALESCE((p_presets->>'storage_locations')::jsonb, '[]'::jsonb)
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      categories = EXCLUDED.categories, ips = EXCLUDED.ips,
+      characters = EXCLUDED.characters, storage_locations = EXCLUDED.storage_locations;
+  END IF;
+
+  -- 10. Upsert manifest（count 由服务端计算）
+  INSERT INTO sync_manifest (
+    id, device_id, synced_at, image_bucket,
+    recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
+    collection_count, wishlist_count, goods_count, trash_count,
+    recharge_count, event_count, image_count
+  ) VALUES (
+    'default', p_device_id, p_synced_at, p_image_bucket,
+    p_recharge_updated_at, p_event_updated_at, p_budget_monthly, p_budget_yearly,
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0)),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1),
+    (SELECT COUNT(*) FROM goods WHERE trashed IS NULL OR trashed = 0),
+    (SELECT COUNT(*) FROM goods WHERE trashed = 1),
+    (SELECT COUNT(*) FROM recharge_records WHERE deleted IS NULL OR deleted != 1),
+    (SELECT COUNT(*) FROM events),
+    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
+  ) ON CONFLICT (id) DO UPDATE SET
+    device_id = EXCLUDED.device_id, synced_at = EXCLUDED.synced_at,
+    image_bucket = EXCLUDED.image_bucket,
+    recharge_updated_at = EXCLUDED.recharge_updated_at,
+    event_updated_at = EXCLUDED.event_updated_at,
+    budget_monthly = EXCLUDED.budget_monthly, budget_yearly = EXCLUDED.budget_yearly,
+    collection_count = EXCLUDED.collection_count, wishlist_count = EXCLUDED.wishlist_count,
+    goods_count = EXCLUDED.goods_count, trash_count = EXCLUDED.trash_count,
+    recharge_count = EXCLUDED.recharge_count, event_count = EXCLUDED.event_count,
+    image_count = EXCLUDED.image_count;
+END;
+$fn$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION sync_push(
+  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
+  text[], text[], text[], text[], text[],
+  text, timestamptz, text, real, real, timestamptz, timestamptz
+) TO anon;
+GRANT EXECUTE ON FUNCTION sync_push(
+  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
+  text[], text[], text[], text[], text[],
+  text, timestamptz, text, real, real, timestamptz, timestamptz
+) TO authenticated;

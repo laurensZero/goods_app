@@ -208,39 +208,25 @@ export function createSyncOrchestrator({
       if (data && data.length > 0) existingManifest = data[0]
     } catch { /* will skip manifest update below */ }
 
-    // Push items + presets in parallel
-    const pushTasks = []
-    if (itemsToPush.length > 0) pushTasks.push(be.pushDomainRows('goods', { localItems: itemsToPush, deleteIds: [] }))
-    if (trashToPush.length > 0) pushTasks.push(be.pushDomainRows('goods', { localItems: trashToPush, deleteIds: [], isTrash: true }))
+    // Single RPC: push items + presets + manifest
+    const syncTimestamp = new Date().toISOString()
+    let presetsData = null
+    try { presetsData = await ctx.buildPresetsData() } catch { /* non-fatal */ }
 
-    try {
-      const presetsData = await ctx.buildPresetsData()
-      const presetsRow = {
-        id: 'default',
-        categories: JSON.stringify(presetsData.categories || []),
-        ips: JSON.stringify(presetsData.ips || []),
-        characters: JSON.stringify(presetsData.characters || []),
-        storage_locations: JSON.stringify(presetsData.storageLocations || [])
-      }
-      pushTasks.push(db.from('sync_presets').upsert(presetsRow, { onConflict: 'id' }))
-    } catch { /* non-fatal */ }
+    await be.pushAll({
+      goods: itemsToPush,
+      goodsTrash: trashToPush,
+      presets: presetsData,
+      deviceId: currentDeviceId,
+      syncedAt: syncTimestamp,
+      imageBucket: existingManifest?.image_bucket ?? 'goods-images',
+      rechargeUpdatedAt: existingManifest?.recharge_updated_at ?? null,
+      eventUpdatedAt: existingManifest?.event_updated_at ?? null,
+      budgetMonthly: existingManifest?.budget_monthly ?? 0,
+      budgetYearly: existingManifest?.budget_yearly ?? 0
+    })
 
-    await Promise.all(pushTasks)
-
-    // Update manifest — count 字段由 writeManifest 内部 RPC 计算
-    if (existingManifest) {
-      const syncTimestamp = new Date().toISOString()
-      await be.writeManifest({
-        lastSyncAt: syncTimestamp,
-        deviceId: currentDeviceId,
-        imageGistId: existingManifest.image_bucket ?? 'goods-images',
-        rechargeUpdatedAt: existingManifest.recharge_updated_at ?? null,
-        eventUpdatedAt: existingManifest.event_updated_at ?? null,
-        budgetMonthly: existingManifest.budget_monthly ?? 0,
-        budgetYearly: existingManifest.budget_yearly ?? 0
-      })
-      await ctx.saveLastSyncedAt(syncTimestamp)
-    }
+    await ctx.saveLastSyncedAt(syncTimestamp)
 
     return { action: 'pushed', pushedItems: itemsToPush.length, pushedTrash: trashToPush.length }
   }

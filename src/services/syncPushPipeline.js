@@ -128,43 +128,30 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
  * Uses writeDomainRows when available (Supabase), falls back to writeData (Gist).
  */
 export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true }) {
-  if (be.pushDomainRows) {
-    // Supabase direct path
-    const pushTasks = []
-
-    if (shouldWriteData) {
-      pushTasks.push(
-        be.pushDomainRows('goods', { localItems: syncData.goods || [], deleteIds: uploadPlan?.deleteIdsByFile?.['data.json'] || [] }),
-        be.pushDomainRows('goods', { localItems: syncData.trash || [], deleteIds: [], isTrash: true }),
-        be.pushDomainRows('groups', { localItems: syncData.goodsGroups || [] }),
-        be.pushDomainRows('groupItems', { localItems: syncData.goodsGroupItems || [] })
-      )
-    }
-
-    if (shouldWriteRecharge) {
-      pushTasks.push(
-        be.pushDomainRows('recharge', { localItems: rechargeSyncData.recharge || [] }),
-        be.pushDomainRows('recharge', { localItems: rechargeSyncData.rechargeTrash || [], isTrash: true })
-      )
-    }
-
-    if (shouldWriteEvent) {
-      pushTasks.push(
-        be.pushDomainRows('events', { localItems: eventSyncData.events || [] })
-      )
-    }
-
-    if (pushTasks.length > 0) await Promise.all(pushTasks)
-
-    // Write presets
-    if (syncData.presets && shouldWriteData) {
-      try { await be.writePresets(syncData.presets) } catch (e) { log.warn('writePresets failed', e) }
-    }
-
-    // Write manifest
-    if (manifest) {
-      try { await be.writeManifest(manifest) } catch (e) { log.warn('writeManifest failed', e) }
-    }
+  if (be.pushAll) {
+    // Supabase path — single RPC
+    await be.pushAll({
+      goods: shouldWriteData ? (syncData.goods || []) : [],
+      goodsTrash: shouldWriteData ? (syncData.trash || []) : [],
+      groups: shouldWriteData ? (syncData.goodsGroups || []) : [],
+      groupItems: shouldWriteData ? (syncData.goodsGroupItems || []) : [],
+      recharge: shouldWriteRecharge ? (rechargeSyncData.recharge || []) : [],
+      rechargeTrash: shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : [],
+      events: shouldWriteEvent ? (eventSyncData.events || []) : [],
+      presets: shouldWriteData ? syncData.presets : null,
+      deleteGoods: shouldWriteData ? (uploadPlan?.deleteIdsByFile?.['data.json'] || []) : [],
+      deleteGroups: shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroups || []) : [],
+      deleteGroupItems: shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroupItems || []) : [],
+      deleteRecharge: shouldWriteRecharge ? (uploadPlan?.deleteIdsByFile?.['recharge-data.json'] || []) : [],
+      deleteEvents: shouldWriteEvent ? (uploadPlan?.deleteIdsByFile?.['events-data.json'] || []) : [],
+      deviceId: manifest?.deviceId || '',
+      syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
+      imageBucket: manifest?.imageGistId || 'goods-images',
+      budgetMonthly: manifest?.budgetMonthly || 0,
+      budgetYearly: manifest?.budgetYearly || 0,
+      rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
+      eventUpdatedAt: manifest?.eventUpdatedAt || null
+    })
   } else {
     // Gist path — build dataMap and call writeData
     const dataMap = {}

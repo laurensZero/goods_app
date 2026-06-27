@@ -91,6 +91,8 @@ export function createSupabaseBackendAdapter({
     getImagePublicUrl: storage.getImagePublicUrl,
     pushDomainRows: writer.pushDomainRows,
     pullDomainRows: reader.pullDomainRows,
+    pullAll: reader.pullAll,
+    pushAll: writer.pushAll,
     // New unified interfaces for Phase 2
     readPresets: reader.readPresets,
     writePresets: writer.writePresets,
