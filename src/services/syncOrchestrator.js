@@ -41,7 +41,7 @@ export function createSyncOrchestrator({
   }
 
   function canQuickPush(be, dirtyGoodsIds, dirtyDomains) {
-    return be.pushDomainRows
+    return (be.pushAll || be.pushDomainRows)
       && dirtyGoodsIds && dirtyGoodsIds.size > 0
       && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
   }
