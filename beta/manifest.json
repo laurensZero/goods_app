@@ -1,9 +1,9 @@
 {
-  "version": "20260627.3",
-  "url": "bundle-20260627.3.zip",
-  "hash": "2cc5dd7787564bdf757a5cef0498f37c7a0a7eaf0aeeeea817b00867c0b1353f",
+  "version": "20260627.4",
+  "url": "bundle-20260627.4.zip",
+  "hash": "2c0bda715107005e2fed14c80cf84c23d3a97856f5a2a4a6609d764cdb4945ba",
   "minNativeVersion": null,
-  "notes": "- feat: 添加统一的推送和拉取接口，优化数据同步逻辑",
+  "notes": "- feat: 优化数据同步逻辑，处理 Supabase RPC 返回的 JSON 字符串并增强增量同步支持",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-27T03:35:01Z"
+  "publishedAt": "2026-06-27T04:10:24Z"
 }
