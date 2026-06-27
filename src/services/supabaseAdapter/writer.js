@@ -154,58 +154,38 @@ export function createWriter({ getDb, deviceIdRef }) {
       try { manifestContent = JSON.parse(manifestContent) } catch { manifestContent = {} }
     }
 
-    // 调 RPC 由 Supabase 实时计算 count 字段
-    let counts = {}
-    try {
-      const { data } = await withRetry(() => db.rpc('get_manifest_counts'))
-      if (data) counts = data
-    } catch { /* fallback: 用客户端传入的值 */ }
+    // 调 RPC：传入非 count 字段，Supabase 内部计算 count 并 upsert 整行
+    const { error } = await withRetry(() => db.rpc('upsert_manifest', {
+      p_device_id: manifestContent.deviceId || '',
+      p_synced_at: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
+      p_image_bucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
+      p_recharge_updated_at: manifestContent.rechargeUpdatedAt || null,
+      p_event_updated_at: manifestContent.eventUpdatedAt || null,
+      p_budget_monthly: Number(manifestContent.budgetMonthly) || 0,
+      p_budget_yearly: Number(manifestContent.budgetYearly) || 0
+    }))
 
-    const fallbackImageCount = Number(manifestContent.imageCount || manifestContent.imageFileCount || 0)
-    const fallbackCollection = Number(manifestContent.collectionCount) || 0
-    const fallbackWishlist = Number(manifestContent.wishlistCount) || 0
-    const manifestRow = toSnakeCase({
-      id: 'default',
-      syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
-      deviceId: manifestContent.deviceId || '',
-      collectionCount: counts.collection_count ?? fallbackCollection,
-      wishlistCount: counts.wishlist_count ?? fallbackWishlist,
-      imageCount: counts.image_count ?? fallbackImageCount,
-      goodsCount: counts.goods_count ?? (fallbackCollection + fallbackWishlist),
-      trashCount: counts.trash_count ?? (manifestContent.trashCount || 0),
-      rechargeCount: counts.recharge_count ?? (manifestContent.rechargeCount || 0),
-      eventCount: counts.event_count ?? (manifestContent.eventCount || 0),
-      imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
-      rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
-      eventUpdatedAt: manifestContent.eventUpdatedAt || null,
-      budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
-      budgetYearly: Number(manifestContent.budgetYearly) || 0
-    })
-    let { error } = await withRetry(() =>
-      db.from('sync_manifest').upsert(manifestRow)
-    )
     if (error) {
-      const isMissingColumn = String(error.message || '').includes('column')
-      if (!isMissingColumn) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
+      const isMissingFunc = String(error.message || '').includes('function') || String(error.message || '').includes('signature')
+      if (!isMissingFunc) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
 
-      const fallbackManifestRow = toSnakeCase({
+      // RPC 不存在时 fallback：直接 upsert（count 字段为 0）
+      const manifestRow = toSnakeCase({
         id: 'default',
         syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
         deviceId: manifestContent.deviceId || '',
-        collectionCount: counts.collection_count ?? fallbackCollection,
-        wishlistCount: counts.wishlist_count ?? fallbackWishlist,
-        imageCount: counts.image_count ?? fallbackImageCount,
-        goodsCount: counts.goods_count ?? (fallbackCollection + fallbackWishlist),
-        trashCount: counts.trash_count ?? (manifestContent.trashCount || 0),
-        rechargeCount: counts.recharge_count ?? (manifestContent.rechargeCount || 0),
-        eventCount: counts.event_count ?? (manifestContent.eventCount || 0),
-        imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images'
+        collectionCount: 0, wishlistCount: 0, goodsCount: 0,
+        trashCount: 0, rechargeCount: 0, eventCount: 0, imageCount: 0,
+        imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
+        rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
+        eventUpdatedAt: manifestContent.eventUpdatedAt || null,
+        budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
+        budgetYearly: Number(manifestContent.budgetYearly) || 0
       })
-
-      ;({ error } = await withRetry(() =>
-        db.from('sync_manifest').upsert(fallbackManifestRow)
-      ))
-      if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
+      const { error: fallbackError } = await withRetry(() =>
+        db.from('sync_manifest').upsert(manifestRow)
+      )
+      if (fallbackError) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: fallbackError.message }))
     }
   }
 
