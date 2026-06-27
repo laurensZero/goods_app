@@ -31,6 +31,7 @@ export async function readRemoteData(be, { tables = null, since = 0, readManifes
 
   if (be.pullAll) {
     // Supabase path — single RPC
+    const isIncremental = since > 0
     const pullData = await wrapStep(
       i18n.global.t('sync.step.readData'),
       () => be.pullAll({ since }),
@@ -44,6 +45,7 @@ export async function readRemoteData(be, { tables = null, since = 0, readManifes
         }
       }
     )
+    pullData.isIncremental = isIncremental
     return pullData
   } else {
     // Gist path — readJson with fallbacks (readJson already has trackSyncStep inside)

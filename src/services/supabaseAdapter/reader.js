@@ -308,10 +308,13 @@ export function createReader({ getDb, trackSyncStep }) {
     const db = getDb()
     const sinceParam = since > 0 ? new Date(since).toISOString() : null
 
-    const { data, error } = await withRetry(() =>
+    const { data: rawData, error } = await withRetry(() =>
       db.rpc('sync_pull', { p_since: sinceParam })
     )
     if (error) throw error
+
+    // Supabase rpc 可能返回 JSON 字符串而非对象
+    const data = typeof rawData === 'string' ? JSON.parse(rawData) : (rawData || {})
 
     // goods normalization
     const mapGoods = (row) => {
