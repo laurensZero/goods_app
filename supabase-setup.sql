@@ -222,3 +222,21 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('event-photos', 'event-photos', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- RPC: 由 Supabase 实时计算 manifest 中的 count 字段
+-- SECURITY DEFINER 因为需要跨 schema 访问 storage.objects
+CREATE OR REPLACE FUNCTION get_manifest_counts()
+RETURNS jsonb AS $fn$
+  SELECT jsonb_build_object(
+    'collection_count', (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0)),
+    'wishlist_count',   (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1),
+    'goods_count',      (SELECT COUNT(*) FROM goods WHERE trashed IS NULL OR trashed = 0),
+    'trash_count',      (SELECT COUNT(*) FROM goods WHERE trashed = 1),
+    'recharge_count',   (SELECT COUNT(*) FROM recharge_records WHERE deleted IS NULL OR deleted != 1),
+    'event_count',      (SELECT COUNT(*) FROM events),
+    'image_count',      (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
+  );
+$fn$ LANGUAGE sql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION get_manifest_counts() TO anon;
+GRANT EXECUTE ON FUNCTION get_manifest_counts() TO authenticated;

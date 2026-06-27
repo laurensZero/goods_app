@@ -87,7 +87,9 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
 /**
  * Build manifest from current state.
  */
-export function buildManifest(payload, imageStats, syncTimestamp, { syncData, rechargeSyncData, eventSyncData, goodsStore, rechargeStore, eventsStore, hasDirtyGoodsIds, shouldWriteRecharge = true, shouldWriteEvent = true }) {
+export function buildManifest(payload, imageStats, syncTimestamp, { syncData, rechargeSyncData, eventSyncData, goodsStore, rechargeStore, eventsStore, hasDirtyGoodsIds, shouldWriteRecharge = true, shouldWriteEvent = true, backend }) {
+  const isSupabase = !!backend?.pushDomainRows
+
   const rechargeForCount = shouldWriteRecharge
     ? rechargeSyncData.recharge
     : rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
@@ -98,11 +100,12 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
   const fullTrashList = hasDirtyGoodsIds ? goodsStore.trashList : syncData.trash
 
   const counts = {
-    collectionCount: fullGoodsList.filter(g => !g.isWishlist).length,
-    wishlistCount: fullGoodsList.filter(g => g.isWishlist).length,
-    trashCount: fullTrashList.length,
-    rechargeCount: rechargeForCount.length,
-    eventCount: eventsForCount.length,
+    // Supabase 路径跳过 count 计算（由 writeManifest 内部 RPC 补充）
+    collectionCount: isSupabase ? 0 : fullGoodsList.filter(g => !g.isWishlist).length,
+    wishlistCount: isSupabase ? 0 : fullGoodsList.filter(g => g.isWishlist).length,
+    trashCount: isSupabase ? 0 : fullTrashList.length,
+    rechargeCount: isSupabase ? 0 : rechargeForCount.length,
+    eventCount: isSupabase ? 0 : eventsForCount.length,
     budgetMonthly: normalizeBudgetValue(syncData?.budgetSettings?.monthly),
     budgetYearly: normalizeBudgetValue(syncData?.budgetSettings?.yearly),
     rechargeUpdatedAt: (() => {

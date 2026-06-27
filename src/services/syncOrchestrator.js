@@ -201,7 +201,7 @@ export function createSyncOrchestrator({
     const db = be.getDb()
     const currentDeviceId = ctx.deviceId || ''
 
-    // Read existing manifest FIRST to minimize race window with concurrent pushes
+    // Read existing manifest for non-count fields (image_bucket, timestamps, budget)
     let existingManifest = null
     try {
       const { data } = await db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
@@ -227,28 +227,18 @@ export function createSyncOrchestrator({
 
     await Promise.all(pushTasks)
 
-    // Update manifest — skip if we couldn't read the existing one to avoid
-    // overwriting real values (image_count, timestamps, etc.) with zeros
+    // Update manifest — count 字段由 writeManifest 内部 RPC 计算
     if (existingManifest) {
       const syncTimestamp = new Date().toISOString()
-      const manifestRow = {
-        id: 'default',
-        synced_at: syncTimestamp,
-        device_id: currentDeviceId,
-        collection_count: goodsStore.list.filter(g => !g.isWishlist).length,
-        wishlist_count: goodsStore.list.filter(g => g.isWishlist).length,
-        goods_count: goodsStore.list.length,
-        trash_count: goodsStore.trashList.length,
-        recharge_count: (useRechargeStore().records || []).length,
-        event_count: useEventsStore().list.length,
-        image_count: existingManifest.image_count ?? 0,
-        image_bucket: existingManifest.image_bucket ?? 'goods-images',
-        recharge_updated_at: existingManifest.recharge_updated_at ?? null,
-        event_updated_at: existingManifest.event_updated_at ?? null,
-        budget_monthly: existingManifest.budget_monthly ?? 0,
-        budget_yearly: existingManifest.budget_yearly ?? 0
-      }
-      await db.from('sync_manifest').upsert(manifestRow)
+      await be.writeManifest({
+        lastSyncAt: syncTimestamp,
+        deviceId: currentDeviceId,
+        imageGistId: existingManifest.image_bucket ?? 'goods-images',
+        rechargeUpdatedAt: existingManifest.recharge_updated_at ?? null,
+        eventUpdatedAt: existingManifest.event_updated_at ?? null,
+        budgetMonthly: existingManifest.budget_monthly ?? 0,
+        budgetYearly: existingManifest.budget_yearly ?? 0
+      })
       await ctx.saveLastSyncedAt(syncTimestamp)
     }
 
@@ -430,7 +420,8 @@ export function createSyncOrchestrator({
     const manifest = buildManifest(payload, imageStats, syncTimestamp, {
       syncData, rechargeSyncData, eventSyncData,
       goodsStore: stores.goodsStore, rechargeStore: stores.rechargeStore, eventsStore: stores.eventsStore,
-      hasDirtyGoodsIds, shouldWriteRecharge: hasRechargeDataDiff, shouldWriteEvent: hasEventDataDiff
+      hasDirtyGoodsIds, shouldWriteRecharge: hasRechargeDataDiff, shouldWriteEvent: hasEventDataDiff,
+      backend: be
     })
 
     // Write to remote
