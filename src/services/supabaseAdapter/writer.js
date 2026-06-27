@@ -153,19 +153,28 @@ export function createWriter({ getDb, deviceIdRef }) {
     if (typeof manifestContent === 'string') {
       try { manifestContent = JSON.parse(manifestContent) } catch { manifestContent = {} }
     }
-    const imageCountVal = Number(manifestContent.imageCount || manifestContent.imageFileCount || 0)
-    const goodsCountVal = Number(manifestContent.goodsCount || ((manifestContent.collectionCount || 0) + (manifestContent.wishlistCount || 0)) || 0)
+
+    // 调 RPC 由 Supabase 实时计算 count 字段
+    let counts = {}
+    try {
+      const { data } = await withRetry(() => db.rpc('get_manifest_counts'))
+      if (data) counts = data
+    } catch { /* fallback: 用客户端传入的值 */ }
+
+    const fallbackImageCount = Number(manifestContent.imageCount || manifestContent.imageFileCount || 0)
+    const fallbackCollection = Number(manifestContent.collectionCount) || 0
+    const fallbackWishlist = Number(manifestContent.wishlistCount) || 0
     const manifestRow = toSnakeCase({
       id: 'default',
       syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
       deviceId: manifestContent.deviceId || '',
-      collectionCount: Number(manifestContent.collectionCount) || 0,
-      wishlistCount: Number(manifestContent.wishlistCount) || 0,
-      imageCount: imageCountVal,
-      goodsCount: goodsCountVal,
-      trashCount: manifestContent.trashCount || 0,
-      rechargeCount: manifestContent.rechargeCount || 0,
-      eventCount: manifestContent.eventCount || 0,
+      collectionCount: counts.collection_count ?? fallbackCollection,
+      wishlistCount: counts.wishlist_count ?? fallbackWishlist,
+      imageCount: counts.image_count ?? fallbackImageCount,
+      goodsCount: counts.goods_count ?? (fallbackCollection + fallbackWishlist),
+      trashCount: counts.trash_count ?? (manifestContent.trashCount || 0),
+      rechargeCount: counts.recharge_count ?? (manifestContent.rechargeCount || 0),
+      eventCount: counts.event_count ?? (manifestContent.eventCount || 0),
       imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
       rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
       eventUpdatedAt: manifestContent.eventUpdatedAt || null,
@@ -183,13 +192,13 @@ export function createWriter({ getDb, deviceIdRef }) {
         id: 'default',
         syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
         deviceId: manifestContent.deviceId || '',
-        collectionCount: Number(manifestContent.collectionCount) || 0,
-        wishlistCount: Number(manifestContent.wishlistCount) || 0,
-        imageCount: imageCountVal,
-        goodsCount: goodsCountVal,
-        trashCount: manifestContent.trashCount || 0,
-        rechargeCount: manifestContent.rechargeCount || 0,
-        eventCount: manifestContent.eventCount || 0,
+        collectionCount: counts.collection_count ?? fallbackCollection,
+        wishlistCount: counts.wishlist_count ?? fallbackWishlist,
+        imageCount: counts.image_count ?? fallbackImageCount,
+        goodsCount: counts.goods_count ?? (fallbackCollection + fallbackWishlist),
+        trashCount: counts.trash_count ?? (manifestContent.trashCount || 0),
+        rechargeCount: counts.recharge_count ?? (manifestContent.rechargeCount || 0),
+        eventCount: counts.event_count ?? (manifestContent.eventCount || 0),
         imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images'
       })
 
