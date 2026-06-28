@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260628.2",
+    "url": "bundle-20260628.2.zip",
+    "hash": "6e2e454c36efe2ad9ee51bae82199d6467d2e23294640ecef9086122ed48e17a",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 quickPush 函数以支持更多本地图片存储模式的检查",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-28T08:23:43Z"
+  },
+  {
     "version": "20260628.1",
     "url": "bundle-20260628.1.zip",
     "hash": "5786600ac71bc5d29eba06cd45f202b860a7b7cf49fcffffcd76598ccdec5b68",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加自动更新 updated_at 的触发器，确保数据表在插入或更新时自动更新时间戳",
     "updateLevel": "silent",
     "publishedAt": "2026-06-27T10:48:25Z"
-  },
-  {
-    "version": "20260627.5",
-    "url": "bundle-20260627.5.zip",
-    "hash": "0628ae62781355dacd71572cd8db4124ffee5fd0c5fe68ba0ef9ac45118750d2",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新 canQuickPush 函数以支持 pushAll 选项，增强快速推送逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-27T09:03:07Z"
   }
 ]

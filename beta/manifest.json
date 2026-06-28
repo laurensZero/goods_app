@@ -1,9 +1,9 @@
 {
-  "version": "20260628.1",
-  "url": "bundle-20260628.1.zip",
-  "hash": "5786600ac71bc5d29eba06cd45f202b860a7b7cf49fcffffcd76598ccdec5b68",
+  "version": "20260628.2",
+  "url": "bundle-20260628.2.zip",
+  "hash": "6e2e454c36efe2ad9ee51bae82199d6467d2e23294640ecef9086122ed48e17a",
   "minNativeVersion": null,
-  "notes": "- feat: 增强数据处理逻辑，安全解析多个字段的 JSON 数组",
+  "notes": "- feat: 更新 quickPush 函数以支持更多本地图片存储模式的检查",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-28T05:05:48Z"
+  "publishedAt": "2026-06-28T08:23:43Z"
 }
