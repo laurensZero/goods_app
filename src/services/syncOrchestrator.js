@@ -91,7 +91,10 @@ export function createSyncOrchestrator({
         const ts = new Date().toISOString()
         await ctx.saveLastSyncedAt(ts)
         if (remoteData.events.length > 0) await ctx.saveEventLastSyncedAt(ts)
-        return { action: 'pulled', ...countPullChanges(remoteData) }
+        const pullCounts = countPullChanges(remoteData)
+        const totalPulled = pullCounts.importedGoods + pullCounts.importedEvents + pullCounts.importedRecharge + (pullCounts.importedGroups || 0)
+        if (totalPulled === 0) return { action: 'no_changes' }
+        return { action: 'pulled', ...pullCounts }
       }
 
       // 3. Full mode: diff
