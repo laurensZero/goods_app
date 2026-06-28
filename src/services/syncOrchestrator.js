@@ -253,16 +253,13 @@ export function createSyncOrchestrator({
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
 
-    // 2. Read remote data (only dirty domains)
-    const readTables = []
-    if (isGoodsDirty && !hasDirtyGoodsIds) readTables.push('goods', 'goods_groups', 'goods_group_items')
-    if (isRechargeDirty) readTables.push('recharge_records')
-    if (isEventsDirty) readTables.push('events')
+    // 2. Read remote data (incremental — only changed since last sync)
+    const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
 
     let remoteData
     try {
       remoteData = await readRemoteData(be, {
-        tables: readTables.length > 0 ? readTables : null,
+        since: localSyncTime,
         readManifest: false, readPresets: isGoodsDirty,
         trackSyncStep
       })
@@ -270,7 +267,6 @@ export function createSyncOrchestrator({
     remoteData.manifest = remoteManifest
 
     // 3. Compare
-    const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
     const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== ctx.deviceId)
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
@@ -278,14 +274,15 @@ export function createSyncOrchestrator({
     let hasDataDiff = hasDirtyGoodsIds
     let goodsDiff = null
     if (isGoodsDirty && !hasDirtyGoodsIds) {
-      goodsDiff = diffLocalRemote(stores, remoteData)
+      goodsDiff = diffLocalRemote(stores, remoteData, { incremental: remoteData.isIncremental })
       hasDataDiff = goodsDiff.hasChanges
     }
+    const incremental = remoteData.isIncremental
     const hasRechargeDataDiff = isRechargeDirty
-      ? compareStateSync(stores.rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [], remoteData.recharge || []).hasChanges
+      ? compareStateSync(stores.rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [], remoteData.recharge || [], { incremental }).hasChanges
       : false
     const hasEventDataDiff = isEventsDirty
-      ? compareStateSync(stores.eventsStore.list || [], remoteData.events || []).hasChanges
+      ? compareStateSync(stores.eventsStore.list || [], remoteData.events || [], { incremental }).hasChanges
       : false
     const localBudgetSettings = isBudgetDirty ? await readBudgetSettings() : null
     const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
@@ -316,7 +313,7 @@ export function createSyncOrchestrator({
         }
       }
       // Pull — reuse diff from earlier if available, otherwise compute now
-      const diff = goodsDiff || diffLocalRemote(stores, remoteData)
+      const diff = goodsDiff || diffLocalRemote(stores, remoteData, { incremental: remoteData.isIncremental })
       let restoredCount = 0
       await trackSyncStep(
         i18n.global.t('sync.phase.pull'),
@@ -338,8 +335,8 @@ export function createSyncOrchestrator({
       return { action: 'pulled', ...countPullChanges(remoteData) }
     }
 
-    // Push
-    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds })
+    // Push (incremental — only send changed items)
+    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData })
   }
 
   // ── Push implementation ──
@@ -370,7 +367,7 @@ export function createSyncOrchestrator({
   }
 
   async function doPush(ctx, stores, be, opts = {}) {
-    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds } = opts
+    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
 
     // Build payload + upload images
     const existingImageGist = await be.getExistingImageGist()
@@ -420,6 +417,7 @@ export function createSyncOrchestrator({
         () => writeRemoteData(be, {
           syncData, rechargeSyncData, eventSyncData, manifest,
           existingGist: existingImageGist,
+          remoteData,
           shouldWriteData: hasDataDiff,
           shouldWriteRecharge: hasRechargeDataDiff,
           shouldWriteEvent: hasEventDataDiff

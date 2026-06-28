@@ -111,26 +111,31 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
     }
   }
 
-  // Timestamp-based comparison
+  // Timestamp-based comparison (incremental skips localOnly counting)
   const goodsTrashCompare = compareStateSync(
     [...localResolved.goodsMap.values(), ...localResolved.trashMap.values()],
-    [...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()]
+    [...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()],
+    { incremental }
   )
   const groupsCompare = compareStateSync(
     goodsGroupStore.groupList || [],
-    remoteData.groups || []
+    remoteData.groups || [],
+    { incremental }
   )
   const groupItemsCompare = compareStateSync(
     goodsGroupStore.groupItemList || [],
-    remoteData.groupItems || []
+    remoteData.groupItems || [],
+    { incremental }
   )
   const rechargeCompare = compareStateSync(
     rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [],
-    remoteData.recharge || []
+    remoteData.recharge || [],
+    { incremental }
   )
   const eventCompare = compareStateSync(
     eventsStore.list || [],
-    remoteData.events || []
+    remoteData.events || [],
+    { incremental }
   )
 
   const hasChanges = goodsTrashCompare.hasChanges || groupsCompare.hasChanges || groupItemsCompare.hasChanges
