@@ -156,14 +156,114 @@ CREATE INDEX IF NOT EXISTS idx_goods_group_items_group_id ON goods_group_items(g
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_goods_id ON goods_group_items(goods_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_updated_at ON goods_group_items(updated_at);
 
--- 自动更新 updated_at 触发器
-CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+-- 自动更新 updated_at 触发器（仅在数据真正变化时触发，用 OR 链避免 ROW() 语法问题）
+CREATE OR REPLACE FUNCTION set_goods_updated_at() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
+  IF NEW.name IS DISTINCT FROM OLD.name
+    OR NEW.category IS DISTINCT FROM OLD.category
+    OR NEW.ip IS DISTINCT FROM OLD.ip
+    OR NEW.goods_id IS DISTINCT FROM OLD.goods_id
+    OR NEW.is_wishlist IS DISTINCT FROM OLD.is_wishlist
+    OR NEW.trashed IS DISTINCT FROM OLD.trashed
+    OR NEW.characters IS DISTINCT FROM OLD.characters
+    OR NEW.tags IS DISTINCT FROM OLD.tags
+    OR NEW.storage_location IS DISTINCT FROM OLD.storage_location
+    OR NEW.variant IS DISTINCT FROM OLD.variant
+    OR NEW.price IS DISTINCT FROM OLD.price
+    OR NEW.actual_price IS DISTINCT FROM OLD.actual_price
+    OR NEW.acquired_at IS DISTINCT FROM OLD.acquired_at
+    OR NEW.sale_at IS DISTINCT FROM OLD.sale_at
+    OR NEW.images IS DISTINCT FROM OLD.images
+    OR NEW.tracks IS DISTINCT FROM OLD.tracks
+    OR NEW.note IS DISTINCT FROM OLD.note
+    OR NEW.quantity IS DISTINCT FROM OLD.quantity
+    OR NEW.points IS DISTINCT FROM OLD.points
+    OR NEW.collect_status IS DISTINCT FROM OLD.collect_status
+    OR NEW.shipping_fee IS DISTINCT FROM OLD.shipping_fee
+  THEN NEW.updated_at = now();
+  ELSE NEW.updated_at = OLD.updated_at;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER goods_updated_at BEFORE INSERT OR UPDATE ON goods FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER events_updated_at BEFORE INSERT OR UPDATE ON events FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER recharge_records_updated_at BEFORE INSERT OR UPDATE ON recharge_records FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER goods_groups_updated_at BEFORE INSERT OR UPDATE ON goods_groups FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER goods_group_items_updated_at BEFORE INSERT OR UPDATE ON goods_group_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE OR REPLACE FUNCTION set_events_updated_at() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
+  IF NEW.name IS DISTINCT FROM OLD.name
+    OR NEW.type IS DISTINCT FROM OLD.type
+    OR NEW.start_date IS DISTINCT FROM OLD.start_date
+    OR NEW.end_date IS DISTINCT FROM OLD.end_date
+    OR NEW.location IS DISTINCT FROM OLD.location
+    OR NEW.description IS DISTINCT FROM OLD.description
+    OR NEW.cover_image IS DISTINCT FROM OLD.cover_image
+    OR NEW.cover_image_data IS DISTINCT FROM OLD.cover_image_data
+    OR NEW.photos IS DISTINCT FROM OLD.photos
+    OR NEW.tracks IS DISTINCT FROM OLD.tracks
+    OR NEW.linked_goods_ids IS DISTINCT FROM OLD.linked_goods_ids
+    OR NEW.tags IS DISTINCT FROM OLD.tags
+  THEN NEW.updated_at = now();
+  ELSE NEW.updated_at = OLD.updated_at;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION set_recharge_updated_at() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
+  IF NEW.game IS DISTINCT FROM OLD.game
+    OR NEW.item_name IS DISTINCT FROM OLD.item_name
+    OR NEW.amount IS DISTINCT FROM OLD.amount
+    OR NEW.charged_at IS DISTINCT FROM OLD.charged_at
+    OR NEW.note IS DISTINCT FROM OLD.note
+    OR NEW.image IS DISTINCT FROM OLD.image
+    OR NEW.deleted IS DISTINCT FROM OLD.deleted
+  THEN NEW.updated_at = now();
+  ELSE NEW.updated_at = OLD.updated_at;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION set_groups_updated_at() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
+  IF NEW.name IS DISTINCT FROM OLD.name
+    OR NEW.type IS DISTINCT FROM OLD.type
+    OR NEW.summary_mode IS DISTINCT FROM OLD.summary_mode
+    OR NEW.total_amount IS DISTINCT FROM OLD.total_amount
+    OR NEW.currency IS DISTINCT FROM OLD.currency
+    OR NEW.cover_mode IS DISTINCT FROM OLD.cover_mode
+    OR NEW.cover_item_id IS DISTINCT FROM OLD.cover_item_id
+    OR NEW.display_mode IS DISTINCT FROM OLD.display_mode
+    OR NEW.note IS DISTINCT FROM OLD.note
+  THEN NEW.updated_at = now();
+  ELSE NEW.updated_at = OLD.updated_at;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION set_group_items_updated_at() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
+  IF NEW.group_id IS DISTINCT FROM OLD.group_id
+    OR NEW.goods_id IS DISTINCT FROM OLD.goods_id
+    OR NEW.sort_order IS DISTINCT FROM OLD.sort_order
+  THEN NEW.updated_at = now();
+  ELSE NEW.updated_at = OLD.updated_at;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER goods_updated_at BEFORE INSERT OR UPDATE ON goods FOR EACH ROW EXECUTE FUNCTION set_goods_updated_at();
+CREATE TRIGGER events_updated_at BEFORE INSERT OR UPDATE ON events FOR EACH ROW EXECUTE FUNCTION set_events_updated_at();
+CREATE TRIGGER recharge_records_updated_at BEFORE INSERT OR UPDATE ON recharge_records FOR EACH ROW EXECUTE FUNCTION set_recharge_updated_at();
+CREATE TRIGGER goods_groups_updated_at BEFORE INSERT OR UPDATE ON goods_groups FOR EACH ROW EXECUTE FUNCTION set_groups_updated_at();
+CREATE TRIGGER goods_group_items_updated_at BEFORE INSERT OR UPDATE ON goods_group_items FOR EACH ROW EXECUTE FUNCTION set_group_items_updated_at();
 
 -- 禁用 RLS（用户自备项目，不需要行级安全）
 ALTER TABLE goods DISABLE ROW LEVEL SECURITY;
