@@ -1,9 +1,9 @@
 {
-  "version": "20260628.4",
-  "url": "bundle-20260628.4.zip",
-  "hash": "719190b23f00839c2edd293f076ba7bfea55fee48285585c299ffe719a508733",
+  "version": "20260628.5",
+  "url": "bundle-20260628.5.zip",
+  "hash": "25d23f899287ded83f21a14504d29a298098c47bbe24ac5e5a03c456b95ecbe0",
   "minNativeVersion": null,
-  "notes": "- feat: 移除 debounce 时间设置，优化推送逻辑\n\n- feat: 更新 pull 函数以支持指定表和上次同步时间，优化数据拉取逻辑",
+  "notes": "- feat: 优化 updated_at 触发器，仅在数据变化时更新，提升性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-28T09:30:14Z"
+  "publishedAt": "2026-06-28T12:52:00Z"
 }
