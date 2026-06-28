@@ -1,9 +1,9 @@
 {
-  "version": "20260627.6",
-  "url": "bundle-20260627.6.zip",
-  "hash": "7008207943538b382398fb9d6c645209fdf0c3d247edce52fe0a7ad7d1c7989f",
+  "version": "20260628.1",
+  "url": "bundle-20260628.1.zip",
+  "hash": "5786600ac71bc5d29eba06cd45f202b860a7b7cf49fcffffcd76598ccdec5b68",
   "minNativeVersion": null,
-  "notes": "- feat: 添加自动更新 updated_at 的触发器，确保数据表在插入或更新时自动更新时间戳",
+  "notes": "- feat: 增强数据处理逻辑，安全解析多个字段的 JSON 数组",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-27T10:48:25Z"
+  "publishedAt": "2026-06-28T05:05:48Z"
 }

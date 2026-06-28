@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260628.1",
+    "url": "bundle-20260628.1.zip",
+    "hash": "5786600ac71bc5d29eba06cd45f202b860a7b7cf49fcffffcd76598ccdec5b68",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强数据处理逻辑，安全解析多个字段的 JSON 数组",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-28T05:05:48Z"
+  },
+  {
     "version": "20260627.6",
     "url": "bundle-20260627.6.zip",
     "hash": "7008207943538b382398fb9d6c645209fdf0c3d247edce52fe0a7ad7d1c7989f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 canQuickPush 函数以支持 pushAll 选项，增强快速推送逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-06-27T09:03:07Z"
-  },
-  {
-    "version": "20260627.4",
-    "url": "bundle-20260627.4.zip",
-    "hash": "2c0bda715107005e2fed14c80cf84c23d3a97856f5a2a4a6609d764cdb4945ba",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化数据同步逻辑，处理 Supabase RPC 返回的 JSON 字符串并增强增量同步支持",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-27T04:10:24Z"
   }
 ]
