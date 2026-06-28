@@ -1261,7 +1261,9 @@ async function handlePull() {
   if (syncStore.isSyncing) return
 
   try {
-    const result = await syncStore.pull()
+    const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
+    const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+    const result = await syncStore.pull({ tables, since })
 
     if (result?.action === 'pulled') {
       const parts = buildPullResultParts(result)
