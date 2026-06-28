@@ -323,6 +323,14 @@ export function createReader({ getDb, trackSyncStep }) {
       item.saleReminderEnabled = Number(item.saleReminderEnabled) === 1
       item.quantity = Number(item.quantity) || 1
       item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.images = safeParseJsonArray(item.images)
+      item.characters = safeParseJsonArray(item.characters)
+      item.tags = safeParseJsonArray(item.tags)
+      item.tracks = safeParseJsonArray(item.tracks)
+      item.saleReminderOffsets = safeParseJsonArray(item.saleReminderOffsets)
+      item.unitAcquiredAtList = safeParseJsonArray(item.unitAcquiredAtList)
+      item.unitActualPriceList = safeParseJsonArray(item.unitActualPriceList)
+      item.unitCharacterList = safeParseJsonArray(item.unitCharacterList)
       return item
     }
 
