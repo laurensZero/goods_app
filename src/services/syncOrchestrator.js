@@ -192,7 +192,10 @@ export function createSyncOrchestrator({
       if (!Array.isArray(item.images)) continue
       for (const img of item.images) {
         const uri = String(img?.uri || '')
-        if (uri.startsWith('data:image/') || uri.startsWith('blob:') || uri.startsWith('file:')) {
+        const mode = String(img?.storageMode || '')
+        if (mode === 'linked-local' || mode === 'inline-local' || mode === 'gist-local'
+          || uri.startsWith('data:image/') || uri.startsWith('blob:') || uri.startsWith('file:')
+          || uri.includes('localhost')) {
           throw new Error('QUICK_PUSH_HAS_LOCAL_IMAGES')
         }
       }
