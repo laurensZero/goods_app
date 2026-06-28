@@ -2,6 +2,7 @@
 // Push pipeline: build payload → upload images → write remote → update local refs
 
 import { normalizeBudgetValue } from '@/utils/sync/shared'
+import { computeDiffRows, computeDeleteIds } from './supabaseAdapter/helpers'
 import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
 
@@ -127,23 +128,55 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
  * Write data to remote backend.
  * Uses writeDomainRows when available (Supabase), falls back to writeData (Gist).
  */
-export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true }) {
+export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true }) {
   if (be.pushAll) {
-    // Supabase path — single RPC
+    // Supabase path — compute incremental diff when remoteData is available
+    const localGoods = shouldWriteData ? (syncData.goods || []) : []
+    const localTrash = shouldWriteData ? (syncData.trash || []) : []
+    const localGroups = shouldWriteData ? (syncData.goodsGroups || []) : []
+    const localGroupItems = shouldWriteData ? (syncData.goodsGroupItems || []) : []
+    const localRecharge = shouldWriteRecharge ? (rechargeSyncData.recharge || []) : []
+    const localRechargeTrash = shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : []
+    const localEvents = shouldWriteEvent ? (eventSyncData.events || []) : []
+
+    let goods = localGoods, goodsTrash = localTrash
+    let groups = localGroups, groupItems = localGroupItems
+    let recharge = localRecharge, rechargeTrash = localRechargeTrash
+    let events = localEvents
+    let deleteGoods = shouldWriteData ? (uploadPlan?.deleteIdsByFile?.['data.json'] || []) : []
+    let deleteGroups = shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroups || []) : []
+    let deleteGroupItems = shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroupItems || []) : []
+    let deleteRecharge = shouldWriteRecharge ? (uploadPlan?.deleteIdsByFile?.['recharge-data.json'] || []) : []
+    let deleteEvents = shouldWriteEvent ? (uploadPlan?.deleteIdsByFile?.['events-data.json'] || []) : []
+
+    if (remoteData) {
+      // Incremental: only send changed items
+      if (shouldWriteData) {
+        goods = await computeDiffRows(localGoods, remoteData.goods || [])
+        goodsTrash = await computeDiffRows(localTrash, remoteData.trash || [])
+        groups = await computeDiffRows(localGroups, remoteData.groups || [])
+        groupItems = await computeDiffRows(localGroupItems, remoteData.groupItems || [])
+        deleteGoods = computeDeleteIds(localGoods, remoteData.goods || [])
+        deleteGroups = computeDeleteIds(localGroups, remoteData.groups || [])
+        deleteGroupItems = computeDeleteIds(localGroupItems, remoteData.groupItems || [])
+      }
+      if (shouldWriteRecharge) {
+        recharge = await computeDiffRows(localRecharge, remoteData.recharge || [])
+        rechargeTrash = await computeDiffRows(localRechargeTrash, remoteData.rechargeTrash || [])
+        deleteRecharge = computeDeleteIds(localRecharge, remoteData.recharge || [])
+      }
+      if (shouldWriteEvent) {
+        events = await computeDiffRows(localEvents, remoteData.events || [])
+        deleteEvents = computeDeleteIds(localEvents, remoteData.events || [])
+      }
+    }
+
     await be.pushAll({
-      goods: shouldWriteData ? (syncData.goods || []) : [],
-      goodsTrash: shouldWriteData ? (syncData.trash || []) : [],
-      groups: shouldWriteData ? (syncData.goodsGroups || []) : [],
-      groupItems: shouldWriteData ? (syncData.goodsGroupItems || []) : [],
-      recharge: shouldWriteRecharge ? (rechargeSyncData.recharge || []) : [],
-      rechargeTrash: shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : [],
-      events: shouldWriteEvent ? (eventSyncData.events || []) : [],
+      goods, goodsTrash, groups, groupItems,
+      recharge, rechargeTrash, events,
       presets: shouldWriteData ? syncData.presets : null,
-      deleteGoods: shouldWriteData ? (uploadPlan?.deleteIdsByFile?.['data.json'] || []) : [],
-      deleteGroups: shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroups || []) : [],
-      deleteGroupItems: shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroupItems || []) : [],
-      deleteRecharge: shouldWriteRecharge ? (uploadPlan?.deleteIdsByFile?.['recharge-data.json'] || []) : [],
-      deleteEvents: shouldWriteEvent ? (uploadPlan?.deleteIdsByFile?.['events-data.json'] || []) : [],
+      deleteGoods, deleteGroups, deleteGroupItems,
+      deleteRecharge, deleteEvents,
       deviceId: manifest?.deviceId || '',
       syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
       imageBucket: manifest?.imageGistId || 'goods-images',
