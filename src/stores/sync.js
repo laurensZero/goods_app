@@ -593,9 +593,7 @@ export const useSyncStore = defineStore('sync', () => {
       return
     }
 
-    // Debounce: short for goods-only edits, longer for multi-domain
-    const hasOnlyGoodsIds = dirtyGoodsIds.size > 0 && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
-    const debounceMs = hasOnlyGoodsIds ? 300 : 2000
+    const debounceMs = 0
 
     if (autoPushTimer) clearTimeout(autoPushTimer)
     autoPushTimer = setTimeout(async () => {
