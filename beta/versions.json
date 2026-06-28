@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260628.3",
+    "url": "bundle-20260628.3.zip",
+    "hash": "68495f114109a1bb8c82b5bec3bb2de9c8e625782b77488c8d72bacc003b4574",
+    "minNativeVersion": null,
+    "notes": "- feat: 实现增量同步逻辑，优化数据读取和推送，支持仅处理变更项",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-28T08:57:42Z"
+  },
+  {
     "version": "20260628.2",
     "url": "bundle-20260628.2.zip",
     "hash": "6e2e454c36efe2ad9ee51bae82199d6467d2e23294640ecef9086122ed48e17a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强数据处理逻辑，安全解析多个字段的 JSON 数组",
     "updateLevel": "silent",
     "publishedAt": "2026-06-28T05:05:48Z"
-  },
-  {
-    "version": "20260627.6",
-    "url": "bundle-20260627.6.zip",
-    "hash": "7008207943538b382398fb9d6c645209fdf0c3d247edce52fe0a7ad7d1c7989f",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加自动更新 updated_at 的触发器，确保数据表在插入或更新时自动更新时间戳",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-27T10:48:25Z"
   }
 ]

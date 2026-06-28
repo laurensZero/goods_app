@@ -1,9 +1,9 @@
 {
-  "version": "20260628.2",
-  "url": "bundle-20260628.2.zip",
-  "hash": "6e2e454c36efe2ad9ee51bae82199d6467d2e23294640ecef9086122ed48e17a",
+  "version": "20260628.3",
+  "url": "bundle-20260628.3.zip",
+  "hash": "68495f114109a1bb8c82b5bec3bb2de9c8e625782b77488c8d72bacc003b4574",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 quickPush 函数以支持更多本地图片存储模式的检查",
+  "notes": "- feat: 实现增量同步逻辑，优化数据读取和推送，支持仅处理变更项",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-28T08:23:43Z"
+  "publishedAt": "2026-06-28T08:57:42Z"
 }
