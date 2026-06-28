@@ -1,9 +1,9 @@
 {
-  "version": "20260628.3",
-  "url": "bundle-20260628.3.zip",
-  "hash": "68495f114109a1bb8c82b5bec3bb2de9c8e625782b77488c8d72bacc003b4574",
+  "version": "20260628.4",
+  "url": "bundle-20260628.4.zip",
+  "hash": "719190b23f00839c2edd293f076ba7bfea55fee48285585c299ffe719a508733",
   "minNativeVersion": null,
-  "notes": "- feat: 实现增量同步逻辑，优化数据读取和推送，支持仅处理变更项",
+  "notes": "- feat: 移除 debounce 时间设置，优化推送逻辑\n\n- feat: 更新 pull 函数以支持指定表和上次同步时间，优化数据拉取逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-28T08:57:42Z"
+  "publishedAt": "2026-06-28T09:30:14Z"
 }
