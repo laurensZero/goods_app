@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260630.4",
+    "url": "bundle-20260630.4.zip",
+    "hash": "f84249744142a4f9c3f5ab4af77bd291eb62fc2195713355be318ce802b30e5b",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加“标记为已拥有”按钮",
+    "updateLevel": "silent",
+    "publishedAt": "2026-06-30T11:19:06Z"
+  },
+  {
     "version": "20260630.3",
     "url": "bundle-20260630.3.zip",
     "hash": "a906bb234637563a67607f866b6ddc499665e37978f8cd53dc507ba5e778f000",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化数据比较逻辑，强制禁用增量模式以确保一致性",
     "updateLevel": "silent",
     "publishedAt": "2026-06-30T04:21:29Z"
-  },
-  {
-    "version": "20260630.1",
-    "url": "bundle-20260630.1.zip",
-    "hash": "e825d3752e23aa46ab0540d0a2d8fed9495ecc40bd81bac09b0af320a9395927",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新角色建议逻辑，优化角色选择和显示，添加 SKU 角色提取功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-30T03:16:53Z"
   }
 ]
