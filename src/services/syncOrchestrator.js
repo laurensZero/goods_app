@@ -280,12 +280,11 @@ export function createSyncOrchestrator({
       goodsDiff = diffLocalRemote(stores, remoteData, { incremental: remoteData.isIncremental })
       hasDataDiff = goodsDiff.hasChanges
     }
-    const incremental = remoteData.isIncremental
     const hasRechargeDataDiff = isRechargeDirty
-      ? compareStateSync(stores.rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [], remoteData.recharge || [], { incremental }).hasChanges
+      ? compareStateSync(stores.rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [], remoteData.recharge || [], { incremental: false }).hasChanges
       : false
     const hasEventDataDiff = isEventsDirty
-      ? compareStateSync(stores.eventsStore.list || [], remoteData.events || [], { incremental }).hasChanges
+      ? compareStateSync(stores.eventsStore.list || [], remoteData.events || [], { incremental: false }).hasChanges
       : false
     const localBudgetSettings = isBudgetDirty ? await readBudgetSettings() : null
     const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
