@@ -73,9 +73,10 @@ function delay(ms, signal) {
  * @param {number} [options.maxRetries=2] - Maximum retry attempts
  * @param {number} [options.baseDelay=1000] - Base delay in ms (doubles each retry)
  * @param {AbortSignal} [options.signal] - Optional abort signal
+ * @param {Function} [options.onRetry] - Called on retryable error before waiting; can do connection recovery
  * @returns {Promise<*>} Result of fn()
  */
-export async function withRetry(fn, { maxRetries = 2, baseDelay = 1000, signal } = {}) {
+export async function withRetry(fn, { maxRetries = 2, baseDelay = 1000, signal, onRetry } = {}) {
   let lastError
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -86,6 +87,11 @@ export async function withRetry(fn, { maxRetries = 2, baseDelay = 1000, signal }
 
       // Not retryable or last attempt → throw immediately
       if (!isRetryable(error) || attempt >= maxRetries) throw error
+
+      // Connection recovery hook (e.g. rebuild Supabase client to flush stale DNS)
+      if (onRetry) {
+        try { await onRetry(error, attempt) } catch { /* recovery is best-effort */ }
+      }
 
       // Calculate delay: use Retry-After if available, otherwise exponential backoff with jitter
       const retryAfterMs = getRetryAfterMs(error)
