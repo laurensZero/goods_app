@@ -2,7 +2,6 @@ import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
 import staticDictionaries from '@/constants/tagging-dictionaries.json'
 import { parseCategoryFromName } from '@/utils/mihoyo/index'
 import {
-  extractCharsFromVariants,
   displayVariantText,
   normalizeCharacterName,
   isLikelyCharName,
@@ -295,27 +294,19 @@ function resolvePreferredCharacter(preferredCharacter, variants, categoryBlockli
   return variants.some((variant) => variantMatchesCharacter(variant, preferred)) ? preferred : ''
 }
 
-function resolveVariantCharacter(variantText, categoryBlocklist = null) {
-  const candidate = normalizeCharacterCandidate(variantText, categoryBlocklist)
-  return candidate && isLikelyCharName(candidate) ? candidate : ''
-}
 
 function collectExplicitCharacters(source, preferredCharacter = '', categoryBlocklist = null) {
   const directCharacters = normalizeCharacterList(source?.characters, categoryBlocklist)
   if (directCharacters.length) return directCharacters
 
-  const variantCharacter = resolveVariantCharacter(source?.variant || source?.selectedVariantName, categoryBlocklist)
-  if (variantCharacter) return [variantCharacter]
-
   const preferred = resolvePreferredCharacter(preferredCharacter, source?.variants, categoryBlocklist)
   if (preferred) return [preferred]
 
-  const variantCharacters = uniqueList(
-    extractCharsFromVariants(source?.variants)
-      .map((name) => normalizeCharacterCandidate(name, categoryBlocklist))
-      .filter((name) => name && isLikelyCharName(name))
-  )
-  return variantCharacters.length === 1 ? variantCharacters : []
+  // 降级：从 SKU 属性中提取的角色名（API 明确标注的）
+  const skuCharacters = normalizeCharacterList(source?.skuCharacters, categoryBlocklist)
+  if (skuCharacters.length) return skuCharacters
+
+  return []
 }
 
 function resolveCharacters({ explicitCharacters, taggingResult, categoryBlocklist = null, evidenceTexts = [] }) {
@@ -423,9 +414,8 @@ export function resolveMihoyoVariantDraft({
     currentCategory,
     preliminaryCategory,
   ])
-  const directCharacter = resolveVariantCharacter(variant?.text, initialCategoryBlocklist)
   const preferred = resolvePreferredCharacter(preferredCharacter, [variant], initialCategoryBlocklist)
-  const explicitCharacters = [directCharacter || preferred].filter(Boolean)
+  const explicitCharacters = preferred ? [preferred] : []
   const taggingResult = getTaggingResult({
     name: [name, variantName].filter(Boolean).join(' '),
     chars: explicitCharacters,

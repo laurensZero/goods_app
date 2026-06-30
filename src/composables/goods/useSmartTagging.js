@@ -103,7 +103,14 @@ export function useSmartTagging(form) {
     // 应用那些没有被忽略且原表单字段为空的项
     if (ignoredFields.value.category || form.category) result.categorySuggestion = null
     if (ignoredFields.value.ip || form.ip) result.ipSuggestion = null
-    if (ignoredFields.value.characters || (form.characters && form.characters.length)) result.characterSuggestions = []
+    if (ignoredFields.value.characters) {
+      result.characterSuggestions = []
+    } else if (form.characters && form.characters.length) {
+      // 过滤掉已在 form.characters 中的重复角色
+      const existing = new Set(form.characters.map(c => c.toLowerCase()))
+      result.characterSuggestions = (result.characterSuggestions || [])
+        .filter(s => !existing.has(s.value.toLowerCase()))
+    }
     if (ignoredFields.value.tags || (form.tags && form.tags.length)) result.tagSuggestions = []
 
     tagSuggestions.value = result

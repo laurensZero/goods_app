@@ -309,6 +309,17 @@ export async function parseMihoyoUrl(url) {
   // 例：[{ name: "角色", content: [{text, key, img_url}, ...], is_open }]
   const variants = buildSaleAttrVariants(detail.sale_attrs)
 
+  // 从 SKU 属性中提取 API 明确标注的角色名（attr_name 含 "角色"）
+  const skuCharacters = []
+  for (const group of (detail.sale_attrs || [])) {
+    if (String(group?.name || '').includes('角色')) {
+      for (const item of (group.content || [])) {
+        const charName = String(item?.text || '').replace(/[A-E]$/, '').trim()
+        if (charName) skuCharacters.push(charName)
+      }
+    }
+  }
+
   return {
     raw: detail.name,
     name,
@@ -318,6 +329,7 @@ export async function parseMihoyoUrl(url) {
     banners: detail.banner_url || [],
     goodsId,           // 商品 ID，供后续懒加载 main_url 用
     variants,  // { text, key, img_url }[] —— 原始 SKU 选项
+    skuCharacters,  // SKU 中明确标注的角色名（降级用）
   }
 }
 
@@ -731,6 +743,11 @@ const NON_CHAR_STYLE = new Set([
   '线稿', '线图', '草稿', '线图版',
   '小', '中', '大', '特大', '加大',
   '明信片',
+  // 常见产品类型词（款式属性中出现时不是角色名）
+  '围巾', '帽子', '手套', '杯子', '毛巾', '手帕',
+  '袜子', '发卡', '发夹', '头绳', '耳环', '项链',
+  '背包', '书包', '零钱包', '卡包', '纸巾',
+  '抱枕', '坐垫', '毛毯', '床单', '徽章',
 ])
 
 // 商品类型后缀：款式值以这些词结尾时，只取前面的角色名部分
@@ -816,8 +833,6 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     } else if (attrName.includes('款式')) {
       const style = cleanStyleValue(attrVal)
       if (style) styleSet.add(style)
-      const c = tryCharFromStyle(attrVal)
-      if (c) charSet.add(c)
     }
   }
   const characters = [...charSet]
@@ -916,7 +931,6 @@ function cartItemToGoods(shop, item, index = 0) {
   const ip = shopToIp(shop?.shop_name || shop?.shopName || '') || ipFromName
   const rawVariant = String(item.sale_attr_val || item.sale_attr || '').trim()
   const style = cleanStyleValue(rawVariant)
-  const charName = tryCharFromStyle(rawVariant)
   const quantity = Math.max(1, Number(item.nums) || Number(item.quantity_buy) || 1)
   const priceFee = item.new_price_fee ?? item.price_fee ?? item.old_price_fee ?? 0
   const noteParts = ['来自米游铺购物车']
@@ -928,7 +942,7 @@ function cartItemToGoods(shop, item, index = 0) {
   return {
     name: name || sourceTitle,
     ip: ip || '',
-    characters: charName ? [charName] : [],
+    characters: [],
     image: item.cover_url || '',
     price: String(Math.round(Number(priceFee) / 100)),
     acquiredAt: '',

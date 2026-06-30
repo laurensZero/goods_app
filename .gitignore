@@ -16,3 +16,4 @@ scripts/fetch_recharge_distribution.py
 .tmp/
 !docs/share.html
 CLAUDE.md
+scripts/supabase-backup.sh
