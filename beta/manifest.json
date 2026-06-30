@@ -1,9 +1,9 @@
 {
-  "version": "20260628.5",
-  "url": "bundle-20260628.5.zip",
-  "hash": "25d23f899287ded83f21a14504d29a298098c47bbe24ac5e5a03c456b95ecbe0",
+  "version": "20260630.1",
+  "url": "bundle-20260630.1.zip",
+  "hash": "e825d3752e23aa46ab0540d0a2d8fed9495ecc40bd81bac09b0af320a9395927",
   "minNativeVersion": null,
-  "notes": "- feat: 优化 updated_at 触发器，仅在数据变化时更新，提升性能",
+  "notes": "- feat: 更新角色建议逻辑，优化角色选择和显示，添加 SKU 角色提取功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-28T12:52:00Z"
+  "publishedAt": "2026-06-30T03:16:53Z"
 }
