@@ -1,5 +1,5 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { getSupabaseClient, reconnectSupabase } from '@/utils/sync/supabaseClient'
 
 /**
  * Supabase Realtime 订阅 composable
@@ -117,10 +117,15 @@ export function useRealtimeSync({ syncStore }) {
       return
     }
 
-    // Supabase 模式：回到前台时增量拉取
+    // Supabase 模式：回到前台时重建连接 + 重新订阅 + 增量拉取
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
       if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
+        // 重建 Supabase 客户端以刷新可能过期的 DNS 缓存
+        await reconnectSupabase()
+        // 重新订阅 Realtime 通道（WebSocket 可能已断开）
+        unsubscribe()
+        await subscribe()
         const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
         const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
         try { await syncStore.pull({ tables, since }) } catch { /* ignore */ }

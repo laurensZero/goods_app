@@ -80,3 +80,32 @@ export async function testSupabaseConnection(url, anonKey) {
 export function clearSupabaseClient() {
   supabase = null
 }
+
+/**
+ * 重建 Supabase Client 连接
+ * 用于 Android 后台回收后刷新 DNS 缓存和连接池
+ * @returns {Promise<boolean>} 是否重建成功
+ */
+export async function reconnectSupabase() {
+  if (!_initUrl || !_initKey) return false
+  supabase = null
+  supabase = createClient(_initUrl, _initKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
+    }
+  })
+  try {
+    const { error } = await supabase.from('goods').select('id').limit(1)
+    if (error) {
+      console.warn('[supabase] reconnect probe failed:', error.message)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.warn('[supabase] reconnect failed:', e.message)
+    supabase = null
+    return false
+  }
+}

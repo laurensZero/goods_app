@@ -18,7 +18,7 @@ import { validateToken, getGist, listGists } from '@/utils/github/gist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
-import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient } from '@/utils/sync/supabaseClient'
+import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient, reconnectSupabase } from '@/utils/sync/supabaseClient'
 import { deriveKey, isWebCryptoAvailable } from '@/utils/sync/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
@@ -664,6 +664,17 @@ export const useSyncStore = defineStore('sync', () => {
     isPulling.value = false
   }
 
+  // Network error recovery: rebuild Supabase client to flush stale DNS/connection
+  async function reconnectOnNetworkError(error) {
+    if (!isSupabaseMode()) return
+    const msg = String(error?.message || '').toLowerCase()
+    const isNetwork = msg.includes('network') || msg.includes('网络') || msg.includes('fetch') ||
+      msg.includes('连接') || msg.includes('enotfound') || msg.includes('econnrefused') || msg.includes('econnreset')
+    if (!isNetwork) return
+    console.warn('[sync] 网络错误，尝试重建 Supabase 连接...')
+    await reconnectSupabase()
+  }
+
   // Internal sync implementation (called by public sync() and autoPushGoods)
   async function doSync({ source = 'manual', maxRetries = 1 } = {}) {
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
@@ -685,7 +696,7 @@ export const useSyncStore = defineStore('sync', () => {
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
         () => orchestrator.sync(buildSyncContext(), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
-        { maxRetries, baseDelay: 1200 }
+        { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
@@ -737,7 +748,7 @@ export const useSyncStore = defineStore('sync', () => {
         try {
           const result = await withRetry(
             () => orchestrator.pull(buildSyncContext(), { silent: true }),
-            { maxRetries, baseDelay: 1200 }
+            { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
           )
           syncStatus.value = translateStatusMessage(result)
           return result
@@ -770,7 +781,7 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       const result = await withRetry(
         () => orchestrator.pull(buildSyncContext(), { silent, forceRecharge }),
-        { maxRetries, baseDelay: 1200 }
+        { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       if (!silent && result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
@@ -801,7 +812,7 @@ export const useSyncStore = defineStore('sync', () => {
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
       const result = await withRetry(
         () => orchestrator.resolveConflict(ctx, useRemote),
-        { maxRetries, baseDelay: 1200 }
+        { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       conflictData.value = null
       syncStatus.value = translateStatusMessage(result)
@@ -831,7 +842,7 @@ export const useSyncStore = defineStore('sync', () => {
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
       const result = await withRetry(
         () => orchestrator.resolvePullConflict(ctx, confirm),
-        { maxRetries, baseDelay: 1200 }
+        { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       conflictData.value = null
       syncStatus.value = translateStatusMessage(result)
