@@ -231,18 +231,9 @@
                     <div v-if="isVariantSelected(v)" class="variant-check">✓</div>
                   </button>
                 </div>
-                <!-- 选中款式后：是否记录为角色开关 -->
-                <div v-if="selectedVariantKey" class="save-char-row" @click="toggleSaveAsCharacter">
-                  <span class="save-char-label">
-                    {{ t('import.saveAsCharacter', { name: selectedCharacterName || selectedVariantName }) }}
-                  </span>
-                  <div class="save-char-toggle" :class="{ 'save-char-toggle--on': saveAsCharacter }">
-                    <div class="save-char-knob" />
-                  </div>
-                </div>
               </div>
-              <!-- 无变体时仍允许手动输入角色 -->
-              <div v-else-if="form.characters.length > 0" class="field">
+              <!-- 角色显示（智能建议或已识别） -->
+              <div v-if="form.characters.length > 0" class="field">
                 <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
                 <div class="char-chips">
                   <span
@@ -255,6 +246,12 @@
                   </span>
                 </div>
               </div>
+              <TagSuggestionPanel
+                :suggestions="tagSuggestions"
+                @apply="applySuggestion"
+                @ignore="ignoreSuggestion"
+                @apply-all="applyAllSuggestions"
+              />
               <label class="field">
                 <span class="field-label">{{ t('import.imageUrl') }}</span>
                 <input v-model="form.image" type="text" inputmode="url"
@@ -622,6 +619,8 @@ import {
 import { useImportSearch, normalizeSearchHintText } from '@/composables/import/useImportSearch'
 import { useBatchImport } from '@/composables/import/useBatchImport'
 import { pinyinIncludes } from '@/utils/pinyin'
+import { useSmartTagging } from '@/composables/goods/useSmartTagging'
+import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -788,6 +787,8 @@ const form = reactive({
   notes: '',
   characters: [],
 })
+
+const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
 
 watch(() => form.price, () => {
   if (formPriceError.value) {
