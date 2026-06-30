@@ -331,6 +331,7 @@ export function createReader({ getDb, trackSyncStep }) {
       item.unitAcquiredAtList = safeParseJsonArray(item.unitAcquiredAtList)
       item.unitActualPriceList = safeParseJsonArray(item.unitActualPriceList)
       item.unitCharacterList = safeParseJsonArray(item.unitCharacterList)
+      item.unitCollectStatusList = safeParseJsonArray(item.unitCollectStatusList)
       return item
     }
 

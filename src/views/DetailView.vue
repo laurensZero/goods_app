@@ -90,6 +90,9 @@
           <button v-if="item.isWishlist" class="hero-action-btn" type="button" @click="markAsOwned">
             {{ t('common.markAsOwned') }}
           </button>
+          <button v-else-if="hasCollectStatusMatch(item, ['待发货'])" class="hero-action-btn" type="button" @click="markAsReceived">
+            {{ t('goods.detail.markAsReceived') }}
+          </button>
         </section>
 
         <section class="info-section">
@@ -316,7 +319,7 @@ import { resolveCollectionTotalValue } from '@/stores/goodsHelpers'
 import { formatDate } from '@/utils/format'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
-import { formatCollectStatusSummary, getCollectStatusEntries, resolvePrimaryCollectStatus } from '@/utils/goods/status'
+import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMatch, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
@@ -932,6 +935,21 @@ async function markAsOwned() {
   })
 
   runWithRouteTransition(() => router.replace(targetPath), { direction: 'back' })
+}
+
+async function markAsReceived() {
+  if (!item.value) return
+
+  const updates = { collectStatus: '已拥有' }
+
+  // 同步更新多件状态列表中的「待发货」→「已拥有」
+  const unitList = Array.isArray(item.value.unitCollectStatusList) ? [...item.value.unitCollectStatusList] : []
+  if (unitList.length > 0) {
+    updates.unitCollectStatusList = unitList.map(s => s === '待发货' ? '已拥有' : s)
+  }
+
+  await store.updateGoods(props.id, updates)
+  showToast(t('status.owned'))
 }
 
 function handleBackNavigation() {
