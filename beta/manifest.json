@@ -1,9 +1,9 @@
 {
-  "version": "20260630.2",
-  "url": "bundle-20260630.2.zip",
-  "hash": "df2c076b1a347cb048ea8fb1a7391ce2317263d9d5335aa7594cc59a4cd27267",
+  "version": "20260630.3",
+  "url": "bundle-20260630.3.zip",
+  "hash": "a906bb234637563a67607f866b6ddc499665e37978f8cd53dc507ba5e778f000",
   "minNativeVersion": null,
-  "notes": "- feat: 优化数据比较逻辑，强制禁用增量模式以确保一致性",
+  "notes": "- feat: 优化 updated_at 触发器逻辑，支持通过 app 推送时保留传入值，提升数据一致性",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-30T04:21:29Z"
+  "publishedAt": "2026-06-30T04:22:25Z"
 }
