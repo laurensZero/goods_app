@@ -1,9 +1,9 @@
 {
-  "version": "20260630.1",
-  "url": "bundle-20260630.1.zip",
-  "hash": "e825d3752e23aa46ab0540d0a2d8fed9495ecc40bd81bac09b0af320a9395927",
+  "version": "20260630.2",
+  "url": "bundle-20260630.2.zip",
+  "hash": "df2c076b1a347cb048ea8fb1a7391ce2317263d9d5335aa7594cc59a4cd27267",
   "minNativeVersion": null,
-  "notes": "- feat: 更新角色建议逻辑，优化角色选择和显示，添加 SKU 角色提取功能",
+  "notes": "- feat: 优化数据比较逻辑，强制禁用增量模式以确保一致性",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-30T03:16:53Z"
+  "publishedAt": "2026-06-30T04:21:29Z"
 }
