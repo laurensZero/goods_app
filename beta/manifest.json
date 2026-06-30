@@ -1,9 +1,9 @@
 {
-  "version": "20260630.4",
-  "url": "bundle-20260630.4.zip",
-  "hash": "f84249744142a4f9c3f5ab4af77bd291eb62fc2195713355be318ce802b30e5b",
+  "version": "20260630.5",
+  "url": "bundle-20260630.5.zip",
+  "hash": "4daa5a8ecd613f84d37883ccf933316553b55f0dbbf8086ab49b96bf5b7c04b0",
   "minNativeVersion": null,
-  "notes": "- feat: 添加“标记为已拥有”按钮",
+  "notes": "- feat: 添加重建 Supabase 连接功能以支持网络错误恢复",
   "updateLevel": "silent",
-  "publishedAt": "2026-06-30T11:19:06Z"
+  "publishedAt": "2026-06-30T11:55:31Z"
 }
