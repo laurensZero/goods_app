@@ -156,9 +156,12 @@ CREATE INDEX IF NOT EXISTS idx_goods_group_items_group_id ON goods_group_items(g
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_goods_id ON goods_group_items(goods_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_updated_at ON goods_group_items(updated_at);
 
--- 自动更新 updated_at 触发器（仅在数据真正变化时触发，用 OR 链避免 ROW() 语法问题）
-CREATE OR REPLACE FUNCTION set_goods_updated_at() RETURNS TRIGGER AS $$
+-- 自动更新 updated_at 触发器
+-- 当通过 sync_push（app 推送）写入时，跳过自动设 updated_at，保留 app 传上来的值
+-- 当通过 Supabase 网页编辑时，触发器正常将 updated_at 设为 now()
+CREATE OR REPLACE FUNCTION set_goods_updated_at() RETURNS TRIGGER AS $fn1$
 BEGIN
+  IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
   IF NEW.name IS DISTINCT FROM OLD.name
     OR NEW.category IS DISTINCT FROM OLD.category
@@ -186,10 +189,11 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn1$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION set_events_updated_at() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION set_events_updated_at() RETURNS TRIGGER AS $fn2$
 BEGIN
+  IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
   IF NEW.name IS DISTINCT FROM OLD.name
     OR NEW.type IS DISTINCT FROM OLD.type
@@ -208,10 +212,11 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn2$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION set_recharge_updated_at() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION set_recharge_updated_at() RETURNS TRIGGER AS $fn3$
 BEGIN
+  IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
   IF NEW.game IS DISTINCT FROM OLD.game
     OR NEW.item_name IS DISTINCT FROM OLD.item_name
@@ -225,10 +230,11 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn3$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION set_groups_updated_at() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION set_groups_updated_at() RETURNS TRIGGER AS $fn4$
 BEGIN
+  IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
   IF NEW.name IS DISTINCT FROM OLD.name
     OR NEW.type IS DISTINCT FROM OLD.type
@@ -244,10 +250,11 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn4$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION set_group_items_updated_at() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION set_group_items_updated_at() RETURNS TRIGGER AS $fn5$
 BEGIN
+  IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
   IF NEW.group_id IS DISTINCT FROM OLD.group_id
     OR NEW.goods_id IS DISTINCT FROM OLD.goods_id
@@ -257,7 +264,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn5$ LANGUAGE plpgsql;
 
 CREATE TRIGGER goods_updated_at BEFORE INSERT OR UPDATE ON goods FOR EACH ROW EXECUTE FUNCTION set_goods_updated_at();
 CREATE TRIGGER events_updated_at BEFORE INSERT OR UPDATE ON events FOR EACH ROW EXECUTE FUNCTION set_events_updated_at();
@@ -428,6 +435,9 @@ CREATE OR REPLACE FUNCTION sync_push(
 )
 RETURNS void AS $fn$
 BEGIN
+  -- 标记为 app 同步推送，触发器将跳过自动设 updated_at
+  PERFORM set_config('app.is_sync_push', 'true', true);
+
   -- 1. Delete
   IF array_length(p_delete_goods, 1) > 0 THEN
     DELETE FROM goods WHERE id = ANY(p_delete_goods);
