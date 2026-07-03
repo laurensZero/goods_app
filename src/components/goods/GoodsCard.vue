@@ -127,7 +127,8 @@ const props = defineProps({
   transitioning: { type: Boolean, default: false },
   selected: { type: Boolean, default: false },
   selectionMode: { type: Boolean, default: false },
-  motionStyle: { type: Object, default: null }
+  motionStyle: { type: Object, default: null },
+  windowWidth: { type: Number, default: 0 }
 })
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
@@ -389,8 +390,8 @@ const allCustomTags = computed(() => props.item.tags || [])
 const showCharacters = computed(() => props.density === 'comfortable' && allCharacters.value.length > 0)
 const showCustomTags = computed(() => props.density === 'comfortable' && allCustomTags.value.length > 0)
 const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value || showCustomTags.value)
-const windowWidth = ref(window.innerWidth)
-const isTablet = computed(() => windowWidth.value >= 900)
+// 使用父组件传入的 windowWidth prop，避免每个卡片独立维护 resize 监听器
+const isTablet = computed(() => props.windowWidth >= 900)
 const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && (holdingDays.value !== null || hasUnitHoldingDays.value))
 const showPoints = computed(() => !props.item.isWishlist && props.item.points && (props.density === 'comfortable' || isTablet.value))
 const unitActualPriceText = computed(() => {

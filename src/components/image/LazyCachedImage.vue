@@ -167,13 +167,25 @@ async function ensureCachedImageReady(src, requestId, timeoutMs = 220) {
   return ok
 }
 
+// 缓存 viewport distance，避免在虚拟窗口变化时批量触发同步布局
+// 每个组件实例维护独立的缓存（避免模块级共享导致跨实例误用）
+const _distanceCache = new WeakMap()
+const DISTANCE_CACHE_TTL = 200 // 200ms 内复用缓存值
+
 function getViewportDistance() {
   const el = rootRef.value
   if (!el) return Infinity
+
+  const now = performance.now()
+  const cached = _distanceCache.get(el)
+  if (cached && now - cached.time < DISTANCE_CACHE_TTL) return cached.dist
+
   const rect = el.getBoundingClientRect()
   const elCenter = rect.top + rect.height / 2
   const vpCenter = window.innerHeight / 2
-  return Math.abs(elCenter - vpCenter)
+  const dist = Math.abs(elCenter - vpCenter)
+  _distanceCache.set(el, { dist, time: now })
+  return dist
 }
 
 watch(

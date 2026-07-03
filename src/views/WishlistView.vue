@@ -97,6 +97,7 @@
         :is-sort-animating="isSortAnimating"
         :selection-mode="selectionMode"
         :selected-ids="selectedIds"
+        :window-width="windowWidth"
         @long-press="enterSelectionMode"
         @toggle-select="toggleSelect"
         @open-detail="openDetail"
@@ -286,7 +287,20 @@ const INITIAL_RENDER_ROWS = 6
 const GOODS_GRID_ROW_GAP = 12
 const GOODS_GRID_OVERSCAN_ROWS = 4
 const GOODS_GRID_OVERSCAN_ROWS_WIDE = 3
-const GOODS_GRID_MAX_RENDER_CARDS = 96
+// 按密度模式和设备类型设置不同的最大渲染卡片数
+// 手机端（<900px）列数少，可以加载更少；平板端（≥900px）列数多，需要更多
+const GOODS_GRID_MAX_RENDER_CARDS_MAP = {
+  comfortable: { mobile: 40, tablet: 56 },  // 手机2-3列，平板4-5列，行高320
+  standard: { mobile: 54, tablet: 72 },     // 手机3-4列，平板5-6列，行高284
+  compact: { mobile: 64, tablet: 80 }       // 手机4-5列，平板6-8列，行高248
+}
+const GOODS_GRID_MAX_RENDER_CARDS_DEFAULT = 72
+const TABLET_BREAKPOINT = 900
+
+function getMaxRenderCards(density) {
+  const config = GOODS_GRID_MAX_RENDER_CARDS_MAP[density] || { mobile: 54, tablet: 72 }
+  return windowWidth.value >= TABLET_BREAKPOINT ? config.tablet : config.mobile
+}
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
   standard: 272,
@@ -706,6 +720,8 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
   const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
+  // 根据密度模式和设备类型选择对应的最大渲染卡片数
+  const maxRenderCards = getMaxRenderCards(displayDensity.value)
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
@@ -714,7 +730,7 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const renderCount = Math.min(
     remainingItems,
     Math.min(
-      GOODS_GRID_MAX_RENDER_CARDS,
+      maxRenderCards,
       Math.max(cols * 4, renderRows * cols)
     )
   )
@@ -741,6 +757,8 @@ function updateScrollTopButtonVisibility() {
 }
 
 let _selectionSpacerEl = null
+let _selectionHeaderFrameCount = 0
+const SELECTION_HEADER_RECT_INTERVAL = 3 // 每 3 帧读取一次 getBoundingClientRect
 
 function _resolveSelectionSpacer() {
   if (_selectionSpacerEl && _selectionSpacerEl.isConnected) return _selectionSpacerEl
@@ -749,6 +767,10 @@ function _resolveSelectionSpacer() {
 }
 
 function updateSelectionHeaderPosition() {
+  // 帧节流：每 SELECTION_HEADER_RECT_INTERVAL 帧才读取一次 getBoundingClientRect
+  _selectionHeaderFrameCount++
+  if (_selectionHeaderFrameCount % SELECTION_HEADER_RECT_INTERVAL !== 0) return
+
   const spacer = _resolveSelectionSpacer()
   if (!spacer) {
     selectionHeaderTop.value = 0
