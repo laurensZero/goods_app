@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260703.1",
+    "url": "bundle-20260703.1.zip",
+    "hash": "7caa862b94d2f9ca26d5ecbbd84b1c31b5ccda2a2188d749bb24a9905f2fe3ed",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化时间线视图\n\n- feat: 添加全局动画控制，支持减少运动偏好设置；优化下载进度条动画效果\n\n- feat: 统一弹窗",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-03T15:10:53Z"
+  },
+  {
     "version": "20260630.5",
     "url": "bundle-20260630.5.zip",
     "hash": "4daa5a8ecd613f84d37883ccf933316553b55f0dbbf8086ab49b96bf5b7c04b0",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加“标记为已拥有”按钮",
     "updateLevel": "silent",
     "publishedAt": "2026-06-30T11:19:06Z"
-  },
-  {
-    "version": "20260630.3",
-    "url": "bundle-20260630.3.zip",
-    "hash": "a906bb234637563a67607f866b6ddc499665e37978f8cd53dc507ba5e778f000",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化 updated_at 触发器逻辑，支持通过 app 推送时保留传入值，提升数据一致性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-06-30T04:22:25Z"
   }
 ]
