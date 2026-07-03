@@ -66,7 +66,6 @@ import { nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 import GroupCard from '@/components/goods/GroupCard.vue'
-import { shouldBlockGoodsCardRepaint } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'GoodsCardGridSection' })
 
@@ -137,68 +136,17 @@ const cardMotionStyles = reactive({})
 
 let _cardObserver = null
 const _observedEls = new WeakSet()
-const _repaintedIds = new Set()
 
-function forceRepaint(el) {
-  if (!el) return
-  try {
-    // Use requestAnimationFrame to defer will-change cleanup and avoid synchronous layout thrash
-    el.style.willChange = 'transform'
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (el && el.style) el.style.willChange = ''
-      })
-    })
-  } catch (e) {}
-}
-
-function getGoodsIdFromEl(el) {
-  if (!el) return ''
-  return el.dataset?.goodsId || el.getAttribute?.('data-goods-id') || ''
-}
+// IntersectionObserver-based will-change toggling removed — it caused
+// layout jitter on fast scroll. Modern Android WebView handles compositor
+// promotion automatically; no manual force-repaint needed.
 
 function createCardObserver() {
-  if (typeof IntersectionObserver === 'undefined') return
-
-  _cardObserver = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      const target = entry.target
-      if (entry.isIntersecting && target) {
-        if (!shouldBlockGoodsCardRepaint()) {
-          // Track by goods ID (not DOM element) so the guard survives Vue
-          // element recreation during hero animation slice changes.
-          const goodsId = getGoodsIdFromEl(target)
-          if (goodsId && _repaintedIds.has(goodsId)) {
-            // Already force-repainted before — skip to avoid compositor flash.
-          } else {
-            if (goodsId) _repaintedIds.add(goodsId)
-            try {
-              forceRepaint(target)
-            } catch (e) {}
-          }
-        }
-        try { _cardObserver.unobserve(target) } catch (e) {}
-        try { _observedEls.delete(target) } catch (e) {}
-      }
-    }
-  }, { threshold: 0.02 })
+  // intentionally empty
 }
 
 async function observeCurrentCards() {
-  await nextTick()
-  if (!_cardObserver) createCardObserver()
-  if (!_cardObserver) return
-
-  for (const item of props.items) {
-    const instance = cardRefs.get(String(item.id || ''))
-    const el = getElement(instance)
-    if (!el) continue
-    if (_observedEls.has(el)) continue
-    try {
-      _cardObserver.observe(el)
-      _observedEls.add(el)
-    } catch (e) {}
-  }
+  // intentionally empty
 }
 
 let motionClearTimer = 0

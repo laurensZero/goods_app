@@ -39,7 +39,7 @@
             <span>{{ updateStore.downloadProgress }}%</span>
           </div>
           <div class="download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
-            <span class="download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
+            <span class="download-progress__bar" :style="{ transform: `scaleX(${updateStore.downloadProgress / 100})` }" />
           </div>
           <div class="download-progress__meta">
             <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
@@ -172,10 +172,12 @@ function handleOverlayClick() {
 
 .download-progress__bar {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--app-text);
-  transition: width 0.2s ease;
+  transform-origin: left;
+  transition: transform 0.2s ease;
 }
 
 .version-row {

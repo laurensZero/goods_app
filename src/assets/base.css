@@ -768,3 +768,17 @@ html {
     animation-duration: 0s;
   }
 }
+
+/* Global kill-switch: stop all infinite animations and shorten transitions
+   for users who prefer reduced motion. This covers skeleton-shimmer,
+   NFC pulse, scanner-line-sweep, spinner rotations, and any future
+   infinite animations without needing per-component patches. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

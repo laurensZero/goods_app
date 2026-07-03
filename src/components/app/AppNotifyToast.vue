@@ -35,7 +35,7 @@
           </div>
         </div>
         <button class="app-notify-close" @click.stop="dismiss(item.id)">✕</button>
-        <div v-if="!item.persistent" class="app-notify-countdown" :style="{ width: countdownProgress[item.id] ?? '100%' }" />
+        <div v-if="!item.persistent" class="app-notify-countdown" :style="{ transform: `scaleX(${countdownProgress[item.id] ?? 1})` }" />
       </div>
     </TransitionGroup>
   </div>
@@ -193,12 +193,12 @@ function startCountdown(item) {
   let rafId = null
 
   // 立即设置初始值
-  countdownProgress[item.id] = '100%'
+  countdownProgress[item.id] = 1
 
   function tick() {
     const elapsed = Date.now() - createdAt
     const progress = Math.max(0, 1 - elapsed / duration)
-    countdownProgress[item.id] = `${progress * 100}%`
+    countdownProgress[item.id] = progress
 
     if (progress > 0) {
       rafId = requestAnimationFrame(tick)
@@ -401,10 +401,12 @@ function handleAction(item, action) {
   position: absolute;
   left: 0;
   bottom: 0;
+  width: 100%;
   height: 3px;
   background: color-mix(in srgb, var(--app-chip-accent-text) 60%, transparent);
   border-radius: 0 0 16px 16px;
-  transition: width 50ms linear;
+  transform-origin: left;
+  transition: transform 50ms linear;
 }
 
 .app-notify-spin {

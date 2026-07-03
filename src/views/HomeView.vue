@@ -323,16 +323,31 @@ const addMotionGhostStyle = computed(() => {
   const overlay = addMotionOverlay.value
   if (!overlay) return {}
 
-  const rect = overlay.phase === 'end' ? overlay.endRect : overlay.startRect
-  const width = Math.max(56, Math.round(rect?.width || 0))
-  const height = Math.max(56, Math.round(rect?.height || 0))
+  const start = overlay.startRect
+  const end = overlay.endRect
+  const startW = Math.max(56, Math.round(start?.width || 0))
+  const startH = Math.max(56, Math.round(start?.height || 0))
+  const endW = Math.max(56, Math.round(end?.width || 0))
+  const endH = Math.max(56, Math.round(end?.height || 0))
+
+  // Ghost is anchored at left:0; top:0 with the startRect dimensions.
+  // translate3d positions it; scale(sx, sy) morphs it to the end size.
+  if (overlay.phase === 'end') {
+    const tx = Math.round(end?.left || 0)
+    const ty = Math.round(end?.top || 0)
+    const sx = endW / startW
+    const sy = endH / startH
+    return {
+      width: `${startW}px`,
+      height: `${startH}px`,
+      transform: `translate3d(${tx}px, ${ty}px, 0) scale(${sx}, ${sy})`
+    }
+  }
+
   return {
-    left: `${Math.round(rect?.left || 0)}px`,
-    top: `${Math.round(rect?.top || 0)}px`,
-    width: `${width}px`,
-    height: `${height}px`,
-    opacity: overlay.phase === 'end' ? '0' : '1',
-    transform: overlay.phase === 'end' ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(0, 0, 0) scale(0.92)'
+    width: `${startW}px`,
+    height: `${startH}px`,
+    transform: `translate3d(${Math.round(start?.left || 0)}px, ${Math.round(start?.top || 0)}px, 0) scale(1, 1)`
   }
 })
 
@@ -1814,21 +1829,24 @@ async function applyBatchEditPayload(payload) {
   box-shadow:
     0 22px 46px rgba(0, 0, 0, 0.2),
     0 0 0 1px color-mix(in srgb, var(--app-text) 6%, transparent);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
   overflow: hidden;
   will-change: transform, opacity;
+  /* backdrop-filter disabled during animation to avoid per-frame blur
+     recalculation.  The blur is expensive when combined with
+     left/top/width/height changes — with transform-only animation the
+     compositor can cache the blur layer.  We still keep the blur on
+     the static (start) state for visual quality. */
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   transition:
-    left 560ms cubic-bezier(0.22, 1, 0.36, 1),
-    top 560ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 560ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 560ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 180ms ease;
 }
 
 .add-motion-ghost--active {
   opacity: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .add-motion-ghost__cover {

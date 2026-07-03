@@ -85,7 +85,7 @@
                 <span>{{ updateStore.downloadProgress }}%</span>
               </div>
               <div class="update-download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
-                <span class="update-download-progress__bar" :style="{ width: `${updateStore.downloadProgress}%` }" />
+                <span class="update-download-progress__bar" :style="{ transform: `scaleX(${updateStore.downloadProgress / 100})` }" />
               </div>
               <div class="update-download-progress__meta">
                 <span>{{ updateStore.downloadTransferred || t('about.preparing') }}</span>
@@ -159,7 +159,7 @@
                 <span>{{ webUpdateStore.downloadProgress }}%</span>
               </div>
               <div class="update-download-progress__track" role="progressbar" :aria-valuenow="webUpdateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
-                <span class="update-download-progress__bar" :style="{ width: `${webUpdateStore.downloadProgress}%` }" />
+                <span class="update-download-progress__bar" :style="{ transform: `scaleX(${webUpdateStore.downloadProgress / 100})` }" />
               </div>
             </div>
             <p class="update-meta">{{ t('about.lastChecked', { time: webUpdateCheckedAtLabel }) }}</p>
