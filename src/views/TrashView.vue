@@ -49,7 +49,7 @@
                 <span v-if="item.category" class="trash-chip">{{ item.category }}</span>
                 <span v-if="item.ip" class="trash-chip">{{ item.ip }}</span>
                 <span class="trash-chip">{{ t('common.items', { count: item.quantityNumber }) }}</span>
-                <span v-if="item.totalValueNumber > 0" class="trash-chip">¥{{ item.totalValueNumber.toFixed(2) }}</span>
+                <span v-if="item.totalValueNumber > 0" class="trash-chip">{{ formatPrice(item.totalValueNumber) }}</span>
               </div>
 
               <div class="trash-actions">
@@ -92,6 +92,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { formatPrice } from '@/utils/format'
 import { useGoodsStore } from '@/stores/goods'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'

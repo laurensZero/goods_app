@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="confirm-modal">
-      <div v-if="show" class="confirm-overlay" @click="$emit('cancel')">
+      <div v-if="show" class="confirm-overlay" @click="handleCancel">
         <div class="confirm-card" role="alertdialog" aria-modal="true" @click.stop>
           <div class="confirm-icon">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -15,10 +15,10 @@
           <h2 class="confirm-title">{{ title }}</h2>
           <p class="confirm-desc">{{ description }}</p>
           <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--ghost" type="button" @click="$emit('cancel')">
+            <button class="confirm-btn confirm-btn--ghost" type="button" @click="handleCancel">
               {{ cancelText }}
             </button>
-            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">
+            <button class="confirm-btn confirm-btn--danger" type="button" @click="handleConfirm">
               {{ confirmText }}
             </button>
           </div>
@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: '' },
   description: { type: String, default: '' },
@@ -37,10 +37,53 @@ defineProps({
   cancelText: { type: String, default: '取消' }
 })
 
-defineEmits(['cancel', 'confirm'])
+const emit = defineEmits(['update:show', 'cancel', 'confirm'])
+
+function handleCancel() {
+  emit('update:show', false)
+  emit('cancel')
+}
+
+function handleConfirm() {
+  emit('update:show', false)
+  emit('confirm')
+}
 </script>
 
 <style scoped>
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-overlay, rgba(20, 20, 22, 0.22));
+  backdrop-filter: blur(var(--app-overlay-blur, 8px)) saturate(var(--app-overlay-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--app-overlay-blur, 8px)) saturate(var(--app-overlay-saturate, 120%));
+  padding: 24px;
+}
+
+.confirm-card {
+  width: min(100%, 320px);
+  padding: 28px 24px 24px;
+  border-radius: 24px;
+  background: var(--app-surface);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.18);
+  text-align: center;
+}
+
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
 .confirm-icon svg {
   width: 20px;
   height: 20px;
@@ -92,7 +135,7 @@ defineEmits(['cancel', 'confirm'])
 }
 
 .confirm-btn--danger {
-  background: #141416;
+  background: var(--app-primary);
   color: #ffffff;
 }
 

@@ -332,5 +332,10 @@
   "sync.error.supabaseConfigEmpty": "Supabase URL 和 Anon Key 不能为空",
   "sync.error.supabaseClientNotInit": "Supabase Client 未初始化，请先配置 Supabase 连接",
   "sync.error.operationTimeout": "操作超时（{seconds}s）",
+  "sync.error.syncTimeout": "同步操作超时",
+  "sync.error.syncTimeoutStatus": "同步超时",
+  "sync.error.pullTimeout": "拉取操作超时",
+  "sync.error.pullTimeoutStatus": "拉取超时",
+  "sync.error.networkReconnect": "网络错误，尝试重建连接...",
   "sync.error.unnamedItem": "未命名条目"
 }

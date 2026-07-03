@@ -19,6 +19,7 @@
 
     <ClipboardDialog />
     <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
+    <AppToast :message="globalToastMsg" />
   </div>
 </template>
 
@@ -31,7 +32,9 @@ import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
 import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
 import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
 import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import TabBar from '@/components/app/TabBar.vue'
+import { globalToastMsg } from '@/utils/globalToast'
 import { useSyncStore } from '@/stores/sync'
 import { useRealtimeSync } from '@/composables/sync/useRealtimeSync'
 import { useDeepLinks } from '@/composables/useDeepLinks'

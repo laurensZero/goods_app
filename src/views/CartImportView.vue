@@ -200,6 +200,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import '@/assets/common/loading.css'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -735,25 +736,6 @@ async function doImport() {
 .primary-btn:disabled {
   opacity: 0.32;
   pointer-events: none;
-}
-
-.loading-anim {
-  width: 52px;
-  height: 52px;
-  margin-bottom: 8px;
-}
-
-.loading-ring {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 3px solid rgba(0, 0, 0, 0.08);
-  border-top-color: #141416;
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .loading-title,

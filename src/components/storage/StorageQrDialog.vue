@@ -42,6 +42,7 @@
           </button>
         </div>
       </section>
+      <AppToast :message="toastMsg" />
     </div>
   </Transition>
 </template>
@@ -50,12 +51,14 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
-import { showFailToast, showSuccessToast } from 'vant'
+import { useToast } from '@/composables/useToast'
+import AppToast from '@/components/common/AppToast.vue'
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { buildStorageQrUrl } from '@/utils/storageQr'
 
 const { t } = useI18n()
+const { toastMsg, showToast } = useToast()
 
 const props = defineProps({
   show: Boolean,
@@ -90,7 +93,7 @@ watch(
         }
       })
     } catch (e) {
-      showFailToast(t('storage.qr.generateFailed'))
+      showToast(t('storage.qr.generateFailed'))
     }
   },
   { immediate: true }
@@ -104,9 +107,9 @@ async function copyLink() {
   if (!qrUrl.value) return
   try {
     await navigator.clipboard.writeText(qrUrl.value)
-    showSuccessToast(t('storage.qr.copySuccess'))
+    showToast(t('storage.qr.copySuccess'))
   } catch {
-    showFailToast(t('common.copyFailed'))
+    showToast(t('common.copyFailed'))
   }
 }
 
@@ -147,9 +150,9 @@ async function downloadQr() {
         })
       }
 
-      showSuccessToast(t('storage.qr.saved'))
+      showToast(t('storage.qr.saved'))
     } catch {
-      showFailToast(t('storage.qr.saveFailed'))
+      showToast(t('storage.qr.saveFailed'))
     }
   } else {
     const link = document.createElement('a')

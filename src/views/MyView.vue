@@ -51,7 +51,7 @@
                   {{ syncStore.githubLogin ? t('my.connected') : t('my.notConnected') }}
                 </span>
                 <span v-if="showAuthMethod" class="status-pill status-pill--soft">{{ syncStore.githubAuthMethod || t('my.noAuthMethod') }}</span>
-                <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? t('my.lastSync', { time: formatTime(syncStore.lastSyncedAt) }) : t('my.neverSynced') }}</span>
+                <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? t('my.lastSync', { time: formatDate(syncStore.lastSyncedAt, 'YYYY-MM-DD HH:mm') }) : t('my.neverSynced') }}</span>
               </div>
             </div>
 
@@ -208,7 +208,7 @@
             </div>
             <div class="detail-row">
               <span class="detail-row__label">{{ t('my.recentSync') }}</span>
-              <span class="detail-row__value">{{ syncStore.lastSyncedAt ? formatTime(syncStore.lastSyncedAt) : t('my.neverSyncedDetail') }}</span>
+              <span class="detail-row__value">{{ syncStore.lastSyncedAt ? formatDate(syncStore.lastSyncedAt, 'YYYY-MM-DD HH:mm') : t('my.neverSyncedDetail') }}</span>
             </div>
             <div class="detail-row">
               <span class="detail-row__label">{{ t('my.syncStatus') }}</span>
@@ -242,7 +242,7 @@
     <GithubLoginDialog
       v-model="showLoginDialog"
       @login-success="handleGithubLoginSuccess"
-      @toast="showToast"
+      @toast="onDialogToast"
     />
 
     <Teleport to="body">
@@ -307,6 +307,7 @@
         </div>
       </section>
     </div>
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -315,7 +316,9 @@ import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
-import { formatPrice } from '@/utils/format'
+import AppToast from '@/components/common/AppToast.vue'
+import { useToast } from '@/composables/useToast'
+import { formatDate, formatPrice } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { getGitHubOAuthClientId } from '@/utils/github/auth'
@@ -337,6 +340,7 @@ const showLogoutDialog = ref(false)
 const showBudgetDialog = ref(false)
 
 const githubOAuthClientId = getGitHubOAuthClientId()
+const { toastMsg, showToast: showToastMsg } = useToast()
 
 const {
   monthlyBudgetInput, yearlyBudgetInput,
@@ -368,14 +372,14 @@ const showAuthMethod = computed(() => (
 ))
 
 const syncSummaryText = computed(() => {
-  if (syncStore.lastSyncedAt) return t('my.summaryLastSync', { time: formatTime(syncStore.lastSyncedAt) })
+  if (syncStore.lastSyncedAt) return t('my.summaryLastSync', { time: formatDate(syncStore.lastSyncedAt, 'YYYY-MM-DD HH:mm') })
   if (syncStore.githubLogin) return t('my.summaryConnected')
   return t('my.summaryNotConnected')
 })
 
 const exchangeRateLastUpdatedText = computed(() => {
   if (!exchangeRateStore.lastUpdated) return t('my.rateNotFetched')
-  return t('my.rateLastUpdated', { time: formatTime(exchangeRateStore.lastUpdated) })
+  return t('my.rateLastUpdated', { time: formatDate(exchangeRateStore.lastUpdated, 'YYYY-MM-DD HH:mm') })
 })
 
 async function refreshExchangeRates() {
@@ -415,12 +419,12 @@ function closeLogoutDialog() {
   showLogoutDialog.value = false
 }
 
-function showToast(message) {
-  console.error(message)
+function onDialogToast(message) {
+  showToastMsg(message)
 }
 
 async function handleGithubLoginSuccess(user) {
-  showToast(t('my.loginSuccess', { login: user.login }))
+  showToastMsg(t('my.loginSuccess', { login: user.login }))
   showLoginDialog.value = false
 }
 
@@ -438,12 +442,6 @@ function confirmLogout() {
   void handleLogout()
 }
 
-function formatTime(isoString) {
-  if (!isoString) return ''
-  const date = new Date(isoString)
-  const pad = (value) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
 
 onMounted(async () => {
   resetPageScrollTop()

@@ -4,6 +4,7 @@
   --app-surface-soft: #eeeff2;
   --app-surface-muted: #f0f0f2;
   --app-text: #141416;
+  --app-primary: #141416;
   --app-text-secondary: #5f6570;
   --app-text-tertiary: #8e8e93;
   --app-placeholder: #a1a1a6;
@@ -547,6 +548,7 @@ html.theme-dark {
   --app-surface-soft: #2c2c2e;
   --app-surface-muted: #28282a;
   --app-text: #f5f5f7;
+  --app-primary: #f5f5f7;
   --app-text-secondary: #aeaeb2;
   --app-text-tertiary: #636366;
   --app-placeholder: #5a5a5f;

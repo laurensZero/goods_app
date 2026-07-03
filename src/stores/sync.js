@@ -224,7 +224,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function setSyncBackend(backend) {
     // Force-reset syncing state so a stuck sync on the old backend doesn't block the new one
     if (isSyncing.value) {
-      console.warn('[sync] 切换后端时强制重置 isSyncing')
+      console.warn('[sync] force reset isSyncing on backend switch')
       resetSyncingState()
     }
 
@@ -671,7 +671,7 @@ export const useSyncStore = defineStore('sync', () => {
     const isNetwork = msg.includes('network') || msg.includes('网络') || msg.includes('fetch') ||
       msg.includes('连接') || msg.includes('enotfound') || msg.includes('econnrefused') || msg.includes('econnreset')
     if (!isNetwork) return
-    console.warn('[sync] 网络错误，尝试重建 Supabase 连接...')
+    console.warn('[sync]', i18n.global.t('sync.error.networkReconnect'))
     await reconnectSupabase()
   }
 
@@ -686,9 +686,9 @@ export const useSyncStore = defineStore('sync', () => {
 
     clearSyncTimeout()
     syncTimeoutId = setTimeout(() => {
-      console.warn('[sync] 同步超时（3 分钟），强制重置 isSyncing')
+      console.warn('[sync] sync timeout (3 min), force reset isSyncing')
       resetSyncingState()
-      applySyncError(new Error('同步操作超时'), '同步超时')
+      applySyncError(new Error(i18n.global.t('sync.error.syncTimeout')), i18n.global.t('sync.error.syncTimeoutStatus'))
     }, SYNC_TIMEOUT_MS)
 
     try {
@@ -744,7 +744,7 @@ export const useSyncStore = defineStore('sync', () => {
       } catch (error) {
         // Incremental failed — fall back to full pull via orchestrator directly
         // Don't reset flags to avoid race with autoPushGoods
-        console.warn('[sync] 增量拉取失败，回退到完整拉取:', error.message)
+        console.warn('[sync] incremental pull failed, falling back to full pull:', error.message)
         try {
           const result = await withRetry(
             () => orchestrator.pull(buildSyncContext(), { silent: true }),
@@ -773,9 +773,9 @@ export const useSyncStore = defineStore('sync', () => {
 
     clearSyncTimeout()
     syncTimeoutId = setTimeout(() => {
-      console.warn('[sync] 拉取超时（3 分钟），强制重置')
+      console.warn('[sync] pull timeout (3 min), force reset')
       resetSyncingState()
-      applySyncError(new Error('拉取操作超时'), '拉取超时')
+      applySyncError(new Error(i18n.global.t('sync.error.pullTimeout')), i18n.global.t('sync.error.pullTimeoutStatus'))
     }, SYNC_TIMEOUT_MS)
 
     try {
