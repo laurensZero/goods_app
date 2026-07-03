@@ -1,9 +1,9 @@
 {
-  "version": "20260703.1",
-  "url": "bundle-20260703.1.zip",
-  "hash": "7caa862b94d2f9ca26d5ecbbd84b1c31b5ccda2a2188d749bb24a9905f2fe3ed",
+  "version": "20260703.2",
+  "url": "bundle-20260703.2.zip",
+  "hash": "41ace56b3736db4352669ac3b0c0fe3103651679090031d28987ab0e2c467b2d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化时间线视图\n\n- feat: 添加全局动画控制，支持减少运动偏好设置；优化下载进度条动画效果\n\n- feat: 统一弹窗",
+  "notes": "- feat: 添加 windowWidth prop 支持响应式布局，优化卡片渲染逻辑\n\n- fix: 修改标记为已拥有的翻译为标记为已到货",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-03T15:10:53Z"
+  "publishedAt": "2026-07-03T15:34:36Z"
 }
