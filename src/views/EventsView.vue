@@ -686,6 +686,8 @@ async function confirmDelete() {
 }
 
 let _selectionSpacerEl = null
+let _selectionHeaderFrameCount = 0
+const SELECTION_HEADER_RECT_INTERVAL = 3 // 每 3 帧读取一次 getBoundingClientRect
 
 function _resolveSelectionSpacer() {
   if (_selectionSpacerEl && _selectionSpacerEl.isConnected) return _selectionSpacerEl
@@ -694,6 +696,10 @@ function _resolveSelectionSpacer() {
 }
 
 function updateSelectionHeaderPosition() {
+  // 帧节流：每 SELECTION_HEADER_RECT_INTERVAL 帧才读取一次 getBoundingClientRect
+  _selectionHeaderFrameCount++
+  if (_selectionHeaderFrameCount % SELECTION_HEADER_RECT_INTERVAL !== 0) return
+
   const spacer = _resolveSelectionSpacer()
   if (!spacer) {
     selectionHeaderTop.value = 0

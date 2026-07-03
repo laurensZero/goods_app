@@ -41,6 +41,7 @@
           :density="density"
           :transitioning="transitioning"
           :motion-style="cardMotionStyles[item.id]"
+          :window-width="windowWidth"
           :data-goods-id="item.id"
           :data-scroll-anchor="'goods-card'"
           :data-scroll-index="index + indexOffset"
@@ -125,6 +126,10 @@ const props = defineProps({
   autoPlayMotion: {
     type: Boolean,
     default: true
+  },
+  windowWidth: {
+    type: Number,
+    default: 0
   }
 })
 
