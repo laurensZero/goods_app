@@ -81,6 +81,14 @@
       :goods-ids="[]"
       @add="handleAddMembers"
     />
+    <DangerConfirmDialog
+      v-model:show="showDeleteConfirm"
+      :title="t('goodsGroup.deleteGroup')"
+      :description="t('goodsGroup.deleteGroupConfirm')"
+      :confirm-text="t('goodsGroup.deleteGroup')"
+      @confirm="confirmDeleteGroup"
+    />
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -88,7 +96,9 @@
 import { ref, computed, nextTick, onActivated, onMounted, onBeforeUnmount, onDeactivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { showConfirmDialog, showSuccessToast } from 'vant'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
+import { useToast } from '@/composables/useToast'
+import AppToast from '@/components/common/AppToast.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
@@ -118,6 +128,7 @@ const { t } = useI18n()
 const goodsStore = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
+const { toastMsg, showToast } = useToast()
 
 // Refs
 const pageRootRef = ref(null)
@@ -125,6 +136,7 @@ const pageBodyRef = ref(null)
 const gridSectionRef = ref(null)
 const showEditSheet = ref(false)
 const showAddMemberSheet = ref(false)
+const showDeleteConfirm = ref(false)
 const displayDensity = ref('comfortable')
 const displayReady = ref(true)
 
@@ -227,23 +239,20 @@ async function handleReorder(orderedGoodsIds) {
   await goodsGroupStore.reorderGroupItems(groupId.value, orderedGoodsIds)
 }
 
-async function handleDeleteGroup() {
-  try {
-    await showConfirmDialog({
-      title: t('goodsGroup.deleteGroup'),
-      message: t('goodsGroup.deleteGroupConfirm')
-    })
-    await goodsGroupStore.removeGroup(groupId.value)
-    showSuccessToast(t('goodsGroup.groupDeleted'))
-    router.replace('/home')
-  } catch {
-    // user cancelled
-  }
+function handleDeleteGroup() {
+  showDeleteConfirm.value = true
+}
+
+async function confirmDeleteGroup() {
+  showDeleteConfirm.value = false
+  await goodsGroupStore.removeGroup(groupId.value)
+  showToast(t('goodsGroup.groupDeleted'))
+  router.replace('/home')
 }
 
 async function handleAddMembers(groupId) {
   // AddToGroupSheet already handles adding via store
-  showSuccessToast(t('goodsGroup.membersAdded'))
+  showToast(t('goodsGroup.membersAdded'))
 }
 
 // Android back button

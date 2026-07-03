@@ -161,8 +161,8 @@ async function bootstrap() {
     // DB 初始化（其他 store 依赖它）
     initDB().catch((e) => {
       log.error('db:init:failed', e)
-      import('vant').then(({ showFailToast }) => {
-        showFailToast(i18n.global.t('toast.dbInitFailed', { error: e.message || String(e) }))
+      import('@/utils/globalToast').then(({ showGlobalToast }) => {
+        showGlobalToast(i18n.global.t('toast.dbInitFailed', { error: e.message || String(e) }))
       }).catch(() => {})
     }),
     // 主题初始化（只读 Preferences，可并行）

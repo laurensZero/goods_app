@@ -231,9 +231,11 @@
       </button>
     </Teleport>
 
-    <GoodsDeleteConfirm
+    <DangerConfirmDialog
       v-model:show="showDeleteConfirm"
-      :selected-count="selectedIds.size"
+      :title="t('common.moveToTrash')"
+      :description="t('common.moveToTrashDesc')"
+      :confirm-text="t('goods.delete.moveToTrash')"
       @confirm="confirmDelete"
     />
 
@@ -267,7 +269,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
-import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { createPageScrollRestore } from '@/composables/scroll'

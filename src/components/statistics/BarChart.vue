@@ -4,6 +4,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatCompactNumber, formatCurrency } from '@/utils/format'
 import ChartWrapper from './ChartWrapper.vue'
 
 const props = defineProps({
@@ -37,10 +38,9 @@ const chartOption = computed(() => {
           if (!Number.isFinite(n)) return '0'
           if (k === 'officialTotalValue' || k === 'actualTotalValue'
             || k === 'officialAvgPrice' || k === 'actualAvgPrice') {
-            return `¥ ${n.toFixed(2)}`
+            return formatCurrency(n, 'CNY')
           }
-          const s = n.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')
-          return s === '-0' ? '0' : s
+          return formatCompactNumber(n)
         }
 
         return `${p.name}<br/>${p.seriesName || ''}: ${fmtNumberByKey(key, raw)}`

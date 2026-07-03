@@ -4,6 +4,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { formatCompactNumber } from '@/utils/format'
 import ChartWrapper from './ChartWrapper.vue'
 
 const props = defineProps({
@@ -56,7 +57,7 @@ const chartOption = computed(() => {
       trigger: 'item',
       formatter: function (params) {
         const v = Number(params.value || 0)
-        const s = v.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')
+        const s = formatCompactNumber(v)
         return `${params.name}: ${s} (${params.percent}%)`
       },
       confine: true

@@ -133,7 +133,13 @@
       @import="goToImport"
     />
 
-    <GoodsDeleteConfirm v-model:show="showDeleteConfirm" :selected-count="selectedIds.size" @confirm="confirmDelete" />
+    <DangerConfirmDialog
+      v-model:show="showDeleteConfirm"
+      :title="t('common.moveToTrash')"
+      :description="t('common.moveToTrashDesc')"
+      :confirm-text="t('goods.delete.moveToTrash')"
+      @confirm="confirmDelete"
+    />
 
     <GoodsBatchEditSheet
       ref="batchEditSheetRef"
@@ -236,7 +242,7 @@ import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.
 import CreateGroupSheet from '@/components/goods/CreateGroupSheet.vue'
 import GroupFolderSheet from '@/components/goods/GroupFolderSheet.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
-import GoodsDeleteConfirm from '@/components/goods/GoodsDeleteConfirm.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { HOME_SORT_OPTIONS, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'

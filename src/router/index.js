@@ -63,4 +63,10 @@ router.beforeEach((to) => {
   isPopstateNavigation = false
 })
 
+// Suppress unhandled NavigationDuplicated rejections (common when pushing to the same route)
+router.onError((err) => {
+  if (err?.message?.includes('NavigationDuplicated') || err?.name === 'NavigationDuplicated') return
+  console.error('[router]', err)
+})
+
 export default router

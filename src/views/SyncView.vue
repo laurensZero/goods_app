@@ -748,7 +748,7 @@ import {
   requestGitHubDeviceCode
 } from '@/utils/github/auth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { showSuccessToast, showFailToast } from 'vant'
+import { formatDate } from '@/utils/format'
 import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
@@ -1044,10 +1044,7 @@ function resetPageScrollTop() {
 }
 
 function formatTime(isoString) {
-  if (!isoString) return ''
-  const date = new Date(isoString)
-  const pad = (value) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatDate(isoString, 'YYYY-MM-DD HH:mm')
 }
 
 function formatLogTime(isoString) {
@@ -1490,12 +1487,12 @@ async function handleTestSupabase() {
   try {
     const result = await syncStore.testSupabaseConnection(syncStore.supabaseUrl, syncStore.supabaseAnonKey)
     if (result.ok) {
-      showSuccessToast(t('sync.connectionTestSuccess'))
+      showToast(t('sync.connectionTestSuccess'))
     } else {
-      showFailToast(result.error || t('sync.connectionTestFailed'))
+      showToast(result.error || t('sync.connectionTestFailed'))
     }
   } catch (e) {
-    showFailToast(e.message || t('sync.connectionTestFailed'))
+    showToast(e.message || t('sync.connectionTestFailed'))
   } finally {
     isTestingSupabase.value = false
   }

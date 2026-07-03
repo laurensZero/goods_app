@@ -85,3 +85,20 @@ export function formatCNYConverted(amount, currencyCode, convertToCNY) {
   if (!cny || cny <= 0) return ''
   return `≈ ¥${cny.toFixed(2)}`
 }
+
+/**
+ * 格式化数字为紧凑形式（去除尾部多余的零）
+ * @param {number|string} value
+ * @returns {string}
+ *
+ * @example
+ * formatCompactNumber(100)    // '100'
+ * formatCompactNumber(99.50)  // '99.5'
+ * formatCompactNumber(3.00)   // '3'
+ */
+export function formatCompactNumber(value) {
+  const n = Number(value || 0)
+  if (!Number.isFinite(n)) return '0'
+  const s = n.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')
+  return s === '-0' ? '0' : s
+}

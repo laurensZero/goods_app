@@ -168,6 +168,7 @@ import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useRechargeStore } from '@/stores/recharge'
+import { formatDate } from '@/utils/format'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
 
@@ -768,9 +769,6 @@ function diffInDays(later, earlier) {
   return Math.floor((startOfDay(later).getTime() - startOfDay(earlier).getTime()) / 86400000)
 }
 
-function formatDate(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
 
 function formatMonthLabel(monthKey) {
   const date = parseMonthKey(monthKey)

@@ -332,5 +332,10 @@
   "sync.error.supabaseConfigEmpty": "Supabase URL and Anon Key cannot be empty",
   "sync.error.supabaseClientNotInit": "Supabase Client not initialized, please configure Supabase connection first",
   "sync.error.operationTimeout": "Operation timed out ({seconds}s)",
+  "sync.error.syncTimeout": "Sync operation timed out",
+  "sync.error.syncTimeoutStatus": "Sync timed out",
+  "sync.error.pullTimeout": "Pull operation timed out",
+  "sync.error.pullTimeoutStatus": "Pull timed out",
+  "sync.error.networkReconnect": "Network error, attempting to reconnect...",
   "sync.error.unnamedItem": "Unnamed item"
 }
