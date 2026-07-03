@@ -114,6 +114,7 @@
             :year-groups="visibleTimelineYearGroups"
             :unknown-items="timelineUnknown"
             :show-unknown="showVisibleTimelineUnknown"
+            :head-spacer-height="prunedTimelineHeadHeight"
             :active-item-id="expandedTimelineItemId"
             :expanded-item="expandedItem"
             :expanded-section-key="expandedSectionKey"
@@ -359,6 +360,8 @@ const INITIAL_TIMELINE_MONTHS = 6
 const LOAD_MORE_TIMELINE_MONTHS = 4
 const TIMELINE_RESTORE_BUFFER_MONTHS = 3
 const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
+const TIMELINE_MONTH_OVERSCAN = 3
+const TIMELINE_PRUNE_KEEP_BEHIND = 4
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const ROW_HEIGHT_MAP = {
   comfortable: 308,
@@ -821,29 +824,47 @@ function getInitialVisibleTimelineMonths() {
   return INITIAL_TIMELINE_MONTHS
 }
 
-function estimateVisibleTimelineMonths(scrollTop = 0, options = {}) {
-  if (displayDensity.value !== 'timeline') return visibleTimelineMonthCount.value
+function _computeTimelineWindow(scrollTop = 0, options = {}) {
+  if (displayDensity.value !== 'timeline') {
+    return { start: visibleTimelineMonthStart.value, count: visibleTimelineMonthCount.value }
+  }
+
+  const total = allTimelineMonthCount.value
+  if (total === 0) return { start: 0, count: 0 }
 
   const { useFlipViewport = false } = options
   const viewportHeight = useFlipViewport
     ? getFlipViewportHeight()
     : (getScrollEl()?.clientHeight || window.innerHeight || 800)
-  const estimatedMonths = Math.ceil((scrollTop + viewportHeight * 1.6) / TIMELINE_MONTH_ESTIMATED_HEIGHT) + 1
-  return Math.min(allTimelineMonthCount.value, Math.max(getInitialVisibleTimelineMonths(), estimatedMonths))
+
+  const initial = getInitialVisibleTimelineMonths()
+  const endMonth = Math.min(total, Math.ceil((scrollTop + viewportHeight * 1.6) / TIMELINE_MONTH_ESTIMATED_HEIGHT) + 1)
+  const startMonth = Math.max(0, Math.floor(scrollTop / TIMELINE_MONTH_ESTIMATED_HEIGHT) - TIMELINE_MONTH_OVERSCAN)
+  const count = Math.max(initial, endMonth - startMonth)
+
+  return { start: Math.min(startMonth, total - count), count: Math.min(count, total) }
 }
 
 function syncVisibleTimelineMonthCount(scrollTop = 0, options = {}) {
-  visibleTimelineMonthCount.value = estimateVisibleTimelineMonths(scrollTop, options)
+  const win = _computeTimelineWindow(scrollTop, options)
+  visibleTimelineMonthStart.value = win.start
+  visibleTimelineMonthCount.value = win.count
 }
 
 function syncVisibleTimelineMonthCountForActivatedRestore(scrollTop = 0) {
   const viewportHeight = getFlipViewportHeight()
   const preloadTargetTop = scrollTop + viewportHeight * 2
+  const win = _computeTimelineWindow(preloadTargetTop, { useFlipViewport: true })
+
+  visibleTimelineMonthStart.value = Math.max(0, Math.min(
+    win.start,
+    visibleTimelineMonthStart.value
+  ))
   visibleTimelineMonthCount.value = Math.min(
-    allTimelineMonthCount.value,
+    allTimelineMonthCount.value - visibleTimelineMonthStart.value,
     Math.max(
       visibleTimelineMonthCount.value,
-      estimateVisibleTimelineMonths(preloadTargetTop, { useFlipViewport: true }) + 1
+      win.count
     )
   )
 }
@@ -864,21 +885,25 @@ function prepareRestoreState(state) {
     const anchorId = String(state.anchorId || '')
     if (!anchorId) return
 
+    const total = allTimelineMonthCount.value
+
     if (timelineUnknownItemIds.value.has(anchorId)) {
-      visibleTimelineMonthCount.value = allTimelineMonthCount.value
+      visibleTimelineMonthStart.value = 0
+      visibleTimelineMonthCount.value = total
       return
     }
 
     const monthIndex = timelineMonthIndexByItemId.value.get(anchorId)
     if (!Number.isFinite(monthIndex) || monthIndex < 0) return
 
+    const neededEnd = Math.min(total, monthIndex + 1 + TIMELINE_RESTORE_BUFFER_MONTHS)
+    const neededStart = Math.max(0, monthIndex - TIMELINE_PRUNE_KEEP_BEHIND)
+    const neededCount = neededEnd - neededStart
+
+    visibleTimelineMonthStart.value = Math.min(neededStart, visibleTimelineMonthStart.value)
     visibleTimelineMonthCount.value = Math.min(
-      allTimelineMonthCount.value,
-      Math.max(
-        visibleTimelineMonthCount.value,
-        getInitialVisibleTimelineMonths(),
-        monthIndex + 1 + TIMELINE_RESTORE_BUFFER_MONTHS
-      )
+      total - visibleTimelineMonthStart.value,
+      Math.max(visibleTimelineMonthCount.value, neededCount)
     )
     return
   }
@@ -895,20 +920,23 @@ function prepareRestoreState(state) {
   syncVisibleGoodsCount(restoreTop, { useFlipViewport: true })
 }
 
-function maybeLoadMoreTimelineMonths() {
+function pruneTimelineMonths() {
   if (displayDensity.value !== 'timeline') return
-  if (visibleTimelineMonthCount.value >= allTimelineMonthCount.value) return
+  const total = allTimelineMonthCount.value
+  if (total === 0) return
 
-  const el = getScrollEl()
-  if (!el) return
+  const scrollTop = readScrollTop()
+  const desiredStart = Math.max(0, Math.floor(scrollTop / TIMELINE_MONTH_ESTIMATED_HEIGHT) - TIMELINE_MONTH_OVERSCAN - TIMELINE_PRUNE_KEEP_BEHIND)
 
-  const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
-  if (remaining > LOAD_MORE_THRESHOLD_PX) return
-
-  visibleTimelineMonthCount.value = Math.min(
-    allTimelineMonthCount.value,
-    visibleTimelineMonthCount.value + LOAD_MORE_TIMELINE_MONTHS
-  )
+  if (desiredStart > visibleTimelineMonthStart.value) {
+    visibleTimelineMonthStart.value = desiredStart
+    // Adjust count to keep end position stable
+    const currentEnd = visibleTimelineMonthStart.value + visibleTimelineMonthCount.value
+    visibleTimelineMonthCount.value = Math.max(
+      getInitialVisibleTimelineMonths(),
+      currentEnd - desiredStart
+    )
+  }
 }
 
 function handlePageScroll() {
@@ -919,11 +947,14 @@ function handlePageScroll() {
     pageScrollRaf = 0
     if (isRouteLeaving) return
     if (isGoodsHeroAnimating()) return
-    updateImagePreloadThrottle(readScrollTop())
+    const scrollTop = readScrollTop()
+    updateImagePreloadThrottle(scrollTop)
     rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
     maybeLoadMoreGoods()
-    maybeLoadMoreTimelineMonths()
+    if (displayDensity.value === 'timeline') {
+      syncVisibleTimelineMonthCount(scrollTop)
+    }
     updateScrollTopButtonVisibility()
   })
 }
@@ -1340,6 +1371,7 @@ const currentGoodsScrollTop = ref(0)
 const currentGoodsViewportHeight = ref(0)
 const visibleGoodsStartIndex = ref(0)
 const visibleGoodsRenderCount = ref(getInitialVisibleCount())
+const visibleTimelineMonthStart = ref(0)
 const visibleTimelineMonthCount = ref(INITIAL_TIMELINE_MONTHS)
 const visibleGoodsEndIndex = computed(() => (
   displayDensity.value === 'timeline'
@@ -1353,19 +1385,23 @@ const visibleGoodsList = computed(() =>
 )
 const {
   allTimelineMonthCount,
+  allTimelineMonthList,
   timelineMonthIndexByItemId,
   timelineItemIndexById,
   timelineEntryById,
   timelineUnknownItemIds,
   visibleTimelineYearGroups,
+  prunedTimelineHeadHeight,
   timelineUnknown,
   showVisibleTimelineUnknown
 } = useHomeTimeline({
   goodsList,
   displayDensity,
   sortDirection,
+  visibleTimelineMonthStart,
   visibleTimelineMonthCount,
-  getInitialVisibleTimelineMonths
+  getInitialVisibleTimelineMonths,
+  TIMELINE_MONTH_ESTIMATED_HEIGHT
 })
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
@@ -1492,8 +1528,16 @@ function triggerTopJumpMask() {
   }, 260)
 }
 
+let _selectionSpacerEl = null
+
+function _resolveSelectionSpacer() {
+  if (_selectionSpacerEl && _selectionSpacerEl.isConnected) return _selectionSpacerEl
+  _selectionSpacerEl = pageBodyRef.value?.querySelector?.('.selection-header-spacer') || null
+  return _selectionSpacerEl
+}
+
 function updateSelectionHeaderPosition() {
-  const spacer = pageBodyRef.value?.querySelector?.('.selection-header-spacer')
+  const spacer = _resolveSelectionSpacer()
   if (!spacer) {
     selectionHeaderTop.value = 0
     return
@@ -1773,7 +1817,7 @@ async function applyBatchEditPayload(payload) {
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   overflow: hidden;
-  will-change: left, top, width, height, transform, opacity;
+  will-change: transform, opacity;
   transition:
     left 560ms cubic-bezier(0.22, 1, 0.36, 1),
     top 560ms cubic-bezier(0.22, 1, 0.36, 1),

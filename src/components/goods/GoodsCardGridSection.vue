@@ -17,6 +17,7 @@
       <template v-for="(item, index) in items" :key="item.id">
         <GroupCard
           v-if="item._type === 'group'"
+          v-memo="[item, density, selectionMode]"
           :ref="(instance) => setCardRef(item.id, instance)"
           :group="item._group"
           :items="item._members"
@@ -34,6 +35,7 @@
         />
         <GoodsCard
           v-else
+          v-memo="[item, density, selectionMode, cardMotionStyles[item.id]]"
           :ref="(instance) => setCardRef(item.id, instance)"
           :item="item"
           :density="density"

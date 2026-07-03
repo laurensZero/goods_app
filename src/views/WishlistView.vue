@@ -734,8 +734,16 @@ function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
 }
 
+let _selectionSpacerEl = null
+
+function _resolveSelectionSpacer() {
+  if (_selectionSpacerEl && _selectionSpacerEl.isConnected) return _selectionSpacerEl
+  _selectionSpacerEl = pageBodyRef.value?.querySelector?.('.selection-header-spacer') || null
+  return _selectionSpacerEl
+}
+
 function updateSelectionHeaderPosition() {
-  const spacer = pageBodyRef.value?.querySelector?.('.selection-header-spacer')
+  const spacer = _resolveSelectionSpacer()
   if (!spacer) {
     selectionHeaderTop.value = 0
     return

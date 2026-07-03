@@ -148,62 +148,70 @@ export function useHomeTimeline({
   goodsList,
   displayDensity,
   sortDirection,
+  visibleTimelineMonthStart,
   visibleTimelineMonthCount,
-  getInitialVisibleTimelineMonths
+  getInitialVisibleTimelineMonths,
+  TIMELINE_MONTH_ESTIMATED_HEIGHT
 }) {
   const timelineEntries = computed(() => {
     if (displayDensity.value !== 'timeline') return []
     return buildTimelineEntries(goodsList.value).sort((a, b) => compareTimelineEntries(a, b, sortDirection.value))
   })
 
-  const timelineYearGroups = computed(() => {
-    const yearGroups = []
-    const yearMap = new Map()
+  // Flat month list — single source of truth for month ordering
+  const allTimelineMonthList = computed(() => {
+    const months = []
+    const monthMap = new Map()
 
     for (const item of timelineEntries.value) {
       if (!item.timelineYearMonth) continue
       const yearMonth = item.timelineYearMonth
-      const year = yearMonth.slice(0, 4)
-      let yearGroup = yearMap.get(year)
 
-      if (!yearGroup) {
-        yearGroup = {
-          year,
-          months: [],
-          yearTotal: 0,
-          yearCount: 0,
-          monthMap: new Map()
-        }
-        yearMap.set(year, yearGroup)
-        yearGroups.push(yearGroup)
-      }
-
-      let monthGroup = yearGroup.monthMap.get(yearMonth)
+      let monthGroup = monthMap.get(yearMonth)
       if (!monthGroup) {
         monthGroup = {
           yearMonth,
+          year: yearMonth.slice(0, 4),
           month: String(parseInt(yearMonth.slice(5, 7), 10)),
           count: 0,
           totalSpend: 0,
           items: []
         }
-        yearGroup.monthMap.set(yearMonth, monthGroup)
-        yearGroup.months.push(monthGroup)
+        monthMap.set(yearMonth, monthGroup)
+        months.push(monthGroup)
       }
 
       monthGroup.items.push(item)
       monthGroup.count += Number(item.quantity) || 1
       monthGroup.totalSpend += Number(item.totalValueNumber) || 0
-      yearGroup.yearCount += Number(item.quantity) || 1
-      yearGroup.yearTotal += Number(item.totalValueNumber) || 0
     }
 
-    return yearGroups.map(({ monthMap, ...yearGroup }) => yearGroup)
+    return months
   })
 
-  const allTimelineMonthCount = computed(() =>
-    timelineYearGroups.value.reduce((sum, yearGroup) => sum + yearGroup.months.length, 0)
-  )
+  const timelineYearGroups = computed(() => {
+    const yearGroups = []
+    const yearMap = new Map()
+
+    for (const monthGroup of allTimelineMonthList.value) {
+      const { year } = monthGroup
+      let yearGroup = yearMap.get(year)
+
+      if (!yearGroup) {
+        yearGroup = { year, months: [], yearTotal: 0, yearCount: 0 }
+        yearMap.set(year, yearGroup)
+        yearGroups.push(yearGroup)
+      }
+
+      yearGroup.months.push(monthGroup)
+      yearGroup.yearCount += monthGroup.count
+      yearGroup.yearTotal += monthGroup.totalSpend
+    }
+
+    return yearGroups
+  })
+
+  const allTimelineMonthCount = computed(() => allTimelineMonthList.value.length)
 
   const timelineMonthIndexByItemId = computed(() => {
     const map = new Map()
@@ -245,45 +253,81 @@ export function useHomeTimeline({
     )
   )
 
+  // Visible window: slice allTimelineMonthList[start .. start+count)
   const visibleTimelineYearGroups = computed(() => {
     if (displayDensity.value !== 'timeline') return timelineYearGroups.value
 
-    let remaining = visibleTimelineMonthCount.value || getInitialVisibleTimelineMonths()
-    const groups = []
+    const start = visibleTimelineMonthStart.value || 0
+    const count = visibleTimelineMonthCount.value || getInitialVisibleTimelineMonths()
+    const end = start + count
+    const allMonths = allTimelineMonthList.value
+    const visibleMonths = allMonths.slice(start, end)
 
-    for (const yearGroup of timelineYearGroups.value) {
-      if (remaining <= 0) break
-      const months = yearGroup.months.slice(0, remaining)
-      if (months.length === 0) continue
+    if (visibleMonths.length === 0) return []
 
-      groups.push({
-        ...yearGroup,
-        yearCount: months.reduce((sum, month) => sum + month.count, 0),
-        yearTotal: months.reduce((sum, month) => sum + month.totalSpend, 0),
-        months
-      })
-      remaining -= months.length
+    // Rebuild year groups from the sliced month list
+    const yearGroups = []
+    const yearMap = new Map()
+
+    for (const monthGroup of visibleMonths) {
+      const { year } = monthGroup
+      let yearGroup = yearMap.get(year)
+
+      if (!yearGroup) {
+        yearGroup = { year, months: [], yearTotal: 0, yearCount: 0 }
+        yearMap.set(year, yearGroup)
+        yearGroups.push(yearGroup)
+      }
+
+      yearGroup.months.push(monthGroup)
+      yearGroup.yearCount += monthGroup.count
+      yearGroup.yearTotal += monthGroup.totalSpend
     }
 
-    return groups
+    return yearGroups
+  })
+
+  // Estimated height of pruned months before the visible window (for head spacer)
+  const prunedTimelineHeadHeight = computed(() => {
+    if (displayDensity.value !== 'timeline') return 0
+    const start = visibleTimelineMonthStart.value || 0
+    if (start <= 0) return 0
+    // Each month ~TIMELINE_MONTH_ESTIMATED_HEIGHT, plus ~48px per year header
+    const estHeight = TIMELINE_MONTH_ESTIMATED_HEIGHT || 360
+    // Count unique years in pruned range for year header estimation
+    const allMonths = allTimelineMonthList.value
+    let prunedYears = 0
+    let lastYear = ''
+    for (let i = 0; i < start && i < allMonths.length; i++) {
+      if (allMonths[i].year !== lastYear) {
+        prunedYears++
+        lastYear = allMonths[i].year
+      }
+    }
+    return start * estHeight + prunedYears * 48
   })
 
   const timelineUnknown = computed(() =>
     timelineEntries.value.filter((item) => !item.timelineYearMonth)
   )
 
-  const showVisibleTimelineUnknown = computed(() =>
-    timelineUnknown.value.length > 0 && visibleTimelineMonthCount.value >= allTimelineMonthCount.value
-  )
+  const showVisibleTimelineUnknown = computed(() => {
+    if (timelineUnknown.value.length === 0) return false
+    const start = visibleTimelineMonthStart.value || 0
+    const count = visibleTimelineMonthCount.value || getInitialVisibleTimelineMonths()
+    return (start + count) >= allTimelineMonthCount.value
+  })
 
   return {
     timelineYearGroups,
     allTimelineMonthCount,
+    allTimelineMonthList,
     timelineMonthIndexByItemId,
     timelineItemIndexById,
     timelineEntryById,
     timelineUnknownItemIds,
     visibleTimelineYearGroups,
+    prunedTimelineHeadHeight,
     timelineUnknown,
     showVisibleTimelineUnknown
   }
