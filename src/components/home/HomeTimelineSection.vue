@@ -1,5 +1,11 @@
 <template>
   <div class="tl-wrapper">
+    <div
+      v-if="headSpacerHeight > 0"
+      class="tl-head-spacer"
+      aria-hidden="true"
+      :style="{ height: `${headSpacerHeight}px` }"
+    />
     <div v-for="yearGroup in yearGroups" :key="yearGroup.year" class="tl-year-block">
       <div class="tl-year-header">
         <span class="tl-year-num">{{ yearGroup.year }}</span>
@@ -121,6 +127,7 @@ defineProps({
   yearGroups: { type: Array, required: true },
   unknownItems: { type: Array, required: true },
   showUnknown: { type: Boolean, default: false },
+  headSpacerHeight: { type: Number, default: 0 },
   activeItemId: { type: String, default: null },
   expandedItem: { type: Object, default: null },
   expandedSectionKey: { type: String, default: '' },
@@ -132,6 +139,10 @@ defineEmits(['toggle-item', 'open-detail'])
 </script>
 
 <style scoped>
+.tl-head-spacer {
+  pointer-events: none;
+}
+
 .tl-wrapper {
   position: relative;
   display: flex;
