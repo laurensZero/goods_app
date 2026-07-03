@@ -706,6 +706,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         } catch (e) {}
       }
     } else {
+      // Promote to own layer so layout changes during animation are scoped
+      // to this element and don't trigger full-page reflows.
+      node.style.contain = 'layout paint'
+
       const keyframes = [
         {
           left: `${snapshot.left}px`,

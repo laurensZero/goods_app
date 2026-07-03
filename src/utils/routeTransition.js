@@ -4,6 +4,10 @@ import router from '@/router'
 let pendingDetailReturnPath = ''
 let pendingDetailTransitionKind = ''
 
+const reducedMotionQuery = typeof window !== 'undefined'
+  ? window.matchMedia('(prefers-reduced-motion: reduce)')
+  : null
+
 /* ---------- page slide transition ---------- */
 
 const DURATION = 300
@@ -14,6 +18,9 @@ function getRouteScene() {
 }
 
 function animateScene(scene, direction) {
+  // Skip animation for users who prefer reduced motion.
+  if (reducedMotionQuery?.matches) return
+
   // Set the start offset without transition, then on the next frame
   // enable the transition and snap to the final position. This two‑rAF
   // dance replaces getBoundingClientRect() (which forces a synchronous
