@@ -1,9 +1,9 @@
 {
-  "version": "20260703.2",
-  "url": "bundle-20260703.2.zip",
-  "hash": "41ace56b3736db4352669ac3b0c0fe3103651679090031d28987ab0e2c467b2d",
+  "version": "20260704.1",
+  "url": "bundle-20260704.1.zip",
+  "hash": "5bb734e8f280b0700d256c62801e8a61d02e33ab3dd666e7a06ee344bf659500",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 windowWidth prop 支持响应式布局，优化卡片渲染逻辑\n\n- fix: 修改标记为已拥有的翻译为标记为已到货",
+  "notes": "- refactor: 优化商品列表虚拟化逻辑，使用动态最大渲染卡片数",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-03T15:34:36Z"
+  "publishedAt": "2026-07-04T02:30:47Z"
 }
