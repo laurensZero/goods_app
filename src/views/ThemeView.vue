@@ -227,6 +227,32 @@
           </p>
         </article>
       </section>
+
+      <section class="content-section">
+        <div class="section-head">
+          <div>
+            <p class="section-label">Animation</p>
+            <h2 class="section-title">Hero 动画模式</h2>
+            <p class="section-desc">切换详情页打开/返回时的 hero 过渡动画渲染方式。合成器模式帧率更高，布局模式兼容性更好。</p>
+          </div>
+        </div>
+
+        <div class="mode-list">
+          <button
+            v-for="option in HERO_ANIM_OPTIONS"
+            :key="option.value"
+            type="button"
+            :class="['mode-card', { 'mode-card--active': heroAnimMode === option.value }]"
+            @click="setHeroAnimMode(option.value)"
+          >
+            <div class="mode-copy">
+              <p class="mode-name">{{ option.label }}</p>
+              <p class="mode-desc">{{ option.desc }}</p>
+            </div>
+            <span class="mode-state">{{ heroAnimMode === option.value ? t('theme.currentlyUsing') : t('theme.switchTheme') }}</span>
+          </button>
+        </div>
+      </section>
     </main>
 
     <Popup
@@ -330,10 +356,23 @@ import NavBar from '@/components/common/NavBar.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { captureTransitionOrigin, toggleAppearanceWithTransition } from '@/composables/useThemeTransition'
+import { getHeroAnimMode, setHeroAnimMode as _setHeroAnimMode } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
 
 const { t } = useI18n()
+
+// ---- Hero animation mode ----
+const HERO_ANIM_OPTIONS = [
+  { value: 'auto', label: '自动', desc: '根据宽高比自动选择（推荐）' },
+  { value: 'transform', label: '合成器', desc: '仅使用 transform，帧率最高' },
+  { value: 'layout', label: '布局', desc: '使用 left/top/width/height，兼容性最好' }
+]
+const heroAnimMode = ref(getHeroAnimMode())
+function setHeroAnimMode(mode) {
+  _setHeroAnimMode(mode)
+  heroAnimMode.value = getHeroAnimMode()
+}
 
 const CUSTOM_THEME_MODES = [
   { value: 'light', label: t('theme.lightAppearance'), kicker: 'Light appearance' },

@@ -252,7 +252,8 @@ import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
 import { useToast } from '@/composables/useToast'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { prepareGoodsHeroForward, isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
+import { setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
 import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
@@ -786,14 +787,60 @@ function getGoodsListEl() {
   return goodsGridSectionRef.value?.goodsListEl?.value || goodsGridSectionRef.value?.goodsListEl || null
 }
 
+// ---- image preload throttle (Android fling detection) ----
+const isAndroidNative = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
+let imagePreloadResumeTimer = 0
+let lastImageScrollTop = 0
+let lastImageScrollAt = 0
+
+function clearImagePreloadThrottleTimer() {
+  if (!imagePreloadResumeTimer) return
+  window.clearTimeout(imagePreloadResumeTimer)
+  imagePreloadResumeTimer = 0
+}
+
+function updateImagePreloadThrottle(scrollTop = 0) {
+  if (!isAndroidNative) return
+
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+  const normalizedTop = Math.max(0, Number(scrollTop) || 0)
+
+  if (!lastImageScrollAt) {
+    lastImageScrollTop = normalizedTop
+    lastImageScrollAt = now
+    return
+  }
+
+  const delta = Math.abs(normalizedTop - lastImageScrollTop)
+  const elapsed = Math.max(1, now - lastImageScrollAt)
+  const velocity = delta / elapsed
+  const isFlinging = delta >= 160 || velocity >= 2.2
+
+  lastImageScrollTop = normalizedTop
+  lastImageScrollAt = now
+
+  setImagePreloadPaused(isFlinging)
+  clearImagePreloadThrottleTimer()
+  imagePreloadResumeTimer = window.setTimeout(() => {
+    setImagePreloadPaused(false)
+    imagePreloadResumeTimer = 0
+  }, isFlinging ? 160 : 96)
+}
+
 function handlePageScroll() {
   if (isRouteLeaving) return
+  if (isGoodsHeroAnimating()) return
   if (pageScrollRaf) return
   pageScrollRaf = window.requestAnimationFrame(() => {
     pageScrollRaf = 0
     if (isRouteLeaving) return
+    if (isGoodsHeroAnimating()) return
+    const scrollTop = readScrollTop()
+    updateImagePreloadThrottle(scrollTop)
     rememberCurrentScrollPosition()
-    syncVisibleGoodsCount(readScrollTop())
+    syncVisibleGoodsCount(scrollTop)
     if (selectionMode.value) updateSelectionHeaderPosition()
     updateScrollTopButtonVisibility()
   })
