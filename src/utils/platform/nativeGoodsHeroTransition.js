@@ -382,7 +382,6 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
   node.style.zIndex = String(zIndex)
   node.style.willChange = 'transform, opacity'
   node.style.transformOrigin = 'top left'
-  node.style.contain = 'layout style'
   node.style.backfaceVisibility = 'hidden'
   node.style.background = 'transparent'
   node.style.overflow = 'visible'
