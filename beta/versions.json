@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260704.3",
+    "url": "bundle-20260704.3.zip",
+    "hash": "f14d29b9529947a4c4b765dc0418f0bc6150c92030d1da12291964c58324ef62",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 hero 动画模式设置，优化动画性能和兼容性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-04T10:19:10Z"
+  },
+  {
     "version": "20260704.2",
     "url": "bundle-20260704.2.zip",
     "hash": "23277124f72692fdbd819315463e24aafc962c2098a3da183068d274704b2f08",
@@ -16,14 +25,5 @@
     "notes": "- refactor: 优化商品列表虚拟化逻辑，使用动态最大渲染卡片数",
     "updateLevel": "silent",
     "publishedAt": "2026-07-04T02:30:47Z"
-  },
-  {
-    "version": "20260703.2",
-    "url": "bundle-20260703.2.zip",
-    "hash": "41ace56b3736db4352669ac3b0c0fe3103651679090031d28987ab0e2c467b2d",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 windowWidth prop 支持响应式布局，优化卡片渲染逻辑\n\n- fix: 修改标记为已拥有的翻译为标记为已到货",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-03T15:34:36Z"
   }
 ]
