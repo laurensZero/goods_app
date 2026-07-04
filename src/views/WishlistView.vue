@@ -481,7 +481,7 @@ function getInitialVisibleCount() {
 
 const visibleGoodsStartIndex = ref(0)
 const visibleGoodsRenderCount = ref(getInitialVisibleCount())
-const shouldVirtualizeGoodsList = computed(() => displayList.value.length > GOODS_GRID_MAX_RENDER_CARDS)
+const shouldVirtualizeGoodsList = computed(() => displayList.value.length > getMaxRenderCards(displayDensity.value))
 const visibleGoodsEndIndex = computed(() =>
   shouldVirtualizeGoodsList.value
     ? Math.min(displayList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
