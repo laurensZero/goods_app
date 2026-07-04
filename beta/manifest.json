@@ -1,9 +1,9 @@
 {
-  "version": "20260704.1",
-  "url": "bundle-20260704.1.zip",
-  "hash": "5bb734e8f280b0700d256c62801e8a61d02e33ab3dd666e7a06ee344bf659500",
+  "version": "20260704.2",
+  "url": "bundle-20260704.2.zip",
+  "hash": "23277124f72692fdbd819315463e24aafc962c2098a3da183068d274704b2f08",
   "minNativeVersion": null,
-  "notes": "- refactor: 优化商品列表虚拟化逻辑，使用动态最大渲染卡片数",
+  "notes": "- refactor: 移除不必要的样式属性，优化性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-04T02:30:47Z"
+  "publishedAt": "2026-07-04T05:59:23Z"
 }
