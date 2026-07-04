@@ -18,6 +18,28 @@ let pendingForwardEventHero = null
 let pendingBackEventHero = null
 let heroAnimationLockCount = 0
 let heroLifecycleCleanupBound = false
+
+// Hero animation mode setting.
+// 'transform' — force compositor-only (best perf, may distort on aspect change)
+// 'layout'    — force layout animation (legacy, safe but slow on tablets)
+// 'auto'      — decide per-animation based on aspect ratio delta (default)
+const HERO_ANIM_MODE_KEY = 'goods_hero_anim_mode'
+
+export function getHeroAnimMode() {
+  try {
+    const val = localStorage.getItem(HERO_ANIM_MODE_KEY)
+    if (val === 'transform' || val === 'layout' || val === 'auto') return val
+  } catch {}
+  return 'auto'
+}
+
+export function setHeroAnimMode(mode) {
+  try {
+    if (mode === 'transform' || mode === 'layout' || mode === 'auto') {
+      localStorage.setItem(HERO_ANIM_MODE_KEY, mode)
+    }
+  } catch {}
+}
 let heroRuntimeGeneration = 0
 let goodsCardRepaintBlockUntil = 0
 
@@ -648,10 +670,17 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   const radiusTo = Number.isFinite(targetRadius) ? targetRadius : 0
 
   // Decide whether to animate via transform-only (compositor) or fallback to
-  // layout-affecting properties. Prefer transform when aspect ratio delta small
-  // or when moving back.
+  // layout-affecting properties. Transform-only avoids per-frame layout
+  // recalculation — critical for smooth animation on tablets with large
+  // hero elements. Layout fallback exists for edge cases where transform
+  // scaling causes visual distortion (large aspect ratio changes).
+  const heroAnimMode = getHeroAnimMode()
   const aspectDelta = Math.abs((snapshot.width / (snapshot.height || 1)) - (targetRect.width / (targetRect.height || 1)))
-  const transformOnly = false  // Disabled: transform causes visual flickering, use layout animation
+  const transformOnly = heroAnimMode === 'transform'
+    ? true
+    : heroAnimMode === 'layout'
+      ? false
+      : shouldPreferTransformOnlyHero(direction, aspectDelta)
 
   try {
     // Hide target and start animation in the same sync block when the
@@ -670,13 +699,11 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       const fromTransform = `translate3d(0px, 0px, 0) scale(1,1)`
       const toTransform = `translate3d(${deltaX}px, ${deltaY}px, 0) scale(${scaleX}, ${scaleY})`
 
-      // node is already positioned at snapshot.left/top; use delta transforms
+      // node is already positioned at snapshot.left/top; use delta transforms.
+      // Set transform synchronously so the first paint shows the correct
+      // start state. No getBoundingClientRect() flush needed — the
+      // Web Animations API reads computed styles atomically when starting.
       node.style.transform = fromTransform
-
-      // Force style flush so the browser paints the start state before
-      // starting the animation. This prevents a frame where the overlay
-      // appears at the end position and then animates back.
-      try { node.getBoundingClientRect() } catch (e) {}
 
       animation = node.animate(
         [
@@ -692,8 +719,6 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         try {
           const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
           const compensatedFrom = `${radiusFrom}px`
-          // set initial borderRadius synchronously so the clip visual matches
-          // the snapshot before animation starts
           try { clip.style.borderRadius = compensatedFrom } catch (e) {}
           const clipAnim = clip.animate(
             [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],

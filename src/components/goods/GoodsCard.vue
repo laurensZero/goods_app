@@ -492,7 +492,7 @@ const priceCNYHint = computed(() => {
   cursor: pointer;
   user-select: none;
   -webkit-touch-callout: none;
-  background-clip: padding-box;
+  contain: paint;
   isolation: isolate;
   transition:
     transform 0.22s ease,
