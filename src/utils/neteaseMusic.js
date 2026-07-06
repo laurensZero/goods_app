@@ -178,7 +178,7 @@ export async function fetchNeteaseSongCoverMap(songIds) {
   }, {})
 }
 
-export async function searchNeteaseSongs(keyword, limit = 30) {
+export async function searchNeteaseSongs(keyword, limit = 30, offset = 0) {
   const trimmed = String(keyword || '').trim()
   if (!trimmed) return []
 
@@ -186,7 +186,7 @@ export async function searchNeteaseSongs(keyword, limit = 30) {
     csrf_token: '',
     s: trimmed,
     type: '1',
-    offset: '0',
+    offset: String(Math.max(0, Number(offset) || 0)),
     total: 'true',
     limit: String(Math.max(1, Math.min(100, Number(limit) || 30)))
   })

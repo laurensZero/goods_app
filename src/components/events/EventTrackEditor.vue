@@ -42,7 +42,7 @@
 
           <p v-if="searchError" class="track-editor__hint track-editor__hint--error">{{ searchError }}</p>
 
-          <div v-if="searchResults.length" class="track-editor__result-list">
+          <div v-if="searchResults.length" ref="searchResultListRef" class="track-editor__result-list" @scroll="onSearchResultScroll">
             <article
               v-for="(item, idx) in searchResults"
               :key="`${item.neteaseSongId || item.qqSongId || ''}_${idx}`"
@@ -55,6 +55,9 @@
               </div>
               <button type="button" class="track-editor__result-btn" @click="appendTracks([item])">{{ t('events.tracks.importBtn') }}</button>
             </article>
+            <p v-if="searchLoadingMore" class="track-editor__hint">{{ t('events.tracks.searching') }}...</p>
+            <p v-else-if="searchHasMore" class="track-editor__load-more" @click="loadMoreSearch">{{ t('events.tracks.loadMore') }}</p>
+            <p v-else-if="searchResults.length >= 10" class="track-editor__hint">{{ t('events.tracks.noMoreResults') }}</p>
           </div>
         </div>
 
@@ -155,11 +158,15 @@ const searchSource = ref('netease')
 const searchKeyword = ref('')
 const playlistInput = ref('')
 const searchLoading = ref(false)
+const searchLoadingMore = ref(false)
 const playlistLoading = ref(false)
 const searchError = ref('')
 const playlistError = ref(false)
 const playlistMessage = ref('')
 const searchResults = ref([])
+const searchPage = ref(1)
+const searchHasMore = ref(true)
+const searchResultListRef = ref(null)
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
 
@@ -285,13 +292,19 @@ async function runSongSearch() {
 
   searchLoading.value = true
   searchError.value = ''
+  searchPage.value = 1
+  searchHasMore.value = true
   try {
+    const limit = 20
+    let results
     if (searchSource.value === 'qq') {
-      searchResults.value = await searchQQSongs(keyword, 30)
+      results = await searchQQSongs(keyword, limit)
     } else {
-      searchResults.value = await searchNeteaseSongs(keyword, 30)
+      results = await searchNeteaseSongs(keyword, limit)
     }
-    if (!searchResults.value.length) {
+    searchResults.value = results
+    searchHasMore.value = results.length >= limit
+    if (!results.length) {
       searchError.value = t('events.tracks.noResults')
     }
   } catch (error) {
@@ -299,6 +312,42 @@ async function runSongSearch() {
     searchError.value = error?.message || t('events.tracks.searchFailed')
   } finally {
     searchLoading.value = false
+  }
+}
+
+async function loadMoreSearch() {
+  const keyword = String(searchKeyword.value || '').trim()
+  if (!keyword || searchLoadingMore.value || !searchHasMore.value) return
+
+  searchLoadingMore.value = true
+  try {
+    searchPage.value += 1
+    const limit = 20
+    const offset = (searchPage.value - 1) * limit
+    let results
+    if (searchSource.value === 'qq') {
+      results = await searchQQSongs(keyword, limit, searchPage.value)
+    } else {
+      results = await searchNeteaseSongs(keyword, limit, offset)
+    }
+    if (results.length) {
+      const existingKeys = new Set(searchResults.value.map((item) => item.neteaseSongId || item.qqSongId || item.title))
+      const fresh = results.filter((item) => !existingKeys.has(item.neteaseSongId || item.qqSongId || item.title))
+      searchResults.value = [...searchResults.value, ...fresh]
+    }
+    searchHasMore.value = results.length >= limit
+  } catch {
+    // ignore load more errors
+  } finally {
+    searchLoadingMore.value = false
+  }
+}
+
+function onSearchResultScroll(event) {
+  const el = event.target
+  if (!el || searchLoadingMore.value || !searchHasMore.value) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+    void loadMoreSearch()
   }
 }
 
@@ -496,6 +545,25 @@ async function importPlaylist() {
 
 .track-editor__result-list {
   margin-top: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.track-editor__load-more {
+  margin-top: 8px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 12px;
+  transition: background 160ms ease;
+}
+
+.track-editor__load-more:hover {
+  background: var(--app-surface);
 }
 
 .track-editor__result-item {
