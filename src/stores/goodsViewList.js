@@ -12,6 +12,11 @@ import {
   resolveCollectionTotalValue
 } from '@/stores/goodsHelpers'
 import { buildSearchText } from '@/utils/goods/filters'
+import {
+  resolvePrimaryCollectStatus,
+  hasCollectStatusMatch,
+  areAllCopiesExited
+} from '@/utils/goods/status'
 
 /**
  * @param {object} item
@@ -42,6 +47,56 @@ function computePriceFields(item, exchangeRate) {
 
 /**
  * @param {object} item
+ */
+function computeHoldingFields(item) {
+  // --- unitHoldingDaysList ---
+  const quantity = Math.max(1, Number(item.quantity) || 1)
+  let unitHoldingDaysList = []
+  if (quantity >= 2) {
+    const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
+    if (unitDates.length > 0) {
+      const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
+      const entries = unitDates
+        .map((date, i) => {
+          const normalizedDate = String(date || '').trim()
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
+          const diff = Date.now() - new Date(normalizedDate).getTime()
+          const days = Math.floor(diff / 86400000)
+          if (days < 0) return null
+          const status = String(unitStatuses[i] || item.collectStatus || '已拥有').trim()
+          return { days, status, date: normalizedDate }
+        })
+        .filter(Boolean)
+      const seenDays = new Set()
+      unitHoldingDaysList = entries.filter((entry) => {
+        if (seenDays.has(entry.days)) return false
+        seenDays.add(entry.days)
+        return true
+      })
+    }
+  }
+
+  // --- holdingDays (only when no per-unit holding days) ---
+  const hasUnitHoldingDays = unitHoldingDaysList.length > 0
+  let holdingDays = null
+  if (!hasUnitHoldingDays) {
+    const date = item.acquiredAt
+    if (date) {
+      const diff = Date.now() - new Date(date).getTime()
+      const days = Math.floor(diff / 86400000)
+      holdingDays = days >= 0 ? days : null
+    }
+  }
+
+  return {
+    _unitHoldingDaysList: unitHoldingDaysList,
+    _hasUnitHoldingDays: hasUnitHoldingDays,
+    _holdingDays: holdingDays
+  }
+}
+
+/**
+ * @param {object} item
  * @param {object} exchangeRate
  */
 function enrichItem(item, exchangeRate) {
@@ -52,7 +107,11 @@ function enrichItem(item, exchangeRate) {
     sortId: String(item.id),
     acquiredTime: parseAcquiredTime(item.acquiredAt),
     timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
-    searchText: buildSearchText(item)
+    searchText: buildSearchText(item),
+    _primaryStatus: resolvePrimaryCollectStatus(item),
+    _isPending: hasCollectStatusMatch(item, ['待发货', '待补款', '待补邮']) && !item.isWishlist,
+    _isExited: areAllCopiesExited(item),
+    ...computeHoldingFields(item)
   }
 }
 

@@ -43,7 +43,7 @@
           :alt="item.name"
           :lazy="true"
           resume-decode-validation
-          root-margin="720px 0px"
+          :root-margin="imageRootMargin"
           fetchpriority="low"
           class="cover-img"
         />
@@ -130,6 +130,13 @@ const props = defineProps({
   motionStyle: { type: Object, default: null },
   windowWidth: { type: Number, default: 0 }
 })
+
+// Module-level low-perf detection (shared across all card instances)
+const _isLowPerf = (typeof navigator !== 'undefined') && (
+  /Android/i.test(navigator.userAgent || '') ||
+  (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+  (navigator.deviceMemory && navigator.deviceMemory <= 4)
+)
 
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const tagsScrollerRef = ref(null)
@@ -284,56 +291,10 @@ const coverStyle = computed(() => {
 
 const coverInitial = computed(() => (props.item.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 
-const unitHoldingDaysList = computed(() => {
-  const it = props.item
-  if (!it || it.isWishlist) return []
-
-  const quantity = Math.max(1, Number(it.quantity) || 1)
-  if (quantity < 2) return []
-
-  const unitDates = Array.isArray(it.unitAcquiredAtList) ? it.unitAcquiredAtList : []
-  if (unitDates.length === 0) return []
-
-  const unitStatuses = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : []
-
-  const entries = unitDates
-    .map((date, i) => {
-      const normalizedDate = String(date || '').trim()
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
-
-      const diff = Date.now() - new Date(normalizedDate).getTime()
-      const days = Math.floor(diff / 86400000)
-      if (days < 0) return null
-
-      const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
-      return { days, status, date: normalizedDate }
-    })
-    .filter(Boolean)
-
-  // Deduplicate by date: same-day copies produce one entry
-  const seenDays = new Set()
-  return entries.filter((entry) => {
-    if (seenDays.has(entry.days)) return false
-    seenDays.add(entry.days)
-    return true
-  })
-})
-
-const hasUnitHoldingDays = computed(() => unitHoldingDaysList.value.length > 0)
-
-const holdingDays = computed(() => {
-  const it = props.item
-  if (!it) return null
-
-  if (hasUnitHoldingDays.value) return null
-
-  const date = it.acquiredAt
-  if (!date) return null
-
-  const diff = Date.now() - new Date(date).getTime()
-  const days = Math.floor(diff / 86400000)
-  return days >= 0 ? days : null
-})
+// 优先使用 store 预计算的字段，避免虚拟窗口切换时每张卡重新计算
+const unitHoldingDaysList = computed(() => props.item._unitHoldingDaysList ?? [])
+const hasUnitHoldingDays = computed(() => props.item._hasUnitHoldingDays ?? false)
+const holdingDays = computed(() => props.item._holdingDays ?? null)
 
 const STATUS_SHORT_MAP = {
   '待发货': '待发',
@@ -341,13 +302,9 @@ const STATUS_SHORT_MAP = {
   '待补邮': '补邮'
 }
 
-function resolvePrimaryStatus(item) {
-  return resolvePrimaryCollectStatus(item)
-}
-
-const primaryStatus = computed(() => resolvePrimaryStatus(props.item))
-const isPending = computed(() => !props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮']))
-const isExited = computed(() => areAllCopiesExited(props.item))
+const primaryStatus = computed(() => props.item._primaryStatus ?? resolvePrimaryCollectStatus(props.item))
+const isPending = computed(() => props.item._isPending ?? (!props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮'])))
+const isExited = computed(() => props.item._isExited ?? areAllCopiesExited(props.item))
 
 const statusDaysText = computed(() => {
   if (props.item.isWishlist) return ''
@@ -392,6 +349,8 @@ const showCustomTags = computed(() => props.density === 'comfortable' && allCust
 const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value || showCustomTags.value)
 // 使用父组件传入的 windowWidth prop，避免每个卡片独立维护 resize 监听器
 const isTablet = computed(() => props.windowWidth >= 900)
+// 自适应 root-margin：低性能设备用更小的预加载距离，减少滚动时唤醒图片数量
+const imageRootMargin = computed(() => _isLowPerf ? '120px 0px' : (isTablet.value ? '360px 0px' : '240px 0px'))
 const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && (holdingDays.value !== null || hasUnitHoldingDays.value))
 const showPoints = computed(() => !props.item.isWishlist && props.item.points && (props.density === 'comfortable' || isTablet.value))
 const unitActualPriceText = computed(() => {
@@ -626,7 +585,7 @@ const priceCNYHint = computed(() => {
   object-position: center;
   border-radius: inherit;
   backface-visibility: hidden;
-  transform: translateZ(0);
+  /* removed transform: translateZ(0) — compositor promotes automatically */
 }
 
 .cover-initial {
@@ -890,16 +849,25 @@ const priceCNYHint = computed(() => {
 }
 
 .goods-card--selected {
-  filter: brightness(0.88);
+  /* Replaced filter: brightness(0.88) with overlay for GPU perf */
+}
+
+.goods-card--selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .goods-card--exited {
   opacity: 0.5;
 }
 
-.goods-card--exited .card-cover {
-  filter: grayscale(0.6);
-}
+/* Removed .goods-card--exited .card-cover { filter: grayscale(0.6); }
+   Opacity on the card already conveys exited state */
 
 .goods-card--pending {
   border-left: 3px solid var(--app-pending-border);
@@ -913,6 +881,12 @@ const priceCNYHint = computed(() => {
 .sel-overlay-enter-from,
 .sel-overlay-leave-to {
   opacity: 0;
+}
+
+@media (min-width: 900px) {
+  .goods-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
 }
 
 :global(html.theme-dark .goods-card .card-chip) {

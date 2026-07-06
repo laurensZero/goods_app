@@ -428,6 +428,9 @@ let removeAndroidBackListener = null
 let pageScrollRaf = 0
 let mountBootstrapSession = 0
 let isRouteLeaving = false
+let _lastSyncStartRow = -1
+let _lastSyncRenderRows = -1
+let _lastSyncDensity = ''
 
 // 添加方式面板
 const showAddSheet = ref(false)
@@ -842,20 +845,37 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
   const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
-  const startIndex = Math.min(displayList.value.length, startRow * cols)
-  const remainingItems = Math.max(0, displayList.value.length - startIndex)
-  const renderCount = Math.min(
-    remainingItems,
-    Math.min(
-      maxRenderCards,
-      Math.max(cols * 4, renderRows * cols)
-    )
-  )
 
+  // Density changed (or first call) — invalidate cached row values
+  const density = displayDensity.value
+  if (density !== _lastSyncDensity) {
+    _lastSyncDensity = density
+    _lastSyncStartRow = -1
+    _lastSyncRenderRows = -1
+  }
+
+  // Always update cheap refs used by other consumers
   currentGoodsScrollTop.value = normalizedTop
   currentGoodsViewportHeight.value = viewportHeight
-  visibleGoodsStartIndex.value = startIndex
-  visibleGoodsRenderCount.value = renderCount
+
+  // Only update expensive list refs when the viewport actually crossed a row boundary
+  if (startRow !== _lastSyncStartRow || renderRows !== _lastSyncRenderRows) {
+    _lastSyncStartRow = startRow
+    _lastSyncRenderRows = renderRows
+
+    const startIndex = Math.min(displayList.value.length, startRow * cols)
+    const remainingItems = Math.max(0, displayList.value.length - startIndex)
+    const renderCount = Math.min(
+      remainingItems,
+      Math.min(
+        maxRenderCards,
+        Math.max(cols * 4, renderRows * cols)
+      )
+    )
+
+    visibleGoodsStartIndex.value = startIndex
+    visibleGoodsRenderCount.value = renderCount
+  }
 }
 
 function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
