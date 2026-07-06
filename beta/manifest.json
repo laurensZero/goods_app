@@ -1,9 +1,9 @@
 {
-  "version": "20260706.2",
-  "url": "bundle-20260706.2.zip",
-  "hash": "952cc6145f875c72da8dd87119f062d88098a474929b4a0d8665316349dbedc5",
+  "version": "20260706.3",
+  "url": "bundle-20260706.3.zip",
+  "hash": "a30b06c291591499a3f22fc688dbe3a3bc49e0b1459c1e772fa96048bdcc1cfe",
   "minNativeVersion": null,
-  "notes": "- feat: 优化公告检查逻辑，确保 token 加载后再执行；添加 Vant 样式导入；增强商品搜索功能",
+  "notes": "- feat: 添加 QQ 音乐支持，包括搜索、播放和歌词功能；更新相关组件以处理 QQ 音乐数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T09:07:40Z"
+  "publishedAt": "2026-07-06T09:46:01Z"
 }

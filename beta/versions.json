@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260706.3",
+    "url": "bundle-20260706.3.zip",
+    "hash": "a30b06c291591499a3f22fc688dbe3a3bc49e0b1459c1e772fa96048bdcc1cfe",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 QQ 音乐支持，包括搜索、播放和歌词功能；更新相关组件以处理 QQ 音乐数据",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-06T09:46:01Z"
+  },
+  {
     "version": "20260706.2",
     "url": "bundle-20260706.2.zip",
     "hash": "952cc6145f875c72da8dd87119f062d88098a474929b4a0d8665316349dbedc5",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在 syncTableRows 函数中添加 lastSyncedAt 参数以优化数据同步逻辑；在 executeSet 方法中添加事务处理以确保数据一致性\n\n- fix: 优化 renderMarkdown 函数中的 DOMPurify 导入逻辑，确保安全渲染\n\n- refactor: 更新依赖",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T08:50:48Z"
-  },
-  {
-    "version": "20260704.3",
-    "url": "bundle-20260704.3.zip",
-    "hash": "f14d29b9529947a4c4b765dc0418f0bc6150c92030d1da12291964c58324ef62",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 hero 动画模式设置，优化动画性能和兼容性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-04T10:19:10Z"
   }
 ]
