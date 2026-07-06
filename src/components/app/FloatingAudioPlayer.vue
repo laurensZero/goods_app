@@ -172,7 +172,7 @@
         <div ref="queueListRef" class="floating-player__queue-list">
           <button
             v-for="(track, index) in queueItems"
-            :key="track.id || track.neteaseSongId || index"
+            :key="track.id || track.neteaseSongId || track.qqSongId || index"
             type="button"
             class="floating-player__queue-item"
             :class="{ 'floating-player__queue-item--active': index === playerStore.currentIndex }"
@@ -274,7 +274,7 @@ watch(
 )
 
 watch(
-  () => [currentTrack.value?.id || currentTrack.value?.neteaseSongId || '', miniVisible.value],
+  () => [currentTrack.value?.id || currentTrack.value?.neteaseSongId || currentTrack.value?.qqSongId || '', miniVisible.value],
   async ([trackIdentity, visible]) => {
     if (!trackIdentity || !visible) return
     await nextTick()

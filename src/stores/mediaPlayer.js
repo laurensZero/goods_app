@@ -1,9 +1,10 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
+import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
 
 function getTrackIdentity(track = {}) {
-  return String(track?.id || track?.neteaseSongId || '').trim()
+  return String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
 }
 
 function normalizeQueue(queue) {
@@ -331,15 +332,35 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       return playableUrlCache.get(trackId)
     }
 
-    const result = await fetchNeteasePlayableUrl(track.neteaseSongId)
-    lruSet(playableUrlCache, trackId, result.url)
-    return result.url
+    const source = String(track?.source || '').trim()
+    const qqSongId = String(track?.qqSongId || '').trim()
+    const neteaseSongId = String(track?.neteaseSongId || '').trim()
+
+    let url = ''
+    if (source === 'qq' && qqSongId) {
+      const result = await fetchQQPlayableUrl(qqSongId)
+      url = result.url
+    } else if (neteaseSongId) {
+      const result = await fetchNeteasePlayableUrl(neteaseSongId)
+      url = result.url
+    } else if (qqSongId) {
+      const result = await fetchQQPlayableUrl(qqSongId)
+      url = result.url
+    } else {
+      throw new Error('缺少歌曲 ID，无法播放')
+    }
+
+    lruSet(playableUrlCache, trackId, url)
+    return url
   }
 
   async function resolveLyrics(track) {
     const trackId = getTrackIdentity(track)
-    const songId = String(track?.neteaseSongId || '').trim()
-    if (!trackId || !songId) {
+    const source = String(track?.source || '').trim()
+    const qqSongId = String(track?.qqSongId || '').trim()
+    const neteaseSongId = String(track?.neteaseSongId || '').trim()
+
+    if (!trackId || (!neteaseSongId && !qqSongId)) {
       resetLyrics()
       return
     }
@@ -352,7 +373,18 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     lyricsStatus.value = 'loading'
     try {
-      const result = await fetchNeteaseLyrics(songId)
+      let result
+      if (source === 'qq' && qqSongId) {
+        result = await fetchQQLyrics(qqSongId)
+      } else if (neteaseSongId) {
+        result = await fetchNeteaseLyrics(neteaseSongId)
+      } else if (qqSongId) {
+        result = await fetchQQLyrics(qqSongId)
+      } else {
+        resetLyrics()
+        return
+      }
+
       const nextLines = Array.isArray(result?.lines) ? result.lines : []
       lruSet(lyricsCache, trackId, nextLines)
       if (currentTrackId.value !== trackId) return
