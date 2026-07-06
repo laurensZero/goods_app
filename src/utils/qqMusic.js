@@ -362,6 +362,116 @@ export async function fetchQQSongCoverMap(songMids) {
   return coverMap
 }
 
+export function extractQQPlaylistId(input) {
+  const raw = String(input || '').trim()
+  if (!raw) return ''
+
+  // URL format: y.qq.com/n/ryqq/playlist/xxxxx or y.qq.com/xyz/playlist/xxxxx
+  const pathMatch = raw.match(/playlist\/(\d{3,})/i)
+  if (pathMatch) return pathMatch[1]
+
+  // URL with id param
+  const idMatch = raw.match(/(?:^|[?&])id=(\d{3,})/i)
+  if (idMatch) return idMatch[1]
+
+  // Direct numeric ID
+  return /^\d{3,}$/.test(raw) ? raw : ''
+}
+
+export function extractQQAlbumMid(input) {
+  const raw = String(input || '').trim()
+  if (!raw) return ''
+
+  // URL format: y.qq.com/n/ryqq/albumDetail/xxxxx or y.qq.com/n/ryqq_v2/albumDetail/xxxxx
+  const pathMatch = raw.match(/albumDetail\/([a-zA-Z0-9]+)/i)
+  if (pathMatch) return pathMatch[1]
+
+  // URL with mid param
+  const midMatch = raw.match(/(?:^|[?&])mid=([a-zA-Z0-9]+)/i)
+  if (midMatch) return midMatch[1]
+
+  // Direct MID format (10+ alphanumeric)
+  if (/^[a-zA-Z0-9]{10,}$/.test(raw)) return raw
+
+  return ''
+}
+
+function detectQQCollectionTarget(input) {
+  const albumMid = extractQQAlbumMid(input)
+  if (albumMid) return { type: 'album', id: albumMid }
+
+  return { type: '', id: '' }
+}
+
+export async function fetchQQPlaylistTracks() {
+  throw new Error('QQ 音乐歌单导入暂不支持，请使用专辑链接')
+}
+
+export async function fetchQQAlbumTracks(input) {
+  const albumMid = extractQQAlbumMid(input)
+  if (!albumMid) {
+    throw new Error('请输入 QQ 音乐专辑链接或专辑 MID')
+  }
+
+  const reqData = {
+    req_0: {
+      module: 'music.musichallAlbum.AlbumSongList',
+      method: 'GetAlbumSongList',
+      param: {
+        albumMid,
+        begin: 0,
+        num: 100
+      }
+    }
+  }
+
+  const params = new URLSearchParams({
+    format: 'json',
+    data: JSON.stringify(reqData)
+  })
+
+  const payload = await requestJson(`${QQ_MUSIC_API_BASE}/musicu.fcg?${params.toString()}`)
+
+  const songList = Array.isArray(payload?.req_0?.data?.songList)
+    ? payload.req_0.data.songList
+    : []
+
+  const tracks = songList
+    .map((item) => mapSongToTrack(item?.songInfo || item))
+    .filter((item) => item.title)
+
+  return {
+    albumMid,
+    albumName: String(payload?.req_0?.data?.albumName || '').trim(),
+    tracks
+  }
+}
+
+export async function fetchQQCollectionTracks(input) {
+  const target = detectQQCollectionTarget(input)
+  if (!target.id) {
+    throw new Error('请输入 QQ 音乐歌单/专辑链接或对应 ID')
+  }
+
+  if (target.type === 'album') {
+    const result = await fetchQQAlbumTracks(input)
+    return {
+      type: 'album',
+      id: result.albumMid,
+      name: result.albumName,
+      tracks: result.tracks
+    }
+  }
+
+  const result = await fetchQQPlaylistTracks(input)
+  return {
+    type: 'playlist',
+    id: result.playlistId,
+    name: result.playlistName,
+    tracks: result.tracks
+  }
+}
+
 export function buildQQSongWebUrl(songMid) {
   const normalizedMid = String(songMid || '').trim()
   return normalizedMid ? `https://y.qq.com/n/ryqq/songDetail/${normalizedMid}` : ''
