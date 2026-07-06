@@ -122,7 +122,7 @@ export function buildIncomingIdSet(rows) {
   )
 }
 
-export async function syncTableRows(db, tableName, rows, { label = tableName, incremental = false, deleteIds = [] } = {}) {
+export async function syncTableRows(db, tableName, rows, { label = tableName, incremental = false, deleteIds = [], lastSyncedAt = null } = {}) {
   if (rows.length > 0) {
     let rowsToUpsert = rows
     if (incremental && rows[0]?.updated_at != null) {
@@ -152,16 +152,29 @@ export async function syncTableRows(db, tableName, rows, { label = tableName, in
     return
   }
 
+  // Non-incremental full sync: only delete rows that were known at last sync time.
+  // Rows updated after lastSyncedAt may belong to other devices and must be preserved.
   const incomingIdSet = buildIncomingIdSet(rows)
   if (incomingIdSet.size === 0) {
-    const { error } = await withRetry(() =>
-      db.from(tableName).delete().neq('id', '')
-    )
-    if (error) throw new Error(i18n.global.t('sync.error.supabaseClearFailed', { label, error: error.message }))
+    if (lastSyncedAt) {
+      const { error } = await withRetry(() =>
+        db.from(tableName).delete().lte('updated_at', lastSyncedAt)
+      )
+      if (error) throw new Error(i18n.global.t('sync.error.supabaseClearFailed', { label, error: error.message }))
+    }
+    // Without lastSyncedAt we cannot safely determine which rows to delete — skip
     return
   }
 
-  const existingRows = await fetchAllRows(() => db.from(tableName).select('id'))
+  let existingRows = await fetchAllRows(() => db.from(tableName).select('id, updated_at'))
+
+  if (lastSyncedAt) {
+    // Only delete rows that were known at last sync (updated before or at last sync time)
+    existingRows = (existingRows || []).filter(row => {
+      if (!row.updated_at) return true
+      return row.updated_at <= lastSyncedAt
+    })
+  }
 
   const staleIds = (existingRows || [])
     .map((row) => row.id)
