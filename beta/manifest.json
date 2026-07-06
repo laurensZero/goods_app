@@ -1,9 +1,9 @@
 {
-  "version": "20260706.1",
-  "url": "bundle-20260706.1.zip",
-  "hash": "d1fdedb66e17189e66ad409a944e63bc2095a7eb86821336d4cafc0f98bfb3a8",
+  "version": "20260706.2",
+  "url": "bundle-20260706.2.zip",
+  "hash": "952cc6145f875c72da8dd87119f062d88098a474929b4a0d8665316349dbedc5",
   "minNativeVersion": null,
-  "notes": "- feat: 在 syncTableRows 函数中添加 lastSyncedAt 参数以优化数据同步逻辑；在 executeSet 方法中添加事务处理以确保数据一致性\n\n- fix: 优化 renderMarkdown 函数中的 DOMPurify 导入逻辑，确保安全渲染\n\n- refactor: 更新依赖",
+  "notes": "- feat: 优化公告检查逻辑，确保 token 加载后再执行；添加 Vant 样式导入；增强商品搜索功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T08:50:48Z"
+  "publishedAt": "2026-07-06T09:07:40Z"
 }
