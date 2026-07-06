@@ -3,6 +3,10 @@
   "my.scanImport": "扫码导入",
   "my.openSettings": "打开设置",
   "my.githubAvatar": "GitHub 头像",
+  "my.avatar": "头像",
+  "my.changeAvatar": "更换头像",
+  "my.avatarUpdated": "头像已更新",
+  "my.avatarUpdateFailed": "头像更新失败",
   "my.notConnected": "未连接 GitHub",
   "my.connected": "已连接 GitHub",
   "my.noAuthMethod": "未设置登录方式",
@@ -79,5 +83,9 @@
   "my.promptFromGallery": "从相册选择",
   "my.promptTakePhoto": "拍摄二维码",
   "my.scanInvalidQrCode": "未识别到有效二维码，请重试",
-  "my.scanInvalidQrContent": "二维码内容不是有效的分享码或收纳位置码"
+  "my.scanInvalidQrContent": "二维码内容不是有效的分享码或收纳位置码",
+  "my.resetAvatar": "恢复默认头像",
+  "my.resetAvatarDesc": "清除自定义头像，恢复为 GitHub 头像。",
+  "my.confirmResetAvatar": "确认恢复",
+  "my.avatarReset": "已恢复为 GitHub 头像"
 }

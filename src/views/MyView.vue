@@ -39,9 +39,16 @@
 
         <article class="account-panel">
           <div class="account-panel__main">
-            <div class="account-avatar-wrap">
-              <img v-if="syncStore.githubAvatarUrl" class="account-avatar" :src="syncStore.githubAvatarUrl" :alt="t('my.githubAvatar')" />
+            <div class="account-avatar-wrap" @click="handleAvatarClick" @contextmenu.prevent="onAvatarLongPress" @mousedown="onAvatarMouseDown" @mouseup="onAvatarMouseUp" @mouseleave="onAvatarMouseUp" @touchstart="onAvatarTouchStart" @touchend="onAvatarTouchEnd" @touchcancel="onAvatarTouchEnd" @touchmove="onAvatarTouchEnd">
+              <img v-if="displayAvatarSrc" class="account-avatar" :src="displayAvatarSrc" :alt="t('my.avatar')" />
               <span v-else class="account-avatar account-avatar--placeholder">{{ avatarInitial }}</span>
+              <button type="button" class="avatar-edit-btn" :aria-label="t('my.changeAvatar')" @click.stop="handleAvatarClick">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <input ref="avatarInputRef" type="file" accept="image/*" class="avatar-file-input" @change="onAvatarFileChange" />
             </div>
 
             <div class="account-copy">
@@ -307,16 +314,35 @@
         </div>
       </section>
     </div>
+
+    <div v-if="showResetAvatarDialog" class="login-overlay reset-avatar-overlay" @click.self="closeResetAvatarDialog">
+      <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="resetAvatarSheetTitle">
+        <h2 id="resetAvatarSheetTitle" class="login-sheet__title">{{ t('my.resetAvatar') }}</h2>
+        <p class="login-sheet__desc">
+          {{ t('my.resetAvatarDesc') }}
+        </p>
+
+        <div class="login-sheet__actions">
+          <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmResetAvatar">
+            {{ t('my.confirmResetAvatar') }}
+          </button>
+          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeResetAvatarDialog">
+            {{ t('my.cancel') }}
+          </button>
+        </div>
+      </section>
+    </div>
     <AppToast :message="toastMsg" />
   </div>
 </template>
 
 <script setup>
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
 import { useToast } from '@/composables/useToast'
 import { formatDate, formatPrice } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
@@ -327,6 +353,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useQrScanner } from '@/composables/my/useQrScanner'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 
 defineOptions({ name: 'MyView' })
 
@@ -338,6 +365,7 @@ const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
 const showBudgetDialog = ref(false)
+const showResetAvatarDialog = ref(false)
 
 const githubOAuthClientId = getGitHubOAuthClientId()
 const { toastMsg, showToast: showToastMsg } = useToast()
@@ -356,7 +384,126 @@ const {
   onScannerVideoReady, resetScannerState
 } = useQrScanner()
 
+const CUSTOM_AVATAR_KEY = 'goods_custom_avatar'
+
 const avatarInitial = computed(() => (syncStore.githubLogin ? syncStore.githubLogin.slice(0, 1).toUpperCase() : 'G'))
+const cachedAvatarSrc = ref('')
+const customAvatarUrl = ref('')
+const avatarInputRef = ref(null)
+const avatarLongPressTimer = ref(null)
+const avatarLongPressed = ref(false)
+
+// Custom avatar takes priority over GitHub avatar
+const displayAvatarSrc = computed(() => {
+  return customAvatarUrl.value || cachedAvatarSrc.value || syncStore.githubAvatarUrl || ''
+})
+
+// 缓存 GitHub 头像
+watch(
+  () => syncStore.githubAvatarUrl,
+  async (url) => {
+    if (!url) {
+      cachedAvatarSrc.value = ''
+      return
+    }
+    // 先检查内存缓存
+    const memHit = peekCachedImage(url)
+    if (memHit) {
+      cachedAvatarSrc.value = memHit
+      return
+    }
+    // 异步加载缓存（Cache API / Capacitor FS / 网络）
+    try {
+      const cached = await getCachedImage(url)
+      if (cached) cachedAvatarSrc.value = cached
+    } catch { /* ignore */ }
+  },
+  { immediate: true }
+)
+
+function handleAvatarClick() {
+  if (avatarLongPressed.value) {
+    avatarLongPressed.value = false
+    return
+  }
+  avatarInputRef.value?.click()
+}
+
+async function onAvatarFileChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  try {
+    const dataUrl = await fileToDataUrl(file)
+    customAvatarUrl.value = dataUrl
+    await writePersisted(CUSTOM_AVATAR_KEY, dataUrl)
+    showToastMsg(t('my.avatarUpdated'))
+  } catch (err) {
+    console.warn('[MyView] avatar upload failed', err)
+    showToastMsg(t('my.avatarUpdateFailed'))
+  }
+  // Reset input so the same file can be re-selected
+  if (avatarInputRef.value) avatarInputRef.value.value = ''
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+// Long-press to reset custom avatar
+function onAvatarLongPress(e) {
+  e.preventDefault()
+  if (!customAvatarUrl.value) return
+  showResetAvatarDialog.value = true
+}
+
+function startLongPress() {
+  if (!customAvatarUrl.value) return
+  avatarLongPressTimer.value = setTimeout(() => {
+    avatarLongPressed.value = true
+    showResetAvatarDialog.value = true
+    avatarLongPressTimer.value = null
+  }, 500)
+}
+
+function cancelLongPress() {
+  if (avatarLongPressTimer.value) {
+    clearTimeout(avatarLongPressTimer.value)
+    avatarLongPressTimer.value = null
+  }
+}
+
+function onAvatarMouseDown() {
+  startLongPress()
+}
+
+function onAvatarMouseUp() {
+  cancelLongPress()
+}
+
+function onAvatarTouchStart() {
+  startLongPress()
+}
+
+function onAvatarTouchEnd() {
+  cancelLongPress()
+}
+
+function closeResetAvatarDialog() {
+  showResetAvatarDialog.value = false
+}
+
+async function confirmResetAvatar() {
+  customAvatarUrl.value = ''
+  await writePersisted(CUSTOM_AVATAR_KEY, '')
+  showResetAvatarDialog.value = false
+  showToastMsg(t('my.avatarReset'))
+}
+
 const tokenDisplay = computed(() => {
   if (!syncStore.token) return t('my.notConfigured')
   const token = syncStore.token
@@ -446,6 +593,8 @@ function confirmLogout() {
 onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+  const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
+  if (saved) customAvatarUrl.value = saved
   await Promise.all([syncStore.init(), loadBudgetSettings()])
 })
 
@@ -748,6 +897,43 @@ onActivated(() => {
   color: #ffffff;
   font-size: 28px;
   font-weight: 700;
+}
+
+.account-avatar-wrap {
+  position: relative;
+  cursor: pointer;
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--app-surface, #fff);
+  background: var(--app-text, #141416);
+  color: var(--app-surface, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  z-index: 2;
+}
+
+.avatar-edit-btn:active {
+  transform: scale(0.9);
+}
+
+.avatar-edit-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.avatar-file-input {
+  display: none;
 }
 
 .account-copy {
@@ -1344,7 +1530,8 @@ onActivated(() => {
     border-radius: 24px;
   }
 
-  .budget-overlay {
+  .budget-overlay,
+  .reset-avatar-overlay {
     align-items: center;
   }
 
