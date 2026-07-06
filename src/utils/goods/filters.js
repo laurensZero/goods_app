@@ -117,7 +117,7 @@ function getDatePresetFloor(datePreset) {
   }
 }
 
-function buildSearchText(item) {
+export function buildSearchText(item) {
   const textParts = [
     item.name,
     item.category,
@@ -320,7 +320,7 @@ export function applyGoodsFilters(list, input) {
     : 0
 
   const filtered = list.filter((item) => {
-    const matchesKeyword = !keyword || buildSearchText(item).includes(keyword)
+    const matchesKeyword = !keyword || (item.searchText || buildSearchText(item)).includes(keyword)
     if (!matchesKeyword) return false
 
     if (!matchesSingleValue(filters.categories, item.category, GOODS_FILTER_SPECIAL_VALUES.uncategorized)) return false
@@ -368,7 +368,7 @@ export function filterGoodsList(list, input) {
     : 0
 
   return list.filter((item) => {
-    const matchesKeyword = !keyword || buildSearchText(item).includes(keyword)
+    const matchesKeyword = !keyword || (item.searchText || buildSearchText(item)).includes(keyword)
     if (!matchesKeyword) return false
 
     if (!matchesSingleValue(filters.categories, item.category, GOODS_FILTER_SPECIAL_VALUES.uncategorized)) return false

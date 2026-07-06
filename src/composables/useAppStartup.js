@@ -52,16 +52,17 @@ export function useAppStartup() {
       }
     }
 
-    void announcementStore.checkAndDecide({ source: 'startup' }).catch(() => {
-      // silent fail on startup announcement check
-    })
-
     // 自动拉取
     try {
       await syncStore.init()
     } catch (e) {
       console.error('[app] syncStore.init failed:', e)
     }
+
+    // 公告检查放在 syncStore.init() 之后，确保 token 已加载（避免 GitHub API 403 限速）
+    void announcementStore.checkAndDecide({ source: 'startup' }).catch(() => {
+      // silent fail on startup announcement check
+    })
     if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !hasLocalData.value) {
       try {
         await syncStore.pull({ silent: true })

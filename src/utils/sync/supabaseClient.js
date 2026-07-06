@@ -26,7 +26,8 @@ export function initSupabaseClient(url, anonKey) {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-      detectSessionInUrl: false
+      detectSessionInUrl: false,
+      storageKey: 'sb-main-auth-token'
     }
   })
   return supabase
@@ -93,7 +94,8 @@ export async function reconnectSupabase() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-      detectSessionInUrl: false
+      detectSessionInUrl: false,
+      storageKey: 'sb-main-auth-token'
     }
   })
   try {
