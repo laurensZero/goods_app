@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260706.8",
+    "url": "bundle-20260706.8.zip",
+    "hash": "4232214a9b11dcb1be38abe163ac3e0ab2cdd2cf96c3f42011c503691aa3a3f2",
+    "minNativeVersion": null,
+    "notes": "- feat: 优先使用时间线中\"已拥有\"的日期作为获取日期的逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-06T15:26:04Z"
+  },
+  {
     "version": "20260706.7",
     "url": "bundle-20260706.7.zip",
     "hash": "a1c23abee3d22444c98b8135638dd4bd84a3295caf1878047af8fd12f05da8f3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加每日推荐功能，优化用户体验；更新相关组件以支持推荐展示",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T12:30:31Z"
-  },
-  {
-    "version": "20260706.5",
-    "url": "bundle-20260706.5.zip",
-    "hash": "fb2db85c6cf05ec3a9f12bc1ef24a3e15f2960da52975c419e5d56aa3477409d",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加搜索结果加载更多功能，优化搜索体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T10:11:38Z"
   }
 ]

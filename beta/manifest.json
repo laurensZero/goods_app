@@ -1,9 +1,9 @@
 {
-  "version": "20260706.7",
-  "url": "bundle-20260706.7.zip",
-  "hash": "a1c23abee3d22444c98b8135638dd4bd84a3295caf1878047af8fd12f05da8f3",
+  "version": "20260706.8",
+  "url": "bundle-20260706.8.zip",
+  "hash": "4232214a9b11dcb1be38abe163ac3e0ab2cdd2cf96c3f42011c503691aa3a3f2",
   "minNativeVersion": null,
-  "notes": "- feat: 优化商品卡片性能，使用预计算字段减少计算开销；改进虚拟商品视口同步逻辑\n\n- feat: 谷子状态时间线",
+  "notes": "- feat: 优先使用时间线中\"已拥有\"的日期作为获取日期的逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T15:01:20Z"
+  "publishedAt": "2026-07-06T15:26:04Z"
 }
