@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify'
+
 export function detectMarkdownContent(value) {
   const text = String(value || '').trim()
   if (!text) return false
@@ -56,10 +58,5 @@ export async function renderMarkdown(value) {
   const md = await getMarkdownIt()
   const src = String(value || '')
   const rendered = md.render(src)
-  try {
-    const { default: DOMPurify } = await import('dompurify')
-    return DOMPurify.sanitize(rendered)
-  } catch (e) {
-    return rendered
-  }
+  return DOMPurify.sanitize(rendered)
 }
