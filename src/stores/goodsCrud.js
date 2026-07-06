@@ -13,6 +13,7 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/saleReminder'
+import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'
 
 /**
  * @param {object} data
@@ -132,7 +133,15 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     if (!ids.has(item.id)) return item
     changed = true
     previousItems.push(item)
-    const next = normalizeGoodsInput({ ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }, item.id)
+
+    // 批量编辑时，如果 collectStatus 变更，自动记录到时间线
+    const mergedData = { ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
+    if (data.collectStatus && data.collectStatus !== item.collectStatus) {
+      const existingTimeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
+      mergedData.statusTimeline = appendStatusTimelineEntry(existingTimeline, data.collectStatus)
+    }
+
+    const next = normalizeGoodsInput(mergedData, item.id)
     for (const path of diffRemovedManagedImagePaths(item, next)) {
       removedPaths.add(path)
     }

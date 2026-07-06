@@ -176,6 +176,24 @@ function normalizeCollectStatus(value) {
   return VALID_COLLECT_STATUSES.has(str) ? str : '已拥有'
 }
 
+function normalizeStatusTimeline(list) {
+  if (!Array.isArray(list)) return []
+  return list
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null
+      const status = String(entry.status || '').trim()
+      const at = String(entry.at || '').trim()
+      if (!status || !/^\d{4}-\d{2}-\d{2}$/.test(at)) return null
+      if (!VALID_COLLECT_STATUSES.has(status)) return null
+      const result = { status, at }
+      if (entry.note) result.note = String(entry.note).trim()
+      if (entry.unitIndex != null && Number.isInteger(entry.unitIndex)) result.unitIndex = entry.unitIndex
+      return result
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.at.localeCompare(b.at))
+}
+
 function resolveEffectivePriceValue(item) {
   if (normalizeWishlistFlag(item?.isWishlist)) {
     return item?.price
@@ -333,7 +351,8 @@ function normalizeGoodsInput(data, fallbackId = '') {
     currency: String(data.currency || '').trim() || 'CNY',
     actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY',
     collectStatus: normalizeCollectStatus(data.collectStatus),
-    shippingFee: String(data.shippingFee || '').trim()
+    shippingFee: String(data.shippingFee || '').trim(),
+    statusTimeline: normalizeStatusTimeline(data.statusTimeline)
   }
 }
 
@@ -399,6 +418,10 @@ function mergeGoodsRecord(existing, incoming) {
     note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
     collectStatus: existing.collectStatus || incoming.collectStatus,
     shippingFee: existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee,
+    statusTimeline: normalizeStatusTimeline([
+      ...(existing.statusTimeline || []),
+      ...(incoming.statusTimeline || [])
+    ]),
     quantity: mergedQuantity,
     updatedAt: Date.now()
   }
@@ -429,5 +452,6 @@ export {
   diffRemovedManagedImagePaths,
   normalizeGoodsInput,
   normalizeTrashItem,
-  mergeGoodsRecord
+  mergeGoodsRecord,
+  normalizeStatusTimeline
 }

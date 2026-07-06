@@ -47,6 +47,14 @@ export interface EventExpenseItem {
   amount: string
 }
 
+/** 状态时间线条目 */
+export interface StatusTimelineEntry {
+  status: string
+  at: string
+  note?: string
+  unitIndex?: number
+}
+
 /** 商品完整对象（业务层 shape，对应 normalizeGoodsInput 返回值） */
 export interface GoodsItem {
   id: string
@@ -80,6 +88,7 @@ export interface GoodsItem {
   actualPriceCurrency: string
   collectStatus: string
   shippingFee: string
+  statusTimeline: StatusTimelineEntry[]
 }
 
 /** 商品表单状态（GoodsItem 去掉 id/updatedAt/coverImage） */

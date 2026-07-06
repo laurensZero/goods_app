@@ -17,6 +17,7 @@ const CAMEL_TO_SNAKE = {
   actualPriceCurrency: 'actual_price_currency',
   collectStatus: 'collect_status',
   shippingFee: 'shipping_fee',
+  statusTimeline: 'status_timeline',
   coverImage: 'cover_image',
   coverImageData: 'cover_image_data',
   ticketPrice: 'ticket_price',

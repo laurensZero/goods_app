@@ -10,6 +10,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { appendStatusTimelineEntry, syncUnitStatusTimeline } from '@/utils/goods/statusTimeline'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   ensureSaleReminderPermission,
@@ -60,7 +61,8 @@ export function useGoodsEditorForm(options = {}) {
     currency: 'CNY',
     actualPriceCurrency: 'CNY',
     collectStatus: '已拥有',
-    shippingFee: ''
+    shippingFee: '',
+    statusTimeline: []
   })
 
   const showPointsInput = ref(false)
@@ -92,6 +94,8 @@ export function useGoodsEditorForm(options = {}) {
   const maxDate = new Date(2100, 11, 31)
   const hasCustomAcquiredAt = ref(false)
   const originalIsWishlist = ref(null)
+  const originalCollectStatus = ref(null)
+  const originalUnitCollectStatusList = ref(null)
   const { isTabletViewport, updateViewport } = useTabletViewport()
 
   const availableCharacters = computed(() =>
@@ -230,6 +234,8 @@ export function useGoodsEditorForm(options = {}) {
       const item = store.getById(editId)
       if (item) {
         originalIsWishlist.value = Boolean(item.isWishlist)
+        originalCollectStatus.value = item.collectStatus || '已拥有'
+        originalUnitCollectStatusList.value = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
         form.name = item.name ?? ''
         form.variant = item.variant ?? ''
         form.category = item.category ?? ''
@@ -244,6 +250,7 @@ export function useGoodsEditorForm(options = {}) {
         form.actualPriceCurrency = item.actualPriceCurrency || 'CNY'
         form.collectStatus = item.collectStatus || '已拥有'
         form.shippingFee = item.shippingFee ?? ''
+        form.statusTimeline = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
         form.points = item.points ?? ''
         showPointsInput.value = !!item.points
         showActualPriceInput.value = hasActualPriceValue(item.actualPrice)
@@ -349,6 +356,27 @@ export function useGoodsEditorForm(options = {}) {
     }
 
     if (mode === 'edit') {
+      // 自动记录状态变更到时间线
+      let timeline = Array.isArray(form.statusTimeline) ? [...form.statusTimeline] : []
+      const oldStatus = originalCollectStatus.value || '已拥有'
+      const newStatus = form.collectStatus || '已拥有'
+
+      // 老数据没有时间线时，用 acquiredAt 创建初始记录
+      if (timeline.length === 0 && form.acquiredAt) {
+        timeline = [{ status: oldStatus, at: form.acquiredAt }]
+      }
+
+      if (oldStatus !== newStatus) {
+        timeline = appendStatusTimelineEntry(timeline, newStatus)
+      }
+      // 多件状态变更
+      const oldUnitList = originalUnitCollectStatusList.value || []
+      const newUnitList = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+      if (newUnitList.length > 0) {
+        timeline = syncUnitStatusTimeline(timeline, oldUnitList, newUnitList)
+      }
+      form.statusTimeline = timeline
+
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
         alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
@@ -368,6 +396,13 @@ export function useGoodsEditorForm(options = {}) {
         setPendingDetailReturnPath(form.isWishlist ? '/wishlist' : '/home')
       }
     } else {
+      // 新增时记录初始状态到时间线
+      const initialStatus = form.isWishlist ? '' : (form.collectStatus || '已拥有')
+      if (initialStatus) {
+        // 待发货状态用购入日期（下单日期），其他状态用当天
+        const timelineDate = form.acquiredAt || today
+        form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
+      }
       const motionId = String(Date.now())
       const addPromise = store.addGoods({ ...form, id: motionId })
       writeAddMotionRequest(motionId, event)

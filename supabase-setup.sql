@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS goods (
   actual_price_currency TEXT DEFAULT 'CNY',
   collect_status TEXT DEFAULT '已拥有',
   shipping_fee TEXT DEFAULT '',
+  status_timeline JSONB DEFAULT '[]',
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -133,6 +134,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_at TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_enabled INTEGER DEFAULT 0;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_offsets JSONB DEFAULT '[]';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -184,6 +186,7 @@ BEGIN
     OR NEW.points IS DISTINCT FROM OLD.points
     OR NEW.collect_status IS DISTINCT FROM OLD.collect_status
     OR NEW.shipping_fee IS DISTINCT FROM OLD.shipping_fee
+    OR NEW.status_timeline IS DISTINCT FROM OLD.status_timeline
   THEN NEW.updated_at = now();
   ELSE NEW.updated_at = OLD.updated_at;
   END IF;
@@ -476,6 +479,7 @@ BEGIN
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
+      status_timeline = EXCLUDED.status_timeline,
       updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
   END IF;
 
@@ -500,6 +504,7 @@ BEGIN
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
+      status_timeline = EXCLUDED.status_timeline,
       updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
   END IF;
 

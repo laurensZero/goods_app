@@ -656,6 +656,17 @@
                 />
               </div>
               </section>
+
+              <section v-if="!form.isWishlist" v-show="activeTab === 'timeline'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'timeline' }">
+              <div class="section-head">
+                <p class="section-label">{{ t('goods.detail.statusTimeline') }}</p>
+                <h2 class="section-title">{{ t('goods.detail.statusTimelineLabel') }}</h2>
+              </div>
+
+              <div class="field-card">
+                <StatusTimelineEditor v-model="form.statusTimeline" :collect-status-options="collectStatusOptions" />
+              </div>
+              </section>
             </div>
           </section>
         </section>
@@ -722,6 +733,7 @@ import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import StatusTimelineEditor from '@/components/goods/StatusTimelineEditor.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -940,6 +952,13 @@ const tabItems = computed(() => {
       label: t('goods.editor.tabNotes')
     }
   ]
+
+  if (!form.isWishlist) {
+    items.push({
+      key: 'timeline',
+      label: t('goods.editor.tabTimeline')
+    })
+  }
 
   if (showTrackEditor.value) {
     items.push({

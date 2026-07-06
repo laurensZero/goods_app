@@ -175,6 +175,8 @@
           </div>
         </section>
 
+        <StatusTimeline v-if="!item.isWishlist" :timeline="item.statusTimeline" />
+
         <section v-if="item.note" class="note-section">
             <div class="section-head section-head--split">
             <div>
@@ -321,6 +323,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMatch, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
+import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -334,6 +337,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
+import StatusTimeline from '@/components/goods/StatusTimeline.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
@@ -918,12 +922,14 @@ async function confirmDelete() {
 
 async function markAsOwned() {
   if (!item.value) return
+  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
   await store.updateGoods(props.id, {
     isWishlist: false,
     acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD'),
     saleAt: '',
     saleReminderEnabled: false,
-    saleReminderOffsets: []
+    saleReminderOffsets: [],
+    statusTimeline: timeline
   })
 
   const targetPath = '/home'
@@ -940,7 +946,8 @@ async function markAsOwned() {
 async function markAsReceived() {
   if (!item.value) return
 
-  const updates = { collectStatus: '已拥有' }
+  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
+  const updates = { collectStatus: '已拥有', statusTimeline: timeline }
 
   // 同步更新多件状态列表中的「待发货」→「已拥有」
   const unitList = Array.isArray(item.value.unitCollectStatusList) ? [...item.value.unitCollectStatusList] : []
