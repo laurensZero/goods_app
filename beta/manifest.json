@@ -1,9 +1,9 @@
 {
-  "version": "20260707.1",
-  "url": "bundle-20260707.1.zip",
-  "hash": "61f9f282de5ecfe43796d1f5dc6db1867395a3e9f9cfefb3e3ed191b8905a6b6",
+  "version": "20260707.2",
+  "url": "bundle-20260707.2.zip",
+  "hash": "4b041fba61f462031352f2ab32d6ebff5f7efddc2820c230ba2cdd861c88e584",
   "minNativeVersion": null,
-  "notes": "- feat: 添加头像管理功能，支持更换和重置头像，优化用户体验",
+  "notes": "- feat: 补充翻译\n\n- feat: 添加繁中，日语，韩语翻译",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T16:09:25Z"
+  "publishedAt": "2026-07-06T17:07:13Z"
 }

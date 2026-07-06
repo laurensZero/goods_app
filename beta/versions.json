@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260707.2",
+    "url": "bundle-20260707.2.zip",
+    "hash": "4b041fba61f462031352f2ab32d6ebff5f7efddc2820c230ba2cdd861c88e584",
+    "minNativeVersion": null,
+    "notes": "- feat: 补充翻译\n\n- feat: 添加繁中，日语，韩语翻译",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-06T17:07:13Z"
+  },
+  {
     "version": "20260707.1",
     "url": "bundle-20260707.1.zip",
     "hash": "61f9f282de5ecfe43796d1f5dc6db1867395a3e9f9cfefb3e3ed191b8905a6b6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 使用 LazyCachedImage 组件替换商品封面图片，优化图片加载体验",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T15:28:26Z"
-  },
-  {
-    "version": "20260706.8",
-    "url": "bundle-20260706.8.zip",
-    "hash": "4232214a9b11dcb1be38abe163ac3e0ab2cdd2cf96c3f42011c503691aa3a3f2",
-    "minNativeVersion": null,
-    "notes": "- feat: 优先使用时间线中\"已拥有\"的日期作为获取日期的逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T15:26:04Z"
   }
 ]
