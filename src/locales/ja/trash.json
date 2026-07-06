@@ -1,0 +1,23 @@
+{
+  "trash.restore": "復元",
+  "trash.emptyTitle": "ゴミ箱は空です",
+  "trash.emptyDesc": "削除されたアイテムはありません",
+  "trash.restoreAll": "すべて復元",
+  "trash.emptyTrash": "ゴミ箱を空にする",
+  "trash.confirmEmpty": "ゴミ箱を空にしますか？",
+  "trash.confirmEmptyDesc": "空にすると元に戻せません",
+  "trash.permanentDelete": "完全削除",
+  "trash.confirmPermanent": "完全に削除しますか？",
+  "trash.confirmPermanentDesc": "この操作は元に戻せません",
+  "trash.deletedAt": "{date}に削除",
+  "trash.quantity": "数量",
+  "trash.deleteConfirmDesc": "削除後は元に戻せません",
+  "trash.deleteConfirmTitle": "削除の確認",
+  "trash.emptyConfirmDesc": "すべてのレコードが完全に削除されます",
+  "trash.emptyConfirmTitle": "ゴミ箱を空にする確認",
+  "trash.heroDesc": "削除されたアイテムの確認と復元",
+  "trash.heroTitle": "ゴミ箱",
+  "trash.justNow": "たった今",
+  "trash.totalQuantity": "合計{count}件",
+  "trash.trashItems": "ゴミ箱のアイテム"
+}

@@ -1,0 +1,22 @@
+{
+  "status.pendingShipment": "발송 대기",
+  "status.pendingPayment": "결제 대기",
+  "status.pendingPostage": "배송비 대기",
+  "status.owned": "소유",
+  "status.lost": "분실",
+  "status.gifted": "선물함",
+  "status.wantToSell": "판매하고 싶음",
+  "status.sold": "판매됨",
+  "status.forSale": "판매 중",
+  "status.short.pendingShipment": "발송 대기",
+  "status.short.pendingPayment": "결제 대기",
+  "status.short.pendingPostage": "배송비 대기",
+  "status.short.owned": "소유",
+  "status.short.lost": "분실",
+  "status.short.gifted": "선물",
+  "status.short.wantToSell": "판매 희망",
+  "status.short.sold": "판매됨",
+  "status.short.forSale": "판매 중",
+  "status.pendingShipping": "배송비 대기",
+  "status.onSale": "판매 중"
+}

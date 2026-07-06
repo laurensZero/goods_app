@@ -1,0 +1,22 @@
+{
+  "status.pendingShipment": "発送待ち",
+  "status.pendingPayment": "支払い待ち",
+  "status.pendingPostage": "送料待ち",
+  "status.owned": "所有",
+  "status.lost": "紛失",
+  "status.gifted": "プレゼント済み",
+  "status.wantToSell": "売りたい",
+  "status.sold": "売却済み",
+  "status.forSale": "販売中",
+  "status.short.pendingShipment": "発送待ち",
+  "status.short.pendingPayment": "支払い待ち",
+  "status.short.pendingPostage": "送料待ち",
+  "status.short.owned": "所有",
+  "status.short.lost": "紛失",
+  "status.short.gifted": "贈呈",
+  "status.short.wantToSell": "売却希望",
+  "status.short.sold": "売却済",
+  "status.short.forSale": "販売中",
+  "status.pendingShipping": "送料待ち",
+  "status.onSale": "販売中"
+}

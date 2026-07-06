@@ -1,0 +1,15 @@
+{
+  "validation.required": "{field}は必須です",
+  "validation.maxLength": "{field}は{max}文字以内で入力してください",
+  "validation.minLength": "{field}は{min}文字以上で入力してください",
+  "validation.invalidEmail": "有効なメールアドレスを入力してください",
+  "validation.invalidUrl": "有効なURLを入力してください",
+  "validation.invalidNumber": "有効な数値を入力してください",
+  "validation.invalidPrice": "有効な非負の価格を入力してください",
+  "validation.priceOutOfRange": "価格が妥当な範囲外です",
+  "validation.invalidDate": "有効な日付を入力してください",
+  "validation.invalidPhone": "有効な電話番号を入力してください",
+  "validation.passwordMismatch": "パスワードが一致しません",
+  "validation.nameRequired": "名前は必須です",
+  "validation.nameTooLong": "名前は{max}文字以内で入力してください"
+}
