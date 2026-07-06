@@ -94,8 +94,15 @@ export function createWebAdapter() {
     },
 
     async executeSet(stmts) {
-      for (const { statement, values } of stmts) {
-        _db.run(statement, values)
+      _db.run('BEGIN TRANSACTION')
+      try {
+        for (const { statement, values } of stmts) {
+          _db.run(statement, values)
+        }
+        _db.run('COMMIT')
+      } catch (e) {
+        _db.run('ROLLBACK')
+        throw e
       }
       _scheduleSave()
     },
@@ -104,7 +111,7 @@ export function createWebAdapter() {
       const result = _db.exec(sql, params)
       if (!result.length) return []
       const { columns, values } = result[0]
-      return values.map(row => Object.fromEntries(columns.map((col, i) => [col, row[i] ?? ''])))
+      return values.map(row => Object.fromEntries(columns.map((col, i) => [col, row[i]])))
     },
 
     async getTableColumns(tableName) {
