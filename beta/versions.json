@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260707.1",
+    "url": "bundle-20260707.1.zip",
+    "hash": "61f9f282de5ecfe43796d1f5dc6db1867395a3e9f9cfefb3e3ed191b8905a6b6",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加头像管理功能，支持更换和重置头像，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-06T16:09:25Z"
+  },
+  {
     "version": "20260706.9",
     "url": "bundle-20260706.9.zip",
     "hash": "8123809a8b00add9a33bf08ba9a0f382e4e37eb3c5c5ccca8882ad36441f5e36",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优先使用时间线中\"已拥有\"的日期作为获取日期的逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T15:26:04Z"
-  },
-  {
-    "version": "20260706.7",
-    "url": "bundle-20260706.7.zip",
-    "hash": "a1c23abee3d22444c98b8135638dd4bd84a3295caf1878047af8fd12f05da8f3",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化商品卡片性能，使用预计算字段减少计算开销；改进虚拟商品视口同步逻辑\n\n- feat: 谷子状态时间线",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T15:01:20Z"
   }
 ]
