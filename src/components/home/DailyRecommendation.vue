@@ -24,7 +24,14 @@
         <Transition name="card-swap" mode="out-in">
           <div v-if="item" :key="item.id" class="rec-card" @click="openDetail">
             <div class="rec-cover">
-              <img v-if="item.coverImage" :src="item.coverImage" :alt="item.name" class="rec-img" />
+              <LazyCachedImage
+                v-if="item.coverImage"
+                :src="item.coverImage"
+                :alt="item.name"
+                class="rec-img"
+                :lazy="false"
+                :skeleton-enabled="false"
+              />
               <span v-else class="rec-fallback">{{ coverInitial }}</span>
             </div>
             <div class="rec-info">
@@ -57,6 +64,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CURRENCY_MAP } from '@/constants/currencies'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
