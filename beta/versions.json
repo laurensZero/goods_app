@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260706.6",
+    "url": "bundle-20260706.6.zip",
+    "hash": "e46718fe84ab30c9e1b50259caaf2af570feff1950b6d8811b0af075dc0255ce",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加每日推荐功能，优化用户体验；更新相关组件以支持推荐展示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-06T12:30:31Z"
+  },
+  {
     "version": "20260706.5",
     "url": "bundle-20260706.5.zip",
     "hash": "fb2db85c6cf05ec3a9f12bc1ef24a3e15f2960da52975c419e5d56aa3477409d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 QQ 音乐支持，包括搜索、导入歌单和专辑功能；更新相关组件以处理 QQ 音乐数据",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T10:07:23Z"
-  },
-  {
-    "version": "20260706.3",
-    "url": "bundle-20260706.3.zip",
-    "hash": "a30b06c291591499a3f22fc688dbe3a3bc49e0b1459c1e772fa96048bdcc1cfe",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 QQ 音乐支持，包括搜索、播放和歌词功能；更新相关组件以处理 QQ 音乐数据",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T09:46:01Z"
   }
 ]
