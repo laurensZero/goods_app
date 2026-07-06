@@ -335,7 +335,7 @@ onMounted(async () => {
   manageDisplayReady.value = true
 
   void cleanupUnreferencedLocalImages().then(({ removed, bytes }) => {
-    if (removed > 0) showToast(`已清理 ${removed} 张无引用本地图，释放 ${formatCompactSize(bytes)}`, 3800)
+    if (removed > 0) showToast(t('toast.cleanedLocalImages', { count: removed, size: formatCompactSize(bytes) }), 3800)
   }).catch(() => {})
 })
 

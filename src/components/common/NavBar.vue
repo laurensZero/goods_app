@@ -1,7 +1,7 @@
 <template>
   <header class="nav-bar">
     <div class="nav-bar__inner">
-      <button v-if="showBack" class="nav-back" type="button" aria-label="返回" @click="handleBackClick">
+      <button v-if="showBack" class="nav-back" type="button" :aria-label="t('common.aria.back')" @click="handleBackClick">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M15 18L9 12L15 6" />
         </svg>
@@ -19,6 +19,7 @@
 
 <script setup>
 import { getCurrentInstance } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { runManageBackNavigation, runWithRouteTransition } from '@/utils/routeTransition'
 
@@ -28,6 +29,7 @@ defineProps({
 })
 
 const emit = defineEmits(['back'])
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const instance = getCurrentInstance()

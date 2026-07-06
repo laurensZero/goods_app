@@ -181,7 +181,7 @@
                   class="linked-goods-card__img"
                   :data-goods-hero-id="String(goods.id || '')"
                 />
-                <div v-else class="linked-goods-card__placeholder" :data-goods-hero-id="String(goods.id || '')">{{ goods.name?.trim()?.charAt(0) || '谷' }}</div>
+                <div v-else class="linked-goods-card__placeholder" :data-goods-hero-id="String(goods.id || '')">{{ goods.name?.trim()?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
                 <span class="linked-goods-card__name">{{ goods.name }}</span>
               </a>
             </div>
@@ -215,7 +215,7 @@
           v-if="event.photos[previewPhotoIndex]?.uri"
           class="photo-preview__img"
           :src="event.photos[previewPhotoIndex].uri"
-          :alt="event.photos[previewPhotoIndex]?.caption || `照片 ${previewPhotoIndex + 1}`"
+          :alt="event.photos[previewPhotoIndex]?.caption || t('events.photoAlt', { index: previewPhotoIndex + 1 })"
         />
       </div>
     </Transition>
@@ -366,7 +366,7 @@ const TYPE_MAP = computed(() => ({
 const typeInfo = computed(() => TYPE_MAP.value[event.value?.type] || TYPE_MAP.value.other)
 const typeLabel = computed(() => typeInfo.value.label)
 const typeChipClass = computed(() => typeInfo.value.cls)
-const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || '活')
+const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || t('goods.heroFallbackEvent'))
 const coverCardStyle = computed(() => ({}))
 const dateDisplay = computed(() => {
   if (!event.value?.startDate) return t('common.unfilled')

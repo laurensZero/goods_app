@@ -11,14 +11,14 @@
         <div class="floating-player__head" @pointerdown="startDrag">
           <div class="floating-player__copy">
             <p class="floating-player__eyebrow">Now Playing</p>
-            <strong class="floating-player__title">{{ currentTrack.title || '未命名曲目' }}</strong>
+            <strong class="floating-player__title">{{ currentTrack.title || t('common.unnamed') }}</strong>
             <p class="floating-player__meta">
-              <span>{{ currentTrack.artist || '未知歌手' }}</span>
+              <span>{{ currentTrack.artist || t('common.unnamedTrack') }}</span>
               <span v-if="currentTrack.album"> · {{ currentTrack.album }}</span>
             </p>
           </div>
 
-          <button type="button" class="floating-player__close" aria-label="收起播放器" @click="closeMiniPlayer">
+          <button type="button" class="floating-player__close" :aria-label="t('common.aria.collapsePlayer')" @click="closeMiniPlayer">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M18 6L6 18" />
               <path d="M6 6L18 18" />
@@ -56,8 +56,8 @@
               type="button"
               class="floating-player__queue-trigger"
               :class="{ 'floating-player__queue-trigger--active': isQueuePanelOpen }"
-              aria-label="打开播放列表"
-              :title="`播放列表 · ${queueItems.length}`"
+              :aria-label="t('common.aria.openPlaylist')"
+              :title="`${t('common.playlist')} · ${queueItems.length}`"
               @click.stop="toggleQueuePanel"
             >
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -100,7 +100,7 @@
               type="button"
               class="floating-player__volume-trigger"
               :class="{ 'floating-player__volume-trigger--active': isVolumePanelOpen }"
-              :aria-label="isVolumePanelOpen ? '收起音量调节' : '打开音量调节'"
+              :aria-label="isVolumePanelOpen ? t('common.aria.collapseVolume') : t('common.aria.openVolume')"
               :title="volumeStateLabel"
               @click.stop="toggleVolumePanel"
             >
@@ -134,7 +134,7 @@
                     step="0.01"
                     :value="volumeValue"
                     :style="{ '--player-progress': volumeProgressPercent }"
-                    aria-label="调节播放器音量"
+                    :aria-label="t('common.aria.adjustVolume')"
                     @input="handleVolumeInput"
                     @change="commitVolume"
                     @pointerup="commitVolume"
@@ -163,10 +163,10 @@
       >
         <div class="floating-player__queue-head">
           <div class="floating-player__queue-head-copy">
-            <strong>播放列表</strong>
-            <span>当前播放队列</span>
+            <strong>{{ t('common.playlist') }}</strong>
+            <span>{{ t('common.currentQueue') }}</span>
           </div>
-          <span class="floating-player__queue-total">{{ queueItems.length }} 首</span>
+          <span class="floating-player__queue-total">{{ queueItems.length }} {{ t('common.tracksUnit') }}</span>
         </div>
 
         <div ref="queueListRef" class="floating-player__queue-list">
@@ -181,10 +181,10 @@
           >
             <span class="floating-player__queue-index">{{ index + 1 }}</span>
             <span class="floating-player__queue-copy">
-              <strong>{{ track.title || '未命名曲目' }}</strong>
-              <span>{{ track.artist || '未知歌手' }}</span>
+              <strong>{{ track.title || t('common.unnamed') }}</strong>
+              <span>{{ track.artist || t('common.unnamedTrack') }}</span>
             </span>
-            <span v-if="index === playerStore.currentIndex" class="floating-player__queue-now">播放中</span>
+            <span v-if="index === playerStore.currentIndex" class="floating-player__queue-now">{{ t('common.playing') }}</span>
           </button>
         </div>
       </div>
@@ -194,6 +194,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { formatTrackDuration } from '@/utils/neteaseMusic'
 
@@ -201,6 +202,7 @@ const props = defineProps({
   withTabBar: { type: Boolean, default: false }
 })
 
+const { t } = useI18n()
 const PLAYER_POSITION_KEY = 'floating-audio-player-position'
 const PLAYER_MARGIN = 10
 

@@ -7,7 +7,7 @@
       <section class="hero-section">
         <div class="hero-copy">
           <div class="hero-topline">
-            <button class="hero-back" type="button" aria-label="返回" @click="handleBack">
+            <button class="hero-back" type="button" :aria-label="t('common.aria.back')" @click="handleBack">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M15 18L9 12L15 6" />
               </svg>
@@ -147,11 +147,11 @@ const GRID_BREAKPOINTS = [
   { minWidth: 900, cols: 6 },
   { minWidth: 0, cols: 3 }
 ]
-const SORT_OPTIONS = [
-  { value: 'createdAt', label: '添加时间', descLabel: '最近添加', ascLabel: '最早添加' },
-  { value: 'acquiredAt', label: '购入时间', descLabel: '最近购入', ascLabel: '最早购入' },
-  { value: 'name', label: '名称', descLabel: '名称 Z-A', ascLabel: '名称 A-Z' }
-]
+const SORT_OPTIONS = computed(() => [
+  { value: 'createdAt', label: t('home.sort.createdAt'), descLabel: t('home.sort.createdAtDesc'), ascLabel: t('home.sort.createdAtAsc') },
+  { value: 'acquiredAt', label: t('home.sort.acquiredAt'), descLabel: t('home.sort.acquiredAtDesc'), ascLabel: t('home.sort.acquiredAtAsc') },
+  { value: 'name', label: t('home.sort.name'), descLabel: t('home.sort.nameDesc'), ascLabel: t('home.sort.nameAsc') }
+])
 
 const router = useRouter()
 const route = useRoute()
@@ -171,7 +171,7 @@ const currentSortOption = computed(() => (
   SORT_OPTIONS.find((option) => option.value === sortMode.value) || SORT_OPTIONS[0]
 ))
 const sortButtonLabel = computed(() => (
-  `当前按${currentSortOption.value.label}${sortDirection.value === 'asc' ? '升序' : '降序'}排序`
+  t('home.sort.currentSortLabel', { method: currentSortOption.value.label, direction: sortDirection.value === 'asc' ? t('home.toolbar.asc') : t('home.toolbar.desc') })
 ))
 
 const baseGoodsList = computed(() => goodsStore.collectionViewList || goodsStore.collectionList || [])

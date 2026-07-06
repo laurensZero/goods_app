@@ -3,22 +3,26 @@
     <section class="selection-header-spacer" aria-hidden="true" />
 
     <section class="selection-header" :style="headerStyle">
-      <button class="sel-back-btn" type="button" aria-label="退出多选" @click="$emit('back')">
+      <button class="sel-back-btn" type="button" :aria-label="t('common.aria.exitSelection')" @click="$emit('back')">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M15 18l-6-6 6-6" />
         </svg>
       </button>
 
-      <span class="sel-title">已选择 {{ selectedCount }} 项</span>
+      <span class="sel-title">{{ t('home.selected', { count: selectedCount }) }}</span>
 
       <button class="sel-all-btn" type="button" @click="$emit('toggle-all')">
-        {{ allSelected ? '取消全选' : '全选' }}
+        {{ allSelected ? t('home.deselectAll') : t('home.selectAll') }}
       </button>
     </section>
   </template>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   show: { type: Boolean, default: false },
   selectedCount: { type: Number, required: true },

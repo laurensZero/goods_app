@@ -4,27 +4,27 @@
       <div v-if="modelValue" class="sheet-backdrop" @click="close" />
     </Transition>
     <Transition name="sheet-slide" @after-leave="onAfterLeave">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" aria-label="设置默认值">
+      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('common.aria.setDefaults')">
         <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">设置默认值</p>
+        <p class="sheet-title">{{ t('common.aria.setDefaults') }}</p>
 
         <div class="sheet-options">
           <label class="field">
             <span class="field-label">IP</span>
-            <AppSelect v-model="local.ip" :options="ipOptions" placeholder="选择 IP" />
+            <AppSelect v-model="local.ip" :options="ipOptions" :placeholder="t('goods.editor.ipPlaceholder')" />
           </label>
           <label class="field">
-            <span class="field-label">分类</span>
-            <AppSelect v-model="local.category" :options="categoryOptions" placeholder="选择分类" />
+            <span class="field-label">{{ t('common.category') }}</span>
+            <AppSelect v-model="local.category" :options="categoryOptions" :placeholder="t('goods.editor.categoryPlaceholder')" />
           </label>
           <label class="field">
-            <span class="field-label">价格</span>
-            <input v-model="local.price" type="text" inputmode="decimal" placeholder="例如：99" />
+            <span class="field-label">{{ t('common.price') }}</span>
+            <input v-model="local.price" type="text" inputmode="decimal" :placeholder="t('goods.editor.namePlaceholder')" />
           </label>
         </div>
 
-        <button class="sheet-apply" type="button" @click="apply">应用到全部</button>
-        <button class="sheet-cancel" type="button" @click="close">取消</button>
+        <button class="sheet-apply" type="button" @click="apply">{{ t('goods.batch.applyChanges') }}</button>
+        <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
       </div>
     </Transition>
   </Teleport>
@@ -32,7 +32,10 @@
 
 <script setup>
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

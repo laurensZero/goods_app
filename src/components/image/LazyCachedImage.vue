@@ -18,29 +18,32 @@
       class="lazy-image-skeleton lazy-image-layer"
       role="status"
       aria-live="polite"
-      aria-label="图片加载中"
+      :aria-label="t('common.aria.imageLoading')"
     />
     <div
       v-if="showFallback"
       class="lazy-image-fallback lazy-image-layer"
       role="img"
-      :aria-label="alt || '图片加载失败'"
+      :aria-label="alt || t('common.loadingFailed')"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path
           d="M5.5 6.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-13Zm0 1.5h13a.5.5 0 0 1 .5.5v4.28l-2.9-2.47a1.1 1.1 0 0 0-1.42.02l-2.37 2.11-1.66-1.36a1.1 1.1 0 0 0-1.42.04L5 14.87V8.5a.5.5 0 0 1 .5-.5Zm2.9 2.35a1.05 1.05 0 1 0 0-2.1 1.05 1.05 0 0 0 0 2.1Z"
         />
       </svg>
-      <span>加载失败</span>
+      <span>{{ t('common.loadingFailed') }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 
 defineOptions({ inheritAttrs: false })
+
+const { t } = useI18n()
 
 const props = defineProps({
   src: { type: String, default: '' },

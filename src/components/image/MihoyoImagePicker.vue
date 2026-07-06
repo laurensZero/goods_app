@@ -50,10 +50,10 @@
   </div>
 
   <div v-if="fetchState === 'loading'" class="mhpicker-hint">
-    正在解析米游铺商品…
+    {{ t('import.parsingMihoyo') }}
   </div>
   <div v-else-if="fetchState === 'error'" class="mhpicker-hint mhpicker-hint--error">
-    解析失败，请检查链接
+    {{ t('import.errorParseFailed') }}
   </div>
 
   <div v-if="variants.length > 0" class="mhpicker-scroll">
@@ -74,7 +74,7 @@
       <span class="mhpicker-label">{{ v.text }}</span>
     </button>
   </div>
-  <p v-if="variants.length > 0" class="mhpicker-save-hint">点击选择款式，保存时自动写入图片链接</p>
+  <p v-if="variants.length > 0" class="mhpicker-save-hint">{{ t('import.selectVariantHint') }}</p>
 
   <QuickImageEditorDialog
     v-model:show="showQuickEditor"
@@ -85,6 +85,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
 import { saveLocalImage } from '@/utils/image/localImage'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
@@ -97,6 +98,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
 
 const inputRef = ref(null)
 const fileInputRef = ref(null)

@@ -1,5 +1,5 @@
 <template>
-  <nav class="tab-nav" aria-label="表单分组">
+  <nav class="tab-nav" :aria-label="t('common.aria.formGroups')">
     <div class="tab-nav__scroll">
       <button
         v-for="tab in tabs"
@@ -17,6 +17,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   modelValue: {
     type: String,

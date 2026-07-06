@@ -18,7 +18,7 @@
                   :lazy="false"
                   :image-attrs="{ class: 'preview-card__image' }"
                 />
-                <span v-else class="preview-card__fallback">{{ form.name?.trim().charAt(0).toUpperCase() || '活' }}</span>
+                <span v-else class="preview-card__fallback">{{ form.name?.trim().charAt(0).toUpperCase() || t('goods.heroFallbackEvent') }}</span>
               </div>
 
               <article class="preview-copy-card">
@@ -279,7 +279,7 @@
                                 :alt="goods.name"
                                 class="linked-goods__thumb"
                               />
-                              <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || '谷' }}</div>
+                              <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
                               <span class="linked-goods__name">{{ goods.name }}</span>
                               <button type="button" class="linked-goods__remove" @click="removeLinkedGoods(goods.id)">×</button>
                             </div>

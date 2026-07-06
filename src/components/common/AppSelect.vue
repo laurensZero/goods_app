@@ -2,7 +2,7 @@
   <div ref="rootRef" class="app-select" :class="{ 'app-select--open': open, 'app-select--disabled': disabled }">
     <button class="app-select__trigger" type="button" :disabled="disabled" @pointerdown="flushActiveInput" @click="toggle">
       <span class="app-select__value" :class="{ 'app-select__value--placeholder': !displayLabel }">
-        {{ displayLabel || placeholder }}
+        {{ displayLabel || placeholder || t('common.selectPlaceholder') }}
       </span>
 
       <svg class="app-select__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -33,7 +33,7 @@
           </svg>
         </button>
 
-        <div v-if="normalizedOptions.length === 0" class="app-select__empty">暂无可选项</div>
+        <div v-if="normalizedOptions.length === 0" class="app-select__empty">{{ t('common.noOptions') }}</div>
       </div>
     </transition>
   </div>
@@ -41,6 +41,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
 const props = defineProps({
@@ -54,7 +55,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: '请选择'
+    default: ''
   },
   disabled: {
     type: Boolean,
@@ -63,6 +64,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
 
 const rootRef = ref(null)
 const open = ref(false)

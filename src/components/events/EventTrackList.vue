@@ -12,7 +12,7 @@
           v-if="track.coverUrl"
           class="track-list__cover"
           :src="track.coverUrl"
-          :alt="track.title || '曲目封面'"
+          :alt="track.title || t('events.tracks.cover')"
           :lazy="false"
           :use-cache="track.source !== 'qq'"
           loading="lazy"
@@ -251,7 +251,7 @@ async function handlePlay(track) {
     await playerStore.toggleTrackPlayback(track, props.tracks)
     playerStore.showMiniPlayer()
   } catch (error) {
-    errorMessage.value = error?.message || '内嵌播放失败'
+    errorMessage.value = error?.message || t('events.tracks.playFailed')
   }
 }
 

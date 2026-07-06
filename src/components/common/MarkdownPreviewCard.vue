@@ -3,7 +3,7 @@
     <div class="markdown-preview-card__head">
       <p v-if="title" class="markdown-preview-card__label">{{ title }}</p>
       <button v-if="normalizedContent" class="markdown-preview-card__copy" type="button" @click="copyMarkdown">
-        {{ copied ? '已复制 markdown' : '复制 markdown' }}
+        {{ copied ? t('common.copiedMarkdown') : t('common.copyMarkdown') }}
       </button>
     </div>
     <div class="markdown-preview-card__body" v-html="previewHtml" />
@@ -12,7 +12,10 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
+
+const { t } = useI18n()
 
 const props = defineProps({
   content: {
@@ -21,7 +24,7 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: '实时预览'
+    default: ''
   }
 })
 

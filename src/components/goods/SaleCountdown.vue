@@ -7,7 +7,10 @@
 
 <script setup>
 import { ref, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { parseSaleAt } from '@/utils/saleReminder'
+
+const { t } = useI18n()
 
 const props = defineProps({
   saleAt: { type: String, default: '' }
@@ -22,7 +25,7 @@ function update() {
 
   const diff = date.getTime() - Date.now()
   if (diff <= 0) {
-    text.value = '已到开售时间'
+    text.value = t('notify.saleTimeReached')
     return
   }
 
@@ -33,12 +36,12 @@ function update() {
   const seconds = totalSec % 60
 
   const parts = []
-  if (days > 0) parts.push(`${days} 天`)
-  if (hours > 0) parts.push(`${hours} 时`)
-  if (minutes > 0) parts.push(`${minutes} 分`)
-  if (days === 0) parts.push(`${seconds} 秒`)
+  if (days > 0) parts.push(`${days} ${t('common.daysUnit')}`)
+  if (hours > 0) parts.push(`${hours} ${t('common.hoursUnit')}`)
+  if (minutes > 0) parts.push(`${minutes} ${t('common.minutesUnit')}`)
+  if (days === 0) parts.push(`${seconds} ${t('common.secondsUnit')}`)
 
-  text.value = `距开售 ${parts.join(' ')}`
+  text.value = `${t('notify.saleCountdown')} ${parts.join(' ')}`
 }
 
 function startTimer() {

@@ -165,7 +165,7 @@
               <div class="preview-glow" />
               <div class="preview-media" :class="{ 'preview-media--empty': !form.image }">
                 <img v-if="form.image" :src="form.image" :alt="form.name" class="preview-image" />
-                <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || '谷' }}</span>
+                <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || t('goods.heroFallbackGoods') }}</span>
               </div>
             </div>
 

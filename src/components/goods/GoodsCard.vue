@@ -53,7 +53,7 @@
         v-if="item.isWishlist"
         :class="['wishlist-badge', { 'wishlist-badge--compact': density === 'compact' }]"
       >
-        心愿
+        {{ t('goods.card.wishlist') }}
       </div>
       <div
         v-if="!item.isWishlist && isPending"
@@ -101,7 +101,7 @@
         <span class="card-price">
           {{ priceText }}
           <span v-if="priceCNYHint" class="card-price-cny">{{ priceCNYHint }}</span>
-          <span v-if="showPoints" class="card-price-points">+{{ item.points }}积分</span>
+          <span v-if="showPoints" class="card-price-points">+{{ item.points }}{{ t('goods.card.points') }}</span>
         </span>
         <span class="card-days" :class="{ 'card-days--hidden': !showHoldingDays }">{{ statusDaysText }}</span>
       </div>
@@ -111,6 +111,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -120,6 +121,8 @@ import {
   areAllCopiesExited,
   formatCollectStatusSummary
 } from '@/utils/goods/status'
+
+const { t } = useI18n()
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -296,10 +299,14 @@ const unitHoldingDaysList = computed(() => props.item._unitHoldingDaysList ?? []
 const hasUnitHoldingDays = computed(() => props.item._hasUnitHoldingDays ?? false)
 const holdingDays = computed(() => props.item._holdingDays ?? null)
 
-const STATUS_SHORT_MAP = {
-  '待发货': '待发',
-  '待补款': '补款',
-  '待补邮': '补邮'
+function getStatusShort(status) {
+  const map = {
+    '待发货': 'status.short.pendingShipment',
+    '待补款': 'status.short.pendingPayment',
+    '待补邮': 'status.short.pendingPostage'
+  }
+  const key = map[status]
+  return key ? t(key) : null
 }
 
 const primaryStatus = computed(() => props.item._primaryStatus ?? resolvePrimaryCollectStatus(props.item))
@@ -315,15 +322,16 @@ const statusDaysText = computed(() => {
     const daysList = list.map((e) => e.days)
     const minDays = Math.min(...daysList)
     const maxDays = Math.max(...daysList)
-    const daysStr = minDays === maxDays ? `${minDays} 天` : `${minDays}~${maxDays} 天`
+    const daysUnit = t('common.daysUnit')
+    const daysStr = minDays === maxDays ? `${minDays} ${daysUnit}` : `${minDays}~${maxDays} ${daysUnit}`
 
     // Collect unique statuses
     const statusSet = new Set(list.map((e) => e.status))
     if (statusSet.size === 1) {
       const status = list[0].status
-      const short = STATUS_SHORT_MAP[status]
+      const short = getStatusShort(status)
       if (short) return `${short} ${daysStr}`
-      if (status === '已拥有') return `持有 ${daysStr}`
+      if (status === '已拥有') return `${t('goods.card.holding')} ${daysStr}`
       return `${status} ${daysStr}`
     }
 
@@ -334,10 +342,12 @@ const statusDaysText = computed(() => {
   const days = holdingDays.value
   if (days === null) return ''
 
+  const daysUnit = t('common.daysUnit')
   const primary = primaryStatus.value
-  if (STATUS_SHORT_MAP[primary]) return `${STATUS_SHORT_MAP[primary]} ${days} 天`
-  if (primary === '已拥有' || !primary) return `持有 ${days} 天`
-  return `${primary} ${days} 天`
+  const short = getStatusShort(primary)
+  if (short) return `${short} ${days} ${daysUnit}`
+  if (primary === '已拥有' || !primary) return `${t('goods.card.holding')} ${days} ${daysUnit}`
+  return `${primary} ${days} ${daysUnit}`
 })
 
 const showCategory = computed(() => props.density !== 'compact' && !!props.item.category)
@@ -389,28 +399,29 @@ const priceText = computed(() => {
   )
 
   if (props.item.isWishlist) {
-    return hasPriceValue(props.item.price) ? `目标 ${sym}${props.item.price}` : '心愿单'
+    return hasPriceValue(props.item.price) ? `目标 ${sym}${props.item.price}` : t('common.wishlist')
   }
 
   const quantity = Math.max(1, Number(props.item.quantity) || 1)
   const shipping = Number(props.item.shippingFee) || 0
+  const toPrefix = showAtHandPrefix ? t('goods.card.toPrefix') : ''
 
   if (unitActualPriceText.value) {
     const list = Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList : []
     const total = list.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) + shipping
-    return `${showAtHandPrefix ? '到手 ' : ''}${apSym}${total}`
+    return `${toPrefix}${apSym}${total}`
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
     const base = Number(props.item.actualPrice) || 0
     const total = base + shipping
-    return `${showAtHandPrefix ? '到手 ' : ''}${apSym}${total}`
+    return `${toPrefix}${apSym}${total}`
   }
 
   if (hasPriceValue(props.item.price)) {
     const base = Number(props.item.price) || 0
     const total = (base * quantity) + shipping
-    return `${showAtHandPrefix ? '到手 ' : ''}${sym}${total}`
+    return `${toPrefix}${sym}${total}`
   }
 
   return `${sym}—`

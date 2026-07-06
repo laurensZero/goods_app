@@ -321,7 +321,7 @@ const monthGroups = computed(() => {
   const groups = new Map()
 
   for (const item of filteredRecords.value) {
-    const key = String(item.chargedAt || '').slice(0, 7) || '未填写日期'
+    const key = String(item.chargedAt || '').slice(0, 7) || t('recharge.unfilledDate')
     if (!groups.has(key)) {
       groups.set(key, {
         key,

@@ -6,7 +6,7 @@
       :class="{ 'chip--active': modelValue === '' }"
       @click="$emit('update:modelValue', '')"
     >
-      全部
+      {{ t('common.selectAll') }}
     </button>
     <button
       v-for="cat in categories"
@@ -22,6 +22,9 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 defineProps({
   categories: { type: Array, default: () => [] },
   modelValue: { type: String, default: '' }
