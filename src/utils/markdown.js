@@ -31,7 +31,7 @@ async function getMarkdownIt() {
   ] = await Promise.all([
     import('markdown-it'),
     import('markdown-it-task-lists'),
-    import('highlight.js')
+    import('highlight.js/lib/common')
   ])
 
   mdInstance = new MarkdownIt({
