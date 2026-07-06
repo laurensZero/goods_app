@@ -57,5 +57,9 @@
   "home.groupDisplay.chronological": "跟随排序",
   "home.groupDisplay.chronologicalDesc": "谷子组与单品按相同方式混排",
   "home.groupDisplay.hidden": "不显示组",
-  "home.groupDisplay.hiddenDesc": "组内谷子作为独立条目显示"
+  "home.groupDisplay.hiddenDesc": "组内谷子作为独立条目显示",
+  "home.dailyRec.label": "今日推荐",
+  "home.dailyRec.shuffle": "换一个",
+  "home.dailyRec.viewDetail": "查看详情",
+  "home.dailyRec.empty": "还没有收藏记录"
 }

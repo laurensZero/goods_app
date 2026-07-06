@@ -13,6 +13,20 @@
 
         <div class="hero-actions">
           <button
+            class="hero-search"
+            type="button"
+            :aria-label="t('home.dailyRec.label')"
+            @click="showDailyRec = true"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <circle cx="8.5" cy="8.5" r="1" fill="currentColor" />
+              <circle cx="15.5" cy="8.5" r="1" fill="currentColor" />
+              <path d="M8 15.5c1.33-1 3.33-1 5.33 0" stroke-linecap="round" />
+            </svg>
+          </button>
+
+          <button
             :class="['hero-search', { 'hero-search--active': searchActiveFilterCount > 0 }]"
             type="button"
             :aria-label="t('common.aria.search')"
@@ -254,6 +268,12 @@
       @remove-preset="searchRemovePreset"
     />
 
+    <DailyRecommendation
+      v-model="showDailyRec"
+      :items="store.collectionList"
+      @open-detail="handleDailyRecDetail"
+    />
+
   </div>
 </template>
 <script setup>
@@ -279,6 +299,7 @@ import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
+import DailyRecommendation from '@/components/home/DailyRecommendation.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
@@ -410,6 +431,21 @@ let isRouteLeaving = false
 
 // 添加方式面板
 const showAddSheet = ref(false)
+const showDailyRec = ref(false)
+const DAILY_REC_RESTORE_KEY = '__dailyRecOpen'
+
+function handleDailyRecDetail(goodsId) {
+  sessionStorage.setItem(DAILY_REC_RESTORE_KEY, '1')
+  showDailyRec.value = false
+  nextTick(() => openDetail(goodsId))
+}
+
+watch(showDailyRec, (open) => {
+  // Only clear restore flag on manual close, not on navigate-away close
+  if (!open && !sessionStorage.getItem(DAILY_REC_RESTORE_KEY)) {
+    sessionStorage.removeItem(DAILY_REC_RESTORE_KEY)
+  }
+})
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
 const isHomeActive = ref(true)
@@ -1047,6 +1083,12 @@ function handleAndroidBackButton(event) {
     return
   }
 
+  if (showDailyRec.value) {
+    showDailyRec.value = false
+    event.preventDefault()
+    return
+  }
+
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
     return
@@ -1152,6 +1194,13 @@ onActivated(async () => {
     cancelGoodsBackHeroRetry()
     clearHomeBackHeroDeferredRestoreTimer()
   }
+
+  // Restore daily recommendation sheet if returning from detail
+  if (sessionStorage.getItem(DAILY_REC_RESTORE_KEY)) {
+    sessionStorage.removeItem(DAILY_REC_RESTORE_KEY)
+    showDailyRec.value = true
+  }
+
   if (shouldScrollToTopOnActivated) {
     shouldScrollToTopOnActivated = false
     clearStoredScrollState()
@@ -1205,6 +1254,7 @@ onActivated(async () => {
 
 onDeactivated(() => {
   isHomeActive.value = false
+  showDailyRec.value = false
   mountBootstrapSession += 1
   cancelGoodsBackHeroRetry()
   clearHomeBackHeroDeferredRestoreTimer()
