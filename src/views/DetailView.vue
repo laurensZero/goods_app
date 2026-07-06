@@ -759,7 +759,10 @@ const holdingDays = computed(() => {
     return null
   }
 
-  const date = it.acquiredAt
+  // 优先使用时间线中"已拥有"的日期
+  const timeline = Array.isArray(it.statusTimeline) ? it.statusTimeline : []
+  const ownedEntry = [...timeline].reverse().find(e => e.status === '已拥有')
+  const date = ownedEntry?.at || it.acquiredAt
   if (!date) return null
 
   const diff = Date.now() - new Date(date).getTime()
