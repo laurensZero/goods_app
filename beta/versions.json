@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260706.9",
+    "url": "bundle-20260706.9.zip",
+    "hash": "8123809a8b00add9a33bf08ba9a0f382e4e37eb3c5c5ccca8882ad36441f5e36",
+    "minNativeVersion": null,
+    "notes": "- feat: 使用 LazyCachedImage 组件替换商品封面图片，优化图片加载体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-06T15:28:26Z"
+  },
+  {
     "version": "20260706.8",
     "url": "bundle-20260706.8.zip",
     "hash": "4232214a9b11dcb1be38abe163ac3e0ab2cdd2cf96c3f42011c503691aa3a3f2",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化商品卡片性能，使用预计算字段减少计算开销；改进虚拟商品视口同步逻辑\n\n- feat: 谷子状态时间线",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T15:01:20Z"
-  },
-  {
-    "version": "20260706.6",
-    "url": "bundle-20260706.6.zip",
-    "hash": "e46718fe84ab30c9e1b50259caaf2af570feff1950b6d8811b0af075dc0255ce",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加每日推荐功能，优化用户体验；更新相关组件以支持推荐展示",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T12:30:31Z"
   }
 ]

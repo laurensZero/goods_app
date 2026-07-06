@@ -1,9 +1,9 @@
 {
-  "version": "20260706.8",
-  "url": "bundle-20260706.8.zip",
-  "hash": "4232214a9b11dcb1be38abe163ac3e0ab2cdd2cf96c3f42011c503691aa3a3f2",
+  "version": "20260706.9",
+  "url": "bundle-20260706.9.zip",
+  "hash": "8123809a8b00add9a33bf08ba9a0f382e4e37eb3c5c5ccca8882ad36441f5e36",
   "minNativeVersion": null,
-  "notes": "- feat: 优先使用时间线中\"已拥有\"的日期作为获取日期的逻辑",
+  "notes": "- feat: 使用 LazyCachedImage 组件替换商品封面图片，优化图片加载体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T15:26:04Z"
+  "publishedAt": "2026-07-06T15:28:26Z"
 }
