@@ -1153,7 +1153,7 @@ onBeforeUnmount(() => {
 
 :deep(.tab-nav) {
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   align-items: center;
   width: 100%;
   padding: 8px;

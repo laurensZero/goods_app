@@ -93,4 +93,22 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 6,
+    description: 'Persist status timeline history',
+    up: async (db) => {
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('statusTimeline')) {
+        await db.run("ALTER TABLE goods ADD COLUMN statusTimeline TEXT DEFAULT '[]'")
+      }
+      // 为已有的谷子初始化时间线数据，用 acquiredAt 作为日期
+      const rows = await db.query("SELECT id, collectStatus, acquiredAt FROM goods WHERE statusTimeline = '[]' OR statusTimeline IS NULL")
+      for (const row of rows) {
+        if (!row.collectStatus) continue
+        const date = row.acquiredAt || '1970-01-01'
+        const timeline = JSON.stringify([{ status: row.collectStatus, at: date }])
+        await db.run("UPDATE goods SET statusTimeline = ? WHERE id = ?", [timeline, row.id])
+      }
+    }
+  },
 ]
