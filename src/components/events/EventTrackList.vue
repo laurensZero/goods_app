@@ -30,11 +30,11 @@
       <div class="track-list__copy">
         <div class="track-list__meta">
           <span class="track-list__index">#{{ index + 1 }}</span>
-          <span v-if="track.source === 'netease'" class="track-list__badge">网易云</span>
-          <span v-if="track.source === 'qq'" class="track-list__badge track-list__badge--qq">QQ 音乐</span>
+          <span v-if="track.source === 'netease'" class="track-list__badge">{{ t('events.tracks.netease') }}</span>
+          <span v-if="track.source === 'qq'" class="track-list__badge track-list__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
           <span v-if="track.durationText" class="track-list__duration">{{ track.durationText }}</span>
         </div>
-        <strong class="track-list__title">{{ track.title || '未命名曲目' }}</strong>
+        <strong class="track-list__title">{{ track.title || t('events.tracks.unnamedTrack') }}</strong>
       </div>
 
       <div class="track-list__details">
@@ -113,10 +113,13 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/neteaseMusic'
 import { fetchQQSongCoverMap, openQQSong } from '@/utils/qqMusic'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   tracks: {
@@ -215,8 +218,7 @@ async function handleOpen(track) {
       await openNeteaseSong(neteaseSongId)
     }
   } catch (error) {
-    const sourceLabel = source === 'qq' ? 'QQ 音乐' : '网易云'
-    errorMessage.value = error?.message || `打开${sourceLabel}失败`
+    errorMessage.value = error?.message || (source === 'qq' ? t('events.tracks.openFailedQQ') : t('events.tracks.openFailedNetease'))
   } finally {
     window.setTimeout(() => {
       if (openingSongId.value === songId) {
@@ -228,16 +230,16 @@ async function handleOpen(track) {
 
 function openButtonLabel(track) {
   const source = String(track?.source || '').trim()
-  if (source === 'qq') return 'QQ 音乐打开'
-  return '网易云打开'
+  if (source === 'qq') return t('events.tracks.openQQ')
+  return t('events.tracks.openNetease')
 }
 
 function playButtonLabel(track) {
   const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
-  if (isLoading.value && activeTrackId.value === identity) return '加载中'
-  if (isPlaying.value && activeTrackId.value === identity) return '暂停播放'
-  if (!isPlaying.value && activeTrackId.value === identity) return '继续播放'
-  return '内嵌播放'
+  if (isLoading.value && activeTrackId.value === identity) return t('events.tracks.loading')
+  if (isPlaying.value && activeTrackId.value === identity) return t('events.tracks.pause')
+  if (!isPlaying.value && activeTrackId.value === identity) return t('events.tracks.resume')
+  return t('events.tracks.play')
 }
 
 async function handlePlay(track) {
