@@ -1,4 +1,4 @@
-import { nextTick, ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
@@ -430,6 +430,11 @@ export function useQrScanner() {
     scanning.value = false
     scanError.value = ''
   }
+
+  // 组件销毁时清理摄像头流，防止泄漏
+  onBeforeUnmount(() => {
+    closeScanner()
+  })
 
   return {
     scanning,

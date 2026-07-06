@@ -7,7 +7,6 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import i18n from './locales'
 import router from './router'
-import 'vant/lib/index.css'
 import './assets/base.css'
 import './assets/shared-ui.css'
 import { initDB } from './utils/db/index'
@@ -23,10 +22,6 @@ import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
-import {
-  registerSaleReminderNotificationNavigation,
-  watchSaleReminderNotifications
-} from './utils/saleReminder'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -211,8 +206,10 @@ async function bootstrap() {
   timings.routerReady = performance.now() - t3
   setupAndroidBackButton()
   setupAndroidResumeListener(theme)
-  void registerSaleReminderNotificationNavigation()
-  watchSaleReminderNotifications(store)
+  import('./utils/saleReminder').then(({ registerSaleReminderNotificationNavigation, watchSaleReminderNotifications }) => {
+    registerSaleReminderNotificationNavigation()
+    watchSaleReminderNotifications(store)
+  }).catch((e) => { log.warn('saleReminder:init:failed', e) })
 
   const t4 = performance.now()
   app.mount('#app')

@@ -365,7 +365,17 @@ export function buildImageReferenceMap({ goods = [], trash = [], events = [] } =
   ])
 }
 
+// 引用级缓存：同一同步周期内，相同引用的 goodsList/trashList 直接返回缓存结果
+// 避免在 buildSyncPayload、diffLocalRemote、buildPullConflictData 等处重复构建 Map
+let _rgtmCachedGoods = null
+let _rgtmCachedTrash = null
+let _rgtmCachedResult = null
+
 export function resolveGoodsTrashMaps(goodsList = [], trashList = []) {
+  if (goodsList === _rgtmCachedGoods && trashList === _rgtmCachedTrash && _rgtmCachedResult) {
+    return _rgtmCachedResult
+  }
+
   const goodsMap = new Map(goodsList.map((item) => [item.id, item]))
   const trashMap = new Map(trashList.map((item) => [item.id, item]))
 
@@ -380,7 +390,11 @@ export function resolveGoodsTrashMaps(goodsList = [], trashList = []) {
     }
   }
 
-  return { goodsMap, trashMap }
+  const result = { goodsMap, trashMap }
+  _rgtmCachedGoods = goodsList
+  _rgtmCachedTrash = trashList
+  _rgtmCachedResult = result
+  return result
 }
 
 function sanitizeFilenamePart(value) {

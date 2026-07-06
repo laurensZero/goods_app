@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useTabletViewport } from '@/composables/useTabletViewport'
 
 const STORAGE_KEY = 'goods_notify_settings'
+
+// 平板检测常量
+const TABLET_MIN_SHORT_SIDE = 600
+const TABLET_MIN_LONG_SIDE = 900
 
 // 默认通知设置
 const DEFAULT_SETTINGS = {
@@ -39,8 +42,30 @@ export const useNotifySettingsStore = defineStore('notifySettings', () => {
   // 是否已加载
   const loaded = ref(false)
 
-  // 检测是否是 Pad 端
-  const { isTabletViewport } = useTabletViewport()
+  // 检测是否是 Pad 端（Pinia store 中不能使用组件生命周期钩子，手动注册监听）
+  const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
+  const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight)
+
+  const isTabletViewport = computed(() => {
+    const w = viewportWidth.value || 0
+    const h = viewportHeight.value || 0
+    const shortSide = Math.min(w, h)
+    const longSide = Math.max(w, h)
+    const isMobileDevice = typeof navigator !== 'undefined'
+      ? (navigator.userAgentData?.mobile ?? /Mobile|iPhone|iPod|Windows Phone/i.test(navigator.userAgent || ''))
+      : false
+    if (isMobileDevice) return false
+    return shortSide >= TABLET_MIN_SHORT_SIDE && longSide >= TABLET_MIN_LONG_SIDE
+  })
+
+  if (typeof window !== 'undefined') {
+    const updateViewport = () => {
+      viewportWidth.value = window.innerWidth
+      viewportHeight.value = window.innerHeight
+    }
+    window.addEventListener('resize', updateViewport, { passive: true })
+    window.addEventListener('orientationchange', updateViewport)
+  }
 
   // 获取当前设备类型对应的有效设置
   const effectiveSettings = computed(() => {

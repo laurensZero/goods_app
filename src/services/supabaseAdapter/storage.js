@@ -23,6 +23,19 @@ function isBucketCreatePermissionError(error) {
   return code === '42501' || message.includes('row-level security') || message.includes('permission denied') || message.includes('not allowed')
 }
 
+// 将 dataURL 直接转为 Blob，避免 fetch(dataUrl) 的额外网络栈开销
+function dataUrlToBlob(dataUrl) {
+  const commaIndex = dataUrl.indexOf(',')
+  const meta = dataUrl.slice(0, commaIndex)
+  const base64 = dataUrl.slice(commaIndex + 1)
+  const mimeMatch = meta.match(/data:([^;]+)/)
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream'
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new Blob([bytes], { type: mime })
+}
+
 export function normalizeBucketName(bucketLike) {
   if (typeof bucketLike === 'string' && bucketLike.trim()) return bucketLike.trim()
   if (bucketLike && typeof bucketLike === 'object') {
@@ -144,8 +157,7 @@ export function createStorageOps({ getDb, withRetry }) {
             continue
           }
 
-          const response = await fetch(fileObj.content)
-          const blob = await response.blob()
+          const blob = dataUrlToBlob(fileObj.content)
           const { error } = await db.storage.from(bucketName).upload(storagePath, blob, {
             upsert: true,
             contentType: blob.type || 'image/jpeg'

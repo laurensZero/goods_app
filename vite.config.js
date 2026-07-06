@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
+import Components from 'unplugin-vue-components/vite'
+import { VantResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
@@ -9,6 +11,10 @@ export default defineConfig({
     vue(),
     VueI18nPlugin({
       include: fileURLToPath(new URL('./src/locales/**/*.json', import.meta.url))
+    }),
+    Components({
+      resolvers: [VantResolver()],
+      dts: false
     })
   ],
   // Capacitor 打包时从 file:// 协议加载，必须用相对路径
@@ -75,9 +81,11 @@ export default defineConfig({
           'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences', '@capgo/capacitor-updater', '@capawesome/capacitor-file-picker'],
           'db-engine': ['@capacitor-community/sqlite', 'sql.js'],
           'chart-engine': ['echarts'],
+          'fabric-engine': ['fabric'],
           'cutout-engine': ['@imgly/background-removal'],
           'sync-engine': ['@supabase/supabase-js'],
-          'tauri-runtime': ['@tauri-apps/api']
+          'tauri-runtime': ['@tauri-apps/api'],
+          'pinyin-engine': ['pinyin-pro']
         }
       }
     }
