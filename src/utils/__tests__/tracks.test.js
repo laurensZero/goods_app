@@ -68,13 +68,29 @@ describe('normalizeTracks', () => {
     expect(result[0].source).toBe('netease')
   })
 
-  it('filters out tracks with no title, artist, album, or neteaseSongId', () => {
+  it('detects qq source from qqSongId', () => {
+    const result = normalizeTracks([{ title: 'Song', qqSongId: 'abc123' }])
+    expect(result[0].source).toBe('qq')
+    expect(result[0].qqSongId).toBe('abc123')
+  })
+
+  it('defaults qqSongId to empty string', () => {
+    const result = normalizeTracks([{ title: 'Song' }])
+    expect(result[0].qqSongId).toBe('')
+  })
+
+  it('filters out tracks with no title, artist, album, neteaseSongId, or qqSongId', () => {
     const result = normalizeTracks([{ durationMs: 100 }])
     expect(result).toEqual([])
   })
 
   it('keeps tracks with neteaseSongId but no title', () => {
     const result = normalizeTracks([{ neteaseSongId: '123' }])
+    expect(result).toHaveLength(1)
+  })
+
+  it('keeps tracks with qqSongId but no title', () => {
+    const result = normalizeTracks([{ qqSongId: 'abc' }])
     expect(result).toHaveLength(1)
   })
 

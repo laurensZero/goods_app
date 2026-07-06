@@ -39,6 +39,34 @@
         </div>
 
         <div class="track-editor__import-card">
+          <label class="track-editor__label">QQ 音乐搜索导入</label>
+          <div class="track-editor__input-row">
+            <input
+              v-model="qqSearchKeyword"
+              type="text"
+              placeholder="输入歌曲名 / 歌手名"
+              @keydown.enter.prevent="runQQSongSearch"
+            />
+            <button type="button" class="track-editor__action" :disabled="qqSearchLoading" @click="runQQSongSearch">
+              {{ qqSearchLoading ? '搜索中' : '搜索' }}
+            </button>
+          </div>
+
+          <p v-if="qqSearchError" class="track-editor__hint track-editor__hint--error">{{ qqSearchError }}</p>
+
+          <div v-if="qqSearchResults.length" class="track-editor__result-list">
+            <article v-for="item in qqSearchResults" :key="`${item.qqSongId}_${item.title}`" class="track-editor__result-item">
+              <div class="track-editor__result-copy">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.artist || '未知歌手' }}</span>
+                <span v-if="item.album">{{ item.album }}</span>
+              </div>
+              <button type="button" class="track-editor__result-btn" @click="appendTracks([item])">导入</button>
+            </article>
+          </div>
+        </div>
+
+        <div class="track-editor__import-card">
           <label class="track-editor__label">网易云歌单/专辑导入</label>
           <div class="track-editor__input-row">
             <input
@@ -64,6 +92,7 @@
             <span class="track-editor__item-index">#{{ index + 1 }}</span>
             <div class="track-editor__badges">
               <span v-if="track.source === 'netease'" class="track-editor__badge">网易云</span>
+              <span v-if="track.source === 'qq'" class="track-editor__badge track-editor__badge--qq">QQ 音乐</span>
               <span v-if="track.durationMs" class="track-editor__badge track-editor__badge--muted">{{ formatTrackDuration(track.durationMs) }}</span>
             </div>
             <button type="button" class="track-editor__remove" @click="removeTrack(index)">删除</button>
@@ -103,6 +132,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { fetchNeteaseCollectionTracks, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
+import { searchQQSongs, extractQQSongMid } from '@/utils/qqMusic'
 
 const props = defineProps({
   modelValue: {
@@ -138,6 +168,11 @@ const playlistError = ref(false)
 const playlistMessage = ref('')
 const searchResults = ref([])
 
+const qqSearchKeyword = ref('')
+const qqSearchLoading = ref(false)
+const qqSearchError = ref('')
+const qqSearchResults = ref([])
+
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
 
 function buildManualTrack() {
@@ -161,8 +196,9 @@ function normalizeTrack(track = {}) {
     album: String(track.album || '').trim(),
     coverUrl: String(track.coverUrl || '').trim(),
     durationMs: Math.max(0, Number(track.durationMs) || 0),
-    source: String(track.source || (track.neteaseSongId ? 'netease' : 'manual')),
-    neteaseSongId: String(track.neteaseSongId || '').trim()
+    source: String(track.source || (track.neteaseSongId ? 'netease' : track.qqSongId ? 'qq' : 'manual')),
+    neteaseSongId: String(track.neteaseSongId || '').trim(),
+    qqSongId: String(track.qqSongId || '').trim()
   }
 }
 
@@ -172,6 +208,7 @@ function updateTracks(nextTracks) {
 
 function buildTrackDedupKey(track = {}) {
   if (track.neteaseSongId) return `netease:${track.neteaseSongId}`
+  if (track.qqSongId) return `qq:${track.qqSongId}`
   return `manual:${String(track.title || '').trim().toLowerCase()}::${String(track.artist || '').trim().toLowerCase()}`
 }
 
@@ -283,6 +320,29 @@ async function importPlaylist() {
     playlistLoading.value = false
   }
 }
+
+async function runQQSongSearch() {
+  const keyword = String(qqSearchKeyword.value || '').trim()
+  if (!keyword) {
+    qqSearchError.value = '请输入关键词'
+    qqSearchResults.value = []
+    return
+  }
+
+  qqSearchLoading.value = true
+  qqSearchError.value = ''
+  try {
+    qqSearchResults.value = await searchQQSongs(keyword, 30)
+    if (!qqSearchResults.value.length) {
+      qqSearchError.value = '没有找到可导入的歌曲'
+    }
+  } catch (error) {
+    qqSearchResults.value = []
+    qqSearchError.value = error?.message || '搜索失败'
+  } finally {
+    qqSearchLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -339,7 +399,7 @@ async function importPlaylist() {
 
 .track-editor__import-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -473,6 +533,11 @@ async function importPlaylist() {
 .track-editor__badge--muted {
   background: color-mix(in srgb, var(--app-surface-soft) 90%, transparent);
   color: var(--app-text-secondary);
+}
+
+.track-editor__badge--qq {
+  background: rgba(49, 194, 124, 0.14);
+  color: #1a9c54;
 }
 
 .track-editor__remove {

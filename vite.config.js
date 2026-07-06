@@ -54,6 +54,22 @@ export default defineConfig({
           Referer: 'https://music.163.com/'
         }
       },
+      '/qqmusic-api': {
+        target: 'https://u.y.qq.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/qqmusic-api/, ''),
+        headers: {
+          Referer: 'https://y.qq.com/'
+        }
+      },
+      '/qqmusic-c': {
+        target: 'https://c.y.qq.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/qqmusic-c/, ''),
+        headers: {
+          Referer: 'https://y.qq.com/'
+        }
+      },
       '/mihoyo-static': {
         target: 'https://sdk-webstatic.mihoyo.com',
         changeOrigin: true,

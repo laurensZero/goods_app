@@ -2,7 +2,7 @@
   <section class="track-list">
     <article
       v-for="(track, index) in normalizedTracks"
-      :key="track.id || `${track.neteaseSongId || 'manual'}_${index}`"
+      :key="track.id || `${track.neteaseSongId || track.qqSongId || 'manual'}_${index}`"
       class="track-list__item"
       :class="{ 'track-list__item--active': activeTrackId === track.identity }"
       @click="handleTrackClick(track, $event)"
@@ -14,6 +14,7 @@
           :src="track.coverUrl"
           :alt="track.title || '曲目封面'"
           :lazy="false"
+          :use-cache="track.source !== 'qq'"
           loading="lazy"
           decoding="async"
           referrerpolicy="no-referrer"
@@ -30,6 +31,7 @@
         <div class="track-list__meta">
           <span class="track-list__index">#{{ index + 1 }}</span>
           <span v-if="track.source === 'netease'" class="track-list__badge">网易云</span>
+          <span v-if="track.source === 'qq'" class="track-list__badge track-list__badge--qq">QQ 音乐</span>
           <span v-if="track.durationText" class="track-list__duration">{{ track.durationText }}</span>
         </div>
         <strong class="track-list__title">{{ track.title || '未命名曲目' }}</strong>
@@ -52,7 +54,7 @@
           class="track-list__action"
           :title="playButtonLabel(track)"
           :aria-label="playButtonLabel(track)"
-          :disabled="!track.neteaseSongId || (isLoading && activeTrackId === track.identity)"
+          :disabled="(!track.neteaseSongId && !track.qqSongId) || (isLoading && activeTrackId === track.identity)"
           @click="handlePlay(track)"
         >
           <span class="track-list__action-icon track-list__action-icon--dark" aria-hidden="true">
@@ -79,13 +81,13 @@
         <button
           type="button"
           class="track-list__action"
-          title="网易云打开"
-          aria-label="网易云打开"
-          :disabled="!track.neteaseSongId || openingSongId === track.neteaseSongId"
+          :title="openButtonLabel(track)"
+          :aria-label="openButtonLabel(track)"
+          :disabled="(!track.neteaseSongId && !track.qqSongId) || openingSongId === (track.neteaseSongId || track.qqSongId)"
           @click="handleOpen(track)"
         >
           <span class="track-list__action-icon track-list__action-icon--light" aria-hidden="true">
-            <svg v-if="openingSongId === track.neteaseSongId" viewBox="0 0 24 24" fill="none">
+            <svg v-if="openingSongId === (track.neteaseSongId || track.qqSongId)" viewBox="0 0 24 24" fill="none">
               <path d="M12 4V7" />
               <path d="M12 17V20" />
               <path d="M4 12H7" />
@@ -112,6 +114,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/neteaseMusic'
+import { fetchQQSongCoverMap, openQQSong } from '@/utils/qqMusic'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
@@ -133,11 +136,17 @@ const trackTapState = ref({
 
 const normalizedTracks = computed(() =>
   (Array.isArray(props.tracks) ? props.tracks : []).map((item) => {
-    const songId = String(item?.neteaseSongId || '').trim()
-    const coverUrl = String(item?.coverUrl || coverMap.value[songId] || '').trim()
+    const neteaseSongId = String(item?.neteaseSongId || '').trim()
+    const qqSongId = String(item?.qqSongId || '').trim()
+    const source = String(item?.source || '').trim()
+    const coverUrl = String(
+      item?.coverUrl
+      || (source === 'qq' ? coverMap.value[qqSongId] : coverMap.value[neteaseSongId])
+      || ''
+    ).trim()
     return {
       ...item,
-      identity: String(item?.id || songId || ''),
+      identity: String(item?.id || neteaseSongId || qqSongId || ''),
       coverUrl,
       durationText: formatTrackDuration(item?.durationMs)
     }
@@ -159,18 +168,30 @@ watch(
 watch(
   () => props.tracks,
   async (tracks) => {
-    const missingCoverIds = Array.from(new Set(
-      (Array.isArray(tracks) ? tracks : [])
+    const trackList = Array.isArray(tracks) ? tracks : []
+
+    const missingNeteaseIds = Array.from(new Set(
+      trackList
         .filter((item) => item?.neteaseSongId && !String(item?.coverUrl || '').trim())
         .map((item) => String(item.neteaseSongId).trim())
         .filter((songId) => songId && !coverMap.value[songId])
     ))
 
-    if (!missingCoverIds.length) return
+    const missingQQIds = Array.from(new Set(
+      trackList
+        .filter((item) => item?.source === 'qq' && item?.qqSongId && !String(item?.coverUrl || '').trim())
+        .map((item) => String(item.qqSongId).trim())
+        .filter((mid) => mid && !coverMap.value[mid])
+    ))
+
+    if (!missingNeteaseIds.length && !missingQQIds.length) return
 
     try {
-      const nextMap = await fetchNeteaseSongCoverMap(missingCoverIds)
-      coverMap.value = { ...coverMap.value, ...nextMap }
+      const [neteaseMap, qqMap] = await Promise.all([
+        missingNeteaseIds.length ? fetchNeteaseSongCoverMap(missingNeteaseIds) : Promise.resolve({}),
+        missingQQIds.length ? fetchQQSongCoverMap(missingQQIds) : Promise.resolve({})
+      ])
+      coverMap.value = { ...coverMap.value, ...neteaseMap, ...qqMap }
     } catch {
       // ignore cover lookup failures
     }
@@ -179,15 +200,23 @@ watch(
 )
 
 async function handleOpen(track) {
-  const songId = String(track?.neteaseSongId || '').trim()
+  const neteaseSongId = String(track?.neteaseSongId || '').trim()
+  const qqSongId = String(track?.qqSongId || '').trim()
+  const source = String(track?.source || '').trim()
+  const songId = neteaseSongId || qqSongId
   if (!songId) return
 
   openingSongId.value = songId
   errorMessage.value = ''
   try {
-    await openNeteaseSong(songId)
+    if (source === 'qq' && qqSongId) {
+      await openQQSong(qqSongId)
+    } else if (neteaseSongId) {
+      await openNeteaseSong(neteaseSongId)
+    }
   } catch (error) {
-    errorMessage.value = error?.message || '打开网易云失败'
+    const sourceLabel = source === 'qq' ? 'QQ 音乐' : '网易云'
+    errorMessage.value = error?.message || `打开${sourceLabel}失败`
   } finally {
     window.setTimeout(() => {
       if (openingSongId.value === songId) {
@@ -197,8 +226,14 @@ async function handleOpen(track) {
   }
 }
 
+function openButtonLabel(track) {
+  const source = String(track?.source || '').trim()
+  if (source === 'qq') return 'QQ 音乐打开'
+  return '网易云打开'
+}
+
 function playButtonLabel(track) {
-  const identity = String(track?.id || track?.neteaseSongId || '').trim()
+  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
   if (isLoading.value && activeTrackId.value === identity) return '加载中'
   if (isPlaying.value && activeTrackId.value === identity) return '暂停播放'
   if (!isPlaying.value && activeTrackId.value === identity) return '继续播放'
@@ -206,8 +241,8 @@ function playButtonLabel(track) {
 }
 
 async function handlePlay(track) {
-  if (!track?.neteaseSongId) return
-  const identity = String(track?.id || track?.neteaseSongId || '').trim()
+  if (!track?.neteaseSongId && !track?.qqSongId) return
+  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
   if (isLoading.value && activeTrackId.value === identity) return
   errorMessage.value = ''
   try {
@@ -346,6 +381,11 @@ function handleTrackClick(track, event) {
   color: #d26f20;
   font-size: 11px;
   font-weight: 700;
+}
+
+.track-list__badge--qq {
+  background: rgba(49, 194, 124, 0.14);
+  color: #1a9c54;
 }
 
 .track-list__title {

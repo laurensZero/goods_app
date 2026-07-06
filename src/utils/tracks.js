@@ -20,8 +20,9 @@ export function normalizeTracks(tracks) {
       album: String(item?.album || '').trim(),
       coverUrl: String(item?.coverUrl || '').trim(),
       durationMs: Math.max(0, Number(item?.durationMs) || 0),
-      source: String(item?.source || (item?.neteaseSongId ? 'netease' : 'manual')).trim() || 'manual',
-      neteaseSongId: String(item?.neteaseSongId || '').trim()
+      source: String(item?.source || (item?.neteaseSongId ? 'netease' : item?.qqSongId ? 'qq' : 'manual')).trim() || 'manual',
+      neteaseSongId: String(item?.neteaseSongId || '').trim(),
+      qqSongId: String(item?.qqSongId || '').trim()
     }))
-    .filter((item) => item.title || item.artist || item.album || item.neteaseSongId)
+    .filter((item) => item.title || item.artist || item.album || item.neteaseSongId || item.qqSongId)
 }

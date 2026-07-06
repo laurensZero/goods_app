@@ -429,7 +429,7 @@ async function playGoodsHeroForwardWhenReady() {
 
 const item = computed(() => store.getById(props.id))
 const trackList = computed(() =>
-  (Array.isArray(item.value?.tracks) ? item.value.tracks : []).filter((entry) => entry?.title || entry?.artist || entry?.neteaseSongId)
+  (Array.isArray(item.value?.tracks) ? item.value.tracks : []).filter((entry) => entry?.title || entry?.artist || entry?.neteaseSongId || entry?.qqSongId)
 )
 const showDeleteDialog = ref(false)
 const showShareSheet = ref(false)

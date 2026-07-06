@@ -380,7 +380,7 @@ const linkedGoodsImageUrls = computed(() => (
   linkedGoodsList.value.map((goods) => String(goods?.coverImage || '').trim()).filter(Boolean)
 ))
 const trackList = computed(() =>
-  (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId)
+  (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId || item?.qqSongId)
 )
 const tagsDisplay = computed(() => (
   event.value?.tags?.length ? event.value.tags.join('、') : t('common.unfilled')
