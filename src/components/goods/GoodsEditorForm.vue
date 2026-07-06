@@ -563,7 +563,7 @@
                       :disabled="!form.saleReminderEnabled"
                       @click="openSaleDateTimePicker"
                     >
-                      {{ form.saleAt ? formatSaleAtDisplay(form.saleAt) : t('goods.editor.selectSaleTime') || '选择开售时间' }}
+                      {{ form.saleAt ? formatSaleAtDisplay(form.saleAt) : t('goods.editor.selectSaleTime') }}
                     </button>
                     <SaleCountdown v-if="form.saleAt && form.saleReminderEnabled" :sale-at="form.saleAt" />
                   </label>

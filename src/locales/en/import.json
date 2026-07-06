@@ -98,6 +98,8 @@
   "import.wishlistUrlPlaceholder": "Paste wishlist link",
   "import.urlPlaceholder": "Paste item link",
   "import.parse": "Parse",
+  "import.parsingMihoyo": "Parsing miHoYo item...",
+  "import.selectVariantHint": "Click to select variant, image URL will be auto-filled on save",
   "import.batchParseButtonText": "Parse {entries}/{total}",
   "import.searchNoResults": "No results found",
   "import.searchFailed": "Search failed",

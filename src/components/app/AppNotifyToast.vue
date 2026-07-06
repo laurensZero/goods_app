@@ -44,6 +44,7 @@
 <script setup>
 import { reactive, ref, watch, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { parseSaleAt } from '@/utils/saleReminder'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 
@@ -53,6 +54,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['dismiss'])
+const { t } = useI18n()
 const router = useRouter()
 const notifySettingsStore = useNotifySettingsStore()
 
@@ -104,17 +106,17 @@ function updateCountdowns() {
     const date = parseSaleAt(item.saleAt)
     if (!date) { countdowns[item.id] = ''; continue }
     const diff = date.getTime() - now
-    if (diff <= 0) { countdowns[item.id] = '已到开售时间'; continue }
+    if (diff <= 0) { countdowns[item.id] = t('notify.saleTimeReached'); continue }
 
     const totalSec = Math.floor(diff / 1000)
     const h = Math.floor(totalSec / 3600)
     const m = Math.floor((totalSec % 3600) / 60)
     const s = totalSec % 60
     const parts = []
-    if (h > 0) parts.push(`${h}时`)
-    if (m > 0) parts.push(`${m}分`)
-    parts.push(`${s}秒`)
-    countdowns[item.id] = `距开售 ${parts.join(' ')}`
+    if (h > 0) parts.push(`${h}${t('common.hoursUnit')}`)
+    if (m > 0) parts.push(`${m}${t('common.minutesUnit')}`)
+    parts.push(`${s}${t('common.secondsUnit')}`)
+    countdowns[item.id] = `${t('notify.saleCountdown')} ${parts.join(' ')}`
   }
 }
 

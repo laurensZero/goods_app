@@ -3,33 +3,33 @@
     <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
       <div class="dialog update-dialog">
         <p class="update-kicker">Bundle Update</p>
-        <h3 class="dialog-title">{{ restartReady ? '资源更新已下载完成' : `发现资源更新 v${webUpdateStore.latestVersion}` }}</h3>
+        <h3 class="dialog-title">{{ restartReady ? t('common.webUpdate.downloaded') : t('common.webUpdate.foundNew', { version: webUpdateStore.latestVersion }) }}</h3>
         <p class="dialog-desc" v-if="!restartReady">
-          当前资源 {{ webUpdateStore.currentVersion || 'builtin' }}，可用资源为 v{{ webUpdateStore.latestVersion }}。
-          <template v-if="webUpdateStore.isForceUpdate">本次为强制资源更新，需下载后重启生效。</template>
+          {{ t('common.webUpdate.currentVsLatest', { current: webUpdateStore.currentVersion || 'builtin', latest: webUpdateStore.latestVersion }) }}
+          <template v-if="webUpdateStore.isForceUpdate">{{ t('common.webUpdate.forceRestart') }}</template>
         </p>
         <p class="dialog-desc" v-else>
-          新资源将在重启 App 后生效，是否现在重启？
+          {{ t('common.webUpdate.restartConfirm') }}
         </p>
 
         <div class="version-row">
           <div class="version-pill">
-            <span class="version-pill__label">当前</span>
+            <span class="version-pill__label">{{ t('common.currentLabel') }}</span>
             <strong class="version-pill__value">{{ webUpdateStore.currentVersion || 'builtin' }}</strong>
           </div>
           <div class="version-pill version-pill--accent">
-            <span class="version-pill__label">最新</span>
+            <span class="version-pill__label">{{ t('common.latestLabel') }}</span>
             <strong class="version-pill__value">v{{ webUpdateStore.latestVersion }}</strong>
           </div>
         </div>
 
         <section v-if="releaseNotesPreview && !restartReady" class="release-notes">
-          <p class="release-notes__label">更新说明</p>
+          <p class="release-notes__label">{{ t('common.updateNotes') }}</p>
           <pre class="release-notes__body">{{ releaseNotesPreview }}</pre>
         </section>
 
         <p v-if="webUpdateStore.lastError" class="update-error">{{ webUpdateStore.lastError }}</p>
-        <p v-if="webUpdateStore.isDownloading" class="update-tip">下载中 {{ webUpdateStore.downloadProgress }}%</p>
+        <p v-if="webUpdateStore.isDownloading" class="update-tip">{{ t('common.downloading') }} {{ webUpdateStore.downloadProgress }}%</p>
 
         <div class="dialog-actions">
           <button
@@ -39,7 +39,7 @@
             :disabled="webUpdateStore.isDownloading"
             @click="restartReady ? handleLaterRestart() : webUpdateStore.dismissDialog()"
           >
-            {{ restartReady ? '稍后' : '稍后再说' }}
+            {{ restartReady ? t('common.later') : t('common.laterOrNot') }}
           </button>
           <button
             type="button"
@@ -47,7 +47,7 @@
             :disabled="webUpdateStore.isDownloading"
             @click="restartReady ? handleRestartNow() : handleStartWebUpdate()"
           >
-            {{ restartReady ? '立即重启' : (webUpdateStore.isDownloading ? '下载中…' : '下载并下次启动生效') }}
+            {{ restartReady ? t('common.restartNow') : (webUpdateStore.isDownloading ? t('common.downloading') + '…' : t('common.webUpdate.downloadAndRestart')) }}
           </button>
         </div>
       </div>
@@ -58,8 +58,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
+import { useI18n } from 'vue-i18n'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 
+const { t } = useI18n()
 const webUpdateStore = useWebUpdateStore()
 const restartReady = ref(false)
 

@@ -4,8 +4,11 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatCompactNumber } from '@/utils/format'
 import ChartWrapper from './ChartWrapper.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
@@ -49,7 +52,7 @@ const chartOption = computed(() => {
 
   const data = top.slice()
   if (othersSum > 0) {
-    data.push({ name: '其他', value: othersSum })
+    data.push({ name: t('stats.other'), value: othersSum })
   }
 
   return {

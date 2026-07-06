@@ -2,8 +2,8 @@
   <div class="image-manager">
     <div class="image-manager__composer">
       <div class="image-manager__topline">
-        <p class="image-manager__subtext">主图、局部图和开箱图统一管理。</p>
-        <span v-if="images.length" class="image-manager__count">{{ images.length }} 张</span>
+        <p class="image-manager__subtext">{{ t('goods.image.subtitle') }}</p>
+        <span v-if="images.length" class="image-manager__count">{{ t('goods.image.count', { count: images.length }) }}</span>
       </div>
 
       <div class="image-manager__kind-row">
@@ -27,7 +27,7 @@
 
       <div class="image-manager__actions">
         <button type="button" class="image-manager__action-btn image-manager__action-btn--primary" @click="addRemoteImage">
-          添加网络图
+          {{ t('goods.image.addNetwork') }}
         </button>
         <button
           type="button"
@@ -35,13 +35,13 @@
           :disabled="isPickingLocal"
           @click="addLocalImage"
         >
-          {{ isPickingLocal ? '读取中...' : '添加本地图' }}
+          {{ isPickingLocal ? t('goods.image.reading') : t('goods.image.addLocal') }}
         </button>
       </div>
     </div>
 
     <div v-if="images.length > 0" class="image-manager__gallery">
-      <p class="image-manager__section-hint">点击缩略图切换当前编辑对象</p>
+      <p class="image-manager__section-hint">{{ t('goods.image.switchHint') }}</p>
 
       <div class="image-manager__thumb-strip">
         <button
@@ -57,7 +57,7 @@
             :lazy="false"
             class="image-manager__thumb-img"
           />
-          <span v-if="image.isPrimary" class="image-manager__thumb-badge">主图</span>
+          <span v-if="image.isPrimary" class="image-manager__thumb-badge">{{ t('goods.image.mainImage') }}</span>
           <span class="image-manager__thumb-source">{{ getSourceLabel(image.storageMode) }}</span>
         </button>
       </div>
@@ -75,29 +75,29 @@
         <div class="image-manager__editor-body">
           <div class="image-manager__editor-meta">
             <span class="image-manager__meta-pill image-manager__meta-pill--dark">
-              {{ activeImage.isPrimary ? '当前主图' : getKindLabel(activeImage.kind) }}
+              {{ activeImage.isPrimary ? t('goods.image.currentMain') : getKindLabel(activeImage.kind) }}
             </span>
             <span class="image-manager__meta-pill">{{ getSourceLabel(activeImage.storageMode) }}</span>
           </div>
 
           <div class="image-manager__editor-fields">
             <label class="image-manager__field">
-              <span class="image-manager__field-label">图片分类</span>
+              <span class="image-manager__field-label">{{ t('goods.image.category') }}</span>
               <AppSelect
                 :model-value="activeImage.kind"
                 :options="kindSelectOptions"
-                placeholder="选择图片分类"
+                :placeholder="t('goods.image.selectCategory')"
                 @update:model-value="updateKind(activeImage.id, $event)"
               />
             </label>
 
             <label class="image-manager__field">
-              <span class="image-manager__field-label">图片说明</span>
+              <span class="image-manager__field-label">{{ t('goods.image.description') }}</span>
               <input
                 :value="activeImage.label"
                 type="text"
                 maxlength="20"
-                placeholder="可选，例如背面、侧面"
+                :placeholder="t('goods.image.descriptionPlaceholder')"
                 @input="updateLabel(activeImage.id, $event)"
               />
             </label>
@@ -110,7 +110,7 @@
               :disabled="isPreparingEdit"
               @click="openQuickEdit(activeImage)"
             >
-              {{ isPreparingEdit ? '准备编辑中...' : '快速编辑图片' }}
+              {{ isPreparingEdit ? t('goods.image.preparing') : t('goods.image.quickEdit') }}
             </button>
             <button
               v-if="!activeImage.isPrimary"
@@ -118,10 +118,10 @@
               class="image-manager__secondary-btn"
               @click="setPrimary(activeImage.id)"
             >
-              设为主图
+              {{ t('goods.image.setAsMain') }}
             </button>
             <button type="button" class="image-manager__danger-btn" @click="removeImage(activeImage.id)">
-              删除这张图
+              {{ t('goods.image.deleteImage') }}
             </button>
           </div>
         </div>
@@ -129,8 +129,8 @@
     </div>
 
     <div v-else class="image-manager__empty">
-      <p class="image-manager__empty-title">还没有图片</p>
-      <p class="image-manager__empty-desc">先添加一张主图，之后再补局部图或开箱图。</p>
+      <p class="image-manager__empty-title">{{ t('goods.image.noImages') }}</p>
+      <p class="image-manager__empty-desc">{{ t('goods.image.noImagesDesc') }}</p>
     </div>
 
     <QuickImageEditorDialog
@@ -144,6 +144,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
 import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
@@ -159,6 +160,8 @@ import { useToast } from '@/composables/useToast'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
@@ -288,7 +291,7 @@ async function openQuickEdit(image) {
 
     // 本地文件丢失，尝试从云端恢复
     if (!dataUrl?.startsWith('data:image/') && image.gistFileName) {
-      showToast('本地图片丢失，正在从云端恢复…')
+      showToast(t('goods.image.localLost'))
       const syncStore = useSyncStore()
       const cloudDataUrl = await syncStore.restoreImageFromCloud(image.gistFileName)
       if (cloudDataUrl?.startsWith('data:image/')) {
@@ -312,7 +315,7 @@ async function openQuickEdit(image) {
     }
 
     if (!dataUrl?.startsWith('data:image/')) {
-      showToast('图片文件已丢失，请重新添加图片')
+      showToast(t('goods.image.fileLost'))
       return
     }
 
@@ -354,7 +357,7 @@ async function handleQuickEditSave(result) {
 
 function dataUrlToFile(dataUrl, fileSeed = 'image') {
   const match = String(dataUrl || '').match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
-  if (!match) throw new Error('图片数据格式无效')
+  if (!match) throw new Error(t('goods.image.formatInvalid'))
 
   const mime = match[1]
   const base64 = match[2]
@@ -422,13 +425,13 @@ function updateLabel(targetId, event) {
 }
 
 function getKindLabel(kind) {
-  return kindOptions.find((option) => option.value === kind)?.label || '图片'
+  return kindOptions.find((option) => option.value === kind)?.label || t('goods.image.label')
 }
 
 function getSourceLabel(storageMode) {
-  if (storageMode === 'linked-local') return '本地'
-  if (storageMode === 'inline-local') return '本地临时'
-  return '网络'
+  if (storageMode === 'linked-local') return t('goods.image.sourceLocal')
+  if (storageMode === 'inline-local') return t('goods.image.sourceLocalTemp')
+  return t('goods.image.sourceNetwork')
 }
 </script>
 

@@ -3,7 +3,7 @@
     v-if="show"
     class="scroll-top-button"
     type="button"
-    aria-label="返回顶部"
+    :aria-label="t('common.aria.scrollTop')"
     @click="$emit('click')"
   >
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -14,6 +14,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   show: { type: Boolean, default: false }
 })

@@ -98,6 +98,8 @@
   "import.wishlistUrlPlaceholder": "搜索后会自动填入，也可手动粘贴米游铺商品链接",
   "import.urlPlaceholder": "https://www.mihoyogift.com/goods/... x3 或多条链接，每行一个",
   "import.parse": "解析",
+  "import.parsingMihoyo": "正在解析米游铺商品…",
+  "import.selectVariantHint": "点击选择款式，保存时自动写入图片链接",
   "import.batchParseButtonText": "批量解析（{entries}条/{total}个结果）",
   "import.searchNoResults": "没有找到相关商品，换个角色名或关键词试试",
   "import.searchFailed": "搜索失败，请稍后重试",

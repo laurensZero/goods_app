@@ -5,32 +5,32 @@
     </Transition>
 
     <Transition name="sheet-slide">
-      <div v-if="showPrompt" class="sheet-panel" role="dialog" aria-modal="true" aria-label="从分享码导入">
+      <div v-if="showPrompt" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('common.aria.fromShareCode')">
         <div class="sheet-handle" aria-hidden="true" />
         
         <div class="share-header">
-          <p class="share-title">发现分享的谷子</p>
+          <p class="share-title">{{ t('common.foundSharedGoods') }}</p>
         </div>
 
         <!-- 正在加载 -->
         <div v-if="fetching" class="share-loading">
           <span class="share-spinner" />
-          <p class="share-loading-text">正在获取分享内容...</p>
+          <p class="share-loading-text">{{ t('common.fetchShareContent') }}</p>
         </div>
 
         <!-- 获取失败 -->
         <div v-else-if="fetchError" class="share-error-box">
           <p class="share-error-desc">{{ fetchError }}</p>
           <div class="share-error-actions">
-            <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">忽略</button>
-            <button class="sheet-btn sheet-btn--retry" type="button" @click="retryFetch">重试</button>
+            <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">{{ t('common.ignore') }}</button>
+            <button class="sheet-btn sheet-btn--retry" type="button" @click="retryFetch">{{ t('common.retry') }}</button>
           </div>
         </div>
 
         <!-- 解析结果预览 & 导入 -->
         <template v-else-if="payload">
           <div class="share-preview-head">
-            <p class="share-preview-count">共 {{ payload.goods?.length || 0 }} 件</p>
+            <p class="share-preview-count">{{ t('common.itemsCount', { count: payload.goods?.length || 0 }) }}</p>
             <p v-if="payload.sharedAt" class="share-preview-date">{{ formatSharedAt(payload.sharedAt) }}</p>
           </div>
 
@@ -61,11 +61,11 @@
                   <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
                 </div>
               </div>
-              <span v-if="importedIndexes.has(idx)" class="share-imported-badge">已导入</span>
+              <span v-if="importedIndexes.has(idx)" class="share-imported-badge">{{ t('common.imported') }}</span>
             </div>
           </div>
 
-          <div class="import-target-switch" role="tablist" aria-label="导入目标">
+          <div class="import-target-switch" role="tablist" :aria-label="t('common.aria.importTarget')">
             <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
             <button
               type="button"
@@ -75,7 +75,7 @@
               :aria-selected="importTarget === 'collection'"
               @click="importTarget = 'collection'"
             >
-              导入收藏
+              {{ t('common.importCollection') }}
             </button>
             <button
               type="button"
@@ -85,18 +85,18 @@
               :aria-selected="importTarget === 'wishlist'"
               @click="importTarget = 'wishlist'"
             >
-              导入心愿
+              {{ t('common.importWishlist') }}
             </button>
           </div>
 
           <div class="share-actions-footer">
-            <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">取消</button>
+            <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">{{ t('common.cancel') }}</button>
             <button
               class="sheet-btn sheet-btn--confirm"
               :disabled="importing || remainingCount === 0"
               @click="handleImport"
             >
-              {{ importing ? '导入中...' : `导入全部 (${remainingCount})` }}
+              {{ importing ? t('common.importing') : t('common.importAll', { count: remainingCount }) }}
             </button>
           </div>
         </template>
@@ -107,10 +107,12 @@
 
 <script setup>
 import { watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useClipboardImport } from '@/composables/useClipboardImport'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { formatCurrency } from '@/utils/format'
 
+const { t } = useI18n()
 const { showPrompt, incomingGistId, incomingShareId, dismissImport } = useClipboardImport()
 
 const {

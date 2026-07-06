@@ -286,17 +286,17 @@ const form = reactive({
   collectStatus: '',
   shippingFee: ''
 })
-const collectStatusOptions = [
-  { label: '待发货', value: '待发货' },
-  { label: '待补款', value: '待补款' },
-  { label: '待补邮', value: '待补邮' },
-  { label: '已拥有', value: '已拥有' },
-  { label: '丢失', value: '丢失' },
-  { label: '已赠出', value: '已赠出' },
-  { label: '想出', value: '想出' },
-  { label: '已出', value: '已出' },
-  { label: '在售', value: '在售' }
-]
+const collectStatusOptions = computed(() => [
+  { label: t('status.pendingShipment'), value: '待发货' },
+  { label: t('status.pendingPayment'), value: '待补款' },
+  { label: t('status.pendingPostage'), value: '待补邮' },
+  { label: t('status.owned'), value: '已拥有' },
+  { label: t('status.lost'), value: '丢失' },
+  { label: t('status.gifted'), value: '已赠出' },
+  { label: t('status.wantToSell'), value: '想出' },
+  { label: t('status.sold'), value: '已出' },
+  { label: t('status.forSale'), value: '在售' }
+])
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 
 const showProxy = computed({

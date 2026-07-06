@@ -16,10 +16,10 @@
           <p class="confirm-desc">{{ description }}</p>
           <div class="confirm-actions">
             <button class="confirm-btn confirm-btn--ghost" type="button" @click="handleCancel">
-              {{ cancelText }}
+              {{ cancelText || t('common.cancel') }}
             </button>
             <button class="confirm-btn confirm-btn--danger" type="button" @click="handleConfirm">
-              {{ confirmText }}
+              {{ confirmText || t('common.confirm') }}
             </button>
           </div>
         </div>
@@ -29,12 +29,16 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: '' },
   description: { type: String, default: '' },
-  confirmText: { type: String, default: '确认' },
-  cancelText: { type: String, default: '取消' }
+  confirmText: { type: String, default: '' },
+  cancelText: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:show', 'cancel', 'confirm'])

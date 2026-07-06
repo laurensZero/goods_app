@@ -51,5 +51,7 @@
     "padMaxVisibleDesc": "平板设备上同时显示的最大通知数量",
     "padDuration": "平板显示时长",
     "padDurationDesc": "平板设备上通知自动关闭前的显示时间"
-  }
+  },
+  "notify.saleTimeReached": "已到开售时间",
+  "notify.saleCountdown": "距开售"
 }

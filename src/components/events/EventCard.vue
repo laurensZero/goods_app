@@ -33,18 +33,18 @@
       <LazyCachedImage
         v-if="event.coverImage"
         :src="event.coverImage"
-        :alt="event.name || '活动封面'"
+        :alt="event.name || t('events.card.cover')"
         resume-decode-validation
         :image-attrs="{ class: 'event-card__image' }"
       />
       <div v-else class="event-card__placeholder">
-        <span>{{ event.name?.trim()?.charAt(0) || '活' }}</span>
+        <span>{{ event.name?.trim()?.charAt(0) || t('goods.heroFallbackEvent') }}</span>
       </div>
 
     </div>
 
     <div class="event-card__content">
-      <h3 class="event-card__title">{{ event.name || '未命名活动' }}</h3>
+      <h3 class="event-card__title">{{ event.name || t('events.card.unnamed') }}</h3>
 
       <div
         ref="tagsScrollerRef"
@@ -57,12 +57,12 @@
         @touchend.stop
       >
         <span class="event-card__tag-pill" :class="typeChipClass">{{ typeLabel }}</span>
-        <span class="event-card__tag-pill">{{ dateDisplay || '待补充时间' }}</span>
+        <span class="event-card__tag-pill">{{ dateDisplay || t('events.card.pendingTime') }}</span>
         <span v-if="event.location" class="event-card__tag-pill">{{ event.location }}</span>
-        <span v-if="event.linkedGoodsIds?.length" class="event-card__tag-pill">{{ event.linkedGoodsIds.length }} 件关联谷子</span>
-        <span v-if="event.type === 'concert' && event.tracks?.length" class="event-card__tag-pill">{{ event.tracks.length }} 首曲目</span>
+        <span v-if="event.linkedGoodsIds?.length" class="event-card__tag-pill">{{ event.linkedGoodsIds.length }}{{ t('common.itemsLinkedUnit') }}</span>
+        <span v-if="event.type === 'concert' && event.tracks?.length" class="event-card__tag-pill">{{ event.tracks.length }}{{ t('common.tracksUnit') }}</span>
         <span v-for="tag in event.tags" :key="tag" class="event-card__tag-pill">{{ tag }}</span>
-        <span v-if="event.photos?.length" class="event-card__tag-pill">{{ event.photos.length }} 张照片</span>
+        <span v-if="event.photos?.length" class="event-card__tag-pill">{{ event.photos.length }}{{ t('common.photosUnit') }}</span>
       </div>
       
       <div class="event-card__bottom">
@@ -74,7 +74,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -98,15 +101,15 @@ const MOUSE_TAP_THRESHOLD = 6
 let tagsDragStartX = 0
 let tagsDragStartScrollLeft = 0
 
-const TYPE_MAP = {
-  exhibition: { label: '展会', cls: 'type-exhibition' },
-  concert: { label: '音乐会', cls: 'type-concert' },
-  other: { label: '其他', cls: 'type-other' }
-}
+const TYPE_MAP = computed(() => ({
+  exhibition: { label: t('events.typeExhibition'), cls: 'type-exhibition' },
+  concert: { label: t('events.typeConcert'), cls: 'type-concert' },
+  other: { label: t('events.typeOther'), cls: 'type-other' }
+}))
 
 const coverMediaStyle = computed(() => ({}))
 
-const typeInfo = computed(() => TYPE_MAP[props.event.type] || TYPE_MAP.other)
+const typeInfo = computed(() => TYPE_MAP.value[props.event.type] || TYPE_MAP.value.other)
 const typeLabel = computed(() => typeInfo.value.label)
 const typeChipClass = computed(() => typeInfo.value.cls)
 const dateDisplay = computed(() => {

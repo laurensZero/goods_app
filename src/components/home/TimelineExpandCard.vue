@@ -36,7 +36,7 @@
 
         <p v-if="item.note" class="tl-expand-note">{{ item.note }}</p>
 
-        <button class="tl-expand-detail-btn" type="button" @click="$emit('open-detail')">查看详情</button>
+        <button class="tl-expand-detail-btn" type="button" @click="$emit('open-detail')">{{ t('home.viewDetail') }}</button>
       </div>
     </div>
   </div>
@@ -44,8 +44,11 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   item: { type: Object, required: true }

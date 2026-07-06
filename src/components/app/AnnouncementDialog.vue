@@ -3,12 +3,12 @@
     <div v-if="showDialog" class="overlay" @click.self="announcementStore.dismissAnnouncement()">
       <div class="dialog announcement-dialog">
         <p class="announcement-kicker">Announcement</p>
-        <h3 class="dialog-title">{{ activeAnnouncement?.title || '公告' }}</h3>
+        <h3 class="dialog-title">{{ activeAnnouncement?.title || t('common.announcement') }}</h3>
         <p class="dialog-desc">{{ activeAnnouncement?.message || '' }}</p>
 
         <div class="announcement-meta">
-          <span class="announcement-meta__item">来源：{{ sourceLabel }}</span>
-          <span v-if="updatedAtLabel" class="announcement-meta__item">更新于 {{ updatedAtLabel }}</span>
+          <span class="announcement-meta__item">{{ t('common.source') }}：{{ sourceLabel }}</span>
+          <span v-if="updatedAtLabel" class="announcement-meta__item">{{ t('common.updatedAt', { date: updatedAtLabel }) }}</span>
         </div>
 
         <div class="dialog-actions">
@@ -17,7 +17,7 @@
             class="dialog-btn dialog-btn--secondary"
             @click="announcementStore.dismissAnnouncement()"
           >
-            知道了
+            {{ t('common.known') }}
           </button>
           <button
             v-if="showPrimaryButton"
@@ -35,8 +35,10 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAnnouncementStore } from '@/stores/announcement'
 
+const { t } = useI18n()
 const announcementStore = useAnnouncementStore()
 
 const showDialog = computed(() => announcementStore.dialogVisible && !!announcementStore.activeAnnouncement)
@@ -47,13 +49,13 @@ const showPrimaryButton = computed(() => {
 })
 const primaryButtonText = computed(() => {
   const text = String(activeAnnouncement.value?.cta?.text || '').trim()
-  return text || '查看详情'
+  return text || t('common.viewDetail')
 })
 const sourceLabel = computed(() => {
-  if (announcementStore.resolvedSource === 'local') return '本地（dev）'
+  if (announcementStore.resolvedSource === 'local') return t('common.localDev')
   if (announcementStore.resolvedSource === 'gist') return 'Gist'
   if (announcementStore.resolvedSource === 'github') return 'GitHub'
-  return '未知'
+  return t('common.unknown')
 })
 const updatedAtLabel = computed(() => {
   const value = String(announcementStore.latestManifest?.updatedAt || '').trim()

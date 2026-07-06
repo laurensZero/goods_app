@@ -51,5 +51,7 @@
     "padMaxVisibleDesc": "Maximum notifications shown on tablet devices",
     "padDuration": "Tablet Display Duration",
     "padDurationDesc": "How long notifications stay on tablet devices"
-  }
+  },
+  "notify.saleTimeReached": "Sale time reached",
+  "notify.saleCountdown": "Until sale"
 }

@@ -3,55 +3,55 @@
     <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
       <div class="dialog update-dialog">
         <p class="update-kicker">Update Available</p>
-        <h3 class="dialog-title">发现新版本 v{{ updateStore.latestVersion }}</h3>
+        <h3 class="dialog-title">{{ t('common.appUpdate.foundNew', { version: updateStore.latestVersion }) }}</h3>
         <p class="dialog-desc">
-          当前版本 v{{ updateStore.currentVersion }}，可用最新版本为 v{{ updateStore.latestVersion }}。
-          <template v-if="publishedAtLabel">发布于 {{ publishedAtLabel }}。</template>
-          <template v-if="updateStore.isForceUpdate">本次为强制更新，需先更新后继续使用。</template>
+          {{ t('common.appUpdate.currentAndLatest', { current: updateStore.currentVersion, latest: updateStore.latestVersion }) }}
+          <template v-if="publishedAtLabel">{{ t('common.publishedAt', { date: publishedAtLabel }) }}</template>
+          <template v-if="updateStore.isForceUpdate">{{ t('common.appUpdate.forceUpdate') }}</template>
         </p>
 
         <div class="version-row">
           <div class="version-pill">
-            <span class="version-pill__label">当前</span>
+            <span class="version-pill__label">{{ t('common.currentLabel') }}</span>
             <strong class="version-pill__value">v{{ updateStore.currentVersion }}</strong>
           </div>
           <div class="version-pill version-pill--accent">
-            <span class="version-pill__label">最新</span>
+            <span class="version-pill__label">{{ t('common.latestLabel') }}</span>
             <strong class="version-pill__value">v{{ updateStore.latestVersion }}</strong>
           </div>
         </div>
 
         <section v-if="updateStore.releaseNotesPreview" class="release-notes">
-          <p class="release-notes__label">更新说明</p>
+          <p class="release-notes__label">{{ t('common.updateNotes') }}</p>
           <pre class="release-notes__body">{{ updateStore.releaseNotesPreview }}</pre>
         </section>
 
         <p class="update-tip">
           {{ updateStore.usingMockDownload
-            ? '当前为开发预览模式：将模拟应用内下载进度与速度。'
+            ? t('common.appUpdate.devPreview')
             : (updateStore.supportsInAppDownload
-              ? '将直接在应用内下载更新包，下载后可直接调用系统安装程序。'
-              : '当前环境不支持应用内下载，将打开更新页面进行下载。') }}
+              ? t('common.appUpdate.nativeDownload')
+              : t('common.appUpdate.webDownload')) }}
         </p>
         <section v-if="updateStore.isDownloading" class="download-progress">
           <div class="download-progress__head">
-            <span>下载中</span>
+            <span>{{ t('common.downloading') }}</span>
             <span>{{ updateStore.downloadProgress }}%</span>
           </div>
           <div class="download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
             <span class="download-progress__bar" :style="{ transform: `scaleX(${updateStore.downloadProgress / 100})` }" />
           </div>
           <div class="download-progress__meta">
-            <span>{{ updateStore.downloadTransferred || '准备中…' }}</span>
+            <span>{{ updateStore.downloadTransferred || t('common.preparing') }}</span>
             <span>{{ updateStore.downloadSpeed || '--' }}</span>
           </div>
         </section>
         <p v-if="updateStore.downloadError" class="update-error">{{ updateStore.downloadError }}</p>
 
         <div class="dialog-actions">
-          <button v-if="!updateStore.isForceUpdate" type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">稍后再说</button>
+          <button v-if="!updateStore.isForceUpdate" type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">{{ t('common.laterOrNot') }}</button>
           <button type="button" class="dialog-btn dialog-btn--primary" :disabled="updateStore.isDownloading" @click="updateStore.downloadAndInstallUpdate()">
-            {{ updateStore.isDownloading ? '正在下载…' : (updateStore.usingMockDownload ? '模拟下载' : (updateStore.supportsInAppDownload ? '下载并安装' : '前往更新')) }}
+            {{ updateStore.isDownloading ? t('common.downloading') + '…' : (updateStore.usingMockDownload ? t('common.appUpdate.simulateDownload') : (updateStore.supportsInAppDownload ? t('common.appUpdate.downloadAndInstall') : t('common.appUpdate.goToUpdate'))) }}
           </button>
         </div>
       </div>
@@ -61,8 +61,10 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 
+const { t } = useI18n()
 const updateStore = useAppUpdateStore()
 
 const showDialog = computed(() => updateStore.dialogVisible && updateStore.hasUpdate)

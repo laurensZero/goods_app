@@ -51,7 +51,7 @@
                   :alt="item.name"
                   root-margin="120px 0px"
                 />
-                <div v-else class="tl-thumb-empty">暂无</div>
+                <div v-else class="tl-thumb-empty">{{ t('home.noTimeline') }}</div>
               </div>
             </button>
           </div>
@@ -99,7 +99,7 @@
                 :alt="item.name"
                 root-margin="120px 0px"
               />
-              <div v-else class="tl-thumb-empty">暂无</div>
+              <div v-else class="tl-thumb-empty">{{ t('home.noTimeline') }}</div>
             </div>
           </button>
         </div>

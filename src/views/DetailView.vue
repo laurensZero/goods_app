@@ -237,7 +237,7 @@
     <Transition name="dialog-fade">
       <div v-if="showCartDialog" class="dialog-overlay" @click="showCartDialog = false">
         <div class="dialog-card" @click.stop>
-          <h2 class="dialog-title">选择规格</h2>
+          <h2 class="dialog-title">{{ t('goods.selectSpec') }}</h2>
           <p class="dialog-desc">{{ item?.name }}</p>
 
           <div class="sku-list">

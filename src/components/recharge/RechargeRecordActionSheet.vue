@@ -18,7 +18,7 @@
 
         <div class="sheet-options">
           <button class="sheet-option" type="button" @click="onEdit">
-            <span class="option-icon">编</span>
+            <span class="option-icon">{{ t('common.edit') }}</span>
             <div class="option-body">
               <p class="option-title">{{ t('recharge.recordAction.editTitle') }}</p>
               <p class="option-desc">{{ t('recharge.recordAction.editDesc') }}</p>
@@ -28,7 +28,7 @@
           <div class="sheet-divider" />
 
           <button class="sheet-option sheet-option--danger" type="button" @click="onDelete">
-            <span class="option-icon option-icon--danger">删</span>
+            <span class="option-icon option-icon--danger">{{ t('common.delete') }}</span>
             <div class="option-body">
               <p class="option-title">{{ t('recharge.recordAction.moveToTrash') }}</p>
               <p class="option-desc">{{ t('recharge.recordAction.moveToTrashDesc') }}</p>

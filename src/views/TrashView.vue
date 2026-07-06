@@ -36,7 +36,7 @@
           <article v-for="item in store.trashViewList" :key="item.id" class="trash-card">
             <div class="trash-thumb">
               <LazyCachedImage v-if="item.coverImage" :src="item.coverImage" :alt="item.name" class="trash-thumb__img" />
-              <span v-else>{{ item.name.trim().charAt(0).toUpperCase() || '谷' }}</span>
+              <span v-else>{{ item.name.trim().charAt(0).toUpperCase() || t('goods.heroFallbackGoods') }}</span>
             </div>
 
             <div class="trash-body">

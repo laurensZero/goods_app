@@ -16,11 +16,11 @@
           <button
             :class="['dt-picker-tab', { 'dt-picker-tab--active': activeTab === 'date' }]"
             @click="activeTab = 'date'"
-          >{{ t('common.date') || '日期' }}</button>
+          >{{ t('common.date') }}</button>
           <button
             :class="['dt-picker-tab', { 'dt-picker-tab--active': activeTab === 'time' }]"
             @click="activeTab = 'time'"
-          >{{ t('common.time') || '时间' }}</button>
+          >{{ t('common.time') }}</button>
         </div>
         <button class="dt-picker-btn dt-picker-btn--confirm" @click="handleConfirm">{{ t('common.confirm') }}</button>
       </div>

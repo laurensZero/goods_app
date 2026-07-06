@@ -2,20 +2,20 @@
   <Teleport to="body">
     <Transition name="editor-fade">
       <div v-if="show" class="editor-overlay" @click.self="handleCancel">
-        <div class="editor-dialog" role="dialog" aria-modal="true" aria-label="快速编辑图片">
+        <div class="editor-dialog" role="dialog" aria-modal="true" :aria-label="t('imageEditor.title')">
           <div class="editor-handle" aria-hidden="true" />
 
           <header class="editor-header">
             <div class="editor-title">
-              <h3>快速编辑图片</h3>
-              <p class="editor-subtitle">裁切、旋转、抠图和导出</p>
+              <h3>{{ t('imageEditor.title') }}</h3>
+              <p class="editor-subtitle">{{ t('imageEditor.subtitle') }}</p>
             </div>
             <button type="button" class="editor-close" @click="handleCancel">
-              <span>关闭</span>
+              <span>{{ t('common.close') }}</span>
             </button>
           </header>
 
-          <div class="editor-tabs" role="tablist" aria-label="图片编辑功能">
+          <div class="editor-tabs" role="tablist" :aria-label="t('common.aria.imageEditFeatures')">
             <button
               v-for="tab in tabOptions"
               :key="tab.value"
@@ -35,7 +35,7 @@
               :disabled="saving || cutoutLoading || cutoutApplyingMask || !canUndo"
               @click="undoEditorChange"
             >
-              撤销
+              {{ t('imageEditor.undo') }}
             </button>
             <button
               type="button"
@@ -43,7 +43,7 @@
               :disabled="saving || cutoutLoading || cutoutApplyingMask || !canRedo"
               @click="redoEditorChange"
             >
-              重做
+              {{ t('imageEditor.redo') }}
             </button>
           </div>
 
@@ -52,35 +52,35 @@
               ref="previewRef"
               :class="['editor-preview', whiteBgEnabled && 'editor-preview--white']"
             >
-              <img ref="imageRef" :src="previewUrl" alt="编辑预览" class="editor-image" />
+              <img ref="imageRef" :src="previewUrl" :alt="t('common.aria.editPreview')" class="editor-image" />
 
             </section>
 
             <div class="editor-panels">
               <section v-show="activeTab === 'basic'" class="editor-panel">
                 <div class="editor-group">
-                  <p class="editor-group-title">方向调整</p>
+                  <p class="editor-group-title">{{ t('imageEditor.orientation') }}</p>
                   <div class="editor-actions">
                     <button type="button" class="editor-btn" :disabled="saving" @click="rotateLeft">
-                      左转 90°
+                      {{ t('imageEditor.rotateLeft') }}
                     </button>
                     <button type="button" class="editor-btn" :disabled="saving" @click="rotateRight">
-                      右转 90°
+                      {{ t('imageEditor.rotateRight') }}
                     </button>
                     <button type="button" class="editor-btn" :disabled="saving" @click="flipHorizontal">
-                      水平镜像
+                      {{ t('imageEditor.flipH') }}
                     </button>
                     <button type="button" class="editor-btn editor-btn--ghost" :disabled="saving" @click="resetCropper">
-                      重置
+                      {{ t('imageEditor.resetOrientation') }}
                     </button>
                   </div>
                 </div>
 
                 <div class="editor-group">
-                  <p class="editor-group-title">画面校正</p>
+                  <p class="editor-group-title">{{ t('imageEditor.correction') }}</p>
                   <label class="editor-slider">
                     <div class="editor-slider__head">
-                      <span>亮度</span>
+                      <span>{{ t('imageEditor.brightness') }}</span>
                       <strong>{{ formatSignedValue(brightness) }}</strong>
                     </div>
                     <input v-model.number="brightness" type="range" min="-60" max="60" step="1" @change="recordEditorHistory" />
@@ -88,7 +88,7 @@
 
                   <label class="editor-slider">
                     <div class="editor-slider__head">
-                      <span>对比度</span>
+                      <span>{{ t('imageEditor.contrast') }}</span>
                       <strong>{{ formatSignedValue(contrast) }}</strong>
                     </div>
                     <input v-model.number="contrast" type="range" min="-40" max="40" step="1" @change="recordEditorHistory" />
@@ -98,14 +98,14 @@
 
               <section v-show="activeTab === 'cutout'" class="editor-panel">
                 <div class="editor-group">
-                  <p class="editor-group-title">智能抠图</p>
+                  <p class="editor-group-title">{{ t('imageEditor.cutout') }}</p>
                   <button
                     type="button"
                     class="editor-btn editor-btn--primary"
                     :disabled="cutoutLoading || saving"
                     @click="runCutout"
                   >
-                    {{ cutoutLoading ? cutoutLoadingText : '一键抠图' }}
+                    {{ cutoutLoading ? cutoutLoadingText : t('imageEditor.oneClickCutout') }}
                   </button>
 
                   <button
@@ -115,10 +115,10 @@
                     :disabled="cutoutLoading || saving"
                     @click="runCutout"
                   >
-                    重新尝试
+                    {{ t('imageEditor.retry') }}
                   </button>
 
-                  <p class="editor-hint">建议先裁切多余边缘，再抠图</p>
+                  <p class="editor-hint">{{ t('imageEditor.cutoutHint') }}</p>
                 </div>
 
 
@@ -136,27 +136,27 @@
 
               <section v-show="activeTab === 'export'" class="editor-panel">
                 <div class="editor-group">
-                  <p class="editor-group-title">导出设置</p>
+                  <p class="editor-group-title">{{ t('imageEditor.exportSettings') }}</p>
 
                   <div class="editor-export-preview">
                     <div class="editor-export-preview__stage">
                       <img
                         v-if="previewUrl"
                         :src="previewUrl"
-                        alt="白底导出预览"
+                        :alt="t('common.aria.whiteBgPreview')"
                         class="editor-export-preview__image"
                         :style="whiteBgPreviewImageStyle"
                       />
                     </div>
                     <p class="editor-hint">
-                      {{ whiteBgEnabled ? '拖动滑杆可实时预览白底上的主体大小' : '关闭白底时将保留透明底导出' }}
+                      {{ whiteBgEnabled ? t('imageEditor.dragHint') : t('imageEditor.closeWhiteBg') }}
                     </p>
                   </div>
 
                   <label class="editor-toggle">
                     <div class="editor-toggle__info">
-                      <strong>自动补白底</strong>
-                      <span>适合证件照、商品图上传</span>
+                      <strong>{{ t('imageEditor.autoWhiteBg') }}</strong>
+                      <span>{{ t('imageEditor.autoWhiteBgDesc') }}</span>
                     </div>
                     <input v-model="whiteBgEnabled" type="checkbox" class="editor-toggle__input" />
                     <span class="editor-toggle__track" aria-hidden="true">
@@ -165,23 +165,23 @@
                   </label>
 
                   <label v-if="whiteBgEnabled" class="editor-field">
-                    <span class="editor-field__label">白底风格</span>
+                    <span class="editor-field__label">{{ t('imageEditor.whiteBgStyle') }}</span>
                     <AppSelect
                       v-model="whiteBgStyle"
-                      :options="WHITE_BG_STYLE_OPTIONS"
-                      placeholder="选择导出风格"
+                      :options="whiteBgStyleOptions"
+                      :placeholder="t('imageEditor.selectExportStyle')"
                     />
                   </label>
 
                   <label v-if="whiteBgEnabled" class="editor-slider">
                     <div class="editor-slider__head">
-                      <span>白底主体占比</span>
+                      <span>{{ t('imageEditor.whiteBgRatio') }}</span>
                       <strong>{{ whiteBgScalePercent }}%</strong>
                     </div>
                     <input v-model.number="whiteBgScalePercent" type="range" min="40" max="100" step="1" />
                   </label>
 
-                  <p class="editor-hint">保存时保留当前导出结果，不再额外压缩</p>
+                  <p class="editor-hint">{{ t('imageEditor.noCompressOnSave') }}</p>
                 </div>
               </section>
 
@@ -201,10 +201,10 @@
 
           <footer class="editor-footer">
             <button type="button" class="editor-btn editor-btn--ghost" :disabled="saving" @click="handleCancel">
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button type="button" class="editor-btn editor-btn--primary" :disabled="saving" @click="handleSave">
-              {{ saving ? `保存中 ${saveProgress}%` : '保存并替换原图' }}
+              {{ saving ? t('imageEditor.saveProgress', { percent: saveProgress }) : t('imageEditor.saveAndReplace') }}
             </button>
           </footer>
         </div>

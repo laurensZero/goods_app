@@ -11,7 +11,7 @@
         <LazyCachedImage
           v-if="photo.uri && !suspend"
           :src="photo.uri"
-          :alt="photo.caption || `照片 ${index + 1}`"
+          :alt="photo.caption || t('events.photoAlt', { index: index + 1 })"
           root-margin="120px 0px"
           loading="lazy"
           decoding="async"
@@ -26,7 +26,10 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
+const { t } = useI18n()
 
 defineProps({
   photos: { type: Array, default: () => [] },

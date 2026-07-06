@@ -26,6 +26,7 @@
 <script setup>
 import { computed, KeepAlive } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
 import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
@@ -45,6 +46,7 @@ import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
 
 const route = useRoute()
+const { t } = useI18n()
 const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
 const webUpdateStore = useWebUpdateStore()
@@ -74,10 +76,10 @@ function getRouteKey(currentRoute) {
 useRealtimeSync({ syncStore })
 useDeepLinks({
   onStorageNavigate(storagePath) {
-    const displayName = decodeURIComponent(storagePath).split('/').filter(Boolean).join(' > ') || '未知位置'
+    const displayName = decodeURIComponent(storagePath).split('/').filter(Boolean).join(' > ') || t('toast.unknownLocation')
     pushNotify({
       iconType: 'bell',
-      text: '已跳转到收纳位置',
+      text: t('toast.jumpedToStorage'),
       subText: displayName,
       duration: 4000
     })

@@ -3,17 +3,17 @@
     <div class="batch-card__image">
       <LazyCachedImage v-if="card.imageUri" :src="card.imageUri" :lazy="false" class="batch-card__img" />
       <span v-else class="batch-card__placeholder">?</span>
-      <button class="batch-card__swap" type="button" @click.stop="$emit('swap')">更换</button>
+      <button class="batch-card__swap" type="button" @click.stop="$emit('swap')">{{ t('common.replace') }}</button>
       <button class="batch-card__delete" type="button" @click.stop="$emit('remove')">&times;</button>
     </div>
 
     <div class="batch-card__fields">
       <label class="field">
-        <span class="field-label">名称 <span class="required">*</span></span>
+        <span class="field-label">{{ t('common.name') }} <span class="required">*</span></span>
         <input
           :value="card.name"
           type="text"
-          placeholder="例如：甘雨手办"
+          :placeholder="t('goods.editor.namePlaceholder')"
           @input="updateField('name', $event)"
           @blur="markDirty('name')"
         />
@@ -25,16 +25,16 @@
           <AppSelect
             :model-value="card.ip"
             :options="ipOptions"
-            placeholder="选择 IP"
+            :placeholder="t('goods.editor.ipPlaceholder')"
             @update:model-value="updateSelect('ip', $event)"
           />
         </label>
         <label class="field field-row__item">
-          <span class="field-label">分类</span>
+          <span class="field-label">{{ t('common.category') }}</span>
           <AppSelect
             :model-value="card.category"
             :options="categoryOptions"
-            placeholder="选择分类"
+            :placeholder="t('goods.editor.categoryPlaceholder')"
             @update:model-value="updateSelect('category', $event)"
           />
         </label>
@@ -42,17 +42,17 @@
 
       <div class="field-row">
         <label class="field field-row__item">
-          <span class="field-label">角色</span>
+          <span class="field-label">{{ t('common.character') }}</span>
           <input
             :value="card.charactersText"
             type="text"
-            placeholder="逗号分隔"
+            :placeholder="t('common.tagPlaceholder')"
             @input="updateField('charactersText', $event)"
             @blur="markDirty('charactersText')"
           />
         </label>
         <label class="field field-row__item">
-          <span class="field-label">价格</span>
+          <span class="field-label">{{ t('common.price') }}</span>
           <input
             :value="card.price"
             type="text"
@@ -68,8 +68,11 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+
+const { t } = useI18n()
 
 defineProps({
   card: { type: Object, required: true },

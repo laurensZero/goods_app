@@ -65,7 +65,7 @@
           <div class="track-editor__card-header">
             <label class="track-editor__label">{{ t('events.tracks.collectionImport') }}</label>
             <span v-if="importDetectedSource" class="track-editor__detected-badge" :class="{ 'track-editor__detected-badge--qq': importDetectedSource === 'qq' }">
-              {{ importDetectedSource === 'qq' ? 'QQ 音乐' : '网易云' }}
+              {{ importDetectedSource === 'qq' ? t('events.tracks.qqMusic') : t('events.tracks.netease') }}
             </span>
           </div>
           <div class="track-editor__input-row">
@@ -148,7 +148,7 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: '演唱会曲目'
+    default: ''
   }
 })
 
@@ -167,6 +167,8 @@ const searchResults = ref([])
 const searchPage = ref(1)
 const searchHasMore = ref(true)
 const searchResultListRef = ref(null)
+
+const resolvedTitle = computed(() => props.title || t('events.addEdit.concertSetlist'))
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
 

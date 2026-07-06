@@ -1,19 +1,22 @@
 <template>
   <div class="chart-wrapper">
-    <div v-if="loading" class="chart-loading">加载中…</div>
-    <div v-else-if="!hasData" class="chart-empty">暂无数据</div>
+    <div v-if="loading" class="chart-loading">{{ t('stats.loading') }}</div>
+    <div v-else-if="!hasData" class="chart-empty">{{ t('stats.noData') }}</div>
     <div v-else ref="chartRef" class="chart-root" />
   </div>
 </template>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart, BarChart, LineChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 
 echarts.use([CanvasRenderer, PieChart, BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
+
+const { t } = useI18n()
 
 const props = defineProps({
   option: { type: Object, required: false },

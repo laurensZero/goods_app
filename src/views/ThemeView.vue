@@ -232,8 +232,8 @@
         <div class="section-head">
           <div>
             <p class="section-label">Animation</p>
-            <h2 class="section-title">Hero 动画模式</h2>
-            <p class="section-desc">切换详情页打开/返回时的 hero 过渡动画渲染方式。合成器模式帧率更高，布局模式兼容性更好。</p>
+            <h2 class="section-title">{{ t('theme.heroAnimMode') }}</h2>
+            <p class="section-desc">{{ t('theme.heroAnimDesc') }}</p>
           </div>
         </div>
 
@@ -363,11 +363,11 @@ import { Popup } from 'vant'
 const { t } = useI18n()
 
 // ---- Hero animation mode ----
-const HERO_ANIM_OPTIONS = [
-  { value: 'auto', label: '自动', desc: '根据宽高比自动选择（推荐）' },
-  { value: 'transform', label: '合成器', desc: '仅使用 transform，帧率最高' },
-  { value: 'layout', label: '布局', desc: '使用 left/top/width/height，兼容性最好' }
-]
+const HERO_ANIM_OPTIONS = computed(() => [
+  { value: 'auto', label: t('theme.heroAuto'), desc: t('theme.heroAutoDesc') },
+  { value: 'transform', label: t('theme.heroCompositor'), desc: t('theme.heroCompositorDesc') },
+  { value: 'layout', label: t('theme.heroLayout'), desc: t('theme.heroLayoutDesc') }
+])
 const heroAnimMode = ref(getHeroAnimMode())
 function setHeroAnimMode(mode) {
   _setHeroAnimMode(mode)

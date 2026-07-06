@@ -1,13 +1,13 @@
 ﻿<template>
   <div class="page month-card-page">
-    <NavBar title="月卡日历" show-back />
+    <NavBar :title="t('recharge.monthCardCalendar')" show-back />
 
     <main class="page-body">
       <section v-if="hasMonthCardRecords" class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Month Card Calendar</p>
-          <h1 class="hero-title">{{ selectedGame || '全部游戏' }}</h1>
-          <p class="hero-desc">同一游戏的多张月卡会按到期时间顺延累加，每张继续增加 30 天生效期。</p>
+          <h1 class="hero-title">{{ selectedGame || t('recharge.monthCard.allGames') }}</h1>
+          <p class="hero-desc">{{ t('recharge.monthCard.overlapHint') }}</p>
         </div>
       </section>
 
@@ -20,11 +20,11 @@
           <div class="summary-card__stats">
             <div class="summary-stat">
               <span class="summary-stat__value">{{ longestCoverageDays }}</span>
-              <span class="summary-stat__label">最长持续生效天数</span>
+              <span class="summary-stat__label">{{ t('recharge.monthCard.maxConsecutiveDays') }}</span>
             </div>
             <div class="summary-stat">
               <span class="summary-stat__value">{{ latestExpiryText }}</span>
-              <span class="summary-stat__label">最晚到期</span>
+              <span class="summary-stat__label">{{ t('recharge.monthCard.latestExpiry') }}</span>
             </div>
           </div>
         </article>
@@ -52,7 +52,7 @@
             @touchstart.stop
             @click="jumpToToday"
           >
-            回到今天
+            {{ t('recharge.monthCard.backToToday') }}
           </button>
         </div>
         <div
@@ -73,12 +73,12 @@
               >
                 <div class="calendar-card__head">
                   <div>
-                    <p class="calendar-card__label">当前月份</p>
+                    <p class="calendar-card__label">{{ t('recharge.monthCard.currentMonth') }}</p>
                     <p class="calendar-card__month">{{ month.label }}</p>
                   </div>
                   <div class="calendar-card__legend">
                     <span class="calendar-card__legend-dot" aria-hidden="true" />
-                    <span class="calendar-card__legend-text">生效覆盖</span>
+                    <span class="calendar-card__legend-text">{{ t('recharge.monthCard.coverage') }}</span>
                   </div>
                 </div>
 
@@ -117,8 +117,8 @@
 
       <section v-if="hasMonthCardRecords" class="records-section">
         <div class="section-head">
-          <p class="section-label">覆盖详情</p>
-          <h2 class="section-title">{{ currentMonthRecordList.length }} 条生效区间</h2>
+          <p class="section-label">{{ t('recharge.monthCard.coverageDetail') }}</p>
+          <h2 class="section-title">{{ t('recharge.monthCard.intervals', { count: currentMonthRecordList.length }) }}</h2>
         </div>
 
         <div v-if="currentMonthRecordList.length > 0" class="record-list">
@@ -142,19 +142,19 @@
                 </div>
                 <p :class="['record-item__status', `record-item__status--${record.status}`]">{{ record.statusText }}</p>
               </div>
-              <p class="record-item__meta">购买 {{ record.purchaseText }} · 生效 {{ record.startText }} - {{ record.endText }}</p>
+              <p class="record-item__meta">{{ t('recharge.monthCard.purchaseOn') }} {{ record.purchaseText }} · {{ t('recharge.monthCard.effectiveOn') }} {{ record.startText }} - {{ record.endText }}</p>
             </div>
           </article>
         </div>
 
-        <div v-else class="empty-mini">这个月没有月卡覆盖天数。</div>
+        <div v-else class="empty-mini">{{ t('recharge.monthCard.noCoverage') }}</div>
       </section>
 
       <section v-if="!hasMonthCardRecords" class="empty-wrap">
         <EmptyState
           icon="✨"
-          title="还没有月卡记录"
-          description="添加空月祝福、列车补给凭证或绳网会员后，这里会按月显示覆盖天数。"
+          :title="t('recharge.monthCard.noRecordsTitle')"
+          :description="t('recharge.monthCard.noRecordsDesc')"
         />
       </section>
     </main>
@@ -163,6 +163,7 @@
 
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -173,6 +174,8 @@ import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
 
 defineOptions({ name: 'MonthCardCalendarView' })
+
+const { t } = useI18n()
 
 const MONTH_CARD_NAMES = new Set(['空月祝福', '列车补给凭证', '绳网会员'])
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日']
@@ -760,9 +763,9 @@ function getStatus(startDate, endDate) {
 
 function getStatusText(startDate, endDate) {
   const status = getStatus(startDate, endDate)
-  if (status === 'active') return '生效中'
-  if (status === 'upcoming') return '未开始'
-  return '已结束'
+  if (status === 'active') return t('recharge.monthCard.statusActive')
+  if (status === 'upcoming') return t('recharge.monthCard.statusUpcoming')
+  return t('recharge.monthCard.statusExpired')
 }
 
 function diffInDays(later, earlier) {
@@ -772,7 +775,7 @@ function diffInDays(later, earlier) {
 
 function formatMonthLabel(monthKey) {
   const date = parseMonthKey(monthKey)
-  return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`
+  return t('recharge.monthCard.monthLabel', { year: date.getFullYear(), month: date.getMonth() + 1 })
 }
 
 function startOfDay(date) {

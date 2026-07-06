@@ -23,7 +23,7 @@
       <LazyCachedImage
         v-if="resolvedImage"
         :src="resolvedImage"
-        :alt="record.itemName || '充值项目图片'"
+        :alt="record.itemName || t('recharge.imageAlt')"
         class="record-thumb"
         loading="lazy"
       />
@@ -32,13 +32,13 @@
 
     <div class="record-body">
       <div class="record-head">
-        <p class="record-name">{{ record.itemName || '未命名项目' }}</p>
+        <p class="record-name">{{ record.itemName || t('recharge.unnamed') }}</p>
         <p class="record-amount">¥{{ amountText }}</p>
       </div>
 
       <div class="record-meta">
-        <span class="record-chip">{{ record.game || '未分类游戏' }}</span>
-        <span class="record-chip">{{ record.chargedAt || '未填写日期' }}</span>
+        <span class="record-chip">{{ record.game || t('recharge.uncategorized') }}</span>
+        <span class="record-chip">{{ record.chargedAt || t('recharge.unfilledDate') }}</span>
       </div>
 
       <p v-if="record.note" class="record-note">{{ record.note }}</p>
@@ -48,6 +48,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { resolveRechargePresetImage } from '@/utils/rechargeImages'
 
@@ -67,6 +68,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['hold', 'click'])
+const { t } = useI18n()
 
 const LONG_PRESS_MS = 420
 const TOUCH_MOVE_THRESHOLD = 12

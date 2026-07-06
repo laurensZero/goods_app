@@ -42,7 +42,7 @@
             v-if="searchActiveFilterCount > 0"
             class="hero-reset"
             type="button"
-            aria-label="重置筛选"
+            :aria-label="t('home.resetFilter')"
             @click="searchResetFilters()"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
