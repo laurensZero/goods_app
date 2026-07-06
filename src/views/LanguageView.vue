@@ -70,7 +70,10 @@ const currentLocale = computed(() => locale.value)
 
 const localeOptions = [
   { value: 'zh-CN', label: '简体中文', nativeLabel: 'Chinese (Simplified)' },
-  { value: 'en', label: 'English', nativeLabel: 'English' }
+  { value: 'zh-TW', label: '繁體中文', nativeLabel: 'Chinese (Traditional)' },
+  { value: 'en', label: 'English', nativeLabel: 'English' },
+  { value: 'ja', label: '日本語', nativeLabel: 'Japanese' },
+  { value: 'ko', label: '한국어', nativeLabel: 'Korean' }
 ]
 
 const currentLanguageLabel = computed(() => {

@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 import { Locale } from 'vant'
 import enUS from 'vant/es/locale/lang/en-US'
 import zhCN from 'vant/es/locale/lang/zh-CN'
+import jaJP from 'vant/es/locale/lang/ja-JP'
 
 import zhCommon from './zh-CN/common.json'
 import zhNav from './zh-CN/nav.json'
@@ -47,8 +48,74 @@ import enMy from './en/my.json'
 import enGoodsGroup from './en/goodsGroup.json'
 import enNotify from './en/notify.json'
 
+import jaCommon from './ja/common.json'
+import jaNav from './ja/nav.json'
+import jaGoods from './ja/goods.json'
+import jaHome from './ja/home.json'
+import jaSearch from './ja/search.json'
+import jaManage from './ja/manage.json'
+import jaEvents from './ja/events.json'
+import jaRecharge from './ja/recharge.json'
+import jaSync from './ja/sync.json'
+import jaTheme from './ja/theme.json'
+import jaImport from './ja/import.json'
+import jaAbout from './ja/about.json'
+import jaValidation from './ja/validation.json'
+import jaStatus from './ja/status.json'
+import jaToast from './ja/toast.json'
+import jaLeaderboard from './ja/leaderboard.json'
+import jaShare from './ja/share.json'
+import jaTrash from './ja/trash.json'
+import jaMy from './ja/my.json'
+import jaGoodsGroup from './ja/goodsGroup.json'
+import jaNotify from './ja/notify.json'
+
+import koCommon from './ko/common.json'
+import koNav from './ko/nav.json'
+import koGoods from './ko/goods.json'
+import koHome from './ko/home.json'
+import koSearch from './ko/search.json'
+import koManage from './ko/manage.json'
+import koEvents from './ko/events.json'
+import koRecharge from './ko/recharge.json'
+import koSync from './ko/sync.json'
+import koTheme from './ko/theme.json'
+import koImport from './ko/import.json'
+import koAbout from './ko/about.json'
+import koValidation from './ko/validation.json'
+import koStatus from './ko/status.json'
+import koToast from './ko/toast.json'
+import koLeaderboard from './ko/leaderboard.json'
+import koShare from './ko/share.json'
+import koTrash from './ko/trash.json'
+import koMy from './ko/my.json'
+import koGoodsGroup from './ko/goodsGroup.json'
+import koNotify from './ko/notify.json'
+
+import zhTWCommon from './zh-TW/common.json'
+import zhTWNav from './zh-TW/nav.json'
+import zhTWGoods from './zh-TW/goods.json'
+import zhTWHome from './zh-TW/home.json'
+import zhTWSearch from './zh-TW/search.json'
+import zhTWManage from './zh-TW/manage.json'
+import zhTWEvents from './zh-TW/events.json'
+import zhTWRecharge from './zh-TW/recharge.json'
+import zhTWSync from './zh-TW/sync.json'
+import zhTWTheme from './zh-TW/theme.json'
+import zhTWImport from './zh-TW/import.json'
+import zhTWAbout from './zh-TW/about.json'
+import zhTWValidation from './zh-TW/validation.json'
+import zhTWStatus from './zh-TW/status.json'
+import zhTWToast from './zh-TW/toast.json'
+import zhTWLeaderboard from './zh-TW/leaderboard.json'
+import zhTWShare from './zh-TW/share.json'
+import zhTWTrash from './zh-TW/trash.json'
+import zhTWMy from './zh-TW/my.json'
+import zhTWGoodsGroup from './zh-TW/goodsGroup.json'
+import zhTWNotify from './zh-TW/notify.json'
+
 const STORAGE_KEY = 'goods_locale'
-const SUPPORTED_LOCALES = ['zh-CN', 'en']
+const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
 const DEFAULT_LOCALE = 'zh-CN'
 const FALLBACK_LOCALE = 'zh-CN'
 
@@ -59,8 +126,11 @@ function detectLocale() {
   } catch {}
 
   const deviceLang = navigator.language || navigator.userLanguage || ''
+  if (deviceLang.startsWith('zh-TW') || deviceLang.startsWith('zh-Hant')) return 'zh-TW'
   if (deviceLang.startsWith('zh')) return 'zh-CN'
   if (deviceLang.startsWith('en')) return 'en'
+  if (deviceLang.startsWith('ja')) return 'ja'
+  if (deviceLang.startsWith('ko')) return 'ko'
 
   return DEFAULT_LOCALE
 }
@@ -113,22 +183,102 @@ const enMessages = {
   ...enNotify
 }
 
+const jaMessages = {
+  ...jaCommon,
+  ...jaNav,
+  ...jaGoods,
+  ...jaHome,
+  ...jaSearch,
+  ...jaManage,
+  ...jaEvents,
+  ...jaRecharge,
+  ...jaSync,
+  ...jaTheme,
+  ...jaImport,
+  ...jaAbout,
+  ...jaValidation,
+  ...jaStatus,
+  ...jaToast,
+  ...jaLeaderboard,
+  ...jaShare,
+  ...jaTrash,
+  ...jaMy,
+  ...jaGoodsGroup,
+  ...jaNotify
+}
+
+const koMessages = {
+  ...koCommon,
+  ...koNav,
+  ...koGoods,
+  ...koHome,
+  ...koSearch,
+  ...koManage,
+  ...koEvents,
+  ...koRecharge,
+  ...koSync,
+  ...koTheme,
+  ...koImport,
+  ...koAbout,
+  ...koValidation,
+  ...koStatus,
+  ...koToast,
+  ...koLeaderboard,
+  ...koShare,
+  ...koTrash,
+  ...koMy,
+  ...koGoodsGroup,
+  ...koNotify
+}
+
+const zhTWMessages = {
+  ...zhTWCommon,
+  ...zhTWNav,
+  ...zhTWGoods,
+  ...zhTWHome,
+  ...zhTWSearch,
+  ...zhTWManage,
+  ...zhTWEvents,
+  ...zhTWRecharge,
+  ...zhTWSync,
+  ...zhTWTheme,
+  ...zhTWImport,
+  ...zhTWAbout,
+  ...zhTWValidation,
+  ...zhTWStatus,
+  ...zhTWToast,
+  ...zhTWLeaderboard,
+  ...zhTWShare,
+  ...zhTWTrash,
+  ...zhTWMy,
+  ...zhTWGoodsGroup,
+  ...zhTWNotify
+}
+
 const i18n = createI18n({
   legacy: false,
   locale: detectLocale(),
   fallbackLocale: FALLBACK_LOCALE,
   messages: {
     'zh-CN': zhCNMessages,
-    'en': enMessages
+    'zh-TW': zhTWMessages,
+    'en': enMessages,
+    'ja': jaMessages,
+    'ko': koMessages
   }
 })
 
+const VANT_LOCALE_MAP = {
+  'zh-CN': { locale: 'zh-CN', messages: zhCN },
+  'zh-TW': { locale: 'zh-TW', messages: zhCN }, // Vant 没有 zh-TW，回退到 zh-CN
+  'en': { locale: 'en-US', messages: enUS },
+  'ja': { locale: 'ja-JP', messages: jaJP },
+  'ko': { locale: 'en-US', messages: enUS }, // Vant 没有 ko-KR，回退到 en-US
+}
+
 function syncVantLocale(locale) {
-  if (locale === 'en') {
-    Locale.use('en-US', enUS)
-  } else {
-    Locale.use('zh-CN', zhCN)
-  }
+  const vantConfig = VANT_LOCALE_MAP[locale] || VANT_LOCALE_MAP['zh-CN']
+  Locale.use(vantConfig.locale, vantConfig.messages)
 }
 
 export async function setLocale(locale) {

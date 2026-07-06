@@ -1,0 +1,15 @@
+{
+  "validation.required": "{field}은(는) 필수입니다",
+  "validation.maxLength": "{field}은(는) {max}자 이내로 입력해 주세요",
+  "validation.minLength": "{field}은(는) {min}자 이상으로 입력해 주세요",
+  "validation.invalidEmail": "유효한 이메일 주소를 입력해 주세요",
+  "validation.invalidUrl": "유효한 URL을 입력해 주세요",
+  "validation.invalidNumber": "유효한 숫자를 입력해 주세요",
+  "validation.invalidPrice": "유효한 비음수 가격을 입력해 주세요",
+  "validation.priceOutOfRange": "가격이 합리적인 범위를 벗어났습니다",
+  "validation.invalidDate": "유효한 날짜를 입력해 주세요",
+  "validation.invalidPhone": "유효한 전화번호를 입력해 주세요",
+  "validation.passwordMismatch": "비밀번호가 일치하지 않습니다",
+  "validation.nameRequired": "이름은 필수입니다",
+  "validation.nameTooLong": "이름은 {max}자 이내로 입력해 주세요"
+}

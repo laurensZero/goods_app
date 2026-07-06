@@ -1,0 +1,23 @@
+{
+  "trash.restore": "恢復",
+  "trash.emptyTitle": "回收站为空",
+  "trash.emptyDesc": "没有已刪除的谷子",
+  "trash.restoreAll": "全部恢復",
+  "trash.emptyTrash": "清空回收站",
+  "trash.confirmEmpty": "確認清空回收站？",
+  "trash.confirmEmptyDesc": "清空后無法恢復",
+  "trash.permanentDelete": "永久刪除",
+  "trash.confirmPermanent": "確認永久刪除？",
+  "trash.confirmPermanentDesc": "此操作不可逆",
+  "trash.deletedAt": "刪除於{date}",
+  "trash.quantity": "數量",
+  "trash.deleteConfirmDesc": "刪除后無法恢復",
+  "trash.deleteConfirmTitle": "確認刪除",
+  "trash.emptyConfirmDesc": "清空后所有記錄将永久刪除",
+  "trash.emptyConfirmTitle": "確認清空回收站",
+  "trash.heroDesc": "查看和恢復已刪除的谷子",
+  "trash.heroTitle": "回收站",
+  "trash.justNow": "刚刚",
+  "trash.totalQuantity": "共 {count} 件",
+  "trash.trashItems": "回收站記錄"
+}
