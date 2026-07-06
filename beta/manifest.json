@@ -1,9 +1,9 @@
 {
-  "version": "20260706.6",
-  "url": "bundle-20260706.6.zip",
-  "hash": "e46718fe84ab30c9e1b50259caaf2af570feff1950b6d8811b0af075dc0255ce",
+  "version": "20260706.7",
+  "url": "bundle-20260706.7.zip",
+  "hash": "a1c23abee3d22444c98b8135638dd4bd84a3295caf1878047af8fd12f05da8f3",
   "minNativeVersion": null,
-  "notes": "- feat: 添加每日推荐功能，优化用户体验；更新相关组件以支持推荐展示",
+  "notes": "- feat: 优化商品卡片性能，使用预计算字段减少计算开销；改进虚拟商品视口同步逻辑\n\n- feat: 谷子状态时间线",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T12:30:31Z"
+  "publishedAt": "2026-07-06T15:01:20Z"
 }
