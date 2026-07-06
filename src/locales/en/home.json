@@ -57,5 +57,9 @@
   "home.groupDisplay.chronological": "Follow Sort",
   "home.groupDisplay.chronologicalDesc": "Groups mixed with items using same sort",
   "home.groupDisplay.hidden": "Hidden",
-  "home.groupDisplay.hiddenDesc": "Group items shown as individual entries"
+  "home.groupDisplay.hiddenDesc": "Group items shown as individual entries",
+  "home.dailyRec.label": "Daily Pick",
+  "home.dailyRec.shuffle": "Shuffle",
+  "home.dailyRec.viewDetail": "View Detail",
+  "home.dailyRec.empty": "No collection records yet"
 }
