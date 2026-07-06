@@ -6,6 +6,7 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
 import { compareVersions, normalizeVersionTag } from '@/utils/github/release'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { useSyncStore } from '@/stores/sync'
 
 const ANNOUNCEMENT_BASE_BY_SOURCE = Object.freeze({
   local: '',
@@ -414,6 +415,9 @@ async function fetchRawText(url) {
 
 async function fetchAnnouncementManifestFromGistApi(gistId) {
   const apiUrl = `${GITHUB_API_BASE}/gists/${gistId}`
+  const syncStore = useSyncStore()
+  const token = syncStore.token
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
 
   if (Capacitor.isNativePlatform()) {
     const response = await withTimeout(
@@ -421,7 +425,8 @@ async function fetchAnnouncementManifestFromGistApi(gistId) {
         url: apiUrl,
         headers: {
           Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28'
+          'X-GitHub-Api-Version': '2022-11-28',
+          ...authHeaders
         }
       }),
       REQUEST_TIMEOUT_MS,
@@ -455,7 +460,8 @@ async function fetchAnnouncementManifestFromGistApi(gistId) {
       method: 'GET',
       headers: {
         Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...authHeaders
       },
       cache: 'no-store',
       signal: controller.signal

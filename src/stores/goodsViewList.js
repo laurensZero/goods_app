@@ -11,6 +11,7 @@ import {
   resolveEffectivePriceValue,
   resolveCollectionTotalValue
 } from '@/stores/goodsHelpers'
+import { buildSearchText } from '@/utils/goods/filters'
 
 /**
  * @param {object} item
@@ -50,7 +51,8 @@ function enrichItem(item, exchangeRate) {
     isWishlist: normalizeWishlistFlag(item.isWishlist),
     sortId: String(item.id),
     acquiredTime: parseAcquiredTime(item.acquiredAt),
-    timelineYearMonth: parseTimelineYearMonth(item.acquiredAt)
+    timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
+    searchText: buildSearchText(item)
   }
 }
 
