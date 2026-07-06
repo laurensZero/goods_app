@@ -1,9 +1,9 @@
 {
-  "version": "20260704.3",
-  "url": "bundle-20260704.3.zip",
-  "hash": "f14d29b9529947a4c4b765dc0418f0bc6150c92030d1da12291964c58324ef62",
+  "version": "20260706.1",
+  "url": "bundle-20260706.1.zip",
+  "hash": "d1fdedb66e17189e66ad409a944e63bc2095a7eb86821336d4cafc0f98bfb3a8",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 hero 动画模式设置，优化动画性能和兼容性",
+  "notes": "- feat: 在 syncTableRows 函数中添加 lastSyncedAt 参数以优化数据同步逻辑；在 executeSet 方法中添加事务处理以确保数据一致性\n\n- fix: 优化 renderMarkdown 函数中的 DOMPurify 导入逻辑，确保安全渲染\n\n- refactor: 更新依赖",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-04T10:19:10Z"
+  "publishedAt": "2026-07-06T08:50:48Z"
 }
