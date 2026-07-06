@@ -3,6 +3,10 @@
   "my.scanImport": "Scan Import",
   "my.openSettings": "Open Settings",
   "my.githubAvatar": "GitHub Avatar",
+  "my.avatar": "Avatar",
+  "my.changeAvatar": "Change Avatar",
+  "my.avatarUpdated": "Avatar updated",
+  "my.avatarUpdateFailed": "Avatar update failed",
   "my.notConnected": "Not Connected",
   "my.connected": "Connected to GitHub",
   "my.noAuthMethod": "No Auth Method",
@@ -79,5 +83,9 @@
   "my.promptFromGallery": "From Gallery",
   "my.promptTakePhoto": "Take QR Photo",
   "my.scanInvalidQrCode": "No valid QR code detected, please retry",
-  "my.scanInvalidQrContent": "QR code content is not a valid share code or storage location code"
+  "my.scanInvalidQrContent": "QR code content is not a valid share code or storage location code",
+  "my.resetAvatar": "Reset Avatar",
+  "my.resetAvatarDesc": "Clear the custom avatar and restore the GitHub avatar.",
+  "my.confirmResetAvatar": "Confirm Reset",
+  "my.avatarReset": "Restored to GitHub avatar"
 }
