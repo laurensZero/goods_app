@@ -171,6 +171,8 @@
   "events.tracks.importing": "导入中",
   "events.tracks.importBtn": "导入",
   "events.tracks.noResults": "没有找到可导入的歌曲",
+  "events.tracks.loadMore": "加载更多",
+  "events.tracks.noMoreResults": "没有更多了",
   "events.tracks.searchFailed": "搜索失败",
   "events.tracks.importSuccess": "已从{type}《{name}》导入 {count} 首",
   "events.tracks.importSuccessNoName": "已导入 {count} 首曲目",

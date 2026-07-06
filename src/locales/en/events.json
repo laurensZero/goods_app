@@ -171,6 +171,8 @@
   "events.tracks.importing": "Importing",
   "events.tracks.importBtn": "Import",
   "events.tracks.noResults": "No importable songs found",
+  "events.tracks.loadMore": "Load more",
+  "events.tracks.noMoreResults": "No more results",
   "events.tracks.searchFailed": "Search failed",
   "events.tracks.importSuccess": "Imported {count} tracks from {type} \"{name}\"",
   "events.tracks.importSuccessNoName": "Imported {count} tracks",

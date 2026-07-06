@@ -151,7 +151,7 @@ function parseLrcText(text) {
     .filter((line, index, list) => index === 0 || line.timeMs !== list[index - 1].timeMs || line.text !== list[index - 1].text)
 }
 
-export async function searchQQSongs(keyword, limit = 30) {
+export async function searchQQSongs(keyword, limit = 30, page = 1) {
   const trimmed = String(keyword || '').trim()
   if (!trimmed) return []
 
@@ -161,7 +161,7 @@ export async function searchQQSongs(keyword, limit = 30) {
       method: 'DoSearchForQQMusicDesktop',
       param: {
         query: trimmed,
-        page_num: 1,
+        page_num: Math.max(1, Number(page) || 1),
         num_per_page: Math.max(1, Math.min(100, Number(limit) || 30))
       }
     }
