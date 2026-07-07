@@ -9,6 +9,20 @@
       <div class="goods-header-btns">
         <button
           type="button"
+          class="daily-rec-btn"
+          :aria-label="t('home.dailyRec.label')"
+          @click="$emit('open-daily-rec')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <circle cx="8.5" cy="8.5" r="1" fill="currentColor" />
+            <circle cx="15.5" cy="8.5" r="1" fill="currentColor" />
+            <path d="M8 15.5c1.33-1 3.33-1 5.33 0" stroke-linecap="round" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
           :class="[
             'sort-toggle',
             {
@@ -154,7 +168,7 @@ const props = defineProps({
   groupDisplayOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec'])
 
 const showSortSheet = ref(false)
 const windowWidth = ref(window.innerWidth)
@@ -280,6 +294,37 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+.daily-rec-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 18px;
+  background: var(--app-glass);
+  color: var(--app-text-secondary);
+  box-shadow: var(--app-shadow);
+  flex-shrink: 0;
+  transition:
+    transform var(--home-motion-density-duration) var(--home-motion-ease-standard),
+    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
+    color var(--home-motion-density-duration) var(--home-motion-ease-standard);
+}
+
+.daily-rec-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.daily-rec-btn:active {
+  transform: scale(0.96);
+}
+
 .goods-count {
   margin-left: 4px;
   color: var(--app-text-tertiary);
@@ -391,6 +436,7 @@ onBeforeUnmount(() => {
 }
 
 .timeline-toggle,
+.daily-rec-btn,
 .sort-toggle {
   display: inline-flex;
   align-items: center;
@@ -501,6 +547,7 @@ onBeforeUnmount(() => {
 }
 
 .timeline-toggle:active,
+.daily-rec-btn:active,
 .sort-toggle:active {
   transform: scale(0.96);
 }
@@ -710,6 +757,11 @@ onBeforeUnmount(() => {
 
 :global(html.theme-dark) .density-switch__indicator {
   background: #f5f5f7;
+}
+
+:global(html.theme-dark) .daily-rec-btn {
+  background: var(--app-glass);
+  color: var(--app-text-secondary);
 }
 
 :global(html.theme-dark) .density-switch__option--active {

@@ -583,10 +583,10 @@ function onDateConfirm({ selectedValues }) {
   display: block;
   width: 100%;
   padding: 18px;
-  border: none;
+  border: 1px solid var(--app-glass-border);
   border-radius: var(--radius-card);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
+  box-shadow: var(--app-shadow), inset 0 0 0 1px color-mix(in srgb, var(--app-text) 2%, transparent);
   text-align: left;
   transition: transform 0.14s ease, opacity 0.16s ease;
 }
@@ -625,9 +625,10 @@ function onDateConfirm({ selectedValues }) {
 .advanced-toggle__count {
   display: inline-block;
   padding: 1px 6px;
+  border: 1px solid var(--app-glass-border);
   border-radius: 8px;
-  background: var(--app-primary, #07c160);
-  color: #fff;
+  background: color-mix(in srgb, var(--app-glass) 82%, var(--app-surface));
+  color: var(--app-text);
   font-size: 11px;
   font-weight: 500;
 }
@@ -1065,5 +1066,19 @@ function onDateConfirm({ selectedValues }) {
 :global(html.theme-dark) .chip {
     background: rgba(255, 255, 255, 0.08);
     color: #f5f5f7;
+  }
+
+:global(html.theme-dark) .advanced-toggle {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--app-surface) 90%, var(--app-glass));
+    box-shadow:
+      0 12px 30px rgba(0, 0, 0, 0.22),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+:global(html.theme-dark) .advanced-toggle__count {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
+    color: var(--app-text);
   }
 </style>
