@@ -73,6 +73,7 @@
         :display-density="displayDensity"
         :density-modes="densityModes"
         :show-timeline-toggle="false"
+        :show-daily-rec-button="false"
         :active-filter-count="searchActiveFilterCount"
         :group-display-mode="groupDisplayMode"
         :group-display-options="groupDisplayOptions"

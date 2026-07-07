@@ -8,6 +8,7 @@
 
       <div class="goods-header-btns">
         <button
+          v-if="showDailyRecButton"
           type="button"
           class="daily-rec-btn"
           :aria-label="t('home.dailyRec.label')"
@@ -163,6 +164,7 @@ const props = defineProps({
   displayDensity: { type: String, required: true },
   densityModes: { type: Array, required: true },
   showTimelineToggle: { type: Boolean, default: true },
+  showDailyRecButton: { type: Boolean, default: true },
   activeFilterCount: { type: Number, default: 0 },
   groupDisplayMode: { type: String, default: 'pinned' },
   groupDisplayOptions: { type: Array, default: () => [] }
