@@ -13,20 +13,6 @@
 
         <div class="hero-actions">
           <button
-            class="hero-search"
-            type="button"
-            :aria-label="t('home.dailyRec.label')"
-            @click="showDailyRec = true"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <circle cx="8.5" cy="8.5" r="1" fill="currentColor" />
-              <circle cx="15.5" cy="8.5" r="1" fill="currentColor" />
-              <path d="M8 15.5c1.33-1 3.33-1 5.33 0" stroke-linecap="round" />
-            </svg>
-          </button>
-
-          <button
             :class="['hero-search', { 'hero-search--active': searchActiveFilterCount > 0 }]"
             type="button"
             :aria-label="t('common.aria.search')"
@@ -85,6 +71,7 @@
         :active-filter-count="searchActiveFilterCount"
         :group-display-mode="groupDisplayMode"
         :group-display-options="groupDisplayOptions"
+        @open-daily-rec="showDailyRec = true"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortMode"
         @toggle-timeline="toggleTimelineMode"
