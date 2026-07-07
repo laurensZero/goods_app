@@ -170,18 +170,19 @@
                 :data-linked-goods-id="String(goods.id || '')"
                 @click.prevent="openLinkedGoodsDetail(goods, $event)"
               >
-                <LazyCachedImage
-                  v-if="goods.coverImage"
-                  :src="goods.coverImage"
-                  :alt="goods.name"
-                  :lazy="true"
-                  resume-decode-validation
-                  root-margin="220px 0px"
-                  :skeleton-delay-ms="120"
-                  class="linked-goods-card__img"
-                  :data-goods-hero-id="String(goods.id || '')"
-                />
-                <div v-else class="linked-goods-card__placeholder" :data-goods-hero-id="String(goods.id || '')">{{ goods.name?.trim()?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
+                <div class="linked-goods-card__media" :data-goods-hero-id="String(goods.id || '')">
+                  <LazyCachedImage
+                    v-if="goods.coverImage"
+                    :src="goods.coverImage"
+                    :alt="goods.name"
+                    :lazy="true"
+                    resume-decode-validation
+                    root-margin="220px 0px"
+                    :skeleton-delay-ms="120"
+                    class="linked-goods-card__img"
+                  />
+                  <div v-else class="linked-goods-card__placeholder">{{ goods.name?.trim()?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
+                </div>
                 <span class="linked-goods-card__name">{{ goods.name }}</span>
               </a>
             </div>
@@ -1181,10 +1182,17 @@ function tryPlayLinkedGoodsBackHero() {
   transform: scale(0.96);
 }
 
+.linked-goods-card__media {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
 .linked-goods-card__img,
 .linked-goods-card__placeholder {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   border-radius: 14px;
 }
 
