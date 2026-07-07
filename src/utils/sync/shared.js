@@ -94,6 +94,23 @@ export function sortedStringify(value) {
   return undefined
 }
 
+export function normalizeRecordForContentCompare(item) {
+  if (!item || typeof item !== 'object') return item
+  const copy = { ...item }
+  delete copy.syncedBy
+  delete copy.synced_by
+  delete copy.trashed
+  return copy
+}
+
+export function recordsContentEqual(left, right) {
+  return sortedStringify(normalizeRecordForContentCompare(left)) === sortedStringify(normalizeRecordForContentCompare(right))
+}
+
+export function recordsContentChanged(left, right) {
+  return !recordsContentEqual(left, right)
+}
+
 const YIELD_BATCH_SIZE = 20
 
 /**
