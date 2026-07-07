@@ -863,8 +863,10 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
     _lastSyncStartRow = startRow
     _lastSyncRenderRows = renderRows
 
-    const startIndex = Math.min(displayList.value.length, startRow * cols)
-    const remainingItems = Math.max(0, displayList.value.length - startIndex)
+    const totalItems = displayList.value.length
+    const rawStartIndex = Math.min(totalItems, startRow * cols)
+    const startIndex = totalItems > 0 && rawStartIndex >= totalItems ? 0 : rawStartIndex
+    const remainingItems = Math.max(0, totalItems - startIndex)
     const renderCount = Math.min(
       remainingItems,
       Math.min(
