@@ -215,6 +215,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -228,6 +229,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'save'])
+
+const { t } = useI18n()
 
 const imageRef = ref(null)
 const previewRef = ref(null)
