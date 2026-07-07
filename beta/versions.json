@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260707.7",
+    "url": "bundle-20260707.7.zip",
+    "hash": "048282c30bb0d217960d2545899f86ea1c5dd1b87b30d7728379b32a0adb0487",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化关联商品媒体展示，增加媒体容器样式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-07T15:58:35Z"
+  },
+  {
     "version": "20260707.6",
     "url": "bundle-20260707.6.zip",
     "hash": "838114c874cd19b891c31fe00ece4ea66af0ad3d7ce74bfd60d0464b2722945d",
@@ -16,14 +25,5 @@
     "notes": "- fix: 图片编辑未引入i18n\n\n- refactor: 调整每日推荐按钮位置",
     "updateLevel": "silent",
     "publishedAt": "2026-07-07T15:09:32Z"
-  },
-  {
-    "version": "20260707.4",
-    "url": "bundle-20260707.4.zip",
-    "hash": "2ef00967993921be8b4b5d398163ea52c604634304c706a2dbf610090224f3fc",
-    "minNativeVersion": null,
-    "notes": "- fix: 优化搜索关键词的防抖逻辑，简化代码结构；修复虚拟商品视口同步中的索引计算",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-07T03:34:03Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260707.6",
-  "url": "bundle-20260707.6.zip",
-  "hash": "838114c874cd19b891c31fe00ece4ea66af0ad3d7ce74bfd60d0464b2722945d",
+  "version": "20260707.7",
+  "url": "bundle-20260707.7.zip",
+  "hash": "048282c30bb0d217960d2545899f86ea1c5dd1b87b30d7728379b32a0adb0487",
   "minNativeVersion": null,
-  "notes": "- feat: 添加每日推荐按钮的显示选项",
+  "notes": "- feat: 优化关联商品媒体展示，增加媒体容器样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-07T15:33:48Z"
+  "publishedAt": "2026-07-07T15:58:35Z"
 }
