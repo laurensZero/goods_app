@@ -1,9 +1,9 @@
 {
-  "version": "20260707.4",
-  "url": "bundle-20260707.4.zip",
-  "hash": "2ef00967993921be8b4b5d398163ea52c604634304c706a2dbf610090224f3fc",
+  "version": "20260707.5",
+  "url": "bundle-20260707.5.zip",
+  "hash": "ea870228692612a2af5f5c2aa0c4c3d3bdb5e25e15c2470ae2f4be4e6ba53e79",
   "minNativeVersion": null,
-  "notes": "- fix: 优化搜索关键词的防抖逻辑，简化代码结构；修复虚拟商品视口同步中的索引计算",
+  "notes": "- fix: 图片编辑未引入i18n\n\n- refactor: 调整每日推荐按钮位置",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-07T03:34:03Z"
+  "publishedAt": "2026-07-07T15:09:32Z"
 }
