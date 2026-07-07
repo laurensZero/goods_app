@@ -45,6 +45,62 @@ function computePriceFields(item, exchangeRate) {
   }
 }
 
+function normalizeTimelineDate(value) {
+  const normalized = String(value || '').trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
+}
+
+function getTimelineStartDate(item, status, unitIndex = null) {
+  const timeline = Array.isArray(item?.statusTimeline) ? item.statusTimeline : []
+  const normalizedStatus = String(status || '').trim()
+  const hasUnitIndex = Number.isInteger(unitIndex)
+
+  let latestWithUnit = ''
+  let latestWithUnitTimestamp = 0
+  let latestWithoutUnit = ''
+  let latestWithoutUnitTimestamp = 0
+
+  for (const entry of timeline) {
+    if (!entry || typeof entry !== 'object') continue
+    if (normalizedStatus && String(entry.status || '').trim() !== normalizedStatus) continue
+
+    const date = normalizeTimelineDate(entry.at)
+    if (!date) continue
+    const timestamp = Date.parse(date)
+    if (!Number.isFinite(timestamp)) continue
+
+    if (hasUnitIndex) {
+      if (Number.isInteger(entry.unitIndex) && entry.unitIndex === unitIndex) {
+        if (timestamp > latestWithUnitTimestamp) {
+          latestWithUnit = date
+          latestWithUnitTimestamp = timestamp
+        }
+        continue
+      }
+
+      if (!Number.isInteger(entry.unitIndex) && timestamp > latestWithoutUnitTimestamp) {
+        latestWithoutUnit = date
+        latestWithoutUnitTimestamp = timestamp
+      }
+      continue
+    }
+
+    if (timestamp > latestWithoutUnitTimestamp) {
+      latestWithoutUnit = date
+      latestWithoutUnitTimestamp = timestamp
+    }
+  }
+
+  return latestWithUnit || latestWithoutUnit
+}
+
+function getHoldingDaysFromDate(date) {
+  if (!date) return null
+  const diff = Date.now() - new Date(date).getTime()
+  const days = Math.floor(diff / 86400000)
+  return days >= 0 ? days : null
+}
+
 /**
  * @param {object} item
  */
@@ -60,11 +116,11 @@ function computeHoldingFields(item) {
         .map((date, i) => {
           const normalizedDate = String(date || '').trim()
           if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
-          const diff = Date.now() - new Date(normalizedDate).getTime()
-          const days = Math.floor(diff / 86400000)
-          if (days < 0) return null
           const status = String(unitStatuses[i] || item.collectStatus || '已拥有').trim()
-          return { days, status, date: normalizedDate }
+          const holdingDate = getTimelineStartDate(item, status, i) || normalizedDate
+          const days = getHoldingDaysFromDate(holdingDate)
+          if (days === null) return null
+          return { days, status, date: holdingDate }
         })
         .filter(Boolean)
       const seenDays = new Set()
@@ -80,12 +136,9 @@ function computeHoldingFields(item) {
   const hasUnitHoldingDays = unitHoldingDaysList.length > 0
   let holdingDays = null
   if (!hasUnitHoldingDays) {
-    const date = item.acquiredAt
-    if (date) {
-      const diff = Date.now() - new Date(date).getTime()
-      const days = Math.floor(diff / 86400000)
-      holdingDays = days >= 0 ? days : null
-    }
+    const primaryStatus = resolvePrimaryCollectStatus(item)
+    const holdingDate = getTimelineStartDate(item, primaryStatus) || normalizeTimelineDate(item.acquiredAt)
+    holdingDays = getHoldingDaysFromDate(holdingDate)
   }
 
   return {

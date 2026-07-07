@@ -28,10 +28,10 @@ export function createByIdLookup(listRef) {
 export function createAutoPush(domain) {
   return function trigger(ids) {
     const syncStore = useSyncStore()
-    syncStore.autoPushGoods(domain)
     if (ids && ids.length > 0 && syncStore.markGoodsIdsDirty) {
       syncStore.markGoodsIdsDirty(ids)
     }
+    syncStore.autoPushGoods(domain)
   }
 }
 

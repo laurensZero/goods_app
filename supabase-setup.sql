@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS goods (
   unit_acquired_at_list JSONB DEFAULT '[]',
   unit_actual_price_list JSONB DEFAULT '[]',
   unit_character_list JSONB DEFAULT '[]',
+  unit_collect_status_list JSONB DEFAULT '[]',
   image TEXT DEFAULT '',
   images JSONB DEFAULT '[]',
   tracks JSONB DEFAULT '[]',
@@ -134,6 +135,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_at TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_enabled INTEGER DEFAULT 0;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_offsets JSONB DEFAULT '[]';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_collect_status_list JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -179,11 +181,19 @@ BEGIN
     OR NEW.actual_price IS DISTINCT FROM OLD.actual_price
     OR NEW.acquired_at IS DISTINCT FROM OLD.acquired_at
     OR NEW.sale_at IS DISTINCT FROM OLD.sale_at
+    OR NEW.sale_reminder_enabled IS DISTINCT FROM OLD.sale_reminder_enabled
+    OR NEW.sale_reminder_offsets IS DISTINCT FROM OLD.sale_reminder_offsets
+    OR NEW.unit_acquired_at_list IS DISTINCT FROM OLD.unit_acquired_at_list
+    OR NEW.unit_actual_price_list IS DISTINCT FROM OLD.unit_actual_price_list
+    OR NEW.unit_character_list IS DISTINCT FROM OLD.unit_character_list
+    OR NEW.unit_collect_status_list IS DISTINCT FROM OLD.unit_collect_status_list
     OR NEW.images IS DISTINCT FROM OLD.images
     OR NEW.tracks IS DISTINCT FROM OLD.tracks
     OR NEW.note IS DISTINCT FROM OLD.note
     OR NEW.quantity IS DISTINCT FROM OLD.quantity
     OR NEW.points IS DISTINCT FROM OLD.points
+    OR NEW.currency IS DISTINCT FROM OLD.currency
+    OR NEW.actual_price_currency IS DISTINCT FROM OLD.actual_price_currency
     OR NEW.collect_status IS DISTINCT FROM OLD.collect_status
     OR NEW.shipping_fee IS DISTINCT FROM OLD.shipping_fee
     OR NEW.status_timeline IS DISTINCT FROM OLD.status_timeline
@@ -474,6 +484,7 @@ BEGIN
       unit_acquired_at_list = EXCLUDED.unit_acquired_at_list,
       unit_actual_price_list = EXCLUDED.unit_actual_price_list,
       unit_character_list = EXCLUDED.unit_character_list,
+      unit_collect_status_list = EXCLUDED.unit_collect_status_list,
       image = EXCLUDED.image, images = EXCLUDED.images,
       tracks = EXCLUDED.tracks, note = EXCLUDED.note,
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
@@ -499,6 +510,7 @@ BEGIN
       unit_acquired_at_list = EXCLUDED.unit_acquired_at_list,
       unit_actual_price_list = EXCLUDED.unit_actual_price_list,
       unit_character_list = EXCLUDED.unit_character_list,
+      unit_collect_status_list = EXCLUDED.unit_collect_status_list,
       image = EXCLUDED.image, images = EXCLUDED.images,
       tracks = EXCLUDED.tracks, note = EXCLUDED.note,
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,

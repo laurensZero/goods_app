@@ -593,7 +593,9 @@ export const useSyncStore = defineStore('sync', () => {
       return
     }
 
-    const debounceMs = 0
+    // Give recent local writes a short window to settle so we don't push a stale snapshot
+    // when a user makes two edits in quick succession.
+    const debounceMs = 500
 
     if (autoPushTimer) clearTimeout(autoPushTimer)
     autoPushTimer = setTimeout(async () => {
