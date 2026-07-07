@@ -31,16 +31,10 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
   const activePresetId = ref('')
   const activePresetName = ref('')
 
-  // --- Keyword debounce ---
-  let searchTimeout = null
-
   watch(
     () => filters.keyword,
     (value) => {
-      if (searchTimeout) clearTimeout(searchTimeout)
-      searchTimeout = setTimeout(() => {
-        debouncedKeyword.value = String(value || '').trim().toLowerCase()
-      }, 180)
+      debouncedKeyword.value = String(value || '').trim().toLowerCase()
     },
     { immediate: true }
   )
