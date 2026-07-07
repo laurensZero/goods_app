@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260707.3",
+    "url": "bundle-20260707.3.zip",
+    "hash": "4b66485210a31a7c47d689a28dcad8fd307b7b8cf9739917e1716e7e870720af",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加时间线日期规范化和获取逻辑，优化持有天数计算",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-07T03:28:18Z"
+  },
+  {
     "version": "20260707.2",
     "url": "bundle-20260707.2.zip",
     "hash": "4b041fba61f462031352f2ab32d6ebff5f7efddc2820c230ba2cdd861c88e584",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加头像管理功能，支持更换和重置头像，优化用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T16:09:25Z"
-  },
-  {
-    "version": "20260706.9",
-    "url": "bundle-20260706.9.zip",
-    "hash": "8123809a8b00add9a33bf08ba9a0f382e4e37eb3c5c5ccca8882ad36441f5e36",
-    "minNativeVersion": null,
-    "notes": "- feat: 使用 LazyCachedImage 组件替换商品封面图片，优化图片加载体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T15:28:26Z"
   }
 ]

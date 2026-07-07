@@ -1,9 +1,9 @@
 {
-  "version": "20260707.2",
-  "url": "bundle-20260707.2.zip",
-  "hash": "4b041fba61f462031352f2ab32d6ebff5f7efddc2820c230ba2cdd861c88e584",
+  "version": "20260707.3",
+  "url": "bundle-20260707.3.zip",
+  "hash": "4b66485210a31a7c47d689a28dcad8fd307b7b8cf9739917e1716e7e870720af",
   "minNativeVersion": null,
-  "notes": "- feat: 补充翻译\n\n- feat: 添加繁中，日语，韩语翻译",
+  "notes": "- feat: 添加时间线日期规范化和获取逻辑，优化持有天数计算",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-06T17:07:13Z"
+  "publishedAt": "2026-07-07T03:28:18Z"
 }
