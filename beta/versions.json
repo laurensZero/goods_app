@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260707.6",
+    "url": "bundle-20260707.6.zip",
+    "hash": "838114c874cd19b891c31fe00ece4ea66af0ad3d7ce74bfd60d0464b2722945d",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加每日推荐按钮的显示选项",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-07T15:33:48Z"
+  },
+  {
     "version": "20260707.5",
     "url": "bundle-20260707.5.zip",
     "hash": "ea870228692612a2af5f5c2aa0c4c3d3bdb5e25e15c2470ae2f4be4e6ba53e79",
@@ -16,14 +25,5 @@
     "notes": "- fix: 优化搜索关键词的防抖逻辑，简化代码结构；修复虚拟商品视口同步中的索引计算",
     "updateLevel": "silent",
     "publishedAt": "2026-07-07T03:34:03Z"
-  },
-  {
-    "version": "20260707.3",
-    "url": "bundle-20260707.3.zip",
-    "hash": "4b66485210a31a7c47d689a28dcad8fd307b7b8cf9739917e1716e7e870720af",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加时间线日期规范化和获取逻辑，优化持有天数计算",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-07T03:28:18Z"
   }
 ]
