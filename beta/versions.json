@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260707.4",
+    "url": "bundle-20260707.4.zip",
+    "hash": "2ef00967993921be8b4b5d398163ea52c604634304c706a2dbf610090224f3fc",
+    "minNativeVersion": null,
+    "notes": "- fix: 优化搜索关键词的防抖逻辑，简化代码结构；修复虚拟商品视口同步中的索引计算",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-07T03:34:03Z"
+  },
+  {
     "version": "20260707.3",
     "url": "bundle-20260707.3.zip",
     "hash": "4b66485210a31a7c47d689a28dcad8fd307b7b8cf9739917e1716e7e870720af",
@@ -16,14 +25,5 @@
     "notes": "- feat: 补充翻译\n\n- feat: 添加繁中，日语，韩语翻译",
     "updateLevel": "silent",
     "publishedAt": "2026-07-06T17:07:13Z"
-  },
-  {
-    "version": "20260707.1",
-    "url": "bundle-20260707.1.zip",
-    "hash": "61f9f282de5ecfe43796d1f5dc6db1867395a3e9f9cfefb3e3ed191b8905a6b6",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加头像管理功能，支持更换和重置头像，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-06T16:09:25Z"
   }
 ]
