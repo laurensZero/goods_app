@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260708.6",
+    "url": "bundle-20260708.6.zip",
+    "hash": "5b27a1834266b0228a9bc28d9c1272285a3f224575df85ea1ccb34007f5f60d3",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加暂停自动同步功能，优化同步设置界面",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-08T11:09:42Z"
+  },
+  {
     "version": "20260708.5",
     "url": "bundle-20260708.5.zip",
     "hash": "9bf0b3766087ac2f3024bd5b2ccb4d7d9af1edd4a418f64e5ecb1971c2c295b8",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复排序选项访问方式，确保正确获取当前排序模式",
     "updateLevel": "silent",
     "publishedAt": "2026-07-08T07:51:34Z"
-  },
-  {
-    "version": "20260708.3",
-    "url": "bundle-20260708.3.zip",
-    "hash": "e277abe256d04084d2ea55a6c542a6f14c6efdd4327142678002b43634f2d4c9",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化状态时间线逻辑，处理单份和多份无逐份状态的时间线生成",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-08T05:14:40Z"
   }
 ]
