@@ -98,6 +98,7 @@ export function useGoodsEditorForm(options = {}) {
   const originalUnitCollectStatusList = ref(null)
   const originalAcquiredAt = ref(null)
   const originalUnitAcquiredAtList = ref(null)
+  const originalTimelineLength = ref(0)
   const { isTabletViewport, updateViewport } = useTabletViewport()
 
   const availableCharacters = computed(() =>
@@ -240,6 +241,7 @@ export function useGoodsEditorForm(options = {}) {
         originalUnitCollectStatusList.value = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
         originalAcquiredAt.value = item.acquiredAt ?? ''
         originalUnitAcquiredAtList.value = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
+        originalTimelineLength.value = Array.isArray(item.statusTimeline) ? item.statusTimeline.length : 0
         form.name = item.name ?? ''
         form.variant = item.variant ?? ''
         form.category = item.category ?? ''
@@ -365,8 +367,8 @@ export function useGoodsEditorForm(options = {}) {
       const oldStatus = originalCollectStatus.value || '已拥有'
       const newStatus = form.collectStatus || '已拥有'
 
-      // 老数据没有时间线时，用 acquiredAt 创建初始记录
-      if (timeline.length === 0 && form.acquiredAt) {
+      // 老数据没有时间线时，用 acquiredAt 创建初始记录（原始也没有时间线才创建，用户手动清空不重建）
+      if (timeline.length === 0 && form.acquiredAt && originalTimelineLength.value === 0) {
         timeline = [{ status: oldStatus, at: form.acquiredAt }]
       }
 
@@ -383,22 +385,28 @@ export function useGoodsEditorForm(options = {}) {
         timeline.sort((a, b) => a.at.localeCompare(b.at))
       }
 
-      // 逐份购入日期变更（在状态变更前处理，确保逐份记录优先）
-      const oldUnitDates = originalUnitAcquiredAtList.value || []
-      const newUnitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
-      if (newUnitDates.length > 0) {
-        const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-        timeline = syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, unitStatuses)
+      // 逐份购入日期 / 逐份状态变更（有逐份状态时走逐份逻辑，不记录到时间线）
+      const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
+      if (!hasUnitStatuses) {
+        // 没有逐份状态：逐份购入日期变更同步到时间线
+        const oldUnitDates = originalUnitAcquiredAtList.value || []
+        const newUnitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
+        if (newUnitDates.length > 0) {
+          const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+          timeline = syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, unitStatuses)
+        }
       }
 
       if (oldStatus !== newStatus) {
         timeline = appendStatusTimelineEntry(timeline, newStatus)
       }
-      // 多件状态变更
-      const oldUnitList = originalUnitCollectStatusList.value || []
-      const newUnitList = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-      if (newUnitList.length > 0) {
-        timeline = syncUnitStatusTimeline(timeline, oldUnitList, newUnitList)
+      // 多件状态变更（有逐份状态时不记录到时间线）
+      if (!hasUnitStatuses) {
+        const oldUnitList = originalUnitCollectStatusList.value || []
+        const newUnitList = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+        if (newUnitList.length > 0) {
+          timeline = syncUnitStatusTimeline(timeline, oldUnitList, newUnitList)
+        }
       }
       form.statusTimeline = timeline
 
@@ -423,35 +431,40 @@ export function useGoodsEditorForm(options = {}) {
     } else {
       // 新增时记录初始状态到时间线
       const initialStatus = form.isWishlist ? '' : (form.collectStatus || '已拥有')
+      const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
       if (initialStatus) {
-        const unitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
-        const validUnitDates = unitDates
-          .map((d, i) => {
-            const date = String(d || '').trim()
-            return /^\d{4}-\d{2}-\d{2}$/.test(date) ? { date, index: i } : null
-          })
-          .filter(Boolean)
-
-        if (validUnitDates.length > 0) {
-          // 逐份购入日期：为每份生成独立时间线条目
-          const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-          form.statusTimeline = validUnitDates
-            .map(({ date, index: i }) => {
-              const status = String(unitStatuses[i] || initialStatus).trim()
-              return { status, at: date, unitIndex: i }
-            })
-            .sort((a, b) => a.at.localeCompare(b.at))
-
-          // 如果逐份日期不足（部分份无日期），补充一条无 unitIndex 的汇总记录
-          if (validUnitDates.length < quantityNumber.value) {
-            const timelineDate = form.acquiredAt || today
-            form.statusTimeline.push({ status: initialStatus, at: timelineDate })
-            form.statusTimeline.sort((a, b) => a.at.localeCompare(b.at))
-          }
-        } else {
-          // 无逐份日期：单一汇总条目
+        if (hasUnitStatuses) {
+          // 有逐份状态时：只记录一条汇总时间线，逐份持有天数由 unitAcquiredAtList 独立计算
           const timelineDate = form.acquiredAt || today
           form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
+        } else {
+          // 无逐份状态：逐份购入日期生成时间线条目
+          const unitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
+          const validUnitDates = unitDates
+            .map((d, i) => {
+              const date = String(d || '').trim()
+              return /^\d{4}-\d{2}-\d{2}$/.test(date) ? { date, index: i } : null
+            })
+            .filter(Boolean)
+
+          if (validUnitDates.length > 0) {
+            form.statusTimeline = validUnitDates
+              .map(({ date, index: i }) => ({
+                status: initialStatus,
+                at: date,
+                unitIndex: i
+              }))
+              .sort((a, b) => a.at.localeCompare(b.at))
+
+            if (validUnitDates.length < quantityNumber.value) {
+              const timelineDate = form.acquiredAt || today
+              form.statusTimeline.push({ status: initialStatus, at: timelineDate })
+              form.statusTimeline.sort((a, b) => a.at.localeCompare(b.at))
+            }
+          } else {
+            const timelineDate = form.acquiredAt || today
+            form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
+          }
         }
       }
       const motionId = String(Date.now())

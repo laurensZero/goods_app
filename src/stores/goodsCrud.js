@@ -138,10 +138,11 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     const mergedData = { ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
     let timeline = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
 
-    // 老数据没有时间线时，用 acquiredAt 创建初始记录
+    // 老数据没有时间线时，用 acquiredAt 创建初始记录（原始也没有时间线才创建）
     const oldAcquiredAt = item.acquiredAt || ''
     const newAcquiredAt = data.acquiredAt || ''
-    if (timeline.length === 0 && newAcquiredAt) {
+    const hadTimelineOriginally = Array.isArray(item.statusTimeline) && item.statusTimeline.length > 0
+    if (timeline.length === 0 && newAcquiredAt && !hadTimelineOriginally) {
       timeline = [{ status: item.collectStatus || '已拥有', at: newAcquiredAt }]
     }
 
