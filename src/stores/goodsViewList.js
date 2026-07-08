@@ -66,10 +66,9 @@ function computeHoldingFields(item) {
           const normalizedDate = String(date || '').trim()
           if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
           const status = String(unitStatuses[i] || item.collectStatus || '已拥有').trim()
-          const holdingDate = getTimelineStartDate(item, status, i) || normalizedDate
-          const days = getHoldingDaysFromDate(holdingDate)
+          const days = getHoldingDaysFromDate(normalizedDate)
           if (days === null) return null
-          return { days, status, date: holdingDate }
+          return { days, status, date: normalizedDate }
         })
         .filter(Boolean)
       const seenDays = new Set()

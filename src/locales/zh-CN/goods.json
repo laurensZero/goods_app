@@ -217,6 +217,7 @@
   "goods.editor.targetInfo": "目标信息",
   "goods.editor.targetPriceLabel": "目标价格",
   "goods.editor.timelineHint": "记录谷子的状态变更历史，自动跟踪或手动添加。",
+  "goods.editor.timelineUnitDisabledHint": "已设置逐份状态时，各份持有时长直接按逐份购入日期计算，不使用时间线流转。",
   "goods.editor.timelineNotePlaceholder": "备注（可选）",
   "goods.editor.unitCharacter": "第 {index} 份角色",
   "goods.editor.unitCharacterCollapseDesc": "每一份谷子对应一个角色",

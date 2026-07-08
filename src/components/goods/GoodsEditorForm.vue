@@ -663,6 +663,10 @@
                 <h2 class="section-title">{{ t('goods.detail.statusTimelineLabel') }}</h2>
               </div>
 
+              <div v-if="hasUnitCollectStatusValue" class="timeline-unit-hint">
+                {{ t('goods.editor.timelineUnitDisabledHint') }}
+              </div>
+
               <div class="field-card">
                 <StatusTimelineEditor v-model="form.statusTimeline" :collect-status-options="collectStatusOptions" />
               </div>

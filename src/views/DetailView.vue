@@ -721,12 +721,10 @@ const unitHoldingDaysList = computed(() => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
 
       const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
-      // 优先从时间线获取该份的状态开始日期，回退到逐份购入日期
-      const holdingDate = getTimelineStartDate(it, status, i) || normalizedDate
-      const days = getHoldingDaysFromDate(holdingDate)
+      const days = getHoldingDaysFromDate(normalizedDate)
       if (days === null) return null
 
-      return { date: holdingDate, days, status }
+      return { date: normalizedDate, days, status }
     })
     .filter(Boolean)
 
