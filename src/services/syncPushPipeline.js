@@ -126,7 +126,7 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
  * Write data to remote backend.
  * Uses writeDomainRows when available (Supabase), falls back to writeData (Gist).
  */
-export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true }) {
+export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, fullGoodsList = null, fullTrashList = null }) {
   if (be.pushAll) {
     // Supabase path — compute incremental diff when remoteData is available
     const localGoods = shouldWriteData ? (syncData.goods || []) : []
@@ -136,6 +136,12 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     const localRecharge = shouldWriteRecharge ? (rechargeSyncData.recharge || []) : []
     const localRechargeTrash = shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : []
     const localEvents = shouldWriteEvent ? (eventSyncData.events || []) : []
+
+    // When dirty-filtered, localGoods/localTrash are only subsets of the full local data.
+    // computeDeleteIds must use the FULL local lists — otherwise items that exist on remote
+    // but aren't in the dirty subset would be incorrectly flagged for deletion.
+    const deleteGoodsLocal = fullGoodsList || localGoods
+    const deleteTrashLocal = fullTrashList || localTrash
 
     let goods = localGoods, goodsTrash = localTrash
     let groups = localGroups, groupItems = localGroupItems
@@ -154,7 +160,12 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
         goodsTrash = await computeDiffRows(localTrash, remoteData.trash || [])
         groups = await computeDiffRows(localGroups, remoteData.groups || [])
         groupItems = await computeDiffRows(localGroupItems, remoteData.groupItems || [])
-        deleteGoods = computeDeleteIds(localGoods, remoteData.goods || [])
+        // Use full local lists for delete computation to avoid dirty-filter false positives.
+        // Combine goods + trash: an item moved to trash locally must not be flagged as deleted.
+        deleteGoods = computeDeleteIds(
+          [...deleteGoodsLocal, ...deleteTrashLocal],
+          [...(remoteData.goods || []), ...(remoteData.trash || [])]
+        )
         deleteGroups = computeDeleteIds(localGroups, remoteData.groups || [])
         deleteGroupItems = computeDeleteIds(localGroupItems, remoteData.groupItems || [])
       }

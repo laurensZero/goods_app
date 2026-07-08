@@ -424,7 +424,12 @@ export function createSyncOrchestrator({
           remoteData,
           shouldWriteData: hasDataDiff,
           shouldWriteRecharge: hasRechargeDataDiff,
-          shouldWriteEvent: hasEventDataDiff
+          shouldWriteEvent: hasEventDataDiff,
+          // When dirty-filtered, syncData.goods is only a subset.
+          // Pass full local lists so computeDeleteIds doesn't falsely flag
+          // non-dirty remote items for deletion.
+          fullGoodsList: hasDirtyGoodsIds ? stores.goodsStore.list : null,
+          fullTrashList: hasDirtyGoodsIds ? stores.goodsStore.trashList : null
         }),
         {
           startDetail: i18n.global.t('sync.step.pushData.start'),
