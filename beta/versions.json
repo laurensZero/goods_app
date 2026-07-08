@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260708.2",
+    "url": "bundle-20260708.2.zip",
+    "hash": "e2a424032c28204baa8b644d47d9c9c479b876c9bcf9ac1c317051405ba2dc01",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化同步推送流程，确保数据写入后再上传图片，防止孤立图片",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-08T04:59:59Z"
+  },
+  {
     "version": "20260708.1",
     "url": "bundle-20260708.1.zip",
     "hash": "7b31c45168756853c24055d1f72492f1b942d6c187b05bb24cd3b7bc280088f5",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化关联商品媒体展示，增加媒体容器样式",
     "updateLevel": "silent",
     "publishedAt": "2026-07-07T15:58:35Z"
-  },
-  {
-    "version": "20260707.6",
-    "url": "bundle-20260707.6.zip",
-    "hash": "838114c874cd19b891c31fe00ece4ea66af0ad3d7ce74bfd60d0464b2722945d",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加每日推荐按钮的显示选项",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-07T15:33:48Z"
   }
 ]
