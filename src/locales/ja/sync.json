@@ -13,6 +13,7 @@
   "sync.syncPassword": "同期パスワード",
   "sync.syncPasswordPlaceholder": "Gist暗号化に使用されます",
   "sync.enableEncryption": "暗号化を有効にする",
+  "sync.pauseSync": "自動同期を一時停止",
   "sync.dataGist": "データ Gist",
   "sync.imageGist": "画像 Gist",
   "sync.supabaseUrl": "Supabase プロジェクト URL",

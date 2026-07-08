@@ -217,6 +217,7 @@
   "goods.editor.targetInfo": "目標情報",
   "goods.editor.targetPriceLabel": "目標価格",
   "goods.editor.timelineHint": "このアイテムのステータス変更を記録します。自動記録または手動で追加できます。",
+  "goods.editor.timelineUnitDisabledHint": "個別ステータスが設定されている場合、保有日数はステータスタイムラインではなく、個別の購入日から直接計算されます。",
   "goods.editor.timelineNotePlaceholder": "メモ（任意）",
   "goods.editor.unitCharacter": "ユニット{index} キャラクター",
   "goods.editor.unitCharacterCollapseDesc": "各ユニットにキャラクターを対応させます",

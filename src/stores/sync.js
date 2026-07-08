@@ -52,6 +52,7 @@ const ENCRYPTION_ENABLED_KEY = 'sync_encryption_enabled'
 const SUPABASE_URL_KEY = 'sync_supabase_url'
 const SUPABASE_ANON_KEY_KEY = 'sync_supabase_anon_key'
 const SYNC_BACKEND_KEY = 'sync_backend'
+const SYNC_PAUSED_KEY = 'sync_paused'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
 
@@ -101,6 +102,7 @@ export const useSyncStore = defineStore('sync', () => {
   const isInitialized = ref(false)
   const isSyncing = ref(false)
   const isPulling = ref(false)
+  const syncPaused = ref(false)
   const syncStatus = ref('')
   const lastError = ref('')
   const syncPhase = ref(null)
@@ -422,7 +424,7 @@ export const useSyncStore = defineStore('sync', () => {
     const [tokenVal, loginVal, userIdVal, avatarVal, passwordVal, scopesVal, authMethodVal,
       gistIdVal, imageGistIdVal, rechargeGistIdVal, eventGistIdVal,
       lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal, encryptionEnabledVal,
-      syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal
+      syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal
     ] = await Promise.all([
       readSyncKey(TOKEN_KEY), readSyncKey(GITHUB_LOGIN_KEY), readSyncKey(GITHUB_USER_ID_KEY),
       readSyncKey(GITHUB_AVATAR_URL_KEY), readSyncKey(SYNC_PASSWORD_KEY), readSyncKey(GITHUB_SCOPES_KEY),
@@ -430,7 +432,8 @@ export const useSyncStore = defineStore('sync', () => {
       readSyncKey(RECHARGE_GIST_ID_KEY), readSyncKey(EVENT_GIST_ID_KEY), readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
       readSyncKey(ENCRYPTION_ENABLED_KEY),
-      readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY)
+      readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY),
+      readSyncKey(SYNC_PAUSED_KEY)
     ])
 
     token.value = tokenVal || ''
@@ -451,6 +454,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncBackend.value = syncBackendVal || 'gist'
     supabaseUrl.value = supabaseUrlVal || ''
     supabaseAnonKey.value = supabaseAnonKeyVal || ''
+    syncPaused.value = syncPausedVal === '1'
 
     if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
       try {
@@ -588,6 +592,9 @@ export const useSyncStore = defineStore('sync', () => {
   function autoPushGoods(domain) {
     if (!isSupabaseMode()) return
     markDomainDirty(domain)
+    // When sync is paused, still track dirty state but don't auto-push.
+    // Dirty items will be synced on next manual sync or when unpausing.
+    if (syncPaused.value) return
     if (isPulling.value || isSyncing.value) {
       pendingAutoPush = true
       return
@@ -610,6 +617,17 @@ export const useSyncStore = defineStore('sync', () => {
         })
       }
     }, debounceMs)
+  }
+
+  async function setSyncPaused(paused) {
+    const wasPaused = syncPaused.value
+    syncPaused.value = !!paused
+    await writeSyncKey(SYNC_PAUSED_KEY, paused ? '1' : '')
+    // When resuming (unpausing), trigger a full sync to push all accumulated changes
+    if (wasPaused && !paused) {
+      // Don't await — fire and let the UI show progress
+      void doSync({ source: 'manual' })
+    }
   }
 
   // ── Public API ──
@@ -896,6 +914,7 @@ export const useSyncStore = defineStore('sync', () => {
     encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
     syncBackend, supabaseUrl, supabaseAnonKey,
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
+    syncPaused, setSyncPaused,
     restoreImageFromCloud
   }
 })
