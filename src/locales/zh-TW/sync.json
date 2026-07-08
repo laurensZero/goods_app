@@ -13,6 +13,7 @@
   "sync.syncPassword": "同步密碼",
   "sync.syncPasswordPlaceholder": "用於 Gist 加密",
   "sync.enableEncryption": "啟用加密",
+  "sync.pauseSync": "暫停自動同步",
   "sync.dataGist": "Data Gist",
   "sync.imageGist": "Image Gist",
   "sync.supabaseUrl": "Supabase 項目 URL",

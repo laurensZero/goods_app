@@ -902,17 +902,6 @@
     top: 16px;
   }
 
-.timeline-unit-hint {
-  text-align: center;
-  font-size: 12px;
-  color: var(--app-text-tertiary);
-  background: color-mix(in srgb, var(--app-warning, #f5a623) 8%, transparent);
-  border-radius: 10px;
-  padding: 8px 12px;
-  margin-bottom: 4px;
-  line-height: 1.5;
-}
-
   .form-main {
     grid-column: 2;
   }
@@ -939,6 +928,17 @@
     min-width: 140px;
     padding: 0 20px;
   }
+}
+
+.timeline-unit-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  background: rgba(245, 166, 35, 0.1);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  line-height: 1.5;
 }
 
 /* 下拉选项 hover/active */

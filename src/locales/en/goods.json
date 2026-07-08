@@ -217,6 +217,7 @@
   "goods.editor.targetInfo": "Target Info",
   "goods.editor.targetPriceLabel": "Target Price",
   "goods.editor.timelineHint": "Track status changes for this item, auto-recorded or manually added.",
+  "goods.editor.timelineUnitDisabledHint": "When per-unit statuses are set, holding days are calculated directly from per-unit purchase dates instead of the status timeline.",
   "goods.editor.timelineNotePlaceholder": "Note (optional)",
   "goods.editor.unitCharacter": "Unit {index} Character",
   "goods.editor.unitCharacterCollapseDesc": "Each unit corresponds to a character",

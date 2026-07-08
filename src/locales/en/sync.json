@@ -13,6 +13,7 @@
   "sync.syncPassword": "Sync Password",
   "sync.syncPasswordPlaceholder": "Used for Gist encryption",
   "sync.enableEncryption": "Enable Encryption",
+  "sync.pauseSync": "Pause Auto Sync",
   "sync.dataGist": "Data Gist",
   "sync.imageGist": "Image Gist",
   "sync.supabaseUrl": "Supabase Project URL",

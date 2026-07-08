@@ -128,6 +128,18 @@
                 </div>
               </template>
 
+              <div v-if="syncStore.isSupabaseMode()" class="detail-row">
+                <span class="detail-label">{{ t('sync.pauseSync') }}</span>
+                <label class="toggle-switch" :aria-label="t('sync.pauseSync')">
+                  <input
+                    :checked="syncStore.syncPaused"
+                    type="checkbox"
+                    @change="handlePauseSyncToggle"
+                  />
+                  <span class="toggle-slider" />
+                </label>
+              </div>
+
               <div class="detail-row">
                 <span class="detail-label">{{ t('sync.deviceId') }}</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
@@ -1154,6 +1166,11 @@ async function handleEncryptionToggle(event) {
     console.error(t('sync.toggleEncryptionFailed'), e)
     event.target.checked = !enabled
   }
+}
+
+async function handlePauseSyncToggle(event) {
+  const paused = event.target.checked
+  await syncStore.setSyncPaused(paused)
 }
 
 async function copyText(text) {
