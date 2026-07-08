@@ -1,9 +1,9 @@
 {
-  "version": "20260708.3",
-  "url": "bundle-20260708.3.zip",
-  "hash": "e277abe256d04084d2ea55a6c542a6f14c6efdd4327142678002b43634f2d4c9",
+  "version": "20260708.4",
+  "url": "bundle-20260708.4.zip",
+  "hash": "4980ca67f3272f28c43fed5da9c7ee82b5ba3ebde6120a9b17f3e07fc0aee9dd",
   "minNativeVersion": null,
-  "notes": "- feat: 优化状态时间线逻辑，处理单份和多份无逐份状态的时间线生成",
+  "notes": "- fix: 修复排序选项访问方式，确保正确获取当前排序模式",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-08T05:14:40Z"
+  "publishedAt": "2026-07-08T07:51:34Z"
 }

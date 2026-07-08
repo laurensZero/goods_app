@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260708.4",
+    "url": "bundle-20260708.4.zip",
+    "hash": "4980ca67f3272f28c43fed5da9c7ee82b5ba3ebde6120a9b17f3e07fc0aee9dd",
+    "minNativeVersion": null,
+    "notes": "- fix: 修复排序选项访问方式，确保正确获取当前排序模式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-08T07:51:34Z"
+  },
+  {
     "version": "20260708.3",
     "url": "bundle-20260708.3.zip",
     "hash": "e277abe256d04084d2ea55a6c542a6f14c6efdd4327142678002b43634f2d4c9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化同步推送流程，确保数据写入后再上传图片，防止孤立图片",
     "updateLevel": "silent",
     "publishedAt": "2026-07-08T04:59:59Z"
-  },
-  {
-    "version": "20260708.1",
-    "url": "bundle-20260708.1.zip",
-    "hash": "7b31c45168756853c24055d1f72492f1b942d6c187b05bb24cd3b7bc280088f5",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强状态时间线功能，支持逐份购入日期同步及持有天数计算\n\n- feat: 添加时间线单位提示，优化状态时间线逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-08T03:38:51Z"
   }
 ]
