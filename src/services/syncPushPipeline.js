@@ -1,5 +1,5 @@
 // src/services/syncPushPipeline.js
-// Push pipeline: build payload → upload images → write remote → update local refs
+// Push pipeline: build payload → write remote → upload images → update local refs
 
 import { normalizeBudgetValue } from '@/utils/sync/shared'
 import { computeDiffRows, computeDeleteIds } from './supabaseAdapter/helpers'
@@ -9,8 +9,8 @@ import i18n from '@/locales'
 const log = createLogger('sync:pushPipeline')
 
 /**
- * Build sync payloads and upload images.
- * Returns { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles }.
+ * Build sync payloads (image upload is deferred to doPush).
+ * Returns { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles, imageUpdates }.
  */
 export async function buildPayloadAndUploadImages(payload, imageService, be, { existingImageGist = null, dirtyIds = null, shouldWriteRecharge = true, shouldWriteEvent = true } = {}) {
   // Build goods payload (includes image collection)
@@ -41,14 +41,12 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
   const imageCleanupFiles = imageService.buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
   const imageUpdates = { ...imageFiles, ...eventImageFiles, ...imageCleanupFiles }
 
-  // Upload images
-  if (Object.keys(imageUpdates).length > 0) {
-    if (!existingImageGist) existingImageGist = await be.ensureImageGist()
-    try { await be.writeImages(existingImageGist.id, imageUpdates) }
-    catch (e) { log.warn('image upload failed', e) }
-  }
+  // NOTE: Image upload is deferred to doPush().
+  // Data is written to remote FIRST, then images are uploaded.
+  // This prevents orphaned images in Storage when the data write fails.
 
-  // Replace gist-image:// URIs with public URLs (Supabase only)
+  // Replace gist-image:// URIs with public URLs (Supabase only).
+  // Public URLs are deterministic — they don't require the file to exist yet.
   if (be.getImagePublicUrl) {
     for (const item of [...syncData.goods, ...syncData.trash]) {
       if (!Array.isArray(item.images)) continue
@@ -82,7 +80,7 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
     imageUpdatedAt: Object.keys(imageUpdates).length > 0 ? new Date().toISOString() : ''
   }
 
-  return { syncData, rechargeSyncData, eventSyncData, imageStats: mergedImageStats, allReferencedImageFiles }
+  return { syncData, rechargeSyncData, eventSyncData, imageStats: mergedImageStats, allReferencedImageFiles, imageUpdates }
 }
 
 /**

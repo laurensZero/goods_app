@@ -371,9 +371,9 @@ export function createSyncOrchestrator({
   async function doPush(ctx, stores, be, opts = {}) {
     const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
 
-    // Build payload + upload images
+    // Build payload (without uploading images yet)
     const existingImageGist = await be.getExistingImageGist()
-    const { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles } = await trackSyncStep(
+    const { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles, imageUpdates } = await trackSyncStep(
       i18n.global.t('sync.step.buildGoodsPayload'),
       () => buildPayloadAndUploadImages(
         payload, image, be, {
@@ -412,7 +412,9 @@ export function createSyncOrchestrator({
       backend: be
     })
 
-    // Write to remote
+    // Write data to remote FIRST — before uploading images.
+    // This ensures data is safely persisted before images are uploaded,
+    // preventing orphaned images in Storage when the data write fails.
     try {
       await trackSyncStep(
         i18n.global.t('sync.step.pushData'),
@@ -431,6 +433,14 @@ export function createSyncOrchestrator({
         }
       )
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+
+    // Upload images AFTER data is safely written.
+    // If image upload fails, data is already in the remote DB — next sync will retry.
+    if (Object.keys(imageUpdates).length > 0) {
+      if (!existingImageGist) existingImageGist = await be.ensureImageGist()
+      try { await be.writeImages(existingImageGist.id, imageUpdates) }
+      catch (e) { log.warn('image upload failed (data already saved):', e) }
+    }
 
     // Update local refs
     await updateLocalRefs(stores.goodsStore, stores.eventsStore, syncData, eventSyncData, be)
