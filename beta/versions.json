@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260708.3",
+    "url": "bundle-20260708.3.zip",
+    "hash": "e277abe256d04084d2ea55a6c542a6f14c6efdd4327142678002b43634f2d4c9",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化状态时间线逻辑，处理单份和多份无逐份状态的时间线生成",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-08T05:14:40Z"
+  },
+  {
     "version": "20260708.2",
     "url": "bundle-20260708.2.zip",
     "hash": "e2a424032c28204baa8b644d47d9c9c479b876c9bcf9ac1c317051405ba2dc01",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强状态时间线功能，支持逐份购入日期同步及持有天数计算\n\n- feat: 添加时间线单位提示，优化状态时间线逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-07-08T03:38:51Z"
-  },
-  {
-    "version": "20260707.7",
-    "url": "bundle-20260707.7.zip",
-    "hash": "048282c30bb0d217960d2545899f86ea1c5dd1b87b30d7728379b32a0adb0487",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化关联商品媒体展示，增加媒体容器样式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-07T15:58:35Z"
   }
 ]

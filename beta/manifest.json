@@ -1,9 +1,9 @@
 {
-  "version": "20260708.2",
-  "url": "bundle-20260708.2.zip",
-  "hash": "e2a424032c28204baa8b644d47d9c9c479b876c9bcf9ac1c317051405ba2dc01",
+  "version": "20260708.3",
+  "url": "bundle-20260708.3.zip",
+  "hash": "e277abe256d04084d2ea55a6c542a6f14c6efdd4327142678002b43634f2d4c9",
   "minNativeVersion": null,
-  "notes": "- feat: 优化同步推送流程，确保数据写入后再上传图片，防止孤立图片",
+  "notes": "- feat: 优化状态时间线逻辑，处理单份和多份无逐份状态的时间线生成",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-08T04:59:59Z"
+  "publishedAt": "2026-07-08T05:14:40Z"
 }
