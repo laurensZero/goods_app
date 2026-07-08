@@ -1,9 +1,9 @@
 {
-  "version": "20260708.4",
-  "url": "bundle-20260708.4.zip",
-  "hash": "4980ca67f3272f28c43fed5da9c7ee82b5ba3ebde6120a9b17f3e07fc0aee9dd",
+  "version": "20260708.5",
+  "url": "bundle-20260708.5.zip",
+  "hash": "9bf0b3766087ac2f3024bd5b2ccb4d7d9af1edd4a418f64e5ecb1971c2c295b8",
   "minNativeVersion": null,
-  "notes": "- fix: 修复排序选项访问方式，确保正确获取当前排序模式",
+  "notes": "- feat: 增加完整商品和垃圾列表参数，优化删除计算逻辑以避免误标记",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-08T07:51:34Z"
+  "publishedAt": "2026-07-08T10:00:25Z"
 }

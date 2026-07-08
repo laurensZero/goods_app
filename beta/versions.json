@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260708.5",
+    "url": "bundle-20260708.5.zip",
+    "hash": "9bf0b3766087ac2f3024bd5b2ccb4d7d9af1edd4a418f64e5ecb1971c2c295b8",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加完整商品和垃圾列表参数，优化删除计算逻辑以避免误标记",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-08T10:00:25Z"
+  },
+  {
     "version": "20260708.4",
     "url": "bundle-20260708.4.zip",
     "hash": "4980ca67f3272f28c43fed5da9c7ee82b5ba3ebde6120a9b17f3e07fc0aee9dd",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化状态时间线逻辑，处理单份和多份无逐份状态的时间线生成",
     "updateLevel": "silent",
     "publishedAt": "2026-07-08T05:14:40Z"
-  },
-  {
-    "version": "20260708.2",
-    "url": "bundle-20260708.2.zip",
-    "hash": "e2a424032c28204baa8b644d47d9c9c479b876c9bcf9ac1c317051405ba2dc01",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化同步推送流程，确保数据写入后再上传图片，防止孤立图片",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-08T04:59:59Z"
   }
 ]
