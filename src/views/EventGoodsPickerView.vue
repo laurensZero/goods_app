@@ -168,7 +168,7 @@ const windowWidth = ref(typeof window === 'undefined' ? 390 : window.innerWidth)
 const isTablet = computed(() => windowWidth.value >= TABLET_BREAKPOINT)
 const popupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 const currentSortOption = computed(() => (
-  SORT_OPTIONS.find((option) => option.value === sortMode.value) || SORT_OPTIONS[0]
+  SORT_OPTIONS.value.find((option) => option.value === sortMode.value) || SORT_OPTIONS.value[0]
 ))
 const sortButtonLabel = computed(() => (
   t('home.sort.currentSortLabel', { method: currentSortOption.value.label, direction: sortDirection.value === 'asc' ? t('home.toolbar.asc') : t('home.toolbar.desc') })
@@ -201,7 +201,7 @@ const {
 
 function readStoredSortMode() {
   const value = localStorage.getItem(SORT_STORAGE_KEY)
-  return SORT_OPTIONS.some((option) => option.value === value) ? value : 'createdAt'
+  return SORT_OPTIONS.value.some((option) => option.value === value) ? value : 'createdAt'
 }
 
 function readStoredSortDirection() {
