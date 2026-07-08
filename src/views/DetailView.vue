@@ -323,7 +323,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMatch, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
-import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'
+import { appendStatusTimelineEntry, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -720,12 +720,13 @@ const unitHoldingDaysList = computed(() => {
       const normalizedDate = String(date || '').trim()
       if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
 
-      const diff = Date.now() - new Date(normalizedDate).getTime()
-      const days = Math.floor(diff / 86400000)
-      if (days < 0) return null
-
       const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
-      return { date: normalizedDate, days, status }
+      // 优先从时间线获取该份的状态开始日期，回退到逐份购入日期
+      const holdingDate = getTimelineStartDate(it, status, i) || normalizedDate
+      const days = getHoldingDaysFromDate(holdingDate)
+      if (days === null) return null
+
+      return { date: holdingDate, days, status }
     })
     .filter(Boolean)
 
@@ -759,15 +760,10 @@ const holdingDays = computed(() => {
     return null
   }
 
-  // 优先使用时间线中"已拥有"的日期
-  const timeline = Array.isArray(it.statusTimeline) ? it.statusTimeline : []
-  const ownedEntry = [...timeline].reverse().find(e => e.status === '已拥有')
-  const date = ownedEntry?.at || it.acquiredAt
-  if (!date) return null
-
-  const diff = Date.now() - new Date(date).getTime()
-  const days = Math.floor(diff / 86400000)
-  return days >= 0 ? days : null
+  // 优先从时间线获取主要状态的开始日期，回退到购入日期
+  const primaryStatus = resolvePrimaryStatusForItem(it)
+  const holdingDate = getTimelineStartDate(it, primaryStatus) || (it.acquiredAt || '')
+  return getHoldingDaysFromDate(holdingDate)
 })
 
 function resolvePrimaryStatusForItem(it) {

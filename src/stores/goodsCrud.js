@@ -134,12 +134,35 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     changed = true
     previousItems.push(item)
 
-    // 批量编辑时，如果 collectStatus 变更，自动记录到时间线
+    // 批量编辑时，自动记录变更到时间线
     const mergedData = { ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
-    if (data.collectStatus && data.collectStatus !== item.collectStatus) {
-      const existingTimeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
-      mergedData.statusTimeline = appendStatusTimelineEntry(existingTimeline, data.collectStatus)
+    let timeline = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
+
+    // 老数据没有时间线时，用 acquiredAt 创建初始记录
+    const oldAcquiredAt = item.acquiredAt || ''
+    const newAcquiredAt = data.acquiredAt || ''
+    if (timeline.length === 0 && newAcquiredAt) {
+      timeline = [{ status: item.collectStatus || '已拥有', at: newAcquiredAt }]
     }
+
+    // 购入日期变更时，更新时间线中最早的匹配状态的非逐份条目日期
+    if (newAcquiredAt && newAcquiredAt !== oldAcquiredAt && timeline.length > 0) {
+      const targetStatus = item.collectStatus || '已拥有'
+      for (let i = 0; i < timeline.length; i++) {
+        if (timeline[i].status === targetStatus && timeline[i].unitIndex == null) {
+          timeline[i] = { ...timeline[i], at: newAcquiredAt }
+          break
+        }
+      }
+      timeline.sort((a, b) => a.at.localeCompare(b.at))
+    }
+
+    // collectStatus 变更时追加记录
+    if (data.collectStatus && data.collectStatus !== item.collectStatus) {
+      timeline = appendStatusTimelineEntry(timeline, data.collectStatus)
+    }
+
+    mergedData.statusTimeline = timeline
 
     const next = normalizeGoodsInput(mergedData, item.id)
     for (const path of diffRemovedManagedImagePaths(item, next)) {

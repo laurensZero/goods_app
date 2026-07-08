@@ -17,6 +17,11 @@ import {
   hasCollectStatusMatch,
   areAllCopiesExited
 } from '@/utils/goods/status'
+import {
+  getTimelineStartDate,
+  getHoldingDaysFromDate,
+  normalizeTimelineDate
+} from '@/utils/goods/statusTimeline'
 
 /**
  * @param {object} item
@@ -43,62 +48,6 @@ function computePriceFields(item, exchangeRate) {
     quantityNumber,
     totalValueNumber: collectionTotalCNYNumber
   }
-}
-
-function normalizeTimelineDate(value) {
-  const normalized = String(value || '').trim()
-  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
-}
-
-function getTimelineStartDate(item, status, unitIndex = null) {
-  const timeline = Array.isArray(item?.statusTimeline) ? item.statusTimeline : []
-  const normalizedStatus = String(status || '').trim()
-  const hasUnitIndex = Number.isInteger(unitIndex)
-
-  let latestWithUnit = ''
-  let latestWithUnitTimestamp = 0
-  let latestWithoutUnit = ''
-  let latestWithoutUnitTimestamp = 0
-
-  for (const entry of timeline) {
-    if (!entry || typeof entry !== 'object') continue
-    if (normalizedStatus && String(entry.status || '').trim() !== normalizedStatus) continue
-
-    const date = normalizeTimelineDate(entry.at)
-    if (!date) continue
-    const timestamp = Date.parse(date)
-    if (!Number.isFinite(timestamp)) continue
-
-    if (hasUnitIndex) {
-      if (Number.isInteger(entry.unitIndex) && entry.unitIndex === unitIndex) {
-        if (timestamp > latestWithUnitTimestamp) {
-          latestWithUnit = date
-          latestWithUnitTimestamp = timestamp
-        }
-        continue
-      }
-
-      if (!Number.isInteger(entry.unitIndex) && timestamp > latestWithoutUnitTimestamp) {
-        latestWithoutUnit = date
-        latestWithoutUnitTimestamp = timestamp
-      }
-      continue
-    }
-
-    if (timestamp > latestWithoutUnitTimestamp) {
-      latestWithoutUnit = date
-      latestWithoutUnitTimestamp = timestamp
-    }
-  }
-
-  return latestWithUnit || latestWithoutUnit
-}
-
-function getHoldingDaysFromDate(date) {
-  if (!date) return null
-  const diff = Date.now() - new Date(date).getTime()
-  const days = Math.floor(diff / 86400000)
-  return days >= 0 ? days : null
 }
 
 /**
