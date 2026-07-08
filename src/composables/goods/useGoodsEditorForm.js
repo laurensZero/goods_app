@@ -437,8 +437,8 @@ export function useGoodsEditorForm(options = {}) {
           // 有逐份状态时：只记录一条汇总时间线，逐份持有天数由 unitAcquiredAtList 独立计算
           const timelineDate = form.acquiredAt || today
           form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
-        } else {
-          // 无逐份状态：逐份购入日期生成时间线条目
+        } else if (quantityNumber.value >= 2) {
+          // 多份无逐份状态：逐份购入日期生成时间线条目
           const unitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
           const validUnitDates = unitDates
             .map((d, i) => {
@@ -465,6 +465,10 @@ export function useGoodsEditorForm(options = {}) {
             const timelineDate = form.acquiredAt || today
             form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
           }
+        } else {
+          // 单份无逐份状态：直接使用购入日期
+          const timelineDate = form.acquiredAt || today
+          form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
         }
       }
       const motionId = String(Date.now())
