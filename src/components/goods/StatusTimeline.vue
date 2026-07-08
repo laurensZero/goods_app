@@ -24,9 +24,6 @@
             <span class="timeline-date">{{ entry.at }}</span>
           </div>
           <p v-if="entry.note" class="timeline-note">{{ entry.note }}</p>
-          <span v-if="entry.unitIndex != null" class="timeline-unit-badge">
-            #{{ entry.unitIndex + 1 }}
-          </span>
         </div>
       </div>
     </div>
@@ -169,17 +166,5 @@ const entries = computed(() => {
   color: var(--app-text-tertiary);
   margin: 0;
   line-height: 1.4;
-}
-
-.timeline-unit-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--app-text-tertiary);
-  background: var(--app-fill);
-  padding: 1px 6px;
-  border-radius: 8px;
-  width: fit-content;
-  margin-top: 2px;
 }
 </style>
