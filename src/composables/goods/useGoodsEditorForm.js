@@ -10,7 +10,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
-import { appendStatusTimelineEntry, syncUnitStatusTimeline } from '@/utils/goods/statusTimeline'
+import { appendStatusTimelineEntry, syncUnitStatusTimeline, syncUnitAcquiredTimeline } from '@/utils/goods/statusTimeline'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   ensureSaleReminderPermission,
@@ -96,6 +96,8 @@ export function useGoodsEditorForm(options = {}) {
   const originalIsWishlist = ref(null)
   const originalCollectStatus = ref(null)
   const originalUnitCollectStatusList = ref(null)
+  const originalAcquiredAt = ref(null)
+  const originalUnitAcquiredAtList = ref(null)
   const { isTabletViewport, updateViewport } = useTabletViewport()
 
   const availableCharacters = computed(() =>
@@ -236,6 +238,8 @@ export function useGoodsEditorForm(options = {}) {
         originalIsWishlist.value = Boolean(item.isWishlist)
         originalCollectStatus.value = item.collectStatus || '已拥有'
         originalUnitCollectStatusList.value = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
+        originalAcquiredAt.value = item.acquiredAt ?? ''
+        originalUnitAcquiredAtList.value = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
         form.name = item.name ?? ''
         form.variant = item.variant ?? ''
         form.category = item.category ?? ''
@@ -366,6 +370,27 @@ export function useGoodsEditorForm(options = {}) {
         timeline = [{ status: oldStatus, at: form.acquiredAt }]
       }
 
+      // 购入日期变更时，更新时间线中最早的匹配状态的非逐份条目日期
+      const oldAcquiredAt = originalAcquiredAt.value || ''
+      if (form.acquiredAt && form.acquiredAt !== oldAcquiredAt && timeline.length > 0) {
+        const targetStatus = oldStatus === newStatus ? newStatus : oldStatus
+        for (let i = 0; i < timeline.length; i++) {
+          if (timeline[i].status === targetStatus && timeline[i].unitIndex == null) {
+            timeline[i] = { ...timeline[i], at: form.acquiredAt }
+            break
+          }
+        }
+        timeline.sort((a, b) => a.at.localeCompare(b.at))
+      }
+
+      // 逐份购入日期变更（在状态变更前处理，确保逐份记录优先）
+      const oldUnitDates = originalUnitAcquiredAtList.value || []
+      const newUnitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
+      if (newUnitDates.length > 0) {
+        const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+        timeline = syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, unitStatuses)
+      }
+
       if (oldStatus !== newStatus) {
         timeline = appendStatusTimelineEntry(timeline, newStatus)
       }
@@ -399,9 +424,35 @@ export function useGoodsEditorForm(options = {}) {
       // 新增时记录初始状态到时间线
       const initialStatus = form.isWishlist ? '' : (form.collectStatus || '已拥有')
       if (initialStatus) {
-        // 待发货状态用购入日期（下单日期），其他状态用当天
-        const timelineDate = form.acquiredAt || today
-        form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
+        const unitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
+        const validUnitDates = unitDates
+          .map((d, i) => {
+            const date = String(d || '').trim()
+            return /^\d{4}-\d{2}-\d{2}$/.test(date) ? { date, index: i } : null
+          })
+          .filter(Boolean)
+
+        if (validUnitDates.length > 0) {
+          // 逐份购入日期：为每份生成独立时间线条目
+          const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+          form.statusTimeline = validUnitDates
+            .map(({ date, index: i }) => {
+              const status = String(unitStatuses[i] || initialStatus).trim()
+              return { status, at: date, unitIndex: i }
+            })
+            .sort((a, b) => a.at.localeCompare(b.at))
+
+          // 如果逐份日期不足（部分份无日期），补充一条无 unitIndex 的汇总记录
+          if (validUnitDates.length < quantityNumber.value) {
+            const timelineDate = form.acquiredAt || today
+            form.statusTimeline.push({ status: initialStatus, at: timelineDate })
+            form.statusTimeline.sort((a, b) => a.at.localeCompare(b.at))
+          }
+        } else {
+          // 无逐份日期：单一汇总条目
+          const timelineDate = form.acquiredAt || today
+          form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
+        }
       }
       const motionId = String(Date.now())
       const addPromise = store.addGoods({ ...form, id: motionId })
