@@ -1,9 +1,9 @@
 {
-  "version": "20260709.1",
-  "url": "bundle-20260709.1.zip",
-  "hash": "1ffbe149dd243bcafa7c28bd5f365fa3312e8691be633dc1e7b9c4085214d850",
+  "version": "20260709.2",
+  "url": "bundle-20260709.2.zip",
+  "hash": "ac4550e380cb42796ec48dfa39ca310dcc285d5f0cc12876a201d8aa7d28e631",
   "minNativeVersion": null,
-  "notes": "- refactor: 移除引用级缓存逻辑，简化 goodsList 和 trashList 的处理",
+  "notes": "- feat: 优化时间线处理逻辑，支持用户手动编辑并自动同步购入日期",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-09T01:31:10Z"
+  "publishedAt": "2026-07-09T14:28:26Z"
 }

@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260709.2",
+    "url": "bundle-20260709.2.zip",
+    "hash": "ac4550e380cb42796ec48dfa39ca310dcc285d5f0cc12876a201d8aa7d28e631",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化时间线处理逻辑，支持用户手动编辑并自动同步购入日期",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-09T14:28:26Z"
+  },
+  {
     "version": "20260709.1",
     "url": "bundle-20260709.1.zip",
     "hash": "1ffbe149dd243bcafa7c28bd5f365fa3312e8691be633dc1e7b9c4085214d850",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加暂停自动同步功能，优化同步设置界面",
     "updateLevel": "silent",
     "publishedAt": "2026-07-08T11:09:42Z"
-  },
-  {
-    "version": "20260708.5",
-    "url": "bundle-20260708.5.zip",
-    "hash": "9bf0b3766087ac2f3024bd5b2ccb4d7d9af1edd4a418f64e5ecb1971c2c295b8",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加完整商品和垃圾列表参数，优化删除计算逻辑以避免误标记",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-08T10:00:25Z"
   }
 ]
