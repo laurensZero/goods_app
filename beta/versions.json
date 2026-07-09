@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260709.1",
+    "url": "bundle-20260709.1.zip",
+    "hash": "1ffbe149dd243bcafa7c28bd5f365fa3312e8691be633dc1e7b9c4085214d850",
+    "minNativeVersion": null,
+    "notes": "- refactor: 移除引用级缓存逻辑，简化 goodsList 和 trashList 的处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-09T01:31:10Z"
+  },
+  {
     "version": "20260708.6",
     "url": "bundle-20260708.6.zip",
     "hash": "5b27a1834266b0228a9bc28d9c1272285a3f224575df85ea1ccb34007f5f60d3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加完整商品和垃圾列表参数，优化删除计算逻辑以避免误标记",
     "updateLevel": "silent",
     "publishedAt": "2026-07-08T10:00:25Z"
-  },
-  {
-    "version": "20260708.4",
-    "url": "bundle-20260708.4.zip",
-    "hash": "4980ca67f3272f28c43fed5da9c7ee82b5ba3ebde6120a9b17f3e07fc0aee9dd",
-    "minNativeVersion": null,
-    "notes": "- fix: 修复排序选项访问方式，确保正确获取当前排序模式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-08T07:51:34Z"
   }
 ]
