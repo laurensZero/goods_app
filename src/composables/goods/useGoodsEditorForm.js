@@ -98,7 +98,7 @@ export function useGoodsEditorForm(options = {}) {
   const originalUnitCollectStatusList = ref(null)
   const originalAcquiredAt = ref(null)
   const originalUnitAcquiredAtList = ref(null)
-  const originalTimelineLength = ref(0)
+  const originalTimeline = ref(null)
   const { isTabletViewport, updateViewport } = useTabletViewport()
 
   const availableCharacters = computed(() =>
@@ -241,7 +241,7 @@ export function useGoodsEditorForm(options = {}) {
         originalUnitCollectStatusList.value = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
         originalAcquiredAt.value = item.acquiredAt ?? ''
         originalUnitAcquiredAtList.value = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
-        originalTimelineLength.value = Array.isArray(item.statusTimeline) ? item.statusTimeline.length : 0
+        originalTimeline.value = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
         form.name = item.name ?? ''
         form.variant = item.variant ?? ''
         form.category = item.category ?? ''
@@ -367,45 +367,58 @@ export function useGoodsEditorForm(options = {}) {
       const oldStatus = originalCollectStatus.value || '已拥有'
       const newStatus = form.collectStatus || '已拥有'
 
-      // 老数据没有时间线时，用 acquiredAt 创建初始记录（原始也没有时间线才创建，用户手动清空不重建）
-      if (timeline.length === 0 && form.acquiredAt && originalTimelineLength.value === 0) {
-        timeline = [{ status: oldStatus, at: form.acquiredAt }]
-      }
+      // 检测用户是否手动编辑了时间线（非自动生成）
+      const origTimeline = originalTimeline.value || []
+      const timelineEditedByUser = JSON.stringify(timeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex }))) !==
+        JSON.stringify(origTimeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex })))
 
-      // 购入日期变更时，更新时间线中最早的匹配状态的非逐份条目日期
-      const oldAcquiredAt = originalAcquiredAt.value || ''
-      if (form.acquiredAt && form.acquiredAt !== oldAcquiredAt && timeline.length > 0) {
-        const targetStatus = oldStatus === newStatus ? newStatus : oldStatus
-        for (let i = 0; i < timeline.length; i++) {
-          if (timeline[i].status === targetStatus && timeline[i].unitIndex == null) {
-            timeline[i] = { ...timeline[i], at: form.acquiredAt }
-            break
+      // 用户手动编辑过时间线 → 完全尊重用户编辑，不做任何自动追加/修改
+      if (timelineEditedByUser) {
+        // 老数据没有时间线但用户也未添加 → 用 acquiredAt 创建初始记录
+        if (timeline.length === 0 && form.acquiredAt && origTimeline.length === 0) {
+          timeline = [{ status: oldStatus, at: form.acquiredAt }]
+        }
+        form.statusTimeline = timeline
+      } else {
+        // 用户没有手动编辑时间线 → 自动处理
+        // 老数据没有时间线时，用 acquiredAt 创建初始记录
+        if (timeline.length === 0 && form.acquiredAt) {
+          timeline = [{ status: oldStatus, at: form.acquiredAt }]
+        }
+
+        // 购入日期变更时，更新时间线中最早的匹配状态的非逐份条目日期
+        const oldAcquiredAt = originalAcquiredAt.value || ''
+        if (form.acquiredAt && form.acquiredAt !== oldAcquiredAt && timeline.length > 0) {
+          const targetStatus = oldStatus === newStatus ? newStatus : oldStatus
+          for (let i = 0; i < timeline.length; i++) {
+            if (timeline[i].status === targetStatus && timeline[i].unitIndex == null) {
+              timeline[i] = { ...timeline[i], at: form.acquiredAt }
+              break
+            }
+          }
+          timeline.sort((a, b) => a.at.localeCompare(b.at))
+        }
+
+        // 逐份购入日期 / 逐份状态变更
+        const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
+        if (!hasUnitStatuses) {
+          const oldUnitDates = originalUnitAcquiredAtList.value || []
+          const newUnitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
+          if (newUnitDates.length > 0) {
+            const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+            timeline = syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, unitStatuses)
           }
         }
-        timeline.sort((a, b) => a.at.localeCompare(b.at))
-      }
 
-      // 逐份购入日期 / 逐份状态变更（有逐份状态时走逐份逻辑，不记录到时间线）
-      const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
-      if (!hasUnitStatuses) {
-        // 没有逐份状态：逐份购入日期变更同步到时间线
-        const oldUnitDates = originalUnitAcquiredAtList.value || []
-        const newUnitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
-        if (newUnitDates.length > 0) {
-          const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-          timeline = syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, unitStatuses)
+        if (oldStatus !== newStatus) {
+          timeline = appendStatusTimelineEntry(timeline, newStatus)
         }
-      }
-
-      if (oldStatus !== newStatus) {
-        timeline = appendStatusTimelineEntry(timeline, newStatus)
-      }
-      // 多件状态变更（有逐份状态时不记录到时间线）
-      if (!hasUnitStatuses) {
-        const oldUnitList = originalUnitCollectStatusList.value || []
-        const newUnitList = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-        if (newUnitList.length > 0) {
-          timeline = syncUnitStatusTimeline(timeline, oldUnitList, newUnitList)
+        if (!hasUnitStatuses) {
+          const oldUnitList = originalUnitCollectStatusList.value || []
+          const newUnitList = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+          if (newUnitList.length > 0) {
+            timeline = syncUnitStatusTimeline(timeline, oldUnitList, newUnitList)
+          }
         }
       }
       form.statusTimeline = timeline
