@@ -719,20 +719,48 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function replacePresetsSnapshot(snapshot = {}) {
-    categories.value = normalizeCategoriesList(snapshot.categories)
-    ips.value = normalizeIpsList(snapshot.ips)
-    characters.value = normalizeCharacters(snapshot.characters)
+    // categories — 兼容旧格式 ["..."] 和新格式 {n: [...], f: [...]}
+    const catRaw = snapshot.categories
+    if (Array.isArray(catRaw)) {
+      categories.value = normalizeCategoriesList(catRaw)
+    } else {
+      categories.value = normalizeCategoriesList(catRaw?.n)
+      if (Array.isArray(catRaw?.f)) favoriteCategories.value = catRaw.f
+    }
+
+    // ips — 同上
+    const ipRaw = snapshot.ips
+    if (Array.isArray(ipRaw)) {
+      ips.value = normalizeIpsList(ipRaw)
+    } else {
+      ips.value = normalizeIpsList(ipRaw?.n)
+      if (Array.isArray(ipRaw?.f)) favoriteIps.value = ipRaw.f
+    }
+
+    // characters — 对象自带 fav 字段
+    const chrRaw = snapshot.characters
+    characters.value = normalizeCharacters(chrRaw)
+    if (Array.isArray(chrRaw)) {
+      favoriteCharacters.value = chrRaw
+        .filter((c) => c?.fav)
+        .map((c) => normalizeCharacterName(c?.name))
+        .filter(Boolean)
+    }
+
     storageLocations.value = normalizeStorageLocationSnapshot(snapshot.storageLocations)
 
     await Promise.all([
       writePersistedList(STORAGE_KEY_CAT, categories.value),
       writePersistedList(STORAGE_KEY_IP, ips.value),
       writePersistedList(STORAGE_KEY_CHR, characters.value),
-      writePersistedList(STORAGE_KEY_LOC, storageLocations.value)
+      writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
+      writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value),
+      writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value),
+      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
     ])
   }
 
-  // --- 收藏/置顶（本地偏好，不参与云同步）---
+  // --- 收藏/置顶 ---
 
   async function toggleFavoriteCategory(name) {
     const normalized = String(name || '').trim()
@@ -745,6 +773,7 @@ export const usePresetsStore = defineStore('presets', () => {
       arr.push(normalized)
     }
     await writePersistedList(STORAGE_KEY_FAV_CAT, arr)
+    autoPushPresets()
   }
 
   async function toggleFavoriteIp(name) {
@@ -758,6 +787,7 @@ export const usePresetsStore = defineStore('presets', () => {
       arr.push(normalized)
     }
     await writePersistedList(STORAGE_KEY_FAV_IP, arr)
+    autoPushPresets()
   }
 
   async function toggleFavoriteCharacter(name) {
@@ -771,6 +801,7 @@ export const usePresetsStore = defineStore('presets', () => {
       arr.push(normalized)
     }
     await writePersistedList(STORAGE_KEY_FAV_CHR, arr)
+    autoPushPresets()
   }
 
   function characterNames() {
