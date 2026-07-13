@@ -1,9 +1,9 @@
 {
-  "version": "20260713.3",
-  "url": "bundle-20260713.3.zip",
-  "hash": "61718dae8da4d924c253e7f7e282d913468501ae9603e4f6bb2f88c9d655441f",
+  "version": "20260713.4",
+  "url": "bundle-20260713.4.zip",
+  "hash": "95d16deca54c211c30a55f4cb4619cce8405ee5b52ba42928a9118fd7ccd81d4",
   "minNativeVersion": null,
-  "notes": "- feat: 添加解析预设字段的功能，支持新旧格式兼容",
+  "notes": "- feat: 优化批量编辑购入日期逻辑，确保时间线同步更新并兼容新旧格式",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-13T13:05:18Z"
+  "publishedAt": "2026-07-13T13:26:39Z"
 }

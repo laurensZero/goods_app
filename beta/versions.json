@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260713.4",
+    "url": "bundle-20260713.4.zip",
+    "hash": "95d16deca54c211c30a55f4cb4619cce8405ee5b52ba42928a9118fd7ccd81d4",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化批量编辑购入日期逻辑，确保时间线同步更新并兼容新旧格式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-13T13:26:39Z"
+  },
+  {
     "version": "20260713.3",
     "url": "bundle-20260713.3.zip",
     "hash": "61718dae8da4d924c253e7f7e282d913468501ae9603e4f6bb2f88c9d655441f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新预设快照处理逻辑，支持新旧格式兼容并添加收藏项处理",
     "updateLevel": "silent",
     "publishedAt": "2026-07-13T05:18:34Z"
-  },
-  {
-    "version": "20260713.1",
-    "url": "bundle-20260713.1.zip",
-    "hash": "674fe7d8e0103c3f2611874fe85d68450dbdf14a4891b4920f4540921a3297cf",
-    "minNativeVersion": null,
-    "notes": "- fix: 修复添加商品时的获取日期逻辑，确保在没有自定义购入日期时使用当前日期 feat: 增强状态时间线处理，去重相同状态记录以优化数据存储 fix: 更新数据库迁移逻辑，确保获取购入日期时使用当前日期 refactor: 优化状态时间线同步逻辑，移除旧条目以避免数据冗余\n\n- feat: 添加预设管理页面的排序功能，支持按名称、商品数排序及收藏项优先显示\n\n- feat: 添加心愿单转收藏时强制覆写时间线的逻辑，确保使用设置的日期或当天",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-13T05:09:02Z"
   }
 ]
