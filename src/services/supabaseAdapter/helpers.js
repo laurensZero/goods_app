@@ -58,6 +58,25 @@ export function safeParseJsonArray(value) {
   }
 }
 
+/**
+ * 解析预设字段（categories / ips / characters / storageLocations）
+ * 兼容旧格式 string[]、新格式 {n: [...], f: [...]}，以及 JSON 字符串
+ */
+export function parsePresetsField(value) {
+  if (Array.isArray(value)) return value
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    // 新格式 {n: [...], f: [...]} — 保留完整结构
+    return value
+  }
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value)
+      return parsed
+    } catch { /* fall through */ }
+  }
+  return []
+}
+
 export function normalizeId(value) {
   return String(value ?? '')
 }

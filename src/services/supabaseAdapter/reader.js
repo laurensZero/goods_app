@@ -6,7 +6,7 @@ import { withRetry, withTimeout } from '@/services/syncRetry'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS,
   GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
-  fetchAllRows, normalizeTimestamp, safeParseJsonArray
+  fetchAllRows, normalizeTimestamp, safeParseJsonArray, parsePresetsField
 } from './helpers'
 
 export function createReader({ getDb, trackSyncStep }) {
@@ -81,10 +81,10 @@ export function createReader({ getDb, trackSyncStep }) {
             goods: normalizeGoodsRows(goodsData || []),
             trash: normalizeGoodsRows(trashData || []),
             presets: {
-              categories: safeParseJsonArray(presets.categories),
-              ips: safeParseJsonArray(presets.ips),
-              characters: safeParseJsonArray(presets.characters),
-              storageLocations: safeParseJsonArray(presets.storageLocations)
+              categories: parsePresetsField(presets.categories),
+              ips: parsePresetsField(presets.ips),
+              characters: parsePresetsField(presets.characters),
+              storageLocations: parsePresetsField(presets.storageLocations)
             },
             goodsGroups,
             goodsGroupItems
@@ -191,10 +191,10 @@ export function createReader({ getDb, trackSyncStep }) {
     if (!data || data.length === 0) return null
     const row = toCamelCase(data[0])
     return {
-      categories: safeParseJsonArray(row.categories),
-      ips: safeParseJsonArray(row.ips),
-      characters: safeParseJsonArray(row.characters),
-      storageLocations: safeParseJsonArray(row.storageLocations)
+      categories: parsePresetsField(row.categories),
+      ips: parsePresetsField(row.ips),
+      characters: parsePresetsField(row.characters),
+      storageLocations: parsePresetsField(row.storageLocations)
     }
   }
 
@@ -401,10 +401,10 @@ export function createReader({ getDb, trackSyncStep }) {
     const presets = presetsRow ? (() => {
       const p = toCamelCase(presetsRow)
       return {
-        categories: safeParseJsonArray(p.categories),
-        ips: safeParseJsonArray(p.ips),
-        characters: safeParseJsonArray(p.characters),
-        storageLocations: safeParseJsonArray(p.storageLocations)
+        categories: parsePresetsField(p.categories),
+        ips: parsePresetsField(p.ips),
+        characters: parsePresetsField(p.characters),
+        storageLocations: parsePresetsField(p.storageLocations)
       }
     })() : null
 
