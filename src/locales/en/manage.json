@@ -309,5 +309,12 @@
   "storage.qr.saveFailed": "Save failed",
   "storage.qr.generating": "Generating...",
   "storage.qr.generateFailed": "Failed to generate QR",
-  "storage.qr.imageAlt": "Storage QR code for {name}"
+  "storage.qr.imageAlt": "Storage QR code for {name}",
+  "manage.sort.default": "Default",
+  "manage.sort.name": "Name",
+  "manage.sort.goodsCount": "Count",
+  "manage.sort.asc": "Ascending",
+  "manage.sort.desc": "Descending",
+  "manage.favoriteAdd": "Add to favorites",
+  "manage.favoriteRemove": "Remove from favorites"
 }

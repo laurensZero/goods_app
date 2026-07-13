@@ -309,5 +309,12 @@
   "storage.qr.saveFailed": "저장 실패",
   "storage.qr.generating": "생성 중...",
   "storage.qr.generateFailed": "QR 코드 생성 실패",
-  "storage.qr.imageAlt": "{name}의 보관 QR 코드"
+  "storage.qr.imageAlt": "{name}의 보관 QR 코드",
+  "manage.sort.default": "기본",
+  "manage.sort.name": "이름",
+  "manage.sort.goodsCount": "개수",
+  "manage.sort.asc": "오름차순",
+  "manage.sort.desc": "내림차순",
+  "manage.favoriteAdd": "즐겨찾기에 추가",
+  "manage.favoriteRemove": "즐겨찾기에서 제거"
 }
