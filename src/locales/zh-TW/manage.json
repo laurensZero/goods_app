@@ -309,5 +309,12 @@
   "storage.qr.saveFailed": "儲存失敗",
   "storage.qr.generating": "生成中...",
   "storage.qr.generateFailed": "生成 QR 失敗",
-  "storage.qr.imageAlt": "{name} 的收納位置二維碼"
+  "storage.qr.imageAlt": "{name} 的收納位置二維碼",
+  "manage.sort.default": "預設",
+  "manage.sort.name": "名稱",
+  "manage.sort.goodsCount": "商品數",
+  "manage.sort.asc": "昇冪",
+  "manage.sort.desc": "降冪",
+  "manage.favoriteAdd": "加入收藏",
+  "manage.favoriteRemove": "取消收藏"
 }

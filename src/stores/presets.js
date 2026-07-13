@@ -13,6 +13,9 @@ const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
 const STORAGE_KEY_LOC = 'goods_presets_storage_locations'
 const STORAGE_KEY_SYNC_DIGEST = 'goods_presets_sync_digest'
+const STORAGE_KEY_FAV_CAT = 'goods_presets_favorite_categories'
+const STORAGE_KEY_FAV_IP = 'goods_presets_favorite_ips'
+const STORAGE_KEY_FAV_CHR = 'goods_presets_favorite_characters'
 
 const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
@@ -215,6 +218,9 @@ export const usePresetsStore = defineStore('presets', () => {
   const ips = ref(cloneList(DEFAULT_IPS))
   const characters = ref(cloneList(DEFAULT_CHARACTERS))
   const storageLocations = ref(cloneList(DEFAULT_STORAGE_LOCATIONS))
+  const favoriteCategories = ref([])
+  const favoriteIps = ref([])
+  const favoriteCharacters = ref([])
   const isReady = ref(false)
 
   const storageLocationChildrenMap = computed(() => {
@@ -233,6 +239,10 @@ export const usePresetsStore = defineStore('presets', () => {
 
     return grouped
   })
+
+  const favoriteCategorySet = computed(() => new Set(favoriteCategories.value))
+  const favoriteIpSet = computed(() => new Set(favoriteIps.value))
+  const favoriteCharacterSet = computed(() => new Set(favoriteCharacters.value))
 
   const storageLocationIdMap = computed(() =>
     new Map(storageLocations.value.map((node) => [node.id, node]))
@@ -276,16 +286,22 @@ export const usePresetsStore = defineStore('presets', () => {
   const autoPushPresets = createAutoPush('presets')
 
   async function init() {
-    const [cat, ip, chr, loc] = await Promise.all([
+    const [cat, ip, chr, loc, favCat, favIp, favChr] = await Promise.all([
       readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
       readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
       readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
-      readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS)
+      readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS),
+      readPersistedList(STORAGE_KEY_FAV_CAT, []),
+      readPersistedList(STORAGE_KEY_FAV_IP, []),
+      readPersistedList(STORAGE_KEY_FAV_CHR, [])
     ])
     categories.value = cat
     ips.value = ip
     characters.value = chr
     storageLocations.value = loc
+    favoriteCategories.value = Array.isArray(favCat) ? favCat : []
+    favoriteIps.value = Array.isArray(favIp) ? favIp : []
+    favoriteCharacters.value = Array.isArray(favChr) ? favChr : []
 
     if (!Array.isArray(categories.value)) categories.value = cloneList(DEFAULT_CATEGORIES)
     if (!Array.isArray(ips.value)) ips.value = cloneList(DEFAULT_IPS)
@@ -469,7 +485,11 @@ export const usePresetsStore = defineStore('presets', () => {
 
   async function removeCategory(name) {
     categories.value = categories.value.filter((category) => category !== name)
-    await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    favoriteCategories.value = favoriteCategories.value.filter((c) => c !== name)
+    await Promise.all([
+      writePersistedList(STORAGE_KEY_CAT, categories.value),
+      writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value)
+    ])
     autoPushPresets()
   }
 
@@ -486,6 +506,16 @@ export const usePresetsStore = defineStore('presets', () => {
     const updated = [...categories.value]
     updated.splice(index, 1, next)
     categories.value = updated
+
+    // 同步更新收藏列表中的名称
+    const favIdx = favoriteCategories.value.indexOf(previous)
+    if (favIdx >= 0) {
+      const favUpdated = [...favoriteCategories.value]
+      favUpdated.splice(favIdx, 1, next)
+      favoriteCategories.value = favUpdated
+      await writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value)
+    }
+
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
     autoPushPresets()
     return true
@@ -509,7 +539,11 @@ export const usePresetsStore = defineStore('presets', () => {
 
   async function removeIp(name) {
     ips.value = ips.value.filter((ip) => ip !== name)
-    await writePersistedList(STORAGE_KEY_IP, ips.value)
+    favoriteIps.value = favoriteIps.value.filter((ip) => ip !== name)
+    await Promise.all([
+      writePersistedList(STORAGE_KEY_IP, ips.value),
+      writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value)
+    ])
     autoPushPresets()
   }
 
@@ -526,6 +560,16 @@ export const usePresetsStore = defineStore('presets', () => {
     const updated = [...ips.value]
     updated.splice(index, 1, next)
     ips.value = updated
+
+    // 同步更新收藏列表中的名称
+    const favIdx = favoriteIps.value.indexOf(previous)
+    if (favIdx >= 0) {
+      const favUpdated = [...favoriteIps.value]
+      favUpdated.splice(favIdx, 1, next)
+      favoriteIps.value = favUpdated
+      await writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value)
+    }
+
     await writePersistedList(STORAGE_KEY_IP, ips.value)
     autoPushPresets()
     return true
@@ -544,7 +588,11 @@ export const usePresetsStore = defineStore('presets', () => {
   async function removeCharacter(name) {
     const normalized = normalizeCharacterName(name)
     characters.value = characters.value.filter((character) => character.name !== normalized)
-    await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    favoriteCharacters.value = favoriteCharacters.value.filter((c) => c !== normalized)
+    await Promise.all([
+      writePersistedList(STORAGE_KEY_CHR, characters.value),
+      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
+    ])
     autoPushPresets()
   }
 
@@ -565,6 +613,16 @@ export const usePresetsStore = defineStore('presets', () => {
       name: next
     })
     characters.value = updated
+
+    // 同步更新收藏列表中的名称
+    const favIdx = favoriteCharacters.value.indexOf(previous)
+    if (favIdx >= 0) {
+      const favUpdated = [...favoriteCharacters.value]
+      favUpdated.splice(favIdx, 1, next)
+      favoriteCharacters.value = favUpdated
+      await writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
+    }
+
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
     autoPushPresets()
     return true
@@ -674,6 +732,47 @@ export const usePresetsStore = defineStore('presets', () => {
     ])
   }
 
+  // --- 收藏/置顶（本地偏好，不参与云同步）---
+
+  async function toggleFavoriteCategory(name) {
+    const normalized = String(name || '').trim()
+    if (!normalized) return
+    const arr = favoriteCategories.value
+    const idx = arr.indexOf(normalized)
+    if (idx >= 0) {
+      arr.splice(idx, 1)
+    } else {
+      arr.push(normalized)
+    }
+    await writePersistedList(STORAGE_KEY_FAV_CAT, arr)
+  }
+
+  async function toggleFavoriteIp(name) {
+    const normalized = String(name || '').trim()
+    if (!normalized) return
+    const arr = favoriteIps.value
+    const idx = arr.indexOf(normalized)
+    if (idx >= 0) {
+      arr.splice(idx, 1)
+    } else {
+      arr.push(normalized)
+    }
+    await writePersistedList(STORAGE_KEY_FAV_IP, arr)
+  }
+
+  async function toggleFavoriteCharacter(name) {
+    const normalized = normalizeCharacterName(name)
+    if (!normalized) return
+    const arr = favoriteCharacters.value
+    const idx = arr.indexOf(normalized)
+    if (idx >= 0) {
+      arr.splice(idx, 1)
+    } else {
+      arr.push(normalized)
+    }
+    await writePersistedList(STORAGE_KEY_FAV_CHR, arr)
+  }
+
   function characterNames() {
     return characters.value.map((character) => character.name)
   }
@@ -709,6 +808,16 @@ export const usePresetsStore = defineStore('presets', () => {
     syncCharactersFromGoods,
     syncPresetsIfNeeded,
     replacePresetsSnapshot,
-    characterNames
+    characterNames,
+    // 收藏
+    favoriteCategories,
+    favoriteIps,
+    favoriteCharacters,
+    favoriteCategorySet,
+    favoriteIpSet,
+    favoriteCharacterSet,
+    toggleFavoriteCategory,
+    toggleFavoriteIp,
+    toggleFavoriteCharacter
   }
 })

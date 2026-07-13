@@ -35,14 +35,39 @@
         </div>
       </Transition>
 
+      <PresetSortBar
+        :sort-mode="sortMode"
+        :sort-direction="sortDirection"
+        @update:sort-mode="setSortMode"
+        @toggle-direction="toggleSortDirection"
+      />
+
       <section class="list-section">
-        <div v-if="presets.categories.length > 0" class="row-list">
+        <div v-if="sortedCategories.length > 0" class="row-list">
           <div
-            v-for="(item, idx) in presets.categories"
+            v-for="(item, idx) in sortedCategories"
             :key="item"
             class="row-item"
-            :class="{ 'row-item--last': idx === presets.categories.length - 1 }"
+            :class="{ 'row-item--last': idx === sortedCategories.length - 1 }"
           >
+            <button
+              class="row-fav"
+              :class="{ 'row-fav--active': isFavorite(item) }"
+              :aria-label="isFavorite(item) ? t('manage.favoriteRemove') : t('manage.favoriteAdd')"
+              @click.stop="toggleFavorite(item)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                  :fill="isFavorite(item) ? '#f5a623' : 'none'"
+                  :stroke="isFavorite(item) ? '#f5a623' : 'currentColor'"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+
             <button class="row-main" type="button" @click="openEdit(item)">
               <span class="row-label">{{ item }}</span>
               <span class="row-meta">{{ t('manage.category.goodsCount', { count: getGoodsCount(item) }) }}</span>
@@ -124,14 +149,30 @@ import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
+import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
+import { sortPresetList } from '@/utils/presets/sort'
 import NavBar from '@/components/common/NavBar.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
+import PresetSortBar from '@/components/preset/PresetSortBar.vue'
 
 const DEFAULT_LIST = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '毛绒', '赠品', '其他']
 
 const { t } = useI18n()
 const presets = usePresetsStore()
 const store = useGoodsStore()
+
+const { sortMode, sortDirection, toggleSortDirection, setSortMode } = usePresetPreferences('categories')
+
+const sortedCategories = computed(() => {
+  return sortPresetList(
+    presets.categories,
+    sortMode.value,
+    sortDirection.value,
+    goodsCountMap.value,
+    presets.favoriteCategorySet,
+    { alwaysLast: (item) => item === '其他' }
+  )
+})
 
 const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeCategory, confirmDelete } = usePresetDelete({
   getAffected: (list, name) => list.filter((item) => item.category === name),
@@ -163,6 +204,14 @@ const goodsCountMap = computed(() => {
 
 function getGoodsCount(name) {
   return goodsCountMap.value.get(name) || 0
+}
+
+function isFavorite(name) {
+  return presets.favoriteCategorySet.has(name)
+}
+
+function toggleFavorite(name) {
+  presets.toggleFavoriteCategory(name)
 }
 
 async function toggleInput() {
@@ -400,6 +449,34 @@ watch(editingName, async (value) => {
   stroke: currentColor;
   stroke-width: 2.2;
   stroke-linecap: round;
+}
+
+.row-fav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(142, 142, 147, 0.1);
+  color: var(--app-text-tertiary);
+  flex-shrink: 0;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.row-fav svg {
+  width: 16px;
+  height: 16px;
+}
+
+.row-fav--active {
+  background: rgba(245, 166, 35, 0.12);
+  color: #f5a623;
+}
+
+.row-fav:active {
+  transform: scale(0.9);
 }
 
 .list-footer {

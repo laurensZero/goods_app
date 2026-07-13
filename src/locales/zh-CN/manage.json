@@ -309,5 +309,12 @@
   "storage.qr.saveFailed": "保存失败",
   "storage.qr.generating": "生成中...",
   "storage.qr.generateFailed": "生成 QR 失败",
-  "storage.qr.imageAlt": "{name} 的收纳位置二维码"
+  "storage.qr.imageAlt": "{name} 的收纳位置二维码",
+  "manage.sort.default": "默认",
+  "manage.sort.name": "名称",
+  "manage.sort.goodsCount": "商品数",
+  "manage.sort.asc": "升序",
+  "manage.sort.desc": "降序",
+  "manage.favoriteAdd": "添加到收藏",
+  "manage.favoriteRemove": "取消收藏"
 }
