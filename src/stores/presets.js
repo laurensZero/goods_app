@@ -719,32 +719,37 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function replacePresetsSnapshot(snapshot = {}) {
-    // categories — 兼容旧格式 ["..."] 和新格式 {n: [...], f: [...]}
-    const catRaw = snapshot.categories
-    if (Array.isArray(catRaw)) {
-      categories.value = normalizeCategoriesList(catRaw)
-    } else {
-      categories.value = normalizeCategoriesList(catRaw?.n)
-      if (Array.isArray(catRaw?.f)) favoriteCategories.value = catRaw.f
+    // Helper: 数组元素是字符串 → 旧格式 ["..."]；是对象 → 新格式 [{name, fav}]
+    function unpackList(raw, normalizeFn) {
+      if (!Array.isArray(raw) || raw.length === 0) return { items: [], favorites: [] }
+      if (typeof raw[0] === 'object' && raw[0] !== null) {
+        // 新格式 [{name, fav, ...}]
+        return {
+          items: raw.map((c) => String(c?.name || '').trim()).filter(Boolean),
+          favorites: raw.filter((c) => c?.fav).map((c) => String(c?.name || '').trim()).filter(Boolean)
+        }
+      }
+      // 旧格式 ["..."]
+      return { items: normalizeFn ? normalizeFn(raw) : raw, favorites: [] }
     }
 
-    // ips — 同上
-    const ipRaw = snapshot.ips
-    if (Array.isArray(ipRaw)) {
-      ips.value = normalizeIpsList(ipRaw)
-    } else {
-      ips.value = normalizeIpsList(ipRaw?.n)
-      if (Array.isArray(ipRaw?.f)) favoriteIps.value = ipRaw.f
-    }
+    const cat = unpackList(snapshot.categories, normalizeCategoriesList)
+    categories.value = cat.items
+    if (cat.favorites.length > 0) favoriteCategories.value = cat.favorites
 
-    // characters — 对象自带 fav 字段
+    const ip = unpackList(snapshot.ips, normalizeIpsList)
+    ips.value = ip.items
+    if (ip.favorites.length > 0) favoriteIps.value = ip.favorites
+
+    // characters — 始终是 [{name, ip, fav?}] 格式
     const chrRaw = snapshot.characters
     characters.value = normalizeCharacters(chrRaw)
     if (Array.isArray(chrRaw)) {
-      favoriteCharacters.value = chrRaw
+      const favChr = chrRaw
         .filter((c) => c?.fav)
         .map((c) => normalizeCharacterName(c?.name))
         .filter(Boolean)
+      if (favChr.length > 0) favoriteCharacters.value = favChr
     }
 
     storageLocations.value = normalizeStorageLocationSnapshot(snapshot.storageLocations)
