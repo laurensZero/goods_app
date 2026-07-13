@@ -366,11 +366,17 @@ export function useGoodsEditorForm(options = {}) {
       let timeline = Array.isArray(form.statusTimeline) ? [...form.statusTimeline] : []
       const oldStatus = originalCollectStatus.value || '已拥有'
       const newStatus = form.collectStatus || '已拥有'
+      const isWishlistToCollection = originalIsWishlist.value === true && form.isWishlist === false
 
-      // 检测用户是否手动编辑了时间线（非自动生成）
-      const origTimeline = originalTimeline.value || []
-      const timelineEditedByUser = JSON.stringify(timeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex }))) !==
-        JSON.stringify(origTimeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex })))
+      // 心愿单转收藏 → 强制覆写时间线，用设置的日期或当天
+      if (isWishlistToCollection) {
+        const timelineDate = form.acquiredAt || today
+        form.statusTimeline = [{ status: newStatus, at: timelineDate }]
+      } else {
+        // 检测用户是否手动编辑了时间线（非自动生成）
+        const origTimeline = originalTimeline.value || []
+        const timelineEditedByUser = JSON.stringify(timeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex }))) !==
+          JSON.stringify(origTimeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex })))
 
       // 用户手动编辑过时间线 → 完全尊重用户编辑，不做任何自动追加/修改
       if (timelineEditedByUser) {
@@ -422,6 +428,7 @@ export function useGoodsEditorForm(options = {}) {
         }
       }
       form.statusTimeline = timeline
+      } // end else (!isWishlistToCollection)
 
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
