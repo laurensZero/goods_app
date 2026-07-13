@@ -392,17 +392,17 @@ export function useGoodsEditorForm(options = {}) {
           timeline = [{ status: oldStatus, at: form.acquiredAt }]
         }
 
-        // 购入日期变更时，更新时间线中最早的匹配状态的非逐份条目日期
+        // 购入日期变更时，更新时间线中匹配状态的条目日期
         const oldAcquiredAt = originalAcquiredAt.value || ''
         if (form.acquiredAt && form.acquiredAt !== oldAcquiredAt && timeline.length > 0) {
           const targetStatus = oldStatus === newStatus ? newStatus : oldStatus
-          for (let i = 0; i < timeline.length; i++) {
-            if (timeline[i].status === targetStatus && timeline[i].unitIndex == null) {
-              timeline[i] = { ...timeline[i], at: form.acquiredAt }
-              break
-            }
+          // 优先匹配无 unitIndex 的，找不到再匹配任意同状态条目
+          let matchIndex = timeline.findIndex((e) => e.status === targetStatus && e.unitIndex == null)
+          if (matchIndex < 0) matchIndex = timeline.findIndex((e) => e.status === targetStatus)
+          if (matchIndex >= 0) {
+            timeline[matchIndex] = { ...timeline[matchIndex], at: form.acquiredAt }
+            timeline.sort((a, b) => a.at.localeCompare(b.at))
           }
-          timeline.sort((a, b) => a.at.localeCompare(b.at))
         }
 
         // 逐份购入日期 / 逐份状态变更
