@@ -178,6 +178,7 @@ function normalizeCollectStatus(value) {
 
 function normalizeStatusTimeline(list) {
   if (!Array.isArray(list)) return []
+  const seen = new Set()
   return list
     .map((entry) => {
       if (!entry || typeof entry !== 'object') return null
@@ -188,6 +189,10 @@ function normalizeStatusTimeline(list) {
       const result = { status, at }
       if (entry.note) result.note = String(entry.note).trim()
       if (entry.unitIndex != null && Number.isInteger(entry.unitIndex)) result.unitIndex = entry.unitIndex
+      // 去重：相同 status + at + unitIndex + note 只保留一条
+      const key = `${result.status}|${result.at}|${result.unitIndex ?? ''}|${result.note ?? ''}`
+      if (seen.has(key)) return null
+      seen.add(key)
       return result
     })
     .filter(Boolean)

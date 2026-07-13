@@ -68,9 +68,12 @@ export function syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, u
 
   if (additions.length === 0) return existing
 
-  // 移除已有同 unitIndex 的旧日期条目，用新条目替换
+  // 移除已有同 unitIndex 的旧条目及同 status 的非逐份汇总条目（逐份条目已覆盖）
+  const additionStatuses = new Set(additions.map((a) => a.status))
   const filtered = existing.filter((entry) => {
-    if (entry.unitIndex == null) return true
+    if (entry.unitIndex == null) {
+      return !additionStatuses.has(entry.status)
+    }
     return !additions.some((a) => a.unitIndex === entry.unitIndex)
   })
 
