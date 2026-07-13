@@ -14,13 +14,15 @@ export function useRealtimeSync({ syncStore }) {
   let retryTimer = null
 
   function doPull(tables) {
+    if (syncStore.syncPaused) return
     if (syncStore.isSyncing || syncStore.isPulling) {
       if (!retryTimer) {
         retryTimer = setTimeout(async () => {
           retryTimer = null
+          if (syncStore.syncPaused) return
           if (!syncStore.isSyncing && !syncStore.isPulling) {
             const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
-            try { await syncStore.pull({ tables, since }) } catch { /* ignore */ }
+            try { await syncStore.pull({ tables, since, source: 'realtime' }) } catch { /* ignore */ }
           }
         }, 2000)
       }
@@ -28,7 +30,7 @@ export function useRealtimeSync({ syncStore }) {
     }
     const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
     try {
-      void syncStore.pull({ tables, since })
+      void syncStore.pull({ tables, since, source: 'realtime' })
     } catch {
       // silent fail
     }
@@ -65,11 +67,12 @@ export function useRealtimeSync({ syncStore }) {
           isConnected.value = status === 'SUBSCRIBED'
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             setTimeout(async () => {
+              if (syncStore.syncPaused) return
               if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
                 const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
                 const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
                 try {
-                  await syncStore.pull({ tables, since })
+                  await syncStore.pull({ tables, since, source: 'realtime' })
                 } catch { /* ignore */ }
               }
             }, 3000)
@@ -104,7 +107,7 @@ export function useRealtimeSync({ syncStore }) {
   async function handleVisibilityChange() {
     if (document.hidden) {
       // Gist 模式：退到后台时若有本地变更则做一次完整同步
-      if (!syncStore.isSupabaseMode() && syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
+      if (!syncStore.syncPaused && !syncStore.isSupabaseMode() && syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
         const localChanges = syncStore.getLocalChangesSinceLastSync()
         if (!localChanges.hasChanges) return
 
@@ -120,6 +123,7 @@ export function useRealtimeSync({ syncStore }) {
     // Supabase 模式：回到前台时重建连接 + 重新订阅 + 增量拉取
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
+      if (syncStore.syncPaused) return
       if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
         // 重建 Supabase 客户端以刷新可能过期的 DNS 缓存
         await reconnectSupabase()
@@ -128,7 +132,7 @@ export function useRealtimeSync({ syncStore }) {
         await subscribe()
         const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
         const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
-        try { await syncStore.pull({ tables, since }) } catch { /* ignore */ }
+        try { await syncStore.pull({ tables, since, source: 'visibility' }) } catch { /* ignore */ }
       }
     }, 5000)
   }

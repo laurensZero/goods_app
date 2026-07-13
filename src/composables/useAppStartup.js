@@ -71,7 +71,7 @@ export function useAppStartup() {
       }
     }
     // Supabase 模式：应用启动时增量拉取
-    if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
+    if (syncStore.isSupabaseMode() && !syncStore.syncPaused && !syncStore.isSyncing && !syncStore.isPulling) {
       const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
       const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
       try {

@@ -704,6 +704,11 @@ export const useSyncStore = defineStore('sync', () => {
 
   // Internal sync implementation (called by public sync() and autoPushGoods)
   async function doSync({ source = 'manual', maxRetries = 1 } = {}) {
+    // When sync is paused, only allow explicit manual syncs
+    if (syncPaused.value && source !== 'manual') {
+      console.log('[sync] sync paused, skipping auto sync (source:', source, ')')
+      return { action: 'skipped', reason: 'paused' }
+    }
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     ensureBackendReady()
     syncSource.value = source
@@ -756,6 +761,11 @@ export const useSyncStore = defineStore('sync', () => {
   // If tables/since provided → incremental pull (fast path)
   // Otherwise → full pull with conflict detection
   async function pull({ tables, since, silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
+    // When sync is paused, only allow explicit manual pulls
+    if (syncPaused.value && source !== 'manual') {
+      console.log('[sync] pull paused, skipping auto pull (source:', source, ')')
+      return { action: 'skipped', reason: 'paused' }
+    }
     const isIncremental = tables && since > 0
 
     if (isIncremental) {
