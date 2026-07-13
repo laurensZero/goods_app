@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260713.2",
+    "url": "bundle-20260713.2.zip",
+    "hash": "907f20cfb96d84967c03d085e21320f6ec2fa00a0f648c4fc94c44972c9b56d0",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新预设快照处理逻辑，支持新旧格式兼容并添加收藏项处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-13T05:18:34Z"
+  },
+  {
     "version": "20260713.1",
     "url": "bundle-20260713.1.zip",
     "hash": "674fe7d8e0103c3f2611874fe85d68450dbdf14a4891b4920f4540921a3297cf",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化时间线处理逻辑，支持用户手动编辑并自动同步购入日期",
     "updateLevel": "silent",
     "publishedAt": "2026-07-09T14:28:26Z"
-  },
-  {
-    "version": "20260709.1",
-    "url": "bundle-20260709.1.zip",
-    "hash": "1ffbe149dd243bcafa7c28bd5f365fa3312e8691be633dc1e7b9c4085214d850",
-    "minNativeVersion": null,
-    "notes": "- refactor: 移除引用级缓存逻辑，简化 goodsList 和 trashList 的处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-09T01:31:10Z"
   }
 ]
