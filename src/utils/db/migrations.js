@@ -105,7 +105,7 @@ export const MIGRATIONS = [
       const rows = await db.query("SELECT id, collectStatus, acquiredAt FROM goods WHERE statusTimeline = '[]' OR statusTimeline IS NULL")
       for (const row of rows) {
         if (!row.collectStatus) continue
-        const date = row.acquiredAt || '1970-01-01'
+        const date = row.acquiredAt || new Date().toISOString().slice(0, 10)
         const timeline = JSON.stringify([{ status: row.collectStatus, at: date }])
         await db.run("UPDATE goods SET statusTimeline = ? WHERE id = ?", [timeline, row.id])
       }

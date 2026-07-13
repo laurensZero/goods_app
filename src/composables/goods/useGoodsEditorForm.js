@@ -207,7 +207,7 @@ export function useGoodsEditorForm(options = {}) {
       form.saleAt = ''
       form.saleReminderOffsets = []
 
-      if (mode === 'add' && !form.acquiredAt && !hasCustomAcquiredAt.value) {
+      if (!form.acquiredAt && !hasCustomAcquiredAt.value) {
         form.acquiredAt = today
       }
 
