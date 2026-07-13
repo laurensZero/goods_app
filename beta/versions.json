@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260713.3",
+    "url": "bundle-20260713.3.zip",
+    "hash": "61718dae8da4d924c253e7f7e282d913468501ae9603e4f6bb2f88c9d655441f",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加解析预设字段的功能，支持新旧格式兼容",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-13T13:05:18Z"
+  },
+  {
     "version": "20260713.2",
     "url": "bundle-20260713.2.zip",
     "hash": "907f20cfb96d84967c03d085e21320f6ec2fa00a0f648c4fc94c44972c9b56d0",
@@ -16,14 +25,5 @@
     "notes": "- fix: 修复添加商品时的获取日期逻辑，确保在没有自定义购入日期时使用当前日期 feat: 增强状态时间线处理，去重相同状态记录以优化数据存储 fix: 更新数据库迁移逻辑，确保获取购入日期时使用当前日期 refactor: 优化状态时间线同步逻辑，移除旧条目以避免数据冗余\n\n- feat: 添加预设管理页面的排序功能，支持按名称、商品数排序及收藏项优先显示\n\n- feat: 添加心愿单转收藏时强制覆写时间线的逻辑，确保使用设置的日期或当天",
     "updateLevel": "silent",
     "publishedAt": "2026-07-13T05:09:02Z"
-  },
-  {
-    "version": "20260709.2",
-    "url": "bundle-20260709.2.zip",
-    "hash": "ac4550e380cb42796ec48dfa39ca310dcc285d5f0cc12876a201d8aa7d28e631",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化时间线处理逻辑，支持用户手动编辑并自动同步购入日期",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-09T14:28:26Z"
   }
 ]

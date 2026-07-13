@@ -1,9 +1,9 @@
 {
-  "version": "20260713.2",
-  "url": "bundle-20260713.2.zip",
-  "hash": "907f20cfb96d84967c03d085e21320f6ec2fa00a0f648c4fc94c44972c9b56d0",
+  "version": "20260713.3",
+  "url": "bundle-20260713.3.zip",
+  "hash": "61718dae8da4d924c253e7f7e282d913468501ae9603e4f6bb2f88c9d655441f",
   "minNativeVersion": null,
-  "notes": "- feat: 更新预设快照处理逻辑，支持新旧格式兼容并添加收藏项处理",
+  "notes": "- feat: 添加解析预设字段的功能，支持新旧格式兼容",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-13T05:18:34Z"
+  "publishedAt": "2026-07-13T13:05:18Z"
 }
