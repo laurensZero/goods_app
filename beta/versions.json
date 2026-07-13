@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260713.5",
+    "url": "bundle-20260713.5.zip",
+    "hash": "de64e98ad8de51892478ff52199ea1470adf4dd44db7ee294f1b38ce56088d04",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加同步暂停逻辑，确保在暂停状态下只允许手动同步和拉取\n\n- feat: 优化购入日期变更时的状态时间线更新逻辑，优先匹配无 unitIndex 条目",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-13T14:39:16Z"
+  },
+  {
     "version": "20260713.4",
     "url": "bundle-20260713.4.zip",
     "hash": "95d16deca54c211c30a55f4cb4619cce8405ee5b52ba42928a9118fd7ccd81d4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加解析预设字段的功能，支持新旧格式兼容",
     "updateLevel": "silent",
     "publishedAt": "2026-07-13T13:05:18Z"
-  },
-  {
-    "version": "20260713.2",
-    "url": "bundle-20260713.2.zip",
-    "hash": "907f20cfb96d84967c03d085e21320f6ec2fa00a0f648c4fc94c44972c9b56d0",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新预设快照处理逻辑，支持新旧格式兼容并添加收藏项处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-13T05:18:34Z"
   }
 ]
