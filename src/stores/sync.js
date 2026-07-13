@@ -365,12 +365,12 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function buildPresetsData() {
     const presets = usePresetsStore()
-    const favCat = presets.favoriteCategories
-    const favIp = presets.favoriteIps
+    const favCat = presets.favoriteCategorySet
+    const favIp = presets.favoriteIpSet
     const favChr = presets.favoriteCharacterSet
     return {
-      categories: { n: [...presets.categories], f: [...favCat] },
-      ips: { n: [...presets.ips], f: [...favIp] },
+      categories: presets.categories.map((name) => ({ name, fav: favCat.has(name) })),
+      ips: presets.ips.map((name) => ({ name, fav: favIp.has(name) })),
       characters: presets.characters
         .map((item) => ({
           name: normalizeCharacterName(item?.name || ''),
