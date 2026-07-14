@@ -719,8 +719,19 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function replacePresetsSnapshot(snapshot = {}) {
-    // Helper: 数组元素是字符串 → 旧格式 ["..."]；是对象 → 新格式 [{name, fav}]
+    // Helper: 兼容三种格式
+    // 1) 旧格式 ["..."]  → 数组，元素是字符串
+    // 2) 过渡格式 {n: [...], f: [...]} → 对象，有 n/f 键
+    // 3) 新格式 [{name, fav}] → 数组，元素是对象
     function unpackList(raw, normalizeFn) {
+      if (!raw) return { items: [], favorites: [] }
+      // 过渡格式 {n: [...], f: [...]}
+      if (!Array.isArray(raw) && typeof raw === 'object' && raw.n) {
+        return {
+          items: normalizeFn ? normalizeFn(raw.n) : raw.n,
+          favorites: Array.isArray(raw.f) ? raw.f : []
+        }
+      }
       if (!Array.isArray(raw) || raw.length === 0) return { items: [], favorites: [] }
       if (typeof raw[0] === 'object' && raw[0] !== null) {
         // 新格式 [{name, fav, ...}]
