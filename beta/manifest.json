@@ -1,9 +1,9 @@
 {
-  "version": "20260713.5",
-  "url": "bundle-20260713.5.zip",
-  "hash": "de64e98ad8de51892478ff52199ea1470adf4dd44db7ee294f1b38ce56088d04",
+  "version": "20260714.1",
+  "url": "bundle-20260714.1.zip",
+  "hash": "d349b177533cb1367cad506041255968e384888c074e56954fd940090a60cd39",
   "minNativeVersion": null,
-  "notes": "- feat: 添加同步暂停逻辑，确保在暂停状态下只允许手动同步和拉取\n\n- feat: 优化购入日期变更时的状态时间线更新逻辑，优先匹配无 unitIndex 条目",
+  "notes": "- feat: 更新 replacePresetsSnapshot 函数以支持三种数据格式的兼容性",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-13T14:39:16Z"
+  "publishedAt": "2026-07-14T12:08:37Z"
 }

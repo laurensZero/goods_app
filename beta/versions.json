@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260714.1",
+    "url": "bundle-20260714.1.zip",
+    "hash": "d349b177533cb1367cad506041255968e384888c074e56954fd940090a60cd39",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新 replacePresetsSnapshot 函数以支持三种数据格式的兼容性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-14T12:08:37Z"
+  },
+  {
     "version": "20260713.5",
     "url": "bundle-20260713.5.zip",
     "hash": "de64e98ad8de51892478ff52199ea1470adf4dd44db7ee294f1b38ce56088d04",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化批量编辑购入日期逻辑，确保时间线同步更新并兼容新旧格式",
     "updateLevel": "silent",
     "publishedAt": "2026-07-13T13:26:39Z"
-  },
-  {
-    "version": "20260713.3",
-    "url": "bundle-20260713.3.zip",
-    "hash": "61718dae8da4d924c253e7f7e282d913468501ae9603e4f6bb2f88c9d655441f",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加解析预设字段的功能，支持新旧格式兼容",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-13T13:05:18Z"
   }
 ]
