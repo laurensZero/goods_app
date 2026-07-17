@@ -468,13 +468,19 @@ export function useGoodsEditorForm(options = {}) {
             .filter(Boolean)
 
           if (validUnitDates.length > 0) {
-            form.statusTimeline = validUnitDates
-              .map(({ date, index: i }) => ({
-                status: initialStatus,
-                at: date,
-                unitIndex: i
-              }))
-              .sort((a, b) => a.at.localeCompare(b.at))
+            // 所有逐份日期相同 → 只建一条汇总记录
+            const allSameDate = validUnitDates.every((d) => d.date === validUnitDates[0].date)
+            if (allSameDate) {
+              form.statusTimeline = [{ status: initialStatus, at: validUnitDates[0].date }]
+            } else {
+              form.statusTimeline = validUnitDates
+                .map(({ date, index: i }) => ({
+                  status: initialStatus,
+                  at: date,
+                  unitIndex: i
+                }))
+                .sort((a, b) => a.at.localeCompare(b.at))
+            }
 
             if (validUnitDates.length < quantityNumber.value) {
               const timelineDate = form.acquiredAt || today
