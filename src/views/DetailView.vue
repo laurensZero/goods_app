@@ -329,7 +329,7 @@ import { formatSaleAtDisplay } from '@/utils/saleReminder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -411,6 +411,9 @@ function isGoodsHeroTargetReady(el) {
 
 async function playGoodsHeroForwardWhenReady() {
   if (getPendingDetailTransitionKind() === 'detail-fade') return
+  // 没有待播放的 hero（如从每日推荐等无 sourceEl 入口进入）时直接跳过，
+  // 避免空等 12 帧导致封面图迟迟不显示。
+  if (!hasPendingGoodsHeroForward(props.id)) return
   await nextTick()
   const targetEl = coverCardRef.value
   if (!targetEl) return

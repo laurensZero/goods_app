@@ -248,7 +248,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { hasPendingGoodsHeroBack, playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward, getHeroBackDurationMs } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingEventHeroForward, hasPendingGoodsHeroBack, playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward, getHeroBackDurationMs } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import EventPhotoGrid from '@/components/events/EventPhotoGrid.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
@@ -332,6 +332,8 @@ function isEventHeroTargetReady(el) {
 }
 
 async function playEventHeroForwardWhenReady() {
+  // 没有待播放的 hero 时直接跳过，避免空等 12 帧导致封面图迟迟不显示。
+  if (!hasPendingEventHeroForward(eventId.value)) return false
   await nextTick()
   const targetEl = coverCardRef.value
   if (!targetEl) return false

@@ -800,6 +800,13 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   }
 }
 
+export function hasPendingGoodsHeroForward(goodsId) {
+  if (!pendingForwardHero) return false
+  if (String(goodsId) !== pendingForwardHero.goodsId) return false
+  const ageMs = Date.now() - Number(pendingForwardHero.preparedAt || 0)
+  return Number.isFinite(ageMs) && ageMs <= FORWARD_HERO_PENDING_TTL_MS
+}
+
 export function playGoodsHeroForward(goodsId, targetEl) {
   if (!pendingForwardHero) return
   if (String(goodsId) !== pendingForwardHero.goodsId) return
@@ -929,6 +936,13 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
   if (pendingForwardEventHero.imageSrc) {
     preloadImages([pendingForwardEventHero.imageSrc])
   }
+}
+
+export function hasPendingEventHeroForward(eventId) {
+  if (!pendingForwardEventHero) return false
+  if (String(eventId) !== pendingForwardEventHero.eventId) return false
+  const ageMs = Date.now() - Number(pendingForwardEventHero.preparedAt || 0)
+  return Number.isFinite(ageMs) && ageMs <= FORWARD_HERO_PENDING_TTL_MS
 }
 
 export function playEventHeroForward(eventId, targetEl) {
