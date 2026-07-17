@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260717.2",
+    "url": "bundle-20260717.2.zip",
+    "hash": "00f45352d189937ee41194608f432961f69fc6c169b5885f278bce3e5ed31ee9",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加待播放的 hero 检查逻辑，避免空等导致封面图延迟显示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-17T14:20:42Z"
+  },
+  {
     "version": "20260717.1",
     "url": "bundle-20260717.1.zip",
     "hash": "ac6e680824c8dcec8b83194fc347ad3140d4dcef86610e36ccc0a28a41af3284",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 replacePresetsSnapshot 函数以支持三种数据格式的兼容性",
     "updateLevel": "silent",
     "publishedAt": "2026-07-14T12:08:37Z"
-  },
-  {
-    "version": "20260713.5",
-    "url": "bundle-20260713.5.zip",
-    "hash": "de64e98ad8de51892478ff52199ea1470adf4dd44db7ee294f1b38ce56088d04",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加同步暂停逻辑，确保在暂停状态下只允许手动同步和拉取\n\n- feat: 优化购入日期变更时的状态时间线更新逻辑，优先匹配无 unitIndex 条目",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-13T14:39:16Z"
   }
 ]
