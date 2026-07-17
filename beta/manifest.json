@@ -1,9 +1,9 @@
 {
-  "version": "20260714.1",
-  "url": "bundle-20260714.1.zip",
-  "hash": "d349b177533cb1367cad506041255968e384888c074e56954fd940090a60cd39",
+  "version": "20260717.1",
+  "url": "bundle-20260717.1.zip",
+  "hash": "ac6e680824c8dcec8b83194fc347ad3140d4dcef86610e36ccc0a28a41af3284",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 replacePresetsSnapshot 函数以支持三种数据格式的兼容性",
+  "notes": "- feat: 优化状态时间线逻辑，处理相同日期的汇总记录",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-14T12:08:37Z"
+  "publishedAt": "2026-07-17T03:13:14Z"
 }
