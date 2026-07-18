@@ -1,9 +1,9 @@
 {
-  "version": "20260718.1",
-  "url": "bundle-20260718.1.zip",
-  "hash": "596d1522a38d5da6a040898500a3152e71d080d751b8ccdacdc31298e864061e",
+  "version": "20260718.2",
+  "url": "bundle-20260718.2.zip",
+  "hash": "ae474dbce3f414cc2638533ce4948d9bddeed853a961ce1ebc05743a4efa996c",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 Supabase 支持，替换 base64 图像为公共 URL，并清理 SQLite 中的 base64 图像",
+  "notes": "- feat: 更新 EmptyState 组件的背景样式，使用统一的 var(--app-glass-strong) 变量",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-18T15:20:03Z"
+  "publishedAt": "2026-07-18T15:28:52Z"
 }
