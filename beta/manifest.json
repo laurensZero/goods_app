@@ -1,9 +1,9 @@
 {
-  "version": "20260717.2",
-  "url": "bundle-20260717.2.zip",
-  "hash": "00f45352d189937ee41194608f432961f69fc6c169b5885f278bce3e5ed31ee9",
+  "version": "20260718.1",
+  "url": "bundle-20260718.1.zip",
+  "hash": "596d1522a38d5da6a040898500a3152e71d080d751b8ccdacdc31298e864061e",
   "minNativeVersion": null,
-  "notes": "- feat: 添加待播放的 hero 检查逻辑，避免空等导致封面图延迟显示",
+  "notes": "- feat: 添加 Supabase 支持，替换 base64 图像为公共 URL，并清理 SQLite 中的 base64 图像",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-17T14:20:42Z"
+  "publishedAt": "2026-07-18T15:20:03Z"
 }

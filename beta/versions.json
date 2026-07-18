@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260718.1",
+    "url": "bundle-20260718.1.zip",
+    "hash": "596d1522a38d5da6a040898500a3152e71d080d751b8ccdacdc31298e864061e",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 Supabase 支持，替换 base64 图像为公共 URL，并清理 SQLite 中的 base64 图像",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-18T15:20:03Z"
+  },
+  {
     "version": "20260717.2",
     "url": "bundle-20260717.2.zip",
     "hash": "00f45352d189937ee41194608f432961f69fc6c169b5885f278bce3e5ed31ee9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化状态时间线逻辑，处理相同日期的汇总记录",
     "updateLevel": "silent",
     "publishedAt": "2026-07-17T03:13:14Z"
-  },
-  {
-    "version": "20260714.1",
-    "url": "bundle-20260714.1.zip",
-    "hash": "d349b177533cb1367cad506041255968e384888c074e56954fd940090a60cd39",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新 replacePresetsSnapshot 函数以支持三种数据格式的兼容性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-14T12:08:37Z"
   }
 ]
