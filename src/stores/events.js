@@ -8,6 +8,7 @@ import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from
 import { signalImageCacheRefresh } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goodsHelpers'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
+import { replaceEventBase64WithPublicUrls } from '@/stores/goodsMigrations'
 
 function normalizeOtherExpenses(expenses) {
   if (!Array.isArray(expenses)) return []
@@ -144,6 +145,7 @@ export const useEventsStore = defineStore('events', () => {
   async function init() {
     if (isReady.value) return
     await coreInit()
+    replaceEventBase64WithPublicUrls(list).catch(() => {})
   }
 
   // ── CRUD wrappers ──

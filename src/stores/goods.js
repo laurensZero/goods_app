@@ -13,12 +13,15 @@ import {
   readCharactersMigrationFlag,
   writeCharactersMigrationFlag,
   readVariantMigrationFlag,
-  writeVariantMigrationFlag
+  writeVariantMigrationFlag,
+  readBase64UrlMigrationFlag,
+  writeBase64UrlMigrationFlag
 } from '@/stores/goodsPersistence'
 import {
   normalizeExistingCharacters,
   normalizeExistingVariants,
-  backfillLegacyImages
+  backfillLegacyImages,
+  replaceBase64WithPublicUrls
 } from '@/stores/goodsMigrations'
 import {
   replaceCategoryName as _replaceCategoryName,
@@ -117,10 +120,11 @@ export const useGoodsStore = defineStore('goods', () => {
   function startMigrationsInBackground() {
     if (migrationPromise) return migrationPromise
     migrationPromise = (async () => {
-      const [imagesMigrated, charactersMigrated, variantsMigrated] = await Promise.all([
+      const [imagesMigrated, charactersMigrated, variantsMigrated, base64UrlMigrated] = await Promise.all([
         readImagesMigrationFlag().catch(() => false),
         readCharactersMigrationFlag().catch(() => false),
-        readVariantMigrationFlag().catch(() => false)
+        readVariantMigrationFlag().catch(() => false),
+        readBase64UrlMigrationFlag().catch(() => false)
       ])
 
       if (!imagesMigrated) {
@@ -147,6 +151,15 @@ export const useGoodsStore = defineStore('goods', () => {
           await writeVariantMigrationFlag()
         } catch (e) {
           console.warn('[goods] init: variants migration failed:', e)
+        }
+      }
+
+      if (!base64UrlMigrated) {
+        try {
+          const result = await replaceBase64WithPublicUrls(list)
+          if (result !== 'skip') await writeBase64UrlMigrationFlag()
+        } catch (e) {
+          console.warn('[goods] init: base64 URL migration failed:', e)
         }
       }
     })().finally(() => {

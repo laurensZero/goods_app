@@ -6,6 +6,7 @@ const TRASH_STORAGE_KEY = 'goods_trash_items'
 const IMAGES_MIGRATION_KEY = 'goods_images_migrated_v1'
 const CHARACTERS_MIGRATION_KEY = 'goods_characters_normalized_v1'
 const VARIANT_MIGRATION_KEY = 'goods_variant_normalized_v2'
+const BASE64_URL_MIGRATION_KEY = 'goods_base64_url_replaced_v1'
 
 //  Trash persistence
 
@@ -67,6 +68,8 @@ function readCharactersMigrationFlag() { return _readFlag(CHARACTERS_MIGRATION_K
 function writeCharactersMigrationFlag() { return _writeFlag(CHARACTERS_MIGRATION_KEY) }
 function readVariantMigrationFlag() { return _readFlag(VARIANT_MIGRATION_KEY) }
 function writeVariantMigrationFlag() { return _writeFlag(VARIANT_MIGRATION_KEY) }
+function readBase64UrlMigrationFlag() { return _readFlag(BASE64_URL_MIGRATION_KEY) }
+function writeBase64UrlMigrationFlag() { return _writeFlag(BASE64_URL_MIGRATION_KEY) }
 
 export {
   readPersistedTrash,
@@ -76,5 +79,7 @@ export {
   readCharactersMigrationFlag,
   writeCharactersMigrationFlag,
   readVariantMigrationFlag,
-  writeVariantMigrationFlag
+  writeVariantMigrationFlag,
+  readBase64UrlMigrationFlag,
+  writeBase64UrlMigrationFlag
 }

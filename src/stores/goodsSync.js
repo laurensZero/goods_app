@@ -11,7 +11,7 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
-import { normalizeGoodsImageList } from '@/utils/goods/images'
+import { normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
 
 async function persistTrash(trashList) {
@@ -218,14 +218,16 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
       for (const [idx, prepared] of preparedMap) {
         if (idx >= 0 && idx < images.length && prepared.gistFileName) {
           const currentUri = String(images[idx]?.uri || '').trim()
-          const keepLocalUri = !!currentUri && (
+          // When backend provides a public URL (Supabase), always use it — don't keep base64 in SQLite.
+          // Only preserve local URIs for Gist backend where offline display needs the local copy.
+          const hasRemoteUri = /^https?:\/\//.test(prepared.uri || '')
+          const keepLocalUri = !hasRemoteUri && !!currentUri && (
             currentUri.startsWith('blob:')
             || currentUri.startsWith('data:image/')
             || isLocalImageUri(currentUri)
           )
           images[idx] = {
             ...images[idx],
-            // Preserve local URI for offline display, but keep gist metadata for dedup/upload decisions.
             uri: keepLocalUri ? currentUri : (prepared.uri || `gist-image://${prepared.gistFileName}`),
             storageMode: 'gist-local',
             gistFileName: prepared.gistFileName,
@@ -249,6 +251,44 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
   }
 }
 
+/**
+ * Replace data:image/ base64 with public URLs for all items that have gistFileName.
+ * Called after sync when backend is Supabase.
+ */
+async function cleanupBase64Images(list, trashList, backend) {
+  if (!backend?.getImagePublicUrl) return
+
+  const allLists = [list, trashList]
+  const updatedItems = []
+
+  for (const listRef of allLists) {
+    for (let i = 0; i < listRef.value.length; i++) {
+      const item = listRef.value[i]
+      const images = normalizeGoodsImageList(item.images)
+      let changed = false
+
+      const nextImages = images.map((img) => {
+        const uri = String(img?.uri || '').trim()
+        if (!uri.startsWith('data:image/')) return img
+        const gistFileName = String(img?.gistFileName || parseGistImageUri(uri) || '').trim()
+        if (!gistFileName) return img
+        changed = true
+        return { ...img, uri: backend.getImagePublicUrl(gistFileName), storageMode: 'remote' }
+      })
+
+      if (!changed) continue
+      listRef.value[i] = { ...item, images: nextImages, updatedAt: Date.now() }
+      updatedItems.push(listRef.value[i])
+    }
+  }
+
+  if (updatedItems.length > 0) {
+    triggerRef(list)
+    triggerRef(trashList)
+    await saveItems(updatedItems)
+  }
+}
+
 export {
   addMultipleGoods,
   refreshList,
@@ -256,5 +296,6 @@ export {
   updateGoodsBackup,
   importTrashBackup,
   updateTrashBackup,
-  markImagesAsRemote
+  markImagesAsRemote,
+  cleanupBase64Images
 }
