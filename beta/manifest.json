@@ -1,9 +1,9 @@
 {
-  "version": "20260718.2",
-  "url": "bundle-20260718.2.zip",
-  "hash": "ae474dbce3f414cc2638533ce4948d9bddeed853a961ce1ebc05743a4efa996c",
+  "version": "20260718.3",
+  "url": "bundle-20260718.3.zip",
+  "hash": "02712abaaa10aa306ec54ec729c8f4c89b31519be93f8cdc46ed9f3b074b78af",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 EmptyState 组件的背景样式，使用统一的 var(--app-glass-strong) 变量",
+  "notes": "- feat: 添加震动反馈功能，移除声音设置相关内容",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-18T15:28:52Z"
+  "publishedAt": "2026-07-18T15:39:06Z"
 }
