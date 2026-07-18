@@ -11,6 +11,13 @@ import { useNotifySettingsStore } from '@/stores/notifySettings'
 
 const NOTIFY_DURATION = 6000
 
+// ---- 震动反馈 ----
+function triggerVibration() {
+  if (navigator.vibrate) {
+    navigator.vibrate([50, 30, 50])
+  }
+}
+
 /**
  * 应用内通知管理器 — 右上角弹窗，支持操作按钮、滑动消除、倒计时自动消失。
  *
@@ -59,6 +66,9 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     // 使用设置中的最大显示数量
     const maxVisible = notifySettingsStore.effectiveSettings.maxVisible
     notifications.value = [...notifications.value, notification].slice(-maxVisible)
+
+    // 触发震动反馈
+    if (notifySettingsStore.effectiveSettings.vibration) triggerVibration()
 
     // 自动关闭逻辑：如果设置了 forceAutoClose 或者启用了自动关闭且不是持久化通知
     const shouldAutoClose = forceAutoClose || (!persistent && notifySettingsStore.effectiveSettings.autoClose)

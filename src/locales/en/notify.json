@@ -30,8 +30,6 @@
     "durationDesc": "How long notifications stay before auto-closing",
     "seconds": "sec",
     "feedbackSettings": "Feedback Settings",
-    "sound": "Notification Sound",
-    "soundDesc": "Play a sound when receiving notifications",
     "vibration": "Vibration Feedback",
     "vibrationDesc": "Vibrate when receiving notifications",
     "actions": "Actions",

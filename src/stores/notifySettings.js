@@ -25,8 +25,7 @@ const DEFAULT_SETTINGS = {
   autoClose: true,         // 自动关闭
   duration: 6000,          // 自动关闭时长（毫秒）
 
-  // 声音和震动（仅移动端）
-  sound: false,
+  // 震动反馈（仅移动端）
   vibration: false,
 
   // Pad 端特有设置

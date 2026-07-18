@@ -30,8 +30,6 @@
     "durationDesc": "알림이 자동으로 사라지기까지의 표시 시간",
     "seconds": "초",
     "feedbackSettings": "피드백 설정",
-    "sound": "알림음",
-    "soundDesc": "알림 수신 시 소리를 재생합니다",
     "vibration": "진동 피드백",
     "vibrationDesc": "알림 수신 시 진동합니다",
     "actions": "작업",
