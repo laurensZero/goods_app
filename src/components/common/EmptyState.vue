@@ -50,8 +50,7 @@ const resolvedDescription = computed(() => (props.title ? props.description : ''
   height: 88px;
   margin-bottom: 18px;
   border-radius: 28px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.42));
+  background: var(--app-glass-strong);
   box-shadow: var(--app-shadow);
 }
 
