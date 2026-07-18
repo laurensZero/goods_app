@@ -30,8 +30,6 @@
     "durationDesc": "通知自动关闭前的显示时间",
     "seconds": "秒",
     "feedbackSettings": "反馈设置",
-    "sound": "通知声音",
-    "soundDesc": "收到通知时播放提示音",
     "vibration": "震动反馈",
     "vibrationDesc": "收到通知时震动提醒",
     "actions": "操作",

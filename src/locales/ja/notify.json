@@ -30,8 +30,6 @@
     "durationDesc": "通知が自動的に消えるまでの表示時間",
     "seconds": "秒",
     "feedbackSettings": "フィードバック設定",
-    "sound": "通知音",
-    "soundDesc": "通知受信時に音を鳴らします",
     "vibration": "振動フィードバック",
     "vibrationDesc": "通知受信時に振動します",
     "actions": "アクション",

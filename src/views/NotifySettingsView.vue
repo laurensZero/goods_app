@@ -329,30 +329,6 @@
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--feedback">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </svg>
-                </span>
-                <div>
-                  <span class="settings-item__title">{{ t('notifySettings.sound') }}</span>
-                  <span class="settings-item__desc">{{ t('notifySettings.soundDesc') }}</span>
-                </div>
-              </div>
-              <label class="toggle-switch" :aria-label="t('notifySettings.sound')">
-                <input
-                  :checked="settings.sound"
-                  :disabled="!settings.enabled"
-                  type="checkbox"
-                  @change="saveSetting('sound', $event.target.checked)"
-                />
-                <span class="toggle-slider" />
-              </label>
-            </div>
-
-            <div class="settings-item">
-              <div class="settings-item__info">
-                <span class="settings-item__icon settings-item__icon--feedback">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M2 8l2 2-2 2 2 2-2 2" />
                     <path d="M22 8l-2 2 2 2-2 2 2 2" />
                     <rect x="8" y="2" width="8" height="20" rx="2" />
