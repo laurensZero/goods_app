@@ -131,6 +131,10 @@ export function createSyncOrchestrator({
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
           })
+          if (be.getImagePublicUrl) {
+            const { cleanupBase64Images } = await import('@/stores/goodsSync')
+            await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
+          }
         },
         {
           startDetail: i18n.global.t('sync.step.restoreCollectionImages.start'),
@@ -326,6 +330,10 @@ export function createSyncOrchestrator({
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
           })
+          if (be.getImagePublicUrl) {
+            const { cleanupBase64Images } = await import('@/stores/goodsSync')
+            await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
+          }
         },
         {
           startDetail: i18n.global.t('sync.step.restoreCollectionImages.start'),
@@ -449,6 +457,12 @@ export function createSyncOrchestrator({
 
     // Update local refs
     await updateLocalRefs(stores.goodsStore, stores.eventsStore, syncData, eventSyncData, be)
+
+    // Clean up any remaining base64 images in SQLite (Supabase only)
+    if (be.getImagePublicUrl) {
+      const { cleanupBase64Images } = await import('@/stores/goodsSync')
+      await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
+    }
 
     // Save timestamps
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
