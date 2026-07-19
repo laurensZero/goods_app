@@ -19,3 +19,16 @@ export async function openNeteaseSongNative(songId, targetApp = 'ask') {
     return false
   }
 }
+
+export async function openQQSongNative(songMid) {
+  if (!isAndroidNative()) return false
+
+  try {
+    const result = await NativeMusicBridge.openQQSong({
+      songMid: String(songMid || '').trim()
+    })
+    return !!result?.opened
+  } catch {
+    return false
+  }
+}
