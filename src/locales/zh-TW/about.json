@@ -143,5 +143,19 @@
   "about.syncStatusConfigured": "已配置",
   "about.syncStatusNotSynced": "未同步",
   "about.recentSync": "最近同步：{time}",
-  "about.configureSync": "可在設置頁中配置雲端同步。"
+  "about.configureSync": "可在設置頁中配置雲端同步。",
+  "about.githubTokenExpired": "GitHub 同步 token 已失效。請到「我的 > 資料同步」重新登入，或切換到 Gitee 更新源。",
+  "about.githubAuthFailed": "GitHub 認證失敗。請到「我的 > 資料同步」重新登入，或切換到 Gitee 更新源後重試。",
+  "about.rateLimitExceeded": "GitHub API 訪問頻率受限。請切換到 Gitee 更新源，或配置 GitHub 同步 token 後重試。",
+  "about.checkTimeout": "檢查更新逾時，請稍後再試。",
+  "about.missingRepoInfo": "缺少儲存庫資訊，無法檢查更新。",
+  "about.noReleaseAvailable": "目前儲存庫還沒有可用的 Release。",
+  "about.unsupportedUpdateSource": "不支援的更新源：{source}",
+  "about.noVersionInfo": "未取得可用版本資訊。",
+  "about.checkUpdateFailedRetry": "檢查更新失敗，請稍後再試。",
+  "about.alreadyLatest": "目前已是最新版本。",
+  "about.noDownloadableAsset": "未找到可下載的更新套件。",
+  "about.downloadFailed": "下載更新套件失敗，請稍後再試。",
+  "about.installPermissionDenied": "未授予安裝權限。請到系統設定 > 應用 > \u8c37\u5b50\u6536\u7eb3 > 安裝未知應用，開啟「允許來自此來源」。",
+  "about.mockDownloadDoneShort": "模擬下載完成"
 }

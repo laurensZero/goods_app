@@ -1,8 +1,16 @@
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import i18n from '@/locales'
 
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITEE_API_BASE = 'https://gitee.com/api/v5'
 const REQUEST_TIMEOUT_MS = 15000
+
+export class TokenExpiredError extends Error {
+  constructor(message) {
+    super(message || i18n.global.t('about.githubTokenExpired'))
+    this.name = 'TokenExpiredError'
+  }
+}
 
 function buildGitHubHeaders(token = '') {
   const headers = {
@@ -107,7 +115,11 @@ async function request(baseUrl, path, headers) {
       const message = String(error?.message || `GitHub API error: ${response.status}`).trim()
 
       if (response.status === 403 && /rate limit exceeded/i.test(message)) {
-        throw new Error('GitHub API 访问频率受限。请切换到 Gitee 更新源，或配置 GitHub 同步 token 后重试。')
+        throw new Error(i18n.global.t('about.rateLimitExceeded'))
+      }
+
+      if (response.status === 401 || /bad credentials/i.test(message)) {
+        throw new TokenExpiredError()
       }
 
       throw new Error(message)
@@ -116,7 +128,7 @@ async function request(baseUrl, path, headers) {
     return response.json()
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error('检查更新超时，请稍后再试。')
+      throw new Error(i18n.global.t('about.checkTimeout'))
     }
     throw error
   } finally {
@@ -165,7 +177,7 @@ export function compareVersions(leftVersion, rightVersion) {
 
 export async function getLatestRelease(owner, repo, token = '') {
   if (!owner || !repo) {
-    throw new Error('缺少 GitHub 仓库信息，无法检查更新。')
+    throw new Error(i18n.global.t('about.missingRepoInfo'))
   }
 
   try {
@@ -177,7 +189,7 @@ export async function getLatestRelease(owner, repo, token = '') {
     return normalizeRelease(release, 'github')
   } catch (error) {
     if (String(error?.message || '').includes('404')) {
-      throw new Error('当前仓库还没有可用的 Release。')
+      throw new Error(i18n.global.t('about.noReleaseAvailable'))
     }
     throw error
   }
@@ -185,7 +197,7 @@ export async function getLatestRelease(owner, repo, token = '') {
 
 export async function getLatestReleaseFromGitee(owner, repo) {
   if (!owner || !repo) {
-    throw new Error('缺少 Gitee 仓库信息，无法检查更新。')
+    throw new Error(i18n.global.t('about.missingRepoInfo'))
   }
 
   try {
@@ -201,7 +213,7 @@ export async function getLatestReleaseFromGitee(owner, repo) {
     return normalized
   } catch (error) {
     if (String(error?.message || '').includes('404')) {
-      throw new Error('当前 Gitee 仓库还没有可用的 Release。')
+      throw new Error(i18n.global.t('about.noReleaseAvailable'))
     }
     throw error
   }
