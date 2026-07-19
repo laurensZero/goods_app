@@ -21,6 +21,7 @@ public class NativeMusicBridgePlugin extends Plugin {
         "com.hihonor.cloudmusic",
         "com.netease.cloudmusic"
     };
+    private static final String QQ_MUSIC_PACKAGE = "com.tencent.qqmusic";
 
     @PluginMethod
     public void openNeteaseSong(PluginCall call) {
@@ -71,6 +72,40 @@ public class NativeMusicBridgePlugin extends Plugin {
             result.put("mode", targetApp);
             call.resolve(result);
             return;
+        }
+
+        JSObject result = new JSObject();
+        result.put("opened", false);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openQQSong(PluginCall call) {
+        String songMid = call.getString("songMid", "");
+        if (TextUtils.isEmpty(songMid)) {
+            call.reject("缺少 QQ 音乐歌曲 MID");
+            return;
+        }
+
+        PackageManager packageManager = getContext().getPackageManager();
+        String[] uris = new String[] {
+            "qqmusic://song/" + songMid,
+            "qqmusic://song?id=" + songMid
+        };
+
+        for (String uri : uris) {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+            intent.setPackage(QQ_MUSIC_PACKAGE);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent.resolveActivity(packageManager) != null) {
+                getContext().startActivity(intent);
+                JSObject result = new JSObject();
+                result.put("opened", true);
+                result.put("packageName", QQ_MUSIC_PACKAGE);
+                result.put("uri", uri);
+                call.resolve(result);
+                return;
+            }
         }
 
         JSObject result = new JSObject();

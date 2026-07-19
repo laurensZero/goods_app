@@ -1,6 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { AppLauncher } from '@capacitor/app-launcher'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { openQQSongNative } from '@/utils/platform/nativeMusicBridge'
 
 const QQ_MUSIC_API_BASE = 'https://u.y.qq.com/cgi-bin'
 const QQ_MUSIC_C_BASE = 'https://c.y.qq.com'
@@ -491,6 +492,9 @@ export async function openQQSong(songMid) {
   }
 
   if (Capacitor.getPlatform() === 'android') {
+    const openedViaNativeBridge = await openQQSongNative(normalizedMid)
+    if (openedViaNativeBridge) return
+
     try {
       const installed = await AppLauncher.canOpenUrl({ url: QQ_ANDROID_PACKAGE })
       if (installed?.value) {
