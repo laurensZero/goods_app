@@ -249,6 +249,7 @@ export function createSyncOrchestrator({
     const isRechargeDirty = !dirty || dirty.has('recharge')
     const isEventsDirty = !dirty || dirty.has('events')
     const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('group')
+    const isPresetsDirty = !dirty || dirty.has('presets')
     const isBudgetDirty = !dirty || dirty.has('budget')
     const hasDirtyGoodsIds = dirtyGoodsIds && dirtyGoodsIds.size > 0
 
@@ -295,7 +296,14 @@ export function createSyncOrchestrator({
       normalizeBudgetValue(localBudgetSettings.monthly) !== normalizeBudgetValue(remoteManifest?.budgetMonthly)
       || normalizeBudgetValue(localBudgetSettings.yearly) !== normalizeBudgetValue(remoteManifest?.budgetYearly)
     )
-    const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff
+    let hasPresetsDiff = false
+    if (isPresetsDirty && remoteData.presets) {
+      try {
+        const localPresets = await ctx.buildPresetsData()
+        hasPresetsDiff = JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
+      } catch { hasPresetsDiff = true }
+    }
+    const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff || hasPresetsDiff
 
     if (!hasEffectiveDiff) {
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
@@ -306,7 +314,7 @@ export function createSyncOrchestrator({
     if (remoteTime > localSyncTime) {
       if (!remoteManifest) {
         // First sync — push local data
-        return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true })
+        return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasPresetsDiff: true })
       }
       if (localChanges.hasChanges) {
         return {
@@ -346,7 +354,7 @@ export function createSyncOrchestrator({
     }
 
     // Push (incremental — only send changed items)
-    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData })
+    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData })
   }
 
   // ── Push implementation ──
@@ -377,7 +385,7 @@ export function createSyncOrchestrator({
   }
 
   async function doPush(ctx, stores, be, opts = {}) {
-    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
+    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
 
     // Build payload (without uploading images yet)
     const existingImageGist = await be.getExistingImageGist()
@@ -433,6 +441,7 @@ export function createSyncOrchestrator({
           shouldWriteData: hasDataDiff,
           shouldWriteRecharge: hasRechargeDataDiff,
           shouldWriteEvent: hasEventDataDiff,
+          shouldWritePresets: hasPresetsDiff,
           // When dirty-filtered, syncData.goods is only a subset.
           // Pass full local lists so computeDeleteIds doesn't falsely flag
           // non-dirty remote items for deletion.
@@ -451,8 +460,15 @@ export function createSyncOrchestrator({
     // If image upload fails, data is already in the remote DB — next sync will retry.
     if (Object.keys(imageUpdates).length > 0) {
       if (!existingImageGist) existingImageGist = await be.ensureImageGist()
-      try { await be.writeImages(existingImageGist.id, imageUpdates) }
+      try {
+        const imgResult = await be.writeImages(existingImageGist.id, imageUpdates)
+        if (imgResult?.failed > 0) {
+          log.warn(`image upload: ${imgResult.failed} failed, ${imgResult.uploaded} succeeded`)
+        }
+      }
       catch (e) { log.warn('image upload failed (data already saved):', e) }
+    } else {
+      log.debug('no image updates to upload')
     }
 
     // Update local refs
