@@ -1,9 +1,9 @@
 {
-  "version": "20260718.3",
-  "url": "bundle-20260718.3.zip",
-  "hash": "02712abaaa10aa306ec54ec729c8f4c89b31519be93f8cdc46ed9f3b074b78af",
+  "version": "20260719.1",
+  "url": "bundle-20260719.1.zip",
+  "hash": "3b631120cdc0d9a34fa5ac06f4a6476efc831abb8aea2a9530879ac7c496f60c",
   "minNativeVersion": null,
-  "notes": "- feat: 添加震动反馈功能，移除声音设置相关内容",
+  "notes": "- feat: 添加对预设数据的支持，更新远程数据写入逻辑以处理预设同步\n\n- feat: 在 handleQuickEditSave 函数中添加 gistFileName 字段\n\n- feat: 添加对 QQ 音乐的支持，新增 openQQSong 方法并更新相关逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-18T15:39:06Z"
+  "publishedAt": "2026-07-19T10:26:39Z"
 }
