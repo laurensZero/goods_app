@@ -126,7 +126,7 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
  * Write data to remote backend.
  * Uses writeDomainRows when available (Supabase), falls back to writeData (Gist).
  */
-export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, fullGoodsList = null, fullTrashList = null }) {
+export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null }) {
   if (be.pushAll) {
     // Supabase path — compute incremental diff when remoteData is available
     const localGoods = shouldWriteData ? (syncData.goods || []) : []
@@ -183,7 +183,7 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     await be.pushAll({
       goods, goodsTrash, groups, groupItems,
       recharge, rechargeTrash, events,
-      presets: shouldWriteData ? syncData.presets : null,
+      presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
       deleteGoods, deleteGroups, deleteGroupItems,
       deleteRecharge, deleteEvents,
       deviceId: manifest?.deviceId || '',
