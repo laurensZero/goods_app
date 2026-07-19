@@ -343,6 +343,7 @@ async function handleQuickEditSave(result) {
           localUri: saved.uri,
           storageMode: inferGoodsImageStorageMode(saved.uri),
           localPath: saved.localPath,
+        gistFileName: '',
         mimeType: '',
         fileSize: 0
       }
