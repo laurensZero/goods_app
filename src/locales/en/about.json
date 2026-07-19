@@ -143,5 +143,19 @@
   "about.syncStatusConfigured": "Configured",
   "about.syncStatusNotSynced": "Not synced",
   "about.recentSync": "Last sync: {time}",
-  "about.configureSync": "Configure cloud sync in settings."
+  "about.configureSync": "Configure cloud sync in settings.",
+  "about.githubTokenExpired": "GitHub sync token has expired. Please log in again at \"My > Data Sync\", or switch to the Gitee update source.",
+  "about.githubAuthFailed": "GitHub authentication failed. Please log in again at \"My > Data Sync\", or switch to the Gitee update source and retry.",
+  "about.rateLimitExceeded": "GitHub API rate limit exceeded. Please switch to the Gitee update source, or configure a GitHub sync token and retry.",
+  "about.checkTimeout": "Update check timed out. Please try again later.",
+  "about.missingRepoInfo": "Missing repository info, unable to check for updates.",
+  "about.noReleaseAvailable": "No release available in the current repository.",
+  "about.unsupportedUpdateSource": "Unsupported update source: {source}",
+  "about.noVersionInfo": "No version info available.",
+  "about.checkUpdateFailedRetry": "Failed to check for updates. Please try again later.",
+  "about.alreadyLatest": "Already on the latest version.",
+  "about.noDownloadableAsset": "No downloadable update package found.",
+  "about.downloadFailed": "Failed to download update package. Please try again later.",
+  "about.installPermissionDenied": "Install permission not granted. Go to System Settings > Apps > \u8c37\u5b50\u6536\u7eb3 > Install unknown apps, and enable \"Allow from this source\".",
+  "about.mockDownloadDoneShort": "Mock download complete"
 }

@@ -12,10 +12,12 @@ import {
   getLatestReleaseFromGitee,
   normalizeVersionTag,
   resolveReleaseAsset,
-  resolveReleaseTargetUrl
+  resolveReleaseTargetUrl,
+  TokenExpiredError
 } from '@/utils/github/release'
 import { readSyncKey } from '@/utils/sync/storage'
 import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
+import i18n from '@/locales'
 
 const UPDATE_REPO_NAME = 'goods_app'
 const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
@@ -87,7 +89,7 @@ function resolveUpdateLevelFromRelease(release) {
 async function fetchLatestReleaseBySource(source) {
   const owner = UPDATE_REPO_OWNER_BY_SOURCE[source]
   if (!owner) {
-    throw new Error(`不支持的更新源：${source}`)
+    throw new Error(i18n.global.t('about.unsupportedUpdateSource', { source }))
   }
 
   if (source === 'gitee') {
@@ -95,7 +97,14 @@ async function fetchLatestReleaseBySource(source) {
   }
 
   const token = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
-  return getLatestRelease(owner, UPDATE_REPO_NAME, token)
+  try {
+    return await getLatestRelease(owner, UPDATE_REPO_NAME, token)
+  } catch (error) {
+    if (token && error instanceof TokenExpiredError) {
+      return getLatestRelease(owner, UPDATE_REPO_NAME, '')
+    }
+    throw error
+  }
 }
 
 export const useAppUpdateStore = defineStore('appUpdate', () => {
@@ -215,12 +224,15 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       || raw.includes('install_unknown_apps')
       || raw.includes('permission')
       || raw.includes('not allowed')
-      || raw.includes('权限')
     ) {
-      return '未授予安装权限。请到系统设置 > 应用 > 谷子收纳 > 安装未知应用，开启"允许来自此来源"。'
+      return i18n.global.t('about.installPermissionDenied')
     }
 
-    return error?.message || '下载更新包失败，请稍后再试。'
+    if (raw.includes('bad credentials') || raw.includes('401') || error instanceof TokenExpiredError) {
+      return i18n.global.t('about.githubAuthFailed')
+    }
+
+    return error?.message || i18n.global.t('about.downloadFailed')
   }
 
   async function downloadAndInstallUpdate() {
@@ -230,7 +242,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     downloadTransferred.value = ''
 
     if (!hasUpdate.value) {
-      downloadError.value = '当前已是最新版本。'
+      downloadError.value = i18n.global.t('about.alreadyLatest')
       return false
     }
 
@@ -255,7 +267,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
           await sleep(140)
         }
 
-        downloadSpeed.value = '模拟完成'
+        downloadSpeed.value = i18n.global.t('about.mockDownloadDoneShort')
         return true
       } finally {
         isDownloading.value = false
@@ -266,7 +278,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     const downloadUrl = asset?.browser_download_url
 
     if (!downloadUrl) {
-      downloadError.value = '未找到可下载的更新包。'
+      downloadError.value = i18n.global.t('about.noDownloadableAsset')
       return false
     }
 
@@ -277,6 +289,8 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       const fileName = normalizePackageFilename(asset?.name)
       const filePath = `updates/${fileName}`
       const startedAt = Date.now()
+      const syncToken = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
+      const downloadHeaders = syncToken ? { Authorization: `Bearer ${syncToken}` } : {}
 
       await Filesystem.mkdir({
         path: 'updates',
@@ -313,7 +327,8 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
             path: filePath,
             directory: Directory.Cache,
             progress: true,
-            recursive: true
+            recursive: true,
+            headers: downloadHeaders
           })
           break
         } catch (downloadErr) {
@@ -377,7 +392,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         }
 
         if (!release) {
-          throw lastRequestError || new Error('未获取到可用版本信息。')
+          throw lastRequestError || new Error(i18n.global.t('about.noVersionInfo'))
         }
 
         resolvedSource.value = resolvedReleaseSource
@@ -404,7 +419,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
         lastStatus.value = 'error'
-        lastError.value = error?.message || '检查更新失败，请稍后再试。'
+        lastError.value = error?.message || i18n.global.t('about.checkUpdateFailedRetry')
         throw error
       } finally {
         isChecking.value = false
