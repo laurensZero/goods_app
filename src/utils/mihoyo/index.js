@@ -870,6 +870,8 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
   const goodsId = goods.goods_id || goods.goodsId || goods.sku_id || ''
   // 加上 index 防止同订单内 goods_id 相同时 key 碰撞
   const itemKey = `${orderNo}_${index}_${goodsId}`
+  // SKU 名称字段（"徽章-茜特菈莉" 等），用于优先提取分类
+  const skuName = firstNonEmpty(goods.sku_name, goods.sku_title, goods.sku_desc, goodsWrapper.sku_name, goodsWrapper.sku_title, goodsWrapper.sku_desc)
   return {
     name: name || rawName,
     ip: ip || '',
@@ -877,7 +879,7 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     image: coverUrl,
     price: String(Math.round(Number(rawPrice) / 100)),
     acquiredAt,
-    category: parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || rawName),
+    category: parseCategoryFromName(variant) || parseCategoryFromName(skuName) || parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || rawName),
     quantity: Math.max(
       1,
       Number(goods.quantity) ||
@@ -931,6 +933,7 @@ function cartItemToGoods(shop, item, index = 0) {
   const ip = shopToIp(shop?.shop_name || shop?.shopName || '') || ipFromName
   const rawVariant = String(item.sale_attr_val || item.sale_attr || '').trim()
   const style = cleanStyleValue(rawVariant)
+  const skuName = firstNonEmpty(item.sku_name, item.sku_title, item.sku_desc)
   const quantity = Math.max(1, Number(item.nums) || Number(item.quantity_buy) || 1)
   const priceFee = item.new_price_fee ?? item.price_fee ?? item.old_price_fee ?? 0
   const noteParts = ['来自米游铺购物车']
@@ -946,7 +949,7 @@ function cartItemToGoods(shop, item, index = 0) {
     image: item.cover_url || '',
     price: String(Math.round(Number(priceFee) / 100)),
     acquiredAt: '',
-    category: parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || sourceTitle),
+    category: parseCategoryFromName(style) || parseCategoryFromName(skuName) || parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || sourceTitle),
     quantity,
     variant: style,
     note: noteParts.join('｜'),

@@ -265,7 +265,8 @@ function getScoredSuggestion(suggestion, minScore) {
 
 function resolveCategory({ name, variant, currentCategory, taggingResult }) {
   return normalizeText(currentCategory)
-    || parseCategoryFromName(`${name} ${variant}`)
+    || parseCategoryFromName(variant)
+    || parseCategoryFromName(name)
     || getScoredSuggestion(taggingResult.categorySuggestion, MIN_CATEGORY_SCORE)
 }
 
@@ -344,10 +345,14 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
   const variants = Array.isArray(source?.variants) ? source.variants : []
   const name = normalizeText(source?.name)
   const variant = normalizeText(source?.variant || source?.selectedVariantName)
+  // 当 variant 为空（URL 导入等场景），从 variants[].text 中提取 SKU 文本用于分类推断
+  const skuText = !variant
+    ? normalizeText(variants.map((v) => v?.text).filter(Boolean).join(' / '))
+    : ''
   const note = normalizeText(source?.note || source?.notes)
   const contextData = normalizeContext(context)
-  const preliminaryCategory = parseCategoryFromName(`${name} ${variant}`)
-  const evidenceTexts = [name, variant, note]
+  const preliminaryCategory = parseCategoryFromName(`${name} ${variant || skuText}`)
+  const evidenceTexts = [name, variant || skuText, note]
   const initialCategoryBlocklist = createCategoryBlocklist(contextData.categories, [
     source?.category,
     preliminaryCategory,
@@ -363,7 +368,7 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
   })
   const category = resolveCategory({
     name,
-    variant,
+    variant: variant || skuText,
     currentCategory: source?.category,
     taggingResult,
   })
@@ -426,7 +431,7 @@ export function resolveMihoyoVariantDraft({
   const category = resolveCategory({
     name,
     variant: variantName,
-    currentCategory,
+    currentCategory: '',
     taggingResult,
   })
   const categoryBlocklist = createCategoryBlocklist(contextData.categories, [
