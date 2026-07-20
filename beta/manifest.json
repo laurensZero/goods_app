@@ -1,9 +1,9 @@
 {
-  "version": "20260719.4",
-  "url": "bundle-20260719.4.zip",
-  "hash": "0e42fca62fe814c96fac3e9292b50c0e21aa2b85000929ebba642664841a92ca",
+  "version": "20260720.1",
+  "url": "bundle-20260720.1.zip",
+  "hash": "dbcdfb2e93da4aa7816d9a829832393b89879dc8f77df2ef0ac9e151487f775d",
   "minNativeVersion": null,
-  "notes": "- feat: 更新多语言支持，添加 GitHub 同步相关错误信息和提示",
+  "notes": "- feat: 增强同步错误处理，支持网络错误自动重试并在成功后清除错误提示",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-19T11:45:09Z"
+  "publishedAt": "2026-07-20T02:58:08Z"
 }

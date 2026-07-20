@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260720.1",
+    "url": "bundle-20260720.1.zip",
+    "hash": "dbcdfb2e93da4aa7816d9a829832393b89879dc8f77df2ef0ac9e151487f775d",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强同步错误处理，支持网络错误自动重试并在成功后清除错误提示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-20T02:58:08Z"
+  },
+  {
     "version": "20260719.4",
     "url": "bundle-20260719.4.zip",
     "hash": "0e42fca62fe814c96fac3e9292b50c0e21aa2b85000929ebba642664841a92ca",
@@ -16,14 +25,5 @@
     "notes": "- 本次 beta 更新无可用变更说明",
     "updateLevel": "silent",
     "publishedAt": "2026-07-19T11:24:52Z"
-  },
-  {
-    "version": "20260719.2",
-    "url": "bundle-20260719.2.zip",
-    "hash": "8d1ed44e25c67454fc0d519699b6f15e5c46e3db296f1df984fce4cbc3e53c56",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加对 QQ 音乐的支持，更新 AndroidManifest.xml 以包含相关查询和意图",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-19T10:39:25Z"
   }
 ]
