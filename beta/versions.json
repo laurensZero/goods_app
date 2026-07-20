@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260720.2",
+    "url": "bundle-20260720.2.zip",
+    "hash": "9b4605ad17c7708e8d8dca019e3b3bb07ddc7da4270fc1cb88412ae5062c85f2",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新商品计数显示，支持收藏和心愿数量的分离统计\n\n- feat: 更新 mergeToLocal 函数，支持 localSyncTime 参数以优化本地数据删除逻辑，并添加相应的单元测试",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-20T06:22:50Z"
+  },
+  {
     "version": "20260720.1",
     "url": "bundle-20260720.1.zip",
     "hash": "dbcdfb2e93da4aa7816d9a829832393b89879dc8f77df2ef0ac9e151487f775d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新多语言支持，添加 GitHub 同步相关错误信息和提示",
     "updateLevel": "silent",
     "publishedAt": "2026-07-19T11:45:09Z"
-  },
-  {
-    "version": "20260719.3",
-    "url": "bundle-20260719.3.zip",
-    "hash": "b0b4b11c733c49c5cf95f5be5c14c91a083cd83c0cff7e0db81dca10d08a172e",
-    "minNativeVersion": null,
-    "notes": "- 本次 beta 更新无可用变更说明",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-19T11:24:52Z"
   }
 ]
