@@ -92,7 +92,7 @@
 
               <button class="row-main" type="button" @click="openEdit(item)">
                 <span class="row-label">{{ item }}</span>
-                <span class="row-meta">{{ t('manage.ip.goodsCount', { count: getGoodsCount(item) }) }}</span>
+                <span class="row-meta">{{ t('manage.ip.goodsCount', getGoodsCount(item)) }}</span>
               </button>
 
               <button class="row-delete" type="button" :aria-label="t('manage.ip.delete')" @click="removeIp(item)">
@@ -207,13 +207,19 @@ const goodsCountMap = computed(() => {
   const map = new Map()
   for (const item of store.list) {
     if (!item.ip) continue
-    map.set(item.ip, (map.get(item.ip) || 0) + 1)
+    const entry = map.get(item.ip) || { collection: 0, wishlist: 0 }
+    if (item.isWishlist) {
+      entry.wishlist++
+    } else {
+      entry.collection++
+    }
+    map.set(item.ip, entry)
   }
   return map
 })
 
 function getGoodsCount(name) {
-  return goodsCountMap.value.get(name) || 0
+  return goodsCountMap.value.get(name) || { collection: 0, wishlist: 0 }
 }
 
 function isFavorite(name) {
@@ -488,6 +494,8 @@ watch(editingIp, async (value) => {
   text-align: left;
   appearance: none;
   -webkit-appearance: none;
+  min-height: 40px;
+  justify-content: center;
 }
 
 .row-label {

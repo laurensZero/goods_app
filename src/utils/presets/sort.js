@@ -21,7 +21,7 @@ export function normalizePresetSortMode(value) {
  * @param {string[]|{name:string,ip:string}[]} list
  * @param {'default'|'name'|'goodsCount'} sortMode
  * @param {'asc'|'desc'} sortDirection
- * @param {Map<string,number>} goodsCountMap  名称 → 商品数量
+ * @param {Map<string,{collection:number,wishlist:number}>|Map<string,number>} goodsCountMap  名称 → 商品数量
  * @param {Set<string>} favoriteSet          收藏项名称集合
  * @param {{ alwaysLast?: (item) => boolean }} [opts]
  * @returns 排序后的列表
@@ -41,9 +41,11 @@ export function sortPresetList(list, sortMode, sortDirection, goodsCountMap, fav
   }
 
   function compareByCount(a, b) {
-    const countA = goodsCountMap.get(extractName(a)) || 0
-    const countB = goodsCountMap.get(extractName(b)) || 0
-    if (countA !== countB) return (countA - countB) * dir
+    const countA = goodsCountMap.get(extractName(a))
+    const countB = goodsCountMap.get(extractName(b))
+    const totalA = typeof countA === 'object' ? (countA.collection + countA.wishlist) : (countA || 0)
+    const totalB = typeof countB === 'object' ? (countB.collection + countB.wishlist) : (countB || 0)
+    if (totalA !== totalB) return (totalA - totalB) * dir
     // 同数量按名称回退
     return compareByName(a, b)
   }

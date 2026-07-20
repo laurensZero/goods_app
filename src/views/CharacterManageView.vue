@@ -140,7 +140,7 @@
                   <span class="row-ip-badge" :class="{ 'row-ip-badge--empty': !item.ip }">
                     {{ item.ip || t('manage.character.ipNotSet') }}
                   </span>
-                  <span class="row-meta">{{ t('manage.character.goodsCount', { count: getGoodsCount(item.name) }) }}</span>
+                  <span class="row-meta">{{ t('manage.character.goodsCount', getGoodsCount(item.name)) }}</span>
                 </div>
               </button>
 
@@ -297,14 +297,20 @@ const goodsCountMap = computed(() => {
   const map = new Map()
   for (const item of store.list) {
     for (const character of item.characters || []) {
-      map.set(character, (map.get(character) || 0) + 1)
+      const entry = map.get(character) || { collection: 0, wishlist: 0 }
+      if (item.isWishlist) {
+        entry.wishlist++
+      } else {
+        entry.collection++
+      }
+      map.set(character, entry)
     }
   }
   return map
 })
 
 function getGoodsCount(name) {
-  return goodsCountMap.value.get(name) || 0
+  return goodsCountMap.value.get(name) || { collection: 0, wishlist: 0 }
 }
 
 function isFavorite(name) {
@@ -632,6 +638,8 @@ watch(editingCharacter, async (value) => {
   text-align: left;
   appearance: none;
   -webkit-appearance: none;
+  min-height: 40px;
+  justify-content: center;
 }
 
 .row-label {
