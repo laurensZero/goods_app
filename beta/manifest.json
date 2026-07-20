@@ -1,9 +1,9 @@
 {
-  "version": "20260720.2",
-  "url": "bundle-20260720.2.zip",
-  "hash": "9b4605ad17c7708e8d8dca019e3b3bb07ddc7da4270fc1cb88412ae5062c85f2",
+  "version": "20260720.3",
+  "url": "bundle-20260720.3.zip",
+  "hash": "8e74ca48a782ccd60cdc2ae4dcd050bf27c0195749e44a7f79b2fed77ac1fba9",
   "minNativeVersion": null,
-  "notes": "- feat: 更新商品计数显示，支持收藏和心愿数量的分离统计\n\n- feat: 更新 mergeToLocal 函数，支持 localSyncTime 参数以优化本地数据删除逻辑，并添加相应的单元测试",
+  "notes": "- feat: 更新多个函数以支持 triggerSync 参数，增强数据同步功能\n\n- feat: 优化分类解析逻辑，优先使用 SKU 名称和变体提取分类信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-20T06:22:50Z"
+  "publishedAt": "2026-07-20T10:55:44Z"
 }
