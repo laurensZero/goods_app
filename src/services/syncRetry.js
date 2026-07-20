@@ -31,6 +31,7 @@ function isRetryable(error) {
   if (msg.includes('network') || msg.includes('网络')) return true
   if (msg.includes('fetch') || msg.includes('连接')) return true
   if (msg.includes('econnrefused') || msg.includes('econnreset') || msg.includes('enotfound')) return true
+  if (msg.includes('unable to resolve') || msg.includes('resolve host')) return true
   if (msg.includes('failed to fetch')) return true
 
   // 429 rate limit

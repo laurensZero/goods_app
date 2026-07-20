@@ -191,6 +191,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
   // ---- 2. Sync notice watcher ----
 
   let lastSyncNoticeId = ''
+  let syncAutoRetryTimer = null
 
   function watchSync() {
     if (!syncStore) return
@@ -204,6 +205,11 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
         const silentSource = source === 'visibility'
 
         if (syncing) {
+          // 同步开始，清除自动重试定时器和旧错误通知
+          if (syncAutoRetryTimer) {
+            clearTimeout(syncAutoRetryTimer)
+            syncAutoRetryTimer = null
+          }
           dismissByKey('sync-error')
           if (!silentSource) {
             push({
@@ -219,6 +225,10 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
           if (silentSource) return
 
           if (syncStore.lastError) {
+            // 判断是否为网络类错误（支持自动重试）
+            const errorMsg = String(syncStore.lastError || '').toLowerCase()
+            const isNetworkError = /network|网络|fetch|连接|econnrefused|econnreset|enotfound|unable to resolve|resolve host|failed to fetch|timeout|超时/i.test(errorMsg)
+
             push({
               iconType: 'warn',
               text: '同步失败',
@@ -234,7 +244,22 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
                 }
               ]
             })
+
+            // 网络类错误：30 秒后自动重试（不再弹通知，静默重试）
+            if (isNetworkError && !syncAutoRetryTimer) {
+              syncAutoRetryTimer = setTimeout(() => {
+                syncAutoRetryTimer = null
+                if (!syncStore.isSyncing && !syncStore.isPulling && syncStore.lastError) {
+                  syncStore.sync({ source: 'visibility' }).catch(() => {})
+                }
+              }, 30000)
+            }
           } else {
+            // 同步成功，清除自动重试定时器，显示成功提示（3.5 秒后自动关闭）
+            if (syncAutoRetryTimer) {
+              clearTimeout(syncAutoRetryTimer)
+              syncAutoRetryTimer = null
+            }
             push({
               iconType: 'success',
               text: '同步成功',
@@ -384,6 +409,10 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     if (pollTimer) {
       window.clearInterval(pollTimer)
       pollTimer = null
+    }
+    if (syncAutoRetryTimer) {
+      clearTimeout(syncAutoRetryTimer)
+      syncAutoRetryTimer = null
     }
     document.removeEventListener('visibilitychange', onVisibilityChange)
   }

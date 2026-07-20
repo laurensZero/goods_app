@@ -54,8 +54,8 @@
           label="Wishlist Budget"
           storage-key="goods-app:wishlist-total-value-hidden"
           :total-value="totalValue"
-          :total-count="baseGoodsList.length"
-          :trend-items="baseGoodsList"
+          :total-count="goodsList.length"
+          :trend-items="goodsList"
           :tips-title="t('home.wishlist.budgetTipsTitle')"
           :tips-items="wishlistTipsItems"
         />
@@ -452,7 +452,7 @@ const _wishlistTotals = computed(() => {
     }
   }
 
-  for (const item of baseGoodsList.value) {
+  for (const item of searchFilteredList.value) {
     qty += item.quantityNumber
     if (!manualGroupMemberIds.has(item.id)) {
       val += item.totalValueNumber
