@@ -194,7 +194,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, diff, shouldApplyRemoteItem } = opts
+  const { reconcileMissing = true, diff, shouldApplyRemoteItem, localSyncTime = 0 } = opts
 
   // Compute remote watermark
   let remoteWatermark = 0
@@ -232,11 +232,11 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     if (hasAnyRemote) {
       const localOnlyGoodsIds = goodsStore.list
         .filter(item => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id))
-        .filter(item => getItemTimestamp(item) <= remoteWatermark)
+        .filter(item => getItemTimestamp(item) <= localSyncTime)
         .map(item => item.id)
       const localOnlyTrashIds = goodsStore.trashList
         .filter(item => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id))
-        .filter(item => getItemTimestamp(item) <= remoteWatermark)
+        .filter(item => getItemTimestamp(item) <= localSyncTime)
         .map(item => item.id)
       if (localOnlyGoodsIds.length > 0) await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
       if (localOnlyTrashIds.length > 0) await Promise.all(localOnlyTrashIds.map(id => goodsStore.deleteTrashItem(id)))
