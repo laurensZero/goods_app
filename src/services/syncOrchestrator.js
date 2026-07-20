@@ -129,7 +129,8 @@ export function createSyncOrchestrator({
           restoredCount = imgStats?.restoredImages || 0
           await mergeToLocal(stores, remoteData, {
             reconcileMissing: !remoteData.isIncremental, diff,
-            shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
+            shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
+            localSyncTime
           })
           if (be.getImagePublicUrl) {
             const { cleanupBase64Images } = await import('@/stores/goodsSync')
@@ -336,7 +337,8 @@ export function createSyncOrchestrator({
           restoredCount = imgStats?.restoredImages || 0
           await mergeToLocal(stores, remoteData, {
             reconcileMissing: !remoteData.isIncremental, diff,
-            shouldApplyRemoteItem: ctx.shouldApplyRemoteItem
+            shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
+            localSyncTime
           })
           if (be.getImagePublicUrl) {
             const { cleanupBase64Images } = await import('@/stores/goodsSync')
