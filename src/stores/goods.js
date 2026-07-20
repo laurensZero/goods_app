@@ -212,15 +212,15 @@ export const useGoodsStore = defineStore('goods', () => {
   //  Delegated to sub-modules
 
   function replaceCategoryName(oldName, newName) {
-    return _replaceCategoryName(oldName, newName, list, trashList, persistTrash)
+    return _replaceCategoryName(oldName, newName, list, trashList, persistTrash, autoPushGoods)
   }
 
   function replaceIpName(oldName, newName) {
-    return _replaceIpName(oldName, newName, list, trashList, persistTrash)
+    return _replaceIpName(oldName, newName, list, trashList, persistTrash, autoPushGoods)
   }
 
   function replaceCharacterName(oldName, newName) {
-    return _replaceCharacterName(oldName, newName, list, trashList, persistTrash)
+    return _replaceCharacterName(oldName, newName, list, trashList, persistTrash, autoPushGoods)
   }
 
   function syncCharacterIp(name, nextIp, previousIp = '') {
@@ -228,11 +228,11 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   function replaceStorageLocationPrefix(oldPrefix, newPrefix) {
-    return _replaceStorageLocationPrefix(oldPrefix, newPrefix, list)
+    return _replaceStorageLocationPrefix(oldPrefix, newPrefix, list, autoPushGoods)
   }
 
   function clearStorageLocationPrefix(prefix) {
-    return _clearStorageLocationPrefix(prefix, list)
+    return _clearStorageLocationPrefix(prefix, list, autoPushGoods)
   }
 
   function addMultipleGoods(items) {
