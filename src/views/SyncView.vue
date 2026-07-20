@@ -926,6 +926,13 @@ watch(() => syncStore.conflictData, (val) => {
   }
 })
 
+// 同步成功后自动关闭错误卡片
+watch(() => syncStore.isSyncing, (syncing) => {
+  if (!syncing && !syncStore.lastError && syncStore.syncPhase) {
+    clearSyncError()
+  }
+})
+
 const lastSyncDisplay = computed(() => {
   if (!syncStore.lastSyncedAt) return t('sync.neverSynced')
   return formatTime(syncStore.lastSyncedAt)

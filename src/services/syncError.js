@@ -94,7 +94,8 @@ function inferCause(error) {
     msg.includes('network') || msg.includes('网络') ||
     msg.includes('fetch') || msg.includes('连接') ||
     msg.includes('econnrefused') || msg.includes('econnreset') ||
-    msg.includes('enotfound') || msg.includes('failed to fetch')
+    msg.includes('enotfound') || msg.includes('unable to resolve') ||
+    msg.includes('resolve host') || msg.includes('failed to fetch')
   ) {
     return { cause: CAUSE_NETWORK, retryable: true }
   }
