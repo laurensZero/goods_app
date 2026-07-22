@@ -75,7 +75,7 @@
         <div class="charts-grid">
           <div class="chart-card">
             <h3 class="chart-title">{{ t('leaderboard.dimensionRatio') }}</h3>
-            <PieChart :entries="entries" labelKey="label" valueKey="quantity" />
+            <PieChart :entries="entries" labelKey="label" :valueKey="selectedMetric" />
           </div>
 
           <div class="chart-card">
