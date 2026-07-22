@@ -192,7 +192,10 @@ function onDelete() {
   opacity: 0;
 }
 
-.sheet-slide-enter-active,
+.sheet-slide-enter-active {
+  transition: transform 0.28s var(--motion-ease-spring), opacity 0.2s ease;
+}
+
 .sheet-slide-leave-active {
   transition: transform 0.24s ease, opacity 0.2s ease;
 }

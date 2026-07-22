@@ -812,7 +812,7 @@ onMounted(() => {
 }
 
 .sheet-slide-enter-active {
-  transition: transform 0.32s cubic-bezier(0.34, 1.1, 0.64, 1), opacity 0.22s ease;
+  transition: transform 0.32s var(--motion-ease-spring), opacity 0.22s ease;
 }
 
 .sheet-slide-leave-active {

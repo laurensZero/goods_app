@@ -655,7 +655,10 @@ watch(editingIp, async (value) => {
   opacity: 0;
 }
 
-.sheet-slide-enter-active,
+.sheet-slide-enter-active {
+  transition: opacity 220ms ease, transform 280ms var(--motion-ease-spring);
+}
+
 .sheet-slide-leave-active {
   transition: opacity 220ms ease, transform 220ms ease;
 }

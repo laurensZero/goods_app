@@ -706,9 +706,12 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-.dialog-pop-enter-active,
+.dialog-pop-enter-active {
+  transition: opacity var(--motion-fast) var(--motion-ease-emphasis), transform 0.28s var(--motion-ease-spring);
+}
+
 .dialog-pop-leave-active {
-  transition: opacity var(--motion-fast) var(--motion-emphasis), transform var(--motion-fast) var(--motion-emphasis);
+  transition: opacity var(--motion-fast) var(--motion-ease-emphasis), transform var(--motion-fast) var(--motion-ease-emphasis);
 }
 
 .dialog-pop-enter-from,
