@@ -36,7 +36,7 @@
   display: flex;
   gap: 14px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 149, 0, 0.08);
 }
 
@@ -91,7 +91,7 @@
 
 .file-pick-area {
   border: 1.5px dashed rgba(20, 20, 22, 0.12);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   padding: 40px 24px;
   background: rgba(255, 255, 255, 0.72);
   display: flex;
@@ -140,7 +140,7 @@
 
 .field-error--block {
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: rgba(199, 68, 68, 0.08);
 }
 
@@ -154,11 +154,11 @@
   gap: 12px;
   margin-bottom: 10px;
   padding: 10px 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.84);
   box-shadow: var(--app-shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(var(--app-frost-soft-blur));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur));
 }
 
 .list-count {
@@ -202,7 +202,7 @@
 .text-btn--active {
   background: #141416;
   color: #ffffff;
-  box-shadow: 0 8px 18px rgba(20, 20, 22, 0.14);
+  box-shadow: var(--app-shadow);
 }
 
 .order-list {
@@ -215,7 +215,7 @@
 }
 
 .order-group {
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.05);
   display: flex;
@@ -528,8 +528,8 @@
   transform: translateX(-50%);
   padding: 12px 16px max(env(safe-area-inset-bottom), 16px);
   background: linear-gradient(to top, rgba(245, 245, 247, 0.96) 60%, rgba(245, 245, 247, 0));
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(var(--app-tint-blur));
+  -webkit-backdrop-filter: blur(var(--app-tint-blur));
   display: flex;
   gap: 10px;
   z-index: 50;
@@ -686,7 +686,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
 }
 .edit-label {
@@ -718,7 +718,7 @@
 .edit-save-btn {
   flex: 1;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   border: none;
   font-size: 16px;
   font-weight: 600;
@@ -741,7 +741,7 @@
 .sheet-backdrop-leave-to     { opacity: 0; }
 
 .sheet-slide-enter-active,
-.sheet-slide-leave-active { transition: transform .3s cubic-bezier(.4, 0, .2, 1); }
+.sheet-slide-leave-active { transition: transform .3s var(--motion-ease-default); }
 .sheet-slide-enter-from,
 .sheet-slide-leave-to     { transform: translateX(-50%) translateY(100%); }
 
@@ -769,8 +769,8 @@
 :global(html.theme-dark) .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
-    backdrop-filter: blur(22px) saturate(145%);
-    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
+    -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   }
 :global(html.theme-dark) .goods-item {
     background: rgba(255, 255, 255, 0.05);
@@ -785,18 +785,18 @@
   }
 :global(html.theme-dark) .bottom-bar {
     background: linear-gradient(to top, rgba(15, 15, 16, 0.82) 60%, rgba(15, 15, 16, 0));
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+    -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
   }
 :global(html.theme-dark) .sheet-backdrop {
     background: var(--app-overlay);
-    backdrop-filter: blur(14px) saturate(120%);
-    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
+    -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
   }
 :global(html.theme-dark) .edit-sheet {
     background: rgba(24, 24, 28, 0.82);
     border: 1px solid var(--app-glass-border);
-    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+    box-shadow: var(--app-shadow-xl);
   }
 :global(html.theme-dark) .edit-field {
     background: rgba(255, 255, 255, 0.05);
