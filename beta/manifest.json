@@ -1,9 +1,9 @@
 {
-  "version": "20260722.1",
-  "url": "bundle-20260722.1.zip",
-  "hash": "c22ae80db6d193c282309466a73d6801f750befe21c6b8983a4e94457c99bc83",
+  "version": "20260722.2",
+  "url": "bundle-20260722.2.zip",
+  "hash": "4f5cb3684ccb21c065820773f9d7525043996841d40977d40972e58b65ef7996",
   "minNativeVersion": null,
-  "notes": "- feat: 添加删除图像功能，优化图像清理逻辑以避免错误删除有效云图像\n\n- refactor: 统一视觉效果\n\n- feat: 更新多个组件的过渡效果，使用 spring 动效以提升用户体验",
+  "notes": "- fix: 更新同步逻辑以始终保存最新同步时间，确保数据一致性",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-22T05:48:23Z"
+  "publishedAt": "2026-07-22T06:06:32Z"
 }
