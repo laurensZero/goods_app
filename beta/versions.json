@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260722.3",
+    "url": "bundle-20260722.3.zip",
+    "hash": "cb2fe3a8f2d70d79889da04f1a9976f19adb8283c04bcc7c2081487245db5474",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新饼图组件，动态绑定值键以支持不同度量选项",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-22T08:02:32Z"
+  },
+  {
     "version": "20260722.2",
     "url": "bundle-20260722.2.zip",
     "hash": "4f5cb3684ccb21c065820773f9d7525043996841d40977d40972e58b65ef7996",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加删除图像功能，优化图像清理逻辑以避免错误删除有效云图像\n\n- refactor: 统一视觉效果\n\n- feat: 更新多个组件的过渡效果，使用 spring 动效以提升用户体验",
     "updateLevel": "silent",
     "publishedAt": "2026-07-22T05:48:23Z"
-  },
-  {
-    "version": "20260720.3",
-    "url": "bundle-20260720.3.zip",
-    "hash": "8e74ca48a782ccd60cdc2ae4dcd050bf27c0195749e44a7f79b2fed77ac1fba9",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新多个函数以支持 triggerSync 参数，增强数据同步功能\n\n- feat: 优化分类解析逻辑，优先使用 SKU 名称和变体提取分类信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-20T10:55:44Z"
   }
 ]

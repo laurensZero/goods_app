@@ -1,9 +1,9 @@
 {
-  "version": "20260722.2",
-  "url": "bundle-20260722.2.zip",
-  "hash": "4f5cb3684ccb21c065820773f9d7525043996841d40977d40972e58b65ef7996",
+  "version": "20260722.3",
+  "url": "bundle-20260722.3.zip",
+  "hash": "cb2fe3a8f2d70d79889da04f1a9976f19adb8283c04bcc7c2081487245db5474",
   "minNativeVersion": null,
-  "notes": "- fix: 更新同步逻辑以始终保存最新同步时间，确保数据一致性",
+  "notes": "- feat: 更新饼图组件，动态绑定值键以支持不同度量选项",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-22T06:06:32Z"
+  "publishedAt": "2026-07-22T08:02:32Z"
 }
