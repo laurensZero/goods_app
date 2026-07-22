@@ -338,5 +338,7 @@
   "sync.error.pullTimeout": "拉取操作超时",
   "sync.error.pullTimeoutStatus": "拉取超时",
   "sync.error.networkReconnect": "网络错误，尝试重建连接...",
-  "sync.error.unnamedItem": "未命名条目"
+  "sync.error.unnamedItem": "未命名条目",
+  "sync.error.loginRequired": "请先登录 Supabase 账号后再同步",
+  "sync.error.loginRequiredStatus": "未登录"
 }

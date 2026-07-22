@@ -43,7 +43,7 @@ export function createSyncOrchestrator({
   function canQuickPush(be, dirtyGoodsIds, dirtyDomains) {
     return (be.pushAll || be.pushDomainRows)
       && dirtyGoodsIds && dirtyGoodsIds.size > 0
-      && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
+      && dirtyDomains && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
   }
 
   // ── pull() — unified pull entry point ──

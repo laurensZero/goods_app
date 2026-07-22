@@ -338,5 +338,7 @@
   "sync.error.pullTimeout": "Pull operation timed out",
   "sync.error.pullTimeoutStatus": "Pull timed out",
   "sync.error.networkReconnect": "Network error, attempting to reconnect...",
-  "sync.error.unnamedItem": "Unnamed item"
+  "sync.error.unnamedItem": "Unnamed item",
+  "sync.error.loginRequired": "Please log in to Supabase before syncing",
+  "sync.error.loginRequiredStatus": "Not logged in"
 }

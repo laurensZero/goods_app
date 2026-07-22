@@ -13,7 +13,7 @@
   "my.lastSync": "마지막 동기화: {time}",
   "my.neverSynced": "동기화 없음",
   "my.neverSyncedDetail": "동기화 없음",
-  "my.relogin": "GitHub 재로그인",
+  "my.relogin": "재로그인",
   "my.login": "GitHub 로그인",
   "my.logout": "로그아웃",
   "my.budgetTitle": "예산 워치",
