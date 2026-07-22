@@ -32,6 +32,7 @@ const CAMEL_TO_SNAKE = {
   updatedAt: 'updated_at',
   createdAt: 'created_at',
   syncedBy: 'synced_by',
+  userId: 'user_id',
   // sync_manifest
   deviceId: 'device_id',
   syncedAt: 'synced_at',
