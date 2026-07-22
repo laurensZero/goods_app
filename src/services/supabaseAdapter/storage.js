@@ -89,8 +89,6 @@ export function createStorageOps({ getDb, withRetry }) {
   let imageGistCache = null
   let imageGistCacheTime = 0
 
-  let deletedCount = 0
-
   function invalidateImageGistCache() {
     imageGistCache = null
     imageGistCacheTime = 0
@@ -144,7 +142,6 @@ export function createStorageOps({ getDb, withRetry }) {
     const entries = Object.entries(imageFiles)
     let uploaded = 0
     let failed = 0
-    let deleted = 0
 
     const CONCURRENT_UPLOADS = 5
     let index = 0
@@ -157,8 +154,6 @@ export function createStorageOps({ getDb, withRetry }) {
         try {
           if (!fileObj || !fileObj.content) {
             await db.storage.from(bucketName).remove([storagePath])
-            console.log(`[supabase] deleted orphaned image: ${storagePath}`)
-            deleted++
             continue
           }
 
@@ -187,35 +182,7 @@ export function createStorageOps({ getDb, withRetry }) {
     await Promise.all(workers)
 
     invalidateImageGistCache()
-    return { uploaded, failed, deleted }
-  }
-
-  async function deleteImages(fileNames) {
-    if (!fileNames || fileNames.length === 0) return { deleted: 0 }
-    const db = getDb()
-
-    let deleted = 0
-    for (const fileName of fileNames) {
-      const storagePath = toStoragePath(fileName)
-      const bucketName = resolveStorageBucketByPath(storagePath)
-      try {
-        const { error } = await withRetry(() =>
-          db.storage.from(bucketName).remove([storagePath])
-        )
-        if (error) {
-          console.warn(`[supabase] delete failed for ${storagePath}:`, error.message)
-        } else {
-          deleted++
-          console.log(`[supabase] deleted orphaned image: ${storagePath}`)
-        }
-      } catch (e) {
-        console.warn(`[supabase] delete error for ${storagePath}:`, e.message)
-      }
-    }
-
-    if (deleted > 0) invalidateImageGistCache()
-    deletedCount += deleted
-    return { deleted }
+    return { uploaded, failed }
   }
 
   async function ensureStorageBuckets() {
@@ -237,7 +204,6 @@ export function createStorageOps({ getDb, withRetry }) {
     getExistingImageGist,
     readImage,
     writeImages,
-    deleteImages,
     ensureStorageBuckets,
     getImagePublicUrl,
     invalidateImageGistCache

@@ -85,7 +85,6 @@ export function createSupabaseBackendAdapter({
     readImage: storage.readImage,
     writeData: writer.writeData,
     writeImages: writeImagesWithTracking,
-    deleteImages: storage.deleteImages,
     getManifest: reader.getManifest,
     isEncryptionEnabled,
     getDataGistId,

@@ -99,10 +99,8 @@ describe('createSyncImageService', () => {
       const existingGist = {
         files: { 'goods-image__item1__img1__0.jpg.txt': {} }
       }
-      // Supabase mode: cleanup should work correctly
       const result = supabaseService.buildImageCleanupFiles(existingGist, new Set())
-      expect(result).toHaveProperty('goods-image__item1__img1__0.jpg.txt')
-      expect(result['goods-image__item1__img1__0.jpg.txt']).toBeNull()
+      expect(result).toEqual({})
     })
   })
 })
