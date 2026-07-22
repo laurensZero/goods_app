@@ -578,16 +578,19 @@ export const useSyncStore = defineStore('sync', () => {
     // New domains added during the sync are preserved.
     if (consumed) {
       for (const d of consumed) dirtyDomains.delete(d)
-    } else {
+    } else if (dirtyDomains.size === 0) {
+      // No dirty domains before or during sync — nothing to preserve.
       dirtyDomains.clear()
     }
+    // When consumed is null but dirtyDomains grew during the sync,
+    // preserve those domains for the next sync cycle.
     writeSyncKey(DIRTY_DOMAINS_KEY, dirtyDomains.size > 0 ? [...dirtyDomains].join(',') : '')
   }
 
   function clearDirtyGoodsIds(consumed) {
     if (consumed) {
       for (const id of consumed) dirtyGoodsIds.delete(id)
-    } else {
+    } else if (dirtyGoodsIds.size === 0) {
       dirtyGoodsIds.clear()
     }
     writeSyncKey(DIRTY_GOODS_IDS_KEY, dirtyGoodsIds.size > 0 ? [...dirtyGoodsIds].join(',') : '')
@@ -725,6 +728,14 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'paused' }
     }
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
+    // Supabase 模式要求登录后才能同步
+    if (isSupabaseMode()) {
+      const authStore = useAuthStore()
+      if (!authStore.isLoggedIn) {
+        applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+        return { action: 'skipped', reason: 'not_logged_in' }
+      }
+    }
     ensureBackendReady()
     syncSource.value = source
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
@@ -786,6 +797,10 @@ export const useSyncStore = defineStore('sync', () => {
     if (isIncremental) {
       // Fast incremental pull
       if (isSyncing.value || isPulling.value) return
+      if (isSupabaseMode()) {
+        const authStore = useAuthStore()
+        if (!authStore.isLoggedIn) return { action: 'skipped', reason: 'not_logged_in' }
+      }
       ensureBackendReady()
       isSyncing.value = true; isPulling.value = true
       syncSource.value = source
@@ -815,6 +830,13 @@ export const useSyncStore = defineStore('sync', () => {
 
     // Full pull
     if (isSyncing.value) return
+    if (isSupabaseMode()) {
+      const authStore = useAuthStore()
+      if (!authStore.isLoggedIn) {
+        if (!silent) applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+        return { action: 'skipped', reason: 'not_logged_in' }
+      }
+    }
     ensureBackendReady()
     if (!isSupabaseMode() && !gistId.value) throw new Error(i18n.global.t('sync.notConfigured'))
     syncSource.value = source

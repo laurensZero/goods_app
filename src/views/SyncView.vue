@@ -120,11 +120,11 @@
               <template v-else-if="syncStore.syncBackend === 'supabase'">
                 <div class="detail-row">
                   <span class="detail-label">{{ t('sync.supabaseUrl') }}</span>
-                  <button type="button" class="detail-value detail-value--mono detail-value--link" @click="openSupabaseUrlDialog">{{ supabaseUrlDisplay }}</button>
+                  <span class="detail-value detail-value--mono">{{ supabaseUrlDisplay }}</span>
                 </div>
-                <div class="detail-row">
+                <div v-if="syncStore.supabaseUrl" class="detail-row">
                   <span class="detail-label">Anon Key</span>
-                  <button type="button" class="detail-value detail-value--mono detail-value--link" @click="openSupabaseKeyDialog">{{ supabaseKeyDisplay }}</button>
+                  <span class="detail-value detail-value--mono">{{ supabaseKeyDisplay }}</span>
                 </div>
               </template>
 
@@ -750,7 +750,7 @@ import {
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
 } from '@/services/syncError'
 import { validateToken, getGist, getGistFileContent } from '@/utils/github/gist'
-import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { getSupabaseClient, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import {
   fetchGitHubUser,
   getGitHubDeviceFlowScope,
@@ -945,6 +945,10 @@ const resolvedEventGistId = computed(() => gistInfo.value?.eventGistId || syncSt
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
   if (syncStore.lastError) return 'badge--error'
+  if (syncStore.syncBackend === 'supabase') {
+    if (isSupabaseConfigured()) return 'badge--success'
+    return 'badge--warning'
+  }
   if (syncStore.githubLogin) return 'badge--success'
   if (!syncStore.token) return 'badge--warning'
   if (syncStore.gistId) return 'badge--success'
@@ -954,6 +958,10 @@ const statusBadgeClass = computed(() => {
 const statusBadgeText = computed(() => {
   if (syncStore.isSyncing) return t('sync.syncing')
   if (syncStore.lastError) return t('sync.hasError')
+  if (syncStore.syncBackend === 'supabase') {
+    if (isSupabaseConfigured()) return t('sync.connected')
+    return t('sync.notConfigured')
+  }
   if (syncStore.githubLogin) return t('sync.loggedIn')
   if (!syncStore.token) return t('sync.notConfigured')
   if (syncStore.gistId) return t('sync.connected')
@@ -1023,7 +1031,11 @@ const tokenDisplay = computed(() => {
 
 const remoteIdLabel = computed(() => syncStore.syncBackend === 'supabase' ? t('sync.supabaseUrl') : t('sync.remoteGist'))
 const remoteIdDisplay = computed(() => {
-  if (syncStore.syncBackend === 'supabase') return syncStore.supabaseUrl || t('sync.notConfigured')
+  if (syncStore.syncBackend === 'supabase') {
+    if (syncStore.supabaseUrl) return syncStore.supabaseUrl
+    if (isSupabaseConfigured()) return 'Built-in'
+    return t('sync.notConfigured')
+  }
   return syncStore.gistId || t('common.notCreated')
 })
 
@@ -1430,8 +1442,16 @@ async function handleReset() {
 
 // ── Supabase 后端配置 ──────────────────────────────────
 const syncBackendLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase' : 'GitHub Gist')
-const supabaseUrlDisplay = computed(() => syncStore.supabaseUrl || t('sync.notConfigured'))
-const supabaseKeyDisplay = computed(() => syncStore.supabaseAnonKey ? '***' + syncStore.supabaseAnonKey.slice(-6) : t('sync.notConfigured'))
+const supabaseUrlDisplay = computed(() => {
+  if (syncStore.supabaseUrl) return syncStore.supabaseUrl
+  if (isSupabaseConfigured()) return 'Built-in'
+  return t('sync.notConfigured')
+})
+const supabaseKeyDisplay = computed(() => {
+  if (syncStore.supabaseAnonKey) return '***' + syncStore.supabaseAnonKey.slice(-6)
+  if (isSupabaseConfigured()) return '***built-in'
+  return t('sync.notConfigured')
+})
 
 const selectedBackend = computed({
   get: () => syncStore.syncBackend,
@@ -1447,8 +1467,8 @@ const pendingBackend = ref('')
 
 function chooseBackend(val) {
   if (val === syncStore.syncBackend) return
-  // If user chooses Supabase but config missing, open URL dialog first
-  if (val === 'supabase' && (!syncStore.supabaseUrl || !syncStore.supabaseAnonKey)) {
+  // If user chooses Supabase but no config (manual or built-in), open URL dialog first
+  if (val === 'supabase' && !isSupabaseConfigured()) {
     showSupabaseUrlDialog.value = true
     pendingBackend.value = val
     return

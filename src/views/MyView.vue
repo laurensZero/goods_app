@@ -63,13 +63,22 @@
             </div>
 
             <div class="account-actions">
-              <button type="button" class="hero-action hero-action--primary" @click="handleLogin">
+              <button v-if="!authStore.isLoggedIn" type="button" class="hero-action hero-action--primary" @click="handleLogin">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 3a9 9 0 1 0 9 9" />
                   <path d="M12 12l4.5-4.5" />
                   <path d="M12 12h7" />
                 </svg>
-                <span>{{ authStore.isLoggedIn ? t('my.authLogin') : t('my.authLogin') }}</span>
+                <span>{{ t('my.authLogin') }}</span>
+              </button>
+
+              <button v-if="authStore.isLoggedIn" type="button" class="hero-action hero-action--primary" @click="handleLogin">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3a9 9 0 1 0 9 9" />
+                  <path d="M12 12l4.5-4.5" />
+                  <path d="M12 12h7" />
+                </svg>
+                <span>{{ t('my.relogin') }}</span>
               </button>
 
               <button type="button" class="hero-action" :disabled="!authStore.isLoggedIn" @click="openLogoutDialog">
@@ -147,7 +156,7 @@
                 <span class="shortcut-row__title">{{ t('my.cloudSync') }}</span>
                 <span class="shortcut-row__desc">{{ syncSummaryText }}</span>
               </span>
-              <span class="shortcut-row__meta">{{ syncStore.githubLogin ? t('my.connectedShort') : t('my.gotoLogin') }}</span>
+              <span class="shortcut-row__meta">{{ authStore.isLoggedIn ? t('my.connectedShort') : t('my.gotoLogin') }}</span>
             </button>
 
             <button type="button" class="shortcut-row" @click="openSettings">
@@ -197,21 +206,9 @@
           </div>
 
           <div class="detail-list">
-            <div class="detail-row">
-              <span class="detail-row__label">{{ t('my.githubUser') }}</span>
-              <span class="detail-row__value">{{ syncStore.githubLogin || t('my.notLoggedIn') }}</span>
-            </div>
-            <div v-if="!isUsingGithubLogin" class="detail-row">
-              <span class="detail-row__label">{{ t('my.syncToken') }}</span>
-              <span class="detail-row__value detail-row__value--mono">{{ tokenDisplay }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-row__label">{{ t('my.authMethod') }}</span>
-              <span class="detail-row__value">{{ syncStore.githubAuthMethod || t('my.notSetFull') }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-row__label">{{ t('my.scopes') }}</span>
-              <span class="detail-row__value detail-row__value--mono">{{ syncStore.githubScopes || t('my.notObtained') }}</span>
+            <div v-if="authStore.isLoggedIn" class="detail-row">
+              <span class="detail-row__label">{{ t('my.authEmail') }}</span>
+              <span class="detail-row__value">{{ authStore.userEmail || t('my.notLoggedIn') }}</span>
             </div>
             <div class="detail-row">
               <span class="detail-row__label">{{ t('my.recentSync') }}</span>
@@ -219,7 +216,7 @@
             </div>
             <div class="detail-row">
               <span class="detail-row__label">{{ t('my.syncStatus') }}</span>
-              <span class="detail-row__value">{{ syncStore.syncStatus || (syncStore.githubLogin ? t('my.ready') : t('my.unprocessed')) }}</span>
+              <span class="detail-row__value">{{ syncStore.syncStatus || (authStore.isLoggedIn ? t('my.ready') : t('my.unprocessed')) }}</span>
             </div>
             <div class="detail-row detail-row--clickable" @click="refreshExchangeRates">
               <span class="detail-row__label">{{ t('my.exchangeRateUpdate') }}</span>
@@ -523,7 +520,7 @@ const showAuthMethod = computed(() => (
 
 const syncSummaryText = computed(() => {
   if (syncStore.lastSyncedAt) return t('my.summaryLastSync', { time: formatDate(syncStore.lastSyncedAt, 'YYYY-MM-DD HH:mm') })
-  if (syncStore.githubLogin) return t('my.summaryConnected')
+  if (authStore.isLoggedIn) return t('my.summaryConnected')
   return t('my.summaryNotConnected')
 })
 

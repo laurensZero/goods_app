@@ -16,6 +16,7 @@ import {
 import { isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 
 const AUTH_USER_KEY = 'sb_auth_user'
+let _pendingLoginSync = false
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -101,6 +102,19 @@ export const useAuthStore = defineStore('auth', () => {
     authSubscription = onAuthStateChange((event, newSession) => {
       setSession(newSession)
       setUser(newSession?.user || null)
+      // 登录成功后自动触发同步
+      if (event === 'SIGNED_IN' && newSession?.user && _pendingLoginSync) {
+        _pendingLoginSync = false
+        setTimeout(async () => {
+          try {
+            const { useSyncStore } = await import('@/stores/sync')
+            const syncStore = useSyncStore()
+            if (syncStore.isSupabaseMode && syncStore.isSupabaseMode()) {
+              syncStore.sync({ source: 'auth' }).catch(() => {})
+            }
+          } catch { /* ignore */ }
+        }, 500)
+      }
     })
 
     isInitialized.value = true
@@ -112,6 +126,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     try {
       const data = await signInWithEmail(email, password)
+      _pendingLoginSync = true
       setSession(data.session)
       setUser(data.user)
       return data.user
@@ -130,6 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await signUpWithEmail(email, password, { metadata })
       // Supabase may return user without session if email confirmation is required
       if (data.session) {
+        _pendingLoginSync = true
         setSession(data.session)
         setUser(data.user)
       }
@@ -161,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     try {
       const data = await signInWithOAuth(provider)
+      _pendingLoginSync = true
       return data
     } catch (e) {
       error.value = e.message || '社交登录失败'
