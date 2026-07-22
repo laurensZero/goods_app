@@ -1,9 +1,9 @@
 {
-  "version": "20260722.6",
-  "url": "bundle-20260722.6.zip",
-  "hash": "44d56f89b552e7e06d4ee555202c0fc609ecf17c82ed729a37cac957df9452ba",
+  "version": "20260722.7",
+  "url": "bundle-20260722.7.zip",
+  "hash": "a1dc902ac5c2faab10eee7f86d665cf1ad0b56555392be4f05a4201cb81bea1c",
   "minNativeVersion": null,
-  "notes": "- Revert \"feat: 添加删除图像功能，优化图像清理逻辑以避免错误删除有效云图像\"\n  This reverts commit 631b6281ba56efdf5210120863d99c3ca20c06c5.",
+  "notes": "- feat: 更新多语言支持，简化登录提示，添加Supabase同步登录要求",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-22T13:04:19Z"
+  "publishedAt": "2026-07-22T14:39:50Z"
 }
