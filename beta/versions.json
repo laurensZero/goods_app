@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260722.4",
+    "url": "bundle-20260722.4.zip",
+    "hash": "34fed94700e773b570f655aa913b265a1ce12e113c09787d06c1a6828d9d4795",
+    "minNativeVersion": null,
+    "notes": "- feat: Supabase登录",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-22T12:02:29Z"
+  },
+  {
     "version": "20260722.3",
     "url": "bundle-20260722.3.zip",
     "hash": "cb2fe3a8f2d70d79889da04f1a9976f19adb8283c04bcc7c2081487245db5474",
@@ -16,14 +25,5 @@
     "notes": "- fix: 更新同步逻辑以始终保存最新同步时间，确保数据一致性",
     "updateLevel": "silent",
     "publishedAt": "2026-07-22T06:06:32Z"
-  },
-  {
-    "version": "20260722.1",
-    "url": "bundle-20260722.1.zip",
-    "hash": "c22ae80db6d193c282309466a73d6801f750befe21c6b8983a4e94457c99bc83",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加删除图像功能，优化图像清理逻辑以避免错误删除有效云图像\n\n- refactor: 统一视觉效果\n\n- feat: 更新多个组件的过渡效果，使用 spring 动效以提升用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-22T05:48:23Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260722.3",
-  "url": "bundle-20260722.3.zip",
-  "hash": "cb2fe3a8f2d70d79889da04f1a9976f19adb8283c04bcc7c2081487245db5474",
+  "version": "20260722.4",
+  "url": "bundle-20260722.4.zip",
+  "hash": "34fed94700e773b570f655aa913b265a1ce12e113c09787d06c1a6828d9d4795",
   "minNativeVersion": null,
-  "notes": "- feat: 更新饼图组件，动态绑定值键以支持不同度量选项",
+  "notes": "- feat: Supabase登录",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-22T08:02:32Z"
+  "publishedAt": "2026-07-22T12:02:29Z"
 }
