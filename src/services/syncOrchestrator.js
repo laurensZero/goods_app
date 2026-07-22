@@ -100,7 +100,7 @@ export function createSyncOrchestrator({
       // 3. Full mode: diff
       const diff = diffLocalRemote(stores, remoteData)
       if (!diff.hasChanges) {
-        if (remoteData.manifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteData.manifest.lastSyncAt)
+        await ctx.saveLastSyncedAt(new Date().toISOString())
         return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
       }
 
@@ -307,7 +307,7 @@ export function createSyncOrchestrator({
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff || hasPresetsDiff
 
     if (!hasEffectiveDiff) {
-      if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+      await ctx.saveLastSyncedAt(new Date().toISOString())
       return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
     }
 
