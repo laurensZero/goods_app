@@ -1,6 +1,7 @@
 // src/utils/supabaseClient.js
 import i18n from '@/locales'
 import { createClient } from '@supabase/supabase-js'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
 
 let supabase = null
 
@@ -24,8 +25,8 @@ export function initSupabaseClient(url, anonKey) {
   _initKey = anonKey
   supabase = createClient(url, anonKey, {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+      autoRefreshToken: true,
+      persistSession: true,
       detectSessionInUrl: false,
       storageKey: 'sb-main-auth-token'
     }
@@ -35,10 +36,15 @@ export function initSupabaseClient(url, anonKey) {
 
 /**
  * 获取当前 Supabase Client 实例
+ * 如果未初始化，自动使用内置配置初始化
  * @returns {import('@supabase/supabase-js').SupabaseClient}
  */
 export function getSupabaseClient() {
   if (!supabase) {
+    // Auto-initialize with built-in config
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      return initSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    }
     throw new Error(i18n.global.t('sync.error.supabaseClientNotInit'))
   }
   return supabase
@@ -83,17 +89,26 @@ export function clearSupabaseClient() {
 }
 
 /**
+ * 检查 Supabase 是否已配置（内置配置或手动配置）
+ */
+export function isSupabaseConfigured() {
+  return (!!_initUrl && !!_initKey) || (!!SUPABASE_URL && !!SUPABASE_ANON_KEY)
+}
+
+/**
  * 重建 Supabase Client 连接
  * 用于 Android 后台回收后刷新 DNS 缓存和连接池
  * @returns {Promise<boolean>} 是否重建成功
  */
 export async function reconnectSupabase() {
-  if (!_initUrl || !_initKey) return false
+  const url = _initUrl || SUPABASE_URL
+  const key = _initKey || SUPABASE_ANON_KEY
+  if (!url || !key) return false
   supabase = null
-  supabase = createClient(_initUrl, _initKey, {
+  supabase = createClient(url, key, {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+      autoRefreshToken: true,
+      persistSession: true,
       detectSessionInUrl: false,
       storageKey: 'sb-main-auth-token'
     }

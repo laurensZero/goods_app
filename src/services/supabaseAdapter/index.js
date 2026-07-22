@@ -11,7 +11,8 @@ import i18n from '@/locales'
 
 export function createSupabaseBackendAdapter({
   trackSyncStep,
-  deviceIdRef
+  deviceIdRef,
+  userIdRef
 }) {
   function getDb() {
     return getSupabaseClient()
@@ -19,7 +20,7 @@ export function createSupabaseBackendAdapter({
 
   const storage = createStorageOps({ getDb, withRetry })
   const reader = createReader({ getDb, trackSyncStep })
-  const writer = createWriter({ getDb, deviceIdRef })
+  const writer = createWriter({ getDb, deviceIdRef, userIdRef })
 
   // ── Ensure operations (no-op for Supabase, tables are pre-created) ──
 

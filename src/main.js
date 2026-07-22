@@ -23,6 +23,7 @@ import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
+import { handleAuthCallback } from './utils/supabase/auth'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -129,6 +130,13 @@ function setupAndroidResumeListener(theme) {
 async function bootstrap() {
   const startTime = performance.now()
   const timings = {}
+
+  // 尽早处理 OAuth / Magic Link 回调（在路由匹配之前）
+  try {
+    await handleAuthCallback()
+  } catch (e) {
+    console.warn('[bootstrap] handleAuthCallback failed:', e)
+  }
 
   void notifyUpdaterReady()
 

@@ -103,10 +103,12 @@ export function createSyncPayloadService({
       const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
 
       if (storageMode === 'remote') {
+        const gistFileName = String(imageEntry.gistFileName || '').trim()
+        if (gistFileName) referencedImageFiles.add(gistFileName)
         preparedImages.push({
           ...imageEntry,
           storageMode: 'remote',
-          gistFileName: '',
+          gistFileName,
           mimeType: '',
           fileSize: 0
         })
@@ -202,9 +204,12 @@ export function createSyncPayloadService({
 
     const storageMode = inferGoodsImageStorageMode(event.coverImage)
     if (storageMode === 'remote') {
+      const gistFileName = String(event.coverImageData?.gistFileName || '').trim()
+      if (gistFileName) referencedImageFiles.add(gistFileName)
       return {
         uri: event.coverImage,
-        storageMode: 'remote'
+        storageMode: 'remote',
+        gistFileName
       }
     }
 
@@ -293,11 +298,13 @@ export function createSyncPayloadService({
       const storageMode = inferGoodsImageStorageMode(photoUri, rawPhoto?.storageMode)
 
       if (storageMode === 'remote') {
+        const gistFileName = String(rawPhoto?.gistFileName || '').trim()
+        if (gistFileName) referencedImageFiles.add(gistFileName)
         preparedPhotos.push({
           ...normalizedPhoto,
           uri: photoUri,
           storageMode: 'remote',
-          gistFileName: '',
+          gistFileName,
           mimeType: '',
           fileSize: 0,
           localPath: ''

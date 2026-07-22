@@ -6,6 +6,7 @@ import { useEventsStore } from './events'
 import { usePresetsStore, normalizeCharacterName } from './presets'
 import { useRechargeStore } from '@/stores/recharge'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useAuthStore } from '@/stores/auth'
 import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
 import { createSyncOrchestrator } from '@/services/syncOrchestrator'
@@ -18,7 +19,7 @@ import { validateToken, getGist, listGists } from '@/utils/github/gist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
-import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient, reconnectSupabase } from '@/utils/sync/supabaseClient'
+import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import { deriveKey, isWebCryptoAvailable } from '@/utils/sync/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
@@ -114,7 +115,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   const isConfigured = computed(() => {
     if (syncBackend.value === 'supabase') {
-      return !!supabaseUrl.value && !!supabaseAnonKey.value
+      return isSupabaseConfigured()
     }
     return !!token.value && !!gistId.value
   })
@@ -232,8 +233,11 @@ export const useSyncStore = defineStore('sync', () => {
 
     // initialize or clear supabase client on backend switch
     if (backend === 'supabase') {
-      if (supabaseUrl.value && supabaseAnonKey.value) {
-        try { initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value) } catch (e) { console.warn('[sync] initSupabaseClient failed on setSyncBackend:', e.message) }
+      if (isSupabaseConfigured()) {
+        // Use manual config if available, otherwise built-in config auto-initializes
+        if (supabaseUrl.value && supabaseAnonKey.value) {
+          try { initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value) } catch (e) { console.warn('[sync] initSupabaseClient failed on setSyncBackend:', e.message) }
+        }
       }
     } else {
       try { clearSupabaseClient() } catch (e) { /* ignore */ }
@@ -249,7 +253,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   function ensureBackendReady() {
     if (isSupabaseMode()) {
-      if (!supabaseUrl.value || !supabaseAnonKey.value) {
+      if (!isSupabaseConfigured()) {
         throw new Error(i18n.global.t('sync.notConfigured'))
       }
       return
@@ -283,9 +287,17 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function getCurrentBackend() {
-    if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
-      initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
-      return createSupabaseBackendAdapter({ trackSyncStep, deviceIdRef: () => deviceId.value })
+    if (syncBackend.value === 'supabase' && isSupabaseConfigured()) {
+      // Use manual config if available, otherwise use built-in config
+      if (supabaseUrl.value && supabaseAnonKey.value) {
+        initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
+      }
+      const authStore = useAuthStore()
+      return createSupabaseBackendAdapter({
+        trackSyncStep,
+        deviceIdRef: () => deviceId.value,
+        userIdRef: () => authStore.user?.id || ''
+      })
     }
     return backend
   }
@@ -458,14 +470,17 @@ export const useSyncStore = defineStore('sync', () => {
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
     deviceId.value = deviceIdVal
     encryptionEnabled.value = encryptionEnabledVal === '1'
-    syncBackend.value = syncBackendVal || 'gist'
+    syncBackend.value = syncBackendVal || 'supabase'
     supabaseUrl.value = supabaseUrlVal || ''
     supabaseAnonKey.value = supabaseAnonKeyVal || ''
     syncPaused.value = syncPausedVal === '1'
 
-    if (syncBackend.value === 'supabase' && supabaseUrl.value && supabaseAnonKey.value) {
+    if (syncBackend.value === 'supabase' && isSupabaseConfigured()) {
       try {
-        initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
+        // Use manual config if available, otherwise built-in config auto-initializes
+        if (supabaseUrl.value && supabaseAnonKey.value) {
+          initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
+        }
       } catch (e) {
         console.warn('[sync] Supabase client init failed:', e.message)
       }

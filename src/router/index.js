@@ -8,6 +8,11 @@ import manageRoutes from './routes/manage'
 import importRoutes from './routes/import'
 
 const routes = [
+  // Auth callback catch-all（OAuth / Magic Link 回调）
+  {
+    path: '/:pathMatch(access_token)*',
+    redirect: '/manage'
+  },
   ...tabRoutes,
   ...goodsRoutes,
   ...eventRoutes,
