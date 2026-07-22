@@ -232,7 +232,19 @@ export function createSyncImageService({
 
   function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
     const files = {}
-    for (const filename of Object.keys(existingImageGist?.files || {})) {
+    const existingFiles = existingImageGist?.files || {}
+    const existingCount = Object.keys(existingFiles).filter(name =>
+      name.startsWith(imageFilePrefix) || name.startsWith(eventCoverPrefix) || name.startsWith(eventPhotoPrefix)
+    ).length
+
+    // Safety: if there are existing images but no referenced files, skip cleanup
+    // to prevent accidental deletion when referencedImageFiles is incorrectly empty
+    if (existingCount > 0 && referencedImageFiles.size === 0) {
+      console.warn('[sync] buildImageCleanupFiles: skipped — existing images exist but referencedImageFiles is empty (possible bug)')
+      return files
+    }
+
+    for (const filename of Object.keys(existingFiles)) {
       if (
         !filename.startsWith(imageFilePrefix)
         && !filename.startsWith(eventCoverPrefix)

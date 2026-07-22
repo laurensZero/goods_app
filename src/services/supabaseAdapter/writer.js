@@ -11,7 +11,7 @@ import {
   computeDiffRows, computeDeleteIds
 } from './helpers'
 
-export function createWriter({ getDb, deviceIdRef }) {
+export function createWriter({ getDb, deviceIdRef, userIdRef }) {
   /**
    * Write data via JSON dataMap interface (legacy Gist-compatible path).
    * Supabase implementation: converts JSON content to rows and upserts.
@@ -21,6 +21,7 @@ export function createWriter({ getDb, deviceIdRef }) {
     const db = getDb()
     const incremental = options?.incremental === true
     const deleteIdsByFile = options?.deleteIdsByFile || {}
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
     for (const [fileName, entry] of Object.entries(dataMap)) {
       const content = entry.content
@@ -44,7 +45,8 @@ export function createWriter({ getDb, deviceIdRef }) {
           quantity: Number(item.quantity) || 1,
           points: item.points != null ? Number(item.points) : null,
           updatedAt: toTimestamp(item.updatedAt),
-          syncedBy: currentDeviceId
+          syncedBy: currentDeviceId,
+          userId: currentUserId || null
         }))
         const trashRows = trash.map(item => toSnakeCase({
           ...pickCols(item, GOODS_COLS),
@@ -55,7 +57,8 @@ export function createWriter({ getDb, deviceIdRef }) {
           quantity: Number(item.quantity) || 1,
           points: item.points != null ? Number(item.points) : null,
           updatedAt: toTimestamp(item.updatedAt),
-          syncedBy: currentDeviceId
+          syncedBy: currentDeviceId,
+          userId: currentUserId || null
         }))
         const mergedRows = [...goodsRows, ...trashRows]
         await syncTableRows(db, 'goods', mergedRows, {
@@ -77,7 +80,8 @@ export function createWriter({ getDb, deviceIdRef }) {
             totalAmount: Number(item.totalAmount) || 0,
             updatedAt: toTimestamp(item.updatedAt),
             createdAt: toTimestamp(item.createdAt),
-            syncedBy: currentDeviceId
+            syncedBy: currentDeviceId,
+            userId: currentUserId || null
           }))
           await syncTableRows(db, 'goods_groups', groupRows, {
             label: 'goods_groups',
@@ -95,7 +99,8 @@ export function createWriter({ getDb, deviceIdRef }) {
             sortOrder: Number(item.sortOrder) || 0,
             updatedAt: toTimestamp(item.updatedAt),
             createdAt: toTimestamp(item.createdAt),
-            syncedBy: currentDeviceId
+            syncedBy: currentDeviceId,
+            userId: currentUserId || null
           }))
           await syncTableRows(db, 'goods_group_items', itemRows, {
             label: 'goods_group_items',
@@ -112,10 +117,10 @@ export function createWriter({ getDb, deviceIdRef }) {
         const recharge = Array.isArray(content.recharge) ? content.recharge : []
         const rechargeTrash = Array.isArray(content.rechargeTrash) ? content.rechargeTrash : []
         const rechargeRows = recharge
-          .map((item) => toRechargeRow(item, currentDeviceId, false))
+          .map((item) => toRechargeRow(item, currentDeviceId, false, currentUserId))
           .filter(Boolean)
         const rechargeTrashRows = rechargeTrash
-          .map((item) => toRechargeRow(item, currentDeviceId, true))
+          .map((item) => toRechargeRow(item, currentDeviceId, true, currentUserId))
           .filter(Boolean)
         const mergedRows = [...rechargeRows, ...rechargeTrashRows]
 
@@ -134,7 +139,8 @@ export function createWriter({ getDb, deviceIdRef }) {
           ...pickCols(item, EVENT_COLS),
           updatedAt: toTimestamp(item.updatedAt),
           createdAt: toTimestamp(item.createdAt),
-          syncedBy: currentDeviceId
+          syncedBy: currentDeviceId,
+          userId: currentUserId || null
         }))
         await syncTableRows(db, 'events', rows, {
           label: 'events',
@@ -149,6 +155,7 @@ export function createWriter({ getDb, deviceIdRef }) {
 
   async function writeManifest(manifestContent) {
     const db = getDb()
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
     // accept either object or JSON string
     if (typeof manifestContent === 'string') {
       try { manifestContent = JSON.parse(manifestContent) } catch { manifestContent = {} }
@@ -180,7 +187,8 @@ export function createWriter({ getDb, deviceIdRef }) {
         rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
         eventUpdatedAt: manifestContent.eventUpdatedAt || null,
         budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
-        budgetYearly: Number(manifestContent.budgetYearly) || 0
+        budgetYearly: Number(manifestContent.budgetYearly) || 0,
+        userId: currentUserId || null
       })
       const { error: fallbackError } = await withRetry(() =>
         db.from('sync_manifest').upsert(manifestRow)
@@ -191,12 +199,14 @@ export function createWriter({ getDb, deviceIdRef }) {
 
   async function writePresets(presetsData) {
     const db = getDb()
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
     const presetsRow = {
       id: 'default',
       categories: JSON.stringify(presetsData.categories || []),
       ips: JSON.stringify(presetsData.ips || []),
       characters: JSON.stringify(presetsData.characters || []),
-      storage_locations: JSON.stringify(presetsData.storageLocations || [])
+      storage_locations: JSON.stringify(presetsData.storageLocations || []),
+      user_id: currentUserId || null
     }
     const { error } = await withRetry(() =>
       db.from('sync_presets').upsert(presetsRow, { onConflict: 'id' })
@@ -217,15 +227,16 @@ export function createWriter({ getDb, deviceIdRef }) {
    */
   async function pushDomainRows(domain, { localItems = [], remoteItems = null, deleteIds = null, isTrash = false } = {}) {
     const db = getDb()
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
     if (domain === 'goods') {
-      let rowsToUpsert = toGoodsRows(localItems, deviceIdRef, isTrash)
+      let rowsToUpsert = toGoodsRows(localItems, deviceIdRef, isTrash, currentUserId)
       let idsToDelete = deleteIds
       let isIncremental = deleteIds !== null
 
       if (remoteItems !== null && idsToDelete === null) {
         const diffItems = await computeDiffRows(localItems, remoteItems)
-        rowsToUpsert = toGoodsRows(diffItems, deviceIdRef, isTrash)
+        rowsToUpsert = toGoodsRows(diffItems, deviceIdRef, isTrash, currentUserId)
         idsToDelete = computeDeleteIds(localItems, remoteItems)
         isIncremental = true
       }
@@ -240,13 +251,13 @@ export function createWriter({ getDb, deviceIdRef }) {
 
     if (domain === 'recharge') {
       const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
-      let rowsToUpsert = localItems.map(item => toRechargeRow(item, currentDeviceId, isTrash)).filter(Boolean)
+      let rowsToUpsert = localItems.map(item => toRechargeRow(item, currentDeviceId, isTrash, currentUserId)).filter(Boolean)
       let idsToDelete = deleteIds
       let isIncremental = deleteIds !== null
 
       if (remoteItems !== null && idsToDelete === null) {
         const diffItems = await computeDiffRows(localItems, remoteItems)
-        rowsToUpsert = diffItems.map(item => toRechargeRow(item, currentDeviceId, isTrash)).filter(Boolean)
+        rowsToUpsert = diffItems.map(item => toRechargeRow(item, currentDeviceId, isTrash, currentUserId)).filter(Boolean)
         idsToDelete = computeDeleteIds(localItems, remoteItems)
         isIncremental = true
       }
@@ -260,13 +271,13 @@ export function createWriter({ getDb, deviceIdRef }) {
     }
 
     if (domain === 'events') {
-      let rowsToUpsert = toEventRows(localItems, deviceIdRef)
+      let rowsToUpsert = toEventRows(localItems, deviceIdRef, currentUserId)
       let idsToDelete = deleteIds
       let isIncremental = deleteIds !== null
 
       if (remoteItems !== null && idsToDelete === null) {
         const diffItems = await computeDiffRows(localItems, remoteItems)
-        rowsToUpsert = toEventRows(diffItems, deviceIdRef)
+        rowsToUpsert = toEventRows(diffItems, deviceIdRef, currentUserId)
         idsToDelete = computeDeleteIds(localItems, remoteItems)
         isIncremental = true
       }
@@ -280,13 +291,13 @@ export function createWriter({ getDb, deviceIdRef }) {
     }
 
     if (domain === 'groups') {
-      let rowsToUpsert = toGroupRows(localItems, deviceIdRef)
+      let rowsToUpsert = toGroupRows(localItems, deviceIdRef, currentUserId)
       let idsToDelete = deleteIds
       let isIncremental = deleteIds !== null
 
       if (remoteItems !== null && idsToDelete === null) {
         const diffItems = await computeDiffRows(localItems, remoteItems)
-        rowsToUpsert = toGroupRows(diffItems, deviceIdRef)
+        rowsToUpsert = toGroupRows(diffItems, deviceIdRef, currentUserId)
         idsToDelete = computeDeleteIds(localItems, remoteItems)
         isIncremental = true
       }
@@ -300,13 +311,13 @@ export function createWriter({ getDb, deviceIdRef }) {
     }
 
     if (domain === 'groupItems') {
-      let rowsToUpsert = toGroupItemRows(localItems, deviceIdRef)
+      let rowsToUpsert = toGroupItemRows(localItems, deviceIdRef, currentUserId)
       let idsToDelete = deleteIds
       let isIncremental = deleteIds !== null
 
       if (remoteItems !== null && idsToDelete === null) {
         const diffItems = await computeDiffRows(localItems, remoteItems)
-        rowsToUpsert = toGroupItemRows(diffItems, deviceIdRef)
+        rowsToUpsert = toGroupItemRows(diffItems, deviceIdRef, currentUserId)
         idsToDelete = computeDeleteIds(localItems, remoteItems)
         isIncremental = true
       }
@@ -333,15 +344,16 @@ export function createWriter({ getDb, deviceIdRef }) {
   } = {}) {
     const db = getDb()
     const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '') || deviceId
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
     const { error } = await withRetry(() => db.rpc('sync_push', {
-      p_goods: toGoodsRows(goods, deviceIdRef, false),
-      p_goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true),
-      p_groups: toGroupRows(groups, deviceIdRef),
-      p_group_items: toGroupItemRows(groupItems, deviceIdRef),
-      p_recharge: recharge.map(r => toRechargeRow(r, currentDeviceId, false)).filter(Boolean),
-      p_recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true)).filter(Boolean),
-      p_events: toEventRows(events, deviceIdRef),
+      p_goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
+      p_goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true, currentUserId),
+      p_groups: toGroupRows(groups, deviceIdRef, currentUserId),
+      p_group_items: toGroupItemRows(groupItems, deviceIdRef, currentUserId),
+      p_recharge: recharge.map(r => toRechargeRow(r, currentDeviceId, false, currentUserId)).filter(Boolean),
+      p_recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true, currentUserId)).filter(Boolean),
+      p_events: toEventRows(events, deviceIdRef, currentUserId),
       p_presets: presets ? {
         categories: JSON.stringify(presets.categories || []),
         ips: JSON.stringify(presets.ips || []),

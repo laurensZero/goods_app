@@ -2,6 +2,7 @@ import { computed, onMounted } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useAppUpdateStore } from '@/stores/appUpdate'
+import { useAuthStore } from '@/stores/auth'
 import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/stores/recharge'
@@ -22,6 +23,7 @@ export function useAppStartup() {
   const appUpdateStore = useAppUpdateStore()
   const webUpdateStore = useWebUpdateStore()
   const syncStore = useSyncStore()
+  const authStore = useAuthStore()
 
   const hasLocalData = computed(() => (
     resolveArrayValue(goodsStore.list).length > 0
@@ -57,6 +59,13 @@ export function useAppStartup() {
       await syncStore.init()
     } catch (e) {
       console.error('[app] syncStore.init failed:', e)
+    }
+
+    // Supabase Auth 初始化（在 sync store 之后，确保 client 已配置）
+    try {
+      await authStore.init()
+    } catch (e) {
+      console.error('[app] authStore.init failed:', e)
     }
 
     // 公告检查放在 syncStore.init() 之后，确保 token 已加载（避免 GitHub API 403 限速）

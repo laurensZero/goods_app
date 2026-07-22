@@ -52,27 +52,27 @@
             </div>
 
             <div class="account-copy">
-              <h1 class="account-name">{{ syncStore.githubLogin || t('my.notConnected') }}</h1>
+              <h1 class="account-name">{{ authStore.userDisplayName || t('my.authNotConnected') }}</h1>
               <div class="account-tags">
-                <span class="status-pill" :class="syncStore.githubLogin ? 'status-pill--online' : 'status-pill--idle'">
-                  {{ syncStore.githubLogin ? t('my.connected') : t('my.notConnected') }}
+                <span class="status-pill" :class="authStore.isLoggedIn ? 'status-pill--online' : 'status-pill--idle'">
+                  {{ authStore.isLoggedIn ? t('my.authConnected') : t('my.authNotConnected') }}
                 </span>
-                <span v-if="showAuthMethod" class="status-pill status-pill--soft">{{ syncStore.githubAuthMethod || t('my.noAuthMethod') }}</span>
+                <span v-if="authStore.userEmail" class="status-pill status-pill--soft">{{ authStore.userEmail }}</span>
                 <span class="status-pill status-pill--soft">{{ syncStore.lastSyncedAt ? t('my.lastSync', { time: formatDate(syncStore.lastSyncedAt, 'YYYY-MM-DD HH:mm') }) : t('my.neverSynced') }}</span>
               </div>
             </div>
 
             <div class="account-actions">
-              <button type="button" class="hero-action hero-action--primary" @click="handleGithubLogin">
+              <button type="button" class="hero-action hero-action--primary" @click="handleLogin">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 3a9 9 0 1 0 9 9" />
                   <path d="M12 12l4.5-4.5" />
                   <path d="M12 12h7" />
                 </svg>
-                <span>{{ syncStore.githubLogin ? t('my.relogin') : t('my.login') }}</span>
+                <span>{{ authStore.isLoggedIn ? t('my.authLogin') : t('my.authLogin') }}</span>
               </button>
 
-              <button type="button" class="hero-action" :disabled="!syncStore.githubLogin && !syncStore.token" @click="openLogoutDialog">
+              <button type="button" class="hero-action" :disabled="!authStore.isLoggedIn" @click="openLogoutDialog">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M10 17l5-5-5-5" />
                   <path d="M15 12H3" />
@@ -246,9 +246,9 @@
       @video-ready="onScannerVideoReady"
     />
 
-    <GithubLoginDialog
+    <SupabaseLoginDialog
       v-model="showLoginDialog"
-      @login-success="handleGithubLoginSuccess"
+      @login-success="handleLoginSuccess"
       @toast="onDialogToast"
     />
 
@@ -301,7 +301,7 @@
       <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
         <h2 id="logoutSheetTitle" class="login-sheet__title">{{ t('my.logout') }}</h2>
         <p class="login-sheet__desc">
-          {{ t('my.logoutDesc') }}
+          {{ t('my.authLogoutDesc') }}
         </p>
 
         <div class="login-sheet__actions">
@@ -339,15 +339,15 @@
 <script setup>
 import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import GithubLoginDialog from '@/components/common/GithubLoginDialog.vue'
+import SupabaseLoginDialog from '@/components/common/SupabaseLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
 import { useToast } from '@/composables/useToast'
 import { formatDate, formatPrice } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
+import { useAuthStore } from '@/stores/auth'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
-import { getGitHubOAuthClientId } from '@/utils/github/auth'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
@@ -360,6 +360,7 @@ defineOptions({ name: 'MyView' })
 const { t } = useI18n()
 const router = useRouter()
 const syncStore = useSyncStore()
+const authStore = useAuthStore()
 const exchangeRateStore = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
@@ -367,7 +368,6 @@ const showLogoutDialog = ref(false)
 const showBudgetDialog = ref(false)
 const showResetAvatarDialog = ref(false)
 
-const githubOAuthClientId = getGitHubOAuthClientId()
 const { toastMsg, showToast: showToastMsg } = useToast()
 
 const {
@@ -386,19 +386,22 @@ const {
 
 const CUSTOM_AVATAR_KEY = 'goods_custom_avatar'
 
-const avatarInitial = computed(() => (syncStore.githubLogin ? syncStore.githubLogin.slice(0, 1).toUpperCase() : 'G'))
+const avatarInitial = computed(() => {
+  const name = authStore.userDisplayName || authStore.userEmail || syncStore.githubLogin
+  return name ? name.slice(0, 1).toUpperCase() : 'G'
+})
 const cachedAvatarSrc = ref('')
 const customAvatarUrl = ref('')
 const avatarInputRef = ref(null)
 const avatarLongPressTimer = ref(null)
 const avatarLongPressed = ref(false)
 
-// Custom avatar takes priority over GitHub avatar
+// Custom avatar takes priority
 const displayAvatarSrc = computed(() => {
   return customAvatarUrl.value || cachedAvatarSrc.value || syncStore.githubAvatarUrl || ''
 })
 
-// 缓存 GitHub 头像
+// 缓存头像
 watch(
   () => syncStore.githubAvatarUrl,
   async (url) => {
@@ -570,18 +573,18 @@ function onDialogToast(message) {
   showToastMsg(message)
 }
 
-async function handleGithubLoginSuccess(user) {
-  showToastMsg(t('my.loginSuccess', { login: user.login }))
+async function handleLoginSuccess() {
+  showToastMsg(t('my.authLoginSuccess'))
   showLoginDialog.value = false
 }
 
-function handleGithubLogin() {
+function handleLogin() {
   showLoginDialog.value = true
 }
 
 async function handleLogout() {
-  if (!syncStore.githubLogin && !syncStore.token) return
-  await syncStore.resetConfig()
+  if (!authStore.isLoggedIn) return
+  await authStore.logout()
   closeLogoutDialog()
 }
 
@@ -595,7 +598,7 @@ onMounted(async () => {
   window.requestAnimationFrame(resetPageScrollTop)
   const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
   if (saved) customAvatarUrl.value = saved
-  await Promise.all([syncStore.init(), loadBudgetSettings()])
+  await Promise.all([syncStore.init(), authStore.init(), loadBudgetSettings()])
 })
 
 onActivated(() => {
