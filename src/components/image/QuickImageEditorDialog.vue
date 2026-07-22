@@ -1336,9 +1336,12 @@ onBeforeUnmount(() => {
   transition: opacity 0.2s ease;
 }
 
-.editor-fade-enter-active .editor-dialog,
+.editor-fade-enter-active .editor-dialog {
+  transition: transform 0.3s var(--motion-ease-spring, cubic-bezier(0.175, 0.885, 0.32, 1.275)), opacity 0.2s ease;
+}
+
 .editor-fade-leave-active .editor-dialog {
-  transition: transform 0.2s var(--motion-emphasis, cubic-bezier(0.22, 1, 0.36, 1)), opacity 0.2s ease;
+  transition: transform 0.2s var(--motion-ease-emphasis, cubic-bezier(0.22, 1, 0.36, 1)), opacity 0.2s ease;
 }
 
 .editor-fade-enter-from,

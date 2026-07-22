@@ -1305,7 +1305,7 @@
 }
 
 .batch-sheet-slide-enter-active {
-  transition: transform 0.3s var(--motion-ease-emphasis);
+  transition: transform 0.3s var(--motion-ease-spring);
 }
 .batch-sheet-slide-leave-active {
   transition: transform 0.22s ease-in;

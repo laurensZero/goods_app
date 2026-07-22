@@ -1323,6 +1323,9 @@ function tryPlayLinkedGoodsBackHero() {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  transition: backdrop-filter 600ms var(--motion-ease-emphasis);
 }
 
 .photo-preview__close {

@@ -1386,7 +1386,10 @@ onActivated(() => {
   transition: opacity 0.24s ease;
 }
 
-.budget-sheet-pop-enter-active .budget-sheet,
+.budget-sheet-pop-enter-active .budget-sheet {
+  transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
+}
+
 .budget-sheet-pop-leave-active .budget-sheet {
   transition: transform 0.24s ease, opacity 0.24s ease;
 }
