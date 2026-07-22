@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260722.9",
+    "url": "bundle-20260722.9.zip",
+    "hash": "dfbae97c9a9540eb6778d453c5a4a997f62e31838eba76f96087625e9a10f539",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 user_id 列以支持多用户数据隔离，更新相关表和函数以确保用户权限",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-22T15:54:11Z"
+  },
+  {
     "version": "20260722.8",
     "url": "bundle-20260722.8.zip",
     "hash": "33f084c1ca6473fae10988bc86be5eb573b9d81950d81013fc045ebf854c46b8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新多语言支持，简化登录提示，添加Supabase同步登录要求",
     "updateLevel": "silent",
     "publishedAt": "2026-07-22T14:39:50Z"
-  },
-  {
-    "version": "20260722.6",
-    "url": "bundle-20260722.6.zip",
-    "hash": "44d56f89b552e7e06d4ee555202c0fc609ecf17c82ed729a37cac957df9452ba",
-    "minNativeVersion": null,
-    "notes": "- Revert \"feat: 添加删除图像功能，优化图像清理逻辑以避免错误删除有效云图像\"\n  This reverts commit 631b6281ba56efdf5210120863d99c3ca20c06c5.",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-22T13:04:19Z"
   }
 ]

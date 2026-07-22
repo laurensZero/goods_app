@@ -1,9 +1,9 @@
 {
-  "version": "20260722.8",
-  "url": "bundle-20260722.8.zip",
-  "hash": "33f084c1ca6473fae10988bc86be5eb573b9d81950d81013fc045ebf854c46b8",
+  "version": "20260722.9",
+  "url": "bundle-20260722.9.zip",
+  "hash": "dfbae97c9a9540eb6778d453c5a4a997f62e31838eba76f96087625e9a10f539",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 userId 到 camelCase ↔ snake_case 列名映射",
+  "notes": "- feat: 添加 user_id 列以支持多用户数据隔离，更新相关表和函数以确保用户权限",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-22T15:51:20Z"
+  "publishedAt": "2026-07-22T15:54:11Z"
 }
