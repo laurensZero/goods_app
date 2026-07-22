@@ -1,9 +1,15 @@
 -- supabase-setup.sql
 -- 在 Supabase Dashboard → SQL Editor 中执行此脚本
+-- 多用户版本：按 user_id 隔离数据，RPC 函数仅允许已登录用户调用
+
+-- ============================================================
+-- 1. 数据表
+-- ============================================================
 
 -- goods 表（包含 trash，通过 trashed 列区分）
 CREATE TABLE IF NOT EXISTS goods (
   id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
   name TEXT DEFAULT '',
   category TEXT DEFAULT '',
   ip TEXT DEFAULT '',
@@ -35,12 +41,14 @@ CREATE TABLE IF NOT EXISTS goods (
   collect_status TEXT DEFAULT '已拥有',
   shipping_fee TEXT DEFAULT '',
   status_timeline JSONB DEFAULT '[]',
+  synced_by TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- events 表
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
   name TEXT DEFAULT '',
   type TEXT DEFAULT '',
   start_date TEXT DEFAULT '',
@@ -57,6 +65,7 @@ CREATE TABLE IF NOT EXISTS events (
   tracks JSONB DEFAULT '[]',
   linked_goods_ids JSONB DEFAULT '[]',
   tags JSONB DEFAULT '[]',
+  synced_by TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -64,6 +73,7 @@ CREATE TABLE IF NOT EXISTS events (
 -- recharge_records 表
 CREATE TABLE IF NOT EXISTS recharge_records (
   id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
   game TEXT DEFAULT '',
   item_name TEXT DEFAULT '',
   amount REAL DEFAULT 0,
@@ -71,12 +81,14 @@ CREATE TABLE IF NOT EXISTS recharge_records (
   note TEXT DEFAULT '',
   image TEXT DEFAULT '',
   deleted INTEGER DEFAULT 0,
+  synced_by TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- manifest 表（存储同步元数据）
+-- sync_manifest 表（存储同步元数据）
 CREATE TABLE IF NOT EXISTS sync_manifest (
   id TEXT PRIMARY KEY DEFAULT 'default',
+  user_id UUID REFERENCES auth.users(id),
   device_id TEXT DEFAULT '',
   synced_at TIMESTAMPTZ DEFAULT now(),
   collection_count INTEGER DEFAULT 0,
@@ -93,9 +105,10 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
   budget_yearly REAL DEFAULT 0
 );
 
--- presets 表（存储分类、IP、角色、存储位置）
+-- sync_presets 表（存储分类、IP、角色、存储位置）
 CREATE TABLE IF NOT EXISTS sync_presets (
   id TEXT PRIMARY KEY DEFAULT 'default',
+  user_id UUID REFERENCES auth.users(id),
   categories JSONB DEFAULT '[]',
   ips JSONB DEFAULT '[]',
   characters JSONB DEFAULT '[]',
@@ -105,6 +118,7 @@ CREATE TABLE IF NOT EXISTS sync_presets (
 -- goods_groups 表（谷子组）
 CREATE TABLE IF NOT EXISTS goods_groups (
   id           TEXT PRIMARY KEY NOT NULL,
+  user_id UUID REFERENCES auth.users(id),
   name         TEXT NOT NULL DEFAULT '',
   type         TEXT NOT NULL DEFAULT 'collection',
   summary_mode TEXT DEFAULT 'auto',
@@ -114,55 +128,80 @@ CREATE TABLE IF NOT EXISTS goods_groups (
   cover_item_id TEXT DEFAULT '',
   display_mode TEXT DEFAULT 'list',
   note         TEXT DEFAULT '',
+  synced_by    TEXT DEFAULT '',
   updated_at   TIMESTAMPTZ DEFAULT now(),
-  created_at   TIMESTAMPTZ DEFAULT now(),
-  synced_by    TEXT DEFAULT ''
+  created_at   TIMESTAMPTZ DEFAULT now()
 );
 
 -- goods_group_items 表（谷子组成员关系）
 CREATE TABLE IF NOT EXISTS goods_group_items (
   id         TEXT PRIMARY KEY NOT NULL,
+  user_id UUID REFERENCES auth.users(id),
   group_id   TEXT NOT NULL REFERENCES goods_groups(id) ON DELETE CASCADE,
   goods_id   TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
+  synced_by  TEXT DEFAULT '',
   updated_at TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  synced_by  TEXT DEFAULT ''
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Realtime: synced_by 列（标记写入设备，用于过滤自己的 Realtime 事件）
+-- ============================================================
+-- 2. 存量列补充（向前兼容）
+-- ============================================================
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_at TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_enabled INTEGER DEFAULT 0;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_offsets JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_collect_status_list JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]';
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
-ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
-ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
-ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
+
+ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+
+ALTER TABLE sync_manifest ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+
+ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+
+ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'CNY';
 
--- 启用 Realtime
+ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
+
+-- ============================================================
+-- 3. Realtime
+-- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE goods;
 ALTER PUBLICATION supabase_realtime ADD TABLE events;
 ALTER PUBLICATION supabase_realtime ADD TABLE recharge_records;
 ALTER PUBLICATION supabase_realtime ADD TABLE goods_groups;
 ALTER PUBLICATION supabase_realtime ADD TABLE goods_group_items;
 
--- 索引
+-- ============================================================
+-- 4. 索引
+-- ============================================================
 CREATE INDEX IF NOT EXISTS idx_goods_updated_at ON goods(updated_at);
+CREATE INDEX IF NOT EXISTS idx_goods_user_id ON goods(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_updated_at ON events(updated_at);
+CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
 CREATE INDEX IF NOT EXISTS idx_recharge_updated_at ON recharge_records(updated_at);
+CREATE INDEX IF NOT EXISTS idx_recharge_user_id ON recharge_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_goods_groups_updated_at ON goods_groups(updated_at);
+CREATE INDEX IF NOT EXISTS idx_goods_groups_user_id ON goods_groups(user_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_group_id ON goods_group_items(group_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_goods_id ON goods_group_items(goods_id);
+CREATE INDEX IF NOT EXISTS idx_goods_group_items_user_id ON goods_group_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_updated_at ON goods_group_items(updated_at);
 
--- 自动更新 updated_at 触发器
--- 当通过 sync_push（app 推送）写入时，跳过自动设 updated_at，保留 app 传上来的值
--- 当通过 Supabase 网页编辑时，触发器正常将 updated_at 设为 now()
+-- ============================================================
+-- 5. updated_at 触发器
+-- ============================================================
 CREATE OR REPLACE FUNCTION set_goods_updated_at() RETURNS TRIGGER AS $fn1$
 BEGIN
   IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
@@ -279,71 +318,126 @@ BEGIN
 END;
 $fn5$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS goods_updated_at ON goods;
 CREATE TRIGGER goods_updated_at BEFORE INSERT OR UPDATE ON goods FOR EACH ROW EXECUTE FUNCTION set_goods_updated_at();
+
+DROP TRIGGER IF EXISTS events_updated_at ON events;
 CREATE TRIGGER events_updated_at BEFORE INSERT OR UPDATE ON events FOR EACH ROW EXECUTE FUNCTION set_events_updated_at();
+
+DROP TRIGGER IF EXISTS recharge_records_updated_at ON recharge_records;
 CREATE TRIGGER recharge_records_updated_at BEFORE INSERT OR UPDATE ON recharge_records FOR EACH ROW EXECUTE FUNCTION set_recharge_updated_at();
+
+DROP TRIGGER IF EXISTS goods_groups_updated_at ON goods_groups;
 CREATE TRIGGER goods_groups_updated_at BEFORE INSERT OR UPDATE ON goods_groups FOR EACH ROW EXECUTE FUNCTION set_groups_updated_at();
+
+DROP TRIGGER IF EXISTS goods_group_items_updated_at ON goods_group_items;
 CREATE TRIGGER goods_group_items_updated_at BEFORE INSERT OR UPDATE ON goods_group_items FOR EACH ROW EXECUTE FUNCTION set_group_items_updated_at();
 
--- 禁用 RLS（用户自备项目，不需要行级安全）
-ALTER TABLE goods DISABLE ROW LEVEL SECURITY;
-ALTER TABLE events DISABLE ROW LEVEL SECURITY;
-ALTER TABLE recharge_records DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sync_manifest DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sync_presets DISABLE ROW LEVEL SECURITY;
-ALTER TABLE goods_groups DISABLE ROW LEVEL SECURITY;
-ALTER TABLE goods_group_items DISABLE ROW LEVEL SECURITY;
+-- ============================================================
+-- 6. RLS & 权限 —— 仅允许已登录用户访问自己的数据
+-- ============================================================
 
--- Supabase Data API GRANT 权限配置（May 30, 2026 变更）
--- https://supabase.com/docs/guides/database/postgres/schema#access-control
+-- 启用 RLS
+ALTER TABLE goods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recharge_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_manifest ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_presets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goods_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goods_group_items ENABLE ROW LEVEL SECURITY;
 
--- goods 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO anon;
+-- 删除旧的宽松 policy（如果存在）
+DROP POLICY IF EXISTS "auth_only_select" ON goods;
+DROP POLICY IF EXISTS "auth_only_insert" ON goods;
+DROP POLICY IF EXISTS "auth_only_update" ON goods;
+DROP POLICY IF EXISTS "auth_only_delete" ON goods;
+DROP POLICY IF EXISTS "auth_only_select" ON events;
+DROP POLICY IF EXISTS "auth_only_insert" ON events;
+DROP POLICY IF EXISTS "auth_only_update" ON events;
+DROP POLICY IF EXISTS "auth_only_delete" ON events;
+DROP POLICY IF EXISTS "auth_only_select" ON recharge_records;
+DROP POLICY IF EXISTS "auth_only_insert" ON recharge_records;
+DROP POLICY IF EXISTS "auth_only_update" ON recharge_records;
+DROP POLICY IF EXISTS "auth_only_delete" ON recharge_records;
+DROP POLICY IF EXISTS "auth_only_select" ON sync_manifest;
+DROP POLICY IF EXISTS "auth_only_insert" ON sync_manifest;
+DROP POLICY IF EXISTS "auth_only_update" ON sync_manifest;
+DROP POLICY IF EXISTS "auth_only_delete" ON sync_manifest;
+DROP POLICY IF EXISTS "auth_only_select" ON sync_presets;
+DROP POLICY IF EXISTS "auth_only_insert" ON sync_presets;
+DROP POLICY IF EXISTS "auth_only_update" ON sync_presets;
+DROP POLICY IF EXISTS "auth_only_delete" ON sync_presets;
+DROP POLICY IF EXISTS "auth_only_select" ON goods_groups;
+DROP POLICY IF EXISTS "auth_only_insert" ON goods_groups;
+DROP POLICY IF EXISTS "auth_only_update" ON goods_groups;
+DROP POLICY IF EXISTS "auth_only_delete" ON goods_groups;
+DROP POLICY IF EXISTS "auth_only_select" ON goods_group_items;
+DROP POLICY IF EXISTS "auth_only_insert" ON goods_group_items;
+DROP POLICY IF EXISTS "auth_only_update" ON goods_group_items;
+DROP POLICY IF EXISTS "auth_only_delete" ON goods_group_items;
+
+-- 为每张表创建按 user_id 过滤的 RLS policy
+CREATE POLICY "user_select_own" ON goods FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON goods FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON goods FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON goods FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON events FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON events FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON events FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON events FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON recharge_records FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON recharge_records FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON recharge_records FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON recharge_records FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON sync_manifest FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON sync_manifest FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON sync_manifest FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON sync_manifest FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON sync_presets FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON sync_presets FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON sync_presets FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON sync_presets FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON goods_groups FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON goods_groups FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON goods_groups FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON goods_groups FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON goods_group_items FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON goods_group_items FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON goods_group_items FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON goods_group_items FOR DELETE USING (auth.uid() = user_id);
+
+-- 表级权限：撤回 anon，仅给 authenticated
+REVOKE ALL ON public.goods FROM anon;
+REVOKE ALL ON public.events FROM anon;
+REVOKE ALL ON public.recharge_records FROM anon;
+REVOKE ALL ON public.sync_manifest FROM anon;
+REVOKE ALL ON public.sync_presets FROM anon;
+REVOKE ALL ON public.goods_groups FROM anon;
+REVOKE ALL ON public.goods_group_items FROM anon;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO service_role;
-
--- events 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO service_role;
-
--- recharge_records 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.recharge_records TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.recharge_records TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.recharge_records TO service_role;
-
--- sync_manifest 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO service_role;
-
--- sync_presets 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO service_role;
-
--- goods_groups 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO service_role;
-
--- goods_group_items 表权限
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO service_role;
 
--- Storage RLS policy: allow anon full access to goods-images bucket
-CREATE POLICY "Allow anon access to goods-images" ON storage.objects
-  FOR ALL USING (bucket_id = 'goods-images')
-  WITH CHECK (bucket_id = 'goods-images');
+-- ============================================================
+-- 7. Storage 配置
+-- ============================================================
 
--- Storage RLS policy: allow anon full access to event-photos bucket
-CREATE POLICY "Allow anon access to event-photos" ON storage.objects
-  FOR ALL USING (bucket_id = 'event-photos')
-  WITH CHECK (bucket_id = 'event-photos');
+-- 删除旧的 anon 全部放行 policy
+DROP POLICY IF EXISTS "Allow anon access to goods-images" ON storage.objects;
+DROP POLICY IF EXISTS "Allow anon access to event-photos" ON storage.objects;
 
--- Storage bucket（需要在 Supabase Dashboard → Storage 中手动创建 bucket 名为 goods-images）
--- 或者通过 SQL 创建：
+-- Storage bucket
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('goods-images', 'goods-images', true)
 ON CONFLICT (id) DO NOTHING;
@@ -352,8 +446,27 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('event-photos', 'event-photos', true)
 ON CONFLICT (id) DO NOTHING;
 
--- RPC: 接收非 count 参数，内部实时计算 count 并 upsert manifest
--- SECURITY DEFINER 因为需要跨 schema 访问 storage.objects
+-- Storage RLS：已登录用户对自己的 bucket 有完全权限
+CREATE POLICY "auth_full_goods_images" ON storage.objects
+  FOR ALL TO authenticated
+  USING (bucket_id = 'goods-images')
+  WITH CHECK (bucket_id = 'goods-images');
+
+CREATE POLICY "auth_full_event_photos" ON storage.objects
+  FOR ALL TO authenticated
+  USING (bucket_id = 'event-photos')
+  WITH CHECK (bucket_id = 'event-photos');
+
+-- ============================================================
+-- 8. RPC 函数（SECURITY DEFINER + 入口 auth.uid() 检查）
+-- ============================================================
+
+-- 撤回所有旧授权
+REVOKE ALL ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION sync_pull(TIMESTAMPTZ) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz) FROM anon, authenticated;
+
+-- upsert_manifest（user-scoped 计数）
 CREATE OR REPLACE FUNCTION upsert_manifest(
   p_device_id TEXT,
   p_synced_at TIMESTAMPTZ,
@@ -364,23 +477,29 @@ CREATE OR REPLACE FUNCTION upsert_manifest(
   p_budget_yearly REAL
 )
 RETURNS void AS $fn$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
   INSERT INTO sync_manifest (
-    id, device_id, synced_at, image_bucket,
+    id, user_id, device_id, synced_at, image_bucket,
     recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
     collection_count, wishlist_count, goods_count, trash_count,
     recharge_count, event_count, image_count
   ) VALUES (
-    'default', p_device_id, p_synced_at, p_image_bucket,
+    'default', auth.uid(), p_device_id, p_synced_at, p_image_bucket,
     p_recharge_updated_at, p_event_updated_at, p_budget_monthly, p_budget_yearly,
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0)),
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1),
-    (SELECT COUNT(*) FROM goods WHERE trashed IS NULL OR trashed = 0),
-    (SELECT COUNT(*) FROM goods WHERE trashed = 1),
-    (SELECT COUNT(*) FROM recharge_records WHERE deleted IS NULL OR deleted != 1),
-    (SELECT COUNT(*) FROM events),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0) AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1 AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM events WHERE user_id = auth.uid()),
     (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
   )
   ON CONFLICT (id) DO UPDATE SET
+    user_id = EXCLUDED.user_id,
     device_id = EXCLUDED.device_id,
     synced_at = EXCLUDED.synced_at,
     image_bucket = EXCLUDED.image_bucket,
@@ -395,35 +514,38 @@ RETURNS void AS $fn$
     recharge_count = EXCLUDED.recharge_count,
     event_count = EXCLUDED.event_count,
     image_count = EXCLUDED.image_count;
-$fn$ LANGUAGE sql SECURITY DEFINER;
+END;
+$fn$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) TO anon;
 GRANT EXECUTE ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) TO authenticated;
 
--- ─────────────────────────────────────────────────────────────
--- sync_pull: 一次返回所有表数据 + manifest + presets
--- ─────────────────────────────────────────────────────────────
+-- sync_pull（按 user_id 过滤，拒绝未登录）
 CREATE OR REPLACE FUNCTION sync_pull(p_since TIMESTAMPTZ DEFAULT NULL)
 RETURNS jsonb AS $fn$
-  SELECT jsonb_build_object(
-    'manifest',     (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.id = 'default'),
-    'goods',        (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND (g.trashed IS NULL OR g.trashed = 0)),
-    'goods_trash',  (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND g.trashed = 1),
-    'groups',       (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE p_since IS NULL OR gg.updated_at > p_since),
-    'group_items',  (SELECT COALESCE(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE p_since IS NULL OR ggi.updated_at > p_since),
-    'recharge',     (SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND (r.deleted IS NULL OR r.deleted != 1)),
-    'recharge_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1),
-    'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE p_since IS NULL OR e.updated_at > p_since),
-    'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.id = 'default')
-  );
-$fn$ LANGUAGE sql SECURITY DEFINER;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
 
-GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO anon;
+  RETURN (
+    SELECT jsonb_build_object(
+      'manifest',     (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.id = 'default'),
+      'goods',        (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND (g.trashed IS NULL OR g.trashed = 0) AND g.user_id = auth.uid()),
+      'goods_trash',  (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND g.trashed = 1 AND g.user_id = auth.uid()),
+      'groups',       (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND gg.user_id = auth.uid()),
+      'group_items',  (SELECT COALESCE(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE (p_since IS NULL OR ggi.updated_at > p_since) AND ggi.user_id = auth.uid()),
+      'recharge',     (SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND (r.deleted IS NULL OR r.deleted != 1) AND r.user_id = auth.uid()),
+      'recharge_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1 AND r.user_id = auth.uid()),
+      'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.user_id = auth.uid()),
+      'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.id = 'default')
+    )
+  );
+END;
+$fn$ LANGUAGE plpgsql SECURITY DEFINER;
+
 GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO authenticated;
 
--- ─────────────────────────────────────────────────────────────
--- sync_push: 一次接收所有数据，内部 upsert/delete + 算 count + 写 manifest
--- ─────────────────────────────────────────────────────────────
+-- sync_push（入口 auth 检查，写入数据含 user_id）
 CREATE OR REPLACE FUNCTION sync_push(
   p_goods            jsonb DEFAULT '[]',
   p_goods_trash      jsonb DEFAULT '[]',
@@ -448,7 +570,10 @@ CREATE OR REPLACE FUNCTION sync_push(
 )
 RETURNS void AS $fn$
 BEGIN
-  -- 标记为 app 同步推送，触发器将跳过自动设 updated_at
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
   PERFORM set_config('app.is_sync_push', 'true', true);
 
   -- 1. Delete
@@ -491,10 +616,11 @@ BEGIN
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
       status_timeline = EXCLUDED.status_timeline,
-      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
+      user_id = EXCLUDED.user_id;
   END IF;
 
-  -- 3. Upsert goods_trash（同表，trashed=1）
+  -- 3. Upsert goods_trash
   IF jsonb_array_length(p_goods_trash) > 0 THEN
     INSERT INTO goods
     SELECT * FROM jsonb_populate_recordset(null::goods, p_goods_trash)
@@ -517,7 +643,8 @@ BEGIN
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
       status_timeline = EXCLUDED.status_timeline,
-      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
+      user_id = EXCLUDED.user_id;
   END IF;
 
   -- 4. Upsert groups
@@ -530,7 +657,7 @@ BEGIN
       cover_mode = EXCLUDED.cover_mode, cover_item_id = EXCLUDED.cover_item_id,
       display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
 
   -- 5. Upsert group_items
@@ -541,7 +668,7 @@ BEGIN
       group_id = EXCLUDED.group_id, goods_id = EXCLUDED.goods_id,
       sort_order = EXCLUDED.sort_order,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
 
   -- 6. Upsert recharge
@@ -551,17 +678,19 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
       charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
-      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
+      user_id = EXCLUDED.user_id;
   END IF;
 
-  -- 7. Upsert recharge_trash（同表，deleted=1）
+  -- 7. Upsert recharge_trash
   IF jsonb_array_length(p_recharge_trash) > 0 THEN
     INSERT INTO recharge_records
     SELECT * FROM jsonb_populate_recordset(null::recharge_records, p_recharge_trash)
     ON CONFLICT (id) DO UPDATE SET
       game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
       charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
-      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by;
+      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
+      user_id = EXCLUDED.user_id;
   END IF;
 
   -- 8. Upsert events
@@ -578,13 +707,13 @@ BEGIN
       other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
       linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
 
   -- 9. Upsert presets
   IF p_presets != '{}'::jsonb THEN
-    INSERT INTO sync_presets (id, categories, ips, characters, storage_locations)
-    VALUES ('default',
+    INSERT INTO sync_presets (id, user_id, categories, ips, characters, storage_locations)
+    VALUES ('default', auth.uid(),
       COALESCE((p_presets->>'categories')::jsonb, '[]'::jsonb),
       COALESCE((p_presets->>'ips')::jsonb, '[]'::jsonb),
       COALESCE((p_presets->>'characters')::jsonb, '[]'::jsonb),
@@ -592,43 +721,45 @@ BEGIN
     )
     ON CONFLICT (id) DO UPDATE SET
       categories = EXCLUDED.categories, ips = EXCLUDED.ips,
-      characters = EXCLUDED.characters, storage_locations = EXCLUDED.storage_locations;
+      characters = EXCLUDED.characters, storage_locations = EXCLUDED.storage_locations,
+      user_id = EXCLUDED.user_id;
   END IF;
 
-  -- 10. Upsert manifest（count 由服务端计算）
+  -- 10. Upsert manifest
   INSERT INTO sync_manifest (
-    id, device_id, synced_at, image_bucket,
+    id, user_id, device_id, synced_at, image_bucket,
     recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
     collection_count, wishlist_count, goods_count, trash_count,
     recharge_count, event_count, image_count
   ) VALUES (
-    'default', p_device_id, p_synced_at, p_image_bucket,
+    'default', auth.uid(), p_device_id, p_synced_at, p_image_bucket,
     p_recharge_updated_at, p_event_updated_at, p_budget_monthly, p_budget_yearly,
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0)),
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1),
-    (SELECT COUNT(*) FROM goods WHERE trashed IS NULL OR trashed = 0),
-    (SELECT COUNT(*) FROM goods WHERE trashed = 1),
-    (SELECT COUNT(*) FROM recharge_records WHERE deleted IS NULL OR deleted != 1),
-    (SELECT COUNT(*) FROM events),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0) AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1 AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
+    (SELECT COUNT(*) FROM events WHERE user_id = auth.uid()),
     (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
   ) ON CONFLICT (id) DO UPDATE SET
-    device_id = EXCLUDED.device_id, synced_at = EXCLUDED.synced_at,
+    user_id = EXCLUDED.user_id,
+    device_id = EXCLUDED.device_id,
+    synced_at = EXCLUDED.synced_at,
     image_bucket = EXCLUDED.image_bucket,
     recharge_updated_at = EXCLUDED.recharge_updated_at,
     event_updated_at = EXCLUDED.event_updated_at,
-    budget_monthly = EXCLUDED.budget_monthly, budget_yearly = EXCLUDED.budget_yearly,
-    collection_count = EXCLUDED.collection_count, wishlist_count = EXCLUDED.wishlist_count,
-    goods_count = EXCLUDED.goods_count, trash_count = EXCLUDED.trash_count,
-    recharge_count = EXCLUDED.recharge_count, event_count = EXCLUDED.event_count,
+    budget_monthly = EXCLUDED.budget_monthly,
+    budget_yearly = EXCLUDED.budget_yearly,
+    collection_count = EXCLUDED.collection_count,
+    wishlist_count = EXCLUDED.wishlist_count,
+    goods_count = EXCLUDED.goods_count,
+    trash_count = EXCLUDED.trash_count,
+    recharge_count = EXCLUDED.recharge_count,
+    event_count = EXCLUDED.event_count,
     image_count = EXCLUDED.image_count;
 END;
 $fn$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION sync_push(
-  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
-  text[], text[], text[], text[], text[],
-  text, timestamptz, text, real, real, timestamptz, timestamptz
-) TO anon;
 GRANT EXECUTE ON FUNCTION sync_push(
   jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
   text[], text[], text[], text[], text[],
