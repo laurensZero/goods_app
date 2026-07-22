@@ -231,6 +231,13 @@ export function createSyncImageService({
   }
 
   function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
+    const currentBackend = resolveBackend()
+    // Supabase uses public URLs for synced images, so local items no longer retain gist-local references.
+    // Deleting based on current references would incorrectly remove valid cloud images on the next sync.
+    if (typeof currentBackend?.getImagePublicUrl === 'function') {
+      return {}
+    }
+
     const files = {}
     for (const filename of Object.keys(existingImageGist?.files || {})) {
       if (
