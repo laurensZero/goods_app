@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260722.6",
+    "url": "bundle-20260722.6.zip",
+    "hash": "44d56f89b552e7e06d4ee555202c0fc609ecf17c82ed729a37cac957df9452ba",
+    "minNativeVersion": null,
+    "notes": "- Revert \"feat: 添加删除图像功能，优化图像清理逻辑以避免错误删除有效云图像\"\n  This reverts commit 631b6281ba56efdf5210120863d99c3ca20c06c5.",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-22T13:04:19Z"
+  },
+  {
     "version": "20260722.5",
     "url": "bundle-20260722.5.zip",
     "hash": "e790d8073d582e15043722ea7487135c44e34be858930f04c2bd774dfc7fe743",
@@ -16,14 +25,5 @@
     "notes": "- feat: Supabase登录",
     "updateLevel": "silent",
     "publishedAt": "2026-07-22T12:02:29Z"
-  },
-  {
-    "version": "20260722.3",
-    "url": "bundle-20260722.3.zip",
-    "hash": "cb2fe3a8f2d70d79889da04f1a9976f19adb8283c04bcc7c2081487245db5474",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新饼图组件，动态绑定值键以支持不同度量选项",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-22T08:02:32Z"
   }
 ]
