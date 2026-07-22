@@ -428,6 +428,21 @@ watch(isHidden, (value) => {
   box-shadow: var(--app-shadow);
 }
 
+.summary-card::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -15%;
+  width: 140px;
+  height: 140px;
+  background: var(--summary-card-orb);
+  filter: blur(40px);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 0;
+}
+
 .summary-layout {
   position: relative;
   z-index: 1;

@@ -47,7 +47,7 @@
   min-width: 0;
   min-height: 46px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
   font-size: 15px;
@@ -60,7 +60,7 @@
   min-width: 80px;
   min-height: 46px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #c7375d;
   color: #ffffff;
   font-size: 14px;
@@ -96,8 +96,8 @@
   background: color-mix(in srgb, var(--app-glass) 92%, transparent);
   color: var(--app-text);
   box-shadow: var(--app-shadow);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   font-size: 13px;
   font-weight: 600;
   pointer-events: auto;
@@ -147,7 +147,7 @@
   min-width: 0;
   padding: 10px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   text-align: left;
   transition:
@@ -167,7 +167,7 @@
   flex-shrink: 0;
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--app-surface);
   display: flex;
@@ -229,7 +229,7 @@
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,7 +287,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: #e8f4ff;
   color: #2070c0;
 }
@@ -349,7 +349,7 @@
   min-height: 46px;
   padding: 0 14px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-surface);
   font-size: 13px;
@@ -507,7 +507,7 @@
   flex-shrink: 0;
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: #e5e5ea;
   display: flex;
@@ -557,7 +557,7 @@
   display: inline-flex;
   align-items: center;
   padding: 1px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(60,60,67,0.08);
   color: var(--app-text-secondary);
   font-size: 12px;
@@ -663,13 +663,13 @@
 .preview-media {
   width: 76px;
   height: 76px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: #eeeef0;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(20, 20, 22, 0.12);
+  box-shadow: var(--app-shadow-sm);
   position: relative;
   z-index: 1;
 }
@@ -799,7 +799,7 @@
   width: 100%;
   min-height: 44px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
   font-size: 16px;
@@ -846,8 +846,8 @@
 }
 
 .btn-float {
-  border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(20, 20, 22, 0.28);
+  border-radius: var(--radius-card);
+  box-shadow: var(--app-shadow);
 }
 
 .btn-primary:active {
@@ -860,7 +860,7 @@
   display: inline-block;
   margin-left: 6px;
   padding: 1px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: color-mix(in srgb, #4a7aec 12%, var(--app-surface-soft));
   color: color-mix(in srgb, #4a7aec 78%, var(--app-text));
   font-size: 11px;
@@ -928,7 +928,7 @@
   min-height: 144px;
   padding: 10px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 6%, transparent);
   cursor: pointer;
@@ -1050,7 +1050,7 @@
   width: 80px;
   height: 80px;
   border: 2px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   padding: 0;
   background: var(--app-surface-soft);
@@ -1158,7 +1158,7 @@
   margin-top: 10px;
   padding: 10px 14px;
   border: 1px solid color-mix(in srgb, #4a7aec 18%, var(--app-border));
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, #4a7aec 10%, var(--app-surface));
   cursor: pointer;
   user-select: none;
@@ -1192,7 +1192,7 @@
   border-radius: 50%;
   background: var(--app-surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
-  transition: transform 0.22s cubic-bezier(0.34, 1.1, 0.64, 1);
+  transition: transform 0.22s var(--motion-ease-spring);
 }
 .save-char-toggle--on .save-char-knob {
   transform: translateX(18px);
@@ -1260,7 +1260,7 @@
 .batch-edit-cancel {
   flex: 1;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   border: none;
   background: rgba(60, 60, 67, 0.1);
   color: var(--app-text);
@@ -1278,7 +1278,7 @@
 .batch-edit-save {
   flex: 2;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   border: none;
   background: var(--app-text);
   color: #fff;
@@ -1305,7 +1305,7 @@
 }
 
 .batch-sheet-slide-enter-active {
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.3s var(--motion-ease-emphasis);
 }
 .batch-sheet-slide-leave-active {
   transition: transform 0.22s ease-in;
@@ -1399,8 +1399,8 @@
   }
 
 :global(html.theme-dark) .date-field {
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+    -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
   }
 
 
@@ -1423,16 +1423,16 @@
 
 :global(html.theme-dark) .batch-edit-backdrop {
     background: var(--app-overlay);
-    backdrop-filter: blur(14px) saturate(120%);
-    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
+    -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
   }
 
 :global(html.theme-dark) .batch-edit-sheet {
     background: rgba(24, 24, 28, 0.82);
     border: 1px solid var(--app-glass-border);
-    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(20px) saturate(140%);
-    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: var(--app-shadow-xl);
+    backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
+    -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   }
 
 :global(html.theme-dark) .batch-edit-cancel {
@@ -1450,7 +1450,7 @@
   }
 
 :global(html.theme-dark) .btn-float {
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+    box-shadow: var(--app-shadow-lg);
   }
 
 @media (max-width: 359px) {
@@ -1474,7 +1474,7 @@
     min-width: 0;
     min-height: 40px;
     padding: 0 12px;
-    border-radius: 12px;
+    border-radius: var(--radius-xs);
   }
 }
 

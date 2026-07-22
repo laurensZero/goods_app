@@ -58,7 +58,7 @@
   min-width: 120px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 600;
 }
@@ -116,7 +116,7 @@
   display: flex;
   gap: 14px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 149, 0, 0.08);
 }
 
@@ -195,7 +195,7 @@ kbd {
   width: 100%;
   min-height: 120px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   border: 1.5px solid rgba(0, 0, 0, 0.08);
   background: var(--app-surface);
   font-size: 12.5px;
@@ -310,11 +310,11 @@ kbd {
   gap: 12px;
   margin-bottom: 10px;
   padding: 10px 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.84);
   box-shadow: var(--app-shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(var(--app-frost-soft-blur));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur));
 }
 
 .list-count {
@@ -358,12 +358,12 @@ kbd {
 .text-btn--active {
   background: #141416;
   color: #ffffff;
-  box-shadow: 0 8px 18px rgba(20, 20, 22, 0.14);
+  box-shadow: var(--app-shadow);
 }
 
 .warn-banner {
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: rgba(255, 149, 0, 0.1);
   color: #ff9500;
   font-size: 13px;
@@ -382,7 +382,7 @@ kbd {
 
 /* 订单分组 */
 .order-group {
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.05);
   display: flex;
@@ -818,8 +818,8 @@ kbd {
 :global(html.theme-dark) .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
-    backdrop-filter: blur(22px) saturate(145%);
-    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
+    -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   }
 :global(html.theme-dark) .list-header-actions {
     background: rgba(255, 255, 255, 0.08);

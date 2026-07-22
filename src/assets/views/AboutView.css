@@ -45,7 +45,7 @@
 .app-icon {
   width: 88px;
   height: 88px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   box-shadow: 0 14px 32px rgba(75, 133, 240, 0.18);
 }
 
@@ -192,7 +192,7 @@
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
 }
 
 .feedback-icon--primary {
@@ -326,7 +326,7 @@
 .update-download-progress {
   margin-top: 10px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
 }
 
@@ -384,8 +384,8 @@
   justify-content: center;
   padding: 24px;
   background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(var(--app-tint-blur));
+  -webkit-backdrop-filter: blur(var(--app-tint-blur));
 }
 
 .dialog {
@@ -407,7 +407,7 @@
 
 .dialog-desc code {
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: var(--app-surface-soft);
   font-size: 13px;
 }
@@ -428,7 +428,7 @@
   box-sizing: border-box;
   padding: 12px 14px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
   font-size: 14px;
@@ -514,7 +514,7 @@
   min-height: 42px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -550,8 +550,8 @@
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--app-overlay-blur));
+  -webkit-backdrop-filter: blur(var(--app-overlay-blur));
 }
 
 .toast-fade-enter-active,

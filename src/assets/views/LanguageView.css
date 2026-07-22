@@ -44,7 +44,7 @@
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(100, 200, 150, 0.12);
   color: #3db87a;
 }
