@@ -79,6 +79,16 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
+    // 先从 localStorage 读缓存，立即显示登录状态
+    if (!user.value) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null')
+        if (cached?.id) {
+          user.value = cached
+        }
+      } catch { /* ignore */ }
+    }
+
     // Clean up previous subscription if re-initializing
     if (authSubscription) {
       authSubscription.unsubscribe()
