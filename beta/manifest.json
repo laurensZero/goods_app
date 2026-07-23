@@ -1,9 +1,9 @@
 {
-  "version": "20260723.8",
-  "url": "bundle-20260723.8.zip",
-  "hash": "a8b381ce91fcfe0a55018ef8982703c7d4775788748f9095af287d9f0251bfaa",
+  "version": "20260723.9",
+  "url": "bundle-20260723.9.zip",
+  "hash": "2cd07aad9c3da459bf136b82594239222a07412ad6847a35e691ae3680d4347f",
   "minNativeVersion": null,
-  "notes": "- feat: 添加头像同步功能，支持将头像同步到云端并更新相关提示信息",
+  "notes": "- feat: 添加 Microsoft OAuth 登录按钮，更新头像同步提示信息",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-23T07:30:26Z"
+  "publishedAt": "2026-07-23T08:18:54Z"
 }
