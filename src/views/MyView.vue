@@ -476,8 +476,8 @@ async function onAvatarFileChange(e) {
       showToastMsg(t('my.avatarSynced'))
     }).catch((e) => {
       console.warn('[avatar] sync failed:', e.message)
+      showToastMsg(t('my.avatarSyncFailed'))
     })
-    showToastMsg(t('my.avatarUpdated'))
   } catch (err) {
     console.warn('[MyView] avatar upload failed', err)
     showToastMsg(t('my.avatarUpdateFailed'))
@@ -487,33 +487,40 @@ async function onAvatarFileChange(e) {
 }
 
 async function uploadAvatarToSupabase(file) {
-  if (!authStore.isLoggedIn) return
+  if (!authStore.isLoggedIn) throw new Error('not_logged_in')
   const db = (await import('@/utils/sync/supabaseClient')).getSupabaseClient()
-  if (!db) return
+  if (!db) throw new Error('no_client')
   const userId = authStore.user?.id
-  if (!userId) return
+  if (!userId) throw new Error('no_user_id')
 
-  try {
-    const ext = file.name.split('.').pop() || 'jpg'
-    const path = `${userId}.${ext}`
-    const { error: uploadError } = await db.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
-
-    if (uploadError) {
-      console.warn('[avatar] upload failed:', uploadError.message)
-      return
+  // 确保 Supabase client 真的有有效 session（不只是 store 有缓存）
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) {
+    try {
+      const { data: refreshData } = await db.auth.refreshSession()
+      if (!refreshData.session) throw new Error('no_session')
+    } catch {
+      throw new Error('session_expired')
     }
-
-    const { data: urlData } = db.storage.from('avatars').getPublicUrl(path)
-    const publicUrl = urlData?.publicUrl
-    if (publicUrl) {
-      // 存到 custom_avatar_url，不覆盖 OAuth 的 avatar_url
-      await authStore.updateProfile({ custom_avatar_url: publicUrl })
-    }
-  } catch (e) {
-    console.warn('[avatar] upload error:', e.message)
   }
+
+  const ext = file.name.split('.').pop() || 'jpg'
+  // 加时间戳避免 CDN 缓存旧文件：同名路径即使删除重建，CDN 也可能返回旧内容
+  const path = `${userId}_${Date.now()}.${ext}`
+  const { error: uploadError } = await db.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+
+  if (uploadError) {
+    throw new Error(uploadError.message)
+  }
+
+  const { data: urlData } = db.storage.from('avatars').getPublicUrl(path)
+  const publicUrl = urlData?.publicUrl
+  if (!publicUrl) throw new Error('no_public_url')
+
+  // 更新 profile 指向新头像
+  await authStore.updateProfile({ custom_avatar_url: publicUrl })
 }
 
 function fileToDataUrl(file) {

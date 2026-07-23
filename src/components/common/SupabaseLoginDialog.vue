@@ -161,6 +161,16 @@
                 </svg>
                 <span>GitHub</span>
               </button>
+
+              <button type="button" class="social-btn social-btn--microsoft" :disabled="isLoading" @click="handleOAuth('azure')">
+                <svg viewBox="0 0 21 21" width="20" height="20" aria-hidden="true">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                <span>Microsoft</span>
+              </button>
             </div>
           </div>
 
@@ -181,12 +191,6 @@
                 {{ t('my.authGoToLogin') }}
               </button>
             </template>
-          </div>
-
-          <div class="dialog-actions" style="margin-top: 12px;">
-            <button type="button" class="dialog-btn dialog-btn--secondary" @click="closeDialog">
-              {{ t('theme.cancel') }}
-            </button>
           </div>
         </div>
       </div>

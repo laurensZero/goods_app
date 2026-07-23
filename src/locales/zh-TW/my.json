@@ -5,6 +5,8 @@
   "my.avatar": "头像",
   "my.changeAvatar": "更換头像",
   "my.avatarUpdated": "头像已更新",
+  "my.avatarSynced": "頭像已同步到雲端",
+  "my.avatarSyncFailed": "頭像同步失敗，請檢查網路或登入狀態",
   "my.avatarUpdateFailed": "头像更新失敗",
   "my.notConnected": "未連接 GitHub",
   "my.connected": "已連接 GitHub",

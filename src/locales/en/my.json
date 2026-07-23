@@ -5,6 +5,7 @@
   "my.avatar": "Avatar",
   "my.changeAvatar": "Change Avatar",
   "my.avatarUpdated": "Avatar updated",
+  "my.avatarSyncFailed": "Avatar sync failed, check network or login",
   "my.avatarUpdateFailed": "Avatar update failed",
   "my.notConnected": "Not Connected",
   "my.connected": "Connected to GitHub",

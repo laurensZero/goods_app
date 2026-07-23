@@ -461,17 +461,14 @@ CREATE POLICY "auth_full_event_photos" ON storage.objects
   USING (bucket_id = 'event-photos')
   WITH CHECK (bucket_id = 'event-photos');
 
--- Avatars: 公开读取，已登录用户可上传/删除
+-- Avatars: 公开读取，已登录用户可完全管理（含 upsert 所需的 UPDATE）
 CREATE POLICY "avatars_public_read" ON storage.objects
   FOR SELECT USING (bucket_id = 'avatars');
 
-CREATE POLICY "avatars_auth_write" ON storage.objects
-  FOR INSERT TO authenticated
+CREATE POLICY "avatars_auth_all" ON storage.objects
+  FOR ALL TO authenticated
+  USING (bucket_id = 'avatars')
   WITH CHECK (bucket_id = 'avatars');
-
-CREATE POLICY "avatars_auth_delete" ON storage.objects
-  FOR DELETE TO authenticated
-  USING (bucket_id = 'avatars');
 
 -- ============================================================
 -- 8. RPC 函数（SECURITY DEFINER + 入口 auth.uid() 检查）

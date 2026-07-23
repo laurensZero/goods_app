@@ -5,6 +5,8 @@
   "my.avatar": "アバター",
   "my.changeAvatar": "アバターを変更",
   "my.avatarUpdated": "アバターを更新しました",
+  "my.avatarSynced": "アバターをクラウドに同期しました",
+  "my.avatarSyncFailed": "アバター同期失敗、ネットワークまたはログインを確認してください",
   "my.avatarUpdateFailed": "アバターの更新に失敗しました",
   "my.notConnected": "未接続",
   "my.connected": "GitHubに接続済み",

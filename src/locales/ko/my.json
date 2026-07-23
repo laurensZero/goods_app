@@ -5,6 +5,8 @@
   "my.avatar": "아바타",
   "my.changeAvatar": "아바타 변경",
   "my.avatarUpdated": "아바타가 업데이트되었습니다",
+  "my.avatarSynced": "아바타가 클라우드에 동기화되었습니다",
+  "my.avatarSyncFailed": "아바타 동기화 실패, 네트워크 또는 로그인을 확인하세요",
   "my.avatarUpdateFailed": "아바타 업데이트 실패",
   "my.notConnected": "연결되지 않음",
   "my.connected": "GitHub에 연결됨",
