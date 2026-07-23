@@ -5,28 +5,43 @@ import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
 /**
  * 处理 OAuth / Magic Link 回调中的 token
- * 因为使用 hash 路由，需要手动从 URL hash 中提取 token
+ * 因为使用 hash 路由，需要手动从 URL 中提取 token
+ * 支持 hash (#access_token=...) 和 query string (?access_token=...) 两种格式
  * @returns {Promise<boolean>} 是否成功处理了回调
  */
 export async function handleAuthCallback() {
+  // 优先从 hash 提取，其次从 search 提取，最后从 pathname 提取
+  let rawParams = ''
+
   const hash = window.location.hash
-  if (!hash || !hash.includes('access_token')) return false
+  if (hash && hash.includes('access_token')) {
+    rawParams = hash.replace(/^#\/?/, '')
+  } else {
+    const search = window.location.search
+    if (search && search.includes('access_token')) {
+      rawParams = search.replace(/^\?/, '')
+    } else {
+      // Supabase OAuth 有时把 token 放在 path 里: /access_token=...&refresh_token=...
+      const pathname = window.location.pathname
+      if (pathname.includes('access_token')) {
+        rawParams = pathname.replace(/^\//, '')
+      }
+    }
+  }
 
-  const client = getSupabaseClient()
+  if (!rawParams) return false
 
-  // 从 hash 中解析参数（支持 #/access_token=... 和 #access_token=... 两种格式）
-  const hashContent = hash.replace(/^#\/?/, '')
-  const params = new URLSearchParams(hashContent)
+  const params = new URLSearchParams(rawParams)
   const accessToken = params.get('access_token')
   const refreshToken = params.get('refresh_token')
   const expiresIn = params.get('expires_in')
   const tokenType = params.get('token_type')
-  const type = params.get('type') // 'signup', 'magiclink', 'recovery', etc.
 
   if (!accessToken) return false
 
+  const client = getSupabaseClient()
+
   try {
-    // 使用 access_token 和 refresh_token 设置 session
     const { data, error } = await client.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken || '',
@@ -39,8 +54,8 @@ export async function handleAuthCallback() {
       return false
     }
 
-    // 清理 URL hash，避免重复处理
-    window.history.replaceState({}, document.title, window.location.pathname + window.location.search)
+    // 清理 URL，避免重复处理
+    window.history.replaceState({}, document.title, '/')
 
     return true
   } catch (e) {
