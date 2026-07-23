@@ -1,9 +1,9 @@
 {
-  "version": "20260723.5",
-  "url": "bundle-20260723.5.zip",
-  "hash": "81a8e746e157b331138ddaef8930a678657f42d042edfe1471b01fb5859e9bff",
+  "version": "20260723.6",
+  "url": "bundle-20260723.6.zip",
+  "hash": "35653182aa9e60f2316325f1f1673c99011cceb45945646a64de6175c74afefe",
   "minNativeVersion": null,
-  "notes": "- feat: 优化用户登录状态管理，支持从 localStorage 读取缓存\n\n- feat: 增强实时同步功能，添加用户ID过滤以确保数据隔离",
+  "notes": "- feat: 添加用户名修改功能，支持在用户界面中编辑和更新用户名",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-23T05:32:09Z"
+  "publishedAt": "2026-07-23T06:01:47Z"
 }

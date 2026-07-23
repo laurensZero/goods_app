@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260723.6",
+    "url": "bundle-20260723.6.zip",
+    "hash": "35653182aa9e60f2316325f1f1673c99011cceb45945646a64de6175c74afefe",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加用户名修改功能，支持在用户界面中编辑和更新用户名",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-23T06:01:47Z"
+  },
+  {
     "version": "20260723.5",
     "url": "bundle-20260723.5.zip",
     "hash": "81a8e746e157b331138ddaef8930a678657f42d042edfe1471b01fb5859e9bff",
@@ -16,14 +25,5 @@
     "notes": "- refactor: 清理gist/github登录相关功能 feat: 添加中转站加快github下载更新速度",
     "updateLevel": "silent",
     "publishedAt": "2026-07-23T05:13:09Z"
-  },
-  {
-    "version": "20260723.3",
-    "url": "bundle-20260723.3.zip",
-    "hash": "d731c9872b9cad0ecf9fc67cc45a4d542ab4f5f59616090be214aadd7932f2d3",
-    "minNativeVersion": null,
-    "notes": "- feat: supabase支持分享，移除gist分享",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-23T03:50:19Z"
   }
 ]
