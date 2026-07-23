@@ -1,9 +1,9 @@
 {
-  "version": "20260723.11",
-  "url": "bundle-20260723.11.zip",
-  "hash": "d5ddd115bfb56e62cd838a34372d962cef51c9477a03dbe683a3d5158addbac1",
+  "version": "20260723.12",
+  "url": "bundle-20260723.12.zip",
+  "hash": "39bd9cea60ee42ea217be54f6915582554c959a0de1637ae733969474b432e3b",
   "minNativeVersion": null,
-  "notes": "- refactor: 重命名同步相关变量/函数名",
+  "notes": "- feat: 软删除以确保删除数据的同步",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-23T12:16:43Z"
+  "publishedAt": "2026-07-23T13:52:32Z"
 }

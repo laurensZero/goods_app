@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260723.12",
+    "url": "bundle-20260723.12.zip",
+    "hash": "39bd9cea60ee42ea217be54f6915582554c959a0de1637ae733969474b432e3b",
+    "minNativeVersion": null,
+    "notes": "- feat: 软删除以确保删除数据的同步",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-23T13:52:32Z"
+  },
+  {
     "version": "20260723.11",
     "url": "bundle-20260723.11.zip",
     "hash": "d5ddd115bfb56e62cd838a34372d962cef51c9477a03dbe683a3d5158addbac1",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 OAuth 登录功能，支持 Azure AD 显式请求 email scope",
     "updateLevel": "silent",
     "publishedAt": "2026-07-23T08:45:37Z"
-  },
-  {
-    "version": "20260723.9",
-    "url": "bundle-20260723.9.zip",
-    "hash": "2cd07aad9c3da459bf136b82594239222a07412ad6847a35e691ae3680d4347f",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 Microsoft OAuth 登录按钮，更新头像同步提示信息",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-23T08:18:54Z"
   }
 ]
