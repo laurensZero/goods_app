@@ -1,9 +1,9 @@
 {
-  "version": "20260723.9",
-  "url": "bundle-20260723.9.zip",
-  "hash": "2cd07aad9c3da459bf136b82594239222a07412ad6847a35e691ae3680d4347f",
+  "version": "20260723.10",
+  "url": "bundle-20260723.10.zip",
+  "hash": "61eb92b49b8cb7bd75121193cdb51a6e0b17821f87066964cfd940c07d7583dc",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 Microsoft OAuth 登录按钮，更新头像同步提示信息",
+  "notes": "- feat: 更新 OAuth 登录功能，支持 Azure AD 显式请求 email scope",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-23T08:18:54Z"
+  "publishedAt": "2026-07-23T08:45:37Z"
 }
