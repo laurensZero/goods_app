@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260723.3",
+    "url": "bundle-20260723.3.zip",
+    "hash": "d731c9872b9cad0ecf9fc67cc45a4d542ab4f5f59616090be214aadd7932f2d3",
+    "minNativeVersion": null,
+    "notes": "- feat: supabase支持分享，移除gist分享",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-23T03:50:19Z"
+  },
+  {
     "version": "20260723.2",
     "url": "bundle-20260723.2.zip",
     "hash": "daa50179b4c6228f1f786c3880e667e8b66d3a868acb0452a4c19807b289e9bc",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新 createReader 和 createWriter 函数以支持 userId，确保数据按用户隔离",
     "updateLevel": "silent",
     "publishedAt": "2026-07-23T01:45:44Z"
-  },
-  {
-    "version": "20260722.9",
-    "url": "bundle-20260722.9.zip",
-    "hash": "dfbae97c9a9540eb6778d453c5a4a997f62e31838eba76f96087625e9a10f539",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 user_id 列以支持多用户数据隔离，更新相关表和函数以确保用户权限",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-22T15:54:11Z"
   }
 ]

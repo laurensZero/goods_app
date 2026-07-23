@@ -1,9 +1,9 @@
 {
-  "version": "20260723.2",
-  "url": "bundle-20260723.2.zip",
-  "hash": "daa50179b4c6228f1f786c3880e667e8b66d3a868acb0452a4c19807b289e9bc",
+  "version": "20260723.3",
+  "url": "bundle-20260723.3.zip",
+  "hash": "d731c9872b9cad0ecf9fc67cc45a4d542ab4f5f59616090be214aadd7932f2d3",
   "minNativeVersion": null,
-  "notes": "- feat: 更新同步协调器以支持用户ID，确保数据按用户隔离",
+  "notes": "- feat: supabase支持分享，移除gist分享",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-23T02:05:37Z"
+  "publishedAt": "2026-07-23T03:50:19Z"
 }
