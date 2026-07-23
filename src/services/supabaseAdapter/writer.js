@@ -165,8 +165,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
   }
 
   async function pushAll({
-    goods = [], goodsTrash = [], groups = [], groupItems = [],
-    recharge = [], rechargeTrash = [], events = [],
+    goods = [], goodsTrash = [], groups = [], groupsTrash = [], groupItems = [], groupItemsTrash = [],
+    recharge = [], rechargeTrash = [], events = [], eventsTrash = [],
     presets = null,
     deleteGoods = [], deleteGroups = [], deleteGroupItems = [],
     deleteRecharge = [], deleteEvents = [],
@@ -182,11 +182,14 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     const { error } = await withRetry(() => db.rpc('sync_push', {
       p_goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
       p_goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true, currentUserId),
-      p_groups: toGroupRows(groups, deviceIdRef, currentUserId),
-      p_group_items: toGroupItemRows(groupItems, deviceIdRef, currentUserId),
+      p_groups: toGroupRows(groups, deviceIdRef, currentUserId, false),
+      p_groups_trash: toGroupRows(groupsTrash, deviceIdRef, currentUserId, true),
+      p_group_items: toGroupItemRows(groupItems, deviceIdRef, currentUserId, false),
+      p_group_items_trash: toGroupItemRows(groupItemsTrash, deviceIdRef, currentUserId, true),
       p_recharge: recharge.map(r => toRechargeRow(r, currentDeviceId, false, currentUserId)).filter(Boolean),
       p_recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true, currentUserId)).filter(Boolean),
-      p_events: toEventRows(events, deviceIdRef, currentUserId),
+      p_events: toEventRows(events, deviceIdRef, currentUserId, false),
+      p_events_trash: toEventRows(eventsTrash, deviceIdRef, currentUserId, true),
       p_presets: presets ? {
         categories: JSON.stringify(presets.categories || []),
         ips: JSON.stringify(presets.ips || []),

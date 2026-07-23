@@ -75,12 +75,12 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
     { incremental }
   )
   const groupsCompare = compareStateSync(
-    goodsGroupStore.groupList || [],
+    (goodsGroupStore.groupList || []).filter(g => !g.deleted),
     remoteData.groups || [],
     { incremental }
   )
   const groupItemsCompare = compareStateSync(
-    goodsGroupStore.groupItemList || [],
+    (goodsGroupStore.groupItemList || []).filter(gi => !gi.deleted),
     remoteData.groupItems || [],
     { incremental }
   )
@@ -90,7 +90,7 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
     { incremental }
   )
   const eventCompare = compareStateSync(
-    eventsStore.list || [],
+    (eventsStore.list || []).filter(e => !e.deleted),
     remoteData.events || [],
     { incremental }
   )
@@ -163,8 +163,9 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   }
   trackTs(remoteData.goods); trackTs(remoteData.trash)
   trackTs(remoteData.recharge); trackTs(remoteData.rechargeTrash)
-  trackTs(remoteData.events)
-  trackTs(remoteData.groups); trackTs(remoteData.groupItems)
+  trackTs(remoteData.events); trackTs(remoteData.eventsTrash)
+  trackTs(remoteData.groups); trackTs(remoteData.groupsTrash)
+  trackTs(remoteData.groupItems); trackTs(remoteData.groupItemsTrash)
 
   // ── Goods ──
   const goods = remoteData.goods || []
@@ -212,19 +213,25 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   }
 
   // ── Events ──
-  const events = remoteData.events || []
-  if (events.length > 0) {
-    await eventsStore.importEventsBackup(events, {
+  const eventsArr = remoteData.events || []
+  const eventsTrashArr = remoteData.eventsTrash || []
+  const allEvents = [...eventsArr, ...eventsTrashArr]
+  if (allEvents.length > 0) {
+    await eventsStore.importEventsBackup(allEvents, {
       reconcileMissing,
       preserveLocalNewerThan: remoteWatermark
     })
   }
 
   // ── Groups ──
-  const groups = remoteData.groups || []
-  const groupItems = remoteData.groupItems || []
-  if (groups.length > 0 || groupItems.length > 0) {
-    await goodsGroupStore.updateGroupsBackup(groups, groupItems)
+  const groupsArr = remoteData.groups || []
+  const groupsTrashArr = remoteData.groupsTrash || []
+  const groupItemsArr = remoteData.groupItems || []
+  const groupItemsTrashArr = remoteData.groupItemsTrash || []
+  const allGroups = [...groupsArr, ...groupsTrashArr]
+  const allGroupItems = [...groupItemsArr, ...groupItemsTrashArr]
+  if (allGroups.length > 0 || allGroupItems.length > 0) {
+    await goodsGroupStore.updateGroupsBackup(allGroups, allGroupItems)
   }
 
   // ── Presets ──

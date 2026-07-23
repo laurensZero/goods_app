@@ -2,7 +2,7 @@
 // Push pipeline: build payload → write remote → upload images → update local refs
 
 import { normalizeBudgetValue } from '@/utils/sync/shared'
-import { computeDiffRows, computeDeleteIds } from './supabaseAdapter/helpers'
+import { computeDiffRows } from './supabaseAdapter/helpers'
 import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
 
@@ -24,13 +24,13 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
   }
 
   // Build event payload (heavy due to images)
-  let eventSyncData = { events: [] }
+  let eventSyncData = { events: [], eventsTrash: [] }
   let eventImageStats = { imageFileCount: 0 }
   let eventImageFiles = {}
   let eventReferencedImageFiles = []
   if (shouldWriteEvent) {
     const eventResult = await payload.buildEventSyncPayload({ existingImageCloud })
-    eventSyncData = eventResult.eventData || { events: [] }
+    eventSyncData = eventResult.eventData || { events: [], eventsTrash: [] }
     eventImageStats = eventResult.imageStats || { imageFileCount: 0 }
     eventImageFiles = eventResult.imageFiles || {}
     eventReferencedImageFiles = eventResult.referencedImageFiles || []
@@ -94,7 +94,7 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
     : rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
   const eventsForCount = shouldWriteEvent
     ? (eventSyncData.events || [])
-    : (eventsStore.list || [])
+    : ((eventsStore.list || []).filter(e => !e.deleted))
   const fullGoodsList = hasDirtyGoodsIds ? goodsStore.list : syncData.goods
   const fullTrashList = hasDirtyGoodsIds ? goodsStore.trashList : syncData.trash
 
@@ -130,56 +130,48 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
   const localGoods = shouldWriteData ? (syncData.goods || []) : []
   const localTrash = shouldWriteData ? (syncData.trash || []) : []
   const localGroups = shouldWriteData ? (syncData.goodsGroups || []) : []
+  const localGroupsTrash = shouldWriteData ? (syncData.goodsGroupsTrash || []) : []
   const localGroupItems = shouldWriteData ? (syncData.goodsGroupItems || []) : []
+  const localGroupItemsTrash = shouldWriteData ? (syncData.goodsGroupItemsTrash || []) : []
   const localRecharge = shouldWriteRecharge ? (rechargeSyncData.recharge || []) : []
   const localRechargeTrash = shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : []
   const localEvents = shouldWriteEvent ? (eventSyncData.events || []) : []
-
-  // When dirty-filtered, localGoods/localTrash are only subsets of the full local data.
-  const deleteGoodsLocal = fullGoodsList || localGoods
-  const deleteTrashLocal = fullTrashList || localTrash
+  const localEventsTrash = shouldWriteEvent ? (eventSyncData.eventsTrash || []) : []
 
   let goods = localGoods, goodsTrash = localTrash
-  let groups = localGroups, groupItems = localGroupItems
+  let groups = localGroups, groupsTrash = localGroupsTrash
+  let groupItems = localGroupItems, groupItemsTrash = localGroupItemsTrash
   let recharge = localRecharge, rechargeTrash = localRechargeTrash
-  let events = localEvents
-  let deleteGoods = []
-  let deleteGroups = []
-  let deleteGroupItems = []
-  let deleteRecharge = []
-  let deleteEvents = []
+  let events = localEvents, eventsTrash = localEventsTrash
 
   if (remoteData) {
-    // Incremental: only send changed items
+    // Incremental: only send changed items (diffs for upsert, never delete cloud rows)
     if (shouldWriteData) {
       goods = await computeDiffRows(localGoods, remoteData.goods || [])
       goodsTrash = await computeDiffRows(localTrash, remoteData.trash || [])
       groups = await computeDiffRows(localGroups, remoteData.groups || [])
+      groupsTrash = await computeDiffRows(localGroupsTrash, remoteData.groupsTrash || [])
       groupItems = await computeDiffRows(localGroupItems, remoteData.groupItems || [])
-      deleteGoods = computeDeleteIds(
-        [...deleteGoodsLocal, ...deleteTrashLocal],
-        [...(remoteData.goods || []), ...(remoteData.trash || [])]
-      )
-      deleteGroups = computeDeleteIds(localGroups, remoteData.groups || [])
-      deleteGroupItems = computeDeleteIds(localGroupItems, remoteData.groupItems || [])
+      groupItemsTrash = await computeDiffRows(localGroupItemsTrash, remoteData.groupItemsTrash || [])
+      // Cloud tombstone model: never physically delete rows from cloud.
+      // Trashed items stay as trashed=1 tombstones forever.
     }
     if (shouldWriteRecharge) {
       recharge = await computeDiffRows(localRecharge, remoteData.recharge || [])
       rechargeTrash = await computeDiffRows(localRechargeTrash, remoteData.rechargeTrash || [])
-      deleteRecharge = computeDeleteIds(localRecharge, remoteData.recharge || [])
     }
     if (shouldWriteEvent) {
       events = await computeDiffRows(localEvents, remoteData.events || [])
-      deleteEvents = computeDeleteIds(localEvents, remoteData.events || [])
+      eventsTrash = await computeDiffRows(localEventsTrash, remoteData.eventsTrash || [])
     }
   }
 
   await be.pushAll({
-    goods, goodsTrash, groups, groupItems,
-    recharge, rechargeTrash, events,
+    goods, goodsTrash, groups, groupsTrash, groupItems, groupItemsTrash,
+    recharge, rechargeTrash, events, eventsTrash,
     presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
-    deleteGoods, deleteGroups, deleteGroupItems,
-    deleteRecharge, deleteEvents,
+    deleteGoods: [], deleteGroups: [], deleteGroupItems: [],
+    deleteRecharge: [], deleteEvents: [],
     deviceId: manifest?.deviceId || '',
     syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
     imageBucket: manifest?.imageCloudId || 'goods-images',

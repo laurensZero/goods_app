@@ -10,17 +10,17 @@ import i18n from '@/locales'
 
 // Allowed columns per table (camelCase) — filters out extra fields from sync payload
 export const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'image', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'statusTimeline', 'syncedBy', 'userId']
-export const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'syncedBy', 'userId']
+export const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'deleted', 'syncedBy', 'userId']
 export const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'syncedBy', 'userId']
-export const GOODS_GROUP_COLS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'currency', 'coverMode', 'coverItemId', 'displayMode', 'note', 'syncedBy', 'userId']
-export const GOODS_GROUP_ITEM_COLS = ['id', 'groupId', 'goodsId', 'sortOrder', 'syncedBy', 'userId']
+export const GOODS_GROUP_COLS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'currency', 'coverMode', 'coverItemId', 'displayMode', 'note', 'deleted', 'syncedBy', 'userId']
+export const GOODS_GROUP_ITEM_COLS = ['id', 'groupId', 'goodsId', 'sortOrder', 'deleted', 'syncedBy', 'userId']
 
 // snake_case SELECT column lists — excludes auto-generated columns (e.g. created_at)
 export const GOODS_SELECT_COLS = 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, sale_at, sale_reminder_enabled, sale_reminder_offsets, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, image, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, status_timeline, trashed, updated_at, user_id'
 export const RECHARGE_SELECT_COLS = 'id, game, item_name, amount, charged_at, note, deleted, updated_at, user_id'
-export const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, other_expenses, tracks, linked_goods_ids, tags, updated_at, created_at, user_id'
-export const GOODS_GROUP_SELECT_COLS = 'id, name, type, summary_mode, total_amount, currency, cover_mode, cover_item_id, display_mode, note, updated_at, created_at, user_id'
-export const GOODS_GROUP_ITEM_SELECT_COLS = 'id, group_id, goods_id, sort_order, updated_at, created_at, user_id'
+export const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, other_expenses, tracks, linked_goods_ids, tags, deleted, updated_at, created_at, user_id'
+export const GOODS_GROUP_SELECT_COLS = 'id, name, type, summary_mode, total_amount, currency, cover_mode, cover_item_id, display_mode, note, deleted, updated_at, created_at, user_id'
+export const GOODS_GROUP_ITEM_SELECT_COLS = 'id, group_id, goods_id, sort_order, deleted, updated_at, created_at, user_id'
 
 // ── Primitive helpers ──
 
@@ -238,10 +238,11 @@ export function toGoodsRows(items, deviceIdRef, isTrash = false, userId) {
   }))
 }
 
-export function toEventRows(items, deviceIdRef, userId) {
+export function toEventRows(items, deviceIdRef, userId, isTrash = false) {
   const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
   return items.map(item => toSnakeCase({
     ...pickCols(item, EVENT_COLS),
+    deleted: isTrash ? 1 : (Number(item?.deleted) || 0),
     updatedAt: toTimestamp(item.updatedAt),
     createdAt: toTimestamp(item.createdAt),
     syncedBy: currentDeviceId,
@@ -249,11 +250,12 @@ export function toEventRows(items, deviceIdRef, userId) {
   }))
 }
 
-export function toGroupRows(items, deviceIdRef, userId) {
+export function toGroupRows(items, deviceIdRef, userId, isTrash = false) {
   const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
   return items.map(item => toSnakeCase({
     ...pickCols(item, GOODS_GROUP_COLS),
     totalAmount: Number(item.totalAmount) || 0,
+    deleted: isTrash ? 1 : (Number(item?.deleted) || 0),
     updatedAt: toTimestamp(item.updatedAt),
     createdAt: toTimestamp(item.createdAt),
     syncedBy: currentDeviceId,
@@ -261,11 +263,12 @@ export function toGroupRows(items, deviceIdRef, userId) {
   }))
 }
 
-export function toGroupItemRows(items, deviceIdRef, userId) {
+export function toGroupItemRows(items, deviceIdRef, userId, isTrash = false) {
   const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
   return items.map(item => toSnakeCase({
     ...pickCols(item, GOODS_GROUP_ITEM_COLS),
     sortOrder: Number(item.sortOrder) || 0,
+    deleted: isTrash ? 1 : (Number(item?.deleted) || 0),
     updatedAt: toTimestamp(item.updatedAt),
     createdAt: toTimestamp(item.createdAt),
     syncedBy: currentDeviceId,
