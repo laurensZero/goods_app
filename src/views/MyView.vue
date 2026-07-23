@@ -384,7 +384,7 @@ const {
 const CUSTOM_AVATAR_KEY = 'goods_custom_avatar'
 
 const avatarInitial = computed(() => {
-  const name = authStore.userDisplayName || authStore.userEmail || syncStore.githubLogin
+  const name = authStore.userDisplayName || authStore.userEmail
   return name ? name.slice(0, 1).toUpperCase() : 'G'
 })
 const cachedAvatarSrc = ref('')
@@ -395,12 +395,12 @@ const avatarLongPressed = ref(false)
 
 // Custom avatar takes priority
 const displayAvatarSrc = computed(() => {
-  return customAvatarUrl.value || cachedAvatarSrc.value || syncStore.githubAvatarUrl || ''
+  return customAvatarUrl.value || cachedAvatarSrc.value || ''
 })
 
 // 缓存头像
 watch(
-  () => syncStore.githubAvatarUrl,
+  () => authStore.user?.user_metadata?.avatar_url,
   async (url) => {
     if (!url) {
       cachedAvatarSrc.value = ''
@@ -503,20 +503,6 @@ async function confirmResetAvatar() {
   showResetAvatarDialog.value = false
   showToastMsg(t('my.avatarReset'))
 }
-
-const tokenDisplay = computed(() => {
-  if (!syncStore.token) return t('my.notConfigured')
-  const token = syncStore.token
-  return `${token.slice(0, 4)}...${token.slice(-4)}`
-})
-
-const isUsingGithubLogin = computed(() => (
-  !!syncStore.githubLogin && syncStore.githubAuthMethod === 'device-flow'
-))
-
-const showAuthMethod = computed(() => (
-  !!syncStore.githubAuthMethod && syncStore.githubAuthMethod !== 'device-flow'
-))
 
 const syncSummaryText = computed(() => {
   if (syncStore.lastSyncedAt) return t('my.summaryLastSync', { time: formatDate(syncStore.lastSyncedAt, 'YYYY-MM-DD HH:mm') })

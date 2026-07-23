@@ -5,7 +5,8 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
   buildReleaseNotesPreview,
   compareVersions,
-  normalizeVersionTag
+  normalizeVersionTag,
+  proxyGitHubDownloadUrl
 } from '@/utils/github/release'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
 import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'

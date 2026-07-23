@@ -169,7 +169,6 @@
   "manage.statJsonBackup": "JSON 백업",
   "manage.statMigrationRestore": "마이그레이션 / 복원",
   "manage.statShareManage": "관리 / 공유",
-  "manage.statGithubToken": "GitHub Token",
   "manage.statInfoVersion": "정보 / 버전",
   "manage.statTroubleshootReview": "문제 해결 / 검토",
   "storage.levelN": "레벨 {n}",

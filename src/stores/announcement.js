@@ -6,7 +6,6 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
 import { compareVersions, normalizeVersionTag } from '@/utils/github/release'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
-import { useSyncStore } from '@/stores/sync'
 
 const ANNOUNCEMENT_BASE_BY_SOURCE = Object.freeze({
   local: '',
@@ -51,12 +50,6 @@ function normalizeUrl(value) {
   }
 }
 
-function normalizeGistManifestUrl(value) {
-  const normalized = normalizeUrl(value)
-  if (!normalized) return ''
-  return normalized
-}
-
 function parseGistIdFromUrl(url) {
   const raw = String(url || '').trim()
   if (!raw) return ''
@@ -67,8 +60,7 @@ function parseGistIdFromUrl(url) {
 
     if (hostname === 'gist.github.com') {
       const segments = parsed.pathname.split('/').filter(Boolean)
-      const gistId = segments[segments.length - 1] || ''
-      return gistId.trim()
+      return segments[segments.length - 1]?.trim() || ''
     }
 
     if (hostname === 'api.github.com') {
@@ -80,6 +72,10 @@ function parseGistIdFromUrl(url) {
   }
 
   return ''
+}
+
+function normalizeGistManifestUrl(value) {
+  return normalizeUrl(value) || ''
 }
 
 function parseTime(value) {
@@ -191,14 +187,6 @@ function readPersistedGistUrl() {
     return normalizeGistManifestUrl(localStorage.getItem(ANNOUNCEMENT_GIST_URL_STORAGE_KEY))
   } catch {
     return ''
-  }
-}
-
-function persistGistUrl(url) {
-  try {
-    localStorage.setItem(ANNOUNCEMENT_GIST_URL_STORAGE_KEY, normalizeGistManifestUrl(url))
-  } catch {
-    // ignore persistence failures
   }
 }
 
@@ -391,22 +379,15 @@ async function fetchRawText(url) {
   try {
     const response = await fetchWithPlatformBridge(url, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json'
-      },
+      headers: { Accept: 'application/json' },
       cache: 'no-store',
       signal: controller.signal
     })
 
-    if (!response.ok) {
-      throw new Error(`公告配置请求失败（${response.status}）。`)
-    }
-
+    if (!response.ok) throw new Error(`公告配置请求失败（${response.status}）。`)
     return response.text()
   } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error('拉取公告超时，请稍后再试。')
-    }
+    if (error?.name === 'AbortError') throw new Error('拉取公告超时，请稍后再试。')
     throw error
   } finally {
     clearTimeout(timeoutId)
@@ -415,40 +396,26 @@ async function fetchRawText(url) {
 
 async function fetchAnnouncementManifestFromGistApi(gistId) {
   const apiUrl = `${GITHUB_API_BASE}/gists/${gistId}`
-  const syncStore = useSyncStore()
-  const token = syncStore.token
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
 
   if (Capacitor.isNativePlatform()) {
     const response = await withTimeout(
       CapacitorHttp.get({
         url: apiUrl,
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          ...authHeaders
-        }
+        headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
       }),
       REQUEST_TIMEOUT_MS,
       '拉取公告超时，请稍后再试。'
     )
 
     const status = Number(response?.status || 0)
-    if (status < 200 || status >= 300) {
-      throw new Error(`公告配置请求失败（${status || 'unknown'}）。`)
-    }
+    if (status < 200 || status >= 300) throw new Error(`公告配置请求失败（${status || 'unknown'}）。`)
 
     const payload = parseManifestPayload(response?.data)
     const selectedFile = pickManifestFileFromGistPayload(payload)
-    if (!selectedFile) {
-      throw new Error('Gist 中未找到可用公告文件。')
-    }
+    if (!selectedFile) throw new Error('Gist 中未找到可用公告文件。')
 
     let content = String(selectedFile?.content || '')
-    if (!content && selectedFile?.raw_url) {
-      content = await fetchRawText(String(selectedFile.raw_url || ''))
-    }
-
+    if (!content && selectedFile?.raw_url) content = await fetchRawText(String(selectedFile.raw_url || ''))
     return parseManifestPayload(content)
   }
 
@@ -458,35 +425,22 @@ async function fetchAnnouncementManifestFromGistApi(gistId) {
   try {
     const response = await fetchWithPlatformBridge(apiUrl, {
       method: 'GET',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...authHeaders
-      },
+      headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
       cache: 'no-store',
       signal: controller.signal
     })
 
-    if (!response.ok) {
-      throw new Error(`公告配置请求失败（${response.status}）。`)
-    }
+    if (!response.ok) throw new Error(`公告配置请求失败（${response.status}）。`)
 
     const payload = await response.json()
     const selectedFile = pickManifestFileFromGistPayload(payload)
-    if (!selectedFile) {
-      throw new Error('Gist 中未找到可用公告文件。')
-    }
+    if (!selectedFile) throw new Error('Gist 中未找到可用公告文件。')
 
     let content = String(selectedFile?.content || '')
-    if (!content && selectedFile?.raw_url) {
-      content = await fetchRawText(String(selectedFile.raw_url || ''))
-    }
-
+    if (!content && selectedFile?.raw_url) content = await fetchRawText(String(selectedFile.raw_url || ''))
     return parseManifestPayload(content)
   } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error('拉取公告超时，请稍后再试。')
-    }
+    if (error?.name === 'AbortError') throw new Error('拉取公告超时，请稍后再试。')
     throw error
   } finally {
     clearTimeout(timeoutId)

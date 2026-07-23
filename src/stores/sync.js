@@ -10,12 +10,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/syncConflictService'
 import { createSyncOrchestrator } from '@/services/syncOrchestrator'
-import { createGistBackendAdapter } from '@/services/gistBackendAdapter'
 import { createSupabaseBackendAdapter } from '@/services/supabaseAdapter/index'
 import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { withRetry } from '@/services/syncRetry'
-import { validateToken, getGist, listGists } from '@/utils/github/gist'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
@@ -35,19 +33,9 @@ import {
   IMAGE_FILE_SIZE_LIMIT
 } from '@/constants/syncConstants'
 
-const TOKEN_KEY = 'sync_github_token'
-const GIST_ID_KEY = 'sync_gist_id'
-const IMAGE_GIST_ID_KEY = 'sync_image_gist_id'
-const RECHARGE_GIST_ID_KEY = 'sync_recharge_gist_id'
-const EVENT_GIST_ID_KEY = 'sync_event_gist_id'
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
-const GITHUB_LOGIN_KEY = 'sync_github_login'
-const GITHUB_USER_ID_KEY = 'sync_github_user_id'
-const GITHUB_AVATAR_URL_KEY = 'sync_github_avatar_url'
 const SYNC_PASSWORD_KEY = 'sync_password'
-const GITHUB_SCOPES_KEY = 'sync_github_scopes'
-const GITHUB_AUTH_METHOD_KEY = 'sync_github_auth_method'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
 const ENCRYPTION_ENABLED_KEY = 'sync_encryption_enabled'
 const SUPABASE_URL_KEY = 'sync_supabase_url'
@@ -70,20 +58,6 @@ function shouldApplyRemoteItem(localItem, remoteItem) {
 export const useSyncStore = defineStore('sync', () => {
   const { syncLogs, clearSyncLogs, trackSyncStep } = useSyncLogger()
 
-  // ── GitHub Auth ──
-  const token = ref('')
-  const githubLogin = ref('')
-  const githubUserId = ref('')
-  const githubAvatarUrl = ref('')
-  const githubScopes = ref('')
-  const githubAuthMethod = ref('')
-
-  // ── Gist IDs ──
-  const gistId = ref('')
-  const imageGistId = ref('')
-  const rechargeGistId = ref('')
-  const eventGistId = ref('')
-
   // ── Sync Timestamps ──
   const lastSyncedAt = ref('')
   const eventLastSyncedAt = ref('')
@@ -95,7 +69,7 @@ export const useSyncStore = defineStore('sync', () => {
   const syncPassword = ref('')
 
   // ── Backend Selection ──
-  const syncBackend = ref('gist')
+  const syncBackend = ref('supabase')
   const supabaseUrl = ref('')
   const supabaseAnonKey = ref('')
 
@@ -111,46 +85,9 @@ export const useSyncStore = defineStore('sync', () => {
   const syncSuggestion = ref(null)
   const syncNotice = ref(null)
   const conflictData = ref(null)
-  const syncSource = ref('') // 当前同步来源：'manual' | 'auto' | 'realtime' | 'visibility'
+  const syncSource = ref('')
 
-  const isConfigured = computed(() => {
-    if (syncBackend.value === 'supabase') {
-      return isSupabaseConfigured()
-    }
-    return !!token.value && !!gistId.value
-  })
-
-  function normalizeGitHubAuthMethod(value) {
-    const normalized = String(value || '').trim().toLowerCase()
-    if (normalized === 'device-flow' || normalized === 'token') return normalized
-    return ''
-  }
-
-  async function persistGitHubMeta(meta = {}) {
-    const nextLogin = String(meta.login ?? meta.githubLogin ?? '').trim()
-    const nextUserId = String(meta.userId ?? meta.githubUserId ?? '').trim()
-    const nextAvatarUrl = String(meta.avatarUrl ?? meta.githubAvatarUrl ?? '').trim()
-    const nextScopes = String(meta.scopes ?? meta.githubScopes ?? '').trim()
-    const nextAuthMethod = normalizeGitHubAuthMethod(meta.authMethod ?? meta.githubAuthMethod ?? '')
-
-    githubLogin.value = nextLogin
-    githubUserId.value = nextUserId
-    githubAvatarUrl.value = nextAvatarUrl
-    githubScopes.value = nextScopes
-    githubAuthMethod.value = nextAuthMethod
-
-    await Promise.all([
-      writeSyncKey(GITHUB_LOGIN_KEY, nextLogin),
-      writeSyncKey(GITHUB_USER_ID_KEY, nextUserId),
-      writeSyncKey(GITHUB_AVATAR_URL_KEY, nextAvatarUrl),
-      writeSyncKey(GITHUB_SCOPES_KEY, nextScopes),
-      writeSyncKey(GITHUB_AUTH_METHOD_KEY, nextAuthMethod)
-    ])
-  }
-
-  async function clearGitHubMeta() {
-    await persistGitHubMeta({})
-  }
+  const isConfigured = computed(() => isSupabaseConfigured())
 
   async function ensureEventsStoreReady() {
     const eventsStore = useEventsStore()
@@ -172,9 +109,11 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function ensureEncryptionKey() {
     if (encryptionKey.value) return encryptionKey.value
-    if (!syncPassword.value || !githubUserId.value) return null
+    const authStore = useAuthStore()
+    const userId = authStore.user?.id || ''
+    if (!syncPassword.value || !userId) return null
     if (!isWebCryptoAvailable()) return null
-    encryptionKey.value = await deriveKey(syncPassword.value, githubUserId.value)
+    encryptionKey.value = await deriveKey(syncPassword.value, userId)
     return encryptionKey.value
   }
 
@@ -183,26 +122,6 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   // ── Persistence helpers ──
-
-  async function saveGistId(newGistId) {
-    gistId.value = newGistId
-    await writeSyncKey(GIST_ID_KEY, newGistId)
-  }
-
-  async function saveImageGistId(newImageGistId) {
-    imageGistId.value = newImageGistId
-    await writeSyncKey(IMAGE_GIST_ID_KEY, newImageGistId)
-  }
-
-  async function saveRechargeGistId(newRechargeGistId) {
-    rechargeGistId.value = newRechargeGistId
-    await writeSyncKey(RECHARGE_GIST_ID_KEY, newRechargeGistId)
-  }
-
-  async function saveEventGistId(newEventGistId) {
-    eventGistId.value = newEventGistId
-    await writeSyncKey(EVENT_GIST_ID_KEY, newEventGistId)
-  }
 
   async function saveLastSyncedAt(timestamp) {
     lastSyncedAt.value = timestamp
@@ -225,22 +144,17 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   async function setSyncBackend(backend) {
-    // Force-reset syncing state so a stuck sync on the old backend doesn't block the new one
     if (isSyncing.value) {
       console.warn('[sync] force reset isSyncing on backend switch')
       resetSyncingState()
     }
 
-    // initialize or clear supabase client on backend switch
     if (backend === 'supabase') {
       if (isSupabaseConfigured()) {
-        // Use manual config if available, otherwise built-in config auto-initializes
         if (supabaseUrl.value && supabaseAnonKey.value) {
           try { initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value) } catch (e) { console.warn('[sync] initSupabaseClient failed on setSyncBackend:', e.message) }
         }
       }
-    } else {
-      try { clearSupabaseClient() } catch (e) { /* ignore */ }
     }
 
     syncBackend.value = backend
@@ -252,13 +166,7 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function ensureBackendReady() {
-    if (isSupabaseMode()) {
-      if (!isSupabaseConfigured()) {
-        throw new Error(i18n.global.t('sync.notConfigured'))
-      }
-      return
-    }
-    if (!token.value) {
+    if (!isSupabaseConfigured()) {
       throw new Error(i18n.global.t('sync.notConfigured'))
     }
   }
@@ -287,8 +195,7 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function getCurrentBackend() {
-    if (syncBackend.value === 'supabase' && isSupabaseConfigured()) {
-      // Use manual config if available, otherwise use built-in config
+    if (isSupabaseConfigured()) {
       if (supabaseUrl.value && supabaseAnonKey.value) {
         initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
       }
@@ -299,7 +206,7 @@ export const useSyncStore = defineStore('sync', () => {
         userIdRef: () => authStore.user?.id || ''
       })
     }
-    return backend
+    throw new Error(i18n.global.t('sync.notConfigured'))
   }
 
   // ── Service wiring ──
@@ -310,23 +217,15 @@ export const useSyncStore = defineStore('sync', () => {
     buildComparableSyncStateFromData, buildComparableRechargeStateFromData,
     buildComparableEventStateFromData, buildManifest
   } = createSyncPayloadService({
-    deviceIdRef: deviceId, imageGistIdRef: imageGistId, lastSyncedAtRef: lastSyncedAt,
+    deviceIdRef: deviceId, imageGistIdRef: ref(''), lastSyncedAtRef: lastSyncedAt,
     buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore, useGoodsGroupStore,
     readLocalImageAsDataUrl, compressImageToBlob, imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
   })
 
-  const backend = createGistBackendAdapter({
-    tokenRef: token, gistIdRef: gistId, imageGistIdRef: imageGistId,
-    rechargeGistIdRef: rechargeGistId, eventGistIdRef: eventGistId,
-    deviceIdRef: deviceId, encryptionEnabledRef: encryptionEnabled, ensureEncryptionKey,
-    constants: { GIST_ID_KEY, IMAGE_GIST_ID_KEY, RECHARGE_GIST_ID_KEY, EVENT_GIST_ID_KEY, DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME },
-    trackSyncStep
-  })
-
-  let activeBackend = backend
+  let activeBackend = getCurrentBackend()
 
   const imageService = createSyncImageService({
-    backend,
+    backend: activeBackend,
     getBackend: () => activeBackend,
     trackSyncStep,
     imageFilePrefix: IMAGE_FILE_PREFIX,
@@ -335,7 +234,7 @@ export const useSyncStore = defineStore('sync', () => {
   })
 
   const conflictService = createSyncConflictService({
-    backend,
+    backend: activeBackend,
     getBackend: () => activeBackend,
     lastSyncedAtRef: lastSyncedAt,
     useGoodsStore,
@@ -355,7 +254,7 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   const orchestrator = createSyncOrchestrator({
-    backend, payload: payloadService, image: imageService, conflict: conflictService,
+    backend: activeBackend, payload: payloadService, image: imageService, conflict: conflictService,
     useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, useGoodsGroupStore, trackSyncStep,
     constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME },
     userIdRef: () => { const authStore = useAuthStore(); return authStore.user?.id || '' }
@@ -366,10 +265,8 @@ export const useSyncStore = defineStore('sync', () => {
     if (!name) return null
     const resolvedBackend = activeBackend
     if (!resolvedBackend?.readImage) return null
-    const imageGist = await imageService.resolveRemoteImageGist().catch(() => null)
-    if (!imageGist) return null
     try {
-      const dataUrl = await resolvedBackend.readImage(imageGist, name)
+      const dataUrl = await resolvedBackend.readImage(name)
       return String(dataUrl || '').startsWith('data:image/') ? dataUrl : null
     } catch { return null }
   }
@@ -426,11 +323,13 @@ export const useSyncStore = defineStore('sync', () => {
     activeBackend = getCurrentBackend()
     return {
       backend: activeBackend,
-      token: token.value, gistId: gistId.value, deviceId: deviceId.value,
+      deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
-      rechargeGistId: rechargeGistId.value, eventGistId: eventGistId.value,
-      saveLastSyncedAt, saveEventLastSyncedAt, saveImageGistId,
-      saveRechargeGistId, saveEventGistId,
+      saveLastSyncedAt, saveEventLastSyncedAt,
+      saveImageGistId: async () => {},
+      saveRechargeGistId: async () => {},
+      saveEventGistId: async () => {},
+      rechargeGistId: '', eventGistId: '',
       getLatestLocalModifiedAt, buildPresetsData, ensureEventsStoreReady,
       shouldApplyRemoteItem
     }
@@ -441,32 +340,18 @@ export const useSyncStore = defineStore('sync', () => {
   async function init() {
     await ensureEventsStoreReady()
 
-    const [tokenVal, loginVal, userIdVal, avatarVal, passwordVal, scopesVal, authMethodVal,
-      gistIdVal, imageGistIdVal, rechargeGistIdVal, eventGistIdVal,
+    const [passwordVal,
       lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal, encryptionEnabledVal,
       syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal
     ] = await Promise.all([
-      readSyncKey(TOKEN_KEY), readSyncKey(GITHUB_LOGIN_KEY), readSyncKey(GITHUB_USER_ID_KEY),
-      readSyncKey(GITHUB_AVATAR_URL_KEY), readSyncKey(SYNC_PASSWORD_KEY), readSyncKey(GITHUB_SCOPES_KEY),
-      readSyncKey(GITHUB_AUTH_METHOD_KEY), readSyncKey(GIST_ID_KEY), readSyncKey(IMAGE_GIST_ID_KEY),
-      readSyncKey(RECHARGE_GIST_ID_KEY), readSyncKey(EVENT_GIST_ID_KEY), readSyncKey(LAST_SYNC_KEY),
+      readSyncKey(SYNC_PASSWORD_KEY), readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
       readSyncKey(ENCRYPTION_ENABLED_KEY),
       readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY),
       readSyncKey(SYNC_PAUSED_KEY)
     ])
 
-    token.value = tokenVal || ''
-    githubLogin.value = loginVal || ''
-    githubUserId.value = userIdVal || ''
-    githubAvatarUrl.value = avatarVal || ''
     syncPassword.value = passwordVal || ''
-    githubScopes.value = scopesVal || ''
-    githubAuthMethod.value = normalizeGitHubAuthMethod(authMethodVal || '')
-    gistId.value = gistIdVal || ''
-    imageGistId.value = imageGistIdVal || ''
-    rechargeGistId.value = rechargeGistIdVal || ''
-    eventGistId.value = eventGistIdVal || ''
     lastSyncedAt.value = lastSyncedAtVal || ''
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
     deviceId.value = deviceIdVal
@@ -478,7 +363,6 @@ export const useSyncStore = defineStore('sync', () => {
 
     if (syncBackend.value === 'supabase' && isSupabaseConfigured()) {
       try {
-        // Use manual config if available, otherwise built-in config auto-initializes
         if (supabaseUrl.value && supabaseAnonKey.value) {
           initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
         }
@@ -487,7 +371,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
     }
 
-    if (encryptionEnabled.value && syncPassword.value && githubUserId.value) {
+    if (encryptionEnabled.value && syncPassword.value) {
       try { await ensureEncryptionKey() } catch { encryptionEnabled.value = false }
     }
 
@@ -508,38 +392,6 @@ export const useSyncStore = defineStore('sync', () => {
     }
 
     isInitialized.value = true
-
-    if (token.value && !gistId.value) {
-      try {
-        const matched = await listGists(token.value, 'goods-app-sync')
-        if (matched.length > 0) await saveGistId(matched[0].id)
-      } catch { /* ignore */ }
-    }
-    if (token.value && !githubLogin.value) {
-      try {
-        const check = await validateToken(token.value)
-        if (check.valid && check.login) await persistGitHubMeta({ login: check.login, userId: check.userId, authMethod: githubAuthMethod.value || 'token' })
-      } catch { /* ignore */ }
-    }
-    if (token.value && githubLogin.value && !githubUserId.value) {
-      try {
-        const check = await validateToken(token.value)
-        if (check.valid && check.userId) { githubUserId.value = check.userId; await writeSyncKey(GITHUB_USER_ID_KEY, check.userId) }
-      } catch { /* ignore */ }
-    }
-    if (token.value && gistId.value && !imageGistId.value) {
-      try {
-        const gist = await getGist(token.value, gistId.value)
-        const manifest = gist ? await backend.getManifest(gist) : null
-        if (manifest?.imageGistId) await saveImageGistId(manifest.imageGistId)
-      } catch { /* ignore */ }
-    }
-    if (token.value && !imageGistId.value) {
-      try {
-        const matched = await listGists(token.value, 'goods-app-images')
-        if (matched.length > 0) await saveImageGistId(matched[0].id)
-      } catch { /* ignore */ }
-    }
   }
 
   // ── Auto-push (Realtime) ──
@@ -575,16 +427,11 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function clearDirtyDomains(consumed) {
-    // Only clear the domains that were consumed by the sync.
-    // New domains added during the sync are preserved.
     if (consumed) {
       for (const d of consumed) dirtyDomains.delete(d)
     } else if (dirtyDomains.size === 0) {
-      // No dirty domains before or during sync — nothing to preserve.
       dirtyDomains.clear()
     }
-    // When consumed is null but dirtyDomains grew during the sync,
-    // preserve those domains for the next sync cycle.
     writeSyncKey(DIRTY_DOMAINS_KEY, dirtyDomains.size > 0 ? [...dirtyDomains].join(',') : '')
   }
 
@@ -618,16 +465,12 @@ export const useSyncStore = defineStore('sync', () => {
   function autoPushGoods(domain) {
     if (!isSupabaseMode()) return
     markDomainDirty(domain)
-    // When sync is paused, still track dirty state but don't auto-push.
-    // Dirty items will be synced on next manual sync or when unpausing.
     if (syncPaused.value) return
     if (isPulling.value || isSyncing.value) {
       pendingAutoPush = true
       return
     }
 
-    // Give recent local writes a short window to settle so we don't push a stale snapshot
-    // when a user makes two edits in quick succession.
     const debounceMs = 500
 
     if (autoPushTimer) clearTimeout(autoPushTimer)
@@ -649,39 +492,12 @@ export const useSyncStore = defineStore('sync', () => {
     const wasPaused = syncPaused.value
     syncPaused.value = !!paused
     await writeSyncKey(SYNC_PAUSED_KEY, paused ? '1' : '')
-    // When resuming (unpausing), trigger a full sync to push all accumulated changes
     if (wasPaused && !paused) {
-      // Don't await — fire and let the UI show progress
       void doSync({ source: 'manual' })
     }
   }
 
   // ── Public API ──
-
-  async function saveToken(newToken, meta = {}) {
-    token.value = newToken
-    clearEncryptionKey()
-    await writeSyncKey(TOKEN_KEY, newToken)
-    gistId.value = ''; imageGistId.value = ''; rechargeGistId.value = ''; eventGistId.value = ''
-    lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
-    await Promise.all([
-      writeSyncKey(GIST_ID_KEY, ''),
-      writeSyncKey(IMAGE_GIST_ID_KEY, ''),
-      writeSyncKey(RECHARGE_GIST_ID_KEY, ''),
-      writeSyncKey(EVENT_GIST_ID_KEY, ''),
-      writeSyncKey(LAST_SYNC_KEY, ''),
-      writeSyncKey(EVENT_LAST_SYNC_KEY, '')
-    ])
-    lastError.value = ''; syncStatus.value = ''; conflictData.value = null
-    syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
-    await persistGitHubMeta(meta)
-    clearSyncLogs()
-  }
-
-  async function checkTokenValidity() {
-    if (!token.value) return { valid: false, login: '' }
-    return validateToken(token.value)
-  }
 
   const STATUS_MESSAGES = {
     pulled: 'sync.pullComplete',
@@ -710,7 +526,6 @@ export const useSyncStore = defineStore('sync', () => {
     isPulling.value = false
   }
 
-  // Network error recovery: rebuild Supabase client to flush stale DNS/connection
   async function reconnectOnNetworkError(error) {
     if (!isSupabaseMode()) return
     const msg = String(error?.message || '').toLowerCase()
@@ -721,21 +536,16 @@ export const useSyncStore = defineStore('sync', () => {
     await reconnectSupabase()
   }
 
-  // Internal sync implementation (called by public sync() and autoPushGoods)
   async function doSync({ source = 'manual', maxRetries = 1 } = {}) {
-    // When sync is paused, only allow explicit manual syncs
     if (syncPaused.value && source !== 'manual') {
       console.log('[sync] sync paused, skipping auto sync (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
     }
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
-    // Supabase 模式要求登录后才能同步
-    if (isSupabaseMode()) {
-      const authStore = useAuthStore()
-      if (!authStore.isLoggedIn) {
-        applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
-        return { action: 'skipped', reason: 'not_logged_in' }
-      }
+    const authStore = useAuthStore()
+    if (!authStore.isLoggedIn) {
+      applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+      return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
     syncSource.value = source
@@ -779,16 +589,11 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  // Public sync: merges fullSync + autoPushGoods + pushDirtyItemsFast
   async function sync(opts = {}) {
     return doSync(opts)
   }
 
-  // Public pull: merges pullOnly + pullFast
-  // If tables/since provided → incremental pull (fast path)
-  // Otherwise → full pull with conflict detection
   async function pull({ tables, since, silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
-    // When sync is paused, only allow explicit manual pulls
     if (syncPaused.value && source !== 'manual') {
       console.log('[sync] pull paused, skipping auto pull (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
@@ -796,12 +601,9 @@ export const useSyncStore = defineStore('sync', () => {
     const isIncremental = tables && since > 0
 
     if (isIncremental) {
-      // Fast incremental pull
       if (isSyncing.value || isPulling.value) return
-      if (isSupabaseMode()) {
-        const authStore = useAuthStore()
-        if (!authStore.isLoggedIn) return { action: 'skipped', reason: 'not_logged_in' }
-      }
+      const authStore = useAuthStore()
+      if (!authStore.isLoggedIn) return { action: 'skipped', reason: 'not_logged_in' }
       ensureBackendReady()
       isSyncing.value = true; isPulling.value = true
       syncSource.value = source
@@ -810,8 +612,6 @@ export const useSyncStore = defineStore('sync', () => {
         const result = await orchestrator.pull(buildSyncContext(), { tables, since })
         return result
       } catch (error) {
-        // Incremental failed — fall back to full pull via orchestrator directly
-        // Don't reset flags to avoid race with autoPushGoods
         console.warn('[sync] incremental pull failed, falling back to full pull:', error.message)
         try {
           const result = await withRetry(
@@ -831,15 +631,12 @@ export const useSyncStore = defineStore('sync', () => {
 
     // Full pull
     if (isSyncing.value) return
-    if (isSupabaseMode()) {
-      const authStore = useAuthStore()
-      if (!authStore.isLoggedIn) {
-        if (!silent) applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
-        return { action: 'skipped', reason: 'not_logged_in' }
-      }
+    const authStore = useAuthStore()
+    if (!authStore.isLoggedIn) {
+      if (!silent) applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+      return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
-    if (!isSupabaseMode() && !gistId.value) throw new Error(i18n.global.t('sync.notConfigured'))
     syncSource.value = source
     isSyncing.value = true; isPulling.value = true; lastError.value = ''
     if (!silent) conflictData.value = null
@@ -943,30 +740,23 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   async function resetConfig() {
-    token.value = ''; githubLogin.value = ''; githubAvatarUrl.value = ''; githubScopes.value = ''; githubAuthMethod.value = ''
-    gistId.value = ''; imageGistId.value = ''; rechargeGistId.value = ''; eventGistId.value = ''
     lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
     await Promise.all([
-      writeSyncKey(TOKEN_KEY, ''), writeSyncKey(GIST_ID_KEY, ''), writeSyncKey(IMAGE_GIST_ID_KEY, ''),
-      writeSyncKey(RECHARGE_GIST_ID_KEY, ''), writeSyncKey(EVENT_GIST_ID_KEY, ''),
       writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, '')
     ])
-    await clearGitHubMeta()
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs()
   }
 
   return {
-    token, githubLogin, githubAvatarUrl, githubScopes, githubAuthMethod,
-    gistId, imageGistId, rechargeGistId, eventGistId,
     lastSyncedAt, eventLastSyncedAt, deviceId,
     isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
-    isConfigured, init, saveToken, checkTokenValidity,
+    isConfigured, init,
     getLocalChangesSinceLastSync, sync, pull, resolveConflict, resolvePullConflict,
     autoPushGoods, markGoodsIdsDirty,
     clearConflict, resetConfig,
-    encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword, githubUserId,
+    encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword,
     syncBackend, supabaseUrl, supabaseAnonKey,
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
     syncPaused, setSyncPaused,

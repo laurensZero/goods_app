@@ -30,16 +30,6 @@
               <p class="hero-metric__label">{{ remoteIdLabel }}</p>
               <p class="hero-metric__value hero-metric__value--mono">{{ remoteIdDisplay }}</p>
             </div>
-            <button
-              v-if="syncStore.syncBackend === 'gist' && showTokenInfo"
-              type="button"
-              class="hero-metric hero-metric--interactive"
-              :disabled="!syncStore.token"
-              @click="copyText(syncStore.token)"
-            >
-              <p class="hero-metric__label">{{ t('sync.syncToken') }}</p>
-              <p class="hero-metric__value hero-metric__value--mono">{{ tokenDisplay }}</p>
-            </button>
           </div>
         </article>
       </section>
@@ -48,7 +38,7 @@
         <div v-if="showBackendConfirm" class="overlay" @click.self="cancelChooseBackend">
           <div class="dialog">
             <h3 class="dialog-title">{{ t('sync.switchBackend') }}</h3>
-            <p class="dialog-desc">{{ t('sync.switchBackendDesc', { backend: pendingBackend === 'supabase' ? 'Supabase' : 'GitHub Gist' }) }}</p>
+            <p class="dialog-desc">{{ t('sync.switchBackendDesc', { backend: 'Supabase' }) }}</p>
             <div class="dialog-actions">
               <button class="dialog-btn dialog-btn--secondary" @click="cancelChooseBackend">{{ t('common.cancel') }}</button>
               <button class="dialog-btn dialog-btn--primary" @click="confirmChooseBackend">{{ t('sync.confirmSwitch') }}</button>
@@ -74,50 +64,7 @@
             </div>
 
             <div class="detail-list">
-              <template v-if="syncStore.syncBackend === 'gist'">
-                <button v-if="showTokenInfo" type="button" class="detail-row detail-row--button" :disabled="!syncStore.token" @click="copyText(syncStore.token)">
-                  <span class="detail-label">Token</span>
-                  <span class="detail-value detail-value--mono">{{ tokenDisplay }}</span>
-                </button>
-                <div class="detail-row">
-                  <span class="detail-label">{{ t('sync.githubAccount') }}</span>
-                  <span class="detail-value">{{ syncStore.githubLogin || t('common.notLoggedIn') }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">{{ t('sync.syncPassword') }}</span>
-                  <input
-                    :value="syncStore.syncPassword"
-                    class="password-input"
-                    type="password"
-                    :placeholder="t('sync.syncPasswordPlaceholder')"
-                    autocomplete="off"
-                    spellcheck="false"
-                    @input="handlePasswordChange"
-                  />
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">{{ t('sync.enableEncryption') }}</span>
-                  <label class="toggle-switch" :aria-label="t('sync.enableEncryption')">
-                    <input
-                      :checked="syncStore.encryptionEnabled"
-                      :disabled="!syncStore.syncPassword"
-                      type="checkbox"
-                      @change="handleEncryptionToggle"
-                    />
-                    <span class="toggle-slider" />
-                  </label>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Data Gist</span>
-                  <span class="detail-value detail-value--mono">{{ syncStore.gistId || t('common.notCreated') }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Image Gist</span>
-                  <span class="detail-value detail-value--mono">{{ resolvedImageGistId || t('common.notCreated') }}</span>
-                </div>
-              </template>
-
-              <template v-else-if="syncStore.syncBackend === 'supabase'">
+              <template v-if="syncStore.syncBackend === 'supabase'">
                 <div class="detail-row">
                   <span class="detail-label">{{ t('sync.supabaseUrl') }}</span>
                   <span class="detail-value detail-value--mono">{{ supabaseUrlDisplay }}</span>
@@ -150,32 +97,6 @@
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
               </div>
             </div>
-          </article>
-
-          <article v-if="false" class="panel-card">
-            <div class="panel-head">
-              <div>
-                <p class="panel-kicker">Image Sync</p>
-                <h3 class="panel-title">{{ t('sync.imageSync') }}</h3>
-              </div>
-            </div>
-
-            <div class="detail-list">
-              <div class="detail-row">
-                <span class="detail-label">Image Gist</span>
-                <span class="detail-value detail-value--mono">{{ resolvedImageGistId || t('common.notCreated') }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">{{ t('sync.imageFileCount') }}</span>
-                <span class="detail-value">{{ imageFileCount }}</span>
-              </div>
-              <article class="stat-card stat-card--image">
-                <p class="stat-label">Images</p>
-                <p class="stat-value">{{ imageFileCount }}</p>
-                <p class="stat-desc">{{ t('sync.remoteImagesDesc') }}</p>
-              </article>
-            </div>
-            <p class="section-note">{{ t('sync.imageSyncTime', { time: imageSyncDisplay }) }}</p>
           </article>
 
           <article class="panel-card">
@@ -290,27 +211,6 @@
           <button
             type="button"
             class="entry-card backend-card"
-            :class="{ 'backend-card--active': syncStore.syncBackend === 'gist' }"
-            @click="chooseBackend('gist')"
-          >
-            <span class="entry-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.57.11.78-.25.78-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.67 1.25 3.32.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.47.11-3.07 0 0 .97-.31 3.18 1.18a11.04 11.04 0 0 1 2.9-.39c.99 0 1.98.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.62 1.6.23 2.78.11 3.07.73.81 1.18 1.84 1.18 3.1 0 4.44-2.69 5.4-5.25 5.68.41.36.77 1.08.77 2.18 0 1.58-.01 2.85-.01 3.24 0 .31.2.67.79.55A11.52 11.52 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">GitHub Gist</p>
-              <h3 class="entry-name">{{ t('sync.gistBackend') }}</h3>
-              <p class="entry-desc">{{ t('sync.gistBackendDesc') }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            class="entry-card backend-card"
             :class="{ 'backend-card--active': syncStore.syncBackend === 'supabase' }"
             @click="chooseBackend('supabase')"
           >
@@ -333,104 +233,6 @@
         </div>
 
         <!-- Supabase 配置已移除：URL/Key 与测试连接不在此显示 -->
-      </section>
-
-      <section v-if="syncStore.syncBackend === 'gist'" class="content-section config-section">
-        <div class="section-head">
-          <p class="section-label">Config</p>
-          <h2 class="section-title">{{ t('sync.configMaintenance') }}</h2>
-        </div>
-
-        <div class="action-grid">
-          <a v-if="gistUrl" class="entry-card" :href="gistUrl" target="_blank" rel="noopener">
-            <span class="entry-icon link-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Remote Inspect</p>
-              <h3 class="entry-name">{{ t('sync.viewDataGist') }}</h3>
-              <p class="entry-desc">{{ t('sync.viewDataGistDesc') }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </a>
-
-          <a v-if="imageGistUrl" class="entry-card" :href="imageGistUrl" target="_blank" rel="noopener">
-            <span class="entry-icon link-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Image Store</p>
-              <h3 class="entry-name">{{ t('sync.viewImageGist') }}</h3>
-              <p class="entry-desc">{{ t('sync.viewImageGistDesc') }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </a>
-
-          <button type="button" class="entry-card" @click="openGithubLoginDialog">
-            <span class="entry-icon token-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 3a9 9 0 1 0 9 9" />
-                <path d="M12 12l4.5-4.5" />
-                <path d="M12 12h7" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">GitHub OAuth</p>
-              <h3 class="entry-name">{{ syncStore.githubLogin ? `${t('sync.relogin')}（${syncStore.githubLogin}）` : t('sync.githubLogin') }}</h3>
-              <p class="entry-desc">{{ t('sync.githubLoginDesc') }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-
-          <button v-if="showManualTokenEntry" type="button" class="entry-card" @click="openTokenDialog">
-            <span class="entry-icon token-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">GitHub Access</p>
-              <h3 class="entry-name">{{ syncStore.token ? t('sync.manualTokenReplace') : t('sync.manualToken') }}</h3>
-              <p class="entry-desc">{{ t('sync.manualTokenDesc') }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-
-          <button v-if="syncStore.gistId || resolvedImageGistId || resolvedRechargeGistId || resolvedEventGistId" type="button" class="entry-card entry-card--danger" @click="showResetConfirm = true">
-            <span class="entry-icon danger-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 6h18" />
-                <path d="M8 6V4h8v2" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-              </svg>
-            </span>
-            <div class="entry-body">
-              <p class="entry-kicker">Reset</p>
-              <h3 class="entry-name">{{ t('sync.clearConfig') }}</h3>
-              <p class="entry-desc">{{ t('sync.clearConfigDesc') }}</p>
-            </div>
-            <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-        </div>
       </section>
 
       <Transition name="error-slide">
@@ -473,14 +275,6 @@
 
             <div class="error-card__footer">
               <p class="error-card__suggestion">{{ syncStore.syncSuggestion }}</p>
-              <button
-                v-if="syncStore.syncCause === 'auth'"
-                type="button"
-                class="error-card__action"
-                @click="openGithubLoginDialog"
-              >
-                {{ t('sync.relogin') }}
-              </button>
             </div>
           </article>
         </section>
@@ -562,43 +356,6 @@
           </div>
         </article>
       </section>
-
-      <Transition name="overlay-fade">
-        <div v-if="showTokenDialog" class="overlay" @click.self="closeTokenDialog">
-          <div class="dialog">
-            <h3 class="dialog-title">{{ t('sync.configGithubToken') }}</h3>
-            <p class="dialog-desc">
-              {{ t('sync.tokenDialogDesc') }}
-              <a href="https://github.com/settings/tokens/new?scopes=gist&description=goods-app-sync" target="_blank" rel="noopener">{{ t('sync.createToken') }}</a>
-            </p>
-            <input
-              v-model="tokenInput"
-              class="dialog-input"
-              type="password"
-              placeholder="ghp_xxxxxxxxxxxx"
-              autocomplete="off"
-            />
-            <div v-if="tokenError" class="dialog-error">{{ tokenError }}</div>
-            <div v-if="tokenValidLogin" class="dialog-success">{{ t('sync.verified') }}：{{ tokenValidLogin }}</div>
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="closeTokenDialog">{{ t('common.cancel') }}</button>
-              <button
-                class="dialog-btn dialog-btn--primary"
-                :disabled="isVerifyingToken || !tokenInput.trim()"
-                @click="handleSaveToken"
-              >
-                {{ isVerifyingToken ? t('sync.verifying') : t('sync.verifyAndSave') }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-
-      <GithubLoginDialog
-        v-model="showGithubLoginDialog"
-        @login-success="handleGithubLoginSuccess"
-        @toast="showToast"
-      />
 
       <Transition name="overlay-fade">
         <div v-if="showResetConfirm" class="overlay" @click.self="showResetConfirm = false">
@@ -741,59 +498,31 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
 import {
   PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_DIFF,
   PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA,
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
 } from '@/services/syncError'
-import { validateToken, getGist, getGistFileContent } from '@/utils/github/gist'
 import { getSupabaseClient, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
-import {
-  fetchGitHubUser,
-  getGitHubDeviceFlowScope,
-  getGitHubOAuthClientId,
-  getGitHubVerificationUrl,
-  pollGitHubAccessToken,
-  requestGitHubDeviceCode
-} from '@/utils/github/auth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { formatDate } from '@/utils/format'
-import { Cell as VanCell, CellGroup as VanCellGroup, Radio as VanRadio, RadioGroup as VanRadioGroup, Button as VanButton, Dialog as VanDialog, Field as VanField } from 'vant'
-import NavBar from '@/components/common/NavBar.vue'
-import AppToast from '@/components/common/AppToast.vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
-
-const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common/GithubLoginDialog.vue'))
+import NavBar from '@/components/common/NavBar.vue'
+import AppToast from '@/components/common/AppToast.vue'
 
 const { t } = useI18n()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
-const route = useRoute()
-const router = useRouter()
-const githubOAuthClientId = getGitHubOAuthClientId()
-const githubDeviceScope = getGitHubDeviceFlowScope()
 
 const pageBodyRef = ref(null)
-const showTokenDialog = ref(false)
-const showGithubLoginDialog = ref(false)
 const showResetConfirm = ref(false)
 const showPullConflict = ref(false)
 const showSyncConflict = ref(false)
 const syncConflictData = ref({})
-const tokenInput = ref('')
-const tokenError = ref('')
-const tokenValidLogin = ref('')
-const isVerifyingToken = ref(false)
-const githubDeviceInfo = ref(null)
-const githubLoginStatus = ref('')
-const githubLoginError = ref('')
-const isRequestingGithubDeviceCode = ref(false)
-const isPollingGithubLogin = ref(false)
 const { toastMsg, showToast } = useToast()
 const syncNoticeText = computed(() => syncStore.syncNotice?.message || '')
 const syncNoticeLevel = computed(() => syncStore.syncNotice?.level || 'error')
@@ -804,23 +533,11 @@ const showSupabaseKeyDialog = ref(false)
 const supabaseUrlInput = ref('')
 const supabaseKeyInput = ref('')
 const isTestingSupabase = ref(false)
-let githubLoginAbortController = null
 const LOG_GROUP_SEQUENCE = [
   'manifest',
   'data',
   'recharge-data',
   'events-data',
-  'image-gist',
-  'recharge-gist',
-  'event-gist',
-  'image-merge',
-  'local-collection',
-  'local-recharge',
-  'local-event',
-  'update-image-gist',
-  'update-main-gist',
-  'image-file',
-  'event-cover-file',
   'other'
 ]
 const LOG_GROUP_LABEL_KEYS = {
@@ -828,17 +545,6 @@ const LOG_GROUP_LABEL_KEYS = {
   data: 'data',
   'recharge-data': 'recharge-data',
   'events-data': 'events-data',
-  'image-gist': 'sync.logGroup.imageGist',
-  'recharge-gist': 'sync.logGroup.rechargeGist',
-  'event-gist': 'sync.logGroup.eventGist',
-  'image-merge': 'sync.logGroup.imageMerge',
-  'local-collection': 'sync.logGroup.localCollection',
-  'local-recharge': 'sync.logGroup.localRecharge',
-  'local-event': 'sync.logGroup.localEvent',
-  'update-image-gist': 'sync.logGroup.updateImageGist',
-  'update-main-gist': 'sync.logGroup.updateMainGist',
-  'image-file': 'sync.logGroup.imageFile',
-  'event-cover-file': 'sync.logGroup.eventCover',
   other: 'sync.logGroup.other'
 }
 const DEFAULT_OPEN_LOG_GROUPS = []
@@ -890,17 +596,6 @@ function resolveLogGroupKey(entry) {
   if (title.includes('recharge-data.json')) return 'recharge-data'
   if (title.includes('events-data.json')) return 'events-data'
   if (title.includes('data.json')) return 'data'
-  if (title.includes('读取图片 Gist') || title.includes('检查图片 Gist')) return 'image-gist'
-  if (title.includes('检查充值 Gist')) return 'recharge-gist'
-  if (title.includes('检查活动 Gist')) return 'event-gist'
-  if (title.includes('恢复收藏图片') || title.includes('恢复回收站图片') || title.includes('恢复活动封面')) return 'image-merge'
-  if (title.includes('整理本地收藏/回收站数据')) return 'local-collection'
-  if (title.includes('整理本地充值数据')) return 'local-recharge'
-  if (title.includes('整理本地活动数据')) return 'local-event'
-  if (title.includes('更新图片 Gist')) return 'update-image-gist'
-  if (title.includes('更新主同步 Gist')) return 'update-main-gist'
-  if (title.includes('读取图片文件')) return 'image-file'
-  if (title.includes('读取活动封面文件')) return 'event-cover-file'
 
   return String(entry?.category || 'other') || 'other'
 }
@@ -940,10 +635,6 @@ const lastSyncDisplay = computed(() => {
   return formatTime(syncStore.lastSyncedAt)
 })
 
-const resolvedImageGistId = computed(() => gistInfo.value?.imageGistId || syncStore.imageGistId || '')
-const resolvedRechargeGistId = computed(() => gistInfo.value?.rechargeGistId || syncStore.gistId || '')
-const resolvedEventGistId = computed(() => gistInfo.value?.eventGistId || syncStore.gistId || '')
-
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
   if (syncStore.lastError) return 'badge--error'
@@ -951,9 +642,6 @@ const statusBadgeClass = computed(() => {
     if (isSupabaseConfigured()) return 'badge--success'
     return 'badge--warning'
   }
-  if (syncStore.githubLogin) return 'badge--success'
-  if (!syncStore.token) return 'badge--warning'
-  if (syncStore.gistId) return 'badge--success'
   return 'badge--warning'
 })
 
@@ -964,10 +652,7 @@ const statusBadgeText = computed(() => {
     if (isSupabaseConfigured()) return t('sync.connected')
     return t('sync.notConfigured')
   }
-  if (syncStore.githubLogin) return t('sync.loggedIn')
-  if (!syncStore.token) return t('sync.notConfigured')
-  if (syncStore.gistId) return t('sync.connected')
-  return t('sync.pendingUpload')
+  return t('sync.notConfigured')
 })
 
 const PHASE_NAME_MAP = {
@@ -1007,58 +692,11 @@ function clearSyncError() {
   syncStore.syncStatus = ''
 }
 
-const isUsingGithubLogin = computed(() => (
-  !!syncStore.githubLogin && syncStore.githubAuthMethod === 'device-flow'
-))
-
-const showTokenInfo = computed(() => !isUsingGithubLogin.value)
-
-const showManualTokenEntry = computed(() => !isUsingGithubLogin.value)
-
-const githubVerificationUrl = computed(() => getGitHubVerificationUrl(githubDeviceInfo.value))
-const githubDeviceExpiresText = computed(() => {
-  if (!githubDeviceInfo.value?.expires_in) return '--'
-  const expiresIn = Number(githubDeviceInfo.value.expires_in)
-  if (!Number.isFinite(expiresIn) || expiresIn <= 0) return '--'
-  const minutes = Math.floor(expiresIn / 60)
-  const seconds = expiresIn % 60
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
-})
-
-const tokenDisplay = computed(() => {
-  if (!syncStore.token) return t('sync.notConfigured')
-  const token = syncStore.token
-  return `${token.slice(0, 4)}...${token.slice(-4)}`
-})
-
-const remoteIdLabel = computed(() => syncStore.syncBackend === 'supabase' ? t('sync.supabaseUrl') : t('sync.remoteGist'))
+const remoteIdLabel = computed(() => t('sync.supabaseUrl'))
 const remoteIdDisplay = computed(() => {
-  if (syncStore.syncBackend === 'supabase') {
-    if (syncStore.supabaseUrl) return syncStore.supabaseUrl
-    if (isSupabaseConfigured()) return 'Built-in'
-    return t('sync.notConfigured')
-  }
-  return syncStore.gistId || t('common.notCreated')
-})
-
-const gistUrl = computed(() => {
-  if (!syncStore.gistId) return ''
-  return `https://gist.github.com/${syncStore.gistId}`
-})
-
-const imageGistUrl = computed(() => {
-  if (!resolvedImageGistId.value) return ''
-  return `https://gist.github.com/${resolvedImageGistId.value}`
-})
-
-const rechargeGistUrl = computed(() => {
-  if (!resolvedRechargeGistId.value) return ''
-  return `https://gist.github.com/${resolvedRechargeGistId.value}`
-})
-
-const eventGistUrl = computed(() => {
-  if (!resolvedEventGistId.value) return ''
-  return `https://gist.github.com/${resolvedEventGistId.value}`
+  if (syncStore.supabaseUrl) return syncStore.supabaseUrl
+  if (isSupabaseConfigured()) return 'Built-in'
+  return t('sync.notConfigured')
 })
 
 const collectionCount = computed(() => gistInfo.value?.collectionCount ?? '-')
@@ -1067,10 +705,6 @@ const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
 const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
 const eventCount = computed(() => gistInfo.value?.eventCount ?? '-')
 const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
-const imageSyncDisplay = computed(() => {
-  if (!gistInfo.value?.imageUpdatedAt) return t('sync.neverSynced')
-  return formatTime(gistInfo.value.imageUpdatedAt)
-})
 
 function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
@@ -1114,8 +748,8 @@ async function loadGistInfo() {
         rechargeCount: readCount(row.recharge_count ?? row.rechargeCount),
         eventCount: readCount(row.event_count ?? row.eventCount),
         imageGistId: row.image_bucket ?? row.imageGistId ?? '',
-        rechargeGistId: syncStore.gistId || '',
-        eventGistId: syncStore.gistId || '',
+        rechargeGistId: '',
+        eventGistId: '',
         imageFileCount: readCount(row.image_count ?? row.imageFileCount),
         imageUpdatedAt: row.image_updated_at ?? row.imageUpdatedAt ?? ''
       }
@@ -1124,38 +758,6 @@ async function loadGistInfo() {
       gistInfo.value = null
       return
     }
-  }
-
-  // Fallback: Gist backend
-  if (!syncStore.token || !syncStore.gistId) {
-    gistInfo.value = null
-    return
-  }
-
-  try {
-    const gist = await getGist(syncStore.token, syncStore.gistId)
-    if (!gist) {
-      gistInfo.value = null
-      return
-    }
-
-    const manifestContent = await getGistFileContent(syncStore.token, gist, 'manifest.json')
-    const manifest = manifestContent ? JSON.parse(manifestContent) : null
-
-    gistInfo.value = {
-      collectionCount: readCount(manifest?.collectionCount),
-      wishlistCount: readCount(manifest?.wishlistCount),
-      trashCount: readCount(manifest?.trashCount),
-      rechargeCount: readCount(manifest?.rechargeCount),
-      eventCount: readCount(manifest?.eventCount),
-      imageGistId: manifest?.imageGistId || '',
-      rechargeGistId: syncStore.gistId || '',
-      eventGistId: syncStore.gistId || '',
-      imageFileCount: readCount(manifest?.imageFileCount),
-      imageUpdatedAt: manifest?.imageUpdatedAt || ''
-    }
-  } catch {
-    gistInfo.value = null
   }
 }
 
@@ -1167,49 +769,9 @@ function buildImageSyncText(result) {
   return parts.join('，')
 }
 
-async function handlePasswordChange(event) {
-  const password = event.target.value
-  try {
-    await syncStore.setSyncPassword(password)
-    if (!password && syncStore.encryptionEnabled) {
-      await syncStore.setEncryptionEnabled(false)
-    }
-  } catch (e) {
-    console.error(t('sync.setPwdFailed'), e)
-  }
-}
-
-async function handleEncryptionToggle(event) {
-  const enabled = event.target.checked
-  try {
-    await syncStore.setEncryptionEnabled(enabled)
-  } catch (e) {
-    console.error(t('sync.toggleEncryptionFailed'), e)
-    event.target.checked = !enabled
-  }
-}
-
 async function handlePauseSyncToggle(event) {
   const paused = event.target.checked
   await syncStore.setSyncPaused(paused)
-}
-
-async function copyText(text) {
-  if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    showToast(t('common.copied'))
-  } catch {
-    showToast(t('common.copyFailed'))
-  }
-}
-
-function openEventGist() {
-  if (!eventGistUrl.value) {
-    showToast(t('sync.noGistYet'))
-    return
-  }
-  window.open(eventGistUrl.value, '_blank', 'noopener')
 }
 
 function buildEventSyncSummary(result) {
@@ -1351,90 +913,6 @@ async function handleSyncConflict(useRemote) {
   }
 }
 
-function openTokenDialog() {
-  tokenInput.value = syncStore.token
-  tokenError.value = ''
-  tokenValidLogin.value = ''
-  showTokenDialog.value = true
-}
-
-function resetGithubLoginState() {
-  githubDeviceInfo.value = null
-  githubLoginStatus.value = ''
-  githubLoginError.value = ''
-  isRequestingGithubDeviceCode.value = false
-  isPollingGithubLogin.value = false
-}
-
-function closeGithubLoginDialog() {
-  showGithubLoginDialog.value = false
-  if (githubLoginAbortController) {
-    githubLoginAbortController.abort()
-    githubLoginAbortController = null
-  }
-  resetGithubLoginState()
-}
-
-function openGithubLoginDialog() {
-  showGithubLoginDialog.value = true
-  resetGithubLoginState()
-  if (!githubOAuthClientId) {
-    githubLoginError.value = t('sync.githubOAuthNotConfigured')
-  }
-}
-
-function openGithubVerificationPage() {
-  const url = githubVerificationUrl.value
-  if (!url) return
-  window.open(url, '_blank', 'noopener')
-}
-
-function closeTokenDialog() {
-  showTokenDialog.value = false
-  tokenInput.value = ''
-  tokenError.value = ''
-  tokenValidLogin.value = ''
-}
-
-async function handleSaveToken() {
-  const input = tokenInput.value.trim()
-  if (!input) return
-
-  isVerifyingToken.value = true
-  tokenError.value = ''
-
-  try {
-    const check = await validateToken(input)
-    if (!check.valid) {
-      tokenError.value = t('sync.tokenInvalid')
-      return
-    }
-    tokenValidLogin.value = check.login
-    await syncStore.saveToken(input, { login: check.login, userId: check.userId, authMethod: 'token' })
-    await syncStore.init()
-    showToast(`${t('sync.tokenSaved')}（${tokenValidLogin.value}）`)
-    closeTokenDialog()
-    await loadGistInfo()
-  } catch (error) {
-    tokenError.value = error.message
-  } finally {
-    isVerifyingToken.value = false
-  }
-}
-
-async function handleGithubLoginSuccess(user) {
-  showToast(`${t('sync.githubLoginSuccess')}（${user.login}）`, 3200)
-  showGithubLoginDialog.value = false
-  await loadGistInfo()
-}
-
-onBeforeUnmount(() => {
-  if (githubLoginAbortController) {
-    githubLoginAbortController.abort()
-    githubLoginAbortController = null
-  }
-})
-
 async function handleReset() {
   await syncStore.resetConfig()
   gistInfo.value = null
@@ -1443,7 +921,7 @@ async function handleReset() {
 }
 
 // ── Supabase 后端配置 ──────────────────────────────────
-const syncBackendLabel = computed(() => syncStore.syncBackend === 'supabase' ? 'Supabase' : 'GitHub Gist')
+const syncBackendLabel = computed(() => 'Supabase')
 const supabaseUrlDisplay = computed(() => {
   if (syncStore.supabaseUrl) return syncStore.supabaseUrl
   if (isSupabaseConfigured()) return 'Built-in'
@@ -1549,11 +1027,6 @@ onMounted(async () => {
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
   await loadGistInfo()
-
-  if (route.query.openLogin === '1') {
-    openGithubLoginDialog()
-    await router.replace({ path: route.path, query: {} })
-  }
 })
 </script>
 

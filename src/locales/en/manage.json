@@ -169,7 +169,6 @@
   "manage.statJsonBackup": "JSON Backup",
   "manage.statMigrationRestore": "Migration / Restore",
   "manage.statShareManage": "Manage / Share",
-  "manage.statGithubToken": "GitHub Token",
   "manage.statInfoVersion": "Info / Version",
   "manage.statTroubleshootReview": "Troubleshoot / Review",
   "storage.levelN": "Level {n}",

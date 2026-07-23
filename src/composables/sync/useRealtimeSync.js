@@ -106,17 +106,6 @@ export function useRealtimeSync({ syncStore }) {
 
   async function handleVisibilityChange() {
     if (document.hidden) {
-      // Gist 模式：退到后台时若有本地变更则做一次完整同步
-      if (!syncStore.syncPaused && !syncStore.isSupabaseMode() && syncStore.token && syncStore.gistId && !syncStore.isSyncing && !syncStore.conflictData) {
-        const localChanges = syncStore.getLocalChangesSinceLastSync()
-        if (!localChanges.hasChanges) return
-
-        try {
-          await syncStore.sync({ source: 'visibility' })
-        } catch {
-          // silent fail on background sync
-        }
-      }
       return
     }
 

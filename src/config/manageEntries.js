@@ -155,7 +155,7 @@ export function useManageEntries() {
       iconPaths: ['M21.5 2v6h-6', 'M2.5 22v-6h6', 'M2 11.5a10 10 0 0 1 18.8-4.3', 'M22 12.5a10 10 0 0 1-18.8 4.3'],
       path: '/manage/sync',
       stats: [
-        { label: t('manage.statConnectionStatus'), value: syncStore.githubLogin ? t('manage.syncConnected') : t('manage.syncNotConnected') },
+        { label: t('manage.statConnectionStatus'), value: syncStore.isSupabaseMode() ? t('manage.syncConnected') : t('manage.syncNotConnected') },
         { label: t('manage.statRecentSync'), value: syncStore.lastSyncedAt ? formatSyncTime(syncStore.lastSyncedAt) : t('manage.syncNeverSynced') }
       ]
     },
