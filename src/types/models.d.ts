@@ -11,9 +11,9 @@ export interface GoodsImage {
   uri: string
   kind: 'primary' | 'custom' | string
   label: string
-  storageMode: 'remote' | 'local' | 'gist-local' | 'inline-local' | string
+  storageMode: 'remote' | 'local' | 'cloud-local' | 'inline-local' | string
   localPath: string
-  gistFileName: string
+  cloudFileName: string
   mimeType: string
   fileSize: number
   isPrimary: boolean
@@ -36,7 +36,7 @@ export interface TrackItem {
 export interface EventCoverImageData {
   uri?: string
   storageMode?: string
-  gistFileName?: string
+  cloudFileName?: string
   [key: string]: any
 }
 

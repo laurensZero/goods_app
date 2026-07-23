@@ -1,4 +1,4 @@
-import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
+import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { processWithConcurrency } from '@/utils/sync/shared'
 import i18n from '@/locales'
 
@@ -14,16 +14,16 @@ export function createSyncImageService({
     return typeof getBackend === 'function' ? (getBackend() || backend) : backend
   }
 
-  async function resolveRemoteImageGist(remoteManifest) {
-    return resolveBackend().getExistingImageGist(remoteManifest)
+  async function resolveRemoteImageCloud(remoteManifest) {
+    return resolveBackend().getExistingImageCloud(remoteManifest)
   }
 
-  async function hydrateRemoteItemsWithImages(items, imageGist, imageStats, options = {}) {
+  async function hydrateRemoteItemsWithImages(items, imageCloud, imageStats, options = {}) {
     const targetItemIds = options.targetItemIds instanceof Set ? options.targetItemIds : null
     const fileCache = new Map()
     const currentBackend = resolveBackend()
     // Supabase: images have public URLs, no need to download as base64.
-    // Replace gist-image:// references with public URLs directly.
+    // Replace cloud-image:// references with public URLs directly.
     const isSupabase = typeof currentBackend?.getImagePublicUrl === 'function'
 
     return processWithConcurrency(items || [], async (item) => {
@@ -38,53 +38,53 @@ export function createSyncImageService({
 
         const hydratedImages = await Promise.all(normalizedImages.map(async (imageEntry) => {
           const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
-          if (storageMode !== 'gist-local') return imageEntry
+          if (storageMode !== 'cloud-local') return imageEntry
 
-          const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
-          if (!gistFileName) {
+          const cloudFileName = String(imageEntry.cloudFileName || parseCloudImageUri(imageEntry.uri)).trim()
+          if (!cloudFileName) {
             if (isSupabase) return imageEntry
             throw new Error(i18n.global.t('sync.error.imageRefInvalid', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
           }
 
-          // Supabase: replace gist-image:// with public URL, skip download
+          // Supabase: replace cloud-image:// with public URL, skip download
           if (isSupabase) {
             return {
               ...imageEntry,
-              uri: currentBackend.getImagePublicUrl(gistFileName),
+              uri: currentBackend.getImagePublicUrl(cloudFileName),
               storageMode: 'remote',
-              gistFileName
+              cloudFileName
             }
           }
 
-          if (!imageGist) {
-            throw new Error(i18n.global.t('sync.error.imageGistMissing'))
+          if (!imageCloud) {
+            throw new Error(i18n.global.t('sync.error.imageCloudMissing'))
           }
 
-          if (!fileCache.has(gistFileName)) {
-            const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readImageFile', { name: gistFileName }), async () => {
-              const fetched = await resolveBackend().readImage(imageGist, gistFileName)
+          if (!fileCache.has(cloudFileName)) {
+            const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readImageFile', { name: cloudFileName }), async () => {
+              const fetched = await resolveBackend().readImage(imageCloud, cloudFileName)
 
               if (!String(fetched || '').startsWith('data:image/')) {
-                throw new Error(i18n.global.t('sync.error.remoteImageMissing', { name: gistFileName }))
+                throw new Error(i18n.global.t('sync.error.remoteImageMissing', { name: cloudFileName }))
               }
               return fetched
             }, {
               startDetail: item?.name ? i18n.global.t('sync.step.restoreItem.start', { name: item.name }) : i18n.global.t('sync.step.restoreItem.startFallback'),
               category: 'image',
-              successDetail: () => i18n.global.t('sync.step.restoreItem.success', { name: item?.name || item?.id || gistFileName })
+              successDetail: () => i18n.global.t('sync.step.restoreItem.success', { name: item?.name || item?.id || cloudFileName })
             })
-            fileCache.set(gistFileName, imageDataUrl)
+            fileCache.set(cloudFileName, imageDataUrl)
           }
 
-          const imageDataUrl = fileCache.get(gistFileName)
+          const imageDataUrl = fileCache.get(cloudFileName)
 
           imageStats.restoredImages += 1
 
           return {
             ...imageEntry,
             uri: imageDataUrl,
-            storageMode: 'gist-local',
-            gistFileName
+            storageMode: 'cloud-local',
+            cloudFileName
           }
         }))
 
@@ -104,7 +104,7 @@ export function createSyncImageService({
     }, 8)
   }
 
-  async function hydrateEventCoversWithImages(events, imageGist, imageStats, options = {}) {
+  async function hydrateEventCoversWithImages(events, imageCloud, imageStats, options = {}) {
     const targetEventIds = options.targetEventIds instanceof Set ? options.targetEventIds : null
     const fileCache = new Map()
     const currentBackend = resolveBackend()
@@ -123,41 +123,41 @@ export function createSyncImageService({
 
       if (event.coverImage) {
         const storageMode = inferGoodsImageStorageMode(event.coverImage, event?.coverImageData?.storageMode)
-        if (storageMode === 'gist-local') {
-          const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
-          if (gistFileName) {
+        if (storageMode === 'cloud-local') {
+          const cloudFileName = String(event.coverImageData?.cloudFileName || parseCloudImageUri(event.coverImage)).trim()
+          if (cloudFileName) {
             // Supabase: replace with public URL, skip download
             if (isSupabase) {
-              nextCoverImage = currentBackend.getImagePublicUrl(gistFileName)
+              nextCoverImage = currentBackend.getImagePublicUrl(cloudFileName)
               nextCoverImageData = {
                 ...event.coverImageData,
                 uri: nextCoverImage,
                 storageMode: 'remote',
-                gistFileName
+                cloudFileName
               }
-            } else if (imageGist) {
+            } else if (imageCloud) {
               try {
-                if (!fileCache.has(gistFileName)) {
-                  const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readEventCoverFile', { name: gistFileName }), async () => {
-                    const fetched = await resolveBackend().readImage(imageGist, gistFileName)
+                if (!fileCache.has(cloudFileName)) {
+                  const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readEventCoverFile', { name: cloudFileName }), async () => {
+                    const fetched = await resolveBackend().readImage(imageCloud, cloudFileName)
                     if (!String(fetched || '').startsWith('data:image/')) {
-                      throw new Error(i18n.global.t('sync.error.remoteCoverMissing', { name: gistFileName }))
+                      throw new Error(i18n.global.t('sync.error.remoteCoverMissing', { name: cloudFileName }))
                     }
                     return fetched
                   }, {
                     startDetail: event?.name ? i18n.global.t('sync.step.restoreEventCover.start', { name: event.name }) : i18n.global.t('sync.step.restoreEventCover.startFallback'),
                     category: 'image',
-                    successDetail: () => i18n.global.t('sync.step.restoreEventCover.success', { name: event?.name || event?.id || gistFileName })
+                    successDetail: () => i18n.global.t('sync.step.restoreEventCover.success', { name: event?.name || event?.id || cloudFileName })
                   })
-                  fileCache.set(gistFileName, imageDataUrl)
+                  fileCache.set(cloudFileName, imageDataUrl)
                 }
 
-                nextCoverImage = fileCache.get(gistFileName)
+                nextCoverImage = fileCache.get(cloudFileName)
                 nextCoverImageData = {
                   ...event.coverImageData,
                   uri: nextCoverImage,
-                  storageMode: 'gist-local',
-                  gistFileName
+                  storageMode: 'cloud-local',
+                  cloudFileName
                 }
                 imageStats.restoredImages += 1
               } catch {
@@ -174,29 +174,29 @@ export function createSyncImageService({
           if (!photoUri) return photoEntry
 
           const photoStorageMode = inferGoodsImageStorageMode(photoUri, photoEntry?.storageMode)
-          if (photoStorageMode !== 'gist-local') return photoEntry
+          if (photoStorageMode !== 'cloud-local') return photoEntry
 
-          const gistFileName = String(photoEntry?.gistFileName || parseGistImageUri(photoUri)).trim()
-          if (!gistFileName) return photoEntry
+          const cloudFileName = String(photoEntry?.cloudFileName || parseCloudImageUri(photoUri)).trim()
+          if (!cloudFileName) return photoEntry
 
           // Supabase: replace with public URL, skip download
           if (isSupabase) {
             return {
               ...photoEntry,
-              uri: currentBackend.getImagePublicUrl(gistFileName),
+              uri: currentBackend.getImagePublicUrl(cloudFileName),
               storageMode: 'remote',
-              gistFileName
+              cloudFileName
             }
           }
 
-          if (!imageGist) return photoEntry
+          if (!imageCloud) return photoEntry
 
           try {
-            if (!fileCache.has(gistFileName)) {
-              const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readEventPhotoFile', { name: gistFileName }), async () => {
-                const fetched = await resolveBackend().readImage(imageGist, gistFileName)
+            if (!fileCache.has(cloudFileName)) {
+              const imageDataUrl = await trackSyncStep(i18n.global.t('sync.step.readEventPhotoFile', { name: cloudFileName }), async () => {
+                const fetched = await resolveBackend().readImage(imageCloud, cloudFileName)
                 if (!String(fetched || '').startsWith('data:image/')) {
-                  throw new Error(i18n.global.t('sync.error.remotePhotoMissing', { name: gistFileName }))
+                  throw new Error(i18n.global.t('sync.error.remotePhotoMissing', { name: cloudFileName }))
                 }
                 return fetched
               }, {
@@ -204,16 +204,16 @@ export function createSyncImageService({
                 category: 'image',
                 successDetail: () => i18n.global.t('sync.step.restoreEventPhoto.success', { name: event?.name || event?.id || '?', index: index + 1 })
               })
-              fileCache.set(gistFileName, imageDataUrl)
+              fileCache.set(cloudFileName, imageDataUrl)
             }
 
             imageStats.restoredImages += 1
 
             return {
               ...photoEntry,
-              uri: fileCache.get(gistFileName),
-              storageMode: 'gist-local',
-              gistFileName
+              uri: fileCache.get(cloudFileName),
+              storageMode: 'cloud-local',
+              cloudFileName
             }
           } catch {
             return photoEntry
@@ -230,16 +230,16 @@ export function createSyncImageService({
     }, 8)
   }
 
-  function buildImageCleanupFiles(existingImageGist, referencedImageFiles) {
+  function buildImageCleanupFiles(existingImageCloud, referencedImageFiles) {
     const currentBackend = resolveBackend()
-    // Supabase uses public URLs for synced images, so local items no longer retain gist-local references.
+    // Supabase uses public URLs for synced images, so local items no longer retain cloud-local references.
     // Deleting based on current references would incorrectly remove valid cloud images on the next sync.
     if (typeof currentBackend?.getImagePublicUrl === 'function') {
       return {}
     }
 
     const files = {}
-    for (const filename of Object.keys(existingImageGist?.files || {})) {
+    for (const filename of Object.keys(existingImageCloud?.files || {})) {
       if (
         !filename.startsWith(imageFilePrefix)
         && !filename.startsWith(eventCoverPrefix)
@@ -252,7 +252,7 @@ export function createSyncImageService({
   }
 
   return {
-    resolveRemoteImageGist,
+    resolveRemoteImageCloud,
     hydrateRemoteItemsWithImages,
     hydrateEventCoversWithImages,
     buildImageCleanupFiles

@@ -12,9 +12,9 @@ const log = createLogger('sync:pushPipeline')
  * Build sync payloads (image upload is deferred to doPush).
  * Returns { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles, imageUpdates }.
  */
-export async function buildPayloadAndUploadImages(payload, imageService, be, { existingImageGist = null, dirtyIds = null, shouldWriteRecharge = true, shouldWriteEvent = true } = {}) {
+export async function buildPayloadAndUploadImages(payload, imageService, be, { existingImageCloud = null, dirtyIds = null, shouldWriteRecharge = true, shouldWriteEvent = true } = {}) {
   // Build goods payload (includes image collection)
-  const goodsResult = await payload.buildSyncPayload({ existingImageGist, dirtyIds })
+  const goodsResult = await payload.buildSyncPayload({ existingImageCloud, dirtyIds })
   const { syncData, imageStats, imageFiles, referencedImageFiles } = goodsResult
 
   // Build recharge payload
@@ -29,7 +29,7 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
   let eventImageFiles = {}
   let eventReferencedImageFiles = []
   if (shouldWriteEvent) {
-    const eventResult = await payload.buildEventSyncPayload({ existingImageGist })
+    const eventResult = await payload.buildEventSyncPayload({ existingImageCloud })
     eventSyncData = eventResult.eventData || { events: [] }
     eventImageStats = eventResult.imageStats || { imageFileCount: 0 }
     eventImageFiles = eventResult.imageFiles || {}
@@ -38,32 +38,32 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
 
   // Merge image files and compute cleanup
   const allReferencedImageFiles = new Set([...referencedImageFiles, ...eventReferencedImageFiles])
-  const imageCleanupFiles = imageService.buildImageCleanupFiles(existingImageGist, allReferencedImageFiles)
+  const imageCleanupFiles = imageService.buildImageCleanupFiles(existingImageCloud, allReferencedImageFiles)
   const imageUpdates = { ...imageFiles, ...eventImageFiles, ...imageCleanupFiles }
 
   // NOTE: Image upload is deferred to doPush().
   // Data is written to remote FIRST, then images are uploaded.
   // This prevents orphaned images in Storage when the data write fails.
 
-  // Replace gist-image:// URIs with public URLs (Supabase only).
+  // Replace cloud-image:// URIs with public URLs (Supabase only).
   // Public URLs are deterministic — they don't require the file to exist yet.
   if (be.getImagePublicUrl) {
     for (const item of [...syncData.goods, ...syncData.trash]) {
       if (!Array.isArray(item.images)) continue
       for (const img of item.images) {
-        if (img.gistFileName && allReferencedImageFiles.has(img.gistFileName)) {
-          img.uri = be.getImagePublicUrl(img.gistFileName)
+        if (img.cloudFileName && allReferencedImageFiles.has(img.cloudFileName)) {
+          img.uri = be.getImagePublicUrl(img.cloudFileName)
         }
       }
     }
     for (const event of (eventSyncData.events || [])) {
-      const coverFileName = event.coverImageData?.gistFileName
+      const coverFileName = event.coverImageData?.cloudFileName
       if (coverFileName && allReferencedImageFiles.has(coverFileName)) {
         event.coverImage = be.getImagePublicUrl(coverFileName)
       }
       if (Array.isArray(event.photos)) {
         for (const photo of event.photos) {
-          const photoFileName = String(photo?.gistFileName || '').trim()
+          const photoFileName = String(photo?.cloudFileName || '').trim()
           if (photoFileName && allReferencedImageFiles.has(photoFileName)) {
             photo.uri = be.getImagePublicUrl(photoFileName)
           }
@@ -87,7 +87,7 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
  * Build manifest from current state.
  */
 export function buildManifest(payload, imageStats, syncTimestamp, { syncData, rechargeSyncData, eventSyncData, goodsStore, rechargeStore, eventsStore, hasDirtyGoodsIds, shouldWriteRecharge = true, shouldWriteEvent = true, backend }) {
-  const isSupabase = !!backend?.pushDomainRows
+  const isSupabase = !!backend?.pushAll
 
   const rechargeForCount = shouldWriteRecharge
     ? rechargeSyncData.recharge
@@ -123,98 +123,71 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
 }
 
 /**
- * Write data to remote backend.
- * Uses writeDomainRows when available (Supabase), falls back to writeData (Gist).
+ * Write data to remote backend via pushAll RPC.
  */
-export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, existingGist, uploadPlan, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null }) {
-  if (be.pushAll) {
-    // Supabase path — compute incremental diff when remoteData is available
-    const localGoods = shouldWriteData ? (syncData.goods || []) : []
-    const localTrash = shouldWriteData ? (syncData.trash || []) : []
-    const localGroups = shouldWriteData ? (syncData.goodsGroups || []) : []
-    const localGroupItems = shouldWriteData ? (syncData.goodsGroupItems || []) : []
-    const localRecharge = shouldWriteRecharge ? (rechargeSyncData.recharge || []) : []
-    const localRechargeTrash = shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : []
-    const localEvents = shouldWriteEvent ? (eventSyncData.events || []) : []
+export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null }) {
+  // Compute incremental diff when remoteData is available
+  const localGoods = shouldWriteData ? (syncData.goods || []) : []
+  const localTrash = shouldWriteData ? (syncData.trash || []) : []
+  const localGroups = shouldWriteData ? (syncData.goodsGroups || []) : []
+  const localGroupItems = shouldWriteData ? (syncData.goodsGroupItems || []) : []
+  const localRecharge = shouldWriteRecharge ? (rechargeSyncData.recharge || []) : []
+  const localRechargeTrash = shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : []
+  const localEvents = shouldWriteEvent ? (eventSyncData.events || []) : []
 
-    // When dirty-filtered, localGoods/localTrash are only subsets of the full local data.
-    // computeDeleteIds must use the FULL local lists — otherwise items that exist on remote
-    // but aren't in the dirty subset would be incorrectly flagged for deletion.
-    const deleteGoodsLocal = fullGoodsList || localGoods
-    const deleteTrashLocal = fullTrashList || localTrash
+  // When dirty-filtered, localGoods/localTrash are only subsets of the full local data.
+  const deleteGoodsLocal = fullGoodsList || localGoods
+  const deleteTrashLocal = fullTrashList || localTrash
 
-    let goods = localGoods, goodsTrash = localTrash
-    let groups = localGroups, groupItems = localGroupItems
-    let recharge = localRecharge, rechargeTrash = localRechargeTrash
-    let events = localEvents
-    let deleteGoods = shouldWriteData ? (uploadPlan?.deleteIdsByFile?.['data.json'] || []) : []
-    let deleteGroups = shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroups || []) : []
-    let deleteGroupItems = shouldWriteData ? (uploadPlan?.deleteIdsByFile?.goodsGroupItems || []) : []
-    let deleteRecharge = shouldWriteRecharge ? (uploadPlan?.deleteIdsByFile?.['recharge-data.json'] || []) : []
-    let deleteEvents = shouldWriteEvent ? (uploadPlan?.deleteIdsByFile?.['events-data.json'] || []) : []
+  let goods = localGoods, goodsTrash = localTrash
+  let groups = localGroups, groupItems = localGroupItems
+  let recharge = localRecharge, rechargeTrash = localRechargeTrash
+  let events = localEvents
+  let deleteGoods = []
+  let deleteGroups = []
+  let deleteGroupItems = []
+  let deleteRecharge = []
+  let deleteEvents = []
 
-    if (remoteData) {
-      // Incremental: only send changed items
-      if (shouldWriteData) {
-        goods = await computeDiffRows(localGoods, remoteData.goods || [])
-        goodsTrash = await computeDiffRows(localTrash, remoteData.trash || [])
-        groups = await computeDiffRows(localGroups, remoteData.groups || [])
-        groupItems = await computeDiffRows(localGroupItems, remoteData.groupItems || [])
-        // Use full local lists for delete computation to avoid dirty-filter false positives.
-        // Combine goods + trash: an item moved to trash locally must not be flagged as deleted.
-        deleteGoods = computeDeleteIds(
-          [...deleteGoodsLocal, ...deleteTrashLocal],
-          [...(remoteData.goods || []), ...(remoteData.trash || [])]
-        )
-        deleteGroups = computeDeleteIds(localGroups, remoteData.groups || [])
-        deleteGroupItems = computeDeleteIds(localGroupItems, remoteData.groupItems || [])
-      }
-      if (shouldWriteRecharge) {
-        recharge = await computeDiffRows(localRecharge, remoteData.recharge || [])
-        rechargeTrash = await computeDiffRows(localRechargeTrash, remoteData.rechargeTrash || [])
-        deleteRecharge = computeDeleteIds(localRecharge, remoteData.recharge || [])
-      }
-      if (shouldWriteEvent) {
-        events = await computeDiffRows(localEvents, remoteData.events || [])
-        deleteEvents = computeDeleteIds(localEvents, remoteData.events || [])
-      }
-    }
-
-    await be.pushAll({
-      goods, goodsTrash, groups, groupItems,
-      recharge, rechargeTrash, events,
-      presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
-      deleteGoods, deleteGroups, deleteGroupItems,
-      deleteRecharge, deleteEvents,
-      deviceId: manifest?.deviceId || '',
-      syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
-      imageBucket: manifest?.imageGistId || 'goods-images',
-      budgetMonthly: manifest?.budgetMonthly || 0,
-      budgetYearly: manifest?.budgetYearly || 0,
-      rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
-      eventUpdatedAt: manifest?.eventUpdatedAt || null
-    })
-  } else {
-    // Gist path — build dataMap and call writeData
-    const dataMap = {}
-
+  if (remoteData) {
+    // Incremental: only send changed items
     if (shouldWriteData) {
-      dataMap['data.json'] = { content: syncData }
+      goods = await computeDiffRows(localGoods, remoteData.goods || [])
+      goodsTrash = await computeDiffRows(localTrash, remoteData.trash || [])
+      groups = await computeDiffRows(localGroups, remoteData.groups || [])
+      groupItems = await computeDiffRows(localGroupItems, remoteData.groupItems || [])
+      deleteGoods = computeDeleteIds(
+        [...deleteGoodsLocal, ...deleteTrashLocal],
+        [...(remoteData.goods || []), ...(remoteData.trash || [])]
+      )
+      deleteGroups = computeDeleteIds(localGroups, remoteData.groups || [])
+      deleteGroupItems = computeDeleteIds(localGroupItems, remoteData.groupItems || [])
     }
     if (shouldWriteRecharge) {
-      dataMap['recharge-data.json'] = { content: rechargeSyncData }
+      recharge = await computeDiffRows(localRecharge, remoteData.recharge || [])
+      rechargeTrash = await computeDiffRows(localRechargeTrash, remoteData.rechargeTrash || [])
+      deleteRecharge = computeDeleteIds(localRecharge, remoteData.recharge || [])
     }
     if (shouldWriteEvent) {
-      dataMap['events-data.json'] = { content: eventSyncData }
-    }
-    if (manifest) {
-      dataMap['manifest.json'] = { content: manifest }
-    }
-
-    if (Object.keys(dataMap).length > 0) {
-      await be.writeData(existingGist?.id || be.getDataGistId(), dataMap)
+      events = await computeDiffRows(localEvents, remoteData.events || [])
+      deleteEvents = computeDeleteIds(localEvents, remoteData.events || [])
     }
   }
+
+  await be.pushAll({
+    goods, goodsTrash, groups, groupItems,
+    recharge, rechargeTrash, events,
+    presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
+    deleteGoods, deleteGroups, deleteGroupItems,
+    deleteRecharge, deleteEvents,
+    deviceId: manifest?.deviceId || '',
+    syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
+    imageBucket: manifest?.imageCloudId || 'goods-images',
+    budgetMonthly: manifest?.budgetMonthly || 0,
+    budgetYearly: manifest?.budgetYearly || 0,
+    rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
+    eventUpdatedAt: manifest?.eventUpdatedAt || null
+  })
 }
 
 /**
@@ -229,10 +202,10 @@ export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSy
     if (!Array.isArray(images)) continue
     const imageMap = new Map()
     for (let i = 0; i < images.length; i++) {
-      if (images[i]?.gistFileName) {
+      if (images[i]?.cloudFileName) {
         const entry = { ...images[i] }
         if (be.getImagePublicUrl) {
-          entry.uri = be.getImagePublicUrl(entry.gistFileName)
+          entry.uri = be.getImagePublicUrl(entry.cloudFileName)
         }
         imageMap.set(i, entry)
       }
@@ -247,9 +220,9 @@ export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSy
     for (const event of eventSyncData.events) {
       const eventId = String(event?.id || '').trim()
       if (!eventId) continue
-      const coverFileName = String(event?.coverImageData?.gistFileName || '').trim()
+      const coverFileName = String(event?.coverImageData?.cloudFileName || '').trim()
       const hasCover = !!coverFileName
-      const hasPhotos = Array.isArray(event?.photos) && event.photos.some(photo => String(photo?.gistFileName || '').trim())
+      const hasPhotos = Array.isArray(event?.photos) && event.photos.some(photo => String(photo?.cloudFileName || '').trim())
       if (!hasCover && !hasPhotos) continue
       preparedMediaByEventId.set(eventId, {
         coverImage: event.coverImage,

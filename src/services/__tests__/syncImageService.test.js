@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 
 // Mock dependencies
 vi.mock('@/utils/goods/images', () => ({
-  inferGoodsImageStorageMode: vi.fn(() => 'gist-local'),
+  inferGoodsImageStorageMode: vi.fn(() => 'cloud-local'),
   normalizeGoodsImageList: vi.fn((images) => Array.isArray(images) ? images : []),
-  parseGistImageUri: vi.fn(() => null)
+  parseCloudImageUri: vi.fn(() => null)
 }))
 
 vi.mock('@/utils/sync/shared', () => ({
@@ -32,56 +32,56 @@ describe('createSyncImageService', () => {
 
   describe('buildImageCleanupFiles', () => {
     it('returns files to clean up that are not referenced', () => {
-      const existingGist = {
+      const existingCloud = {
         files: {
-          'goods-image__item1__img1__0.jpg.txt': {},
-          'goods-image__item2__img2__0.jpg.txt': {},
+          'goods-image__item1__img1__0.jpg': {},
+          'goods-image__item2__img2__0.jpg': {},
           'other-file.txt': {}
         }
       }
-      const referenced = new Set(['goods-image__item1__img1__0.jpg.txt'])
+      const referenced = new Set(['goods-image__item1__img1__0.jpg'])
 
-      const result = service.buildImageCleanupFiles(existingGist, referenced)
-      expect(result).toHaveProperty('goods-image__item2__img2__0.jpg.txt')
-      expect(result['goods-image__item2__img2__0.jpg.txt']).toBeNull()
-      expect(result).not.toHaveProperty('goods-image__item1__img1__0.jpg.txt')
+      const result = service.buildImageCleanupFiles(existingCloud, referenced)
+      expect(result).toHaveProperty('goods-image__item2__img2__0.jpg')
+      expect(result['goods-image__item2__img2__0.jpg']).toBeNull()
+      expect(result).not.toHaveProperty('goods-image__item1__img1__0.jpg')
       expect(result).not.toHaveProperty('other-file.txt')
     })
 
     it('includes event cover files', () => {
-      const existingGist = {
+      const existingCloud = {
         files: {
-          'event-cover__evt1__0.jpg.txt': {},
-          'event-photo__evt1__photo1__0.jpg.txt': {}
+          'event-cover__evt1__0.jpg': {},
+          'event-photo__evt1__photo1__0.jpg': {}
         }
       }
       const referenced = new Set()
 
-      const result = service.buildImageCleanupFiles(existingGist, referenced)
+      const result = service.buildImageCleanupFiles(existingCloud, referenced)
       expect(Object.keys(result)).toHaveLength(2)
     })
 
     it('skips non-image files', () => {
-      const existingGist = {
+      const existingCloud = {
         files: {
           'data.json': {},
           'readme.md': {},
-          'goods-image__item1__img1__0.jpg.txt': {}
+          'goods-image__item1__img1__0.jpg': {}
         }
       }
       const referenced = new Set()
 
-      const result = service.buildImageCleanupFiles(existingGist, referenced)
+      const result = service.buildImageCleanupFiles(existingCloud, referenced)
       expect(Object.keys(result)).toHaveLength(1)
-      expect(result).toHaveProperty('goods-image__item1__img1__0.jpg.txt')
+      expect(result).toHaveProperty('goods-image__item1__img1__0.jpg')
     })
 
-    it('returns empty for empty gist', () => {
+    it('returns empty for empty cloud', () => {
       const result = service.buildImageCleanupFiles({}, new Set())
       expect(result).toEqual({})
     })
 
-    it('returns empty for null gist files', () => {
+    it('returns empty for null cloud files', () => {
       const result = service.buildImageCleanupFiles({ files: null }, new Set())
       expect(result).toEqual({})
     })
@@ -96,10 +96,10 @@ describe('createSyncImageService', () => {
         eventPhotoPrefix: 'event-photo__'
       })
 
-      const existingGist = {
-        files: { 'goods-image__item1__img1__0.jpg.txt': {} }
+      const existingCloud = {
+        files: { 'goods-image__item1__img1__0.jpg': {} }
       }
-      const result = supabaseService.buildImageCleanupFiles(existingGist, new Set())
+      const result = supabaseService.buildImageCleanupFiles(existingCloud, new Set())
       expect(result).toEqual({})
     })
   })

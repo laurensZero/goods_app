@@ -15,7 +15,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
-import { buildGistImageUri, getPrimaryGoodsImageUrl, parseGistImageUri } from '@/utils/goods/images'
+import { buildCloudImageUri, getPrimaryGoodsImageUrl, parseCloudImageUri } from '@/utils/goods/images'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 import { MIGRATIONS } from './migrations'
 import { createLogger } from '@/utils/logger'
@@ -595,13 +595,13 @@ export async function getEvents() {
         parsedCoverImageData = null
       }
 
-      const coverImageFileName = String(parsedCoverImageData?.gistFileName || parseGistImageUri(r.coverImage) || '').trim()
+      const coverImageFileName = String(parsedCoverImageData?.cloudFileName || parseCloudImageUri(r.coverImage) || '').trim()
       const coverImageData = coverImageFileName
         ? {
             ...parsedCoverImageData,
-            uri: parsedCoverImageData?.uri || buildGistImageUri(coverImageFileName),
-            storageMode: parsedCoverImageData?.storageMode || 'gist-local',
-            gistFileName: coverImageFileName
+            uri: parsedCoverImageData?.uri || buildCloudImageUri(coverImageFileName),
+            storageMode: parsedCoverImageData?.storageMode || 'cloud-local',
+            cloudFileName: coverImageFileName
           }
         : parsedCoverImageData
 

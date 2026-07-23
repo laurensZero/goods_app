@@ -3,7 +3,7 @@
     <div class="photo-grid">
       <button
         v-for="(photo, index) in photos"
-        :key="(photo.gistFileName || photo.id) || index"
+        :key="(photo.cloudFileName || photo.id) || index"
         type="button"
         class="photo-grid__item"
         @click="$emit('preview', index)"

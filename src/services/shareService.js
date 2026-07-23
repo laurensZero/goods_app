@@ -1,5 +1,5 @@
 // src/services/shareService.js
-// Supabase-based sharing CRUD — replaces Gist sharing
+// Supabase-based sharing CRUD
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 

@@ -1,8 +1,4 @@
-// 集中管理同步相关常量（文件名与协议版本）
-export const DATA_FILENAME = 'data.json'
-export const RECHARGE_DATA_FILENAME = 'recharge-data.json'
-export const EVENT_DATA_FILENAME = 'events-data.json'
-export const MANIFEST_FILENAME = 'manifest.json'
+// 集中管理同步相关常量（协议版本）
 
 // Sync payload / manifest protocol versions
 export const SYNC_PAYLOAD_VERSION = 7

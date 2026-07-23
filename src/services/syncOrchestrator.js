@@ -3,9 +3,9 @@
 // The store only manages state/persistence and delegates to this.
 
 import { buildImageSyncStats, countWishlistSplit, getItemTimestamp, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings } from '@/utils/sync/shared'
-import { parseGistImageUri, normalizeGoodsImageList } from '@/utils/goods/images'
+import { parseCloudImageUri, normalizeGoodsImageList } from '@/utils/goods/images'
 import { compareStateSync } from '@/utils/sync/stateCompare'
-import { wrapSyncError, PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_WRITE_DATA } from './syncError'
+import { wrapSyncError, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_WRITE_DATA } from './syncError'
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from './syncPushPipeline'
 import { createLogger } from '@/utils/logger'
@@ -24,11 +24,8 @@ export function createSyncOrchestrator({
   usePresetsStore,
   useGoodsGroupStore,
   trackSyncStep,
-  constants,
   userIdRef
 }) {
-  const { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME } = constants
-
   // ── Helpers ──
 
   function getLocalStores() {
@@ -41,38 +38,25 @@ export function createSyncOrchestrator({
     }
   }
 
-  function canQuickPush(be, dirtyGoodsIds, dirtyDomains) {
-    return (be.pushAll || be.pushDomainRows)
-      && dirtyGoodsIds && dirtyGoodsIds.size > 0
-      && dirtyDomains && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
-  }
-
   // ── pull() — unified pull entry point ──
 
   async function pull(ctx, opts = {}) {
     const { tables, since = 0, silent = false, forceRecharge = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
-    const isIncremental = since > 0 && (!!be.readDomainRows || !!be.pullAll)
+    const isIncremental = since > 0 && !!be.pullAll
 
     try {
       // 1. Read remote data
-      const gist = isIncremental ? null : await be.getDataGist()
-      const [rechargeGist, eventGist] = await Promise.all([
-        be.getExistingRechargeGist(),
-        be.getExistingEventGist()
-      ])
       const remoteData = await readRemoteData(be, {
         tables, since,
         readManifest: !isIncremental,
         readPresets: !isIncremental,
-        gist,
-        fallbackGists: { rechargeGist, eventGist },
         trackSyncStep
       })
 
-      if (remoteData.manifest?.imageGistId) {
-        await ctx.saveImageGistId(remoteData.manifest.imageGistId)
+      if (remoteData.manifest?.imageCloudId) {
+        await ctx.saveImageCloudId(remoteData.manifest.imageCloudId)
       }
 
       // 2. Incremental mode: direct merge, skip diff/conflict
@@ -109,13 +93,11 @@ export function createSyncOrchestrator({
       const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
       const localChanges = conflict.getLocalChangesSince(localSyncTime)
       if (!silent && localChanges.hasChanges) {
-        const remoteTime = remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0
         return {
           action: 'conflict', statusMessage: 'sync.remoteDataDetected',
           conflictData: {
             remoteTime: remoteData.manifest?.lastSyncAt, remoteDevice: remoteData.manifest?.deviceId,
             localTime: ctx.lastSyncedAt, localModifiedTime: ctx.getLatestLocalModifiedAt(),
-            gist, rechargeGist: await be.getExistingRechargeGist(), eventGist: await be.getExistingEventGist(),
             ...buildConflictCounts(stores, remoteData, diff), isPullOnly: true
           }
         }
@@ -170,11 +152,16 @@ export function createSyncOrchestrator({
         }
       }
 
-      // Full sync path
       return await fullSync(ctx, stores, be, opts)
     } catch (e) {
       wrapSyncError(e, PHASE_PUSH)
     }
+  }
+
+  function canQuickPush(be, dirtyGoodsIds, dirtyDomains) {
+    return be.pushAll
+      && dirtyGoodsIds && dirtyGoodsIds.size > 0
+      && dirtyDomains && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
   }
 
   // ── Quick push: direct upsert of specific dirty goods ──
@@ -202,7 +189,7 @@ export function createSyncOrchestrator({
       for (const img of item.images) {
         const uri = String(img?.uri || '')
         const mode = String(img?.storageMode || '')
-        if (mode === 'linked-local' || mode === 'inline-local' || mode === 'gist-local'
+        if (mode === 'linked-local' || mode === 'inline-local' || mode === 'cloud-local' || mode === 'gist-local'
           || uri.startsWith('data:image/') || uri.startsWith('blob:') || uri.startsWith('file:')
           || uri.includes('localhost')) {
           throw new Error('QUICK_PUSH_HAS_LOCAL_IMAGES')
@@ -262,7 +249,7 @@ export function createSyncOrchestrator({
       const manifestData = await readRemoteData(be, { readManifest: true, readPresets: false, tables: [], trackSyncStep })
       remoteManifest = manifestData.manifest
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
-    if (remoteManifest?.imageGistId) await ctx.saveImageGistId(remoteManifest.imageGistId)
+    if (remoteManifest?.imageCloudId) await ctx.saveImageCloudId(remoteManifest.imageCloudId)
 
     // 2. Read remote data (incremental — only changed since last sync)
     const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
@@ -279,7 +266,6 @@ export function createSyncOrchestrator({
 
     // 3. Compare
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
-    const isRemoteFromOtherDevice = !!(remoteManifest?.deviceId && remoteManifest.deviceId !== ctx.deviceId)
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     let hasDataDiff = hasDirtyGoodsIds
@@ -364,24 +350,23 @@ export function createSyncOrchestrator({
   // ── Push implementation ──
 
   /**
-   * Count all unique gist-referenced image files across all goods + events.
-   * Used to get the true total when dirty-goods filtering only processes a subset.
+   * Count all unique cloud-referenced image files across all goods + events.
    */
   function countAllReferencedImageFiles(goodsStore, eventsStore) {
     const files = new Set()
     const collect = (item) => {
       for (const img of normalizeGoodsImageList(item?.images, item?.coverImage || item?.image || '')) {
-        const name = img?.gistFileName || parseGistImageUri(img?.uri)
+        const name = img?.cloudFileName || parseCloudImageUri(img?.uri)
         if (name) files.add(name)
       }
     }
     for (const g of goodsStore.list) collect(g)
     for (const t of goodsStore.trashList) collect(t)
     for (const ev of (eventsStore.list || [])) {
-      const cover = String(ev?.coverImageData?.gistFileName || parseGistImageUri(ev?.coverImage)).trim()
+      const cover = String(ev?.coverImageData?.cloudFileName || parseCloudImageUri(ev?.coverImage)).trim()
       if (cover) files.add(cover)
       for (const p of (Array.isArray(ev?.photos) ? ev.photos : [])) {
-        const name = String(p?.gistFileName || parseGistImageUri(p?.uri)).trim()
+        const name = String(p?.cloudFileName || parseCloudImageUri(p?.uri)).trim()
         if (name) files.add(name)
       }
     }
@@ -392,12 +377,12 @@ export function createSyncOrchestrator({
     const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
 
     // Build payload (without uploading images yet)
-    const existingImageGist = await be.getExistingImageGist()
+    const existingImageCloud = await be.getExistingImageCloud()
     const { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles, imageUpdates } = await trackSyncStep(
       i18n.global.t('sync.step.buildGoodsPayload'),
       () => buildPayloadAndUploadImages(
         payload, image, be, {
-          existingImageGist,
+          existingImageCloud,
           dirtyIds: hasDirtyGoodsIds ? dirtyGoodsIds : null,
           shouldWriteRecharge: hasRechargeDataDiff,
           shouldWriteEvent: hasEventDataDiff
@@ -433,22 +418,17 @@ export function createSyncOrchestrator({
     })
 
     // Write data to remote FIRST — before uploading images.
-    // This ensures data is safely persisted before images are uploaded,
-    // preventing orphaned images in Storage when the data write fails.
     try {
       await trackSyncStep(
         i18n.global.t('sync.step.pushData'),
         () => writeRemoteData(be, {
           syncData, rechargeSyncData, eventSyncData, manifest,
-          existingGist: existingImageGist,
+          existingCloud: existingImageCloud,
           remoteData,
           shouldWriteData: hasDataDiff,
           shouldWriteRecharge: hasRechargeDataDiff,
           shouldWriteEvent: hasEventDataDiff,
           shouldWritePresets: hasPresetsDiff,
-          // When dirty-filtered, syncData.goods is only a subset.
-          // Pass full local lists so computeDeleteIds doesn't falsely flag
-          // non-dirty remote items for deletion.
           fullGoodsList: hasDirtyGoodsIds ? stores.goodsStore.list : null,
           fullTrashList: hasDirtyGoodsIds ? stores.goodsStore.trashList : null
         }),
@@ -461,11 +441,10 @@ export function createSyncOrchestrator({
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
 
     // Upload images AFTER data is safely written.
-    // If image upload fails, data is already in the remote DB — next sync will retry.
     if (Object.keys(imageUpdates).length > 0) {
-      if (!existingImageGist) existingImageGist = await be.ensureImageGist()
+      if (!existingImageCloud) existingImageCloud = await be.ensureImageCloud()
       try {
-        const imgResult = await be.writeImages(existingImageGist.id, imageUpdates)
+        const imgResult = await be.writeImages(existingImageCloud.id, imageUpdates)
         if (imgResult?.failed > 0) {
           log.warn(`image upload: ${imgResult.failed} failed, ${imgResult.uploaded} succeeded`)
         }
@@ -478,7 +457,7 @@ export function createSyncOrchestrator({
     // Update local refs
     await updateLocalRefs(stores.goodsStore, stores.eventsStore, syncData, eventSyncData, be)
 
-    // Clean up any remaining base64 images in SQLite (Supabase only)
+    // Clean up any remaining base64 images in SQLite
     if (be.getImagePublicUrl) {
       const { cleanupBase64Images } = await import('@/stores/goodsSync')
       await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
@@ -487,10 +466,6 @@ export function createSyncOrchestrator({
     // Save timestamps
     await ctx.saveLastSyncedAt(manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
-
-    const dataGistId = be.getDataGistId()
-    if (ctx.rechargeGistId && ctx.rechargeGistId !== dataGistId) await ctx.saveRechargeGistId('')
-    if (ctx.eventGistId && ctx.eventGistId !== dataGistId) await ctx.saveEventGistId('')
 
     return {
       action: 'pushed',
@@ -539,8 +514,7 @@ export function createSyncOrchestrator({
       remoteRechargeCount: (remoteData.recharge || []).length,
       remoteEventCount: (remoteData.events || []).length,
       remoteGroupCount: (remoteData.groups || []).length,
-      remoteGroupItemCount: (remoteData.groupItems || []).length,
-      rechargeGist: null, eventGist: null
+      remoteGroupItemCount: (remoteData.groupItems || []).length
     }
   }
 

@@ -1,8 +1,8 @@
 // src/services/supabaseAdapter/reader.js
-// Supabase read operations: pullDomainRows, readJson, getManifest
+// Supabase read operations: pullAll, readPresets
 
 import { toCamelCase } from '@/utils/sync/columnMapping'
-import { withRetry, withTimeout } from '@/services/syncRetry'
+import { withRetry } from '@/services/syncRetry'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS,
   GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
@@ -10,184 +10,6 @@ import {
 } from './helpers'
 
 export function createReader({ getDb, trackSyncStep, userIdRef }) {
-  async function readJson({
-    title,
-    fileName,
-    startDetail = '',
-    category = '',
-    successDetail = null,
-    incrementalSince = 0
-  }) {
-    const result = await trackSyncStep(title, () => withTimeout(async () => {
-      const db = getDb()
-
-      if (fileName === 'data.json') {
-        const incrementalSinceMs = Number(incrementalSince) || 0
-        const buildGoodsQuery = (trashed) => () => {
-          let query = db.from('goods').select(GOODS_SELECT_COLS)
-          query = trashed ? query.eq('trashed', 1) : query.or('trashed.is.null,trashed.eq.0')
-          if (incrementalSinceMs > 0) {
-            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-          }
-          return query
-        }
-        const buildGroupsQuery = () => () => {
-          let query = db.from('goods_groups').select(GOODS_GROUP_SELECT_COLS)
-          if (incrementalSinceMs > 0) {
-            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-          }
-          return query
-        }
-        const buildGroupItemsQuery = () => () => {
-          let query = db.from('goods_group_items').select(GOODS_GROUP_ITEM_SELECT_COLS)
-          if (incrementalSinceMs > 0) {
-            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-          }
-          return query
-        }
-
-        const [goodsData, trashData, presetsRes, groupsData, groupItemsData] = await Promise.all([
-          fetchAllRows(buildGoodsQuery(false)),
-          fetchAllRows(buildGoodsQuery(true)),
-          withRetry(() => {
-            const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-            return db.from('sync_presets').select('*').eq('user_id', uid).limit(1)
-          }),
-          fetchAllRows(buildGroupsQuery()),
-          fetchAllRows(buildGroupItemsQuery())
-        ])
-
-        const normalizeGoodsRows = (rows) => rows.map((row) => {
-          const item = toCamelCase(row)
-          item.updatedAt = normalizeTimestamp(item.updatedAt)
-          delete item.trashed
-          return item
-        })
-
-        const presets = presetsRes.data && presetsRes.data.length > 0 ? toCamelCase(presetsRes.data[0]) : { categories: '[]', ips: '[]', characters: '[]', storageLocations: '[]' }
-
-        const goodsGroups = (groupsData || []).map(row => {
-          const item = toCamelCase(row)
-          item.updatedAt = normalizeTimestamp(item.updatedAt)
-          if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
-          return item
-        })
-        const goodsGroupItems = (groupItemsData || []).map(row => {
-          const item = toCamelCase(row)
-          item.updatedAt = normalizeTimestamp(item.updatedAt)
-          if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
-          return item
-        })
-
-        return {
-          parsed: {
-            goods: normalizeGoodsRows(goodsData || []),
-            trash: normalizeGoodsRows(trashData || []),
-            presets: {
-              categories: parsePresetsField(presets.categories),
-              ips: parsePresetsField(presets.ips),
-              characters: parsePresetsField(presets.characters),
-              storageLocations: parsePresetsField(presets.storageLocations)
-            },
-            goodsGroups,
-            goodsGroupItems
-          },
-          source: 'Supabase'
-        }
-      }
-
-      if (fileName === 'recharge-data.json') {
-        const incrementalSinceMs = Number(incrementalSince) || 0
-        const data = await fetchAllRows(() => {
-          let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS)
-          if (incrementalSinceMs > 0) {
-            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-          }
-          return query
-        })
-        const recharge = []
-        const rechargeTrash = []
-        for (const row of data || []) {
-          const item = toCamelCase(row)
-          item.updatedAt = normalizeTimestamp(item.updatedAt)
-          item.deleted = Boolean(item.deleted)
-          if (item.deleted) rechargeTrash.push(item)
-          else recharge.push(item)
-        }
-        return {
-          parsed: { recharge, rechargeTrash },
-          source: 'Supabase'
-        }
-      }
-
-      if (fileName === 'events-data.json') {
-        const incrementalSinceMs = Number(incrementalSince) || 0
-        const data = await fetchAllRows(() => {
-          let query = db.from('events').select(EVENT_SELECT_COLS)
-          if (incrementalSinceMs > 0) {
-            query = query.gt('updated_at', new Date(incrementalSinceMs).toISOString())
-          }
-          return query
-        })
-        const events = (data || []).map((row) => {
-          const item = toCamelCase(row)
-          item.updatedAt = normalizeTimestamp(item.updatedAt)
-          if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
-          return item
-        })
-        return {
-          parsed: { events },
-          source: 'Supabase'
-        }
-      }
-
-      if (fileName === 'manifest.json') {
-        const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-        const { data, error } = await withRetry(() =>
-          db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
-        )
-        if (error || !data || data.length === 0) return null
-        const row = toCamelCase(data[0])
-        return {
-          parsed: {
-            ...row,
-            lastSyncAt: row.syncedAt || row.lastSyncAt || '',
-            imageGistId: row.imageBucket || row.imageGistId || ''
-          },
-          source: 'Supabase'
-        }
-      }
-
-      return null
-    }), {
-      startDetail,
-      category,
-      successDetail: (value) => {
-        if (!successDetail) return ''
-        return successDetail(value?.parsed ?? null, value?.source || 'Supabase')
-      }
-    })
-
-    return result?.parsed ?? null
-  }
-
-  async function getManifest() {
-    const db = getDb()
-    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-    const { data, error } = await withRetry(() =>
-      db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
-    )
-    if (error || !data || data.length === 0) return null
-    const row = toCamelCase(data[0])
-    return {
-      ...row,
-      lastSyncAt: row.syncedAt || row.lastSyncAt || '',
-      imageGistId: row.imageBucket || row.imageGistId || '',
-      budgetMonthly: Number(row.budgetMonthly) || 0,
-      budgetYearly: Number(row.budgetYearly) || 0
-    }
-  }
-
   async function readPresets() {
     const db = getDb()
     const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
@@ -319,10 +141,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     )
     if (error) throw error
 
-    // Supabase rpc 可能返回 JSON 字符串而非对象
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : (rawData || {})
 
-    // goods normalization
     const mapGoods = (row) => {
       const item = toCamelCase(row)
       item.isWishlist = Number(item.isWishlist) === 1
@@ -341,7 +161,6 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       return item
     }
 
-    // recharge normalization
     const recharge = []
     const rechargeTrash = []
     for (const row of (data.recharge || [])) {
@@ -358,7 +177,6 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       rechargeTrash.push(item)
     }
 
-    // events normalization
     const events = (data.events || []).map((row) => {
       const item = toCamelCase(row)
       item.updatedAt = normalizeTimestamp(item.updatedAt)
@@ -373,7 +191,6 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       return item
     })
 
-    // groups normalization
     const groups = (data.groups || []).map((row) => {
       const item = toCamelCase(row)
       item.updatedAt = normalizeTimestamp(item.updatedAt)
@@ -381,7 +198,6 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       return item
     })
 
-    // group_items normalization
     const groupItems = (data.group_items || []).map((row) => {
       const item = toCamelCase(row)
       item.updatedAt = normalizeTimestamp(item.updatedAt)
@@ -389,20 +205,18 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       return item
     })
 
-    // manifest normalization
     const manifestRow = data.manifest
     const manifest = manifestRow ? (() => {
       const m = toCamelCase(manifestRow)
       return {
         ...m,
         lastSyncAt: m.syncedAt || m.lastSyncAt || '',
-        imageGistId: m.imageBucket || m.imageGistId || '',
+        imageCloudId: m.imageBucket || m.imageCloudId || '',
         budgetMonthly: Number(m.budgetMonthly) || 0,
         budgetYearly: Number(m.budgetYearly) || 0
       }
     })() : null
 
-    // presets normalization
     const presetsRow = data.presets
     const presets = presetsRow ? (() => {
       const p = toCamelCase(presetsRow)
@@ -427,5 +241,5 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
   }
 
-  return { readJson, getManifest, readPresets, pullDomainRows, pullAll }
+  return { readPresets, pullDomainRows, pullAll }
 }

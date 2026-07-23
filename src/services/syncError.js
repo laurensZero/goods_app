@@ -1,7 +1,7 @@
 import i18n from '@/locales'
 
 // Sync phase constants
-export const PHASE_ENSURE_GIST = 'ensure_gist'
+export const PHASE_ENSURE_CLOUD = 'ensure_cloud'
 export const PHASE_READ_MANIFEST = 'read_manifest'
 export const PHASE_READ_REMOTE = 'read_remote'
 export const PHASE_DIFF = 'diff'
@@ -20,7 +20,7 @@ export const CAUSE_UNKNOWN = 'unknown'
 
 // Phase i18n key mapping
 const PHASE_KEY_MAP = {
-  [PHASE_ENSURE_GIST]: 'sync.phase.ensureGist',
+  [PHASE_ENSURE_CLOUD]: 'sync.phase.ensureCloud',
   [PHASE_READ_MANIFEST]: 'sync.phase.readManifest',
   [PHASE_READ_REMOTE]: 'sync.phase.readRemote',
   [PHASE_DIFF]: 'sync.phase.diff',

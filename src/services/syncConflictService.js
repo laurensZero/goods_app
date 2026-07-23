@@ -20,8 +20,6 @@ export function createSyncConflictService({
   useEventsStore,
   useGoodsGroupStore,
   shouldApplyRemoteItem,
-  getExistingRechargeGist,
-  getExistingEventGist,
   buildRechargeSyncData,
   buildEventSyncData,
   getLatestLocalModifiedAt
@@ -67,79 +65,22 @@ export function createSyncConflictService({
     }
   }
 
-  async function buildPullConflictData(gist, remoteManifest, { forceRecharge = false, sourceTable = 'manual', cachedRemoteData = null, cachedRemoteRechargeData = null, cachedRemoteEventData = null } = {}) {
+  async function buildPullConflictData(remoteManifest, { forceRecharge = false, sourceTable = 'manual', cachedRemoteData = null, cachedRemoteRechargeData = null, cachedRemoteEventData = null } = {}) {
     const goodsStore = useGoodsStore()
     const rechargeStore = useRechargeStore()
     const eventsStore = useEventsStore()
     const currentBackend = resolveBackend()
-    const isSupabaseBackend = typeof currentBackend.getImagePublicUrl === 'function'
-    const existingRechargeGist = getExistingRechargeGist
-      ? await getExistingRechargeGist()
-      : await currentBackend.getExistingRechargeGist()
-    const existingEventGist = getExistingEventGist
-      ? await getExistingEventGist()
-      : await currentBackend.getExistingEventGist()
-    const remoteData = cachedRemoteData || await currentBackend.readJson({
-      title: i18n.global.t('sync.step.readData'),
-      gist,
-      fileName: 'data.json',
-      startDetail: i18n.global.t('sync.step.readData.start'),
-      category: 'pull',
-      successDetail: (parsed) => {
-        if (!parsed) return i18n.global.t('sync.step.readData.notFound')
-        const goods = Array.isArray(parsed.goods) ? parsed.goods : []
-        const trash = Array.isArray(parsed.trash) ? parsed.trash : []
-        const counts = countWishlistSplit(goods)
-        return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: trash.length })
-      }
-    })
+
+    // Read all remote data via pullAll
+    const remoteData = cachedRemoteData || await currentBackend.pullAll({})
     const localRechargeData = buildRechargeSyncData({ incremental: false })
     const localBudgetData = await readBudgetSettings()
     const remoteBudgetData = {
       monthly: normalizeBudgetValue(remoteManifest?.budgetMonthly ?? remoteData?.budgetSettings?.monthly),
       yearly: normalizeBudgetValue(remoteManifest?.budgetYearly ?? remoteData?.budgetSettings?.yearly)
     }
-    const shouldReadRechargePrecheck = forceRecharge || isSupabaseBackend || shouldPullRechargeByManifest(remoteManifest, localRechargeData.recharge || [])
-    const triggeredByRealtime = typeof sourceTable === 'string' && sourceTable !== 'manual'
     const localEventData = buildEventSyncData()
-    const remoteRechargeData = cachedRemoteRechargeData
-      ?? ((shouldReadRechargePrecheck && (!triggeredByRealtime || sourceTable === 'recharge_records'))
-        ? (await currentBackend.readJson({
-            title: i18n.global.t('sync.step.readRecharge'),
-            gist,
-            fileName: 'recharge-data.json',
-            startDetail: i18n.global.t('sync.step.readRecharge.start'),
-            category: 'pull',
-            fallbackGist: existingRechargeGist,
-            fallbackFileName: 'recharge-data.json',
-            successDetail: (parsed, source) => {
-              if (!parsed) return i18n.global.t('sync.step.readRecharge.notFound')
-              const recharge = Array.isArray(parsed.recharge) ? parsed.recharge : []
-              const rechargeTrash = Array.isArray(parsed.rechargeTrash) ? parsed.rechargeTrash : []
-              return i18n.global.t('sync.step.readRecharge.successWithTrash', { source, count: recharge.length, trash: rechargeTrash.length })
-            }
-          }) || {
-            recharge: Array.isArray(remoteData?.recharge) ? remoteData.recharge : [],
-            rechargeTrash: Array.isArray(remoteData?.rechargeTrash) ? remoteData.rechargeTrash : []
-          })
-        : { recharge: localRechargeData.recharge || [], rechargeTrash: [] })
-    const remoteEventData = cachedRemoteEventData
-      ?? ((!triggeredByRealtime || sourceTable === 'events')
-        ? (await currentBackend.readJson({
-            title: i18n.global.t('sync.step.readEvents'),
-            gist,
-            fileName: 'events-data.json',
-            startDetail: i18n.global.t('sync.step.readEvents.start'),
-            category: 'pull',
-            fallbackGist: existingEventGist,
-            fallbackFileName: 'events-data.json',
-            successDetail: (parsed, source) => {
-              if (!parsed) return i18n.global.t('sync.step.readEvents.notFound')
-              const events = Array.isArray(parsed.events) ? parsed.events : []
-              return i18n.global.t('sync.step.readEvents.success', { source, count: events.length })
-            }
-          }) || { events: [] })
-        : { events: [] })
+
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
 
     let remoteGoods = []
@@ -205,8 +146,8 @@ export function createSyncConflictService({
     }
 
     const remoteCounts = countWishlistSplit(remoteGoods)
-    const rechargeDiff = compareStateSync(localRechargeData.recharge || [], remoteRechargeData.recharge || [])
-    const eventDiff = compareStateSync(localEventData.events || [], remoteEventData.events || [])
+    const rechargeDiff = compareStateSync(localRechargeData.recharge || [], remoteData?.recharge || [])
+    const eventDiff = compareStateSync(localEventData.events || [], remoteData?.events || [])
 
     const goodsGroupStore = useGoodsGroupStore()
     const groupDiff = compareStateSync(goodsGroupStore.groupList || [], remoteData?.goodsGroups || [])
@@ -222,27 +163,17 @@ export function createSyncConflictService({
     const remoteImageMap = buildImageReferenceMap({
       goods: remoteGoods,
       trash: remoteTrash,
-      events: remoteEventData.events || []
+      events: remoteData?.events || []
     })
     const imageDiff = countComparableRecordDiff(localImageMap, remoteImageMap)
     const localOnlyImageKeys = [...localImageMap.keys()].filter((key) => !remoteImageMap.has(key))
     const remoteOnlyImageKeys = [...remoteImageMap.keys()].filter((key) => !localImageMap.has(key))
-
-    console.info('[sync][pull-conflict] image diff summary', {
-      remoteTotal: imageDiff.remoteTotal,
-      remoteOnly: imageDiff.remoteOnly,
-      localOnly: imageDiff.localOnly,
-      updated: imageDiff.updated,
-      remoteOnlyImageKeys: remoteOnlyImageKeys.slice(0, 10),
-      localOnlyImageKeys: localOnlyImageKeys.slice(0, 10)
-    })
 
     return {
       remoteTime: remoteManifest?.lastSyncAt || '',
       remoteDevice: remoteManifest?.deviceId || '',
       localTime: lastSyncedAtRef.value,
       localModifiedTime: getLatestLocalModifiedAt(),
-      gist,
       remoteGoodsCount: remoteGoods.length,
       remoteCollectionCount: remoteCounts.collection,
       remoteWishlistCount: remoteCounts.wishlist,
@@ -284,8 +215,8 @@ export function createSyncConflictService({
       remoteBudgetMonthly: remoteBudgetData.monthly,
       remoteBudgetYearly: remoteBudgetData.yearly,
       remoteData,
-      remoteRechargeData,
-      remoteEventData
+      remoteRechargeData: remoteData?.recharge || [],
+      remoteEventData: remoteData?.events || []
     }
   }
 

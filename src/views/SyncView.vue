@@ -501,7 +501,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
 import {
-  PHASE_ENSURE_GIST, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_DIFF,
+  PHASE_ENSURE_CLOUD, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_DIFF,
   PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA,
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
 } from '@/services/syncError'
@@ -526,7 +526,7 @@ const syncConflictData = ref({})
 const { toastMsg, showToast } = useToast()
 const syncNoticeText = computed(() => syncStore.syncNotice?.message || '')
 const syncNoticeLevel = computed(() => syncStore.syncNotice?.level || 'error')
-const gistInfo = ref(null)
+const cloudInfo = ref(null)
 const pullConflictData = ref({})
 const showSupabaseUrlDialog = ref(false)
 const showSupabaseKeyDialog = ref(false)
@@ -656,7 +656,7 @@ const statusBadgeText = computed(() => {
 })
 
 const PHASE_NAME_MAP = {
-  [PHASE_ENSURE_GIST]: 'sync.phase.ensureGist',
+  [PHASE_ENSURE_CLOUD]: 'sync.phase.ensureCloud',
   [PHASE_READ_MANIFEST]: 'sync.phase.readManifest',
   [PHASE_READ_REMOTE]: 'sync.phase.readRemote',
   [PHASE_DIFF]: 'sync.phase.diff',
@@ -699,12 +699,12 @@ const remoteIdDisplay = computed(() => {
   return t('sync.notConfigured')
 })
 
-const collectionCount = computed(() => gistInfo.value?.collectionCount ?? '-')
-const wishlistCount = computed(() => gistInfo.value?.wishlistCount ?? '-')
-const trashCount = computed(() => gistInfo.value?.trashCount ?? '-')
-const rechargeCount = computed(() => gistInfo.value?.rechargeCount ?? '-')
-const eventCount = computed(() => gistInfo.value?.eventCount ?? '-')
-const imageFileCount = computed(() => gistInfo.value?.imageFileCount ?? '-')
+const collectionCount = computed(() => cloudInfo.value?.collectionCount ?? '-')
+const wishlistCount = computed(() => cloudInfo.value?.wishlistCount ?? '-')
+const trashCount = computed(() => cloudInfo.value?.trashCount ?? '-')
+const rechargeCount = computed(() => cloudInfo.value?.rechargeCount ?? '-')
+const eventCount = computed(() => cloudInfo.value?.eventCount ?? '-')
+const imageFileCount = computed(() => cloudInfo.value?.imageFileCount ?? '-')
 
 function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
@@ -729,7 +729,7 @@ function formatLogDuration(durationMs) {
   return `${seconds >= 10 ? seconds.toFixed(1) : seconds.toFixed(2)}s`
 }
 
-async function loadGistInfo() {
+async function loadCloudInfo() {
   // If using Supabase backend, read manifest from Supabase table
   const readCount = (value) => (value === undefined || value === null ? null : Number(value) || 0)
   if (syncStore.syncBackend === 'supabase') {
@@ -737,25 +737,25 @@ async function loadGistInfo() {
       const db = getSupabaseClient()
       const { data, error } = await db.from('sync_manifest').select('*').eq('user_id', authStore.user?.id || '').limit(1)
       if (error || !data || data.length === 0) {
-        gistInfo.value = null
+        cloudInfo.value = null
         return
       }
       const row = data[0]
-      gistInfo.value = {
+      cloudInfo.value = {
         collectionCount: readCount(row.collection_count ?? row.collectionCount),
         wishlistCount: readCount(row.wishlist_count ?? row.wishlistCount),
         trashCount: readCount(row.trash_count ?? row.trashCount),
         rechargeCount: readCount(row.recharge_count ?? row.rechargeCount),
         eventCount: readCount(row.event_count ?? row.eventCount),
-        imageGistId: row.image_bucket ?? row.imageGistId ?? '',
-        rechargeGistId: '',
-        eventGistId: '',
+        imageCloudId: row.image_bucket ?? row.imageCloudId ?? '',
+        rechargeCloudId: '',
+        eventCloudId: '',
         imageFileCount: readCount(row.image_count ?? row.imageFileCount),
         imageUpdatedAt: row.image_updated_at ?? row.imageUpdatedAt ?? ''
       }
       return
     } catch (e) {
-      gistInfo.value = null
+      cloudInfo.value = null
       return
     }
   }
@@ -816,7 +816,7 @@ async function handleSync() {
 
     if (!result) {
       showToast(t('sync.uploadComplete'))
-      await loadGistInfo()
+      await loadCloudInfo()
       return
     }
 
@@ -848,7 +848,7 @@ async function handleSync() {
     }
 
     showToast(message, 3500)
-    await loadGistInfo()
+    await loadCloudInfo()
   } catch (error) {
     showToast(syncStore.syncSuggestion || t('sync.uploadFailed', { error: error.message }))
   }
@@ -866,11 +866,11 @@ async function handlePull() {
       const parts = buildPullResultParts(result)
       let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
-      await loadGistInfo()
+      await loadCloudInfo()
     } else if (result?.action === 'no_changes') {
       let message = t('sync.dataUpToDate')
       showToast(message, 3500)
-      await loadGistInfo()
+      await loadCloudInfo()
     }
   } catch (error) {
     showToast(syncStore.syncSuggestion || t('sync.pullFailed', { error: error.message }))
@@ -886,7 +886,7 @@ async function handlePullConflict(confirm) {
       const parts = buildPullResultParts(result)
       let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
-      await loadGistInfo()
+      await loadCloudInfo()
     } else if (result?.action === 'cancelled') {
       showToast(t('sync.pullCancelled'))
     }
@@ -907,7 +907,7 @@ async function handleSyncConflict(useRemote) {
     } else if (result?.action === 'pushed') {
       showToast(t('sync.reuploaded'), 3500)
     }
-    await loadGistInfo()
+    await loadCloudInfo()
   } catch (error) {
     showToast(syncStore.syncSuggestion || (useRemote ? `${t('sync.pullFailed', { error: error.message })}` : `${t('sync.uploadFailed', { error: error.message })}`))
   }
@@ -915,7 +915,7 @@ async function handleSyncConflict(useRemote) {
 
 async function handleReset() {
   await syncStore.resetConfig()
-  gistInfo.value = null
+  cloudInfo.value = null
   showResetConfirm.value = false
   showToast(t('sync.configCleared'))
 }
@@ -1026,7 +1026,7 @@ onMounted(async () => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
-  await loadGistInfo()
+  await loadCloudInfo()
 })
 </script>
 

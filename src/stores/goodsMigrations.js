@@ -1,7 +1,7 @@
 import { triggerRef } from 'vue'
 import { saveItems, deleteItems, saveEvents } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
-import { getPrimaryGoodsImageUrl, normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
+import { getPrimaryGoodsImageUrl, normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goodsHelpers'
 import { GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET } from '@/services/supabaseAdapter/storage'
 import { readSyncKey } from '@/utils/sync/storage'
@@ -140,9 +140,9 @@ async function replaceBase64WithPublicUrls(list) {
   const supabaseUrl = await readSyncKey(SUPABASE_URL_KEY).catch(() => '') || ''
   if (!supabaseUrl) return 'skip'
 
-  function toPublicUrl(gistFileName) {
-    const bucket = gistFileName.startsWith('event-photo__') ? EVENT_PHOTO_BUCKET : GOODS_IMAGE_BUCKET
-    const path = gistFileName.replace(/\.txt$/, '')
+  function toPublicUrl(cloudFileName) {
+    const bucket = cloudFileName.startsWith('event-photo__') ? EVENT_PHOTO_BUCKET : GOODS_IMAGE_BUCKET
+    const path = cloudFileName.replace(/\.txt$/, '')
     return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
   }
 
@@ -153,10 +153,10 @@ async function replaceBase64WithPublicUrls(list) {
     const images = item.images.map((img) => {
       const uri = String(img?.uri || '').trim()
       if (!uri.startsWith('data:image/')) return img
-      const gistFileName = String(img?.gistFileName || parseGistImageUri(uri) || '').trim()
-      if (!gistFileName) return img
+      const cloudFileName = String(img?.cloudFileName || parseCloudImageUri(uri) || '').trim()
+      if (!cloudFileName) return img
       changed = true
-      return { ...img, uri: toPublicUrl(gistFileName), storageMode: 'remote' }
+      return { ...img, uri: toPublicUrl(cloudFileName), storageMode: 'remote' }
     })
     if (!changed) return item
     const next = { ...item, images, updatedAt: Date.now() }
@@ -178,9 +178,9 @@ async function replaceEventBase64WithPublicUrls(eventList) {
   const supabaseUrl = await readSyncKey(SUPABASE_URL_KEY).catch(() => '') || ''
   if (!supabaseUrl) return
 
-  function toPublicUrl(gistFileName) {
-    const bucket = gistFileName.startsWith('event-photo__') ? EVENT_PHOTO_BUCKET : GOODS_IMAGE_BUCKET
-    const path = gistFileName.replace(/\.txt$/, '')
+  function toPublicUrl(cloudFileName) {
+    const bucket = cloudFileName.startsWith('event-photo__') ? EVENT_PHOTO_BUCKET : GOODS_IMAGE_BUCKET
+    const path = cloudFileName.replace(/\.txt$/, '')
     return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
   }
 
@@ -192,9 +192,9 @@ async function replaceEventBase64WithPublicUrls(eventList) {
 
     const coverUri = String(event.coverImage || '').trim()
     if (coverUri.startsWith('data:image/')) {
-      const gistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(coverUri) || '').trim()
-      if (gistFileName) {
-        nextCoverImage = toPublicUrl(gistFileName)
+      const cloudFileName = String(event?.coverImageData?.cloudFileName || parseCloudImageUri(coverUri) || '').trim()
+      if (cloudFileName) {
+        nextCoverImage = toPublicUrl(cloudFileName)
         changed = true
       }
     }
@@ -203,10 +203,10 @@ async function replaceEventBase64WithPublicUrls(eventList) {
       nextPhotos = event.photos.map((photo) => {
         const photoUri = String(photo?.uri || '').trim()
         if (!photoUri.startsWith('data:image/')) return photo
-        const gistFileName = String(photo?.gistFileName || parseGistImageUri(photoUri) || '').trim()
-        if (!gistFileName) return photo
+        const cloudFileName = String(photo?.cloudFileName || parseCloudImageUri(photoUri) || '').trim()
+        if (!cloudFileName) return photo
         changed = true
-        return { ...photo, uri: toPublicUrl(gistFileName), storageMode: 'remote' }
+        return { ...photo, uri: toPublicUrl(cloudFileName), storageMode: 'remote' }
       })
     }
 

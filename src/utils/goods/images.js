@@ -9,7 +9,7 @@ export const GOODS_IMAGE_KIND_OPTIONS = [
   { value: 'custom', label: '自定义' }
 ]
 
-export const GIST_LOCAL_IMAGE_PREFIX = 'gist-image://'
+export const CLOUD_IMAGE_PREFIX = 'cloud-image://'
 
 const VALID_KIND_SET = new Set(GOODS_IMAGE_KIND_OPTIONS.map((option) => option.value))
 
@@ -17,29 +17,32 @@ export function createGoodsImageId() {
   return `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function buildGistImageUri(filename) {
+export function buildCloudImageUri(filename) {
   const resolved = String(filename || '').trim()
-  return resolved ? `${GIST_LOCAL_IMAGE_PREFIX}${resolved}` : ''
+  return resolved ? `${CLOUD_IMAGE_PREFIX}${resolved}` : ''
 }
 
-export function parseGistImageUri(uri) {
+export function parseCloudImageUri(uri) {
   const value = String(uri || '').trim()
-  return value.startsWith(GIST_LOCAL_IMAGE_PREFIX)
-    ? value.slice(GIST_LOCAL_IMAGE_PREFIX.length)
-    : ''
+  if (value.startsWith(CLOUD_IMAGE_PREFIX)) return value.slice(CLOUD_IMAGE_PREFIX.length)
+  // Backward compat: old gist-image:// prefix
+  if (value.startsWith('gist-image://')) return value.slice('gist-image://'.length)
+  return ''
 }
 
-export function isGistImageUri(uri) {
-  return !!parseGistImageUri(uri)
+export function isCloudImageUri(uri) {
+  return !!parseCloudImageUri(uri)
 }
 
 export function inferGoodsImageStorageMode(uri, explicitMode = '') {
   const normalizedMode = String(explicitMode || '').trim()
+  // Backward compat: old 'gist-local' → 'cloud-local'
+  if (normalizedMode === 'gist-local') return 'cloud-local'
   if (normalizedMode) return normalizedMode
 
   const normalizedUri = String(uri || '').trim()
   if (!normalizedUri) return 'remote'
-  if (isGistImageUri(normalizedUri)) return 'gist-local'
+  if (isCloudImageUri(normalizedUri)) return 'cloud-local'
   if (
     normalizedUri.startsWith('content://')
     || normalizedUri.startsWith('file://')
@@ -83,7 +86,7 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
       label: '',
       storageMode: inferGoodsImageStorageMode(uri, ''),
       localPath: '',
-      gistFileName: parseGistImageUri(uri),
+      cloudFileName: parseCloudImageUri(uri),
       mimeType: '',
       fileSize: 0,
       isPrimary: fallbackIndex === 0,
@@ -91,8 +94,8 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   }
 
   const rawUri = String(entry.uri || entry.url || entry.image || '').trim()
-  const gistFileName = String(entry.gistFileName || parseGistImageUri(rawUri)).trim()
-  const uri = rawUri || buildGistImageUri(gistFileName)
+  const cloudFileName = String(entry.cloudFileName || entry.gistFileName || parseCloudImageUri(rawUri)).trim()
+  const uri = rawUri || buildCloudImageUri(cloudFileName)
   if (!uri) return null
 
   const kind = VALID_KIND_SET.has(String(entry.kind || '').trim())
@@ -106,7 +109,7 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
     label: String(entry.label || '').trim(),
     storageMode: inferGoodsImageStorageMode(uri, entry.storageMode),
     localPath: String(entry.localPath || '').trim(),
-    gistFileName,
+    cloudFileName,
     mimeType: String(entry.mimeType || '').trim(),
     fileSize: Number(entry.fileSize) > 0 ? Number(entry.fileSize) : 0,
     isPrimary: entry.isPrimary === true
@@ -123,7 +126,7 @@ function buildGoodsImageDedupKey(uri) {
       return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${parsed.pathname}`
     }
   } catch {
-    // Non-URL values such as content:// and gist-image:// should keep exact matching.
+    // Non-URL values such as content:// and cloud-image:// should keep exact matching.
   }
 
   return value
@@ -237,12 +240,12 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
   const syncImages = normalizedImages
     .filter((entry) => preparedImages || isExportableGoodsImage(entry))
     .map((entry) => {
-      const gistFileName = entry.gistFileName || parseGistImageUri(entry.uri)
+      const cloudFileName = entry.cloudFileName || parseCloudImageUri(entry.uri)
       // Never embed base64 data URLs in sync payload — images are uploaded separately.
-      // Replace data: URIs with gist-image:// references so all backends stay lightweight.
+      // Replace data: URIs with cloud-image:// references so all backends stay lightweight.
       let uri = entry.uri
       if (typeof uri === 'string' && uri.startsWith('data:')) {
-        uri = gistFileName ? `gist-image://${gistFileName}` : ''
+        uri = cloudFileName ? `cloud-image://${cloudFileName}` : ''
       }
       return {
         id: entry.id,
@@ -250,7 +253,7 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
         kind: entry.kind,
         label: entry.label,
         storageMode: inferGoodsImageStorageMode(uri, entry.storageMode),
-        gistFileName,
+        cloudFileName,
         mimeType: entry.mimeType || '',
         fileSize: Number(entry.fileSize) > 0 ? Number(entry.fileSize) : 0,
         isPrimary: entry.id === primaryId
@@ -346,7 +349,7 @@ export async function sanitizeEventForExport(event) {
   let processedCoverImage = ''
   if (coverImage) {
     const storageMode = inferGoodsImageStorageMode(coverImage)
-    if (storageMode === 'local' || storageMode === 'gist-local') {
+    if (storageMode === 'local' || storageMode === 'cloud-local') {
       const embeddedUri = await readLocalImageAsDataUrl(coverImage)
       if (embeddedUri?.startsWith('data:image/')) {
         processedCoverImage = embeddedUri
@@ -362,7 +365,7 @@ export async function sanitizeEventForExport(event) {
     processedPhotos = await Promise.all(photos.map(async (photo) => {
       if (!photo?.uri) return null
       const photoStorageMode = inferGoodsImageStorageMode(photo.uri)
-      if (photoStorageMode === 'local' || photoStorageMode === 'gist-local') {
+      if (photoStorageMode === 'local' || photoStorageMode === 'cloud-local') {
         const embeddedUri = await readLocalImageAsDataUrl(photo.uri)
         if (embeddedUri?.startsWith('data:image/')) {
           return { ...photo, uri: embeddedUri, storageMode: 'inline-local' }
