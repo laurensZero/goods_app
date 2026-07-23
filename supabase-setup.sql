@@ -446,6 +446,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('event-photos', 'event-photos', true)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
 -- Storage RLS：已登录用户对自己的 bucket 有完全权限
 CREATE POLICY "auth_full_goods_images" ON storage.objects
   FOR ALL TO authenticated
@@ -456,6 +460,18 @@ CREATE POLICY "auth_full_event_photos" ON storage.objects
   FOR ALL TO authenticated
   USING (bucket_id = 'event-photos')
   WITH CHECK (bucket_id = 'event-photos');
+
+-- Avatars: 公开读取，已登录用户可上传/删除
+CREATE POLICY "avatars_public_read" ON storage.objects
+  FOR SELECT USING (bucket_id = 'avatars');
+
+CREATE POLICY "avatars_auth_write" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars');
+
+CREATE POLICY "avatars_auth_delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'avatars');
 
 -- ============================================================
 -- 8. RPC 函数（SECURITY DEFINER + 入口 auth.uid() 检查）

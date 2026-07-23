@@ -56,6 +56,13 @@ window.addEventListener('popstate', () => {
 })
 
 router.beforeEach((to) => {
+  // OAuth 回调：URL 中含有 access_token，立即清理并重定向
+  const fullPath = to.fullPath || ''
+  if (fullPath.includes('access_token')) {
+    window.history.replaceState({}, '', '/')
+    return '/'
+  }
+
   const { t } = i18n.global
   const title = to.meta.titleKey ? t(to.meta.titleKey) : (to.meta.title || '')
   document.title = title ? `${title} - ${t('common.appName')}` : t('common.appName')
