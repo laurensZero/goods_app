@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260723.7",
+    "url": "bundle-20260723.7.zip",
+    "hash": "5e491ea98a74133f8dd6d1a2087e36a08322a0e2e88cbdd85bc02324cd97775b",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化 OAuth 回调处理，支持从 URL hash、search 和 pathname 提取 token\n\n- feat: 更新头像功能，支持从 Supabase 上传和删除自定义头像",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-23T06:55:33Z"
+  },
+  {
     "version": "20260723.6",
     "url": "bundle-20260723.6.zip",
     "hash": "35653182aa9e60f2316325f1f1673c99011cceb45945646a64de6175c74afefe",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化用户登录状态管理，支持从 localStorage 读取缓存\n\n- feat: 增强实时同步功能，添加用户ID过滤以确保数据隔离",
     "updateLevel": "silent",
     "publishedAt": "2026-07-23T05:32:09Z"
-  },
-  {
-    "version": "20260723.4",
-    "url": "bundle-20260723.4.zip",
-    "hash": "70643729840f8ffc882990592e1eaa4d5299385d48d38e0101fd8dafa37f1494",
-    "minNativeVersion": null,
-    "notes": "- refactor: 清理gist/github登录相关功能 feat: 添加中转站加快github下载更新速度",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-23T05:13:09Z"
   }
 ]
