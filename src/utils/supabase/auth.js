@@ -108,7 +108,7 @@ export async function sendMagicLink(email, options = {}) {
 
 /**
  * Sign in with OAuth provider
- * @param {'google' | 'github'} provider
+ * @param {'google' | 'github' | 'azure'} provider
  */
 export async function signInWithOAuth(provider, options = {}) {
   const client = getSupabaseClient()
