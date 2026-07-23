@@ -52,7 +52,12 @@
             </div>
 
             <div class="account-copy">
-              <h1 class="account-name">{{ authStore.userDisplayName || t('my.authNotConnected') }}</h1>
+              <h1 class="account-name">
+                {{ authStore.userDisplayName || t('my.authNotConnected') }}
+                <button v-if="authStore.isLoggedIn" type="button" class="name-edit-btn" @click="openRenameDialog" :aria-label="t('my.rename')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </button>
+              </h1>
               <div class="account-tags">
                 <span class="status-pill" :class="authStore.isLoggedIn ? 'status-pill--online' : 'status-pill--idle'">
                   {{ authStore.isLoggedIn ? t('my.authConnected') : t('my.authNotConnected') }}
@@ -329,6 +334,32 @@
         </div>
       </section>
     </div>
+
+    <div v-if="showRenameDialog" class="login-overlay" @click.self="closeRenameDialog">
+      <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="renameSheetTitle">
+        <h2 id="renameSheetTitle" class="login-sheet__title">{{ t('my.rename') }}</h2>
+        <div class="rename-field">
+          <input
+            v-model="renameInput"
+            class="auth-input"
+            type="text"
+            :placeholder="t('my.authDisplayName')"
+            maxlength="30"
+            @keydown.enter="confirmRename"
+          />
+        </div>
+        <p v-if="renameError" class="rename-error">{{ renameError }}</p>
+        <div class="login-sheet__actions">
+          <button type="button" class="login-sheet__button login-sheet__button--primary" :disabled="!renameInput.trim() || renameLoading" @click="confirmRename">
+            {{ renameLoading ? '...' : t('common.confirm') }}
+          </button>
+          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeRenameDialog">
+            {{ t('my.cancel') }}
+          </button>
+        </div>
+      </section>
+    </div>
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -364,6 +395,10 @@ const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
 const showBudgetDialog = ref(false)
 const showResetAvatarDialog = ref(false)
+const showRenameDialog = ref(false)
+const renameInput = ref('')
+const renameError = ref('')
+const renameLoading = ref(false)
 
 const { toastMsg, showToast: showToastMsg } = useToast()
 
@@ -550,6 +585,32 @@ function openLogoutDialog() {
 
 function closeLogoutDialog() {
   showLogoutDialog.value = false
+}
+
+function openRenameDialog() {
+  renameInput.value = authStore.userDisplayName || ''
+  renameError.value = ''
+  showRenameDialog.value = true
+}
+
+function closeRenameDialog() {
+  showRenameDialog.value = false
+}
+
+async function confirmRename() {
+  const name = renameInput.value.trim()
+  if (!name) return
+  renameLoading.value = true
+  renameError.value = ''
+  try {
+    await authStore.updateProfile({ display_name: name })
+    showRenameDialog.value = false
+    showToastMsg(t('my.renameSuccess'))
+  } catch (e) {
+    renameError.value = e.message || t('my.renameFailed')
+  } finally {
+    renameLoading.value = false
+  }
 }
 
 function onDialogToast(message) {
@@ -954,6 +1015,61 @@ onActivated(() => {
   font-size: 34px;
   font-weight: 700;
   line-height: 1.05;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease;
+}
+
+.name-edit-btn:hover {
+  background: color-mix(in srgb, var(--app-text) 14%, transparent);
+}
+
+.name-edit-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rename-field {
+  margin: 12px 0;
+}
+
+.rename-field .auth-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.16s ease;
+  box-sizing: border-box;
+}
+
+.rename-field .auth-input:focus {
+  border-color: color-mix(in srgb, var(--app-text) 28%, transparent);
+}
+
+.rename-error {
+  color: var(--app-danger, #c74444);
+  font-size: 13px;
+  margin-bottom: 8px;
 }
 
 .overview-item__meta,
@@ -1513,6 +1629,10 @@ onActivated(() => {
 }
 
 @media (min-width: 768px) {
+  .login-overlay {
+    align-items: center;
+  }
+
   .login-sheet {
     width: min(100%, 430px);
     margin: 0 auto;

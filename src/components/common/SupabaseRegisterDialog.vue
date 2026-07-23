@@ -18,6 +18,18 @@
                 :placeholder="t('my.authEmail')"
                 autocomplete="email"
                 required
+                @input="onEmailInput"
+              />
+            </label>
+
+            <label class="auth-field">
+              <span class="auth-field__label">{{ t('my.authDisplayName') }}</span>
+              <input
+                v-model="displayName"
+                class="auth-input"
+                type="text"
+                :placeholder="t('my.authDisplayName')"
+                autocomplete="name"
               />
             </label>
 
@@ -85,6 +97,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 
 const email = ref('')
+const displayName = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const authError = ref('')
@@ -102,11 +115,19 @@ function goToLogin() {
 
 function resetForm() {
   email.value = ''
+  displayName.value = ''
   password.value = ''
   confirmPassword.value = ''
   authError.value = ''
   isLoading.value = false
   registerSuccess.value = false
+}
+
+function onEmailInput() {
+  // 预填用户名为邮箱 @ 前面的内容
+  if (!displayName.value && email.value.includes('@')) {
+    displayName.value = email.value.split('@')[0]
+  }
 }
 
 async function handleRegister() {
@@ -123,7 +144,9 @@ async function handleRegister() {
 
   isLoading.value = true
   try {
-    await authStore.registerWithEmail(email.value, password.value)
+    await authStore.registerWithEmail(email.value, password.value, {
+      metadata: { display_name: displayName.value || email.value.split('@')[0] }
+    })
     registerSuccess.value = true
     emit('toast', t('my.authRegisterSuccess'))
   } catch (e) {
