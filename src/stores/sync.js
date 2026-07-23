@@ -357,7 +357,8 @@ export const useSyncStore = defineStore('sync', () => {
   const orchestrator = createSyncOrchestrator({
     backend, payload: payloadService, image: imageService, conflict: conflictService,
     useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, useGoodsGroupStore, trackSyncStep,
-    constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME }
+    constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME },
+    userIdRef: () => { const authStore = useAuthStore(); return authStore.user?.id || '' }
   })
 
   async function restoreImageFromCloud(gistFileName) {
