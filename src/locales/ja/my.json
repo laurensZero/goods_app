@@ -83,7 +83,7 @@
   "my.scanInvalidQrCode": "有効なQRコードが検出されませんでした。もう一度お試しください。",
   "my.scanInvalidQrContent": "QRコードの内容は有効な共有コードまたは収納場所コードではありません",
   "my.resetAvatar": "アバターをリセット",
-  "my.resetAvatarDesc": "カスタムアバターをクリアしてGitHubアバターに戻します。",
+  "my.resetAvatarDesc": "カスタムアバターをクリアしてデフォルトアバターに戻します。",
   "my.confirmResetAvatar": "リセットを確認",
   "my.avatarReset": "GitHubアバターに戻しました",
   "my.authLogin": "ログイン",

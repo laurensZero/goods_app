@@ -83,7 +83,7 @@
   "my.scanInvalidQrCode": "未识别到有效二维码，请重试",
   "my.scanInvalidQrContent": "二维码内容不是有效的分享码或收纳位置码",
   "my.resetAvatar": "恢复默认头像",
-  "my.resetAvatarDesc": "清除自定义头像，恢复为 GitHub 头像。",
+  "my.resetAvatarDesc": "清除自定义头像，恢复为默认头像。",
   "my.confirmResetAvatar": "确认恢复",
   "my.avatarReset": "已恢复为头像",
   "my.rename": "修改用户名",
