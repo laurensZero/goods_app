@@ -428,7 +428,7 @@ const avatarInputRef = ref(null)
 const avatarLongPressTimer = ref(null)
 const avatarLongPressed = ref(false)
 
-// Custom avatar takes priority, then Supabase avatar, then cached
+// Custom avatar takes priority, then Supabase avatar (custom > OAuth > cached)
 const displayAvatarSrc = computed(() => {
   return customAvatarUrl.value || authStore.userAvatarUrl || cachedAvatarSrc.value || ''
 })
@@ -471,8 +471,12 @@ async function onAvatarFileChange(e) {
     const dataUrl = await fileToDataUrl(file)
     customAvatarUrl.value = dataUrl
     await writePersisted(CUSTOM_AVATAR_KEY, dataUrl)
-    // 同步到 Supabase Storage（后台，不阻塞 UI）
-    uploadAvatarToSupabase(file).catch(() => {})
+    // 后台同步到 Supabase
+    uploadAvatarToSupabase(file).then(() => {
+      showToastMsg(t('my.avatarSynced'))
+    }).catch((e) => {
+      console.warn('[avatar] sync failed:', e.message)
+    })
     showToastMsg(t('my.avatarUpdated'))
   } catch (err) {
     console.warn('[MyView] avatar upload failed', err)
@@ -492,7 +496,7 @@ async function uploadAvatarToSupabase(file) {
   try {
     const ext = file.name.split('.').pop() || 'jpg'
     const path = `${userId}.${ext}`
-    const { data, error: uploadError } = await db.storage
+    const { error: uploadError } = await db.storage
       .from('avatars')
       .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
 
@@ -504,7 +508,8 @@ async function uploadAvatarToSupabase(file) {
     const { data: urlData } = db.storage.from('avatars').getPublicUrl(path)
     const publicUrl = urlData?.publicUrl
     if (publicUrl) {
-      await authStore.updateProfile({ avatar_url: publicUrl })
+      // 存到 custom_avatar_url，不覆盖 OAuth 的 avatar_url
+      await authStore.updateProfile({ custom_avatar_url: publicUrl })
     }
   } catch (e) {
     console.warn('[avatar] upload error:', e.message)
@@ -566,9 +571,9 @@ function closeResetAvatarDialog() {
 async function confirmResetAvatar() {
   customAvatarUrl.value = ''
   await writePersisted(CUSTOM_AVATAR_KEY, '')
-  // 清除 Supabase 上的自定义头像（恢复到 OAuth 提供的默认头像）
+  // 清除自定义头像（恢复到 OAuth/邮箱默认头像）
   if (authStore.isLoggedIn) {
-    authStore.updateProfile({ avatar_url: '' }).catch(() => {})
+    authStore.updateProfile({ custom_avatar_url: '' }).catch(() => {})
   }
   showResetAvatarDialog.value = false
   showToastMsg(t('my.avatarReset'))

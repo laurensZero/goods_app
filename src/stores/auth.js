@@ -35,6 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
     ''
   )
   const userAvatarUrl = computed(() =>
+    user.value?.user_metadata?.custom_avatar_url ||
     user.value?.user_metadata?.avatar_url ||
     user.value?.user_metadata?.picture ||
     ''

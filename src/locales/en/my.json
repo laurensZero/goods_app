@@ -86,6 +86,7 @@
   "my.resetAvatarDesc": "Clear the custom avatar and restore the default avatar.",
   "my.confirmResetAvatar": "Confirm Reset",
   "my.avatarReset": "Restored to default avatar",
+  "my.avatarSynced": "Avatar synced to cloud",
   "my.rename": "Change Username",
   "my.renameSuccess": "Username updated",
   "my.renameFailed": "Update failed",
