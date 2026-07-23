@@ -54,31 +54,24 @@ export function useAppStartup() {
       }
     }
 
-    // 自动拉取
-    try {
-      await syncStore.init()
-    } catch (e) {
-      console.error('[app] syncStore.init failed:', e)
-    }
-
-    // Supabase Auth 初始化（在 sync store 之后，确保 client 已配置）
+    // Supabase Auth 初始化（必须在 sync 之前，确保登录状态可用）
     try {
       await authStore.init()
     } catch (e) {
       console.error('[app] authStore.init failed:', e)
     }
 
-    // 公告检查放在 syncStore.init() 之后，确保 token 已加载（避免 GitHub API 403 限速）
+    // Sync 初始化（auth 之后，确保 userId 可用）
+    try {
+      await syncStore.init()
+    } catch (e) {
+      console.error('[app] syncStore.init failed:', e)
+    }
+
+    // 公告检查
     void announcementStore.checkAndDecide({ source: 'startup' }).catch(() => {
       // silent fail on startup announcement check
     })
-    if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !hasLocalData.value) {
-      try {
-        await syncStore.pull({ silent: true })
-      } catch {
-        // silent fail on startup pull
-      }
-    }
     // Supabase 模式：应用启动时增量拉取
     if (syncStore.isSupabaseMode() && !syncStore.syncPaused && !syncStore.isSyncing && !syncStore.isPulling) {
       const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
