@@ -1,5 +1,6 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { getSupabaseClient, reconnectSupabase } from '@/utils/sync/supabaseClient'
+import { useAuthStore } from '@/stores/auth'
 
 /**
  * Supabase Realtime 订阅 composable
@@ -40,6 +41,11 @@ export function useRealtimeSync({ syncStore }) {
     const row = payload.new || payload.old
     if (!row) return
     const table = String(payload?.table || '')
+    // 安全兜底：服务端已通过 filter=user_id 过滤，这里再检查一次
+    const authStore = useAuthStore()
+    const currentUserId = authStore.user?.id || ''
+    if (currentUserId && row.user_id && row.user_id !== currentUserId) return
+    // 过滤掉自己设备的写入（自己改的不需要再拉取）
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
     pendingPullTables.add(table)
     if (pullDebounceTimer) clearTimeout(pullDebounceTimer)
@@ -58,10 +64,19 @@ export function useRealtimeSync({ syncStore }) {
       const db = getSupabaseClient()
       if (!db) return
 
+      const authStore = useAuthStore()
+      const userId = authStore.user?.id
+      if (!userId) return
+
       const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
       let builder = db.channel('data-realtime')
       for (const table of tables) {
-        builder = builder.on('postgres_changes', { event: '*', schema: 'public', table }, handleRemoteChange)
+        builder = builder.on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table,
+          filter: `user_id=eq.${userId}`
+        }, handleRemoteChange)
       }
       channel.value = builder.subscribe((status) => {
           isConnected.value = status === 'SUBSCRIBED'

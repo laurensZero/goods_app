@@ -810,3 +810,17 @@ CREATE POLICY "share_update_own" ON shares
 
 CREATE POLICY "share_delete_own" ON shares
   FOR DELETE USING (auth.uid() = user_id);
+
+
+-- ============================================================
+-- REALTIME: Enable REPLICA IDENTITY for targeted Realtime
+-- ============================================================
+-- Required for Supabase Realtime to filter by RLS (only send
+-- changes to users who own the row). Without this, all
+-- subscribers receive all changes regardless of user_id.
+
+ALTER TABLE goods REPLICA IDENTITY FULL;
+ALTER TABLE events REPLICA IDENTITY FULL;
+ALTER TABLE recharge_records REPLICA IDENTITY FULL;
+ALTER TABLE goods_groups REPLICA IDENTITY FULL;
+ALTER TABLE goods_group_items REPLICA IDENTITY FULL;
