@@ -1,9 +1,9 @@
 {
-  "version": "20260723.10",
-  "url": "bundle-20260723.10.zip",
-  "hash": "61eb92b49b8cb7bd75121193cdb51a6e0b17821f87066964cfd940c07d7583dc",
+  "version": "20260723.11",
+  "url": "bundle-20260723.11.zip",
+  "hash": "d5ddd115bfb56e62cd838a34372d962cef51c9477a03dbe683a3d5158addbac1",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 OAuth 登录功能，支持 Azure AD 显式请求 email scope",
+  "notes": "- refactor: 重命名同步相关变量/函数名",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-23T08:45:37Z"
+  "publishedAt": "2026-07-23T12:16:43Z"
 }
