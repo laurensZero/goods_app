@@ -24,7 +24,8 @@ export function createSyncOrchestrator({
   usePresetsStore,
   useGoodsGroupStore,
   trackSyncStep,
-  constants
+  constants,
+  userIdRef
 }) {
   const { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME } = constants
 
@@ -215,7 +216,8 @@ export function createSyncOrchestrator({
     // Read existing manifest for non-count fields (image_bucket, timestamps, budget)
     let existingManifest = null
     try {
-      const { data } = await db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
+      const uid = typeof userIdRef === 'function' ? userIdRef() : ''
+      const { data } = await db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
       if (data && data.length > 0) existingManifest = data[0]
     } catch { /* will skip manifest update below */ }
 

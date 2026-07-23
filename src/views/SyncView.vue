@@ -751,6 +751,7 @@ import {
 } from '@/services/syncError'
 import { validateToken, getGist, getGistFileContent } from '@/utils/github/gist'
 import { getSupabaseClient, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
+import { useAuthStore } from '@/stores/auth'
 import {
   fetchGitHubUser,
   getGitHubDeviceFlowScope,
@@ -771,6 +772,7 @@ const GithubLoginDialog = defineAsyncComponent(() => import('@/components/common
 
 const { t } = useI18n()
 const syncStore = useSyncStore()
+const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const githubOAuthClientId = getGitHubOAuthClientId()
@@ -1099,7 +1101,7 @@ async function loadGistInfo() {
   if (syncStore.syncBackend === 'supabase') {
     try {
       const db = getSupabaseClient()
-      const { data, error } = await db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
+      const { data, error } = await db.from('sync_manifest').select('*').eq('user_id', authStore.user?.id || '').limit(1)
       if (error || !data || data.length === 0) {
         gistInfo.value = null
         return
