@@ -275,10 +275,22 @@ export function createSyncOrchestrator({
       hasDataDiff = goodsDiff.hasChanges
     }
     const hasRechargeDataDiff = isRechargeDirty
-      ? compareStateSync(stores.rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [], remoteData.recharge || [], { incremental: false }).hasChanges
+      ? (() => {
+          const allLocal = stores.rechargeStore.exportBackup({ includeDeleted: true, stripImage: true }) || []
+          const localActive = allLocal.filter(r => !r.deleted)
+          const localTrash = allLocal.filter(r => r.deleted)
+          return compareStateSync(localActive, remoteData.recharge || [], { incremental: false }).hasChanges
+            || compareStateSync(localTrash, remoteData.rechargeTrash || [], { incremental: false }).hasChanges
+        })()
       : false
     const hasEventDataDiff = isEventsDirty
-      ? compareStateSync(stores.eventsStore.list || [], remoteData.events || [], { incremental: false }).hasChanges
+      ? (() => {
+          const allEvents = stores.eventsStore.list || []
+          const localActive = allEvents.filter(e => !e.deleted)
+          const localTrash = allEvents.filter(e => e.deleted)
+          return compareStateSync(localActive, remoteData.events || [], { incremental: false }).hasChanges
+            || compareStateSync(localTrash, remoteData.eventsTrash || [], { incremental: false }).hasChanges
+        })()
       : false
     const localBudgetSettings = isBudgetDirty ? await readBudgetSettings() : null
     const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
@@ -456,6 +468,14 @@ export function createSyncOrchestrator({
 
     // Update local refs
     await updateLocalRefs(stores.goodsStore, stores.eventsStore, syncData, eventSyncData, be)
+
+    // Purge locally-deleted records after successful push (sent to cloud as trash)
+    if (stores.rechargeStore.purgeSyncedDeleted) {
+      await stores.rechargeStore.purgeSyncedDeleted().catch(() => {})
+    }
+    if (stores.eventsStore.purgeSyncedDeleted) {
+      await stores.eventsStore.purgeSyncedDeleted().catch(() => {})
+    }
 
     // Clean up any remaining base64 images in SQLite
     if (be.getImagePublicUrl) {

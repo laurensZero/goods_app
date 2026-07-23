@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS events (
   tracks JSONB DEFAULT '[]',
   linked_goods_ids JSONB DEFAULT '[]',
   tags JSONB DEFAULT '[]',
+  deleted INTEGER DEFAULT 0,
   synced_by TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -128,6 +129,7 @@ CREATE TABLE IF NOT EXISTS goods_groups (
   cover_item_id TEXT DEFAULT '',
   display_mode TEXT DEFAULT 'list',
   note         TEXT DEFAULT '',
+  deleted      INTEGER DEFAULT 0,
   synced_by    TEXT DEFAULT '',
   updated_at   TIMESTAMPTZ DEFAULT now(),
   created_at   TIMESTAMPTZ DEFAULT now()
@@ -140,6 +142,7 @@ CREATE TABLE IF NOT EXISTS goods_group_items (
   group_id   TEXT NOT NULL REFERENCES goods_groups(id) ON DELETE CASCADE,
   goods_id   TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
+  deleted    INTEGER DEFAULT 0,
   synced_by  TEXT DEFAULT '',
   updated_at TIMESTAMPTZ DEFAULT now(),
   created_at TIMESTAMPTZ DEFAULT now()
@@ -247,7 +250,8 @@ CREATE OR REPLACE FUNCTION set_events_updated_at() RETURNS TRIGGER AS $fn2$
 BEGIN
   IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
-  IF NEW.name IS DISTINCT FROM OLD.name
+  IF NEW.deleted IS DISTINCT FROM OLD.deleted
+    OR NEW.name IS DISTINCT FROM OLD.name
     OR NEW.type IS DISTINCT FROM OLD.type
     OR NEW.start_date IS DISTINCT FROM OLD.start_date
     OR NEW.end_date IS DISTINCT FROM OLD.end_date
@@ -288,7 +292,8 @@ CREATE OR REPLACE FUNCTION set_groups_updated_at() RETURNS TRIGGER AS $fn4$
 BEGIN
   IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
-  IF NEW.name IS DISTINCT FROM OLD.name
+  IF NEW.deleted IS DISTINCT FROM OLD.deleted
+    OR NEW.name IS DISTINCT FROM OLD.name
     OR NEW.type IS DISTINCT FROM OLD.type
     OR NEW.summary_mode IS DISTINCT FROM OLD.summary_mode
     OR NEW.total_amount IS DISTINCT FROM OLD.total_amount
@@ -308,7 +313,8 @@ CREATE OR REPLACE FUNCTION set_group_items_updated_at() RETURNS TRIGGER AS $fn5$
 BEGIN
   IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
   IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
-  IF NEW.group_id IS DISTINCT FROM OLD.group_id
+  IF NEW.deleted IS DISTINCT FROM OLD.deleted
+    OR NEW.group_id IS DISTINCT FROM OLD.group_id
     OR NEW.goods_id IS DISTINCT FROM OLD.goods_id
     OR NEW.sort_order IS DISTINCT FROM OLD.sort_order
   THEN NEW.updated_at = now();
@@ -508,7 +514,7 @@ BEGIN
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM events WHERE user_id = auth.uid()),
+    (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
   )
   ON CONFLICT (id) DO UPDATE SET
@@ -545,11 +551,14 @@ BEGIN
       'manifest',     (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.id = 'default'),
       'goods',        (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND (g.trashed IS NULL OR g.trashed = 0) AND g.user_id = auth.uid()),
       'goods_trash',  (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND g.trashed = 1 AND g.user_id = auth.uid()),
-      'groups',       (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND gg.user_id = auth.uid()),
-      'group_items',  (SELECT COALESCE(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE (p_since IS NULL OR ggi.updated_at > p_since) AND ggi.user_id = auth.uid()),
+      'groups',       (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND (gg.deleted IS NULL OR gg.deleted != 1) AND gg.user_id = auth.uid()),
+      'groups_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND gg.deleted = 1 AND gg.user_id = auth.uid()),
+      'group_items',  (SELECT COALESCE(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE (p_since IS NULL OR ggi.updated_at > p_since) AND (ggi.deleted IS NULL OR ggi.deleted != 1) AND ggi.user_id = auth.uid()),
+      'group_items_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE (p_since IS NULL OR ggi.updated_at > p_since) AND ggi.deleted = 1 AND ggi.user_id = auth.uid()),
       'recharge',     (SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND (r.deleted IS NULL OR r.deleted != 1) AND r.user_id = auth.uid()),
       'recharge_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1 AND r.user_id = auth.uid()),
-      'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.user_id = auth.uid()),
+      'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND (e.deleted IS NULL OR e.deleted != 1) AND e.user_id = auth.uid()),
+      'events_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.deleted = 1 AND e.user_id = auth.uid()),
       'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.id = 'default')
     )
   );
@@ -563,10 +572,13 @@ CREATE OR REPLACE FUNCTION sync_push(
   p_goods            jsonb DEFAULT '[]',
   p_goods_trash      jsonb DEFAULT '[]',
   p_groups           jsonb DEFAULT '[]',
+  p_groups_trash     jsonb DEFAULT '[]',
   p_group_items      jsonb DEFAULT '[]',
+  p_group_items_trash jsonb DEFAULT '[]',
   p_recharge         jsonb DEFAULT '[]',
   p_recharge_trash   jsonb DEFAULT '[]',
   p_events           jsonb DEFAULT '[]',
+  p_events_trash     jsonb DEFAULT '[]',
   p_presets          jsonb DEFAULT '{}',
   p_delete_goods     text[] DEFAULT '{}',
   p_delete_groups    text[] DEFAULT '{}',
@@ -669,6 +681,21 @@ BEGIN
       total_amount = EXCLUDED.total_amount, currency = EXCLUDED.currency,
       cover_mode = EXCLUDED.cover_mode, cover_item_id = EXCLUDED.cover_item_id,
       display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
+      deleted = EXCLUDED.deleted,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+  END IF;
+
+  -- 4b. Upsert groups_trash
+  IF jsonb_array_length(p_groups_trash) > 0 THEN
+    INSERT INTO goods_groups
+    SELECT * FROM jsonb_populate_recordset(null::goods_groups, p_groups_trash)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, type = EXCLUDED.type, summary_mode = EXCLUDED.summary_mode,
+      total_amount = EXCLUDED.total_amount, currency = EXCLUDED.currency,
+      cover_mode = EXCLUDED.cover_mode, cover_item_id = EXCLUDED.cover_item_id,
+      display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
+      deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
       synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
@@ -680,6 +707,19 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       group_id = EXCLUDED.group_id, goods_id = EXCLUDED.goods_id,
       sort_order = EXCLUDED.sort_order,
+      deleted = EXCLUDED.deleted,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+  END IF;
+
+  -- 5b. Upsert group_items_trash
+  IF jsonb_array_length(p_group_items_trash) > 0 THEN
+    INSERT INTO goods_group_items
+    SELECT * FROM jsonb_populate_recordset(null::goods_group_items, p_group_items_trash)
+    ON CONFLICT (id) DO UPDATE SET
+      group_id = EXCLUDED.group_id, goods_id = EXCLUDED.goods_id,
+      sort_order = EXCLUDED.sort_order,
+      deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
       synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
@@ -719,6 +759,25 @@ BEGIN
       ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
       other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
       linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
+      deleted = EXCLUDED.deleted,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+  END IF;
+
+  -- 8b. Upsert events_trash
+  IF jsonb_array_length(p_events_trash) > 0 THEN
+    INSERT INTO events
+    SELECT * FROM jsonb_populate_recordset(null::events, p_events_trash)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, type = EXCLUDED.type,
+      start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
+      location = EXCLUDED.location, description = EXCLUDED.description,
+      cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
+      photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
+      ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
+      other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
+      linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
+      deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
       synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
@@ -752,7 +811,7 @@ BEGIN
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM events WHERE user_id = auth.uid()),
+    (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
   ) ON CONFLICT (id) DO UPDATE SET
     user_id = EXCLUDED.user_id,

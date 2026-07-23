@@ -177,7 +177,9 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       rechargeTrash.push(item)
     }
 
-    const events = (data.events || []).map((row) => {
+    const events = []
+    const eventsTrash = []
+    for (const row of (data.events || [])) {
       const item = toCamelCase(row)
       item.updatedAt = normalizeTimestamp(item.updatedAt)
       if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
@@ -188,22 +190,57 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       item.tags = safeParseJsonArray(item.tags)
       item.tracks = safeParseJsonArray(item.tracks)
       item.otherExpenses = safeParseJsonArray(item.otherExpenses)
-      return item
-    })
-
-    const groups = (data.groups || []).map((row) => {
+      if (Number(row.deleted) === 1) eventsTrash.push(item)
+      else events.push(item)
+    }
+    for (const row of (data.events_trash || [])) {
       const item = toCamelCase(row)
       item.updatedAt = normalizeTimestamp(item.updatedAt)
       if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
-      return item
-    })
+      item.coverImageData = safeParseJsonArray(item.coverImageData) || {}
+      if (typeof item.coverImageData !== 'object') item.coverImageData = {}
+      item.photos = safeParseJsonArray(item.photos)
+      item.linkedGoodsIds = safeParseJsonArray(item.linkedGoodsIds)
+      item.tags = safeParseJsonArray(item.tags)
+      item.tracks = safeParseJsonArray(item.tracks)
+      item.otherExpenses = safeParseJsonArray(item.otherExpenses)
+      item.deleted = true
+      eventsTrash.push(item)
+    }
 
-    const groupItems = (data.group_items || []).map((row) => {
+    const groups = []
+    const groupsTrash = []
+    for (const row of (data.groups || [])) {
       const item = toCamelCase(row)
       item.updatedAt = normalizeTimestamp(item.updatedAt)
       if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
-      return item
-    })
+      if (Number(row.deleted) === 1) groupsTrash.push(item)
+      else groups.push(item)
+    }
+    for (const row of (data.groups_trash || [])) {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+      item.deleted = true
+      groupsTrash.push(item)
+    }
+
+    const groupItems = []
+    const groupItemsTrash = []
+    for (const row of (data.group_items || [])) {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+      if (Number(row.deleted) === 1) groupItemsTrash.push(item)
+      else groupItems.push(item)
+    }
+    for (const row of (data.group_items_trash || [])) {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
+      item.deleted = true
+      groupItemsTrash.push(item)
+    }
 
     const manifestRow = data.manifest
     const manifest = manifestRow ? (() => {
@@ -235,8 +272,11 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       recharge,
       rechargeTrash,
       events,
+      eventsTrash,
       groups,
+      groupsTrash,
       groupItems,
+      groupItemsTrash,
       presets
     }
   }

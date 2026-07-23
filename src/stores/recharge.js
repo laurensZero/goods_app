@@ -68,8 +68,9 @@ function buildLatestRecordMap(list = []) {
 
   for (const item of list) {
     const normalized = normalizeRecord(item)
-    if (normalized.deleted) continue
-    if (!isValidRechargeRecord(normalized)) continue
+    // Keep deleted records so importBackup can apply remote deletions.
+    // isValidRechargeRecord check still applies (amount >= 0 required).
+    if (!isValidRechargeRecord(normalized) && !normalized.deleted) continue
 
     const prev = map.get(normalized.id)
     if (!prev || Number(normalized.updatedAt || 0) >= Number(prev.updatedAt || 0)) {
@@ -161,9 +162,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     log.debug('init:start')
     await migrateFromLocalStorage()
     await coreInit()
-    // Filter out deleted records after core init loads everything
-    records.value = records.value.filter((item) => !item.deleted)
-    log.debug('init:done', { records: records.value.length })
+    log.debug('init:done', { total: records.value.length, active: activeRecords.value.length, deleted: deletedRecords.value.length })
   }
 
   // ── Recharge-specific CRUD ──
@@ -261,16 +260,21 @@ export const useRechargeStore = defineStore('recharge', () => {
   }
 
   async function permanentDelete(id) {
-    const next = records.value.filter((item) => item.id !== id)
-    if (next.length === records.value.length) {
+    const target = records.value.find((item) => item.id === id)
+    if (!target) {
       log.debug('record:delete:skipped', { id, reason: 'not-found' })
       return false
     }
+    if (target.deleted) {
+      log.debug('record:delete:skipped', { id, reason: 'already-deleted' })
+      return false
+    }
     try {
-      await deleteRechargeRecords([id])
-      records.value = next
+      target.deleted = true
+      target.updatedAt = Date.now()
+      await addRechargeRecord(target)
       triggerSync()
-      log.debug('record:delete:done', { id, total: records.value.length })
+      log.debug('record:delete:done', { id, total: activeRecords.value.length })
       return true
     } catch (error) {
       log.error('record:delete:failed', { id }, error)
@@ -278,25 +282,37 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
   }
 
+  async function purgeSyncedDeleted() {
+    const ids = records.value.filter((item) => item.deleted).map((item) => item.id)
+    if (ids.length === 0) return 0
+    try {
+      await deleteRechargeRecords(ids)
+      records.value = records.value.filter((item) => !item.deleted)
+      log.debug('records:purge:done', { purged: ids.length, remaining: records.value.length })
+      return ids.length
+    } catch (error) {
+      log.error('records:purge:failed', { ids }, error)
+      throw error
+    }
+  }
+
   async function clearInvalidRecords() {
-    const next = records.value.filter((item) => isValidRechargeRecord(item) && !item.deleted)
-    if (next.length === records.value.length) {
+    // Only remove non-deleted records that fail validation.
+    // Deleted records (soft-deleted) are preserved for sync.
+    const invalidIds = records.value
+      .filter((item) => !item.deleted && !isValidRechargeRecord(item))
+      .map((item) => item.id)
+    if (invalidIds.length === 0) {
       log.debug('records:cleanup:skipped', { total: records.value.length })
       return 0
     }
-    const removed = records.value.length - next.length
-    const removedIds = records.value
-      .filter((item) => !next.includes(item))
-      .map((item) => item.id)
     try {
-      if (removedIds.length > 0) {
-        await deleteRechargeRecords(removedIds)
-      }
-      records.value = next
-      log.debug('records:cleanup:done', { removed, total: records.value.length })
-      return removed
+      await deleteRechargeRecords(invalidIds)
+      records.value = records.value.filter((item) => !invalidIds.includes(item.id))
+      log.debug('records:cleanup:done', { removed: invalidIds.length, total: records.value.length })
+      return invalidIds.length
     } catch (error) {
-      log.error('records:cleanup:failed', { removed }, error)
+      log.error('records:cleanup:failed', { removed: invalidIds.length }, error)
       throw error
     }
   }
@@ -450,6 +466,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     deleteRecord,
     restoreRecord,
     permanentDelete,
+    purgeSyncedDeleted,
     clearInvalidRecords,
     exportBackup,
     importBackup,

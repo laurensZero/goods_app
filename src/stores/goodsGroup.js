@@ -33,8 +33,8 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   const _groupByIdMap = computed(() => new Map(groupList.value.map(g => [g.id, g])))
   const getGroupById = computed(() => (id) => _groupByIdMap.value.get(id))
 
-  const collectionGroups = computed(() => groupList.value.filter(g => g.type === 'collection'))
-  const wishlistGroups = computed(() => groupList.value.filter(g => g.type === 'wishlist'))
+  const collectionGroups = computed(() => groupList.value.filter(g => g.type === 'collection' && !g.deleted))
+  const wishlistGroups = computed(() => groupList.value.filter(g => g.type === 'wishlist' && !g.deleted))
 
   /** 获取某个组的成员关系列表（按 sortOrder 排序） */
   const groupItemsOf = computed(() => (groupId) => {
@@ -142,14 +142,27 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   async function removeGroup(id) {
     const idx = groupList.value.findIndex(g => g.id === id)
     if (idx === -1) return
+    const target = groupList.value[idx]
+    if (target.deleted) return
 
-    groupList.value = [...groupList.value.slice(0, idx), ...groupList.value.slice(idx + 1)]
-    // 同时移除组内所有成员关系
-    groupItemList.value = groupItemList.value.filter(i => i.groupId !== id)
-    triggerRef(groupList)
-    triggerRef(groupItemList)
+    const now = Date.now()
+    groupList.value = [
+      ...groupList.value.slice(0, idx),
+      { ...target, deleted: true, updatedAt: now },
+      ...groupList.value.slice(idx + 1)
+    ]
+    // Mark all items in this group as deleted too
+    groupItemList.value = groupItemList.value.map(item =>
+      item.groupId === id && !item.deleted
+        ? { ...item, deleted: true, updatedAt: now }
+        : item
+    )
+
     try {
-      await Promise.all([deleteGroups([id]), deleteGroupItemsByGroupId(id)])
+      const updatedItems = groupItemList.value.filter(i => i.groupId === id && i.deleted)
+      const tasks = [saveGroups([groupList.value[idx]])]
+      if (updatedItems.length > 0) tasks.push(saveGroupItems(updatedItems))
+      await Promise.all(tasks)
     } catch (e) {
       console.error('[goodsGroup] removeGroup DB write failed:', e)
       throw e
@@ -193,13 +206,17 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
 
   async function removeItemsFromGroup(goodsIds) {
     const goodsIdSet = new Set(goodsIds)
-    const removed = groupItemList.value.filter(i => goodsIdSet.has(i.goodsId))
-    if (removed.length === 0) return
+    const now = Date.now()
+    let changed = false
+    groupItemList.value = groupItemList.value.map(i => {
+      if (!goodsIdSet.has(i.goodsId) || i.deleted) return i
+      changed = true
+      return { ...i, deleted: true, updatedAt: now }
+    })
+    if (!changed) return
 
-    groupItemList.value = groupItemList.value.filter(i => !goodsIdSet.has(i.goodsId))
-    triggerRef(groupItemList)
     try {
-      await deleteGroupItems(removed.map(i => i.id))
+      await saveGroupItems(groupItemList.value.filter(i => goodsIdSet.has(i.goodsId) && i.deleted))
     } catch (e) {
       console.error('[goodsGroup] removeItemsFromGroup DB write failed:', e)
       throw e
@@ -293,12 +310,33 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     }
   }
 
+  async function purgeSyncedDeleted() {
+    const deletedGroupIds = groupList.value.filter(g => g.deleted).map(g => g.id)
+    const deletedItemIds = groupItemList.value.filter(i => i.deleted).map(i => i.id)
+    if (deletedGroupIds.length === 0 && deletedItemIds.length === 0) return 0
+
+    try {
+      const tasks = []
+      if (deletedGroupIds.length > 0) tasks.push(deleteGroups(deletedGroupIds))
+      if (deletedItemIds.length > 0) tasks.push(deleteGroupItems(deletedItemIds))
+      await Promise.all(tasks)
+      groupList.value = groupList.value.filter(g => !g.deleted)
+      groupItemList.value = groupItemList.value.filter(i => !i.deleted)
+      return deletedGroupIds.length + deletedItemIds.length
+    } catch (e) {
+      console.error('[goodsGroup] purgeSyncedDeleted failed:', e)
+      throw e
+    }
+  }
+
   async function updateGroupsBackup(groups, items) {
     if (Array.isArray(groups)) {
       const remoteMap = new Map(groups.map(g => [g.id, g]))
       const merged = groupList.value.map(local => {
         const remote = remoteMap.get(local.id)
         if (!remote) return local
+        // Apply remote deletion if newer, or update if remote is newer
+        if (remote.deleted && (remote.updatedAt || 0) >= (local.updatedAt || 0)) return remote
         return (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local
       })
       // 添加远端有、本地没有的
@@ -314,6 +352,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       const merged = groupItemList.value.map(local => {
         const remote = remoteMap.get(local.id)
         if (!remote) return local
+        if (remote.deleted && (remote.updatedAt || 0) >= (local.updatedAt || 0)) return remote
         return (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local
       })
       const localIds = new Set(groupItemList.value.map(i => i.id))
@@ -353,6 +392,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     // Sync
     refreshGroupList,
     importGroupsBackup,
-    updateGroupsBackup
+    updateGroupsBackup,
+    purgeSyncedDeleted
   }
 })

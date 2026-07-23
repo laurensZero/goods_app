@@ -429,10 +429,10 @@ export function createSyncPayloadService({
 
     const budgetSettings = await readBudgetSettings()
 
-    // Include goods groups
+    // Include goods groups (split by deleted for tombstone model)
     const goodsGroupStore = useGoodsGroupStore()
-    const goodsGroups = goodsGroupStore.groupList || []
-    const goodsGroupItems = goodsGroupStore.groupItemList || []
+    const allGroups = goodsGroupStore.groupList || []
+    const allGroupItems = goodsGroupStore.groupItemList || []
 
     return {
       syncData: {
@@ -443,8 +443,10 @@ export function createSyncPayloadService({
         trash,
         presets: await buildPresetsData(),
         budgetSettings,
-        goodsGroups,
-        goodsGroupItems
+        goodsGroups: allGroups.filter(g => !g.deleted),
+        goodsGroupsTrash: allGroups.filter(g => g.deleted),
+        goodsGroupItems: allGroupItems.filter(gi => !gi.deleted),
+        goodsGroupItemsTrash: allGroupItems.filter(gi => gi.deleted)
       },
       imageStats,
       imageFiles,
@@ -460,17 +462,23 @@ export function createSyncPayloadService({
   function buildRechargeSyncData({ incremental = false } = {}) {
     const rechargeStore = useRechargeStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
-    const allRecords = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const allRecords = rechargeStore.exportBackup({ includeDeleted: true, stripImage: true })
+    const allRecharge = allRecords.filter((item) => !item.deleted)
+    const allTrash = allRecords.filter((item) => item.deleted)
+
     const records = incremental
-      ? allRecords.filter((item) => !lastSyncTime || getItemTimestamp(item) > lastSyncTime)
-      : allRecords
+      ? allRecharge.filter((item) => !lastSyncTime || getItemTimestamp(item) > lastSyncTime)
+      : allRecharge
+    const trash = incremental
+      ? allTrash.filter((item) => !lastSyncTime || getItemTimestamp(item) > lastSyncTime)
+      : allTrash
 
     return {
       version: RECHARGE_PAYLOAD_VERSION,
       updatedAt: new Date().toISOString(),
       deviceId: deviceIdRef.value,
       recharge: records,
-      rechargeTrash: []
+      rechargeTrash: trash
     }
   }
 
@@ -503,12 +511,16 @@ export function createSyncPayloadService({
 
     imageStats.imageFileCount = referencedImageFiles.size
 
+    const activeEvents = events.filter(e => !e.deleted)
+    const trashEvents = events.filter(e => e.deleted)
+
     return {
       eventData: {
         version: EVENT_PAYLOAD_VERSION,
         updatedAt: new Date().toISOString(),
         deviceId: deviceIdRef.value,
-        events
+        events: activeEvents,
+        eventsTrash: trashEvents
       },
       imageStats,
       imageFiles,
@@ -518,19 +530,21 @@ export function createSyncPayloadService({
 
   function buildEventSyncData() {
     const eventsStore = useEventsStore()
+    const allEvents = eventsStore.list.map((item) => ({
+      ...item,
+      photos: Array.isArray(item.photos) ? item.photos : [],
+      ticketType: String(item.ticketType || '').trim(),
+      seatInfo: String(item.seatInfo || '').trim(),
+      otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],
+      linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
+      tags: Array.isArray(item.tags) ? item.tags : []
+    }))
     return {
       version: EVENT_DATA_VERSION,
       updatedAt: new Date().toISOString(),
       deviceId: deviceIdRef.value,
-      events: eventsStore.list.map((item) => ({
-        ...item,
-        photos: Array.isArray(item.photos) ? item.photos : [],
-        ticketType: String(item.ticketType || '').trim(),
-        seatInfo: String(item.seatInfo || '').trim(),
-        otherExpenses: Array.isArray(item.otherExpenses) ? item.otherExpenses : [],
-        linkedGoodsIds: Array.isArray(item.linkedGoodsIds) ? item.linkedGoodsIds : [],
-        tags: Array.isArray(item.tags) ? item.tags : []
-      }))
+      events: allEvents.filter(e => !e.deleted),
+      eventsTrash: allEvents.filter(e => e.deleted)
     }
   }
 

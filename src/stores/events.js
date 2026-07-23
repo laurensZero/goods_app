@@ -62,6 +62,7 @@ function normalizeEvent(data) {
     otherExpenses: normalizeOtherExpenses(data.otherExpenses),
     linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
     tags: Array.isArray(data.tags) ? data.tags : [],
+    deleted: Boolean(data.deleted),
     createdAt: data.createdAt || now,
     updatedAt: data.updatedAt || now
   }
@@ -93,8 +94,10 @@ export const useEventsStore = defineStore('events', () => {
 
   // ── Events-specific computed ──
 
+  const activeList = computed(() => list.value.filter((item) => !item.deleted))
+
   const groupedByMonth = computed(() => {
-    const sorted = [...list.value].sort((a, b) => getSortDate(b).localeCompare(getSortDate(a)))
+    const sorted = [...activeList.value].sort((a, b) => getSortDate(b).localeCompare(getSortDate(a)))
     const grouped = {}
 
     for (const event of sorted) {
@@ -137,7 +140,7 @@ export const useEventsStore = defineStore('events', () => {
   })
 
   const totalTicketAll = computed(() =>
-    list.value.reduce((sum, item) => sum + parseNumericPrice(item.ticketPrice), 0)
+    activeList.value.reduce((sum, item) => sum + parseNumericPrice(item.ticketPrice), 0)
   )
 
   // ── Init ──
@@ -202,13 +205,15 @@ export const useEventsStore = defineStore('events', () => {
   }
 
   async function removeEventRecord(id) {
-    const existing = list.value.find((item) => item.id === id)
-    if (!existing) return
+    const index = list.value.findIndex((item) => item.id === id)
+    if (index === -1) return
+    const existing = list.value[index]
+    if (existing.deleted) return
 
-    list.value = list.value.filter((item) => item.id !== id)
+    const deleted = { ...existing, deleted: true, updatedAt: Date.now() }
+    list.value = [...list.value.slice(0, index), deleted, ...list.value.slice(index + 1)]
     try {
-      await deleteEvents([id])
-      await deleteManagedLocalImages(collectManagedLocalImagePathsFromEvent(existing))
+      await addEvent(deleted)
     } catch (e) {
       console.error('[events] removeEventRecord DB write failed:', e)
       throw e
@@ -221,23 +226,42 @@ export const useEventsStore = defineStore('events', () => {
     if (targetIds.length === 0) return
 
     const targetIdSet = new Set(targetIds)
-    const removedPaths = new Set()
-    for (const item of list.value) {
-      if (!targetIdSet.has(item.id)) continue
-      for (const path of collectManagedLocalImagePathsFromEvent(item)) {
-        removedPaths.add(path)
-      }
-    }
+    const now = Date.now()
+    let changed = false
+    list.value = list.value.map(item => {
+      if (!targetIdSet.has(item.id) || item.deleted) return item
+      changed = true
+      return { ...item, deleted: true, updatedAt: now }
+    })
+    if (!changed) return
 
-    list.value = list.value.filter((item) => !targetIds.includes(item.id))
     try {
-      await deleteEvents(targetIds)
-      await deleteManagedLocalImages(removedPaths)
+      await saveEvents(list.value.filter((item) => targetIdSet.has(item.id) && item.deleted))
     } catch (e) {
       console.error('[events] removeMultipleEventRecords DB write failed:', e)
       throw e
     }
     triggerSync()
+  }
+
+  async function purgeSyncedDeleted() {
+    const ids = list.value.filter((item) => item.deleted).map((item) => item.id)
+    if (ids.length === 0) return 0
+    try {
+      const removedPaths = new Set()
+      for (const item of list.value) {
+        if (!item.deleted) continue
+        for (const path of collectManagedLocalImagePathsFromEvent(item)) {
+          removedPaths.add(path)
+        }
+      }
+      await Promise.all([deleteEvents(ids), deleteManagedLocalImages(removedPaths)])
+      list.value = list.value.filter((item) => !item.deleted)
+      return ids.length
+    } catch (e) {
+      console.error('[events] purgeSyncedDeleted failed:', e)
+      throw e
+    }
   }
 
   // ── Backup import (events-specific: coverImageData backfill, image cleanup) ──
@@ -269,6 +293,13 @@ export const useEventsStore = defineStore('events', () => {
 
       const incomingUpdatedAt = Number(event.updatedAt) || 0
       const existingUpdatedAt = Number(existing.updatedAt) || 0
+
+      // Apply remote deletion if incoming timestamp is newer
+      if (event.deleted && incomingUpdatedAt >= existingUpdatedAt) {
+        recordsToSave.push(normalizeEvent({ ...existing, deleted: true, updatedAt: incomingUpdatedAt }))
+        updated += 1
+        continue
+      }
 
       const incomingCoverFileName = String(event?.coverImageData?.cloudFileName || parseCloudImageUri(event?.coverImage) || '').trim()
       const existingCoverFileName = String(existing?.coverImageData?.cloudFileName || parseCloudImageUri(existing?.coverImage) || '').trim()
@@ -384,6 +415,7 @@ export const useEventsStore = defineStore('events', () => {
     updateEventRecord,
     removeEventRecord,
     removeMultipleEventRecords,
+    purgeSyncedDeleted,
     refreshList,
     importEventsBackup,
     markMediaAsRemote
