@@ -1,9 +1,9 @@
 {
-  "version": "20260722.9",
-  "url": "bundle-20260722.9.zip",
-  "hash": "dfbae97c9a9540eb6778d453c5a4a997f62e31838eba76f96087625e9a10f539",
+  "version": "20260723.1",
+  "url": "bundle-20260723.1.zip",
+  "hash": "41d9d117ce54abda41d28e661297e59257b5004a99edb65834e564f9b6215e3a",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 user_id 列以支持多用户数据隔离，更新相关表和函数以确保用户权限",
+  "notes": "- feat: 更新 createReader 和 createWriter 函数以支持 userId，确保数据按用户隔离",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-22T15:54:11Z"
+  "publishedAt": "2026-07-23T01:45:44Z"
 }
