@@ -58,6 +58,8 @@ export function inferGoodsImageStorageMode(uri, explicitMode = '') {
 }
 
 export function isExportableGoodsImage(entry) {
+  const uri = String(entry?.uri || '').trim()
+  if (uri.startsWith('http://') || uri.startsWith('https://')) return true
   const storageMode = inferGoodsImageStorageMode(entry?.uri, entry?.storageMode)
   return storageMode === 'remote'
 }
@@ -305,30 +307,17 @@ export async function sanitizeGoodsImagesForShare(images, fallbackImage = '') {
   if (normalizedImages.length === 0) return []
 
   const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
-  const shareableImages = (await Promise.all(normalizedImages.map(async (entry) => {
-    if (isExportableGoodsImage(entry)) {
-      return {
-        id: entry.id,
-        uri: entry.uri,
-        kind: entry.kind,
-        label: entry.label,
-        storageMode: 'remote',
-        isPrimary: entry.id === primaryId
-      }
-    }
-
-    const embeddedUri = await readLocalImageAsDataUrl(entry.uri)
-    if (!embeddedUri?.startsWith('data:image/')) return null
-
-    return {
+  // Only include remote images (URLs) — skip local/base64 images to keep payload small
+  const shareableImages = normalizedImages
+    .filter((entry) => isExportableGoodsImage(entry))
+    .map((entry) => ({
       id: entry.id,
-      uri: embeddedUri,
+      uri: entry.uri,
       kind: entry.kind,
       label: entry.label,
-      storageMode: 'inline-local',
+      storageMode: 'remote',
       isPrimary: entry.id === primaryId
-    }
-  }))).filter(Boolean)
+    }))
 
   if (shareableImages.length === 0) return []
 

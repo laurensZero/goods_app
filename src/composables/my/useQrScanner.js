@@ -256,9 +256,9 @@ export function useQrScanner() {
       return
     }
 
-    const { gistId, shareId } = extractIdsFromInput(text)
+    const { shareId } = extractIdsFromInput(text)
 
-    if (!gistId) {
+    if (!shareId) {
       stopScannerLoop()
       scannerHint.value = t('my.scanInvalidQrCode')
       setTimeout(() => {
@@ -270,11 +270,10 @@ export function useQrScanner() {
     }
 
     stopScanner()
-    const query = shareId ? { s: shareId } : {}
     showScanner.value = false
     scanError.value = ''
     runWithRouteTransition(
-      () => router.push({ name: 'share-import', params: { gistId }, query }),
+      () => router.push({ name: 'share-import', params: { shareId } }),
       { direction: 'forward' }
     )
   }
@@ -366,17 +365,16 @@ export function useQrScanner() {
           return
         }
 
-        const { gistId, shareId } = extractIdsFromInput(text)
-        if (!gistId) {
+        const { shareId } = extractIdsFromInput(text)
+        if (!shareId) {
           scanError.value = t('my.scanInvalidQrContent')
           scanning.value = false
           return
         }
 
-        const query = shareId ? { s: shareId } : {}
         scanning.value = false
         runWithRouteTransition(
-          () => router.push({ name: 'share-import', params: { gistId }, query }),
+          () => router.push({ name: 'share-import', params: { shareId } }),
           { direction: 'forward' }
         )
       } catch (e2) {

@@ -273,12 +273,12 @@ const codeInputRef = ref(null)
 const codeInput = ref('')
 
 function handleFetch() {
-  const { gistId: id, shareId: sid } = extractIdsFromInput(codeInput.value)
-  if (!id) {
+  const { shareId: sid } = extractIdsFromInput(codeInput.value)
+  if (!sid) {
     shareError.value = t('goods.addMethod.enterValidShareCode')
     return
   }
-  doFetch(id, sid)
+  doFetch(sid)
 }
 
 function handleImport() {

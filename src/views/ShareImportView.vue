@@ -3,8 +3,8 @@
     <NavBar :title="t('import.share')" show-back @back="handleBack" />
 
     <main class="page-body">
-      <!-- Code input (when no gistId from deep link) -->
-      <section v-if="!gistId" class="input-section">
+      <!-- Code input (when no shareId from deep link) -->
+      <section v-if="!routeShareId" class="input-section">
         <div class="input-card">
           <div class="input-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -88,7 +88,7 @@
           <div class="section-head">
             <p class="section-label">{{ t('import.shareContent') }}</p>
             <h2 class="section-title">{{ t('import.shareGoodsCount', { count: payload.goods.length }) }}</h2>
-            <p class="section-sub">{{ t('import.sharedAt', { date: formatSharedAt(payload.sharedAt) }) }}</p>
+            <p v-if="payload.sharedAt" class="section-sub">{{ t('import.sharedAt', { date: formatSharedAt(payload.sharedAt) }) }}</p>
           </div>
 
           <div class="goods-list">
@@ -202,20 +202,19 @@ const {
   }
 })
 
-const gistId = computed(() => String(route.params.gistId || '').trim())
-const shareId = computed(() => String(route.query.s || '').trim())
+const routeShareId = computed(() => String(route.params.shareId || '').trim())
 
 const codeInputRef = ref(null)
 const codeInput = ref('')
 const scanning = ref(false)
 
 async function handleFetch() {
-  const { gistId: id, shareId: sid } = extractIdsFromInput(codeInput.value)
-  if (!id) {
+  const { shareId: sid } = extractIdsFromInput(codeInput.value)
+  if (!sid) {
     fetchError.value = t('import.errorInvalidShareCode')
     return
   }
-  await doFetch(id, sid)
+  await doFetch(sid)
 }
 
 function loadImageFromSrc(src) {
@@ -296,8 +295,8 @@ function handleBack() {
 }
 
 onMounted(async () => {
-  if (gistId.value) {
-    await doFetch(gistId.value, shareId.value)
+  if (routeShareId.value) {
+    await doFetch(routeShareId.value)
   }
   await nextTick()
   codeInputRef.value?.focus()

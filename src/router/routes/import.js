@@ -24,7 +24,7 @@ export default [
     meta: { titleKey: 'nav.taobaoImport' }
   },
   {
-    path: '/share/:gistId?',
+    path: '/share/:shareId?',
     name: 'share-import',
     component: () => import('@/views/ShareImportView.vue'),
     meta: { titleKey: 'nav.importShare' },
