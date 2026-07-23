@@ -1,7 +1,7 @@
 import {
   inferGoodsImageStorageMode,
   normalizeGoodsImageList,
-  parseGistImageUri
+  parseCloudImageUri
 } from '@/utils/goods/images'
 import { readPersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
@@ -300,19 +300,19 @@ export function buildGoodsImageReferenceMap(items = []) {
       if (!imageId || !uri) continue
 
       const storageMode = inferGoodsImageStorageMode(uri, imageEntry?.storageMode)
-      if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
+      if (!['cloud-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
       // 只用图片 ID 作为版本标识，不依赖商品的 updatedAt 时间戳
       // 这样即使商品信息改变（updatedAt 改变），图片版本也不会改变
       // 除非图片内容本身改变（imageId 改变）
       
-      const gistFileName = String(imageEntry?.gistFileName || parseGistImageUri(uri) || '').trim()
-      if (!gistFileName) continue  // 跳过还没上传到 Gist 的图片
+      const cloudFileName = String(imageEntry?.cloudFileName || parseCloudImageUri(uri) || '').trim()
+      if (!cloudFileName) continue  // 跳过还没上传到云端的图片
 
       // 提取图片的唯一标识，不含时间戳部分
-      // 格式: goods-image__goodsId__imageId__timestamp.jpg.txt
+      // 格式: goods-image__goodsId__imageId__timestamp.jpg
       // 提取: goods-image__goodsId__imageId
-      const parts = gistFileName.split('__')
+      const parts = cloudFileName.split('__')
       const baseFileName = parts.slice(0, 3).join('__')  // 前三个部分不含时间戳
       map.set(`goods:${itemId}:${imageId}`, baseFileName || imageId)
     }
@@ -330,17 +330,17 @@ export function buildEventImageReferenceMap(events = []) {
     if (!eventId || !coverImage) continue
 
     const storageMode = inferGoodsImageStorageMode(coverImage, event?.coverImageData?.storageMode)
-    if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
+    if (!['cloud-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
     // 只用活动 ID 作为版本标识，不依赖活动的 updatedAt 时间戳
     // 这样即使活动信息改变，封面版本也不会改变
-    const gistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(coverImage) || '').trim()
-    if (!gistFileName) continue  // 跳过还没上传到 Gist 的图片
+    const cloudFileName = String(event?.coverImageData?.cloudFileName || parseCloudImageUri(coverImage) || '').trim()
+    if (!cloudFileName) continue  // 跳过还没上传到云端的图片
 
     // 提取活动封面的唯一标识，不含时间戳部分
-    // 格式: event-cover__eventId__timestamp.jpg.txt
+    // 格式: event-cover__eventId__timestamp.jpg
     // 提取: event-cover__eventId
-    const parts = gistFileName.split('__')
+    const parts = cloudFileName.split('__')
     const baseFileName = parts.slice(0, 2).join('__')  // 前两个部分不含时间戳
     map.set(`event:${eventId}:cover`, baseFileName || eventId)
   }
@@ -357,15 +357,15 @@ export function buildEventImageReferenceMap(events = []) {
       if (!photoId || !photoUri) continue
 
       const storageMode = inferGoodsImageStorageMode(photoUri, photoEntry?.storageMode)
-      if (!['gist-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
+      if (!['cloud-local', 'linked-local', 'inline-local'].includes(storageMode)) continue
 
       // 只用图片 ID 作为版本标识，不依赖活动的 updatedAt 时间戳
-      const gistFileName = String(photoEntry?.gistFileName || parseGistImageUri(photoUri) || '').trim()
-      if (!gistFileName) continue  // 跳过还没上传到 Gist 的图片
+      const cloudFileName = String(photoEntry?.cloudFileName || parseCloudImageUri(photoUri) || '').trim()
+      if (!cloudFileName) continue  // 跳过还没上传到云端的图片
 
       // 提取图片的唯一标识，不含时间戳部分
       // photos 的格式应该与商品图片类似或不同，这里通用提取前端标识
-      const parts = gistFileName.split('__')
+      const parts = cloudFileName.split('__')
       const baseFileName = parts.slice(0, 3).join('__')  // 提取基础部分不含时间戳
       map.set(`event:${eventId}:photo:${photoId}`, baseFileName || photoId)
     }
@@ -439,35 +439,35 @@ function resolveImageExtension(mimeType, fallbackName = '') {
 }
 
 export function buildImageFilename(item, imageEntry, mimeType) {
-  const existingGistFileName = String(imageEntry?.gistFileName || parseGistImageUri(imageEntry?.uri) || '').trim()
-  if (existingGistFileName) return existingGistFileName
+  const existingCloudFileName = String(imageEntry?.cloudFileName || parseCloudImageUri(imageEntry?.uri) || '').trim()
+  if (existingCloudFileName) return existingCloudFileName
 
   const itemId = sanitizeFilenamePart(item?.id)
   const imageId = sanitizeFilenamePart(imageEntry?.id)
   const updatedAt = String(getItemTimestamp(item) || 0)
-  const extension = resolveImageExtension(mimeType, imageEntry?.uri || imageEntry?.gistFileName || '')
-  return `${IMAGE_FILE_PREFIX}${itemId}__${imageId}__${updatedAt}.${extension}.txt`
+  const extension = resolveImageExtension(mimeType, imageEntry?.uri || imageEntry?.cloudFileName || '')
+  return `${IMAGE_FILE_PREFIX}${itemId}__${imageId}__${updatedAt}.${extension}`
 }
 
 export function buildEventCoverFilename(event, mimeType) {
-  const existingGistFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(event?.coverImage) || '').trim()
-  if (existingGistFileName) return existingGistFileName
+  const existingCloudFileName = String(event?.coverImageData?.cloudFileName || parseCloudImageUri(event?.coverImage) || '').trim()
+  if (existingCloudFileName) return existingCloudFileName
 
   const eventId = sanitizeFilenamePart(event?.id)
   const updatedAt = String(event?.updatedAt || 0)
   const extension = resolveImageExtension(mimeType, event?.coverImage || '')
-  return `${EVENT_COVER_PREFIX}${eventId}__${updatedAt}.${extension}.txt`
+  return `${EVENT_COVER_PREFIX}${eventId}__${updatedAt}.${extension}`
 }
 
 export function buildEventPhotoFilename(event, photoEntry, mimeType) {
-  const existingGistFileName = String(photoEntry?.gistFileName || parseGistImageUri(photoEntry?.uri) || '').trim()
-  if (existingGistFileName) return existingGistFileName
+  const existingCloudFileName = String(photoEntry?.cloudFileName || parseCloudImageUri(photoEntry?.uri) || '').trim()
+  if (existingCloudFileName) return existingCloudFileName
 
   const eventId = sanitizeFilenamePart(event?.id)
   const photoId = sanitizeFilenamePart(photoEntry?.id)
   const updatedAt = String(event?.updatedAt || 0)
-  const extension = resolveImageExtension(mimeType, photoEntry?.uri || photoEntry?.gistFileName || '')
-  return `${EVENT_PHOTO_PREFIX}${eventId}__${photoId}__${updatedAt}.${extension}.txt`
+  const extension = resolveImageExtension(mimeType, photoEntry?.uri || photoEntry?.cloudFileName || '')
+  return `${EVENT_PHOTO_PREFIX}${eventId}__${photoId}__${updatedAt}.${extension}`
 }
 
 export function buildImageSyncStats() {

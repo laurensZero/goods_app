@@ -23,10 +23,6 @@ import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 import i18n from '@/locales'
 import {
-  DATA_FILENAME,
-  RECHARGE_DATA_FILENAME,
-  EVENT_DATA_FILENAME,
-  MANIFEST_FILENAME,
   IMAGE_FILE_PREFIX,
   EVENT_COVER_PREFIX,
   EVENT_PHOTO_PREFIX,
@@ -217,7 +213,7 @@ export const useSyncStore = defineStore('sync', () => {
     buildComparableSyncStateFromData, buildComparableRechargeStateFromData,
     buildComparableEventStateFromData, buildManifest
   } = createSyncPayloadService({
-    deviceIdRef: deviceId, imageGistIdRef: ref(''), lastSyncedAtRef: lastSyncedAt,
+    deviceIdRef: deviceId, imageCloudIdRef: ref(''), lastSyncedAtRef: lastSyncedAt,
     buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore, useGoodsGroupStore,
     readLocalImageAsDataUrl, compressImageToBlob, imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
   })
@@ -242,8 +238,6 @@ export const useSyncStore = defineStore('sync', () => {
     useEventsStore,
     useGoodsGroupStore,
     shouldApplyRemoteItem,
-    getExistingRechargeGist: () => activeBackend.getExistingRechargeGist(),
-    getExistingEventGist: () => activeBackend.getExistingEventGist(),
     buildRechargeSyncData, buildEventSyncData, getLatestLocalModifiedAt
   })
 
@@ -256,12 +250,11 @@ export const useSyncStore = defineStore('sync', () => {
   const orchestrator = createSyncOrchestrator({
     backend: activeBackend, payload: payloadService, image: imageService, conflict: conflictService,
     useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, useGoodsGroupStore, trackSyncStep,
-    constants: { DATA_FILENAME, RECHARGE_DATA_FILENAME, EVENT_DATA_FILENAME, MANIFEST_FILENAME },
     userIdRef: () => { const authStore = useAuthStore(); return authStore.user?.id || '' }
   })
 
-  async function restoreImageFromCloud(gistFileName) {
-    const name = String(gistFileName || '').trim()
+  async function restoreImageFromCloud(cloudFileName) {
+    const name = String(cloudFileName || '').trim()
     if (!name) return null
     const resolvedBackend = activeBackend
     if (!resolvedBackend?.readImage) return null
@@ -326,10 +319,7 @@ export const useSyncStore = defineStore('sync', () => {
       deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
       saveLastSyncedAt, saveEventLastSyncedAt,
-      saveImageGistId: async () => {},
-      saveRechargeGistId: async () => {},
-      saveEventGistId: async () => {},
-      rechargeGistId: '', eventGistId: '',
+      saveImageCloudId: async () => {},
       getLatestLocalModifiedAt, buildPresetsData, ensureEventsStoreReady,
       shouldApplyRemoteItem
     }

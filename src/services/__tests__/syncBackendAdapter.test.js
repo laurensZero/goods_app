@@ -3,18 +3,14 @@ import { createSyncBackendAdapter } from '../syncBackendAdapter'
 
 describe('createSyncBackendAdapter', () => {
   const fullImpl = {
-    ensureDataGist: () => {},
-    ensureImageGist: () => {},
-    ensureRechargeGist: () => {},
-    ensureEventGist: () => {},
-    getExistingImageGist: () => {},
-    getExistingRechargeGist: () => {},
-    getExistingEventGist: () => {},
-    readJson: () => {},
+    ensureImageCloud: () => {},
+    getExistingImageCloud: () => {},
     readImage: () => {},
-    writeData: () => {},
     writeImages: () => {},
-    getManifest: () => {}
+    getImagePublicUrl: () => {},
+    pushAll: () => {},
+    pullAll: () => {},
+    getDb: () => {}
   }
 
   it('returns impl when all methods are present', () => {
@@ -23,8 +19,8 @@ describe('createSyncBackendAdapter', () => {
   })
 
   it('throws when a required method is missing', () => {
-    const { readJson, ...incomplete } = fullImpl
-    expect(() => createSyncBackendAdapter(incomplete)).toThrow('missing required method: readJson')
+    const { pushAll, ...incomplete } = fullImpl
+    expect(() => createSyncBackendAdapter(incomplete)).toThrow('missing required method: pushAll')
   })
 
   it('throws when multiple methods are missing', () => {
@@ -32,7 +28,7 @@ describe('createSyncBackendAdapter', () => {
   })
 
   it('throws when method is not a function', () => {
-    expect(() => createSyncBackendAdapter({ ...fullImpl, readJson: 'not a function' })).toThrow()
+    expect(() => createSyncBackendAdapter({ ...fullImpl, pushAll: 'not a function' })).toThrow()
   })
 
   it('accepts extra methods beyond required ones', () => {

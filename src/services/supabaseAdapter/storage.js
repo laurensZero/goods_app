@@ -39,7 +39,7 @@ function dataUrlToBlob(dataUrl) {
 export function normalizeBucketName(bucketLike) {
   if (typeof bucketLike === 'string' && bucketLike.trim()) return bucketLike.trim()
   if (bucketLike && typeof bucketLike === 'object') {
-    const candidate = bucketLike.id || bucketLike.bucket || bucketLike.bucketName || bucketLike.name || bucketLike.imageBucket || bucketLike.imageGistId
+    const candidate = bucketLike.id || bucketLike.bucket || bucketLike.bucketName || bucketLike.name || bucketLike.imageBucket || bucketLike.imageCloudId
     if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
   }
   return GOODS_IMAGE_BUCKET
@@ -51,7 +51,7 @@ export function resolveStorageBucketByPath(filePath, fallbackBucket = GOODS_IMAG
   return fallbackBucket || GOODS_IMAGE_BUCKET
 }
 
-// Strip .txt suffix from Gist-style filenames for Supabase Storage (stores binary, not base64 text)
+// Strip .txt suffix from legacy filenames for Supabase Storage (stores binary, not base64 text)
 export function toStoragePath(filePath) {
   return filePath.endsWith('.txt') ? filePath.slice(0, -4) : filePath
 }
@@ -85,19 +85,19 @@ async function listStorageBucketFiles(db, bucketName) {
 
 export function createStorageOps({ getDb, withRetry }) {
   // Cache image file listing to avoid expensive Storage API calls on every sync.
-  const IMAGE_GIST_CACHE_TTL = 30_000
-  let imageGistCache = null
-  let imageGistCacheTime = 0
+  const IMAGE_CLOUD_CACHE_TTL = 30_000
+  let imageCloudCache = null
+  let imageCloudCacheTime = 0
 
-  function invalidateImageGistCache() {
-    imageGistCache = null
-    imageGistCacheTime = 0
+  function invalidateImageCache() {
+    imageCloudCache = null
+    imageCloudCacheTime = 0
   }
 
-  async function getExistingImageGist() {
+  async function getExistingImageCloud() {
     const now = Date.now()
-    if (imageGistCache && (now - imageGistCacheTime) < IMAGE_GIST_CACHE_TTL) {
-      return imageGistCache
+    if (imageCloudCache && (now - imageCloudCacheTime) < IMAGE_CLOUD_CACHE_TTL) {
+      return imageCloudCache
     }
 
     const db = getDb()
@@ -113,8 +113,8 @@ export function createStorageOps({ getDb, withRetry }) {
       files[fileName + '.txt'] = { name: fileName }
     }
     const result = { id: GOODS_IMAGE_BUCKET, files }
-    imageGistCache = result
-    imageGistCacheTime = now
+    imageCloudCache = result
+    imageCloudCacheTime = now
     return result
   }
 
@@ -181,7 +181,7 @@ export function createStorageOps({ getDb, withRetry }) {
     )
     await Promise.all(workers)
 
-    invalidateImageGistCache()
+    invalidateImageCache()
     return { uploaded, failed }
   }
 
@@ -201,11 +201,11 @@ export function createStorageOps({ getDb, withRetry }) {
   }
 
   return {
-    getExistingImageGist,
+    getExistingImageCloud,
     readImage,
     writeImages,
     ensureStorageBuckets,
     getImagePublicUrl,
-    invalidateImageGistCache
+    invalidateImageCache
   }
 }

@@ -22,38 +22,8 @@ export function createSupabaseBackendAdapter({
   const reader = createReader({ getDb, trackSyncStep, userIdRef })
   const writer = createWriter({ getDb, deviceIdRef, userIdRef })
 
-  // ── Ensure operations (no-op for Supabase, tables are pre-created) ──
-
-  async function ensureDataGist() {
-    return { id: 'supabase-data' }
-  }
-
-  async function ensureImageGist() {
+  async function ensureImageCloud() {
     return storage.ensureStorageBuckets()
-  }
-
-  async function ensureRechargeGist() {
-    return { id: 'supabase-recharge' }
-  }
-
-  async function ensureEventGist() {
-    return { id: 'supabase-events' }
-  }
-
-  async function getExistingRechargeGist() {
-    return { id: 'supabase-recharge' }
-  }
-
-  async function getExistingEventGist() {
-    return { id: 'supabase-events' }
-  }
-
-  function getDataGistId() {
-    return 'supabase-data'
-  }
-
-  async function getDataGist() {
-    return { id: 'supabase-data' }
   }
 
   function isEncryptionEnabled() {
@@ -61,10 +31,10 @@ export function createSupabaseBackendAdapter({
   }
 
   // Wrap writeImages to add trackSyncStep UI feedback
-  async function writeImagesWithTracking(gistId, imageFiles) {
+  async function writeImagesWithTracking(cloudId, imageFiles) {
     if (!imageFiles || Object.keys(imageFiles).length === 0) return
     await trackSyncStep(i18n.global.t('sync.step.uploadSupabaseImages'), async () => {
-      const result = await storage.writeImages(gistId, imageFiles)
+      const result = await storage.writeImages(cloudId, imageFiles)
       return i18n.global.t('sync.step.uploadSupabaseImages.result', { uploaded: result.uploaded, failed: result.failed })
     }, {
       startDetail: i18n.global.t('sync.step.uploadSupabaseImages.start', { count: Object.keys(imageFiles).length }),
@@ -74,30 +44,13 @@ export function createSupabaseBackendAdapter({
   }
 
   return createSyncBackendAdapter({
-    ensureDataGist,
-    ensureImageGist,
-    ensureRechargeGist,
-    ensureEventGist,
-    getExistingImageGist: storage.getExistingImageGist,
-    getExistingRechargeGist,
-    getExistingEventGist,
-    readJson: reader.readJson,
+    ensureImageCloud,
+    getExistingImageCloud: storage.getExistingImageCloud,
     readImage: storage.readImage,
-    writeData: writer.writeData,
     writeImages: writeImagesWithTracking,
-    getManifest: reader.getManifest,
-    isEncryptionEnabled,
-    getDataGistId,
-    getDataGist,
     getImagePublicUrl: storage.getImagePublicUrl,
-    pushDomainRows: writer.pushDomainRows,
-    pullDomainRows: reader.pullDomainRows,
-    pullAll: reader.pullAll,
     pushAll: writer.pushAll,
-    // New unified interfaces for Phase 2
-    readPresets: reader.readPresets,
-    writePresets: writer.writePresets,
-    writeManifest: writer.writeManifest,
+    pullAll: reader.pullAll,
     getDb
   })
 }

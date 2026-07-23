@@ -1,8 +1,8 @@
 // src/services/supabaseAdapter/writer.js
-// Supabase write operations: writeData, pushDomainRows, writeManifest, writePresets
+// Supabase write operations: pushAll, writeManifest, writePresets
 
 import { toSnakeCase } from '@/utils/sync/columnMapping'
-import { withRetry, withTimeout } from '@/services/syncRetry'
+import { withRetry } from '@/services/syncRetry'
 import i18n from '@/locales'
 import {
   GOODS_COLS, EVENT_COLS, RECHARGE_COLS, GOODS_GROUP_COLS, GOODS_GROUP_ITEM_COLS,
@@ -12,151 +12,9 @@ import {
 } from './helpers'
 
 export function createWriter({ getDb, deviceIdRef, userIdRef }) {
-  /**
-   * Write data via JSON dataMap interface (legacy Gist-compatible path).
-   * Supabase implementation: converts JSON content to rows and upserts.
-   */
-  async function writeData(_, dataMap, options = {}) {
-    return withTimeout(async () => {
-    const db = getDb()
-    const incremental = options?.incremental === true
-    const deleteIdsByFile = options?.deleteIdsByFile || {}
-    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-
-    for (const [fileName, entry] of Object.entries(dataMap)) {
-      const content = entry.content
-
-      if (fileName === 'manifest.json') {
-        await writeManifest(content)
-        continue
-      }
-
-      if (fileName === 'data.json') {
-        const goods = Array.isArray(content.goods) ? content.goods : []
-        const trash = Array.isArray(content.trash) ? content.trash : []
-
-        const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
-        const goodsRows = goods.map(item => toSnakeCase({
-          ...pickCols(item, GOODS_COLS),
-          isWishlist: item.isWishlist ? 1 : 0,
-          saleReminderEnabled: item.saleReminderEnabled ? 1 : 0,
-          saleReminderOffsets: Array.isArray(item.saleReminderOffsets) ? item.saleReminderOffsets : [],
-          trashed: 0,
-          quantity: Number(item.quantity) || 1,
-          points: item.points != null ? Number(item.points) : null,
-          updatedAt: toTimestamp(item.updatedAt),
-          syncedBy: currentDeviceId,
-          userId: currentUserId || null
-        }))
-        const trashRows = trash.map(item => toSnakeCase({
-          ...pickCols(item, GOODS_COLS),
-          isWishlist: item.isWishlist ? 1 : 0,
-          saleReminderEnabled: item.saleReminderEnabled ? 1 : 0,
-          saleReminderOffsets: Array.isArray(item.saleReminderOffsets) ? item.saleReminderOffsets : [],
-          trashed: 1,
-          quantity: Number(item.quantity) || 1,
-          points: item.points != null ? Number(item.points) : null,
-          updatedAt: toTimestamp(item.updatedAt),
-          syncedBy: currentDeviceId,
-          userId: currentUserId || null
-        }))
-        const mergedRows = [...goodsRows, ...trashRows]
-        await syncTableRows(db, 'goods', mergedRows, {
-          label: 'goods',
-          incremental,
-          deleteIds: deleteIdsByFile[fileName] || []
-        })
-
-        if (content.presets) {
-          await writePresets(content.presets)
-        }
-
-        // Sync goods_groups
-        const goodsGroups = Array.isArray(content.goodsGroups) ? content.goodsGroups : []
-        const goodsGroupDeleteIds = deleteIdsByFile.goodsGroups || []
-        if (goodsGroups.length > 0 || goodsGroupDeleteIds.length > 0) {
-          const groupRows = goodsGroups.map(item => toSnakeCase({
-            ...pickCols(item, GOODS_GROUP_COLS),
-            totalAmount: Number(item.totalAmount) || 0,
-            updatedAt: toTimestamp(item.updatedAt),
-            createdAt: toTimestamp(item.createdAt),
-            syncedBy: currentDeviceId,
-            userId: currentUserId || null
-          }))
-          await syncTableRows(db, 'goods_groups', groupRows, {
-            label: 'goods_groups',
-            incremental,
-            deleteIds: goodsGroupDeleteIds
-          })
-        }
-
-        // Sync goods_group_items
-        const goodsGroupItems = Array.isArray(content.goodsGroupItems) ? content.goodsGroupItems : []
-        const goodsGroupItemDeleteIds = deleteIdsByFile.goodsGroupItems || []
-        if (goodsGroupItems.length > 0 || goodsGroupItemDeleteIds.length > 0) {
-          const itemRows = goodsGroupItems.map(item => toSnakeCase({
-            ...pickCols(item, GOODS_GROUP_ITEM_COLS),
-            sortOrder: Number(item.sortOrder) || 0,
-            updatedAt: toTimestamp(item.updatedAt),
-            createdAt: toTimestamp(item.createdAt),
-            syncedBy: currentDeviceId,
-            userId: currentUserId || null
-          }))
-          await syncTableRows(db, 'goods_group_items', itemRows, {
-            label: 'goods_group_items',
-            incremental,
-            deleteIds: goodsGroupItemDeleteIds
-          })
-        }
-
-        continue
-      }
-
-      if (fileName === 'recharge-data.json') {
-        const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
-        const recharge = Array.isArray(content.recharge) ? content.recharge : []
-        const rechargeTrash = Array.isArray(content.rechargeTrash) ? content.rechargeTrash : []
-        const rechargeRows = recharge
-          .map((item) => toRechargeRow(item, currentDeviceId, false, currentUserId))
-          .filter(Boolean)
-        const rechargeTrashRows = rechargeTrash
-          .map((item) => toRechargeRow(item, currentDeviceId, true, currentUserId))
-          .filter(Boolean)
-        const mergedRows = [...rechargeRows, ...rechargeTrashRows]
-
-        await syncTableRows(db, 'recharge_records', mergedRows, {
-          label: 'recharge_records',
-          incremental,
-          deleteIds: deleteIdsByFile[fileName] || []
-        })
-        continue
-      }
-
-      if (fileName === 'events-data.json') {
-        const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
-        const events = Array.isArray(content.events) ? content.events : []
-        const rows = events.map(item => toSnakeCase({
-          ...pickCols(item, EVENT_COLS),
-          updatedAt: toTimestamp(item.updatedAt),
-          createdAt: toTimestamp(item.createdAt),
-          syncedBy: currentDeviceId,
-          userId: currentUserId || null
-        }))
-        await syncTableRows(db, 'events', rows, {
-          label: 'events',
-          incremental,
-          deleteIds: deleteIdsByFile[fileName] || []
-        })
-        continue
-      }
-    }
-    })
-  }
-
   async function writeManifest(manifestContent) {
     const db = getDb()
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-    // accept either object or JSON string
     if (typeof manifestContent === 'string') {
       try { manifestContent = JSON.parse(manifestContent) } catch { manifestContent = {} }
     }
@@ -166,7 +24,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       deviceId: manifestContent.deviceId || '',
       collectionCount: 0, wishlistCount: 0, goodsCount: 0,
       trashCount: 0, rechargeCount: 0, eventCount: 0, imageCount: 0,
-      imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
+      imageBucket: manifestContent.imageCloudId || manifestContent.imageBucket || 'goods-images',
       rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
       eventUpdatedAt: manifestContent.eventUpdatedAt || null,
       budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
@@ -197,18 +55,12 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
   }
 
   /**
-   * Push rows directly to Supabase, bypassing JSON dataMap layer.
+   * Push rows directly to Supabase.
    * Accepts camelCase items from the orchestrator, converts to snake_case, diffs, and upserts.
-   *
-   * @param {'goods'|'recharge'|'events'|'groups'|'groupItems'} domain
-   * @param {object} opts
-   * @param {Array} opts.localItems - camelCase items from local store
-   * @param {Array} [opts.remoteItems] - camelCase items from remote (for diff). If omitted, upserts all localItems.
-   * @param {Array} [opts.deleteIds] - IDs to delete. If remoteItems provided, computed automatically.
-   * @param {boolean} [opts.isTrash] - goods only: mark as trashed
    */
   async function pushDomainRows(domain, { localItems = [], remoteItems = null, deleteIds = null, isTrash = false } = {}) {
     const db = getDb()
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
     if (domain === 'goods') {
@@ -232,7 +84,6 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     }
 
     if (domain === 'recharge') {
-      const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
       let rowsToUpsert = localItems.map(item => toRechargeRow(item, currentDeviceId, isTrash, currentUserId)).filter(Boolean)
       let idsToDelete = deleteIds
       let isIncremental = deleteIds !== null
@@ -325,7 +176,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     rechargeUpdatedAt = null, eventUpdatedAt = null
   } = {}) {
     const db = getDb()
-    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '') || deviceId
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
     const { error } = await withRetry(() => db.rpc('sync_push', {
@@ -359,5 +210,5 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
   }
 
-  return { writeData, writeManifest, writePresets, pushDomainRows, pushAll }
+  return { writeManifest, writePresets, pushDomainRows, pushAll }
 }

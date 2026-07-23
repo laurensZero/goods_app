@@ -288,15 +288,15 @@ export async function computeDiffRows(localRows = [], remoteRows = []) {
     const out = { ...item }
     if (Array.isArray(out.images)) {
       out.images = out.images.map((img) => {
-        if (!img || typeof img !== 'object') return { id: img?.id || '', gistFileName: '' }
-        const gistFileName = String(img.gistFileName || '').trim() || (typeof img.uri === 'string' && img.uri.startsWith('gist-image://') ? img.uri.slice('gist-image://'.length) : '')
-        return { id: String(img.id || '').trim(), gistFileName }
+        if (!img || typeof img !== 'object') return { id: img?.id || '', cloudFileName: '' }
+        const cloudFileName = String(img.cloudFileName || '').trim() || (typeof img.uri === 'string' && img.uri.startsWith('cloud-image://') ? img.uri.slice('cloud-image://'.length) : '')
+        return { id: String(img.id || '').trim(), cloudFileName }
       })
       out.images.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     }
     if (out.image !== undefined) delete out.image
     if (out.coverImageData && typeof out.coverImageData === 'object') {
-      out.coverImageData = { gistFileName: String(out.coverImageData.gistFileName || '').trim() }
+      out.coverImageData = { cloudFileName: String(out.coverImageData.cloudFileName || '').trim() }
     }
     if (out.coverImage !== undefined) delete out.coverImage
     if (out.isWishlist === undefined || out.isWishlist === null) out.isWishlist = 0
@@ -306,9 +306,9 @@ export async function computeDiffRows(localRows = [], remoteRows = []) {
     if (out.updatedAt !== undefined && out.updatedAt !== null) out.updatedAt = Number(out.updatedAt) || 0
     if (Array.isArray(out.photos)) {
       out.photos = out.photos.map((p) => {
-        if (!p || typeof p !== 'object') return { id: p?.id || '', gistFileName: '' }
-        const gistFileName = String(p.gistFileName || '').trim() || (typeof p.uri === 'string' && p.uri.startsWith('gist-image://') ? p.uri.slice('gist-image://'.length) : '')
-        return { id: String(p.id || '').trim(), gistFileName }
+        if (!p || typeof p !== 'object') return { id: p?.id || '', cloudFileName: '' }
+        const cloudFileName = String(p.cloudFileName || '').trim() || (typeof p.uri === 'string' && p.uri.startsWith('cloud-image://') ? p.uri.slice('cloud-image://'.length) : '')
+        return { id: String(p.id || '').trim(), cloudFileName }
       })
       out.photos.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     }

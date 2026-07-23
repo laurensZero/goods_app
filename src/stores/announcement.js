@@ -412,7 +412,7 @@ async function fetchAnnouncementManifestFromGistApi(gistId) {
 
     const payload = parseManifestPayload(response?.data)
     const selectedFile = pickManifestFileFromGistPayload(payload)
-    if (!selectedFile) throw new Error('Gist 中未找到可用公告文件。')
+    if (!selectedFile) throw new Error('云端未找到可用公告文件。')
 
     let content = String(selectedFile?.content || '')
     if (!content && selectedFile?.raw_url) content = await fetchRawText(String(selectedFile.raw_url || ''))
@@ -434,7 +434,7 @@ async function fetchAnnouncementManifestFromGistApi(gistId) {
 
     const payload = await response.json()
     const selectedFile = pickManifestFileFromGistPayload(payload)
-    if (!selectedFile) throw new Error('Gist 中未找到可用公告文件。')
+    if (!selectedFile) throw new Error('云端未找到可用公告文件。')
 
     let content = String(selectedFile?.content || '')
     if (!content && selectedFile?.raw_url) content = await fetchRawText(String(selectedFile.raw_url || ''))

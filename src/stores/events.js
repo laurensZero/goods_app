@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { computed, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/tracks'
-import { buildGistImageUri, parseGistImageUri } from '@/utils/goods/images'
+import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
 import { signalImageCacheRefresh } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goodsHelpers'
@@ -270,21 +270,21 @@ export const useEventsStore = defineStore('events', () => {
       const incomingUpdatedAt = Number(event.updatedAt) || 0
       const existingUpdatedAt = Number(existing.updatedAt) || 0
 
-      const incomingCoverFileName = String(event?.coverImageData?.gistFileName || parseGistImageUri(event?.coverImage) || '').trim()
-      const existingCoverFileName = String(existing?.coverImageData?.gistFileName || parseGistImageUri(existing?.coverImage) || '').trim()
+      const incomingCoverFileName = String(event?.coverImageData?.cloudFileName || parseCloudImageUri(event?.coverImage) || '').trim()
+      const existingCoverFileName = String(existing?.coverImageData?.cloudFileName || parseCloudImageUri(existing?.coverImage) || '').trim()
       const shouldBackfillCoverImageData = !!incomingCoverFileName && !existingCoverFileName
 
       if (incomingUpdatedAt > existingUpdatedAt || shouldBackfillCoverImageData) {
         const normalizedCoverImageData = event?.coverImageData && typeof event.coverImageData === 'object'
           ? {
               ...event.coverImageData,
-              uri: event.coverImageData.uri || (incomingCoverFileName ? buildGistImageUri(incomingCoverFileName) : '')
+              uri: event.coverImageData.uri || (incomingCoverFileName ? buildCloudImageUri(incomingCoverFileName) : '')
             }
           : (incomingCoverFileName
               ? {
-                  uri: buildGistImageUri(incomingCoverFileName),
-                  storageMode: 'gist-local',
-                  gistFileName: incomingCoverFileName
+                  uri: buildCloudImageUri(incomingCoverFileName),
+                  storageMode: 'cloud-local',
+                  cloudFileName: incomingCoverFileName
                 }
               : null)
 

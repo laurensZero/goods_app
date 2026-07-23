@@ -12,7 +12,7 @@ import {
   normalizeBudgetValue,
   readBudgetSettings
 } from '@/utils/sync/shared'
-import { buildGistImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseGistImageUri, sanitizeGoodsItemForSync } from '@/utils/goods/images'
+import { buildCloudImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri, sanitizeGoodsItemForSync } from '@/utils/goods/images'
 import {
   SYNC_PAYLOAD_VERSION,
   RECHARGE_PAYLOAD_VERSION,
@@ -23,7 +23,7 @@ import {
 
 export function createSyncPayloadService({
   deviceIdRef,
-  imageGistIdRef,
+  imageCloudIdRef,
   lastSyncedAtRef,
   buildPresetsData,
   ensureEventsStoreReady,
@@ -43,22 +43,22 @@ export function createSyncPayloadService({
   }
 
   function normalizeEventForComparison(item) {
-    const coverGistFileName = String(item?.coverImageData?.gistFileName || parseGistImageUri(item?.coverImage) || '').trim()
-    const normalizedCoverImage = coverGistFileName
-      ? buildGistImageUri(coverGistFileName)
+    const coverCloudFileName = String(item?.coverImageData?.cloudFileName || parseCloudImageUri(item?.coverImage) || '').trim()
+    const normalizedCoverImage = coverCloudFileName
+      ? buildCloudImageUri(coverCloudFileName)
       : String(item?.coverImage || '').trim()
 
     const normalizedCoverImageData = item?.coverImageData && typeof item.coverImageData === 'object'
       ? {
-          storageMode: String(item.coverImageData.storageMode || (coverGistFileName ? 'gist-local' : '')).trim(),
-          gistFileName: coverGistFileName,
+          storageMode: String(item.coverImageData.storageMode || (coverCloudFileName ? 'cloud-local' : '')).trim(),
+          cloudFileName: coverCloudFileName,
           mimeType: String(item.coverImageData.mimeType || '').trim(),
           fileSize: Number(item.coverImageData.fileSize) > 0 ? Number(item.coverImageData.fileSize) : 0
         }
-      : (coverGistFileName
+      : (coverCloudFileName
           ? {
-              storageMode: 'gist-local',
-              gistFileName: coverGistFileName,
+              storageMode: 'cloud-local',
+              cloudFileName: coverCloudFileName,
               mimeType: '',
               fileSize: 0
             }
@@ -69,13 +69,13 @@ export function createSyncPayloadService({
       coverImage: normalizedCoverImage,
       coverImageData: normalizedCoverImageData,
       photos: normalizeGoodsImageList(Array.isArray(item?.photos) ? item.photos : []).map((photo) => {
-        const photoGistFileName = String(photo?.gistFileName || parseGistImageUri(photo?.uri) || '').trim()
+        const photoCloudFileName = String(photo?.cloudFileName || parseCloudImageUri(photo?.uri) || '').trim()
         return {
           ...photo,
-          uri: photoGistFileName ? buildGistImageUri(photoGistFileName) : String(photo?.uri || '').trim(),
-          storageMode: String(photo?.storageMode || (photoGistFileName ? 'gist-local' : inferGoodsImageStorageMode(photo?.uri))).trim(),
+          uri: photoCloudFileName ? buildCloudImageUri(photoCloudFileName) : String(photo?.uri || '').trim(),
+          storageMode: String(photo?.storageMode || (photoCloudFileName ? 'cloud-local' : inferGoodsImageStorageMode(photo?.uri))).trim(),
           localPath: '',
-          gistFileName: photoGistFileName
+          cloudFileName: photoCloudFileName
         }
       }),
       ticketType: String(item?.ticketType || '').trim(),
@@ -103,37 +103,37 @@ export function createSyncPayloadService({
       const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
 
       if (storageMode === 'remote') {
-        const gistFileName = String(imageEntry.gistFileName || '').trim()
-        if (gistFileName) referencedImageFiles.add(gistFileName)
+        const cloudFileName = String(imageEntry.cloudFileName || '').trim()
+        if (cloudFileName) referencedImageFiles.add(cloudFileName)
         preparedImages.push({
           ...imageEntry,
           storageMode: 'remote',
-          gistFileName,
+          cloudFileName,
           mimeType: '',
           fileSize: 0
         })
         continue
       }
 
-      if (storageMode === 'gist-local') {
-        const gistFileName = String(imageEntry.gistFileName || parseGistImageUri(imageEntry.uri)).trim()
+      if (storageMode === 'cloud-local') {
+        const cloudFileName = String(imageEntry.cloudFileName || parseCloudImageUri(imageEntry.uri)).trim()
         // If the file is confirmed to exist in Storage, reuse it — no upload needed.
-        if (gistFileName && existingImageFiles?.has(gistFileName)) {
-          referencedImageFiles.add(gistFileName)
+        if (cloudFileName && existingImageFiles?.has(cloudFileName)) {
+          referencedImageFiles.add(cloudFileName)
           preparedImages.push({
             ...imageEntry,
-            storageMode: 'gist-local',
-            gistFileName
+            storageMode: 'cloud-local',
+            cloudFileName
           })
           continue
         }
         // File not confirmed in Storage — try to read local file and re-upload.
         // If local file is also gone, return null (image lost, don't crash the sync).
-        if (gistFileName) {
+        if (cloudFileName) {
           const localDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath).catch(() => null)
           if (localDataUrl?.startsWith('data:image/')) {
-            // Fall through to the upload path below — it will use gistFileName.
-            imageEntry = { ...imageEntry, uri: localDataUrl, gistFileName }
+            // Fall through to the upload path below — it will use cloudFileName.
+            imageEntry = { ...imageEntry, uri: localDataUrl, cloudFileName }
           } else {
             // Local file gone — skip this image, don't include in sync.
             continue
@@ -174,13 +174,13 @@ export function createSyncPayloadService({
         imageDataUrl = compressedDataUrl
       }
 
-      const gistFileName = buildImageFilename(item, imageEntry, parsedData.mimeType)
-      referencedImageFiles.add(gistFileName)
+      const cloudFileName = buildImageFilename(item, imageEntry, parsedData.mimeType)
+      referencedImageFiles.add(cloudFileName)
 
-      if (existingImageFiles?.has(gistFileName)) {
+      if (existingImageFiles?.has(cloudFileName)) {
         imageStats.reusedImages += 1
       } else if (imageFiles) {
-        imageFiles[gistFileName] = { content: imageDataUrl }
+        imageFiles[cloudFileName] = { content: imageDataUrl }
         imageStats.uploadedImages += 1
       }
 
@@ -188,9 +188,9 @@ export function createSyncPayloadService({
 
       preparedImages.push({
         ...imageEntry,
-        uri: buildGistImageUri(gistFileName),
-        storageMode: 'gist-local',
-        gistFileName,
+        uri: buildCloudImageUri(cloudFileName),
+        storageMode: 'cloud-local',
+        cloudFileName,
         mimeType: parsedData.mimeType,
         fileSize: parsedData.fileSize
       })
@@ -204,22 +204,22 @@ export function createSyncPayloadService({
 
     const storageMode = inferGoodsImageStorageMode(event.coverImage)
     if (storageMode === 'remote') {
-      const gistFileName = String(event.coverImageData?.gistFileName || '').trim()
-      if (gistFileName) referencedImageFiles.add(gistFileName)
+      const cloudFileName = String(event.coverImageData?.cloudFileName || '').trim()
+      if (cloudFileName) referencedImageFiles.add(cloudFileName)
       return {
         uri: event.coverImage,
         storageMode: 'remote',
-        gistFileName
+        cloudFileName
       }
     }
 
-    if (storageMode === 'gist-local') {
-      const gistFileName = String(event.coverImageData?.gistFileName || parseGistImageUri(event.coverImage)).trim()
-      if (gistFileName) referencedImageFiles.add(gistFileName)
+    if (storageMode === 'cloud-local') {
+      const cloudFileName = String(event.coverImageData?.cloudFileName || parseCloudImageUri(event.coverImage)).trim()
+      if (cloudFileName) referencedImageFiles.add(cloudFileName)
       return {
         uri: event.coverImage,
-        storageMode: 'gist-local',
-        gistFileName,
+        storageMode: 'cloud-local',
+        cloudFileName,
         mimeType: event.coverImageData?.mimeType || '',
         fileSize: event.coverImageData?.fileSize || 0
       }
@@ -258,22 +258,22 @@ export function createSyncPayloadService({
       imageDataUrl = compressedDataUrl
     }
 
-    const gistFileName = buildEventCoverFilename(event, parsedData.mimeType)
-    referencedImageFiles.add(gistFileName)
+    const cloudFileName = buildEventCoverFilename(event, parsedData.mimeType)
+    referencedImageFiles.add(cloudFileName)
 
-    if (existingImageFiles?.has(gistFileName)) {
+    if (existingImageFiles?.has(cloudFileName)) {
       imageStats.reusedImages += 1
     } else if (imageFiles) {
-      imageFiles[gistFileName] = { content: imageDataUrl }
+      imageFiles[cloudFileName] = { content: imageDataUrl }
       imageStats.uploadedImages += 1
     }
 
     imageStats.imageUpdatedAt = new Date().toISOString()
 
     return {
-      uri: buildGistImageUri(gistFileName),
-      storageMode: 'gist-local',
-      gistFileName,
+      uri: buildCloudImageUri(cloudFileName),
+      storageMode: 'cloud-local',
+      cloudFileName,
       mimeType: parsedData.mimeType,
       fileSize: parsedData.fileSize
     }
@@ -298,13 +298,13 @@ export function createSyncPayloadService({
       const storageMode = inferGoodsImageStorageMode(photoUri, rawPhoto?.storageMode)
 
       if (storageMode === 'remote') {
-        const gistFileName = String(rawPhoto?.gistFileName || '').trim()
-        if (gistFileName) referencedImageFiles.add(gistFileName)
+        const cloudFileName = String(rawPhoto?.cloudFileName || '').trim()
+        if (cloudFileName) referencedImageFiles.add(cloudFileName)
         preparedPhotos.push({
           ...normalizedPhoto,
           uri: photoUri,
           storageMode: 'remote',
-          gistFileName,
+          cloudFileName,
           mimeType: '',
           fileSize: 0,
           localPath: ''
@@ -312,15 +312,15 @@ export function createSyncPayloadService({
         continue
       }
 
-      if (storageMode === 'gist-local') {
-        const gistFileName = String(rawPhoto?.gistFileName || parseGistImageUri(photoUri)).trim()
-        if (gistFileName && existingImageFiles?.has(gistFileName)) {
-          referencedImageFiles.add(gistFileName)
+      if (storageMode === 'cloud-local') {
+        const cloudFileName = String(rawPhoto?.cloudFileName || parseCloudImageUri(photoUri)).trim()
+        if (cloudFileName && existingImageFiles?.has(cloudFileName)) {
+          referencedImageFiles.add(cloudFileName)
           preparedPhotos.push({
             ...normalizedPhoto,
-            uri: buildGistImageUri(gistFileName),
-            storageMode: 'gist-local',
-            gistFileName,
+            uri: buildCloudImageUri(cloudFileName),
+            storageMode: 'cloud-local',
+            cloudFileName,
             mimeType: String(rawPhoto?.mimeType || '').trim(),
             fileSize: Number(rawPhoto?.fileSize) > 0 ? Number(rawPhoto.fileSize) : 0,
             localPath: ''
@@ -328,7 +328,7 @@ export function createSyncPayloadService({
           continue
         }
 
-        if (gistFileName) {
+        if (cloudFileName) {
           const recoveredDataUrl = await readLocalImageAsDataUrl(photoUri, rawPhoto?.localPath).catch(() => null)
           if (!recoveredDataUrl?.startsWith('data:image/')) {
             continue
@@ -337,9 +337,9 @@ export function createSyncPayloadService({
           if (!parsedRecovered) {
             continue
           }
-          referencedImageFiles.add(gistFileName)
-          if (!existingImageFiles?.has(gistFileName) && imageFiles) {
-            imageFiles[gistFileName] = { content: recoveredDataUrl }
+          referencedImageFiles.add(cloudFileName)
+          if (!existingImageFiles?.has(cloudFileName) && imageFiles) {
+            imageFiles[cloudFileName] = { content: recoveredDataUrl }
             imageStats.uploadedImages += 1
           } else {
             imageStats.reusedImages += 1
@@ -347,9 +347,9 @@ export function createSyncPayloadService({
           imageStats.imageUpdatedAt = new Date().toISOString()
           preparedPhotos.push({
             ...normalizedPhoto,
-            uri: buildGistImageUri(gistFileName),
-            storageMode: 'gist-local',
-            gistFileName,
+            uri: buildCloudImageUri(cloudFileName),
+            storageMode: 'cloud-local',
+            cloudFileName,
             mimeType: parsedRecovered.mimeType,
             fileSize: parsedRecovered.fileSize,
             localPath: ''
@@ -369,13 +369,13 @@ export function createSyncPayloadService({
       }
 
       // Keep original quality for event gallery photos.
-      const gistFileName = buildEventPhotoFilename(event, normalizedPhoto, parsedData.mimeType)
-      referencedImageFiles.add(gistFileName)
+      const cloudFileName = buildEventPhotoFilename(event, normalizedPhoto, parsedData.mimeType)
+      referencedImageFiles.add(cloudFileName)
 
-      if (existingImageFiles?.has(gistFileName)) {
+      if (existingImageFiles?.has(cloudFileName)) {
         imageStats.reusedImages += 1
       } else if (imageFiles) {
-        imageFiles[gistFileName] = { content: imageDataUrl }
+        imageFiles[cloudFileName] = { content: imageDataUrl }
         imageStats.uploadedImages += 1
       }
 
@@ -383,9 +383,9 @@ export function createSyncPayloadService({
 
       preparedPhotos.push({
         ...normalizedPhoto,
-        uri: buildGistImageUri(gistFileName),
-        storageMode: 'gist-local',
-        gistFileName,
+        uri: buildCloudImageUri(cloudFileName),
+        storageMode: 'cloud-local',
+        cloudFileName,
         mimeType: parsedData.mimeType,
         fileSize: parsedData.fileSize,
         localPath: ''
@@ -395,7 +395,7 @@ export function createSyncPayloadService({
     return preparedPhotos
   }
 
-  async function buildSyncPayload({ incremental = false, existingImageGist = null, dirtyIds = null } = {}) {
+  async function buildSyncPayload({ incremental = false, existingImageCloud = null, dirtyIds = null } = {}) {
     const goodsStore = useGoodsStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
@@ -404,7 +404,7 @@ export function createSyncPayloadService({
     const imageStats = buildImageSyncStats()
     const referencedImageFiles = new Set()
     const imageFiles = {}
-    const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
+    const existingImageFiles = new Map(Object.entries(existingImageCloud?.files || {}))
 
     let filteredGoods = sourceGoods.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
     // Fast path: only process specific dirty items
@@ -474,12 +474,12 @@ export function createSyncPayloadService({
     }
   }
 
-  async function buildEventSyncPayload({ existingImageGist = null } = {}) {
+  async function buildEventSyncPayload({ existingImageCloud = null } = {}) {
     const eventsStore = await ensureEventsStoreReady()
     const imageStats = buildImageSyncStats()
     const imageFiles = {}
     const referencedImageFiles = new Set()
-    const existingImageFiles = new Map(Object.entries(existingImageGist?.files || {}))
+    const existingImageFiles = new Map(Object.entries(existingImageCloud?.files || {}))
 
     const events = await processWithConcurrency(eventsStore.list, async (item) => {
       let processedCoverImage = null
@@ -582,7 +582,7 @@ export function createSyncPayloadService({
       version: MANIFEST_VERSION,
       deviceId: deviceIdRef.value,
       lastSyncAt: timestamp,
-      imageGistId: imageGistIdRef.value || '',
+      imageCloudId: imageCloudIdRef.value || '',
       imageFileCount: Number(imageStats.imageFileCount) || 0,
       // backward-compatible fields for Supabase adapter
       imageCount: Number(imageStats.imageFileCount) || 0,

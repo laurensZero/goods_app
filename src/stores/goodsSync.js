@@ -11,7 +11,7 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
-import { normalizeGoodsImageList, parseGistImageUri } from '@/utils/goods/images'
+import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
 
 async function persistTrash(trashList) {
@@ -216,10 +216,10 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
       const images = normalizeGoodsImageList(item.images)
       let changed = false
       for (const [idx, prepared] of preparedMap) {
-        if (idx >= 0 && idx < images.length && prepared.gistFileName) {
+        if (idx >= 0 && idx < images.length && prepared.cloudFileName) {
           const currentUri = String(images[idx]?.uri || '').trim()
           // When backend provides a public URL (Supabase), always use it — don't keep base64 in SQLite.
-          // Only preserve local URIs for Gist backend where offline display needs the local copy.
+          // Only preserve local URIs for cloud backend where offline display needs the local copy.
           const hasRemoteUri = /^https?:\/\//.test(prepared.uri || '')
           const keepLocalUri = !hasRemoteUri && !!currentUri && (
             currentUri.startsWith('blob:')
@@ -228,9 +228,9 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
           )
           images[idx] = {
             ...images[idx],
-            uri: keepLocalUri ? currentUri : (prepared.uri || `gist-image://${prepared.gistFileName}`),
-            storageMode: 'gist-local',
-            gistFileName: prepared.gistFileName,
+            uri: keepLocalUri ? currentUri : (prepared.uri || `cloud-image://${prepared.cloudFileName}`),
+            storageMode: 'cloud-local',
+            cloudFileName: prepared.cloudFileName,
             mimeType: prepared.mimeType || images[idx]?.mimeType || '',
             fileSize: Number(prepared.fileSize) > 0 ? Number(prepared.fileSize) : (Number(images[idx]?.fileSize) || 0)
           }
@@ -252,7 +252,7 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
 }
 
 /**
- * Replace data:image/ base64 with public URLs for all items that have gistFileName.
+ * Replace data:image/ base64 with public URLs for all items that have cloudFileName.
  * Called after sync when backend is Supabase.
  */
 async function cleanupBase64Images(list, trashList, backend) {
@@ -270,10 +270,10 @@ async function cleanupBase64Images(list, trashList, backend) {
       const nextImages = images.map((img) => {
         const uri = String(img?.uri || '').trim()
         if (!uri.startsWith('data:image/')) return img
-        const gistFileName = String(img?.gistFileName || parseGistImageUri(uri) || '').trim()
-        if (!gistFileName) return img
+        const cloudFileName = String(img?.cloudFileName || parseCloudImageUri(uri) || '').trim()
+        if (!cloudFileName) return img
         changed = true
-        return { ...img, uri: backend.getImagePublicUrl(gistFileName), storageMode: 'remote' }
+        return { ...img, uri: backend.getImagePublicUrl(cloudFileName), storageMode: 'remote' }
       })
 
       if (!changed) continue

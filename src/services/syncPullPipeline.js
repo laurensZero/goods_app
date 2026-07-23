@@ -11,8 +11,7 @@ import i18n from '@/locales'
 const log = createLogger('sync:pullPipeline')
 
 /**
- * Read remote data from the backend.
- * Uses readDomainRows when available (Supabase), falls back to readJson (Gist).
+ * Read remote data from the backend via pullAll RPC.
  *
  * @param {object} be - backend adapter
  * @param {object} opts
@@ -20,69 +19,27 @@ const log = createLogger('sync:pullPipeline')
  * @param {number} opts.since - incremental: only rows after this timestamp (ms)
  * @param {boolean} opts.readManifest - whether to read manifest
  * @param {boolean} opts.readPresets - whether to read presets
- * @param {object} opts.gist - Gist object (for Gist backend)
- * @param {object} opts.fallbackGists - { rechargeGist, eventGist } for Gist backend
  */
-export async function readRemoteData(be, { tables = null, since = 0, readManifest = true, readPresets = true, gist = null, fallbackGists = {}, trackSyncStep = null } = {}) {
-  const result = { goods: [], trash: [], recharge: [], rechargeTrash: [], events: [], groups: [], groupItems: [], presets: null, manifest: null }
-
+export async function readRemoteData(be, { tables = null, since = 0, readManifest = true, readPresets = true, trackSyncStep = null } = {}) {
   // Helper to wrap a task with trackSyncStep if available
   const wrapStep = (title, task, opts) => trackSyncStep ? trackSyncStep(title, task, opts) : task()
 
-  if (be.pullAll) {
-    // Supabase path — single RPC
-    const isIncremental = since > 0
-    const pullData = await wrapStep(
-      i18n.global.t('sync.step.readData'),
-      () => be.pullAll({ since }),
-      {
-        startDetail: i18n.global.t('sync.step.readData.start'),
-        category: 'pull',
-        successDetail: (data) => {
-          const g = data?.goods || []
-          const c = countWishlistSplit(g)
-          return i18n.global.t('sync.step.readData.success', { collection: c.collection, wishlist: c.wishlist, trash: (data?.trash || []).length })
-        }
+  const isIncremental = since > 0
+  const pullData = await wrapStep(
+    i18n.global.t('sync.step.readData'),
+    () => be.pullAll({ since }),
+    {
+      startDetail: i18n.global.t('sync.step.readData.start'),
+      category: 'pull',
+      successDetail: (data) => {
+        const g = data?.goods || []
+        const c = countWishlistSplit(g)
+        return i18n.global.t('sync.step.readData.success', { collection: c.collection, wishlist: c.wishlist, trash: (data?.trash || []).length })
       }
-    )
-    pullData.isIncremental = isIncremental
-    return pullData
-  } else {
-    // Gist path — readJson with fallbacks (readJson already has trackSyncStep inside)
-    const [remoteData, remoteRecharge, remoteEvents, manifest] = await Promise.all([
-      be.readJson({
-        title: i18n.global.t('sync.step.readData'), gist, fileName: 'data.json', required: true,
-        startDetail: i18n.global.t('sync.step.readData.start'), category: 'pull',
-        successDetail: (parsed) => {
-          if (!parsed) return i18n.global.t('sync.step.readData.notFound')
-          const counts = countWishlistSplit(Array.isArray(parsed.goods) ? parsed.goods : [])
-          return i18n.global.t('sync.step.readData.success', { collection: counts.collection, wishlist: counts.wishlist, trash: (parsed.trash || []).length })
-        }
-      }),
-      be.readJson({
-        title: i18n.global.t('sync.step.readRecharge'), gist, fileName: 'recharge-data.json', fallbackGist: fallbackGists.rechargeGist,
-        startDetail: i18n.global.t('sync.step.readRecharge.start'), category: 'pull',
-        successDetail: (parsed, source) => parsed ? i18n.global.t('sync.step.readRecharge.success', { source, count: (parsed.recharge || []).length }) : i18n.global.t('sync.step.readRecharge.notFound')
-      }),
-      be.readJson({
-        title: i18n.global.t('sync.step.readEvents'), gist, fileName: 'events-data.json', fallbackGist: fallbackGists.eventGist,
-        startDetail: i18n.global.t('sync.step.readEvents.start'), category: 'pull',
-        successDetail: (parsed, source) => parsed ? i18n.global.t('sync.step.readEvents.success', { source, count: (parsed.events || []).length }) : i18n.global.t('sync.step.readEvents.notFound')
-      }),
-      readManifest ? (be.readManifest || be.getManifest).call(be, gist) : Promise.resolve(null)
-    ])
-    result.goods = remoteData?.goods || []
-    result.trash = remoteData?.trash || []
-    result.groups = remoteData?.goodsGroups || []
-    result.groupItems = remoteData?.goodsGroupItems || []
-    result.presets = remoteData?.presets || null
-    result.recharge = remoteRecharge?.recharge || []
-    result.rechargeTrash = remoteRecharge?.rechargeTrash || []
-    result.events = remoteEvents?.events || []
-    result.manifest = manifest
-  }
-
-  return result
+    }
+  )
+  pullData.isIncremental = isIncremental
+  return pullData
 }
 
 /**
@@ -149,31 +106,31 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
 }
 
 /**
- * Hydrate remote items with images (restore gist-image:// or public URLs).
+ * Hydrate remote items with images (restore cloud-image:// or public URLs).
  * @returns {{ restoredImages: number }}
  */
 export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
   const imageStats = { restoredImages: 0 }
   if (!imageService) return imageStats
 
-  const imageGist = await imageService.resolveRemoteImageGist(remoteData.manifest)
+  const imageCloud = await imageService.resolveRemoteImageCloud(remoteData.manifest)
 
   const hydrationTasks = []
   if ((remoteData.goods || []).length > 0 && diff.changedGoodsIds.size > 0) {
     hydrationTasks.push(
-      imageService.hydrateRemoteItemsWithImages(remoteData.goods, imageGist, imageStats, { targetItemIds: diff.changedGoodsIds })
+      imageService.hydrateRemoteItemsWithImages(remoteData.goods, imageCloud, imageStats, { targetItemIds: diff.changedGoodsIds })
         .then(hydrated => { remoteData.goods = hydrated })
     )
   }
   if ((remoteData.trash || []).length > 0 && diff.changedTrashIds.size > 0) {
     hydrationTasks.push(
-      imageService.hydrateRemoteItemsWithImages(remoteData.trash, imageGist, imageStats, { targetItemIds: diff.changedTrashIds })
+      imageService.hydrateRemoteItemsWithImages(remoteData.trash, imageCloud, imageStats, { targetItemIds: diff.changedTrashIds })
         .then(hydrated => { remoteData.trash = hydrated })
     )
   }
   if ((remoteData.events || []).length > 0) {
     hydrationTasks.push(
-      imageService.hydrateEventCoversWithImages(remoteData.events, imageGist, imageStats)
+      imageService.hydrateEventCoversWithImages(remoteData.events, imageCloud, imageStats)
         .then(hydrated => { remoteData.events = hydrated })
     )
   }

@@ -1,6 +1,6 @@
 /**
  * utils/cryptoManager.js
- * Gist 端到端加密管理器
+ * 端到端加密管理器
  *
  * 使用 Web Crypto API 实现 AES-256-GCM 加密/解密
  * 密钥通过 HKDF-SHA256 从 GitHub token 派生

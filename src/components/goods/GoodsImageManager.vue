@@ -290,10 +290,10 @@ async function openQuickEdit(image) {
     let dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '')
 
     // 本地文件丢失，尝试从云端恢复
-    if (!dataUrl?.startsWith('data:image/') && image.gistFileName) {
+    if (!dataUrl?.startsWith('data:image/') && image.cloudFileName) {
       showToast(t('goods.image.localLost'))
       const syncStore = useSyncStore()
-      const cloudDataUrl = await syncStore.restoreImageFromCloud(image.gistFileName)
+      const cloudDataUrl = await syncStore.restoreImageFromCloud(image.cloudFileName)
       if (cloudDataUrl?.startsWith('data:image/')) {
         const response = await fetch(cloudDataUrl)
         const blob = await response.blob()
@@ -343,7 +343,7 @@ async function handleQuickEditSave(result) {
           localUri: saved.uri,
           storageMode: inferGoodsImageStorageMode(saved.uri),
           localPath: saved.localPath,
-        gistFileName: '',
+        cloudFileName: '',
         mimeType: '',
         fileSize: 0
       }
