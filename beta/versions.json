@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260723.4",
+    "url": "bundle-20260723.4.zip",
+    "hash": "70643729840f8ffc882990592e1eaa4d5299385d48d38e0101fd8dafa37f1494",
+    "minNativeVersion": null,
+    "notes": "- refactor: 清理gist/github登录相关功能 feat: 添加中转站加快github下载更新速度",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-23T05:13:09Z"
+  },
+  {
     "version": "20260723.3",
     "url": "bundle-20260723.3.zip",
     "hash": "d731c9872b9cad0ecf9fc67cc45a4d542ab4f5f59616090be214aadd7932f2d3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新同步协调器以支持用户ID，确保数据按用户隔离",
     "updateLevel": "silent",
     "publishedAt": "2026-07-23T02:05:37Z"
-  },
-  {
-    "version": "20260723.1",
-    "url": "bundle-20260723.1.zip",
-    "hash": "41d9d117ce54abda41d28e661297e59257b5004a99edb65834e564f9b6215e3a",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新 createReader 和 createWriter 函数以支持 userId，确保数据按用户隔离",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-23T01:45:44Z"
   }
 ]
