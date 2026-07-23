@@ -65,7 +65,7 @@
   "about.feedback": "Feedback",
   "about.feedbackDesc": "Submit issues or suggestions to GitHub Issues",
   "about.submitFeedback": "Submit Feedback",
-  "about.submitFeedbackDesc": "Fill in a title and body, then submit directly to GitHub Issues. Uses your GitHub login if available.",
+  "about.submitFeedbackDesc": "Click to go directly to GitHub Issues to submit feedback.",
   "about.feedbackDialogTitle": "Submit Feedback to GitHub Issues",
   "about.feedbackTokenRequired": "A token with Issues: write permission for the laurensZero/goods_app repository is required.",
   "about.feedbackWithAccount": "Feedback will be submitted using your currently logged-in GitHub account. {info}",
@@ -144,8 +144,6 @@
   "about.syncStatusNotSynced": "Not synced",
   "about.recentSync": "Last sync: {time}",
   "about.configureSync": "Configure cloud sync in settings.",
-  "about.githubTokenExpired": "GitHub sync token has expired. Please log in again at \"My > Data Sync\", or switch to the Gitee update source.",
-  "about.githubAuthFailed": "GitHub authentication failed. Please log in again at \"My > Data Sync\", or switch to the Gitee update source and retry.",
   "about.rateLimitExceeded": "GitHub API rate limit exceeded. Please switch to the Gitee update source, or configure a GitHub sync token and retry.",
   "about.checkTimeout": "Update check timed out. Please try again later.",
   "about.missingRepoInfo": "Missing repository info, unable to check for updates.",
@@ -156,6 +154,6 @@
   "about.alreadyLatest": "Already on the latest version.",
   "about.noDownloadableAsset": "No downloadable update package found.",
   "about.downloadFailed": "Failed to download update package. Please try again later.",
-  "about.installPermissionDenied": "Install permission not granted. Go to System Settings > Apps > \u8c37\u5b50\u6536\u7eb3 > Install unknown apps, and enable \"Allow from this source\".",
+  "about.installPermissionDenied": "Install permission not granted. Go to System Settings > Apps > 谷子收纳 > Install unknown apps, and enable \"Allow from this source\".",
   "about.mockDownloadDoneShort": "Mock download complete"
 }

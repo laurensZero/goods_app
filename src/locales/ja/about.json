@@ -65,7 +65,7 @@
   "about.feedback": "フィードバック",
   "about.feedbackDesc": "GitHub Issuesに問題や提案を投稿",
   "about.submitFeedback": "フィードバックを送信",
-  "about.submitFeedbackDesc": "タイトルと本文を入力してGitHub Issuesに直接送信します。GitHubログインが利用可能な場合は使用されます。",
+  "about.submitFeedbackDesc": "クリックしてGitHub Issuesに直接移動し、フィードバックを送信します。",
   "about.feedbackDialogTitle": "GitHub Issuesにフィードバックを送信",
   "about.feedbackTokenRequired": "laurensZero/goods_appリポジトリのIssues: write権限を持つTokenが必要です。",
   "about.feedbackWithAccount": "フィードバックは現在ログイン中のGitHubアカウントで送信されます。{info}",
@@ -144,8 +144,6 @@
   "about.syncStatusNotSynced": "未同期",
   "about.recentSync": "最終同期: {time}",
   "about.configureSync": "設定でクラウド同期を構成してください。",
-  "about.githubTokenExpired": "GitHub同期トークンが期限切れです。「マイ > データ同期」で再ログインするか、Gitee更新ソースに切り替えてください。",
-  "about.githubAuthFailed": "GitHub認証に失敗しました。「マイ > データ同期」で再ログインするか、Gitee更新ソースに切り替えて再試行してください。",
   "about.rateLimitExceeded": "GitHub APIのアクセス頻度が制限されました。Gitee更新ソースに切り替えるか、GitHub同期トークンを設定して再試行してください。",
   "about.checkTimeout": "更新確認がタイムアウトしました。しばらくしてから再試行してください。",
   "about.missingRepoInfo": "リポジトリ情報が不足しており、更新を確認できません。",
@@ -156,6 +154,6 @@
   "about.alreadyLatest": "既に最新バージョンです。",
   "about.noDownloadableAsset": "ダウンロード可能な更新パッケージが見つかりません。",
   "about.downloadFailed": "更新パッケージのダウンロードに失敗しました。しばらくしてから再試行してください。",
-  "about.installPermissionDenied": "インストール権限が付与されていません。システム設定 > アプリ > \u30b0\u30fc\u30ba\u30a6\u30a7\u30a4\u30ca > 不明なアプリのインストールで「このソースから許可」を有効にしてください。",
+  "about.installPermissionDenied": "インストール権限が付与されていません。システム設定 > アプリ > グーズウェイナ > 不明なアプリのインストールで「このソースから許可」を有効にしてください。",
   "about.mockDownloadDoneShort": "モックダウンロード完了"
 }

@@ -72,7 +72,7 @@ export function useAppStartup() {
     void announcementStore.checkAndDecide({ source: 'startup' }).catch(() => {
       // silent fail on startup announcement check
     })
-    if (syncStore.token && syncStore.gistId && !syncStore.isSyncing && !hasLocalData.value) {
+    if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !hasLocalData.value) {
       try {
         await syncStore.pull({ silent: true })
       } catch {

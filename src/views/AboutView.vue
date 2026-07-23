@@ -258,117 +258,29 @@
         </div>
 
         <div class="feedback-grid feedback-grid--single">
-          <button type="button" class="feedback-card" @click="openFeedbackDialog">
+          <a
+            :href="`https://github.com/${FEEDBACK_REPO_OWNER}/${FEEDBACK_REPO_NAME}/issues/new`"
+            target="_blank"
+            rel="noopener"
+            class="feedback-card"
+          >
             <span class="feedback-icon feedback-icon--primary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </span>
             <div class="feedback-body">
-              <p class="feedback-kicker">In-App Submit</p>
+              <p class="feedback-kicker">GitHub Issues</p>
               <h3 class="feedback-title">{{ t('about.submitFeedback') }}</h3>
               <p class="feedback-desc">{{ t('about.submitFeedbackDesc') }}</p>
             </div>
             <svg class="feedback-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </button>
+          </a>
         </div>
       </section>
     </main>
-
-    <Transition name="overlay-fade">
-        <div v-if="showFeedbackDialog" class="overlay" @click.self="closeFeedbackDialog">
-          <div class="dialog">
-          <h3 class="dialog-title">{{ t('about.feedbackDialogTitle') }}</h3>
-          <p v-if="feedbackNeedsToken" class="dialog-desc">
-            {{ t('about.feedbackTokenRequired') }}
-          </p>
-          <p v-else class="dialog-desc">
-            {{ t('about.feedbackWithAccount', { info: syncStore.githubLogin ? t('about.currentAccount', { account: syncStore.githubLogin }) : '' }) }}
-          </p>
-
-          <label v-if="feedbackNeedsToken" class="dialog-field">
-            <span class="dialog-label">GitHub Token</span>
-            <div class="dialog-input-wrap">
-              <input
-                v-model="feedbackToken"
-                class="dialog-input dialog-input--with-actions"
-                :type="showFeedbackToken ? 'text' : 'password'"
-                placeholder="github_pat_xxx / ghp_xxx"
-                autocomplete="off"
-              />
-              <div class="dialog-input-actions">
-                <button
-                  type="button"
-                  class="dialog-input-btn"
-                  :aria-label="showFeedbackToken ? t('about.hideToken') + ' token' : t('about.showToken') + ' token'"
-                  @click="showFeedbackToken = !showFeedbackToken"
-                >
-                  {{ showFeedbackToken ? t('about.hideToken') : t('about.showToken') }}
-                </button>
-                <button
-                  type="button"
-                  class="dialog-input-btn"
-                  :disabled="!feedbackToken.trim()"
-                  @click="copyText(feedbackToken.trim(), t('about.feedbackTokenCopied'))"
-                >
-                  {{ t('about.copy') }}
-                </button>
-              </div>
-            </div>
-          </label>
-
-          <label class="dialog-field">
-            <span class="dialog-label">{{ t('about.labelTitle') }}</span>
-            <input
-              v-model="feedbackTitle"
-              class="dialog-input"
-              type="text"
-              maxlength="120"
-              :placeholder="t('about.feedbackTitlePlaceholder')"
-            />
-          </label>
-
-          <label class="dialog-field">
-            <span class="dialog-label">{{ t('about.labelContent') }}</span>
-            <textarea
-              v-model="feedbackBody"
-              class="dialog-textarea"
-              rows="7"
-              :placeholder="t('about.feedbackBodyPlaceholder')"
-            />
-          </label>
-
-          <p v-if="feedbackTokenLogin && feedbackNeedsToken" class="dialog-success">{{ t('about.currentAccount', { account: feedbackTokenLogin }) }}</p>
-          <p v-if="feedbackError" class="dialog-error">{{ feedbackError }}</p>
-
-          <div class="dialog-actions dialog-actions--between">
-            <button
-              v-if="feedbackNeedsToken"
-              type="button"
-              class="dialog-btn dialog-btn--ghost"
-              :disabled="isSubmittingFeedback || !feedbackToken.trim()"
-              @click="clearSavedFeedbackToken"
-            >
-              {{ t('about.clearSavedToken') }}
-            </button>
-            <div v-else></div>
-            <div class="dialog-actions__right">
-              <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="isSubmittingFeedback" @click="closeFeedbackDialog">{{ t('about.cancel') }}</button>
-              <button
-                type="button"
-                class="dialog-btn dialog-btn--primary"
-                :disabled="isSubmittingFeedback || !canSubmitFeedback"
-                @click="submitFeedbackIssue"
-              >
-                {{ isSubmittingFeedback ? t('about.submitting') : t('about.submitFeedback') }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
 
     <Transition name="overlay-fade">
       <div v-if="showWebUpdateRestartDialog" class="overlay" @click.self="cancelWebUpdateRestart">
@@ -402,7 +314,6 @@
 
 <script setup>
 import { Capacitor } from '@capacitor/core'
-import { readPersisted, writePersisted, removePersisted } from '@/utils/platform/storage'
 import { App as CapacitorApp } from '@capacitor/app'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
@@ -421,7 +332,6 @@ import capacitorConfig from '../../capacitor.config.json'
 
 const { t } = useI18n()
 
-const FEEDBACK_TOKEN_KEY = 'goods_feedback_github_token'
 const FEEDBACK_REPO_OWNER = 'laurensZero'
 const FEEDBACK_REPO_NAME = 'goods_app'
 const IS_NATIVE = Capacitor.isNativePlatform()
@@ -432,16 +342,8 @@ const syncStore = useSyncStore()
 const updateStore = useAppUpdateStore()
 const webUpdateStore = useWebUpdateStore()
 const pageBodyRef = ref(null)
-const showFeedbackDialog = ref(false)
 const showWebUpdateRestartDialog = ref(false)
 const showWebUpdateResetDialog = ref(false)
-const showFeedbackToken = ref(false)
-const feedbackToken = ref('')
-const feedbackTokenLogin = ref('')
-const feedbackTitle = ref('')
-const feedbackBody = ref('')
-const feedbackError = ref('')
-const isSubmittingFeedback = ref(false)
 const isClearingCutoutModel = ref(false)
 const { toastMsg, showToast } = useToast()
 
@@ -459,27 +361,6 @@ function formatUpdateSourceLabel(source) {
   if (normalized === 'auto') return t('about.auto')
   return normalized || '--'
 }
-
-const feedbackUrl = computed(() => {
-  const params = new URLSearchParams({
-    title: '[反馈] ',
-    body: buildIssueBody('请在这里描述问题、建议或想法。')
-  })
-
-  return `https://github.com/${FEEDBACK_REPO_OWNER}/${FEEDBACK_REPO_NAME}/issues/new?${params.toString()}`
-})
-
-const effectiveFeedbackToken = computed(() => (
-  feedbackToken.value.trim() || syncStore.token.trim()
-))
-
-const canSubmitFeedback = computed(() => (
-  effectiveFeedbackToken.value.length > 0
-  && feedbackTitle.value.trim().length > 0
-  && feedbackBody.value.trim().length > 0
-))
-
-const feedbackNeedsToken = computed(() => !effectiveFeedbackToken.value)
 
 const statsCards = computed(() => [
   {
@@ -573,31 +454,6 @@ const webUpdateReleaseNotesPreview = computed(() => {
   return String(webUpdateStore.releaseNotesPreview || '').trim()
 })
 
-function buildIssueBody(content) {
-  const lines = [
-    '### 反馈内容',
-    '',
-    content,
-    '',
-    '### 版本信息',
-    `- App: ${appName}`,
-    `- Web: v${appVersion.value}`,
-    `- Android: ${androidVersionName.value}`,
-    `- 包名: ${appId}`,
-    `- 最近同步: ${syncStore.lastSyncedAt ? formatSyncTime(syncStore.lastSyncedAt) : '从未同步'}`,
-    '',
-    '### 设备信息',
-    `- 平台: ${Capacitor.getPlatform()}`,
-    `- 运行环境: ${IS_NATIVE ? 'Native' : 'Web'}`,
-    `- 语言: ${navigator.language || 'unknown'}`,
-    `- 屏幕: ${window.screen?.width || 0}x${window.screen?.height || 0}`,
-    `- 视口: ${window.innerWidth}x${window.innerHeight}`,
-    `- User Agent: ${navigator.userAgent || 'unknown'}`
-  ]
-
-  return lines.join('\n')
-}
-
 function formatSyncTime(isoString) {
   if (!isoString) return ''
   const date = new Date(isoString)
@@ -607,100 +463,6 @@ function formatSyncTime(isoString) {
 
 function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
-}
-
-async function copyText(text, successMessage = t('toast.copySuccess')) {
-  if (!text) return
-
-  try {
-    await navigator.clipboard.writeText(text)
-    showToast(successMessage)
-  } catch {
-    showToast(t('toast.copyFailed'))
-  }
-}
-
-async function readPersistedFeedbackToken() {
-  return (await readPersisted(FEEDBACK_TOKEN_KEY)) || ''
-}
-
-async function writePersistedFeedbackToken(value) {
-  await writePersisted(FEEDBACK_TOKEN_KEY, value)
-}
-
-async function clearPersistedFeedbackToken() {
-  await removePersisted(FEEDBACK_TOKEN_KEY)
-}
-
-async function openFeedbackDialog() {
-  feedbackError.value = ''
-  feedbackTitle.value = ''
-  feedbackBody.value = ''
-  showFeedbackToken.value = false
-  if (!feedbackToken.value.trim()) {
-    const persistedToken = await readPersistedFeedbackToken()
-    feedbackToken.value = persistedToken || syncStore.token || ''
-    feedbackTokenLogin.value = syncStore.githubLogin || ''
-  }
-  showFeedbackDialog.value = true
-}
-
-function closeFeedbackDialog() {
-  if (isSubmittingFeedback.value) return
-  showFeedbackDialog.value = false
-  feedbackError.value = ''
-}
-
-async function clearSavedFeedbackToken() {
-  feedbackToken.value = ''
-  showFeedbackToken.value = false
-  feedbackTokenLogin.value = ''
-  await clearPersistedFeedbackToken()
-  showToast(t('about.feedbackTokenCleared'))
-}
-
-async function ensureFeedbackTokenValid(token) {
-  const { validateToken } = await import('@/utils/github/gist')
-  const check = await validateToken(token)
-  if (!check.valid) {
-    throw new Error(t('about.tokenInvalid'))
-  }
-
-  feedbackTokenLogin.value = check.login
-  await writePersistedFeedbackToken(token)
-}
-
-async function submitFeedbackIssue() {
-  const token = effectiveFeedbackToken.value
-  const title = feedbackTitle.value.trim()
-  const content = feedbackBody.value.trim()
-
-  if (!token || !title || !content) return
-
-  isSubmittingFeedback.value = true
-  feedbackError.value = ''
-
-  try {
-    await ensureFeedbackTokenValid(token)
-    const { createIssue } = await import('@/utils/github/issues')
-    const issue = await createIssue(token, FEEDBACK_REPO_OWNER, FEEDBACK_REPO_NAME, {
-      title,
-      body: buildIssueBody(content)
-    })
-
-    showFeedbackDialog.value = false
-    feedbackTitle.value = ''
-    feedbackBody.value = ''
-    showToast(t('about.feedbackSubmitted'), 3200)
-
-    if (issue?.html_url) {
-      window.open(issue.html_url, '_blank', 'noopener')
-    }
-  } catch (error) {
-    feedbackError.value = error.message || t('about.submitFailed')
-  } finally {
-    isSubmittingFeedback.value = false
-  }
 }
 
 async function handleManualCheckUpdate() {
@@ -859,7 +621,7 @@ onMounted(async () => {
   syncStore.init()
   void updateStore.init()
   void webUpdateStore.init()
-  feedbackToken.value = await readPersistedFeedbackToken()
+  // Feedback token removed - use direct URL
 })
 
 onBeforeUnmount(() => {

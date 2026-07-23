@@ -247,6 +247,14 @@ export function resolveReleaseAsset(release, platform = '') {
   return assets.find((asset) => !/\.(sig|json)$/i.test(asset?.name || '')) || assets[0]
 }
 
+const GITHUB_DOWNLOAD_PROXY = 'https://gh-proxy.com/'
+
+export function proxyGitHubDownloadUrl(url) {
+  if (!url || typeof url !== 'string') return url
+  if (!url.startsWith('https://github.com/')) return url
+  return `${GITHUB_DOWNLOAD_PROXY}${url}`
+}
+
 export function buildReleaseNotesPreview(body, lineLimit = 0) {
   const text = String(body || '').trim()
   if (!text) return ''

@@ -65,7 +65,7 @@
   "about.feedback": "피드백",
   "about.feedbackDesc": "GitHub Issues에 문제 또는 제안 제출",
   "about.submitFeedback": "피드백 제출",
-  "about.submitFeedbackDesc": "제목과 본문을 입력하여 GitHub Issues에 직접 제출합니다. GitHub 로그인이 가능한 경우 사용됩니다.",
+  "about.submitFeedbackDesc": "클릭하여 GitHub Issues로 직접 이동하여 피드백을 제출합니다.",
   "about.feedbackDialogTitle": "GitHub Issues에 피드백 제출",
   "about.feedbackTokenRequired": "laurensZero/goods_app 저장소의 Issues: write 권한이 있는 Token이 필요합니다.",
   "about.feedbackWithAccount": "피드백은 현재 로그인한 GitHub 계정으로 제출됩니다. {info}",
@@ -144,8 +144,6 @@
   "about.syncStatusNotSynced": "동기화 안 됨",
   "about.recentSync": "마지막 동기화: {time}",
   "about.configureSync": "설정에서 클라우드 동기화를 구성하세요.",
-  "about.githubTokenExpired": "GitHub 동기화 토큰이 만료되었습니다. \"내 > 데이터 동기화\"에서 다시 로그인하거나 Gitee 업데이트 소스로 전환하세요.",
-  "about.githubAuthFailed": "GitHub 인증에 실패했습니다. \"내 > 데이터 동기화\"에서 다시 로그인하거나 Gitee 업데이트 소스로 전환 후 다시 시도하세요.",
   "about.rateLimitExceeded": "GitHub API 접근 빈도가 제한되었습니다. Gitee 업데이트 소스로 전환하거나 GitHub 동기화 토큰을 설정한 후 다시 시도하세요.",
   "about.checkTimeout": "업데이트 확인이 시간 초과되었습니다. 잠시 후 다시 시도하세요.",
   "about.missingRepoInfo": "저장소 정보가 없어 업데이트를 확인할 수 없습니다.",
@@ -156,6 +154,6 @@
   "about.alreadyLatest": "이미 최신 버전입니다.",
   "about.noDownloadableAsset": "다운로드 가능한 업데이트 패키지를 찾을 수 없습니다.",
   "about.downloadFailed": "업데이트 패키지 다운로드에 실패했습니다. 잠시 후 다시 시도하세요.",
-  "about.installPermissionDenied": "설치 권한이 부여되지 않았습니다. 시스템 설정 > 앱 > \uad74\uc790\uc18c\uc2a4\ud0c1 > 알 수 없는 앱 설치에서 \"이 소스에서 허용\"을 활성화하세요.",
+  "about.installPermissionDenied": "설치 권한이 부여되지 않았습니다. 시스템 설정 > 앱 > 굴자소스탁 > 알 수 없는 앱 설치에서 \"이 소스에서 허용\"을 활성화하세요.",
   "about.mockDownloadDoneShort": "모의 다운로드 완료"
 }

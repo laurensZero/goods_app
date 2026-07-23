@@ -13,6 +13,7 @@ import {
   normalizeVersionTag,
   resolveReleaseAsset,
   resolveReleaseTargetUrl,
+  proxyGitHubDownloadUrl,
   TokenExpiredError
 } from '@/utils/github/release'
 import { readSyncKey } from '@/utils/sync/storage'
@@ -275,9 +276,10 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     }
 
     const asset = releaseAsset.value
-    const downloadUrl = asset?.browser_download_url
+    const rawDownloadUrl = asset?.browser_download_url
+    const downloadUrl = proxyGitHubDownloadUrl(rawDownloadUrl)
 
-    if (!downloadUrl) {
+    if (!rawDownloadUrl) {
       downloadError.value = i18n.global.t('about.noDownloadableAsset')
       return false
     }
@@ -290,7 +292,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       const filePath = `updates/${fileName}`
       const startedAt = Date.now()
       const syncToken = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
-      const downloadHeaders = syncToken ? { Authorization: `Bearer ${syncToken}` } : {}
+      const downloadHeaders = (syncToken && downloadUrl === rawDownloadUrl) ? { Authorization: `Bearer ${syncToken}` } : {}
 
       await Filesystem.mkdir({
         path: 'updates',
@@ -301,7 +303,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       })
 
       progressListener = await Filesystem.addListener('progress', (status) => {
-        if (status?.url && status.url !== downloadUrl) return
+        if (status?.url && status.url !== downloadUrl && status.url !== rawDownloadUrl) return
 
         const downloadedBytes = Number(status?.bytes || 0)
         const totalBytes = Number(status?.contentLength || 0)
