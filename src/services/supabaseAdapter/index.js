@@ -19,7 +19,7 @@ export function createSupabaseBackendAdapter({
   }
 
   const storage = createStorageOps({ getDb, withRetry })
-  const reader = createReader({ getDb, trackSyncStep })
+  const reader = createReader({ getDb, trackSyncStep, userIdRef })
   const writer = createWriter({ getDb, deviceIdRef, userIdRef })
 
   // ── Ensure operations (no-op for Supabase, tables are pre-created) ──

@@ -161,47 +161,29 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       try { manifestContent = JSON.parse(manifestContent) } catch { manifestContent = {} }
     }
 
-    // 调 RPC：传入非 count 字段，Supabase 内部计算 count 并 upsert 整行
-    const { error } = await withRetry(() => db.rpc('upsert_manifest', {
-      p_device_id: manifestContent.deviceId || '',
-      p_synced_at: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
-      p_image_bucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
-      p_recharge_updated_at: manifestContent.rechargeUpdatedAt || null,
-      p_event_updated_at: manifestContent.eventUpdatedAt || null,
-      p_budget_monthly: Number(manifestContent.budgetMonthly) || 0,
-      p_budget_yearly: Number(manifestContent.budgetYearly) || 0
-    }))
+    const manifestRow = toSnakeCase({
+      syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
+      deviceId: manifestContent.deviceId || '',
+      collectionCount: 0, wishlistCount: 0, goodsCount: 0,
+      trashCount: 0, rechargeCount: 0, eventCount: 0, imageCount: 0,
+      imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
+      rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
+      eventUpdatedAt: manifestContent.eventUpdatedAt || null,
+      budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
+      budgetYearly: Number(manifestContent.budgetYearly) || 0,
+      userId: currentUserId || null
+    })
 
-    if (error) {
-      const isMissingFunc = String(error.message || '').includes('function') || String(error.message || '').includes('signature')
-      if (!isMissingFunc) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
-
-      // RPC 不存在时 fallback：直接 upsert（count 字段为 0）
-      const manifestRow = toSnakeCase({
-        id: 'default',
-        syncedAt: manifestContent.lastSyncAt || manifestContent.updatedAt || new Date().toISOString(),
-        deviceId: manifestContent.deviceId || '',
-        collectionCount: 0, wishlistCount: 0, goodsCount: 0,
-        trashCount: 0, rechargeCount: 0, eventCount: 0, imageCount: 0,
-        imageBucket: manifestContent.imageGistId || manifestContent.imageBucket || 'goods-images',
-        rechargeUpdatedAt: manifestContent.rechargeUpdatedAt || null,
-        eventUpdatedAt: manifestContent.eventUpdatedAt || null,
-        budgetMonthly: Number(manifestContent.budgetMonthly) || 0,
-        budgetYearly: Number(manifestContent.budgetYearly) || 0,
-        userId: currentUserId || null
-      })
-      const { error: fallbackError } = await withRetry(() =>
-        db.from('sync_manifest').upsert(manifestRow)
-      )
-      if (fallbackError) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: fallbackError.message }))
-    }
+    const { error } = await withRetry(() =>
+      db.from('sync_manifest').upsert(manifestRow, { onConflict: 'user_id' })
+    )
+    if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
   }
 
   async function writePresets(presetsData) {
     const db = getDb()
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
     const presetsRow = {
-      id: 'default',
       categories: JSON.stringify(presetsData.categories || []),
       ips: JSON.stringify(presetsData.ips || []),
       characters: JSON.stringify(presetsData.characters || []),
@@ -209,7 +191,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       user_id: currentUserId || null
     }
     const { error } = await withRetry(() =>
-      db.from('sync_presets').upsert(presetsRow, { onConflict: 'id' })
+      db.from('sync_presets').upsert(presetsRow, { onConflict: 'user_id' })
     )
     if (error) console.warn('[supabase] presets upsert warning:', error.message)
   }

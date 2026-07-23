@@ -9,7 +9,7 @@ import {
   fetchAllRows, normalizeTimestamp, safeParseJsonArray, parsePresetsField
 } from './helpers'
 
-export function createReader({ getDb, trackSyncStep }) {
+export function createReader({ getDb, trackSyncStep, userIdRef }) {
   async function readJson({
     title,
     fileName,
@@ -49,7 +49,10 @@ export function createReader({ getDb, trackSyncStep }) {
         const [goodsData, trashData, presetsRes, groupsData, groupItemsData] = await Promise.all([
           fetchAllRows(buildGoodsQuery(false)),
           fetchAllRows(buildGoodsQuery(true)),
-          withRetry(() => db.from('sync_presets').select('*').eq('id', 'default').limit(1)),
+          withRetry(() => {
+            const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+            return db.from('sync_presets').select('*').eq('user_id', uid).limit(1)
+          }),
           fetchAllRows(buildGroupsQuery()),
           fetchAllRows(buildGroupItemsQuery())
         ])
@@ -139,8 +142,9 @@ export function createReader({ getDb, trackSyncStep }) {
       }
 
       if (fileName === 'manifest.json') {
+        const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
         const { data, error } = await withRetry(() =>
-          db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
+          db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
         )
         if (error || !data || data.length === 0) return null
         const row = toCamelCase(data[0])
@@ -169,8 +173,9 @@ export function createReader({ getDb, trackSyncStep }) {
 
   async function getManifest() {
     const db = getDb()
+    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
     const { data, error } = await withRetry(() =>
-      db.from('sync_manifest').select('*').eq('id', 'default').limit(1)
+      db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
     )
     if (error || !data || data.length === 0) return null
     const row = toCamelCase(data[0])
@@ -185,8 +190,9 @@ export function createReader({ getDb, trackSyncStep }) {
 
   async function readPresets() {
     const db = getDb()
+    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
     const { data } = await withRetry(() =>
-      db.from('sync_presets').select('*').eq('id', 'default').limit(1)
+      db.from('sync_presets').select('*').eq('user_id', uid).limit(1)
     )
     if (!data || data.length === 0) return null
     const row = toCamelCase(data[0])
