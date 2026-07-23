@@ -187,7 +187,12 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = ''
     try {
-      const data = await signInWithOAuth(provider)
+      const options = {}
+      // Azure AD 需要显式请求 email scope
+      if (provider === 'azure') {
+        options.scopes = 'email openid profile'
+      }
+      const data = await signInWithOAuth(provider, options)
       _pendingLoginSync = true
       return data
     } catch (e) {
