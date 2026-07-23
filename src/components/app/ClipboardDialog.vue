@@ -113,7 +113,7 @@ import { useShareImport } from '@/composables/share/useShareImport'
 import { formatCurrency } from '@/utils/format'
 
 const { t } = useI18n()
-const { showPrompt, incomingGistId, incomingShareId, dismissImport } = useClipboardImport()
+const { showPrompt, incomingShareId, dismissImport } = useClipboardImport()
 
 const {
   fetching,
@@ -136,7 +136,7 @@ const {
 })
 
 function retryFetch() {
-  doFetch(incomingGistId.value, incomingShareId.value)
+  doFetch(incomingShareId.value)
 }
 
 function handleImport() {
@@ -146,7 +146,7 @@ function handleImport() {
 watch(showPrompt, (newVal) => {
   if (newVal) {
     resetState()
-    doFetch(incomingGistId.value, incomingShareId.value)
+    doFetch(incomingShareId.value)
   }
 })
 </script>

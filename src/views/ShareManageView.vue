@@ -28,7 +28,7 @@
         </div>
       </section>
 
-      <section v-if="!syncStore.token" class="share-state-card share-state-card--empty">
+      <section v-if="!authStore.isLoggedIn" class="share-state-card share-state-card--empty">
         <span class="share-state-card__icon">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="3" y="11" width="18" height="10" rx="2" />
@@ -37,7 +37,7 @@
         </span>
         <h2 class="share-state-card__title">{{ t('share.needToken') }}</h2>
         <p class="share-state-card__desc">{{ t('share.needTokenDesc') }}</p>
-        <button class="share-primary-btn" type="button" @click="openSync">{{ t('share.goToSync') }}</button>
+        <button class="share-primary-btn" type="button" @click="goToLogin">{{ t('share.goToSync') }}</button>
       </section>
 
       <section v-else-if="loading" class="share-state-card share-state-card--loading">
@@ -62,16 +62,10 @@
           <div class="share-toolbar__copy">
             <p class="share-toolbar__label">Records</p>
             <h2 class="share-toolbar__title">{{ shares.length > 0 ? t('share.shareCount', { count: shares.length }) : t('share.noShares') }}</h2>
-            <p class="share-toolbar__desc">
-              {{ gistMetaText }}
-            </p>
           </div>
 
           <div class="share-toolbar__actions">
             <button class="share-secondary-btn" type="button" :disabled="loading" @click="loadShares">{{ t('share.refresh') }}</button>
-            <button v-if="shareGist?.id" class="share-secondary-btn share-secondary-btn--mono" type="button" @click="copyGistId">
-              {{ gistCopied ? t('share.gistCopied') : t('share.copyGistId') }}
-            </button>
           </div>
         </div>
 
@@ -167,27 +161,23 @@
 import { computed, onMounted, ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { Share } from '@capacitor/share'
 import NavBar from '@/components/common/NavBar.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
-import { getShareGist, deleteGistFiles, updateGist } from '@/utils/github/gist'
-import { extractSharePayloadFromGist, getShareAssetFilenames, listSharesFromGist, toggleShareDisabled } from '@/utils/share/goods'
+import { listUserShares, toggleShareDisabled, deleteShare, getShare } from '@/services/shareService'
 import { buildShareUrl } from '@/config/share'
+import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
-import { useSyncStore } from '@/stores/sync'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 
 const { t } = useI18n()
 const router = useRouter()
-const syncStore = useSyncStore()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const loadError = ref('')
 const shares = ref([])
-const shareGist = ref(null)
 
 const copiedId = ref('')
-const gistCopied = ref(false)
 const togglingId = ref('')
 const deletingId = ref('')
 const deleteTarget = ref(null)
@@ -205,34 +195,49 @@ const stats = computed(() => {
   }
 })
 
-const gistMetaText = computed(() => {
-  if (!shareGist.value?.id) return t('share.gistNotFound')
-  return t('share.currentGist', { id: shareGist.value.id })
-})
-
 function formatShareDate(dateStr) {
   if (!dateStr) return t('share.unknownTime')
   return formatDate(dateStr, 'YYYY-MM-DD HH:mm') || t('share.unknownTime')
 }
 
 function buildShareLink(share) {
-  const gistId = shareGist.value?.id || ''
-  return buildShareUrl(gistId, share.shareId) || `goodsapp://share/${gistId}?s=${share.shareId}`
+  return buildShareUrl(share.shareId) || `goodsapp://share/${share.shareId}`
 }
 
-function shareCode(share) {
-  const gistId = shareGist.value?.id || ''
-  return share.shareId ? `${gistId}-${share.shareId}` : gistId
-}
-
-function openSync() {
+function goToLogin() {
   runWithRouteTransition(() => router.push('/manage/sync'), { direction: 'forward' })
 }
 
+/**
+ * Parse share row from Supabase into display-friendly format.
+ */
+function parseShareRow(row) {
+  const payload = row.payload || {}
+  const goods = payload.goods || []
+  const firstGoods = goods[0] || {}
+  const images = firstGoods.images || []
+
+  // Find cover image
+  let coverUri = ''
+  const primary = images.find((img) => img.isPrimary)
+  const candidate = primary || images[0]
+  if (candidate?.uri && candidate.uri.startsWith('http')) {
+    coverUri = candidate.uri
+  }
+
+  return {
+    shareId: row.share_id,
+    goodsCount: goods.length,
+    sharedAt: row.created_at || '',
+    firstGoodsName: firstGoods.name || t('share.unnamed'),
+    coverUri,
+    disabled: !!row.disabled
+  }
+}
+
 async function loadShares() {
-  if (!syncStore.token) {
+  if (!authStore.isLoggedIn) {
     shares.value = []
-    shareGist.value = null
     return
   }
 
@@ -240,9 +245,9 @@ async function loadShares() {
   loadError.value = ''
 
   try {
-    const gist = await getShareGist(syncStore.token, 'goods-app-share')
-    shareGist.value = gist
-    shares.value = gist ? listSharesFromGist(gist) : []
+    const userId = authStore.user?.id
+    const rows = await listUserShares(userId)
+    shares.value = rows.map(parseShareRow)
   } catch (error) {
     loadError.value = error.message || t('share.loadFailed')
   } finally {
@@ -260,22 +265,11 @@ async function copyText(text) {
   }
 }
 
-async function copyGistId() {
-  const success = await copyText(shareGist.value?.id || '')
-  if (!success) return
-  gistCopied.value = true
-  window.setTimeout(() => {
-    gistCopied.value = false
-  }, 2000)
-}
-
 async function shareAgain(share) {
-  const gistId = shareGist.value?.id || ''
-
-  // Fetch full share payload so multi-item shares show all goods in poster
+  // Load full payload from DB for poster generation
   let loadedItems = []
   try {
-    const payload = extractSharePayloadFromGist(shareGist.value, share.shareId)
+    const payload = await getShare(share.shareId)
     if (payload?.goods?.length) {
       loadedItems = payload.goods
     }
@@ -292,9 +286,8 @@ async function shareAgain(share) {
 
   shareSheetItems.value = loadedItems
   shareInitial.value = {
-    gistId,
     shareId: share.shareId,
-    code: `${gistId}-${share.shareId}`,
+    code: share.shareId,
     url: buildShareLink(share)
   }
   void nextTick().then(() => { showShareSheet.value = true })
@@ -303,17 +296,9 @@ async function shareAgain(share) {
 }
 
 async function toggleShare(share) {
-  if (!shareGist.value?.id) return
-
   togglingId.value = share.shareId
   try {
-    const newContent = toggleShareDisabled(shareGist.value, share.filename, !share.disabled)
-    if (!newContent) throw new Error(t('share.cannotReadData'))
-
-    await updateGist(syncStore.token, shareGist.value.id, {
-      [share.filename]: { content: newContent }
-    })
-
+    await toggleShareDisabled(share.shareId, !share.disabled)
     share.disabled = !share.disabled
   } finally {
     togglingId.value = ''
@@ -326,20 +311,14 @@ function confirmDelete(share) {
 
 async function doDelete() {
   const share = deleteTarget.value
-  if (!share || !shareGist.value?.id) return
+  if (!share) return
 
   deletingId.value = share.shareId
   deleteTarget.value = null
 
   try {
-    const filenames = getShareAssetFilenames(shareGist.value, share.filename)
-    await deleteGistFiles(syncStore.token, shareGist.value.id, filenames)
+    await deleteShare(share.shareId)
     shares.value = shares.value.filter((entry) => entry.shareId !== share.shareId)
-    if (shareGist.value?.files) {
-      for (const filename of filenames) {
-        delete shareGist.value.files[filename]
-      }
-    }
   } finally {
     deletingId.value = ''
   }
@@ -902,7 +881,6 @@ onMounted(() => {
   .sheet-slide-enter-from,
   .sheet-slide-leave-to {
     transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
   }
 }
 

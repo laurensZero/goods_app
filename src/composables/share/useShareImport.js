@@ -1,18 +1,13 @@
 import { ref, computed } from 'vue'
-import { getPublicGist } from '@/utils/github/gist'
-import { validateSharePayload, extractSharePayloadFromGist } from '@/utils/share/goods'
+import { getShare } from '@/services/shareService'
+import { validateSharePayload } from '@/utils/share/goods'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { useSyncStore } from '@/stores/sync'
 import { formatDate } from '@/utils/format'
 import i18n from '@/locales'
 
 /**
- * 统一的分享导入逻辑，供 ClipboardDialog 和 ShareImportView 共用。
- *
- * @param {object} options
- * @param {function} [options.onImportError]  单条导入失败回调 (itemName, error)
- * @param {function} [options.onAllImported]  全部导入完成回调
+ * Shared share import logic, used by ClipboardDialog and ShareImportView.
  */
 export function useShareImport(options = {}) {
   const {
@@ -22,7 +17,6 @@ export function useShareImport(options = {}) {
 
   const goodsStore = useGoodsStore()
   const presets = usePresetsStore()
-  const syncStore = useSyncStore()
 
   const fetching = ref(false)
   const fetchError = ref('')
@@ -58,8 +52,8 @@ export function useShareImport(options = {}) {
     importedIndexes.value = new Set()
   }
 
-  async function doFetch(gistIdValue, shareIdValue = '') {
-    if (!gistIdValue) {
+  async function doFetch(shareId) {
+    if (!shareId) {
       fetchError.value = i18n.global.t('share.invalidData')
       return
     }
@@ -69,15 +63,9 @@ export function useShareImport(options = {}) {
     payload.value = null
 
     try {
-      const gist = await getPublicGist(gistIdValue, syncStore.token || '')
-      if (!gist) {
-        fetchError.value = i18n.global.t('share.notFound')
-        return
-      }
-
-      const data = extractSharePayloadFromGist(gist, shareIdValue)
+      const data = await getShare(shareId)
       if (!data) {
-        fetchError.value = i18n.global.t('share.dataExpired')
+        fetchError.value = i18n.global.t('share.notFound')
         return
       }
 

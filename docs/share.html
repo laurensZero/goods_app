@@ -286,7 +286,6 @@
   <script>
     (function () {
       const params = new URLSearchParams(window.location.search)
-      const gistId = (params.get('g') || '').trim()
       const shareId = (params.get('s') || '').trim()
       const storageParam = (params.get('storage') || '').trim()
       const storagePathParam = (params.get('storagePath') || '').trim()
@@ -336,7 +335,7 @@
         isStorageLink = true
       }
 
-      if (!isStorageLink && !gistId) {
+      if (!isStorageLink && !shareId) {
         document.getElementById('status-title').textContent = '链接无效'
         document.getElementById('status-desc').textContent = '缺少必需的分享参数'
         document.getElementById('open-btn').style.display = 'none'
@@ -345,8 +344,8 @@
       }
 
       if (!isStorageLink) {
-        deepLink = 'goodsapp://share/' + encodeURIComponent(gistId) + '?s=' + encodeURIComponent(shareId)
-        fallbackCode = shareId ? gistId + '-' + shareId : gistId
+        deepLink = 'goodsapp://share/' + encodeURIComponent(shareId)
+        fallbackCode = shareId
       }
 
       if (isStorageLink) {

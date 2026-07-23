@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildShareDescription, buildSyncDescription } from '../gist'
-
-describe('buildShareDescription', () => {
-  it('returns fixed share description', () => {
-    expect(buildShareDescription()).toBe('goods-app-share')
-  })
-})
+import { buildSyncDescription } from '../gist'
 
 describe('buildSyncDescription', () => {
   it('builds data sync description', () => {

@@ -41,10 +41,10 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
   }
 
   async function navigateByShareLink(url) {
-    const { gistId, shareId } = extractIdsFromInput(url)
-    if (!gistId || !/^[a-zA-Z0-9]+$/.test(gistId)) return false
+    const { shareId } = extractIdsFromInput(url)
+    if (!shareId) return false
 
-    triggerSharePrompt(gistId, shareId)
+    triggerSharePrompt(shareId)
 
     return true
   }

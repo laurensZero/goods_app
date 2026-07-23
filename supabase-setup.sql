@@ -765,3 +765,48 @@ GRANT EXECUTE ON FUNCTION sync_push(
   text[], text[], text[], text[], text[],
   text, timestamptz, text, real, real, timestamptz, timestamptz
 ) TO authenticated;
+
+
+-- ============================================================
+-- SHARES TABLE (Supabase-based sharing, replaces Gist sharing)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS shares (
+  share_id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  payload JSONB NOT NULL,
+  disabled BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id);
+CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC);
+
+-- Updated_at trigger
+CREATE OR REPLACE FUNCTION set_shares_updated_at() RETURNS TRIGGER AS $fn$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$fn$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_shares_updated_at ON shares;
+CREATE TRIGGER trg_shares_updated_at
+  BEFORE INSERT OR UPDATE ON shares
+  FOR EACH ROW EXECUTE FUNCTION set_shares_updated_at();
+
+-- RLS: public read, owner write
+ALTER TABLE shares ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "share_public_select" ON shares
+  FOR SELECT USING (true);
+
+CREATE POLICY "share_insert_own" ON shares
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "share_update_own" ON shares
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "share_delete_own" ON shares
+  FOR DELETE USING (auth.uid() = user_id);

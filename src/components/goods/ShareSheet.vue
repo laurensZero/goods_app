@@ -41,7 +41,7 @@
         </div>
 
         <!-- Not logged in -->
-        <div v-else-if="noToken" class="sheet-error">
+        <div v-else-if="noLogin" class="sheet-error">
           <p class="error-text">{{ t('goods.share.loginRequired') }}</p>
           <button class="sheet-retry-btn sheet-retry-btn--primary" type="button" @click="goToLogin">{{ t('goods.share.goToLogin') }}</button>
         </div>
@@ -168,10 +168,10 @@ import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
-import { buildSharePayload, buildShareGistFiles, findMatchingShareInGist, generateShareId, toggleShareDisabled } from '@/utils/share/goods'
-import { buildShareDescription, findOrCreateShareGist, getShareGist, updateGist } from '@/utils/github/gist'
+import { buildSharePayload, generateShareId } from '@/utils/share/goods'
 import { buildShareUrl } from '@/config/share'
-import { useSyncStore } from '@/stores/sync'
+import { useAuthStore } from '@/stores/auth'
+import { createShare, updateShare, findMatchingShare, toggleShareDisabled } from '@/services/shareService'
 import { buildSharePosterDataUrl } from '@/utils/share/poster'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
@@ -184,7 +184,7 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  // optional initial share object: { url, code, gistId, shareId }
+  // optional initial share object: { url, code, shareId }
   initialShare: {
     type: Object,
     default: null
@@ -195,11 +195,11 @@ const emit = defineEmits(['close'])
 
 const { t } = useI18n()
 const router = useRouter()
-const syncStore = useSyncStore()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const error = ref('')
-const noToken = ref(false)
+const noLogin = ref(false)
 const shareResult = ref(null)
 const shareMode = ref('link')
 const linkCopied = ref(false)
@@ -225,8 +225,8 @@ function goToLogin() {
 
 function currentShareTarget() {
   if (!shareResult.value) return ''
-  const { url, gistId, shareId, code } = shareResult.value
-  return url || (gistId ? `goodsapp://share/${gistId}?s=${shareId || ''}` : code)
+  const { url, shareId, code } = shareResult.value
+  return url || (shareId ? `goodsapp://share/${shareId}` : code)
 }
 
 function buildPosterFilename() {
@@ -373,49 +373,44 @@ async function generateShare() {
 
   loading.value = true
   error.value = ''
-  noToken.value = false
+  noLogin.value = false
   shareResult.value = null
 
-  if (!syncStore.token) {
-    noToken.value = true
+  if (!authStore.isLoggedIn) {
+    noLogin.value = true
     loading.value = false
     return
   }
 
   try {
     const payload = await buildSharePayload(props.goodsItems)
-    const token = syncStore.token
-    const existingGist = token ? await getShareGist(token, buildShareDescription()) : null
-    const existingShare = findMatchingShareInGist(existingGist, payload)
+    const userId = authStore.user?.id
+    const goodsNames = payload.goods.map(g => g.name || '')
 
-    if (existingGist?.id && existingShare?.shareId) {
-      if (existingShare.disabled) {
-        const newContent = toggleShareDisabled(existingGist, existingShare.filename, false)
-        if (newContent) {
-          await updateGist(token, existingGist.id, {
-            [existingShare.filename]: { content: newContent }
-          })
-        }
+    // Check for existing share with same goods
+    const existing = await findMatchingShare(userId, goodsNames)
+    if (existing?.shareId) {
+      // Update existing share with latest data
+      await updateShare(existing.shareId, payload)
+      if (existing.disabled) {
+        await toggleShareDisabled(existing.shareId, false)
       }
-
       shareResult.value = {
-        gistId: existingGist.id,
-        shareId: existingShare.shareId,
-        code: `${existingGist.id}-${existingShare.shareId}`,
-        url: buildShareUrl(existingGist.id, existingShare.shareId)
+        shareId: existing.shareId,
+        code: existing.shareId,
+        url: buildShareUrl(existing.shareId)
       }
       return
     }
 
+    // Create new share
     const shareId = generateShareId()
-    const files = buildShareGistFiles(payload, shareId)
-    const gist = await findOrCreateShareGist(token, buildShareDescription(), files)
+    await createShare(userId, shareId, payload)
 
     shareResult.value = {
-      gistId: gist.id,
       shareId,
-      code: `${gist.id}-${shareId}`,
-      url: buildShareUrl(gist.id, shareId)
+      code: shareId,
+      url: buildShareUrl(shareId)
     }
   } catch (e) {
     error.value = e.message || t('goods.share.generateLinkFailed')
@@ -476,7 +471,7 @@ watch(() => props.show, (val) => {
     shareMode.value = 'link'
     posterDataUrl.value = ''
     posterError.value = ''
-    noToken.value = false
+    noLogin.value = false
     posterSaved.value = false
     posterShared.value = false
     // if initialShare was provided by caller (e.g. ShareManage), use it
@@ -490,7 +485,7 @@ watch(() => props.show, (val) => {
     // clear only transient state; keep shareResult if it is from initialShare
     if (!props.initialShare) shareResult.value = null
     error.value = ''
-    noToken.value = false
+    noLogin.value = false
     posterDataUrl.value = ''
     posterError.value = ''
     posterSaved.value = false
