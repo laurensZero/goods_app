@@ -20,11 +20,12 @@
     <ClipboardDialog />
     <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
     <AppToast :message="globalToastMsg" />
+    <SurveyPopupDialog ref="surveyPopupRef" />
   </div>
 </template>
 
 <script setup>
-import { computed, KeepAlive } from 'vue'
+import { computed, ref, KeepAlive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
@@ -34,6 +35,7 @@ import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
 import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
 import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import SurveyPopupDialog from '@/components/app/SurveyPopupDialog.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { globalToastMsg } from '@/utils/globalToast'
 import { useSyncStore } from '@/stores/sync'
@@ -54,6 +56,19 @@ const appUpdateStore = useAppUpdateStore()
 
 const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore)
 startAppNotify()
+
+// Survey popup
+import { useSurveyStore } from '@/stores/survey'
+const surveyStore = useSurveyStore()
+const surveyPopupRef = ref(null)
+
+watch(() => surveyStore.isLoaded, (loaded) => {
+  if (loaded) {
+    setTimeout(() => {
+      surveyPopupRef.value?.checkPopup()
+    }, 800)
+  }
+}, { immediate: true })
 
 // 监听测试通知事件
 window.addEventListener('app-notify-test', (e) => {

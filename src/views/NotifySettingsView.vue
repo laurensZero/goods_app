@@ -1,20 +1,22 @@
 <template>
   <div class="page notify-settings-page">
-    <main ref="pageBodyRef" class="page-body">
-      <NavBar :title="t('notifySettings.title')" show-back />
+    <NavBar :title="t('notifySettings.title')" show-back />
 
-      <section class="notify-hero">
-        <div class="notify-hero__icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 01-3.46 0" />
-          </svg>
-        </div>
-        <div class="notify-hero__copy">
-          <p class="notify-hero__label">NOTIFICATION</p>
-          <h1 class="notify-hero__title">{{ t('notifySettings.title') }}</h1>
-          <p class="notify-hero__desc">{{ t('notifySettings.description') }}</p>
-        </div>
+    <main ref="pageBodyRef" class="page-body">
+      <section class="hero-section">
+        <article class="hero-card">
+          <div class="hero-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 01-3.46 0" />
+            </svg>
+          </div>
+          <div class="hero-copy">
+            <p class="hero-label">Notification</p>
+            <h1 class="hero-title">{{ t('notifySettings.title') }}</h1>
+            <p class="hero-desc">{{ t('notifySettings.description') }}</p>
+          </div>
+        </article>
       </section>
 
       <section class="settings-section">
@@ -505,75 +507,90 @@ function resetSettings() {
 <style scoped>
 .notify-settings-page {
   min-height: 100dvh;
-  background:
-    radial-gradient(circle at top right, rgba(255, 149, 0, 0.12), transparent 28%),
-    radial-gradient(circle at left 30%, rgba(255, 59, 48, 0.08), transparent 30%),
-    var(--app-bg-gradient);
 }
 
 .page-body {
-  min-height: 100dvh;
-  padding: 0 var(--page-padding) 120px;
+  padding-bottom: 40px;
 }
 
-/* Hero Section */
-.notify-hero {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 20px 0;
+.hero-section,
+.content-section {
+  padding: 0 var(--page-padding);
+  margin-top: var(--section-gap);
 }
 
-.notify-hero__icon {
+.hero-card {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border-radius: var(--radius-large);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  overflow: hidden;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  inset: auto -70px -90px auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 149, 0, 0.18) 0%, rgba(255, 149, 0, 0) 72%);
+  pointer-events: none;
+}
+
+.hero-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-card);
   background: rgba(255, 149, 0, 0.12);
   color: #ff9500;
-  flex-shrink: 0;
 }
 
-.notify-hero__icon svg {
-  width: 28px;
-  height: 28px;
+.hero-icon svg {
+  width: 32px;
+  height: 32px;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.notify-hero__copy {
-  flex: 1;
-  min-width: 0;
+.hero-copy {
+  position: relative;
+  z-index: 1;
 }
 
-.notify-hero__label {
+.hero-label {
   color: var(--app-text-tertiary);
   font-size: 12px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.notify-hero__title {
-  margin: 4px 0 0;
+.hero-title {
+  margin-top: 6px;
   color: var(--app-text);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.04em;
 }
 
-.notify-hero__desc {
-  margin: 8px 0 0;
+.hero-desc {
+  margin-top: 10px;
   color: var(--app-text-secondary);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Settings Sections */
 .settings-section {
+  padding: 0 var(--page-padding);
   margin-top: 16px;
 }
 

@@ -40,5 +40,7 @@
   "nav.tabMy": "我的",
   "nav.notificationSettings": "通知设置",
   "nav.feedback": "反馈",
-  "nav.feedbackDetail": "反馈详情"
+  "nav.feedbackDetail": "反馈详情",
+  "nav.surveys": "问卷调查",
+  "nav.surveyFill": "填写问卷"
 }

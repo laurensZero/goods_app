@@ -93,9 +93,9 @@
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback'].includes(activeManageEntry.key),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback'].includes(activeManageEntry.key),
-                'settings-embedded--hero-textless': ['theme', 'trash', 'storage', 'notifications'].includes(activeManageEntry.key)
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys'].includes(activeManageEntry.key),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys'].includes(activeManageEntry.key),
+                'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageEntry.key)
               }
             ]"
           >
@@ -232,6 +232,7 @@ const ShareManageView = defineAsyncComponent(() => import('@/views/ShareManageVi
 const LanguageView = defineAsyncComponent(() => import('@/views/LanguageView.vue'))
 const NotifySettingsView = defineAsyncComponent(() => import('@/views/NotifySettingsView.vue'))
 const FeedbackView = defineAsyncComponent(() => import('@/views/FeedbackView.vue'))
+const SurveyListView = defineAsyncComponent(() => import('@/views/SurveyListView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
@@ -272,7 +273,7 @@ const manageComponentMap = {
   categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
-  notifications: NotifySettingsView, feedback: FeedbackView
+  notifications: NotifySettingsView, feedback: FeedbackView, surveys: SurveyListView
 }
 
 const activeManageComponent = computed(() => manageComponentMap[activeManageEntry.value?.key] || null)
@@ -516,6 +517,7 @@ onBeforeRouteLeave(() => {
 .lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
 .notify-icon { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
 .feedback-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
+.survey-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
 
 .settings-nav__copy,
 .mobile-entry__copy {
@@ -750,7 +752,7 @@ onBeforeRouteLeave(() => {
 .settings-embedded--about :deep(.section-head),
 .settings-embedded--about :deep(.section-title),
 .settings-embedded--about :deep(.section-label) {
-  display: revert !important;
+  display: block !important;
 }
 
 .settings-embedded--with-hero :deep(.hero-section),
@@ -766,7 +768,7 @@ onBeforeRouteLeave(() => {
 .settings-embedded--with-hero :deep(.section-head),
 .settings-embedded--with-hero :deep(.section-title),
 .settings-embedded--with-hero :deep(.section-label) {
-  display: revert !important;
+  display: block !important;
 }
 
 .settings-embedded--hero-trimmed :deep(.hero-section),

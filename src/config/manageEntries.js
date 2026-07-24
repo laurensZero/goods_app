@@ -4,6 +4,7 @@ import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useRechargeStore } from '@/stores/recharge'
+import { useSurveyStore } from '@/stores/survey'
 import i18n from '@/locales'
 
 const t = i18n.global.t
@@ -21,6 +22,7 @@ export function useManageEntries() {
   const presets = usePresetsStore()
   const syncStore = useSyncStore()
   const rechargeStore = useRechargeStore()
+  const surveyStore = useSurveyStore()
 
   const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
   const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
@@ -211,6 +213,18 @@ export function useManageEntries() {
         return count > 0 ? count : 0
       }
     },
+    ...(surveyStore.surveys.length > 0 ? [{
+      key: 'surveys', group: 'app', title: t('manage.surveys'), kicker: 'Survey',
+      meta: t('manage.surveyMeta'),
+      detail: t('manage.surveyDesc'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'survey-icon',
+      iconPaths: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'],
+      path: '/manage/surveys',
+      stats: [{ label: t('statAvailable'), value: `${surveyStore.availableSurveys.length}` }]
+    }] : []),
     {
       key: 'about', group: 'app', title: t('manage.about'), kicker: t('manage.aboutKicker'),
       meta: t('manage.aboutMeta'),

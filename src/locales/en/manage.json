@@ -315,5 +315,9 @@
   "manage.sort.asc": "Ascending",
   "manage.sort.desc": "Descending",
   "manage.favoriteAdd": "Add to favorites",
-  "manage.favoriteRemove": "Remove from favorites"
+  "manage.favoriteRemove": "Remove from favorites",
+  "manage.surveys": "Surveys",
+  "manage.surveyMeta": "Participate in surveys to help us improve the app",
+  "manage.surveyDesc": "Fill out surveys to help us better understand your needs",
+  "statAvailable": "Available"
 }

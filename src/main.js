@@ -19,6 +19,7 @@ import { useThemeStore } from './stores/theme'
 import { useExchangeRateStore } from './stores/exchangeRate'
 import { useRechargeStore } from './stores/recharge'
 import { useGoodsGroupStore } from './stores/goodsGroup'
+import { useSurveyStore } from './stores/survey'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
@@ -153,6 +154,7 @@ async function bootstrap() {
   const eventsStore = useEventsStore()
   const rechargeStore = useRechargeStore()
   const goodsGroupStore = useGoodsGroupStore()
+  const surveyStore = useSurveyStore()
   const presets = usePresetsStore()
   const filterPresets = useFilterPresetsStore()
   const theme = useThemeStore()
@@ -233,6 +235,9 @@ async function bootstrap() {
   // 顺序很重要：先挂载 DOM，再初始化重的 store
   void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()
+
+  // 非阻塞式初始化问卷（不影响启动性能）
+  surveyStore.loadSurveys().catch(() => {})
 }
 
 bootstrap().catch((error) => {
