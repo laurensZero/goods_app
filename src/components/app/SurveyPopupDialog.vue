@@ -31,7 +31,8 @@
           <div class="survey-popup-slide" :style="{ transform: slideTransform }">
             <!-- Slide 0: Intro -->
             <div class="survey-popup-question survey-popup-intro">
-              <div class="intro-icon">
+              <img v-if="activeSurvey.image" :src="activeSurvey.image" class="intro-image" alt="" />
+              <div v-else class="intro-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 11l3 3L22 4" />
                   <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
@@ -56,6 +57,7 @@
                 <span v-if="q.required" class="survey-popup-required">*</span>
               </h4>
               <p v-if="q.description" class="survey-popup-qdesc">{{ q.description }}</p>
+              <img v-if="q.image" :src="q.image" class="survey-popup-qimage" alt="" />
 
               <div class="survey-popup-qbody">
                 <!-- Single Choice -->
@@ -459,6 +461,17 @@ defineExpose({ checkPopup, openSurvey })
   justify-content: center;
   margin-bottom: 20px;
 }
+.intro-image {
+  width: 100%;
+  max-width: 280px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+.survey-popup-qimage {
+  width: 100%;
+  border-radius: 12px;
+  margin: 8px 0 12px;
+}
 .intro-title {
   font-size: 20px;
   font-weight: 700;
@@ -714,5 +727,29 @@ defineExpose({ checkPopup, openSurvey })
 .overlay-fade-enter-from,
 .overlay-fade-leave-to {
   opacity: 0;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+  .overlay {
+    padding: 24px;
+  }
+  .survey-popup {
+    width: min(100%, 560px);
+    max-height: 80vh;
+    border-radius: 24px;
+  }
+  .survey-popup-question {
+    padding: 12px 32px 20px;
+  }
+  .survey-popup-intro {
+    padding: 40px 32px;
+  }
+  .intro-image {
+    max-width: 360px;
+  }
+  .survey-popup-nav {
+    padding: 16px 32px;
+  }
 }
 </style>
