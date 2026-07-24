@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.7",
+    "url": "bundle-20260724.7.zip",
+    "hash": "432c9b85d06e491fc4322780fd434bcb10c5b9807575423b67e606efc75201be",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加问卷和问题的图片支持，优化展示效果",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T13:30:07Z"
+  },
+  {
     "version": "20260724.6",
     "url": "bundle-20260724.6.zip",
     "hash": "14d20f851e5d8f82406d40a7f7be3c74c2b66c0793f14ce92344799157683697",
@@ -16,14 +25,5 @@
     "notes": "- feat: 反馈系统",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T06:15:30Z"
-  },
-  {
-    "version": "20260724.4",
-    "url": "bundle-20260724.4.zip",
-    "hash": "6ba938e7abde5ff6a51d4da619dd12f13ea59f8d50c81b6156a7b4a7c637f81a",
-    "minNativeVersion": null,
-    "notes": "- fix: 更新通知设置，禁用同步成功和同步进行中的通知",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-24T02:37:11Z"
   }
 ]
