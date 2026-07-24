@@ -445,6 +445,44 @@ CREATE POLICY "announcements_service_all" ON announcements FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
+-- ============================================================
+-- RLS: surveys — 用户可读取启用的问卷，service_role 全权管理
+-- ============================================================
+ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "surveys_select_enabled" ON surveys FOR SELECT
+  USING (enabled = true);
+CREATE POLICY "surveys_service_all" ON surveys FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
+-- ============================================================
+-- RLS: survey_responses — 用户只能提交，service_role 可读取全部
+-- ============================================================
+ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "surveys_responses_insert_anon" ON survey_responses FOR INSERT
+  WITH CHECK (true);
+CREATE POLICY "surveys_responses_select_service" ON survey_responses FOR SELECT
+  USING (auth.role() = 'service_role');
+
+-- ============================================================
+-- RLS: feedbacks — 用户只能提交和读取自己的，service_role 全权管理
+-- ============================================================
+ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "feedbacks_insert_anon" ON feedbacks FOR INSERT
+  WITH CHECK (true);
+CREATE POLICY "feedbacks_select_own" ON feedbacks FOR SELECT
+  USING (
+    auth.role() = 'service_role'
+    OR user_id = auth.uid()
+    OR device_id = current_setting('request.headers', true)::jsonb->>'x-device-id'
+  );
+CREATE POLICY "feedbacks_update_service" ON feedbacks FOR UPDATE
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "feedbacks_service_all" ON feedbacks FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
 -- 表级权限：撤回 anon，仅给 authenticated
 REVOKE ALL ON public.goods FROM anon;
 REVOKE ALL ON public.events FROM anon;
@@ -461,6 +499,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO authenticated;
+
+-- surveys: 用户可读取启用的，anon 可提交回复
+GRANT SELECT ON public.surveys TO anon;
+GRANT SELECT ON public.surveys TO authenticated;
+GRANT SELECT, INSERT ON public.survey_responses TO anon;
+GRANT SELECT, INSERT ON public.survey_responses TO authenticated;
+-- feedbacks: 用户可提交，anon 可提交
+GRANT INSERT ON public.feedbacks TO anon;
+GRANT SELECT, INSERT ON public.feedbacks TO authenticated;
 
 -- ============================================================
 -- 7. Storage 配置
@@ -909,6 +956,53 @@ CREATE POLICY "share_update_own" ON shares
 
 CREATE POLICY "share_delete_own" ON shares
   FOR DELETE USING (auth.uid() = user_id);
+
+
+-- ============================================================
+-- RPC: append_feedback_followup — 原子追加反馈回复
+-- ============================================================
+CREATE OR REPLACE FUNCTION append_feedback_followup(
+  p_feedback_id TEXT,
+  p_user_id UUID,
+  p_content TEXT,
+  p_role TEXT DEFAULT 'user',
+  p_attachments JSONB DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  new_followup JSONB;
+  current_followups JSONB;
+BEGIN
+  new_followup := jsonb_build_object(
+    'id', gen_random_uuid()::text,
+    'user_id', p_user_id,
+    'content', p_content,
+    'role', p_role,
+    'attachments', COALESCE(p_attachments, '[]'::jsonb),
+    'created_at', now()::text
+  );
+
+  SELECT COALESCE(followups, '[]'::jsonb) INTO current_followups
+  FROM feedbacks WHERE id = p_feedback_id;
+
+  UPDATE feedbacks
+  SET followups = current_followups || new_followup,
+      updated_at = now()
+  WHERE id = p_feedback_id;
+
+  IF p_role = 'admin' THEN
+    UPDATE feedbacks SET admin_reply = p_content WHERE id = p_feedback_id;
+  END IF;
+
+  RETURN new_followup;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION append_feedback_followup TO anon;
+GRANT EXECUTE ON FUNCTION append_feedback_followup TO authenticated;
 
 
 -- ============================================================
