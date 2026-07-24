@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.10",
+    "url": "bundle-20260724.10.zip",
+    "hash": "019a233a0611e0933fff38f15c9f33e68efb865f152fbea8f3bfcfbaa12b543d",
+    "minNativeVersion": null,
+    "notes": "- feat: 增加支持返回计数的 Supabase 请求功能，优化反馈回复渲染逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T15:48:13Z"
+  },
+  {
     "version": "20260724.9",
     "url": "bundle-20260724.9.zip",
     "hash": "34721baaa24696525ec9d5896478bab8d2fe034557049b464174b030db005e4f",
@@ -16,14 +25,5 @@
     "notes": "- backend: 更新管理后台",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T13:54:54Z"
-  },
-  {
-    "version": "20260724.7",
-    "url": "bundle-20260724.7.zip",
-    "hash": "432c9b85d06e491fc4322780fd434bcb10c5b9807575423b67e606efc75201be",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加问卷和问题的图片支持，优化展示效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-24T13:30:07Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260724.9",
-  "url": "bundle-20260724.9.zip",
-  "hash": "34721baaa24696525ec9d5896478bab8d2fe034557049b464174b030db005e4f",
+  "version": "20260724.10",
+  "url": "bundle-20260724.10.zip",
+  "hash": "019a233a0611e0933fff38f15c9f33e68efb865f152fbea8f3bfcfbaa12b543d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化头像编辑/用户名编辑",
+  "notes": "- feat: 增加支持返回计数的 Supabase 请求功能，优化反馈回复渲染逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-24T15:42:25Z"
+  "publishedAt": "2026-07-24T15:48:13Z"
 }
