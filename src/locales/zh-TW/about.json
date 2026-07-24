@@ -68,7 +68,7 @@
   "about.submitFeedbackDesc": "點擊直接跳轉 GitHub Issues 頁面提交意見回饋。",
   "about.feedbackDialogTitle": "提交反饋",
   "about.feedbackInApp": "應用內反饋",
-  "about.feedbackInAppDesc": "直接在應用內提交，無需 GitHub 帳號。",
+  "about.feedbackInAppDesc": "提交問題或建議，我們會盡快處理。",
   "about.feedbackGithubDesc": "在 GitHub 上提交反饋，適合技術問題。",
   "about.feedbackTokenRequired": "需要一個對倉庫 laurensZero/goods_app 具有 Issues: write 權限的 token。",
   "about.feedbackWithAccount": "將使用目前登錄的 GitHub 賬號提交反饋。{info}",

@@ -68,7 +68,7 @@
   "about.submitFeedbackDesc": "クリックしてGitHub Issuesに直接移動し、フィードバックを送信します。",
   "about.feedbackDialogTitle": "フィードバックを送信",
   "about.feedbackInApp": "アプリ内フィードバック",
-  "about.feedbackInAppDesc": "アプリから直接送信、GitHubアカウント不要。",
+  "about.feedbackInAppDesc": "問題や提案を送信してください。近日中に対応いたします。",
   "about.feedbackGithubDesc": "GitHubで送信、技術的な問題に最適。",
   "about.feedbackTokenRequired": "laurensZero/goods_appリポジトリのIssues: write権限を持つTokenが必要です。",
   "about.feedbackWithAccount": "フィードバックは現在ログイン中のGitHubアカウントで送信されます。{info}",

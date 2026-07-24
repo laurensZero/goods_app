@@ -68,7 +68,7 @@
   "about.submitFeedbackDesc": "Click to go directly to GitHub Issues to submit feedback.",
   "about.feedbackDialogTitle": "Submit Feedback",
   "about.feedbackInApp": "In-App Feedback",
-  "about.feedbackInAppDesc": "Submit directly in the app, no GitHub account needed.",
+  "about.feedbackInAppDesc": "Submit issues or suggestions, we'll get back to you soon.",
   "about.feedbackGithubDesc": "Submit on GitHub, best for technical issues.",
   "about.feedbackTokenRequired": "A token with Issues: write permission for the laurensZero/goods_app repository is required.",
   "about.feedbackWithAccount": "Feedback will be submitted using your currently logged-in GitHub account. {info}",

@@ -42,6 +42,12 @@ export default [
     meta: { titleKey: 'nav.manageShares' }
   },
   {
+    path: '/manage/feedback',
+    name: 'manage-feedback',
+    component: () => import('@/views/FeedbackView.vue'),
+    meta: { titleKey: 'nav.feedback' }
+  },
+  {
     path: '/manage/about',
     name: 'manage-about',
     component: () => import('@/views/AboutView.vue'),

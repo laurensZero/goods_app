@@ -92,19 +92,25 @@ export async function addFollowup({ feedbackId, userId, content, role = 'user', 
 }
 
 /**
- * Check if there are feedbacks with status changes since a given timestamp.
+ * Check for unread updates: admin replies OR status changes since a given timestamp.
+ * Returns count of feedbacks with new activity.
  */
-export async function checkNewStatus(userId, since) {
+export async function checkUnreadUpdates(userId, since) {
   if (!userId) return 0
   const sinceTime = since || '1970-01-01T00:00:00Z'
 
-  const { count, error } = await db()
+  const { data, error } = await db()
     .from(FEEDBACKS_TABLE)
-    .select('id', { count: 'exact', head: true })
+    .select('id, admin_reply, status, updated_at')
     .eq('user_id', userId)
-    .neq('status', 'pending')
     .gt('updated_at', sinceTime)
 
   if (error) throw new Error(error.message)
-  return count || 0
+  if (!data) return 0
+
+  // Count feedbacks that have admin reply OR status changed from pending
+  return data.filter(fb =>
+    (fb.admin_reply && fb.admin_reply.trim()) ||
+    (fb.status && fb.status !== 'pending')
+  ).length
 }

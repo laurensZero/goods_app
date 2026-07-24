@@ -68,7 +68,7 @@
   "about.submitFeedbackDesc": "클릭하여 GitHub Issues로 직접 이동하여 피드백을 제출합니다.",
   "about.feedbackDialogTitle": "피드백 제출",
   "about.feedbackInApp": "앱 내 피드백",
-  "about.feedbackInAppDesc": "앱에서 직접 제출, GitHub 계정 불필요.",
+  "about.feedbackInAppDesc": "문제나 제안을 제출해 주세요. 빠른 시일 내에 처리하겠습니다.",
   "about.feedbackGithubDesc": "GitHub에서 제출, 기술적인 문제에 적합.",
   "about.feedbackTokenRequired": "laurensZero/goods_app 저장소의 Issues: write 권한이 있는 Token이 필요합니다.",
   "about.feedbackWithAccount": "피드백은 현재 로그인한 GitHub 계정으로 제출됩니다. {info}",
