@@ -446,11 +446,18 @@ CREATE POLICY "announcements_service_all" ON announcements FOR ALL
   WITH CHECK (auth.role() = 'service_role');
 
 -- ============================================================
--- RLS: surveys — 用户可读取启用的问卷，service_role 全权管理
+-- RLS: surveys — 用户可读取启用的问卷（支持定向用户），service_role 全权管理
 -- ============================================================
+ALTER TABLE surveys ADD COLUMN IF NOT EXISTS target_users UUID[] DEFAULT '{}';
 ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "surveys_select_enabled" ON surveys FOR SELECT
-  USING (enabled = true);
+  USING (
+    enabled = true
+    AND (
+      cardinality(target_users) = 0
+      OR auth.uid() = ANY(target_users)
+    )
+  );
 CREATE POLICY "surveys_service_all" ON surveys FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');

@@ -39,22 +39,16 @@
 
         <article class="account-panel">
           <div class="account-panel__main">
-            <div class="account-avatar-wrap" @click="handleAvatarClick" @contextmenu.prevent="onAvatarLongPress" @mousedown="onAvatarMouseDown" @mouseup="onAvatarMouseUp" @mouseleave="onAvatarMouseUp" @touchstart="onAvatarTouchStart" @touchend="onAvatarTouchEnd" @touchcancel="onAvatarTouchEnd" @touchmove="onAvatarTouchEnd">
+            <div class="account-avatar-wrap">
               <img v-if="displayAvatarSrc" class="account-avatar" :src="displayAvatarSrc" :alt="t('my.avatar')" />
               <span v-else class="account-avatar account-avatar--placeholder">{{ avatarInitial }}</span>
-              <button type="button" class="avatar-edit-btn" :aria-label="t('my.changeAvatar')" @click.stop="handleAvatarClick">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
               <input ref="avatarInputRef" type="file" accept="image/*" class="avatar-file-input" @change="onAvatarFileChange" />
             </div>
 
             <div class="account-copy">
               <h1 class="account-name">
                 {{ authStore.userDisplayName || t('my.authNotConnected') }}
-                <button v-if="authStore.isLoggedIn" type="button" class="name-edit-btn" @click="openRenameDialog" :aria-label="t('my.rename')">
+                <button v-if="authStore.isLoggedIn" type="button" class="name-edit-btn" @click="openProfileEditSheet" :aria-label="t('my.rename')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                 </button>
               </h1>
@@ -255,7 +249,7 @@
     />
 
     <Teleport to="body">
-      <Transition name="budget-sheet-pop">
+      <Transition name="sheet-pop">
         <div v-if="showBudgetDialog" class="login-overlay budget-overlay" @click.self="closeBudgetDialog">
           <section class="login-sheet budget-sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
             <h2 id="budgetSheetTitle" class="login-sheet__title">{{ t('my.setBudget') }}</h2>
@@ -299,66 +293,58 @@
       </Transition>
     </Teleport>
 
-    <div v-if="showLogoutDialog" class="login-overlay" @click.self="closeLogoutDialog">
-      <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
-        <h2 id="logoutSheetTitle" class="login-sheet__title">{{ t('my.logout') }}</h2>
-        <p class="login-sheet__desc">
-          {{ t('my.authLogoutDesc') }}
-        </p>
+    <Transition name="sheet-pop">
+      <div v-if="showLogoutDialog" class="login-overlay" @click.self="closeLogoutDialog">
+        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
+          <h2 id="logoutSheetTitle" class="login-sheet__title">{{ t('my.logout') }}</h2>
+          <p class="login-sheet__desc">
+            {{ t('my.authLogoutDesc') }}
+          </p>
 
-        <div class="login-sheet__actions">
-          <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmLogout">
-            {{ t('my.confirmLogout') }}
-          </button>
-          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeLogoutDialog">
-            {{ t('my.cancel') }}
-          </button>
-        </div>
-      </section>
-    </div>
+          <div class="login-sheet__actions">
+            <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmLogout">
+              {{ t('my.confirmLogout') }}
+            </button>
+            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeLogoutDialog">
+              {{ t('my.cancel') }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Transition>
 
-    <div v-if="showResetAvatarDialog" class="login-overlay reset-avatar-overlay" @click.self="closeResetAvatarDialog">
-      <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="resetAvatarSheetTitle">
-        <h2 id="resetAvatarSheetTitle" class="login-sheet__title">{{ t('my.resetAvatar') }}</h2>
-        <p class="login-sheet__desc">
-          {{ t('my.resetAvatarDesc') }}
-        </p>
-
-        <div class="login-sheet__actions">
-          <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmResetAvatar">
-            {{ t('my.confirmResetAvatar') }}
-          </button>
-          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeResetAvatarDialog">
-            {{ t('my.cancel') }}
-          </button>
-        </div>
-      </section>
-    </div>
-
-    <div v-if="showRenameDialog" class="login-overlay" @click.self="closeRenameDialog">
-      <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="renameSheetTitle">
-        <h2 id="renameSheetTitle" class="login-sheet__title">{{ t('my.rename') }}</h2>
-        <div class="rename-field">
-          <input
-            v-model="renameInput"
-            class="auth-input"
-            type="text"
-            :placeholder="t('my.authDisplayName')"
-            maxlength="30"
-            @keydown.enter="confirmRename"
-          />
-        </div>
-        <p v-if="renameError" class="rename-error">{{ renameError }}</p>
-        <div class="login-sheet__actions">
-          <button type="button" class="login-sheet__button login-sheet__button--primary" :disabled="!renameInput.trim() || renameLoading" @click="confirmRename">
-            {{ renameLoading ? '...' : t('common.confirm') }}
-          </button>
-          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeRenameDialog">
-            {{ t('my.cancel') }}
-          </button>
-        </div>
-      </section>
-    </div>
+    <Transition name="sheet-pop">
+      <div v-if="showProfileEditSheet" class="login-overlay" @click.self="closeProfileEditSheet">
+        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="profileEditSheetTitle">
+          <h2 id="profileEditSheetTitle" class="login-sheet__title">{{ t('my.rename') }}</h2>
+          <div class="rename-field">
+            <input
+              v-model="renameInput"
+              class="auth-input"
+              type="text"
+              :placeholder="t('my.authDisplayName')"
+              maxlength="30"
+              @keydown.enter="confirmRename"
+            />
+          </div>
+          <p v-if="renameError" class="rename-error">{{ renameError }}</p>
+          <div class="login-sheet__actions">
+            <button type="button" class="login-sheet__button login-sheet__button--primary" :disabled="!renameInput.trim() || renameLoading" @click="confirmRename">
+              {{ renameLoading ? '...' : t('common.confirm') }}
+            </button>
+            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="chooseNewAvatar">
+              {{ t('my.changeAvatar') }}
+            </button>
+            <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="confirmResetAvatar">
+              {{ t('my.resetAvatar') }}
+            </button>
+            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeProfileEditSheet">
+              {{ t('my.cancel') }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Transition>
 
     <AppToast :message="toastMsg" />
   </div>
@@ -394,8 +380,7 @@ const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
 const showBudgetDialog = ref(false)
-const showResetAvatarDialog = ref(false)
-const showRenameDialog = ref(false)
+const showProfileEditSheet = ref(false)
 const renameInput = ref('')
 const renameError = ref('')
 const renameLoading = ref(false)
@@ -425,8 +410,6 @@ const avatarInitial = computed(() => {
 const cachedAvatarSrc = ref('')
 const customAvatarUrl = ref('')
 const avatarInputRef = ref(null)
-const avatarLongPressTimer = ref(null)
-const avatarLongPressed = ref(false)
 
 // Custom avatar takes priority, then Supabase avatar (custom > OAuth > cached)
 const displayAvatarSrc = computed(() => {
@@ -456,11 +439,7 @@ watch(
   { immediate: true }
 )
 
-function handleAvatarClick() {
-  if (avatarLongPressed.value) {
-    avatarLongPressed.value = false
-    return
-  }
+function chooseNewAvatar() {
   avatarInputRef.value?.click()
 }
 
@@ -532,49 +511,6 @@ function fileToDataUrl(file) {
   })
 }
 
-// Long-press to reset custom avatar
-function onAvatarLongPress(e) {
-  e.preventDefault()
-  if (!customAvatarUrl.value) return
-  showResetAvatarDialog.value = true
-}
-
-function startLongPress() {
-  if (!customAvatarUrl.value) return
-  avatarLongPressTimer.value = setTimeout(() => {
-    avatarLongPressed.value = true
-    showResetAvatarDialog.value = true
-    avatarLongPressTimer.value = null
-  }, 500)
-}
-
-function cancelLongPress() {
-  if (avatarLongPressTimer.value) {
-    clearTimeout(avatarLongPressTimer.value)
-    avatarLongPressTimer.value = null
-  }
-}
-
-function onAvatarMouseDown() {
-  startLongPress()
-}
-
-function onAvatarMouseUp() {
-  cancelLongPress()
-}
-
-function onAvatarTouchStart() {
-  startLongPress()
-}
-
-function onAvatarTouchEnd() {
-  cancelLongPress()
-}
-
-function closeResetAvatarDialog() {
-  showResetAvatarDialog.value = false
-}
-
 async function confirmResetAvatar() {
   customAvatarUrl.value = ''
   await writePersisted(CUSTOM_AVATAR_KEY, '')
@@ -582,7 +518,7 @@ async function confirmResetAvatar() {
   if (authStore.isLoggedIn) {
     authStore.updateProfile({ custom_avatar_url: '' }).catch(() => {})
   }
-  showResetAvatarDialog.value = false
+  showProfileEditSheet.value = false
   showToastMsg(t('my.avatarReset'))
 }
 
@@ -634,14 +570,14 @@ function closeLogoutDialog() {
   showLogoutDialog.value = false
 }
 
-function openRenameDialog() {
+function openProfileEditSheet() {
   renameInput.value = authStore.userDisplayName || ''
   renameError.value = ''
-  showRenameDialog.value = true
+  showProfileEditSheet.value = true
 }
 
-function closeRenameDialog() {
-  showRenameDialog.value = false
+function closeProfileEditSheet() {
+  showProfileEditSheet.value = false
 }
 
 async function confirmRename() {
@@ -651,7 +587,7 @@ async function confirmRename() {
   renameError.value = ''
   try {
     await authStore.updateProfile({ display_name: name })
-    showRenameDialog.value = false
+    showProfileEditSheet.value = false
     showToastMsg(t('my.renameSuccess'))
   } catch (e) {
     renameError.value = e.message || t('my.renameFailed')
@@ -996,34 +932,6 @@ onActivated(() => {
 .account-avatar-wrap {
   position: relative;
   cursor: pointer;
-}
-
-.avatar-edit-btn {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--app-surface, #fff);
-  background: var(--app-text, #141416);
-  color: var(--app-surface, #fff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  z-index: 2;
-}
-
-.avatar-edit-btn:active {
-  transform: scale(0.9);
-}
-
-.avatar-edit-btn svg {
-  width: 14px;
-  height: 14px;
 }
 
 .avatar-file-input {
@@ -1530,26 +1438,23 @@ onActivated(() => {
   z-index: 220;
 }
 
-.budget-sheet-pop-enter-active,
-.budget-sheet-pop-leave-active {
+.sheet-pop-enter-active,
+.sheet-pop-leave-active {
   transition: opacity 0.24s ease;
 }
 
-.budget-sheet-pop-enter-active .budget-sheet {
+.sheet-pop-enter-active .login-sheet,
+.sheet-pop-leave-active .login-sheet {
   transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
 }
 
-.budget-sheet-pop-leave-active .budget-sheet {
-  transition: transform 0.24s ease, opacity 0.24s ease;
-}
-
-.budget-sheet-pop-enter-from,
-.budget-sheet-pop-leave-to {
+.sheet-pop-enter-from,
+.sheet-pop-leave-to {
   opacity: 0;
 }
 
-.budget-sheet-pop-enter-from .budget-sheet,
-.budget-sheet-pop-leave-to .budget-sheet {
+.sheet-pop-enter-from .login-sheet,
+.sheet-pop-leave-to .login-sheet {
   transform: translateY(26px);
   opacity: 0;
 }
@@ -1686,8 +1591,7 @@ onActivated(() => {
     border-radius: 24px;
   }
 
-  .budget-overlay,
-  .reset-avatar-overlay {
+  .budget-overlay {
     align-items: center;
   }
 
