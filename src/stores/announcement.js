@@ -1,35 +1,19 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
 import { compareVersions, normalizeVersionTag } from '@/utils/github/release'
-import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { readPersisted } from '@/utils/platform/storage'
+import router from '@/router'
 
-const ANNOUNCEMENT_BASE_BY_SOURCE = Object.freeze({
-  local: '',
-  gist: '',
-  github: 'https://laurenszero.github.io/goods_app'
-})
-const ANNOUNCEMENT_MANIFEST_PATH = 'announcements/manifest.json'
-const AVAILABLE_ANNOUNCEMENT_SOURCES = Object.freeze(['auto', 'local', 'gist', 'github'])
-const ANNOUNCEMENT_SOURCE_STORAGE_KEY = 'goods_announcement_source'
 const ANNOUNCEMENT_RECORD_STORAGE_KEY = 'goods_announcement_record'
-const ANNOUNCEMENT_GIST_URL_STORAGE_KEY = 'goods_announcement_gist_url'
 const WEB_UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
-const REQUEST_TIMEOUT_MS = 15000
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
-const GITHUB_API_BASE = 'https://api.github.com'
-const DEFAULT_ANNOUNCEMENT_GIST_URL = 'https://gist.github.com/laurensZero/0a88ab223f6e8c6cc8542401e907154c'
 
 let activeCheckPromise = null
-
-function normalizeSource(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (AVAILABLE_ANNOUNCEMENT_SOURCES.includes(normalized)) return normalized
-  return 'auto'
-}
 
 function normalizeShowMode(value) {
   const normalized = String(value || '').trim().toLowerCase()
@@ -40,7 +24,6 @@ function normalizeShowMode(value) {
 function normalizeUrl(value) {
   const raw = String(value || '').trim()
   if (!raw) return ''
-
   try {
     const parsed = new URL(raw)
     if (parsed.protocol !== 'https:') return ''
@@ -50,36 +33,9 @@ function normalizeUrl(value) {
   }
 }
 
-function parseGistIdFromUrl(url) {
-  const raw = String(url || '').trim()
-  if (!raw) return ''
-
-  try {
-    const parsed = new URL(raw)
-    const hostname = parsed.hostname.toLowerCase()
-
-    if (hostname === 'gist.github.com') {
-      const segments = parsed.pathname.split('/').filter(Boolean)
-      return segments[segments.length - 1]?.trim() || ''
-    }
-
-    if (hostname === 'api.github.com') {
-      const matched = parsed.pathname.match(/\/gists\/([a-f0-9]+)/i)
-      return matched?.[1] || ''
-    }
-  } catch {
-    return ''
-  }
-
-  return ''
-}
-
-function normalizeGistManifestUrl(value) {
-  return normalizeUrl(value) || ''
-}
-
 function parseTime(value) {
   if (!value) return 0
+  if (typeof value === 'number') return value
   const timestamp = new Date(value).getTime()
   if (!Number.isFinite(timestamp)) return 0
   return timestamp
@@ -122,88 +78,9 @@ function matchesVersionRule(currentVersion, rule) {
   return true
 }
 
-function withTimeout(promise, timeoutMs, timeoutMessage) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
-    })
-  ])
-}
-
-function parseManifestPayload(payload) {
-  if (payload && typeof payload === 'object') {
-    return payload
-  }
-
-  if (typeof payload === 'string') {
-    try {
-      return JSON.parse(payload)
-    } catch (e) {
-      throw new Error(`公告配置 JSON 解析失败: ${e.message}`)
-    }
-  }
-
-  throw new Error('公告配置格式无效。')
-}
-
-function buildManifestUrl(source) {
-  if (source === 'gist') {
-    return resolveGistManifestUrl()
-  }
-  const base = ANNOUNCEMENT_BASE_BY_SOURCE[source]
-  if (source === 'local') {
-    return `/${ANNOUNCEMENT_MANIFEST_PATH}`
-  }
-  if (!base) return ''
-  return `${base}/${ANNOUNCEMENT_MANIFEST_PATH}`
-}
-
-function resolveSourceCandidates(source) {
-  if (source === 'auto') {
-    const candidates = []
-    if (resolveGistManifestUrl()) {
-      candidates.push('gist')
-    }
-    if (import.meta.env.DEV && !Capacitor.isNativePlatform()) {
-      candidates.push('local')
-    }
-    candidates.push('github')
-    return candidates
-  }
-  return [source]
-}
-
-function readPersistedSource() {
-  try {
-    return normalizeSource(localStorage.getItem(ANNOUNCEMENT_SOURCE_STORAGE_KEY))
-  } catch {
-    return 'auto'
-  }
-}
-
-function readPersistedGistUrl() {
-  try {
-    return normalizeGistManifestUrl(localStorage.getItem(ANNOUNCEMENT_GIST_URL_STORAGE_KEY))
-  } catch {
-    return ''
-  }
-}
-
-function readEnvGistUrl() {
-  return normalizeGistManifestUrl(import.meta.env.VITE_ANNOUNCEMENT_GIST_URL || '')
-}
-
-function resolveGistManifestUrl() {
-  return readPersistedGistUrl() || readEnvGistUrl() || normalizeGistManifestUrl(DEFAULT_ANNOUNCEMENT_GIST_URL)
-}
-
-function persistSource(source) {
-  try {
-    localStorage.setItem(ANNOUNCEMENT_SOURCE_STORAGE_KEY, source)
-  } catch {
-    // ignore persistence failures
-  }
+function todayKey(date = new Date()) {
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 function readPersistedRecord() {
@@ -222,7 +99,7 @@ function persistRecord(record) {
   try {
     localStorage.setItem(ANNOUNCEMENT_RECORD_STORAGE_KEY, JSON.stringify(record || {}))
   } catch {
-    // ignore persistence failures
+    // ignore
   }
 }
 
@@ -236,19 +113,14 @@ function readCurrentChannel() {
   }
 }
 
-function todayKey(date = new Date()) {
-  const pad = (part) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
+function normalizeRow(row) {
+  if (!row || typeof row !== 'object') return null
 
-function normalizeAnnouncementItem(item) {
-  if (!item || typeof item !== 'object') return null
-
-  const id = String(item.id || '').trim()
+  const id = String(row.id || '').trim()
   if (!id) return null
 
-  const showRule = item.showRule && typeof item.showRule === 'object' ? item.showRule : {}
-  const cta = item.cta && typeof item.cta === 'object' ? item.cta : {}
+  const showRule = row.show_rule && typeof row.show_rule === 'object' ? row.show_rule : {}
+  const cta = row.cta && typeof row.cta === 'object' ? row.cta : {}
 
   const channels = Array.isArray(showRule.channels)
     ? showRule.channels
@@ -258,10 +130,10 @@ function normalizeAnnouncementItem(item) {
 
   return {
     id,
-    enabled: item.enabled !== false,
-    priority: Number.isFinite(Number(item.priority)) ? Number(item.priority) : 0,
-    title: String(item.title || '').trim(),
-    message: String(item.message || '').trim(),
+    enabled: row.enabled !== false,
+    priority: Number.isFinite(Number(row.priority)) ? Number(row.priority) : 0,
+    title: String(row.title || '').trim(),
+    message: String(row.message || '').trim(),
     cta: {
       text: String(cta.text || '').trim(),
       url: normalizeUrl(cta.url),
@@ -281,173 +153,100 @@ function normalizeAnnouncementItem(item) {
         minKeys: ['minBundleVersion', 'bundleVersionMin', 'bundleVersionGte'],
         maxKeys: ['maxBundleVersion', 'bundleVersionMax', 'bundleVersionLte']
       }),
-      channels: channels.length ? channels : ['stable', 'beta']
+      channels: channels.length ? channels : ['stable', 'beta'],
+      logic: ['and', 'or'].includes(showRule.logic) ? showRule.logic : 'and',
+      conditions: Array.isArray(showRule.conditions)
+        ? showRule.conditions.map((c) => {
+            if (typeof c === 'string') return { type: c }
+            if (c && typeof c === 'object' && c.type) return { type: c.type, ...c }
+            return null
+          }).filter(Boolean)
+        : []
     }
   }
 }
 
-function normalizeManifest(manifest) {
-  const list = Array.isArray(manifest?.announcements)
-    ? manifest.announcements.map(normalizeAnnouncementItem).filter(Boolean)
-    : []
+// ── 通用条件执行器 ──
+// 云端通过 show_rule.conditions 下发查询 JSON，app 端执行
+// 支持三种 type: local / db / flag
+// logic: "and" | "or"，默认 "and"
 
-  return {
-    version: Number.isFinite(Number(manifest?.version)) ? Number(manifest.version) : 1,
-    updatedAt: String(manifest?.updatedAt || '').trim(),
-    announcements: list.sort((left, right) => right.priority - left.priority)
-  }
-}
-
-async function fetchAnnouncementManifest(url) {
-  const gistId = parseGistIdFromUrl(url)
-  if (gistId) {
-    return fetchAnnouncementManifestFromGistApi(gistId)
-  }
-
-  if (Capacitor.isNativePlatform()) {
+const EXECUTORS = {
+  // { type: "local", key: "xxx", exists?: boolean, equals?: string }
+  // 自动兼容 localStorage + Capacitor Preferences（原生端）
+  local: async (cond) => {
     try {
-      const response = await withTimeout(
-        CapacitorHttp.get({
-          url,
-          headers: {
-            Accept: 'application/json'
-          }
-        }),
-        REQUEST_TIMEOUT_MS,
-        '拉取公告超时，请稍后再试。'
-      )
+      const key = cond.key || ''
+      if (!key) return false
+      const stored = await readPersisted(key)
+      if (cond.exists === false) return stored === null
+      if (cond.exists === true) return stored !== null
+      if (cond.equals !== undefined) return stored === String(cond.equals)
+      return stored !== null
+    } catch { return false }
+  },
 
-      const status = Number(response?.status || 0)
-      if (status < 200 || status >= 300) {
-        throw new Error(`公告配置请求失败（${status || 'unknown'}）。`)
+  // { type: "sync_configured" }
+  // 检查 Supabase 同步是否已配置（URL + Key 都存在）
+  sync_configured: async () => {
+    try {
+      const url = await readPersisted('sync_supabase_url')
+      const key = await readPersisted('sync_supabase_anon_key')
+      return !!(url && key)
+    } catch { return false }
+  },
+
+  // { type: "db", table: "goods", op: "count>="|"count>"|"count="|"count<"|"count<="|"exists"|"empty", value?: number }
+  db: async (cond) => {
+    try {
+      const table = cond.table || ''
+      if (!table) return false
+      const db = getSupabaseClient()
+      const op = cond.op || 'count>='
+      const value = Number(cond.value) || 0
+
+      const { count } = await db.from(table).select('id', { count: 'exact', head: true })
+      const n = count || 0
+
+      if (op === 'exists') return n > 0
+      if (op === 'empty') return n === 0
+      if (op === 'count>=') return n >= value
+      if (op === 'count>') return n > value
+      if (op === 'count=') return n === value
+      if (op === 'count<') return n < value
+      if (op === 'count<=') return n <= value
+      return false
+    } catch { return false }
+  },
+
+  // { type: "flag", key: "xxx", value: "yyy" }
+  flag: async (cond) => {
+    try {
+      const key = cond.key || ''
+      if (!key) return false
+      const stored = await readPersisted(key)
+      return stored === String(cond.value)
+    } catch { return false }
+  }
+}
+
+async function evaluateQuery(conditions, logic = 'and') {
+  if (!conditions || !conditions.length) return true
+  const results = await Promise.all(
+    conditions.map(async (cond) => {
+      const executor = EXECUTORS[cond.type]
+      if (!executor) {
+        console.warn(`[announcement] unknown condition type: ${cond.type}`)
+        return true
       }
-
-      return parseManifestPayload(response?.data)
-    } catch (error) {
-      const message = String(error?.message || '')
-      if (message.includes('超时')) {
-        throw error
-      }
-      throw new Error(message || '拉取公告失败，请稍后再试。')
-    }
-  }
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    const response = await fetchWithPlatformBridge(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json'
-      },
-      cache: 'no-store',
-      signal: controller.signal
+      return executor(cond)
     })
-
-    if (!response.ok) {
-      throw new Error(`公告配置请求失败（${response.status}）。`)
-    }
-
-    return response.json()
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error('拉取公告超时，请稍后再试。')
-    }
-    throw error
-  } finally {
-    clearTimeout(timeoutId)
-  }
+  )
+  if (logic === 'or') return results.some(Boolean)
+  return results.every(Boolean)
 }
 
-function pickManifestFileFromGistPayload(payload) {
-  const files = payload?.files && typeof payload.files === 'object'
-    ? Object.values(payload.files)
-    : []
-
-  if (!files.length) return null
-
-  return files.find((file) => /manifest/i.test(String(file?.filename || '')) && /\.json$/i.test(String(file?.filename || '')))
-    || files.find((file) => /\.json$/i.test(String(file?.filename || '')))
-    || files[0]
-}
-
-async function fetchRawText(url) {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    const response = await fetchWithPlatformBridge(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      signal: controller.signal
-    })
-
-    if (!response.ok) throw new Error(`公告配置请求失败（${response.status}）。`)
-    return response.text()
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('拉取公告超时，请稍后再试。')
-    throw error
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
-
-async function fetchAnnouncementManifestFromGistApi(gistId) {
-  const apiUrl = `${GITHUB_API_BASE}/gists/${gistId}`
-
-  if (Capacitor.isNativePlatform()) {
-    const response = await withTimeout(
-      CapacitorHttp.get({
-        url: apiUrl,
-        headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
-      }),
-      REQUEST_TIMEOUT_MS,
-      '拉取公告超时，请稍后再试。'
-    )
-
-    const status = Number(response?.status || 0)
-    if (status < 200 || status >= 300) throw new Error(`公告配置请求失败（${status || 'unknown'}）。`)
-
-    const payload = parseManifestPayload(response?.data)
-    const selectedFile = pickManifestFileFromGistPayload(payload)
-    if (!selectedFile) throw new Error('云端未找到可用公告文件。')
-
-    let content = String(selectedFile?.content || '')
-    if (!content && selectedFile?.raw_url) content = await fetchRawText(String(selectedFile.raw_url || ''))
-    return parseManifestPayload(content)
-  }
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    const response = await fetchWithPlatformBridge(apiUrl, {
-      method: 'GET',
-      headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
-      cache: 'no-store',
-      signal: controller.signal
-    })
-
-    if (!response.ok) throw new Error(`公告配置请求失败（${response.status}）。`)
-
-    const payload = await response.json()
-    const selectedFile = pickManifestFileFromGistPayload(payload)
-    if (!selectedFile) throw new Error('云端未找到可用公告文件。')
-
-    let content = String(selectedFile?.content || '')
-    if (!content && selectedFile?.raw_url) content = await fetchRawText(String(selectedFile.raw_url || ''))
-    return parseManifestPayload(content)
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('拉取公告超时，请稍后再试。')
-    throw error
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
-
-function matchesAnnouncementRule(announcement, context) {
+async function matchesAnnouncementRule(announcement, context) {
   if (!announcement?.enabled) return false
 
   const now = context.now
@@ -461,6 +260,13 @@ function matchesAnnouncementRule(announcement, context) {
 
   if (!matchesVersionRule(context.appVersion, announcement?.showRule?.appVersionRule)) return false
   if (!matchesVersionRule(context.bundleVersion, announcement?.showRule?.bundleVersionRule)) return false
+
+  const conditions = announcement?.showRule?.conditions || []
+  const logic = announcement?.showRule?.logic || 'and'
+  if (conditions.length > 0) {
+    const conditionsMet = await evaluateQuery(conditions, logic)
+    if (!conditionsMet) return false
+  }
 
   const record = context.record?.[announcement.id] || {}
   const showMode = announcement?.showRule?.showMode || 'once'
@@ -487,29 +293,35 @@ function matchesAnnouncementRule(announcement, context) {
   return true
 }
 
+async function fetchAnnouncements() {
+  const db = getSupabaseClient()
+  const { data, error } = await db
+    .from('announcements')
+    .select('id, enabled, priority, title, message, cta, show_rule')
+    .eq('enabled', true)
+    .order('priority', { ascending: false })
+
+  if (error) throw new Error(error.message || '拉取公告失败，请稍后再试。')
+  return (data || []).map(normalizeRow).filter(Boolean)
+}
+
 export const useAnnouncementStore = defineStore('announcement', () => {
   const initialized = ref(false)
   const isChecking = ref(false)
-  const selectedSource = ref('auto')
-  const resolvedSource = ref('')
   const appVersion = ref(FALLBACK_VERSION)
   const bundleVersion = ref('')
   const channel = ref('stable')
   const dialogVisible = ref(false)
   const activeAnnouncement = ref(null)
-  const latestManifest = ref(null)
   const lastCheckedAt = ref('')
   const lastError = ref('')
   const showRecord = ref({})
-  const gistManifestUrl = ref('')
 
   const hasActiveAnnouncement = computed(() => !!activeAnnouncement.value)
 
   async function init() {
     if (initialized.value) return
 
-    selectedSource.value = readPersistedSource()
-    gistManifestUrl.value = resolveGistManifestUrl()
     channel.value = readCurrentChannel()
     showRecord.value = readPersistedRecord()
 
@@ -535,7 +347,7 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     }
   }
 
-  async function checkAndDecide(options = {}) {
+  async function checkAndDecide() {
     if (activeCheckPromise) return activeCheckPromise
 
     activeCheckPromise = (async () => {
@@ -546,47 +358,16 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       activeAnnouncement.value = null
       dialogVisible.value = false
 
-      if (options?.source) {
-        selectedSource.value = normalizeSource(options.source)
-        persistSource(selectedSource.value)
-      }
-
-      if (typeof options?.gistUrl === 'string') {
-        setGistManifestUrl(options.gistUrl)
-      }
-
       try {
-        const sourceCandidates = resolveSourceCandidates(selectedSource.value)
-        let payload = null
-        let resolved = ''
-        let lastRequestError = null
-
-        for (const source of sourceCandidates) {
-          try {
-            const url = buildManifestUrl(source)
-            if (!url) continue
-            payload = await fetchAnnouncementManifest(url)
-            resolved = source
-            break
-          } catch (error) {
-            lastRequestError = error
-          }
-        }
-
-        if (!payload) {
-          throw lastRequestError || new Error('未获取到可用公告配置。')
-        }
-
-        resolvedSource.value = resolved
-        const manifest = normalizeManifest(payload)
-        latestManifest.value = manifest
+        const announcements = await fetchAnnouncements()
 
         const now = Date.now()
         const currentDay = todayKey(new Date(now))
         const currentAppVersion = appVersion.value || FALLBACK_VERSION
 
-        const candidate = manifest.announcements.find((announcement) => (
-          matchesAnnouncementRule(announcement, {
+        let candidate = null
+        for (const announcement of announcements) {
+          const result = await matchesAnnouncementRule(announcement, {
             now,
             today: currentDay,
             appVersion: currentAppVersion,
@@ -594,7 +375,11 @@ export const useAnnouncementStore = defineStore('announcement', () => {
             channel: channel.value,
             record: showRecord.value
           })
-        )) || null
+          if (result) {
+            candidate = announcement
+            break
+          }
+        }
 
         if (!candidate) {
           return { status: 'idle', reason: 'no_match' }
@@ -627,14 +412,15 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       ? showRecord.value[id]
       : {}
 
+    const newRecord = {
+      ...currentRecord,
+      lastShownAt: new Date().toISOString(),
+      lastShownDay: currentDay,
+      lastShownVersion: appVersion.value || FALLBACK_VERSION
+    }
     showRecord.value = {
       ...showRecord.value,
-      [id]: {
-        ...currentRecord,
-        lastShownAt: new Date().toISOString(),
-        lastShownDay: currentDay,
-        lastShownVersion: appVersion.value || FALLBACK_VERSION
-      }
+      [id]: newRecord
     }
     persistRecord(showRecord.value)
   }
@@ -673,36 +459,27 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       } catch {
         window.location.href = url
       }
+    } else if (action === 'navigate' && url) {
+      router.push(url)
     }
 
     dismissAnnouncement()
   }
 
-  function setGistManifestUrl(url) {
-    const normalized = normalizeGistManifestUrl(url)
-    gistManifestUrl.value = normalized
-    persistGistUrl(normalized)
-  }
-
   return {
     initialized,
     isChecking,
-    selectedSource,
-    resolvedSource,
     appVersion,
     bundleVersion,
     channel,
     dialogVisible,
     activeAnnouncement,
-    latestManifest,
     lastCheckedAt,
     lastError,
-    gistManifestUrl,
     hasActiveAnnouncement,
     init,
     checkAndDecide,
     dismissAnnouncement,
-    handlePrimaryAction,
-    setGistManifestUrl
+    handlePrimaryAction
   }
 })
