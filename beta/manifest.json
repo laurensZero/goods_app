@@ -1,9 +1,9 @@
 {
-  "version": "20260724.8",
-  "url": "bundle-20260724.8.zip",
-  "hash": "121be8e58a6a743378ff661c013fea506c8b295146bf229f84e230fef9115d5c",
+  "version": "20260724.9",
+  "url": "bundle-20260724.9.zip",
+  "hash": "34721baaa24696525ec9d5896478bab8d2fe034557049b464174b030db005e4f",
   "minNativeVersion": null,
-  "notes": "- backend: 更新管理后台",
+  "notes": "- feat: 优化头像编辑/用户名编辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-24T13:54:54Z"
+  "publishedAt": "2026-07-24T15:42:25Z"
 }

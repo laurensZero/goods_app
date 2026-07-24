@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.9",
+    "url": "bundle-20260724.9.zip",
+    "hash": "34721baaa24696525ec9d5896478bab8d2fe034557049b464174b030db005e4f",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化头像编辑/用户名编辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T15:42:25Z"
+  },
+  {
     "version": "20260724.8",
     "url": "bundle-20260724.8.zip",
     "hash": "121be8e58a6a743378ff661c013fea506c8b295146bf229f84e230fef9115d5c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加问卷和问题的图片支持，优化展示效果",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T13:30:07Z"
-  },
-  {
-    "version": "20260724.6",
-    "url": "bundle-20260724.6.zip",
-    "hash": "14d20f851e5d8f82406d40a7f7be3c74c2b66c0793f14ce92344799157683697",
-    "minNativeVersion": null,
-    "notes": "- refactor: 反馈页面改为独立页面\n\n- feat: 增加公告支持图片和自定义样式，优化公告内容展示\n\n- feat: 问卷系统",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-24T12:53:21Z"
   }
 ]
