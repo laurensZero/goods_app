@@ -1,9 +1,9 @@
 {
-  "version": "20260724.4",
-  "url": "bundle-20260724.4.zip",
-  "hash": "6ba938e7abde5ff6a51d4da619dd12f13ea59f8d50c81b6156a7b4a7c637f81a",
+  "version": "20260724.5",
+  "url": "bundle-20260724.5.zip",
+  "hash": "0ad1815f19b2c680474552c31a0b20edc78edf4ce959752e8ce09d02b6d02c4b",
   "minNativeVersion": null,
-  "notes": "- fix: 更新通知设置，禁用同步成功和同步进行中的通知",
+  "notes": "- feat: 反馈系统",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-24T02:37:11Z"
+  "publishedAt": "2026-07-24T06:15:30Z"
 }
