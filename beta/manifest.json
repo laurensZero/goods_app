@@ -1,9 +1,9 @@
 {
-  "version": "20260724.7",
-  "url": "bundle-20260724.7.zip",
-  "hash": "432c9b85d06e491fc4322780fd434bcb10c5b9807575423b67e606efc75201be",
+  "version": "20260724.8",
+  "url": "bundle-20260724.8.zip",
+  "hash": "121be8e58a6a743378ff661c013fea506c8b295146bf229f84e230fef9115d5c",
   "minNativeVersion": null,
-  "notes": "- feat: 增加问卷和问题的图片支持，优化展示效果",
+  "notes": "- backend: 更新管理后台",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-24T13:30:07Z"
+  "publishedAt": "2026-07-24T13:54:54Z"
 }
