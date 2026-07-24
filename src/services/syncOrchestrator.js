@@ -476,6 +476,9 @@ export function createSyncOrchestrator({
     if (stores.eventsStore.purgeSyncedDeleted) {
       await stores.eventsStore.purgeSyncedDeleted().catch(() => {})
     }
+    if (stores.goodsGroupStore.purgeSyncedDeleted) {
+      await stores.goodsGroupStore.purgeSyncedDeleted().catch(() => {})
+    }
 
     // Clean up any remaining base64 images in SQLite
     if (be.getImagePublicUrl) {
