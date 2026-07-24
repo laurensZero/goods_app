@@ -14,9 +14,9 @@ const DEFAULT_SETTINGS = {
 
   // 各类通知开关
   saleReminder: true,      // 开售提醒
-  syncSuccess: true,       // 同步成功
+  syncSuccess: false,      // 同步成功
   syncError: true,         // 同步失败
-  syncing: true,           // 同步进行中
+  syncing: false,          // 同步进行中
   updateAvailable: true,   // 更新可用
 
   // 通知显示设置
