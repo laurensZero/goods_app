@@ -776,10 +776,12 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .share-field-value.share-code {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   color: var(--app-text, #141416);
+  text-align: center;
+  padding: 14px 12px;
 }
 
 .share-copy-btn {

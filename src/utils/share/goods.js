@@ -37,7 +37,7 @@ const EXCLUDED_KEYS = new Set([
  * Generate a short random share ID.
  */
 export function generateShareId() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let id = ''
   for (let i = 0; i < 6; i++) {
     id += chars[Math.floor(Math.random() * chars.length)]
