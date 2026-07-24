@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.3",
+    "url": "bundle-20260724.3.zip",
+    "hash": "8d2e2c1c4b2f46718ae48d6b2561ac534b08a2e630ba3caf5d6d62d74488fb27",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 announcements 表及相关权限策略，支持应用内公告功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T02:25:55Z"
+  },
+  {
     "version": "20260724.2",
     "url": "bundle-20260724.2.zip",
     "hash": "254942c059cd9b129efce7c8365950502bcc54e643f63a5c4749891326154770",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加对 goodsGroupStore 的同步删除支持",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T01:23:23Z"
-  },
-  {
-    "version": "20260723.12",
-    "url": "bundle-20260723.12.zip",
-    "hash": "39bd9cea60ee42ea217be54f6915582554c959a0de1637ae733969474b432e3b",
-    "minNativeVersion": null,
-    "notes": "- feat: 软删除以确保删除数据的同步",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-23T13:52:32Z"
   }
 ]
