@@ -22,7 +22,10 @@
                   </svg>
                 </span>
                 <span class="settings-nav__copy">
-                  <span class="settings-nav__title">{{ entry.title }}</span>
+                  <span class="settings-nav__title">
+                    {{ entry.title }}
+                    <span v-if="entry.badge" class="settings-badge">{{ entry.badge }}</span>
+                  </span>
                   <span class="settings-nav__meta">{{ entry.meta }}</span>
                 </span>
               </button>
@@ -90,8 +93,8 @@
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications'].includes(activeManageEntry.key),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications'].includes(activeManageEntry.key),
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback'].includes(activeManageEntry.key),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback'].includes(activeManageEntry.key),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage', 'notifications'].includes(activeManageEntry.key)
               }
             ]"
@@ -131,7 +134,10 @@
               </span>
               <span class="mobile-entry__copy">
                 <span class="mobile-entry__kicker">{{ entry.kicker }}</span>
-                <span class="mobile-entry__title">{{ entry.title }}</span>
+                <span class="mobile-entry__title">
+                  {{ entry.title }}
+                  <span v-if="entry.badge" class="settings-badge">{{ entry.badge }}</span>
+                </span>
                 <span class="mobile-entry__desc">{{ entry.meta }}</span>
               </span>
               <svg class="mobile-entry__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -225,6 +231,7 @@ const AboutView = defineAsyncComponent(() => import('@/views/AboutView.vue'))
 const ShareManageView = defineAsyncComponent(() => import('@/views/ShareManageView.vue'))
 const LanguageView = defineAsyncComponent(() => import('@/views/LanguageView.vue'))
 const NotifySettingsView = defineAsyncComponent(() => import('@/views/NotifySettingsView.vue'))
+const FeedbackView = defineAsyncComponent(() => import('@/views/FeedbackView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
@@ -265,7 +272,7 @@ const manageComponentMap = {
   categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
-  notifications: NotifySettingsView
+  notifications: NotifySettingsView, feedback: FeedbackView
 }
 
 const activeManageComponent = computed(() => manageComponentMap[activeManageEntry.value?.key] || null)
@@ -508,6 +515,7 @@ onBeforeRouteLeave(() => {
 .share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
 .notify-icon { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
+.feedback-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 
 .settings-nav__copy,
 .mobile-entry__copy {
@@ -529,6 +537,23 @@ onBeforeRouteLeave(() => {
 .mobile-entry__title {
   font-size: 16px;
   font-weight: 600;
+}
+
+.settings-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .settings-nav__meta,

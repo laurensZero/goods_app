@@ -68,7 +68,7 @@
   "about.submitFeedbackDesc": "点击直接跳转 GitHub Issues 页面提交反馈。",
   "about.feedbackDialogTitle": "提交反馈",
   "about.feedbackInApp": "应用内反馈",
-  "about.feedbackInAppDesc": "直接在应用内提交，无需 GitHub 账号。",
+  "about.feedbackInAppDesc": "提交问题或建议，我们会尽快处理。",
   "about.feedbackGithubDesc": "在 GitHub 上提交反馈，适合技术问题。",
   "about.feedbackTokenRequired": "需要一个对仓库 laurensZero/goods_app 具有 Issues: write 权限的 token。",
   "about.feedbackWithAccount": "将使用当前登录的 GitHub 账号提交反馈。{info}",

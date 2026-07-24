@@ -196,6 +196,22 @@ export function useManageEntries() {
       stats: []
     },
     {
+      key: 'feedback', group: 'app', title: t('about.feedback'), kicker: 'Feedback',
+      meta: t('about.feedbackInAppDesc'),
+      detail: t('about.feedbackInAppDesc'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'feedback-icon',
+      iconPaths: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+      path: '/manage/feedback',
+      stats: [],
+      get badge() {
+        const count = parseInt(localStorage.getItem('goods_feedback_unread') || '0', 10)
+        return count > 0 ? count : 0
+      }
+    },
+    {
       key: 'about', group: 'app', title: t('manage.about'), kicker: t('manage.aboutKicker'),
       meta: t('manage.aboutMeta'),
       detail: t('manage.aboutDetail'),
