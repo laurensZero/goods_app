@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.2",
+    "url": "bundle-20260724.2.zip",
+    "hash": "254942c059cd9b129efce7c8365950502bcc54e643f63a5c4749891326154770",
+    "minNativeVersion": null,
+    "notes": "- style: 更新分享代码样式，调整字体大小和对齐方式；修改生成分享ID的字符集为大写字母",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T01:36:45Z"
+  },
+  {
     "version": "20260724.1",
     "url": "bundle-20260724.1.zip",
     "hash": "618878e3b4c49c07133d4e2ac99bfcf2c9d8bdf1a5c58dc3fb71831299ec1a3c",
@@ -16,14 +25,5 @@
     "notes": "- feat: 软删除以确保删除数据的同步",
     "updateLevel": "silent",
     "publishedAt": "2026-07-23T13:52:32Z"
-  },
-  {
-    "version": "20260723.11",
-    "url": "bundle-20260723.11.zip",
-    "hash": "d5ddd115bfb56e62cd838a34372d962cef51c9477a03dbe683a3d5158addbac1",
-    "minNativeVersion": null,
-    "notes": "- refactor: 重命名同步相关变量/函数名",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-23T12:16:43Z"
   }
 ]
