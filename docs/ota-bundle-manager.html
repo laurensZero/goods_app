@@ -547,6 +547,121 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* User Picker */
+    .user-picker { position: relative; }
+    .user-picker-trigger {
+      min-height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface-soft);
+      color: var(--app-text);
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .user-picker-trigger:hover { border-color: var(--app-primary); }
+    .user-picker-placeholder { color: var(--app-text-tertiary); }
+    .user-picker-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--app-primary) 12%, var(--app-surface-soft));
+      color: var(--app-primary);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .user-picker-tag-remove {
+      cursor: pointer;
+      opacity: 0.6;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .user-picker-tag-remove:hover { opacity: 1; }
+    .user-picker-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      margin-top: 4px;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 10px;
+      box-shadow: var(--app-shadow);
+      max-height: 260px;
+      overflow: hidden;
+      flex-direction: column;
+    }
+    .user-picker-dropdown.open { display: flex; }
+    .user-picker-search {
+      border: none;
+      border-bottom: 1px solid var(--app-border);
+      padding: 8px 10px;
+      font-size: 13px;
+      background: transparent;
+      color: var(--app-text);
+      outline: none;
+      flex-shrink: 0;
+    }
+    .user-picker-list {
+      overflow-y: auto;
+      flex: 1;
+      padding: 4px;
+    }
+    .user-picker-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--app-text);
+    }
+    .user-picker-item:hover { background: var(--app-surface-soft); }
+    .user-picker-item.selected { background: color-mix(in srgb, var(--app-primary) 10%, var(--app-surface-soft)); }
+    .user-picker-item-check {
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--app-border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+      color: var(--app-primary);
+    }
+    .user-picker-item.selected .user-picker-item-check {
+      border-color: var(--app-primary);
+      background: var(--app-primary);
+      color: #fff;
+    }
+    .user-picker-item-info { display: grid; gap: 1px; min-width: 0; flex: 1; }
+    .user-picker-item-name { font-weight: 500; word-break: break-all; }
+    .user-picker-item-uuid { font-size: 11px; color: var(--app-text-tertiary); word-break: break-all; }
+    .user-picker-empty { padding: 12px; text-align: center; font-size: 12px; color: var(--app-text-tertiary); }
+    .user-picker-refresh {
+      display: block;
+      width: 100%;
+      border: none;
+      border-top: 1px solid var(--app-border);
+      padding: 6px;
+      font-size: 12px;
+      color: var(--app-primary);
+      background: transparent;
+      cursor: pointer;
+      text-align: center;
+    }
+    .user-picker-refresh:hover { background: var(--app-surface-soft); }
   </style>
 </head>
 <body>
@@ -560,6 +675,9 @@
         <span class="chip" id="updatedAtChip">最近刷新：--</span>
         <button class="btn" id="refreshAllBtn" type="button">刷新全部</button>
       </div>
+      <p class="tip" style="margin-top:12px;padding:10px;border:1px solid rgba(206,124,18,0.3);border-radius:10px;background:rgba(206,124,18,0.06);color:#ce7c12;font-size:12px">
+        <strong>安全提示：</strong>Supabase Anon Key 可公开（RLS 保护）。Service Role Key 绕过 RLS，请勿提交到公开仓库。每次打开页面需在「认证信息」中输入 Service Role Key 并保存到 localStorage。
+      </p>
     </section>
 
     <aside class="quick-nav" aria-label="区域快速切换">
@@ -791,6 +909,40 @@
             </select>
           </label>
           <label class="field field--full">
+            <span class="field-label">定向用户（留空=所有用户可见）</span>
+            <div class="user-picker" id="announcementUserPicker">
+              <div class="user-picker-trigger" id="announcementUserPickerTrigger">
+                <span class="user-picker-placeholder">点击选择用户...</span>
+              </div>
+              <div class="user-picker-dropdown" id="announcementUserPickerDropdown">
+                <input class="user-picker-search" type="text" placeholder="搜索用户名或 UUID..." />
+                <div class="user-picker-list"></div>
+                <button class="user-picker-refresh" type="button">刷新用户列表</button>
+              </div>
+            </div>
+            <input id="announcementTargetUsers" type="hidden" value="" />
+          </label>
+          <label class="field field--full">
+            <span class="field-label">高级显示条件（逻辑：and/or）</span>
+            <div class="inline-combo" style="grid-template-columns:80px 1fr">
+              <select id="announcementConditionLogic" class="select">
+                <option value="and">AND（全部满足）</option>
+                <option value="or">OR（任一满足）</option>
+              </select>
+              <span style="font-size:12px;color:var(--app-text-tertiary);align-self:center">配合下方条件列表使用</span>
+            </div>
+          </label>
+          <div class="field field--full">
+            <span class="field-label">条件列表</span>
+            <div id="announcementConditionsContainer"></div>
+            <div class="publish-actions" style="margin-top:6px">
+              <button class="btn btn--sm" type="button" id="announcementAddConditionLocalBtn">+ 本地存储</button>
+              <button class="btn btn--sm" type="button" id="announcementAddConditionSyncBtn">+ 同步配置</button>
+              <button class="btn btn--sm" type="button" id="announcementAddConditionDbBtn">+ 数据库查询</button>
+              <button class="btn btn--sm" type="button" id="announcementAddConditionFlagBtn">+ 标记值</button>
+            </div>
+          </div>
+          <label class="field field--full">
             <span class="field-label">开关</span>
             <div class="checkbox-row">
               <input id="announcementEnabled" type="checkbox" checked />
@@ -857,6 +1009,40 @@
             <span class="field-label">结束时间（ISO，可留空）</span>
             <input id="surveyEndAt" class="input" type="text" placeholder="2026-08-31T23:59:59Z" />
           </label>
+          <label class="field field--full">
+            <span class="field-label">定向用户（留空=所有用户可见）</span>
+            <div class="user-picker" id="surveyUserPicker">
+              <div class="user-picker-trigger" id="surveyUserPickerTrigger">
+                <span class="user-picker-placeholder">点击选择用户...</span>
+              </div>
+              <div class="user-picker-dropdown" id="surveyUserPickerDropdown">
+                <input class="user-picker-search" type="text" placeholder="搜索用户名或 UUID..." />
+                <div class="user-picker-list"></div>
+                <button class="user-picker-refresh" type="button">刷新用户列表</button>
+              </div>
+            </div>
+            <input id="surveyTargetUsers" type="hidden" value="" />
+          </label>
+          <label class="field field--full">
+            <span class="field-label">高级显示条件（逻辑：and/or）</span>
+            <div class="inline-combo" style="grid-template-columns:80px 1fr">
+              <select id="surveyConditionLogic" class="select">
+                <option value="and">AND（全部满足）</option>
+                <option value="or">OR（任一满足）</option>
+              </select>
+              <span style="font-size:12px;color:var(--app-text-tertiary);align-self:center">配合下方条件列表使用</span>
+            </div>
+          </label>
+          <div class="field field--full">
+            <span class="field-label">条件列表</span>
+            <div id="surveyConditionsContainer"></div>
+            <div class="publish-actions" style="margin-top:6px">
+              <button class="btn btn--sm" type="button" id="surveyAddConditionLocalBtn">+ 本地存储</button>
+              <button class="btn btn--sm" type="button" id="surveyAddConditionSyncBtn">+ 同步配置</button>
+              <button class="btn btn--sm" type="button" id="surveyAddConditionDbBtn">+ 数据库查询</button>
+              <button class="btn btn--sm" type="button" id="surveyAddConditionFlagBtn">+ 标记值</button>
+            </div>
+          </div>
           <label class="field field--full">
             <span class="field-label">开关</span>
             <div class="checkbox-row">
@@ -1061,6 +1247,13 @@
     const announcementCtaText = document.getElementById('announcementCtaText')
     const announcementCtaUrl = document.getElementById('announcementCtaUrl')
     const announcementCtaAction = document.getElementById('announcementCtaAction')
+    const announcementTargetUsers = document.getElementById('announcementTargetUsers')
+    const announcementConditionLogic = document.getElementById('announcementConditionLogic')
+    const announcementConditionsContainer = document.getElementById('announcementConditionsContainer')
+    const announcementAddConditionLocalBtn = document.getElementById('announcementAddConditionLocalBtn')
+    const announcementAddConditionSyncBtn = document.getElementById('announcementAddConditionSyncBtn')
+    const announcementAddConditionDbBtn = document.getElementById('announcementAddConditionDbBtn')
+    const announcementAddConditionFlagBtn = document.getElementById('announcementAddConditionFlagBtn')
     const announcementEnabled = document.getElementById('announcementEnabled')
     const announcementEditorCard = document.getElementById('announcementEditorCard')
     const announcementEditorTitle = document.getElementById('announcementEditorTitle')
@@ -1103,6 +1296,13 @@
     const surveyStartAt = document.getElementById('surveyStartAt')
     const surveyEndAt = document.getElementById('surveyEndAt')
     const surveyEnabled = document.getElementById('surveyEnabled')
+    const surveyTargetUsers = document.getElementById('surveyTargetUsers')
+    const surveyConditionLogic = document.getElementById('surveyConditionLogic')
+    const surveyConditionsContainer = document.getElementById('surveyConditionsContainer')
+    const surveyAddConditionLocalBtn = document.getElementById('surveyAddConditionLocalBtn')
+    const surveyAddConditionSyncBtn = document.getElementById('surveyAddConditionSyncBtn')
+    const surveyAddConditionDbBtn = document.getElementById('surveyAddConditionDbBtn')
+    const surveyAddConditionFlagBtn = document.getElementById('surveyAddConditionFlagBtn')
     const surveyQuestionsContainer = document.getElementById('surveyQuestionsContainer')
     const surveyAddQuestionBtn = document.getElementById('surveyAddQuestionBtn')
     const surveySaveBtn = document.getElementById('surveySaveBtn')
@@ -1419,6 +1619,12 @@
         announcementCtaUrl.value = cta.url || ''
         announcementCtaAction.value = cta.action || 'dismiss'
         announcementEnabled.checked = announcement.enabled !== false
+        // target_users
+        const targetUsers = Array.isArray(announcement.target_users) ? announcement.target_users : []
+        announcementUserPicker.setSelected(targetUsers)
+        // conditions
+        announcementConditionLogic.value = showRule.logic || 'and'
+        announcementConditions = Array.isArray(showRule.conditions) ? showRule.conditions.map(c => ({ ...c })) : []
       } else {
         announcementId.value = ''
         announcementPriority.value = 100
@@ -1438,9 +1644,13 @@
         announcementCtaUrl.value = ''
         announcementCtaAction.value = 'open_url'
         announcementEnabled.checked = true
+        announcementUserPicker.setSelected([])
+        announcementConditionLogic.value = 'and'
+        announcementConditions = []
       }
       syncVersionFields('app')
       syncVersionFields('bundle')
+      renderConditions(announcementConditionsContainer, announcementConditions, 'announcement')
       announcementId.disabled = !!announcement
       announcementEditorStatus.textContent = '等待操作'
       announcementEditorStatus.className = 'publish-status'
@@ -1453,6 +1663,7 @@
     }
 
     function buildAnnouncementRowFromForm() {
+      syncConditionsFromDOM()
       const id = String(announcementId.value || '').trim()
       const title = String(announcementTitle.value || '').trim()
       const message = String(announcementMessage.value || '').trim()
@@ -1464,12 +1675,15 @@
       const appVersionRule = buildVersionRuleFromForm(announcementAppVersionMode, announcementAppVersionValueInput, 'AppVersion')
       const bundleVersionRule = buildVersionRuleFromForm(announcementBundleVersionMode, announcementBundleVersionValueInput, 'BundleVersion')
       const ctaUrl = normalizeHttpsUrl(announcementCtaUrl.value)
+      const targetUsers = String(announcementTargetUsers.value || '').split(',').map(s => s.trim()).filter(Boolean)
 
       const showRule = {
         showMode: String(announcementShowMode.value || 'once').trim() || 'once',
         startAt: String(announcementStartAt.value || '').trim(),
         endAt: String(announcementEndAt.value || '').trim(),
-        channels: channels.length ? channels : ['stable', 'beta']
+        channels: channels.length ? channels : ['stable', 'beta'],
+        logic: String(announcementConditionLogic.value || 'and').trim(),
+        conditions: announcementConditions.filter(c => c && c.type)
       }
 
       if (appVersionRule) {
@@ -1493,6 +1707,7 @@
         message,
         image_url: String(announcementImageUrl.value || '').trim(),
         custom_css: String(announcementCustomCss.value || '').trim(),
+        target_users: targetUsers.length ? targetUsers : [],
         cta: { text: String(announcementCtaText.value || '').trim(), url: ctaUrl, action: String(announcementCtaAction.value || 'dismiss').trim() },
         show_rule: showRule
       }
@@ -1783,6 +1998,12 @@
         surveyStartAt.value = showRule.startAt || ''
         surveyEndAt.value = showRule.endAt || ''
         surveyEnabled.checked = survey.enabled !== false
+        // target_users
+        const targetUsers = Array.isArray(survey.target_users) ? survey.target_users : []
+        surveyUserPicker.setSelected(targetUsers)
+        // conditions
+        surveyConditionLogic.value = showRule.logic || 'and'
+        surveyConditions = Array.isArray(showRule.conditions) ? showRule.conditions.map(c => ({ ...c })) : []
         currentSurveyQuestions = (survey.questions || []).map(q => ({
           ...q,
           options: (q.options || []).map(o => ({ ...o })),
@@ -1799,9 +2020,13 @@
         surveyStartAt.value = ''
         surveyEndAt.value = ''
         surveyEnabled.checked = true
+        surveyUserPicker.setSelected([])
+        surveyConditionLogic.value = 'and'
+        surveyConditions = []
         currentSurveyQuestions = []
       }
       renderSurveyQuestions()
+      renderConditions(surveyConditionsContainer, surveyConditions, 'survey')
       surveyEditorStatus.textContent = '等待操作'
       surveyEditorStatus.className = 'publish-status'
       surveyEditorCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1815,12 +2040,14 @@
 
     function buildSurveyRowFromForm() {
       syncSurveyQuestionFromDOM()
+      syncConditionsFromDOM()
       const id = String(surveyIdInput.value || '').trim()
       const title = String(surveyTitleInput.value || '').trim()
       if (!id) throw new Error('问卷 ID 不能为空。')
       if (!title) throw new Error('问卷标题不能为空。')
 
       const channels = String(surveyChannels.value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+      const targetUsers = String(surveyTargetUsers.value || '').split(',').map(s => s.trim()).filter(Boolean)
       const questions = currentSurveyQuestions.map(q => ({
         id: q.id,
         type: q.type || 'text',
@@ -1848,11 +2075,14 @@
         image: String(surveyImageInput.value || '').trim(),
         questions,
         enabled: surveyEnabled.checked,
+        target_users: targetUsers.length ? targetUsers : [],
         show_rule: {
           showMode: String(surveyShowMode.value || 'once').trim(),
           startAt: String(surveyStartAt.value || '').trim(),
           endAt: String(surveyEndAt.value || '').trim(),
-          channels: channels.length ? channels : ['stable', 'beta']
+          channels: channels.length ? channels : ['stable', 'beta'],
+          logic: String(surveyConditionLogic.value || 'and').trim(),
+          conditions: surveyConditions.filter(c => c && c.type)
         }
       }
     }
@@ -1968,11 +2198,18 @@
 
     let currentSurveyResponses = []
 
+    let currentSurveyQuestionsForRender = []
+
     async function loadSurveyResponses(surveyId) {
       if (!surveyId) { setSurveyResponsesStatus('请先选择问卷。', 'error'); return }
       setSurveyResponsesStatus('正在加载回复...', 'default')
       surveyLoadResponsesBtn.disabled = true
       try {
+        // Load survey questions for rendering
+        const surveyData = await supabaseRequest('/rest/v1/surveys', { params: { select: 'questions', id: `eq.${surveyId}`, limit: 1 } })
+        const survey = Array.isArray(surveyData) ? surveyData[0] : null
+        currentSurveyQuestionsForRender = survey?.questions || []
+
         const data = await supabaseRequest('/rest/v1/survey_responses', { params: { select: '*', survey_id: `eq.${surveyId}`, order: 'submitted_at.desc', limit: 500 } })
         currentSurveyResponses = Array.isArray(data) ? data : []
         renderSurveyResponses(currentSurveyResponses)
@@ -1985,6 +2222,65 @@
       }
     }
 
+    function resolveAnswerDisplay(question, answer) {
+      if (!question || !answer) return '--'
+      const qType = question.type || 'text'
+      const value = answer.value
+
+      if (qType === 'single_choice') {
+        const opt = (question.options || []).find(o => o.id === value)
+        return escHtml(opt?.label || value || '--')
+      }
+      if (qType === 'multiple_choice') {
+        const vals = Array.isArray(value) ? value : []
+        return vals.map(v => {
+          const opt = (question.options || []).find(o => o.id === v)
+          return escHtml(opt?.label || v || '?')
+        }).join(', ') || '--'
+      }
+      if (qType === 'text') {
+        return escHtml(value || '(空)')
+      }
+      if (qType === 'rating') {
+        const max = question.maxRating || 5
+        const num = Number(value) || 0
+        const stars = []
+        for (let i = 1; i <= max; i++) {
+          stars.push(`<span style="color:${i <= num ? '#ce7c12' : 'var(--app-text-tertiary)'};font-size:18px">${i <= num ? '&#9733;' : '&#9734;'}</span>`)
+        }
+        const labels = question.labels || {}
+        const label = labels[String(num)] || ''
+        return `<div style="display:flex;align-items:center;gap:4px">${stars.join('')} <span style="font-size:13px;font-weight:600;margin-left:4px">${num}</span><span style="font-size:12px;color:var(--app-text-tertiary)">/${max}</span>${label ? `<span style="font-size:12px;color:var(--app-text-secondary);margin-left:6px">${escHtml(label)}</span>` : ''}</div>`
+      }
+      if (qType === 'matrix') {
+        const rows = question.rows || []
+        const cols = question.columns || []
+        const matrixType = question.matrixType || 'single_choice'
+        const answerMap = (value && typeof value === 'object' && !Array.isArray(value)) ? value : {}
+        const rowsHtml = rows.map(r => {
+          const rowId = r.id
+          const rowLabel = r.label || rowId
+          const colId = answerMap[rowId]
+          if (!colId) {
+            return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;opacity:0.4"><span style="font-size:12px;color:var(--app-text-secondary);min-width:80px">${escHtml(rowLabel)}</span><span style="font-size:12px;color:var(--app-text-tertiary)">未回答</span></div>`
+          }
+          const col = cols.find(c => c.id === colId)
+          const colLabel = col?.label || colId
+          if (matrixType === 'rating') {
+            const colIdx = cols.findIndex(c => c.id === colId)
+            const num = colIdx >= 0 ? colIdx + 1 : 0
+            const max = cols.length || 5
+            const starArr = []
+            for (let i = 1; i <= max; i++) starArr.push(`<span style="color:${i <= num ? '#ce7c12' : 'var(--app-text-tertiary)'};font-size:13px">${i <= num ? '&#9733;' : '&#9734;'}</span>`)
+            return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0"><span style="font-size:12px;color:var(--app-text-secondary);min-width:80px">${escHtml(rowLabel)}</span><span>${starArr.join('')}</span></div>`
+          }
+          return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0"><span style="font-size:12px;color:var(--app-text-secondary);min-width:80px">${escHtml(rowLabel)}</span><span style="font-size:13px;font-weight:500">${escHtml(colLabel)}</span></div>`
+        })
+        return `<div style="display:grid;gap:2px">${rowsHtml.join('')}</div>`
+      }
+      return escHtml(JSON.stringify(value))
+    }
+
     function renderSurveyResponses(responses) {
       if (!responses.length) {
         surveyResponsesContainer.innerHTML = '<div class="history-item">暂无回复</div>'
@@ -1993,19 +2289,55 @@
       const frag = document.createDocumentFragment()
       responses.forEach(r => {
         const div = document.createElement('div')
-        div.className = 'history-item'
-        div.style.alignItems = 'flex-start'
+        div.className = 'list-item'
+        div.style.flexDirection = 'column'
+        div.style.alignItems = 'stretch'
         const answerCount = Array.isArray(r.answers) ? r.answers.length : 0
-        div.innerHTML = `
-          <div class="history-main" style="flex:1">
-            <span class="history-time">设备: ${escHtml(r.device_id || '--').substring(0, 16)}... · 回答: ${answerCount} 题 · ${formatTime(r.submitted_at)}</span>
+
+        // Header
+        const header = document.createElement('div')
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px'
+        header.innerHTML = `
+          <div>
+            <span style="font-size:12px;color:var(--app-text-secondary)">设备: ${escHtml(r.device_id || '--').substring(0, 16)}...</span>
+            <span style="font-size:12px;color:var(--app-text-tertiary);margin-left:8px">${formatTime(r.submitted_at)}</span>
           </div>
-          <button class="btn" type="button" data-action="expand" style="font-size:11px">展开</button>`
-        const detail = document.createElement('pre')
-        detail.style.cssText = 'display:none;margin-top:8px;white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--app-text-secondary);background:var(--app-surface);padding:8px;border-radius:8px;max-height:300px;overflow:auto'
-        detail.textContent = JSON.stringify(r.answers || [], null, 2)
-        div.querySelector('[data-action="expand"]').addEventListener('click', () => {
-          detail.style.display = detail.style.display === 'none' ? '' : 'none'
+          <button class="btn btn--sm" type="button" data-action="expand">展开</button>`
+        div.appendChild(header)
+
+        // Detail (hidden by default)
+        const detail = document.createElement('div')
+        detail.style.cssText = 'display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--app-border)'
+
+        const answers = Array.isArray(r.answers) ? r.answers : []
+        answers.forEach(ans => {
+          const q = currentSurveyQuestionsForRender.find(qq => qq.id === ans.questionId)
+          const qTitle = q?.title || ans.questionId || '?'
+          const qType = q?.type || 'text'
+          const typeLabel = { single_choice: '单选', multiple_choice: '多选', text: '文本', rating: '评分', matrix: '矩阵' }[qType] || qType
+          const qImage = q?.image || ''
+
+          const row = document.createElement('div')
+          row.style.cssText = 'margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--app-border)'
+          const imgHtml = qImage ? `<img src="${escAttr(qImage)}" style="max-width:200px;max-height:120px;border-radius:6px;margin-bottom:4px;display:block" />` : ''
+          row.innerHTML = `
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="font-size:13px;font-weight:600">${escHtml(qTitle)}</span>
+              <span style="font-size:10px;color:var(--app-text-tertiary);padding:1px 5px;border-radius:4px;background:var(--app-surface-soft)">${typeLabel}</span>
+            </div>
+            ${imgHtml}
+            <div style="font-size:13px;color:var(--app-text);padding-left:2px">${resolveAnswerDisplay(q, ans)}</div>`
+          detail.appendChild(row)
+        })
+
+        if (!answers.length) {
+          detail.innerHTML = '<div style="font-size:12px;color:var(--app-text-tertiary)">无回答数据</div>'
+        }
+
+        header.querySelector('[data-action="expand"]').addEventListener('click', () => {
+          const visible = detail.style.display !== 'none'
+          detail.style.display = visible ? 'none' : ''
+          header.querySelector('[data-action="expand"]').textContent = visible ? '展开' : '收起'
         })
         div.appendChild(detail)
         frag.appendChild(div)
@@ -2197,6 +2529,286 @@
     function escAttr(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
     }
+
+    // ── Conditions Editor ──
+
+    let announcementConditions = []
+    let surveyConditions = []
+
+    function renderConditions(container, conditions, prefix) {
+      const frag = document.createDocumentFragment()
+      conditions.forEach((c, i) => {
+        const card = document.createElement('div')
+        card.className = 'question-card'
+        card.style.marginBottom = '6px'
+        let fieldsHtml = ''
+
+        if (c.type === 'local') {
+          fieldsHtml = `
+            <input class="input" type="text" value="${escAttr(c.key || '')}" data-prefix="${prefix}" data-ci="${i}" data-field="key" placeholder="localStorage key" style="min-height:30px;font-size:12px" />
+            <div class="checkbox-row" style="min-height:28px">
+              <input type="checkbox" data-prefix="${prefix}" data-ci="${i}" data-field="exists-true" ${c.exists === true ? 'checked' : ''} /> <label style="font-size:11px">exists=true</label>
+              <input type="checkbox" data-prefix="${prefix}" data-ci="${i}" data-field="exists-false" ${c.exists === false ? 'checked' : ''} /> <label style="font-size:11px">exists=false</label>
+            </div>
+            <input class="input" type="text" value="${escAttr(c.equals || '')}" data-prefix="${prefix}" data-ci="${i}" data-field="equals" placeholder="equals（可选）" style="min-height:30px;font-size:12px" />`
+        } else if (c.type === 'sync_configured') {
+          fieldsHtml = '<span style="font-size:12px;color:var(--app-text-tertiary)">检查 Supabase 同步是否已配置（无需参数）</span>'
+        } else if (c.type === 'db') {
+          fieldsHtml = `
+            <div style="display:flex;gap:6px">
+              <input class="input" type="text" value="${escAttr(c.table || '')}" data-prefix="${prefix}" data-ci="${i}" data-field="table" placeholder="表名" style="min-height:30px;font-size:12px;flex:1" />
+              <select class="select" data-prefix="${prefix}" data-ci="${i}" data-field="op" style="min-height:30px;font-size:12px;width:110px">
+                <option value="exists" ${c.op === 'exists' ? 'selected' : ''}>exists</option>
+                <option value="empty" ${c.op === 'empty' ? 'selected' : ''}>empty</option>
+                <option value="count>=" ${c.op === 'count>=' ? 'selected' : ''}>count>=</option>
+                <option value="count>" ${c.op === 'count>' ? 'selected' : ''}>count></option>
+                <option value="count=" ${c.op === 'count=' ? 'selected' : ''}>count=</option>
+                <option value="count<" ${c.op === 'count<' ? 'selected' : ''}>count<</option>
+                <option value="count<=" ${c.op === 'count<=' ? 'selected' : ''}>count<=</option>
+              </select>
+              <input class="input" type="number" value="${c.value || 0}" data-prefix="${prefix}" data-ci="${i}" data-field="value" placeholder="值" style="min-height:30px;font-size:12px;width:70px" />
+            </div>`
+        } else if (c.type === 'flag') {
+          fieldsHtml = `
+            <div style="display:flex;gap:6px">
+              <input class="input" type="text" value="${escAttr(c.key || '')}" data-prefix="${prefix}" data-ci="${i}" data-field="key" placeholder="key" style="min-height:30px;font-size:12px;flex:1" />
+              <input class="input" type="text" value="${escAttr(c.value || '')}" data-prefix="${prefix}" data-ci="${i}" data-field="value" placeholder="value" style="min-height:30px;font-size:12px;flex:1" />
+            </div>`
+        }
+
+        const typeLabels = { local: '本地存储', sync_configured: '同步配置', db: '数据库查询', flag: '标记值' }
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span class="question-card-label">${typeLabels[c.type] || c.type} #${i + 1}</span>
+            <button class="btn btn--sm" type="button" data-prefix="${prefix}" data-ci="${i}" data-action="remove-condition">删除</button>
+          </div>
+          ${fieldsHtml}`
+        frag.appendChild(card)
+      })
+      container.innerHTML = ''
+      container.appendChild(frag)
+
+      container.querySelectorAll('[data-action="remove-condition"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ci = Number(btn.dataset.ci)
+          const conds = prefix === 'announcement' ? announcementConditions : surveyConditions
+          conds.splice(ci, 1)
+          renderConditions(container, conds, prefix)
+        })
+      })
+      container.querySelectorAll('[data-field]').forEach(el => {
+        el.addEventListener('change', syncConditionsFromDOM)
+        el.addEventListener('input', syncConditionsFromDOM)
+      })
+    }
+
+    function syncConditionsFromDOM() {
+      ;['announcement', 'survey'].forEach(prefix => {
+        const container = prefix === 'announcement' ? announcementConditionsContainer : surveyConditionsContainer
+        const conds = prefix === 'announcement' ? announcementConditions : surveyConditions
+        container.querySelectorAll('[data-field]').forEach(el => {
+          const ci = Number(el.dataset.ci)
+          if (!conds[ci]) return
+          const c = conds[ci]
+          const field = el.dataset.field
+          if (field === 'key') c.key = el.value
+          else if (field === 'equals') c.equals = el.value
+          else if (field === 'table') c.table = el.value
+          else if (field === 'op') c.op = el.value
+          else if (field === 'value') c.value = el.type === 'number' ? Number(el.value) : el.value
+          else if (field === 'exists-true') { if (el.checked) { c.exists = true; delete c.equals } }
+          else if (field === 'exists-false') { if (el.checked) { c.exists = false; delete c.equals } }
+        })
+      })
+    }
+
+    function addCondition(container, conds, prefix, type) {
+      const c = { type }
+      if (type === 'local') { c.key = ''; c.exists = true }
+      else if (type === 'sync_configured') { /* no params */ }
+      else if (type === 'db') { c.table = ''; c.op = 'count>='; c.value = 0 }
+      else if (type === 'flag') { c.key = ''; c.value = '' }
+      conds.push(c)
+      renderConditions(container, conds, prefix)
+    }
+
+    // ── User Picker ──
+
+    let cachedUsers = []
+    let usersFetchPromise = null
+
+    async function fetchUsersList() {
+      if (cachedUsers.length) return cachedUsers
+      if (usersFetchPromise) return usersFetchPromise
+      const config = getSupabaseConfig()
+      const serviceKey = config.serviceKey || config.key
+      usersFetchPromise = (async () => {
+        try {
+          const res = await fetch(`${config.url}/auth/v1/admin/users?page=1&per_page=200`, {
+            headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+          })
+          if (!res.ok) {
+            console.error('[user-picker] fetch users failed:', res.status, await res.text().catch(() => ''))
+            return []
+          }
+          const data = await res.json()
+          cachedUsers = (data.users || []).map(u => ({
+            id: u.id,
+            email: u.email || '',
+            phone: u.phone || '',
+            label: u.user_metadata?.name || u.user_metadata?.full_name || u.email || u.phone || u.id.substring(0, 8),
+            lastSignIn: u.last_sign_in_at || ''
+          }))
+          return cachedUsers
+        } catch (e) {
+          console.error('[user-picker] fetch users error:', e)
+          return []
+        } finally {
+          usersFetchPromise = null
+        }
+      })()
+      return usersFetchPromise
+    }
+
+    function createUserPicker(containerId, triggerId, dropdownId, hiddenInputId) {
+      const container = document.getElementById(containerId)
+      const trigger = document.getElementById(triggerId)
+      const dropdown = document.getElementById(dropdownId)
+      const hiddenInput = document.getElementById(hiddenInputId)
+      const searchInput = dropdown.querySelector('.user-picker-search')
+      const listEl = dropdown.querySelector('.user-picker-list')
+      let selectedIds = []
+      let isOpen = false
+
+      function getSelected() {
+        return [...selectedIds]
+      }
+
+      function setSelected(ids) {
+        selectedIds = Array.isArray(ids) ? [...ids] : []
+        renderTags()
+        hiddenInput.value = selectedIds.join(', ')
+      }
+
+      function renderTags() {
+        const tags = trigger.querySelectorAll('.user-picker-tag')
+        tags.forEach(t => t.remove())
+        const placeholder = trigger.querySelector('.user-picker-placeholder')
+        if (!selectedIds.length) {
+          placeholder.style.display = ''
+          placeholder.textContent = '点击选择用户...'
+          return
+        }
+        placeholder.style.display = 'none'
+        selectedIds.forEach(id => {
+          const user = cachedUsers.find(u => u.id === id)
+          const tag = document.createElement('span')
+          tag.className = 'user-picker-tag'
+          tag.innerHTML = `${escHtml(user?.label || id.substring(0, 8))} <span class="user-picker-tag-remove" data-uid="${id}">&times;</span>`
+          trigger.appendChild(tag)
+        })
+        trigger.querySelectorAll('.user-picker-tag-remove').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation()
+            selectedIds = selectedIds.filter(x => x !== btn.dataset.uid)
+            renderTags()
+            hiddenInput.value = selectedIds.join(', ')
+            renderList()
+          })
+        })
+      }
+
+      function renderList(filter = '') {
+        const lowerFilter = filter.toLowerCase()
+        const filtered = cachedUsers.filter(u =>
+          !lowerFilter ||
+          u.label.toLowerCase().includes(lowerFilter) ||
+          u.email.toLowerCase().includes(lowerFilter) ||
+          u.id.toLowerCase().includes(lowerFilter)
+        )
+        if (!filtered.length) {
+          listEl.innerHTML = '<div class="user-picker-empty">无匹配用户（需 Service Role Key 才能加载）</div>'
+          return
+        }
+        const frag = document.createDocumentFragment()
+        filtered.forEach(u => {
+          const isSelected = selectedIds.includes(u.id)
+          const item = document.createElement('div')
+          item.className = 'user-picker-item' + (isSelected ? ' selected' : '')
+          item.innerHTML = `
+            <div class="user-picker-item-check">${isSelected ? '&#10003;' : ''}</div>
+            <div class="user-picker-item-info">
+              <div class="user-picker-item-name">${escHtml(u.label)}</div>
+              <div class="user-picker-item-uuid">${escHtml(u.id)}</div>
+            </div>`
+          item.addEventListener('click', () => {
+            if (selectedIds.includes(u.id)) {
+              selectedIds = selectedIds.filter(x => x !== u.id)
+            } else {
+              selectedIds.push(u.id)
+            }
+            renderTags()
+            hiddenInput.value = selectedIds.join(', ')
+            renderList(searchInput.value)
+          })
+          frag.appendChild(item)
+        })
+        listEl.innerHTML = ''
+        listEl.appendChild(frag)
+      }
+
+      function toggleDropdown() {
+        isOpen = !isOpen
+        dropdown.classList.toggle('open', isOpen)
+        if (isOpen) {
+          searchInput.value = ''
+          renderList()
+          searchInput.focus()
+        }
+      }
+
+      trigger.addEventListener('click', async (e) => {
+        if (e.target.closest('.user-picker-tag-remove')) return
+        if (!isOpen) {
+          if (!cachedUsers.length) {
+            listEl.innerHTML = '<div class="user-picker-empty">正在加载用户列表...</div>'
+            toggleDropdown()
+            await fetchUsersList()
+            renderList()
+            return
+          }
+        }
+        toggleDropdown()
+      })
+
+      searchInput.addEventListener('input', () => renderList(searchInput.value))
+
+      const refreshBtn = dropdown.querySelector('.user-picker-refresh')
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', async (e) => {
+          e.stopPropagation()
+          cachedUsers = []
+          usersFetchPromise = null
+          listEl.innerHTML = '<div class="user-picker-empty">正在加载用户列表...</div>'
+          await fetchUsersList()
+          renderList(searchInput.value)
+        })
+      }
+
+      document.addEventListener('click', (e) => {
+        if (!container.contains(e.target) && isOpen) {
+          isOpen = false
+          dropdown.classList.remove('open')
+        }
+      })
+
+      renderTags()
+
+      return { getSelected, setSelected }
+    }
+
+    const announcementUserPicker = createUserPicker('announcementUserPicker', 'announcementUserPickerTrigger', 'announcementUserPickerDropdown', 'announcementTargetUsers')
+    const surveyUserPicker = createUserPicker('surveyUserPicker', 'surveyUserPickerTrigger', 'surveyUserPickerDropdown', 'surveyTargetUsers')
 
     function compareAppVersionDesc(left, right) {
       const normalize = (value) => String(value || '').trim().replace(/^v/i, '')
@@ -2907,6 +3519,10 @@
     announcementCancelBtn.addEventListener('click', closeAnnouncementEditor)
     announcementAppVersionMode.addEventListener('change', () => syncVersionFields('app'))
     announcementBundleVersionMode.addEventListener('change', () => syncVersionFields('bundle'))
+    announcementAddConditionLocalBtn.addEventListener('click', () => addCondition(announcementConditionsContainer, announcementConditions, 'announcement', 'local'))
+    announcementAddConditionSyncBtn.addEventListener('click', () => addCondition(announcementConditionsContainer, announcementConditions, 'announcement', 'sync_configured'))
+    announcementAddConditionDbBtn.addEventListener('click', () => addCondition(announcementConditionsContainer, announcementConditions, 'announcement', 'db'))
+    announcementAddConditionFlagBtn.addEventListener('click', () => addCondition(announcementConditionsContainer, announcementConditions, 'announcement', 'flag'))
     syncVersionFields('app')
     syncVersionFields('bundle')
     // Survey admin
@@ -2915,6 +3531,10 @@
     surveySaveBtn.addEventListener('click', saveSurvey)
     surveyCancelBtn.addEventListener('click', closeSurveyEditor)
     surveyAddQuestionBtn.addEventListener('click', addSurveyQuestion)
+    surveyAddConditionLocalBtn.addEventListener('click', () => addCondition(surveyConditionsContainer, surveyConditions, 'survey', 'local'))
+    surveyAddConditionSyncBtn.addEventListener('click', () => addCondition(surveyConditionsContainer, surveyConditions, 'survey', 'sync_configured'))
+    surveyAddConditionDbBtn.addEventListener('click', () => addCondition(surveyConditionsContainer, surveyConditions, 'survey', 'db'))
+    surveyAddConditionFlagBtn.addEventListener('click', () => addCondition(surveyConditionsContainer, surveyConditions, 'survey', 'flag'))
     surveyResponsesBtn.addEventListener('click', () => { surveyResponsesCard.style.display = ''; surveyListCard.style.display = 'none' })
     surveyResponsesCloseBtn.addEventListener('click', () => { surveyResponsesCard.style.display = 'none'; surveyListCard.style.display = '' })
     surveyLoadResponsesBtn.addEventListener('click', () => loadSurveyResponses(surveyResponsesSelect.value))

@@ -93,7 +93,7 @@
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys'].includes(activeManageEntry.key),
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares'].includes(activeManageEntry.key),
                 'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys'].includes(activeManageEntry.key),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageEntry.key)
               }
