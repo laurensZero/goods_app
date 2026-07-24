@@ -1568,20 +1568,24 @@
 
     // ── Supabase REST helpers ──
 
-    async function supabaseRequest(path, { method = 'GET', body = null, params = {}, useServiceKey = true } = {}) {
+    async function supabaseRequest(path, { method = 'GET', body = null, params = {}, useServiceKey = true, returnCount = false } = {}) {
       const config = getSupabaseConfig()
-      // Use service_role key for admin operations to bypass RLS
       const authKey = (useServiceKey && config.serviceKey) ? config.serviceKey : config.key
       const url = new URL(path, config.url)
       Object.entries(params).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v)
       })
-      const headers = { apikey: authKey, Authorization: `Bearer ${authKey}`, Prefer: 'return=representation' }
+      const headers = { apikey: authKey, Authorization: `Bearer ${authKey}`, Prefer: returnCount ? 'count=exact' : 'return=representation' }
       if (body !== null) headers['Content-Type'] = 'application/json'
       const res = await fetch(url.href, { method, headers, body: body ? JSON.stringify(body) : null })
       if (!res.ok) {
         const detail = await res.text().catch(() => '')
         throw new Error(`Supabase 请求失败（${res.status}）${detail ? '：' + detail.substring(0, 300) : ''}`)
+      }
+      if (returnCount) {
+        const contentRange = res.headers.get('Content-Range') || ''
+        const match = contentRange.match(/\/(\d+)$/)
+        return match ? Number(match[1]) : 0
       }
       const text = await res.text()
       if (!text) return null
@@ -2135,8 +2139,7 @@
         // Get response counts
         const countPromises = surveys.map(async s => {
           try {
-            const countData = await supabaseRequest('/rest/v1/survey_responses', { params: { select: 'id', survey_id: `eq.${s.id}`, head: 'true', Prefer: 'count=exact' } })
-            s._responseCount = countData?.length ?? 0
+            s._responseCount = await supabaseRequest('/rest/v1/survey_responses', { params: { select: 'id', survey_id: `eq.${s.id}` }, returnCount: true })
           } catch { s._responseCount = 0 }
         })
         await Promise.all(countPromises)
@@ -2454,31 +2457,47 @@
     }
 
     function renderFeedbackFollowups(followups, adminReply) {
-      const list = []
-      if (Array.isArray(followups)) {
-        followups.forEach(f => list.push(f))
-      }
-      if (adminReply && adminReply.trim()) {
-        list.push({ role: 'admin', content: adminReply, created_at: '' })
-      }
-      if (!list.length) {
+      if (!adminReply?.trim() && (!followups || !followups.length)) {
         feedbackFollowupsContainer.innerHTML = '<div class="history-item">暂无回复</div>'
         return
       }
       const frag = document.createDocumentFragment()
-      list.forEach(f => {
+
+      // 首次回复（admin_reply）显示在最上面
+      if (adminReply && adminReply.trim()) {
         const div = document.createElement('div')
         div.className = 'history-item'
         div.style.alignItems = 'flex-start'
-        const isAdmin = f.role === 'admin'
+        div.style.borderColor = 'rgba(60, 123, 255, 0.3)'
         div.innerHTML = `
           <div class="history-main" style="flex:1">
-            <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:${isAdmin ? '#3c7bff20' : '#22a16120'};color:${isAdmin ? '#3c7bff' : '#22a161'};margin-right:6px">${isAdmin ? '管理员' : '用户'}</span>
-            <span class="history-time">${formatTime(f.created_at)}</span>
-            <div style="margin-top:4px;white-space:pre-wrap;font-size:13px">${escHtml(f.content || '')}</div>
+            <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:#3c7bff20;color:#3c7bff;margin-right:6px">管理员</span>
+            <span style="font-size:11px;color:var(--app-text-tertiary)">首次回复</span>
+            <div style="margin-top:4px;white-space:pre-wrap;font-size:13px">${escHtml(adminReply)}</div>
           </div>`
         frag.appendChild(div)
-      })
+      }
+
+      // 后续追加回复（followups）
+      if (Array.isArray(followups)) {
+        followups.forEach(f => {
+          const div = document.createElement('div')
+          div.className = 'history-item'
+          div.style.alignItems = 'flex-start'
+          const isAdmin = f.role === 'admin'
+          const roleLabel = isAdmin ? '管理员' : '用户'
+          const roleColor = isAdmin ? '#3c7bff' : '#22a161'
+          const bgColor = isAdmin ? '#3c7bff20' : '#22a16120'
+          div.innerHTML = `
+            <div class="history-main" style="flex:1">
+              <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:${bgColor};color:${roleColor};margin-right:6px">${roleLabel}</span>
+              <span class="history-time">${formatTime(f.created_at)}</span>
+              <div style="margin-top:4px;white-space:pre-wrap;font-size:13px">${escHtml(f.content || '')}</div>
+            </div>`
+          frag.appendChild(div)
+        })
+      }
+
       feedbackFollowupsContainer.innerHTML = ''
       feedbackFollowupsContainer.appendChild(frag)
     }
