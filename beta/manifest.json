@@ -1,9 +1,9 @@
 {
-  "version": "20260724.3",
-  "url": "bundle-20260724.3.zip",
-  "hash": "8d2e2c1c4b2f46718ae48d6b2561ac534b08a2e630ba3caf5d6d62d74488fb27",
+  "version": "20260724.4",
+  "url": "bundle-20260724.4.zip",
+  "hash": "6ba938e7abde5ff6a51d4da619dd12f13ea59f8d50c81b6156a7b4a7c637f81a",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 announcements 表及相关权限策略，支持应用内公告功能",
+  "notes": "- fix: 更新通知设置，禁用同步成功和同步进行中的通知",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-24T02:25:55Z"
+  "publishedAt": "2026-07-24T02:37:11Z"
 }

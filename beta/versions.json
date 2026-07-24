@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.4",
+    "url": "bundle-20260724.4.zip",
+    "hash": "6ba938e7abde5ff6a51d4da619dd12f13ea59f8d50c81b6156a7b4a7c637f81a",
+    "minNativeVersion": null,
+    "notes": "- fix: 更新通知设置，禁用同步成功和同步进行中的通知",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T02:37:11Z"
+  },
+  {
     "version": "20260724.3",
     "url": "bundle-20260724.3.zip",
     "hash": "8d2e2c1c4b2f46718ae48d6b2561ac534b08a2e630ba3caf5d6d62d74488fb27",
@@ -16,14 +25,5 @@
     "notes": "- style: 更新分享代码样式，调整字体大小和对齐方式；修改生成分享ID的字符集为大写字母",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T01:36:45Z"
-  },
-  {
-    "version": "20260724.1",
-    "url": "bundle-20260724.1.zip",
-    "hash": "618878e3b4c49c07133d4e2ac99bfcf2c9d8bdf1a5c58dc3fb71831299ec1a3c",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加对 goodsGroupStore 的同步删除支持",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-24T01:23:23Z"
   }
 ]
