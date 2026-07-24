@@ -40,5 +40,7 @@
   "nav.tabMy": "My",
   "nav.notificationSettings": "Notification Settings",
   "nav.feedback": "Feedback",
-  "nav.feedbackDetail": "Feedback Detail"
+  "nav.feedbackDetail": "Feedback Detail",
+  "nav.surveys": "Surveys",
+  "nav.surveyFill": "Fill Survey"
 }

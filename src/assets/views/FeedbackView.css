@@ -8,9 +8,51 @@
   margin-top: var(--section-gap);
 }
 
-.hero-section {
+.hero-card {
+  position: relative;
   display: grid;
-  gap: 14px;
+  gap: 18px;
+  padding: 22px;
+  border-radius: var(--radius-large);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  overflow: hidden;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  inset: auto -70px -90px auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(90, 120, 250, 0.18) 0%, rgba(90, 120, 250, 0) 72%);
+  pointer-events: none;
+}
+
+.hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-card);
+  background: rgba(90, 120, 250, 0.12);
+  color: #5a78fa;
+}
+
+.hero-icon svg {
+  width: 32px;
+  height: 32px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-label,

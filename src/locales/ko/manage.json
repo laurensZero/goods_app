@@ -315,5 +315,9 @@
   "manage.sort.asc": "오름차순",
   "manage.sort.desc": "내림차순",
   "manage.favoriteAdd": "즐겨찾기에 추가",
-  "manage.favoriteRemove": "즐겨찾기에서 제거"
+  "manage.favoriteRemove": "즐겨찾기에서 제거",
+  "manage.surveys": "설문조사",
+  "manage.surveyMeta": "설문조사에 참여하여 앱 개선에 도움을 주세요",
+  "manage.surveyDesc": "설문조사에 답하여 여러분의 니즈를 더 잘 이해할 수 있도록 도와주세요",
+  "statAvailable": "사용 가능"
 }

@@ -25,6 +25,7 @@ import zhTrash from './zh-CN/trash.json'
 import zhMy from './zh-CN/my.json'
 import zhGoodsGroup from './zh-CN/goodsGroup.json'
 import zhNotify from './zh-CN/notify.json'
+import zhSurvey from './zh-CN/survey.json'
 
 import enCommon from './en/common.json'
 import enNav from './en/nav.json'
@@ -47,6 +48,7 @@ import enTrash from './en/trash.json'
 import enMy from './en/my.json'
 import enGoodsGroup from './en/goodsGroup.json'
 import enNotify from './en/notify.json'
+import enSurvey from './en/survey.json'
 
 import jaCommon from './ja/common.json'
 import jaNav from './ja/nav.json'
@@ -69,6 +71,7 @@ import jaTrash from './ja/trash.json'
 import jaMy from './ja/my.json'
 import jaGoodsGroup from './ja/goodsGroup.json'
 import jaNotify from './ja/notify.json'
+import jaSurvey from './ja/survey.json'
 
 import koCommon from './ko/common.json'
 import koNav from './ko/nav.json'
@@ -91,6 +94,7 @@ import koTrash from './ko/trash.json'
 import koMy from './ko/my.json'
 import koGoodsGroup from './ko/goodsGroup.json'
 import koNotify from './ko/notify.json'
+import koSurvey from './ko/survey.json'
 
 import zhTWCommon from './zh-TW/common.json'
 import zhTWNav from './zh-TW/nav.json'
@@ -113,6 +117,7 @@ import zhTWTrash from './zh-TW/trash.json'
 import zhTWMy from './zh-TW/my.json'
 import zhTWGoodsGroup from './zh-TW/goodsGroup.json'
 import zhTWNotify from './zh-TW/notify.json'
+import zhTWSurvey from './zh-TW/survey.json'
 
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
@@ -156,7 +161,8 @@ const zhCNMessages = {
   ...zhTrash,
   ...zhMy,
   ...zhGoodsGroup,
-  ...zhNotify
+  ...zhNotify,
+  survey: zhSurvey
 }
 
 const enMessages = {
@@ -180,7 +186,8 @@ const enMessages = {
   ...enTrash,
   ...enMy,
   ...enGoodsGroup,
-  ...enNotify
+  ...enNotify,
+  survey: enSurvey
 }
 
 const jaMessages = {
@@ -204,7 +211,8 @@ const jaMessages = {
   ...jaTrash,
   ...jaMy,
   ...jaGoodsGroup,
-  ...jaNotify
+  ...jaNotify,
+  survey: jaSurvey
 }
 
 const koMessages = {
@@ -228,7 +236,8 @@ const koMessages = {
   ...koTrash,
   ...koMy,
   ...koGoodsGroup,
-  ...koNotify
+  ...koNotify,
+  survey: koSurvey
 }
 
 const zhTWMessages = {
@@ -252,7 +261,8 @@ const zhTWMessages = {
   ...zhTWTrash,
   ...zhTWMy,
   ...zhTWGoodsGroup,
-  ...zhTWNotify
+  ...zhTWNotify,
+  survey: zhTWSurvey
 }
 
 const i18n = createI18n({

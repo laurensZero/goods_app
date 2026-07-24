@@ -40,5 +40,7 @@
   "nav.tabMy": "我的",
   "nav.notificationSettings": "通知設置",
   "nav.feedback": "反饋",
-  "nav.feedbackDetail": "反饋詳情"
+  "nav.feedbackDetail": "反饋詳情",
+  "nav.surveys": "問卷調查",
+  "nav.surveyFill": "填寫問卷"
 }

@@ -40,5 +40,7 @@
   "nav.tabMy": "マイ",
   "nav.notificationSettings": "通知設定",
   "nav.feedback": "フィードバック",
-  "nav.feedbackDetail": "フィードバック詳細"
+  "nav.feedbackDetail": "フィードバック詳細",
+  "nav.surveys": "アンケート",
+  "nav.surveyFill": "アンケートに回答"
 }

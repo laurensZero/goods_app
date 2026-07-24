@@ -66,6 +66,12 @@ export default [
     meta: { titleKey: 'nav.notificationSettings' }
   },
   {
+    path: '/manage/surveys',
+    name: 'manage-surveys',
+    component: () => import('@/views/SurveyListView.vue'),
+    meta: { titleKey: 'nav.surveys' }
+  },
+  {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/CharacterLeaderboardView.vue'),

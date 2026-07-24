@@ -315,5 +315,9 @@
   "manage.sort.asc": "昇順",
   "manage.sort.desc": "降順",
   "manage.favoriteAdd": "お気に入りに追加",
-  "manage.favoriteRemove": "お気に入りから削除"
+  "manage.favoriteRemove": "お気に入りから削除",
+  "manage.surveys": "アンケート",
+  "manage.surveyMeta": "アプリ改善のためのアンケートにご協力ください",
+  "manage.surveyDesc": "アンケートに答えて、あなたのニーズをよりよく理解しましょう",
+  "statAvailable": "利用可能"
 }

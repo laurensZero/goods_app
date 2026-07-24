@@ -5,11 +5,18 @@
     <main ref="pageBodyRef" class="page-body">
       <!-- Hero -->
       <section class="hero-section">
-        <div class="hero-copy">
-          <p class="hero-label">Feedback</p>
-          <h1 class="hero-title">{{ t('about.feedback') }}</h1>
-          <p class="hero-desc">{{ t('about.feedbackInAppDesc') }}</p>
-        </div>
+        <article class="hero-card">
+          <div class="hero-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <div class="hero-copy">
+            <p class="hero-label">Feedback</p>
+            <h1 class="hero-title">{{ t('about.feedback') }}</h1>
+            <p class="hero-desc">{{ t('about.feedbackInAppDesc') }}</p>
+          </div>
+        </article>
       </section>
 
       <!-- Submit actions -->

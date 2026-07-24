@@ -315,5 +315,9 @@
   "manage.sort.asc": "昇冪",
   "manage.sort.desc": "降冪",
   "manage.favoriteAdd": "加入收藏",
-  "manage.favoriteRemove": "取消收藏"
+  "manage.favoriteRemove": "取消收藏",
+  "manage.surveys": "問卷調查",
+  "manage.surveyMeta": "參與問卷，幫助我們改進應用",
+  "manage.surveyDesc": "填寫問卷來幫助我們更好地了解你的需求",
+  "statAvailable": "可用"
 }
