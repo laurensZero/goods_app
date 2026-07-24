@@ -24,6 +24,7 @@ import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
 import { handleAuthCallback } from './utils/supabase/auth'
+import './services/feedbackAttachmentService' // init error collector early
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',

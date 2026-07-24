@@ -38,5 +38,6 @@
   "nav.tabEvents": "イベント",
   "nav.tabRecharge": "チャージ",
   "nav.tabMy": "マイ",
-  "nav.notificationSettings": "通知設定"
+  "nav.notificationSettings": "通知設定",
+  "nav.feedbackDetail": "フィードバック詳細"
 }

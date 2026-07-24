@@ -38,5 +38,6 @@
   "nav.tabEvents": "이벤트",
   "nav.tabRecharge": "충전",
   "nav.tabMy": "마이",
-  "nav.notificationSettings": "알림 설정"
+  "nav.notificationSettings": "알림 설정",
+  "nav.feedbackDetail": "피드백 상세"
 }
