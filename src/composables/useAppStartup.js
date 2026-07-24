@@ -69,7 +69,7 @@ export function useAppStartup() {
     }
 
     // 公告检查
-    void announcementStore.checkAndDecide({ source: 'startup' }).catch(() => {
+    void announcementStore.checkAndDecide().catch(() => {
       // silent fail on startup announcement check
     })
     // Supabase 模式：应用启动时增量拉取

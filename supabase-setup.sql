@@ -148,6 +148,19 @@ CREATE TABLE IF NOT EXISTS goods_group_items (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- announcements 表（应用内公告，替代 Gist/GitHub Pages）
+CREATE TABLE IF NOT EXISTS announcements (
+  id            TEXT PRIMARY KEY,
+  enabled       BOOLEAN NOT NULL DEFAULT true,
+  priority      INTEGER NOT NULL DEFAULT 0,
+  title         TEXT NOT NULL DEFAULT '',
+  message       TEXT NOT NULL DEFAULT '',
+  cta           JSONB NOT NULL DEFAULT '{}',
+  show_rule     JSONB NOT NULL DEFAULT '{}',
+  target_users  UUID[] DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============================================================
 -- 2. 存量列补充（向前兼容）
 -- ============================================================
@@ -351,6 +364,7 @@ ALTER TABLE sync_manifest ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_presets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goods_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goods_group_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 
 -- 删除旧的宽松 policy（如果存在）
 DROP POLICY IF EXISTS "auth_only_select" ON goods;
@@ -417,6 +431,19 @@ CREATE POLICY "user_select_own" ON goods_group_items FOR SELECT USING (auth.uid(
 CREATE POLICY "user_insert_own" ON goods_group_items FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "user_update_own" ON goods_group_items FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "user_delete_own" ON goods_group_items FOR DELETE USING (auth.uid() = user_id);
+
+-- announcements: 公开读取（target_users 为空 = 所有人可见，有值 = 仅指定用户），service_role 写入
+CREATE POLICY "announcements_select" ON announcements FOR SELECT
+  USING (
+    enabled = true
+    AND (
+      cardinality(target_users) = 0
+      OR auth.uid() = ANY(target_users)
+    )
+  );
+CREATE POLICY "announcements_service_all" ON announcements FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- 表级权限：撤回 anon，仅给 authenticated
 REVOKE ALL ON public.goods FROM anon;

@@ -7,7 +7,6 @@
         <p class="dialog-desc">{{ activeAnnouncement?.message || '' }}</p>
 
         <div class="announcement-meta">
-          <span class="announcement-meta__item">{{ t('common.source') }}：{{ sourceLabel }}</span>
           <span v-if="updatedAtLabel" class="announcement-meta__item">{{ t('common.updatedAt', { date: updatedAtLabel }) }}</span>
         </div>
 
@@ -45,25 +44,23 @@ const showDialog = computed(() => announcementStore.dialogVisible && !!announcem
 const activeAnnouncement = computed(() => announcementStore.activeAnnouncement)
 const showPrimaryButton = computed(() => {
   const cta = activeAnnouncement.value?.cta || null
-  return String(cta?.action || '').trim().toLowerCase() === 'open_url' && !!String(cta?.url || '').trim()
+  const action = String(cta?.action || '').trim().toLowerCase()
+  return (action === 'open_url' || action === 'navigate') && !!String(cta?.url || '').trim()
 })
 const primaryButtonText = computed(() => {
   const text = String(activeAnnouncement.value?.cta?.text || '').trim()
   return text || t('common.viewDetail')
 })
-const sourceLabel = computed(() => {
-  if (announcementStore.resolvedSource === 'local') return t('common.localDev')
-  if (announcementStore.resolvedSource === 'gist') return 'Gist'
-  if (announcementStore.resolvedSource === 'github') return 'GitHub'
-  return t('common.unknown')
-})
 const updatedAtLabel = computed(() => {
-  const value = String(announcementStore.latestManifest?.updatedAt || '').trim()
+  const value = String(activeAnnouncement.value?.showRule?.startAt || '').trim()
   if (!value) return ''
 
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
+  const timestamp = typeof activeAnnouncement.value?.showRule?.startAt === 'number'
+    ? activeAnnouncement.value.showRule.startAt
+    : new Date(value).getTime()
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return ''
 
+  const date = new Date(timestamp)
   const pad = (part) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 })
