@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260724.6",
+    "url": "bundle-20260724.6.zip",
+    "hash": "14d20f851e5d8f82406d40a7f7be3c74c2b66c0793f14ce92344799157683697",
+    "minNativeVersion": null,
+    "notes": "- refactor: 反馈页面改为独立页面\n\n- feat: 增加公告支持图片和自定义样式，优化公告内容展示\n\n- feat: 问卷系统",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-24T12:53:21Z"
+  },
+  {
     "version": "20260724.5",
     "url": "bundle-20260724.5.zip",
     "hash": "0ad1815f19b2c680474552c31a0b20edc78edf4ce959752e8ce09d02b6d02c4b",
@@ -16,14 +25,5 @@
     "notes": "- fix: 更新通知设置，禁用同步成功和同步进行中的通知",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T02:37:11Z"
-  },
-  {
-    "version": "20260724.3",
-    "url": "bundle-20260724.3.zip",
-    "hash": "8d2e2c1c4b2f46718ae48d6b2561ac534b08a2e630ba3caf5d6d62d74488fb27",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 announcements 表及相关权限策略，支持应用内公告功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-24T02:25:55Z"
   }
 ]
