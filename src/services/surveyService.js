@@ -41,6 +41,7 @@ export function normalizeSurvey(row) {
     id,
     title: String(row.title || '').trim(),
     description: String(row.description || '').trim(),
+    image: String(row.image || '').trim(),
     questions: questions.map(normalizeQuestion).filter(Boolean),
     enabled: row.enabled !== false,
     showRule: {
@@ -74,6 +75,7 @@ function normalizeQuestion(q) {
     type: normalizeQuestionType(q.type),
     title: String(q.title || '').trim(),
     description: String(q.description || '').trim(),
+    image: String(q.image || '').trim(),
     required: q.required === true,
     options: Array.isArray(q.options) ? q.options.filter(o => o && o.id) : [],
     minSelect: Number(q.minSelect) || 0,
