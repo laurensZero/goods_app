@@ -134,6 +134,8 @@ function normalizeRow(row) {
     priority: Number.isFinite(Number(row.priority)) ? Number(row.priority) : 0,
     title: String(row.title || '').trim(),
     message: String(row.message || '').trim(),
+    imageUrl: normalizeUrl(row.image_url),
+    customCss: String(row.custom_css || '').trim(),
     cta: {
       text: String(cta.text || '').trim(),
       url: normalizeUrl(cta.url),
@@ -297,7 +299,7 @@ async function fetchAnnouncements() {
   const db = getSupabaseClient()
   const { data, error } = await db
     .from('announcements')
-    .select('id, enabled, priority, title, message, cta, show_rule')
+    .select('id, enabled, priority, title, message, cta, show_rule, image_url, custom_css')
     .eq('enabled', true)
     .order('priority', { ascending: false })
 
@@ -451,14 +453,7 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     const url = String(cta?.url || '').trim()
 
     if (action === 'open_url' && url) {
-      try {
-        const openedWindow = window.open(url, '_blank', 'noopener,noreferrer')
-        if (!openedWindow) {
-          window.location.href = url
-        }
-      } catch {
-        window.location.href = url
-      }
+      window.open(url, '_blank')
     } else if (action === 'navigate' && url) {
       router.push(url)
     }
