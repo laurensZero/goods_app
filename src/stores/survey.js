@@ -120,8 +120,8 @@ export const useSurveyStore = defineStore('survey', () => {
         if (done) {
           markCompleted(survey.id)
         }
-      } catch {
-        // ignore — local tracking is primary
+      } catch (e) {
+        console.warn('[survey] remote check failed for', survey.id, e?.message)
       }
     }
   }

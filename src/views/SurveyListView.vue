@@ -259,4 +259,15 @@ function formatDeadline(timestamp) {
   flex-shrink: 0;
   color: var(--app-text-tertiary);
 }
+.survey-entry-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.survey-entry-done-label {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  white-space: nowrap;
+}
 </style>

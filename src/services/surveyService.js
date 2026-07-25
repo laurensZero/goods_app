@@ -12,14 +12,26 @@ function db() {
   return getSupabaseClient()
 }
 
+const AUTH_USER_KEY = 'sb_auth_user'
+
+function getCachedAuthUserId() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null')
+    return cached?.id || null
+  } catch { return null }
+}
+
 async function getRespondentId() {
-  // Try to get user ID from Supabase auth (for cross-device tracking)
+  // 1. Try active Supabase auth session
   try {
     const { data } = await db().auth.getSession()
     const userId = data?.session?.user?.id
     if (userId) return `user:${userId}`
   } catch {}
-  // Fallback to device ID
+  // 2. Try auth store cache (survives session expiry, works before auth init)
+  const cachedId = getCachedAuthUserId()
+  if (cachedId) return `user:${cachedId}`
+  // 3. Fallback to device ID (no cross-device sync possible)
   return `device:${getDeviceId()}`
 }
 
