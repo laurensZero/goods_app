@@ -11,7 +11,12 @@ import {
   updateUserProfile,
   getUser,
   onAuthStateChange,
-  handleAuthCallback
+  handleAuthCallback,
+  updatePassword,
+  getLinkedProviders,
+  linkOAuthProvider,
+  unlinkOAuthProvider,
+  deleteAccount
 } from '@/utils/supabase/auth'
 import { isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 
@@ -24,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref('')
   const isInitialized = ref(false)
+  const linkedProviders = ref([])
   let authSubscription = null
 
   const isLoggedIn = computed(() => !!user.value)
@@ -246,6 +252,75 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function changePassword(newPassword) {
+    isLoading.value = true
+    error.value = ''
+    try {
+      const data = await updatePassword(newPassword)
+      return data
+    } catch (e) {
+      error.value = e.message || '修改失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function fetchLinkedProviders() {
+    try {
+      const identities = await getLinkedProviders()
+      linkedProviders.value = identities
+      return identities
+    } catch (e) {
+      linkedProviders.value = []
+      return []
+    }
+  }
+
+  async function linkProvider(provider) {
+    isLoading.value = true
+    error.value = ''
+    try {
+      const data = await linkOAuthProvider(provider)
+      return data
+    } catch (e) {
+      error.value = e.message || '绑定失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function unlinkProvider(identityId) {
+    isLoading.value = true
+    error.value = ''
+    try {
+      await unlinkOAuthProvider(identityId)
+      await fetchLinkedProviders()
+    } catch (e) {
+      error.value = e.message || '解绑失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function deleteAccountAction(password) {
+    isLoading.value = true
+    error.value = ''
+    try {
+      await deleteAccount(password)
+      setUser(null)
+      setSession(null)
+      linkedProviders.value = []
+    } catch (e) {
+      error.value = e.message || '注销失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   function dispose() {
     if (authSubscription) {
       authSubscription.unsubscribe()
@@ -256,8 +331,11 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, session, isLoading, error, isInitialized,
     isLoggedIn, userEmail, userDisplayName, userAvatarUrl,
+    linkedProviders,
     init, loginWithEmail, registerWithEmail, loginWithMagicLink,
     loginWithOAuth, logout, sendResetPassword, updateProfile,
+    changePassword, fetchLinkedProviders, linkProvider,
+    unlinkProvider, deleteAccount: deleteAccountAction,
     clearError, dispose
   }
 })
