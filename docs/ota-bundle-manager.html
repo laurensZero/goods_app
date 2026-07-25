@@ -2426,7 +2426,7 @@
         if (!item) throw new Error('反馈不存在。')
         feedbackStatusSelect.value = item.status || 'pending'
         renderFeedbackDetail(item)
-        renderFeedbackFollowups(item.followups || [], item.admin_reply)
+        renderFeedbackFollowups(item.followups || [], item.admin_reply, item.admin_reply_at)
         feedbackDetailCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
       } catch (e) {
         feedbackDetailContainer.innerHTML = `<div style="color:#c74444">${escHtml(e.message)}</div>`
@@ -2453,10 +2453,11 @@
           <dt>附件</dt><dd>${attachmentsHtml}</dd>
           <dt>创建时间</dt><dd>${formatTime(fb.created_at)}</dd>
           <dt>更新时间</dt><dd>${formatTime(fb.updated_at)}</dd>
+          ${fb.admin_reply_at ? `<dt>首次回复时间</dt><dd>${formatTime(fb.admin_reply_at)}</dd>` : ''}
         </div>`
     }
 
-    function renderFeedbackFollowups(followups, adminReply) {
+    function renderFeedbackFollowups(followups, adminReply, adminReplyAt) {
       if (!adminReply?.trim() && (!followups || !followups.length)) {
         feedbackFollowupsContainer.innerHTML = '<div class="history-item">暂无回复</div>'
         return
@@ -2472,7 +2473,7 @@
         div.innerHTML = `
           <div class="history-main" style="flex:1">
             <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:#3c7bff20;color:#3c7bff;margin-right:6px">管理员</span>
-            <span style="font-size:11px;color:var(--app-text-tertiary)">首次回复</span>
+            <span style="font-size:11px;color:var(--app-text-tertiary)">首次回复${adminReplyAt ? ' · ' + formatTime(adminReplyAt) : ''}</span>
             <div style="margin-top:4px;white-space:pre-wrap;font-size:13px">${escHtml(adminReply)}</div>
           </div>`
         frag.appendChild(div)
@@ -2509,11 +2510,26 @@
       feedbackReplyBtn.disabled = true
       setFeedbackDetailStatus('正在发送回复...', 'default')
       try {
-        await supabaseRequest('/rest/v1/rpc/append_feedback_followup', {
-          method: 'POST',
-          body: { p_feedback_id: currentFeedbackId, p_user_id: null, p_content: content, p_role: 'admin', p_attachments: null }
-        })
-        setFeedbackDetailStatus('回复已发送！', 'ok')
+        // 检查是否已有首次回复
+        const { data: existing } = await supabaseRequest(`/rest/v1/feedbacks?id=eq.${encodeURIComponent(currentFeedbackId)}&select=admin_reply`, { method: 'GET' })
+        const hasReply = existing && existing[0]?.admin_reply
+
+        if (!hasReply) {
+          // 首次回复 → 写入 admin_reply 列 + admin_reply_at
+          await supabaseRequest(`/rest/v1/feedbacks?id=eq.${encodeURIComponent(currentFeedbackId)}`, {
+            method: 'PATCH',
+            body: { admin_reply: content, admin_reply_at: new Date().toISOString() }
+          })
+          setFeedbackDetailStatus('首次回复已发送！', 'ok')
+        } else {
+          // 追加回复 → 走 followup 系统
+          await supabaseRequest('/rest/v1/rpc/append_feedback_followup', {
+            method: 'POST',
+            body: { p_feedback_id: currentFeedbackId, p_user_id: null, p_content: content, p_role: 'admin', p_attachments: null }
+          })
+          setFeedbackDetailStatus('追加回复已发送！', 'ok')
+        }
+
         feedbackReplyContent.value = ''
         openFeedbackDetail(currentFeedbackId)
       } catch (e) {
