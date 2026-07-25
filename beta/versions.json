@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260725.4",
+    "url": "bundle-20260725.4.zip",
+    "hash": "800a89779714b24b14429dd659ddf3b228c17a7863b276fdd5f2f0c1065beaac",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化统计图表样式，增加响应式设计支持",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-25T12:23:18Z"
+  },
+  {
     "version": "20260725.3",
     "url": "bundle-20260725.3.zip",
     "hash": "5ed978f6e197a6042d6ff08944b0f10d84bc1dce6cf50dceee63385859850e5f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增加头像编辑功能，支持编辑当前头像和上传新头像\n\n- feat: 调整账户操作区域布局，增加列数并优化内边距",
     "updateLevel": "silent",
     "publishedAt": "2026-07-25T06:31:25Z"
-  },
-  {
-    "version": "20260725.1",
-    "url": "bundle-20260725.1.zip",
-    "hash": "488eecd15c2aca3daa53d1e6168b4445722dff89d6301f1fde01904b57b88154",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新调查弹窗样式，优化响应者ID获取逻辑\n\n- feat: 增加首次回复时间显示，优化反馈详情展示逻辑\n\n- feat: 账号管理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-25T05:44:36Z"
   }
 ]
