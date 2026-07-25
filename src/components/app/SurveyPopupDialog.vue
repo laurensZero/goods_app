@@ -375,7 +375,7 @@ defineExpose({ checkPopup, openSurvey })
   display: flex;
   flex-direction: column;
   border-radius: 20px;
-  background: #fff;
+  background: var(--app-surface);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
@@ -387,8 +387,8 @@ defineExpose({ checkPopup, openSurvey })
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: rgba(0,0,0,0.06);
-  color: #5f6570;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -407,16 +407,16 @@ defineExpose({ checkPopup, openSurvey })
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.1);
+  background: var(--app-border);
   transition: all 0.3s;
 }
 .survey-popup-dot--active {
   width: 18px;
   border-radius: 3px;
-  background: #141416;
+  background: var(--app-text);
 }
 .survey-popup-dot--done {
-  background: #141416;
+  background: var(--app-text);
   opacity: 0.4;
 }
 
@@ -454,8 +454,8 @@ defineExpose({ checkPopup, openSurvey })
   width: 72px;
   height: 72px;
   border-radius: 20px;
-  background: rgba(0,0,0,0.04);
-  color: #141416;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -475,40 +475,40 @@ defineExpose({ checkPopup, openSurvey })
 .intro-title {
   font-size: 20px;
   font-weight: 700;
-  color: #141416;
+  color: var(--app-text);
   margin: 0 0 8px;
   line-height: 1.3;
 }
 .intro-desc {
   font-size: 14px;
-  color: #5f6570;
+  color: var(--app-text-secondary);
   margin: 0 0 16px;
   line-height: 1.6;
 }
 .intro-meta {
   font-size: 13px;
-  color: #8e8e93;
+  color: var(--app-text-tertiary);
 }
 
 /* Question */
 .survey-popup-qindex {
   font-size: 12px;
-  color: #8e8e93;
+  color: var(--app-text-tertiary);
   margin: 0 0 4px;
 }
 .survey-popup-qtitle {
   font-size: 15px;
   font-weight: 600;
-  color: #141416;
+  color: var(--app-text);
   margin: 0 0 4px;
   line-height: 1.4;
 }
 .survey-popup-required {
-  color: #ef4444;
+  color: var(--van-danger-color);
 }
 .survey-popup-qdesc {
   font-size: 13px;
-  color: #5f6570;
+  color: var(--app-text-secondary);
   margin: 0 0 12px;
   line-height: 1.5;
 }
@@ -524,25 +524,25 @@ defineExpose({ checkPopup, openSurvey })
   padding: 11px 14px;
   margin-bottom: 8px;
   border-radius: 10px;
-  border: 1.5px solid rgba(0,0,0,0.08);
+  border: 1.5px solid var(--app-border);
   cursor: pointer;
   transition: all 0.2s;
 }
 .popup-radio--checked {
-  border-color: #141416;
+  border-color: var(--app-text);
   background: rgba(0,0,0,0.03);
 }
 .popup-radio-dot {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.15);
+  border: 2px solid var(--app-border);
   flex-shrink: 0;
   position: relative;
   transition: border-color 0.2s;
 }
 .popup-radio--checked .popup-radio-dot {
-  border-color: #141416;
+  border-color: var(--app-text);
 }
 .popup-radio--checked .popup-radio-dot::after {
   content: '';
@@ -552,11 +552,11 @@ defineExpose({ checkPopup, openSurvey })
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #141416;
+  background: var(--app-text);
 }
 .popup-radio-label {
   font-size: 14px;
-  color: #141416;
+  color: var(--app-text);
 }
 
 /* Checkbox */
@@ -567,33 +567,33 @@ defineExpose({ checkPopup, openSurvey })
   padding: 11px 14px;
   margin-bottom: 8px;
   border-radius: 10px;
-  border: 1.5px solid rgba(0,0,0,0.08);
+  border: 1.5px solid var(--app-border);
   cursor: pointer;
   transition: all 0.2s;
 }
 .popup-checkbox--checked {
-  border-color: #141416;
+  border-color: var(--app-text);
   background: rgba(0,0,0,0.03);
 }
 .popup-checkbox-box {
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  border: 2px solid rgba(0,0,0,0.15);
+  border: 2px solid var(--app-border);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  color: #fff;
+  color: var(--app-surface);
 }
 .popup-checkbox--checked .popup-checkbox-box {
-  border-color: #141416;
-  background: #141416;
+  border-color: var(--app-text);
+  background: var(--app-text);
 }
 .popup-checkbox-label {
   font-size: 14px;
-  color: #141416;
+  color: var(--app-text);
 }
 
 /* Text */
@@ -602,10 +602,10 @@ defineExpose({ checkPopup, openSurvey })
   width: 100%;
   padding: 11px 14px;
   border-radius: 10px;
-  border: 1.5px solid rgba(0,0,0,0.08);
-  background: #fff;
+  border: 1.5px solid var(--app-border);
+  background: var(--app-surface);
   font-size: 14px;
-  color: #141416;
+  color: var(--app-text);
   outline: none;
   box-sizing: border-box;
   font-family: inherit;
@@ -613,7 +613,7 @@ defineExpose({ checkPopup, openSurvey })
 }
 .popup-input:focus,
 .popup-textarea:focus {
-  border-color: #141416;
+  border-color: var(--app-text);
 }
 .popup-textarea {
   resize: vertical;
@@ -629,7 +629,7 @@ defineExpose({ checkPopup, openSurvey })
   padding: 12px 0;
 }
 .popup-star {
-  color: #d0d0d0;
+  color: var(--app-border);
   cursor: pointer;
   transition: color 0.15s;
   display: flex;
@@ -656,7 +656,7 @@ defineExpose({ checkPopup, openSurvey })
 }
 .popup-matrix-label {
   font-size: 13px;
-  color: #141416;
+  color: var(--app-text);
   flex-shrink: 0;
 }
 .popup-matrix-stars {
@@ -664,7 +664,7 @@ defineExpose({ checkPopup, openSurvey })
   gap: 2px;
 }
 .popup-matrix-star {
-  color: #d0d0d0;
+  color: var(--app-border);
   cursor: pointer;
   transition: color 0.15s;
   display: flex;
@@ -678,7 +678,7 @@ defineExpose({ checkPopup, openSurvey })
 .survey-popup-error {
   padding: 8px 20px 0;
   font-size: 13px;
-  color: #ef4444;
+  color: var(--van-danger-color);
   text-align: center;
 }
 
@@ -688,7 +688,7 @@ defineExpose({ checkPopup, openSurvey })
   gap: 10px;
   padding: 12px 20px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid rgba(0,0,0,0.06);
+  border-top: 1px solid var(--app-border);
 }
 .popup-nav-btn {
   flex: 1;
@@ -707,16 +707,16 @@ defineExpose({ checkPopup, openSurvey })
 .popup-nav-btn--prev {
   flex: 0 0 auto;
   width: 80px;
-  background: rgba(0,0,0,0.06);
-  color: #5f6570;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
 }
 .popup-nav-btn--next {
-  background: #141416;
-  color: #fff;
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 .popup-nav-btn--submit {
-  background: #141416;
-  color: #fff;
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 /* Transition */

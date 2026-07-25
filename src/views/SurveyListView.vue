@@ -216,6 +216,8 @@ function formatDeadline(timestamp) {
   border: 1px solid var(--app-border);
   cursor: pointer;
   transition: transform 0.15s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 .survey-entry:active {
   transform: scale(var(--press-scale-card));

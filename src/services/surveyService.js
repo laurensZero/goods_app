@@ -12,6 +12,17 @@ function db() {
   return getSupabaseClient()
 }
 
+async function getRespondentId() {
+  // Try to get user ID from Supabase auth (for cross-device tracking)
+  try {
+    const { data } = await db().auth.getSession()
+    const userId = data?.session?.user?.id
+    if (userId) return `user:${userId}`
+  } catch {}
+  // Fallback to device ID
+  return `device:${getDeviceId()}`
+}
+
 /**
  * Fetch all enabled surveys from Supabase.
  */
@@ -189,13 +200,13 @@ export async function evaluateConditions(conditions, logic = 'and') {
  * Submit a survey response to Supabase.
  */
 export async function submitSurveyResponse(surveyId, answers) {
-  const deviceId = getDeviceId()
+  const respondentId = getRespondentId()
   const id = crypto.randomUUID()
 
   const row = {
     id,
     survey_id: surveyId,
-    device_id: deviceId,
+    device_id: respondentId,
     answers: answers || [],
     submitted_at: new Date().toISOString()
   }
@@ -214,13 +225,13 @@ export async function submitSurveyResponse(surveyId, answers) {
  * Check if the current device has already completed a survey.
  */
 export async function hasCompletedSurvey(surveyId) {
-  const deviceId = getDeviceId()
+  const respondentId = getRespondentId()
 
   const { count, error } = await db()
     .from(RESPONSES_TABLE)
     .select('id', { count: 'exact', head: true })
     .eq('survey_id', surveyId)
-    .eq('device_id', deviceId)
+    .eq('device_id', respondentId)
 
   if (error) return false
   return (count || 0) > 0
