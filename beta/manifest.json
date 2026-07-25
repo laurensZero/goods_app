@@ -1,9 +1,9 @@
 {
-  "version": "20260725.1",
-  "url": "bundle-20260725.1.zip",
-  "hash": "488eecd15c2aca3daa53d1e6168b4445722dff89d6301f1fde01904b57b88154",
+  "version": "20260725.2",
+  "url": "bundle-20260725.2.zip",
+  "hash": "bf9aa6f1645dab1effbf335254558549fbc8923e60e7ac87fc39be8a0b697f76",
   "minNativeVersion": null,
-  "notes": "- feat: 更新调查弹窗样式，优化响应者ID获取逻辑\n\n- feat: 增加首次回复时间显示，优化反馈详情展示逻辑\n\n- feat: 账号管理",
+  "notes": "- feat: 增加头像编辑功能，支持编辑当前头像和上传新头像\n\n- feat: 调整账户操作区域布局，增加列数并优化内边距",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-25T05:44:36Z"
+  "publishedAt": "2026-07-25T06:31:25Z"
 }
