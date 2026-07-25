@@ -191,7 +191,7 @@
       </section>
     </main>
 
-    <Transition name="dialog-fade">
+    <Transition name="sheet-pop">
       <div v-if="showDeleteDialog" class="dialog-overlay" @click.self="showDeleteDialog = false">
         <div class="dialog-card">
           <h3 class="dialog-title">{{ t('events.detail.deleteDialog.title') }}</h3>
@@ -204,7 +204,7 @@
       </div>
     </Transition>
 
-    <Transition name="dialog-fade">
+    <Transition name="sheet-pop">
       <div v-if="previewPhotoIndex >= 0" class="photo-preview-overlay" @click.self="closePhotoPreview">
         <button class="photo-preview__close" type="button" @click="closePhotoPreview">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

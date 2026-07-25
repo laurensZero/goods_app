@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="visible" class="overlay" @click.self="dismiss">
       <div class="dialog survey-popup">
         <button type="button" class="survey-popup-close" @click="dismiss">

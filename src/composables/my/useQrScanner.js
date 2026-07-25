@@ -298,6 +298,9 @@ export function useQrScanner() {
       scannerStream.getTracks().forEach((track) => track.stop())
       scannerStream = null
     }
+    if (scannerVideoRef.value) {
+      scannerVideoRef.value.srcObject = null
+    }
     scannerCanvasContext = null
   }
 

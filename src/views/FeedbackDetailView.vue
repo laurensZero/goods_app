@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="modelValue" class="overlay" @click.self="close">
       <div class="fb-dialog">
         <div class="fb-dialog__handle" />
@@ -330,6 +330,11 @@ watch(() => props.modelValue, (val) => {
   overscroll-behavior: contain;
   padding: 24px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.fb-dialog__scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .fb-dialog__handle {

@@ -35,31 +35,81 @@
 
 /* ── Sheet Transitions ── */
 
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active {
-  transition: opacity 0.28s ease;
+/* Unified pop animation for all dialogs (matches MyView sheet-pop) */
+.sheet-pop-enter-active,
+.sheet-pop-leave-active {
+  transition: opacity 0.24s ease;
 }
 
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to {
+/* Descendant: dialog is a child of the transition root */
+.sheet-pop-enter-active .login-sheet,
+.sheet-pop-enter-active .sheet-panel,
+.sheet-pop-enter-active .edit-sheet,
+.sheet-pop-enter-active .dialog,
+.sheet-pop-enter-active .confirm-sheet,
+.sheet-pop-enter-active .fb-dialog,
+.sheet-pop-leave-active .login-sheet,
+.sheet-pop-leave-active .sheet-panel,
+.sheet-pop-leave-active .edit-sheet,
+.sheet-pop-leave-active .dialog,
+.sheet-pop-leave-active .confirm-sheet,
+.sheet-pop-leave-active .fb-dialog {
+  transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
+}
+
+/* Self: dialog IS the transition root */
+.sheet-pop-enter-active.login-sheet,
+.sheet-pop-enter-active.sheet-panel,
+.sheet-pop-enter-active.edit-sheet,
+.sheet-pop-enter-active.dialog,
+.sheet-pop-enter-active.confirm-sheet,
+.sheet-pop-enter-active.fb-dialog,
+.sheet-pop-leave-active.login-sheet,
+.sheet-pop-leave-active.sheet-panel,
+.sheet-pop-leave-active.edit-sheet,
+.sheet-pop-leave-active.dialog,
+.sheet-pop-leave-active.confirm-sheet,
+.sheet-pop-leave-active.fb-dialog {
+  transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
+}
+
+.sheet-pop-enter-from,
+.sheet-pop-leave-to {
   opacity: 0;
 }
 
-.sheet-slide-enter-active {
-  transition: transform 0.32s var(--motion-ease-spring), opacity 0.22s ease;
+/* Descendant enter/leave */
+.sheet-pop-enter-from .login-sheet,
+.sheet-pop-enter-from .sheet-panel,
+.sheet-pop-enter-from .edit-sheet,
+.sheet-pop-enter-from .dialog,
+.sheet-pop-enter-from .confirm-sheet,
+.sheet-pop-enter-from .fb-dialog,
+.sheet-pop-leave-to .login-sheet,
+.sheet-pop-leave-to .sheet-panel,
+.sheet-pop-leave-to .edit-sheet,
+.sheet-pop-leave-to .dialog,
+.sheet-pop-leave-to .confirm-sheet,
+.sheet-pop-leave-to .fb-dialog {
+  transform: translateY(26px);
+  opacity: 0;
 }
 
-.sheet-slide-leave-active {
-  transition: transform 0.24s ease;
-}
-
-.sheet-slide-enter-from {
-  transform: translateX(-50%) translateY(100%);
-  opacity: 0.6;
-}
-
-.sheet-slide-leave-to {
-  transform: translateX(-50%) translateY(100%);
+/* Self enter/leave */
+.sheet-pop-enter-from.login-sheet,
+.sheet-pop-enter-from.sheet-panel,
+.sheet-pop-enter-from.edit-sheet,
+.sheet-pop-enter-from.dialog,
+.sheet-pop-enter-from.confirm-sheet,
+.sheet-pop-enter-from.fb-dialog,
+.sheet-pop-leave-to.login-sheet,
+.sheet-pop-leave-to.sheet-panel,
+.sheet-pop-leave-to.edit-sheet,
+.sheet-pop-leave-to.dialog,
+.sheet-pop-leave-to.confirm-sheet,
+.sheet-pop-leave-to.fb-dialog {
+  transform: translateY(26px);
+  opacity: 0;
 }
 
 /* ── Float Footer (centered floating save button) ── */

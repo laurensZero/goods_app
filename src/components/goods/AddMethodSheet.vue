@@ -5,11 +5,11 @@
 -->
 <template>
   <Teleport to="body">
-    <Transition name="sheet-backdrop">
+    <Transition name="sheet-pop">
       <div v-if="modelValue" class="sheet-backdrop" @click="close" />
     </Transition>
 
-    <Transition name="sheet-slide" @after-leave="view = 'options'">
+    <Transition name="sheet-pop" @after-leave="view = 'options'">
       <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="view === 'share-import' ? t('goods.addMethod.importFromShare') : t('goods.addMethod.selectTitle')">
         <div class="sheet-handle" aria-hidden="true" />
 

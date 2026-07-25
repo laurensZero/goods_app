@@ -34,7 +34,7 @@
         </article>
       </section>
 
-      <Transition name="overlay-fade">
+      <Transition name="sheet-pop">
         <div v-if="showBackendConfirm" class="overlay" @click.self="cancelChooseBackend">
           <div class="dialog">
             <h3 class="dialog-title">{{ t('sync.switchBackend') }}</h3>
@@ -357,7 +357,7 @@
         </article>
       </section>
 
-      <Transition name="overlay-fade">
+      <Transition name="sheet-pop">
         <div v-if="showResetConfirm" class="overlay" @click.self="showResetConfirm = false">
           <div class="dialog">
             <h3 class="dialog-title">{{ t('common.confirmDelete') }}</h3>
@@ -372,7 +372,7 @@
         </div>
       </Transition>
 
-      <Transition name="overlay-fade">
+      <Transition name="sheet-pop">
         <div v-if="showPullConflict" class="overlay">
           <div class="dialog dialog--wide dialog--scrollable">
             <div class="dialog-scroll">
@@ -418,7 +418,7 @@
         </div>
       </Transition>
 
-      <Transition name="overlay-fade">
+      <Transition name="sheet-pop">
         <div v-if="showSyncConflict" class="overlay">
           <div class="dialog dialog--scrollable">
             <div class="dialog-scroll">
@@ -453,7 +453,7 @@
       </Transition>
 
       <!-- Supabase URL 输入对话框 -->
-      <Transition name="overlay-fade">
+      <Transition name="sheet-pop">
         <div v-if="showSupabaseUrlDialog" class="overlay" @click.self="showSupabaseUrlDialog = false">
           <div class="dialog">
             <h3 class="dialog-title">{{ t('sync.supabaseUrlTitle') }}</h3>
@@ -473,7 +473,7 @@
       </Transition>
 
       <!-- Supabase Key 输入对话框 -->
-      <Transition name="overlay-fade">
+      <Transition name="sheet-pop">
         <div v-if="showSupabaseKeyDialog" class="overlay" @click.self="showSupabaseKeyDialog = false">
           <div class="dialog">
             <h3 class="dialog-title">{{ t('sync.supabaseKeyTitle') }}</h3>

@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="show" class="overlay" @click.self="close">
       <section class="dialog qr-dialog" role="dialog" aria-modal="true" :aria-label="t('storage.qr.title')">
         <header class="qr-head">

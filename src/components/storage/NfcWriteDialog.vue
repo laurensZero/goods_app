@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="show" class="overlay" @click.self="cancel">
       <div class="dialog nfc-dialog" role="dialog" aria-modal="true" :aria-label="t('storage.nfc.bindTitle')">
         <p class="dialog-label">{{ t('storage.nfc.bindLabel') }}</p>

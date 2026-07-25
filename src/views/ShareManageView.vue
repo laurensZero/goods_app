@@ -139,10 +139,10 @@
     <ShareSheet :show="showShareSheet" :goods-items="shareSheetItems" :initial-share="shareInitial" @close="showShareSheet = false" />
 
     <Teleport to="body">
-      <Transition name="sheet-backdrop">
+      <Transition name="sheet-pop">
         <div v-if="deleteTarget" class="confirm-backdrop" @click="deleteTarget = null" />
       </Transition>
-      <Transition name="sheet-slide">
+      <Transition name="sheet-pop">
         <div v-if="deleteTarget" class="confirm-sheet" role="dialog" aria-modal="true">
           <div class="confirm-handle" aria-hidden="true" />
           <p class="confirm-title">{{ t('share.deleteTitle') }}</p>

@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="showDialog" class="overlay" @click.self="announcementStore.dismissAnnouncement()">
       <div class="dialog announcement-dialog">
         <p class="announcement-kicker">Announcement</p>

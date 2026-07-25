@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <Transition name="sheet-backdrop">
+    <Transition name="sheet-pop">
       <div v-if="modelValue" class="sheet-backdrop" @click="close" />
     </Transition>
 
-    <Transition name="sheet-slide">
+    <Transition name="sheet-pop">
       <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('home.dailyRec.label')">
         <div class="sheet-handle" aria-hidden="true" />
 

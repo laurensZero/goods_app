@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="modelValue" class="overlay" @click.self="closeDialog">
       <div class="fb-dialog">
         <div class="fb-dialog__scroll">

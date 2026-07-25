@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <Transition name="sheet-backdrop">
+    <Transition name="sheet-pop">
       <div v-if="show" class="sheet-backdrop" @click="handleClose" />
     </Transition>
 
-    <Transition name="sheet-slide">
+    <Transition name="sheet-pop">
       <div v-if="show" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('goods.share.title')">
         <div class="sheet-handle" aria-hidden="true" />
 

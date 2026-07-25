@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page taobao-import-page">
     <NavBar :title="t('import.taobao')" show-back />
 
@@ -196,10 +196,10 @@
 
     <!-- ========== 编辑商品信息底部弹窗 ========== -->
     <Teleport to="body">
-      <Transition name="sheet-backdrop">
+      <Transition name="sheet-pop">
         <div v-if="showEditSheet" class="sheet-backdrop" @click="closeEdit" />
       </Transition>
-      <Transition name="sheet-slide">
+      <Transition name="sheet-pop">
         <div v-if="showEditSheet" class="edit-sheet" role="dialog" aria-modal="true" :aria-label="t('import.editGoodsInfo')">
           <div class="sheet-handle" aria-hidden="true" />
           <p class="sheet-title">{{ t('import.editGoodsInfo') }}</p>

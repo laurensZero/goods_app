@@ -1,5 +1,5 @@
 <template>
-  <Transition name="overlay-fade">
+  <Transition name="sheet-pop">
     <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
       <div class="dialog update-dialog">
         <p class="update-kicker">Update Available</p>

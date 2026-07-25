@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <Transition name="dialog-fade">
+    <Transition name="sheet-pop">
       <div v-if="show" class="dialog-overlay" @click="close" />
     </Transition>
 
-    <Transition name="dialog-pop">
+    <Transition name="sheet-pop">
       <section v-if="show" class="dialog" role="dialog" aria-modal="true" :aria-label="isEditMode ? t('recharge.editRecord') : t('recharge.addRecord')">
         <p class="dialog-label">{{ isEditMode ? t('recharge.dialog.editLabel') : t('recharge.dialog.addLabel') }}</p>
         <h3 class="dialog-title">{{ isEditMode ? t('recharge.dialog.editTitle') : t('recharge.dialog.addTitle') }}</h3>

@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <Transition name="sheet-backdrop">
+    <Transition name="sheet-pop">
       <div v-if="showPrompt" class="sheet-backdrop" @click="dismissImport" />
     </Transition>
 
-    <Transition name="sheet-slide">
+    <Transition name="sheet-pop">
       <div v-if="showPrompt" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('common.aria.fromShareCode')">
         <div class="sheet-handle" aria-hidden="true" />
         

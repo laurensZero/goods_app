@@ -253,7 +253,7 @@
 
     </main>
 
-    <Transition name="overlay-fade">
+    <Transition name="sheet-pop">
       <div v-if="showWebUpdateRestartDialog" class="overlay" @click.self="cancelWebUpdateRestart">
         <div class="dialog">
           <h3 class="dialog-title">{{ t('about.resourceUpdateReady') }}</h3>
@@ -266,7 +266,7 @@
       </div>
     </Transition>
 
-    <Transition name="overlay-fade">
+    <Transition name="sheet-pop">
       <div v-if="showWebUpdateResetDialog" class="overlay" @click.self="showWebUpdateResetDialog = false">
         <div class="dialog">
           <h3 class="dialog-title">{{ t('about.restoreBuiltinTitle') }}</h3>

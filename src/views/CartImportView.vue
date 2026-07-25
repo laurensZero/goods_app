@@ -1,7 +1,7 @@
 <template>
   <div class="page cart-import-page">
     <NavBar :title="pageTitle" show-back />
-    <Transition name="overlay-fade">
+    <Transition name="sheet-pop">
       <div v-if="showErrorDialog" class="overlay" @click.self="closeErrorDialog">
         <div class="dialog import-error-dialog" role="alertdialog" aria-modal="true">
           <p class="dialog-label">Import Notice</p>

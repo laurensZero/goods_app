@@ -209,7 +209,7 @@
       :description="t('goods.detail.notFoundDesc')"
     />
 
-    <Transition name="dialog-fade">
+    <Transition name="sheet-pop">
       <div v-if="showDeleteDialog" class="dialog-overlay" @click="closeDeleteDialog">
         <div class="dialog-card" @click.stop>
           <div class="dialog-icon">
@@ -234,7 +234,7 @@
     </Transition>
 
     <!-- SKU选择对话框 -->
-    <Transition name="dialog-fade">
+    <Transition name="sheet-pop">
       <div v-if="showCartDialog" class="dialog-overlay" @click="showCartDialog = false">
         <div class="dialog-card" @click.stop>
           <h2 class="dialog-title">{{ t('goods.selectSpec') }}</h2>

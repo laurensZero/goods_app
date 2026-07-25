@@ -1948,6 +1948,11 @@ onActivated(() => {
 .login-sheet--tall {
   max-height: min(calc(100dvh - 48px), 80vh);
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.login-sheet--tall::-webkit-scrollbar {
+  display: none;
 }
 
 .account-manage-section {
@@ -2076,27 +2081,6 @@ onActivated(() => {
 
 .budget-overlay {
   z-index: 220;
-}
-
-.sheet-pop-enter-active,
-.sheet-pop-leave-active {
-  transition: opacity 0.24s ease;
-}
-
-.sheet-pop-enter-active .login-sheet,
-.sheet-pop-leave-active .login-sheet {
-  transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
-}
-
-.sheet-pop-enter-from,
-.sheet-pop-leave-to {
-  opacity: 0;
-}
-
-.sheet-pop-enter-from .login-sheet,
-.sheet-pop-leave-to .login-sheet {
-  transform: translateY(26px);
-  opacity: 0;
 }
 
 @media (max-width: 1023px) {

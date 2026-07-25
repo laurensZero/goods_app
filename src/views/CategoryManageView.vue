@@ -100,10 +100,10 @@
     </main>
 
     <Teleport to="body">
-      <Transition name="sheet-backdrop">
+      <Transition name="sheet-pop">
         <div v-if="editingName" class="edit-backdrop" @click="closeEdit" />
       </Transition>
-      <Transition name="sheet-slide">
+      <Transition name="sheet-pop">
         <div v-if="editingName" class="edit-sheet" :style="editSheetStyle">
           <div class="edit-header">
             <span class="edit-title">{{ t('manage.category.editTitle') }}</span>
