@@ -200,7 +200,7 @@ export async function evaluateConditions(conditions, logic = 'and') {
  * Submit a survey response to Supabase.
  */
 export async function submitSurveyResponse(surveyId, answers) {
-  const respondentId = getRespondentId()
+  const respondentId = await getRespondentId()
   const id = crypto.randomUUID()
 
   const row = {
@@ -225,7 +225,7 @@ export async function submitSurveyResponse(surveyId, answers) {
  * Check if the current device has already completed a survey.
  */
 export async function hasCompletedSurvey(surveyId) {
-  const respondentId = getRespondentId()
+  const respondentId = await getRespondentId()
 
   const { count, error } = await db()
     .from(RESPONSES_TABLE)

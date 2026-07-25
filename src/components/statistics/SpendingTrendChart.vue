@@ -264,6 +264,8 @@ const chartOption = computed(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--app-text);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .trend-controls {
   display: flex;
@@ -329,5 +331,11 @@ const chartOption = computed(() => {
 :global(html.theme-dark) .mode-chip--active {
   background: #f5f5f7;
   color: #141416;
+}
+@media (max-width: 480px) {
+  .trend-header { gap: 8px; }
+  .trend-controls { gap: 6px; }
+  .mode-chip { padding: 5px 10px; font-size: 12px; }
+  .trend-nav-btn { width: 24px; height: 24px; font-size: 14px; }
 }
 </style>
