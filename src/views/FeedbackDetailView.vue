@@ -67,6 +67,9 @@
               <h3 class="fb-detail-section__title">
                 <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.22 5.28a.75.75 0 00-1.06-1.06L7 8.38 5.84 7.22a.75.75 0 00-1.06 1.06l1.75 1.75a.75.75 0 001.06 0l3.63-3.69z"/></svg>
                 {{ t('about.feedbackAdminReply') }}
+                <span v-if="feedback.admin_reply_at" class="fb-admin-reply-time">
+                  {{ formatTime(feedback.admin_reply_at) }}
+                </span>
               </h3>
               <p class="fb-detail-body">{{ feedback.admin_reply }}</p>
             </div>
@@ -489,7 +492,16 @@ watch(() => props.modelValue, (val) => {
 }
 
 .fb-admin-reply .fb-detail-section__title {
+  display: flex;
+  align-items: center;
   color: #3b82f6;
+}
+
+.fb-admin-reply-time {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--app-text-tertiary);
 }
 
 /* Follow-ups */
