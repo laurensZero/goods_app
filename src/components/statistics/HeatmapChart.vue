@@ -179,6 +179,8 @@ const monthPositions = computed(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--app-text);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .heatmap-year-selector {
   display: flex;
@@ -308,5 +310,9 @@ const monthPositions = computed(() => {
 .heatmap-legend-label {
   font-size: 10px;
   color: var(--app-text-tertiary);
+}
+@media (max-width: 480px) {
+  .heatmap-header { gap: 8px; }
+  .year-chip { padding: 5px 10px; font-size: 12px; }
 }
 </style>
