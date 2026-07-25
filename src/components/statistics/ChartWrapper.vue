@@ -11,10 +11,10 @@ import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart, BarChart, LineChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { PieChart, BarChart, LineChart, HeatmapChart } from 'echarts/charts'
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent, CalendarComponent, VisualMapComponent, DataZoomComponent, MarkLineComponent } from 'echarts/components'
 
-echarts.use([CanvasRenderer, PieChart, BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
+echarts.use([CanvasRenderer, PieChart, BarChart, LineChart, HeatmapChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CalendarComponent, VisualMapComponent, DataZoomComponent, MarkLineComponent])
 
 const { t } = useI18n()
 
@@ -100,7 +100,7 @@ function applyThemeToOption(opt) {
 onMounted(() => {
   if (!chartRef.value) return
   chartInstance = echarts.init(chartRef.value)
-  if (hasData.value) chartInstance.setOption(applyThemeToOption(props.option))
+  if (hasData.value) chartInstance.setOption(applyThemeToOption(props.option), { replaceMerge: ['series'] })
   window.addEventListener('resize', resize)
 })
 
@@ -110,7 +110,7 @@ watch(() => props.option, (opt) => {
     chartInstance.clear()
     return
   }
-  chartInstance.setOption(applyThemeToOption(opt))
+  chartInstance.setOption(applyThemeToOption(opt), { replaceMerge: ['series'] })
 })
 
 onBeforeUnmount(() => {
