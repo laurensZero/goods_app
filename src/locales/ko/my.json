@@ -85,6 +85,8 @@
   "my.scanInvalidQrCode": "유효한 QR 코드가 감지되지 않았습니다. 다시 시도해 주세요.",
   "my.scanInvalidQrContent": "QR 코드 내용이 유효한 공유 코드 또는 보관 위치 코드가 아닙니다",
   "my.resetAvatar": "아바타 초기화",
+  "my.editCurrentAvatar": "현재 아바타 편집",
+  "my.uploadNewAvatar": "새 아바타 업로드",
   "my.resetAvatarDesc": "사용자 정의 아바타를 삭제하고 기본 아바타로 복원합니다.",
   "my.confirmResetAvatar": "초기화 확인",
   "my.avatarReset": "GitHub 아바타로 복원되었습니다",

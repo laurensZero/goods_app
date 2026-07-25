@@ -85,6 +85,8 @@
   "my.scanInvalidQrCode": "未识别到有效二維碼，請重試",
   "my.scanInvalidQrContent": "二維碼内容不是有效的分享碼或收納位置碼",
   "my.resetAvatar": "恢復默認头像",
+  "my.editCurrentAvatar": "編輯當前頭像",
+  "my.uploadNewAvatar": "上傳新頭像",
   "my.resetAvatarDesc": "清除自定義頭像，恢復為預設頭像。",
   "my.confirmResetAvatar": "確認恢復",
   "my.avatarReset": "已恢復为 GitHub 头像",

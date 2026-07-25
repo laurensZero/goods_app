@@ -84,6 +84,8 @@
   "my.scanInvalidQrCode": "No valid QR code detected, please retry",
   "my.scanInvalidQrContent": "QR code content is not a valid share code or storage location code",
   "my.resetAvatar": "Reset Avatar",
+  "my.editCurrentAvatar": "Edit Current Avatar",
+  "my.uploadNewAvatar": "Upload New Avatar",
   "my.resetAvatarDesc": "Clear the custom avatar and restore the default avatar.",
   "my.confirmResetAvatar": "Confirm Reset",
   "my.avatarReset": "Restored to default avatar",

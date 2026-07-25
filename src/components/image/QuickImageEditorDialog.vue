@@ -50,7 +50,7 @@
           <div class="editor-body">
             <section
               ref="previewRef"
-              :class="['editor-preview', whiteBgEnabled && 'editor-preview--white']"
+              :class="['editor-preview', !simpleMode && whiteBgEnabled && 'editor-preview--white']"
             >
               <img ref="imageRef" :src="previewUrl" :alt="t('common.aria.editPreview')" class="editor-image" />
 
@@ -76,7 +76,7 @@
                   </div>
                 </div>
 
-                <div class="editor-group">
+                <div v-if="!simpleMode" class="editor-group">
                   <p class="editor-group-title">{{ t('imageEditor.correction') }}</p>
                   <label class="editor-slider">
                     <div class="editor-slider__head">
@@ -225,7 +225,8 @@ import { useImageExport } from '@/composables/image/useImageExport'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  sourceFile: { type: Object, default: null }
+  sourceFile: { type: Object, default: null },
+  simpleMode: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:show', 'save'])
@@ -265,11 +266,16 @@ const WHITE_BG_STYLE_OPTIONS = [
   { label: '商品图增强', value: 'product' }
 ]
 
-const tabOptions = [
-  { value: 'basic', label: '基础调整' },
-  { value: 'cutout', label: '智能抠图' },
-  { value: 'export', label: '导出设置' }
-]
+const tabOptions = computed(() => {
+  if (props.simpleMode) {
+    return [{ value: 'basic', label: '基础调整' }]
+  }
+  return [
+    { value: 'basic', label: '基础调整' },
+    { value: 'cutout', label: '智能抠图' },
+    { value: 'export', label: '导出设置' }
+  ]
+})
 
 const editorHistory = useEditorHistory()
 const { canUndo, canRedo } = editorHistory
@@ -732,12 +738,12 @@ async function handleSave() {
     const exported = await exportForUpload(sourceBlob, {
       targetMaxBytes: 1024 * 1024,
       skipCompression: true,
-      applyWhiteBg: whiteBgEnabled.value,
+      applyWhiteBg: props.simpleMode ? false : whiteBgEnabled.value,
       whiteBgStyle: whiteBgStyle.value,
       whiteBgFitRatio: whiteBgScalePercent.value / 100,
       bgColor: '#ffffff',
-      brightness: brightness.value,
-      contrast: contrast.value,
+      brightness: props.simpleMode ? 0 : brightness.value,
+      contrast: props.simpleMode ? 0 : contrast.value,
       onProgress: ({ percent, text }) => {
         saveProgress.value = Number(percent) || 0
         if (text) {

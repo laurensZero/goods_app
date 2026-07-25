@@ -343,6 +343,9 @@
             <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="chooseNewAvatar">
               {{ t('my.changeAvatar') }}
             </button>
+            <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="editExistingAvatar">
+              {{ t('my.editCurrentAvatar') }}
+            </button>
             <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="confirmResetAvatar">
               {{ t('my.resetAvatar') }}
             </button>
@@ -353,6 +356,14 @@
         </section>
       </div>
     </Transition>
+
+    <!-- Avatar Crop Editor -->
+    <QuickImageEditorDialog
+      v-model:show="showAvatarEditor"
+      :source-file="avatarEditorFile"
+      simple-mode
+      @save="onAvatarEditorSave"
+    />
 
     <!-- Change Password Dialog -->
     <Transition name="sheet-pop">
@@ -597,6 +608,7 @@ import { useRouter } from 'vue-router'
 import SupabaseLoginDialog from '@/components/common/SupabaseLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
 import { useToast } from '@/composables/useToast'
 import { formatDate, formatPrice } from '@/utils/format'
@@ -672,6 +684,8 @@ const avatarInitial = computed(() => {
 const cachedAvatarSrc = ref('')
 const customAvatarUrl = ref('')
 const avatarInputRef = ref(null)
+const showAvatarEditor = ref(false)
+const avatarEditorFile = ref(null)
 
 // Custom avatar takes priority, then Supabase avatar (custom > OAuth > cached)
 const displayAvatarSrc = computed(() => {
@@ -705,26 +719,46 @@ function chooseNewAvatar() {
   avatarInputRef.value?.click()
 }
 
+async function editExistingAvatar() {
+  const src = displayAvatarSrc.value
+  if (!src) return
+  try {
+    const response = await fetch(src)
+    const blob = await response.blob()
+    const file = new File([blob], 'avatar.jpg', { type: blob.type || 'image/jpeg' })
+    avatarEditorFile.value = file
+    showAvatarEditor.value = true
+  } catch (err) {
+    console.warn('[MyView] fetch avatar failed', err)
+    showToastMsg(t('my.avatarUpdateFailed'))
+  }
+}
+
 async function onAvatarFileChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
+  avatarEditorFile.value = file
+  showAvatarEditor.value = true
+  if (avatarInputRef.value) avatarInputRef.value.value = ''
+}
+
+async function onAvatarEditorSave(result) {
+  if (!result?.file) return
   try {
-    const dataUrl = await fileToDataUrl(file)
+    const dataUrl = await fileToDataUrl(result.file)
     customAvatarUrl.value = dataUrl
     await writePersisted(CUSTOM_AVATAR_KEY, dataUrl)
-    // 后台同步到 Supabase
-    uploadAvatarToSupabase(file).then(() => {
+    uploadAvatarToSupabase(result.file).then(() => {
       showToastMsg(t('my.avatarSynced'))
     }).catch((e) => {
       console.warn('[avatar] sync failed:', e.message)
       showToastMsg(t('my.avatarSyncFailed'))
     })
   } catch (err) {
-    console.warn('[MyView] avatar upload failed', err)
+    console.warn('[MyView] avatar save failed', err)
     showToastMsg(t('my.avatarUpdateFailed'))
   }
-  // Reset input so the same file can be re-selected
-  if (avatarInputRef.value) avatarInputRef.value.value = ''
+  avatarEditorFile.value = null
 }
 
 async function uploadAvatarToSupabase(file) {
