@@ -1,9 +1,9 @@
 {
-  "version": "20260725.2",
-  "url": "bundle-20260725.2.zip",
-  "hash": "bf9aa6f1645dab1effbf335254558549fbc8923e60e7ac87fc39be8a0b697f76",
+  "version": "20260725.3",
+  "url": "bundle-20260725.3.zip",
+  "hash": "5ed978f6e197a6042d6ff08944b0f10d84bc1dce6cf50dceee63385859850e5f",
   "minNativeVersion": null,
-  "notes": "- feat: 增加头像编辑功能，支持编辑当前头像和上传新头像\n\n- feat: 调整账户操作区域布局，增加列数并优化内边距",
+  "notes": "- feat: 更新统计界面",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-25T06:31:25Z"
+  "publishedAt": "2026-07-25T09:33:24Z"
 }
