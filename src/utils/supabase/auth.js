@@ -184,3 +184,71 @@ export function onAuthStateChange(callback) {
   const { data } = client.auth.onAuthStateChange(callback)
   return data.subscription
 }
+
+/**
+ * Update password for logged-in user
+ */
+export async function updatePassword(newPassword) {
+  const client = getSupabaseClient()
+  const { data, error } = await client.auth.updateUser({ password: newPassword })
+  if (error) throw error
+  return data
+}
+
+/**
+ * Get linked OAuth identities for current user
+ */
+export async function getLinkedProviders() {
+  const client = getSupabaseClient()
+  const { data: { user }, error } = await client.auth.getUser()
+  if (error) throw error
+  return user?.identities || []
+}
+
+/**
+ * Link a new OAuth provider to current user
+ * @param {'google' | 'github' | 'azure'} provider
+ */
+export async function linkOAuthProvider(provider, options = {}) {
+  const client = getSupabaseClient()
+  const { data, error } = await client.auth.linkIdentity({
+    provider,
+    options: { redirectTo: options.redirectTo }
+  })
+  if (error) throw error
+  return data
+}
+
+/**
+ * Unlink an OAuth identity from current user
+ * @param {string} identityId - The identity id to unlink
+ */
+export async function unlinkOAuthProvider(identityId) {
+  const client = getSupabaseClient()
+  const { data, error } = await client.auth.unlinkIdentity(identityId)
+  if (error) throw error
+  return data
+}
+
+/**
+ * Delete current user account via Edge Function
+ * @param {string} password - Current password for verification
+ */
+export async function deleteAccount(password) {
+  const client = getSupabaseClient()
+  const { data: { session } } = await client.auth.getSession()
+  const { SUPABASE_URL } = await import('@/config/supabase')
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ password })
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || '注销失败')
+  }
+  return response.json()
+}

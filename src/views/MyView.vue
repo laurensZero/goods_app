@@ -88,6 +88,14 @@
                 </svg>
                 <span>{{ t('my.logout') }}</span>
               </button>
+
+              <button v-if="authStore.isLoggedIn" type="button" class="hero-action" @click="openAccountManageSheet">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span>{{ t('my.accountManage') }}</span>
+              </button>
             </div>
 
             <article class="budget-compact">
@@ -346,6 +354,239 @@
       </div>
     </Transition>
 
+    <!-- Change Password Dialog -->
+    <Transition name="sheet-pop">
+      <div v-if="showChangePasswordSheet" class="login-overlay" @click.self="closeChangePasswordSheet">
+        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
+          <h2 id="changePasswordTitle" class="login-sheet__title">{{ t('my.changePasswordTitle') }}</h2>
+
+          <form class="auth-form" @submit.prevent="confirmChangePassword">
+            <label class="auth-field">
+              <span class="auth-field__label">{{ t('my.currentPassword') }}</span>
+              <input
+                v-model="changePasswordOld"
+                class="auth-input"
+                type="password"
+                :placeholder="t('my.currentPassword')"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+
+            <label class="auth-field">
+              <span class="auth-field__label">{{ t('my.newPassword') }}</span>
+              <input
+                v-model="changePasswordNew"
+                class="auth-input"
+                type="password"
+                :placeholder="t('my.newPassword')"
+                autocomplete="new-password"
+                required
+                minlength="6"
+              />
+            </label>
+
+            <label class="auth-field">
+              <span class="auth-field__label">{{ t('my.confirmNewPassword') }}</span>
+              <input
+                v-model="changePasswordConfirm"
+                class="auth-input"
+                type="password"
+                :placeholder="t('my.confirmNewPassword')"
+                autocomplete="new-password"
+                required
+              />
+            </label>
+
+            <p v-if="changePasswordError" class="rename-error">{{ changePasswordError }}</p>
+
+            <div class="login-sheet__actions">
+              <button type="submit" class="login-sheet__button login-sheet__button--primary" :disabled="changePasswordLoading || !changePasswordOld || !changePasswordNew || !changePasswordConfirm">
+                {{ changePasswordLoading ? '...' : t('common.confirm') }}
+              </button>
+              <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeChangePasswordSheet">
+                {{ t('my.cancel') }}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </Transition>
+
+    <!-- Account Management Dialog -->
+    <Transition name="sheet-pop">
+      <div v-if="showAccountManageSheet" class="login-overlay" @click.self="closeAccountManageSheet">
+        <section class="login-sheet login-sheet--tall" role="dialog" aria-modal="true" aria-labelledby="accountManageTitle">
+          <h2 id="accountManageTitle" class="login-sheet__title">{{ t('my.accountManage') }}</h2>
+
+          <!-- Current Email -->
+          <div class="account-manage-section">
+            <h3 class="account-manage-section__title">{{ t('my.authEmail') }}</h3>
+            <div class="account-manage-item">
+              <div class="account-manage-item__info">
+                <span class="account-manage-item__provider">{{ t('my.authEmail') }}</span>
+                <span class="account-manage-item__email">{{ authStore.userEmail }}</span>
+              </div>
+              <button
+                type="button"
+                class="login-sheet__button login-sheet__button--secondary-sm"
+                @click="openChangeEmail"
+              >
+                {{ t('my.changeEmail') }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Change Email Form (hidden by default) -->
+          <div v-if="showChangeEmailForm" class="account-manage-section">
+            <form class="auth-form" @submit.prevent="confirmChangeEmail">
+              <label class="auth-field">
+                <span class="auth-field__label">{{ t('my.newEmail') }}</span>
+                <input
+                  v-model="changeEmailNew"
+                  class="auth-input"
+                  type="email"
+                  :placeholder="t('my.authEmail')"
+                  autocomplete="email"
+                  required
+                />
+              </label>
+              <p v-if="changeEmailError" class="rename-error">{{ changeEmailError }}</p>
+              <p v-if="changeEmailSent" class="dialog-success">{{ t('my.changeEmailSent') }}</p>
+              <div class="login-sheet__actions">
+                <button type="submit" class="login-sheet__button login-sheet__button--primary" :disabled="changeEmailLoading || !changeEmailNew || changeEmailNew === authStore.userEmail">
+                  {{ changeEmailLoading ? '...' : t('common.confirm') }}
+                </button>
+                <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeChangeEmail">
+                  {{ t('my.cancel') }}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Linked Accounts List -->
+          <div class="account-manage-section">
+            <h3 class="account-manage-section__title">{{ t('my.linkedAccounts') }}</h3>
+            <div v-if="authStore.linkedProviders.length === 0" class="account-manage-empty">
+              {{ t('my.notLoggedIn') }}
+            </div>
+            <div v-for="identity in authStore.linkedProviders" :key="identity.id" class="account-manage-item">
+              <div class="account-manage-item__info">
+                <span class="account-manage-item__provider">{{ getProviderLabel(identity.provider) }}</span>
+                <span class="account-manage-item__email">{{ identity.identity_data?.email || identity.identity_data?.name || '' }}</span>
+              </div>
+              <button
+                type="button"
+                class="login-sheet__button login-sheet__button--danger-sm"
+                :disabled="authStore.linkedProviders.length <= 1"
+                @click="confirmUnlinkProvider(identity)"
+              >
+                {{ t('my.unlinkProvider') }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Link New Provider -->
+          <div class="account-manage-section">
+            <h3 class="account-manage-section__title">{{ t('my.linkProvider') }}</h3>
+            <div class="social-buttons">
+              <button type="button" class="social-btn social-btn--google" :disabled="authStore.isLoading" @click="handleLinkProvider('google')">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span>Google</span>
+              </button>
+              <button type="button" class="social-btn social-btn--github" :disabled="authStore.isLoading" @click="handleLinkProvider('github')">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span>GitHub</span>
+              </button>
+              <button type="button" class="social-btn social-btn--microsoft" :disabled="authStore.isLoading" @click="handleLinkProvider('azure')">
+                <svg viewBox="0 0 21 21" width="20" height="20" aria-hidden="true">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                <span>Microsoft</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Change Password Button -->
+          <div class="account-manage-section">
+            <button type="button" class="login-sheet__button login-sheet__button--secondary login-sheet__button--full" @click="openChangePasswordFromManage">
+              {{ t('my.changePassword') }}
+            </button>
+          </div>
+
+          <!-- Delete Account Button -->
+          <div class="account-manage-section">
+            <button type="button" class="login-sheet__button login-sheet__button--danger login-sheet__button--full" @click="openDeleteAccountFromManage">
+              {{ t('my.deleteAccount') }}
+            </button>
+          </div>
+
+          <div class="login-sheet__actions">
+            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeAccountManageSheet">
+              {{ t('my.close') }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Transition>
+
+    <!-- Delete Account Dialog -->
+    <Transition name="sheet-pop">
+      <div v-if="showDeleteAccountSheet" class="login-overlay" @click.self="closeDeleteAccountSheet">
+        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
+          <h2 id="deleteAccountTitle" class="login-sheet__title login-sheet__title--danger">{{ t('my.deleteAccountTitle') }}</h2>
+          <p class="login-sheet__desc login-sheet__desc--danger">{{ t('my.deleteAccountDesc') }}</p>
+
+          <form class="auth-form" @submit.prevent="confirmDeleteAccount">
+            <label class="auth-field">
+              <span class="auth-field__label">{{ t('my.deleteAccountConfirmHint') }}</span>
+              <input
+                v-model="deleteAccountEmail"
+                class="auth-input"
+                type="email"
+                :placeholder="t('my.authEmail')"
+                autocomplete="email"
+                required
+              />
+            </label>
+
+            <label class="auth-field">
+              <span class="auth-field__label">{{ t('my.currentPassword') }}</span>
+              <input
+                v-model="deleteAccountPassword"
+                class="auth-input"
+                type="password"
+                :placeholder="t('my.authPassword')"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+
+            <p v-if="deleteAccountError" class="rename-error">{{ deleteAccountError }}</p>
+
+            <div class="login-sheet__actions">
+              <button type="submit" class="login-sheet__button login-sheet__button--danger" :disabled="deleteAccountLoading || deleteAccountEmail !== authStore.userEmail || !deleteAccountPassword">
+                {{ deleteAccountLoading ? '...' : t('my.deleteAccount') }}
+              </button>
+              <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeDeleteAccountSheet">
+                {{ t('my.cancel') }}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </Transition>
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -384,6 +625,27 @@ const showProfileEditSheet = ref(false)
 const renameInput = ref('')
 const renameError = ref('')
 const renameLoading = ref(false)
+
+const showChangePasswordSheet = ref(false)
+const changePasswordOld = ref('')
+const changePasswordNew = ref('')
+const changePasswordConfirm = ref('')
+const changePasswordError = ref('')
+const changePasswordLoading = ref(false)
+
+const showAccountManageSheet = ref(false)
+
+const showChangeEmailForm = ref(false)
+const changeEmailNew = ref('')
+const changeEmailError = ref('')
+const changeEmailLoading = ref(false)
+const changeEmailSent = ref(false)
+
+const showDeleteAccountSheet = ref(false)
+const deleteAccountEmail = ref('')
+const deleteAccountPassword = ref('')
+const deleteAccountError = ref('')
+const deleteAccountLoading = ref(false)
 
 const { toastMsg, showToast: showToastMsg } = useToast()
 
@@ -617,6 +879,169 @@ async function handleLogout() {
 
 function confirmLogout() {
   void handleLogout()
+}
+
+// Change Password
+function openChangePasswordSheet() {
+  changePasswordOld.value = ''
+  changePasswordNew.value = ''
+  changePasswordConfirm.value = ''
+  changePasswordError.value = ''
+  showChangePasswordSheet.value = true
+}
+
+function closeChangePasswordSheet() {
+  showChangePasswordSheet.value = false
+}
+
+async function confirmChangePassword() {
+  if (changePasswordNew.value !== changePasswordConfirm.value) {
+    changePasswordError.value = t('my.authPasswordMismatch')
+    return
+  }
+  if (changePasswordNew.value.length < 6) {
+    changePasswordError.value = t('my.authPasswordTooShort')
+    return
+  }
+  changePasswordLoading.value = true
+  changePasswordError.value = ''
+  try {
+    // Verify old password first
+    await authStore.loginWithEmail(authStore.userEmail, changePasswordOld.value)
+    // Then update to new password
+    await authStore.changePassword(changePasswordNew.value)
+    showChangePasswordSheet.value = false
+    showToastMsg(t('my.changePasswordSuccess'))
+  } catch (e) {
+    changePasswordError.value = e.message || t('my.changePasswordFailed')
+  } finally {
+    changePasswordLoading.value = false
+  }
+}
+
+// Account Management
+async function openAccountManageSheet() {
+  showAccountManageSheet.value = true
+  await authStore.fetchLinkedProviders()
+}
+
+function closeAccountManageSheet() {
+  showAccountManageSheet.value = false
+}
+
+function openChangePasswordFromManage() {
+  showAccountManageSheet.value = false
+  openChangePasswordSheet()
+}
+
+function openDeleteAccountFromManage() {
+  showAccountManageSheet.value = false
+  openDeleteAccountSheet()
+}
+
+// Change Email
+function openChangeEmail() {
+  changeEmailNew.value = ''
+  changeEmailError.value = ''
+  changeEmailSent.value = false
+  showChangeEmailForm.value = true
+}
+
+function closeChangeEmail() {
+  showChangeEmailForm.value = false
+  changeEmailNew.value = ''
+  changeEmailError.value = ''
+  changeEmailSent.value = false
+}
+
+async function confirmChangeEmail() {
+  if (!changeEmailNew.value || changeEmailNew.value === authStore.userEmail) return
+  changeEmailLoading.value = true
+  changeEmailError.value = ''
+  changeEmailSent.value = false
+  try {
+    await authStore.updateProfile({ email: changeEmailNew.value })
+    changeEmailSent.value = true
+    changeEmailNew.value = ''
+  } catch (e) {
+    changeEmailError.value = e.message || t('my.changeEmailFailed')
+  } finally {
+    changeEmailLoading.value = false
+  }
+}
+
+function getProviderLabel(provider) {
+  const map = {
+    google: t('my.providerGoogle'),
+    github: t('my.providerGitHub'),
+    azure: t('my.providerMicrosoft'),
+    email: t('my.authTypeEmail')
+  }
+  return map[provider] || provider
+}
+
+async function handleLinkProvider(provider) {
+  try {
+    await authStore.linkProvider(provider)
+    await authStore.fetchLinkedProviders()
+  } catch (e) {
+    showToastMsg(e.message || t('my.unlinkProviderFailed'))
+  }
+}
+
+function confirmUnlinkProvider(identity) {
+  if (authStore.linkedProviders.length <= 1) {
+    showToastMsg(t('my.cannotUnlinkLast'))
+    return
+  }
+  showAccountManageSheet.value = false
+  // Show a simple confirm before unlinking
+  if (window.confirm(t('my.unlinkProviderConfirm'))) {
+    doUnlinkProvider(identity)
+  } else {
+    showAccountManageSheet.value = true
+  }
+}
+
+async function doUnlinkProvider(identity) {
+  try {
+    await authStore.unlinkProvider(identity.id)
+    showToastMsg(t('my.unlinkProviderSuccess'))
+    showAccountManageSheet.value = true
+  } catch (e) {
+    showToastMsg(e.message || t('my.unlinkProviderFailed'))
+    showAccountManageSheet.value = true
+  }
+}
+
+// Delete Account
+function openDeleteAccountSheet() {
+  deleteAccountEmail.value = ''
+  deleteAccountPassword.value = ''
+  deleteAccountError.value = ''
+  showDeleteAccountSheet.value = true
+}
+
+function closeDeleteAccountSheet() {
+  showDeleteAccountSheet.value = false
+}
+
+async function confirmDeleteAccount() {
+  if (deleteAccountEmail.value !== authStore.userEmail) {
+    deleteAccountError.value = t('my.deleteAccountEmailMismatch')
+    return
+  }
+  deleteAccountLoading.value = true
+  deleteAccountError.value = ''
+  try {
+    await authStore.deleteAccount(deleteAccountPassword.value)
+    showDeleteAccountSheet.value = false
+    showToastMsg(t('my.deleteAccountSuccess'))
+  } catch (e) {
+    deleteAccountError.value = e.message || t('my.deleteAccountFailed')
+  } finally {
+    deleteAccountLoading.value = false
+  }
 }
 
 
@@ -1096,6 +1521,10 @@ onActivated(() => {
   color: #ffffff;
 }
 
+.hero-action--danger {
+  color: #c74444;
+}
+
 .hero-action:disabled {
   opacity: 0.56;
 }
@@ -1422,6 +1851,183 @@ onActivated(() => {
 .login-sheet__button--secondary {
   background: var(--app-surface-soft);
   color: var(--app-text);
+}
+
+.login-sheet__button--danger {
+  background: #c74444;
+  color: #fff;
+}
+
+.login-sheet__button--danger-sm {
+  min-height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, #c74444 12%, transparent);
+  color: #c74444;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-sheet__button--danger-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.login-sheet__button--secondary-sm {
+  min-height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-sheet__button--secondary-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dialog-success {
+  margin-top: 8px;
+  color: #28c880;
+  font-size: 13px;
+}
+
+.login-sheet__button--full {
+  width: 100%;
+}
+
+.login-sheet__title--danger {
+  color: #c74444;
+}
+
+.login-sheet__desc--danger {
+  color: #c74444;
+  font-weight: 500;
+}
+
+.login-sheet--tall {
+  max-height: min(calc(100dvh - 48px), 80vh);
+  overflow-y: auto;
+}
+
+.account-manage-section {
+  margin-bottom: 20px;
+}
+
+.account-manage-section__title {
+  margin: 0 0 12px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.account-manage-empty {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  padding: 12px;
+  text-align: center;
+  background: var(--app-surface-soft);
+  border-radius: 12px;
+}
+
+.account-manage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--app-surface-soft);
+  border-radius: 12px;
+}
+
+.account-manage-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-manage-item__provider {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.account-manage-item__email {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-field__label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.auth-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.16s ease;
+}
+
+.auth-input:focus {
+  border-color: color-mix(in srgb, var(--app-text) 28%, transparent);
+}
+
+.social-buttons {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
+  border-radius: 14px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.social-btn:active {
+  transform: scale(0.98);
+}
+
+.social-btn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
 }
 
 .login-sheet__button:disabled {
