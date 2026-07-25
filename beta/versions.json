@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260725.5",
+    "url": "bundle-20260725.5.zip",
+    "hash": "fc7003dc389379fadd1cc4b23bb040ee0ec6d99716da14e5ca643f3364d98f9f",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强调查功能，优化用户ID获取逻辑，更新样式以支持新状态显示",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-25T14:30:28Z"
+  },
+  {
     "version": "20260725.4",
     "url": "bundle-20260725.4.zip",
     "hash": "800a89779714b24b14429dd659ddf3b228c17a7863b276fdd5f2f0c1065beaac",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新统计界面",
     "updateLevel": "silent",
     "publishedAt": "2026-07-25T09:33:24Z"
-  },
-  {
-    "version": "20260725.2",
-    "url": "bundle-20260725.2.zip",
-    "hash": "bf9aa6f1645dab1effbf335254558549fbc8923e60e7ac87fc39be8a0b697f76",
-    "minNativeVersion": null,
-    "notes": "- feat: 增加头像编辑功能，支持编辑当前头像和上传新头像\n\n- feat: 调整账户操作区域布局，增加列数并优化内边距",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-25T06:31:25Z"
   }
 ]
