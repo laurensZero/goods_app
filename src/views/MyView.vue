@@ -2188,12 +2188,12 @@ onActivated(() => {
 
   .account-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .account-actions .hero-action {
     min-width: 0;
-    padding-inline: 12px;
+    padding-inline: 8px;
   }
 
   .account-actions .hero-action span {
