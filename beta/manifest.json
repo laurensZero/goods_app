@@ -1,9 +1,9 @@
 {
-  "version": "20260724.10",
-  "url": "bundle-20260724.10.zip",
-  "hash": "019a233a0611e0933fff38f15c9f33e68efb865f152fbea8f3bfcfbaa12b543d",
+  "version": "20260725.1",
+  "url": "bundle-20260725.1.zip",
+  "hash": "488eecd15c2aca3daa53d1e6168b4445722dff89d6301f1fde01904b57b88154",
   "minNativeVersion": null,
-  "notes": "- feat: 增加支持返回计数的 Supabase 请求功能，优化反馈回复渲染逻辑",
+  "notes": "- feat: 更新调查弹窗样式，优化响应者ID获取逻辑\n\n- feat: 增加首次回复时间显示，优化反馈详情展示逻辑\n\n- feat: 账号管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-24T15:48:13Z"
+  "publishedAt": "2026-07-25T05:44:36Z"
 }

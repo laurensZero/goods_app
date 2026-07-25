@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260725.1",
+    "url": "bundle-20260725.1.zip",
+    "hash": "488eecd15c2aca3daa53d1e6168b4445722dff89d6301f1fde01904b57b88154",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新调查弹窗样式，优化响应者ID获取逻辑\n\n- feat: 增加首次回复时间显示，优化反馈详情展示逻辑\n\n- feat: 账号管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-25T05:44:36Z"
+  },
+  {
     "version": "20260724.10",
     "url": "bundle-20260724.10.zip",
     "hash": "019a233a0611e0933fff38f15c9f33e68efb865f152fbea8f3bfcfbaa12b543d",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化头像编辑/用户名编辑",
     "updateLevel": "silent",
     "publishedAt": "2026-07-24T15:42:25Z"
-  },
-  {
-    "version": "20260724.8",
-    "url": "bundle-20260724.8.zip",
-    "hash": "121be8e58a6a743378ff661c013fea506c8b295146bf229f84e230fef9115d5c",
-    "minNativeVersion": null,
-    "notes": "- backend: 更新管理后台",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-24T13:54:54Z"
   }
 ]
