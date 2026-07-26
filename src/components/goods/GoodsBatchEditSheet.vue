@@ -5,6 +5,7 @@
     :z-index="210"
     :position="popupPosition"
     round
+    transition="sheet-pop"
     :class="['batch-edit-popup', { 'batch-edit-popup--tablet': isTablet }]"
   >
     <div class="batch-edit-sheet">
@@ -607,7 +608,7 @@ defineExpose({
 :global(.batch-edit-popup.van-popup--center) {
   width: min(720px, calc(100vw - 48px)) !important;
   max-width: calc(100vw - 48px) !important;
-  border-radius: 28px !important;
+  border-radius: var(--radius-large) !important;
 }
 
 .batch-edit-sheet {
@@ -955,7 +956,7 @@ defineExpose({
   overflow-y: auto;
   padding: 8px;
   border: 1px solid var(--app-border);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-panel-bg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
@@ -968,7 +969,7 @@ defineExpose({
   min-height: 44px;
   padding: 0 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
   font-size: 15px;
@@ -1044,7 +1045,7 @@ defineExpose({
 @media (min-width: 900px) {
   .batch-edit-sheet {
     width: 100%;
-    border-radius: 24px;
+    border-radius: var(--radius-large);
     padding-top: 24px;
   }
 

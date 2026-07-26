@@ -4,6 +4,7 @@
     teleport="body"
     :position="popupPosition"
     round
+    transition="sheet-pop"
     :class="['group-folder-popup', { 'group-folder-popup--tablet': isTablet, 'group-folder-popup--instant': skipOpenAnimation }]"
     @opened="onSheetOpened"
   >
@@ -367,7 +368,7 @@ async function handleAddMembers() {
 :global(.group-folder-popup.van-popup--center) {
   width: min(720px, calc(100vw - 48px)) !important;
   max-width: calc(100vw - 48px) !important;
-  border-radius: 28px !important;
+  border-radius: var(--radius-large) !important;
 }
 
 .group-folder {
@@ -503,8 +504,8 @@ async function handleAddMembers() {
 .group-folder-popup--instant :deep(.van-popup),
 .group-folder-popup--instant :deep(.van-fade-enter-active),
 .group-folder-popup--instant :deep(.van-fade-leave-active),
-.group-folder-popup--instant :deep(.van-popup-slide-enter-active),
-.group-folder-popup--instant :deep(.van-popup-slide-leave-active) {
+.group-folder-popup--instant :deep(.sheet-pop-enter-active),
+.group-folder-popup--instant :deep(.sheet-pop-leave-active) {
   transition-duration: 0s !important;
   animation-duration: 0s !important;
   transition-delay: 0s !important;

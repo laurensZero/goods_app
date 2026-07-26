@@ -3,6 +3,7 @@
     :show="show"
     :position="isMobile ? 'bottom' : 'center'"
     round
+    transition="sheet-pop"
     :style="isMobile ? { maxHeight: '85vh' } : {}"
     class="ranking-popup picker-popup"
     @update:show="$emit('update:show', $event)"
@@ -71,6 +72,11 @@ defineEmits(['update:show'])
 <style scoped>
 .ranking-popup {
   --van-popup-background: var(--app-surface);
+}
+:global(.ranking-popup.van-popup--bottom) {
+  border-radius: var(--radius-large) var(--radius-large) 0 0 !important;
+}
+:global(.ranking-popup.van-popup--center) {
   border-radius: var(--radius-large) !important;
 }
 .ranking-popup__header {

@@ -386,10 +386,6 @@
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 .parse-error {
   margin-top: 8px;
   font-size: 13px;

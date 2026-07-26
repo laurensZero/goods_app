@@ -361,12 +361,14 @@ defineExpose({ checkPopup, openSurvey })
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: calc(var(--z-dialog-high) + 50);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 .survey-popup {
   position: relative;
@@ -374,7 +376,7 @@ defineExpose({ checkPopup, openSurvey })
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
@@ -469,7 +471,7 @@ defineExpose({ checkPopup, openSurvey })
 }
 .survey-popup-qimage {
   width: 100%;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   margin: 8px 0 12px;
 }
 .intro-title {
@@ -693,7 +695,7 @@ defineExpose({ checkPopup, openSurvey })
 .popup-nav-btn {
   flex: 1;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: none;
   font-size: 14px;
   font-weight: 600;
@@ -737,7 +739,7 @@ defineExpose({ checkPopup, openSurvey })
   .survey-popup {
     width: min(100%, 560px);
     max-height: 80vh;
-    border-radius: 24px;
+    border-radius: var(--radius-large);
   }
   .survey-popup-question {
     padding: 12px 32px 20px;

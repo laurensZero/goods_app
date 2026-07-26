@@ -319,10 +319,7 @@ input::placeholder {
   cursor: not-allowed;
 }
 .mhpicker-spin {
-  animation: mhpicker-spin 0.8s linear infinite;
-}
-@keyframes mhpicker-spin {
-  to { transform: rotate(360deg); }
+  animation: spin 0.7s linear infinite;
 }
 .mhpicker-hidden-input {
   display: none;

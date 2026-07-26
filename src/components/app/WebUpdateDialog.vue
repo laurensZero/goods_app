@@ -111,12 +111,14 @@ watch(showDialog, (visible) => {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1090;
+  z-index: calc(var(--z-dialog) - 10);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .update-dialog {
@@ -225,7 +227,7 @@ watch(showDialog, (visible) => {
   min-height: 42px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 500;
 }

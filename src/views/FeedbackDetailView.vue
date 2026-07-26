@@ -851,11 +851,7 @@ watch(() => props.modelValue, (val) => {
   border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
   border-radius: 50%;
-  animation: fb-spin 0.6s linear infinite;
-}
-
-@keyframes fb-spin {
-  to { transform: rotate(360deg); }
+  animation: spin 0.7s linear infinite;
 }
 
 /* Loading */

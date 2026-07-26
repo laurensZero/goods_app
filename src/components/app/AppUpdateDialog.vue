@@ -89,12 +89,14 @@ function handleOverlayClick() {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: var(--z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .update-dialog {
@@ -141,7 +143,7 @@ function handleOverlayClick() {
 .download-progress {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
 }
 
@@ -247,7 +249,7 @@ function handleOverlayClick() {
   min-height: 42px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 500;
 }

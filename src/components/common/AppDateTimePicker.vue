@@ -6,6 +6,7 @@
     :lock-scroll="false"
     :position="popupPosition"
     :round="!isTablet"
+    transition="sheet-pop"
     :class="['picker-popup', { 'picker-popup--center': isTablet }]"
     @opened="onOpened"
   >

@@ -298,14 +298,14 @@ watch(() => props.modelValue, (val) => {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-overlay-blur));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur));
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 /* ── Dialog shell ── */
@@ -321,7 +321,7 @@ watch(() => props.modelValue, (val) => {
 .fb-dialog__scroll {
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 28px 24px 24px;
+  padding: 24px;
 }
 
 /* ── Header ── */
@@ -689,11 +689,7 @@ watch(() => props.modelValue, (val) => {
   border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
   border-radius: 50%;
-  animation: fb-spin 0.6s linear infinite;
-}
-
-@keyframes fb-spin {
-  to { transform: rotate(360deg); }
+  animation: spin 0.7s linear infinite;
 }
 
 /* ── Transitions ── */

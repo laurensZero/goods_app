@@ -70,6 +70,13 @@
   --app-chip-accent-border: rgba(32, 112, 192, 0.24);
   --app-panel-bg: var(--app-surface);
   --app-panel-border: var(--app-border);
+  /* Z 层级规范（低 → 高）。同层内需要微调时用 calc(var(--z-*) + n) */
+  --z-float: 40;            /* 悬浮控件（浮动底栏等） */
+  --z-sheet-backdrop: 80;   /* 页面级 sheet 遮罩 */
+  --z-sheet: 90;            /* 页面级底部面板 */
+  --z-modal: 200;           /* 页面级模态（确认框等） */
+  --z-dialog: 1100;         /* 应用级对话框（更新、公告等） */
+  --z-dialog-high: 1150;    /* 需要盖过普通对话框的对话框 */
 }
 
 /* ====================================================

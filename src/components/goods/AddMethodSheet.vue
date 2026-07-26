@@ -675,10 +675,6 @@ function onTaobaoImport() {
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 .share-loading-text {
   font-size: 14px;
   color: var(--app-text-tertiary);

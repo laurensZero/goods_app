@@ -4,6 +4,7 @@
     teleport="body"
     :position="popupPosition"
     round
+    transition="sheet-pop"
     :class="['search-filter-popup-popup', { 'search-filter-popup-popup--tablet': isTablet }]"
     :style="popupStyle"
   >
@@ -979,7 +980,7 @@ function onDateConfirm({ selectedValues }) {
   min-width: 0;
   padding: 8px 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   font-size: 13px;

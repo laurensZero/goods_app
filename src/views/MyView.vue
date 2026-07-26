@@ -2248,10 +2248,6 @@ onActivated(() => {
   border: 2px solid rgba(142, 142, 147, 0.25);
   border-top-color: var(--app-text);
   border-radius: 50%;
-  animation: scan-spin 0.7s linear infinite;
-}
-
-@keyframes scan-spin {
-  to { transform: rotate(360deg); }
+  animation: spin 0.7s linear infinite;
 }
 </style>

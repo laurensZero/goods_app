@@ -246,7 +246,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   color: var(--app-text);
   text-decoration: none;
@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
   aspect-ratio: 4 / 4.6;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -442,10 +442,34 @@ onBeforeUnmount(() => {
 }
 
 .event-card__price {
-  color: #8e8e93;
+  color: var(--app-text-tertiary, #8e8e93);
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;
+}
+
+:global(html.theme-dark) .check-icon--checked {
+  background: #f5f5f7;
+  border-color: #f5f5f7;
+}
+
+:global(html.theme-dark) .check-icon--checked svg {
+  stroke: #141416;
+}
+
+:global(html.theme-dark) .event-card__tag-pill.type-exhibition {
+  background: rgba(90, 120, 250, 0.22);
+  color: #9db4ff;
+}
+
+:global(html.theme-dark) .event-card__tag-pill.type-concert {
+  background: rgba(250, 149, 90, 0.2);
+  color: #f2a869;
+}
+
+:global(html.theme-dark) .event-card__tag-pill.type-other {
+  background: rgba(142, 142, 147, 0.22);
+  color: #a7acb8;
 }
 </style>

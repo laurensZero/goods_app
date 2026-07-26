@@ -517,11 +517,7 @@ onMounted(() => {
   border: 3px solid rgba(142, 142, 147, 0.2);
   border-top-color: var(--app-text);
   border-radius: 50%;
-  animation: spin 0.72s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  animation: spin 0.7s linear infinite;
 }
 
 .share-grid {

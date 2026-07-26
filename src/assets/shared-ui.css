@@ -3,7 +3,7 @@
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-modal, 200);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,6 +112,31 @@
   opacity: 0;
 }
 
+/* Vant Popup: opt in via <van-popup transition="sheet-pop">.
+   Center-positioned popups keep Vant's translateY(-50%) centering. */
+.sheet-pop-enter-active.van-popup,
+.sheet-pop-leave-active.van-popup {
+  transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
+}
+
+.sheet-pop-enter-from.van-popup,
+.sheet-pop-leave-to.van-popup {
+  transform: translateY(26px);
+  opacity: 0;
+}
+
+.sheet-pop-enter-from.van-popup--center,
+.sheet-pop-leave-to.van-popup--center {
+  transform: translateY(calc(-50% + 26px));
+}
+
+/* ── Shared Spinner ── */
+
+/* Single global spin keyframes; use `animation: spin 0.7s linear infinite` */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ── Float Footer (centered floating save button) ── */
 
 .float-footer {
@@ -120,6 +145,6 @@
   bottom: max(20px, env(safe-area-inset-bottom));
   transform: translateX(-50%);
   width: min(calc(100vw - 32px), 420px);
-  z-index: var(--float-footer-z, 40);
+  z-index: var(--float-footer-z, var(--z-float, 40));
   pointer-events: none;
 }

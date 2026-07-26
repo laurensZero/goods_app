@@ -258,6 +258,7 @@
     <Popup
       v-model:show="colorPicker.show"
       teleport="body"
+      transition="sheet-pop"
       :z-index="2200"
       :position="pickerPopupPosition"
       :round="!isTabletViewport"

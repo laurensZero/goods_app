@@ -169,13 +169,15 @@ async function downloadQr() {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1150;
+  z-index: var(--z-dialog-high);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: rgba(14, 18, 28, 0.38);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .qr-dialog {
@@ -245,7 +247,7 @@ async function downloadQr() {
   aspect-ratio: 1;
   justify-self: center;
   padding: 16px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: #ffffff;
   box-shadow:
     inset 0 0 0 1px rgba(20, 20, 22, 0.06),
@@ -302,7 +304,7 @@ async function downloadQr() {
   resize: none;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
   font-size: 12px;
@@ -321,7 +323,7 @@ async function downloadQr() {
   min-height: 44px;
   padding: 0 14px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   font-size: 14px;
   font-weight: 600;
 }
@@ -375,8 +377,8 @@ async function downloadQr() {
   .qr-dialog {
     width: 100%;
     padding: 20px;
-    border-bottom-left-radius: 28px;
-    border-bottom-right-radius: 28px;
+    border-bottom-left-radius: var(--radius-large);
+    border-bottom-right-radius: var(--radius-large);
   }
 
   .dialog-actions {

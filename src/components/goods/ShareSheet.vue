@@ -617,10 +617,6 @@ watch(() => shareResult.value?.code, (value) => {
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 .load-text {
   font-size: 14px;
   color: var(--app-text-tertiary, #8e8e93);

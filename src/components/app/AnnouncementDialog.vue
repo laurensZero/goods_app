@@ -135,12 +135,14 @@ const updatedAtLabel = computed(() => {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1150;
+  z-index: var(--z-dialog-high);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .announcement-dialog {
@@ -178,7 +180,7 @@ const updatedAtLabel = computed(() => {
   display: block;
   width: 100%;
   margin-top: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 .announcement-body {
@@ -315,7 +317,7 @@ const updatedAtLabel = computed(() => {
   min-height: 42px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 500;
 }

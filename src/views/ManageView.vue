@@ -153,6 +153,7 @@
         :position="exportPickerPosition"
         :round="!isTabletViewport"
         teleport="body"
+        transition="sheet-pop"
         :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
       >
         <div class="export-picker-body">

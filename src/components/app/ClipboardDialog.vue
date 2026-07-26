@@ -156,10 +156,10 @@ watch(showPrompt, (newVal) => {
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: var(--z-dialog);
   background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 /* 面板 */
@@ -169,13 +169,13 @@ watch(showPrompt, (newVal) => {
   bottom: 0;
   transform: translateX(-50%);
   width: min(100vw, 480px);
-  z-index: 1110;
+  z-index: calc(var(--z-dialog) + 10);
   background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
   border: 1px solid var(--app-glass-border);
   box-shadow:
     0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
     0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
   padding: 12px 16px max(24px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -226,12 +226,8 @@ watch(showPrompt, (newVal) => {
   border: 3px solid color-mix(in srgb, var(--app-text-tertiary) 20%, transparent);
   border-top-color: var(--app-text-secondary);
   border-radius: 50%;
-  animation: sheet-spin 0.8s linear infinite;
+  animation: spin 0.7s linear infinite;
   margin-bottom: 12px;
-}
-
-@keyframes sheet-spin {
-  to { transform: rotate(360deg); }
 }
 
 .share-loading-text {
@@ -303,7 +299,7 @@ watch(showPrompt, (newVal) => {
   align-items: center;
   gap: 12px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface) 60%, transparent);
   border: 1px solid color-mix(in srgb, var(--app-border) 40%, transparent);
   transition: opacity 0.2s;
@@ -415,7 +411,7 @@ watch(showPrompt, (newVal) => {
   left: 6px;
   width: calc(50% - 10px);
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
   z-index: 0;
@@ -430,7 +426,7 @@ watch(showPrompt, (newVal) => {
   z-index: 1;
   height: 40px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary, #8e8e93);
   font-size: 14px;
@@ -454,7 +450,7 @@ watch(showPrompt, (newVal) => {
   flex: 1;
   height: 48px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -485,7 +481,7 @@ watch(showPrompt, (newVal) => {
     bottom: auto;
     top: 50%;
     transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
+    border-radius: var(--radius-large);
     max-height: 80dvh;
   }
 

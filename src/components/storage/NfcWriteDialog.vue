@@ -61,13 +61,15 @@ function cancel() {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1150;
+  z-index: var(--z-dialog-high);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: rgba(14, 18, 28, 0.38);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .nfc-dialog {
@@ -181,7 +183,7 @@ function cancel() {
   min-width: 140px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 600;
   display: flex;
@@ -231,8 +233,8 @@ function cancel() {
   .nfc-dialog {
     width: 100%;
     padding: 20px;
-    border-bottom-left-radius: 28px;
-    border-bottom-right-radius: 28px;
+    border-bottom-left-radius: var(--radius-large);
+    border-bottom-right-radius: var(--radius-large);
   }
 
   .dialog-actions {

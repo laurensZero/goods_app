@@ -4,6 +4,7 @@
     teleport="body"
     :position="popupPosition"
     round
+    transition="sheet-pop"
     :class="['group-sheet-popup', { 'group-sheet-popup--tablet': isTablet }]"
   >
     <div class="group-sheet">
@@ -238,7 +239,7 @@ function handleCreated(group) {
 <style scoped>
 .group-sheet-popup { overflow: hidden; }
 :global(.group-sheet-popup.van-popup--bottom) { left: 0; right: 0; bottom: 0; width: 100%; }
-:global(.group-sheet-popup.van-popup--center) { width: min(480px, calc(100vw - 48px)) !important; max-width: calc(100vw - 48px) !important; border-radius: 28px !important; }
+:global(.group-sheet-popup.van-popup--center) { width: min(480px, calc(100vw - 48px)) !important; max-width: calc(100vw - 48px) !important; border-radius: var(--radius-large) !important; }
 
 .group-sheet {
   display: flex; flex-direction: column; width: 100%; max-height: 90dvh;

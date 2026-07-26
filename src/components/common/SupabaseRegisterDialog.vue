@@ -165,15 +165,15 @@ watch(() => props.modelValue, (val) => {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: rgba(14, 18, 28, 0.38);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .dialog {
@@ -238,7 +238,7 @@ watch(() => props.modelValue, (val) => {
   min-height: 42px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -269,7 +269,7 @@ watch(() => props.modelValue, (val) => {
   height: 46px;
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
   font-size: 15px;
@@ -289,7 +289,7 @@ watch(() => props.modelValue, (val) => {
   width: 100%;
   min-height: 48px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -350,8 +350,8 @@ watch(() => props.modelValue, (val) => {
   .dialog {
     width: min(100%, 100%);
     padding: 20px;
-    border-bottom-left-radius: 28px;
-    border-bottom-right-radius: 28px;
+    border-bottom-left-radius: var(--radius-large);
+    border-bottom-right-radius: var(--radius-large);
   }
 
   .dialog--scrollable {

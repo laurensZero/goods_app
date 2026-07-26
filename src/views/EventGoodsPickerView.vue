@@ -89,6 +89,7 @@
     <Popup
       v-model:show="showSortSheet"
       teleport="body"
+      transition="sheet-pop"
       :position="popupPosition"
       :round="!isTablet"
       overlay-class="sort-sheet-overlay"

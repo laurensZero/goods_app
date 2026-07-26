@@ -4,6 +4,7 @@
     teleport="body"
     :position="popupPosition"
     round
+    transition="sheet-pop"
     :class="['group-sheet-popup', { 'group-sheet-popup--tablet': isTablet }]"
   >
     <div class="group-sheet">
@@ -139,6 +140,7 @@
       teleport="body"
       :position="popupPosition"
       round
+      transition="sheet-pop"
       :class="['group-sheet-popup', { 'group-sheet-popup--tablet': isTablet }]"
     >
       <div class="group-sheet">
@@ -298,7 +300,7 @@ defineExpose({ consumeBack })
 :global(.group-sheet-popup.van-popup--center) {
   width: min(480px, calc(100vw - 48px)) !important;
   max-width: calc(100vw - 48px) !important;
-  border-radius: 28px !important;
+  border-radius: var(--radius-large) !important;
 }
 
 .group-sheet {
