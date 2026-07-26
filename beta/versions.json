@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.9",
+    "url": "bundle-20260726.9.zip",
+    "hash": "da6305205bd523c39ff672436d15ad4922d5c199db7ddf69044bd41751b461af",
+    "minNativeVersion": null,
+    "notes": "- ## 更新说明\n  本版本为大规模修复版本，无新功能。\n\n  ### 安全\n  - security: 修复反馈回复接口可被伪造管理员回复的漏洞，补充归属校验\n  - security: 分享链接改为仅凭分享码取数，不再允许列举他人分享内容\n  - security: 收敛云端存储与问卷回答的过宽访问策略，附件清理按归属限定\n\n  ### 同步\n  - fix: 修复多设备场景下快速推送可能漏拉其他设备数据的问题\n  - fix: 修复冲突选择\"保留本地\"后仍被其他设备覆盖的问题\n  - fix: 修复设备时钟偏差可能导致本地新增商品被误删的问题\n  - fix: 同步超时后旧任务不再与新任务并发写入；切换账号自动重置同步状态\n  - perf: 同步不再多拉一次全量数据，流量明显减少\n\n  ### 数据与统计\n  - fix: 数据库迁移加入事务保护，中断不再产生半迁移状态；OTA 回滚不再误重置数据库\n  - fix: 修复统计图表\"先空后有数据\"时永久空白、切换深浅色后颜色不刷新的问题\n  - fix: 外币商品逐件价格现在正确按汇率折算，离线时使用内置兜底汇率\n  - fix: 预算口径统一（月预算优先于年预算/12），出谷盈亏不再出现 -¥0.00\n\n  ### 体验\n  - fix: 添加商品保存失败时会提示并回滚，不再静默丢失\n  - fix: 首页搜索加入防抖，大量藏品时输入不再卡顿\n  - fix: 批量添加刷新后图片丢失的项会标记并引导重新选图\n  - fix: 剪贴板导入不再反复触发系统\"已读取剪贴板\"提示\n  - fix: 修复添加/编辑流程取消后本地图片文件残留的问题\n  - fix: Android 返回键在深链冷启动场景不再失灵；OTA 坏包白屏可自动回滚\n  - i18n: 补齐五种语言缺失文案，修正统计页硬编码中文",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T14:01:24Z"
+  },
+  {
     "version": "20260726.8",
     "url": "bundle-20260726.8.zip",
     "hash": "78d898114f0df7b57ae4b7e0d8ff4cd17e806c81221e4d9156b7806269d439a7",
@@ -16,14 +25,5 @@
     "notes": "- fix: 优化 KeepAlive 组件使用，减少不必要的重载与渲染",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T11:51:39Z"
-  },
-  {
-    "version": "20260726.6",
-    "url": "bundle-20260726.6.zip",
-    "hash": "2473d9f9a33a212b7aef632bc46eafc3c2f7b345609c501e156947ad951da8b0",
-    "minNativeVersion": null,
-    "notes": "- feat: 日志系统全面增强 — 统一缓冲、落盘、全域埋点\n  核心设施 (utils/logger.js):\n  - 统一日志环形缓冲(400条),createLogger 的 info/warn/error 自动入缓冲\n    (info 仅入缓冲不刷 console,生产环境零噪音的操作轨迹)\n  - console.error/warn 劫持、window error / unhandledrejection 捕获迁入 logger\n  - 缓冲节流落盘 localStorage(2s),pagehide/visibilitychange 立即 flush;\n    启动时恢复上一会话日志 — 闪退/重启前的最后痕迹可随反馈上传\n  - appLog() 迁入 logger 并全域启用(原先零调用方,App Logs 恒为空)\n\n  全局错误捕获 (main.js):\n  - app.config.errorHandler 记录组件名 + 生命周期钩子\n  - router.onError 捕获导航/动态 import 失败\n  - logger 提前到首个 import,后续模块初始化报错也能入缓冲\n\n  反馈日志 (feedbackAttachmentService):\n  - 自带收集器移除,改为消费统一缓冲\n  - 设备日志新增: 错误速览 / 当前会话完整轨迹 / 上一会话日志三段\n\n  埋点补全:\n  - 同步域: sync/pull 起止与决策、diff 比较结果、冲突检测与解决选择、\n    quickPush/forcePush、push 计数、同步步骤耗时镜像入缓冲\n  - DB: 迁移应用记录、init 耗时(info 级入缓冲)\n  - OTA: webUpdate 全链路(检查/下载/应用/回滚/恢复内置)原先零日志,\n    appUpdate 检查/下载/SHA256 校验失败\n  - auth: 登录/登出/OAuth/状态变更\n  - 批量添加: 队列创建/保存/放弃; 备份导入导出结果与失败原因\n  - 深度链接: NFC/分享链接处理结果\n\n  构建 (vite.config.js):\n  - BUILD_SOURCEMAP=1 时生成 hidden sourcemap,用于符号化线上堆栈,\n    默认关闭避免 .map 进 OTA zip/APK\n\n  测试: 新增 logger 缓冲单测 7 例;全量 489 测试通过,lint 0 error\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 设置页移除出谷账本入口\n  出谷账本入口收敛为统计页回血卡片(路由与页面保留);\n  清理 manageEntries 配置与五语言 manage.json 的对应键\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷账本入场动画与平板适配\n  - 统计页回血卡片跳转改用 runManageForwardNavigation,与其它管理子页同款滑入动画\n  - 账本页 900px 断点平板布局:汇总卡 4 列、记录列表双列、容器加宽\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- style: 出谷账本切换条平板端居中\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷账本 tab 切换过渡动画\n  已出/在售内容切换加方向感过渡:向右切从右滑入、向左切从左滑入,\n  配 0.16s 淡入淡出,out-in 模式避免两组列表重叠\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 统计页纳入 KeepAlive,消除切换标签时图表重新加载\n  统计页顶部与收藏/心愿单同级切换,但路由未缓存,每次切回都整页重挂载,\n  热力图与趋势图随之重新初始化并重放入场动画;\n  加入 keepAliveViewNames 并标记 meta.keepAlive 后组件保活,数据变更仍经响应式更新\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 统计图表滚动中反复重载\n  两个防线:\n  - resize 改用 ResizeObserver 且仅在容器尺寸真变化时触发——手机浏览器\n    滚动时地址栏收起/展开连环触发 window resize,图表随滑动反复重排\n  - setOption 前序列化对比,内容未变的新引用直接跳过,不重放入场动画\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T11:40:04Z"
   }
 ]
