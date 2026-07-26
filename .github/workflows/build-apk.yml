@@ -217,6 +217,8 @@ jobs:
         run: |
           git fetch --tags --force
 
+          APK_SHA256=$(sha256sum android/app/build/outputs/apk/release/app-release.apk | awk '{print $1}')
+
           UPDATE_LEVEL="prompt"
           if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
             CANDIDATE_LEVEL=$(printf '%s' "${INPUT_UPDATE_LEVEL}" | tr '[:upper:]' '[:lower:]')
@@ -246,6 +248,7 @@ jobs:
           fi
 
           echo "update_level: ${UPDATE_LEVEL}" > release-notes.md
+          echo "apk_sha256: ${APK_SHA256}" >> release-notes.md
           echo "" >> release-notes.md
           echo "## 更新说明" >> release-notes.md
           echo "" >> release-notes.md

@@ -17,7 +17,8 @@ import {
   TokenExpiredError
 } from '@/utils/github/release'
 import { readSyncKey } from '@/utils/sync/storage'
-import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
+import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, parseApkSha256FromText, resolveSourceCandidates } from '@/utils/updateHelpers'
+import { computeFileSha256 } from '@/utils/platform/fileHash'
 import i18n from '@/locales'
 
 const UPDATE_REPO_NAME = 'goods_app'
@@ -87,6 +88,11 @@ function resolveUpdateLevelFromRelease(release) {
   return 'prompt'
 }
 
+// 从 release body 解析 apk_sha256 元数据（由 build-apk.yml 工作流写入 release notes）
+function resolveApkSha256FromRelease(release) {
+  return parseApkSha256FromText(release?.body)
+}
+
 async function fetchLatestReleaseBySource(source) {
   const owner = UPDATE_REPO_OWNER_BY_SOURCE[source]
   if (!owner) {
@@ -143,6 +149,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
   const releaseAsset = computed(() => resolveReleaseAsset(latestRelease.value, updateTargetPlatform.value))
   const supportsInAppDownload = computed(() => nativeAndroidDownloadEnabled.value || usingMockDownload.value)
   const releaseNotesPreview = computed(() => buildReleaseNotesPreview(latestRelease.value?.body))
+  const releaseApkSha256 = computed(() => resolveApkSha256FromRelease(latestRelease.value))
   const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
   const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
 
@@ -292,7 +299,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       const filePath = `updates/${fileName}`
       const startedAt = Date.now()
       const syncToken = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
-      const downloadHeaders = (syncToken && downloadUrl === rawDownloadUrl) ? { Authorization: `Bearer ${syncToken}` } : {}
 
       await Filesystem.mkdir({
         path: 'updates',
@@ -320,23 +326,58 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         downloadSpeed.value = `${formatBytes(bytesPerSecond)}/s`
       })
 
-      let downloadAttempt = 0
-      while (downloadAttempt < 2) {
-        downloadAttempt += 1
-        try {
-          await Filesystem.downloadFile({
-            url: downloadUrl,
-            path: filePath,
-            directory: Directory.Cache,
-            progress: true,
-            recursive: true,
-            headers: downloadHeaders
-          })
-          break
-        } catch (downloadErr) {
-          if (downloadAttempt >= 2) throw downloadErr
-          await sleep(450)
+      const expectedSha256 = releaseApkSha256.value
+      if (!expectedSha256) {
+        console.warn('[appUpdate] release 未提供 apk_sha256，跳过完整性校验（旧版 release 兼容）')
+      }
+
+      // 候选下载地址：代理地址优先；校验失败时回退直连 GitHub（代理仅作为不可信字节传输通道）
+      const candidateUrls = downloadUrl === rawDownloadUrl ? [downloadUrl] : [downloadUrl, rawDownloadUrl]
+      let verified = false
+
+      for (const candidateUrl of candidateUrls) {
+        // 仅直连 GitHub 时携带同步 token（避免向代理泄露凭据）
+        const downloadHeaders = (syncToken && candidateUrl === rawDownloadUrl) ? { Authorization: `Bearer ${syncToken}` } : {}
+
+        let downloadAttempt = 0
+        while (downloadAttempt < 2) {
+          downloadAttempt += 1
+          try {
+            await Filesystem.downloadFile({
+              url: candidateUrl,
+              path: filePath,
+              directory: Directory.Cache,
+              progress: true,
+              recursive: true,
+              headers: downloadHeaders
+            })
+            break
+          } catch (downloadErr) {
+            if (downloadAttempt >= 2) throw downloadErr
+            await sleep(450)
+          }
         }
+
+        // 旧版 release 无 apk_sha256：跳过校验（fail-open，见上方 warn）
+        if (!expectedSha256) {
+          verified = true
+          break
+        }
+
+        // 下载完成后校验安装包完整性
+        downloadSpeed.value = i18n.global.t('about.apkVerifying')
+        const actualSha256 = await computeFileSha256(filePath, Directory.Cache)
+        if (actualSha256 === expectedSha256) {
+          verified = true
+          break
+        }
+
+        // 校验失败：删除损坏文件；若还有直连候选地址则重试
+        await Filesystem.deleteFile({ path: filePath, directory: Directory.Cache }).catch(() => {})
+      }
+
+      if (!verified) {
+        throw new Error(i18n.global.t('about.apkHashMismatch'))
       }
 
       const { uri } = await Filesystem.getUri({
@@ -469,6 +510,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     supportsInAppDownload,
     usingMockDownload,
     releaseNotesPreview,
+    releaseApkSha256,
     updateLevel,
     isForceUpdate,
     isSilentUpdate,

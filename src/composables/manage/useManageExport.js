@@ -420,7 +420,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     const rechargeTrash = includeRecharge ? [] : undefined
     const eventsList = includeEvents
       ? await sanitizeSequential(
-        eventsStore.list,
+        eventsStore.list.filter((event) => !event?.deleted),
         useLightweightImageExport ? safeSanitizeEventLight : safeSanitizeEventForExport
       ) : undefined
 

@@ -192,6 +192,8 @@
   "about.alreadyLatest": "目前已是最新版本。",
   "about.noDownloadableAsset": "未找到可下載的更新套件。",
   "about.downloadFailed": "下載更新套件失敗，請稍後再試。",
+  "about.apkVerifying": "正在校驗安裝套件完整性…",
+  "about.apkHashMismatch": "安裝套件完整性校驗失敗，已刪除下載檔案。請重試或前往發布頁手動下載。",
   "about.installPermissionDenied": "未授予安裝權限。請到系統設定 > 應用 > 谷子收纳 > 安裝未知應用，開啟「允許來自此來源」。",
   "about.mockDownloadDoneShort": "模擬下載完成"
 }

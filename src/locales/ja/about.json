@@ -192,6 +192,8 @@
   "about.alreadyLatest": "既に最新バージョンです。",
   "about.noDownloadableAsset": "ダウンロード可能な更新パッケージが見つかりません。",
   "about.downloadFailed": "更新パッケージのダウンロードに失敗しました。しばらくしてから再試行してください。",
+  "about.apkVerifying": "パッケージの整合性を検証しています…",
+  "about.apkHashMismatch": "パッケージの整合性検証に失敗しました。ダウンロードファイルを削除しました。再試行するか、リリースページから手動でダウンロードしてください。",
   "about.installPermissionDenied": "インストール権限が付与されていません。システム設定 > アプリ > グーズウェイナ > 不明なアプリのインストールで「このソースから許可」を有効にしてください。",
   "about.mockDownloadDoneShort": "モックダウンロード完了"
 }

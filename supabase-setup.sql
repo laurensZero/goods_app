@@ -86,10 +86,11 @@ CREATE TABLE IF NOT EXISTS recharge_records (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- sync_manifest 表（存储同步元数据）
+-- sync_manifest 表（存储同步元数据；每个用户一行，user_id 唯一。
+-- 历史版本以 id='default' 为主键导致全体用户共享一行互相覆盖，
+-- 存量库由下方「存量列补充」节的迁移块删除 id 列转换）
 CREATE TABLE IF NOT EXISTS sync_manifest (
-  id TEXT PRIMARY KEY DEFAULT 'default',
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID UNIQUE REFERENCES auth.users(id),
   device_id TEXT DEFAULT '',
   synced_at TIMESTAMPTZ DEFAULT now(),
   collection_count INTEGER DEFAULT 0,
@@ -106,10 +107,9 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
   budget_yearly REAL DEFAULT 0
 );
 
--- sync_presets 表（存储分类、IP、角色、存储位置）
+-- sync_presets 表（存储分类、IP、角色、存储位置；每个用户一行，user_id 唯一）
 CREATE TABLE IF NOT EXISTS sync_presets (
-  id TEXT PRIMARY KEY DEFAULT 'default',
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID UNIQUE REFERENCES auth.users(id),
   categories JSONB DEFAULT '[]',
   ips JSONB DEFAULT '[]',
   characters JSONB DEFAULT '[]',
@@ -190,14 +190,33 @@ ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'CNY';
 ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 
+-- ── 迁移：sync_manifest / sync_presets 改为每用户一行 ──
+-- 历史 schema 以 id='default' 为主键，全体用户共享一行互相覆盖（水位线、预算、预设跨用户污染）。
+-- 直接删除 id 列（连带自动删除旧主键约束），改为 user_id 唯一；
+-- 既有 'default' 行归最后写入者所有，其他用户下次推送时自建己行
+DELETE FROM sync_manifest WHERE user_id IS NULL;
+ALTER TABLE sync_manifest DROP COLUMN IF EXISTS id;
+CREATE UNIQUE INDEX IF NOT EXISTS sync_manifest_user_id_key ON sync_manifest(user_id);
+
+DELETE FROM sync_presets WHERE user_id IS NULL;
+ALTER TABLE sync_presets DROP COLUMN IF EXISTS id;
+CREATE UNIQUE INDEX IF NOT EXISTS sync_presets_user_id_key ON sync_presets(user_id);
+
 -- ============================================================
--- 3. Realtime
+-- 3. Realtime（幂等：表已在 publication 中时跳过，保证整个脚本可重复执行）
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE goods;
-ALTER PUBLICATION supabase_realtime ADD TABLE events;
-ALTER PUBLICATION supabase_realtime ADD TABLE recharge_records;
-ALTER PUBLICATION supabase_realtime ADD TABLE goods_groups;
-ALTER PUBLICATION supabase_realtime ADD TABLE goods_group_items;
+DO $realtime$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items'] LOOP
+    BEGIN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+  END LOOP;
+END $realtime$;
 
 -- ============================================================
 -- 4. 索引
@@ -352,6 +371,18 @@ CREATE TRIGGER goods_groups_updated_at BEFORE INSERT OR UPDATE ON goods_groups F
 DROP TRIGGER IF EXISTS goods_group_items_updated_at ON goods_group_items;
 CREATE TRIGGER goods_group_items_updated_at BEFORE INSERT OR UPDATE ON goods_group_items FOR EACH ROW EXECUTE FUNCTION set_group_items_updated_at();
 
+-- sync_manifest.synced_at 强制服务器时间：客户端水位线取自它（sync_push 返回值 /
+-- sync_pull 的 manifest），全链路统一到服务器时间域，消除设备时钟偏移
+CREATE OR REPLACE FUNCTION set_manifest_synced_at() RETURNS TRIGGER AS $fn6$
+BEGIN
+  NEW.synced_at = now();
+  RETURN NEW;
+END;
+$fn6$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS sync_manifest_synced_at ON sync_manifest;
+CREATE TRIGGER sync_manifest_synced_at BEFORE INSERT OR UPDATE ON sync_manifest FOR EACH ROW EXECUTE FUNCTION set_manifest_synced_at();
+
 -- ============================================================
 -- 6. RLS & 权限 —— 仅允许已登录用户访问自己的数据
 -- ============================================================
@@ -395,6 +426,19 @@ DROP POLICY IF EXISTS "auth_only_select" ON goods_group_items;
 DROP POLICY IF EXISTS "auth_only_insert" ON goods_group_items;
 DROP POLICY IF EXISTS "auth_only_update" ON goods_group_items;
 DROP POLICY IF EXISTS "auth_only_delete" ON goods_group_items;
+
+-- 先删除同名 policy，保证整个脚本可重复执行（CREATE POLICY 无 IF NOT EXISTS）
+DO $drop_user_policies$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'sync_manifest', 'sync_presets', 'goods_groups', 'goods_group_items'] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "user_select_own" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "user_insert_own" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "user_update_own" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "user_delete_own" ON %I', t);
+  END LOOP;
+END $drop_user_policies$;
 
 -- 为每张表创建按 user_id 过滤的 RLS policy
 CREATE POLICY "user_select_own" ON goods FOR SELECT USING (auth.uid() = user_id);
@@ -537,18 +581,66 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage RLS：已登录用户对自己的 bucket 有完全权限
-CREATE POLICY "auth_full_goods_images" ON storage.objects
-  FOR ALL TO authenticated
-  USING (bucket_id = 'goods-images')
-  WITH CHECK (bucket_id = 'goods-images');
+-- Storage RLS：写操作按 "<userId>/" 一级目录隔离——新文件一律上传到自己的目录，
+-- 任意登录用户不得写/覆盖/删他人目录的文件（文件名确定性可推，整桶开放写等于可互相覆盖）。
+-- 读保持全桶（桶本身 public，迁移前根目录平铺的旧文件行内 URL 需继续可读/可回捞）。
+-- DELETE 对根目录旧文件保留 owner 兜底（owner_id 匹配或 NULL 的历史文件可被孤儿回收清理，
+-- 客户端回收前还有文件名归属校验）。历史部署重跑本脚本即完成策略迁移。
+DROP POLICY IF EXISTS "auth_full_goods_images" ON storage.objects;
+DROP POLICY IF EXISTS "auth_full_event_photos" ON storage.objects;
+DROP POLICY IF EXISTS "auth_select_goods_images" ON storage.objects;
+DROP POLICY IF EXISTS "auth_insert_goods_images" ON storage.objects;
+DROP POLICY IF EXISTS "auth_update_goods_images" ON storage.objects;
+DROP POLICY IF EXISTS "auth_delete_goods_images" ON storage.objects;
+DROP POLICY IF EXISTS "auth_select_event_photos" ON storage.objects;
+DROP POLICY IF EXISTS "auth_insert_event_photos" ON storage.objects;
+DROP POLICY IF EXISTS "auth_update_event_photos" ON storage.objects;
+DROP POLICY IF EXISTS "auth_delete_event_photos" ON storage.objects;
 
-CREATE POLICY "auth_full_event_photos" ON storage.objects
-  FOR ALL TO authenticated
-  USING (bucket_id = 'event-photos')
-  WITH CHECK (bucket_id = 'event-photos');
+CREATE POLICY "auth_select_goods_images" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'goods-images');
+
+CREATE POLICY "auth_insert_goods_images" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'goods-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "auth_update_goods_images" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'goods-images' AND (storage.foldername(name))[1] = auth.uid()::text)
+  WITH CHECK (bucket_id = 'goods-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "auth_delete_goods_images" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'goods-images' AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
+  ));
+
+CREATE POLICY "auth_select_event_photos" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'event-photos');
+
+CREATE POLICY "auth_insert_event_photos" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'event-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "auth_update_event_photos" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'event-photos' AND (storage.foldername(name))[1] = auth.uid()::text)
+  WITH CHECK (bucket_id = 'event-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "auth_delete_event_photos" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'event-photos' AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
+  ));
 
 -- Avatars: 公开读取，已登录用户可完全管理（含 upsert 所需的 UPDATE）
+DROP POLICY IF EXISTS "avatars_public_read" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_auth_all" ON storage.objects;
+
 CREATE POLICY "avatars_public_read" ON storage.objects
   FOR SELECT USING (bucket_id = 'avatars');
 
@@ -561,10 +653,22 @@ CREATE POLICY "avatars_auth_all" ON storage.objects
 -- 8. RPC 函数（SECURITY DEFINER + 入口 auth.uid() 检查）
 -- ============================================================
 
--- 撤回所有旧授权
-REVOKE ALL ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) FROM anon, authenticated;
-REVOKE ALL ON FUNCTION sync_pull(TIMESTAMPTZ) FROM anon, authenticated;
-REVOKE ALL ON FUNCTION sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz) FROM anon, authenticated;
+-- 撤回所有旧授权（函数不存在或签名不匹配时跳过，保证全新实例也能执行）
+DO $revoke_old$
+BEGIN
+  BEGIN
+    REVOKE ALL ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) FROM anon, authenticated;
+  EXCEPTION WHEN undefined_function THEN NULL;
+  END;
+  BEGIN
+    REVOKE ALL ON FUNCTION sync_pull(TIMESTAMPTZ) FROM anon, authenticated;
+  EXCEPTION WHEN undefined_function THEN NULL;
+  END;
+  BEGIN
+    REVOKE ALL ON FUNCTION sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz) FROM anon, authenticated;
+  EXCEPTION WHEN undefined_function THEN NULL;
+  END;
+END $revoke_old$;
 
 -- upsert_manifest（user-scoped 计数）
 CREATE OR REPLACE FUNCTION upsert_manifest(
@@ -583,12 +687,12 @@ BEGIN
   END IF;
 
   INSERT INTO sync_manifest (
-    id, user_id, device_id, synced_at, image_bucket,
+    user_id, device_id, synced_at, image_bucket,
     recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
     collection_count, wishlist_count, goods_count, trash_count,
     recharge_count, event_count, image_count
   ) VALUES (
-    'default', auth.uid(), p_device_id, p_synced_at, p_image_bucket,
+    auth.uid(), p_device_id, p_synced_at, p_image_bucket,
     p_recharge_updated_at, p_event_updated_at, p_budget_monthly, p_budget_yearly,
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1 AND user_id = auth.uid()),
@@ -596,10 +700,11 @@ BEGIN
     (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
+    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos')
+      AND name NOT LIKE '%.emptyFolderPlaceholder'
+      AND (position('/' in name) = 0 OR (storage.foldername(name))[1] = auth.uid()::text))
   )
-  ON CONFLICT (id) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
+  ON CONFLICT (user_id) DO UPDATE SET
     device_id = EXCLUDED.device_id,
     synced_at = EXCLUDED.synced_at,
     image_bucket = EXCLUDED.image_bucket,
@@ -629,7 +734,7 @@ BEGIN
 
   RETURN (
     SELECT jsonb_build_object(
-      'manifest',     (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.id = 'default'),
+      'manifest',     (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.user_id = auth.uid()),
       'goods',        (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND (g.trashed IS NULL OR g.trashed = 0) AND g.user_id = auth.uid()),
       'goods_trash',  (SELECT COALESCE(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND g.trashed = 1 AND g.user_id = auth.uid()),
       'groups',       (SELECT COALESCE(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND (gg.deleted IS NULL OR gg.deleted != 1) AND gg.user_id = auth.uid()),
@@ -640,7 +745,7 @@ BEGIN
       'recharge_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1 AND r.user_id = auth.uid()),
       'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND (e.deleted IS NULL OR e.deleted != 1) AND e.user_id = auth.uid()),
       'events_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.deleted = 1 AND e.user_id = auth.uid()),
-      'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.id = 'default')
+      'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.user_id = auth.uid())
     )
   );
 END;
@@ -649,6 +754,9 @@ $fn$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO authenticated;
 
 -- sync_push（入口 auth 检查，写入数据含 user_id）
+-- 返回 { synced_at: <服务器时间> } 供客户端作为本地水位线（消除设备时钟偏移）。
+-- 返回类型从 void 改为 jsonb，必须先 DROP 再 CREATE
+DROP FUNCTION IF EXISTS sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz);
 CREATE OR REPLACE FUNCTION sync_push(
   p_goods            jsonb DEFAULT '[]',
   p_goods_trash      jsonb DEFAULT '[]',
@@ -674,7 +782,10 @@ CREATE OR REPLACE FUNCTION sync_push(
   p_recharge_updated_at timestamptz DEFAULT NULL,
   p_event_updated_at timestamptz DEFAULT NULL
 )
-RETURNS void AS $fn$
+RETURNS jsonb AS $fn$
+DECLARE
+  -- 服务器时间水位：与 sync_manifest 触发器写入的 synced_at 同为事务时间戳，二者一致
+  v_synced_at TIMESTAMPTZ := now();
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Authentication required';
@@ -865,27 +976,26 @@ BEGIN
 
   -- 9. Upsert presets
   IF p_presets != '{}'::jsonb THEN
-    INSERT INTO sync_presets (id, user_id, categories, ips, characters, storage_locations)
-    VALUES ('default', auth.uid(),
+    INSERT INTO sync_presets (user_id, categories, ips, characters, storage_locations)
+    VALUES (auth.uid(),
       COALESCE((p_presets->>'categories')::jsonb, '[]'::jsonb),
       COALESCE((p_presets->>'ips')::jsonb, '[]'::jsonb),
       COALESCE((p_presets->>'characters')::jsonb, '[]'::jsonb),
       COALESCE((p_presets->>'storage_locations')::jsonb, '[]'::jsonb)
     )
-    ON CONFLICT (id) DO UPDATE SET
+    ON CONFLICT (user_id) DO UPDATE SET
       categories = EXCLUDED.categories, ips = EXCLUDED.ips,
-      characters = EXCLUDED.characters, storage_locations = EXCLUDED.storage_locations,
-      user_id = EXCLUDED.user_id;
+      characters = EXCLUDED.characters, storage_locations = EXCLUDED.storage_locations;
   END IF;
 
-  -- 10. Upsert manifest
+  -- 10. Upsert manifest（synced_at 用服务器时间；触发器亦会强制 now()，二者一致）
   INSERT INTO sync_manifest (
-    id, user_id, device_id, synced_at, image_bucket,
+    user_id, device_id, synced_at, image_bucket,
     recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
     collection_count, wishlist_count, goods_count, trash_count,
     recharge_count, event_count, image_count
   ) VALUES (
-    'default', auth.uid(), p_device_id, p_synced_at, p_image_bucket,
+    auth.uid(), p_device_id, v_synced_at, p_image_bucket,
     p_recharge_updated_at, p_event_updated_at, p_budget_monthly, p_budget_yearly,
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1 AND user_id = auth.uid()),
@@ -893,9 +1003,10 @@ BEGIN
     (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos') AND name NOT LIKE '%/' AND name NOT LIKE '.emptyFolderPlaceholder')
-  ) ON CONFLICT (id) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
+    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos')
+      AND name NOT LIKE '%.emptyFolderPlaceholder'
+      AND (position('/' in name) = 0 OR (storage.foldername(name))[1] = auth.uid()::text))
+  ) ON CONFLICT (user_id) DO UPDATE SET
     device_id = EXCLUDED.device_id,
     synced_at = EXCLUDED.synced_at,
     image_bucket = EXCLUDED.image_bucket,
@@ -910,11 +1021,20 @@ BEGIN
     recharge_count = EXCLUDED.recharge_count,
     event_count = EXCLUDED.event_count,
     image_count = EXCLUDED.image_count;
+
+  RETURN jsonb_build_object('synced_at', v_synced_at);
 END;
 $fn$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 函数重建后 ACL 重置，先撤回默认的 PUBLIC EXECUTE 再单独授权
+REVOKE ALL ON FUNCTION sync_push(
+  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
+  text[], text[], text[], text[], text[],
+  text, timestamptz, text, real, real, timestamptz, timestamptz
+) FROM PUBLIC, anon;
+
 GRANT EXECUTE ON FUNCTION sync_push(
-  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
+  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
   text[], text[], text[], text[], text[],
   text, timestamptz, text, real, real, timestamptz, timestamptz
 ) TO authenticated;

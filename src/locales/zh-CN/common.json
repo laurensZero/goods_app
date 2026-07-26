@@ -24,7 +24,6 @@
   "common.aria.delete": "删除",
   "common.aria.edit": "编辑",
   "common.aria.editPreview": "编辑预览",
-  "common.aria.enableEncryption": "启用 Gist 加密",
   "common.aria.exitSelection": "退出多选",
   "common.aria.formGroups": "表单分组",
   "common.aria.fromShareCode": "从分享码导入",

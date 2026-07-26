@@ -488,14 +488,9 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         latestVersion.value = normalizeVersionTag(manifest?.version || '')
         latestZipUrl.value = resolveBundleUrl(resolvedManifestUrl, manifest?.url)
         const rawChecksum = manifest?.hash ?? manifest?.checksum ?? manifest?.sha256 ?? ''
-        const hasChecksum = String(rawChecksum || '').trim().length > 0
         latestBundleChecksum.value = normalizeChecksum(rawChecksum)
         latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
         latestVersions.value = await fetchWebVersions(buildVersionsUrl(resolvedManifestUrl))
-
-        if (hasChecksum && !latestBundleChecksum.value) {
-          throw new Error('资源清单 hash 格式无效，应为 64 位 SHA-256。')
-        }
 
         if (!latestVersion.value || !latestZipUrl.value) {
           latestVersion.value = ''
@@ -504,6 +499,16 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
           latestMinNativeVersion.value = ''
           lastStatus.value = 'missing-asset'
           return { status: 'missing-asset', manifest, source: resolvedManifestSource }
+        }
+
+        // 强制校验：manifest 必须携带合法 SHA-256，否则拒绝该资源更新（防止未校验的 bundle 被激活）
+        if (!latestBundleChecksum.value) {
+          latestVersion.value = ''
+          latestZipUrl.value = ''
+          latestMinNativeVersion.value = ''
+          throw new Error(String(rawChecksum || '').trim()
+            ? '资源清单 hash 格式无效，应为 64 位 SHA-256。'
+            : '资源清单缺少 hash 校验字段，已拒绝该资源更新。')
         }
 
         if (latestMinNativeVersion.value && nativeVersion.value) {
@@ -559,6 +564,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       return false
     }
 
+    // 纵深防御：无校验哈希绝不启动下载（与 checkForUpdates 的强制校验双保险）
+    if (!latestBundleChecksum.value) {
+      lastError.value = '资源包缺少校验哈希，已取消下载。'
+      return false
+    }
+
     isDownloading.value = true
     downloadProgress.value = 0
     lastError.value = ''
@@ -571,12 +582,11 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
+      // checksum 必传：CapacitorUpdater 仅在提供 checksum 时才执行校验
       const downloadOptions = {
         version: latestVersion.value,
-        url: latestZipUrl.value
-      }
-      if (latestBundleChecksum.value) {
-        downloadOptions.checksum = latestBundleChecksum.value
+        url: latestZipUrl.value,
+        checksum: latestBundleChecksum.value
       }
 
       const bundle = await CapacitorUpdater.download(downloadOptions)

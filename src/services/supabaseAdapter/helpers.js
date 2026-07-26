@@ -188,10 +188,14 @@ export async function syncTableRows(db, tableName, rows, { label = tableName, in
   let existingRows = await fetchAllRows(() => db.from(tableName).select('id, updated_at'))
 
   if (lastSyncedAt) {
-    // Only delete rows that were known at last sync (updated before or at last sync time)
+    // Only delete rows that were known at last sync (updated before or at last sync time).
+    // 按毫秒比较：Postgres 回传 '+00:00' 形式与客户端 'Z' 形式字符串比较会失配
+    const cutoffMs = new Date(lastSyncedAt).getTime()
     existingRows = (existingRows || []).filter(row => {
       if (!row.updated_at) return true
-      return row.updated_at <= lastSyncedAt
+      const rowMs = new Date(row.updated_at).getTime()
+      if (!Number.isFinite(rowMs) || !Number.isFinite(cutoffMs)) return true
+      return rowMs <= cutoffMs
     })
   }
 

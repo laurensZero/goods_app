@@ -354,6 +354,8 @@ img {
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   scrollbar-width: none;
+  /* 虚拟列表手动维护首尾 spacer 高度，浏览器滚动锚定会与之互相补偿造成窜动 */
+  overflow-anchor: none;
 }
 
 .page-body::-webkit-scrollbar {

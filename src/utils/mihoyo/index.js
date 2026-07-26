@@ -12,16 +12,18 @@
  *   - Android APK（Capacitor 原生）：使用 CapacitorHttp，无 CORS 限制
  *   - 浏览器 / Web：使用 fetch，跨域会被拦截（开发阶段正常，APK 内正常）
  */
-import { CapacitorHttp, Capacitor } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
 import { normalizeGoodsVariant } from '@/utils/goods/identity'
-import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { mihoyoRequest } from '@/utils/mihoyo/request'
 import { createLogger } from '@/utils/logger'
 
-const API_BASE = 'https://api-mall.mihoyogift.com'
-const API_GOODS_DETAIL  = `${API_BASE}/common/homeishop/v1/goods/get_goods_spu_detail`
-const API_GOODS_SEARCH  = `${API_BASE}/common/homeishop/v1/search/search_goods_list`
-const API_GOODS_SPU_LIST = `${API_BASE}/common/homeishop/v1/goods/search_goods_spu_list`
-const API_CATEGORY_LIST = `${API_BASE}/common/homeishop/v1/category/get_category_list`
+// API 相对路径（域名/代理前缀由 mihoyoRequest 统一处理）
+const API_GOODS_DETAIL  = '/common/homeishop/v1/goods/get_goods_spu_detail'
+const API_GOODS_SEARCH  = '/common/homeishop/v1/search/search_goods_list'
+const API_GOODS_SPU_LIST = '/common/homeishop/v1/goods/search_goods_spu_list'
+const API_CATEGORY_LIST = '/common/homeishop/v1/category/get_category_list'
+const API_GOODS_ITEM_DETAIL = '/common/homeishop/v1/goods/detail'
+const API_CART_ADD = '/common/homeishop/v1/shop_car/add_goods_to_shop_car'
 const log = createLogger('mihoyo')
 
 const MIHOYO_SHOP_CODE_BY_IP = {
@@ -264,19 +266,7 @@ export async function parseMihoyoUrl(url) {
     'x-rpc-language': 'zh-cn',
   }
 
-  let json
-  if (Capacitor.isNativePlatform()) {
-    // 原生平台（Android / iOS）：CapacitorHttp 不受浏览器 CORS 限制
-    const apiUrl = `${API_GOODS_DETAIL}?goods_id=${goodsId}`
-    const res = await CapacitorHttp.get({ url: apiUrl, headers: reqHeaders })
-    json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-  } else {
-    // Web / 浏览器开发：通过 Vite proxy（/mihoyo-api → api-mall.mihoyogift.com）
-    const proxyPath = `/mihoyo-api/common/homeishop/v1/goods/get_goods_spu_detail?goods_id=${goodsId}`
-    const res = await fetchWithPlatformBridge(proxyPath, { headers: reqHeaders })
-    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
-    json = await res.json()
-  }
+  const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
 
   if (json.retcode !== 0) {
     throw new Error(`接口返回错误：${json.message || json.retcode}`)
@@ -363,16 +353,7 @@ export async function fetchGoodsDetail(goodsId) {
     'x-rpc-language': 'zh-cn',
   }
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      const apiUrl = `${API_BASE}/common/homeishop/v1/goods/detail?goods_id=${goodsId}`
-      const res = await CapacitorHttp.get({ url: apiUrl, headers: reqHeaders })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
-      if (!res.ok) return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '' }
-      json = await res.json()
-    }
+    const json = await mihoyoRequest(`${API_GOODS_ITEM_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
     const detail =
       json?.data?.goods?.detail ||
       json?.data?.detail ||
@@ -442,17 +423,7 @@ export async function fetchGoodsVariants(goodsId) {
     'x-rpc-language': 'zh-cn',
   }
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      const url = `${API_GOODS_DETAIL}?goods_id=${goodsId}`
-      const res = await CapacitorHttp.get({ url, headers: reqHeaders })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      const url = `/mihoyo-api/common/homeishop/v1/goods/get_goods_spu_detail?goods_id=${goodsId}`
-      const res = await fetchWithPlatformBridge(url, { headers: reqHeaders })
-      if (!res.ok) return []
-      json = await res.json()
-    }
+    const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
     if (json.retcode !== 0) return []
     const detail = json?.data?.detail
     return buildSaleAttrVariants(detail?.sale_attrs)
@@ -477,17 +448,7 @@ export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
     'x-rpc-language': 'zh-cn',
   }
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      const url = `${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`
-      const res = await CapacitorHttp.get({ url, headers: reqHeaders })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      const url = `/mihoyo-api/common/homeishop/v1/search/search_goods_list?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`
-      const res = await fetchWithPlatformBridge(url, { headers: reqHeaders })
-      if (!res.ok) return []
-      json = await res.json()
-    }
+    const json = await mihoyoRequest(`${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`, { headers: reqHeaders })
     if (json.retcode !== 0) return []
     return (json.data?.list || []).map(item => ({
       goods_id:  item.goods_id,
@@ -501,8 +462,8 @@ export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
 
 // ─── 账号订单导入 ──────────────────────────────────────────────────
 
-const API_ORDER_LIST = `${API_BASE}/common/homeishop/v1/order/order_list`
-const API_CART_LIST = `${API_BASE}/common/homeishop/v2/shop_car/get_shop_car_list`
+const API_ORDER_LIST = '/common/homeishop/v1/order/order_list'
+const API_CART_LIST = '/common/homeishop/v2/shop_car/get_shop_car_list'
 
 /** 解析 Cookie 字符串为 key-value 对象 */
 export function parseCookieString(cookieStr) {
@@ -533,30 +494,13 @@ export function isMihoyoCookieExpiredError(error) {
 }
 
 async function fetchOrderPage(cookieStr, page, limit) {
-  const url = `${API_ORDER_LIST}?limit=${limit}&page=${page}`
   const headers = {
     'Cookie': cookieStr,
     'Referer': 'https://mihoyogift.com/',
     'x-rpc-language': 'zh-cn',
     'x-rpc-client_type': '5',
   }
-  let json
-  if (Capacitor.isNativePlatform()) {
-    const res = await CapacitorHttp.get({ url, headers })
-    json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-  } else {
-    // 浏览器不允许 JS 设置 Cookie 头（Forbidden Header），
-    // 改用自定义 x-cookie-forward，由 Vite 代理转换为真正的 Cookie
-    const proxyUrl = url.replace(API_BASE, '/mihoyo-api')
-    const webHeaders = {
-      ...headers,
-      'x-cookie-forward': encodeURIComponent(headers['Cookie'] || ''),
-    }
-    delete webHeaders['Cookie']
-    const res = await fetchWithPlatformBridge(proxyUrl, { headers: webHeaders })
-    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
-    json = await res.json()
-  }
+  const json = await mihoyoRequest(`${API_ORDER_LIST}?limit=${limit}&page=${page}`, { headers })
   if (json.retcode !== 0) throw new Error(json.message || `接口错误 ${json.retcode}`)
   return json.data
 }
@@ -590,20 +534,7 @@ export async function fetchCartList(cookieStr) {
     'x-rpc-client_type': '5',
   }
 
-  let json
-  if (Capacitor.isNativePlatform()) {
-    const res = await CapacitorHttp.get({ url: API_CART_LIST, headers })
-    json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-  } else {
-    const webHeaders = {
-      ...headers,
-      'x-cookie-forward': encodeURIComponent(headers['Cookie'] || ''),
-    }
-    delete webHeaders['Cookie']
-    const res = await fetchWithPlatformBridge(API_CART_LIST.replace(API_BASE, '/mihoyo-api'), { headers: webHeaders })
-    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
-    json = await res.json()
-  }
+  const json = await mihoyoRequest(API_CART_LIST, { headers })
 
   if (json.retcode !== 0) throw new Error(json.message || `接口错误 ${json.retcode}`)
   return json.data?.list || []
@@ -975,17 +906,7 @@ export async function fetchGoodsCategoryList(shopCode) {
   }
 
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      const url = `${API_CATEGORY_LIST}?shop_code=${encodeURIComponent(normalizedShopCode)}`
-      const res = await CapacitorHttp.get({ url, headers: reqHeaders })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      const url = `/mihoyo-api/common/homeishop/v1/category/get_category_list?shop_code=${encodeURIComponent(normalizedShopCode)}`
-      const res = await fetchWithPlatformBridge(url, { headers: reqHeaders })
-      if (!res.ok) return []
-      json = await res.json()
-    }
+    const json = await mihoyoRequest(`${API_CATEGORY_LIST}?shop_code=${encodeURIComponent(normalizedShopCode)}`, { headers: reqHeaders })
 
     if (json.retcode !== 0) return []
     return Array.isArray(json.data?.list) ? json.data.list : []
@@ -1027,42 +948,19 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
   }
 
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      log.debug('cart:add:transport', { transport: 'capacitor-http' })
-      const apiUrl = `${API_BASE}/common/homeishop/v1/shop_car/add_goods_to_shop_car`
-      const res = await CapacitorHttp.post({
-        url: apiUrl,
-        headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          'Cookie': cookie,
-          'Referer': 'https://www.mihoyogift.com/',
-          'Origin': 'https://www.mihoyogift.com',
-          'x-rpc-language': 'zh-cn',
-          'x-rpc-mall-platform': 'web',
-        },
-        data: body
-      })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      log.debug('cart:add:transport', { transport: 'fetch-proxy' })
-      // Web 环境：使用 x-cookie-forward 头，由 Vite 代理转换为真正的 Cookie
-      const proxyPath = '/mihoyo-api/common/homeishop/v1/shop_car/add_goods_to_shop_car'
-      const res = await fetchWithPlatformBridge(proxyPath, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          'Referer': 'https://www.mihoyogift.com/',
-          'Origin': 'https://www.mihoyogift.com',
-          'x-rpc-language': 'zh-cn',
-          'x-rpc-mall-platform': 'web',
-          'x-cookie-forward': encodeURIComponent(cookie),
-        },
-        body: JSON.stringify(body)
-      })
-      if (!res.ok) return { success: false, message: `请求失败（${res.status}）` }
-      json = await res.json()
-    }
+    log.debug('cart:add:transport', { transport: Capacitor.isNativePlatform() ? 'capacitor-http' : 'fetch-proxy' })
+    const json = await mihoyoRequest(API_CART_ADD, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+        'Cookie': cookie,
+        'Referer': 'https://www.mihoyogift.com/',
+        'Origin': 'https://www.mihoyogift.com',
+        'x-rpc-language': 'zh-cn',
+        'x-rpc-mall-platform': 'web',
+      },
+      data: body
+    })
 
     log.debug('cart:add:response', {
       retcode: json?.retcode,
@@ -1106,18 +1004,8 @@ export async function fetchGoodsDetailForCart(goodsId) {
   }
 
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      log.debug('goods-detail:cart:transport', { goodsId, transport: 'capacitor-http' })
-      const apiUrl = `${API_BASE}/common/homeishop/v1/goods/detail?goods_id=${goodsId}`
-      const res = await CapacitorHttp.get({ url: apiUrl, headers: reqHeaders })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      log.debug('goods-detail:cart:transport', { goodsId, transport: 'fetch-proxy' })
-      const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/detail?goods_id=${goodsId}`, { headers: reqHeaders })
-      if (!res.ok) return { shopCode: '', skus: [] }
-      json = await res.json()
-    }
+    log.debug('goods-detail:cart:transport', { goodsId, transport: Capacitor.isNativePlatform() ? 'capacitor-http' : 'fetch-proxy' })
+    const json = await mihoyoRequest(`${API_GOODS_ITEM_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
 
     const detail = json?.data?.goods?.detail || json?.data?.detail || json?.data?.goods || null
     log.debug('goods-detail:cart:response', {
@@ -1193,15 +1081,7 @@ export async function searchGoodsSpuList({
   })
 
   try {
-    let json
-    if (Capacitor.isNativePlatform()) {
-      const res = await CapacitorHttp.get({ url: `${API_GOODS_SPU_LIST}?${query.toString()}`, headers: reqHeaders })
-      json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-    } else {
-      const res = await fetchWithPlatformBridge(`/mihoyo-api/common/homeishop/v1/goods/search_goods_spu_list?${query.toString()}`, { headers: reqHeaders })
-      if (!res.ok) return []
-      json = await res.json()
-    }
+    const json = await mihoyoRequest(`${API_GOODS_SPU_LIST}?${query.toString()}`, { headers: reqHeaders })
 
     if (json.retcode !== 0) return []
 

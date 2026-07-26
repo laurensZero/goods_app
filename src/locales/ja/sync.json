@@ -9,8 +9,6 @@
   "sync.connectionTitle": "接続情報",
   "sync.recentSync": "最近の同期",
   "sync.syncToken": "同期トークン",
-  "sync.syncPassword": "同期パスワード",
-  "sync.enableEncryption": "暗号化を有効にする",
   "sync.pauseSync": "自動同期を一時停止",
   "sync.supabaseUrl": "Supabase プロジェクト URL",
   "sync.anonKey": "Anon Key",
@@ -120,6 +118,7 @@
   "sync.uploadImages": "{count} 枚の画像をアップロード",
   "sync.reuseImages": "{count} 枚の画像を再利用",
   "sync.restoreImages": "{count} 枚の画像を復元",
+  "sync.imageUploadPartialFailed": "{count} 枚の画像のアップロードに失敗しました。ローカルの元画像は保持され、次回の同期で再試行されます",
   "sync.tokenSaved": "トークンを保存しました ({login})",
   "sync.connectionTestSuccess": "接続成功",
   "sync.connectionTestFailed": "接続失敗",
@@ -214,6 +213,9 @@
   "sync.step.uploadSupabaseImages.start": "{count} 枚の画像をアップロード中",
   "sync.step.uploadSupabaseImages.success": "画像を Supabase ストレージにアップロードしました",
   "sync.step.uploadSupabaseImages.result": "アップロード完了: {uploaded} 枚成功、{failed} 枚失敗",
+  "sync.step.cleanOrphanImages": "クラウドの孤立画像をクリーンアップ",
+  "sync.step.cleanOrphanImages.start": "未参照の画像ファイルを {count} 件検出",
+  "sync.step.cleanOrphanImages.result": "クリーンアップ完了: {removed} 件成功、{failed} 件失敗",
   "sync.step.checkEncryption": "画像暗号化状態を確認",
   "sync.step.checkEncryption.start": "ローカルとクラウドの暗号化を比較中",
   "sync.step.checkEncryption.mismatch": "状態不一致（ローカル: {local}、クラウド: {cloud}）。再アップロードを実行します",
@@ -270,5 +272,7 @@
   "sync.error.pullTimeout": "プル操作がタイムアウトしました",
   "sync.error.pullTimeoutStatus": "プルタイムアウト",
   "sync.error.networkReconnect": "ネットワークエラー。再接続を試みています...",
-  "sync.error.unnamedItem": "名前なしアイテム"
+  "sync.error.unnamedItem": "名前なしアイテム",
+  "sync.error.localDataNotLoaded": "ローカルデータの読み込みに失敗しました。クラウドバックアップ保護のため同期を停止しました。アプリを再起動してもう一度お試しください",
+  "sync.error.localDataNotLoadedStatus": "ローカルデータ未読み込み"
 }

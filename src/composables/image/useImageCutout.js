@@ -247,6 +247,12 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
+// 统一抠图错误：保留原始 Error 信息，否则用兜底文案
+function normalizeCutoutError(error, fallbackMessage) {
+  if (error instanceof Error && error.message) return error
+  return new Error(fallbackMessage || '抠图失败')
+}
+
 function blobToCanvas(blob) {
   return new Promise(async (resolve, reject) => {
     try {

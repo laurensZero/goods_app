@@ -18,7 +18,7 @@ export function createSupabaseBackendAdapter({
     return getSupabaseClient()
   }
 
-  const storage = createStorageOps({ getDb, withRetry })
+  const storage = createStorageOps({ getDb, withRetry, userIdRef })
   const reader = createReader({ getDb, trackSyncStep, userIdRef })
   const writer = createWriter({ getDb, deviceIdRef, userIdRef })
 
@@ -26,21 +26,19 @@ export function createSupabaseBackendAdapter({
     return storage.ensureStorageBuckets()
   }
 
-  function isEncryptionEnabled() {
-    return false
-  }
-
   // Wrap writeImages to add trackSyncStep UI feedback
   async function writeImagesWithTracking(cloudId, imageFiles) {
-    if (!imageFiles || Object.keys(imageFiles).length === 0) return
+    if (!imageFiles || Object.keys(imageFiles).length === 0) return { uploaded: 0, failed: 0 }
+    let result = { uploaded: 0, failed: 0 }
     await trackSyncStep(i18n.global.t('sync.step.uploadSupabaseImages'), async () => {
-      const result = await storage.writeImages(cloudId, imageFiles)
+      result = await storage.writeImages(cloudId, imageFiles)
       return i18n.global.t('sync.step.uploadSupabaseImages.result', { uploaded: result.uploaded, failed: result.failed })
     }, {
       startDetail: i18n.global.t('sync.step.uploadSupabaseImages.start', { count: Object.keys(imageFiles).length }),
       category: 'image',
       successDetail: () => i18n.global.t('sync.step.uploadSupabaseImages.success')
     })
+    return result
   }
 
   return createSyncBackendAdapter({
@@ -49,6 +47,7 @@ export function createSupabaseBackendAdapter({
     readImage: storage.readImage,
     writeImages: writeImagesWithTracking,
     getImagePublicUrl: storage.getImagePublicUrl,
+    removeImages: storage.removeImages,
     pushAll: writer.pushAll,
     pullAll: reader.pullAll,
     getDb

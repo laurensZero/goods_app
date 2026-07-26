@@ -264,6 +264,8 @@ export function buildReleaseNotesPreview(body, lineLimit = 0) {
   const lines = text
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
+    // 过滤 release body 顶部的元数据行（update_level / apk_sha256），不作为更新说明展示
+    .filter((line) => !/^(?:update[_-]?level|apk[_-]?sha256|更新级别)\s*[:=]/i.test(line.trim()))
     .filter((line, index, source) => line || (index > 0 && source[index - 1]))
 
   if (Number.isFinite(normalizedLimit) && normalizedLimit > 0) {

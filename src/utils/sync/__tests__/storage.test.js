@@ -2,14 +2,14 @@ vi.mock('@/utils/platform/storage', () => {
   const store = new Map()
   return {
     readPersisted: async (key, fallback = null) => store.get(key) ?? fallback,
-    writePersisted: async (key, value) => { store.set(key, value) },
+    writePersisted: async (key, value, options) => { store.set(key, value); return true },
     removePersisted: async (key) => { store.delete(key) },
     _store: store
   }
 })
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { readSyncKey, writeSyncKey, readOrCreateDeviceId } from '../storage'
+import { readSyncKey, writeSyncKey, removeSyncKey, readOrCreateDeviceId } from '../storage'
 import { _store } from '@/utils/platform/storage'
 
 describe('readSyncKey', () => {
@@ -40,6 +40,23 @@ describe('writeSyncKey', () => {
   it('writes empty string for null value', async () => {
     await writeSyncKey('key', null)
     expect(_store.get('key')).toBe('')
+  })
+})
+
+describe('removeSyncKey', () => {
+  beforeEach(() => {
+    _store.clear()
+  })
+
+  it('deletes existing key', async () => {
+    _store.set('legacy-key', 'plaintext')
+    await removeSyncKey('legacy-key')
+    expect(_store.has('legacy-key')).toBe(false)
+  })
+
+  it('is a no-op for missing key', async () => {
+    await removeSyncKey('missing-key')
+    expect(_store.has('missing-key')).toBe(false)
   })
 })
 

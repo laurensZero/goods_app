@@ -98,6 +98,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { showGlobalToast } from '@/utils/globalToast'
 
 const { t } = useI18n()
 const store = useGoodsStore()
@@ -123,7 +124,12 @@ function formatDeletedAt(value) {
 }
 
 async function restoreItem(id) {
-  await store.restoreTrashItem(id)
+  try {
+    await store.restoreTrashItem(id)
+  } catch (e) {
+    console.error('[trash] restore failed:', e)
+    showGlobalToast(t('toast.operationFailed'))
+  }
 }
 
 function deleteItem(id) {
@@ -133,7 +139,12 @@ function deleteItem(id) {
 
 async function restoreAll() {
   const ids = store.trashViewList.map((item) => item.id)
-  await Promise.all(ids.map((id) => store.restoreTrashItem(id)))
+  try {
+    await Promise.all(ids.map((id) => store.restoreTrashItem(id)))
+  } catch (e) {
+    console.error('[trash] restore all failed:', e)
+    showGlobalToast(t('toast.operationFailed'))
+  }
 }
 
 function emptyAll() {
@@ -150,12 +161,22 @@ async function confirmDelete() {
   pendingDeleteId.value = ''
   showDeleteConfirm.value = false
   if (!id) return
-  await store.deleteTrashItem(id)
+  try {
+    await store.deleteTrashItem(id)
+  } catch (e) {
+    console.error('[trash] delete failed:', e)
+    showGlobalToast(t('toast.deleteFailed'))
+  }
 }
 
 async function confirmEmptyAll() {
   showEmptyConfirm.value = false
-  await store.emptyTrash()
+  try {
+    await store.emptyTrash()
+  } catch (e) {
+    console.error('[trash] empty trash failed:', e)
+    showGlobalToast(t('toast.deleteFailed'))
+  }
 }
 </script>
 

@@ -153,6 +153,11 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
   const { reconcileMissing = true, diff, shouldApplyRemoteItem, localSyncTime = 0 } = opts
 
+  // 合并前对比本地状态，统计实际会落库的新增/更新数（LWW：仅远端更新时间更新才生效）。
+  // 拉取重叠窗口（PULL_CLOCK_OVERLAP_MS）会重复拉到已合并过的行，
+  // 按拉取行数计数会让 UI 误报「导入 N 件」，必须按实际变化计数
+  const counts = countAppliedChanges(stores, remoteData)
+
   // Compute remote watermark
   let remoteWatermark = 0
   function trackTs(items) {
@@ -251,5 +256,76 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     }
   }
 
-  return { remoteWatermark }
+  return { remoteWatermark, counts }
+}
+
+/**
+ * Count how many remote rows would actually change local state (LWW by timestamp).
+ * Pure read — must run BEFORE the merge mutates the stores.
+ */
+function countAppliedChanges(stores, remoteData) {
+  const { goodsStore, rechargeStore, eventsStore, goodsGroupStore } = stores
+  const localResolved = resolveGoodsTrashMaps(goodsStore.list || [], goodsStore.trashList || [])
+  const counts = {
+    importedGoods: 0, updatedGoods: 0, importedTrash: 0,
+    importedRecharge: 0, updatedRecharge: 0,
+    importedEvents: 0, updatedEvents: 0,
+    importedGroups: 0
+  }
+
+  for (const g of (remoteData.goods || [])) {
+    const inGoods = localResolved.goodsMap.get(g.id)
+    const local = inGoods || localResolved.trashMap.get(g.id)
+    if (!local) counts.importedGoods++
+    else if (getItemTimestamp(g) > getItemTimestamp(local)) {
+      // 本地在回收站、远端更新 → 恢复到收藏，对用户而言是新增
+      if (inGoods) counts.updatedGoods++
+      else counts.importedGoods++
+    }
+  }
+  for (const t of (remoteData.trash || [])) {
+    const inTrash = localResolved.trashMap.get(t.id)
+    const local = inTrash || localResolved.goodsMap.get(t.id)
+    // 本地不存在或从收藏移入回收站才计数；回收站内容更新对用户不可见，不计
+    if (!local) counts.importedTrash++
+    else if (!inTrash && getItemTimestamp(t) > getItemTimestamp(local)) counts.importedTrash++
+  }
+
+  const localRecharge = new Map(
+    (rechargeStore.exportBackup?.({ includeDeleted: true, stripImage: true }) || []).map(r => [r.id, r])
+  )
+  for (const r of (remoteData.recharge || [])) {
+    const local = localRecharge.get(r.id)
+    if (!local) counts.importedRecharge++
+    else if (getItemTimestamp(r) > getItemTimestamp(local)) counts.updatedRecharge++
+  }
+  for (const r of (remoteData.rechargeTrash || [])) {
+    const local = localRecharge.get(r.id)
+    // 远端删除覆盖本地存活记录 → 对用户可见的变化
+    if (local && !local.deleted && getItemTimestamp(r) > getItemTimestamp(local)) counts.updatedRecharge++
+  }
+
+  const localEvents = new Map((eventsStore?.list || []).map(e => [e.id, e]))
+  for (const e of (remoteData.events || [])) {
+    const local = localEvents.get(e.id)
+    if (!local) counts.importedEvents++
+    else if (getItemTimestamp(e) > getItemTimestamp(local)) counts.updatedEvents++
+  }
+  for (const e of (remoteData.eventsTrash || [])) {
+    const local = localEvents.get(e.id)
+    if (local && !local.deleted && getItemTimestamp(e) > getItemTimestamp(local)) counts.updatedEvents++
+  }
+
+  const localGroups = new Map((goodsGroupStore?.groupList || []).map(g => [g.id, g]))
+  for (const g of [...(remoteData.groups || []), ...(remoteData.groupsTrash || [])]) {
+    const local = localGroups.get(g.id)
+    if (!local || getItemTimestamp(g) > getItemTimestamp(local)) counts.importedGroups++
+  }
+  const localGroupItems = new Map((goodsGroupStore?.groupItemList || []).map(gi => [gi.id, gi]))
+  for (const gi of [...(remoteData.groupItems || []), ...(remoteData.groupItemsTrash || [])]) {
+    const local = localGroupItems.get(gi.id)
+    if (!local || getItemTimestamp(gi) > getItemTimestamp(local)) counts.importedGroups++
+  }
+
+  return counts
 }

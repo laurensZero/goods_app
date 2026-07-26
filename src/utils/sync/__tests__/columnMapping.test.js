@@ -92,4 +92,13 @@ describe('round-trip conversion', () => {
     const result = toCamelCase(toSnakeCase(original))
     expect(result).toEqual(original)
   })
+
+  it('goods_group_items 字段转换无丢失（防止映射表键冲突导致字段合并）', () => {
+    const groupItem = { goodsId: '1', groupId: 'g', sortOrder: 0 }
+    const snake = toSnakeCase(groupItem)
+    // 三个键必须各自独立映射，不能因重复键被吞掉
+    expect(Object.keys(snake).sort()).toEqual(['goods_id', 'group_id', 'sort_order'])
+    expect(snake).toEqual({ goods_id: '1', group_id: 'g', sort_order: 0 })
+    expect(toCamelCase(snake)).toEqual(groupItem)
+  })
 })

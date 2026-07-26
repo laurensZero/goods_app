@@ -17,7 +17,7 @@ export function createInMemoryStorage() {
   const store = new Map()
   return {
     readPersisted: async (key, fallback = null) => store.get(key) ?? fallback,
-    writePersisted: async (key, value) => { store.set(key, value) },
+    writePersisted: async (key, value, options) => { store.set(key, value); return true },
     removePersisted: async (key) => { store.delete(key) },
     _store: store
   }

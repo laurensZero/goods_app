@@ -58,7 +58,6 @@ const CAMEL_TO_SNAKE = {
   displayMode: 'display_mode',
   // goods_group_items
   groupId: 'group_id',
-  goodsId: 'goods_id',
   sortOrder: 'sort_order'
 }
 

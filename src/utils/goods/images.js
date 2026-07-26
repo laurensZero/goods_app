@@ -30,6 +30,21 @@ export function parseCloudImageUri(uri) {
   return ''
 }
 
+// 从 Supabase Storage 公开 URL 中提取裸文件名（不含桶名与用户目录前缀），非 Storage URL 返回 ''
+// URL 形如: ${url}/storage/v1/object/public/<bucket>/<path>
+// path 可能带用户目录前缀（<uid>/goods-image__...），孤儿回收的引用比对使用裸文件名，
+// 此处必须剥掉目录段，否则被引用的文件会因比对不上而被误判为孤儿删除
+export function parseStoragePublicImageUrl(uri) {
+  const value = String(uri || '').trim()
+  const match = value.match(/\/storage\/v1\/object\/public\/[^/]+\/([^?#]+)/)
+  if (!match) return ''
+  let path = match[1]
+  try {
+    path = decodeURIComponent(path)
+  } catch {}
+  return path.split('/').pop() || ''
+}
+
 export function isCloudImageUri(uri) {
   return !!parseCloudImageUri(uri)
 }

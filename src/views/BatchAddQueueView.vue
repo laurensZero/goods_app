@@ -74,34 +74,41 @@
       :defaults="defaults"
       @apply="applyDefaults"
     />
+
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import BatchDefaultsSheet from '@/components/goods/BatchDefaultsSheet.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
 import { useBatchQueue } from '@/composables/batch/useBatchQueue'
+import { useToast } from '@/composables/useToast'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 
 const router = useRouter()
 const { t } = useI18n()
 const presetsStore = usePresetsStore()
 const goodsStore = useGoodsStore()
+const { toastMsg, showToast } = useToast()
 
 const showDefaults = ref(false)
 const saving = ref(false)
-const isWishlist = ref(false)
 
 const {
   queue,
   defaults,
+  batchId,
+  isWishlist,
+  persistDegraded,
   completedCount,
   totalCount,
   canSaveAll,
@@ -109,7 +116,8 @@ const {
   removeItem,
   appendImages,
   applyDefaults,
-  saveAll
+  saveAll,
+  discardQueue
 } = useBatchQueue()
 
 const progressPercent = computed(() => {
@@ -118,16 +126,29 @@ const progressPercent = computed(() => {
 })
 
 onMounted(() => {
-  isWishlist.value = history.state?.isWishlist === true
   const raw = history.state?.batchImages
-  if (raw) {
-    try {
-      const images = JSON.parse(raw)
-      initQueue(images)
-    } catch (e) {
-      console.warn('[BatchAddQueueView] failed to parse batchImages from state', e)
-    }
+  if (!raw) return
+  const stateBatchId = history.state?.batchId || ''
+  // 同一批次（硬件返回 / 页面刷新导致的重挂载）恢复已持久化的队列进度，不重建
+  if (stateBatchId && stateBatchId === batchId.value) return
+  try {
+    const images = JSON.parse(raw)
+    initQueue(images, { batchId: stateBatchId, isWishlist: history.state?.isWishlist === true })
+  } catch (e) {
+    console.warn('[BatchAddQueueView] failed to parse batchImages from state', e)
   }
+})
+
+// Web 端 sessionStorage 配额不足时提示，进度仅保留在内存
+watch(persistDegraded, (degraded) => {
+  if (degraded) showToast(t('goods.batch.storageDegraded'))
+}, { immediate: true })
+
+// 离开批量添加流程（进入单项编辑除外）视为放弃：清理未保存队列与已复制图片
+onBeforeRouteLeave((to) => {
+  // 保存进行中禁止离开：此时放弃清理会误删正在写入商品行的图片文件
+  if (saving.value) return false
+  if (to.name !== 'batch-edit') discardQueue()
 })
 
 function editItem(id) {
@@ -147,8 +168,9 @@ async function handleSave() {
   if (!canSaveAll.value || saving.value) return
   saving.value = true
   try {
-    await saveAll(goodsStore, isWishlist.value)
-    router.replace(isWishlist.value ? '/wishlist' : '/')
+    const goWishlist = isWishlist.value
+    await saveAll(goodsStore)
+    router.replace(goWishlist ? '/wishlist' : '/')
   } catch (e) {
     console.error('[BatchAddQueueView] save failed', e)
   } finally {

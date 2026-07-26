@@ -820,6 +820,11 @@ async function handleSync() {
       return
     }
 
+    if (result.action === 'skipped' && result.reason === 'goods_load_failed') {
+      showToast(t('sync.error.localDataNotLoaded'))
+      return
+    }
+
     if (result.action === 'conflict') {
       syncConflictData.value = {
         remoteTime: syncStore.conflictData?.remoteTime,
@@ -842,6 +847,9 @@ async function handleSync() {
         message = `${t('sync.uploadComplete')}，${parts.join('，')}`
       } else {
         message = t('sync.uploadComplete')
+      }
+      if (Number(result.failedImages) > 0) {
+        message += `，${t('sync.imageUploadPartialFailed', { count: result.failedImages })}`
       }
     } else {
       message = t('sync.uploadComplete')
@@ -905,7 +913,14 @@ async function handleSyncConflict(useRemote) {
       let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)
     } else if (result?.action === 'pushed') {
-      showToast(t('sync.reuploaded'), 3500)
+      let message = t('sync.reuploaded')
+      if (Number(result.failedImages) > 0) {
+        message += `，${t('sync.imageUploadPartialFailed', { count: result.failedImages })}`
+      }
+      showToast(message, 3500)
+    } else if (result?.action === 'skipped' && result?.reason === 'goods_load_failed') {
+      showToast(t('sync.error.localDataNotLoaded'))
+      return
     }
     await loadCloudInfo()
   } catch (error) {

@@ -55,6 +55,8 @@ export const useGoodsStore = defineStore('goods', () => {
   /** @type {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} */
   const trashList = shallowRef([])
   const isReady = ref(false)
+  // 读库失败标记：为 true 时同步入口会拒绝推送，避免把空列表推上云端覆盖备份
+  const loadFailed = ref(false)
 
   //  Computed getters
 
@@ -175,8 +177,10 @@ export const useGoodsStore = defineStore('goods', () => {
 
     if (itemsResult.status === 'fulfilled') {
       list.value = itemsResult.value.map((item) => normalizeGoodsInput(item, item.id))
+      loadFailed.value = false
     } else {
       console.error('[goods] init: getItems failed, starting with empty list:', itemsResult.reason)
+      loadFailed.value = true
       list.value = []
       import('@/utils/globalToast').then(({ showGlobalToast }) => {
         import('@/locales').then(({ default: i18n }) => {
@@ -239,8 +243,9 @@ export const useGoodsStore = defineStore('goods', () => {
     return _addMultipleGoods(items, list)
   }
 
-  function refreshList() {
-    return _refreshList(list)
+  async function refreshList() {
+    await _refreshList(list)
+    loadFailed.value = false
   }
 
   function importGoodsBackup(items) {
@@ -275,6 +280,7 @@ export const useGoodsStore = defineStore('goods', () => {
     trashViewList,
     storageLocations,
     isReady,
+    loadFailed,
     getById,
     getTrashById,
     init,

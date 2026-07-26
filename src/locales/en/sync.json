@@ -9,8 +9,6 @@
   "sync.connectionTitle": "Connection Info",
   "sync.recentSync": "Recent Sync",
   "sync.syncToken": "Sync Token",
-  "sync.syncPassword": "Sync Password",
-  "sync.enableEncryption": "Enable Encryption",
   "sync.pauseSync": "Pause Auto Sync",
   "sync.supabaseUrl": "Supabase Project URL",
   "sync.anonKey": "Anon Key",
@@ -120,6 +118,7 @@
   "sync.uploadImages": "Upload {count} images",
   "sync.reuseImages": "Reuse {count} images",
   "sync.restoreImages": "Restore {count} images",
+  "sync.imageUploadPartialFailed": "{count} image(s) failed to upload; local originals are kept and will be retried on the next sync",
   "sync.tokenSaved": "Token saved ({login})",
   "sync.connectionTestSuccess": "Connection successful",
   "sync.connectionTestFailed": "Connection failed",
@@ -214,6 +213,9 @@
   "sync.step.uploadSupabaseImages.start": "Uploading {count} images",
   "sync.step.uploadSupabaseImages.success": "Images uploaded to Supabase Storage",
   "sync.step.uploadSupabaseImages.result": "Upload complete: {uploaded} succeeded, {failed} failed",
+  "sync.step.cleanOrphanImages": "Clean up orphaned cloud images",
+  "sync.step.cleanOrphanImages.start": "Found {count} unreferenced image files",
+  "sync.step.cleanOrphanImages.result": "Cleanup complete: {removed} removed, {failed} failed",
   "sync.step.checkEncryption": "Check Image Encryption Status",
   "sync.step.checkEncryption.start": "Comparing local and cloud encryption",
   "sync.step.checkEncryption.mismatch": "Status mismatch (local: {local}, cloud: {cloud}), triggering re-upload",
@@ -272,5 +274,7 @@
   "sync.error.networkReconnect": "Network error, attempting to reconnect...",
   "sync.error.unnamedItem": "Unnamed item",
   "sync.error.loginRequired": "Please log in to Supabase before syncing",
-  "sync.error.loginRequiredStatus": "Not logged in"
+  "sync.error.loginRequiredStatus": "Not logged in",
+  "sync.error.localDataNotLoaded": "Local data failed to load. Cloud sync is paused to protect your cloud backup. Please restart the app and try again.",
+  "sync.error.localDataNotLoadedStatus": "Local data not loaded"
 }

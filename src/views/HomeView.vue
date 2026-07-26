@@ -279,7 +279,8 @@ import { useDensityGridViewport } from '@/composables/home/useDensityGridViewpor
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
-import { createHomeSortOptions } from '@/utils/goods/homeSort'
+import { createHomeSortOptions, sortHomeGoodsList } from '@/utils/goods/homeSort'
+import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
@@ -291,6 +292,7 @@ import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
+import { createBatchId } from '@/composables/batch/useBatchQueue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
@@ -308,6 +310,7 @@ import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useFilterPresetsStore } from '@/stores/filterPresets'
 import { STORAGE_FILTER_EVENT, STORAGE_FILTER_STORAGE_KEY } from '@/utils/storageQr'
+import { showGlobalToast } from '@/utils/globalToast'
 
 defineOptions({ name: 'HomeView' })
 const { t } = useI18n()
@@ -784,7 +787,7 @@ async function handleBatchAdd() {
   saveScrollPosition(true, 'home:handleBatchAdd')
   homeDisplayReady.value = false
   runWithRouteTransition(
-    () => router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images) } }).catch(() => {
+    () => router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images), batchId: createBatchId() } }).catch(() => {
       homeDisplayReady.value = true
     }),
     { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
@@ -812,6 +815,20 @@ function resolveGoodsViewportHeight(options = {}) {
     : (getScrollEl()?.clientHeight || window.innerHeight || 800)
 }
 
+const gridMetrics = useVirtualGridMetrics({
+  getGridEl: () => getGoodsListEl(),
+  getCols: () => getResponsiveCols(displayDensity.value),
+  getDensity: () => displayDensity.value,
+  // 置顶模式下分组卡集中在 displayList 头部，纯分组行比普通行矮，需单独建模
+  getLeadingGroupCount: () => (
+    !searchIsFiltering.value && groupDisplayMode.value === 'pinned'
+      ? groupViewItems.value.length
+      : 0
+  ),
+  fallbackRowHeightMap: ROW_HEIGHT_MAP,
+  fallbackRowGap: GOODS_GRID_ROW_GAP
+})
+
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   if (displayDensity.value === 'timeline') {
     currentGoodsScrollTop.value = Math.max(0, Number(scrollTop) || 0)
@@ -824,13 +841,19 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const normalizedTop = Math.max(0, Number(scrollTop) || 0)
   const viewportHeight = resolveGoodsViewportHeight(options)
   const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
+  const rowSpan = gridMetrics.getRowSpan()
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
   // 根据密度模式和设备类型选择对应的最大渲染卡片数
   const maxRenderCards = getMaxRenderCards(displayDensity.value)
-  const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
-  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+  const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowSpan) / rowSpan))
+  const totalItems = displayList.value.length
+  const totalRows = Math.ceil(totalItems / cols)
+  // 滚动位置越过列表末尾（回弹、恢复时数据变短等）时钳制到最后一行，
+  // 而不是重置回列表头部造成大跳
+  const startRow = Math.min(
+    Math.max(0, gridMetrics.rowAtOffset(normalizedTop) - overscanRows),
+    Math.max(0, totalRows - 1)
+  )
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
 
   // Density changed (or first call) — invalidate cached row values
@@ -850,9 +873,7 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
     _lastSyncStartRow = startRow
     _lastSyncRenderRows = renderRows
 
-    const totalItems = displayList.value.length
-    const rawStartIndex = Math.min(totalItems, startRow * cols)
-    const startIndex = totalItems > 0 && rawStartIndex >= totalItems ? 0 : rawStartIndex
+    const startIndex = Math.min(totalItems, startRow * cols)
     const remainingItems = Math.max(0, totalItems - startIndex)
     const renderCount = Math.min(
       remainingItems,
@@ -864,6 +885,11 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
 
     visibleGoodsStartIndex.value = startIndex
     visibleGoodsRenderCount.value = renderCount
+  }
+
+  // 首测发生在滚过分组块之后时学不到分组行行距——回到顶部分组行可见时补测
+  if (visibleGoodsStartIndex.value === 0 && gridMetrics.needsGroupSpanMeasure()) {
+    gridMetrics.scheduleMeasure()
   }
 }
 
@@ -883,9 +909,8 @@ function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
   // without shifting the start index.
   const preloadTargetTop = scrollTop + viewportHeight * 2.5
   const cols = getResponsiveCols(displayDensity.value)
-  const rowSpan = (ROW_HEIGHT_MAP[displayDensity.value] || 272) + GOODS_GRID_ROW_GAP
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
-  const endRow = Math.ceil(preloadTargetTop / rowSpan) + overscanRows
+  const endRow = gridMetrics.rowAtOffset(preloadTargetTop) + 1 + overscanRows
   const endIndex = Math.min(displayList.value.length, endRow * cols)
   const neededCount = Math.max(0, endIndex - visibleGoodsStartIndex.value)
   const maxRenderCards = getMaxRenderCards(displayDensity.value)
@@ -994,11 +1019,10 @@ function prepareRestoreState(state) {
   if (!Number.isFinite(anchorIndex) || anchorIndex < 0) return
 
   const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
+  const rowSpan = gridMetrics.getRowSpan()
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
   const anchorRow = Math.floor(anchorIndex / cols)
-  const restoreTop = Math.max(0, anchorRow * rowSpan - overscanRows * rowSpan)
+  const restoreTop = Math.max(0, gridMetrics.offsetOfRow(anchorRow) - overscanRows * rowSpan)
   syncVisibleGoodsCount(restoreTop, { useFlipViewport: true })
 }
 
@@ -1279,6 +1303,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  gridMetrics.cancelMeasure()
   window.removeEventListener(STORAGE_FILTER_EVENT, checkNfcStorageFilter)
   if (addMotionRaf) {
     window.cancelAnimationFrame(addMotionRaf)
@@ -1474,11 +1499,6 @@ const visibleGoodsEndIndex = computed(() => (
     ? goodsList.value.length
     : Math.min(displayList.value.length, visibleGoodsStartIndex.value + visibleGoodsRenderCount.value)
 ))
-const visibleGoodsList = computed(() =>
-  displayDensity.value === 'timeline'
-    ? goodsList.value
-    : goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
-)
 const {
   allTimelineMonthCount,
   allTimelineMonthList,
@@ -1507,10 +1527,7 @@ const visibleGoodsHeadSpacerHeight = computed(() => {
 
   const cols = getResponsiveCols(displayDensity.value)
   const headRows = Math.floor(visibleGoodsStartIndex.value / cols)
-  if (headRows <= 0) return 0
-
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  return headRows * rowHeight + Math.max(0, headRows - 1) * GOODS_GRID_ROW_GAP
+  return gridMetrics.headSpacerHeight(headRows)
 })
 const visibleGoodsTailSpacerHeight = computed(() => {
   if (displayDensity.value === 'timeline') return 0
@@ -1519,11 +1536,7 @@ const visibleGoodsTailSpacerHeight = computed(() => {
   if (!remainingItems) return 0
 
   const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const remainingRows = Math.ceil(remainingItems / cols)
-  return remainingRows > 0
-    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * GOODS_GRID_ROW_GAP
-    : 0
+  return gridMetrics.tailSpacerHeight(Math.ceil(remainingItems / cols))
 })
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
@@ -1547,7 +1560,7 @@ const preloadTargetList = computed(() =>
           ),
           ...(showVisibleTimelineUnknown.value ? timelineUnknown.value : [])
         ]
-      : visibleGoodsList.value
+      : visibleDisplayList.value
   ).slice(0, preloadLeadCount.value)
 )
 
@@ -1556,9 +1569,17 @@ watch(
   () => {
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
+    gridMetrics.scheduleMeasure()
   },
   { immediate: true }
 )
+
+// 实测行高落地后按真实行距重算渲染窗口（spacer computed 会随之重新求值）
+watch(gridMetrics.metricsVersion, () => {
+  _lastSyncStartRow = -1
+  _lastSyncRenderRows = -1
+  syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
+})
 
 watch(
   () => preloadTargetList.value.map((item) => item.coverImage).filter(Boolean),
@@ -1734,7 +1755,14 @@ async function batchDelete() {
 
 async function confirmDelete() {
   showDeleteConfirm.value = false
-  await store.removeMultipleGoods(selectedIds.value)
+  try {
+    await store.removeMultipleGoods(selectedIds.value)
+  } catch (e) {
+    // 删除失败时保留选中状态，方便用户重试
+    console.error('[home] batch delete failed:', e)
+    showGlobalToast(t('toast.deleteFailed'))
+    return
+  }
   exitSelectionModeQuiet()
 }
 

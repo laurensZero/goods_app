@@ -179,7 +179,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
-    const { error } = await withRetry(() => db.rpc('sync_push', {
+    const { data, error } = await withRetry(() => db.rpc('sync_push', {
       p_goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
       p_goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true, currentUserId),
       p_groups: toGroupRows(groups, deviceIdRef, currentUserId, false),
@@ -211,6 +211,15 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     }))
 
     if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
+
+    // 新版 sync_push RPC 返回 { synced_at: <服务器时间> } 作为本地水位线，
+    // 消除设备时钟偏移；旧版 RPC 返回 void（data 为 null）→ 调用方回退客户端时间
+    let payload = data
+    if (typeof payload === 'string') {
+      try { payload = JSON.parse(payload) } catch { payload = null }
+    }
+    const serverSyncedAt = payload && typeof payload === 'object' ? (payload.synced_at || null) : null
+    return { syncedAt: serverSyncedAt }
   }
 
   return { writeManifest, writePresets, pushDomainRows, pushAll }

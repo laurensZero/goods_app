@@ -31,12 +31,14 @@ const log = createLogger('db')
  * @property {(stmts: {statement: string, values: any[]}[]) => Promise<void>} executeSet
  * @property {(sql: string, params?: any[]) => Promise<any[]>} query
  * @property {(tableName: string) => Promise<Set<string>>} getTableColumns
+ * @property {() => Promise<void>} [flush]
  */
 
 /** @type {DatabaseAdapter | null} */
 let db = null
 let isInitialized = false
 let isSchemaSynced = false
+let initPromise = null
 
 async function getDb() {
   if (db) return db
@@ -106,6 +108,7 @@ const CREATE_EVENTS_TABLE_SQL = `
     tracks     TEXT DEFAULT '[]',
     linkedGoodsIds TEXT DEFAULT '[]',
     tags       TEXT DEFAULT '[]',
+    deleted    INTEGER DEFAULT 0,
     createdAt  INTEGER DEFAULT 0,
     updatedAt  INTEGER DEFAULT 0
   );
@@ -137,6 +140,7 @@ const CREATE_GOODS_GROUPS_TABLE_SQL = `
     coverItemId  TEXT DEFAULT '',
     displayMode  TEXT DEFAULT 'list',
     note         TEXT DEFAULT '',
+    deleted      INTEGER DEFAULT 0,
     createdAt    INTEGER DEFAULT 0,
     updatedAt    INTEGER DEFAULT 0
   );
@@ -148,6 +152,7 @@ const CREATE_GOODS_GROUP_ITEMS_TABLE_SQL = `
     groupId   TEXT NOT NULL,
     goodsId   TEXT NOT NULL,
     sortOrder INTEGER DEFAULT 0,
+    deleted   INTEGER DEFAULT 0,
     createdAt INTEGER DEFAULT 0,
     updatedAt INTEGER DEFAULT 0
   );
@@ -207,6 +212,7 @@ const EVENTS_REQUIRED_COLUMNS = [
   ['tracks', "TEXT DEFAULT '[]'"],
   ['linkedGoodsIds', "TEXT DEFAULT '[]'"],
   ['tags', "TEXT DEFAULT '[]'"],
+  ['deleted', 'INTEGER DEFAULT 0'],
   ['createdAt', 'INTEGER DEFAULT 0'],
   ['updatedAt', 'INTEGER DEFAULT 0']
 ]
@@ -232,6 +238,7 @@ const GOODS_GROUPS_REQUIRED_COLUMNS = [
   ['coverItemId', "TEXT DEFAULT ''"],
   ['displayMode', "TEXT DEFAULT 'list'"],
   ['note', "TEXT DEFAULT ''"],
+  ['deleted', 'INTEGER DEFAULT 0'],
   ['createdAt', 'INTEGER DEFAULT 0'],
   ['updatedAt', 'INTEGER DEFAULT 0']
 ]
@@ -240,6 +247,7 @@ const GOODS_GROUP_ITEMS_REQUIRED_COLUMNS = [
   ['groupId', "TEXT NOT NULL"],
   ['goodsId', "TEXT NOT NULL"],
   ['sortOrder', 'INTEGER DEFAULT 0'],
+  ['deleted', 'INTEGER DEFAULT 0'],
   ['createdAt', 'INTEGER DEFAULT 0'],
   ['updatedAt', 'INTEGER DEFAULT 0']
 ]
@@ -350,7 +358,7 @@ function goodsRecordToValues(record) {
   return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.statusTimelineStr]
 }
 
-const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 const RECHARGE_INSERT_SQL = 'INSERT OR REPLACE INTO recharge_records (id,game,itemName,amount,chargedAt,note,image,deleted,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)'
 
@@ -374,6 +382,7 @@ function prepareEventValues(event) {
     location = '', description = '', coverImage = '',
     coverImageData = {},
     photos = [], ticketPrice = '', ticketType = '', seatInfo = '', otherExpenses = [], tracks = [], linkedGoodsIds = [], tags = [],
+    deleted = false,
     createdAt, updatedAt
   } = event
   const coverImageDataStr = stringifyJsonObject(coverImageData)
@@ -384,7 +393,7 @@ function prepareEventValues(event) {
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const ts = updatedAt || Date.now()
   const created = createdAt || ts
-  return [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, created, ts]
+  return [id, name, type, startDate, endDate, location, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, deleted ? 1 : 0, created, ts]
 }
 
 async function _getSchemaVersion() {
@@ -423,7 +432,18 @@ async function _ensureTableColumns(tableName, columns) {
 //  统一对外 API
 
 /** @returns {Promise<void>} */
-export async function initDB() {
+export function initDB() {
+  // 并发调用共享同一个初始化 promise，避免建表/迁移竞态；失败后清除以允许重试
+  if (!initPromise) {
+    initPromise = _doInitDB().catch((e) => {
+      initPromise = null
+      throw e
+    })
+  }
+  return initPromise
+}
+
+async function _doInitDB() {
   if (isInitialized && isSchemaSynced && db) {
     return
   }
@@ -489,6 +509,20 @@ export async function initDB() {
     versionCheckMs: Number(versionCheckTime.toFixed(1)),
     migrationsMs: Number(migrationsTime.toFixed(1))
   })
+}
+
+/**
+ * 将未落盘的写入立即刷入持久化存储
+ * Web 端：取消防抖并立刻导出到 IndexedDB；原生端 SQLite 写入即落盘，为 no-op
+ * @returns {Promise<void>}
+ */
+export async function flushDbWrites() {
+  if (!db || typeof db.flush !== 'function') return
+  try {
+    await db.flush()
+  } catch (e) {
+    console.error('[db] flushDbWrites failed:', e)
+  }
 }
 
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
@@ -613,6 +647,7 @@ export async function getEvents() {
         tracks: parseJsonArray(r.tracks),
         linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
         tags: parseJsonArray(r.tags),
+        deleted: Boolean(r.deleted),
         createdAt: Number(r.createdAt) || 0,
         updatedAt: Number(r.updatedAt) || 0
       }
@@ -729,9 +764,9 @@ export async function deleteRechargeRecords(ids) {
 
 // ── Goods Groups CRUD ──
 
-const GROUPS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_groups (id,name,type,summaryMode,totalAmount,currency,coverMode,coverItemId,displayMode,note,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+const GROUPS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_groups (id,name,type,summaryMode,totalAmount,currency,coverMode,coverItemId,displayMode,note,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
-const GROUP_ITEMS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_group_items (id,groupId,goodsId,sortOrder,createdAt,updatedAt) VALUES (?,?,?,?,?,?)'
+const GROUP_ITEMS_INSERT_SQL = 'INSERT OR REPLACE INTO goods_group_items (id,groupId,goodsId,sortOrder,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?)'
 
 function prepareGroupRecord(group) {
   const now = Date.now()
@@ -746,6 +781,7 @@ function prepareGroupRecord(group) {
     group.coverItemId || '',
     group.displayMode || 'list',
     group.note || '',
+    group.deleted ? 1 : 0,
     group.createdAt || now,
     group.updatedAt || now
   ]
@@ -758,6 +794,7 @@ function prepareGroupItemRecord(item) {
     item.groupId,
     item.goodsId,
     Number(item.sortOrder) || 0,
+    item.deleted ? 1 : 0,
     item.createdAt || now,
     item.updatedAt || now
   ]
@@ -778,6 +815,7 @@ export async function getGroups() {
     return rows.map(r => ({
       ...r,
       totalAmount: Number(r.totalAmount) || 0,
+      deleted: Boolean(r.deleted),
       createdAt: Number(r.createdAt) || 0,
       updatedAt: Number(r.updatedAt) || 0
     }))
@@ -842,6 +880,7 @@ export async function getGroupItems() {
     return rows.map(r => ({
       ...r,
       sortOrder: Number(r.sortOrder) || 0,
+      deleted: Boolean(r.deleted),
       createdAt: Number(r.createdAt) || 0,
       updatedAt: Number(r.updatedAt) || 0
     }))

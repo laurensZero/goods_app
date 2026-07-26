@@ -46,7 +46,7 @@
               </div>
 
               <p class="summary-value">
-                <span class="summary-count">{{ eventsStore.list.length }}</span>
+                <span class="summary-count">{{ eventsStore.activeList.length }}</span>
                 <span class="summary-unit">{{ t('events.eventsUnit') }}</span>
               </p>
             </div>
@@ -69,7 +69,7 @@
         </article>
       </section>
 
-      <section v-if="eventsStore.list.length > 0" class="toolbar-section">
+      <section v-if="eventsStore.activeList.length > 0" class="toolbar-section">
         <div class="toolbar-copy">
           <p class="toolbar-label">{{ searchKeyword ? t('events.searchResults') : t('events.myEvents') }}</p>
           <h2 class="toolbar-title">
@@ -113,7 +113,7 @@
       </section>
 
       <Transition name="search-drop">
-        <section v-if="showSearch && !selectionMode && eventsStore.list.length > 0" class="search-section">
+        <section v-if="showSearch && !selectionMode && eventsStore.activeList.length > 0" class="search-section">
           <div class="search-panel">
             <SearchBar
               v-model="searchKeyword"
@@ -196,7 +196,7 @@
         </Transition>
       </template>
 
-      <section v-else-if="eventsStore.list.length > 0" class="empty-wrap">
+      <section v-else-if="eventsStore.activeList.length > 0" class="empty-wrap">
         <EmptyState
           icon="⌕"
           :title="t('events.noMatch')"
@@ -365,9 +365,9 @@ const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, 
 
 const filteredEvents = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
-  if (!keyword) return eventsStore.list
+  if (!keyword) return eventsStore.activeList
 
-  return eventsStore.list.filter((event) => {
+  return eventsStore.activeList.filter((event) => {
     const parts = [
       event.name,
       event.location,
@@ -491,7 +491,7 @@ const sortedEvents = computed(() => {
 const _eventTotals = computed(() => {
   let linkedGoods = 0
   let photos = 0
-  for (const event of eventsStore.list) {
+  for (const event of eventsStore.activeList) {
     linkedGoods += Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0
     photos += Array.isArray(event.photos) ? event.photos.length : 0
   }
@@ -524,7 +524,7 @@ const {
   exitSelectionModeQuiet,
   exitSelectionMode,
   handleSelectionPopState
-} = useGoodsSelection(computed(() => eventsStore.list), {
+} = useGoodsSelection(computed(() => eventsStore.activeList), {
   historyKey: 'eventsSelectionMode',
   onExit: closeSelectionOverlays,
   getScrollTop: readScrollTop

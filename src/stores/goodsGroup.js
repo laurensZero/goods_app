@@ -39,13 +39,13 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   /** 获取某个组的成员关系列表（按 sortOrder 排序） */
   const groupItemsOf = computed(() => (groupId) => {
     return groupItemList.value
-      .filter(item => item.groupId === groupId)
+      .filter(item => item.groupId === groupId && !item.deleted)
       .sort((a, b) => a.sortOrder - b.sortOrder)
   })
 
   /** 反向查询：某个谷子所属的组 ID */
   const getGoodsGroupId = computed(() => (goodsId) => {
-    const item = groupItemList.value.find(i => i.goodsId === goodsId)
+    const item = groupItemList.value.find(i => i.goodsId === goodsId && !i.deleted)
     return item ? item.groupId : null
   })
 
@@ -54,7 +54,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     const group = _groupByIdMap.value.get(groupId)
     if (!group) return null
     const items = groupItemList.value
-      .filter(i => i.groupId === groupId)
+      .filter(i => i.groupId === groupId && !i.deleted)
       .sort((a, b) => a.sortOrder - b.sortOrder)
     const goodsMap = new Map(goodsList.map(g => [g.id, g]))
     const memberGoods = items
@@ -175,7 +175,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   async function addItemsToGroup(groupId, goodsIds) {
     const now = Date.now()
     const existingGoodsIds = new Set(
-      groupItemList.value.filter(i => i.groupId === groupId).map(i => i.goodsId)
+      groupItemList.value.filter(i => i.groupId === groupId && !i.deleted).map(i => i.goodsId)
     )
     const maxSortOrder = Math.max(0, ...groupItemList.value.filter(i => i.groupId === groupId).map(i => i.sortOrder))
 
@@ -247,7 +247,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   }
 
   async function moveItemToGroup(goodsId, targetGroupId) {
-    const existing = groupItemList.value.find(i => i.goodsId === goodsId)
+    const existing = groupItemList.value.find(i => i.goodsId === goodsId && !i.deleted)
     if (existing) {
       // 已在某个组中，更新 groupId
       return updateGroupItem(existing.id, { groupId: targetGroupId })
@@ -262,7 +262,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     const now = Date.now()
     const itemsMap = new Map(
       groupItemList.value
-        .filter(i => i.groupId === groupId)
+        .filter(i => i.groupId === groupId && !i.deleted)
         .map(i => [i.goodsId, i])
     )
 

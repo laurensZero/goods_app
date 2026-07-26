@@ -405,6 +405,7 @@ export const useEventsStore = defineStore('events', () => {
 
   return {
     list,
+    activeList,
     sortedList,
     groupedByMonth,
     totalTicketAll,

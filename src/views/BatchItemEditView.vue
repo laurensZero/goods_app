@@ -145,7 +145,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
@@ -169,7 +169,9 @@ const {
   totalCount,
   updateItem,
   markDirty,
-  getItem
+  getItem,
+  replaceItemImage,
+  discardQueue
 } = useBatchQueue()
 
 const itemId = computed(() => route.params.id)
@@ -197,6 +199,11 @@ onMounted(() => {
   if (currentItem.value) {
     syncFormFromItem(currentItem.value)
   }
+})
+
+// 从编辑页直接离开批量流程（如深链跳转）时同样清理队列；返回队列页或切换下一项不受影响
+onBeforeRouteLeave((to) => {
+  if (to.name !== 'batch-add' && to.name !== 'batch-edit') discardQueue()
 })
 
 function syncFormFromItem(item) {
@@ -281,7 +288,8 @@ function saveAndNext() {
 async function swapImage() {
   const picked = await pickLinkedLocalImages(1)
   if (!picked.length) return
-  updateItem(itemId.value, { imageUri: picked[0].uri || picked[0].localPath })
+  // 替换时同步删除被替换的本地文件，避免孤儿文件
+  replaceItemImage(itemId.value, picked[0].uri || picked[0].localPath)
   markDirty(itemId.value, 'imageUri')
 }
 
@@ -315,7 +323,8 @@ function onEditorSave(result) {
         const { saveLocalImage } = await import('@/utils/image/localImage')
         const saved = await saveLocalImage(result.file)
         if (saved?.uri) {
-          updateItem(itemId.value, { imageUri: saved.uri })
+          // 编辑保存会生成新文件，需删除被替换的旧文件
+          replaceItemImage(itemId.value, saved.uri)
           markDirty(itemId.value, 'imageUri')
         }
       } catch (e) {

@@ -75,6 +75,11 @@ function sanitizeString(value) {
   return result
 }
 
+// 供外部模块复用的敏感文本脱敏（Cookie/token/password 等）
+export function redactSensitiveText(value) {
+  return sanitizeString(String(value ?? ''))
+}
+
 function sanitizeValue(value, seen = new WeakSet(), depth = 0) {
   if (typeof value === 'string') return sanitizeString(value)
   if (!isObjectLike(value)) return value

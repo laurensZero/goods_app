@@ -52,6 +52,7 @@ def main() -> int:
         mode = 'rollback'
         bundle_name = '(existing)'
 
+    # 客户端已强制校验 hash（src/stores/webUpdate.js fail-closed，缺失/非法即拒绝更新），此处必须保持必填
     if not version or not url or not hashv:
         return fail('manifest 必需字段缺失（version/url/hash）', 3)
 

@@ -33,8 +33,12 @@ async function readPersistedTrash() {
 }
 
 async function writePersistedTrash(list) {
+  const payload = JSON.stringify(list)
   writeTrashLocal(list)
-  await writePersisted(TRASH_STORAGE_KEY, JSON.stringify(list))
+  const ok = await writePersisted(TRASH_STORAGE_KEY, payload)
+  if (ok) return
+  // 写入失败重试一次；再失败则抛错，让调用方中止破坏性操作
+  await writePersisted(TRASH_STORAGE_KEY, payload, { critical: true })
 }
 
 //  Migration flags

@@ -9,8 +9,6 @@
   "sync.connectionTitle": "연결 정보",
   "sync.recentSync": "최근 동기화",
   "sync.syncToken": "동기화 토큰",
-  "sync.syncPassword": "동기화 비밀번호",
-  "sync.enableEncryption": "암호화 활성화",
   "sync.pauseSync": "자동 동기화 일시 중지",
   "sync.supabaseUrl": "Supabase 프로젝트 URL",
   "sync.anonKey": "Anon Key",
@@ -120,6 +118,7 @@
   "sync.uploadImages": "이미지 {count}장 업로드",
   "sync.reuseImages": "이미지 {count}장 재사용",
   "sync.restoreImages": "이미지 {count}장 복원",
+  "sync.imageUploadPartialFailed": "이미지 {count}장 업로드에 실패했습니다. 로컬 원본은 유지되며 다음 동기화 시 자동으로 재시도됩니다",
   "sync.tokenSaved": "토큰 저장됨 ({login})",
   "sync.connectionTestSuccess": "연결 성공",
   "sync.connectionTestFailed": "연결 실패",
@@ -214,6 +213,9 @@
   "sync.step.uploadSupabaseImages.start": "이미지 {count}장 업로드 중",
   "sync.step.uploadSupabaseImages.success": "이미지를 Supabase 저장소에 업로드 완료",
   "sync.step.uploadSupabaseImages.result": "업로드 완료: {uploaded}장 성공, {failed}장 실패",
+  "sync.step.cleanOrphanImages": "클라우드 고아 이미지 정리",
+  "sync.step.cleanOrphanImages.start": "참조되지 않은 이미지 파일 {count}개 감지",
+  "sync.step.cleanOrphanImages.result": "정리 완료: {removed}개 성공, {failed}개 실패",
   "sync.step.checkEncryption": "이미지 암호화 상태 확인",
   "sync.step.checkEncryption.start": "로컬과 클라우드의 암호화 상태 비교 중",
   "sync.step.checkEncryption.mismatch": "상태 불일치 (로컬: {local}, 클라우드: {cloud}). 재업로드를 실행합니다",
@@ -270,5 +272,7 @@
   "sync.error.pullTimeout": "풀 작업 시간 초과",
   "sync.error.pullTimeoutStatus": "풀 시간 초과",
   "sync.error.networkReconnect": "네트워크 오류. 재연결을 시도합니다...",
-  "sync.error.unnamedItem": "이름 없는 항목"
+  "sync.error.unnamedItem": "이름 없는 항목",
+  "sync.error.localDataNotLoaded": "로컬 데이터 로드에 실패했습니다. 클라우드 백업 보호를 위해 동기화를 중단했습니다. 앱을 재시작한 후 다시 시도해 주세요",
+  "sync.error.localDataNotLoadedStatus": "로컬 데이터 미로드"
 }

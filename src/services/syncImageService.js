@@ -2,6 +2,12 @@ import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri
 import { processWithConcurrency } from '@/utils/sync/shared'
 import i18n from '@/locales'
 
+// 孤儿图片回收的多设备宽限期：跳过 48 小时内新建的云端文件，
+// 避免另一设备刚上传、本设备列表尚未包含其引用时被误删
+export const SUPABASE_ORPHAN_GRACE_MS = 48 * 60 * 60 * 1000
+// 单次同步最多删除的孤儿文件数，限制误判时的影响范围；剩余的留待后续同步继续回收
+export const MAX_ORPHAN_DELETE_PER_SYNC = 200
+
 export function createSyncImageService({
   backend,
   getBackend,
@@ -230,10 +236,68 @@ export function createSyncImageService({
     }, 8)
   }
 
+  // Supabase 模式的孤儿图片检测：在 doPush 末尾调用，返回可安全删除的云端文件名列表。
+  // 三重防护：1) 归属校验（只删文件名中嵌入的实体 ID 属于当前用户的文件，共享桶内他人文件不动）
+  // 2) 宽限期（跳过 graceMs 内新建的文件，规避多设备并发上传竞态）
+  // 3) 数量上限（单次最多 MAX_ORPHAN_DELETE_PER_SYNC 个，限制误判影响范围）
+  function collectSupabaseOrphanImageFiles(existingImageCloud, {
+    referencedFiles,
+    ownedEntityIds,
+    now = Date.now(),
+    graceMs = SUPABASE_ORPHAN_GRACE_MS
+  } = {}) {
+    // 列表不完整（分页失败）时拒绝执行，避免基于残缺数据误删
+    if (existingImageCloud?.complete !== true) return []
+    if (!(ownedEntityIds instanceof Set) || ownedEntityIds.size === 0) return []
+    if (!(referencedFiles instanceof Set)) return []
+
+    // 引用集归一化：旧数据可能引用 .txt 别名文件名，统一去掉后缀再比对；
+    // 引用还可能携带用户目录前缀（<uid>/goods-image__...，来自用户目录公开 URL 的解析兜底），
+    // 而云端文件表以裸文件名为键，必须剥掉目录段，否则被引用文件会被误判为孤儿
+    const refs = new Set()
+    for (const r of referencedFiles) {
+      let n = String(r || '').trim()
+      if (!n) continue
+      n = n.split('/').pop()
+      if (!n) continue
+      refs.add(n.endsWith('.txt') ? n.slice(0, -4) : n)
+    }
+
+    const prefixes = [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix]
+    const orphans = []
+    for (const [key, value] of Object.entries(existingImageCloud.files || {})) {
+      if (orphans.length >= MAX_ORPHAN_DELETE_PER_SYNC) break
+      // 跳过 .txt 别名条目（与真实文件指向同一对象，避免重复删除）
+      if (key.endsWith('.txt')) continue
+      const matchedPrefix = prefixes.find((prefix) => key.startsWith(prefix))
+      if (!matchedPrefix) continue
+      if (refs.has(key)) continue
+
+      // 归属校验：文件名格式为 <prefix><entityId>__...，实体 ID 本身可能含 '__'，
+      // 逐段拼接尝试匹配当前用户拥有的实体 ID；匹配不上视为他人文件，绝不删除
+      const rest = key.slice(matchedPrefix.length)
+      const parts = rest.split('__')
+      let owned = false
+      for (let i = 0; i < parts.length - 1; i++) {
+        const candidate = parts.slice(0, i + 1).join('__')
+        if (ownedEntityIds.has(candidate)) { owned = true; break }
+      }
+      if (!owned) continue
+
+      // 宽限期：created_at 缺失/无法解析或距今不足 graceMs 的文件一律保留
+      const createdMs = Date.parse(String(value?.createdAt || ''))
+      if (!Number.isFinite(createdMs)) continue
+      if (now - createdMs < graceMs) continue
+
+      orphans.push(key)
+    }
+    return orphans
+  }
+
   function buildImageCleanupFiles(existingImageCloud, referencedImageFiles) {
     const currentBackend = resolveBackend()
-    // Supabase uses public URLs for synced images, so local items no longer retain cloud-local references.
-    // Deleting based on current references would incorrectly remove valid cloud images on the next sync.
+    // Supabase 模式：孤儿图片回收由 doPush 末尾的 collectSupabaseOrphanImageFiles 专门处理
+    // （需要全量本地引用 + 归属校验 + 宽限期），此处的 pipeline 引用集在增量推送时不完整，不能用于删除。
     if (typeof currentBackend?.getImagePublicUrl === 'function') {
       return {}
     }
@@ -255,6 +319,7 @@ export function createSyncImageService({
     resolveRemoteImageCloud,
     hydrateRemoteItemsWithImages,
     hydrateEventCoversWithImages,
-    buildImageCleanupFiles
+    buildImageCleanupFiles,
+    collectSupabaseOrphanImageFiles
   }
 }

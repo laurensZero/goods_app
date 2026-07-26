@@ -1,7 +1,8 @@
 import {
   inferGoodsImageStorageMode,
   normalizeGoodsImageList,
-  parseCloudImageUri
+  parseCloudImageUri,
+  parseStoragePublicImageUrl
 } from '@/utils/goods/images'
 import { readPersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
@@ -380,6 +381,61 @@ export function buildImageReferenceMap({ goods = [], trash = [], events = [] } =
     ...buildGoodsImageReferenceMap(trash).entries(),
     ...buildEventImageReferenceMap(events).entries()
   ])
+}
+
+// 解析图片条目对应的云端文件名：优先 cloudFileName，
+// 其次 cloud-image:// 引用，最后兼容直接存 Supabase 公开 URL 的旧数据
+function resolveRefName(entry) {
+  return String(
+    entry?.cloudFileName
+    || parseCloudImageUri(entry?.uri)
+    || parseStoragePublicImageUrl(entry?.uri)
+    || ''
+  ).trim()
+}
+
+// 收集全量本地数据（收藏 + 回收站 + 活动，含已删除活动）的云端图片引用状态，
+// 供孤儿图片回收使用：referencedFiles 为被引用的文件名集合，
+// ownedEntityIds 为当前用户拥有的实体 ID 集合（含原始与 sanitize 后两种形式）
+export function collectReferencedImageState({ goods = [], trash = [], events = [] } = {}) {
+  const referencedFiles = new Set()
+  const ownedEntityIds = new Set()
+
+  const addId = (id) => {
+    const raw = String(id || '').trim()
+    if (!raw) return
+    ownedEntityIds.add(raw)
+    ownedEntityIds.add(sanitizeFilenamePart(raw))
+  }
+  const addRef = (name) => {
+    const resolved = String(name || '').trim()
+    if (resolved) referencedFiles.add(resolved)
+  }
+
+  for (const item of [...goods, ...trash]) {
+    addId(item?.id)
+    for (const img of normalizeGoodsImageList(item?.images, item?.coverImage || item?.image || '')) {
+      addRef(resolveRefName(img))
+    }
+  }
+
+  for (const event of events) {
+    addId(event?.id)
+    addRef(
+      event?.coverImageData?.cloudFileName
+      || parseCloudImageUri(event?.coverImage)
+      || parseStoragePublicImageUrl(event?.coverImage)
+    )
+    for (const photo of (Array.isArray(event?.photos) ? event.photos : [])) {
+      addRef(
+        photo?.cloudFileName
+        || parseCloudImageUri(photo?.uri)
+        || parseStoragePublicImageUrl(photo?.uri)
+      )
+    }
+  }
+
+  return { referencedFiles, ownedEntityIds }
 }
 
 export function resolveGoodsTrashMaps(goodsList = [], trashList = []) {

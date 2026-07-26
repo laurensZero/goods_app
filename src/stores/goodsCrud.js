@@ -186,18 +186,28 @@ export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
   if (!item) return
 
   const now = Date.now()
-  trashList.value.unshift(normalizeTrashItem({
+  // 快照当前状态，回收站持久化失败时用于回滚
+  const prevList = list.value
+  const prevTrash = trashList.value
+  trashList.value = [normalizeTrashItem({
     ...item,
     updatedAt: now,
     deletedAt: new Date(now).toISOString()
-  }, item.id))
-  triggerRef(trashList)
-  list.value = list.value.filter((entry) => entry.id !== id)
+  }, item.id), ...prevTrash]
+  list.value = prevList.filter((entry) => entry.id !== id)
+  // 先持久化回收站，成功后才执行破坏性的 SQLite 删除，避免存储配额耗尽时数据丢失
+  try {
+    await persistTrash()
+  } catch (e) {
+    trashList.value = prevTrash
+    list.value = prevList
+    console.error('[goods] removeGoods: trash persist failed, aborting delete:', e)
+    throw e
+  }
   try {
     await Promise.all([
       deleteItems([id]),
-      cancelSaleReminderNotifications(id, item.saleReminderOffsets),
-      persistTrash()
+      cancelSaleReminderNotifications(id, item.saleReminderOffsets)
     ])
   } catch (e) {
     console.error('[goods] removeGoods DB write failed:', e)
@@ -225,13 +235,24 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
 
   if (removedItems.length === 0) return
 
-  trashList.value = [...removedItems, ...trashList.value]
-  list.value = list.value.filter((item) => !ids.has(item.id))
+  // 快照当前状态，回收站持久化失败时用于回滚
+  const prevList = list.value
+  const prevTrash = trashList.value
+  trashList.value = [...removedItems, ...prevTrash]
+  list.value = prevList.filter((item) => !ids.has(item.id))
+  // 先持久化回收站，成功后才执行破坏性的 SQLite 删除，避免存储配额耗尽时数据丢失
+  try {
+    await persistTrash()
+  } catch (e) {
+    trashList.value = prevTrash
+    list.value = prevList
+    console.error('[goods] removeMultipleGoods: trash persist failed, aborting delete:', e)
+    throw e
+  }
   try {
     await Promise.all([
       deleteItems(Array.from(ids)),
-      ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)),
-      persistTrash()
+      ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets))
     ])
   } catch (e) {
     console.error('[goods] removeMultipleGoods DB write failed:', e)
@@ -284,9 +305,17 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
   const next = trashList.value.filter((entry) => entry.id !== id)
   if (next.length === trashList.value.length) return
 
+  // 快照当前状态，持久化失败时回滚，避免内存与存储不一致
+  const prevTrash = trashList.value
   trashList.value = next
   try {
     await persistTrash()
+  } catch (e) {
+    trashList.value = prevTrash
+    console.error('[goods] deleteTrashItem: trash persist failed, aborting delete:', e)
+    throw e
+  }
+  try {
     await cancelSaleReminderNotifications(id, existing?.saleReminderOffsets)
     await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
   } catch (e) {
@@ -311,8 +340,15 @@ export async function emptyTrash(trashList, persistTrash, onMutate) {
     }
   }
   trashList.value = []
+  // 先持久化，失败时恢复快照并中止，本地图片不会被误删
   try {
     await persistTrash()
+  } catch (e) {
+    trashList.value = removedItems
+    console.error('[goods] emptyTrash: trash persist failed, aborting delete:', e)
+    throw e
+  }
+  try {
     await Promise.all(removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)))
     await deleteManagedLocalImages(removedPaths)
   } catch (e) {

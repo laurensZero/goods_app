@@ -1,4 +1,4 @@
-import { readPersisted, writePersisted, removePersisted } from '@/utils/platform/storage'
+import { readSecret, writeSecret, removeSecret } from '@/utils/platform/storage'
 import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 
@@ -25,30 +25,8 @@ function normalizeState(raw) {
   }
 }
 
-function readLocalState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? normalizeState(JSON.parse(raw)) : getDefaultState()
-  } catch {
-    return getDefaultState()
-  }
-}
-
-function writeLocalState(state) {
-  try {
-    const normalized = normalizeState(state)
-    if (!normalized.cookie) {
-      localStorage.removeItem(STORAGE_KEY)
-      return
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
-  } catch {
-    // ignore
-  }
-}
-
 export async function loadMihoyoCookieState() {
-  const value = await readPersisted(STORAGE_KEY)
+  const value = await readSecret(STORAGE_KEY)
   if (value) {
     try {
       return normalizeState(JSON.parse(value))
@@ -88,7 +66,7 @@ export async function loadMihoyoCookieState() {
     }
   }
 
-  return readLocalState()
+  return getDefaultState()
 }
 
 export async function saveMihoyoCookie(cookie) {
@@ -105,8 +83,7 @@ export async function saveMihoyoCookie(cookie) {
     invalidReason: ''
   }
 
-  writeLocalState(nextState)
-  await writePersisted(STORAGE_KEY, JSON.stringify(nextState))
+  await writeSecret(STORAGE_KEY, JSON.stringify(nextState))
   return nextState
 }
 
@@ -125,16 +102,14 @@ export async function markMihoyoCookieInvalid(cookie, reason = '') {
     invalidReason: String(reason || '').trim()
   }
 
-  writeLocalState(nextState)
-  await writePersisted(STORAGE_KEY, JSON.stringify(nextState))
+  await writeSecret(STORAGE_KEY, JSON.stringify(nextState))
   return nextState
 }
 
 export async function clearMihoyoCookieState() {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // ignore
+  await removeSecret(STORAGE_KEY)
+  // 原生端同时清理旧版回捞 key，避免已清除的 Cookie 通过 fallback 复活
+  if (Capacitor.isNativePlatform()) {
+    try { await Preferences.remove({ key: NATIVE_STORAGE_KEY }) } catch {}
   }
-  await removePersisted(STORAGE_KEY)
 }

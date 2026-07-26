@@ -254,9 +254,23 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
 /**
  * Replace data:image/ base64 with public URLs for all items that have cloudFileName.
  * Called after sync when backend is Supabase.
+ * skipFiles: cloudFileNames whose upload failed — keep their base64 so the next sync retries.
  */
-async function cleanupBase64Images(list, trashList, backend) {
+async function cleanupBase64Images(list, trashList, backend, { skipFiles = null } = {}) {
   if (!backend?.getImagePublicUrl) return
+
+  // 只清理云端确认存在的文件：base64 是本地唯一原图，
+  // 文件未落云就替换为 public URL 会造成图片永久丢失。
+  // 列表获取失败时保守跳过本次清理（下次同步再清）。
+  let cloudFiles = null
+  if (typeof backend.getExistingImageCloud === 'function') {
+    try {
+      cloudFiles = (await backend.getExistingImageCloud())?.files || null
+    } catch {
+      return
+    }
+    if (!cloudFiles) return
+  }
 
   const allLists = [list, trashList]
   const updatedItems = []
@@ -272,6 +286,8 @@ async function cleanupBase64Images(list, trashList, backend) {
         if (!uri.startsWith('data:image/')) return img
         const cloudFileName = String(img?.cloudFileName || parseCloudImageUri(uri) || '').trim()
         if (!cloudFileName) return img
+        if (skipFiles && skipFiles.has(cloudFileName)) return img
+        if (cloudFiles && !cloudFiles[cloudFileName]) return img
         changed = true
         return { ...img, uri: backend.getImagePublicUrl(cloudFileName), storageMode: 'remote' }
       })

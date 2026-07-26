@@ -43,6 +43,7 @@ export function createWebAdapter() {
   let _db = null
   let _saveTimer = null
   let _savePromise = null
+  let _lifecycleListenersBound = false
 
   function _scheduleSave() {
     if (_saveTimer) return
@@ -66,21 +67,34 @@ export function createWebAdapter() {
     }
   }
 
+  // 页面隐藏/卸载时取消防抖并立即保存，堵住 100ms 防抖窗口内的丢数据风险。
+  // visibilitychange/pagehide 触发时事件循环仍在运行，async IndexedDB 写入基本能完成，
+  // 远比 beforeunload 可靠（移动端 WebView 被杀进程时不会触发 beforeunload）。
+  function _bindLifecycleFlush() {
+    if (_lifecycleListenersBound) return
+    _lifecycleListenersBound = true
+    const flushNow = () => { _flushSave() }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushNow()
+    })
+    window.addEventListener('pagehide', flushNow)
+    // beforeunload 兜底保留（此时 async 写入不保证完成，仅尽力而为）
+    window.addEventListener('beforeunload', flushNow)
+  }
+
   return {
     async open() {
       const { default: initSqlJs } = await import('sql.js')
-      const SQL = await initSqlJs({ locateFile: () => '/assets/sql-wasm.wasm' })
+      // 基于 BASE_URL 解析而非根绝对路径，兼容 base: './' 与子路径部署
+      const wasmUrl = new URL(
+        `${import.meta.env.BASE_URL}assets/sql-wasm.wasm`,
+        window.location.href
+      ).href
+      const SQL = await initSqlJs({ locateFile: () => wasmUrl })
       const saved = await _loadBinaryFromIDB()
       _db = saved ? new SQL.Database(saved) : new SQL.Database()
       log.debug('open:done', { restoredFromIdb: Boolean(saved), byteLength: saved?.byteLength || saved?.length || 0 })
-      // Flush pending saves before page unload to prevent data loss
-      window.addEventListener('beforeunload', () => {
-        if (_saveTimer) {
-          clearTimeout(_saveTimer)
-          _saveTimer = null
-          _saveBinaryToIDB(_db)
-        }
-      })
+      _bindLifecycleFlush()
     },
 
     async execute(sql) {

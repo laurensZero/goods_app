@@ -26,7 +26,7 @@ export function useManageEntries() {
 
   const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
   const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
-  const eventCount = computed(() => eventsStore.list.length)
+  const eventCount = computed(() => eventsStore.activeList.length)
   const rechargeCount = computed(() => rechargeStore.sortedRecords.length)
 
   const exportSummaryText = computed(() =>

@@ -333,12 +333,12 @@ onMounted(() => {
           ok = true
         }
         if (!ok && hasEnteredViewport.value && requestId === loadRequestId) {
-          imageRenderKey.value += 1
+          retryKey.value += 1
           resolvedSrc.value = ''
           setTimeout(() => {
             if (requestId !== loadRequestId) return
             resolvedSrc.value = cached
-            imageRenderKey.value += 1
+            retryKey.value += 1
             isImageLoading.value = true
             resetSkeletonVisibility()
             void ensureCachedImageReady(cached, requestId, 300).then((ok2) => {

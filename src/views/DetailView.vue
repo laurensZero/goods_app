@@ -915,7 +915,15 @@ function closeDeleteDialog() {
 }
 
 async function confirmDelete() {
-  await store.removeGoods(props.id)
+  try {
+    await store.removeGoods(props.id)
+  } catch (e) {
+    // 回收站持久化失败时中止删除，条目仍在列表中，提示用户重试
+    console.error('[detail] delete failed:', e)
+    showDeleteDialog.value = false
+    showToast(t('toast.deleteFailed'))
+    return
+  }
   showDeleteDialog.value = false
   router.back()
 }

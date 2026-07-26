@@ -1,13 +1,27 @@
 // @ts-check
 import { computed, ref, shallowRef, watch } from 'vue'
 import { createGoodsImageId } from '@/utils/goods/images'
+import { deleteManagedLocalImages } from '@/utils/image/localImage'
 
 const STORAGE_KEY = 'batch-queue-data'
 const STORAGE_KEY_DEFAULTS = 'batch-queue-defaults'
+const STORAGE_KEY_META = 'batch-queue-meta'
 
 // 模块级共享状态
 const queue = shallowRef([])
 const defaults = ref({ ip: '', category: '', price: '' })
+// sessionStorage 写入是否已降级（配额不足时剥离内联图片，仅保留元数据）
+const persistDegraded = ref(false)
+// 批次标识 + 是否愿望单：入口发起时确定，随队列一起持久化，避免依赖 history.state 跨页传递
+const batchId = ref('')
+const isWishlist = ref(false)
+
+/**
+ * 生成批次标识（批量流程入口发起时调用，写入路由 state 用于识别同一批图片）
+ */
+export function createBatchId() {
+  return `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
 
 // 从 sessionStorage 恢复数据
 function restoreFromStorage() {
@@ -24,22 +38,54 @@ function restoreFromStorage() {
     if (savedDefaults) {
       defaults.value = JSON.parse(savedDefaults)
     }
+    const savedMeta = sessionStorage.getItem(STORAGE_KEY_META)
+    if (savedMeta) {
+      const meta = JSON.parse(savedMeta)
+      batchId.value = meta.batchId || ''
+      isWishlist.value = meta.isWishlist === true
+    }
   } catch (e) {
     console.warn('[useBatchQueue] restore failed', e)
   }
 }
 
-// 保存到 sessionStorage
+// 判断是否为存储配额不足错误（name/code 双重检测，覆盖 Chrome/Safari/旧版 Firefox）
+function isQuotaExceededError(e) {
+  if (!e) return false
+  return e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014
+}
+
+// 序列化队列；stripInlineImages 为 true 时剥离 data: 内联图片（Web 端配额降级用，原生文件 URI 很小始终保留）
+function serializeQueue(stripInlineImages) {
+  return JSON.stringify(queue.value.map((item) => ({
+    ...item,
+    imageUri: stripInlineImages && String(item.imageUri || '').startsWith('data:') ? '' : item.imageUri,
+    dirtyFields: Array.from(item.dirtyFields || [])
+  })))
+}
+
+// 保存到 sessionStorage（配额不足时降级为剥离内联图片的写入，并置 persistDegraded 提示用户）
 function saveToStorage() {
   try {
-    const data = queue.value.map(item => ({
-      ...item,
-      dirtyFields: Array.from(item.dirtyFields || [])
-    }))
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    sessionStorage.setItem(STORAGE_KEY_DEFAULTS, JSON.stringify(defaults.value))
+    sessionStorage.setItem(STORAGE_KEY, serializeQueue(false))
+    persistDegraded.value = false
   } catch (e) {
-    console.warn('[useBatchQueue] save failed', e)
+    if (isQuotaExceededError(e)) {
+      try {
+        sessionStorage.setItem(STORAGE_KEY, serializeQueue(true))
+      } catch (e2) {
+        console.warn('[useBatchQueue] degraded save failed', e2)
+      }
+      persistDegraded.value = true
+    } else {
+      console.warn('[useBatchQueue] save failed', e)
+    }
+  }
+  try {
+    sessionStorage.setItem(STORAGE_KEY_DEFAULTS, JSON.stringify(defaults.value))
+    sessionStorage.setItem(STORAGE_KEY_META, JSON.stringify({ batchId: batchId.value, isWishlist: isWishlist.value }))
+  } catch (e) {
+    console.warn('[useBatchQueue] save meta failed', e)
   }
 }
 
@@ -48,6 +94,7 @@ function clearStorage() {
   try {
     sessionStorage.removeItem(STORAGE_KEY)
     sessionStorage.removeItem(STORAGE_KEY_DEFAULTS)
+    sessionStorage.removeItem(STORAGE_KEY_META)
   } catch (e) {
     // ignore
   }
@@ -71,10 +118,27 @@ const canSaveAll = computed(() =>
 )
 
 /**
- * 初始化队列
+ * 初始化队列（仅新批次调用；同一批次重挂载时应恢复已有队列而非重建）
  * @param {Array} images
+ * @param {{ batchId?: string, isWishlist?: boolean }} [meta]
  */
-function initQueue(images) {
+function initQueue(images, meta = {}) {
+  batchId.value = meta.batchId || ''
+  isWishlist.value = meta.isWishlist === true
+  const incomingUris = images.map((img) => img.uri || img.localPath || '')
+  const currentUris = queue.value.map((item) => item.imageUri)
+  // 页面刷新后 history.state 仍携带 batchImages，与已恢复队列一致时跳过重建以保留编辑进度
+  if (
+    currentUris.length > 0 &&
+    currentUris.length === incomingUris.length &&
+    currentUris.every((uri, idx) => uri === incomingUris[idx])
+  ) {
+    return
+  }
+  // 重建前清理上一次未保存队列复制的本地图片（如进程被杀后的残留）
+  const incomingSet = new Set(incomingUris)
+  const staleUris = currentUris.filter((uri) => uri && !incomingSet.has(uri))
+  if (staleUris.length > 0) void deleteManagedLocalImages(staleUris)
   queue.value = images.map((img) => ({
     id: createGoodsImageId(),
     imageUri: img.uri || img.localPath || '',
@@ -123,7 +187,23 @@ function markDirty(id, field) {
  * @param {string} id
  */
 function removeItem(id) {
+  const item = queue.value.find((i) => i.id === id)
+  // 尚未保存为谷子，移除时同步删除已复制的本地文件
+  if (item?.imageUri) void deleteManagedLocalImages([item.imageUri])
   queue.value = queue.value.filter((i) => i.id !== id)
+}
+
+/**
+ * 替换队列项图片并删除被替换的本地文件
+ * @param {string} id
+ * @param {string} newUri
+ */
+function replaceItemImage(id, newUri) {
+  const item = queue.value.find((i) => i.id === id)
+  if (!item) return
+  const oldUri = item.imageUri
+  if (oldUri && oldUri !== newUri) void deleteManagedLocalImages([oldUri])
+  updateItem(id, { imageUri: newUri })
 }
 
 /**
@@ -174,11 +254,11 @@ function getItem(id) {
 }
 
 /**
- * 批量保存
+ * 批量保存（是否愿望单取自批次状态）
  * @param {Object} goodsStore
- * @param {boolean} isWishlist
  */
-async function saveAll(goodsStore, isWishlist) {
+async function saveAll(goodsStore) {
+  const wishlist = isWishlist.value
   const items = queue.value.map((item) => ({
     name: item.name,
     price: item.price ? parseFloat(item.price) : 0,
@@ -188,12 +268,15 @@ async function saveAll(goodsStore, isWishlist) {
       ? item.charactersText.split(/[,，]/).filter(Boolean)
       : [],
     images: [{ id: item.id, uri: item.imageUri }],
-    collectStatus: isWishlist ? 'wishlist' : 'unacquired',
-    acquiredAt: isWishlist ? null : item.date
+    isWishlist: wishlist,
+    collectStatus: wishlist ? '' : '已拥有',
+    acquiredAt: wishlist ? '' : item.date
   }))
   await goodsStore.addMultipleGoods(items)
-  // 保存成功后清除存储
-  clearStorage()
+  // 保存成功后图片归商品所有：仅清空队列状态，不删除图片文件；
+  // 保留 batchId 标记该批次已消费，避免历史返回时重建队列导致重复保存
+  queue.value = []
+  defaults.value = { ip: '', category: '', price: '' }
 }
 
 /**
@@ -202,7 +285,19 @@ async function saveAll(goodsStore, isWishlist) {
 function clearQueue() {
   queue.value = []
   defaults.value = { ip: '', category: '', price: '' }
+  batchId.value = ''
+  isWishlist.value = false
+  persistDegraded.value = false
   clearStorage()
+}
+
+/**
+ * 放弃批量添加流程：删除已复制且未保存的本地图片并清空队列
+ */
+function discardQueue() {
+  const uris = queue.value.map((item) => item?.imageUri).filter(Boolean)
+  if (uris.length > 0) void deleteManagedLocalImages(uris)
+  clearQueue()
 }
 
 /**
@@ -212,6 +307,9 @@ export function useBatchQueue() {
   return {
     queue,
     defaults,
+    batchId,
+    isWishlist,
+    persistDegraded,
     completedCount,
     totalCount,
     canSaveAll,
@@ -219,10 +317,12 @@ export function useBatchQueue() {
     updateItem,
     markDirty,
     removeItem,
+    replaceItemImage,
     appendImages,
     applyDefaults,
     getItem,
     saveAll,
-    clearQueue
+    clearQueue,
+    discardQueue
   }
 }

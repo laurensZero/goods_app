@@ -166,7 +166,7 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     }
   }
 
-  await be.pushAll({
+  const pushResult = await be.pushAll({
     goods, goodsTrash, groups, groupsTrash, groupItems, groupItemsTrash,
     recharge, rechargeTrash, events, eventsTrash,
     presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
@@ -180,13 +180,22 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
     eventUpdatedAt: manifest?.eventUpdatedAt || null
   })
+
+  // 服务器侧 synced_at（新版 RPC 返回），作为本地水位线消除时钟偏移；旧版 RPC 为 null
+  return { serverSyncedAt: pushResult?.syncedAt || null }
 }
 
 /**
  * Update local image references after push.
  * Marks images as remote so future syncs can dedup.
+ * Files listed in failedImageFiles keep their local refs so the next sync retries the upload.
  */
-export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSyncData, be) {
+export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSyncData, be, failedImageFiles = null) {
+  const isUploadFailed = (name) => {
+    const key = String(name || '').trim()
+    return !!key && !!failedImageFiles && failedImageFiles.has(key)
+  }
+
   // Update goods image refs
   const preparedImagesByItemId = new Map()
   for (const item of [...(syncData.goods || []), ...(syncData.trash || [])]) {
@@ -194,7 +203,7 @@ export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSy
     if (!Array.isArray(images)) continue
     const imageMap = new Map()
     for (let i = 0; i < images.length; i++) {
-      if (images[i]?.cloudFileName) {
+      if (images[i]?.cloudFileName && !isUploadFailed(images[i].cloudFileName)) {
         const entry = { ...images[i] }
         if (be.getImagePublicUrl) {
           entry.uri = be.getImagePublicUrl(entry.cloudFileName)
@@ -216,6 +225,9 @@ export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSy
       const hasCover = !!coverFileName
       const hasPhotos = Array.isArray(event?.photos) && event.photos.some(photo => String(photo?.cloudFileName || '').trim())
       if (!hasCover && !hasPhotos) continue
+      // Any failed upload in this event — keep all its local refs, retry next sync
+      const photoList = Array.isArray(event?.photos) ? event.photos : []
+      if (isUploadFailed(coverFileName) || photoList.some(photo => isUploadFailed(photo?.cloudFileName))) continue
       preparedMediaByEventId.set(eventId, {
         coverImage: event.coverImage,
         coverImageData: event.coverImageData ? { ...event.coverImageData } : null,

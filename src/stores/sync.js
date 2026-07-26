@@ -15,10 +15,9 @@ import { createSyncImageService } from '@/services/syncImageService'
 import { createSyncPayloadService } from '@/services/syncPayloadService'
 import { withRetry } from '@/services/syncRetry'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
-import { readOrCreateDeviceId, readSyncKey, writeSyncKey } from '@/utils/sync/storage'
+import { readOrCreateDeviceId, readSyncKey, writeSyncKey, removeSyncKey } from '@/utils/sync/storage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
 import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
-import { deriveKey, isWebCryptoAvailable } from '@/utils/sync/cryptoManager'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 import i18n from '@/locales'
@@ -31,13 +30,16 @@ import {
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
-const SYNC_PASSWORD_KEY = 'sync_password'
+// 历史版本遗留（加密功能已移除，仅用于一次性清理）
+const LEGACY_SYNC_PASSWORD_KEY = 'sync_password'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
-const ENCRYPTION_ENABLED_KEY = 'sync_encryption_enabled'
+// 历史版本遗留（加密功能已移除，仅用于一次性清理）
+const LEGACY_ENCRYPTION_ENABLED_KEY = 'sync_encryption_enabled'
 const SUPABASE_URL_KEY = 'sync_supabase_url'
 const SUPABASE_ANON_KEY_KEY = 'sync_supabase_anon_key'
 const SYNC_BACKEND_KEY = 'sync_backend'
 const SYNC_PAUSED_KEY = 'sync_paused'
+const PENDING_PUSH_KEY = 'sync_pending_push'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
 
@@ -57,12 +59,10 @@ export const useSyncStore = defineStore('sync', () => {
   // ── Sync Timestamps ──
   const lastSyncedAt = ref('')
   const eventLastSyncedAt = ref('')
+  const pendingPush = ref(null) // crash-safe push 标记：{ ts, eventTs, deviceId }
 
-  // ── Device & Encryption ──
+  // ── Device ──
   const deviceId = ref('')
-  const encryptionEnabled = ref(false)
-  const encryptionKey = ref(null)
-  const syncPassword = ref('')
 
   // ── Backend Selection ──
   const syncBackend = ref('supabase')
@@ -91,32 +91,6 @@ export const useSyncStore = defineStore('sync', () => {
     return eventsStore
   }
 
-  async function setEncryptionEnabled(enabled) {
-    encryptionEnabled.value = !!enabled
-    await writeSyncKey(ENCRYPTION_ENABLED_KEY, enabled ? '1' : '')
-    if (!enabled) encryptionKey.value = null
-  }
-
-  async function setSyncPassword(password) {
-    syncPassword.value = password
-    await writeSyncKey(SYNC_PASSWORD_KEY, password)
-    encryptionKey.value = null
-  }
-
-  async function ensureEncryptionKey() {
-    if (encryptionKey.value) return encryptionKey.value
-    const authStore = useAuthStore()
-    const userId = authStore.user?.id || ''
-    if (!syncPassword.value || !userId) return null
-    if (!isWebCryptoAvailable()) return null
-    encryptionKey.value = await deriveKey(syncPassword.value, userId)
-    return encryptionKey.value
-  }
-
-  function clearEncryptionKey() {
-    encryptionKey.value = null
-  }
-
   // ── Persistence helpers ──
 
   async function saveLastSyncedAt(timestamp) {
@@ -127,6 +101,18 @@ export const useSyncStore = defineStore('sync', () => {
   async function saveEventLastSyncedAt(timestamp) {
     eventLastSyncedAt.value = timestamp
     await writeSyncKey(EVENT_LAST_SYNC_KEY, timestamp)
+  }
+
+  // crash-safe push：写远端前持久化标记，推送完整落盘后清除
+  async function savePendingPush(marker) {
+    pendingPush.value = marker || null
+    await writeSyncKey(PENDING_PUSH_KEY, marker ? JSON.stringify(marker) : '')
+  }
+
+  async function clearPendingPush() {
+    if (!pendingPush.value) return
+    pendingPush.value = null
+    await writeSyncKey(PENDING_PUSH_KEY, '')
   }
 
   async function saveSupabaseConfig(url, anonKey) {
@@ -319,6 +305,7 @@ export const useSyncStore = defineStore('sync', () => {
       deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
       saveLastSyncedAt, saveEventLastSyncedAt,
+      pendingPush: pendingPush.value, savePendingPush, clearPendingPush,
       saveImageCloudId: async () => {},
       getLatestLocalModifiedAt, buildPresetsData, ensureEventsStoreReady,
       shouldApplyRemoteItem
@@ -330,26 +317,29 @@ export const useSyncStore = defineStore('sync', () => {
   async function init() {
     await ensureEventsStoreReady()
 
-    const [passwordVal,
-      lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal, encryptionEnabledVal,
-      syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal
+    const [
+      lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal,
+      syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal,
+      pendingPushVal
     ] = await Promise.all([
-      readSyncKey(SYNC_PASSWORD_KEY), readSyncKey(LAST_SYNC_KEY),
+      readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
-      readSyncKey(ENCRYPTION_ENABLED_KEY),
       readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY),
-      readSyncKey(SYNC_PAUSED_KEY)
+      readSyncKey(SYNC_PAUSED_KEY),
+      readSyncKey(PENDING_PUSH_KEY)
     ])
 
-    syncPassword.value = passwordVal || ''
     lastSyncedAt.value = lastSyncedAtVal || ''
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
     deviceId.value = deviceIdVal
-    encryptionEnabled.value = encryptionEnabledVal === '1'
     syncBackend.value = syncBackendVal || 'supabase'
     supabaseUrl.value = supabaseUrlVal || ''
     supabaseAnonKey.value = supabaseAnonKeyVal || ''
     syncPaused.value = syncPausedVal === '1'
+    // 恢复 crash-safe push 标记（上次推送可能在水位线保存前被中断）
+    if (pendingPushVal) {
+      try { pendingPush.value = JSON.parse(pendingPushVal) } catch { pendingPush.value = null }
+    }
 
     if (syncBackend.value === 'supabase' && isSupabaseConfigured()) {
       try {
@@ -359,10 +349,6 @@ export const useSyncStore = defineStore('sync', () => {
       } catch (e) {
         console.warn('[sync] Supabase client init failed:', e.message)
       }
-    }
-
-    if (encryptionEnabled.value && syncPassword.value) {
-      try { await ensureEncryptionKey() } catch { encryptionEnabled.value = false }
     }
 
     // Restore persisted dirty state (survives app restart)
@@ -380,6 +366,10 @@ export const useSyncStore = defineStore('sync', () => {
         if (id.trim()) dirtyGoodsIds.add(id.trim())
       }
     }
+
+    // 一次性清理：加密功能从未实装，删除历史版本双写的明文同步密码
+    void removeSyncKey(LEGACY_SYNC_PASSWORD_KEY)
+    void removeSyncKey(LEGACY_ENCRYPTION_ENABLED_KEY)
 
     isInitialized.value = true
   }
@@ -506,6 +496,23 @@ export const useSyncStore = defineStore('sync', () => {
     return i18n.global.t(STATUS_MESSAGES[result.action] || 'sync.syncing')
   }
 
+  // 部分图片上传失败时提示用户（本地原图已保留，下次同步自动重试）
+  function notifyImageUploadFailure(result, source) {
+    if (result?.action !== 'pushed' || !(Number(result?.failedImages) > 0)) return
+    publishSyncNotice({
+      source,
+      level: 'info',
+      message: i18n.global.t('sync.imageUploadPartialFailed', { count: result.failedImages })
+    })
+  }
+
+  // 图片上传失败的条目重新标脏，让下次同步自动重试上传
+  function remarkFailedImageItems(result) {
+    if (!Array.isArray(result?.failedImageItemIds) || result.failedImageItemIds.length === 0) return
+    markGoodsIdsDirty(result.failedImageItemIds)
+    markDomainDirty('goods')
+  }
+
   function clearSyncTimeout() {
     if (syncTimeoutId) { clearTimeout(syncTimeoutId); syncTimeoutId = null }
   }
@@ -551,6 +558,17 @@ export const useSyncStore = defineStore('sync', () => {
     }, SYNC_TIMEOUT_MS)
 
     try {
+      // 本地数据读库失败时拒绝推送，避免基于空列表覆盖云端备份
+      const goodsStore = useGoodsStore()
+      if (goodsStore.loadFailed) {
+        const error = new Error(i18n.global.t('sync.error.localDataNotLoaded'))
+        applySyncError(error, i18n.global.t('sync.error.localDataNotLoadedStatus'))
+        if (source !== 'manual') {
+          publishSyncNotice({ source, level: 'error', message: error.message })
+        }
+        return { action: 'skipped', reason: 'goods_load_failed' }
+      }
+
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
@@ -559,8 +577,10 @@ export const useSyncStore = defineStore('sync', () => {
       )
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
+      notifyImageUploadFailure(result, source)
       clearDirtyDomains(domains)
       clearDirtyGoodsIds(goodsIds)
+      remarkFailedImageItems(result)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
@@ -671,6 +691,12 @@ export const useSyncStore = defineStore('sync', () => {
     isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
+      // "保留本地"会强制推送，读库失败时同样拒绝，避免覆盖云端备份
+      if (!useRemote && useGoodsStore().loadFailed) {
+        const error = new Error(i18n.global.t('sync.error.localDataNotLoaded'))
+        applySyncError(error, i18n.global.t('sync.error.localDataNotLoadedStatus'))
+        return { action: 'skipped', reason: 'goods_load_failed' }
+      }
       const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
       const result = await withRetry(
         () => orchestrator.resolveConflict(ctx, useRemote),
@@ -678,6 +704,8 @@ export const useSyncStore = defineStore('sync', () => {
       )
       conflictData.value = null
       syncStatus.value = translateStatusMessage(result)
+      notifyImageUploadFailure(result, source)
+      remarkFailedImageItems(result)
       return result
     } catch (error) {
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
@@ -731,8 +759,10 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function resetConfig() {
     lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
+    pendingPush.value = null
     await Promise.all([
-      writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, '')
+      writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, ''),
+      writeSyncKey(PENDING_PUSH_KEY, '')
     ])
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
@@ -746,7 +776,6 @@ export const useSyncStore = defineStore('sync', () => {
     getLocalChangesSinceLastSync, sync, pull, resolveConflict, resolvePullConflict,
     autoPushGoods, markGoodsIdsDirty,
     clearConflict, resetConfig,
-    encryptionEnabled, setEncryptionEnabled, ensureEncryptionKey, syncPassword, setSyncPassword,
     syncBackend, supabaseUrl, supabaseAnonKey,
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
     syncPaused, setSyncPaused,

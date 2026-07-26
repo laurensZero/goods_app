@@ -223,6 +223,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
+import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
@@ -235,6 +236,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
+import { createBatchId } from '@/composables/batch/useBatchQueue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
@@ -604,12 +606,6 @@ watch(showGroupFolder, (open) => {
   }
   navigatingFromGroup = false
 })
-const visibleGoodsList = computed(() =>
-  shouldVirtualizeGoodsList.value
-    ? goodsList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
-    : goodsList.value
-)
-
 const isAndroid = /Android/i.test(navigator.userAgent || '')
 const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
 const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
@@ -644,10 +640,7 @@ const visibleGoodsHeadSpacerHeight = computed(() => {
   if (!shouldVirtualizeGoodsList.value) return 0
   const cols = getResponsiveCols(displayDensity.value)
   const headRows = Math.floor(visibleGoodsStartIndex.value / cols)
-  if (headRows <= 0) return 0
-
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  return headRows * rowHeight + Math.max(0, headRows - 1) * GOODS_GRID_ROW_GAP
+  return gridMetrics.headSpacerHeight(headRows)
 })
 
 const visibleGoodsTailSpacerHeight = computed(() => {
@@ -656,11 +649,7 @@ const visibleGoodsTailSpacerHeight = computed(() => {
   if (!remainingItems) return 0
 
   const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const remainingRows = Math.ceil(remainingItems / cols)
-  return remainingRows > 0
-    ? remainingRows * rowHeight + Math.max(0, remainingRows - 1) * GOODS_GRID_ROW_GAP
-    : 0
+  return gridMetrics.tailSpacerHeight(Math.ceil(remainingItems / cols))
 })
 
 const selectedGoodsItems = computed(() =>
@@ -709,6 +698,20 @@ function resolveGoodsViewportHeight(options = {}) {
     : (getScrollEl()?.clientHeight || window.innerHeight || 800)
 }
 
+const gridMetrics = useVirtualGridMetrics({
+  getGridEl: () => getGoodsListEl(),
+  getCols: () => getResponsiveCols(displayDensity.value),
+  getDensity: () => displayDensity.value,
+  // 置顶模式下分组卡集中在 displayList 头部，纯分组行比普通行矮，需单独建模
+  getLeadingGroupCount: () => (
+    !searchIsFiltering.value && groupDisplayMode.value === 'pinned'
+      ? groupViewItems.value.length
+      : 0
+  ),
+  fallbackRowHeightMap: ROW_HEIGHT_MAP,
+  fallbackRowGap: GOODS_GRID_ROW_GAP
+})
+
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   if (!shouldVirtualizeGoodsList.value) {
     visibleGoodsStartIndex.value = 0
@@ -719,16 +722,21 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   const normalizedTop = Math.max(0, Number(scrollTop) || 0)
   const viewportHeight = resolveGoodsViewportHeight(options)
   const cols = getResponsiveCols(displayDensity.value)
-  const rowHeight = ROW_HEIGHT_MAP[displayDensity.value] || 272
-  const rowSpan = rowHeight + GOODS_GRID_ROW_GAP
+  const rowSpan = gridMetrics.getRowSpan()
   const overscanRows = cols >= 5 ? GOODS_GRID_OVERSCAN_ROWS_WIDE : GOODS_GRID_OVERSCAN_ROWS
   // 根据密度模式和设备类型选择对应的最大渲染卡片数
   const maxRenderCards = getMaxRenderCards(displayDensity.value)
-  const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowHeight) / rowSpan))
-  const startRow = Math.max(0, Math.floor(normalizedTop / rowSpan) - overscanRows)
+  const viewportRows = Math.max(1, Math.ceil(Math.max(viewportHeight, rowSpan) / rowSpan))
+  const totalItems = displayList.value.length
+  const totalRows = Math.ceil(totalItems / cols)
+  // 滚动位置越过列表末尾时钳制到最后一行，避免渲染空窗口
+  const startRow = Math.min(
+    Math.max(0, gridMetrics.rowAtOffset(normalizedTop) - overscanRows),
+    Math.max(0, totalRows - 1)
+  )
   const renderRows = Math.max(INITIAL_RENDER_ROWS, viewportRows + overscanRows * 2)
-  const startIndex = Math.min(displayList.value.length, startRow * cols)
-  const remainingItems = Math.max(0, displayList.value.length - startIndex)
+  const startIndex = Math.min(totalItems, startRow * cols)
+  const remainingItems = Math.max(0, totalItems - startIndex)
   const renderCount = Math.min(
     remainingItems,
     Math.min(
@@ -739,6 +747,11 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
 
   visibleGoodsStartIndex.value = startIndex
   visibleGoodsRenderCount.value = renderCount
+
+  // 首测发生在滚过分组块之后时学不到分组行行距——回到顶部分组行可见时补测
+  if (startIndex === 0 && gridMetrics.needsGroupSpanMeasure()) {
+    gridMetrics.scheduleMeasure()
+  }
 }
 
 function syncVisibleGoodsCount(scrollTop = 0, options = {}) {
@@ -750,9 +763,15 @@ watch(
   [() => displayList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
   () => {
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
+    gridMetrics.scheduleMeasure()
   },
   { immediate: true }
 )
+
+// 实测行高落地后按真实行距重算渲染窗口（spacer computed 会随之重新求值）
+watch(gridMetrics.metricsVersion, () => {
+  syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
+})
 
 function updateScrollTopButtonVisibility() {
   showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
@@ -968,7 +987,7 @@ async function handleBatchAdd() {
   saveScrollPosition(true, 'wishlist:handleBatchAdd')
   wishlistDisplayReady.value = false
   try {
-    await router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images), isWishlist: true } })
+    await router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images), batchId: createBatchId(), isWishlist: true } })
   } catch {
     wishlistDisplayReady.value = true
   }
@@ -1037,7 +1056,14 @@ function batchDelete() {
 
 async function confirmDelete() {
   showDeleteConfirm.value = false
-  await store.removeMultipleGoods(selectedIds.value)
+  try {
+    await store.removeMultipleGoods(selectedIds.value)
+  } catch (e) {
+    // 删除失败时保留选中状态，方便用户重试
+    console.error('[wishlist] batch delete failed:', e)
+    showToast(t('toast.deleteFailed'))
+    return
+  }
   exitSelectionModeQuiet()
 }
 
@@ -1274,6 +1300,7 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  gridMetrics.cancelMeasure()
   cancelGoodsBackHeroRetry()
   clearWishlistBackHeroDeferredRestoreTimer()
   if (topJumpMaskTimer) {

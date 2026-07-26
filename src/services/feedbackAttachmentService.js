@@ -2,6 +2,7 @@
 // Upload feedback attachments to Supabase Storage
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { redactSensitiveText } from '@/utils/logger'
 
 const BUCKET = 'feedback-attachments'
 
@@ -231,7 +232,8 @@ export function appLog(level, message, data) {
   _appLogs.push({
     time: new Date().toISOString(),
     level,
-    message: data ? `${message} ${JSON.stringify(data)}` : message
+    // 脱敏后再入缓冲区，防止 Cookie/token 随反馈日志上传
+    message: redactSensitiveText(data ? `${message} ${JSON.stringify(data)}` : message)
   })
   if (_appLogs.length > MAX_APP_LOGS) _appLogs.shift()
 }
@@ -251,8 +253,9 @@ function initErrorCollector() {
     const stack = args.find(a => a instanceof Error)?.stack || ''
     _consoleErrors.push({
       time: new Date().toISOString(),
-      message: msg.slice(0, 500),
-      stack: stack.slice(0, 500)
+      // 脱敏后再入缓冲区，防止 Cookie/token 随反馈日志上传
+      message: redactSensitiveText(msg).slice(0, 500),
+      stack: redactSensitiveText(stack).slice(0, 500)
     })
     if (_consoleErrors.length > MAX_ERRORS) _consoleErrors.shift()
   }
@@ -260,7 +263,7 @@ function initErrorCollector() {
   window.addEventListener('error', (e) => {
     _consoleErrors.push({
       time: new Date().toISOString(),
-      message: e.message || 'Unknown error',
+      message: redactSensitiveText(e.message || 'Unknown error'),
       stack: `${e.filename}:${e.lineno}:${e.colno}`
     })
     if (_consoleErrors.length > MAX_ERRORS) _consoleErrors.shift()
@@ -270,8 +273,8 @@ function initErrorCollector() {
     const reason = e.reason
     _consoleErrors.push({
       time: new Date().toISOString(),
-      message: reason instanceof Error ? reason.message : String(reason),
-      stack: reason instanceof Error ? (reason.stack || '').slice(0, 500) : ''
+      message: redactSensitiveText(reason instanceof Error ? reason.message : String(reason)),
+      stack: reason instanceof Error ? redactSensitiveText(reason.stack || '').slice(0, 500) : ''
     })
     if (_consoleErrors.length > MAX_ERRORS) _consoleErrors.shift()
   })

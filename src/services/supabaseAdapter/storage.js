@@ -75,15 +75,48 @@ async function ensureStorageBucket(db, bucketName) {
   return { id: bucketName }
 }
 
-async function listStorageBucketFiles(db, bucketName) {
-  const { data, error } = await db.storage.from(bucketName).list('', { limit: 10000 })
-  if (error || !data) return []
-  return data
-    .map((file) => String(file?.name || '').trim())
-    .filter((name) => !!name && name !== '.emptyFolderPlaceholder')
+// 分页列出桶内全部文件；complete=false 表示任一页请求失败（列表不完整，
+// 孤儿图片回收会据此拒绝执行，避免基于残缺列表误删）
+async function listStorageBucketFiles(db, bucketName, folder = '') {
+  const PAGE_SIZE = 1000
+  const files = []
+  let offset = 0
+  let complete = true
+  for (;;) {
+    const { data, error } = await db.storage.from(bucketName).list(folder, {
+      limit: PAGE_SIZE,
+      offset,
+      sortBy: { column: 'name', order: 'asc' }
+    })
+    if (error || !data) {
+      complete = false
+      break
+    }
+    for (const file of data) {
+      const name = String(file?.name || '').trim()
+      if (!name || name === '.emptyFolderPlaceholder') continue
+      files.push({ name, createdAt: file?.created_at || '' })
+    }
+    if (data.length < PAGE_SIZE) break
+    offset += data.length
+  }
+  return { files, complete }
 }
 
-export function createStorageOps({ getDb, withRetry }) {
+export function createStorageOps({ getDb, withRetry, userIdRef }) {
+  function getUserId() {
+    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    return String(uid || '').trim()
+  }
+
+  // 新上传文件统一放入 "<userId>/" 一级目录（Storage RLS 按目录隔离用户，
+  // 防止任意登录用户写/删他人文件）。旧的平铺文件保留在桶根目录，
+  // 行内存的完整 public URL 继续可读（桶保持 public read）。
+  function toUserScopedPath(storagePath) {
+    const uid = getUserId()
+    return uid ? `${uid}/${storagePath}` : storagePath
+  }
+
   // Cache image file listing to avoid expensive Storage API calls on every sync.
   const IMAGE_CLOUD_CACHE_TTL = 30_000
   let imageCloudCache = null
@@ -101,21 +134,65 @@ export function createStorageOps({ getDb, withRetry }) {
     }
 
     const db = getDb()
+    const uid = getUserId()
     const files = {}
 
-    const [goodsFiles, eventPhotoFiles] = await Promise.all([
+    // 同名文件用户目录副本优先于根目录旧副本，使 resolveStoragePath
+    // 能按文件实际所在位置构造下载/公开 URL 路径
+    const record = (list, scoped) => {
+      for (const file of list) {
+        if (!scoped && files[file.name]) continue
+        const entry = {
+          name: file.name,
+          createdAt: file.createdAt,
+          storagePath: scoped ? `${uid}/${file.name}` : file.name
+        }
+        files[file.name] = entry
+        // 旧版 .txt 别名指向同一对象，保证按旧文件名查询也能命中
+        files[file.name + '.txt'] = entry
+      }
+    }
+
+    // 根目录 = 迁移前的平铺旧文件；"<userId>/" 目录 = 迁移后的新文件
+    const listJobs = [
       listStorageBucketFiles(db, GOODS_IMAGE_BUCKET),
       listStorageBucketFiles(db, EVENT_PHOTO_BUCKET)
-    ])
-
-    for (const fileName of [...goodsFiles, ...eventPhotoFiles]) {
-      files[fileName] = { name: fileName }
-      files[fileName + '.txt'] = { name: fileName }
+    ]
+    if (uid) {
+      listJobs.push(
+        listStorageBucketFiles(db, GOODS_IMAGE_BUCKET, uid),
+        listStorageBucketFiles(db, EVENT_PHOTO_BUCKET, uid)
+      )
     }
-    const result = { id: GOODS_IMAGE_BUCKET, files }
+    const results = await Promise.all(listJobs)
+    const [goodsRes, eventRes, goodsScopedRes, eventScopedRes] = results
+    if (goodsScopedRes) record(goodsScopedRes.files, true)
+    if (eventScopedRes) record(eventScopedRes.files, true)
+    record(goodsRes.files, false)
+    record(eventRes.files, false)
+
+    // complete: 全部列表都完整时才为 true，孤儿图片回收依赖此标记
+    const result = { id: GOODS_IMAGE_BUCKET, files, complete: results.every((r) => r.complete) }
     imageCloudCache = result
     imageCloudCacheTime = now
     return result
+  }
+
+  // 按云端列表缓存解析文件真实存储路径；缓存未命中（如刚上传的新文件）默认用户目录
+  function resolveStoragePath(filePath) {
+    const storagePath = toStoragePath(filePath)
+    const cached = imageCloudCache?.files?.[storagePath] || imageCloudCache?.files?.[filePath]
+    if (cached?.storagePath) return cached.storagePath
+    return toUserScopedPath(storagePath)
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
   }
 
   async function readImage(bucket, filePath) {
@@ -123,16 +200,19 @@ export function createStorageOps({ getDb, withRetry }) {
     const storagePath = toStoragePath(filePath)
     const fallbackBucket = normalizeBucketName(bucket)
     const bucketName = resolveStorageBucketByPath(storagePath, fallbackBucket)
-    const { data, error } = await withRetry(() =>
-      db.storage.from(bucketName).download(storagePath)
-    )
-    if (error || !data) return null
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(data)
-    })
+
+    // 依次尝试：缓存解析路径 → 用户目录 → 根目录旧文件
+    const candidates = [resolveStoragePath(filePath)]
+    for (const path of [toUserScopedPath(storagePath), storagePath]) {
+      if (!candidates.includes(path)) candidates.push(path)
+    }
+    for (const path of candidates) {
+      const { data, error } = await withRetry(() =>
+        db.storage.from(bucketName).download(path)
+      )
+      if (!error && data) return blobToDataUrl(data)
+    }
+    return null
   }
 
   async function writeImages(_, imageFiles) {
@@ -151,14 +231,16 @@ export function createStorageOps({ getDb, withRetry }) {
         const [filePath, fileObj] = entries[i]
         const storagePath = toStoragePath(filePath)
         const bucketName = resolveStorageBucketByPath(storagePath)
+        const uploadPath = toUserScopedPath(storagePath)
         try {
           if (!fileObj || !fileObj.content) {
-            await db.storage.from(bucketName).remove([storagePath])
+            // 同时尝试删除新旧两代路径（根目录旧文件在策略迁移后可能被 RLS 拒绝，忽略即可）
+            await db.storage.from(bucketName).remove(uploadPath === storagePath ? [storagePath] : [uploadPath, storagePath])
             continue
           }
 
           const blob = dataUrlToBlob(fileObj.content)
-          const { error } = await db.storage.from(bucketName).upload(storagePath, blob, {
+          const { error } = await db.storage.from(bucketName).upload(uploadPath, blob, {
             upsert: true,
             contentType: blob.type || 'image/jpeg'
           })
@@ -185,6 +267,49 @@ export function createStorageOps({ getDb, withRetry }) {
     return { uploaded, failed }
   }
 
+  // 批量删除云端图片文件（孤儿图片回收用）：按前缀路由到对应桶，每批 100 个
+  async function removeImages(fileNames) {
+    const names = Array.isArray(fileNames) ? fileNames : []
+    let removed = 0
+    let failed = 0
+    if (names.length === 0) return { removed, failed }
+
+    const db = getDb()
+    const BATCH_SIZE = 100
+
+    // 按桶分组（event-photo__ 前缀 → event-photos 桶，其余 → goods-images 桶）；
+    // 删除路径经缓存解析到文件实际位置（用户目录新文件 / 根目录旧文件）
+    const bucketGroups = new Map()
+    for (const name of names) {
+      const storagePath = toStoragePath(String(name || '').trim())
+      if (!storagePath) continue
+      const bucketName = resolveStorageBucketByPath(storagePath)
+      if (!bucketGroups.has(bucketName)) bucketGroups.set(bucketName, [])
+      bucketGroups.get(bucketName).push(resolveStoragePath(storagePath))
+    }
+
+    for (const [bucketName, paths] of bucketGroups) {
+      for (let i = 0; i < paths.length; i += BATCH_SIZE) {
+        const batch = paths.slice(i, i + BATCH_SIZE)
+        try {
+          const { error } = await withRetry(() => db.storage.from(bucketName).remove(batch))
+          if (error) {
+            console.warn(`[supabase] remove failed for ${bucketName}:`, error.message)
+            failed += batch.length
+          } else {
+            removed += batch.length
+          }
+        } catch (e) {
+          console.warn(`[supabase] remove failed for ${bucketName}:`, e.message)
+          failed += batch.length
+        }
+      }
+    }
+
+    invalidateImageCache()
+    return { removed, failed }
+  }
+
   async function ensureStorageBuckets() {
     const db = getDb()
     await ensureStorageBucket(db, GOODS_IMAGE_BUCKET)
@@ -196,7 +321,7 @@ export function createStorageOps({ getDb, withRetry }) {
     const db = getDb()
     const storagePath = toStoragePath(filePath)
     const bucketName = resolveStorageBucketByPath(storagePath)
-    const { data } = db.storage.from(bucketName).getPublicUrl(storagePath)
+    const { data } = db.storage.from(bucketName).getPublicUrl(resolveStoragePath(filePath))
     return data?.publicUrl || ''
   }
 
@@ -204,6 +329,7 @@ export function createStorageOps({ getDb, withRetry }) {
     getExistingImageCloud,
     readImage,
     writeImages,
+    removeImages,
     ensureStorageBuckets,
     getImagePublicUrl,
     invalidateImageCache

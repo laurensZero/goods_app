@@ -13,7 +13,8 @@ import {
   toTimestampMs,
   normalizeBudgetValue,
   getLatestRechargeTimestamp,
-  shouldPullRechargeByManifest
+  shouldPullRechargeByManifest,
+  collectReferencedImageState
 } from '../shared'
 
 describe('getItemTimestamp', () => {
@@ -324,5 +325,93 @@ describe('shouldPullRechargeByManifest', () => {
 
   it('returns true when no remote timestamp', () => {
     expect(shouldPullRechargeByManifest({}, [])).toBe(true)
+  })
+})
+
+describe('collectReferencedImageState', () => {
+  it('collects cloudFileName from goods images', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+      goods: [{
+        id: 'g1',
+        images: [{ id: 'img1', uri: 'cloud-image://goods-image__g1__img1__1.jpg', cloudFileName: 'goods-image__g1__img1__1.jpg' }]
+      }]
+    })
+    expect(referencedFiles.has('goods-image__g1__img1__1.jpg')).toBe(true)
+    expect(ownedEntityIds.has('g1')).toBe(true)
+  })
+
+  it('resolves cloud-image:// uris without explicit cloudFileName', () => {
+    const { referencedFiles } = collectReferencedImageState({
+      trash: [{
+        id: 't1',
+        images: [{ id: 'img1', uri: 'cloud-image://goods-image__t1__img1__2.jpg' }]
+      }]
+    })
+    expect(referencedFiles.has('goods-image__t1__img1__2.jpg')).toBe(true)
+  })
+
+  it('resolves Supabase public URLs to bare filenames', () => {
+    const { referencedFiles } = collectReferencedImageState({
+      goods: [{
+        id: 'a',
+        images: [{ id: 'img1', uri: 'https://x.supabase.co/storage/v1/object/public/goods-images/goods-image__a__b__1.jpg' }]
+      }]
+    })
+    expect(referencedFiles.has('goods-image__a__b__1.jpg')).toBe(true)
+  })
+
+  it('resolves user-scoped Supabase public URLs (uid/ 目录前缀) to bare filenames', () => {
+    // 回归：用户目录前缀若保留在引用名中，孤儿回收会因比对不上裸文件名而误删被引用图片
+    const { referencedFiles } = collectReferencedImageState({
+      goods: [{
+        id: 'a',
+        images: [{ id: 'img1', uri: 'https://x.supabase.co/storage/v1/object/public/goods-images/user-uid-123/goods-image__a__b__1.jpg' }]
+      }]
+    })
+    expect(referencedFiles.has('goods-image__a__b__1.jpg')).toBe(true)
+    expect(referencedFiles.has('user-uid-123/goods-image__a__b__1.jpg')).toBe(false)
+  })
+
+  it('falls back to legacy coverImage when images array is empty', () => {
+    const { referencedFiles } = collectReferencedImageState({
+      goods: [{
+        id: 'g1',
+        coverImage: 'cloud-image://goods-image__g1__legacy__1.jpg'
+      }]
+    })
+    expect(referencedFiles.has('goods-image__g1__legacy__1.jpg')).toBe(true)
+  })
+
+  it('collects event cover and photo refs, including deleted events', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+      events: [{
+        id: 'evt1',
+        deleted: true,
+        coverImage: 'cloud-image://event-cover__evt1__1.jpg',
+        coverImageData: { cloudFileName: 'event-cover__evt1__1.jpg' },
+        photos: [
+          { id: 'p1', uri: 'cloud-image://event-photo__evt1__p1__1.jpg', cloudFileName: 'event-photo__evt1__p1__1.jpg' },
+          { id: 'p2', uri: 'https://x.supabase.co/storage/v1/object/public/event-photos/event-photo__evt1__p2__1.jpg' }
+        ]
+      }]
+    })
+    expect(referencedFiles.has('event-cover__evt1__1.jpg')).toBe(true)
+    expect(referencedFiles.has('event-photo__evt1__p1__1.jpg')).toBe(true)
+    expect(referencedFiles.has('event-photo__evt1__p2__1.jpg')).toBe(true)
+    expect(ownedEntityIds.has('evt1')).toBe(true)
+  })
+
+  it('includes both raw and sanitized entity ids', () => {
+    const { ownedEntityIds } = collectReferencedImageState({
+      goods: [{ id: 'a b' }]
+    })
+    expect(ownedEntityIds.has('a b')).toBe(true)
+    expect(ownedEntityIds.has('a-b')).toBe(true)
+  })
+
+  it('returns empty sets for empty input', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState()
+    expect(referencedFiles.size).toBe(0)
+    expect(ownedEntityIds.size).toBe(0)
   })
 })

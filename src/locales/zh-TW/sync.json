@@ -9,8 +9,6 @@
   "sync.connectionTitle": "連接信息",
   "sync.recentSync": "最近同步",
   "sync.syncToken": "同步 Token",
-  "sync.syncPassword": "同步密碼",
-  "sync.enableEncryption": "啟用加密",
   "sync.pauseSync": "暫停自動同步",
   "sync.supabaseUrl": "Supabase 項目 URL",
   "sync.anonKey": "Anon Key",
@@ -120,6 +118,7 @@
   "sync.uploadImages": "上傳 {count} 張圖片",
   "sync.reuseImages": "復用 {count} 張圖片",
   "sync.restoreImages": "恢復 {count} 張圖片",
+  "sync.imageUploadPartialFailed": "{count} 張圖片上傳失敗，本地原圖已保留，下次同步將自動重試",
   "sync.tokenSaved": "Token 已儲存（{login}）",
   "sync.connectionTestSuccess": "連接成功",
   "sync.connectionTestFailed": "連接失敗",
@@ -214,6 +213,9 @@
   "sync.step.uploadSupabaseImages.start": "上傳 {count} 張圖片",
   "sync.step.uploadSupabaseImages.success": "圖片已上傳到 Supabase Storage",
   "sync.step.uploadSupabaseImages.result": "上傳完成: {uploaded} 成功, {failed} 失敗",
+  "sync.step.cleanOrphanImages": "清理雲端孤兒圖片",
+  "sync.step.cleanOrphanImages.start": "偵測到 {count} 個未引用的圖片檔案",
+  "sync.step.cleanOrphanImages.result": "清理完成: {removed} 成功, {failed} 失敗",
   "sync.step.checkEncryption": "檢查圖片加密狀態",
   "sync.step.checkEncryption.start": "对比本地和雲端加密狀態",
   "sync.step.checkEncryption.mismatch": "狀態不一致（本地{local}，雲端{cloud}），触發重傳",
@@ -270,5 +272,7 @@
   "sync.error.pullTimeout": "拉取操作超时",
   "sync.error.pullTimeoutStatus": "拉取超时",
   "sync.error.networkReconnect": "網路錯誤，尝試重建連接...",
-  "sync.error.unnamedItem": "未命名條目"
+  "sync.error.unnamedItem": "未命名條目",
+  "sync.error.localDataNotLoaded": "本地資料載入失敗，已暫停雲同步以保護雲端備份，請重啟應用後重試",
+  "sync.error.localDataNotLoadedStatus": "本地資料未載入"
 }

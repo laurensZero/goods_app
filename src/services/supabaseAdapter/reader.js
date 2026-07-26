@@ -9,6 +9,12 @@ import {
   fetchAllRows, normalizeTimestamp, safeParseJsonArray, parsePresetsField
 } from './helpers'
 
+// 增量拉取：sinceMs 由调用方（orchestrator）减去重叠窗口后传入，
+// 用于吸收设备间时钟偏移；合并是幂等 LWW，多拉无害
+async function fetchRowsSince(makeQuery, sinceMs) {
+  return fetchAllRows(makeQuery(sinceMs > 0 ? 'updated_at' : null))
+}
+
 export function createReader({ getDb, trackSyncStep, userIdRef }) {
   async function readPresets() {
     const db = getDb()
@@ -39,15 +45,15 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     const sinceMs = Number(since) || 0
 
     if (domain === 'goods') {
-      const buildQuery = (trashed) => () => {
+      const buildQuery = (trashed) => (sinceCol) => () => {
         let query = db.from('goods').select(GOODS_SELECT_COLS)
         query = trashed ? query.eq('trashed', 1) : query.or('trashed.is.null,trashed.eq.0')
-        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        if (sinceCol) query = query.gt(sinceCol, new Date(sinceMs).toISOString())
         return query
       }
       const [goodsData, trashData] = await Promise.all([
-        fetchAllRows(buildQuery(false)),
-        fetchAllRows(buildQuery(true))
+        fetchRowsSince(buildQuery(false), sinceMs),
+        fetchRowsSince(buildQuery(true), sinceMs)
       ])
       const mapRow = (row) => {
         const item = toCamelCase(row)
@@ -64,11 +70,11 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
 
     if (domain === 'recharge') {
-      const data = await fetchAllRows(() => {
+      const data = await fetchRowsSince((sinceCol) => () => {
         let query = db.from('recharge_records').select(RECHARGE_SELECT_COLS)
-        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        if (sinceCol) query = query.gt(sinceCol, new Date(sinceMs).toISOString())
         return query
-      })
+      }, sinceMs)
       const recharge = []
       const rechargeTrash = []
       for (const row of (data || [])) {
@@ -81,11 +87,11 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
 
     if (domain === 'events') {
-      const data = await fetchAllRows(() => {
+      const data = await fetchRowsSince((sinceCol) => () => {
         let query = db.from('events').select(EVENT_SELECT_COLS)
-        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        if (sinceCol) query = query.gt(sinceCol, new Date(sinceMs).toISOString())
         return query
-      })
+      }, sinceMs)
       return (data || []).map(row => {
         const item = toCamelCase(row)
         item.updatedAt = normalizeTimestamp(item.updatedAt)
@@ -102,11 +108,11 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
 
     if (domain === 'groups') {
-      const data = await fetchAllRows(() => {
+      const data = await fetchRowsSince((sinceCol) => () => {
         let query = db.from('goods_groups').select(GOODS_GROUP_SELECT_COLS)
-        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        if (sinceCol) query = query.gt(sinceCol, new Date(sinceMs).toISOString())
         return query
-      })
+      }, sinceMs)
       return (data || []).map(row => {
         const item = toCamelCase(row)
         item.updatedAt = normalizeTimestamp(item.updatedAt)
@@ -116,11 +122,11 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
 
     if (domain === 'groupItems') {
-      const data = await fetchAllRows(() => {
+      const data = await fetchRowsSince((sinceCol) => () => {
         let query = db.from('goods_group_items').select(GOODS_GROUP_ITEM_SELECT_COLS)
-        if (sinceMs > 0) query = query.gt('updated_at', new Date(sinceMs).toISOString())
+        if (sinceCol) query = query.gt(sinceCol, new Date(sinceMs).toISOString())
         return query
-      })
+      }, sinceMs)
       return (data || []).map(row => {
         const item = toCamelCase(row)
         item.updatedAt = normalizeTimestamp(item.updatedAt)

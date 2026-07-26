@@ -24,7 +24,6 @@
   "common.aria.delete": "Delete",
   "common.aria.edit": "Edit",
   "common.aria.editPreview": "Edit preview",
-  "common.aria.enableEncryption": "Enable Gist Encryption",
   "common.aria.exitSelection": "Exit selection",
   "common.aria.formGroups": "Form groups",
   "common.aria.fromShareCode": "Import from share code",

@@ -747,7 +747,8 @@ async function onAvatarEditorSave(result) {
   try {
     const dataUrl = await fileToDataUrl(result.file)
     customAvatarUrl.value = dataUrl
-    await writePersisted(CUSTOM_AVATAR_KEY, dataUrl)
+    // 大尺寸 base64 头像最易触发存储配额失败，critical 确保失败时抛错进入下方 catch 提示用户
+    await writePersisted(CUSTOM_AVATAR_KEY, dataUrl, { critical: true })
     uploadAvatarToSupabase(result.file).then(() => {
       showToastMsg(t('my.avatarSynced'))
     }).catch((e) => {
