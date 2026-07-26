@@ -4,8 +4,8 @@
       <div
         class="dialog birthday-dialog"
         :style="accentStyle"
-        @touchstart.passive="onTouchStart"
-        @touchend.passive="onTouchEnd"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
       >
         <div class="birthday-ribbon" aria-hidden="true">🎂</div>
         <p class="birthday-kicker">Happy Birthday</p>
@@ -87,13 +87,14 @@ const accentStyle = computed(() => {
   return { '--birthday-accent': color }
 })
 
-let touchStartX = 0
-function onTouchStart(event) {
-  touchStartX = event.changedTouches?.[0]?.clientX ?? 0
+// pointer 事件同时覆盖触屏滑动与 PC 鼠标拖拽
+let pointerStartX = 0
+function onPointerDown(event) {
+  pointerStartX = event.clientX ?? 0
 }
-function onTouchEnd(event) {
+function onPointerUp(event) {
   if (birthdays.value.length < 2) return
-  const deltaX = (event.changedTouches?.[0]?.clientX ?? 0) - touchStartX
+  const deltaX = (event.clientX ?? 0) - pointerStartX
   if (Math.abs(deltaX) < 48) return
   const total = birthdays.value.length
   activeIndex.value = (activeIndex.value + (deltaX < 0 ? 1 : total - 1)) % total
@@ -127,6 +128,9 @@ function formatMoney(value) {
 
 .birthday-dialog {
   --birthday-accent: var(--app-text);
+  /* 拖拽切换轮播时避免框选文字 */
+  user-select: none;
+  -webkit-user-select: none;
   position: relative;
   width: min(100%, 420px);
   max-height: 82vh;
@@ -236,6 +240,9 @@ function formatMoney(value) {
   border-radius: var(--radius-xs);
   object-fit: cover;
   background: var(--app-surface-soft);
+  /* 避免 PC 上原生图片拖拽劫持轮播手势 */
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .birthday-pager {
