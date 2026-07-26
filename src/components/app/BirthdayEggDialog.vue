@@ -89,10 +89,29 @@ const onWideChange = (event) => { isWide.value = event.matches }
 wideQuery.addEventListener('change', onWideChange)
 onBeforeUnmount(() => wideQuery.removeEventListener('change', onWideChange))
 
-const wallImages = computed(() => (current.value?.imageUrls || []).slice(0, isWide.value ? 12 : 9))
+const wallImages = computed(() => (
+  (shuffledWalls.value[current.value?.id] || current.value?.imageUrls || []).slice(0, isWide.value ? 12 : 9)
+))
 
+function shuffleUrls(urls) {
+  const list = [...urls]
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[list[i], list[j]] = [list[j], list[i]]
+  }
+  return list
+}
+
+// 每次打开弹窗重新洗牌：从收集池（最多 30 张）里随机换一批展示
+const shuffledWalls = ref({})
 watch(showDialog, (visible) => {
-  if (visible) activeIndex.value = 0
+  if (!visible) return
+  activeIndex.value = 0
+  const map = {}
+  for (const entry of birthdays.value) {
+    map[entry.id] = shuffleUrls(entry.imageUrls || [])
+  }
+  shuffledWalls.value = map
 })
 
 // color 来自云端表，仅接受 #RGB/#RRGGBB(AA)，防止注入任意 CSS 值
