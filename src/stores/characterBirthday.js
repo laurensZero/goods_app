@@ -13,7 +13,8 @@ import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 export const BIRTHDAY_EGG_MIN_QUANTITY = 3
 
 const RECORD_KEY = 'goods_birthday_egg_record'
-const MAX_WALL_IMAGES = 9
+// 收集上限：平板端 4×4 铺满；手机端由弹窗自行截取 9 张（3×3）
+const MAX_WALL_IMAGES = 16
 
 function todayKey(date = new Date()) {
   const pad = (part) => String(part).padStart(2, '0')

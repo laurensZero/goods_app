@@ -34,9 +34,9 @@
               </div>
             </div>
 
-            <div v-if="current.imageUrls.length" class="birthday-wall">
+            <div v-if="wallImages.length" class="birthday-wall">
               <img
-                v-for="(url, index) in current.imageUrls"
+                v-for="(url, index) in wallImages"
                 :key="`${current.id}-${index}`"
                 :src="url"
                 alt=""
@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 
@@ -81,6 +81,15 @@ const slideDirection = ref('next')
 const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
+
+// 手机 3×3 共 9 张；宽屏（与卡片拉宽同断点）4 列可放满 16 张
+const wideQuery = window.matchMedia('(min-width: 768px)')
+const isWide = ref(wideQuery.matches)
+const onWideChange = (event) => { isWide.value = event.matches }
+wideQuery.addEventListener('change', onWideChange)
+onBeforeUnmount(() => wideQuery.removeEventListener('change', onWideChange))
+
+const wallImages = computed(() => (current.value?.imageUrls || []).slice(0, isWide.value ? 16 : 9))
 
 watch(showDialog, (visible) => {
   if (visible) activeIndex.value = 0
