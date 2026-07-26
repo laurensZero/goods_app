@@ -25,11 +25,31 @@ const props = defineProps({
 
 const chartRef = ref(null)
 let chartInstance = null
+let resizeObserver = null
+let lastSize = { width: 0, height: 0 }
+let lastOptionJson = ''
 
 const hasData = computed(() => props.option && Object.keys(props.option).length > 0)
 
-function resize() {
-  chartInstance?.resize()
+// 只在容器尺寸真正变化时 resize——手机浏览器滚动时地址栏收起/展开会
+// 连环触发 window resize,不加判断的话图表在上下滑动中反复重排,看起来像在重载
+function resizeIfNeeded() {
+  if (!chartInstance || !chartRef.value) return
+  const rect = chartRef.value.getBoundingClientRect()
+  const width = Math.round(rect.width)
+  const height = Math.round(rect.height)
+  if (width === lastSize.width && height === lastSize.height) return
+  if (width === 0 || height === 0) return
+  lastSize = { width, height }
+  chartInstance.resize()
+}
+
+function serializeOption(opt) {
+  try {
+    return JSON.stringify(opt)
+  } catch {
+    return ''
+  }
 }
 
 function readThemeColors() {
@@ -100,21 +120,33 @@ function applyThemeToOption(opt) {
 onMounted(() => {
   if (!chartRef.value) return
   chartInstance = echarts.init(chartRef.value)
-  if (hasData.value) chartInstance.setOption(applyThemeToOption(props.option), { replaceMerge: ['series'] })
-  window.addEventListener('resize', resize)
+  const rect = chartRef.value.getBoundingClientRect()
+  lastSize = { width: Math.round(rect.width), height: Math.round(rect.height) }
+  if (hasData.value) {
+    lastOptionJson = serializeOption(props.option)
+    chartInstance.setOption(applyThemeToOption(props.option), { replaceMerge: ['series'] })
+  }
+  resizeObserver = new ResizeObserver(resizeIfNeeded)
+  resizeObserver.observe(chartRef.value)
 })
 
 watch(() => props.option, (opt) => {
   if (!chartInstance) return
   if (!opt || Object.keys(opt).length === 0) {
+    lastOptionJson = ''
     chartInstance.clear()
     return
   }
+  // 同值跳过:上游 computed 产生新引用但内容未变时,不重放 setOption 动画
+  const json = serializeOption(opt)
+  if (json && json === lastOptionJson) return
+  lastOptionJson = json
   chartInstance.setOption(applyThemeToOption(opt), { replaceMerge: ['series'] })
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', resize)
+  resizeObserver?.disconnect()
+  resizeObserver = null
   chartInstance?.dispose()
   chartInstance = null
 })
