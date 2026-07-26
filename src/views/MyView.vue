@@ -149,6 +149,35 @@
           </div>
 
           <div class="shortcut-stack">
+            <button
+              v-if="birthdayStore.todayBirthdays.length"
+              type="button"
+              class="shortcut-row"
+              @click="birthdayStore.openDialog()"
+            >
+              <span class="shortcut-row__icon shortcut-row__icon--birthday">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" />
+                  <path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1" />
+                  <path d="M2 21h20" />
+                  <path d="M7 8v3" />
+                  <path d="M12 8v3" />
+                  <path d="M17 8v3" />
+                  <path d="M7 4h.01" />
+                  <path d="M12 4h.01" />
+                  <path d="M17 4h.01" />
+                </svg>
+              </span>
+              <span class="shortcut-row__copy">
+                <span class="shortcut-row__kicker">Birthday</span>
+                <span class="shortcut-row__title">{{ t('birthday.entryTitle') }}</span>
+                <span class="shortcut-row__desc">{{ t('birthday.entryDesc', { count: birthdayStore.todayBirthdays.length }) }}</span>
+              </span>
+              <svg class="shortcut-row__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+
             <button type="button" class="shortcut-row shortcut-row--featured" @click="openSync">
               <span class="shortcut-row__icon shortcut-row__icon--sync">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -615,6 +644,7 @@ import { formatDate, formatPrice } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
 import { useAuthStore } from '@/stores/auth'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
+import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
@@ -629,6 +659,7 @@ const router = useRouter()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
 const exchangeRateStore = useExchangeRateStore()
+const birthdayStore = useCharacterBirthdayStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
@@ -1722,6 +1753,11 @@ onActivated(() => {
 .shortcut-row__icon--sync {
   background: rgba(82, 110, 255, 0.12);
   color: #6173ff;
+}
+
+.shortcut-row__icon--birthday {
+  background: rgba(240, 98, 146, 0.14);
+  color: #e2557f;
 }
 
 .shortcut-row__icon--settings {

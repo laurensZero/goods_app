@@ -23,6 +23,7 @@
     <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
     <AppToast :message="globalToastMsg" />
     <SurveyPopupDialog ref="surveyPopupRef" />
+    <BirthdayEggDialog />
   </div>
 </template>
 
@@ -38,6 +39,7 @@ import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
 import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import SurveyPopupDialog from '@/components/app/SurveyPopupDialog.vue'
+import BirthdayEggDialog from '@/components/app/BirthdayEggDialog.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { globalToastMsg } from '@/utils/globalToast'
 import { useSyncStore } from '@/stores/sync'

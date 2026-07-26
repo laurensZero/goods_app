@@ -1,0 +1,10 @@
+{
+  "entryTitle": "本日誕生日のキャラ",
+  "entryDesc": "{count} 人のキャラが今日誕生日です。タップしてお祝いしよう",
+  "todayTitle": "今日は「{name}」の誕生日！",
+  "dateLabel": "{month}月{day}日",
+  "defaultMessage": "お誕生日おめでとう！これからも一緒にグッズを集めよう 🎂",
+  "countLabel": "グッズ数",
+  "countValue": "{count} 点",
+  "spendLabel": "累計金額"
+}

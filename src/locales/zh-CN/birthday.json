@@ -1,0 +1,10 @@
+{
+  "entryTitle": "今日角色生日",
+  "entryDesc": "{count} 位角色今天过生日，点开看看彩蛋",
+  "todayTitle": "今天是「{name}」的生日！",
+  "dateLabel": "{month} 月 {day} 日",
+  "defaultMessage": "生日快乐！这一年也请多多关照，继续和 TA 一起吃谷吧 🎂",
+  "countLabel": "TA 的谷子",
+  "countValue": "{count} 件",
+  "spendLabel": "累计投入"
+}

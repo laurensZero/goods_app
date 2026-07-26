@@ -1,6 +1,7 @@
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { useAnnouncementStore } from '@/stores/announcement'
+import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAuthStore } from '@/stores/auth'
 import { useGoodsStore } from '@/stores/goods'
@@ -20,6 +21,7 @@ export function useAppStartup() {
   const eventsStore = useEventsStore()
   const rechargeStore = useRechargeStore()
   const announcementStore = useAnnouncementStore()
+  const characterBirthdayStore = useCharacterBirthdayStore()
   const appUpdateStore = useAppUpdateStore()
   const webUpdateStore = useWebUpdateStore()
   const syncStore = useSyncStore()
@@ -68,9 +70,24 @@ export function useAppStartup() {
       console.error('[app] syncStore.init failed:', e)
     }
 
-    // 公告检查
+    // 公告检查；结束后再检查角色生日彩蛋（公告弹窗未关时等它关闭，避免弹窗叠加）
     void announcementStore.checkAndDecide().catch(() => {
       // silent fail on startup announcement check
+    }).then(() => {
+      const runBirthdayCheck = () => {
+        void characterBirthdayStore.checkAndDecide().catch(() => {
+          // silent fail on startup birthday check
+        })
+      }
+      if (!announcementStore.dialogVisible) {
+        runBirthdayCheck()
+        return
+      }
+      const stop = watch(() => announcementStore.dialogVisible, (visible) => {
+        if (visible) return
+        stop()
+        runBirthdayCheck()
+      })
     })
     // Supabase 模式：应用启动时增量拉取
     if (syncStore.isSupabaseMode() && !syncStore.syncPaused && !syncStore.isSyncing && !syncStore.isPulling) {

@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
 
   // 各类通知开关
   saleReminder: true,      // 开售提醒
+  birthdayEgg: true,       // 角色生日彩蛋
   syncSuccess: false,      // 同步成功
   syncError: true,         // 同步失败
   syncing: false,          // 同步进行中

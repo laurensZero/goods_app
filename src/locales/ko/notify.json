@@ -8,6 +8,8 @@
     "notificationTypes": "알림 유형",
     "saleReminder": "판매 리마인더",
     "saleReminderDesc": "위시리스트 항목이 판매될 때의 리마인더",
+    "birthdayEgg": "캐릭터 생일 서프라이즈",
+    "birthdayEggDesc": "최애 캐릭터의 생일에 축하 카드를 표시합니다",
     "syncing": "동기화 중",
     "syncingDesc": "데이터 동기화가 시작될 때 알림",
     "syncSuccess": "동기화 성공",

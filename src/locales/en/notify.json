@@ -8,6 +8,8 @@
     "notificationTypes": "Notification Types",
     "saleReminder": "Sale Reminder",
     "saleReminderDesc": "Reminders for wishlist items going on sale",
+    "birthdayEgg": "Character Birthday Surprise",
+    "birthdayEggDesc": "Show a birthday card when a favorite character's birthday arrives",
     "syncing": "Syncing",
     "syncingDesc": "Notification when data sync starts",
     "syncSuccess": "Sync Success",
