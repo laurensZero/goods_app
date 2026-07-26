@@ -13,7 +13,11 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/saleReminder'
-import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'
+import {
+  applyAcquiredAtToTimeline,
+  bootstrapAcquisitionStatus,
+  ensureInitialTimeline
+} from '@/utils/goods/statusTimeline'
 
 /**
  * @param {object} data
@@ -23,7 +27,7 @@ import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'
 export async function addGoods(data, list, onMutate) {
   const imagesExplicit = Array.isArray(data?.images)
   const now = Date.now()
-  const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now))
+  const incoming = ensureInitialTimeline(normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now)))
   const key = buildGoodsIdentityKey(incoming)
   const existingIndex = list.value.findIndex((item) =>
     item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
@@ -66,7 +70,7 @@ export async function addGoodsBatch(itemsData, list, onMutate) {
   const now = Date.now()
   const incoming = itemsData.map((data, i) => {
     const imagesExplicit = Array.isArray(data?.images)
-    return normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now + i }, String(now + i))
+    return ensureInitialTimeline(normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now + i }, String(now + i)))
   })
 
   for (const item of incoming) {
@@ -134,19 +138,16 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     changed = true
     previousItems.push(item)
 
-    // 批量编辑购入日期 → 已拥有条目同步到新日期
+    // 批量编辑购入日期 → 购入语义条目同步到新日期(与编辑器共用 applyAcquiredAtToTimeline);
+    // 空时间线的兜底状态限购入语义,避免给「已出/在售」商品造出假卖出条目
     const mergedData = { ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
     const newAcquiredAt = data.acquiredAt || ''
     const oldAcquiredAt = item.acquiredAt || ''
     if (newAcquiredAt && newAcquiredAt !== oldAcquiredAt) {
-      let timeline = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
-      const ownedIndex = timeline.findIndex((e) => e.status === '已拥有' && e.unitIndex == null)
-      if (ownedIndex >= 0) {
-        timeline[ownedIndex] = { ...timeline[ownedIndex], at: newAcquiredAt }
-      } else if (timeline.length === 0) {
-        timeline = [{ status: item.collectStatus || '已拥有', at: newAcquiredAt }]
-      }
-      mergedData.statusTimeline = timeline
+      const timeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
+      mergedData.statusTimeline = timeline.length === 0
+        ? [{ status: bootstrapAcquisitionStatus(item.collectStatus), at: newAcquiredAt }]
+        : applyAcquiredAtToTimeline(timeline, oldAcquiredAt, newAcquiredAt)
     }
     const next = normalizeGoodsInput(mergedData, item.id)
     for (const path of diffRemovedManagedImagePaths(item, next)) {

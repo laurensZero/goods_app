@@ -189,8 +189,14 @@ function normalizeStatusTimeline(list) {
       const result = { status, at }
       if (entry.note) result.note = String(entry.note).trim()
       if (entry.unitIndex != null && Number.isInteger(entry.unitIndex)) result.unitIndex = entry.unitIndex
-      // 去重：相同 status + at + unitIndex + note 只保留一条
-      const key = `${result.status}|${result.at}|${result.unitIndex ?? ''}|${result.note ?? ''}`
+      const price = String(entry.price ?? '').trim()
+      if (price && Number.isFinite(Number(price))) result.price = price
+      const fee = String(entry.fee ?? '').trim()
+      if (fee && Number.isFinite(Number(fee))) result.fee = fee
+      const platform = String(entry.platform ?? '').trim()
+      if (platform) result.platform = platform
+      // 去重：相同 status + at + unitIndex + note + price + platform + fee 只保留一条
+      const key = `${result.status}|${result.at}|${result.unitIndex ?? ''}|${result.note ?? ''}|${result.price ?? ''}|${result.platform ?? ''}|${result.fee ?? ''}`
       if (seen.has(key)) return null
       seen.add(key)
       return result

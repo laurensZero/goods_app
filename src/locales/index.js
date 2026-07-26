@@ -26,6 +26,7 @@ import zhMy from './zh-CN/my.json'
 import zhGoodsGroup from './zh-CN/goodsGroup.json'
 import zhNotify from './zh-CN/notify.json'
 import zhSurvey from './zh-CN/survey.json'
+import zhSale from './zh-CN/sale.json'
 
 import enCommon from './en/common.json'
 import enNav from './en/nav.json'
@@ -49,6 +50,7 @@ import enMy from './en/my.json'
 import enGoodsGroup from './en/goodsGroup.json'
 import enNotify from './en/notify.json'
 import enSurvey from './en/survey.json'
+import enSale from './en/sale.json'
 
 import jaCommon from './ja/common.json'
 import jaNav from './ja/nav.json'
@@ -72,6 +74,7 @@ import jaMy from './ja/my.json'
 import jaGoodsGroup from './ja/goodsGroup.json'
 import jaNotify from './ja/notify.json'
 import jaSurvey from './ja/survey.json'
+import jaSale from './ja/sale.json'
 
 import koCommon from './ko/common.json'
 import koNav from './ko/nav.json'
@@ -95,6 +98,7 @@ import koMy from './ko/my.json'
 import koGoodsGroup from './ko/goodsGroup.json'
 import koNotify from './ko/notify.json'
 import koSurvey from './ko/survey.json'
+import koSale from './ko/sale.json'
 
 import zhTWCommon from './zh-TW/common.json'
 import zhTWNav from './zh-TW/nav.json'
@@ -118,6 +122,7 @@ import zhTWMy from './zh-TW/my.json'
 import zhTWGoodsGroup from './zh-TW/goodsGroup.json'
 import zhTWNotify from './zh-TW/notify.json'
 import zhTWSurvey from './zh-TW/survey.json'
+import zhTWSale from './zh-TW/sale.json'
 
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
@@ -162,6 +167,7 @@ const zhCNMessages = {
   ...zhMy,
   ...zhGoodsGroup,
   ...zhNotify,
+  ...zhSale,
   survey: zhSurvey
 }
 
@@ -187,6 +193,7 @@ const enMessages = {
   ...enMy,
   ...enGoodsGroup,
   ...enNotify,
+  ...enSale,
   survey: enSurvey
 }
 
@@ -212,6 +219,7 @@ const jaMessages = {
   ...jaMy,
   ...jaGoodsGroup,
   ...jaNotify,
+  ...jaSale,
   survey: jaSurvey
 }
 
@@ -237,6 +245,7 @@ const koMessages = {
   ...koMy,
   ...koGoodsGroup,
   ...koNotify,
+  ...koSale,
   survey: koSurvey
 }
 
@@ -262,6 +271,7 @@ const zhTWMessages = {
   ...zhTWMy,
   ...zhTWGoodsGroup,
   ...zhTWNotify,
+  ...zhTWSale,
   survey: zhTWSurvey
 }
 

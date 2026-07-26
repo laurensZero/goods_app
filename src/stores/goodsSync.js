@@ -11,6 +11,7 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
+import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
 
@@ -33,7 +34,7 @@ async function addMultipleGoods(items, list) {
     const clean = Object.fromEntries(
       Object.entries(rawItem).filter(([key]) => !key.startsWith('_'))
     )
-    const normalized = normalizeGoodsInput(clean, String(now + index))
+    const normalized = ensureInitialTimeline(normalizeGoodsInput(clean, String(now + index)))
     const key = buildScopedKey(normalized)
 
     if (existingKeyToIndex.has(key)) {
