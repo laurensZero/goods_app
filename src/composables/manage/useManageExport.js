@@ -5,6 +5,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useRechargeStore } from '@/stores/recharge'
+import { appLog } from '@/utils/logger'
 
 const BACKUP_DIR = 'GoodsAppBackup'
 const BACKUP_RETENTION_COUNT = 5
@@ -351,6 +352,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
         ? await eventsStore.importEventsBackup(eventsToImport) : { added: 0, updated: 0 }
       const eventsChanged = Number(eventResult.added || 0) + Number(eventResult.updated || 0)
 
+      appLog('info', 'backup-import: done', { goodsAdded, trashAdded, rechargeChanged, eventsAdded: eventResult.added, eventsUpdated: eventResult.updated })
       if (goodsAdded > 0 || trashAdded > 0 || rechargeChanged > 0 || eventsChanged > 0) {
         showToast(i18n.global.t('manage.importSuccess', { goods: goodsAdded, trash: trashAdded, recharge: rechargeChanged, newEvents: eventResult.added, updatedEvents: eventResult.updated }))
         return
@@ -358,6 +360,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
 
       showToast(i18n.global.t('manage.importUpToDate'))
     } catch (error) {
+      appLog('error', 'backup-import: failed', { error: error.message, file: file.name, size: file.size })
       showToast(i18n.global.t('manage.importFailed', { error: error.message }))
     }
   }
@@ -443,6 +446,11 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     }
     const json = JSON.stringify(data)
     const filename = i18n.global.t('manage.backupFilename', { date: new Date().toISOString().split('T')[0] })
+    appLog('info', 'backup-export: start', {
+      goods: goodsList?.length, wishlist: wishlistList?.length, trash: trashList?.length,
+      events: eventsList?.length, recharge: rechargeRecords?.length,
+      includeImages, sizeKB: Math.round(json.length / 1024)
+    })
 
     try {
       if (Capacitor.isNativePlatform()) {
@@ -479,8 +487,9 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
         )
         return
       }
-    } catch {
+    } catch (error) {
       // fallback to browser download
+      appLog('warn', 'backup-export: native write failed, falling back to browser download', { error: error?.message })
     }
 
     const blob = new Blob([json], { type: 'application/json' })

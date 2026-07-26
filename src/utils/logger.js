@@ -1,5 +1,14 @@
 const DEBUG_LOGS_STORAGE_KEY = 'goods-app:debug-logs'
 const DEBUG_SCOPES_STORAGE_KEY = 'goods-app:debug-scopes'
+const LOG_BUFFER_STORAGE_KEY = 'goods-app:log-buffer-v1'
+
+// 统一日志缓冲：createLogger 的 info/warn/error、appLog、以及被劫持的
+// console.error/warn 都写入这里，供反馈时导出（collectDeviceLog）。
+const MAX_BUFFER_ENTRIES = 400
+const MAX_PERSISTED_ENTRIES = 150
+const MAX_ENTRY_MESSAGE_LENGTH = 400
+const MAX_ENTRY_STACK_LENGTH = 500
+const PERSIST_THROTTLE_MS = 2000
 
 const DEBUG_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on', '*'])
 const SENSITIVE_KEY_PATTERN = /(token|cookie|password|secret|authorization|anon[-_]?key|api[-_]?key|apikey|access[-_]?token|refresh[-_]?token|encryption[-_]?key|private[-_]?key)/i
@@ -134,9 +143,168 @@ function sanitizeArgs(args) {
   return args.map((item) => sanitizeValue(item))
 }
 
+// ── 统一日志缓冲 ──
+
+const _logBuffer = []
+let _previousSessionLogs = []
+let _persistTimer = null
+// 劫持前的原始 console 方法；logger 自己的输出走原始方法，避免被劫持后重复入缓冲
+const _origConsole = {}
+
+function stringifyForBuffer(value) {
+  if (typeof value === 'string') return value
+  if (value === undefined) return 'undefined'
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function pushLogEntry(level, scope, message, stack) {
+  const entry = {
+    time: new Date().toISOString(),
+    level,
+    scope,
+    message: sanitizeString(String(message ?? '')).slice(0, MAX_ENTRY_MESSAGE_LENGTH)
+  }
+  if (stack) {
+    entry.stack = sanitizeString(String(stack)).slice(0, MAX_ENTRY_STACK_LENGTH)
+  }
+  _logBuffer.push(entry)
+  if (_logBuffer.length > MAX_BUFFER_ENTRIES) _logBuffer.shift()
+  schedulePersist()
+}
+
+function bufferFromArgs(level, scope, event, args) {
+  const sanitized = sanitizeArgs(args)
+  const message = [event, ...sanitized.map(stringifyForBuffer)].join(' ')
+  const errorArg = args.find((item) => item instanceof Error)
+  pushLogEntry(level, scope, message, errorArg?.stack)
+}
+
+function schedulePersist() {
+  if (_persistTimer) return
+  const setTimer = globalThis.setTimeout
+  if (typeof setTimer !== 'function') return
+  _persistTimer = setTimer(() => {
+    _persistTimer = null
+    persistLogBuffer()
+  }, PERSIST_THROTTLE_MS)
+}
+
+function persistLogBuffer() {
+  try {
+    globalThis.localStorage?.setItem(LOG_BUFFER_STORAGE_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      entries: _logBuffer.slice(-MAX_PERSISTED_ENTRIES)
+    }))
+  } catch {
+    // localStorage 不可用或配额不足时放弃落盘，不影响内存缓冲
+  }
+}
+
+function loadPreviousSessionLogs() {
+  try {
+    const raw = globalThis.localStorage?.getItem(LOG_BUFFER_STORAGE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed?.entries)) {
+      _previousSessionLogs = parsed.entries.slice(-MAX_PERSISTED_ENTRIES)
+    }
+  } catch {
+    _previousSessionLogs = []
+  }
+}
+
+/**
+ * 记录一条应用操作日志（进入统一缓冲，随反馈日志上传）。
+ * appLog('info', 'Sync completed', { pulled: 3 })
+ */
+export function appLog(level, message, data) {
+  const normalizedLevel = ['debug', 'info', 'warn', 'error'].includes(level) ? level : 'info'
+  const suffix = data === undefined ? '' : ` ${stringifyForBuffer(sanitizeValue(data))}`
+  pushLogEntry(normalizedLevel, 'app', `${message}${suffix}`, data instanceof Error ? data.stack : undefined)
+}
+
+/** 当前会话的缓冲日志（时间升序）。 */
+export function getBufferedLogs() {
+  return [..._logBuffer]
+}
+
+/** 上一会话落盘的日志（用于闪退/重启后的 bug 分析）。 */
+export function getPreviousSessionLogs() {
+  return [..._previousSessionLogs]
+}
+
+/** 立即把缓冲写入 localStorage（页面隐藏/卸载时调用）。 */
+export function flushLogBuffer() {
+  if (_persistTimer) {
+    globalThis.clearTimeout?.(_persistTimer)
+    _persistTimer = null
+  }
+  persistLogBuffer()
+}
+
+/**
+ * 初始化全局捕获：劫持 console.error/warn、监听 window error 与
+ * unhandledrejection、页面隐藏时落盘。幂等，在模块加载时自动执行。
+ */
+export function initLogCapture() {
+  const g = globalThis
+  if (g.__goodsAppLogCaptureInstalled) {
+    // HMR / 重复加载：console 已被旧模块实例劫持，取回原始引用避免重复入缓冲
+    Object.assign(_origConsole, g.__goodsAppOrigConsole || {})
+    return
+  }
+  g.__goodsAppLogCaptureInstalled = true
+
+  loadPreviousSessionLogs()
+
+  const consoleRef = g.console
+  if (consoleRef) {
+    for (const method of ['error', 'warn']) {
+      const original = consoleRef[method]
+      if (typeof original !== 'function') continue
+      _origConsole[method] = original.bind(consoleRef)
+      consoleRef[method] = (...args) => {
+        _origConsole[method](...args)
+        const message = args.map((a) => (a instanceof Error ? a.message : stringifyForBuffer(sanitizeValue(a)))).join(' ')
+        const errorArg = args.find((a) => a instanceof Error)
+        pushLogEntry(method === 'error' ? 'error' : 'warn', 'console', message, errorArg?.stack)
+      }
+    }
+    g.__goodsAppOrigConsole = { ..._origConsole }
+  }
+
+  if (typeof g.addEventListener === 'function') {
+    g.addEventListener('error', (e) => {
+      pushLogEntry('error', 'window', e?.message || 'Unknown error', `${e?.filename || ''}:${e?.lineno || 0}:${e?.colno || 0}`)
+    })
+
+    g.addEventListener('unhandledrejection', (e) => {
+      const reason = e?.reason
+      pushLogEntry(
+        'error',
+        'promise',
+        reason instanceof Error ? reason.message : stringifyForBuffer(sanitizeValue(reason)),
+        reason instanceof Error ? reason.stack : undefined
+      )
+    })
+
+    g.addEventListener('pagehide', flushLogBuffer)
+  }
+
+  if (typeof g.document?.addEventListener === 'function') {
+    g.document.addEventListener('visibilitychange', () => {
+      if (g.document.visibilityState === 'hidden') flushLogBuffer()
+    })
+  }
+}
+
 function writeConsole(method, scope, event, args) {
   const consoleRef = globalThis.console
-  const target = consoleRef?.[method] || consoleRef?.log
+  const target = _origConsole[method] || consoleRef?.[method] || consoleRef?.log
   if (typeof target !== 'function') return
 
   const prefix = `[${scope}] ${event}`
@@ -152,20 +320,26 @@ export function createLogger(scope) {
       writeConsole('debug', normalizedScope, event, args)
     },
 
+    // info 始终入缓冲（生产环境的操作轨迹），仅 console 输出受调试开关控制
     info(event, ...args) {
+      bufferFromArgs('info', normalizedScope, event, args)
       if (!isDebugLoggingEnabled(normalizedScope)) return
       writeConsole('info', normalizedScope, event, args)
     },
 
     warn(event, ...args) {
+      bufferFromArgs('warn', normalizedScope, event, args)
       writeConsole('warn', normalizedScope, event, args)
     },
 
     error(event, ...args) {
+      bufferFromArgs('error', normalizedScope, event, args)
       writeConsole('error', normalizedScope, event, args)
     }
   }
 }
+
+initLogCapture()
 
 export const loggerStorageKeys = {
   debugLogs: DEBUG_LOGS_STORAGE_KEY,

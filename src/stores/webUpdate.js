@@ -10,6 +10,9 @@ import {
 } from '@/utils/github/release'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
 import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('web-update')
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
   gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
@@ -429,9 +432,11 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       currentVersion.value = normalizeVersionTag(result?.bundle?.version || result?.native || '')
       nativeVersion.value = normalizeVersionTag(result?.native || '')
       lastStatus.value = 'ready'
+      log.info('init', { bundleId: currentBundleId.value, version: currentVersion.value, native: nativeVersion.value })
     } catch (error) {
       lastStatus.value = 'error'
       lastError.value = error?.message || '读取资源版本失败。'
+      log.error('init:failed', error)
     } finally {
       initialized.value = true
     }
@@ -472,6 +477,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
             resolvedManifestUrl = candidateUrl
             break
           } catch (error) {
+            log.warn('check:manifest-fetch-failed', { source, error: error?.message })
             lastRequestError = error
           }
         }
@@ -526,6 +532,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         if (compareVersions(latestVersion.value, currentVersion.value) > 0) {
           lastStatus.value = 'available'
           dialogVisible.value = !isSilentUpdate.value
+          log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, source: resolvedManifestSource, level: updateLevel.value })
           return { status: 'available', manifest, source: resolvedManifestSource }
         }
 
@@ -542,6 +549,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         }
         lastStatus.value = 'error'
         lastError.value = normalizeErrorMessage(error, '检查资源更新失败，请稍后再试。')
+        log.error('check:failed', { channel: selectedChannel.value, source: selectedSource.value }, error)
         throw error
       } finally {
         isChecking.value = false
@@ -573,6 +581,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     isDownloading.value = true
     downloadProgress.value = 0
     lastError.value = ''
+    log.info('download:start', { version: latestVersion.value, url: latestZipUrl.value })
 
     let listener = null
     try {
@@ -600,8 +609,10 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       pendingVersion.value = normalizeVersionTag(bundle.version || latestVersion.value)
       downloadProgress.value = 100
       lastStatus.value = 'pending'
+      log.info('download:done', { bundleId: bundle.id, version: pendingVersion.value })
       return true
     } catch (error) {
+      log.error('download:failed', { version: latestVersion.value, progress: downloadProgress.value }, error)
       await rollbackToCurrentBundle()
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(error, '下载资源更新失败，请稍后再试。')
@@ -626,10 +637,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     }
 
     try {
+      log.info('apply:start', { bundleId: targetBundleId, version: pendingVersion.value })
       await CapacitorUpdater.set({ id: targetBundleId })
       return true
     } catch (error) {
       const rolledBack = await rollbackToCurrentBundle()
+      log.error('apply:failed', { bundleId: targetBundleId, rolledBack }, error)
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(
         error,
@@ -650,8 +663,10 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       await CapacitorUpdater.next({ id: fallbackId })
       pendingBundleId.value = ''
       pendingVersion.value = ''
+      log.warn('rollback:done', { fallbackId })
       return true
-    } catch {
+    } catch (error) {
+      log.error('rollback:failed', { fallbackId }, error)
       return false
     }
   }
@@ -664,9 +679,11 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     }
 
     try {
+      log.info('reset-to-builtin:start')
       await CapacitorUpdater.reset({ toLastSuccessful: false })
       return true
     } catch (error) {
+      log.error('reset-to-builtin:failed', error)
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(error, '恢复内置资源失败，请手动重启应用。')
       return false

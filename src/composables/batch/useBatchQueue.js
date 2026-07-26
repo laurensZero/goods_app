@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import { createGoodsImageId } from '@/utils/goods/images'
 import { deleteManagedLocalImages } from '@/utils/image/localImage'
+import { appLog } from '@/utils/logger'
 
 const STORAGE_KEY = 'batch-queue-data'
 const STORAGE_KEY_DEFAULTS = 'batch-queue-defaults'
@@ -139,6 +140,7 @@ function initQueue(images, meta = {}) {
   const incomingSet = new Set(incomingUris)
   const staleUris = currentUris.filter((uri) => uri && !incomingSet.has(uri))
   if (staleUris.length > 0) void deleteManagedLocalImages(staleUris)
+  appLog('info', 'batch-queue: init', { batchId: batchId.value, count: images.length, isWishlist: isWishlist.value, staleCleaned: staleUris.length })
   queue.value = images.map((img) => ({
     id: createGoodsImageId(),
     imageUri: img.uri || img.localPath || '',
@@ -273,6 +275,7 @@ async function saveAll(goodsStore) {
     acquiredAt: wishlist ? '' : item.date
   }))
   await goodsStore.addMultipleGoods(items)
+  appLog('info', 'batch-queue: saved', { batchId: batchId.value, count: items.length, isWishlist: wishlist })
   // 保存成功后图片归商品所有：仅清空队列状态，不删除图片文件；
   // 保留 batchId 标记该批次已消费，避免历史返回时重建队列导致重复保存
   queue.value = []
@@ -297,6 +300,7 @@ function clearQueue() {
 function discardQueue() {
   const uris = queue.value.map((item) => item?.imageUri).filter(Boolean)
   if (uris.length > 0) void deleteManagedLocalImages(uris)
+  appLog('info', 'batch-queue: discarded', { batchId: batchId.value, count: queue.value.length })
   clearQueue()
 }
 

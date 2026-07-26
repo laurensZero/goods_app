@@ -1,3 +1,5 @@
+// 最先加载 logger：安装 console/window 错误捕获，后续模块初始化的报错才能进日志缓冲
+import './utils/logger'
 import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
@@ -25,7 +27,6 @@ import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
 import { handleAuthCallback } from './utils/supabase/auth'
-import './services/feedbackAttachmentService' // init error collector early
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -149,6 +150,15 @@ async function bootstrap() {
   app.use(pinia)
   app.use(router)
 
+  // 全局错误捕获：组件错误带上组件名和生命周期钩子，导航错误（含动态 import 失败）单独记录
+  app.config.errorHandler = (err, instance, info) => {
+    const componentName = instance?.$options?.name || instance?.$options?.__name || 'anonymous'
+    log.error('vue:component-error', { component: componentName, info }, err)
+  }
+  router.onError((err, to) => {
+    log.error('router:navigation-error', { to: to?.fullPath }, err)
+  })
+
   // 获取 store 实例（此时还未初始化数据）
   const store = useGoodsStore()
   const eventsStore = useEventsStore()
@@ -228,7 +238,8 @@ async function bootstrap() {
   timings.mount = performance.now() - t4
 
   timings.total = performance.now() - startTime
-  log.debug('startup:timings', Object.fromEntries(
+  // info 级：进入日志缓冲（反馈日志可见启动耗时），console 输出仍受调试开关控制
+  log.info('startup:timings', Object.fromEntries(
     Object.entries(timings).map(([key, value]) => [key, Number(value.toFixed(1))])
   ))
 

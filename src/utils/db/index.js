@@ -414,6 +414,7 @@ async function _runMigrations() {
     try {
       await migration.up(db)
       await db.run('UPDATE _schema_version SET version = ?', [migration.version])
+      log.info('migration:applied', { version: migration.version, description: migration.description })
     } catch (e) {
       console.error(`[DB] Migration v${migration.version} (${migration.description}) failed:`, e)
       throw e
@@ -501,7 +502,8 @@ async function _doInitDB() {
   const migrationsTime = performance.now() - t4
   isSchemaSynced = true
 
-  log.debug('init:timings', {
+  // info 级：进日志缓冲，反馈日志可见 DB 初始化耗时与适配器类型
+  log.info('init:timings', {
     adapter: IS_NATIVE ? 'native' : 'web',
     openMs: Number(openTime.toFixed(1)),
     createTablesMs: Number(createTablesTime.toFixed(1)),

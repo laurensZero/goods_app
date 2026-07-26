@@ -83,6 +83,9 @@ export default defineConfig({
     }
   },
   build: {
+    // 按需生成 sourcemap（BUILD_SOURCEMAP=1 npm run build）：
+    // 用于符号化反馈日志里的压缩堆栈；默认关闭，避免 .map 被打进 OTA zip/APK
+    sourcemap: process.env.BUILD_SOURCEMAP === '1' ? 'hidden' : false,
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {

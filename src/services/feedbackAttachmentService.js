@@ -2,7 +2,10 @@
 // Upload feedback attachments to Supabase Storage
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
-import { redactSensitiveText } from '@/utils/logger'
+import { getBufferedLogs, getPreviousSessionLogs } from '@/utils/logger'
+
+// appLog 与错误捕获已迁移到 utils/logger（统一缓冲 + localStorage 落盘），保留兼容导出
+export { appLog } from '@/utils/logger'
 
 const BUCKET = 'feedback-attachments'
 
@@ -187,101 +190,43 @@ export async function collectDeviceLog() {
     lines.push(`Full: ${window.location.href}`)
   } catch {}
 
-  // ── Console Errors ──
+  // ── 错误速览（当前会话的 error 级日志） ──
   lines.push('')
-  lines.push('=== Console Errors ===')
-  const errors = getConsoleErrors()
+  lines.push('=== Recent Errors ===')
+  const currentLogs = getBufferedLogs()
+  const errors = currentLogs.filter((entry) => entry.level === 'error')
   if (errors.length === 0) {
     lines.push('(none)')
   } else {
-    errors.forEach((e, i) => {
-      lines.push(`[${i + 1}] ${e.time}`)
-      lines.push(`    ${e.message}`)
-      if (e.stack) lines.push(`    ${e.stack}`)
+    errors.forEach((entry, i) => {
+      lines.push(`[${i + 1}] ${entry.time} [${entry.scope}]`)
+      lines.push(`    ${entry.message}`)
+      if (entry.stack) lines.push(`    ${entry.stack}`)
     })
   }
 
-  // ── 前端日志（可选：最近操作） ──
-  const appLogs = getAppLogs()
-  if (appLogs.length > 0) {
+  // ── 当前会话完整日志（操作轨迹 + 警告 + 错误） ──
+  lines.push('')
+  lines.push('=== App Logs (current session) ===')
+  if (currentLogs.length === 0) {
+    lines.push('(none)')
+  } else {
+    currentLogs.forEach((entry, i) => {
+      lines.push(`[${i + 1}] ${entry.time} [${entry.level}] [${entry.scope}] ${entry.message}`)
+      if (entry.stack) lines.push(`    ${entry.stack}`)
+    })
+  }
+
+  // ── 上一会话日志（闪退/重启前的最后痕迹） ──
+  const previousLogs = getPreviousSessionLogs()
+  if (previousLogs.length > 0) {
     lines.push('')
-    lines.push('=== App Logs ===')
-    appLogs.forEach((log, i) => {
-      lines.push(`[${i + 1}] ${log.time} [${log.level}] ${log.message}`)
+    lines.push('=== App Logs (previous session) ===')
+    previousLogs.forEach((entry, i) => {
+      lines.push(`[${i + 1}] ${entry.time} [${entry.level}] [${entry.scope}] ${entry.message}`)
+      if (entry.stack) lines.push(`    ${entry.stack}`)
     })
   }
 
   return new File([lines.join('\n')], 'device-log.txt', { type: 'text/plain' })
 }
-
-// In-memory console error buffer
-const _consoleErrors = []
-const MAX_ERRORS = 50
-
-// App-level log buffer (for structured app logs)
-const _appLogs = []
-const MAX_APP_LOGS = 100
-
-/**
- * Log an app-level event for inclusion in device logs.
- * Usage: import { appLog } from '@/services/feedbackAttachmentService'
- *        appLog('info', 'Sync completed')
- *        appLog('error', 'Upload failed', { detail: '...' })
- */
-export function appLog(level, message, data) {
-  _appLogs.push({
-    time: new Date().toISOString(),
-    level,
-    // 脱敏后再入缓冲区，防止 Cookie/token 随反馈日志上传
-    message: redactSensitiveText(data ? `${message} ${JSON.stringify(data)}` : message)
-  })
-  if (_appLogs.length > MAX_APP_LOGS) _appLogs.shift()
-}
-
-function getAppLogs() {
-  return [..._appLogs]
-}
-
-function initErrorCollector() {
-  if (_consoleErrors._initialized) return
-  _consoleErrors._initialized = true
-
-  const origError = console.error
-  console.error = (...args) => {
-    origError.apply(console, args)
-    const msg = args.map(a => (a instanceof Error ? a.message : String(a))).join(' ')
-    const stack = args.find(a => a instanceof Error)?.stack || ''
-    _consoleErrors.push({
-      time: new Date().toISOString(),
-      // 脱敏后再入缓冲区，防止 Cookie/token 随反馈日志上传
-      message: redactSensitiveText(msg).slice(0, 500),
-      stack: redactSensitiveText(stack).slice(0, 500)
-    })
-    if (_consoleErrors.length > MAX_ERRORS) _consoleErrors.shift()
-  }
-
-  window.addEventListener('error', (e) => {
-    _consoleErrors.push({
-      time: new Date().toISOString(),
-      message: redactSensitiveText(e.message || 'Unknown error'),
-      stack: `${e.filename}:${e.lineno}:${e.colno}`
-    })
-    if (_consoleErrors.length > MAX_ERRORS) _consoleErrors.shift()
-  })
-
-  window.addEventListener('unhandledrejection', (e) => {
-    const reason = e.reason
-    _consoleErrors.push({
-      time: new Date().toISOString(),
-      message: redactSensitiveText(reason instanceof Error ? reason.message : String(reason)),
-      stack: reason instanceof Error ? redactSensitiveText(reason.stack || '').slice(0, 500) : ''
-    })
-    if (_consoleErrors.length > MAX_ERRORS) _consoleErrors.shift()
-  })
-}
-
-function getConsoleErrors() {
-  return [..._consoleErrors]
-}
-
-initErrorCollector()

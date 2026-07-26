@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { appLog } from '@/utils/logger'
 
 const MAX_SYNC_LOGS = 160
 
@@ -89,6 +90,8 @@ export function useSyncLogger() {
         durationMs,
         finishedAt: new Date().toISOString()
       })
+      // 镜像到统一日志缓冲：同步步骤耗时随反馈日志上传，页面刷新后仍可追溯
+      appLog('info', `sync-step: ${title}`, { durationMs, detail: detail || undefined })
       return result
     } catch (error) {
       const durationMs = Math.max(0, Math.round(getSyncNow() - startedAt))
@@ -103,6 +106,7 @@ export function useSyncLogger() {
         durationMs,
         finishedAt: new Date().toISOString()
       })
+      appLog('error', `sync-step failed: ${title}`, { durationMs, error: error?.message || String(error) })
       throw error
     }
   }

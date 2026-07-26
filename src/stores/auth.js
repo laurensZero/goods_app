@@ -19,6 +19,9 @@ import {
   deleteAccount
 } from '@/utils/supabase/auth'
 import { isSupabaseConfigured } from '@/utils/sync/supabaseClient'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('auth')
 
 const AUTH_USER_KEY = 'sb_auth_user'
 let _pendingLoginSync = false
@@ -117,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     authSubscription = onAuthStateChange((event, newSession) => {
+      log.info('state-change', { event, hasUser: !!newSession?.user })
       setSession(newSession)
       setUser(newSession?.user || null)
       // 登录成功后自动触发同步
@@ -146,8 +150,10 @@ export const useAuthStore = defineStore('auth', () => {
       _pendingLoginSync = true
       setSession(data.session)
       setUser(data.user)
+      log.info('login:email:success')
       return data.user
     } catch (e) {
+      log.error('login:email:failed', { error: e.message })
       error.value = e.message || '登录失败'
       throw e
     } finally {
@@ -200,8 +206,10 @@ export const useAuthStore = defineStore('auth', () => {
       }
       const data = await signInWithOAuth(provider, options)
       _pendingLoginSync = true
+      log.info('login:oauth:start', { provider })
       return data
     } catch (e) {
+      log.error('login:oauth:failed', { provider, error: e.message })
       error.value = e.message || '社交登录失败'
       throw e
     } finally {
@@ -216,7 +224,9 @@ export const useAuthStore = defineStore('auth', () => {
       await supabaseSignOut()
       setUser(null)
       setSession(null)
+      log.info('logout')
     } catch (e) {
+      log.error('logout:failed', { error: e.message })
       error.value = e.message || '退出失败'
       throw e
     } finally {
