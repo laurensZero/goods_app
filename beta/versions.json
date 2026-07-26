@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.6",
+    "url": "bundle-20260726.6.zip",
+    "hash": "2473d9f9a33a212b7aef632bc46eafc3c2f7b345609c501e156947ad951da8b0",
+    "minNativeVersion": null,
+    "notes": "- feat: 日志系统全面增强 — 统一缓冲、落盘、全域埋点\n  核心设施 (utils/logger.js):\n  - 统一日志环形缓冲(400条),createLogger 的 info/warn/error 自动入缓冲\n    (info 仅入缓冲不刷 console,生产环境零噪音的操作轨迹)\n  - console.error/warn 劫持、window error / unhandledrejection 捕获迁入 logger\n  - 缓冲节流落盘 localStorage(2s),pagehide/visibilitychange 立即 flush;\n    启动时恢复上一会话日志 — 闪退/重启前的最后痕迹可随反馈上传\n  - appLog() 迁入 logger 并全域启用(原先零调用方,App Logs 恒为空)\n\n  全局错误捕获 (main.js):\n  - app.config.errorHandler 记录组件名 + 生命周期钩子\n  - router.onError 捕获导航/动态 import 失败\n  - logger 提前到首个 import,后续模块初始化报错也能入缓冲\n\n  反馈日志 (feedbackAttachmentService):\n  - 自带收集器移除,改为消费统一缓冲\n  - 设备日志新增: 错误速览 / 当前会话完整轨迹 / 上一会话日志三段\n\n  埋点补全:\n  - 同步域: sync/pull 起止与决策、diff 比较结果、冲突检测与解决选择、\n    quickPush/forcePush、push 计数、同步步骤耗时镜像入缓冲\n  - DB: 迁移应用记录、init 耗时(info 级入缓冲)\n  - OTA: webUpdate 全链路(检查/下载/应用/回滚/恢复内置)原先零日志,\n    appUpdate 检查/下载/SHA256 校验失败\n  - auth: 登录/登出/OAuth/状态变更\n  - 批量添加: 队列创建/保存/放弃; 备份导入导出结果与失败原因\n  - 深度链接: NFC/分享链接处理结果\n\n  构建 (vite.config.js):\n  - BUILD_SOURCEMAP=1 时生成 hidden sourcemap,用于符号化线上堆栈,\n    默认关闭避免 .map 进 OTA zip/APK\n\n  测试: 新增 logger 缓冲单测 7 例;全量 489 测试通过,lint 0 error\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 设置页移除出谷账本入口\n  出谷账本入口收敛为统计页回血卡片(路由与页面保留);\n  清理 manageEntries 配置与五语言 manage.json 的对应键\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷账本入场动画与平板适配\n  - 统计页回血卡片跳转改用 runManageForwardNavigation,与其它管理子页同款滑入动画\n  - 账本页 900px 断点平板布局:汇总卡 4 列、记录列表双列、容器加宽\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- style: 出谷账本切换条平板端居中\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷账本 tab 切换过渡动画\n  已出/在售内容切换加方向感过渡:向右切从右滑入、向左切从左滑入,\n  配 0.16s 淡入淡出,out-in 模式避免两组列表重叠\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 统计页纳入 KeepAlive,消除切换标签时图表重新加载\n  统计页顶部与收藏/心愿单同级切换,但路由未缓存,每次切回都整页重挂载,\n  热力图与趋势图随之重新初始化并重放入场动画;\n  加入 keepAliveViewNames 并标记 meta.keepAlive 后组件保活,数据变更仍经响应式更新\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 统计图表滚动中反复重载\n  两个防线:\n  - resize 改用 ResizeObserver 且仅在容器尺寸真变化时触发——手机浏览器\n    滚动时地址栏收起/展开连环触发 window resize,图表随滑动反复重排\n  - setOption 前序列化对比,内容未变的新引用直接跳过,不重放入场动画\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T11:40:04Z"
+  },
+  {
     "version": "20260726.5",
     "url": "bundle-20260726.5.zip",
     "hash": "6335dfca8397095138c0f02f84db398e1b5956d567aa3a220135d114332f588d",
@@ -16,14 +25,5 @@
     "notes": "- style: 统一弹窗过渡、遮罩、圆角、z-index 与加载动画\n  - 14 处 Vant Popup 全部接入 sheet-pop 过渡（shared-ui.css 新增\n    van-popup 支持，居中定位保留 translateY(-50%) 居中）\n  - 遮罩统一为 var(--app-overlay) + 标准毛玻璃，移除硬编码 rgba\n  - 容器级圆角全部令牌化（--radius-*），EventCard 28px 归入 --radius-large\n  - base.css 新增 z-index 层级令牌（--z-float/--z-sheet/--z-modal/--z-dialog\n    等），弹层 z-index 字面量按原层级关系替换\n  - 加载旋转动画收敛为 shared-ui.css 全局 @keyframes spin（0.7s），\n    删除 12 处本地重复定义（含 fb-spin/sheet-spin/mhpicker-spin/scan-spin）\n  - EventCard 补齐深色模式适配（选中标记、类型标签、价格文字）\n  - RankingPopup 底部弹出态改为仅顶部圆角\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 补齐 sync.error.loginRequired 的 ja/ko/zh-TW 翻译\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 更新价格计算逻辑，确保入手价按总价计算并排除特定状态商品",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T10:57:52Z"
-  },
-  {
-    "version": "20260726.3",
-    "url": "bundle-20260726.3.zip",
-    "hash": "9f0e8a4ad39d7effa54e832be108a40b3c67f4ebdb2a851d9df4cd87d7845aa5",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化英雄动画逻辑，添加 onReady 回调以改善动画体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T10:38:52Z"
   }
 ]
