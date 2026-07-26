@@ -1,9 +1,9 @@
 {
-  "version": "20260726.1",
-  "url": "bundle-20260726.1.zip",
-  "hash": "981d8c053ebad242f54b8922dfe1a07bda7bf12b5675e90a0b7984091a554362",
+  "version": "20260726.2",
+  "url": "bundle-20260726.2.zip",
+  "hash": "a45274acf8f5cc45a0df2f5c041aa24aeedafed39cef07a8e49993751b659aa1",
   "minNativeVersion": null,
-  "notes": "- refactor: 重构批量添加功能",
+  "notes": "- 🚀 新功能\n  - feat: 同步图片上传增加成功校验，失败文件保留本地原图并支持下次重试\n  - feat: 新增孤儿云端图片自动回收（归属校验 + 48h 宽限期 + 单次上限 200）\n  - feat: OTA 更新增加 APK SHA-256 强制校验，校验失败自动回退 GitHub 直连重试\n  - feat: JS bundle 更新强制 checksum 校验，manifest 缺失哈希直接拒绝激活\n  - feat: Supabase Storage 图片按用户目录隔离，杜绝跨用户覆盖/删除\n  - feat: 同步水位线改用服务器时间，增量拉取加 10 分钟重叠窗口吸收设备时钟偏移\n  - feat: 同步完成提示显示真实导入数量与图片上传失败数\n  - feat: 反馈日志收集前统一脱敏 Cookie/Token/密码\n  - feat: 首页/心愿单虚拟列表改为实测行高，消除长列表滚动跳动\n\n  🐛 修复\n\n  - fix: 冲突弹窗\"保留本地\"改为强制推送，不再\n  - fix: 推送中断后误报冲突——增加 crash-safe 标记与水位线快进恢复\n  - fix: 活动/分组删除后重启复活——三张表补上 d\n  - fix: Web 端页面隐藏/关闭时立即落盘，堵住防抖窗口内的丢数据风险\n  - fix: 本地数据读取失败时跳过同步，防止空数据覆盖云端\n  - fix: 批量添加从编辑页返回/刷新不再清空队列，心愿单入口不再落错列表\n  - fix: 批量添加删项/换图/放弃时清理已复制的图片文件，保存后清空队列防重复入库\n  - fix: 回收站持久化失败自动重试，二次失败中 全错误提示\n  - fix: 时间戳比较改按毫秒值，修复 Postgres 与客户端时间格式字符串比对失配\n  - fix: LazyCachedImage 重试用错变量导致重试失效\n  - fix: initDB 增加并发锁，避免并发初始化竞态\n  - fix: sql-wasm 改用 BASE_URL 解析路径，兼容子路径部署\n  - fix: 头像保存等关键写入配额不足时立即提示，不再静默失败\n\n  ⚡ 优化与重构\n\n  - refactor: 米游铺请求收敛为统一传输层，原生/代理双路径合一并增加三重超时\n  - refactor: 米游铺 Cookie 迁移至 readSecret/writeSecret 单点存储（Android 升级用户懒迁移）\n  - refactor: 删除端到端加密死代码（cryptoManager）及遗留 sync_password\n  - refactor: 删除旧版批量添加实现（BatchAddView / BatchAddCard / BatchQueueItem）\n  - chore: 落地 ESLint 扁平配置与 lint 脚本（0 error 基线）\n  - test: 新增 15 个测试文件覆盖同步恢复、批量等（482 测试全绿）\n  - docs: 重写 README 与 CLAUDE.md，更新至 Supabase 单后端现状\n  - i18n: 5 语言新增校验/失败提示文案，清理 Gist/加密过时文案及无引用键",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-26T08:04:03Z"
+  "publishedAt": "2026-07-26T10:05:21Z"
 }
