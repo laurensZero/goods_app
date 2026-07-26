@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.10",
+    "url": "bundle-20260726.10.zip",
+    "hash": "1d7e0db57285ef178034badd0527c281012d4bae7581641dd2c4aed14e90ef6e",
+    "minNativeVersion": null,
+    "notes": "- feat: 角色生日彩蛋——云端生日表按需查询，生日当天弹祝福卡片\n  - 云端 character_birthdays 表 + get_character_birthdays RPC（按归一化名字/别名匹配，\n    只回传达标角色的行；表不开直查 policy，SQL 迁移文件在仓库根目录本地维护）\n  - 客户端只把谷子数达标（≥3，口径与角色排行榜一致）的角色名发给服务端查询，\n    本地仅缓存这些行（24h TTL，达标集合变化立即重查，网络失败降级旧缓存）\n  - 匹配：名字+IP 消歧（IP 空时仅唯一候选生效），2/29 平年顺延 2/28，本地日期判定\n  - 弹窗卡片：祝福文案/角色代表色/收藏统计/图片墙，多角色轮播，每天只弹一次，\n    公告弹窗关闭后才检查；My 页当天可回看；通知设置页可关闭\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日彩蛋 console 测试入口 testBirthdayEgg()\n  预览模式用真实收藏数据构造今日生日卡片（不足两张补示例数据以测轮播）；\n  testBirthdayEgg(true) 清除当日标记后走真实云端检查流程。不暴露 UI 入口。\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 生日卡片轮播改用 pointer 事件，PC 鼠标拖拽可切换\n  图片墙禁用原生拖拽、卡片禁用文字框选，避免劫持滑动手势\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日卡片轮播加方向感知滑动过渡\n  内容区按切换方向滑入滑出(0.18s)，强调色随角色渐变\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日卡片平板/桌面端放大（≥768px 宽 640px，字号与间距同步放大）\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 生日卡片平板端改为仅横向拉宽（580px），字号不变，图片墙自适应多列\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日卡片图片墙宽屏显示 16 张（4×4），手机保持 9 张\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 生日图片墙收集上限放宽到 30，避免无图商品占掉配额\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 宽屏图片墙改为 12 张（4×3）\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日图片墙每次打开随机轮换（30 张收集池洗牌后截取展示）\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: testBirthdayEgg(true, '3-7') 支持模拟日期走真实检查流程\n  模拟日期期间不读写当日已弹标记，关闭弹窗后自动恢复真实日期\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T14:49:00Z"
+  },
+  {
     "version": "20260726.9",
     "url": "bundle-20260726.9.zip",
     "hash": "da6305205bd523c39ff672436d15ad4922d5c199db7ddf69044bd41751b461af",
@@ -16,14 +25,5 @@
     "notes": "- fix: 处理零价格销售，确保有效成交记录",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T12:01:30Z"
-  },
-  {
-    "version": "20260726.7",
-    "url": "bundle-20260726.7.zip",
-    "hash": "6bc44392dc21215b090582830d03e5219a48eea2dc3f1aa801029a5b473f0151",
-    "minNativeVersion": null,
-    "notes": "- fix: 优化 KeepAlive 组件使用，减少不必要的重载与渲染",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T11:51:39Z"
   }
 ]
