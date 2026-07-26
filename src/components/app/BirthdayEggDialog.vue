@@ -72,7 +72,7 @@ const { t } = useI18n()
 const store = useCharacterBirthdayStore()
 
 const activeIndex = ref(0)
-const birthdays = computed(() => store.todayBirthdays)
+const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
 

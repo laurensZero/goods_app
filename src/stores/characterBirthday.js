@@ -44,6 +44,8 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
 
   const rows = ref(loadCachedBirthdayRows())
   const dialogVisible = ref(false)
+  // 测试入口注入的预览数据；非空时弹窗显示它而不是真实的今日生日
+  const previewBirthdays = ref([])
 
   const presetIpMap = computed(() => (
     new Map(presets.characters.map((character) => [character.name, character.ip || '']))
@@ -59,6 +61,18 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     return entries.filter((entry) => entry.quantity >= BIRTHDAY_EGG_MIN_QUANTITY)
   })
 
+  function collectImageUrls(characterName) {
+    const imageUrls = []
+    for (const item of goodsStore.collectionViewList) {
+      if (!Array.isArray(item.characters)) continue
+      if (!item.characters.some((name) => String(name || '').trim() === characterName)) continue
+      const url = getPrimaryGoodsImageUrl(item.images, item.coverImage || item.image)
+      if (url) imageUrls.push(url)
+      if (imageUrls.length >= MAX_WALL_IMAGES) break
+    }
+    return imageUrls
+  }
+
   const todayBirthdays = computed(() => {
     if (!rows.value.length || !qualifiedEntries.value.length) return []
 
@@ -70,14 +84,7 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
       const row = matchBirthdayRow(index, { name: entry.label, ip: entry.meta })
       if (!row || !isBirthdayOnDate(row.month, row.day, now)) continue
 
-      const imageUrls = []
-      for (const item of goodsStore.collectionViewList) {
-        if (!Array.isArray(item.characters)) continue
-        if (!item.characters.some((name) => String(name || '').trim() === entry.label)) continue
-        const url = getPrimaryGoodsImageUrl(item.images, item.coverImage || item.image)
-        if (url) imageUrls.push(url)
-        if (imageUrls.length >= MAX_WALL_IMAGES) break
-      }
+      const imageUrls = collectImageUrls(entry.label)
 
       list.push({
         id: row.id || `${row.ip}/${row.name}`,
@@ -120,8 +127,70 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     if (todayBirthdays.value.length) dialogVisible.value = true
   }
 
+  // 弹窗实际显示的数据：测试预览优先
+  const visibleBirthdays = computed(() => (
+    previewBirthdays.value.length ? previewBirthdays.value : todayBirthdays.value
+  ))
+
+  // 通知设置页的测试入口：用谷子最多的达标角色（真实统计+图片墙）构造
+  // 今天生日的预览卡片，不足两张用示例数据补齐以便测试轮播
+  function openTestDialog() {
+    const now = new Date()
+    const list = [...qualifiedEntries.value]
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 2)
+      .map((entry, index) => ({
+        id: `preview-${index}`,
+        name: entry.label,
+        ip: entry.meta || '',
+        month: now.getMonth() + 1,
+        day: now.getDate(),
+        color: index === 0 ? '#39c5bb' : '#e2557f',
+        message: '',
+        quantity: entry.quantity,
+        totalValue: entry.actualTotalValue,
+        imageUrls: collectImageUrls(entry.label)
+      }))
+
+    while (list.length < 2) {
+      list.push({
+        id: `preview-mock-${list.length}`,
+        name: '初音未来',
+        ip: 'VOCALOID',
+        month: now.getMonth() + 1,
+        day: now.getDate(),
+        color: '#39c5bb',
+        message: '',
+        quantity: 3,
+        totalValue: 520.5,
+        imageUrls: []
+      })
+    }
+
+    previewBirthdays.value = list
+    dialogVisible.value = true
+  }
+
   function dismiss() {
     dialogVisible.value = false
+    previewBirthdays.value = []
+  }
+
+  // Console 测试入口（浏览器 DevTools / 真机 chrome://inspect）：
+  //   testBirthdayEgg()      —— 弹预览卡片（谷子最多的达标角色 + 示例数据补齐轮播）
+  //   testBirthdayEgg(true)  —— 清掉「今天已弹过」标记后走真实检查流程（需云端表有今日生日）
+  if (typeof window !== 'undefined') {
+    window.testBirthdayEgg = (real = false) => {
+      if (!real) {
+        openTestDialog()
+        return '已弹出预览卡片'
+      }
+      try {
+        localStorage.removeItem(RECORD_KEY)
+      } catch { /* ignore */ }
+      void checkAndDecide()
+      return '已清除今日标记并触发真实检查（无今日生日则不弹）'
+    }
   }
 
   return {
@@ -129,9 +198,11 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     dialogVisible,
     qualifiedEntries,
     todayBirthdays,
+    visibleBirthdays,
     refresh,
     checkAndDecide,
     openDialog,
+    openTestDialog,
     dismiss
   }
 })
