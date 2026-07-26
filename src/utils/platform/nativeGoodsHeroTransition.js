@@ -406,7 +406,6 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
   node.style.transformOrigin = 'top left'
   node.style.backfaceVisibility = 'hidden'
   node.style.background = 'transparent'
-  node.style.overflow = 'visible'
 
   const shadow = document.createElement('div')
   shadow.dataset.heroShadow = 'true'
@@ -445,7 +444,7 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
     img.dataset.heroMedia = 'image'
 
     // Don't start hidden — on Android the image may be cached but
-    // img.complete won't because true on a freshly created element.  A
+    // img.complete won't be true on a freshly created element.  A
     // brief partially-decoded frame is less noticeable than the
     // clip's white background showing through.
     const hideImage = () => {
@@ -580,6 +579,13 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   let animation = null
   let timeoutId = null
   let sourceImageReady = true
+  const extraAnimations = []
+
+  // Take the animation lock before any await — scroll handlers and image
+  // preload must stay quiet while the hero is imminent, otherwise the
+  // target rect captured by the caller can go stale during the decode wait.
+  heroAnimationLockCount += 1
+  setImagePreloadPaused(true)
 
   if (snapshot.imageSrc) {
     if (hasRecentlyDecodedImage(snapshot.imageSrc)) {
@@ -603,6 +609,13 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     }
   }
 
+  // cleanupAllHeroes() may have run while awaiting image decode (user tapped
+  // another card, page hidden). It already reset the lock and preload state,
+  // so bail out without touching the DOM or the counters.
+  if (animationGeneration !== heroRuntimeGeneration) {
+    return Promise.resolve()
+  }
+
   const finalize = () => {
     if (finalized) return
     finalized = true
@@ -615,6 +628,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     if (animation && activeHeroAnimations.has(animation)) {
       activeHeroAnimations.delete(animation)
     }
+    extraAnimations.forEach((anim) => {
+      activeHeroAnimations.delete(anim)
+    })
+    extraAnimations.length = 0
 
     if (activeHeroNodes.has(node)) {
       activeHeroNodes.delete(node)
@@ -637,12 +654,9 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     }
   }
 
-  heroAnimationLockCount += 1
-  setImagePreloadPaused(true)
-
   // Append overlay at the snapshot position and start animation immediately.
-  // No async wait — the source image was just visible on screen so the
-  // browser already has it decoded.  A brief partially-decoded frame is
+  // The source image was just visible on screen so in the common case the
+  // decode wait above resolves instantly.  A brief partially-decoded frame is
   // far less noticeable than a 350ms stall before the animation starts.
   node.style.left = `${snapshot.left}px`
   node.style.top = `${snapshot.top}px`
@@ -713,22 +727,26 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         { duration, easing, fill: 'both' }
       )
 
-      // animate clip borderRadius to compensate scaling
-      const clip = node.querySelector('[data-hero-clip]')
-      if (clip) {
+      // Animate clip + shadow borderRadius to compensate scaling. The shadow
+      // layer scales with the node too, so it needs the same compensation to
+      // keep its corners aligned with the clipped content.
+      const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
+      const compensatedFrom = `${radiusFrom}px`
+      const radiusLayers = [
+        node.querySelector('[data-hero-clip]'),
+        node.querySelector('[data-hero-shadow]')
+      ].filter(Boolean)
+      radiusLayers.forEach((layer) => {
         try {
-          const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
-          const compensatedFrom = `${radiusFrom}px`
-          try { clip.style.borderRadius = compensatedFrom } catch (e) {}
-          const clipAnim = clip.animate(
+          layer.style.borderRadius = compensatedFrom
+          const radiusAnim = layer.animate(
             [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
             { duration, easing, fill: 'both' }
           )
-          activeHeroAnimations.add(clipAnim)
-          clipAnim.addEventListener('finish', () => {}, { once: true })
-          clipAnim.addEventListener('cancel', () => {}, { once: true })
+          activeHeroAnimations.add(radiusAnim)
+          extraAnimations.push(radiusAnim)
         } catch (e) {}
-      }
+      })
     } else {
       const keyframes = [
         {
@@ -748,6 +766,20 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       ]
 
       animation = node.animate(keyframes, { duration, easing, fill: 'both' })
+
+      // The clip inherits the node's animated radius, but the shadow layer
+      // has its own fixed radius — animate it alongside.
+      const shadowLayer = node.querySelector('[data-hero-shadow]')
+      if (shadowLayer) {
+        try {
+          const shadowAnim = shadowLayer.animate(
+            [ { borderRadius: `${radiusFrom}px` }, { borderRadius: `${radiusTo}px` } ],
+            { duration, easing, fill: 'both' }
+          )
+          activeHeroAnimations.add(shadowAnim)
+          extraAnimations.push(shadowAnim)
+        } catch (e) {}
+      }
     }
   } catch (e) {
     finalize()
@@ -882,8 +914,9 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady }
   const targetEl = resolveTargetEl(pendingBackHero.goodsId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
-    pendingBackHero = null
+    // Target card not rendered yet (virtual list, KeepAlive activation).
+    // Keep the pending snapshot so callers can retry next frame — the TTL
+    // check above bounds how long it can linger.
     return false
   }
 
@@ -1005,7 +1038,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
   }
 }
 
-export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
+export function playEventHeroBack({ currentPath = '', resolveTargetEl, onReady }) {
   if (!pendingBackEventHero) return false
   if (!isPendingBackHeroValid(pendingBackEventHero, currentPath)) {
     cleanupAllHeroes()
@@ -1019,7 +1052,8 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
   const targetEl = resolveTargetEl(pendingBackEventHero.eventId)
   const targetRect = readRect(targetEl)
   if (!targetRect) {
-    cleanupAllHeroes()
+    // Target card not rendered yet — keep the pending snapshot so callers
+    // can retry next frame; the TTL check above bounds how long it lingers.
     return false
   }
 
@@ -1035,7 +1069,8 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl }) {
     {
       duration: BACK_DURATION_MS,
       direction: 'back',
-      targetEl
+      targetEl,
+      onReady
     }
   ).finally(() => {
     releaseScrollLock()

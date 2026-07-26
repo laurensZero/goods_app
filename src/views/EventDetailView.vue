@@ -347,6 +347,8 @@ async function playEventHeroForwardWhenReady() {
         tryPlayLinkedGoodsBackHero()
         return true
       }
+      // 播放调用已消费 pending 快照，继续空转只会推迟封面显示
+      return false
     }
     await waitForNextFrame()
   }

@@ -280,7 +280,7 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -590,10 +590,11 @@ function resolveEventCardCover(eventId) {
   return cardRoot
 }
 
-function tryPlayEventBackHero() {
+function tryPlayEventBackHero(onReady) {
   return playEventHeroBack({
     currentPath: route.fullPath,
-    resolveTargetEl: resolveEventCardCover
+    resolveTargetEl: resolveEventCardCover,
+    onReady
   })
 }
 
@@ -613,12 +614,17 @@ function scheduleEventBackHeroRetry(attempt = 0, hooks = null) {
   cancelEventBackHeroRetry()
   eventBackHeroRetryRaf = window.requestAnimationFrame(() => {
     eventBackHeroRetryRaf = 0
-    const played = tryPlayEventBackHero()
+    const played = tryPlayEventBackHero(hooks?.onReady)
     if (played) {
       hooks?.onPlayed?.()
       return
     }
+    if (!hasPendingEventHeroBack(route.fullPath)) {
+      hooks?.onGiveUp?.()
+      return
+    }
     if (attempt + 1 >= EVENT_BACK_HERO_RETRY_MAX_FRAMES) {
+      cleanupAllHeroes()
       hooks?.onGiveUp?.()
       return
     }
@@ -644,7 +650,11 @@ function deferActivatedRestoreAfterBackHero(runRestore) {
   }
 
   scheduleEventBackHeroRetry(0, {
-    onPlayed: () => {
+    // onReady 在 overlay 真正起播时触发（图片解码等待之后），
+    // 让滚动恢复落在动画结束后而不是动画中途。
+    onReady: () => {
+      if (settled) return
+      clearEventBackHeroDeferredRestoreTimer()
       eventBackHeroDeferredRestoreTimer = window.setTimeout(() => {
         eventBackHeroDeferredRestoreTimer = 0
         settle()

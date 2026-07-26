@@ -98,7 +98,12 @@ export function useGoodsBackHero({
     }
 
     scheduleGoodsBackHeroRetry(0, {
-      onPlayed: () => {
+      // onReady fires when the overlay actually starts animating (after any
+      // image-decode wait), so the restore lands right after the animation
+      // finishes instead of possibly mid-flight.
+      onReady: () => {
+        if (settled) return
+        clearDeferredRestoreTimer()
         deferredRestoreTimer = window.setTimeout(() => {
           deferredRestoreTimer = 0
           settle()

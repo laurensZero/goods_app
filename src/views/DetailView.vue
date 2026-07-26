@@ -427,8 +427,9 @@ async function playGoodsHeroForwardWhenReady() {
       const heroPromise = await playGoodsHeroForward(props.id, targetEl)
       if (heroPromise) {
         await heroPromise
-        return
       }
+      // 播放调用已消费 pending 快照，无论成败继续空转只会推迟封面显示
+      return
     }
     await waitForNextFrame()
   }
