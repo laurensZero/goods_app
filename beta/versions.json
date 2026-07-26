@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.3",
+    "url": "bundle-20260726.3.zip",
+    "hash": "9f0e8a4ad39d7effa54e832be108a40b3c67f4ebdb2a851d9df4cd87d7845aa5",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化英雄动画逻辑，添加 onReady 回调以改善动画体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T10:38:52Z"
+  },
+  {
     "version": "20260726.2",
     "url": "bundle-20260726.2.zip",
     "hash": "a45274acf8f5cc45a0df2f5c041aa24aeedafed39cef07a8e49993751b659aa1",
@@ -16,14 +25,5 @@
     "notes": "- refactor: 重构批量添加功能",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T08:04:03Z"
-  },
-  {
-    "version": "20260725.6",
-    "url": "bundle-20260725.6.zip",
-    "hash": "6a9bee7afd8be2070ac8068994213cb97aee6072580033f0584354b783a28b20",
-    "minNativeVersion": null,
-    "notes": "- feat: 统一对话框过渡动画，替换为sheet-pop效果",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-25T15:55:08Z"
   }
 ]
