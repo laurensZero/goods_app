@@ -5,10 +5,12 @@
 // 日期分类结果缓存在 /tmp/moe_days.json（重跑跳过约 370 个请求），SQL 输出到 stdout。
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const BASE = 'https://zh.moegirl.org.cn'
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-const DAYS_CACHE = '/tmp/moe_days.json'
+const DAYS_CACHE = join(tmpdir(), 'moe_days.json')
 const MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 // 目标 IP：ip 写入库的名称（尽量与用户商品里的写法一致），categories 为萌百分类名候选（依次尝试）
@@ -23,7 +25,7 @@ const TARGET_IPS = [
   { ip: '鬼灭之刃', aliases: ['鬼滅の刃', 'Demon Slayer', '鬼灭'], categories: ['鬼灭之刃'] },
   { ip: '五等分的花嫁', aliases: ['五等分の花嫁', '五等分的新娘'], categories: ['五等分的花嫁', '五等分的新娘'] },
   { ip: '世界计划', aliases: ['プロジェクトセカイ', 'Project Sekai', 'pjsk', '世界计划 彩色舞台'], categories: ['世界计划 彩色舞台 feat.初音未来', '世界计划'] },
-  { ip: 'LoveLive!', aliases: ['ラブライブ!', 'LL'], categories: ['LoveLive!系列', 'LoveLive!'] },
+  { ip: 'LoveLive!', aliases: ['ラブライブ!', 'LL'], categories: ['LoveLive!系列', 'LoveLive!', 'LoveLive!Sunshine!!', 'LoveLive!虹咲学园学园偶像同好会', 'LoveLive!SuperStar!!'] },
   { ip: 'BanG Dream!', aliases: ['バンドリ!', '邦多利'], categories: ['BanG Dream!'] },
   { ip: '东京复仇者', aliases: ['東京卍リベンジャーズ', 'Tokyo Revengers', '东复'], categories: ['东京复仇者'] },
   { ip: '我推的孩子', aliases: ['推しの子', 'Oshi no Ko', '【我推的孩子】'], categories: ['我推的孩子', '【我推的孩子】'] },
@@ -144,14 +146,25 @@ const dayMap = await buildDayMap()
 const emittedRows = []
 
 for (const target of TARGET_IPS) {
-  let members = null
-  let usedCategory = ''
-  for (const category of target.categories) {
-    members = await fetchCategoryMembers(category)
-    if (members && members.length) { usedCategory = category; break }
+  // 角色页通常挂在「<作品>角色」分类下，作品主分类只兜底；全部候选合并成员
+  const candidates = [...new Set([
+    ...target.categories.map((c) => `${c}角色`),
+    `${target.ip}角色`,
+    ...target.categories
+  ])]
+  const memberSet = new Set()
+  const usedCategories = []
+  for (const category of candidates) {
+    const members = await fetchCategoryMembers(category)
+    if (members && members.length) {
+      usedCategories.push(`${category}(${members.length})`)
+      for (const title of members) memberSet.add(title)
+    }
   }
-  if (!members || !members.length) {
-    console.error(`[skip] ${target.ip}: 分类不存在或为空（试过 ${target.categories.join(' / ')}）`)
+  const members = [...memberSet]
+  const usedCategory = usedCategories.join(' + ')
+  if (!members.length) {
+    console.error(`[skip] ${target.ip}: 分类不存在或为空（试过 ${candidates.join(' / ')}）`)
     continue
   }
 

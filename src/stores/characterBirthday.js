@@ -194,20 +194,26 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
         return '已弹出预览卡片'
       }
 
+      // 测试模式强制重查云端，避免 24h 缓存吃掉刚在 Dashboard 加的行
+      const run = async () => {
+        await refresh({ force: true })
+        await checkAndDecide()
+      }
+
       const match = String(date).trim().match(/^(?:(\d{4})[-/])?(\d{1,2})[-/](\d{1,2})$/)
       if (match) {
         const year = match[1] ? Number(match[1]) : new Date().getFullYear()
         dateOverride.value = new Date(year, Number(match[2]) - 1, Number(match[3]))
-        void checkAndDecide()
-        return `按 ${dateOverride.value.toLocaleDateString()} 模拟真实检查（该日期无达标角色生日则不弹；关闭弹窗后恢复）`
+        void run()
+        return `按 ${dateOverride.value.toLocaleDateString()} 模拟真实检查（已强制刷新云端缓存；关闭弹窗后恢复）`
       }
 
       dateOverride.value = null
       try {
         localStorage.removeItem(RECORD_KEY)
       } catch { /* ignore */ }
-      void checkAndDecide()
-      return '已清除今日标记并触发真实检查（无今日生日则不弹）'
+      void run()
+      return '已清除今日标记并强制刷新后触发真实检查（无今日生日则不弹）'
     }
   }
 
