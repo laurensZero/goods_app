@@ -2,11 +2,10 @@
 /**
  * 出谷(卖出)统计工具。
  *
- * 卖出数据存放在 statusTimeline 条目的 price/platform/fee 字段上:
- * - '在售' 条目的 price = 挂牌价
- * - '已出' 条目的 price = 成交价,fee = 手续费
- * 逐件卖出时条目带 unitIndex;整条商品卖出时条目不带 unitIndex,
- * 此时 price 视为该批(count 件)的成交总价。
+ * 卖出数据存在 goods 的独立列上,含义由当前状态决定:
+ * - 整条:sellPrice/sellPlatform/sellFee/sellDate(collectStatus 在售=挂牌信息,已出=成交信息;
+ *   price 语义为该条全部数量的总价)
+ * - 逐件:unitSaleInfoList[i] = { price, platform, fee, date },含义由 unitCollectStatusList[i] 决定
  *
  * 输入兼容原始 store item(actualPrice 字符串)和视图层 item
  * (带 actualPriceCNYNumber 等折算字段,口径与 statistics.js 一致)。
@@ -53,57 +52,23 @@ export function getUnitCost(item, unitIndex = null) {
   return getItemUnitPriceNumber(item) + shippingShare
 }
 
-/**
- * 某个记录 scope(单件或整条 count 件)的入手总成本。
- * 与 getUnitCost 同口径:逐件价缺失的件单独回退整条实付价,不做全有或全无
- */
-function getScopeCost(item, unitIndex, count) {
-  if (unitIndex != null && Number.isInteger(unitIndex)) {
-    return getUnitCost(item, unitIndex)
-  }
+/** 整条 count 件的入手总成本(与 getUnitCost 同口径,逐件回退) */
+function getScopeCost(item, count) {
   let total = 0
   for (let i = 0; i < count; i++) total += getUnitCost(item, i)
   return total
 }
 
-function findLatestEntry(timeline, status, unitIndex) {
-  let best = null
-  for (const entry of timeline) {
-    if (!entry || typeof entry !== 'object') continue
-    if (String(entry.status || '').trim() !== status) continue
-    if (unitIndex == null) {
-      if (Number.isInteger(entry.unitIndex)) continue
-    } else if (entry.unitIndex !== unitIndex) {
-      continue
-    }
-    if (!best) {
-      best = entry
-      continue
-    }
-    const cmp = String(entry.at || '').localeCompare(String(best.at || ''))
-    if (cmp > 0) {
-      best = entry
-    } else if (cmp === 0) {
-      // 同日平局:优先带价格的条目(双端合并可能留下同事件的有价/无价两条)
-      const entryPriced = toNumber(entry.price) > 0
-      const bestPriced = toNumber(best.price) > 0
-      if (entryPriced || !bestPriced) best = entry
-    }
-  }
-  return best
-}
-
-function makeRecord(item, entry, unitIndex, count, type, cost) {
-  const price = toNumber(entry?.price)
+function makeRecord(item, info, unitIndex, count, type, cost) {
+  const price = toNumber(info?.price)
   const hasPrice = price > 0
-  const fee = toNumber(entry?.fee)
+  const fee = toNumber(info?.fee)
   return {
     type,
     unitIndex,
     count,
-    at: String(entry?.at || '').trim(),
-    platform: String(entry?.platform || '').trim(),
-    note: String(entry?.note || '').trim(),
+    at: String(info?.date || '').trim(),
+    platform: String(info?.platform || '').trim(),
     price,
     fee,
     hasPrice,
@@ -113,55 +78,38 @@ function makeRecord(item, entry, unitIndex, count, type, cost) {
 }
 
 /**
- * 提取一条商品的卖出/挂牌记录。
- * 当前状态为准(时间线条目只是记录来源):逐件状态列表存在时逐件判断,
- * 否则整条按 collectStatus 判断。撤回状态后残留的时间线条目不会计入。
+ * 提取一条商品的卖出/挂牌记录(以当前状态为准)。
  * @param {object} item
  * @returns {{ sold: object[], listing: object[] }}
  */
 export function extractSaleEntries(item) {
   if (!item || item.isWishlist) return { sold: [], listing: [] }
-  const timeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
   const qty = getQuantity(item)
   const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
+  const unitInfos = Array.isArray(item.unitSaleInfoList) ? item.unitSaleInfoList : []
   const sold = []
   const listing = []
 
   if (unitStatuses.length > 0) {
-    const missingByStatus = new Map([[SOLD_STATUS, []], [LISTING_STATUS, []]])
     for (let i = 0; i < qty; i++) {
       // 列表短于 quantity 时保守回退「已拥有」——聚合状态若是「已出」会把未卖的件虚增进账本
       const current = String(unitStatuses[i] || '已拥有').trim()
       if (current !== SOLD_STATUS && current !== LISTING_STATUS) continue
-      const entry = findLatestEntry(timeline, current, i)
-      if (entry) {
-        const record = makeRecord(item, entry, i, 1, current === SOLD_STATUS ? 'sold' : 'listing', getUnitCost(item, i))
-        ;(current === SOLD_STATUS ? sold : listing).push(record)
-      } else {
-        missingByStatus.get(current).push(i)
-      }
-    }
-    // 没有逐件条目的件(如整条卖出后才启用逐件状态):合并为一条记录,回退到无 unitIndex 的汇总条目。
-    // 汇总条目的 price 是"该批总价",只有缺失件数恰好等于整条数量时才能可靠归属——
-    // 部分件另有逐件条目或已撤回时,总价无法拆分到缺失件,计入会虚增回血/重复计价,此时不计价只保留日期/平台
-    for (const [status, indexes] of missingByStatus) {
-      if (indexes.length === 0) continue
-      const entry = findLatestEntry(timeline, status, null)
-      const priceAttributable = indexes.length === qty
-      const safeEntry = entry && !priceAttributable
-        ? { status: entry.status, at: entry.at, platform: entry.platform, note: entry.note }
-        : entry
-      const cost = indexes.reduce((sum, i) => sum + getUnitCost(item, i), 0)
-      const record = makeRecord(item, safeEntry, null, indexes.length, status === SOLD_STATUS ? 'sold' : 'listing', cost)
-      ;(status === SOLD_STATUS ? sold : listing).push(record)
+      const info = unitInfos[i] || null
+      const record = makeRecord(item, info, i, 1, current === SOLD_STATUS ? 'sold' : 'listing', getUnitCost(item, i))
+      ;(current === SOLD_STATUS ? sold : listing).push(record)
     }
   } else {
     const current = String(item.collectStatus || '').trim()
-    if (current === SOLD_STATUS) {
-      sold.push(makeRecord(item, findLatestEntry(timeline, SOLD_STATUS, null), null, qty, 'sold', getScopeCost(item, null, qty)))
-    } else if (current === LISTING_STATUS) {
-      listing.push(makeRecord(item, findLatestEntry(timeline, LISTING_STATUS, null), null, qty, 'listing', getScopeCost(item, null, qty)))
+    if (current !== SOLD_STATUS && current !== LISTING_STATUS) return { sold, listing }
+    const info = {
+      price: item.sellPrice,
+      platform: item.sellPlatform,
+      fee: item.sellFee,
+      date: item.sellDate
     }
+    const record = makeRecord(item, info, null, qty, current === SOLD_STATUS ? 'sold' : 'listing', getScopeCost(item, qty))
+    ;(current === SOLD_STATUS ? sold : listing).push(record)
   }
 
   return { sold, listing }

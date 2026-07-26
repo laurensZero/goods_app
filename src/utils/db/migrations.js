@@ -160,4 +160,24 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 8,
+    description: 'Add sale info columns (sellPrice/sellPlatform/sellFee/sellDate/unitSaleInfoList)',
+    up: async (db) => {
+      // 出谷信息独立列:含义由 collectStatus/unitCollectStatusList 决定(在售=挂牌,已出=成交)
+      const cols = await db.getTableColumns('goods')
+      const additions = [
+        ['sellPrice', "TEXT DEFAULT ''"],
+        ['sellPlatform', "TEXT DEFAULT ''"],
+        ['sellFee', "TEXT DEFAULT ''"],
+        ['sellDate', "TEXT DEFAULT ''"],
+        ['unitSaleInfoList', "TEXT DEFAULT '[]'"]
+      ]
+      for (const [name, type] of additions) {
+        if (!cols.has(name)) {
+          await db.run(`ALTER TABLE goods ADD COLUMN ${name} ${type}`)
+        }
+      }
+    }
+  },
 ]

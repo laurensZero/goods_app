@@ -79,10 +79,10 @@ export function timelineSnapshotDiffers(a, b) {
 }
 
 /**
- * 向状态时间线追加一条新记录
+ * 向状态时间线追加一条新记录(纯状态历史,卖出金额数据存 goods 的 sell* 列)
  * @param {import('@/types/models').StatusTimelineEntry[]} timeline
  * @param {string} status - 新状态值
- * @param {{ at?: string, note?: string, unitIndex?: number, price?: string, platform?: string, fee?: string }} [options]
+ * @param {{ at?: string, note?: string, unitIndex?: number }} [options]
  * @returns {import('@/types/models').StatusTimelineEntry[]}
  */
 export function appendStatusTimelineEntry(timeline, status, options = {}) {
@@ -92,11 +92,9 @@ export function appendStatusTimelineEntry(timeline, status, options = {}) {
   }
   if (options.note) entry.note = options.note
   if (options.unitIndex != null) entry.unitIndex = options.unitIndex
-  if (options.price != null && String(options.price).trim() !== '') entry.price = String(options.price).trim()
-  if (options.platform) entry.platform = String(options.platform).trim()
-  if (options.fee != null && String(options.fee).trim() !== '') entry.fee = String(options.fee).trim()
   return [...(Array.isArray(timeline) ? timeline : []), entry]
 }
+
 
 /**
  * 批量更新多件商品的状态时间线（unitCollectStatusList 变更时）

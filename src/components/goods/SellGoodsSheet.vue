@@ -219,14 +219,17 @@ const priceLabel = computed(() =>
   form.value.status === '已出' ? t('sale.dealPrice') : t('sale.listingPrice')
 )
 
-/** 历史平台(扫描全部商品时间线按频次排序) + 内置常用平台 */
+/** 历史平台(扫描全部商品的 sell* 列按频次排序) + 内置常用平台 */
 const platformChips = computed(() => {
   const counts = new Map()
+  const bump = (value) => {
+    const platform = String(value || '').trim()
+    if (platform) counts.set(platform, (counts.get(platform) || 0) + 1)
+  }
   for (const item of store.list) {
-    const timeline = Array.isArray(item?.statusTimeline) ? item.statusTimeline : []
-    for (const entry of timeline) {
-      const platform = String(entry?.platform || '').trim()
-      if (platform) counts.set(platform, (counts.get(platform) || 0) + 1)
+    bump(item?.sellPlatform)
+    for (const info of Array.isArray(item?.unitSaleInfoList) ? item.unitSaleInfoList : []) {
+      bump(info?.platform)
     }
   }
   const history = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p)
@@ -298,14 +301,7 @@ async function handleSubmit() {
   saving.value = true
   try {
     const status = form.value.status
-    const saleFields = showPriceFields.value
-      ? {
-          price: form.value.price,
-          platform: form.value.platform,
-          fee: showFeeField.value ? form.value.fee : ''
-        }
-      : {}
-    const baseOptions = { at: form.value.date, note: form.value.note, ...saleFields }
+    const baseOptions = { at: form.value.date, note: form.value.note }
 
     let timeline = Array.isArray(props.item.statusTimeline) ? props.item.statusTimeline : []
     const updates = {}
@@ -314,7 +310,7 @@ async function handleSubmit() {
       // 手续费是整笔金额(平台按交易收取),逐件均摊写入,否则统计会按件数重复扣除;
       // 均摊到分为止,余数记在最后一件上保证总和精确
       const selectedIndexes = [...selectedUnits.value]
-      const totalFee = Number(saleFields.fee)
+      const totalFee = showFeeField.value ? Number(form.value.fee) : NaN
       const feeShares = new Map()
       if (Number.isFinite(totalFee) && totalFee > 0 && selectedIndexes.length > 0) {
         const base = Math.floor((totalFee / selectedIndexes.length) * 100) / 100
@@ -327,15 +323,22 @@ async function handleSubmit() {
       }
 
       const unitList = [...currentUnitStatuses.value]
+      const unitInfos = Array.isArray(props.item.unitSaleInfoList) ? [...props.item.unitSaleInfoList] : []
       for (const index of selectedIndexes) {
         unitList[index] = status
-        timeline = appendStatusTimelineEntry(timeline, status, {
-          ...baseOptions,
-          fee: feeShares.get(index) ?? '',
-          unitIndex: index
-        })
+        timeline = appendStatusTimelineEntry(timeline, status, { ...baseOptions, unitIndex: index })
+        if (showPriceFields.value) {
+          while (unitInfos.length <= index) unitInfos.push(null)
+          unitInfos[index] = {
+            price: form.value.price,
+            platform: form.value.platform,
+            fee: feeShares.get(index) ?? '',
+            date: form.value.date
+          }
+        }
       }
       updates.unitCollectStatusList = unitList
+      updates.unitSaleInfoList = unitInfos
       updates.collectStatus = resolvePrimaryCollectStatus({
         unitCollectStatusList: unitList,
         collectStatus: status
@@ -343,6 +346,12 @@ async function handleSubmit() {
     } else {
       timeline = appendStatusTimelineEntry(timeline, status, baseOptions)
       updates.collectStatus = status
+      if (showPriceFields.value) {
+        updates.sellPrice = form.value.price
+        updates.sellPlatform = form.value.platform
+        updates.sellFee = showFeeField.value ? form.value.fee : ''
+        updates.sellDate = form.value.date
+      }
     }
 
     updates.statusTimeline = timeline

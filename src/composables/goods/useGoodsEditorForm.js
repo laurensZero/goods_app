@@ -62,6 +62,11 @@ export function useGoodsEditorForm(options = {}) {
     actualPriceCurrency: 'CNY',
     collectStatus: '已拥有',
     shippingFee: '',
+    sellPrice: '',
+    sellPlatform: '',
+    sellFee: '',
+    sellDate: '',
+    unitSaleInfoList: [],
     statusTimeline: []
   })
 
@@ -275,6 +280,11 @@ export function useGoodsEditorForm(options = {}) {
         form.unitActualPriceList = Array.isArray(item.unitActualPriceList) ? [...item.unitActualPriceList] : []
         form.unitCharacterList = Array.isArray(item.unitCharacterList) ? [...item.unitCharacterList] : []
         form.unitCollectStatusList = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
+        form.sellPrice = item.sellPrice ?? ''
+        form.sellPlatform = item.sellPlatform ?? ''
+        form.sellFee = item.sellFee ?? ''
+        form.sellDate = item.sellDate ?? ''
+        form.unitSaleInfoList = Array.isArray(item.unitSaleInfoList) ? item.unitSaleInfoList.map((v) => (v ? { ...v } : null)) : []
         showUnitAcquiredAtInput.value = form.unitAcquiredAtList.some((value) => !!String(value || '').trim())
         showUnitActualPriceInput.value = form.unitActualPriceList.some((value) => !!String(value || '').trim())
         showUnitCharacterInput.value = form.unitCharacterList.some((value) => !!String(value || '').trim())

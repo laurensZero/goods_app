@@ -146,6 +146,41 @@ function normalizeUnitCollectStatusList(list, quantity) {
   return normalized.some((value) => value && value !== '已拥有') ? normalized : []
 }
 
+function normalizeSellDateValue(value) {
+  const str = String(value || '').trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(str) ? str : ''
+}
+
+/**
+ * 逐件出谷信息列表:每件 {price, platform, fee, date},含义由 unitCollectStatusList[i] 决定
+ * (在售=挂牌信息,已出=成交信息)。空对象归一化为 null,尾部 null 裁剪。
+ */
+function normalizeUnitSaleInfoList(list, quantity) {
+  const quantityNumber = parseQuantity(quantity)
+  if (quantityNumber < 2 || !Array.isArray(list)) return []
+
+  const normalized = list.slice(0, quantityNumber).map((info) => {
+    if (!info || typeof info !== 'object') return null
+    const price = normalizeUnitPriceValue(info.price)
+    const fee = normalizeUnitPriceValue(info.fee)
+    const platform = String(info.platform || '').trim()
+    const date = normalizeSellDateValue(info.date)
+    if (!price && !fee && !platform && !date) return null
+    const result = {}
+    if (price) result.price = price
+    if (platform) result.platform = platform
+    if (fee) result.fee = fee
+    if (date) result.date = date
+    return result
+  })
+
+  while (normalized.length > 0 && !normalized[normalized.length - 1]) {
+    normalized.pop()
+  }
+
+  return normalized
+}
+
 function resolveCompleteUnitActualPriceTotal(list, quantity) {
   const quantityNumber = parseQuantity(quantity)
   if (quantityNumber < 2 || !Array.isArray(list) || list.length < quantityNumber) return ''
@@ -186,17 +221,12 @@ function normalizeStatusTimeline(list) {
       const at = String(entry.at || '').trim()
       if (!status || !/^\d{4}-\d{2}-\d{2}$/.test(at)) return null
       if (!VALID_COLLECT_STATUSES.has(status)) return null
+      // 时间线是纯状态历史;卖出金额数据存 sell* 列,进入此处前已由 harvest 收割
       const result = { status, at }
       if (entry.note) result.note = String(entry.note).trim()
       if (entry.unitIndex != null && Number.isInteger(entry.unitIndex)) result.unitIndex = entry.unitIndex
-      const price = String(entry.price ?? '').trim()
-      if (price && Number.isFinite(Number(price))) result.price = price
-      const fee = String(entry.fee ?? '').trim()
-      if (fee && Number.isFinite(Number(fee))) result.fee = fee
-      const platform = String(entry.platform ?? '').trim()
-      if (platform) result.platform = platform
-      // 去重：相同 status + at + unitIndex + note + price + platform + fee 只保留一条
-      const key = `${result.status}|${result.at}|${result.unitIndex ?? ''}|${result.note ?? ''}|${result.price ?? ''}|${result.platform ?? ''}|${result.fee ?? ''}`
+      // 去重：相同 status + at + unitIndex + note 只保留一条
+      const key = `${result.status}|${result.at}|${result.unitIndex ?? ''}|${result.note ?? ''}`
       if (seen.has(key)) return null
       seen.add(key)
       return result
@@ -363,6 +393,12 @@ function normalizeGoodsInput(data, fallbackId = '') {
     actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY',
     collectStatus: normalizeCollectStatus(data.collectStatus),
     shippingFee: String(data.shippingFee || '').trim(),
+    // 出谷信息:含义由状态决定(在售=挂牌信息,已出=成交信息)
+    sellPrice: isWishlist ? '' : normalizeUnitPriceValue(data.sellPrice),
+    sellPlatform: isWishlist ? '' : String(data.sellPlatform || '').trim(),
+    sellFee: isWishlist ? '' : normalizeUnitPriceValue(data.sellFee),
+    sellDate: isWishlist ? '' : normalizeSellDateValue(data.sellDate),
+    unitSaleInfoList: isWishlist ? [] : normalizeUnitSaleInfoList(data.unitSaleInfoList, data.quantity),
     statusTimeline: normalizeStatusTimeline(data.statusTimeline)
   }
 }
@@ -429,6 +465,14 @@ function mergeGoodsRecord(existing, incoming) {
     note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
     collectStatus: existing.collectStatus || incoming.collectStatus,
     shippingFee: existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee,
+    sellPrice: existing.sellPrice || incoming.sellPrice || '',
+    sellPlatform: existing.sellPlatform || incoming.sellPlatform || '',
+    sellFee: existing.sellFee || incoming.sellFee || '',
+    sellDate: existing.sellDate || incoming.sellDate || '',
+    unitSaleInfoList: normalizeUnitSaleInfoList(
+      [...(existing.unitSaleInfoList || []), ...(incoming.unitSaleInfoList || [])],
+      mergedQuantity
+    ),
     statusTimeline: normalizeStatusTimeline([
       ...(existing.statusTimeline || []),
       ...(incoming.statusTimeline || [])

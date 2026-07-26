@@ -4,7 +4,7 @@ import { toCamelCase } from '@/utils/sync/columnMapping'
 import { normalizeGoodsInput } from '@/stores/goodsHelpers'
 
 // 模拟 Supabase 同步回环:本地 item → 上传行(snake_case) → 拉取转换(camelCase) → 归一化入库
-describe('supabase sync round-trip preserves sale fields in statusTimeline', () => {
+describe('supabase sync round-trip preserves sell* columns', () => {
   const localItem = {
     id: 'g1',
     name: '吧唧',
@@ -13,42 +13,40 @@ describe('supabase sync round-trip preserves sale fields in statusTimeline', () 
     actualPrice: '50',
     collectStatus: '在售',
     unitCollectStatusList: ['已出', '在售'],
-    statusTimeline: [
-      { status: '已拥有', at: '2026-01-01' },
-      { status: '已出', at: '2026-06-01', unitIndex: 0, price: '120', platform: '闲鱼', fee: '5' },
-      { status: '在售', at: '2026-07-01', unitIndex: 1, price: '90', platform: '千岛' }
+    sellPrice: '130',
+    sellPlatform: '闲鱼',
+    sellFee: '5',
+    sellDate: '2026-06-01',
+    unitSaleInfoList: [
+      { price: '70', platform: '闲鱼', fee: '3', date: '2026-06-01' },
+      { price: '90', platform: '千岛', date: '2026-07-01' }
     ],
     updatedAt: 1753500000000
   }
 
-  it('upload row keeps sale fields inside status_timeline', () => {
+  it('upload row carries snake_case sell columns', () => {
     const [row] = toGoodsRows([localItem], () => 'device-1', false, 'user-1')
-    expect(row.status_timeline).toBeDefined()
-    const soldEntry = row.status_timeline.find((e) => e.status === '已出')
-    expect(soldEntry).toMatchObject({ price: '120', platform: '闲鱼', fee: '5', unitIndex: 0 })
+    expect(row.sell_price).toBe('130')
+    expect(row.sell_platform).toBe('闲鱼')
+    expect(row.sell_fee).toBe('5')
+    expect(row.sell_date).toBe('2026-06-01')
+    expect(row.unit_sale_info_list[0]).toMatchObject({ price: '70', fee: '3' })
   })
 
-  it('pull conversion + normalizeGoodsInput keeps sale fields intact', () => {
+  it('pull conversion + normalizeGoodsInput keeps sale columns intact', () => {
     const [row] = toGoodsRows([localItem], () => 'device-1', false, 'user-1')
-    // 模拟 reader.mapGoods:jsonb 列由 supabase-js 直接返回数组/对象
     const pulled = toCamelCase(row)
     pulled.isWishlist = Number(pulled.isWishlist) === 1
     pulled.quantity = Number(pulled.quantity) || 1
 
     const normalized = normalizeGoodsInput(pulled, 'g1')
-    expect(normalized.statusTimeline).toContainEqual(
-      { status: '已出', at: '2026-06-01', unitIndex: 0, price: '120', platform: '闲鱼', fee: '5' }
-    )
-    expect(normalized.statusTimeline).toContainEqual(
-      { status: '在售', at: '2026-07-01', unitIndex: 1, price: '90', platform: '千岛' }
-    )
-  })
-
-  it('tolerates status_timeline arriving as a JSON string (text column fallback)', () => {
-    const [row] = toGoodsRows([localItem], () => 'device-1', false, 'user-1')
-    const pulled = toCamelCase({ ...row, status_timeline: JSON.stringify(row.status_timeline) })
-    const normalized = normalizeGoodsInput(pulled, 'g1')
-    // 字符串形态下 normalizeStatusTimeline 会返回空数组 — 记录此行为以防列类型不是 jsonb
-    expect(Array.isArray(normalized.statusTimeline)).toBe(true)
+    expect(normalized.sellPrice).toBe('130')
+    expect(normalized.sellPlatform).toBe('闲鱼')
+    expect(normalized.sellFee).toBe('5')
+    expect(normalized.sellDate).toBe('2026-06-01')
+    expect(normalized.unitSaleInfoList).toEqual([
+      { price: '70', platform: '闲鱼', fee: '3', date: '2026-06-01' },
+      { price: '90', platform: '千岛', date: '2026-07-01' }
+    ])
   })
 })

@@ -93,9 +93,6 @@
           <button v-else-if="hasCollectStatusMatch(item, ['待发货'])" class="hero-action-btn" type="button" @click="markAsReceived">
             {{ t('goods.detail.markAsReceived') }}
           </button>
-          <button v-else-if="canSellItem" class="hero-action-btn" type="button" @click="showSellSheet = true">
-            {{ hasCollectStatusMatch(item, ['在售']) ? t('sale.recordDeal') : t('sale.action') }}
-          </button>
         </section>
 
         <section class="info-section">

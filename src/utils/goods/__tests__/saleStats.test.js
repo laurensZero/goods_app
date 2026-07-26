@@ -18,7 +18,11 @@ function makeItem(overrides = {}) {
     collectStatus: '已拥有',
     unitActualPriceList: [],
     unitCollectStatusList: [],
-    statusTimeline: [],
+    sellPrice: '',
+    sellPlatform: '',
+    sellFee: '',
+    sellDate: '',
+    unitSaleInfoList: [],
     ...overrides
   }
 }
@@ -30,7 +34,7 @@ describe('getUnitCost', () => {
   })
 
   it('prefers unitActualPriceList for a specific unit', () => {
-    const item = makeItem({ quantity: 2, actualPrice: '50', unitActualPriceList: ['40', '60'], shippingFee: '' })
+    const item = makeItem({ quantity: 2, actualPrice: '50', unitActualPriceList: ['40', '60'] })
     expect(getUnitCost(item, 1)).toBe(60)
   })
 
@@ -38,58 +42,46 @@ describe('getUnitCost', () => {
     const item = makeItem({ actualPrice: '1000', actualPriceCNYNumber: 48 })
     expect(getUnitCost(item)).toBe(48)
   })
-
-  it('falls back to official price when actual missing', () => {
-    const item = makeItem({ actualPrice: '', price: '80' })
-    expect(getUnitCost(item)).toBe(80)
-  })
 })
 
-describe('extractSaleEntries', () => {
-  it('returns sold record with price from latest sold entry', () => {
+describe('extractSaleEntries (column-driven)', () => {
+  it('builds sold record from sell* columns', () => {
     const item = makeItem({
       collectStatus: '已出',
-      statusTimeline: [
-        { status: '已拥有', at: '2026-01-01' },
-        { status: '已出', at: '2026-06-01', price: '150', platform: '闲鱼', fee: '5' }
-      ]
+      sellPrice: '150',
+      sellPlatform: '闲鱼',
+      sellFee: '5',
+      sellDate: '2026-06-01'
     })
     const { sold } = extractSaleEntries(item)
     expect(sold).toHaveLength(1)
-    expect(sold[0].price).toBe(150)
-    expect(sold[0].fee).toBe(5)
-    expect(sold[0].platform).toBe('闲鱼')
+    expect(sold[0]).toMatchObject({ price: 150, fee: 5, platform: '闲鱼', at: '2026-06-01' })
     expect(sold[0].profit).toBe(150 - 5 - 100)
   })
 
+  it('builds listing record when status is 在售', () => {
+    const item = makeItem({ collectStatus: '在售', sellPrice: '90', sellPlatform: '千岛' })
+    const { listing, sold } = extractSaleEntries(item)
+    expect(sold).toHaveLength(0)
+    expect(listing[0].price).toBe(90)
+  })
+
   it('flags missing price with hasPrice=false', () => {
-    const item = makeItem({
-      collectStatus: '已出',
-      statusTimeline: [{ status: '已出', at: '2026-06-01' }]
-    })
+    const item = makeItem({ collectStatus: '已出' })
     const { sold } = extractSaleEntries(item)
     expect(sold[0].hasPrice).toBe(false)
     expect(sold[0].profit).toBeNull()
   })
 
-  it('ignores stale listing entries after status was reverted', () => {
-    const item = makeItem({
-      collectStatus: '已拥有',
-      statusTimeline: [{ status: '在售', at: '2026-05-01', price: '200' }]
-    })
-    const { listing, sold } = extractSaleEntries(item)
-    expect(listing).toHaveLength(0)
-    expect(sold).toHaveLength(0)
-  })
-
-  it('handles per-unit sold and listing records', () => {
+  it('handles per-unit records via unitSaleInfoList', () => {
     const item = makeItem({
       quantity: 3,
       unitActualPriceList: ['30', '40', '50'],
       unitCollectStatusList: ['已出', '已拥有', '在售'],
-      statusTimeline: [
-        { status: '已出', at: '2026-06-01', unitIndex: 0, price: '80', fee: '2' },
-        { status: '在售', at: '2026-06-10', unitIndex: 2, price: '90', platform: '千岛' }
+      unitSaleInfoList: [
+        { price: '80', fee: '2', date: '2026-06-01' },
+        null,
+        { price: '90', platform: '千岛' }
       ]
     })
     const { sold, listing } = extractSaleEntries(item)
@@ -101,12 +93,13 @@ describe('extractSaleEntries', () => {
     expect(listing[0].price).toBe(90)
   })
 
-  it('whole-item scope counts quantity and treats price as lot total', () => {
+  it('whole-item scope counts quantity and treats sellPrice as lot total', () => {
     const item = makeItem({
       quantity: 2,
       actualPrice: '50',
       collectStatus: '已出',
-      statusTimeline: [{ status: '已出', at: '2026-06-01', price: '130' }]
+      sellPrice: '130',
+      sellDate: '2026-06-01'
     })
     const { sold } = extractSaleEntries(item)
     expect(sold[0].count).toBe(2)
@@ -115,41 +108,39 @@ describe('extractSaleEntries', () => {
   })
 
   it('skips wishlist items', () => {
-    const item = makeItem({ isWishlist: true, collectStatus: '已出' })
+    const item = makeItem({ isWishlist: true, collectStatus: '已出', sellPrice: '100' })
     expect(extractSaleEntries(item).sold).toHaveLength(0)
   })
 
-  it('uses latest sold entry when multiple exist', () => {
+  it('short unit status list falls back to owned, not the aggregate collectStatus', () => {
     const item = makeItem({
+      quantity: 3,
       collectStatus: '已出',
-      statusTimeline: [
-        { status: '已出', at: '2026-05-01', price: '100' },
-        { status: '已出', at: '2026-06-01', price: '120' }
-      ]
+      unitCollectStatusList: ['已出'],
+      unitSaleInfoList: [{ price: '80', date: '2026-06-01' }]
     })
-    expect(extractSaleEntries(item).sold[0].price).toBe(120)
+    const { sold } = extractSaleEntries(item)
+    expect(sold).toHaveLength(1)
+    expect(sold[0].unitIndex).toBe(0)
+  })
+
+  it('sold unit without unitSaleInfo shows as unpriced record', () => {
+    const item = makeItem({
+      quantity: 2,
+      unitCollectStatusList: ['已出', '已拥有'],
+      unitSaleInfoList: []
+    })
+    const { sold } = extractSaleEntries(item)
+    expect(sold).toHaveLength(1)
+    expect(sold[0].hasPrice).toBe(false)
   })
 })
 
 describe('buildSaleLedger / buildSaleSummary', () => {
   const list = [
-    makeItem({
-      id: 'a',
-      collectStatus: '已出',
-      actualPrice: '100',
-      statusTimeline: [{ status: '已出', at: '2026-06-01', price: '150', fee: '10' }]
-    }),
-    makeItem({
-      id: 'b',
-      collectStatus: '在售',
-      actualPrice: '60',
-      statusTimeline: [{ status: '在售', at: '2026-07-01', price: '90' }]
-    }),
-    makeItem({
-      id: 'c',
-      collectStatus: '已出',
-      statusTimeline: [{ status: '已出', at: '2026-07-10' }]
-    }),
+    makeItem({ id: 'a', collectStatus: '已出', actualPrice: '100', sellPrice: '150', sellFee: '10', sellDate: '2026-06-01' }),
+    makeItem({ id: 'b', collectStatus: '在售', actualPrice: '60', sellPrice: '90', sellDate: '2026-07-01' }),
+    makeItem({ id: 'c', collectStatus: '已出', sellDate: '2026-07-10' }),
     makeItem({ id: 'd', collectStatus: '已拥有' })
   ]
 
