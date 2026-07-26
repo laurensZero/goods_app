@@ -356,7 +356,8 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.sell-sheet-popup { overflow: visible; }
+/* 必须 hidden:内层背景要被弹层圆角裁剪;日期选择器自带 teleport,不受影响 */
+.sell-sheet-popup { overflow: hidden; }
 :global(.sell-sheet-popup.van-popup--bottom) { left: 0; right: 0; bottom: 0; width: 100%; }
 :global(.sell-sheet-popup.van-popup--center) { width: min(480px, calc(100vw - 48px)) !important; max-width: calc(100vw - 48px) !important; border-radius: 28px !important; }
 
