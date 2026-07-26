@@ -124,8 +124,9 @@ const store = useGoodsStore()
 
 const activeTab = ref('sold')
 
-const ledger = computed(() => buildSaleLedger(store.list))
-const summary = computed(() => buildSaleSummary(store.list))
+// 用视图层列表(含汇率折算字段),外币商品的成本按 CNY 口径参与盈亏
+const ledger = computed(() => buildSaleLedger(store.collectionViewList))
+const summary = computed(() => buildSaleSummary(store.collectionViewList))
 const activeRows = computed(() =>
   activeTab.value === 'sold' ? ledger.value.soldRows : ledger.value.listingRows
 )

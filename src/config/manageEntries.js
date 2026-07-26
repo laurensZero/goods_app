@@ -25,7 +25,7 @@ export function useManageEntries() {
   const rechargeStore = useRechargeStore()
   const surveyStore = useSurveyStore()
 
-  const saleSummary = computed(() => buildSaleSummary(goodsStore.list))
+  const saleSummary = computed(() => buildSaleSummary(goodsStore.collectionViewList))
   const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
   const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
   const eventCount = computed(() => eventsStore.list.length)

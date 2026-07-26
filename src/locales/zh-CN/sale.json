@@ -6,7 +6,7 @@
   "sale.listingPrice": "挂牌价",
   "sale.dealPrice": "成交价",
   "sale.pricePlaceholder": "输入价格",
-  "sale.perUnitHint": "价格为每件单价,将应用到所有选中件",
+  "sale.perUnitHint": "价格为每件单价,将应用到所有选中件;手续费为整笔金额,按件均摊",
   "sale.platform": "平台",
   "sale.platformPlaceholder": "输入或选择平台",
   "sale.fee": "手续费",

@@ -34,9 +34,11 @@ async function addMultipleGoods(items, list) {
     const clean = Object.fromEntries(
       Object.entries(rawItem).filter(([key]) => !key.startsWith('_'))
     )
-    const normalized = ensureInitialTimeline(normalizeGoodsInput(clean, String(now + index)))
+    const normalized = normalizeGoodsInput(clean, String(now + index))
     const key = buildScopedKey(normalized)
 
+    // 合并进已有商品时不做时间线兜底——避免重复导入给既有时间线拼入「已拥有@今天」,
+    // 重置持有天数并随下次推送扩散;只有真正新增的条目才 ensureInitialTimeline
     if (existingKeyToIndex.has(key)) {
       const existingIndex = existingKeyToIndex.get(key)
       existingItems[existingIndex] = mergeGoodsRecord(existingItems[existingIndex], normalized)
@@ -51,7 +53,7 @@ async function addMultipleGoods(items, list) {
     }
 
     newKeyToIndex.set(key, newItems.length)
-    newItems.push(normalized)
+    newItems.push(ensureInitialTimeline(normalized))
   })
 
   list.value = [...newItems, ...existingItems]

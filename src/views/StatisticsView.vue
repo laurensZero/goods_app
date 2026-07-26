@@ -228,7 +228,8 @@ const HOME_TOP_OPTIONS = computed(() => [
 const LEADERBOARD_DIMENSION_OPTIONS = computed(() => createLeaderboardDimensionOptions(t))
 const LEADERBOARD_METRIC_OPTIONS = computed(() => createLeaderboardMetricOptions(t))
 
-const saleSummary = computed(() => buildSaleSummary(store.list))
+// 用视图层列表(含汇率折算字段),与本页其余统计的 CNY 口径一致
+const saleSummary = computed(() => buildSaleSummary(store.collectionViewList))
 
 function formatSaleAmount(value) {
   const n = Math.abs(Number(value) || 0)

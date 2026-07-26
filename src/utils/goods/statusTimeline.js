@@ -301,25 +301,26 @@ export function computeEditedTimeline({
 }) {
   let timeline = Array.isArray(formTimeline) ? [...formTimeline] : []
   const qty = Math.max(1, Number(quantity) || 1)
+  // 兜底日期必须是合法 YYYY-MM-DD:遗留数据的 acquiredAt 可能是 '2023-05' 之类,
+  // 直接写入会被 normalizeStatusTimeline 静默丢弃,表现为时间线时有时无
+  const bootstrapAt = normalizeTimelineDate(newAcquiredAt) || formatDate(new Date(), 'YYYY-MM-DD')
 
   // 心愿单转收藏:追加转换条目,保留既有历史(含卖出记录与用户手动编辑)
   if (isWishlistToCollection) {
-    return appendStatusTimelineEntry(timeline, newStatus, {
-      at: newAcquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
-    })
+    return appendStatusTimelineEntry(timeline, newStatus, { at: bootstrapAt })
   }
 
   // 用户手动编辑过时间线 → 完全尊重,不做任何自动追加/修改
   if (timelineSnapshotDiffers(formTimeline, originalTimeline)) {
     if (timeline.length === 0 && newAcquiredAt && (originalTimeline || []).length === 0) {
-      timeline = [{ status: bootstrapAcquisitionStatus(oldStatus), at: newAcquiredAt }]
+      timeline = [{ status: bootstrapAcquisitionStatus(oldStatus), at: bootstrapAt }]
     }
     return timeline
   }
 
   // 老数据没有时间线时,用购入日期创建初始条目(状态限购入语义,避免假卖出记录)
   if (timeline.length === 0 && newAcquiredAt) {
-    timeline = [{ status: bootstrapAcquisitionStatus(oldStatus), at: newAcquiredAt }]
+    timeline = [{ status: bootstrapAcquisitionStatus(oldStatus), at: bootstrapAt }]
   }
 
   // 购入日期变更 → 只更新购入语义条目

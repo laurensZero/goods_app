@@ -27,13 +27,14 @@ import {
 export async function addGoods(data, list, onMutate) {
   const imagesExplicit = Array.isArray(data?.images)
   const now = Date.now()
-  const incoming = ensureInitialTimeline(normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now)))
+  const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now))
   const key = buildGoodsIdentityKey(incoming)
   const existingIndex = list.value.findIndex((item) =>
     item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
   )
 
   if (existingIndex !== -1) {
+    // 合并进已有商品:incoming 不做时间线兜底,避免给既有时间线拼入凭空的「已拥有@今天」
     list.value[existingIndex] = mergeGoodsRecord(list.value[existingIndex], incoming)
     triggerRef(list)
     try {
@@ -47,17 +48,18 @@ export async function addGoods(data, list, onMutate) {
     return list.value[existingIndex]
   }
 
-  list.value.unshift(incoming)
+  const fresh = ensureInitialTimeline(incoming)
+  list.value.unshift(fresh)
   triggerRef(list)
   try {
-    await addItem(incoming)
+    await addItem(fresh)
   } catch (e) {
     console.error('[goods] addGoods DB write failed:', e)
     throw e
   }
-  onMutate?.([incoming.id])
-  void scheduleSaleReminderForItem(incoming)
-  return incoming
+  onMutate?.([fresh.id])
+  void scheduleSaleReminderForItem(fresh)
+  return fresh
 }
 
 /**

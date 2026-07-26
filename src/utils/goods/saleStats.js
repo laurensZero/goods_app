@@ -53,21 +53,17 @@ export function getUnitCost(item, unitIndex = null) {
   return getItemUnitPriceNumber(item) + shippingShare
 }
 
-/** 某个记录 scope(单件或整条 count 件)的入手总成本 */
+/**
+ * 某个记录 scope(单件或整条 count 件)的入手总成本。
+ * 与 getUnitCost 同口径:逐件价缺失的件单独回退整条实付价,不做全有或全无
+ */
 function getScopeCost(item, unitIndex, count) {
   if (unitIndex != null && Number.isInteger(unitIndex)) {
     return getUnitCost(item, unitIndex)
   }
-  const qty = getQuantity(item)
-  const unitPrices = Array.isArray(item?.unitActualPriceList) ? item.unitActualPriceList : []
-  const hasCompleteUnitPrices =
-    unitPrices.length >= qty && unitPrices.slice(0, qty).every((p) => toNumber(p) > 0)
-  if (hasCompleteUnitPrices) {
-    let total = toNumber(item?.shippingFee)
-    for (let i = 0; i < count; i++) total += toNumber(unitPrices[i])
-    return total
-  }
-  return getItemUnitPriceNumber(item) * count + toNumber(item?.shippingFee)
+  let total = 0
+  for (let i = 0; i < count; i++) total += getUnitCost(item, i)
+  return total
 }
 
 function findLatestEntry(timeline, status, unitIndex) {
@@ -80,7 +76,19 @@ function findLatestEntry(timeline, status, unitIndex) {
     } else if (entry.unitIndex !== unitIndex) {
       continue
     }
-    if (!best || String(entry.at || '') >= String(best.at || '')) best = entry
+    if (!best) {
+      best = entry
+      continue
+    }
+    const cmp = String(entry.at || '').localeCompare(String(best.at || ''))
+    if (cmp > 0) {
+      best = entry
+    } else if (cmp === 0) {
+      // 同日平局:优先带价格的条目(双端合并可能留下同事件的有价/无价两条)
+      const entryPriced = toNumber(entry.price) > 0
+      const bestPriced = toNumber(best.price) > 0
+      if (entryPriced || !bestPriced) best = entry
+    }
   }
   return best
 }
@@ -133,13 +141,18 @@ export function extractSaleEntries(item) {
         missingByStatus.get(current).push(i)
       }
     }
-    // 没有逐件条目的件(如整条卖出后才启用逐件状态):合并为一条记录,
-    // 回退到无 unitIndex 的汇总条目(price 语义为该批总价),成本按实际缺失件求和
+    // 没有逐件条目的件(如整条卖出后才启用逐件状态):合并为一条记录,回退到无 unitIndex 的汇总条目。
+    // 汇总条目的 price 是"该批总价",只有缺失件数恰好等于整条数量时才能可靠归属——
+    // 部分件另有逐件条目或已撤回时,总价无法拆分到缺失件,计入会虚增回血/重复计价,此时不计价只保留日期/平台
     for (const [status, indexes] of missingByStatus) {
       if (indexes.length === 0) continue
       const entry = findLatestEntry(timeline, status, null)
+      const priceAttributable = indexes.length === qty
+      const safeEntry = entry && !priceAttributable
+        ? { status: entry.status, at: entry.at, platform: entry.platform, note: entry.note }
+        : entry
       const cost = indexes.reduce((sum, i) => sum + getUnitCost(item, i), 0)
-      const record = makeRecord(item, entry, null, indexes.length, status === SOLD_STATUS ? 'sold' : 'listing', cost)
+      const record = makeRecord(item, safeEntry, null, indexes.length, status === SOLD_STATUS ? 'sold' : 'listing', cost)
       ;(status === SOLD_STATUS ? sold : listing).push(record)
     }
   } else {

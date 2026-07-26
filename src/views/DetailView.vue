@@ -349,7 +349,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMatch, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
-import { appendStatusTimelineEntry, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
+import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
 import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
@@ -993,10 +993,12 @@ async function confirmDelete() {
 
 async function markAsOwned() {
   if (!item.value) return
-  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
+  // 时间线日期与 acquiredAt 保持一致,避免"持有 0 天、购入日期却是旧日期"的背离
+  const acquiredAt = item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
+  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有', { at: acquiredAt })
   await store.updateGoods(props.id, {
     isWishlist: false,
-    acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD'),
+    acquiredAt,
     saleAt: '',
     saleReminderEnabled: false,
     saleReminderOffsets: [],
@@ -1017,13 +1019,21 @@ async function markAsOwned() {
 async function markAsReceived() {
   if (!item.value) return
 
-  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
-  const updates = { collectStatus: '已拥有', statusTimeline: timeline }
-
-  // 同步更新多件状态列表中的「待发货」→「已拥有」
   const unitList = Array.isArray(item.value.unitCollectStatusList) ? [...item.value.unitCollectStatusList] : []
+  const updates = {}
+
   if (unitList.length > 0) {
-    updates.unitCollectStatusList = unitList.map(s => s === '待发货' ? '已拥有' : s)
+    // 逐件商品:只签收「待发货」的件,逐件写时间线,不追加会重置其它件持有起点的汇总条目
+    const newUnitList = unitList.map(s => s === '待发货' ? '已拥有' : s)
+    updates.unitCollectStatusList = newUnitList
+    updates.collectStatus = resolvePrimaryCollectStatus({
+      unitCollectStatusList: newUnitList,
+      collectStatus: '已拥有'
+    })
+    updates.statusTimeline = syncUnitStatusTimeline(item.value.statusTimeline, unitList, newUnitList)
+  } else {
+    updates.collectStatus = '已拥有'
+    updates.statusTimeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
   }
 
   await store.updateGoods(props.id, updates)

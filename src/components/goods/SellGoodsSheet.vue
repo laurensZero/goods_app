@@ -311,10 +311,29 @@ async function handleSubmit() {
     const updates = {}
 
     if (unitOptions.value.length > 0) {
+      // 手续费是整笔金额(平台按交易收取),逐件均摊写入,否则统计会按件数重复扣除;
+      // 均摊到分为止,余数记在最后一件上保证总和精确
+      const selectedIndexes = [...selectedUnits.value]
+      const totalFee = Number(saleFields.fee)
+      const feeShares = new Map()
+      if (Number.isFinite(totalFee) && totalFee > 0 && selectedIndexes.length > 0) {
+        const base = Math.floor((totalFee / selectedIndexes.length) * 100) / 100
+        selectedIndexes.forEach((unitIndex, i) => {
+          const share = i === selectedIndexes.length - 1
+            ? Math.round((totalFee - base * (selectedIndexes.length - 1)) * 100) / 100
+            : base
+          feeShares.set(unitIndex, String(share))
+        })
+      }
+
       const unitList = [...currentUnitStatuses.value]
-      for (const index of selectedUnits.value) {
+      for (const index of selectedIndexes) {
         unitList[index] = status
-        timeline = appendStatusTimelineEntry(timeline, status, { ...baseOptions, unitIndex: index })
+        timeline = appendStatusTimelineEntry(timeline, status, {
+          ...baseOptions,
+          fee: feeShares.get(index) ?? '',
+          unitIndex: index
+        })
       }
       updates.unitCollectStatusList = unitList
       updates.collectStatus = resolvePrimaryCollectStatus({

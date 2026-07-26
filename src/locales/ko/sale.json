@@ -6,7 +6,7 @@
   "sale.listingPrice": "판매 희망가",
   "sale.dealPrice": "거래가",
   "sale.pricePlaceholder": "가격 입력",
-  "sale.perUnitHint": "가격은 개당 단가이며 선택한 모든 개체에 적용됩니다",
+  "sale.perUnitHint": "가격은 개당 단가로 선택한 모든 개체에 적용됩니다. 수수료는 거래 전체 금액이며 개체별로 분할됩니다",
   "sale.platform": "플랫폼",
   "sale.platformPlaceholder": "플랫폼 입력 또는 선택",
   "sale.fee": "수수료",

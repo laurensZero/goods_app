@@ -6,7 +6,7 @@
   "sale.listingPrice": "掛牌價",
   "sale.dealPrice": "成交價",
   "sale.pricePlaceholder": "輸入價格",
-  "sale.perUnitHint": "價格為每件單價,將套用到所有選中件",
+  "sale.perUnitHint": "價格為每件單價,將套用到所有選中件;手續費為整筆金額,按件均攤",
   "sale.platform": "平台",
   "sale.platformPlaceholder": "輸入或選擇平台",
   "sale.fee": "手續費",

@@ -6,7 +6,7 @@
   "sale.listingPrice": "出品価格",
   "sale.dealPrice": "成約価格",
   "sale.pricePlaceholder": "価格を入力",
-  "sale.perUnitHint": "価格は1点あたりの単価で、選択したすべての個体に適用されます",
+  "sale.perUnitHint": "価格は1点あたりの単価で選択したすべての個体に適用されます。手数料は取引全体の金額で、個体ごとに按分されます",
   "sale.platform": "プラットフォーム",
   "sale.platformPlaceholder": "プラットフォームを入力または選択",
   "sale.fee": "手数料",

@@ -27,12 +27,14 @@
               {{ entry.at || t('common.selectDate') }}
             </button>
           </div>
+          <!-- 用 change 而非 input:逐键 emit 会触发整表 deep watch 重建,
+               Android WebView 下有中断中文输入法组合(吞字)的风险 -->
           <input
             type="text"
             :value="entry.note || ''"
             class="timeline-item__note"
             :placeholder="t('goods.editor.timelineNotePlaceholder')"
-            @input="updateEntry(index, 'note', $event.target.value)"
+            @change="updateEntry(index, 'note', $event.target.value)"
           />
           <div v-if="hasSaleData(entry)" class="timeline-item__sale">
             <span class="timeline-item__sale-text">{{ formatSaleData(entry) }}</span>

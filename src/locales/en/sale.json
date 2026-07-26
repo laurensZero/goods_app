@@ -6,7 +6,7 @@
   "sale.listingPrice": "Listing Price",
   "sale.dealPrice": "Sale Price",
   "sale.pricePlaceholder": "Enter price",
-  "sale.perUnitHint": "Price is per unit and will apply to all selected units",
+  "sale.perUnitHint": "Price is per unit and applies to all selected units; the fee is the total for the transaction and is split across units",
   "sale.platform": "Platform",
   "sale.platformPlaceholder": "Enter or pick a platform",
   "sale.fee": "Fee",
