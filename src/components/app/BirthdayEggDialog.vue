@@ -320,4 +320,61 @@ function formatMoney(value) {
   background: var(--app-text);
   color: var(--app-bg);
 }
+
+/* 平板/桌面：整体放大卡片 */
+@media (min-width: 768px) {
+  .birthday-dialog {
+    width: min(100%, 640px);
+    padding: 32px 36px;
+  }
+
+  .birthday-ribbon {
+    top: 24px;
+    right: 32px;
+    font-size: 36px;
+  }
+
+  .birthday-kicker {
+    font-size: 13px;
+  }
+
+  .dialog-title {
+    font-size: 28px;
+  }
+
+  .birthday-meta {
+    font-size: 14px;
+  }
+
+  .birthday-message {
+    font-size: 15px;
+  }
+
+  .birthday-stats {
+    gap: 16px;
+  }
+
+  .birthday-stat {
+    padding: 16px;
+  }
+
+  .birthday-stat__value {
+    font-size: 22px;
+  }
+
+  .birthday-stat__label {
+    font-size: 13px;
+  }
+
+  .birthday-wall {
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .dialog-btn {
+    min-height: 46px;
+    padding: 0 24px;
+    font-size: 15px;
+  }
+}
 </style>
