@@ -20,6 +20,9 @@ import { readSyncKey } from '@/utils/sync/storage'
 import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, parseApkSha256FromText, resolveSourceCandidates } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
 import i18n from '@/locales'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('app-update')
 
 const UPDATE_REPO_NAME = 'goods_app'
 const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
@@ -292,6 +295,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     }
 
     isDownloading.value = true
+    log.info('download:start', { version: latestVersion.value, asset: asset?.name })
 
     let progressListener = null
     try {
@@ -373,6 +377,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         }
 
         // 校验失败：删除损坏文件；若还有直连候选地址则重试
+        log.warn('download:sha256-mismatch', { url: candidateUrl })
         await Filesystem.deleteFile({ path: filePath, directory: Directory.Cache }).catch(() => {})
       }
 
@@ -392,8 +397,10 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
       downloadProgress.value = 100
       dialogVisible.value = false
+      log.info('download:done', { version: latestVersion.value, verified })
       return true
     } catch (error) {
+      log.error('download:failed', { version: latestVersion.value, progress: downloadProgress.value }, error)
       downloadError.value = resolveDownloadErrorMessage(error)
       return false
     } finally {
@@ -430,6 +437,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
             resolvedReleaseSource = candidate
             break
           } catch (error) {
+            log.warn('check:release-fetch-failed', { source: candidate, error: error?.message })
             lastRequestError = error
           }
         }
@@ -450,6 +458,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         if (hasUpdate.value) {
           lastStatus.value = 'available'
           dialogVisible.value = !isSilentUpdate.value
+          log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, source: resolvedReleaseSource, level: updateLevel.value })
           return { status: 'available', release, source: resolvedReleaseSource }
         }
 
@@ -463,6 +472,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         lastCheckedAt.value = new Date().toISOString()
         lastStatus.value = 'error'
         lastError.value = error?.message || i18n.global.t('about.checkUpdateFailedRetry')
+        log.error('check:failed', { source: selectedSource.value }, error)
         throw error
       } finally {
         isChecking.value = false

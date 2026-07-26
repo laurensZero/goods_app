@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useClipboardImport } from '@/composables/useClipboardImport'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
 import { extractIdsFromInput } from '@/utils/share/goods'
+import { appLog } from '@/utils/logger'
 
 export function useDeepLinks({ onStorageNavigate } = {}) {
   const router = useRouter()
@@ -21,8 +22,15 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
     lastHandledUrl = url
     lastHandledTime = now
 
-    if (await navigateByStorageNfc(url)) return true
-    if (await navigateByShareLink(url)) return true
+    if (await navigateByStorageNfc(url)) {
+      appLog('info', 'deep-link: storage-nfc handled')
+      return true
+    }
+    if (await navigateByShareLink(url)) {
+      appLog('info', 'deep-link: share-link handled')
+      return true
+    }
+    appLog('warn', 'deep-link: unrecognized url', { url: String(url || '').slice(0, 120) })
     return false
   }
 

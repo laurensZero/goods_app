@@ -94,6 +94,7 @@ export function createSyncOrchestrator({
     const be = ctx.backend || backend
     const stores = getLocalStores()
     const isIncremental = since > 0 && !!be.pullAll
+    log.info('pull:start', { incremental: isIncremental, since, silent, tables: tables || 'all' })
 
     try {
       // 1. Read remote data
@@ -134,7 +135,11 @@ export function createSyncOrchestrator({
         const ts = remoteData.manifest?.lastSyncAt || new Date().toISOString()
         await ctx.saveLastSyncedAt(ts)
         if (remoteData.events.length > 0) await ctx.saveEventLastSyncedAt(new Date().toISOString())
-        if (sumPullCounts(pullCounts) === 0) return { action: 'no_changes' }
+        if (sumPullCounts(pullCounts) === 0) {
+          log.info('pull:done', { action: 'no_changes', incremental: true })
+          return { action: 'no_changes' }
+        }
+        log.info('pull:done', { action: 'pulled', incremental: true, ...pullCounts })
         return { action: 'pulled', ...pullCounts }
       }
 
@@ -149,6 +154,7 @@ export function createSyncOrchestrator({
       const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
       const localChanges = conflict.getLocalChangesSince(localSyncTime)
       if (!silent && localChanges.hasChanges) {
+        log.warn('pull:conflict', { localSyncTime, remoteTime: remoteData.manifest?.lastSyncAt, remoteDevice: remoteData.manifest?.deviceId })
         return {
           action: 'conflict', statusMessage: 'sync.remoteDataDetected',
           conflictData: {
@@ -189,8 +195,10 @@ export function createSyncOrchestrator({
       )
       await flushDbWrites().catch(() => {})
       if (remoteData.manifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteData.manifest.lastSyncAt)
+      log.info('pull:done', { action: 'pulled', restoredImages: restoredCount, ...pullCounts })
       return { action: 'pulled', ...pullCounts }
     } catch (e) {
+      log.error('pull:failed', e)
       wrapSyncError(e, PHASE_PULL)
     }
   }
@@ -202,12 +210,19 @@ export function createSyncOrchestrator({
     const be = ctx.backend || backend
     const stores = getLocalStores()
     await ctx.ensureEventsStoreReady()
+    log.info('sync:start', {
+      source: source || 'unknown',
+      dirtyDomains: dirtyDomains ? [...dirtyDomains] : null,
+      dirtyGoodsCount: dirtyGoodsIds ? dirtyGoodsIds.size : 0
+    })
 
     try {
       // Quick push path: single goods edit, no remote read needed
       if (canQuickPush(be, dirtyGoodsIds, dirtyDomains)) {
         try {
-          return await quickPush(ctx, dirtyGoodsIds)
+          const result = await quickPush(ctx, dirtyGoodsIds)
+          log.info('sync:quick-push:done', { pushedItems: result.pushedItems, pushedTrash: result.pushedTrash })
+          return result
         } catch (e) {
           log.warn('quickPush failed, falling back to full sync', e.message)
           // Fall through to full sync
@@ -216,6 +231,7 @@ export function createSyncOrchestrator({
 
       return await fullSync(ctx, stores, be, opts)
     } catch (e) {
+      log.error('sync:failed', e)
       wrapSyncError(e, PHASE_PUSH)
     }
   }
@@ -375,6 +391,10 @@ export function createSyncOrchestrator({
       } catch { hasPresetsDiff = true }
     }
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff || hasPresetsDiff
+    log.info('sync:compare', {
+      hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff,
+      remoteTime, localSyncTime, localChanges: localChanges.hasChanges
+    })
 
     if (!hasEffectiveDiff) {
       // 远端清单时间（服务器时间域）比本地时钟可靠；远端不更新时维持现有水位线不动
@@ -392,6 +412,7 @@ export function createSyncOrchestrator({
         return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasPresetsDiff: true })
       }
       if (localChanges.hasChanges) {
+        log.warn('sync:conflict', { remoteTime: remoteManifest.lastSyncAt, remoteDevice: remoteManifest.deviceId, localTime: ctx.lastSyncedAt })
         return {
           action: 'conflict', statusMessage: 'sync.conflictDetected',
           conflictData: {
@@ -621,6 +642,13 @@ export function createSyncOrchestrator({
       }
     }
 
+    log.info('push:done', {
+      totalGoods: (syncData.goods || []).length,
+      totalTrash: (syncData.trash || []).length,
+      totalRecharge: (rechargeSyncData.recharge || []).length,
+      totalEvents: (eventSyncData.events || []).length,
+      failedImages: failedImageFiles.size
+    })
     return {
       action: 'pushed',
       failedImages: failedImageFiles.size,
@@ -636,6 +664,7 @@ export function createSyncOrchestrator({
   // ── Conflict resolution ──
 
   async function resolveConflict(ctx, useRemote) {
+    log.info('conflict:resolve', { choice: useRemote ? 'use-remote' : 'keep-local' })
     if (useRemote) {
       return pull(ctx, { silent: true })
     }
@@ -649,6 +678,7 @@ export function createSyncOrchestrator({
     const be = ctx.backend || backend
     const stores = getLocalStores()
     await ctx.ensureEventsStoreReady()
+    log.info('force-push:start')
 
     try {
       // Read remote data so doPush can send incremental diffs; fall back to full push on failure
