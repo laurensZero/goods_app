@@ -81,6 +81,8 @@
   "goods.detail.purchasedAt": "Purchased at",
   "goods.detail.quantityUnit": "pcs",
   "goods.detail.saleAt": "Sale Time",
+  "goods.detail.saleInfo": "Sale Info",
+  "goods.detail.netRecovered": "recovered",
   "goods.detail.saleReminder": "Sale Reminder",
   "goods.detail.shippingFee": "Shipping Fee",
   "goods.detail.statusTimeline": "Status Timeline",

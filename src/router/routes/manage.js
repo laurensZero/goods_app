@@ -84,6 +84,12 @@ export default [
     meta: { titleKey: 'nav.trash' }
   },
   {
+    path: '/manage/sale-ledger',
+    name: 'manage-sale-ledger',
+    component: () => import('@/views/SaleLedgerView.vue'),
+    meta: { titleKey: 'nav.saleLedger' }
+  },
+  {
     path: '/recharge/month-cards',
     name: 'recharge-month-cards',
     component: () => import('@/views/MonthCardCalendarView.vue'),

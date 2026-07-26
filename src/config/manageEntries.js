@@ -5,6 +5,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
 import { useRechargeStore } from '@/stores/recharge'
 import { useSurveyStore } from '@/stores/survey'
+import { buildSaleSummary } from '@/utils/goods/saleStats'
 import i18n from '@/locales'
 
 const t = i18n.global.t
@@ -24,6 +25,7 @@ export function useManageEntries() {
   const rechargeStore = useRechargeStore()
   const surveyStore = useSurveyStore()
 
+  const saleSummary = computed(() => buildSaleSummary(goodsStore.collectionViewList))
   const collectionCount = computed(() => goodsStore.list.filter((item) => !item?.isWishlist).length)
   const wishlistCount = computed(() => goodsStore.list.filter((item) => item?.isWishlist).length)
   const eventCount = computed(() => eventsStore.activeList.length)
@@ -106,6 +108,21 @@ export function useManageEntries() {
       iconPaths: ['M12 2v2', 'M12 20v2', 'M4.93 4.93l1.41 1.41', 'M17.66 17.66l1.41 1.41', 'M2 12h2', 'M20 12h2', 'M4.93 19.07l1.41-1.41', 'M17.66 6.34l1.41-1.41', 'M12 16a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z'],
       path: '/manage/theme',
       stats: [{ label: t('manage.statGoal'), value: t('manage.statUnifiedAppearance') }, { label: t('manage.statImpactScope'), value: t('manage.statGlobalInterface') }]
+    },
+    {
+      key: 'saleLedger', group: 'daily', title: t('manage.saleLedger'), kicker: t('manage.saleLedgerKicker'),
+      meta: t('manage.saleLedgerMeta', { count: saleSummary.value.soldCount }),
+      detail: t('manage.saleLedgerDetail'),
+      summary: t('manage.saleLedgerSummary'),
+      recommendation: t('manage.saleLedgerRecommendation'),
+      primaryLabel: t('manage.saleLedgerPrimaryLabel'), secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'sale-icon',
+      iconPaths: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'],
+      path: '/manage/sale-ledger',
+      stats: [
+        { label: t('sale.recovered'), value: `¥${Math.round(saleSummary.value.recoveredTotal)}` },
+        { label: t('sale.listing'), value: `¥${Math.round(saleSummary.value.listingTotal)}` }
+      ]
     },
     {
       key: 'trash', group: 'daily', title: t('manage.trash'), kicker: t('manage.trashKicker'),

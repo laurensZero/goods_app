@@ -27,13 +27,25 @@
               {{ entry.at || t('common.selectDate') }}
             </button>
           </div>
+          <!-- 用 change 而非 input:逐键 emit 会触发整表 deep watch 重建,
+               Android WebView 下有中断中文输入法组合(吞字)的风险 -->
           <input
             type="text"
             :value="entry.note || ''"
             class="timeline-item__note"
             :placeholder="t('goods.editor.timelineNotePlaceholder')"
-            @input="updateEntry(index, 'note', $event.target.value)"
+            @change="updateEntry(index, 'note', $event.target.value)"
           />
+          <div v-if="hasSaleData(entry)" class="timeline-item__sale">
+            <span class="timeline-item__sale-text">{{ formatSaleData(entry) }}</span>
+            <button
+              type="button"
+              class="timeline-item__sale-clear"
+              @click="clearSaleData(index)"
+            >
+              {{ t('sale.clearSaleData') }}
+            </button>
+          </div>
         </div>
         <button
           type="button"
@@ -178,6 +190,27 @@ function removeEntry(index) {
   emit('update:modelValue', sorted)
 }
 
+function hasSaleData(entry) {
+  return Boolean(entry?.price || entry?.platform || entry?.fee)
+}
+
+function formatSaleData(entry) {
+  const parts = []
+  if (entry.price) parts.push(`¥${entry.price}`)
+  if (entry.platform) parts.push(entry.platform)
+  if (entry.fee) parts.push(`${t('sale.fee')} ¥${entry.fee}`)
+  return parts.join(' · ')
+}
+
+function clearSaleData(index) {
+  const sorted = [...entries.value]
+  const entry = sorted[index]
+  if (!entry) return
+  const { price: _price, platform: _platform, fee: _fee, ...rest } = entry
+  sorted[index] = rest
+  emit('update:modelValue', sorted)
+}
+
 function addEntry() {
   const newEntry = {
     status: '已拥有',
@@ -270,6 +303,31 @@ function addEntry() {
 
 .timeline-item__note:focus {
   border-color: var(--app-primary);
+}
+
+.timeline-item__sale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.timeline-item__sale-text {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-item__sale-clear {
+  border: none;
+  background: transparent;
+  color: var(--app-danger, #dc2626);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .timeline-item__delete {

@@ -81,6 +81,8 @@
   "goods.detail.purchasedAt": "购入于",
   "goods.detail.quantityUnit": "件",
   "goods.detail.saleAt": "开售时间",
+  "goods.detail.saleInfo": "出谷信息",
+  "goods.detail.netRecovered": "回血",
   "goods.detail.saleReminder": "开售提醒",
   "goods.detail.shippingFee": "邮费",
   "goods.detail.statusTimeline": "状态时间线",

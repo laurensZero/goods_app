@@ -10,7 +10,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
-import { appendStatusTimelineEntry, syncUnitStatusTimeline, syncUnitAcquiredTimeline } from '@/utils/goods/statusTimeline'
+import { computeEditedTimeline } from '@/utils/goods/statusTimeline'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   ensureSaleReminderPermission,
@@ -362,73 +362,34 @@ export function useGoodsEditorForm(options = {}) {
     }
 
     if (mode === 'edit') {
-      // 自动记录状态变更到时间线
-      let timeline = Array.isArray(form.statusTimeline) ? [...form.statusTimeline] : []
+      // 时间线自动维护统一走 computeEditedTimeline。
+      // diff 两侧必须按 quantity 填充对齐——表单加载时会把逐件列表"填满"、
+      // 落库归一化又会"剥空"(qty<2 → []、全已拥有 → []),直接对比会产生假差异
+      const qty = quantityNumber.value
+      const padUnitDates = (list, fallbackDate) =>
+        Array.from({ length: qty }, (_, i) => normalizeUnitDateValue(list?.[i]) || fallbackDate)
+      const padUnitStatuses = (list, fallbackStatus) =>
+        Array.from({ length: qty }, (_, i) => normalizeUnitCollectStatusValue(list?.[i]) || fallbackStatus)
+
       const oldStatus = originalCollectStatus.value || '已拥有'
       const newStatus = form.collectStatus || '已拥有'
-      const isWishlistToCollection = originalIsWishlist.value === true && form.isWishlist === false
+      const oldStatusFallback = normalizeUnitCollectStatusValue(oldStatus) || '已拥有'
+      const newStatusFallback = normalizeUnitCollectStatusValue(newStatus) || '已拥有'
 
-      // 心愿单转收藏 → 强制覆写时间线，用设置的日期或当天
-      if (isWishlistToCollection) {
-        const timelineDate = form.acquiredAt || today
-        form.statusTimeline = [{ status: newStatus, at: timelineDate }]
-      } else {
-        // 检测用户是否手动编辑了时间线（非自动生成）
-        const origTimeline = originalTimeline.value || []
-        const timelineEditedByUser = JSON.stringify(timeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex }))) !==
-          JSON.stringify(origTimeline.map(e => ({ s: e.status, a: e.at, u: e.unitIndex })))
-
-      // 用户手动编辑过时间线 → 完全尊重用户编辑，不做任何自动追加/修改
-      if (timelineEditedByUser) {
-        // 老数据没有时间线但用户也未添加 → 用 acquiredAt 创建初始记录
-        if (timeline.length === 0 && form.acquiredAt && origTimeline.length === 0) {
-          timeline = [{ status: oldStatus, at: form.acquiredAt }]
-        }
-        form.statusTimeline = timeline
-      } else {
-        // 用户没有手动编辑时间线 → 自动处理
-        // 老数据没有时间线时，用 acquiredAt 创建初始记录
-        if (timeline.length === 0 && form.acquiredAt) {
-          timeline = [{ status: oldStatus, at: form.acquiredAt }]
-        }
-
-        // 购入日期变更时，更新时间线中匹配状态的条目日期
-        const oldAcquiredAt = originalAcquiredAt.value || ''
-        if (form.acquiredAt && form.acquiredAt !== oldAcquiredAt && timeline.length > 0) {
-          const targetStatus = oldStatus === newStatus ? newStatus : oldStatus
-          // 优先匹配无 unitIndex 的，找不到再匹配任意同状态条目
-          let matchIndex = timeline.findIndex((e) => e.status === targetStatus && e.unitIndex == null)
-          if (matchIndex < 0) matchIndex = timeline.findIndex((e) => e.status === targetStatus)
-          if (matchIndex >= 0) {
-            timeline[matchIndex] = { ...timeline[matchIndex], at: form.acquiredAt }
-            timeline.sort((a, b) => a.at.localeCompare(b.at))
-          }
-        }
-
-        // 逐份购入日期 / 逐份状态变更
-        const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
-        if (!hasUnitStatuses) {
-          const oldUnitDates = originalUnitAcquiredAtList.value || []
-          const newUnitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
-          if (newUnitDates.length > 0) {
-            const unitStatuses = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-            timeline = syncUnitAcquiredTimeline(timeline, oldUnitDates, newUnitDates, unitStatuses)
-          }
-        }
-
-        if (oldStatus !== newStatus) {
-          timeline = appendStatusTimelineEntry(timeline, newStatus)
-        }
-        if (!hasUnitStatuses) {
-          const oldUnitList = originalUnitCollectStatusList.value || []
-          const newUnitList = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
-          if (newUnitList.length > 0) {
-            timeline = syncUnitStatusTimeline(timeline, oldUnitList, newUnitList)
-          }
-        }
-      }
-      form.statusTimeline = timeline
-      } // end else (!isWishlistToCollection)
+      form.statusTimeline = computeEditedTimeline({
+        formTimeline: form.statusTimeline,
+        originalTimeline: originalTimeline.value || [],
+        quantity: qty,
+        oldStatus,
+        newStatus,
+        oldAcquiredAt: originalAcquiredAt.value || '',
+        newAcquiredAt: form.acquiredAt || '',
+        oldUnitDates: qty >= 2 ? padUnitDates(originalUnitAcquiredAtList.value, normalizeUnitDateValue(originalAcquiredAt.value)) : [],
+        newUnitDates: qty >= 2 ? padUnitDates(form.unitAcquiredAtList, normalizeUnitDateValue(form.acquiredAt)) : [],
+        oldUnitStatuses: qty >= 2 ? padUnitStatuses(originalUnitCollectStatusList.value, oldStatusFallback) : [],
+        newUnitStatuses: qty >= 2 ? padUnitStatuses(form.unitCollectStatusList, newStatusFallback) : [],
+        isWishlistToCollection: originalIsWishlist.value === true && form.isWishlist === false
+      })
 
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
@@ -449,10 +410,11 @@ export function useGoodsEditorForm(options = {}) {
         setPendingDetailReturnPath(form.isWishlist ? '/wishlist' : '/home')
       }
     } else {
-      // 新增时记录初始状态到时间线
+      // 新增时记录初始状态到时间线;用户已在时间线 Tab 手动添加过条目则完全尊重,不覆写
       const initialStatus = form.isWishlist ? '' : (form.collectStatus || '已拥有')
       const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
-      if (initialStatus) {
+      const timelineEditedByUser = Array.isArray(form.statusTimeline) && form.statusTimeline.length > 0
+      if (initialStatus && !timelineEditedByUser) {
         if (hasUnitStatuses) {
           // 有逐份状态时：只记录一条汇总时间线，逐份持有天数由 unitAcquiredAtList 独立计算
           const timelineDate = form.acquiredAt || today

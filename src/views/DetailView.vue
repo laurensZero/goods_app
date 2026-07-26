@@ -93,6 +93,9 @@
           <button v-else-if="hasCollectStatusMatch(item, ['待发货'])" class="hero-action-btn" type="button" @click="markAsReceived">
             {{ t('goods.detail.markAsReceived') }}
           </button>
+          <button v-else-if="canSellItem" class="hero-action-btn" type="button" @click="showSellSheet = true">
+            {{ hasCollectStatusMatch(item, ['在售']) ? t('sale.recordDeal') : t('sale.action') }}
+          </button>
         </section>
 
         <section class="info-section">
@@ -170,6 +173,16 @@
             <article v-if="item.quantity > 1" class="info-tile">
               <span class="info-label">{{ t('common.quantity') }}</span>
               <strong class="info-value">{{ item.quantity }} {{ t('common.items') }}</strong>
+            </article>
+
+            <article v-if="soldInfoText" class="info-tile">
+              <span class="info-label">{{ t('goods.detail.saleInfo') }}</span>
+              <strong class="info-value">{{ soldInfoText }}</strong>
+            </article>
+
+            <article v-if="listingInfoText" class="info-tile">
+              <span class="info-label">{{ t('sale.listing') }}</span>
+              <strong class="info-value">{{ listingInfoText }}</strong>
             </article>
 
           </div>
@@ -290,6 +303,13 @@
           </svg>
           <span>{{ t('goodsGroup.addToGroup') }}</span>
         </button>
+        <button v-if="canSellItem" class="more-popover__item" type="button" @click="showMoreSheet = false; showSellSheet = true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+            <line x1="7" y1="7" x2="7.01" y2="7" />
+          </svg>
+          <span>{{ t('sale.action') }}</span>
+        </button>
         <button class="more-popover__item" type="button" @click="showMoreSheet = false; showShareSheet = true">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
@@ -309,6 +329,12 @@
       :goods-ids="item ? [item.id] : []"
     />
 
+    <SellGoodsSheet
+      v-model:show="showSellSheet"
+      :item="item"
+      @saved="onSellSaved"
+    />
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -323,7 +349,8 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMatch, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
-import { appendStatusTimelineEntry, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
+import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
+import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -337,6 +364,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
+import SellGoodsSheet from '@/components/goods/SellGoodsSheet.vue'
 import StatusTimeline from '@/components/goods/StatusTimeline.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
@@ -441,6 +469,49 @@ const trackList = computed(() =>
 const showDeleteDialog = ref(false)
 const showShareSheet = ref(false)
 const showAddToGroupSheet = ref(false)
+const showSellSheet = ref(false)
+
+const canSellItem = computed(() => {
+  if (!item.value || item.value.isWishlist) return false
+  return hasCollectStatusMatch(item.value, ['已拥有', '想出', '在售'])
+})
+
+const saleEntries = computed(() =>
+  item.value ? extractSaleEntries(item.value) : { sold: [], listing: [] }
+)
+
+const soldInfoText = computed(() => {
+  const sold = saleEntries.value.sold
+  if (sold.length === 0) return ''
+  const count = sold.reduce((sum, r) => sum + r.count, 0)
+  const recovered = sold.reduce((sum, r) => sum + (r.hasPrice ? r.price - r.fee : 0), 0)
+  const qty = Math.max(1, Number(item.value?.quantity) || 1)
+  const countText = qty > 1 ? `${count}/${qty}` : ''
+  if (recovered > 0) {
+    const parts = [t('status.sold') + (countText ? ` ${countText}` : ''), `${t('goods.detail.netRecovered')} ¥${formatSaleAmount(recovered)}`]
+    return parts.join(' · ')
+  }
+  return countText ? `${t('status.sold')} ${countText}` : t('sale.noPriceRecorded')
+})
+
+const listingInfoText = computed(() => {
+  const listing = saleEntries.value.listing
+  if (listing.length === 0) return ''
+  const total = listing.reduce((sum, r) => sum + (r.hasPrice ? r.price : 0), 0)
+  const platforms = [...new Set(listing.map((r) => r.platform).filter(Boolean))]
+  const parts = []
+  if (total > 0) parts.push(`¥${formatSaleAmount(total)}`)
+  if (platforms.length > 0) parts.push(platforms.join('、'))
+  return parts.length > 0 ? parts.join(' · ') : t('sale.noPriceRecorded')
+})
+
+function formatSaleAmount(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function onSellSaved() {
+  showToast(t('sale.saved'))
+}
 const showMoreSheet = ref(false)
 const moreBtnRef = ref(null)
 const morePopoverStyle = ref({})
@@ -930,10 +1001,12 @@ async function confirmDelete() {
 
 async function markAsOwned() {
   if (!item.value) return
-  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
+  // 时间线日期与 acquiredAt 保持一致,避免"持有 0 天、购入日期却是旧日期"的背离
+  const acquiredAt = item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD')
+  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有', { at: acquiredAt })
   await store.updateGoods(props.id, {
     isWishlist: false,
-    acquiredAt: item.value.acquiredAt || formatDate(new Date(), 'YYYY-MM-DD'),
+    acquiredAt,
     saleAt: '',
     saleReminderEnabled: false,
     saleReminderOffsets: [],
@@ -954,13 +1027,21 @@ async function markAsOwned() {
 async function markAsReceived() {
   if (!item.value) return
 
-  const timeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
-  const updates = { collectStatus: '已拥有', statusTimeline: timeline }
-
-  // 同步更新多件状态列表中的「待发货」→「已拥有」
   const unitList = Array.isArray(item.value.unitCollectStatusList) ? [...item.value.unitCollectStatusList] : []
+  const updates = {}
+
   if (unitList.length > 0) {
-    updates.unitCollectStatusList = unitList.map(s => s === '待发货' ? '已拥有' : s)
+    // 逐件商品:只签收「待发货」的件,逐件写时间线,不追加会重置其它件持有起点的汇总条目
+    const newUnitList = unitList.map(s => s === '待发货' ? '已拥有' : s)
+    updates.unitCollectStatusList = newUnitList
+    updates.collectStatus = resolvePrimaryCollectStatus({
+      unitCollectStatusList: newUnitList,
+      collectStatus: '已拥有'
+    })
+    updates.statusTimeline = syncUnitStatusTimeline(item.value.statusTimeline, unitList, newUnitList)
+  } else {
+    updates.collectStatus = '已拥有'
+    updates.statusTimeline = appendStatusTimelineEntry(item.value.statusTimeline, '已拥有')
   }
 
   await store.updateGoods(props.id, updates)

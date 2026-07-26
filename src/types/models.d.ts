@@ -53,6 +53,12 @@ export interface StatusTimelineEntry {
   at: string
   note?: string
   unitIndex?: number
+  /** 在售条目=挂牌价，已出条目=成交价 */
+  price?: string
+  /** 卖出/挂牌平台 */
+  platform?: string
+  /** 手续费，仅已出条目 */
+  fee?: string
 }
 
 /** 商品完整对象（业务层 shape，对应 normalizeGoodsInput 返回值） */
