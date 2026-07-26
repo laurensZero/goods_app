@@ -1,9 +1,9 @@
 {
-  "version": "20260726.12",
-  "url": "bundle-20260726.12.zip",
-  "hash": "f7adbda4a4b25eddcabf5e131829921995c87b25361e9fd15e8c293dd8af90d2",
+  "version": "20260726.13",
+  "url": "bundle-20260726.13.zip",
+  "hash": "b632c4ec6258d6f286e1a1756034c26ab321928d4494aca29d1a3160d676769b",
   "minNativeVersion": null,
-  "notes": "- feat: 强制刷新云端缓存以支持测试模式下的真实检查",
+  "notes": "- feat: 删除抓取萌娘百科角色生日的脚本",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-26T15:36:31Z"
+  "publishedAt": "2026-07-26T15:41:21Z"
 }
