@@ -353,7 +353,9 @@ export const useRechargeStore = defineStore('recharge', () => {
         incoming.image = existing.image
       }
 
-      if (Number(incoming.updatedAt || 0) >= Number(existing.updatedAt || 0)) {
+      // 严格大于：增量拉取的时钟重叠窗口会拉回本机刚推送的行（时间戳相等），
+      // 用 >= 会把它们计为 updated，绕过下方 noop 早退导致每次拉取全表重写 + 整屏重渲染
+      if (Number(incoming.updatedAt || 0) > Number(existing.updatedAt || 0)) {
         currentMap.set(id, incoming)
         updated += 1
       } else {

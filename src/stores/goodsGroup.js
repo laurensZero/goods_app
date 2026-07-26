@@ -329,38 +329,60 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     }
   }
 
+  // LWW 合并单行：远端更新则取远端并标记变更。时间戳相等的删除态若本地已删除则
+  // 视为无变化——增量拉取的时钟重叠窗口会反复拉回本机刚推送的行。
+  function mergeRemoteRow(local, remote, markChanged) {
+    if (!remote) return local
+    const remoteTs = remote.updatedAt || 0
+    const localTs = local.updatedAt || 0
+    if (remote.deleted && remoteTs >= localTs) {
+      if (local.deleted && remoteTs === localTs) return local
+      markChanged()
+      return remote
+    }
+    if (remoteTs > localTs) {
+      markChanged()
+      return remote
+    }
+    return local
+  }
+
   async function updateGroupsBackup(groups, items) {
-    if (Array.isArray(groups)) {
+    if (Array.isArray(groups) && groups.length > 0) {
       const remoteMap = new Map(groups.map(g => [g.id, g]))
-      const merged = groupList.value.map(local => {
-        const remote = remoteMap.get(local.id)
-        if (!remote) return local
-        // Apply remote deletion if newer, or update if remote is newer
-        if (remote.deleted && (remote.updatedAt || 0) >= (local.updatedAt || 0)) return remote
-        return (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local
-      })
+      let changed = false
+      const markChanged = () => { changed = true }
+      const merged = groupList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged))
       // 添加远端有、本地没有的
       const localIds = new Set(groupList.value.map(g => g.id))
       for (const remote of groups) {
-        if (!localIds.has(remote.id)) merged.push(remote)
+        if (!localIds.has(remote.id)) {
+          merged.push(remote)
+          changed = true
+        }
       }
-      groupList.value = merged
-      await saveGroups(merged)
+      // 无实际变化时不替换数组也不落库，避免每次拉取都触发全量重渲染 + 全表重写
+      if (changed) {
+        groupList.value = merged
+        await saveGroups(merged)
+      }
     }
-    if (Array.isArray(items)) {
+    if (Array.isArray(items) && items.length > 0) {
       const remoteMap = new Map(items.map(i => [i.id, i]))
-      const merged = groupItemList.value.map(local => {
-        const remote = remoteMap.get(local.id)
-        if (!remote) return local
-        if (remote.deleted && (remote.updatedAt || 0) >= (local.updatedAt || 0)) return remote
-        return (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local
-      })
+      let changed = false
+      const markChanged = () => { changed = true }
+      const merged = groupItemList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged))
       const localIds = new Set(groupItemList.value.map(i => i.id))
       for (const remote of items) {
-        if (!localIds.has(remote.id)) merged.push(remote)
+        if (!localIds.has(remote.id)) {
+          merged.push(remote)
+          changed = true
+        }
       }
-      groupItemList.value = merged
-      await saveGroupItems(merged)
+      if (changed) {
+        groupItemList.value = merged
+        await saveGroupItems(merged)
+      }
     }
   }
 

@@ -294,10 +294,14 @@ export const useEventsStore = defineStore('events', () => {
       const incomingUpdatedAt = Number(event.updatedAt) || 0
       const existingUpdatedAt = Number(existing.updatedAt) || 0
 
-      // Apply remote deletion if incoming timestamp is newer
+      // Apply remote deletion if incoming timestamp is newer.
+      // 时间戳相等且本地已是删除态时跳过——增量拉取的时钟重叠窗口会反复拉回本机
+      // 刚推送的行，无变化也重写会导致每次拉取都全量刷新视图。
       if (event.deleted && incomingUpdatedAt >= existingUpdatedAt) {
-        recordsToSave.push(normalizeEvent({ ...existing, deleted: true, updatedAt: incomingUpdatedAt }))
-        updated += 1
+        if (!existing.deleted || incomingUpdatedAt > existingUpdatedAt) {
+          recordsToSave.push(normalizeEvent({ ...existing, deleted: true, updatedAt: incomingUpdatedAt }))
+          updated += 1
+        }
         continue
       }
 
@@ -366,7 +370,10 @@ export const useEventsStore = defineStore('events', () => {
       }
     }
 
-    await refreshList()
+    // 无变化不刷新：全量 refreshList 会整体替换 list 并触发所有依赖视图重渲染
+    if (added > 0 || updated > 0 || removed > 0) {
+      await refreshList()
+    }
     return { added, updated, removed }
   }
 

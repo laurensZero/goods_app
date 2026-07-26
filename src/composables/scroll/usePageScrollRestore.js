@@ -283,6 +283,8 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     applyTarget()
     for (let frame = 0; frame < 4; frame += 1) {
       if (sessionId !== restoreSessionId) return false
+      // 命中即退：布局已能容纳目标位置时，多跑剩余帧只会拉长激活遮罩时间
+      if (Math.abs(readScrollTop() - top) <= 1) return true
       await new Promise((resolve) => window.requestAnimationFrame(resolve))
       if (sessionId !== restoreSessionId) return false
       applyTarget()

@@ -29,7 +29,9 @@ export default [
     path: '/group/:id',
     name: 'group-detail',
     component: () => import('@/views/GroupDetailView.vue'),
-    meta: { titleKey: 'nav.groupDetail' },
+    // keepAlive: key 用路由名 → 全部分组共享单个缓存实例（数据由 props.id 响应式派生）。
+    // 缺少此标记时 key 会退化为 fullPath，每个分组各缓存一个实例且无上限。
+    meta: { titleKey: 'nav.groupDetail', keepAlive: true },
     props: true
   },
   {

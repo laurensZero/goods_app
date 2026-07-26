@@ -636,7 +636,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: var(--section-gap);
 }
-@media (min-width: 1200px) {
+/* 与全站平板断点(900px)一致:iPad 横屏等场景热力图与趋势图并排,
+   避免两图各自拉到全宽(趋势图柱子稀疏、热力图格子被拉扁) */
+@media (min-width: 900px) {
   .duo-section {
     flex-direction: row;
     gap: 24px;

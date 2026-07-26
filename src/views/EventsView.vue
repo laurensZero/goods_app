@@ -350,7 +350,6 @@ const {
   getActiveScrollSource,
   markScrollSource,
   readScrollTop,
-  getStoredScrollState,
   hasPendingRestore,
   saveScrollPosition,
   restorePendingScrollPosition,
@@ -803,8 +802,9 @@ onActivated(async () => {
   isEventsActive.value = true
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
-  const shouldMaskDisplay = Math.abs(readScrollTop() - (getStoredScrollState()?.top || 0)) > 1
-  if (shouldMaskDisplay || hasPendingEventHeroBack(route.fullPath)) {
+  // 仅 hero 返回动画需要整页遮罩：普通 tab 切换的滚动恢复同步完成，错误位置
+  // 不会被绘制，整页 visibility:hidden 只会造成可感知的空白闪烁。
+  if (hasPendingEventHeroBack(route.fullPath)) {
     eventsDisplayReady.value = false
   }
   await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)

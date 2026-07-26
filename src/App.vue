@@ -2,9 +2,11 @@
   <div class="app-wrapper">
     <div class="route-stage">
       <RouterView v-slot="{ Component, route: currentRoute }">
-        <KeepAlive v-if="Component" :include="keepAliveViewNames">
+        <!-- v-if 必须在 component 上而不是 KeepAlive 上：KeepAlive 被卸载会连带销毁全部缓存实例 -->
+        <KeepAlive :include="keepAliveViewNames">
           <component
             :is="Component"
+            v-if="Component"
             :key="currentRoute.meta.keepAlive ? getKeepAliveKey(currentRoute) : getRouteKey(currentRoute)"
             class="route-scene"
           />
@@ -114,23 +116,20 @@ body,
 
 .app-wrapper {
   min-height: 100dvh;
-  background-color: var(--app-bg);
-  background: var(--app-bg-gradient);
 }
 
+/* 渐变背景只保留 route-stage（滑动动画露缝时的底色）和 route-scene（页面自身、
+   随内容高度延伸）两层；html/#app/.app-wrapper 不再叠涂同一渐变，减少全页 overdraw。 */
 .route-stage {
   position: relative;
   min-height: 100dvh;
   overflow: hidden;
-  background-color: var(--app-bg);
   background: var(--app-bg-gradient);
 }
 
 .route-scene {
   min-height: 100dvh;
-  background-color: var(--app-bg);
   background: var(--app-bg-gradient);
-  backface-visibility: hidden;
 }
 
 /* ---- page slide transition ---- */

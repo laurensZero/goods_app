@@ -17,7 +17,12 @@ const routes = [
   ...goodsRoutes,
   ...eventRoutes,
   ...manageRoutes,
-  ...importRoutes
+  ...importRoutes,
+  // 404 catch-all：未匹配的 hash 若渲染不出组件，App.vue 的 RouterView 会拿到空 Component
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
+  }
 ]
 
 if ('scrollRestoration' in window.history) {

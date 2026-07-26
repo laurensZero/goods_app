@@ -1160,12 +1160,6 @@ function unbindAndroidBackButton() {
   removeAndroidBackListener = null
 }
 
-function shouldMaskHomeDisplay() {
-  const storedTop = getStoredScrollState()?.top || 0
-  if (storedTop <= 0) return false
-  return Math.abs(readScrollTop() - storedTop) > 1
-}
-
 onMounted(async () => {
   isRouteLeaving = false
   const sessionId = ++mountBootstrapSession
@@ -1247,7 +1241,10 @@ onActivated(async () => {
     bindAndroidBackButton()
     return
   }
-  if (shouldMaskHomeDisplay() || hasPendingGoodsHeroBack(route.fullPath)) {
+  // 仅 hero 返回动画需要整页遮罩。普通 tab 切换的滚动恢复在同一任务内同步写入
+  // scrollTop（命中即返回，不经过 rAF），错误位置不会被绘制；此时整页
+  // visibility:hidden 反而制造 100ms+ 的可感知空白闪烁（WishlistView 同场景不遮罩）。
+  if (hasPendingGoodsHeroBack(route.fullPath)) {
     homeDisplayReady.value = false
   }
   const storedState = getStoredScrollState()
