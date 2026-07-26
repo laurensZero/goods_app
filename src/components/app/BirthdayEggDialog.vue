@@ -82,14 +82,14 @@ const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
 
-// 手机 3×3 共 9 张；宽屏（与卡片拉宽同断点）4 列可放满 16 张
+// 手机 3×3 共 9 张；宽屏（与卡片拉宽同断点）4 列 12 张
 const wideQuery = window.matchMedia('(min-width: 768px)')
 const isWide = ref(wideQuery.matches)
 const onWideChange = (event) => { isWide.value = event.matches }
 wideQuery.addEventListener('change', onWideChange)
 onBeforeUnmount(() => wideQuery.removeEventListener('change', onWideChange))
 
-const wallImages = computed(() => (current.value?.imageUrls || []).slice(0, isWide.value ? 16 : 9))
+const wallImages = computed(() => (current.value?.imageUrls || []).slice(0, isWide.value ? 12 : 9))
 
 watch(showDialog, (visible) => {
   if (visible) activeIndex.value = 0
