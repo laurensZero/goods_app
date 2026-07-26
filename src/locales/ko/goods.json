@@ -81,6 +81,8 @@
   "goods.detail.purchasedAt": "구매처",
   "goods.detail.quantityUnit": "개",
   "goods.detail.saleAt": "판매 시간",
+  "goods.detail.saleInfo": "판매 정보",
+  "goods.detail.netRecovered": "회수",
   "goods.detail.saleReminder": "판매 리마인더",
   "goods.detail.shippingFee": "배송비",
   "goods.detail.statusTimeline": "상태 타임라인",

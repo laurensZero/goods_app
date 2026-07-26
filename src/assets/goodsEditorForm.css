@@ -1003,3 +1003,59 @@
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
   }
 
+
+/* ── 出谷信息区块 ── */
+.sale-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sale-info-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.sale-info-input:focus {
+  border-color: var(--app-primary);
+}
+
+.sale-info-input::placeholder {
+  color: var(--app-placeholder);
+}
+
+.sale-info-units {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sale-info-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sale-info-unit__tag {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.sale-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sale-info-cell__label {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}

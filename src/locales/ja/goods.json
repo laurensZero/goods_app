@@ -81,6 +81,8 @@
   "goods.detail.purchasedAt": "購入場所",
   "goods.detail.quantityUnit": "個",
   "goods.detail.saleAt": "発売日時",
+  "goods.detail.saleInfo": "売却情報",
+  "goods.detail.netRecovered": "回収",
   "goods.detail.saleReminder": "発売リマインダー",
   "goods.detail.shippingFee": "送料",
   "goods.detail.statusTimeline": "ステータス履歴",

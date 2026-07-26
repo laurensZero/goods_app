@@ -103,6 +103,91 @@
                   </div>
                 </div>
 
+                <!-- 出谷信息:状态为在售/已出时编辑(存 sell* 列;在售=挂牌信息,已出=成交信息) -->
+                <div v-if="!form.isWishlist && showSaleSection" class="field">
+                  <span class="field-label">{{ t('goods.detail.saleInfo') }}</span>
+
+                  <div v-if="!hasUnitSaleStatuses" class="sale-info-grid">
+                    <label class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ form.collectStatus === '已出' ? t('sale.dealPrice') : t('sale.listingPrice') }}</span>
+                      <input
+                        v-model="form.sellPrice"
+                        type="number" inputmode="decimal" min="0"
+                        class="sale-info-input"
+                        :placeholder="t('sale.pricePlaceholder')"
+                      />
+                    </label>
+                    <label class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ t('sale.platform') }}</span>
+                      <input
+                        v-model="form.sellPlatform"
+                        type="text"
+                        class="sale-info-input"
+                        :placeholder="t('sale.platformPlaceholder')"
+                      />
+                    </label>
+                    <label v-if="form.collectStatus === '已出'" class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ t('sale.fee') }}</span>
+                      <input
+                        v-model="form.sellFee"
+                        type="number" inputmode="decimal" min="0"
+                        class="sale-info-input"
+                        :placeholder="t('sale.feePlaceholder')"
+                      />
+                    </label>
+                    <label class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ t('sale.date') }}</span>
+                      <button type="button" class="sale-info-input sale-info-date-btn" @click="openSellDatePicker(null)">
+                        {{ form.sellDate || t('common.selectDate') }}
+                      </button>
+                    </label>
+                  </div>
+
+                  <div v-else class="sale-info-units">
+                    <div v-for="unit in saleUnits" :key="`sale-unit-${unit.index}`" class="sale-info-unit">
+                      <span class="sale-info-unit__tag">{{ t('sale.unitLabel', { n: unit.index + 1 }) }} · {{ unit.statusLabel }}</span>
+                      <div class="sale-info-grid">
+                        <label class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ unit.status === '已出' ? t('sale.dealPrice') : t('sale.listingPrice') }}</span>
+                          <input
+                            :value="unit.info.price || ''"
+                            type="number" inputmode="decimal" min="0"
+                            class="sale-info-input"
+                            :placeholder="t('sale.pricePlaceholder')"
+                            @change="updateUnitSaleInfo(unit.index, 'price', $event.target.value)"
+                          />
+                        </label>
+                        <label class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ t('sale.platform') }}</span>
+                          <input
+                            :value="unit.info.platform || ''"
+                            type="text"
+                            class="sale-info-input"
+                            :placeholder="t('sale.platformPlaceholder')"
+                            @change="updateUnitSaleInfo(unit.index, 'platform', $event.target.value)"
+                          />
+                        </label>
+                        <label v-if="unit.status === '已出'" class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ t('sale.fee') }}</span>
+                          <input
+                            :value="unit.info.fee || ''"
+                            type="number" inputmode="decimal" min="0"
+                            class="sale-info-input"
+                            :placeholder="t('sale.feePlaceholder')"
+                            @change="updateUnitSaleInfo(unit.index, 'fee', $event.target.value)"
+                          />
+                        </label>
+                        <label class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ t('sale.date') }}</span>
+                          <button type="button" class="sale-info-input sale-info-date-btn" @click="openSellDatePicker(unit.index)">
+                            {{ unit.info.date || t('common.selectDate') }}
+                          </button>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <label class="field" :class="{ 'field--error': nameError }">
                   <span class="field-label">{{ t('goods.editor.nameRequired') }} <span class="required">*</span></span>
                   <input
@@ -714,6 +799,17 @@
       :max-date="maxDate"
       @confirm="onSaleDateTimeConfirm"
     />
+
+    <AppDatePicker
+      v-model:show="showSellDatePicker"
+      v-model="sellDatePickerValue"
+      :z-index="2003"
+      :is-tablet="isTabletViewport"
+      :title="t('sale.date')"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onSellDateConfirm"
+    />
   </div>
 </template>
 
@@ -905,6 +1001,62 @@ const collectStatusOptions = computed(() => [
   { label: t('status.onSale'), value: '在售' }
 ])
 const currencySymbol = computed(() => CURRENCY_MAP[form.currency]?.symbol || '¥')
+
+// ── 出谷信息(sell* 列)──
+const hasUnitSaleStatuses = computed(() =>
+  quantityNumber.value >= 2 &&
+  (Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []).some((s) => s === '在售' || s === '已出')
+)
+const showSaleSection = computed(() =>
+  form.collectStatus === '在售' || form.collectStatus === '已出' || hasUnitSaleStatuses.value
+)
+const saleUnits = computed(() => {
+  const units = []
+  const list = Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : []
+  list.forEach((status, index) => {
+    if (status !== '在售' && status !== '已出') return
+    const label = collectStatusOptions.value.find((o) => o.value === status)?.label || status
+    units.push({ index, status, statusLabel: label, info: form.unitSaleInfoList?.[index] || {} })
+  })
+  return units
+})
+const showSellDatePicker = ref(false)
+const sellDatePickerValue = ref([])
+const sellDateTarget = ref(null) // null=整条,数字=件号
+
+function openSellDatePicker(unitIndex) {
+  sellDateTarget.value = unitIndex
+  const current = unitIndex == null ? form.sellDate : (form.unitSaleInfoList?.[unitIndex]?.date || '')
+  const normalized = String(current || '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const [year, month, day] = normalized.split('-')
+    sellDatePickerValue.value = [year, String(Number(month)), String(Number(day))]
+  } else {
+    const now = new Date()
+    sellDatePickerValue.value = [String(now.getFullYear()), String(now.getMonth() + 1), String(now.getDate())]
+  }
+  showSellDatePicker.value = true
+}
+
+function onSellDateConfirm({ selectedValues }) {
+  if (Array.isArray(selectedValues) && selectedValues.length >= 3) {
+    const date = `${selectedValues[0]}-${String(selectedValues[1]).padStart(2, '0')}-${String(selectedValues[2]).padStart(2, '0')}`
+    if (sellDateTarget.value == null) form.sellDate = date
+    else updateUnitSaleInfo(sellDateTarget.value, 'date', date)
+  }
+  showSellDatePicker.value = false
+}
+
+function updateUnitSaleInfo(index, field, value) {
+  const list = Array.isArray(form.unitSaleInfoList) ? [...form.unitSaleInfoList] : []
+  while (list.length <= index) list.push(null)
+  const info = { ...(list[index] || {}) }
+  const trimmed = String(value || '').trim()
+  if (trimmed) info[field] = trimmed
+  else delete info[field]
+  list[index] = Object.keys(info).length > 0 ? info : null
+  form.unitSaleInfoList = list
+}
 const saleReminderPresetOffsets = SALE_REMINDER_PRESET_OFFSETS
 const customSaleReminderMinutes = ref('')
 const customSaleReminderOffsets = computed(() =>

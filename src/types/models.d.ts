@@ -47,12 +47,20 @@ export interface EventExpenseItem {
   amount: string
 }
 
-/** 状态时间线条目 */
+/** 状态时间线条目(纯状态历史;卖出金额数据存 GoodsItem 的 sell* 字段) */
 export interface StatusTimelineEntry {
   status: string
   at: string
   note?: string
   unitIndex?: number
+}
+
+/** 逐件出谷信息(含义由 unitCollectStatusList 对应件的状态决定:在售=挂牌,已出=成交) */
+export interface UnitSaleInfo {
+  price?: string
+  platform?: string
+  fee?: string
+  date?: string
 }
 
 /** 商品完整对象（业务层 shape，对应 normalizeGoodsInput 返回值） */
@@ -88,6 +96,12 @@ export interface GoodsItem {
   actualPriceCurrency: string
   collectStatus: string
   shippingFee: string
+  /** 出谷信息:含义由 collectStatus 决定(在售=挂牌价/平台,已出=成交价/平台/手续费) */
+  sellPrice: string
+  sellPlatform: string
+  sellFee: string
+  sellDate: string
+  unitSaleInfoList: (UnitSaleInfo | null)[]
   statusTimeline: StatusTimelineEntry[]
 }
 

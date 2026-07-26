@@ -11,6 +11,7 @@ import {
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
+import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
 
@@ -36,6 +37,8 @@ async function addMultipleGoods(items, list) {
     const normalized = normalizeGoodsInput(clean, String(now + index))
     const key = buildScopedKey(normalized)
 
+    // 合并进已有商品时不做时间线兜底——避免重复导入给既有时间线拼入「已拥有@今天」,
+    // 重置持有天数并随下次推送扩散;只有真正新增的条目才 ensureInitialTimeline
     if (existingKeyToIndex.has(key)) {
       const existingIndex = existingKeyToIndex.get(key)
       existingItems[existingIndex] = mergeGoodsRecord(existingItems[existingIndex], normalized)
@@ -50,7 +53,7 @@ async function addMultipleGoods(items, list) {
     }
 
     newKeyToIndex.set(key, newItems.length)
-    newItems.push(normalized)
+    newItems.push(ensureInitialTimeline(normalized))
   })
 
   list.value = [...newItems, ...existingItems]

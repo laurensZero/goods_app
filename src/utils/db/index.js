@@ -85,6 +85,11 @@ const CREATE_TABLE_SQL = `
     collectStatus TEXT DEFAULT '已拥有',
     shippingFee TEXT DEFAULT '',
     statusTimeline TEXT DEFAULT '[]',
+    sellPrice  TEXT DEFAULT '',
+    sellPlatform TEXT DEFAULT '',
+    sellFee    TEXT DEFAULT '',
+    sellDate   TEXT DEFAULT '',
+    unitSaleInfoList TEXT DEFAULT '[]',
     updatedAt  INTEGER DEFAULT 0
   );
 `
@@ -192,6 +197,11 @@ const GOODS_REQUIRED_COLUMNS = [
   ['collectStatus', "TEXT DEFAULT '已拥有'"],
   ['shippingFee', "TEXT DEFAULT ''"],
   ['statusTimeline', "TEXT DEFAULT '[]'"],
+  ['sellPrice', "TEXT DEFAULT ''"],
+  ['sellPlatform', "TEXT DEFAULT ''"],
+  ['sellFee', "TEXT DEFAULT ''"],
+  ['sellDate', "TEXT DEFAULT ''"],
+  ['unitSaleInfoList', "TEXT DEFAULT '[]'"],
   ['updatedAt', 'INTEGER DEFAULT 0']
 ]
 
@@ -305,6 +315,11 @@ function prepareGoodsRecord(item) {
     actualPriceCurrency = 'CNY',
     collectStatus = '已拥有',
     shippingFee = '',
+    sellPrice = '',
+    sellPlatform = '',
+    sellFee = '',
+    sellDate = '',
+    unitSaleInfoList = [],
     statusTimeline = []
   } = item
 
@@ -340,6 +355,11 @@ function prepareGoodsRecord(item) {
     ts: updatedAt || Date.now(),
     collectStatus: String(collectStatus || '已拥有'),
     shippingFee: String(shippingFee || ''),
+    sellPrice: String(sellPrice || ''),
+    sellPlatform: String(sellPlatform || ''),
+    sellFee: String(sellFee || ''),
+    sellDate: String(sellDate || ''),
+    unitSaleInfoStr: JSON.stringify(Array.isArray(unitSaleInfoList) ? unitSaleInfoList : []),
     statusTimelineStr: JSON.stringify(Array.isArray(statusTimeline) ? statusTimeline : [])
   }
 }
@@ -352,10 +372,10 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,statusTimeline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.statusTimelineStr]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -536,7 +556,7 @@ export async function getItems() {
     }
   }
   try {
-    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,statusTimeline FROM goods ORDER BY rowid DESC')
+    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline FROM goods ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
       isWishlist: normalizeWishlistFlag(r.isWishlist),
@@ -559,6 +579,11 @@ export async function getItems() {
       updatedAt: Number(r.updatedAt) || 0,
       currency: String(r.currency || '').trim() || 'CNY',
       actualPriceCurrency: String(r.actualPriceCurrency || '').trim() || 'CNY',
+      sellPrice: String(r.sellPrice || '').trim(),
+      sellPlatform: String(r.sellPlatform || '').trim(),
+      sellFee: String(r.sellFee || '').trim(),
+      sellDate: String(r.sellDate || '').trim(),
+      unitSaleInfoList: parseJsonArray(r.unitSaleInfoList),
       statusTimeline: parseJsonArray(r.statusTimeline)
     }))
   } catch (e) {

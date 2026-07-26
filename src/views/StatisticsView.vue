@@ -39,6 +39,29 @@
         </div>
       </section>
 
+      <!-- 出谷回血概览 -->
+      <section v-if="saleSummary.hasAny" class="sale-overview-section">
+        <button class="sale-overview-card" type="button" @click="router.push('/manage/sale-ledger')">
+          <div class="sale-overview-figures">
+            <div class="sale-overview-figure">
+              <span class="sale-overview-kicker">{{ t('sale.recovered') }}</span>
+              <strong class="sale-overview-value">¥{{ formatSaleAmount(saleSummary.recoveredTotal) }}</strong>
+            </div>
+            <div class="sale-overview-figure">
+              <span class="sale-overview-kicker">{{ t('sale.listing') }}</span>
+              <strong class="sale-overview-value">¥{{ formatSaleAmount(saleSummary.listingTotal) }}</strong>
+            </div>
+            <div class="sale-overview-figure">
+              <span class="sale-overview-kicker">{{ t('sale.totalProfit') }}</span>
+              <strong :class="['sale-overview-value', saleSummary.profitTotal > 0 ? 'sale-profit--gain' : saleSummary.profitTotal < 0 ? 'sale-profit--loss' : '']">
+                {{ saleSummary.profitTotal > 0 ? '+' : saleSummary.profitTotal < 0 ? '-' : '' }}¥{{ formatSaleAmount(saleSummary.profitTotal) }}
+              </strong>
+            </div>
+          </div>
+          <svg class="sale-overview-arrow" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+      </section>
+
       <!-- Heatmap + Trend side by side on wide screens -->
       <div class="duo-section">
         <div class="duo-main">
@@ -158,6 +181,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref } from
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { buildSaleSummary } from '@/utils/goods/saleStats'
 import { usePresetsStore } from '@/stores/presets'
 import {
   createLeaderboardDimensionOptions,
@@ -203,6 +227,14 @@ const HOME_TOP_OPTIONS = computed(() => [
 ])
 const LEADERBOARD_DIMENSION_OPTIONS = computed(() => createLeaderboardDimensionOptions(t))
 const LEADERBOARD_METRIC_OPTIONS = computed(() => createLeaderboardMetricOptions(t))
+
+// 用视图层列表(含汇率折算字段),与本页其余统计的 CNY 口径一致
+const saleSummary = computed(() => buildSaleSummary(store.collectionViewList))
+
+function formatSaleAmount(value) {
+  const n = Math.abs(Number(value) || 0)
+  return Number.isInteger(n) ? String(n) : n.toFixed(2)
+}
 
 const pageBodyRef = ref(null)
 const selectedDimension = ref('character')
@@ -549,6 +581,54 @@ onBeforeUnmount(() => {
 .chart-title { margin: 0 0 8px 0; font-size: 14px; color: var(--app-text-secondary); }
 
 /* Heatmap + Trend duo layout */
+.sale-overview-section {
+  padding: 0 var(--page-padding);
+  margin-top: var(--section-gap);
+}
+.sale-overview-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.14s ease;
+}
+.sale-overview-card:active { transform: scale(0.98); }
+.sale-overview-figures {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.sale-overview-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sale-overview-kicker {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+}
+.sale-overview-value {
+  color: var(--app-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+.sale-profit--gain { color: var(--app-success, #16a34a); }
+.sale-profit--loss { color: var(--app-danger, #dc2626); }
+.sale-overview-arrow {
+  width: 18px;
+  height: 18px;
+  color: var(--app-text-tertiary);
+  flex-shrink: 0;
+}
+
 .duo-section {
   padding: 0 var(--page-padding);
   margin-top: var(--section-gap);

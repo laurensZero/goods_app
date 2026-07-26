@@ -41,6 +41,11 @@ CREATE TABLE IF NOT EXISTS goods (
   collect_status TEXT DEFAULT '已拥有',
   shipping_fee TEXT DEFAULT '',
   status_timeline JSONB DEFAULT '[]',
+  sell_price TEXT DEFAULT '',
+  sell_platform TEXT DEFAULT '',
+  sell_fee TEXT DEFAULT '',
+  sell_date TEXT DEFAULT '',
+  unit_sale_info_list JSONB DEFAULT '[]',
   synced_by TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -171,6 +176,11 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_enabled INTEGER DEFAULT
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_offsets JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_collect_status_list JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_price TEXT DEFAULT '';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_platform TEXT DEFAULT '';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_fee TEXT DEFAULT '';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_date TEXT DEFAULT '';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_sale_info_list JSONB DEFAULT '[]';
 
 ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -271,6 +281,11 @@ BEGIN
     OR NEW.collect_status IS DISTINCT FROM OLD.collect_status
     OR NEW.shipping_fee IS DISTINCT FROM OLD.shipping_fee
     OR NEW.status_timeline IS DISTINCT FROM OLD.status_timeline
+    OR NEW.sell_price IS DISTINCT FROM OLD.sell_price
+    OR NEW.sell_platform IS DISTINCT FROM OLD.sell_platform
+    OR NEW.sell_fee IS DISTINCT FROM OLD.sell_fee
+    OR NEW.sell_date IS DISTINCT FROM OLD.sell_date
+    OR NEW.unit_sale_info_list IS DISTINCT FROM OLD.unit_sale_info_list
   THEN NEW.updated_at = now();
   ELSE NEW.updated_at = OLD.updated_at;
   END IF;
@@ -833,6 +848,9 @@ BEGIN
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
       status_timeline = EXCLUDED.status_timeline,
+      sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
+      sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
+      unit_sale_info_list = EXCLUDED.unit_sale_info_list,
       updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
       user_id = EXCLUDED.user_id;
   END IF;
@@ -860,6 +878,9 @@ BEGIN
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
       status_timeline = EXCLUDED.status_timeline,
+      sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
+      sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
+      unit_sale_info_list = EXCLUDED.unit_sale_info_list,
       updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
       user_id = EXCLUDED.user_id;
   END IF;

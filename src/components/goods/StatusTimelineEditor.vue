@@ -26,13 +26,18 @@
             >
               {{ entry.at || t('common.selectDate') }}
             </button>
+            <span v-if="entry.unitIndex != null" class="timeline-item__unit-tag">
+              {{ t('sale.unitLabel', { n: entry.unitIndex + 1 }) }}
+            </span>
           </div>
+          <!-- 用 change 而非 input:逐键 emit 会触发整表 deep watch 重建,
+               Android WebView 下有中断中文输入法组合(吞字)的风险 -->
           <input
             type="text"
             :value="entry.note || ''"
             class="timeline-item__note"
             :placeholder="t('goods.editor.timelineNotePlaceholder')"
-            @input="updateEntry(index, 'note', $event.target.value)"
+            @change="updateEntry(index, 'note', $event.target.value)"
           />
         </div>
         <button
@@ -157,8 +162,9 @@ function updateEntry(index, field, value) {
   const entry = sorted[index]
   if (!entry) return
 
-  const updated = { ...entry, [field]: value }
-  if (field === 'note' && !value) {
+  const trimmed = typeof value === 'string' ? value.trim() : value
+  const updated = { ...entry, [field]: trimmed }
+  if (field === 'note' && !trimmed) {
     delete updated.note
   }
 
@@ -270,6 +276,67 @@ function addEntry() {
 
 .timeline-item__note:focus {
   border-color: var(--app-primary);
+}
+
+.timeline-item__sale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.timeline-item__sale-text {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-item__sale-clear {
+  border: none;
+  background: transparent;
+  color: var(--app-danger, #dc2626);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.timeline-item__unit-tag {
+  align-self: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+  border: 1px solid var(--app-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.timeline-item__sale-fields {
+  display: flex;
+  gap: 6px;
+}
+
+.timeline-item__sale-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  outline: none;
+}
+
+.timeline-item__sale-input:focus {
+  border-color: var(--app-primary);
+}
+
+.timeline-item__sale-input::placeholder {
+  color: var(--app-placeholder);
 }
 
 .timeline-item__delete {

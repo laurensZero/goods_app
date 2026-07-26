@@ -101,13 +101,82 @@ export const MIGRATIONS = [
       if (!cols.has('statusTimeline')) {
         await db.run("ALTER TABLE goods ADD COLUMN statusTimeline TEXT DEFAULT '[]'")
       }
-      // 为已有的谷子初始化时间线数据，用 acquiredAt 作为日期
+      // 为已有的谷子初始化时间线数据，用 acquiredAt 作为日期。
+      // 状态限购入语义——「已出/在售」等原样写入会造出「卖出日期=购入日期」的假卖出记录;
+      // 日期必须是 YYYY-MM-DD,否则被 normalizeStatusTimeline 静默丢弃,表现为时间线时有时无
+      const ACQUISITION_STATUSES = new Set(['已拥有', '待发货', '待补款', '待补邮'])
+      const now = new Date()
+      // 本地时区当天(toISOString 是 UTC,东八区凌晨会差一天)
+      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const rows = await db.query("SELECT id, collectStatus, acquiredAt FROM goods WHERE statusTimeline = '[]' OR statusTimeline IS NULL")
       for (const row of rows) {
         if (!row.collectStatus) continue
-        const date = row.acquiredAt || new Date().toISOString().slice(0, 10)
-        const timeline = JSON.stringify([{ status: row.collectStatus, at: date }])
+        const rawStatus = String(row.collectStatus).trim()
+        const status = ACQUISITION_STATUSES.has(rawStatus) ? rawStatus : '已拥有'
+        const rawDate = String(row.acquiredAt || '').trim()
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : localToday
+        const timeline = JSON.stringify([{ status, at: date }])
         await db.run("UPDATE goods SET statusTimeline = ? WHERE id = ?", [timeline, row.id])
+      }
+    }
+  },
+  {
+    version: 7,
+    description: 'Repair v6 timeline artifacts',
+    up: async (db) => {
+      // 旧版 v6 迁移(已在存量设备执行,无法重跑)的两类产物:
+      // ① collectStatus 为「已出/在售」等时被写入 `已出@购入日期` 单条时间线——
+      //    出谷账本会把它当成交日期,表现为「卖出日期=购入日期」
+      // ② acquiredAt 非 YYYY-MM-DD 时写入非法日期条目,加载时被静默丢弃,时间线时有时无
+      // 修复特征锁定 v6 产物:单条、无 unitIndex、无卖出字段(price/platform/fee)
+      const EXIT_STATUSES = new Set(['已出', '在售', '想出', '已赠出', '丢失'])
+      const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+      const now = new Date()
+      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      const rows = await db.query("SELECT id, acquiredAt, statusTimeline FROM goods WHERE statusTimeline IS NOT NULL AND statusTimeline != '[]'")
+      for (const row of rows) {
+        let timeline
+        try {
+          timeline = JSON.parse(row.statusTimeline)
+        } catch {
+          continue
+        }
+        if (!Array.isArray(timeline) || timeline.length !== 1) continue
+        const entry = timeline[0]
+        if (!entry || typeof entry !== 'object') continue
+        if (entry.price || entry.platform || entry.fee || entry.unitIndex != null) continue
+        const acquiredAt = String(row.acquiredAt || '').trim()
+        const status = String(entry.status || '').trim()
+        const at = String(entry.at || '').trim()
+        const isFakeSale = EXIT_STATUSES.has(status) && (!acquiredAt || at === acquiredAt)
+        const isInvalidDate = !DATE_RE.test(at)
+        if (!isFakeSale && !isInvalidDate) continue
+        const fixed = {
+          status: isFakeSale ? '已拥有' : status,
+          at: DATE_RE.test(at) ? at : (DATE_RE.test(acquiredAt) ? acquiredAt : localToday)
+        }
+        if (entry.note) fixed.note = entry.note
+        await db.run("UPDATE goods SET statusTimeline = ? WHERE id = ?", [JSON.stringify([fixed]), row.id])
+      }
+    }
+  },
+  {
+    version: 8,
+    description: 'Add sale info columns (sellPrice/sellPlatform/sellFee/sellDate/unitSaleInfoList)',
+    up: async (db) => {
+      // 出谷信息独立列:含义由 collectStatus/unitCollectStatusList 决定(在售=挂牌,已出=成交)
+      const cols = await db.getTableColumns('goods')
+      const additions = [
+        ['sellPrice', "TEXT DEFAULT ''"],
+        ['sellPlatform', "TEXT DEFAULT ''"],
+        ['sellFee', "TEXT DEFAULT ''"],
+        ['sellDate', "TEXT DEFAULT ''"],
+        ['unitSaleInfoList', "TEXT DEFAULT '[]'"]
+      ]
+      for (const [name, type] of additions) {
+        if (!cols.has(name)) {
+          await db.run(`ALTER TABLE goods ADD COLUMN ${name} ${type}`)
+        }
       }
     }
   },
