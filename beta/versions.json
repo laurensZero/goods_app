@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.8",
+    "url": "bundle-20260726.8.zip",
+    "hash": "78d898114f0df7b57ae4b7e0d8ff4cd17e806c81221e4d9156b7806269d439a7",
+    "minNativeVersion": null,
+    "notes": "- fix: 处理零价格销售，确保有效成交记录",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T12:01:30Z"
+  },
+  {
     "version": "20260726.7",
     "url": "bundle-20260726.7.zip",
     "hash": "6bc44392dc21215b090582830d03e5219a48eea2dc3f1aa801029a5b473f0151",
@@ -16,14 +25,5 @@
     "notes": "- feat: 日志系统全面增强 — 统一缓冲、落盘、全域埋点\n  核心设施 (utils/logger.js):\n  - 统一日志环形缓冲(400条),createLogger 的 info/warn/error 自动入缓冲\n    (info 仅入缓冲不刷 console,生产环境零噪音的操作轨迹)\n  - console.error/warn 劫持、window error / unhandledrejection 捕获迁入 logger\n  - 缓冲节流落盘 localStorage(2s),pagehide/visibilitychange 立即 flush;\n    启动时恢复上一会话日志 — 闪退/重启前的最后痕迹可随反馈上传\n  - appLog() 迁入 logger 并全域启用(原先零调用方,App Logs 恒为空)\n\n  全局错误捕获 (main.js):\n  - app.config.errorHandler 记录组件名 + 生命周期钩子\n  - router.onError 捕获导航/动态 import 失败\n  - logger 提前到首个 import,后续模块初始化报错也能入缓冲\n\n  反馈日志 (feedbackAttachmentService):\n  - 自带收集器移除,改为消费统一缓冲\n  - 设备日志新增: 错误速览 / 当前会话完整轨迹 / 上一会话日志三段\n\n  埋点补全:\n  - 同步域: sync/pull 起止与决策、diff 比较结果、冲突检测与解决选择、\n    quickPush/forcePush、push 计数、同步步骤耗时镜像入缓冲\n  - DB: 迁移应用记录、init 耗时(info 级入缓冲)\n  - OTA: webUpdate 全链路(检查/下载/应用/回滚/恢复内置)原先零日志,\n    appUpdate 检查/下载/SHA256 校验失败\n  - auth: 登录/登出/OAuth/状态变更\n  - 批量添加: 队列创建/保存/放弃; 备份导入导出结果与失败原因\n  - 深度链接: NFC/分享链接处理结果\n\n  构建 (vite.config.js):\n  - BUILD_SOURCEMAP=1 时生成 hidden sourcemap,用于符号化线上堆栈,\n    默认关闭避免 .map 进 OTA zip/APK\n\n  测试: 新增 logger 缓冲单测 7 例;全量 489 测试通过,lint 0 error\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 设置页移除出谷账本入口\n  出谷账本入口收敛为统计页回血卡片(路由与页面保留);\n  清理 manageEntries 配置与五语言 manage.json 的对应键\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷账本入场动画与平板适配\n  - 统计页回血卡片跳转改用 runManageForwardNavigation,与其它管理子页同款滑入动画\n  - 账本页 900px 断点平板布局:汇总卡 4 列、记录列表双列、容器加宽\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- style: 出谷账本切换条平板端居中\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷账本 tab 切换过渡动画\n  已出/在售内容切换加方向感过渡:向右切从右滑入、向左切从左滑入,\n  配 0.16s 淡入淡出,out-in 模式避免两组列表重叠\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 统计页纳入 KeepAlive,消除切换标签时图表重新加载\n  统计页顶部与收藏/心愿单同级切换,但路由未缓存,每次切回都整页重挂载,\n  热力图与趋势图随之重新初始化并重放入场动画;\n  加入 keepAliveViewNames 并标记 meta.keepAlive 后组件保活,数据变更仍经响应式更新\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 统计图表滚动中反复重载\n  两个防线:\n  - resize 改用 ResizeObserver 且仅在容器尺寸真变化时触发——手机浏览器\n    滚动时地址栏收起/展开连环触发 window resize,图表随滑动反复重排\n  - setOption 前序列化对比,内容未变的新引用直接跳过,不重放入场动画\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T11:40:04Z"
-  },
-  {
-    "version": "20260726.5",
-    "url": "bundle-20260726.5.zip",
-    "hash": "6335dfca8397095138c0f02f84db398e1b5956d567aa3a220135d114332f588d",
-    "minNativeVersion": null,
-    "notes": "- feat: 出谷功能与状态时间线修复\n  出谷(卖出)功能:\n  - 卖出数据(price/platform/fee)挂在 statusTimeline 条目上,零表结构改动\n  - SellGoodsSheet 出谷弹窗(支持逐件卖出)、SaleLedgerView 出谷账本页\n  - 统计页回血概览卡片、详情页出谷入口与卖出信息、时间线价格徽标\n  - saleStats 统计工具、i18n 五语言文案\n\n  状态时间线修复(审查发现的高危 bug):\n  - computeEditedTimeline 统一编辑保存时的时间线维护,修复:\n    qty=1 每次保存注入 unitIndex:0 脏条目并删原条目(H1)、\n    逐件状态变更死代码永不写时间线(H2)、\n    改购入日期篡改卖出条目日期(H3)、\n    新增模式覆写手动时间线(H4)、心愿单转收藏清空历史(M3)\n  - syncUnitAcquiredTimeline:汇总条目仅在逐件全覆盖时删除;不再误删其它状态条目\n  - ensureInitialTimeline 统一 add/导入路径的时间线初始条目兜底\n  - updateMultipleGoods 批量改购入日期与编辑器共用 applyAcquiredAtToTimeline\n  - normalizeStatusTimeline 保留卖出字段并纳入去重键(含 fee)\n  - getHoldingDaysFromDate 本地时区解析\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 时间线快捷操作修复与复审问题修正\n  复审前遗留:\n  - markAsOwned 时间线日期与 acquiredAt 对齐,消除「持有 0 天」背离\n  - markAsReceived 逐件签收走 syncUnitStatusTimeline,不再追加重置持有起点的汇总条目\n  - StatusTimelineEditor 备注改 change 事件,规避 WebView 中文输入法吞字\n  - 迁移 v6 加固:状态白名单 + 日期校验 + 本地时区\n\n  对抗复审确认的问题:\n  - 新增 v7 修复迁移:清洗旧版 v6 在存量设备写入的假卖出条目与非法日期条目\n  - ensureInitialTimeline 只对真正新增商品生效,不再经合并路径给既有时间线注入「已拥有@今天」\n  - saleStats 分组回退:批总价仅在缺失件数=整条数量时计入,消除回血虚增与重复计价\n  - getScopeCost 与 getUnitCost 口径对齐(逐件回退,不再全有或全无)\n  - findLatestEntry 同日平局优先带价条目\n  - SellGoodsSheet 多件卖出手续费按件均摊,不再按件数重复扣除\n  - 出谷统计三处消费改用 collectionViewList,外币商品按 CNY 折算口径\n  - computeEditedTimeline 兜底日期校验,非法 acquiredAt 不再产生被静默丢弃的条目\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 出谷面板弹层圆角被内容背景覆盖\n  overflow 需为 hidden 才能让 Vant Popup 的圆角裁剪内层背景;\n  日期选择器自带 teleport 不受影响\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 时间线编辑器支持直接编辑卖出信息\n  - 在售/已出条目内联显示挂牌价/成交价、平台、手续费(仅已出)输入框,\n    清空输入即删除字段;状态改离卖出语义后残留数据保留只读展示+清除按钮\n  - 逐件条目显示件号标签,多件商品可区分改的是哪件\n  - 修改经 timelineSnapshotDiffers 识别为用户编辑,保存时完整尊重\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- refactor: 出谷数据迁移到独立数据库列\n  卖出数据从 statusTimeline JSON 条目迁移到 goods 表专用列(用户确认的精简方案):\n  - 新列:sellPrice/sellPlatform/sellFee/sellDate(TEXT)+ unitSaleInfoList(JSON 逐件)\n    含义由当前状态决定:在售=挂牌信息,已出=成交信息;不保留旧数据迁移(全新格式)\n  - 时间线回归纯状态历史(status/at/note/unitIndex),normalize 剥离历史卖出字段\n  - 本地 SQLite 迁移 v8(仅加列);Supabase:GOODS_COLS/columnMapping/reader/\n    supabase-setup.sql(建表+ALTER+触发器+upsert)同步补列\n  - saleStats 重写为列驱动;SellGoodsSheet 写列(逐件手续费均摊保留)\n  - 详情页删除 hero 出谷按钮(入口:三点菜单+编辑页)\n  - 编辑页新增「出谷信息」区块:整条或逐件编辑挂牌/成交价、平台、手续费、日期\n  - StatusTimelineEditor 移除条目内嵌卖出输入(避免写入被剥离的字段)\n  - 测试全部重写为列驱动:527 全绿,lint 0 error,build 通过\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 出谷信息输入框加固定标签\n  填入数据后 placeholder 消失导致分不清字段含义;\n  每个输入框上方加固定小标签(成交价/挂牌价、平台、手续费、日期)\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 出谷日期用 AppDatePicker 并自动同步时间线\n  - 出谷信息区块的日期改用 app 自有 AppDatePicker(平板居中),整条与逐件共用一个实例\n  - 新增 alignSaleTimelineDates:保存时把出谷日期对齐到时间线对应状态条目\n    (条目不存在则补一条,幂等),编辑与新增两条路径都接入\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T11:15:29Z"
   }
 ]

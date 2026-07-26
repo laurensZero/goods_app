@@ -1,9 +1,9 @@
 {
-  "version": "20260726.7",
-  "url": "bundle-20260726.7.zip",
-  "hash": "6bc44392dc21215b090582830d03e5219a48eea2dc3f1aa801029a5b473f0151",
+  "version": "20260726.8",
+  "url": "bundle-20260726.8.zip",
+  "hash": "78d898114f0df7b57ae4b7e0d8ff4cd17e806c81221e4d9156b7806269d439a7",
   "minNativeVersion": null,
-  "notes": "- fix: 优化 KeepAlive 组件使用，减少不必要的重载与渲染",
+  "notes": "- fix: 处理零价格销售，确保有效成交记录",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-26T11:51:39Z"
+  "publishedAt": "2026-07-26T12:01:30Z"
 }
