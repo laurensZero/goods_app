@@ -60,8 +60,10 @@ function getScopeCost(item, count) {
 }
 
 function makeRecord(item, info, unitIndex, count, type, cost) {
-  const price = toNumber(info?.price)
-  const hasPrice = price > 0
+  // 按「是否填写」判断而非 >0:'0' 是有效的 0 元成交(送人/仅亏手续费),'' 才是未记录
+  const rawPrice = String(info?.price ?? '').trim()
+  const hasPrice = rawPrice !== '' && Number.isFinite(Number(rawPrice))
+  const price = hasPrice ? Number(rawPrice) : 0
   const fee = toNumber(info?.fee)
   return {
     type,

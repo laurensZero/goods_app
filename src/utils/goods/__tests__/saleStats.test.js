@@ -164,3 +164,29 @@ describe('buildSaleLedger / buildSaleSummary', () => {
     expect(buildSaleSummary([makeItem()]).hasAny).toBe(false)
   })
 })
+
+describe('zero-price sales', () => {
+  it('treats price 0 as a valid deal, not missing price', () => {
+    const item = makeItem({ collectStatus: '已出', actualPrice: '30', sellPrice: '0', sellFee: '5', sellDate: '2026-06-01' })
+    const { sold } = extractSaleEntries(item)
+    expect(sold[0].hasPrice).toBe(true)
+    expect(sold[0].price).toBe(0)
+    expect(sold[0].profit).toBe(0 - 5 - 30)
+  })
+
+  it('still flags empty price as unrecorded', () => {
+    const item = makeItem({ collectStatus: '已出', sellPrice: '' })
+    expect(extractSaleEntries(item).sold[0].hasPrice).toBe(false)
+  })
+
+  it('per-unit zero price works', () => {
+    const item = makeItem({
+      quantity: 2,
+      unitCollectStatusList: ['已出', '已拥有'],
+      unitSaleInfoList: [{ price: '0', date: '2026-06-01' }]
+    })
+    const { sold } = extractSaleEntries(item)
+    expect(sold[0].hasPrice).toBe(true)
+    expect(sold[0].price).toBe(0)
+  })
+})
