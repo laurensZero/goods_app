@@ -77,7 +77,7 @@ window.addEventListener('app-notify-test', (e) => {
   }
 })
 
-const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView']
+const keepAliveViewNames = ['HomeView', 'RechargeView', 'WishlistView', 'MyView', 'EventsView', 'GroupDetailView', 'StatisticsView']
 const showTabBar = computed(() => route.meta.showTabBar === true)
 
 function getKeepAliveKey(currentRoute) {

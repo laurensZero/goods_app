@@ -75,7 +75,7 @@ export default [
     path: '/leaderboard/characters',
     name: 'character-leaderboard',
     component: () => import('@/views/StatisticsView.vue'),
-    meta: { titleKey: 'nav.dataStatistics', showTabBar: true }
+    meta: { titleKey: 'nav.dataStatistics', showTabBar: true, keepAlive: true }
   },
   {
     path: '/trash',
