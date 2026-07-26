@@ -9,37 +9,42 @@
       >
         <div class="birthday-ribbon" aria-hidden="true">🎂</div>
         <p class="birthday-kicker">Happy Birthday</p>
-        <h3 class="dialog-title">{{ t('birthday.todayTitle', { name: current.name }) }}</h3>
 
-        <p class="birthday-meta">
-          <span v-if="current.ip" class="birthday-meta__ip">{{ current.ip }}</span>
-          <span>{{ t('birthday.dateLabel', { month: current.month, day: current.day }) }}</span>
-        </p>
+        <Transition :name="`birthday-slide-${slideDirection}`" mode="out-in">
+          <div :key="current.id" class="birthday-slide">
+            <h3 class="dialog-title">{{ t('birthday.todayTitle', { name: current.name }) }}</h3>
 
-        <p class="birthday-message">
-          {{ current.message || t('birthday.defaultMessage', { name: current.name }) }}
-        </p>
+            <p class="birthday-meta">
+              <span v-if="current.ip" class="birthday-meta__ip">{{ current.ip }}</span>
+              <span>{{ t('birthday.dateLabel', { month: current.month, day: current.day }) }}</span>
+            </p>
 
-        <div class="birthday-stats">
-          <div class="birthday-stat">
-            <span class="birthday-stat__value">{{ t('birthday.countValue', { count: formatQuantity(current.quantity) }) }}</span>
-            <span class="birthday-stat__label">{{ t('birthday.countLabel') }}</span>
+            <p class="birthday-message">
+              {{ current.message || t('birthday.defaultMessage', { name: current.name }) }}
+            </p>
+
+            <div class="birthday-stats">
+              <div class="birthday-stat">
+                <span class="birthday-stat__value">{{ t('birthday.countValue', { count: formatQuantity(current.quantity) }) }}</span>
+                <span class="birthday-stat__label">{{ t('birthday.countLabel') }}</span>
+              </div>
+              <div class="birthday-stat">
+                <span class="birthday-stat__value">¥ {{ formatMoney(current.totalValue) }}</span>
+                <span class="birthday-stat__label">{{ t('birthday.spendLabel') }}</span>
+              </div>
+            </div>
+
+            <div v-if="current.imageUrls.length" class="birthday-wall">
+              <img
+                v-for="(url, index) in current.imageUrls"
+                :key="`${current.id}-${index}`"
+                :src="url"
+                alt=""
+                loading="lazy"
+              />
+            </div>
           </div>
-          <div class="birthday-stat">
-            <span class="birthday-stat__value">¥ {{ formatMoney(current.totalValue) }}</span>
-            <span class="birthday-stat__label">{{ t('birthday.spendLabel') }}</span>
-          </div>
-        </div>
-
-        <div v-if="current.imageUrls.length" class="birthday-wall">
-          <img
-            v-for="(url, index) in current.imageUrls"
-            :key="`${current.id}-${index}`"
-            :src="url"
-            alt=""
-            loading="lazy"
-          />
-        </div>
+        </Transition>
 
         <div v-if="birthdays.length > 1" class="birthday-pager" role="tablist">
           <button
@@ -49,7 +54,7 @@
             class="birthday-dot"
             :class="{ 'birthday-dot--active': index === activeIndex }"
             :aria-label="entry.name"
-            @click="activeIndex = index"
+            @click="goTo(index)"
           />
         </div>
 
@@ -72,6 +77,7 @@ const { t } = useI18n()
 const store = useCharacterBirthdayStore()
 
 const activeIndex = ref(0)
+const slideDirection = ref('next')
 const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
@@ -87,6 +93,12 @@ const accentStyle = computed(() => {
   return { '--birthday-accent': color }
 })
 
+function goTo(index) {
+  if (index === activeIndex.value) return
+  slideDirection.value = index > activeIndex.value ? 'next' : 'prev'
+  activeIndex.value = index
+}
+
 // pointer 事件同时覆盖触屏滑动与 PC 鼠标拖拽
 let pointerStartX = 0
 function onPointerDown(event) {
@@ -97,6 +109,7 @@ function onPointerUp(event) {
   const deltaX = (event.clientX ?? 0) - pointerStartX
   if (Math.abs(deltaX) < 48) return
   const total = birthdays.value.length
+  slideDirection.value = deltaX < 0 ? 'next' : 'prev'
   activeIndex.value = (activeIndex.value + (deltaX < 0 ? 1 : total - 1)) % total
 }
 
@@ -131,6 +144,7 @@ function formatMoney(value) {
   /* 拖拽切换轮播时避免框选文字 */
   user-select: none;
   -webkit-user-select: none;
+  transition: border-color 0.25s ease;
   position: relative;
   width: min(100%, 420px);
   max-height: 82vh;
@@ -243,6 +257,26 @@ function formatMoney(value) {
   /* 避免 PC 上原生图片拖拽劫持轮播手势 */
   pointer-events: none;
   -webkit-user-drag: none;
+}
+
+/* 轮播切换：按方向滑入滑出 */
+.birthday-slide-next-enter-active,
+.birthday-slide-next-leave-active,
+.birthday-slide-prev-enter-active,
+.birthday-slide-prev-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.birthday-slide-next-enter-from,
+.birthday-slide-prev-leave-to {
+  opacity: 0;
+  transform: translateX(32px);
+}
+
+.birthday-slide-next-leave-to,
+.birthday-slide-prev-enter-from {
+  opacity: 0;
+  transform: translateX(-32px);
 }
 
 .birthday-pager {
