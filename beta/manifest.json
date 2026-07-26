@@ -1,9 +1,9 @@
 {
-  "version": "20260726.11",
-  "url": "bundle-20260726.11.zip",
-  "hash": "f62f532033fb7ea597fc3e178a880ab1620b49ab6156c658d39691cc2c98dcaa",
+  "version": "20260726.12",
+  "url": "bundle-20260726.12.zip",
+  "hash": "f7adbda4a4b25eddcabf5e131829921995c87b25361e9fd15e8c293dd8af90d2",
   "minNativeVersion": null,
-  "notes": "- fix: 修改调查问卷存储字段名称以保持一致性",
+  "notes": "- feat: 强制刷新云端缓存以支持测试模式下的真实检查",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-26T14:57:54Z"
+  "publishedAt": "2026-07-26T15:36:31Z"
 }

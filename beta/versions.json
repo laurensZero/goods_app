@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.12",
+    "url": "bundle-20260726.12.zip",
+    "hash": "f7adbda4a4b25eddcabf5e131829921995c87b25361e9fd15e8c293dd8af90d2",
+    "minNativeVersion": null,
+    "notes": "- feat: 强制刷新云端缓存以支持测试模式下的真实检查",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T15:36:31Z"
+  },
+  {
     "version": "20260726.11",
     "url": "bundle-20260726.11.zip",
     "hash": "f62f532033fb7ea597fc3e178a880ab1620b49ab6156c658d39691cc2c98dcaa",
@@ -16,14 +25,5 @@
     "notes": "- feat: 角色生日彩蛋——云端生日表按需查询，生日当天弹祝福卡片\n  - 云端 character_birthdays 表 + get_character_birthdays RPC（按归一化名字/别名匹配，\n    只回传达标角色的行；表不开直查 policy，SQL 迁移文件在仓库根目录本地维护）\n  - 客户端只把谷子数达标（≥3，口径与角色排行榜一致）的角色名发给服务端查询，\n    本地仅缓存这些行（24h TTL，达标集合变化立即重查，网络失败降级旧缓存）\n  - 匹配：名字+IP 消歧（IP 空时仅唯一候选生效），2/29 平年顺延 2/28，本地日期判定\n  - 弹窗卡片：祝福文案/角色代表色/收藏统计/图片墙，多角色轮播，每天只弹一次，\n    公告弹窗关闭后才检查；My 页当天可回看；通知设置页可关闭\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日彩蛋 console 测试入口 testBirthdayEgg()\n  预览模式用真实收藏数据构造今日生日卡片（不足两张补示例数据以测轮播）；\n  testBirthdayEgg(true) 清除当日标记后走真实云端检查流程。不暴露 UI 入口。\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 生日卡片轮播改用 pointer 事件，PC 鼠标拖拽可切换\n  图片墙禁用原生拖拽、卡片禁用文字框选，避免劫持滑动手势\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日卡片轮播加方向感知滑动过渡\n  内容区按切换方向滑入滑出(0.18s)，强调色随角色渐变\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日卡片平板/桌面端放大（≥768px 宽 640px，字号与间距同步放大）\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 生日卡片平板端改为仅横向拉宽（580px），字号不变，图片墙自适应多列\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日卡片图片墙宽屏显示 16 张（4×4），手机保持 9 张\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 生日图片墙收集上限放宽到 30，避免无图商品占掉配额\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 宽屏图片墙改为 12 张（4×3）\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 生日图片墙每次打开随机轮换（30 张收集池洗牌后截取展示）\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: testBirthdayEgg(true, '3-7') 支持模拟日期走真实检查流程\n  模拟日期期间不读写当日已弹标记，关闭弹窗后自动恢复真实日期\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T14:49:00Z"
-  },
-  {
-    "version": "20260726.9",
-    "url": "bundle-20260726.9.zip",
-    "hash": "da6305205bd523c39ff672436d15ad4922d5c199db7ddf69044bd41751b461af",
-    "minNativeVersion": null,
-    "notes": "- ## 更新说明\n  本版本为大规模修复版本，无新功能。\n\n  ### 安全\n  - security: 修复反馈回复接口可被伪造管理员回复的漏洞，补充归属校验\n  - security: 分享链接改为仅凭分享码取数，不再允许列举他人分享内容\n  - security: 收敛云端存储与问卷回答的过宽访问策略，附件清理按归属限定\n\n  ### 同步\n  - fix: 修复多设备场景下快速推送可能漏拉其他设备数据的问题\n  - fix: 修复冲突选择\"保留本地\"后仍被其他设备覆盖的问题\n  - fix: 修复设备时钟偏差可能导致本地新增商品被误删的问题\n  - fix: 同步超时后旧任务不再与新任务并发写入；切换账号自动重置同步状态\n  - perf: 同步不再多拉一次全量数据，流量明显减少\n\n  ### 数据与统计\n  - fix: 数据库迁移加入事务保护，中断不再产生半迁移状态；OTA 回滚不再误重置数据库\n  - fix: 修复统计图表\"先空后有数据\"时永久空白、切换深浅色后颜色不刷新的问题\n  - fix: 外币商品逐件价格现在正确按汇率折算，离线时使用内置兜底汇率\n  - fix: 预算口径统一（月预算优先于年预算/12），出谷盈亏不再出现 -¥0.00\n\n  ### 体验\n  - fix: 添加商品保存失败时会提示并回滚，不再静默丢失\n  - fix: 首页搜索加入防抖，大量藏品时输入不再卡顿\n  - fix: 批量添加刷新后图片丢失的项会标记并引导重新选图\n  - fix: 剪贴板导入不再反复触发系统\"已读取剪贴板\"提示\n  - fix: 修复添加/编辑流程取消后本地图片文件残留的问题\n  - fix: Android 返回键在深链冷启动场景不再失灵；OTA 坏包白屏可自动回滚\n  - i18n: 补齐五种语言缺失文案，修正统计页硬编码中文",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T14:01:24Z"
   }
 ]
