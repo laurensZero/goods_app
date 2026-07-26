@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.14",
+    "url": "bundle-20260726.14.zip",
+    "hash": "a3729e41009ede03ab81bedbf87858e9f59d2341ce27eb5b61a87c95927fbd08",
+    "minNativeVersion": null,
+    "notes": "- feat: 增强路由转场效果，支持账本详情页的渐变动画",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T15:46:54Z"
+  },
+  {
     "version": "20260726.13",
     "url": "bundle-20260726.13.zip",
     "hash": "b632c4ec6258d6f286e1a1756034c26ab321928d4494aca29d1a3160d676769b",
@@ -16,14 +25,5 @@
     "notes": "- feat: 强制刷新云端缓存以支持测试模式下的真实检查",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T15:36:31Z"
-  },
-  {
-    "version": "20260726.11",
-    "url": "bundle-20260726.11.zip",
-    "hash": "f62f532033fb7ea597fc3e178a880ab1620b49ab6156c658d39691cc2c98dcaa",
-    "minNativeVersion": null,
-    "notes": "- fix: 修改调查问卷存储字段名称以保持一致性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T14:57:54Z"
   }
 ]

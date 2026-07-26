@@ -1,9 +1,9 @@
 {
-  "version": "20260726.13",
-  "url": "bundle-20260726.13.zip",
-  "hash": "b632c4ec6258d6f286e1a1756034c26ab321928d4494aca29d1a3160d676769b",
+  "version": "20260726.14",
+  "url": "bundle-20260726.14.zip",
+  "hash": "a3729e41009ede03ab81bedbf87858e9f59d2341ce27eb5b61a87c95927fbd08",
   "minNativeVersion": null,
-  "notes": "- feat: 删除抓取萌娘百科角色生日的脚本",
+  "notes": "- feat: 增强路由转场效果，支持账本详情页的渐变动画",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-26T15:41:21Z"
+  "publishedAt": "2026-07-26T15:46:54Z"
 }
