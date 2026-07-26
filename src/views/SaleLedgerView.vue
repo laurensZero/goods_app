@@ -113,16 +113,18 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { buildSaleLedger, buildSaleSummary } from '@/utils/goods/saleStats'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const store = useGoodsStore()
 
@@ -167,7 +169,17 @@ function profitClass(value) {
 }
 
 function openDetail(id) {
-  router.push(`/detail/${id}`)
+  // 账本行没有 hero 源元素,走 fade 转场(与首页时间线模式一致):
+  // 前进滑入,返回时 DetailView 读取 detail-fade 标记走同款滑出
+  runWithRouteTransition(
+    () => router.push(`/detail/${id}`),
+    {
+      direction: 'forward',
+      preferFallback: true,
+      returnPath: route.fullPath,
+      detailTransitionKind: 'detail-fade'
+    }
+  )
 }
 </script>
 
