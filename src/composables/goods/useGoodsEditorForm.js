@@ -10,7 +10,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
-import { computeEditedTimeline } from '@/utils/goods/statusTimeline'
+import { alignSaleTimelineDates, computeEditedTimeline } from '@/utils/goods/statusTimeline'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   ensureSaleReminderPermission,
@@ -401,6 +401,14 @@ export function useGoodsEditorForm(options = {}) {
         isWishlistToCollection: originalIsWishlist.value === true && form.isWishlist === false
       })
 
+      // 出谷日期变更 → 时间线上对应状态条目的日期跟随对齐
+      form.statusTimeline = alignSaleTimelineDates(form.statusTimeline, {
+        collectStatus: form.collectStatus,
+        sellDate: form.sellDate,
+        unitStatuses: qty >= 2 ? padUnitStatuses(form.unitCollectStatusList, newStatusFallback) : [],
+        unitSaleInfoList: form.unitSaleInfoList
+      })
+
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
         alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
@@ -469,6 +477,14 @@ export function useGoodsEditorForm(options = {}) {
           form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
         }
       }
+      // 新增即出谷的场景:出谷日期对齐时间线条目
+      form.statusTimeline = alignSaleTimelineDates(form.statusTimeline, {
+        collectStatus: form.collectStatus,
+        sellDate: form.sellDate,
+        unitStatuses: Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : [],
+        unitSaleInfoList: form.unitSaleInfoList
+      })
+
       const motionId = String(Date.now())
       const addPromise = store.addGoods({ ...form, id: motionId })
       writeAddMotionRequest(motionId, event)

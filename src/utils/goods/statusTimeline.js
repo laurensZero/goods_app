@@ -96,6 +96,58 @@ export function appendStatusTimelineEntry(timeline, status, options = {}) {
 }
 
 
+const SALE_TIMELINE_STATUSES = new Set(['在售', '已出'])
+
+/**
+ * 出谷日期(sell* 列 / unitSaleInfoList[].date)变更后,把时间线上对应状态条目的日期对齐。
+ * 幂等:每个 scope 最新的同状态条目 at 与出谷日期不同则更新,条目不存在则补一条。
+ * @param {import('@/types/models').StatusTimelineEntry[]} timeline
+ * @param {{ collectStatus?: string, sellDate?: string, unitStatuses?: string[], unitSaleInfoList?: Array<{date?: string}|null> }} params
+ * @returns {import('@/types/models').StatusTimelineEntry[]}
+ */
+export function alignSaleTimelineDates(timeline, { collectStatus = '', sellDate = '', unitStatuses = [], unitSaleInfoList = [] } = {}) {
+  let list = Array.isArray(timeline) ? [...timeline] : []
+  let changed = false
+
+  const align = (status, date, unitIndex) => {
+    const normalizedDate = normalizeTimelineDate(date)
+    const normalizedStatus = String(status || '').trim()
+    if (!normalizedDate || !SALE_TIMELINE_STATUSES.has(normalizedStatus)) return
+    let bestIndex = -1
+    let bestAt = ''
+    list.forEach((entry, i) => {
+      if (!entry || String(entry.status || '').trim() !== normalizedStatus) return
+      const scope = Number.isInteger(entry.unitIndex) ? entry.unitIndex : null
+      if (scope !== unitIndex) return
+      if (bestIndex < 0 || String(entry.at || '') >= bestAt) {
+        bestIndex = i
+        bestAt = String(entry.at || '')
+      }
+    })
+    if (bestIndex >= 0) {
+      if (list[bestIndex].at !== normalizedDate) {
+        list[bestIndex] = { ...list[bestIndex], at: normalizedDate }
+        changed = true
+      }
+    } else {
+      const entry = { status: normalizedStatus, at: normalizedDate }
+      if (unitIndex != null) entry.unitIndex = unitIndex
+      list.push(entry)
+      changed = true
+    }
+  }
+
+  if (Array.isArray(unitStatuses) && unitStatuses.length > 0) {
+    unitStatuses.forEach((status, i) => align(status, unitSaleInfoList?.[i]?.date, i))
+  } else {
+    align(collectStatus, sellDate, null)
+  }
+
+  return changed
+    ? list.sort((a, b) => String(a?.at || '').localeCompare(String(b?.at || '')))
+    : timeline
+}
+
 /**
  * 批量更新多件商品的状态时间线（unitCollectStatusList 变更时）
  * @param {import('@/types/models').StatusTimelineEntry[]} timeline

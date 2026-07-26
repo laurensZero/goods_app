@@ -137,11 +137,9 @@
                     </label>
                     <label class="sale-info-cell">
                       <span class="sale-info-cell__label">{{ t('sale.date') }}</span>
-                      <input
-                        v-model="form.sellDate"
-                        type="date"
-                        class="sale-info-input"
-                      />
+                      <button type="button" class="sale-info-input sale-info-date-btn" @click="openSellDatePicker(null)">
+                        {{ form.sellDate || t('common.selectDate') }}
+                      </button>
                     </label>
                   </div>
 
@@ -181,12 +179,9 @@
                         </label>
                         <label class="sale-info-cell">
                           <span class="sale-info-cell__label">{{ t('sale.date') }}</span>
-                          <input
-                            :value="unit.info.date || ''"
-                            type="date"
-                            class="sale-info-input"
-                            @change="updateUnitSaleInfo(unit.index, 'date', $event.target.value)"
-                          />
+                          <button type="button" class="sale-info-input sale-info-date-btn" @click="openSellDatePicker(unit.index)">
+                            {{ unit.info.date || t('common.selectDate') }}
+                          </button>
                         </label>
                       </div>
                     </div>
@@ -804,6 +799,17 @@
       :max-date="maxDate"
       @confirm="onSaleDateTimeConfirm"
     />
+
+    <AppDatePicker
+      v-model:show="showSellDatePicker"
+      v-model="sellDatePickerValue"
+      :z-index="2003"
+      :is-tablet="isTabletViewport"
+      :title="t('sale.date')"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onSellDateConfirm"
+    />
   </div>
 </template>
 
@@ -1014,6 +1020,33 @@ const saleUnits = computed(() => {
   })
   return units
 })
+const showSellDatePicker = ref(false)
+const sellDatePickerValue = ref([])
+const sellDateTarget = ref(null) // null=整条,数字=件号
+
+function openSellDatePicker(unitIndex) {
+  sellDateTarget.value = unitIndex
+  const current = unitIndex == null ? form.sellDate : (form.unitSaleInfoList?.[unitIndex]?.date || '')
+  const normalized = String(current || '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const [year, month, day] = normalized.split('-')
+    sellDatePickerValue.value = [year, String(Number(month)), String(Number(day))]
+  } else {
+    const now = new Date()
+    sellDatePickerValue.value = [String(now.getFullYear()), String(now.getMonth() + 1), String(now.getDate())]
+  }
+  showSellDatePicker.value = true
+}
+
+function onSellDateConfirm({ selectedValues }) {
+  if (Array.isArray(selectedValues) && selectedValues.length >= 3) {
+    const date = `${selectedValues[0]}-${String(selectedValues[1]).padStart(2, '0')}-${String(selectedValues[2]).padStart(2, '0')}`
+    if (sellDateTarget.value == null) form.sellDate = date
+    else updateUnitSaleInfo(sellDateTarget.value, 'date', date)
+  }
+  showSellDatePicker.value = false
+}
+
 function updateUnitSaleInfo(index, field, value) {
   const list = Array.isArray(form.unitSaleInfoList) ? [...form.unitSaleInfoList] : []
   while (list.length <= index) list.push(null)

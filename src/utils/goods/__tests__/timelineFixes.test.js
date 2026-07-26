@@ -166,3 +166,37 @@ describe('getHoldingDaysFromDate local timezone', () => {
     expect(getHoldingDaysFromDate(localToday())).toBe(0)
   })
 })
+
+import { alignSaleTimelineDates } from '../statusTimeline'
+
+describe('alignSaleTimelineDates', () => {
+  it('updates the matching sale entry date for whole-item scope', () => {
+    const timeline = [
+      { status: '已拥有', at: '2026-01-01' },
+      { status: '已出', at: '2026-06-01' }
+    ]
+    const result = alignSaleTimelineDates(timeline, { collectStatus: '已出', sellDate: '2026-06-15' })
+    expect(result).toContainEqual({ status: '已出', at: '2026-06-15' })
+    expect(result).toContainEqual({ status: '已拥有', at: '2026-01-01' })
+  })
+
+  it('appends an entry when none exists for the status', () => {
+    const result = alignSaleTimelineDates([{ status: '已拥有', at: '2026-01-01' }], { collectStatus: '在售', sellDate: '2026-07-01' })
+    expect(result).toContainEqual({ status: '在售', at: '2026-07-01' })
+  })
+
+  it('aligns per-unit entries by unitSaleInfoList dates', () => {
+    const timeline = [{ status: '已出', at: '2026-06-01', unitIndex: 0 }]
+    const result = alignSaleTimelineDates(timeline, {
+      unitStatuses: ['已出', '已拥有'],
+      unitSaleInfoList: [{ date: '2026-06-20' }, null]
+    })
+    expect(result).toContainEqual({ status: '已出', at: '2026-06-20', unitIndex: 0 })
+  })
+
+  it('is a no-op when dates already match or status is not sale-like', () => {
+    const timeline = [{ status: '已出', at: '2026-06-01' }]
+    expect(alignSaleTimelineDates(timeline, { collectStatus: '已出', sellDate: '2026-06-01' })).toBe(timeline)
+    expect(alignSaleTimelineDates(timeline, { collectStatus: '已拥有', sellDate: '2026-06-15' })).toBe(timeline)
+  })
+})
