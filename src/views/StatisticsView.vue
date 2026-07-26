@@ -41,7 +41,7 @@
 
       <!-- 出谷回血概览 -->
       <section v-if="saleSummary.hasAny" class="sale-overview-section">
-        <button class="sale-overview-card" type="button" @click="router.push('/manage/sale-ledger')">
+        <button class="sale-overview-card" type="button" @click="runManageForwardNavigation(() => router.push('/manage/sale-ledger'))">
           <div class="sale-overview-figures">
             <div class="sale-overview-figure">
               <span class="sale-overview-kicker">{{ t('sale.recovered') }}</span>
@@ -207,7 +207,7 @@ import GoodsExtremes from '@/components/statistics/GoodsExtremes.vue'
 import PieChart from '@/components/statistics/PieChart.vue'
 import BarChart from '@/components/statistics/BarChart.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { runWithRouteTransition } from '@/utils/routeTransition'
+import { runManageForwardNavigation, runWithRouteTransition } from '@/utils/routeTransition'
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'

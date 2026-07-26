@@ -321,4 +321,34 @@ function openDetail(id) {
 
 .profit--gain { color: var(--app-success, #16a34a) !important; }
 .profit--loss { color: var(--app-danger, #dc2626) !important; }
+
+/* 平板适配(与全站 900px 断点一致) */
+@media (min-width: 900px) {
+  .page-body {
+    max-width: 1040px;
+    padding: 24px 32px max(32px, env(safe-area-inset-bottom));
+    gap: 24px;
+  }
+
+  .hero-title { font-size: 28px; }
+
+  .summary-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .summary-card { padding: 18px 20px; }
+  .summary-value { font-size: 24px; }
+
+  .tab-bar { max-width: 420px; }
+
+  .ledger-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .ledger-thumb { width: 64px; height: 64px; }
+}
 </style>
