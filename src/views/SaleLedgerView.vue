@@ -35,21 +35,23 @@
           <button
             :class="['tab-btn', { 'tab-btn--active': activeTab === 'sold' }]"
             type="button"
-            @click="activeTab = 'sold'"
+            @click="setTab('sold')"
           >
             {{ t('sale.tabSold') }} ({{ ledger.soldRows.length }})
           </button>
           <button
             :class="['tab-btn', { 'tab-btn--active': activeTab === 'listing' }]"
             type="button"
-            @click="activeTab = 'listing'"
+            @click="setTab('listing')"
           >
             {{ t('sale.tabListing') }} ({{ ledger.listingRows.length }})
           </button>
         </div>
       </section>
 
-      <section class="list-section">
+      <section class="list-section" :class="`list-section--${swapDirection}`">
+        <Transition name="ledger-swap" mode="out-in">
+        <div :key="activeTab">
         <div v-if="activeRows.length > 0" class="ledger-list">
           <button
             v-for="(row, index) in activeRows"
@@ -102,6 +104,8 @@
           :title="t('sale.empty')"
           :description="t('sale.emptyDesc')"
         />
+        </div>
+        </Transition>
       </section>
     </main>
   </div>
@@ -123,6 +127,14 @@ const router = useRouter()
 const store = useGoodsStore()
 
 const activeTab = ref('sold')
+// tab 顺序 [已出, 在售]:向右切换内容从右滑入,向左切换从左滑入
+const swapDirection = ref('forward')
+
+function setTab(tab) {
+  if (tab === activeTab.value) return
+  swapDirection.value = tab === 'listing' ? 'forward' : 'back'
+  activeTab.value = tab
+}
 
 // 用视图层列表(含汇率折算字段),外币商品的成本按 CNY 口径参与盈亏
 const ledger = computed(() => buildSaleLedger(store.collectionViewList))
@@ -321,6 +333,16 @@ function openDetail(id) {
 
 .profit--gain { color: var(--app-success, #16a34a) !important; }
 .profit--loss { color: var(--app-danger, #dc2626) !important; }
+
+/* 已出/在售内容切换过渡(方向随 tab 顺序) */
+.ledger-swap-enter-active,
+.ledger-swap-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.list-section--forward .ledger-swap-enter-from { opacity: 0; transform: translateX(18px); }
+.list-section--forward .ledger-swap-leave-to { opacity: 0; transform: translateX(-18px); }
+.list-section--back .ledger-swap-enter-from { opacity: 0; transform: translateX(-18px); }
+.list-section--back .ledger-swap-leave-to { opacity: 0; transform: translateX(18px); }
 
 /* 平板适配(与全站 900px 断点一致) */
 @media (min-width: 900px) {
