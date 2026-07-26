@@ -26,6 +26,9 @@
             >
               {{ entry.at || t('common.selectDate') }}
             </button>
+            <span v-if="entry.unitIndex != null" class="timeline-item__unit-tag">
+              {{ t('sale.unitLabel', { n: entry.unitIndex + 1 }) }}
+            </span>
           </div>
           <!-- 用 change 而非 input:逐键 emit 会触发整表 deep watch 重建,
                Android WebView 下有中断中文输入法组合(吞字)的风险 -->
@@ -36,7 +39,37 @@
             :placeholder="t('goods.editor.timelineNotePlaceholder')"
             @change="updateEntry(index, 'note', $event.target.value)"
           />
-          <div v-if="hasSaleData(entry)" class="timeline-item__sale">
+          <!-- 在售/已出条目:卖出信息可直接编辑;清空输入框即删除该字段 -->
+          <div v-if="isSaleStatus(entry.status)" class="timeline-item__sale-fields">
+            <input
+              type="number"
+              inputmode="decimal"
+              min="0"
+              :value="entry.price || ''"
+              class="timeline-item__sale-input"
+              :placeholder="entry.status === '已出' ? t('sale.dealPrice') : t('sale.listingPrice')"
+              @change="updateEntry(index, 'price', $event.target.value)"
+            />
+            <input
+              type="text"
+              :value="entry.platform || ''"
+              class="timeline-item__sale-input"
+              :placeholder="t('sale.platform')"
+              @change="updateEntry(index, 'platform', $event.target.value)"
+            />
+            <input
+              v-if="entry.status === '已出'"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              :value="entry.fee || ''"
+              class="timeline-item__sale-input"
+              :placeholder="t('sale.fee')"
+              @change="updateEntry(index, 'fee', $event.target.value)"
+            />
+          </div>
+          <!-- 状态已改离在售/已出但仍残留卖出数据:只读展示 + 清除 -->
+          <div v-else-if="hasSaleData(entry)" class="timeline-item__sale">
             <span class="timeline-item__sale-text">{{ formatSaleData(entry) }}</span>
             <button
               type="button"
@@ -164,14 +197,18 @@ function onDateConfirm({ selectedValues }) {
   showDatePicker.value = false
 }
 
+// 可清空字段:输入框清空即从条目上删除该键,避免落库残留空字符串
+const CLEARABLE_FIELDS = new Set(['note', 'price', 'platform', 'fee'])
+
 function updateEntry(index, field, value) {
   const sorted = [...entries.value]
   const entry = sorted[index]
   if (!entry) return
 
-  const updated = { ...entry, [field]: value }
-  if (field === 'note' && !value) {
-    delete updated.note
+  const trimmed = typeof value === 'string' ? value.trim() : value
+  const updated = { ...entry, [field]: trimmed }
+  if (CLEARABLE_FIELDS.has(field) && !trimmed) {
+    delete updated[field]
   }
 
   sorted[index] = updated
@@ -188,6 +225,10 @@ function removeEntry(index) {
   const sorted = [...entries.value]
   sorted.splice(index, 1)
   emit('update:modelValue', sorted)
+}
+
+function isSaleStatus(status) {
+  return status === '在售' || status === '已出'
 }
 
 function hasSaleData(entry) {
@@ -328,6 +369,42 @@ function addEntry() {
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
+}
+
+.timeline-item__unit-tag {
+  align-self: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+  border: 1px solid var(--app-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.timeline-item__sale-fields {
+  display: flex;
+  gap: 6px;
+}
+
+.timeline-item__sale-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  outline: none;
+}
+
+.timeline-item__sale-input:focus {
+  border-color: var(--app-primary);
+}
+
+.timeline-item__sale-input::placeholder {
+  color: var(--app-placeholder);
 }
 
 .timeline-item__delete {
