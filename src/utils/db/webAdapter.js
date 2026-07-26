@@ -26,6 +26,10 @@ async function _loadBinaryFromIDB() {
   } catch { return null }
 }
 
+// 连续落盘失败达到阈值后升级为 error（进反馈日志缓冲），暴露配额超限等持续性故障
+const IDB_SAVE_FAILURE_ESCALATE_THRESHOLD = 3
+let _idbSaveFailureCount = 0
+
 async function _saveBinaryToIDB(sqlDb) {
   try {
     const data = sqlDb.export()
@@ -36,7 +40,15 @@ async function _saveBinaryToIDB(sqlDb) {
       tx.oncomplete = resolve
       tx.onerror = () => reject(tx.error)
     })
-  } catch (e) { log.warn('idb:save:failed', e) }
+    _idbSaveFailureCount = 0
+  } catch (e) {
+    _idbSaveFailureCount++
+    if (_idbSaveFailureCount >= IDB_SAVE_FAILURE_ESCALATE_THRESHOLD) {
+      log.error('idb:save:failed', { consecutiveFailures: _idbSaveFailureCount, error: e })
+    } else {
+      log.warn('idb:save:failed', e)
+    }
+  }
 }
 
 export function createWebAdapter() {
@@ -44,26 +56,40 @@ export function createWebAdapter() {
   let _saveTimer = null
   let _savePromise = null
   let _lifecycleListenersBound = false
+  let _inTx = false
+
+  // 串行化保存：先等在途 export 完成再发起新保存，避免并发 export 且互相覆盖 _savePromise 引用
+  async function _startSave() {
+    while (_savePromise) {
+      await _savePromise
+    }
+    const p = _saveBinaryToIDB(_db)
+    _savePromise = p
+    await p
+    if (_savePromise === p) _savePromise = null
+  }
 
   function _scheduleSave() {
-    if (_saveTimer) return
-    _saveTimer = setTimeout(async () => {
+    // 显式事务期间不落盘：sql.js 的 export() 会关闭再重开连接，销毁进行中的事务
+    // （commitTransaction 结束后会重新调度保存）
+    if (_inTx || _saveTimer) return
+    _saveTimer = setTimeout(() => {
       _saveTimer = null
-      _savePromise = _saveBinaryToIDB(_db)
-      await _savePromise
-      _savePromise = null
+      _startSave()
     }, 100)
   }
 
   async function _flushSave() {
-    if (_saveTimer) {
-      clearTimeout(_saveTimer)
-      _saveTimer = null
-      _savePromise = _saveBinaryToIDB(_db)
-      await _savePromise
-      _savePromise = null
-    } else if (_savePromise) {
-      await _savePromise
+    // 循环直到静止：计时器已触发但新保存仍排队在在途保存之后时，
+    // 单次 await 会提前返回（最新数据未落盘），必须重查直到两者都为空
+    while (_saveTimer || _savePromise) {
+      if (_saveTimer) {
+        clearTimeout(_saveTimer)
+        _saveTimer = null
+        await _startSave()
+      } else {
+        await _savePromise
+      }
     }
   }
 
@@ -94,6 +120,9 @@ export function createWebAdapter() {
       const saved = await _loadBinaryFromIDB()
       _db = saved ? new SQL.Database(saved) : new SQL.Database()
       log.debug('open:done', { restoredFromIdb: Boolean(saved), byteLength: saved?.byteLength || saved?.length || 0 })
+      // 请求持久化存储，降低浏览器存储压力下 IndexedDB 整库被驱逐的风险
+      // （fire-and-forget，不支持的环境静默忽略）
+      try { navigator.storage?.persist?.().catch(() => {}) } catch { /* 忽略 */ }
       _bindLifecycleFlush()
     },
 
@@ -108,6 +137,13 @@ export function createWebAdapter() {
     },
 
     async executeSet(stmts) {
+      // 已处于显式事务中时直接执行，避免嵌套 BEGIN 报错
+      if (_inTx) {
+        for (const { statement, values } of stmts) {
+          _db.run(statement, values)
+        }
+        return
+      }
       _db.run('BEGIN TRANSACTION')
       try {
         for (const { statement, values } of stmts) {
@@ -119,6 +155,28 @@ export function createWebAdapter() {
         throw e
       }
       _scheduleSave()
+    },
+
+    async beginTransaction() {
+      _db.run('BEGIN TRANSACTION')
+      _inTx = true
+    },
+
+    async commitTransaction() {
+      try {
+        _db.run('COMMIT')
+      } finally {
+        _inTx = false
+      }
+      _scheduleSave()
+    },
+
+    async rollbackTransaction() {
+      try {
+        _db.run('ROLLBACK')
+      } finally {
+        _inTx = false
+      }
     },
 
     async query(sql, params = []) {

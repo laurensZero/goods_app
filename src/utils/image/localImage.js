@@ -171,7 +171,15 @@ export function isLocalImageUri(uri) {
 }
 
 function extractAppLocalPath(uri) {
-  const match = uri.match(/user-images\/[\w.\-]+/)
+  const text = String(uri || '')
+  // 仅识别应用本地来源（裸相对路径 / capacitor 文件协议），避免远程 URL 中的 user-images/ 片段被误判为托管文件
+  const isAppLocal = text.startsWith(`${IMAGE_FOLDER}/`)
+    || text.startsWith('capacitor://')
+    || text.startsWith('file://')
+    || text.startsWith('http://localhost/_capacitor_file_/')
+    || text.startsWith('https://localhost/_capacitor_file_/')
+  if (!isAppLocal) return null
+  const match = text.match(/user-images\/[\w.\-]+/)
   return match ? match[0] : null
 }
 

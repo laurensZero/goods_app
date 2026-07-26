@@ -22,7 +22,10 @@ function getItemEffectivePrice(item) {
 function getItemDatesAndPrices(item) {
   const qty = Math.max(1, Number(item.quantityNumber || item.quantity) || 1)
   const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
-  const unitPrices = Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : []
+  // 优先视图层折算后的逐件 CNY 价,回退原始逐件价(与聚合字段口径一致)
+  const unitPrices = Array.isArray(item.unitActualPriceCNYList)
+    ? item.unitActualPriceCNYList
+    : (Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : [])
 
   if (unitDates.length > 0 && unitPrices.length > 0) {
     const len = Math.min(unitDates.length, unitPrices.length)
@@ -159,7 +162,7 @@ export function buildSpendingTrendData(list, mode = 'year', options = {}) {
 
 // ─── Goods Extremes ───
 
-export function buildGoodsExtremes(list) {
+export function buildGoodsExtremes(list, t) {
   const items = list.filter((item) => {
     if (item?.isWishlist) return false
     if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return false
@@ -204,7 +207,7 @@ export function buildGoodsExtremes(list) {
     results.push({
       key: 'most-expensive',
       icon: '💰',
-      label: '最贵谷子',
+      label: t('stats.extremes.mostExpensive'),
       name: mostExpensive.name,
       value: `¥${getItemEffectivePrice(mostExpensive).toFixed(2)}`,
       coverImage: mostExpensive.coverImage || ''
@@ -216,7 +219,7 @@ export function buildGoodsExtremes(list) {
     results.push({
       key: 'earliest',
       icon: '🌅',
-      label: '最早入手',
+      label: t('stats.extremes.earliest'),
       name: earliest.name,
       value: d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '',
       coverImage: earliest.coverImage || ''
@@ -228,7 +231,7 @@ export function buildGoodsExtremes(list) {
     results.push({
       key: 'latest',
       icon: '🌙',
-      label: '最晚入手',
+      label: t('stats.extremes.latest'),
       name: latest.name,
       value: d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '',
       coverImage: latest.coverImage || ''
@@ -239,9 +242,9 @@ export function buildGoodsExtremes(list) {
     results.push({
       key: 'most-quantity',
       icon: '📦',
-      label: '件数最多',
+      label: t('stats.extremes.mostQuantity'),
       name: mostQuantity.name,
-      value: `${maxQuantity} 件`,
+      value: t('stats.extremes.items', { count: maxQuantity }, maxQuantity),
       coverImage: mostQuantity.coverImage || ''
     })
   }

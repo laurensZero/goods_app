@@ -77,6 +77,8 @@ export async function getFeedback(feedbackId) {
  * Add a follow-up atomically via RPC.
  * role: 'user' | 'admin'
  * attachments: optional array of attachment metadata
+ * 注：服务端对 anon/authenticated 调用会忽略 p_user_id/p_role（身份取自
+ * auth.uid() 或 x-device-id 头，role 强制为 user）并校验反馈归属
  */
 export async function addFollowup({ feedbackId, userId, content, role = 'user', attachments }) {
   const { data, error } = await db().rpc('append_feedback_followup', {

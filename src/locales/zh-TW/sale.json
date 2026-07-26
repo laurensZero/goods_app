@@ -27,6 +27,8 @@
   "sale.noPriceRecorded": "未記錄價格",
   "sale.empty": "暫無出谷記錄",
   "sale.emptyDesc": "在商品詳情頁點擊「出谷」即可記錄掛牌和成交",
+  "sale.emptyListing": "暫無在售商品",
+  "sale.emptyListingDesc": "在出谷面板選擇「在售」並填上掛牌價,這裡就會出現",
   "sale.ledgerTitle": "出谷帳本",
   "sale.ledgerHeroTitle": "出谷帳本",
   "sale.ledgerHeroDesc": "記錄每一筆掛牌與成交,看看回了多少血",

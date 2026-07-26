@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePresetsStore } from '@/stores/presets'
 import { useFilterPresetsStore } from '@/stores/filterPresets'
@@ -31,13 +31,22 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
   const activePresetId = ref('')
   const activePresetName = ref('')
 
+  // 关键字真防抖：避免每个按键都触发全表过滤 + 重排
+  let keywordDebounceTimer = 0
+
   watch(
     () => filters.keyword,
     (value) => {
-      debouncedKeyword.value = String(value || '').trim().toLowerCase()
-    },
-    { immediate: true }
+      clearTimeout(keywordDebounceTimer)
+      keywordDebounceTimer = setTimeout(() => {
+        debouncedKeyword.value = String(value || '').trim().toLowerCase()
+      }, 250)
+    }
   )
+
+  onScopeDispose(() => {
+    clearTimeout(keywordDebounceTimer)
+  })
 
   // --- Normalized filters (merges live filters + debounced keyword) ---
   const normalizedFilters = computed(() =>
@@ -236,6 +245,7 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
       hasImage: 'any'
     })
     Object.assign(filters, normalized)
+    clearTimeout(keywordDebounceTimer)
     debouncedKeyword.value = normalized.keyword.toLowerCase()
   }
 

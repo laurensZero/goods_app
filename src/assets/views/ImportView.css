@@ -579,6 +579,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.batch-meta-tag--owned {
+  background: rgba(255, 149, 0, 0.12);
+  color: #c77700;
+}
 
 .batch-saved-badge {
   flex-shrink: 0;
@@ -611,6 +615,29 @@
 .batch-goods-edit-btn:active {
   transform: scale(0.92);
   background: rgba(60,60,67,0.16);
+}
+
+.batch-goods-remove-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(199,68,68,0.08);
+  color: #c74444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.batch-goods-remove-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.batch-goods-remove-btn:active {
+  transform: scale(0.92);
+  background: rgba(199,68,68,0.16);
 }
 
 .batch-reparse-link {

@@ -142,6 +142,9 @@ function parseTime(value) {
 
 // ── Condition evaluation (same as announcements) ──
 
+// db 条件仅允许查询本地业务表，防止云端下发任意表名做 count 探测
+const DB_COND_TABLE_WHITELIST = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+
 const EXECUTORS = {
   local: async (cond) => {
     try {
@@ -167,6 +170,10 @@ const EXECUTORS = {
     try {
       const table = cond.table || ''
       if (!table) return false
+      if (!DB_COND_TABLE_WHITELIST.includes(table)) {
+        console.warn(`[survey] db condition table not allowed: ${table}`)
+        return false
+      }
       const client = getSupabaseClient()
       const op = cond.op || 'count>='
       const value = Number(cond.value) || 0
@@ -212,6 +219,11 @@ export async function evaluateConditions(conditions, logic = 'and') {
  * Submit a survey response to Supabase.
  */
 export async function submitSurveyResponse(surveyId, answers) {
+  // 防重复提交：已答过则直接跳过（跨设备场景由 has_completed_survey RPC 支撑）
+  try {
+    if (await hasCompletedSurvey(surveyId)) return null
+  } catch { /* 检查失败不阻塞提交 */ }
+
   const respondentId = await getRespondentId()
   const id = crypto.randomUUID()
 
@@ -235,16 +247,25 @@ export async function submitSurveyResponse(surveyId, answers) {
 
 /**
  * Check if the current device has already completed a survey.
+ * Goes through the has_completed_survey RPC (responses SELECT is service_role only);
+ * falls back to the legacy count query when the RPC is not deployed yet.
  */
 export async function hasCompletedSurvey(surveyId) {
   const respondentId = await getRespondentId()
 
-  const { count, error } = await db()
+  const { data, error } = await db().rpc('has_completed_survey', {
+    p_survey_id: String(surveyId),
+    p_respondent: respondentId
+  })
+  if (!error) return data === true
+
+  // RPC 尚未部署时回退旧查询（RLS 下拿不到 count，效果与现状一致）
+  const { count, error: countError } = await db()
     .from(RESPONSES_TABLE)
     .select('id', { count: 'exact', head: true })
     .eq('survey_id', surveyId)
     .eq('device_id', respondentId)
 
-  if (error) return false
+  if (countError) return false
   return (count || 0) > 0
 }

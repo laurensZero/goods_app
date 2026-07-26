@@ -160,6 +160,7 @@ import { useToast } from '@/composables/useToast'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
+import { trackEditorSessionLocalImage } from '@/composables/goods/useGoodsEditorForm'
 
 const { t } = useI18n()
 
@@ -266,6 +267,9 @@ async function addLocalImage() {
     const pickedImage = await pickLinkedLocalImage()
     if (!pickedImage?.uri) return
 
+    // 登记会话内新复制的文件，未随商品保存就离开时由编辑器清理
+    trackEditorSessionLocalImage(pickedImage.localPath)
+
     appendImage({
       id: createGoodsImageId(),
       uri: pickedImage.uri,
@@ -335,6 +339,8 @@ async function handleQuickEditSave(result) {
 
   try {
     const saved = await saveLocalImage(result.file)
+    // 快速编辑每次保存都会生成新文件；被替换下来的旧文件若也是会话内新建，已在集合中
+    trackEditorSessionLocalImage(saved.localPath)
     emitImages(images.value.map((image) => {
       if (image.id !== editingTargetId.value) return image
         return {

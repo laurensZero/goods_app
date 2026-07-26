@@ -2,7 +2,8 @@
   <div class="chart-wrapper">
     <div v-if="loading" class="chart-loading">{{ t('stats.loading') }}</div>
     <div v-else-if="!hasData" class="chart-empty">{{ t('stats.noData') }}</div>
-    <div v-else ref="chartRef" class="chart-root" />
+    <!-- v-show 常驻:挂载时无数据也保留容器,数据到达/清空往返时实例始终绑定同一 DOM -->
+    <div v-show="!loading && hasData" ref="chartRef" class="chart-root" />
   </div>
 </template>
 
@@ -26,6 +27,7 @@ const props = defineProps({
 const chartRef = ref(null)
 let chartInstance = null
 let resizeObserver = null
+let themeObserver = null
 let lastSize = { width: 0, height: 0 }
 let lastOptionJson = ''
 
@@ -67,17 +69,21 @@ function applyThemeToOption(opt) {
   if (!opt) return opt
   const colors = readThemeColors()
   // shallow copy to avoid mutating prop while preserving functions (formatter, etc.)
+  // 被注入颜色的嵌套对象也要拷贝:直接改 prop 会把旧主题色烙进上游 computed 缓存,
+  // 主题切换后重放 setOption 时 || 兜底就再也不会生效
   const option = Array.isArray(opt) ? opt.slice() : Object.assign({}, opt)
 
   if (!option.textStyle) option.textStyle = { color: colors.text }
 
   if (option.legend) {
-    option.legend.textStyle = option.legend.textStyle || {}
+    option.legend = Object.assign({}, option.legend)
+    option.legend.textStyle = Object.assign({}, option.legend.textStyle)
     option.legend.textStyle.color = option.legend.textStyle.color || colors.secondary
   }
 
   if (option.tooltip) {
-    option.tooltip.textStyle = option.tooltip.textStyle || {}
+    option.tooltip = Object.assign({}, option.tooltip)
+    option.tooltip.textStyle = Object.assign({}, option.tooltip.textStyle)
     option.tooltip.textStyle.color = option.tooltip.textStyle.color || colors.text
     // apply glass-like background for tooltip using CSS variables
     const s = getComputedStyle(document.documentElement)
@@ -90,31 +96,34 @@ function applyThemeToOption(opt) {
     option.tooltip.extraCssText = option.tooltip.extraCssText || `border-radius: var(--radius-card); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);`
   }
 
-  const applyAxis = (axis) => {
-    if (!axis) return
-    if (Array.isArray(axis)) {
-      axis.forEach((a) => {
-        a.axisLabel = a.axisLabel || {}
-        a.axisLabel.color = (a.axisLabel && a.axisLabel.color) || colors.secondary
-      })
-    } else {
-      axis.axisLabel = axis.axisLabel || {}
-      axis.axisLabel.color = (axis.axisLabel && axis.axisLabel.color) || colors.secondary
-    }
+  const themedAxis = (axis) => {
+    if (!axis) return axis
+    if (Array.isArray(axis)) return axis.map((a) => themedAxis(a))
+    const next = Object.assign({}, axis)
+    next.axisLabel = Object.assign({}, next.axisLabel)
+    next.axisLabel.color = next.axisLabel.color || colors.secondary
+    return next
   }
 
-  applyAxis(option.xAxis)
-  applyAxis(option.yAxis)
+  option.xAxis = themedAxis(option.xAxis)
+  option.yAxis = themedAxis(option.yAxis)
 
   // legend style: use glass subtle background and rounded markers
   if (option.legend) {
     option.legend.itemWidth = option.legend.itemWidth || 14
     option.legend.itemHeight = option.legend.itemHeight || 8
-    option.legend.textStyle = option.legend.textStyle || {}
     option.legend.textStyle.fontFamily = option.legend.textStyle.fontFamily || getComputedStyle(document.documentElement).getPropertyValue('font-family')
   }
 
   return option
+}
+
+// 主题切换后重读 CSS 变量并强制重放 setOption:统计页在 KeepAlive 中存活,
+// 切深/浅色时 option JSON 未变会被同值跳过,颜色停留在旧主题
+function refreshThemeColors() {
+  if (!chartInstance || !hasData.value) return
+  lastOptionJson = serializeOption(props.option)
+  chartInstance.setOption(applyThemeToOption(props.option), { replaceMerge: ['series'] })
 }
 
 onMounted(() => {
@@ -128,8 +137,14 @@ onMounted(() => {
   }
   resizeObserver = new ResizeObserver(resizeIfNeeded)
   resizeObserver.observe(chartRef.value)
+  themeObserver = new MutationObserver(refreshThemeColors)
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme-id', 'data-theme-appearance']
+  })
 })
 
+// flush post:等 v-show 把容器显示出来后再量尺寸,空态→有数据时能拿到真实宽高
 watch(() => props.option, (opt) => {
   if (!chartInstance) return
   if (!opt || Object.keys(opt).length === 0) {
@@ -142,11 +157,15 @@ watch(() => props.option, (opt) => {
   if (json && json === lastOptionJson) return
   lastOptionJson = json
   chartInstance.setOption(applyThemeToOption(opt), { replaceMerge: ['series'] })
-})
+  // 挂载时无数据的话 init 发生在隐藏容器上(0x0),首批数据到达后补一次 resize
+  resizeIfNeeded()
+}, { flush: 'post' })
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
+  themeObserver?.disconnect()
+  themeObserver = null
   chartInstance?.dispose()
   chartInstance = null
 })

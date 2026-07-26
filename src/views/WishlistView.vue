@@ -298,7 +298,6 @@ const GOODS_GRID_MAX_RENDER_CARDS_MAP = {
   standard: { mobile: 54, tablet: 72 },     // 手机3-4列，平板5-6列，行高284
   compact: { mobile: 64, tablet: 80 }       // 手机4-5列，平板6-8列，行高248
 }
-const GOODS_GRID_MAX_RENDER_CARDS_DEFAULT = 72
 const TABLET_BREAKPOINT = 900
 
 function getMaxRenderCards(density) {

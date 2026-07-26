@@ -7,7 +7,8 @@ import { compareStateSync } from '@/utils/sync/stateCompare'
 import { wrapSyncError, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_WRITE_DATA } from './syncError'
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from './syncPushPipeline'
-import { flushDbWrites } from '@/utils/db'
+import { flushDbWrites, saveItems, saveEvents, saveGroups, saveGroupItems, saveRechargeRecords } from '@/utils/db'
+import { writePersistedTrash } from '@/stores/goodsPersistence'
 import { PULL_CLOCK_OVERLAP_MS } from '@/constants/syncConstants'
 
 // 增量拉取的 since 回退一个重叠窗口，吸收设备间时钟偏移（行内 updated_at 为客户端时间）；
@@ -33,6 +34,24 @@ async function dropPendingPush(ctx) {
   if (ctx.clearPendingPush) await ctx.clearPendingPush()
 }
 
+// ── 服务器域水位线（最后已见 manifest synced_at）──
+// 行域 lastSyncedAt（拉到行的最大 updated_at，推送方客户端时间域）只作增量拉取的 since；
+// 与 manifest.synced_at（服务器时间域）比较大小必须用本水位线：跨域混比在时钟偏移下
+// 会把「增量拉取已合并对方推送」的正常状态误判为 remote-ahead / 冲突
+
+function getServerSyncTimeMs(ctx) {
+  const ms = toTimestampMs(ctx.lastServerSyncedAt)
+  if (ms > 0) return ms
+  // 老版本升级：新键尚不存在时回退行域水位线，等价于拆分前行为
+  return ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
+}
+
+async function saveServerWatermark(ctx, timestamp) {
+  if (!timestamp || !ctx.saveLastServerSyncedAt) return
+  await ctx.saveLastServerSyncedAt(timestamp)
+  ctx.lastServerSyncedAt = timestamp
+}
+
 // 中断推送恢复：上次推送若已写入远端但进程在本地水位线保存前被杀，
 // 远端清单的最后写入者仍是本设备且时间戳不早于标记时间，说明推送实际已成功，
 // 快进本地水位线以复现完整推送的落盘结果，避免下次同步把自己的推送误报为冲突。
@@ -55,6 +74,7 @@ export async function reconcilePendingPush(ctx, remoteManifest) {
     if (marker.eventTs) await ctx.saveEventLastSyncedAt(marker.eventTs)
     // 同步修改 ctx，让同一次运行内后续的 localSyncTime 计算立即看到新水位线
     ctx.lastSyncedAt = remoteManifest.lastSyncAt
+    await saveServerWatermark(ctx, remoteManifest.lastSyncAt)
     log.warn('recovered interrupted push, fast-forwarded watermark to', remoteManifest.lastSyncAt)
     recovered = true
   }
@@ -98,10 +118,11 @@ export function createSyncOrchestrator({
 
     try {
       // 1. Read remote data
+      // 拉取开始时刻：reader 对 NULL updated_at 的 Date.now() 回退值恒晚于它，
+      // mergeToLocal 据此把这类回退值排除在水位线统计外
+      const pullStartMs = Date.now()
       const remoteData = await readRemoteData(be, {
-        tables, since: sinceWithOverlap(since),
-        readManifest: !isIncremental,
-        readPresets: !isIncremental,
+        since: sinceWithOverlap(since),
         trackSyncStep
       })
 
@@ -117,11 +138,13 @@ export function createSyncOrchestrator({
         // 用合并返回的实际落库计数（而非拉取行数）驱动结果提示：
         // 重叠窗口重复拉到的已合并行是幂等空操作，不应计入
         let pullCounts = null
+        let remoteWatermark = 0
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(stores, remoteData, { reconcileMissing: false })
+            const merged = await mergeToLocal(stores, remoteData, { reconcileMissing: false, pullStartMs })
             pullCounts = merged.counts
+            remoteWatermark = merged.remoteWatermark
           },
           {
             startDetail: i18n.global.t('sync.step.readData.startIncremental'),
@@ -131,10 +154,23 @@ export function createSyncOrchestrator({
         )
         // Web 端确保拉取合并结果落盘后再推进水位线
         await flushDbWrites().catch(() => {})
-        // 水位线优先用远端清单时间（服务器时间域），避免本地时钟偏移导致增量漏拉
-        const ts = remoteData.manifest?.lastSyncAt || new Date().toISOString()
-        await ctx.saveLastSyncedAt(ts)
-        if (remoteData.events.length > 0) await ctx.saveEventLastSyncedAt(new Date().toISOString())
+        // 水位线必须与 sync_pull 的比较列（行内 updated_at，推送方客户端时间域）同域：
+        // 用拉到行的最大 updated_at 推进。清单 synced_at 是服务器时间域、new Date() 是
+        // 本机时间域，跨域取值在时钟偏移下会令水位线超前而漏拉；无新行时不推进（只进不退）
+        // 上限钳制：时钟偏快的设备会把行 updated_at 推到未来，未钳制会令本机水位线
+        // 永久超前、跳过其他正常设备的行；钳到清单 synced_at（服务器域），
+        // 拿不到清单时退用本机 now + 时钟容差
+        const watermarkCapMs = toTimestampMs(remoteData.manifest?.lastSyncAt) || (Date.now() + PULL_CLOCK_OVERLAP_MS)
+        if (remoteWatermark > watermarkCapMs) remoteWatermark = watermarkCapMs
+        const prevWatermarkMs = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
+        if (remoteWatermark > prevWatermarkMs) {
+          const ts = new Date(remoteWatermark).toISOString()
+          await ctx.saveLastSyncedAt(ts)
+          if (remoteData.events.length > 0) await ctx.saveEventLastSyncedAt(ts)
+        }
+        // 服务器域水位线推进到本次已见的 manifest synced_at，
+        // 让后续 quickPush / fullSync 的 remote-ahead 判定不再误报
+        await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
         if (sumPullCounts(pullCounts) === 0) {
           log.info('pull:done', { action: 'no_changes', incremental: true })
           return { action: 'no_changes' }
@@ -147,6 +183,7 @@ export function createSyncOrchestrator({
       const diff = diffLocalRemote(stores, remoteData)
       if (!diff.hasChanges) {
         await ctx.saveLastSyncedAt(remoteData.manifest?.lastSyncAt || new Date().toISOString())
+        await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
         return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
       }
 
@@ -179,7 +216,8 @@ export function createSyncOrchestrator({
           const merged = await mergeToLocal(stores, remoteData, {
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
-            localSyncTime
+            localSyncTime,
+            dirtyGoodsIds: ctx.getDirtyGoodsIds
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
@@ -195,6 +233,7 @@ export function createSyncOrchestrator({
       )
       await flushDbWrites().catch(() => {})
       if (remoteData.manifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteData.manifest.lastSyncAt)
+      await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
       log.info('pull:done', { action: 'pulled', restoredImages: restoredCount, ...pullCounts })
       return { action: 'pulled', ...pullCounts }
     } catch (e) {
@@ -282,9 +321,22 @@ export function createSyncOrchestrator({
     let existingManifest = null
     try {
       const uid = typeof userIdRef === 'function' ? userIdRef() : ''
-      const { data } = await db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
+      const { data, error } = await db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
+      if (error) throw error
       if (data && data.length > 0) existingManifest = data[0]
-    } catch { /* will skip manifest update below */ }
+    } catch {
+      // 读不到清单就无法确认远端状态，降级走 fullSync（自带重试与冲突检测）
+      throw new Error('QUICK_PUSH_MANIFEST_READ_FAILED')
+    }
+
+    // 远端清单时间领先「最后已见 manifest」水位线：其他设备已推送而本机尚未拉取，
+    // 此时推送并快进水位线会越过对方的行、造成永久漏拉 —— 降级走 fullSync 先比对再推送。
+    // 必须同为服务器时间域比较：行域水位线恒早于 manifest.synced_at，混比会常态化误降级
+    const remoteSyncedMs = toTimestampMs(existingManifest?.synced_at)
+    const localWatermarkMs = getServerSyncTimeMs(ctx)
+    if (remoteSyncedMs > localWatermarkMs) {
+      throw new Error('QUICK_PUSH_REMOTE_AHEAD')
+    }
 
     // Single RPC: push items + presets + manifest
     const syncTimestamp = new Date().toISOString()
@@ -309,6 +361,7 @@ export function createSyncOrchestrator({
 
     // 水位线优先用服务器侧 synced_at（新版 RPC 返回），消除设备时钟偏移
     await ctx.saveLastSyncedAt(pushResult?.syncedAt || syncTimestamp)
+    await saveServerWatermark(ctx, pushResult?.syncedAt || syncTimestamp)
     await dropPendingPush(ctx)
 
     return { action: 'pushed', pushedItems: itemsToPush.length, pushedTrash: trashToPush.length }
@@ -326,11 +379,13 @@ export function createSyncOrchestrator({
     const isBudgetDirty = !dirty || dirty.has('budget')
     const hasDirtyGoodsIds = dirtyGoodsIds && dirtyGoodsIds.size > 0
 
-    // 1. Read manifest
+    // 1. Read manifest — 直查 sync_manifest（manifest-only），
+    // 避免 sync_pull 以 since=0 全量拉整库后只留清单丢弃数据行
     let remoteManifest
     try {
-      const manifestData = await readRemoteData(be, { readManifest: true, readPresets: false, tables: [], trackSyncStep })
-      remoteManifest = manifestData.manifest
+      remoteManifest = be.readManifest
+        ? await be.readManifest()
+        : (await readRemoteData(be, { trackSyncStep })).manifest
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageCloudId) await ctx.saveImageCloudId(remoteManifest.imageCloudId)
 
@@ -344,7 +399,6 @@ export function createSyncOrchestrator({
     try {
       remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(localSyncTime),
-        readManifest: false, readPresets: isGoodsDirty,
         trackSyncStep
       })
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
@@ -352,6 +406,9 @@ export function createSyncOrchestrator({
 
     // 3. Compare
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
+    // 分支判定用服务器域水位线：remoteTime 是 manifest.synced_at（服务器时间域），
+    // 与行域 localSyncTime 混比会把增量拉取后的正常状态误判为远端领先
+    const serverSyncTime = getServerSyncTimeMs(ctx)
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
 
     let hasDataDiff = hasDirtyGoodsIds
@@ -393,20 +450,21 @@ export function createSyncOrchestrator({
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff || hasPresetsDiff
     log.info('sync:compare', {
       hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff,
-      remoteTime, localSyncTime, localChanges: localChanges.hasChanges
+      remoteTime, localSyncTime, serverSyncTime, localChanges: localChanges.hasChanges
     })
 
     if (!hasEffectiveDiff) {
       // 远端清单时间（服务器时间域）比本地时钟可靠；远端不更新时维持现有水位线不动
-      const noChangeWatermark = remoteTime > localSyncTime
+      const noChangeWatermark = remoteTime > serverSyncTime
         ? remoteManifest.lastSyncAt
         : (ctx.lastSyncedAt || new Date().toISOString())
       await ctx.saveLastSyncedAt(noChangeWatermark)
+      if (remoteTime > serverSyncTime) await saveServerWatermark(ctx, remoteManifest.lastSyncAt)
       return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
     }
 
     // 4. Pull or push
-    if (remoteTime > localSyncTime) {
+    if (remoteTime > serverSyncTime) {
       if (!remoteManifest) {
         // First sync — push local data
         return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasPresetsDiff: true })
@@ -437,7 +495,8 @@ export function createSyncOrchestrator({
           const merged = await mergeToLocal(stores, remoteData, {
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
-            localSyncTime
+            localSyncTime,
+            dirtyGoodsIds: ctx.getDirtyGoodsIds
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
@@ -453,6 +512,7 @@ export function createSyncOrchestrator({
       )
       await flushDbWrites().catch(() => {})
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
+      await saveServerWatermark(ctx, remoteManifest?.lastSyncAt)
       return { action: 'pulled', ...pullCounts }
     }
 
@@ -629,6 +689,7 @@ export function createSyncOrchestrator({
     await flushDbWrites().catch(() => {})
     await ctx.saveLastSyncedAt(serverSyncedAt || manifest.lastSyncAt)
     await ctx.saveEventLastSyncedAt(eventSyncData.updatedAt || manifest.lastSyncAt)
+    await saveServerWatermark(ctx, serverSyncedAt || manifest.lastSyncAt)
     await dropPendingPush(ctx)
 
     // Collect affected goods ids so the caller can re-mark them dirty for retry
@@ -674,6 +735,56 @@ export function createSyncOrchestrator({
 
   // ── Force push: bypass conflict detection, local data wins ──
 
+  // "保留本地"强推时，本地条目可能带着比远端更旧的 updatedAt 上传，
+  // 其他设备按 LWW 会用远端（更新）副本反向覆盖，静默撤销用户的冲突决策。
+  // 推送前把会被覆盖的条目 updatedAt 提升到远端之上，并写回本地保持两端一致。
+  async function bumpTimestampsForForcePush(stores, remoteData, conflictRemoteMs) {
+    const nowMs = Date.now()
+    const buildRemoteTsMap = (...lists) => {
+      if (!remoteData) return null
+      const map = new Map()
+      for (const arr of lists) {
+        for (const row of (arr || [])) {
+          const ts = getItemTimestamp(row)
+          const prev = map.get(row.id)
+          if (prev === undefined || ts > prev) map.set(row.id, ts)
+        }
+      }
+      return map
+    }
+    // map 为 null（远端读取失败）时无从判断哪些条目会被覆盖，全部提升
+    const bump = (items, map) => {
+      const changed = []
+      for (const item of (items || [])) {
+        const localTs = getItemTimestamp(item)
+        const remoteTs = map ? map.get(item.id) : undefined
+        if (map && (remoteTs === undefined || remoteTs < localTs)) continue
+        item.updatedAt = Math.max(localTs, remoteTs || 0, conflictRemoteMs, nowMs) + 1
+        changed.push(item)
+      }
+      return changed
+    }
+
+    const goodsTsMap = buildRemoteTsMap(remoteData?.goods, remoteData?.trash)
+    const changedGoods = bump(stores.goodsStore.list, goodsTsMap)
+    const changedTrash = bump(stores.goodsStore.trashList, goodsTsMap)
+    const changedRecharge = bump(stores.rechargeStore.records, buildRemoteTsMap(remoteData?.recharge, remoteData?.rechargeTrash))
+    const changedEvents = bump(stores.eventsStore.list, buildRemoteTsMap(remoteData?.events, remoteData?.eventsTrash))
+    const changedGroups = bump(stores.goodsGroupStore.groupList, buildRemoteTsMap(remoteData?.groups, remoteData?.groupsTrash))
+    const changedGroupItems = bump(stores.goodsGroupStore.groupItemList, buildRemoteTsMap(remoteData?.groupItems, remoteData?.groupItemsTrash))
+
+    if (changedGoods.length > 0) await saveItems(changedGoods)
+    if (changedTrash.length > 0) await writePersistedTrash(stores.goodsStore.trashList)
+    if (changedRecharge.length > 0) await saveRechargeRecords(changedRecharge)
+    if (changedEvents.length > 0) await saveEvents(changedEvents)
+    if (changedGroups.length > 0) await saveGroups(changedGroups)
+    if (changedGroupItems.length > 0) await saveGroupItems(changedGroupItems)
+
+    const total = changedGoods.length + changedTrash.length + changedRecharge.length
+      + changedEvents.length + changedGroups.length + changedGroupItems.length
+    if (total > 0) log.info('force-push: bumped updatedAt of', total, 'items above remote')
+  }
+
   async function forcePush(ctx) {
     const be = ctx.backend || backend
     const stores = getLocalStores()
@@ -685,10 +796,11 @@ export function createSyncOrchestrator({
       let remoteData = null
       try {
         const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), readManifest: false, readPresets: false, trackSyncStep })
+        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), trackSyncStep })
       } catch (e) {
         log.warn('forcePush: read remote failed, pushing full data', e.message)
       }
+      await bumpTimestampsForForcePush(stores, remoteData, toTimestampMs(ctx.conflictData?.remoteTime))
       return await doPush(ctx, stores, be, {
         hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasPresetsDiff: true,
         remoteData

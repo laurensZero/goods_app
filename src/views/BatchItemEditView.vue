@@ -57,8 +57,9 @@
                 type="text"
                 inputmode="decimal"
                 placeholder="0.00"
-                @blur="onFieldBlur('price')"
+                @blur="onPriceBlur"
               />
+              <p v-if="priceError" class="field-error">{{ priceError }}</p>
             </label>
             <label class="field field-row__item">
               <span class="field-label">{{ t('common.date') }}</span>
@@ -111,6 +112,17 @@
     <!-- 底部按钮组 - 使用项目标准 float-footer -->
     <div class="float-footer">
       <div class="float-footer__btns">
+        <button
+          class="btn-float btn-float--ghost btn-float--icon"
+          type="button"
+          :disabled="currentIndex <= 0"
+          :aria-label="t('goods.batch.prevItem')"
+          @click="saveAndPrev"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
         <button class="btn-float btn-float--ghost" type="button" @click="saveAndBack">
           {{ t('goods.batch.saveAndBack') }}
         </button>
@@ -140,11 +152,20 @@
       :source-file="editorSourceFile"
       @save="onEditorSave"
     />
+
+    <!-- 深链等直接离开批量流程前确认：放弃会清除整批编辑与已复制图片 -->
+    <DangerConfirmDialog
+      v-model:show="showLeaveConfirm"
+      :title="t('goods.batch.leaveConfirmTitle')"
+      :description="t('goods.batch.leaveConfirmDesc')"
+      :confirm-text="t('goods.batch.leaveConfirm')"
+      @confirm="confirmLeave"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
@@ -152,11 +173,14 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useBatchQueue } from '@/composables/batch/useBatchQueue'
 import { pickLinkedLocalImages, readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import { showGlobalToast } from '@/utils/globalToast'
+import { validatePrice } from '@/utils/validate'
 
 const route = useRoute()
 const router = useRouter()
@@ -195,6 +219,15 @@ const maxDate = new Date(2100, 11, 31)
 const showEditor = ref(false)
 const editorSourceFile = ref(null)
 
+const priceError = ref('')
+watch(() => form.price, () => {
+  if (priceError.value) priceError.value = ''
+})
+
+const showLeaveConfirm = ref(false)
+let allowLeave = false
+let pendingLeavePath = ''
+
 onMounted(() => {
   if (currentItem.value) {
     syncFormFromItem(currentItem.value)
@@ -203,8 +236,20 @@ onMounted(() => {
 
 // 从编辑页直接离开批量流程（如深链跳转）时同样清理队列；返回队列页或切换下一项不受影响
 onBeforeRouteLeave((to) => {
-  if (to.name !== 'batch-add' && to.name !== 'batch-edit') discardQueue()
+  if (to.name === 'batch-add' || to.name === 'batch-edit') return
+  // 队列非空时先确认再放行，防止深链等入口把整批编辑与图片静默清掉
+  if (!allowLeave && totalCount.value > 0) {
+    pendingLeavePath = to.fullPath
+    showLeaveConfirm.value = true
+    return false
+  }
+  discardQueue()
 })
+
+function confirmLeave() {
+  allowLeave = true
+  router.replace(pendingLeavePath)
+}
 
 function syncFormFromItem(item) {
   form.name = item.name || ''
@@ -223,6 +268,15 @@ function onFieldBlur(field) {
     updateItem(itemId.value, { [field]: form[field] })
     markDirty(itemId.value, field)
   }
+}
+
+function onPriceBlur() {
+  const check = validatePrice(form.price)
+  if (!check.valid) {
+    priceError.value = check.message
+    return
+  }
+  onFieldBlur('price')
 }
 
 function onDateConfirm({ selectedValues }) {
@@ -274,8 +328,11 @@ function saveAndNext() {
   const nextIdx = currentIndex.value + 1
   if (nextIdx < totalCount.value) {
     const nextItem = queue.value[nextIdx]
-    // 切换下一个时用 replace 但保持转场
-    router.replace({ name: 'batch-edit', params: { id: nextItem.id } })
+    // 切换下一个时用 replace 但保持前进转场
+    runWithRouteTransition(
+      () => router.replace({ name: 'batch-edit', params: { id: nextItem.id } }),
+      { direction: 'forward' }
+    )
   } else {
     // 最后一个返回队列
     runWithRouteTransition(
@@ -283,6 +340,17 @@ function saveAndNext() {
       { direction: 'back' }
     )
   }
+}
+
+function saveAndPrev() {
+  const prevIdx = currentIndex.value - 1
+  if (prevIdx < 0) return
+  saveForm()
+  const prevItem = queue.value[prevIdx]
+  runWithRouteTransition(
+    () => router.replace({ name: 'batch-edit', params: { id: prevItem.id } }),
+    { direction: 'back' }
+  )
 }
 
 async function swapImage() {
@@ -314,26 +382,22 @@ async function openEditor() {
   }
 }
 
-function onEditorSave(result) {
-  if (result?.file) {
-    // 保存编辑后的图片到本地
-    const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        const { saveLocalImage } = await import('@/utils/image/localImage')
-        const saved = await saveLocalImage(result.file)
-        if (saved?.uri) {
-          // 编辑保存会生成新文件，需删除被替换的旧文件
-          replaceItemImage(itemId.value, saved.uri)
-          markDirty(itemId.value, 'imageUri')
-        }
-      } catch (e) {
-        console.error('[BatchItemEdit] save edited image failed', e)
-      }
-    }
-    reader.readAsDataURL(result.file)
-  }
+async function onEditorSave(result) {
   showEditor.value = false
+  if (!result?.file) return
+  // 保存编辑后的图片到本地
+  try {
+    const { saveLocalImage } = await import('@/utils/image/localImage')
+    const saved = await saveLocalImage(result.file)
+    if (saved?.uri) {
+      // 编辑保存会生成新文件，需删除被替换的旧文件
+      replaceItemImage(itemId.value, saved.uri)
+      markDirty(itemId.value, 'imageUri')
+    }
+  } catch (e) {
+    console.error('[BatchItemEdit] save edited image failed', e)
+    showGlobalToast(t('goods.batch.imageSaveFailed'))
+  }
 }
 </script>
 
@@ -491,6 +555,12 @@ function onEditorSave(result) {
   flex: 1;
 }
 
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: #ff3b30;
+}
+
 .field input {
   width: 100%;
   min-height: var(--input-height);
@@ -591,6 +661,16 @@ function onEditorSave(result) {
   color: var(--app-text);
 }
 
+.btn-float--icon {
+  flex: 0 0 52px;
+  padding: 0;
+}
+
+.btn-float--icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .batch-edit-empty {
   flex: 1;
   display: flex;
@@ -649,6 +729,10 @@ function onEditorSave(result) {
   .btn-float {
     height: 56px;
     font-size: 17px;
+  }
+
+  .btn-float--icon {
+    flex-basis: 56px;
   }
 }
 </style>

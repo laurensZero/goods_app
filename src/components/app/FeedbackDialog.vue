@@ -164,7 +164,8 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { submitFeedback } from '@/services/feedbackService'
-import { uploadAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
+import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
+import { getDeviceId } from '@/utils/feedbackDevice'
 import packageJson from '../../../package.json'
 
 const props = defineProps({
@@ -254,16 +255,16 @@ async function handleSubmit() {
   submitError.value = ''
   submitSuccess.value = false
 
+  let attachments = []
   try {
     // 1. Upload attachments first (need feedbackId for path, use temp id)
-    let attachments = []
     const filesToUpload = [...selectedFiles.value.map(f => f.file)]
     if (collectLog.value) {
       filesToUpload.push(await collectDeviceLog())
     }
     if (filesToUpload.length > 0) {
-      // Use userId + timestamp as temp path prefix
-      const tempId = props.userId ? props.userId.slice(0, 8) : 'anon'
+      // Use userId (or device id for anonymous) as temp path prefix
+      const tempId = props.userId ? props.userId.slice(0, 8) : `anon-${getDeviceId().slice(0, 8)}`
       attachments = await uploadAttachments(filesToUpload, tempId)
     }
 
@@ -282,6 +283,10 @@ async function handleSubmit() {
     emit('submitted', created)
     setTimeout(() => closeDialog(), 1500)
   } catch (e) {
+    // 提交失败时补偿删除已上传的附件，避免孤儿文件
+    if (attachments.length > 0) {
+      await removeAttachments(attachments.map(a => a.path))
+    }
     submitError.value = e.message || t('about.feedbackError')
   } finally {
     isSubmitting.value = false

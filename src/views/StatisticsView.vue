@@ -218,7 +218,7 @@ const { t } = useI18n()
 const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
-const { yearlyBudget, loadBudgetSettings } = useBudgetCalculation()
+const { monthlyBudget, yearlyBudget, loadBudgetSettings } = useBudgetCalculation()
 
 const HOME_TOP_OPTIONS = computed(() => [
   { value: 'goods', label: t('common.collection') },
@@ -282,11 +282,12 @@ const trendData = computed(() => {
     endDate: trendWindow.value.endDate
   })
 })
-const goodsExtremes = computed(() => buildGoodsExtremes(list.value))
+const goodsExtremes = computed(() => buildGoodsExtremes(list.value, t))
 
 const budgetLineValue = computed(() => {
   if (trendMode.value === 'year') return yearlyBudget.value || 0
-  if (trendMode.value === 'month') return (yearlyBudget.value || 0) / 12
+  // 优先用户单独设置的月预算,未设置才回退年预算/12
+  if (trendMode.value === 'month') return monthlyBudget.value || (yearlyBudget.value || 0) / 12
   return 0
 })
 

@@ -61,10 +61,11 @@ window.addEventListener('popstate', () => {
 })
 
 router.beforeEach((to) => {
-  // OAuth 回调：URL 中含有 access_token，立即清理并重定向
+  // OAuth 回调：URL 中含有 access_token，重定向到首页
+  // 回调 token 的提取与 URL 清理统一由 main.js 的 handleAuthCallback 处理；
+  // 这里只做路由级 redirect（file:// 下直接 replaceState('/') 会破坏 URL）
   const fullPath = to.fullPath || ''
   if (fullPath.includes('access_token')) {
-    window.history.replaceState({}, '', '/')
     return '/'
   }
 

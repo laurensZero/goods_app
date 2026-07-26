@@ -14,7 +14,10 @@ function calcPeriodSpent(goodsList, dateMatcher) {
 
     const qty = Math.max(1, Number(item.quantity) || 1)
     const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
-    const unitPrices = Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : []
+    // 用视图层折算后的 CNY 字段,与统计页趋势图口径一致(外币商品不再按原值计入)
+    const unitPrices = Array.isArray(item.unitActualPriceCNYList)
+      ? item.unitActualPriceCNYList
+      : (Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : [])
     let units = 0
     let amount = 0
 
@@ -33,8 +36,8 @@ function calcPeriodSpent(goodsList, dateMatcher) {
         units = qty
         // actualPrice 是全部份数的总入手价，不能再乘数量；仅原价按单价×数量
         amount = (item.actualPrice !== '' && item.actualPrice != null)
-          ? (Number(item.actualPrice) || 0)
-          : (Number(item.price) || 0) * qty
+          ? (Number(item.actualPriceCNYNumber ?? item.actualPrice) || 0)
+          : (Number(item.officialPriceCNYNumber ?? item.price) || 0) * qty
       }
     }
 
@@ -109,12 +112,12 @@ export function useBudgetCalculation() {
     const now = new Date()
     const cy = now.getFullYear()
     const cm = now.getMonth()
-    return calcPeriodSpent(goodsStore.list, (d) => d.getFullYear() === cy && d.getMonth() === cm)
+    return calcPeriodSpent(goodsStore.viewList, (d) => d.getFullYear() === cy && d.getMonth() === cm)
   })
 
   const currentYearSpent = computed(() => {
     const cy = new Date().getFullYear()
-    return calcPeriodSpent(goodsStore.list, (d) => d.getFullYear() === cy)
+    return calcPeriodSpent(goodsStore.viewList, (d) => d.getFullYear() === cy)
   })
 
   const monthlyBudgetProgress = computed(() => buildBudgetProgress(currentMonthSpent.value, monthlyBudget.value))

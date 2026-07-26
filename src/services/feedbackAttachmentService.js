@@ -71,6 +71,28 @@ export async function uploadAttachment(file, feedbackId) {
 }
 
 /**
+ * Remove uploaded attachment files by path (best-effort compensation cleanup).
+ */
+export async function removeAttachments(paths) {
+  const list = (paths || []).filter(Boolean)
+  if (list.length === 0) return
+  try {
+    // remove() 对 RLS 拒绝的对象不报错——返回 200 + 已删列表，被拒对象直接跳过，
+    // 必须显式核对 error 与已删数量，否则缺 DELETE policy 时清理是不可观测的 no-op
+    const { data, error } = await db().storage.from(BUCKET).remove(list)
+    if (error) {
+      console.warn('[feedback] attachment cleanup failed:', error.message)
+    } else if ((data?.length || 0) < list.length) {
+      const removed = new Set((data || []).map(o => o.name))
+      const skipped = list.filter(p => !removed.has(p))
+      console.warn(`[feedback] attachment cleanup incomplete: ${removed.size}/${list.length} removed, skipped (missing DELETE policy on "${BUCKET}"?):`, skipped.join(', '))
+    }
+  } catch (e) {
+    console.warn('[feedback] attachment cleanup failed:', e.message)
+  }
+}
+
+/**
  * Upload multiple files. Returns successful uploads only.
  */
 export async function uploadAttachments(files, feedbackId) {
@@ -81,6 +103,8 @@ export async function uploadAttachments(files, feedbackId) {
       results.push(meta)
     } catch (e) {
       console.error('[feedback] upload failed:', file.name, e.message)
+      // 中途失败时清理本批已上传的文件，避免留下孤儿附件
+      await removeAttachments(results.map(r => r.path))
       // Re-throw so caller knows — don't silently swallow
       throw new Error(`Upload failed for "${file.name}": ${e.message}`)
     }

@@ -30,6 +30,8 @@ import {
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
+// 服务器域水位线：最后已见 manifest synced_at（行域 LAST_SYNC_KEY 仅作增量拉取的 since）
+const LAST_SERVER_SYNC_KEY = 'sync_last_server_synced_at'
 // 历史版本遗留（加密功能已移除，仅用于一次性清理）
 const LEGACY_SYNC_PASSWORD_KEY = 'sync_password'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
@@ -40,6 +42,7 @@ const SUPABASE_ANON_KEY_KEY = 'sync_supabase_anon_key'
 const SYNC_BACKEND_KEY = 'sync_backend'
 const SYNC_PAUSED_KEY = 'sync_paused'
 const PENDING_PUSH_KEY = 'sync_pending_push'
+const LAST_SYNC_USER_KEY = 'sync_last_user_id'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
 
@@ -59,7 +62,16 @@ export const useSyncStore = defineStore('sync', () => {
   // ── Sync Timestamps ──
   const lastSyncedAt = ref('')
   const eventLastSyncedAt = ref('')
+  // 服务器域水位线：最后已见 manifest synced_at，与行域 lastSyncedAt（推送方客户端时间域）分开，
+  // 供 remote-ahead / 冲突分支判定，消除跨时钟域比较造成的误报冲突
+  const lastServerSyncedAt = ref('')
   const pendingPush = ref(null) // crash-safe push 标记：{ ts, eventTs, deviceId }
+
+  // 同步代际：3 分钟超时重置后旧管道可能仍在后台运行；每轮同步开始与每次强制
+  // 重置都 bump 代际，旧代际管道的关键落盘（水位线 / pendingPush）会被守卫拒绝，
+  // 避免双管道并发互相覆盖
+  let syncGeneration = 0
+  const STALE_SYNC_MESSAGE = 'SYNC_STALE_GENERATION'
 
   // ── Device ──
   const deviceId = ref('')
@@ -103,6 +115,11 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(EVENT_LAST_SYNC_KEY, timestamp)
   }
 
+  async function saveLastServerSyncedAt(timestamp) {
+    lastServerSyncedAt.value = timestamp
+    await writeSyncKey(LAST_SERVER_SYNC_KEY, timestamp)
+  }
+
   // crash-safe push：写远端前持久化标记，推送完整落盘后清除
   async function savePendingPush(marker) {
     pendingPush.value = marker || null
@@ -113,6 +130,30 @@ export const useSyncStore = defineStore('sync', () => {
     if (!pendingPush.value) return
     pendingPush.value = null
     await writeSyncKey(PENDING_PUSH_KEY, '')
+  }
+
+  // 账号切换检测：换账号后旧账号的水位线会让增量拉取跳过新账号的历史数据，
+  // pendingPush 标记还可能误快进水位线；同步/拉取前发现 uid 变化即清空两者。
+  // dirty 标记保留，让切换后的首次同步走完整对比 + 现有冲突确认流程。
+  // 返回是否发生了账号切换（水位线已被清空）。
+  let lastCheckedSyncUid = ''
+  async function ensureSyncAccountConsistent() {
+    const authStore = useAuthStore()
+    const uid = authStore.user?.id || ''
+    if (!uid || uid === lastCheckedSyncUid) return false
+    const prevUid = (await readSyncKey(LAST_SYNC_USER_KEY)) || ''
+    const switched = !!prevUid && prevUid !== uid
+    if (switched) {
+      console.warn('[sync] account switched, clearing sync watermarks')
+      lastSyncedAt.value = ''; eventLastSyncedAt.value = ''; lastServerSyncedAt.value = ''; pendingPush.value = null
+      await Promise.all([
+        writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, ''),
+        writeSyncKey(LAST_SERVER_SYNC_KEY, ''), writeSyncKey(PENDING_PUSH_KEY, '')
+      ])
+    }
+    if (prevUid !== uid) await writeSyncKey(LAST_SYNC_USER_KEY, uid)
+    lastCheckedSyncUid = uid
+    return switched
   }
 
   async function saveSupabaseConfig(url, anonKey) {
@@ -298,14 +339,25 @@ export const useSyncStore = defineStore('sync', () => {
     return conflictService.getLocalChangesSince(localSyncTime)
   }
 
-  function buildSyncContext() {
+  function buildSyncContext(runGen = syncGeneration) {
     activeBackend = getCurrentBackend()
+    // 代际守卫：本轮同步开始后若发生超时重置 / 新一轮同步，代际号已变化，
+    // 旧管道的关键落盘拒绝写入并抛错，尽早终止其后续阶段
+    const gen = runGen
+    const guarded = (fn) => async (...args) => {
+      if (gen !== syncGeneration) throw new Error(STALE_SYNC_MESSAGE)
+      return fn(...args)
+    }
     return {
       backend: activeBackend,
       deviceId: deviceId.value,
-      lastSyncedAt: lastSyncedAt.value, conflictData: conflictData.value,
-      saveLastSyncedAt, saveEventLastSyncedAt,
-      pendingPush: pendingPush.value, savePendingPush, clearPendingPush,
+      lastSyncedAt: lastSyncedAt.value, lastServerSyncedAt: lastServerSyncedAt.value, conflictData: conflictData.value,
+      // reconcile 删除保护：脏标记中的条目是未推送的本地改动，拉取合并时不得物理删除；
+      // 传 getter 让 reconcile 执行时刻读到实时集合（拉取在途期间新增的商品同样受保护）
+      getDirtyGoodsIds: () => dirtyGoodsIds,
+      saveLastSyncedAt: guarded(saveLastSyncedAt), saveEventLastSyncedAt: guarded(saveEventLastSyncedAt),
+      saveLastServerSyncedAt: guarded(saveLastServerSyncedAt),
+      pendingPush: pendingPush.value, savePendingPush: guarded(savePendingPush), clearPendingPush: guarded(clearPendingPush),
       saveImageCloudId: async () => {},
       getLatestLocalModifiedAt, buildPresetsData, ensureEventsStoreReady,
       shouldApplyRemoteItem
@@ -320,17 +372,18 @@ export const useSyncStore = defineStore('sync', () => {
     const [
       lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal,
       syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal,
-      pendingPushVal
+      pendingPushVal, lastServerSyncedAtVal
     ] = await Promise.all([
       readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
       readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY),
       readSyncKey(SYNC_PAUSED_KEY),
-      readSyncKey(PENDING_PUSH_KEY)
+      readSyncKey(PENDING_PUSH_KEY), readSyncKey(LAST_SERVER_SYNC_KEY)
     ])
 
     lastSyncedAt.value = lastSyncedAtVal || ''
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
+    lastServerSyncedAt.value = lastServerSyncedAtVal || ''
     deviceId.value = deviceIdVal
     syncBackend.value = syncBackendVal || 'supabase'
     supabaseUrl.value = supabaseUrlVal || ''
@@ -519,6 +572,8 @@ export const useSyncStore = defineStore('sync', () => {
 
   function resetSyncingState() {
     clearSyncTimeout()
+    // 超时/强制重置后旧管道可能仍在后台运行：bump 代际让其关键落盘被守卫拒绝
+    syncGeneration++
     isSyncing.value = false
     isPulling.value = false
   }
@@ -545,6 +600,7 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
+    const runGen = ++syncGeneration
     syncSource.value = source
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
@@ -558,6 +614,9 @@ export const useSyncStore = defineStore('sync', () => {
     }, SYNC_TIMEOUT_MS)
 
     try {
+      // 换账号后必须先清掉旧账号的水位线 / pendingPush，再构建同步上下文
+      await ensureSyncAccountConsistent()
+
       // 本地数据读库失败时拒绝推送，避免基于空列表覆盖云端备份
       const goodsStore = useGoodsStore()
       if (goodsStore.loadFailed) {
@@ -572,9 +631,11 @@ export const useSyncStore = defineStore('sync', () => {
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
-        () => orchestrator.sync(buildSyncContext(), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
+        () => orchestrator.sync(buildSyncContext(runGen), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
+      // 代际过期（超时重置已接管 UI）：跳过状态更新与脏标记清理，避免与新一轮同步互相覆盖
+      if (runGen !== syncGeneration) return result
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
       notifyImageUploadFailure(result, source)
@@ -583,6 +644,10 @@ export const useSyncStore = defineStore('sync', () => {
       remarkFailedImageItems(result)
       return result
     } catch (error) {
+      // 代际过期的旧管道静默退出：超时错误已展示，脏标记未清、下次同步自动重试
+      if (error?.message === STALE_SYNC_MESSAGE || runGen !== syncGeneration) {
+        return { action: 'skipped', reason: 'stale' }
+      }
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
       if (source !== 'manual') {
         publishSyncNotice({
@@ -593,9 +658,12 @@ export const useSyncStore = defineStore('sync', () => {
       }
       throw error
     } finally {
-      clearSyncTimeout()
-      isSyncing.value = false
-      flushPendingAutoPush()
+      // 代际过期时超时重置已恢复 UI，且计时器/状态可能已属于新一轮同步，不得触碰
+      if (runGen === syncGeneration) {
+        clearSyncTimeout()
+        isSyncing.value = false
+        flushPendingAutoPush()
+      }
     }
   }
 
@@ -615,17 +683,26 @@ export const useSyncStore = defineStore('sync', () => {
       const authStore = useAuthStore()
       if (!authStore.isLoggedIn) return { action: 'skipped', reason: 'not_logged_in' }
       ensureBackendReady()
+      const runGen = ++syncGeneration
       isSyncing.value = true; isPulling.value = true
       syncSource.value = source
 
       try {
-        const result = await orchestrator.pull(buildSyncContext(), { tables, since })
+        // 账号切换后调用方传入的 since 属旧账号水位线：跳过本次增量拉取，
+        // 水位线已被清空，下一次完整同步会走完整对比 + 冲突确认流程
+        if (await ensureSyncAccountConsistent()) {
+          return { action: 'skipped', reason: 'account_switched' }
+        }
+        const result = await orchestrator.pull(buildSyncContext(runGen), { tables, since })
         return result
       } catch (error) {
+        if (error?.message === STALE_SYNC_MESSAGE || runGen !== syncGeneration) {
+          return { action: 'skipped', reason: 'stale' }
+        }
         console.warn('[sync] incremental pull failed, falling back to full pull:', error.message)
         try {
           const result = await withRetry(
-            () => orchestrator.pull(buildSyncContext(), { silent: true }),
+            () => orchestrator.pull(buildSyncContext(runGen), { silent: true }),
             { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
           )
           syncStatus.value = translateStatusMessage(result)
@@ -635,7 +712,9 @@ export const useSyncStore = defineStore('sync', () => {
           throw fallbackError
         }
       } finally {
-        isPulling.value = false; isSyncing.value = false
+        if (runGen === syncGeneration) {
+          isPulling.value = false; isSyncing.value = false
+        }
       }
     }
 
@@ -647,6 +726,7 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
+    const runGen = ++syncGeneration
     syncSource.value = source
     isSyncing.value = true; isPulling.value = true; lastError.value = ''
     if (!silent) conflictData.value = null
@@ -661,14 +741,22 @@ export const useSyncStore = defineStore('sync', () => {
     }, SYNC_TIMEOUT_MS)
 
     try {
+      // 换账号后必须先清掉旧账号的水位线 / pendingPush，再构建同步上下文
+      await ensureSyncAccountConsistent()
       const result = await withRetry(
-        () => orchestrator.pull(buildSyncContext(), { silent, forceRecharge }),
+        () => orchestrator.pull(buildSyncContext(runGen), { silent, forceRecharge }),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
+      // 代际过期（超时重置已接管 UI）：跳过状态更新，避免与新一轮同步互相覆盖
+      if (runGen !== syncGeneration) return result
       if (!silent && result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
       return result
     } catch (error) {
+      // 代际过期的旧管道静默退出：超时错误已展示
+      if (error?.message === STALE_SYNC_MESSAGE || runGen !== syncGeneration) {
+        return { action: 'skipped', reason: 'stale' }
+      }
       applySyncError(error, i18n.global.t('sync.pullFailed', { error: '' }))
       if (source !== 'manual') {
         publishSyncNotice({
@@ -679,15 +767,19 @@ export const useSyncStore = defineStore('sync', () => {
       }
       throw error
     } finally {
-      clearSyncTimeout()
-      isPulling.value = false
-      isSyncing.value = false
-      flushPendingAutoPush()
+      // 代际过期时计时器/状态可能已属于新一轮同步，不得触碰
+      if (runGen === syncGeneration) {
+        clearSyncTimeout()
+        isPulling.value = false
+        isSyncing.value = false
+        flushPendingAutoPush()
+      }
     }
   }
 
   async function resolveConflict(useRemote, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value) return
+    const runGen = ++syncGeneration
     isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
@@ -697,7 +789,7 @@ export const useSyncStore = defineStore('sync', () => {
         applySyncError(error, i18n.global.t('sync.error.localDataNotLoadedStatus'))
         return { action: 'skipped', reason: 'goods_load_failed' }
       }
-      const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
+      const ctx = { ...buildSyncContext(runGen), conflictData: conflictData.value }
       const result = await withRetry(
         () => orchestrator.resolveConflict(ctx, useRemote),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
@@ -718,18 +810,25 @@ export const useSyncStore = defineStore('sync', () => {
       }
       throw error
     } finally {
-      isSyncing.value = false
-      flushPendingAutoPush()
+      // bump 代际会让在途增量拉取的 finally 视自己为过期代际而跳过复位，
+      // 由本入口统一恢复全部 UI 标志与计时器，避免 isPulling 永久卡死
+      if (runGen === syncGeneration) {
+        clearSyncTimeout()
+        isSyncing.value = false
+        isPulling.value = false
+        flushPendingAutoPush()
+      }
     }
   }
 
   async function resolvePullConflict(confirm, { source = 'manual', maxRetries = 1 } = {}) {
     if (!conflictData.value?.isPullOnly) return
+    const runGen = ++syncGeneration
     isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     try {
       if (!confirm) { syncStatus.value = i18n.global.t('toast.cancelled'); conflictData.value = null; return { action: 'cancelled' } }
-      const ctx = { ...buildSyncContext(), conflictData: conflictData.value }
+      const ctx = { ...buildSyncContext(runGen), conflictData: conflictData.value }
       const result = await withRetry(
         () => orchestrator.resolvePullConflict(ctx, confirm),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
@@ -748,8 +847,13 @@ export const useSyncStore = defineStore('sync', () => {
       }
       throw error
     } finally {
-      isSyncing.value = false
-      flushPendingAutoPush()
+      // 同 resolveConflict：bump 代际者负责恢复全部 UI 标志
+      if (runGen === syncGeneration) {
+        clearSyncTimeout()
+        isSyncing.value = false
+        isPulling.value = false
+        flushPendingAutoPush()
+      }
     }
   }
 
@@ -758,11 +862,11 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   async function resetConfig() {
-    lastSyncedAt.value = ''; eventLastSyncedAt.value = ''
+    lastSyncedAt.value = ''; eventLastSyncedAt.value = ''; lastServerSyncedAt.value = ''
     pendingPush.value = null
     await Promise.all([
       writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, ''),
-      writeSyncKey(PENDING_PUSH_KEY, '')
+      writeSyncKey(LAST_SERVER_SYNC_KEY, ''), writeSyncKey(PENDING_PUSH_KEY, '')
     ])
     lastError.value = ''; syncStatus.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null

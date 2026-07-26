@@ -12,15 +12,14 @@ const log = createLogger('sync:pullPipeline')
 
 /**
  * Read remote data from the backend via pullAll RPC.
+ * sync_pull 恒返回全部域 + manifest + presets，没有按表/按域裁剪参数；
+ * 只需要清单时请用 be.readManifest()（直查 sync_manifest，不拉数据行）。
  *
  * @param {object} be - backend adapter
  * @param {object} opts
- * @param {string[]|null} opts.tables - specific tables to read (null = all)
  * @param {number} opts.since - incremental: only rows after this timestamp (ms)
- * @param {boolean} opts.readManifest - whether to read manifest
- * @param {boolean} opts.readPresets - whether to read presets
  */
-export async function readRemoteData(be, { tables = null, since = 0, readManifest = true, readPresets = true, trackSyncStep = null } = {}) {
+export async function readRemoteData(be, { since = 0, trackSyncStep = null } = {}) {
   // Helper to wrap a task with trackSyncStep if available
   const wrapStep = (title, task, opts) => trackSyncStep ? trackSyncStep(title, task, opts) : task()
 
@@ -148,10 +147,12 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  * @param {boolean} opts.reconcileMissing - if true, delete local items not present in remote
  * @param {object} opts.diff - diff result from diffLocalRemote
  * @param {Function} opts.shouldApplyRemoteItem - conflict resolver
+ * @param {Set<string>|Function|null} opts.dirtyGoodsIds - 本地未推送改动的商品 id（或返回该集合的 getter），reconcile 删除时排除
+ * @param {number} opts.pullStartMs - 拉取开始时刻（本机毫秒）；不早于它的行时间视为 NULL updated_at 的 Date.now() 回退值，不参与水位线统计
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, diff, shouldApplyRemoteItem, localSyncTime = 0 } = opts
+  const { reconcileMissing = true, diff, shouldApplyRemoteItem, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0 } = opts
 
   // 合并前对比本地状态，统计实际会落库的新增/更新数（LWW：仅远端更新时间更新才生效）。
   // 拉取重叠窗口（PULL_CLOCK_OVERLAP_MS）会重复拉到已合并过的行，
@@ -163,6 +164,9 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   function trackTs(items) {
     for (const item of (items || [])) {
       const ts = Number(item?.updatedAt) || 0
+      // NULL updated_at 的行在 reader 里被 normalizeTimestamp 回退为读取时刻的本机
+      // Date.now()（恒不早于拉取开始时刻），不得把水位线推到本机当前时间造成漏拉
+      if (pullStartMs > 0 && ts >= pullStartMs) continue
       if (ts > remoteWatermark) remoteWatermark = ts
     }
   }
@@ -193,13 +197,18 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     const hasAnyRemote = remoteGoodsIds.size > 0 || remoteTrashIds.size > 0
 
     if (hasAnyRemote) {
+      // dirty 标记（已持久化、不受时钟影响）中的条目是尚未推送的本地改动：
+      // 客户端时钟落后时新建条目可能 updatedAt <= 水位线，被误判为"远端已删"而物理删除。
+      // 支持传 getter：在 reconcile 执行时刻实时读取，拉取在途期间新增的商品同样受保护
+      const dirtyIdSet = typeof dirtyGoodsIds === 'function' ? dirtyGoodsIds() : dirtyGoodsIds
+      const isDirtyLocal = (id) => !!dirtyIdSet && dirtyIdSet.has(String(id))
       const localOnlyGoodsIds = goodsStore.list
         .filter(item => !remoteGoodsIds.has(item.id) && !remoteTrashIds.has(item.id))
-        .filter(item => getItemTimestamp(item) <= localSyncTime)
+        .filter(item => getItemTimestamp(item) <= localSyncTime && !isDirtyLocal(item.id))
         .map(item => item.id)
       const localOnlyTrashIds = goodsStore.trashList
         .filter(item => !remoteTrashIds.has(item.id) && !remoteGoodsIds.has(item.id))
-        .filter(item => getItemTimestamp(item) <= localSyncTime)
+        .filter(item => getItemTimestamp(item) <= localSyncTime && !isDirtyLocal(item.id))
         .map(item => item.id)
       if (localOnlyGoodsIds.length > 0) await goodsStore.deleteGoodsPermanently(localOnlyGoodsIds)
       if (localOnlyTrashIds.length > 0) await Promise.all(localOnlyTrashIds.map(id => goodsStore.deleteTrashItem(id)))

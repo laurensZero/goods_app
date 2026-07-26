@@ -1,6 +1,13 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { showGlobalToast } from '@/utils/globalToast'
+import {
+  collectManagedLocalImagePathsFromGoodsItem,
+  deleteManagedLocalImages,
+  extractManagedLocalImagePath
+} from '@/utils/image/localImage'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
@@ -21,7 +28,20 @@ import {
 const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
 
 const NO_IP_OPTION = '__NO_IP__'
-const today = formatDate(new Date(), 'YYYY-MM-DD')
+
+// 按需求值：应用常驻后台跨天后，模块级常量会停留在冷启动那天
+function getToday() {
+  return formatDate(new Date(), 'YYYY-MM-DD')
+}
+
+// 本次编辑会话内新复制、尚未随商品保存的本地图片路径。
+// 由 GoodsImageManager 在生成新文件时登记；未保存就离开编辑页时清理，避免孤儿文件。
+const sessionNewLocalImagePaths = new Set()
+
+export function trackEditorSessionLocalImage(localPath) {
+  const path = extractManagedLocalImagePath(localPath)
+  if (path) sessionNewLocalImagePaths.add(path)
+}
 
 export function useGoodsEditorForm(options = {}) {
   const mode = options.mode === 'edit' ? 'edit' : 'add'
@@ -29,6 +49,7 @@ export function useGoodsEditorForm(options = {}) {
   const initialIsWishlist = Boolean(options.initialIsWishlist)
   const getMotionSourceEl = typeof options.getMotionSourceEl === 'function' ? options.getMotionSourceEl : null
 
+  const { t } = useI18n()
   const router = useRouter()
   const store = useGoodsStore()
   const presets = usePresetsStore()
@@ -122,15 +143,15 @@ export function useGoodsEditorForm(options = {}) {
     }
 
     return [
-      { label: '不设置 IP', value: NO_IP_OPTION },
+      { label: t('goods.editor.characterIpNone'), value: NO_IP_OPTION },
       ...presets.ips.map((ip) => ({ label: ip, value: ip }))
     ]
   })
 
   const characterPlaceholder = computed(() => {
-    if (!form.ip) return '请先选择 IP'
-    if (availableCharacters.value.length === 0) return '该 IP 暂无角色'
-    return '请选择角色'
+    if (!form.ip) return t('goods.editor.characterPlaceholderNoIp')
+    if (availableCharacters.value.length === 0) return t('goods.editor.noCharacterPresets')
+    return t('goods.editor.characterPlaceholder')
   })
   const primaryPreviewImage = computed(() => getPrimaryGoodsImageUrl(form.images))
   const quantityNumber = computed(() => Math.max(1, Number(form.quantity) || 1))
@@ -190,7 +211,7 @@ export function useGoodsEditorForm(options = {}) {
     () => form.isWishlist,
     (isWishlist) => {
       if (isWishlist) {
-        if (mode === 'add' && (!hasCustomAcquiredAt.value || form.acquiredAt === today)) {
+        if (mode === 'add' && (!hasCustomAcquiredAt.value || form.acquiredAt === getToday())) {
           form.acquiredAt = ''
         }
         showPointsInput.value = false
@@ -213,7 +234,7 @@ export function useGoodsEditorForm(options = {}) {
       form.saleReminderOffsets = []
 
       if (!form.acquiredAt && !hasCustomAcquiredAt.value) {
-        form.acquiredAt = today
+        form.acquiredAt = getToday()
       }
 
       syncUnitCharacterListLength()
@@ -234,7 +255,7 @@ export function useGoodsEditorForm(options = {}) {
     if (mode === 'add') {
       form.isWishlist = initialIsWishlist
       if (!form.isWishlist) {
-        form.acquiredAt = today
+        form.acquiredAt = getToday()
       }
     }
 
@@ -309,7 +330,28 @@ export function useGoodsEditorForm(options = {}) {
   onBeforeUnmount(() => {
     document.removeEventListener('mousedown', handleClickOutside)
     document.removeEventListener('touchstart', handleClickOutside)
+    cleanupSessionLocalImages()
   })
+
+  // 未保存就离开编辑页：清理本次会话新复制的本地图片，防止孤儿文件。
+  // 宁可少删不可误删——凡是仍被任何已保存商品（含回收站）引用的路径一律跳过。
+  function cleanupSessionLocalImages() {
+    if (sessionNewLocalImagePaths.size === 0) return
+    const candidates = [...sessionNewLocalImagePaths]
+    sessionNewLocalImagePaths.clear()
+
+    const referenced = new Set()
+    for (const item of [...store.list, ...store.trashList]) {
+      for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
+        referenced.add(path)
+      }
+    }
+
+    const orphans = candidates.filter((path) => !referenced.has(path))
+    if (orphans.length > 0) {
+      void deleteManagedLocalImages(orphans)
+    }
+  }
 
   function getSubmitOriginRect(event) {
     const target = event?.submitter || event?.currentTarget || event?.target
@@ -411,12 +453,14 @@ export function useGoodsEditorForm(options = {}) {
 
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
-        alert('保存失败：该谷子可能已不存在，请返回列表重新查看。')
+        showGlobalToast(t('goods.editor.saveFailedMissing'))
         // Should we always go to home or back?
         // But fade is requested.
         runWithRouteTransition(() => router.replace('/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
         return
       }
+      // 保存成功：会话内新图片已随商品落库，移出待清理集合
+      sessionNewLocalImagePaths.clear()
 
       prepareGoodsHeroBack({
         goodsId: editId,
@@ -435,7 +479,7 @@ export function useGoodsEditorForm(options = {}) {
       if (initialStatus && !timelineEditedByUser) {
         if (hasUnitStatuses) {
           // 有逐份状态时：只记录一条汇总时间线，逐份持有天数由 unitAcquiredAtList 独立计算
-          const timelineDate = form.acquiredAt || today
+          const timelineDate = form.acquiredAt || getToday()
           form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
         } else if (quantityNumber.value >= 2) {
           // 多份无逐份状态：逐份购入日期生成时间线条目
@@ -463,17 +507,17 @@ export function useGoodsEditorForm(options = {}) {
             }
 
             if (validUnitDates.length < quantityNumber.value) {
-              const timelineDate = form.acquiredAt || today
+              const timelineDate = form.acquiredAt || getToday()
               form.statusTimeline.push({ status: initialStatus, at: timelineDate })
               form.statusTimeline.sort((a, b) => a.at.localeCompare(b.at))
             }
           } else {
-            const timelineDate = form.acquiredAt || today
+            const timelineDate = form.acquiredAt || getToday()
             form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
           }
         } else {
           // 单份无逐份状态：直接使用购入日期
-          const timelineDate = form.acquiredAt || today
+          const timelineDate = form.acquiredAt || getToday()
           form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
         }
       }
@@ -487,9 +531,15 @@ export function useGoodsEditorForm(options = {}) {
 
       const motionId = String(Date.now())
       const addPromise = store.addGoods({ ...form, id: motionId })
+      // 保存已发起：会话内新图片归商品所有，移出待清理集合
+      sessionNewLocalImagePaths.clear()
       writeAddMotionRequest(motionId, event)
       runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
-      void addPromise.catch(() => {})
+      // 先播动画后落库：DB 写入失败时回滚内存条目并提示，避免"看似成功、重启后消失"
+      void addPromise.catch(() => {
+        store.list = store.list.filter((item) => item.id !== motionId)
+        showGlobalToast(t('goods.editor.addFailed'))
+      })
       return
     }
 
@@ -497,7 +547,7 @@ export function useGoodsEditorForm(options = {}) {
   }
 
   function validateName() {
-    const result = validateTextName(form.name, { label: '名称' })
+    const result = validateTextName(form.name, { label: t('common.name') })
     if (result.valid) {
       nameError.value = ''
       return true
@@ -835,7 +885,7 @@ export function useGoodsEditorForm(options = {}) {
   }
 
   function normalizeDateParts(dateString) {
-    const [fallbackYear, fallbackMonth, fallbackDay] = today.split('-')
+    const [fallbackYear, fallbackMonth, fallbackDay] = getToday().split('-')
 
     if (!dateString) {
       return [fallbackYear, fallbackMonth, fallbackDay]

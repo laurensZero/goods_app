@@ -6,6 +6,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { parseMihoyoUrl, isMihoyoGiftUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
 import { validatePrice } from '@/utils/validate'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import { showGlobalToast } from '@/utils/globalToast'
 import {
   applyMihoyoVariantMedia,
   getDefaultMihoyoImages,
@@ -41,8 +42,11 @@ function parseBatchUrlEntries(text) {
 
     const before = line.slice(0, urlMatch.index).trim()
     const after = line.slice(urlMatch.index + urlMatch[0].length).trim()
-    const countSource = `${before} ${after}`.replace(/[×＊]/g, 'x')
-    const countMatch = countSource.match(/(?:^|[^\d])(\d+)(?:\D*$)/)
+    const countSource = `${before} ${after}`.replace(/[×＊]/g, 'x').trim()
+    // 仅识别明确的数量写法（x3 / 3个 / 单独数字），避免行内无关数字（如「第3弹」）被误判为购买数量
+    const countMatch = countSource.match(/(?:^|[^a-z0-9])x\s?(\d+)(?=\D|$)/i)
+      || countSource.match(/(?:^|[^第\d])(\d+)\s*[个個件份套盒只枚](?=\D|$)/)
+      || countSource.match(/^(\d+)$/)
     const count = countMatch ? Math.max(1, Number.parseInt(countMatch[1], 10) || 1) : 1
 
     entries.push({ url, count })
@@ -55,12 +59,12 @@ function cloneBatchItemData(data) {
   if (!data) return null
   return {
     ...data,
-    characters: Array.isArray(data.characters) ? data.characters : [],
-    tags: Array.isArray(data.tags) ? data.tags : [],
+    characters: Array.isArray(data.characters) ? [...data.characters] : [],
+    tags: Array.isArray(data.tags) ? [...data.tags] : [],
     images: Array.isArray(data.images) ? [...data.images] : [],
-    baseParsedImages: Array.isArray(data.baseParsedImages) ? data.baseParsedImages : [],
-    parsedImages: Array.isArray(data.parsedImages) ? data.parsedImages : [],
-    variants: Array.isArray(data.variants) ? data.variants : [],
+    baseParsedImages: Array.isArray(data.baseParsedImages) ? [...data.baseParsedImages] : [],
+    parsedImages: Array.isArray(data.parsedImages) ? [...data.parsedImages] : [],
+    variants: Array.isArray(data.variants) ? data.variants.map(v => ({ ...v })) : [],
   }
 }
 
@@ -73,6 +77,7 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
   const batchStep = ref('input')
   const batchItems = ref([])
   const batchParsing = ref(false)
+  const batchCancelRequested = ref(false)
   const editingBatchIdx = ref(-1)
   const batchEditForm = reactive({
     name: '', category: '', ip: '', image: '', images: [], price: '',
@@ -97,6 +102,22 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
   })
   const batchReadyCount = computed(() => batchItems.value.filter(item => item.status === 'ready' || item.status === 'saved').length)
   const batchErrorCount = computed(() => batchItems.value.filter(item => item.status === 'error').length)
+  // 解析阶段已完成条数（成功或失败），用于进度显示
+  const batchParsedDoneCount = computed(() => batchItems.value.filter(item => item.status === 'ready' || item.status === 'error').length)
+
+  // 收藏中已存在的米游铺商品 ID（不含心愿单），用于「可能已拥有」提示
+  const ownedGoodsIds = computed(() => {
+    const ids = new Set()
+    for (const goods of goodsStore.list || []) {
+      if (goods?.goodsId && !goods.isWishlist) ids.add(String(goods.goodsId))
+    }
+    return ids
+  })
+
+  function isBatchItemOwned(item) {
+    const goodsId = item?.data?.goodsId
+    return goodsId ? ownedGoodsIds.value.has(String(goodsId)) : false
+  }
 
   watch(urlInput, () => {
     if (batchStep.value !== 'input') {
@@ -111,7 +132,9 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
     if (!entries.length) return
     batchStep.value = 'parsing'
     batchParsing.value = true
-    const parsedGroups = []
+    batchCancelRequested.value = false
+    // 按 entryIndex 写入，保证结果列表与输入顺序一致（worker 完成顺序不确定）
+    const parsedGroups = new Array(entries.length)
     batchItems.value = entries.map(({ url, count }) => ({
       url,
       count,
@@ -126,6 +149,7 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
 
     async function parseNext() {
       while (nextIndex < entries.length) {
+        if (batchCancelRequested.value) return
         const entryIndex = nextIndex++
         const entry = entries[entryIndex]
         const item = batchItems.value[entryIndex]
@@ -162,9 +186,11 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
             characters: group.data.characters,
             tags: group.data.tags,
           })
-          parsedGroups.push(group)
+          parsedGroups[entryIndex] = group
           if (result.goodsId) {
-            fetchGoodsDetail(result.goodsId).then(({ skuCovers, skuPrices, skuVariants, coverUrl, mainImages }) => {
+            // 详情补全在同一并发池内等待完成后再克隆条目，避免克隆共享引用导致的竞态；失败时保留基础解析结果
+            try {
+              const { skuCovers, skuPrices, skuVariants, coverUrl, mainImages } = await fetchGoodsDetail(result.goodsId)
               const sourceVariants = skuVariants.length
                 ? skuVariants
                 : group.data.variants
@@ -191,7 +217,9 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
                   }
                 }
               }
-            }).catch(() => {})
+            } catch (_) {
+              // 详情补全失败不影响基础数据
+            }
           }
           item.status = 'ready'
           item.data = cloneBatchItemData(group.data)
@@ -200,7 +228,7 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
           const message = e.message || '解析失败'
           item.status = 'error'
           item.error = message
-          parsedGroups.push({ url: entry.url, count: 1, data: null, error: message, status: 'error' })
+          parsedGroups[entryIndex] = { url: entry.url, count: 1, data: null, error: message, status: 'error' }
         }
       }
     }
@@ -208,7 +236,9 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
     const workers = Array.from({ length: Math.min(CONCURRENCY, entries.length) }, () => parseNext())
     await Promise.all(workers)
 
-    batchItems.value = parsedGroups.flatMap((group) => {
+    // 取消时未开始的条目没有对应 group，直接丢弃
+    const completedGroups = parsedGroups.filter(Boolean)
+    batchItems.value = completedGroups.flatMap((group) => {
       if (group.status === 'error') return [group]
       return Array.from({ length: group.count }, () => ({
         url: group.url,
@@ -218,7 +248,16 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
       }))
     })
     batchParsing.value = false
-    batchStep.value = 'list'
+    batchStep.value = batchItems.value.length ? 'list' : 'input'
+  }
+
+  function cancelBatchParsing() {
+    batchCancelRequested.value = true
+  }
+
+  function removeBatchItem(idx) {
+    batchItems.value.splice(idx, 1)
+    if (!batchItems.value.length) resetBatchState()
   }
 
   function openBatchEdit(idx) {
@@ -391,9 +430,17 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
         item.status = 'error'
         item.error = e.message || '保存失败'
       }
+      // 保存失败：留在列表页展示每行错误，不跳转
+      savingAll.value = false
+      showGlobalToast(t('import.errorSaveFailed', { message: e.message || '' }))
+      return
     }
 
     savingAll.value = false
+    showGlobalToast(t(
+      isWishlistMode.value ? 'import.importedWishlistToast' : 'import.importedToast',
+      { count: readyItems.length }
+    ))
     runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   }
 
@@ -422,7 +469,11 @@ export function useBatchImport({ urlInput, urlInputRef, syncUrlInput, isWishlist
     batchParseButtonText,
     batchReadyCount,
     batchErrorCount,
+    batchParsedDoneCount,
+    isBatchItemOwned,
     handleBatchImport,
+    cancelBatchParsing,
+    removeBatchItem,
     openBatchEdit,
     saveBatchEdit,
     handleBatchVariantSelect,

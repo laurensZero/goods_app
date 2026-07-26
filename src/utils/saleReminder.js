@@ -375,24 +375,17 @@ export function getCalendarEventId(goodsId) {
 }
 
 export async function createSaleCalendarEvent(item) {
-  console.log('[calendar] createSaleCalendarEvent called, id:', item?.id, 'wishlist:', item?.isWishlist, 'enabled:', item?.saleReminderEnabled, 'saleAt:', item?.saleAt)
-  if (!item?.id || !shouldScheduleSaleReminder(item)) { console.log('[calendar] skipped — not eligible'); return '' }
+  if (!item?.id || !shouldScheduleSaleReminder(item)) return ''
   const cal = await getCalendar()
   if (!cal) { console.warn('[calendar] plugin not available'); return '' }
 
   const saleDate = parseSaleAt(item.saleAt)
   if (!saleDate) return ''
 
-  // 检查日历权限，未授权时才请求
+  // 仅在日历权限已授予时同步：保存商品的普通流程不主动弹系统权限请求，未授予则静默跳过
   try {
-    let permResult = await cal.checkPermission({ scope: 'readCalendar' }).then(r => r?.result).catch(() => '')
-    if (permResult !== 'granted') {
-      const req = await cal.requestFullCalendarAccess()
-      if (req?.result !== 'granted') {
-        console.warn('[calendar] permission denied:', req?.result)
-        return ''
-      }
-    }
+    const permResult = await cal.checkPermission({ scope: 'readCalendar' }).then(r => r?.result).catch(() => '')
+    if (permResult !== 'granted') return ''
   } catch (e) {
     console.warn('[calendar] permission check failed:', e)
     return ''
@@ -423,7 +416,6 @@ export async function createSaleCalendarEvent(item) {
     const newId = result?.id || ''
     if (newId) {
       saveCalendarEventId(item.id, newId)
-      console.log('[calendar] event created:', newId, titleName)
     }
     return newId
   } catch (e) {

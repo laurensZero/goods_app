@@ -32,6 +32,26 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
   }
 
+  // manifest-only 读取：fullSync 第 1 步只需要清单；
+  // 走 sync_pull RPC 会以 since=0 全量拉整库后丢弃，多付一次全量读
+  async function readManifest() {
+    const db = getDb()
+    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    const { data, error } = await withRetry(() =>
+      db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
+    )
+    if (error) throw error
+    if (!data || data.length === 0) return null
+    const m = toCamelCase(data[0])
+    return {
+      ...m,
+      lastSyncAt: m.syncedAt || m.lastSyncAt || '',
+      imageCloudId: m.imageBucket || m.imageCloudId || '',
+      budgetMonthly: Number(m.budgetMonthly) || 0,
+      budgetYearly: Number(m.budgetYearly) || 0
+    }
+  }
+
   /**
    * Pull rows directly from Supabase, returning camelCase objects (no JSON wrapper).
    *
@@ -288,5 +308,5 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
   }
 
-  return { readPresets, pullDomainRows, pullAll }
+  return { readPresets, readManifest, pullDomainRows, pullAll }
 }

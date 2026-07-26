@@ -11,7 +11,7 @@
  *   - 迁移定义在 migrations.js 中，格式 { version, description, up(db) }
  *   - 使用 _schema_version 表记录当前版本号
  *   - 每个迁移函数必须幂等
- *   - 遗留数据库 (version > LATEST_VERSION) 自动重置到 0
+ *   - 历史遗留数据库 (version >= 26) 自动重置到 0；OTA 回滚导致的略高版本号不重置
  */
 
 import { Capacitor } from '@capacitor/core'
@@ -31,6 +31,9 @@ const log = createLogger('db')
  * @property {(stmts: {statement: string, values: any[]}[]) => Promise<void>} executeSet
  * @property {(sql: string, params?: any[]) => Promise<any[]>} query
  * @property {(tableName: string) => Promise<Set<string>>} getTableColumns
+ * @property {() => Promise<void>} beginTransaction
+ * @property {() => Promise<void>} commitTransaction
+ * @property {() => Promise<void>} rollbackTransaction
  * @property {() => Promise<void>} [flush]
  */
 
@@ -164,7 +167,20 @@ const CREATE_GOODS_GROUP_ITEMS_TABLE_SQL = `
 `
 
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
-const LATEST_VERSION = MIGRATIONS.length
+// 取最后一项的 version 字段而非数组长度，避免两者脱钩时误判
+const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
+// 历史遗留数据库曾写入 version 26；重置阈值精确锁定该值，
+// 避免 capgo OTA 回滚（新版本号略大于 LATEST_VERSION）时误触发全库迁移重跑
+const LEGACY_VERSION_RESET_THRESHOLD = 26
+
+if (import.meta.env.DEV) {
+  // 开发期断言：迁移版本号必须从 1 开始单调连续
+  MIGRATIONS.forEach((m, i) => {
+    if (m.version !== i + 1) {
+      throw new Error(`[db] MIGRATIONS[${i}].version 应为 ${i + 1}，实际为 ${m.version}`)
+    }
+  })
+}
 
 const GOODS_REQUIRED_COLUMNS = [
   ['name', "TEXT NOT NULL DEFAULT ''"],
@@ -432,8 +448,16 @@ async function _runMigrations() {
 
   for (const migration of pending) {
     try {
-      await migration.up(db)
-      await db.run('UPDATE _schema_version SET version = ?', [migration.version])
+      // up() 与版本号写入包进同一事务：中途崩溃/失败自动回滚，不留部分已改+版本号未更的状态
+      await db.beginTransaction()
+      try {
+        await migration.up(db)
+        await db.run('UPDATE _schema_version SET version = ?', [migration.version])
+        await db.commitTransaction()
+      } catch (txError) {
+        try { await db.rollbackTransaction() } catch { /* 回滚失败时保留原始错误 */ }
+        throw txError
+      }
       log.info('migration:applied', { version: migration.version, description: migration.description })
     } catch (e) {
       console.error(`[DB] Migration v${migration.version} (${migration.description}) failed:`, e)
@@ -452,7 +476,12 @@ async function _ensureTableColumns(tableName, columns) {
 
 //  统一对外 API
 
-/** @returns {Promise<void>} */
+/**
+ * 所有对外读写 API 首行 await initDB()：成功后共享同一个已解决 promise（无额外开销），
+ * 失败后 initPromise 被清除、下次调用自动重试，避免在半迁移状态下静默读写。
+ * 迁移内部直接持有 adapter（migration.up(db)），不经过对外 API，不会与守卫形成递归。
+ * @returns {Promise<void>}
+ */
 export function initDB() {
   // 并发调用共享同一个初始化 promise，避免建表/迁移竞态；失败后清除以允许重试
   if (!initPromise) {
@@ -511,8 +540,9 @@ async function _doInitDB() {
   const currentVersion = await _getSchemaVersion()
   if (currentVersion === 0) {
     await db.run('INSERT OR IGNORE INTO _schema_version (version) VALUES (0)')
-  } else if (currentVersion > LATEST_VERSION) {
-    // 遗留数据库 (version 26) → 重置到 0 让新迁移跑
+  } else if (currentVersion > LATEST_VERSION && currentVersion >= LEGACY_VERSION_RESET_THRESHOLD) {
+    // 历史遗留数据库 (version 26) → 重置到 0 让新迁移跑；
+    // 仅锁定遗留值，OTA 回滚产生的略高版本号（新 schema 为超集）不重置
     await db.run('UPDATE _schema_version SET version = 0')
   }
   const versionCheckTime = performance.now() - t3
@@ -549,15 +579,11 @@ export async function flushDbWrites() {
 
 /** @returns {Promise<import('@/types/models').GoodsItem[]>} */
 export async function getItems() {
-  if (!isInitialized) {
-    try {
-      await initDB()
-    } catch (e) {
-      console.error('[db] initDB retry failed in getItems:', e)
-      throw e
-    }
-  }
+  await initDB()
   try {
+    // ORDER BY rowid DESC：「最近写入在前」语义。INSERT OR REPLACE 会重建 rowid，
+    // 整批保存会把行挪到最前，顺序不稳定；主页展示由 sortHomeGoodsList 按业务字段
+    // 在内存重排，上层勿直接依赖此顺序
     const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline FROM goods ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
@@ -596,6 +622,7 @@ export async function getItems() {
 
 /** @param {Partial<import('@/types/models').GoodsItem>} item */
 export async function addItem(item) {
+  await initDB()
   try {
     const record = prepareGoodsRecord(item)
     await db.run(GOODS_INSERT_SQL, goodsRecordToValues(record))
@@ -608,6 +635,7 @@ export async function addItem(item) {
 /** @param {Partial<import('@/types/models').GoodsItem>[]} items */
 export async function saveItems(items) {
   if (!items || items.length === 0) return
+  await initDB()
   try {
     const stmts = items.map(item => {
       const record = prepareGoodsRecord(item)
@@ -623,6 +651,7 @@ export async function saveItems(items) {
 /** @param {string[]} ids */
 export async function deleteItems(ids) {
   if (!ids || ids.length === 0) return
+  await initDB()
   try {
     const stmts = ids.map(id => ({
       statement: 'DELETE FROM goods WHERE id = ?',
@@ -637,14 +666,7 @@ export async function deleteItems(ids) {
 
 /** @returns {Promise<import('@/types/models').EventItem[]>} */
 export async function getEvents() {
-  if (!isInitialized) {
-    try {
-      await initDB()
-    } catch (e) {
-      console.error('[db] initDB retry failed in getEvents:', e)
-      throw e
-    }
-  }
+  await initDB()
   try {
     const rows = await db.query('SELECT * FROM events ORDER BY startDate DESC')
     return rows.map(r => {
@@ -687,6 +709,7 @@ export async function getEvents() {
 
 /** @param {Partial<import('@/types/models').EventItem>} event */
 export async function addEvent(event) {
+  await initDB()
   try {
     await db.run(EVENTS_INSERT_SQL, prepareEventValues(event))
   } catch (e) {
@@ -698,6 +721,7 @@ export async function addEvent(event) {
 /** @param {Partial<import('@/types/models').EventItem>[]} events */
 export async function saveEvents(events) {
   if (!events || events.length === 0) return
+  await initDB()
   try {
     const stmts = events.map(event => ({
       statement: EVENTS_INSERT_SQL,
@@ -713,6 +737,7 @@ export async function saveEvents(events) {
 /** @param {string[]} ids */
 export async function deleteEvents(ids) {
   if (!ids || ids.length === 0) return
+  await initDB()
   try {
     const stmts = ids.map(id => ({
       statement: 'DELETE FROM events WHERE id = ?',
@@ -727,14 +752,7 @@ export async function deleteEvents(ids) {
 
 /** @returns {Promise<Array>} */
 export async function getRechargeRecords() {
-  if (!isInitialized) {
-    try {
-      await initDB()
-    } catch (e) {
-      console.error('[db] initDB retry failed in getRechargeRecords:', e)
-      throw e
-    }
-  }
+  await initDB()
   try {
     const rows = await db.query('SELECT * FROM recharge_records ORDER BY updatedAt DESC')
     return rows.map(r => ({
@@ -751,6 +769,7 @@ export async function getRechargeRecords() {
 
 /** @param {object} record */
 export async function addRechargeRecord(record) {
+  await initDB()
   try {
     await db.run(RECHARGE_INSERT_SQL, prepareRechargeRecord(record))
   } catch (e) {
@@ -762,6 +781,7 @@ export async function addRechargeRecord(record) {
 /** @param {object[]} records */
 export async function saveRechargeRecords(records) {
   if (!records || records.length === 0) return
+  await initDB()
   try {
     const stmts = records.map(record => ({
       statement: RECHARGE_INSERT_SQL,
@@ -777,6 +797,7 @@ export async function saveRechargeRecords(records) {
 /** @param {string[]} ids */
 export async function deleteRechargeRecords(ids) {
   if (!ids || ids.length === 0) return
+  await initDB()
   try {
     const stmts = ids.map(id => ({
       statement: 'DELETE FROM recharge_records WHERE id = ?',
@@ -829,14 +850,7 @@ function prepareGroupItemRecord(item) {
 
 /** @returns {Promise<import('@/types/models').GoodsGroup[]>} */
 export async function getGroups() {
-  if (!isInitialized) {
-    try {
-      await initDB()
-    } catch (e) {
-      console.error('[db] initDB retry failed in getGroups:', e)
-      throw e
-    }
-  }
+  await initDB()
   try {
     const rows = await db.query('SELECT * FROM goods_groups ORDER BY updatedAt DESC')
     return rows.map(r => ({
@@ -854,6 +868,7 @@ export async function getGroups() {
 
 /** @param {object} group */
 export async function addGroup(group) {
+  await initDB()
   try {
     await db.run(GROUPS_INSERT_SQL, prepareGroupRecord(group))
   } catch (e) {
@@ -865,6 +880,7 @@ export async function addGroup(group) {
 /** @param {object[]} groups */
 export async function saveGroups(groups) {
   if (!groups || groups.length === 0) return
+  await initDB()
   try {
     const stmts = groups.map(group => ({
       statement: GROUPS_INSERT_SQL,
@@ -880,6 +896,7 @@ export async function saveGroups(groups) {
 /** @param {string[]} ids */
 export async function deleteGroups(ids) {
   if (!ids || ids.length === 0) return
+  await initDB()
   try {
     const stmts = ids.map(id => ({
       statement: 'DELETE FROM goods_groups WHERE id = ?',
@@ -894,14 +911,7 @@ export async function deleteGroups(ids) {
 
 /** @returns {Promise<import('@/types/models').GoodsGroupItem[]>} */
 export async function getGroupItems() {
-  if (!isInitialized) {
-    try {
-      await initDB()
-    } catch (e) {
-      console.error('[db] initDB retry failed in getGroupItems:', e)
-      throw e
-    }
-  }
+  await initDB()
   try {
     const rows = await db.query('SELECT * FROM goods_group_items ORDER BY sortOrder ASC')
     return rows.map(r => ({
@@ -919,6 +929,7 @@ export async function getGroupItems() {
 
 /** @param {object} item */
 export async function addGroupItem(item) {
+  await initDB()
   try {
     await db.run(GROUP_ITEMS_INSERT_SQL, prepareGroupItemRecord(item))
   } catch (e) {
@@ -930,6 +941,7 @@ export async function addGroupItem(item) {
 /** @param {object[]} items */
 export async function saveGroupItems(items) {
   if (!items || items.length === 0) return
+  await initDB()
   try {
     const stmts = items.map(item => ({
       statement: GROUP_ITEMS_INSERT_SQL,
@@ -945,6 +957,7 @@ export async function saveGroupItems(items) {
 /** @param {string[]} ids */
 export async function deleteGroupItems(ids) {
   if (!ids || ids.length === 0) return
+  await initDB()
   try {
     const stmts = ids.map(id => ({
       statement: 'DELETE FROM goods_group_items WHERE id = ?',
@@ -960,6 +973,7 @@ export async function deleteGroupItems(ids) {
 /** @param {string} groupId */
 export async function deleteGroupItemsByGroupId(groupId) {
   if (!groupId) return
+  await initDB()
   try {
     await db.run('DELETE FROM goods_group_items WHERE groupId = ?', [groupId])
   } catch (e) {
@@ -971,6 +985,7 @@ export async function deleteGroupItemsByGroupId(groupId) {
 /** @param {string} goodsId */
 export async function deleteGroupItemsByGoodsId(goodsId) {
   if (!goodsId) return
+  await initDB()
   try {
     await db.run('DELETE FROM goods_group_items WHERE goodsId = ?', [goodsId])
   } catch (e) {

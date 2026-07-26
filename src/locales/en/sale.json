@@ -27,6 +27,8 @@
   "sale.noPriceRecorded": "No price recorded",
   "sale.empty": "No sale records yet",
   "sale.emptyDesc": "Tap \"Sell\" on an item's detail page to record listings and sales",
+  "sale.emptyListing": "No items listed for sale",
+  "sale.emptyListingDesc": "Pick Listed in the sell sheet with a listing price and it will show up here",
   "sale.ledgerTitle": "Sale Ledger",
   "sale.ledgerHeroTitle": "Sale Ledger",
   "sale.ledgerHeroDesc": "Track every listing and sale, and see how much you've recovered",

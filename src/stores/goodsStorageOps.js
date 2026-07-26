@@ -59,7 +59,8 @@ async function clearStorageLocationPrefix(prefix, list, triggerSync) {
   })
 
   if (changed) {
-    const updatedItems = list.value.filter(item => item.storageLocation === '' && !isStorageLocationUnderPrefix(item.storageLocation, normalizedPrefix))
+    const changedIdSet = new Set(changedIds)
+    const updatedItems = list.value.filter(item => changedIdSet.has(item.id))
     await saveItems(updatedItems)
     if (typeof triggerSync === 'function') triggerSync(changedIds)
   }

@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatCurrency } from '@/utils/format'
 import ChartWrapper from './ChartWrapper.vue'
@@ -111,6 +111,15 @@ watch(windowInfo, (info) => {
   }
 }, { immediate: true })
 
+// 向上取整到 1/2/5×10^n(如 330 → 500),保证手动撑轴时刻度依然是整数
+function niceCeil(v) {
+  if (!(v > 0)) return v
+  const pow = Math.pow(10, Math.floor(Math.log10(v)))
+  const n = v / pow
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10
+  return nice * pow
+}
+
 function readThemeColors() {
   try {
     const s = getComputedStyle(document.documentElement)
@@ -123,7 +132,26 @@ function readThemeColors() {
   }
 }
 
+// 主题切换时递增,让 chartOption 重算并重读 CSS 变量(否则页面在 KeepAlive 中
+// 存活期间 option 里烙定的旧主题色不会刷新)
+const themeVersion = ref(0)
+let themeObserver = null
+
+onMounted(() => {
+  themeObserver = new MutationObserver(() => { themeVersion.value++ })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme-id', 'data-theme-appearance']
+  })
+})
+
+onBeforeUnmount(() => {
+  themeObserver?.disconnect()
+  themeObserver = null
+})
+
 const chartOption = computed(() => {
+  themeVersion.value // 建立主题依赖
   if (!props.trendData || props.trendData.length === 0) return {}
   const colors = readThemeColors()
   const labels = props.trendData.map((d) => d.label)
@@ -172,33 +200,34 @@ const chartOption = computed(() => {
     z: 2
   }
 
-  const series = [barSeries]
-
+  // 预算线用 markLine 画,标签放网格内部(insideEndTop),不占网格外空间,
+  // 图表左右边距才能对称
   if (hasBudget) {
-    series.unshift({
-      name: 'budget',
-      type: 'line',
-      data: new Array(labels.length).fill(props.budgetLine),
+    barSeries.markLine = {
+      silent: true,
       symbol: 'none',
+      data: [{ yAxis: props.budgetLine }],
       lineStyle: {
         color: colors.pending,
         type: 'dashed',
         width: 2
       },
-      endLabel: {
+      label: {
         show: true,
+        position: 'insideEndTop',
         formatter: `¥${props.budgetLine.toFixed(0)}`,
         color: colors.pending,
         fontSize: 11,
         fontWeight: 600,
         padding: [2, 6],
         borderRadius: 4,
-        backgroundColor: 'rgba(14, 116, 233, 0.08)',
-        distance: 8
+        backgroundColor: 'rgba(14, 116, 233, 0.08)'
       },
       z: 1
-    })
+    }
   }
+
+  const series = [barSeries]
 
   return {
     tooltip: {
@@ -212,7 +241,7 @@ const chartOption = computed(() => {
     },
     grid: {
       left: 10,
-      right: 60,
+      right: 10,
       top: 14,
       bottom: 36,
       containLabel: true
@@ -233,6 +262,10 @@ const chartOption = computed(() => {
     yAxis: {
       type: 'value',
       min: 0,
+      // markLine 不参与坐标轴取值范围计算,仅当预算高于所有柱子时才手动撑轴
+      // (取整到 1/2/5×10^n,别的情况返回 null 让 ECharts 自动取整,
+      // 否则数据原始最大值如 666.4 会被原样标在轴顶)
+      max: hasBudget ? (extent) => (props.budgetLine >= extent.max ? niceCeil(props.budgetLine * 1.1) : null) : null,
       axisLabel: {
         color: colors.secondary,
         fontSize: 11,
@@ -257,7 +290,6 @@ const chartOption = computed(() => {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
-  padding: 0 var(--page-padding);
 }
 .chart-title {
   margin: 0;

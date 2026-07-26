@@ -28,6 +28,11 @@
           </div>
         </div>
 
+        <!-- 配额降级刷新后部分图片丢失：引导重新选图 -->
+        <div v-if="missingImageCount > 0" class="batch-missing-hint">
+          {{ t('goods.batch.imageMissingHint', { count: missingImageCount }) }}
+        </div>
+
         <!-- 队列列表 -->
         <div v-if="totalCount > 0" class="batch-queue-list">
           <div
@@ -42,9 +47,15 @@
             </div>
             <div class="batch-queue-item__info">
               <span class="batch-queue-item__name">{{ item.name || t('common.unnamed') }}</span>
-              <span v-if="item.price" class="batch-queue-item__price">¥{{ item.price }}</span>
+              <div v-if="item.price || item.ip || item.category" class="batch-queue-item__meta">
+                <span v-if="item.price" class="batch-queue-item__price">¥{{ item.price }}</span>
+                <span v-if="item.ip" class="batch-queue-item__chip">{{ item.ip }}</span>
+                <span v-if="item.category" class="batch-queue-item__chip">{{ item.category }}</span>
+              </div>
             </div>
-            <span v-if="item.dirtyFields?.size > 0" class="batch-queue-item__tag">{{ t('common.done') }}</span>
+            <span v-if="!item.imageUri" class="batch-queue-item__tag batch-queue-item__tag--warn">{{ t('goods.batch.imageMissing') }}</span>
+            <span v-else-if="item.name?.trim()" class="batch-queue-item__tag">{{ t('common.done') }}</span>
+            <span v-else class="batch-queue-item__tag batch-queue-item__tag--missing">{{ t('goods.batch.nameMissing') }}</span>
             <button class="batch-queue-item__delete" type="button" @click.stop="removeItem(item.id)">&times;</button>
           </div>
         </div>
@@ -75,6 +86,24 @@
       @apply="applyDefaults"
     />
 
+    <!-- 空图项保存前二次确认 -->
+    <DangerConfirmDialog
+      v-model:show="showMissingImageConfirm"
+      :title="t('goods.batch.imageMissingConfirmTitle')"
+      :description="t('goods.batch.imageMissingConfirmDesc', { count: missingImageCount })"
+      :confirm-text="t('goods.batch.saveAnyway')"
+      @confirm="doSave"
+    />
+
+    <!-- 离开流程前确认：放弃会清除整批编辑与已复制图片 -->
+    <DangerConfirmDialog
+      v-model:show="showLeaveConfirm"
+      :title="t('goods.batch.leaveConfirmTitle')"
+      :description="t('goods.batch.leaveConfirmDesc')"
+      :confirm-text="t('goods.batch.leaveConfirm')"
+      @confirm="confirmLeave"
+    />
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -86,6 +115,7 @@ import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import BatchDefaultsSheet from '@/components/goods/BatchDefaultsSheet.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
@@ -93,6 +123,7 @@ import { pickLinkedLocalImages } from '@/utils/image/localImage'
 import { useBatchQueue } from '@/composables/batch/useBatchQueue'
 import { useToast } from '@/composables/useToast'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import { showGlobalToast } from '@/utils/globalToast'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -101,7 +132,11 @@ const goodsStore = useGoodsStore()
 const { toastMsg, showToast } = useToast()
 
 const showDefaults = ref(false)
+const showMissingImageConfirm = ref(false)
+const showLeaveConfirm = ref(false)
 const saving = ref(false)
+let allowLeave = false
+let pendingLeavePath = ''
 
 const {
   queue,
@@ -112,6 +147,7 @@ const {
   completedCount,
   totalCount,
   canSaveAll,
+  missingImageCount,
   initQueue,
   removeItem,
   appendImages,
@@ -146,10 +182,30 @@ watch(persistDegraded, (degraded) => {
 
 // 离开批量添加流程（进入单项编辑除外）视为放弃：清理未保存队列与已复制图片
 onBeforeRouteLeave((to) => {
+  // 已明确放行（保存成功跳转 / 用户确认放弃）：清理后直接离开，不受 saving 时序影响
+  if (allowLeave) {
+    discardQueue()
+    return
+  }
   // 保存进行中禁止离开：此时放弃清理会误删正在写入商品行的图片文件
   if (saving.value) return false
-  if (to.name !== 'batch-edit') discardQueue()
+  if (to.name === 'batch-edit') return
+  // 队列非空时先确认再放行，防止误触返回把整批编辑与图片静默清掉
+  if (totalCount.value > 0) {
+    pendingLeavePath = to.fullPath
+    showLeaveConfirm.value = true
+    return false
+  }
+  discardQueue()
 })
+
+function confirmLeave() {
+  allowLeave = true
+  runWithRouteTransition(
+    () => router.replace(pendingLeavePath),
+    { direction: 'back', fallbackTransitionKind: 'detail-fade' }
+  )
+}
 
 function editItem(id) {
   runWithRouteTransition(
@@ -164,15 +220,33 @@ async function addMoreImages() {
   appendImages(picked)
 }
 
-async function handleSave() {
+function handleSave() {
   if (!canSaveAll.value || saving.value) return
+  // 存在空图项（配额降级刷新后图片被剥离）：保存前二次确认，这些谷子将没有图片
+  if (missingImageCount.value > 0) {
+    showMissingImageConfirm.value = true
+    return
+  }
+  void doSave()
+}
+
+async function doSave() {
+  if (saving.value) return
   saving.value = true
   try {
     const goWishlist = isWishlist.value
+    const count = totalCount.value
     await saveAll(goodsStore)
+    // 保存成功后队列已清空，直接放行离开守卫
+    allowLeave = true
+    showGlobalToast(t(
+      goWishlist ? 'goods.batch.savedWishlistToast' : 'goods.batch.savedToast',
+      { count }
+    ))
     router.replace(goWishlist ? '/wishlist' : '/')
   } catch (e) {
     console.error('[BatchAddQueueView] save failed', e)
+    showToast(t('goods.batch.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -276,6 +350,16 @@ async function handleSave() {
   transition: width 0.3s var(--motion-ease-default);
 }
 
+/* 图片丢失引导提示 */
+.batch-missing-hint {
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  background: rgba(255, 59, 48, 0.08);
+  color: #ff3b30;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* 队列列表 - 紧凑条状 */
 .batch-queue-list {
   display: flex;
@@ -348,9 +432,29 @@ async function handleSave() {
   white-space: nowrap;
 }
 
+.batch-queue-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
 .batch-queue-item__price {
   font-size: 13px;
   color: var(--app-text-secondary);
+}
+
+.batch-queue-item__chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  background: var(--app-surface-soft);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .batch-queue-item__tag {
@@ -363,7 +467,18 @@ async function handleSave() {
   flex-shrink: 0;
 }
 
+.batch-queue-item__tag--warn {
+  color: #ff3b30;
+  background: rgba(255, 59, 48, 0.12);
+}
+
+.batch-queue-item__tag--missing {
+  color: #c77700;
+  background: rgba(255, 149, 0, 0.12);
+}
+
 .batch-queue-item__delete {
+  position: relative;
   width: 24px;
   height: 24px;
   display: flex;
@@ -375,6 +490,13 @@ async function handleSave() {
   color: var(--app-text-tertiary);
   font-size: 14px;
   flex-shrink: 0;
+}
+
+/* 视觉保持 24px，触控命中区扩大到约 44px */
+.batch-queue-item__delete::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
 }
 
 .batch-queue-item__delete:active {

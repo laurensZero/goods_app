@@ -32,6 +32,7 @@ function restoreFromStorage() {
       const data = JSON.parse(saved)
       queue.value = data.map(item => ({
         ...item,
+        // 配额降级写入会剥离内联图片；imageUri 为空即视为图片丢失，由界面引导重新选图
         dirtyFields: new Set(item.dirtyFields || [])
       }))
     }
@@ -108,14 +109,20 @@ restoreFromStorage()
 watch(queue, saveToStorage, { deep: false })
 watch(defaults, saveToStorage, { deep: true })
 
+// 完成 = 已填名称（保存的唯一硬性条件），与 canSaveAll 口径一致，避免进度 100% 但按钮仍灰
 const completedCount = computed(() =>
-  queue.value.filter((item) => item.dirtyFields.size > 0).length
+  queue.value.filter((item) => item.name?.trim()).length
 )
 
 const totalCount = computed(() => queue.value.length)
 
 const canSaveAll = computed(() =>
   queue.value.length > 0 && queue.value.every((item) => item.name?.trim())
+)
+
+// 图片丢失（配额降级刷新后被剥离）的项数，保存前需引导用户重新选图或确认
+const missingImageCount = computed(() =>
+  queue.value.filter((item) => !item.imageUri).length
 )
 
 /**
@@ -317,6 +324,7 @@ export function useBatchQueue() {
     completedCount,
     totalCount,
     canSaveAll,
+    missingImageCount,
     initQueue,
     updateItem,
     markDirty,

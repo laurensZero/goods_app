@@ -109,6 +109,8 @@ export const MIGRATIONS = [
       // 本地时区当天(toISOString 是 UTC,东八区凌晨会差一天)
       const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const rows = await db.query("SELECT id, collectStatus, acquiredAt FROM goods WHERE statusTimeline = '[]' OR statusTimeline IS NULL")
+      // 收集后一次 executeSet:避免逐行 run 各自隐式事务(native 端含 fsync)拖慢冷启动
+      const updates = []
       for (const row of rows) {
         if (!row.collectStatus) continue
         const rawStatus = String(row.collectStatus).trim()
@@ -116,8 +118,9 @@ export const MIGRATIONS = [
         const rawDate = String(row.acquiredAt || '').trim()
         const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : localToday
         const timeline = JSON.stringify([{ status, at: date }])
-        await db.run("UPDATE goods SET statusTimeline = ? WHERE id = ?", [timeline, row.id])
+        updates.push({ statement: 'UPDATE goods SET statusTimeline = ? WHERE id = ?', values: [timeline, row.id] })
       }
+      if (updates.length) await db.executeSet(updates)
     }
   },
   {
@@ -134,6 +137,7 @@ export const MIGRATIONS = [
       const now = new Date()
       const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const rows = await db.query("SELECT id, acquiredAt, statusTimeline FROM goods WHERE statusTimeline IS NOT NULL AND statusTimeline != '[]'")
+      const updates = []
       for (const row of rows) {
         let timeline
         try {
@@ -156,8 +160,9 @@ export const MIGRATIONS = [
           at: DATE_RE.test(at) ? at : (DATE_RE.test(acquiredAt) ? acquiredAt : localToday)
         }
         if (entry.note) fixed.note = entry.note
-        await db.run("UPDATE goods SET statusTimeline = ? WHERE id = ?", [JSON.stringify([fixed]), row.id])
+        updates.push({ statement: 'UPDATE goods SET statusTimeline = ? WHERE id = ?', values: [JSON.stringify([fixed]), row.id] })
       }
+      if (updates.length) await db.executeSet(updates)
     }
   },
   {

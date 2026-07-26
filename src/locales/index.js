@@ -1,5 +1,6 @@
 import { createI18n } from 'vue-i18n'
 import { Locale } from 'vant'
+import { appLog } from '../utils/logger'
 import enUS from 'vant/es/locale/lang/en-US'
 import zhCN from 'vant/es/locale/lang/zh-CN'
 import jaJP from 'vant/es/locale/lang/ja-JP'
@@ -275,10 +276,28 @@ const zhTWMessages = {
   survey: zhTWSurvey
 }
 
+// 缺 key 监控：同一 locale+key 只上报一次，避免重复渲染刷爆日志缓冲
+const reportedMissingKeys = new Set()
+
+function handleMissingKey(locale, key) {
+  const cacheKey = `${locale}:${key}`
+  if (reportedMissingKeys.has(cacheKey)) return
+  reportedMissingKeys.add(cacheKey)
+
+  if (import.meta.env.DEV) {
+    console.warn(`[i18n] missing key "${key}" in locale "${locale}"`)
+  } else {
+    appLog('warn', `i18n missing key: ${key} (${locale})`)
+  }
+}
+
 const i18n = createI18n({
   legacy: false,
   locale: detectLocale(),
   fallbackLocale: FALLBACK_LOCALE,
+  missing: (locale, key) => {
+    handleMissingKey(locale, key)
+  },
   messages: {
     'zh-CN': zhCNMessages,
     'zh-TW': zhTWMessages,

@@ -1,9 +1,27 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { DEFAULT_CURRENCY } from '@/constants/currencies'
+import { createLogger } from '@/utils/logger'
 
 const STORAGE_KEY = 'goods_exchange_rates'
 const CACHE_DURATION = 24 * 60 * 60 * 1000
+const log = createLogger('exchangeRate')
+
+// 内置兜底汇率(1 外币 ≈ ? CNY,2026 年近似值):离线首启/汇率接口失败时避免
+// 外币金额按 1:1 计入统计(如 5000 JPY 被记成 ¥5000)
+const FALLBACK_RATES = {
+  CNY: 1,
+  USD: 7.1,
+  JPY: 0.048,
+  EUR: 7.8,
+  GBP: 9.0,
+  HKD: 0.91,
+  TWD: 0.22,
+  KRW: 0.0052
+}
+
+// 每个币种只警告一次,convertToCNY 在列表渲染中会被高频调用
+const warnedMissingRates = new Set()
 
 export const useExchangeRateStore = defineStore('exchangeRate', () => {
   const rates = ref({})
@@ -68,8 +86,15 @@ export const useExchangeRateStore = defineStore('exchangeRate', () => {
   function convertToCNY(amount, currency = DEFAULT_CURRENCY) {
     if (!currency || currency === 'CNY') return amount
     const rate = rates.value[currency]
-    if (!rate || rate <= 0) return amount
-    return amount * rate
+    if (rate > 0) return amount * rate
+    // 实时汇率缺失时用内置兜底值,仍无匹配才回退原值
+    const fallback = FALLBACK_RATES[currency]
+    if (fallback > 0) return amount * fallback
+    if (!warnedMissingRates.has(currency)) {
+      warnedMissingRates.add(currency)
+      log.warn('convert:missing-rate', { currency })
+    }
+    return amount
   }
 
   function getRate(currency) {

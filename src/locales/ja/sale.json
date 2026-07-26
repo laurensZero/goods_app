@@ -27,6 +27,8 @@
   "sale.noPriceRecorded": "価格未記録",
   "sale.empty": "売却記録はまだありません",
   "sale.emptyDesc": "商品詳細ページの「売却」から出品と成約を記録できます",
+  "sale.emptyListing": "出品中の商品はありません",
+  "sale.emptyListingDesc": "売却パネルで「出品中」を選んで出品価格を入力するとここに表示されます",
   "sale.ledgerTitle": "売却台帳",
   "sale.ledgerHeroTitle": "売却台帳",
   "sale.ledgerHeroDesc": "出品と成約を記録して、どれだけ回収できたか確認しましょう",

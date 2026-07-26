@@ -27,6 +27,8 @@
   "sale.noPriceRecorded": "未记录价格",
   "sale.empty": "暂无出谷记录",
   "sale.emptyDesc": "在商品详情页点击「出谷」即可记录挂牌和成交",
+  "sale.emptyListing": "暂无在售商品",
+  "sale.emptyListingDesc": "在出谷面板选择「在售」并填上挂牌价,这里就会出现",
   "sale.ledgerTitle": "出谷账本",
   "sale.ledgerHeroTitle": "出谷账本",
   "sale.ledgerHeroDesc": "记录每一笔挂牌与成交,看看回了多少血",

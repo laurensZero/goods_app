@@ -27,10 +27,29 @@ export async function createShare(userId, shareId, payload) {
   return data
 }
 
+// RPC 尚未在线上部署时（函数不存在）识别并回退旧路径
+function isMissingRpc(error) {
+  return error?.code === 'PGRST202' || /could not find the function|does not exist/i.test(error?.message || '')
+}
+
 /**
  * Get a share's payload by shareId. Returns null if not found or disabled.
+ * Goes through the get_share RPC (shares SELECT is owner-only now);
+ * falls back to the legacy direct select when the RPC is not deployed yet.
  */
 export async function getShare(shareId) {
+  const { data, error } = await db().rpc('get_share', { p_share_id: shareId })
+
+  if (error) {
+    if (!isMissingRpc(error)) throw new Error(error.message)
+    return getShareLegacy(shareId)
+  }
+  // 基本结构校验：payload 必须是对象
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  return data
+}
+
+async function getShareLegacy(shareId) {
   const { data, error } = await db()
     .from(SHARES_TABLE)
     .select('payload, disabled')

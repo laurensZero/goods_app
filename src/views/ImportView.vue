@@ -340,7 +340,7 @@
         <section v-if="batchStep === 'parsing'" class="batch-section">
           <div class="section-head">
             <p class="section-label">{{ t('import.batchParse') }}</p>
-            <h2 class="section-title">{{ t('import.identifyingLinks') }}</h2>
+            <h2 class="section-title">{{ t('import.identifyingProgress', { done: batchParsedDoneCount, total: batchItems.length }) }}</h2>
           </div>
           <div class="field-card batch-progress-card">
             <div v-for="(item, i) in batchItems" :key="i" class="batch-progress-row">
@@ -360,6 +360,9 @@
               <span v-if="item.status === 'error'" class="batch-progress-err">{{ item.error }}</span>
             </div>
           </div>
+          <button class="batch-reparse-link" type="button" @click="cancelBatchParsing">
+            {{ t('import.stopParsing') }}
+          </button>
         </section>
       </transition>
 
@@ -391,6 +394,7 @@
               <div class="batch-goods-info">
                 <p class="batch-goods-name">{{ item.data?.name || shortenUrl(item.url) }}</p>
                 <div class="batch-goods-meta">
+                  <span v-if="isBatchItemOwned(item)" class="batch-meta-tag batch-meta-tag--owned">{{ t('import.maybeOwned') }}</span>
                   <span v-if="item.data?.price" class="batch-meta-tag batch-meta-tag--price">¥{{ item.data.price }}</span>
                   <span v-if="item.data?.ip" class="batch-meta-tag">{{ item.data.ip }}</span>
                   <span v-if="item.data?.variant" class="batch-meta-tag">{{ item.data.variant }}</span>
@@ -409,6 +413,17 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <button
+                v-if="item.status !== 'saved'"
+                class="batch-goods-remove-btn"
+                type="button"
+                :aria-label="t('common.remove')"
+                @click="removeBatchItem(i)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
             </li>
@@ -601,6 +616,7 @@ import {
   getMihoyoShopCodeByIp,
 } from '@/utils/mihoyo/index'
 import { commitActiveInput } from '@/utils/commitActiveInput'
+import { showGlobalToast } from '@/utils/globalToast'
 import { validatePrice } from '@/utils/validate'
 import { resizeTextarea } from '@/utils/textarea'
 import {
@@ -735,7 +751,9 @@ const {
   batchEditVariants, batchEditSelectedVariantKey, batchEditSelectedCharacterName,
   batchEditSaveAsCharacter, urlEntries, batchMode, batchTotalCount,
   batchParseButtonText, batchReadyCount, batchErrorCount,
-  handleBatchImport, openBatchEdit, saveBatchEdit, handleBatchVariantSelect,
+  batchParsedDoneCount, isBatchItemOwned,
+  handleBatchImport, cancelBatchParsing, removeBatchItem,
+  openBatchEdit, saveBatchEdit, handleBatchVariantSelect,
   toggleBatchSaveAsCharacter, toggleBatchEditImage, saveAllBatch, resetBatchState
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
@@ -1145,6 +1163,10 @@ async function handleSave() {
       characters: form.characters,
       tags: [],
     })
+    showGlobalToast(t(
+      isWishlistMode.value ? 'import.importedWishlistToast' : 'import.importedToast',
+      { count: 1 }
+    ))
     runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   } catch (e) {
     parseError.value = t('import.errorSaveFailed', { message: e.message })

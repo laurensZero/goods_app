@@ -1,7 +1,7 @@
 import { onMounted, onBeforeUnmount } from 'vue'
 import { App as CapApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { useRouter } from 'vue-router'
+import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-router'
 import { useClipboardImport } from '@/composables/useClipboardImport'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
 import { extractIdsFromInput } from '@/utils/share/goods'
@@ -18,7 +18,7 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
 
   async function handleIncomingAppUrl(url) {
     const now = Date.now()
-    if (url === lastHandledUrl && now - lastHandledTime < 3000) return false
+    if (url === lastHandledUrl && now - lastHandledTime < 1000) return false
     lastHandledUrl = url
     lastHandledTime = now
 
@@ -39,7 +39,15 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
     if (!storagePath) return false
 
     persistStorageQrFilter(storagePath)
-    await router.push('/home').catch(() => {})
+
+    // 导航失败（已在 /home 的重复导航除外）时不触发"已跳转"通知
+    let failure = null
+    try {
+      failure = await router.push('/home')
+    } catch {
+      return true
+    }
+    if (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated)) return true
 
     if (onStorageNavigate) {
       onStorageNavigate(storagePath)
@@ -60,7 +68,7 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
   onMounted(async () => {
     if (!Capacitor.isNativePlatform()) return
 
-    let handledStartupExternalUrl = false
+    let startupExternalUrl = ''
 
     const nativeNfcListener = (event) => {
       void handleIncomingAppUrl(event?.detail?.url)
@@ -72,7 +80,13 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
     try {
       const launchUrl = await CapApp.getLaunchUrl()
       if (launchUrl && launchUrl.url) {
-        handledStartupExternalUrl = await handleIncomingAppUrl(launchUrl.url)
+        const handled = await handleIncomingAppUrl(launchUrl.url)
+        if (handled) {
+          startupExternalUrl = launchUrl.url
+          // retained appUrlOpen 在 addListener 注册时即送达，跳过标记只需短暂存活；
+          // 超时清除，避免 webview 重载（OTA）后标记滞留吞掉用户对同一 URL 的下次真实触发
+          setTimeout(() => { startupExternalUrl = '' }, 5000)
+        }
       }
     } catch (e) {
       console.warn('[app] getLaunchUrl failed:', e)
@@ -80,6 +94,11 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
 
     try {
       removeAppUrlOpenListener = await CapApp.addListener('appUrlOpen', (event) => {
+        // 冷启动的 launch URL 已处理过：跳过启动时重复触发的首个 appUrlOpen
+        if (startupExternalUrl && event.url === startupExternalUrl) {
+          startupExternalUrl = ''
+          return
+        }
         void handleIncomingAppUrl(event.url)
       })
     } catch (e) {

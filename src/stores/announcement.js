@@ -173,6 +173,9 @@ function normalizeRow(row) {
 // 支持三种 type: local / db / flag
 // logic: "and" | "or"，默认 "and"
 
+// db 条件仅允许查询本地业务表，防止云端下发任意表名做 count 探测
+const DB_COND_TABLE_WHITELIST = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+
 const EXECUTORS = {
   // { type: "local", key: "xxx", exists?: boolean, equals?: string }
   // 自动兼容 localStorage + Capacitor Preferences（原生端）
@@ -203,6 +206,10 @@ const EXECUTORS = {
     try {
       const table = cond.table || ''
       if (!table) return false
+      if (!DB_COND_TABLE_WHITELIST.includes(table)) {
+        console.warn(`[announcement] db condition table not allowed: ${table}`)
+        return false
+      }
       const db = getSupabaseClient()
       const op = cond.op || 'count>='
       const value = Number(cond.value) || 0

@@ -24,6 +24,12 @@ function getQuantity(item) {
   return Math.max(1, Number(item?.quantityNumber || item?.quantity) || 1)
 }
 
+/** 金额取整到分:运费均摊/链式累加会产生 -1.4e-14 之类浮点噪声 */
+function roundMoney(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
+}
+
 /** 单件实付价(优先汇率折算字段,回退原始字符串,再回退官方价) */
 function getItemUnitPriceNumber(item) {
   const actualConverted = toNumber(item?.actualPriceCNYNumber ?? item?.actualPriceNumber)
@@ -45,7 +51,10 @@ export function getUnitCost(item, unitIndex = null) {
   const qty = getQuantity(item)
   const shippingShare = toNumber(item?.shippingFee) / qty
   if (unitIndex != null && Number.isInteger(unitIndex)) {
-    const unitPrices = Array.isArray(item?.unitActualPriceList) ? item.unitActualPriceList : []
+    // 优先视图层折算后的逐件 CNY 价,回退原始逐件价(与聚合字段口径一致)
+    const unitPrices = Array.isArray(item?.unitActualPriceCNYList)
+      ? item.unitActualPriceCNYList
+      : (Array.isArray(item?.unitActualPriceList) ? item.unitActualPriceList : [])
     const unitPrice = toNumber(unitPrices[unitIndex])
     if (unitPrice > 0) return unitPrice + shippingShare
   }
@@ -74,8 +83,8 @@ function makeRecord(item, info, unitIndex, count, type, cost) {
     price,
     fee,
     hasPrice,
-    cost,
-    profit: hasPrice ? price - fee - cost : null
+    cost: roundMoney(cost),
+    profit: hasPrice ? roundMoney(price - fee - cost) : null
   }
 }
 
@@ -160,9 +169,9 @@ export function buildSaleSummary(list) {
     if (row.hasPrice) listingTotal += row.price
   }
   return {
-    recoveredTotal,
-    listingTotal,
-    profitTotal,
+    recoveredTotal: roundMoney(recoveredTotal),
+    listingTotal: roundMoney(listingTotal),
+    profitTotal: roundMoney(profitTotal),
     soldCount,
     listingCount,
     hasAny: soldRows.length > 0 || listingRows.length > 0

@@ -228,31 +228,13 @@ export const useRechargeStore = defineStore('recharge', () => {
   }
 
   async function deleteRecord(target) {
+    // 仅按 id 删除:早年按六字段全等匹配的遗留路径会误删内容相同的另一条记录
     const id = typeof target === 'string' ? target : String(target?.id || '').trim()
-    if (id) {
-      return permanentDelete(id)
-    }
-
-    if (!target || typeof target !== 'object') {
+    if (!id) {
       log.debug('record:delete:skipped', { reason: 'invalid-target' })
       return false
     }
-
-    const index = records.value.findIndex((item) => (
-      item.game === target.game
-      && item.itemName === target.itemName
-      && Number(item.amount || 0) === Number(target.amount || 0)
-      && item.chargedAt === target.chargedAt
-      && item.note === target.note
-      && item.image === target.image
-    ))
-
-    if (index < 0) {
-      log.debug('record:delete:skipped', { reason: 'not-found' })
-      return false
-    }
-
-    return permanentDelete(records.value[index].id)
+    return permanentDelete(id)
   }
 
   function restoreRecord() {

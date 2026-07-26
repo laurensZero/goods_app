@@ -174,7 +174,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { getFeedback, addFollowup } from '@/services/feedbackService'
-import { uploadAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
+import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps({
@@ -265,9 +265,9 @@ async function handleAddFollowup() {
   if (!authStore.user?.id) return
 
   isAddingFollowup.value = true
+  let attachments = []
   try {
     // Upload attachments first
-    let attachments = []
     const filesToUpload = fuFiles.value.map(f => f.file)
     if (fuCollectLog.value) filesToUpload.push(await collectDeviceLog())
     if (filesToUpload.length > 0) {
@@ -286,6 +286,10 @@ async function handleAddFollowup() {
     fuCollectLog.value = false
     showToast(t('about.feedbackFollowupSent'))
   } catch (e) {
+    // 发送失败时补偿删除已上传的附件，避免孤儿文件
+    if (attachments.length > 0) {
+      await removeAttachments(attachments.map(a => a.path))
+    }
     showToast(e.message || t('about.feedbackError'))
   } finally {
     isAddingFollowup.value = false

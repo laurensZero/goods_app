@@ -148,10 +148,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Vant 的 base.css 带有 body{font-family:var(--van-base-font)}，且随首个用到的
+   Vant 组件懒加载注入（如统计页的 Popup）。注入晚于本文件时按同特异性后来居上，
+   会把全局字体永久换成 Vant 字体栈（表现为逛过统计页后全站字体“变粗”）。
+   用 html:root(0,1,1) 压过 Vant 的 :root(0,1,0) 钉住该变量，与注入顺序无关。 */
+html:root {
+  --app-font-family: 'SF Pro Display', 'PingFang SC', 'Avenir Next', 'Helvetica Neue', sans-serif;
+  --van-base-font: var(--app-font-family);
+}
+
 html,
 body {
   height: 100%;
-  font-family: 'SF Pro Display', 'PingFang SC', 'Avenir Next', 'Helvetica Neue', sans-serif;
+  font-family: var(--app-font-family);
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   color: var(--app-text);

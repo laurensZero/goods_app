@@ -1,5 +1,8 @@
 export function createNativeAdapter() {
   let _db = null
+  // 显式事务激活期间，execute/run/executeSet 需传 transaction=false，
+  // 避免插件默认的隐式事务与显式事务嵌套报错
+  let _inTx = false
 
   return {
     async open() {
@@ -16,15 +19,36 @@ export function createNativeAdapter() {
     },
 
     async execute(sql) {
-      await _db.execute(sql)
+      await _db.execute(sql, !_inTx)
     },
 
     async run(sql, params) {
-      await _db.run(sql, params)
+      await _db.run(sql, params, !_inTx)
     },
 
     async executeSet(stmts) {
-      await _db.executeSet(stmts)
+      await _db.executeSet(stmts, !_inTx)
+    },
+
+    async beginTransaction() {
+      await _db.beginTransaction()
+      _inTx = true
+    },
+
+    async commitTransaction() {
+      try {
+        await _db.commitTransaction()
+      } finally {
+        _inTx = false
+      }
+    },
+
+    async rollbackTransaction() {
+      try {
+        await _db.rollbackTransaction()
+      } finally {
+        _inTx = false
+      }
     },
 
     async query(sql, params = []) {

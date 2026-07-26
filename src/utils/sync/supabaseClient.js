@@ -2,8 +2,18 @@
 import i18n from '@/locales'
 import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
+import { getDeviceId } from '@/utils/feedbackDevice'
 
 let supabase = null
+
+// 所有请求携带设备 id，供 feedbacks 等 RLS 策略按 x-device-id 头做匿名归属匹配
+function deviceHeaders() {
+  try {
+    return { 'x-device-id': getDeviceId() }
+  } catch {
+    return {}
+  }
+}
 
 /**
  * 初始化 Supabase Client
@@ -29,7 +39,8 @@ export function initSupabaseClient(url, anonKey) {
       persistSession: true,
       detectSessionInUrl: false,
       storageKey: 'sb-main-auth-token'
-    }
+    },
+    global: { headers: deviceHeaders() }
   })
   return supabase
 }
@@ -111,7 +122,8 @@ export async function reconnectSupabase() {
       persistSession: true,
       detectSessionInUrl: false,
       storageKey: 'sb-main-auth-token'
-    }
+    },
+    global: { headers: deviceHeaders() }
   })
   try {
     const { error } = await supabase.from('goods').select('id').limit(1)

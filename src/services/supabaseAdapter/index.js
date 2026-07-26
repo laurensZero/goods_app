@@ -50,6 +50,7 @@ export function createSupabaseBackendAdapter({
     removeImages: storage.removeImages,
     pushAll: writer.pushAll,
     pullAll: reader.pullAll,
+    readManifest: reader.readManifest,
     getDb
   })
 }

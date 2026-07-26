@@ -54,8 +54,17 @@ export async function handleAuthCallback() {
       return false
     }
 
-    // 清理 URL，避免重复处理
-    window.history.replaceState({}, document.title, '/')
+    // 清理 URL，避免重复处理。file:// 下整体替换为 '/' 会把文档 URL
+    // 指向文件系统根（部分 WebView 抛 SecurityError 或破坏后续 reload），
+    // 因此 token 在 hash 时只重写 hash，其余场景仅在非 file:// 下整体替换
+    if (hash && hash.includes('access_token')) {
+      window.history.replaceState(
+        window.history.state, document.title,
+        window.location.pathname + window.location.search + '#/'
+      )
+    } else if (window.location.protocol !== 'file:') {
+      window.history.replaceState(window.history.state, document.title, '/')
+    }
 
     return true
   } catch (e) {

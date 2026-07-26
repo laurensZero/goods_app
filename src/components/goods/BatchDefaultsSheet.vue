@@ -19,9 +19,11 @@
           </label>
           <label class="field">
             <span class="field-label">{{ t('common.price') }}</span>
-            <input v-model="local.price" type="text" inputmode="decimal" :placeholder="t('goods.editor.namePlaceholder')" />
+            <input v-model="local.price" type="text" inputmode="decimal" placeholder="0.00" />
           </label>
         </div>
+
+        <p class="sheet-hint">{{ t('goods.batch.defaultsScopeHint') }}</p>
 
         <button class="sheet-apply" type="button" @click="apply">{{ t('goods.batch.applyChanges') }}</button>
         <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
@@ -170,6 +172,14 @@ function apply() {
 .field input:focus {
   border-color: color-mix(in srgb, var(--app-text) 16%, transparent);
   background: var(--app-surface);
+}
+
+/* ---- 作用范围说明 ---- */
+.sheet-hint {
+  margin: 0 4px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--app-text-tertiary, #8e8e93);
 }
 
 /* ---- 应用按钮 ---- */

@@ -101,8 +101,8 @@
         <EmptyState
           v-else
           icon="¥"
-          :title="t('sale.empty')"
-          :description="t('sale.emptyDesc')"
+          :title="activeTab === 'sold' ? t('sale.empty') : t('sale.emptyListing')"
+          :description="activeTab === 'sold' ? t('sale.emptyDesc') : t('sale.emptyListingDesc')"
         />
         </div>
         </Transition>
@@ -152,17 +152,18 @@ function formatAmount(value) {
   return Number.isInteger(n) ? String(n) : n.toFixed(2)
 }
 
+// |n| < 0.005(不足一分)视为持平,浮点噪声不显示成 -¥0.00 的亏损
 function formatProfit(value) {
   const n = Number(value) || 0
-  const sign = n > 0 ? '+' : n < 0 ? '-' : ''
+  if (Math.abs(n) < 0.005) return '¥0'
+  const sign = n > 0 ? '+' : '-'
   return `${sign}¥${formatAmount(Math.abs(n))}`
 }
 
 function profitClass(value) {
   const n = Number(value) || 0
-  if (n > 0) return 'profit--gain'
-  if (n < 0) return 'profit--loss'
-  return ''
+  if (Math.abs(n) < 0.005) return ''
+  return n > 0 ? 'profit--gain' : 'profit--loss'
 }
 
 function openDetail(id) {

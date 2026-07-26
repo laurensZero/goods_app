@@ -296,7 +296,9 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
       })
 
       if (!changed) continue
-      listRef.value[i] = { ...item, images: nextImages, updatedAt: Date.now() }
+      // 纯本地的 base64→URL 表示替换，保持 updatedAt 不变：
+      // bump 会被当成"本地已改"触发冗余推送，并在 LWW 中压过其他设备的同期真实编辑
+      listRef.value[i] = { ...item, images: nextImages }
       updatedItems.push(listRef.value[i])
     }
   }

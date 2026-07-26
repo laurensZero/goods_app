@@ -27,6 +27,8 @@
   "sale.noPriceRecorded": "가격 미기록",
   "sale.empty": "판매 기록이 없습니다",
   "sale.emptyDesc": "상품 상세 페이지에서 \"판매\"를 눌러 판매와 거래를 기록하세요",
+  "sale.emptyListing": "판매 중인 상품이 없습니다",
+  "sale.emptyListingDesc": "판매 패널에서 「판매 중」을 선택하고 희망가를 입력하면 여기에 표시됩니다",
   "sale.ledgerTitle": "판매 장부",
   "sale.ledgerHeroTitle": "판매 장부",
   "sale.ledgerHeroDesc": "판매와 거래를 기록하고 얼마나 회수했는지 확인하세요",

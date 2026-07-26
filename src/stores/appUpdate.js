@@ -37,6 +37,21 @@ const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatf
 
 let activeCheckPromise = null
 
+// 原生升级完成后清理下载缓存中的历史 APK（安装器拉起后文件不再需要，供 main.js 调用）
+export async function cleanupDownloadedApkFiles() {
+  if (!Capacitor.isNativePlatform()) return
+  try {
+    await Filesystem.rmdir({
+      path: 'updates',
+      directory: Directory.Cache,
+      recursive: true
+    })
+    log.info('cleanup:apk-cache-removed')
+  } catch {
+    // updates 目录不存在等情况忽略
+  }
+}
+
 function normalizeUpdateSource(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized

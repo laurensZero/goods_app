@@ -394,7 +394,6 @@ const GOODS_GRID_MAX_RENDER_CARDS_MAP = {
   standard: { mobile: 54, tablet: 72 },     // 手机3-4列，平板5-6列，行高284
   compact: { mobile: 64, tablet: 80 }       // 手机4-5列，平板6-8列，行高248
 }
-const GOODS_GRID_MAX_RENDER_CARDS_DEFAULT = 72
 const TABLET_BREAKPOINT = 900
 
 function getMaxRenderCards(density) {
@@ -427,17 +426,23 @@ const showAddSheet = ref(false)
 const showDailyRec = ref(false)
 const DAILY_REC_RESTORE_KEY = '__dailyRecOpen'
 
+let dailyRecClosingForDetail = false
+
 function handleDailyRecDetail(goodsId) {
   sessionStorage.setItem(DAILY_REC_RESTORE_KEY, '1')
+  dailyRecClosingForDetail = true
   showDailyRec.value = false
   nextTick(() => openDetail(goodsId))
 }
 
 watch(showDailyRec, (open) => {
-  // Only clear restore flag on manual close, not on navigate-away close
-  if (!open && !sessionStorage.getItem(DAILY_REC_RESTORE_KEY)) {
-    sessionStorage.removeItem(DAILY_REC_RESTORE_KEY)
+  // Only clear restore flag on manual close, not on navigate-to-detail close
+  if (open) return
+  if (dailyRecClosingForDetail) {
+    dailyRecClosingForDetail = false
+    return
   }
+  sessionStorage.removeItem(DAILY_REC_RESTORE_KEY)
 })
 
 // KeepAlive 激活状态：控制 Teleport FAB 在其他页面不穿透显示
@@ -1668,7 +1673,7 @@ function updateSelectionHeaderPosition() {
   selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
 }
 
-// -------- 閺冨爼妫跨痪鍨敶閼辨柨鐫嶅鈧?--------
+// -------- 时间线条目展开与密度切换 --------
 const expandedItem = computed(() =>
   expandedTimelineItemId.value
     ? (displayDensity.value === 'timeline'

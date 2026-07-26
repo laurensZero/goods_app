@@ -27,6 +27,7 @@ import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
 import { handleAuthCallback } from './utils/supabase/auth'
+import { cleanupDownloadedApkFiles } from './stores/appUpdate'
 
 const ANDROID_ROOT_ROUTE_NAMES = new Set([
   'home',
@@ -69,6 +70,9 @@ async function reconcileBundlesAfterNativeUpdate() {
 
     updaterLog.info('native-update:reconcile:start', { from: storedVersion, to: currentAppVersion })
 
+    // 原生升级已生效：清理下载缓存里的历史 APK，避免多次升级累积占用空间
+    void cleanupDownloadedApkFiles()
+
     const nextBundle = await CapacitorUpdater.getNextBundle().catch(() => null)
     if (nextBundle?.id && nextBundle.id !== 'builtin') {
       await CapacitorUpdater.next({ id: 'builtin' }).catch((error) => {
@@ -102,7 +106,10 @@ function setupAndroidBackButton() {
     const isAndroidRootRoute = ANDROID_ROOT_ROUTE_NAMES.has(String(currentRoute.name || ''))
 
     if (!isAndroidRootRoute) {
-      if (canGoBack || window.history.length > 1) {
+      // history.length 只增不减且含 forward 条目，不可靠；用 vue-router 维护的
+      // back 状态判断应用内是否有上一条目（深链/通知冷启动落在非根路由时为 null）
+      const historyState = router.options.history.state
+      if (historyState?.back != null) {
         runWithRouteTransition(() => router.back(), { direction: 'back' })
       } else {
         runWithRouteTransition(() => router.replace('/home'), { direction: 'back' })
@@ -140,8 +147,6 @@ async function bootstrap() {
   } catch (e) {
     console.warn('[bootstrap] handleAuthCallback failed:', e)
   }
-
-  void notifyUpdaterReady()
 
   // 创建 Vue 应用和 Pinia（这些是同步的，很快）
   const app = createApp(App)
@@ -236,6 +241,9 @@ async function bootstrap() {
   const t4 = performance.now()
   app.mount('#app')
   timings.mount = performance.now() - t4
+
+  // 挂载成功后再上报 bundle 就绪：坏 bundle 白屏时 capgo 才能自动回滚
+  void notifyUpdaterReady()
 
   timings.total = performance.now() - startTime
   // info 级：进入日志缓冲（反馈日志可见启动耗时），console 输出仍受调试开关控制
