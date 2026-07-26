@@ -274,5 +274,7 @@
   "sync.error.networkReconnect": "ネットワークエラー。再接続を試みています...",
   "sync.error.unnamedItem": "名前なしアイテム",
   "sync.error.localDataNotLoaded": "ローカルデータの読み込みに失敗しました。クラウドバックアップ保護のため同期を停止しました。アプリを再起動してもう一度お試しください",
-  "sync.error.localDataNotLoadedStatus": "ローカルデータ未読み込み"
+  "sync.error.localDataNotLoadedStatus": "ローカルデータ未読み込み",
+  "sync.error.loginRequired": "同期する前に Supabase アカウントにログインしてください",
+  "sync.error.loginRequiredStatus": "未ログイン"
 }

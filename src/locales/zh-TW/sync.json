@@ -274,5 +274,7 @@
   "sync.error.networkReconnect": "網路錯誤，尝試重建連接...",
   "sync.error.unnamedItem": "未命名條目",
   "sync.error.localDataNotLoaded": "本地資料載入失敗，已暫停雲同步以保護雲端備份，請重啟應用後重試",
-  "sync.error.localDataNotLoadedStatus": "本地資料未載入"
+  "sync.error.localDataNotLoadedStatus": "本地資料未載入",
+  "sync.error.loginRequired": "請先登入 Supabase 帳號後再同步",
+  "sync.error.loginRequiredStatus": "未登入"
 }

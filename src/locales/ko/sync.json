@@ -274,5 +274,7 @@
   "sync.error.networkReconnect": "네트워크 오류. 재연결을 시도합니다...",
   "sync.error.unnamedItem": "이름 없는 항목",
   "sync.error.localDataNotLoaded": "로컬 데이터 로드에 실패했습니다. 클라우드 백업 보호를 위해 동기화를 중단했습니다. 앱을 재시작한 후 다시 시도해 주세요",
-  "sync.error.localDataNotLoadedStatus": "로컬 데이터 미로드"
+  "sync.error.localDataNotLoadedStatus": "로컬 데이터 미로드",
+  "sync.error.loginRequired": "동기화하기 전에 Supabase 계정에 로그인하세요",
+  "sync.error.loginRequiredStatus": "로그인되지 않음"
 }
