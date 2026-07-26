@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260726.1",
+    "url": "bundle-20260726.1.zip",
+    "hash": "981d8c053ebad242f54b8922dfe1a07bda7bf12b5675e90a0b7984091a554362",
+    "minNativeVersion": null,
+    "notes": "- refactor: 重构批量添加功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-26T08:04:03Z"
+  },
+  {
     "version": "20260725.6",
     "url": "bundle-20260725.6.zip",
     "hash": "6a9bee7afd8be2070ac8068994213cb97aee6072580033f0584354b783a28b20",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强调查功能，优化用户ID获取逻辑，更新样式以支持新状态显示",
     "updateLevel": "silent",
     "publishedAt": "2026-07-25T14:30:28Z"
-  },
-  {
-    "version": "20260725.4",
-    "url": "bundle-20260725.4.zip",
-    "hash": "800a89779714b24b14429dd659ddf3b228c17a7863b276fdd5f2f0c1065beaac",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化统计图表样式，增加响应式设计支持",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-25T12:23:18Z"
   }
 ]

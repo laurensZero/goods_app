@@ -1,9 +1,9 @@
 {
-  "version": "20260725.6",
-  "url": "bundle-20260725.6.zip",
-  "hash": "6a9bee7afd8be2070ac8068994213cb97aee6072580033f0584354b783a28b20",
+  "version": "20260726.1",
+  "url": "bundle-20260726.1.zip",
+  "hash": "981d8c053ebad242f54b8922dfe1a07bda7bf12b5675e90a0b7984091a554362",
   "minNativeVersion": null,
-  "notes": "- feat: 统一对话框过渡动画，替换为sheet-pop效果",
+  "notes": "- refactor: 重构批量添加功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-25T15:55:08Z"
+  "publishedAt": "2026-07-26T08:04:03Z"
 }
