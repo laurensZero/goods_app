@@ -30,11 +30,11 @@ function calcPeriodSpent(goodsList, dateMatcher) {
     } else {
       const d = item?.acquiredAt ? new Date(String(item.acquiredAt).trim()) : null
       if (d && !isNaN(d.getTime()) && dateMatcher(d)) {
-        const base = (item.actualPrice !== '' && item.actualPrice != null)
-          ? (Number(item.actualPrice) || 0)
-          : (Number(item.price) || 0)
         units = qty
-        amount = base * qty
+        // actualPrice 是全部份数的总入手价，不能再乘数量；仅原价按单价×数量
+        amount = (item.actualPrice !== '' && item.actualPrice != null)
+          ? (Number(item.actualPrice) || 0)
+          : (Number(item.price) || 0) * qty
       }
     }
 

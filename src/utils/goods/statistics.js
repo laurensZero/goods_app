@@ -37,7 +37,11 @@ function getItemDatesAndPrices(item) {
 
   const d = safeDate(item.acquiredAt)
   if (!d) return []
-  const price = getItemEffectivePrice(item) * qty
+  // actualPrice 是全部份数的总入手价，不能再乘数量；仅原价按单价×数量
+  const actual = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
+  const price = actual > 0
+    ? actual
+    : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0) * qty
   const shipping = Number(item.shippingFee) || 0
   return [{ date: d, price: price + shipping }]
 }

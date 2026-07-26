@@ -92,6 +92,8 @@ export function getLeaderboardDimensionMeta(dimension, t) {
   }
 }
 
+const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
+
 export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = new Map(), t) {
   const config = getDimensionConfig(dimension)
   const emptyLabel = t ? t(`leaderboard.empty.${dimension}`) : ''
@@ -99,6 +101,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
   let emptyCount = 0
 
   for (const item of list) {
+    if (item?.isWishlist) continue
+    if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) continue
     const rawValues = config.getValues(item) || []
     const values = rawValues
       .map((value) => String(value || '').trim())
@@ -119,9 +123,6 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     if (hasExactUnitCharacters) {
       const unitValueShare = quantityNumber > 0 ? totalValueNumber / quantityNumber : 0
       const officialPrice = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
-      const actualPrice = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0) > 0
-        ? Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
-        : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
       const seenLabels = new Set()
 
       for (const label of unitCharacters) {
@@ -142,7 +143,9 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
         current.quantity += 1
         current.totalValue += unitValueShare
         current.officialTotalValue += officialPrice
-        current.actualTotalValue += actualPrice
+        // actualPrice 是全部份数的总入手价，入手价口径直接用 totalValueNumber
+        //（入手价或原价×数量，含运费，已折算 CNY）的每份分摊，与收藏页总价一致
+        current.actualTotalValue += unitValueShare
         if (!seenLabels.has(label)) {
           current.itemCount += 1
           seenLabels.add(label)
@@ -176,15 +179,11 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       }
 
       const itemOfficialTotal = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0) * Number(item.quantityNumber || 0)
-      const itemActualPrice = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0) > 0
-        ? Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
-        : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
-      const itemActualTotal = itemActualPrice * Number(item.quantityNumber || 0)
 
       emptyEntry.quantity += Number(item.quantityNumber || 0)
       emptyEntry.totalValue += Number(item.totalValueNumber || 0)
       emptyEntry.officialTotalValue += itemOfficialTotal
-      emptyEntry.actualTotalValue += itemActualTotal
+      emptyEntry.actualTotalValue += Number(item.totalValueNumber || 0)
       emptyEntry.itemCount += 1
       emptyEntry.latestAcquiredTime = Math.max(emptyEntry.latestAcquiredTime, Number(item.acquiredTime || 0))
       map.set(emptyEntry.key, emptyEntry)
@@ -195,11 +194,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     const quantityShare = quantityNumber * shareFactor
     const totalValueShare = totalValueNumber * shareFactor
     const officialPrice = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
-    const actualPrice = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0) > 0
-      ? Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
-      : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
     const officialTotalShare = officialPrice * quantityNumber * shareFactor
-    const actualTotalShare = actualPrice * quantityNumber * shareFactor
 
     for (const label of values) {
       const current = map.get(label) || {
@@ -219,7 +214,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       current.quantity += quantityShare
       current.totalValue += totalValueShare
       current.officialTotalValue += officialTotalShare
-      current.actualTotalValue += actualTotalShare
+      current.actualTotalValue += totalValueShare
       current.itemCount += 1
       current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
 
