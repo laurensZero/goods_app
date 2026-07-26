@@ -1047,3 +1047,15 @@
   font-size: 12px;
   color: var(--app-text-tertiary);
 }
+
+.sale-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sale-info-cell__label {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}

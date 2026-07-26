@@ -108,65 +108,86 @@
                   <span class="field-label">{{ t('goods.detail.saleInfo') }}</span>
 
                   <div v-if="!hasUnitSaleStatuses" class="sale-info-grid">
-                    <input
-                      v-model="form.sellPrice"
-                      type="number" inputmode="decimal" min="0"
-                      class="sale-info-input"
-                      :placeholder="form.collectStatus === '已出' ? t('sale.dealPrice') : t('sale.listingPrice')"
-                    />
-                    <input
-                      v-model="form.sellPlatform"
-                      type="text"
-                      class="sale-info-input"
-                      :placeholder="t('sale.platform')"
-                    />
-                    <input
-                      v-if="form.collectStatus === '已出'"
-                      v-model="form.sellFee"
-                      type="number" inputmode="decimal" min="0"
-                      class="sale-info-input"
-                      :placeholder="t('sale.fee')"
-                    />
-                    <input
-                      v-model="form.sellDate"
-                      type="date"
-                      class="sale-info-input"
-                      :placeholder="t('sale.date')"
-                    />
+                    <label class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ form.collectStatus === '已出' ? t('sale.dealPrice') : t('sale.listingPrice') }}</span>
+                      <input
+                        v-model="form.sellPrice"
+                        type="number" inputmode="decimal" min="0"
+                        class="sale-info-input"
+                        :placeholder="t('sale.pricePlaceholder')"
+                      />
+                    </label>
+                    <label class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ t('sale.platform') }}</span>
+                      <input
+                        v-model="form.sellPlatform"
+                        type="text"
+                        class="sale-info-input"
+                        :placeholder="t('sale.platformPlaceholder')"
+                      />
+                    </label>
+                    <label v-if="form.collectStatus === '已出'" class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ t('sale.fee') }}</span>
+                      <input
+                        v-model="form.sellFee"
+                        type="number" inputmode="decimal" min="0"
+                        class="sale-info-input"
+                        :placeholder="t('sale.feePlaceholder')"
+                      />
+                    </label>
+                    <label class="sale-info-cell">
+                      <span class="sale-info-cell__label">{{ t('sale.date') }}</span>
+                      <input
+                        v-model="form.sellDate"
+                        type="date"
+                        class="sale-info-input"
+                      />
+                    </label>
                   </div>
 
                   <div v-else class="sale-info-units">
                     <div v-for="unit in saleUnits" :key="`sale-unit-${unit.index}`" class="sale-info-unit">
                       <span class="sale-info-unit__tag">{{ t('sale.unitLabel', { n: unit.index + 1 }) }} · {{ unit.statusLabel }}</span>
                       <div class="sale-info-grid">
-                        <input
-                          :value="unit.info.price || ''"
-                          type="number" inputmode="decimal" min="0"
-                          class="sale-info-input"
-                          :placeholder="unit.status === '已出' ? t('sale.dealPrice') : t('sale.listingPrice')"
-                          @change="updateUnitSaleInfo(unit.index, 'price', $event.target.value)"
-                        />
-                        <input
-                          :value="unit.info.platform || ''"
-                          type="text"
-                          class="sale-info-input"
-                          :placeholder="t('sale.platform')"
-                          @change="updateUnitSaleInfo(unit.index, 'platform', $event.target.value)"
-                        />
-                        <input
-                          v-if="unit.status === '已出'"
-                          :value="unit.info.fee || ''"
-                          type="number" inputmode="decimal" min="0"
-                          class="sale-info-input"
-                          :placeholder="t('sale.fee')"
-                          @change="updateUnitSaleInfo(unit.index, 'fee', $event.target.value)"
-                        />
-                        <input
-                          :value="unit.info.date || ''"
-                          type="date"
-                          class="sale-info-input"
-                          @change="updateUnitSaleInfo(unit.index, 'date', $event.target.value)"
-                        />
+                        <label class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ unit.status === '已出' ? t('sale.dealPrice') : t('sale.listingPrice') }}</span>
+                          <input
+                            :value="unit.info.price || ''"
+                            type="number" inputmode="decimal" min="0"
+                            class="sale-info-input"
+                            :placeholder="t('sale.pricePlaceholder')"
+                            @change="updateUnitSaleInfo(unit.index, 'price', $event.target.value)"
+                          />
+                        </label>
+                        <label class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ t('sale.platform') }}</span>
+                          <input
+                            :value="unit.info.platform || ''"
+                            type="text"
+                            class="sale-info-input"
+                            :placeholder="t('sale.platformPlaceholder')"
+                            @change="updateUnitSaleInfo(unit.index, 'platform', $event.target.value)"
+                          />
+                        </label>
+                        <label v-if="unit.status === '已出'" class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ t('sale.fee') }}</span>
+                          <input
+                            :value="unit.info.fee || ''"
+                            type="number" inputmode="decimal" min="0"
+                            class="sale-info-input"
+                            :placeholder="t('sale.feePlaceholder')"
+                            @change="updateUnitSaleInfo(unit.index, 'fee', $event.target.value)"
+                          />
+                        </label>
+                        <label class="sale-info-cell">
+                          <span class="sale-info-cell__label">{{ t('sale.date') }}</span>
+                          <input
+                            :value="unit.info.date || ''"
+                            type="date"
+                            class="sale-info-input"
+                            @change="updateUnitSaleInfo(unit.index, 'date', $event.target.value)"
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>
