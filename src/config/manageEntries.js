@@ -213,7 +213,7 @@ export function useManageEntries() {
         return count > 0 ? count : 0
       }
     },
-    ...(surveyStore.surveys.length > 0 ? [{
+    ...(surveyStore.availableSurveys.length > 0 ? [{
       key: 'surveys', group: 'app', title: t('manage.surveys'), kicker: 'Survey',
       meta: t('manage.surveyMeta'),
       detail: t('manage.surveyDesc'),
