@@ -47,6 +47,8 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
   const dialogVisible = ref(false)
   // 测试入口注入的预览数据；非空时弹窗显示它而不是真实的今日生日
   const previewBirthdays = ref([])
+  // 测试用模拟日期（testBirthdayEgg(true, '3-7')）；非空时按该日期判定生日，关闭弹窗后清除
+  const dateOverride = ref(null)
 
   const presetIpMap = computed(() => (
     new Map(presets.characters.map((character) => [character.name, character.ip || '']))
@@ -78,7 +80,7 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     if (!rows.value.length || !qualifiedEntries.value.length) return []
 
     const index = buildBirthdayIndex(rows.value)
-    const now = new Date()
+    const now = dateOverride.value || new Date()
     const list = []
 
     for (const entry of qualifiedEntries.value) {
@@ -115,12 +117,15 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     await refresh()
     if (!todayBirthdays.value.length) return
 
-    const record = readRecord()
-    const currentDay = todayKey()
-    if (record.lastShownDay === currentDay) return
+    // 模拟日期测试不读也不写「今天已弹过」标记，避免影响真实当天的弹窗
+    if (!dateOverride.value) {
+      const record = readRecord()
+      const currentDay = todayKey()
+      if (record.lastShownDay === currentDay) return
+      persistRecord({ lastShownDay: currentDay, lastShownAt: new Date().toISOString() })
+    }
 
     dialogVisible.value = true
-    persistRecord({ lastShownDay: currentDay, lastShownAt: new Date().toISOString() })
   }
 
   // My 页手动回看：无视「今天已弹过」标记
@@ -175,17 +180,29 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
   function dismiss() {
     dialogVisible.value = false
     previewBirthdays.value = []
+    dateOverride.value = null
   }
 
   // Console 测试入口（浏览器 DevTools / 真机 chrome://inspect）：
-  //   testBirthdayEgg()      —— 弹预览卡片（谷子最多的达标角色 + 示例数据补齐轮播）
-  //   testBirthdayEgg(true)  —— 清掉「今天已弹过」标记后走真实检查流程（需云端表有今日生日）
+  //   testBirthdayEgg()              —— 弹预览卡片（谷子最多的达标角色 + 示例数据补齐轮播）
+  //   testBirthdayEgg(true)          —— 清掉「今天已弹过」标记后走真实检查流程（需云端表有今日生日）
+  //   testBirthdayEgg(true, '3-7')   —— 按模拟日期走真实流程；也接受 '3/7'、'2028-2-29'（带年份可测闰年）
   if (typeof window !== 'undefined') {
-    window.testBirthdayEgg = (real = false) => {
+    window.testBirthdayEgg = (real = false, date = '') => {
       if (!real) {
         openTestDialog()
         return '已弹出预览卡片'
       }
+
+      const match = String(date).trim().match(/^(?:(\d{4})[-/])?(\d{1,2})[-/](\d{1,2})$/)
+      if (match) {
+        const year = match[1] ? Number(match[1]) : new Date().getFullYear()
+        dateOverride.value = new Date(year, Number(match[2]) - 1, Number(match[3]))
+        void checkAndDecide()
+        return `按 ${dateOverride.value.toLocaleDateString()} 模拟真实检查（该日期无达标角色生日则不弹；关闭弹窗后恢复）`
+      }
+
+      dateOverride.value = null
       try {
         localStorage.removeItem(RECORD_KEY)
       } catch { /* ignore */ }
