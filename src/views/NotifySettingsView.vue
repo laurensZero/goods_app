@@ -87,6 +87,37 @@
 
             <div class="settings-item">
               <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--sale">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" />
+                    <path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1" />
+                    <path d="M2 21h20" />
+                    <path d="M7 8v3" />
+                    <path d="M12 8v3" />
+                    <path d="M17 8v3" />
+                    <path d="M7 4h.01" />
+                    <path d="M12 4h.01" />
+                    <path d="M17 4h.01" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.birthdayEgg') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.birthdayEggDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.birthdayEgg')">
+                <input
+                  :checked="settings.birthdayEgg"
+                  :disabled="!settings.enabled"
+                  type="checkbox"
+                  @change="saveSetting('birthdayEgg', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--syncing">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 12a9 9 0 11-6.219-8.56" />

@@ -8,6 +8,8 @@
     "notificationTypes": "通知の種類",
     "saleReminder": "発売リマインダー",
     "saleReminderDesc": "ウィッシュリストのアイテムが発売される際のリマインダー",
+    "birthdayEgg": "キャラ誕生日サプライズ",
+    "birthdayEggDesc": "推しキャラの誕生日にお祝いカードを表示します",
     "syncing": "同期中",
     "syncingDesc": "データ同期が開始された際の通知",
     "syncSuccess": "同期成功",

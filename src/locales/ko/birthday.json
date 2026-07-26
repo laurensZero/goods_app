@@ -1,0 +1,10 @@
+{
+  "entryTitle": "오늘 생일인 캐릭터",
+  "entryDesc": "{count}명의 캐릭터가 오늘 생일이에요. 탭해서 확인해 보세요",
+  "todayTitle": "오늘은 {name}의 생일!",
+  "dateLabel": "{month}월 {day}일",
+  "defaultMessage": "생일 축하해요! 앞으로도 함께 굿즈를 모아요 🎂",
+  "countLabel": "굿즈 수",
+  "countValue": "{count}개",
+  "spendLabel": "누적 지출"
+}

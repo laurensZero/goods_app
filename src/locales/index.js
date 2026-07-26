@@ -28,6 +28,7 @@ import zhGoodsGroup from './zh-CN/goodsGroup.json'
 import zhNotify from './zh-CN/notify.json'
 import zhSurvey from './zh-CN/survey.json'
 import zhSale from './zh-CN/sale.json'
+import zhBirthday from './zh-CN/birthday.json'
 
 import enCommon from './en/common.json'
 import enNav from './en/nav.json'
@@ -52,6 +53,7 @@ import enGoodsGroup from './en/goodsGroup.json'
 import enNotify from './en/notify.json'
 import enSurvey from './en/survey.json'
 import enSale from './en/sale.json'
+import enBirthday from './en/birthday.json'
 
 import jaCommon from './ja/common.json'
 import jaNav from './ja/nav.json'
@@ -76,6 +78,7 @@ import jaGoodsGroup from './ja/goodsGroup.json'
 import jaNotify from './ja/notify.json'
 import jaSurvey from './ja/survey.json'
 import jaSale from './ja/sale.json'
+import jaBirthday from './ja/birthday.json'
 
 import koCommon from './ko/common.json'
 import koNav from './ko/nav.json'
@@ -100,6 +103,7 @@ import koGoodsGroup from './ko/goodsGroup.json'
 import koNotify from './ko/notify.json'
 import koSurvey from './ko/survey.json'
 import koSale from './ko/sale.json'
+import koBirthday from './ko/birthday.json'
 
 import zhTWCommon from './zh-TW/common.json'
 import zhTWNav from './zh-TW/nav.json'
@@ -124,6 +128,7 @@ import zhTWGoodsGroup from './zh-TW/goodsGroup.json'
 import zhTWNotify from './zh-TW/notify.json'
 import zhTWSurvey from './zh-TW/survey.json'
 import zhTWSale from './zh-TW/sale.json'
+import zhTWBirthday from './zh-TW/birthday.json'
 
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
@@ -169,7 +174,8 @@ const zhCNMessages = {
   ...zhGoodsGroup,
   ...zhNotify,
   ...zhSale,
-  survey: zhSurvey
+  survey: zhSurvey,
+  birthday: zhBirthday
 }
 
 const enMessages = {
@@ -195,7 +201,8 @@ const enMessages = {
   ...enGoodsGroup,
   ...enNotify,
   ...enSale,
-  survey: enSurvey
+  survey: enSurvey,
+  birthday: enBirthday
 }
 
 const jaMessages = {
@@ -221,7 +228,8 @@ const jaMessages = {
   ...jaGoodsGroup,
   ...jaNotify,
   ...jaSale,
-  survey: jaSurvey
+  survey: jaSurvey,
+  birthday: jaBirthday
 }
 
 const koMessages = {
@@ -247,7 +255,8 @@ const koMessages = {
   ...koGoodsGroup,
   ...koNotify,
   ...koSale,
-  survey: koSurvey
+  survey: koSurvey,
+  birthday: koBirthday
 }
 
 const zhTWMessages = {
@@ -273,7 +282,8 @@ const zhTWMessages = {
   ...zhTWGoodsGroup,
   ...zhTWNotify,
   ...zhTWSale,
-  survey: zhTWSurvey
+  survey: zhTWSurvey,
+  birthday: zhTWBirthday
 }
 
 // 缺 key 监控：同一 locale+key 只上报一次，避免重复渲染刷爆日志缓冲

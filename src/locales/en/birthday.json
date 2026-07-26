@@ -1,0 +1,10 @@
+{
+  "entryTitle": "Character Birthday",
+  "entryDesc": "{count} character(s) celebrate a birthday today — tap to view",
+  "todayTitle": "It's {name}'s birthday today!",
+  "dateLabel": "{month}/{day}",
+  "defaultMessage": "Happy birthday! Here's to another year of collecting together 🎂",
+  "countLabel": "Goods collected",
+  "countValue": "{count} pcs",
+  "spendLabel": "Total spent"
+}
