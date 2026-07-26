@@ -340,7 +340,7 @@ function openDetail(id) {
   .summary-card { padding: 18px 20px; }
   .summary-value { font-size: 24px; }
 
-  .tab-bar { max-width: 420px; }
+  .tab-bar { max-width: 420px; margin: 0 auto; }
 
   .ledger-list {
     display: grid;
