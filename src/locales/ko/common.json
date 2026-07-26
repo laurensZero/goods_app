@@ -75,6 +75,7 @@
   "common.disable": "비활성화",
   "common.disabled": "비활성화됨",
   "common.done": "완료",
+  "common.pending": "미편집",
   "common.downloadUpdate": "업데이트 다운로드",
   "common.downloading": "다운로드 중",
   "common.edit": "편집",

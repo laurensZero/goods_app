@@ -217,7 +217,11 @@ function apply() {
     transform: translateX(-50%) translateY(-50%);
     border-radius: 24px;
     max-height: 90dvh;
-    overflow-y: auto;
+    overflow: visible;
+  }
+
+  .sheet-options {
+    overflow: visible;
   }
 
   .sheet-handle {

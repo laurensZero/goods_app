@@ -202,10 +202,6 @@ const monthPositions = computed(() => {
   background: var(--app-text);
   color: var(--app-surface);
 }
-:global(html.theme-dark) .year-chip--active {
-  background: #f5f5f7;
-  color: #141416;
-}
 .heatmap-empty {
   padding: 40px 0;
   text-align: center;
@@ -288,16 +284,11 @@ const monthPositions = computed(() => {
   height: 11px;
 }
 
-.level-0 { background: var(--app-surface-soft, #ebedf0); }
-.level-1 { background: color-mix(in srgb, var(--app-primary, #141416) 18%, var(--app-surface-soft, #ebedf0)); }
-.level-2 { background: color-mix(in srgb, var(--app-primary, #141416) 36%, var(--app-surface-soft, #ebedf0)); }
-.level-3 { background: color-mix(in srgb, var(--app-primary, #141416) 60%, var(--app-surface-soft, #ebedf0)); }
-.level-4 { background: color-mix(in srgb, var(--app-primary, #141416) 88%, var(--app-surface-soft, #ebedf0)); }
-:global(html.theme-dark) .level-0 { background: var(--app-surface-soft, #2c2c2e); }
-:global(html.theme-dark) .level-1 { background: color-mix(in srgb, var(--app-primary, #f5f5f7) 18%, var(--app-surface-soft, #2c2c2e)); }
-:global(html.theme-dark) .level-2 { background: color-mix(in srgb, var(--app-primary, #f5f5f7) 36%, var(--app-surface-soft, #2c2c2e)); }
-:global(html.theme-dark) .level-3 { background: color-mix(in srgb, var(--app-primary, #f5f5f7) 60%, var(--app-surface-soft, #2c2c2e)); }
-:global(html.theme-dark) .level-4 { background: color-mix(in srgb, var(--app-primary, #f5f5f7) 88%, var(--app-surface-soft, #2c2c2e)); }
+.level-0 { background: var(--app-surface-soft); }
+.level-1 { background: color-mix(in srgb, var(--app-primary) 18%, var(--app-surface-soft)); }
+.level-2 { background: color-mix(in srgb, var(--app-primary) 36%, var(--app-surface-soft)); }
+.level-3 { background: color-mix(in srgb, var(--app-primary) 60%, var(--app-surface-soft)); }
+.level-4 { background: color-mix(in srgb, var(--app-primary) 88%, var(--app-surface-soft)); }
 
 /* Legend: below scroll, right-aligned */
 .heatmap-legend {

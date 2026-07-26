@@ -75,6 +75,7 @@
   "common.disable": "禁用",
   "common.disabled": "已禁用",
   "common.done": "完成",
+  "common.pending": "待编辑",
   "common.downloadUpdate": "下载更新",
   "common.downloading": "下载中",
   "common.edit": "编辑",

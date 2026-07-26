@@ -328,10 +328,6 @@ const chartOption = computed(() => {
   background: var(--app-text);
   color: var(--app-surface);
 }
-:global(html.theme-dark) .mode-chip--active {
-  background: #f5f5f7;
-  color: #141416;
-}
 @media (max-width: 480px) {
   .trend-header { gap: 8px; }
   .trend-controls { gap: 6px; }

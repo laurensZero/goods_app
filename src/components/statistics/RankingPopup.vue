@@ -174,8 +174,4 @@ defineEmits(['update:show'])
   background: color-mix(in srgb, #10b981 10%, transparent);
   color: #0d9668;
 }
-:global(html.theme-dark) .ranking-popup__chip--actual {
-  background: color-mix(in srgb, #34d399 10%, transparent);
-  color: #6ee7b7;
-}
 </style>

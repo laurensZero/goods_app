@@ -75,6 +75,7 @@
   "common.disable": "無効化",
   "common.disabled": "無効",
   "common.done": "完了",
+  "common.pending": "未編集",
   "common.downloadUpdate": "アップデートをダウンロード",
   "common.downloading": "ダウンロード中",
   "common.edit": "編集",

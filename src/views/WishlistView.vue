@@ -963,7 +963,7 @@ function goToManualAdd() {
 
 async function handleBatchAdd() {
   showAddSheet.value = false
-  const images = await pickLinkedLocalImages()
+  const images = await pickLinkedLocalImages(10)
   if (!images.length) return
   saveScrollPosition(true, 'wishlist:handleBatchAdd')
   wishlistDisplayReady.value = false

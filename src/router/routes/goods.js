@@ -8,8 +8,15 @@ export default [
   {
     path: '/batch-add',
     name: 'batch-add',
-    component: () => import('@/views/BatchAddView.vue'),
+    component: () => import('@/views/BatchAddQueueView.vue'),
     meta: { titleKey: 'nav.batchAdd' }
+  },
+  {
+    path: '/batch-edit/:id',
+    name: 'batch-edit',
+    component: () => import('@/views/BatchItemEditView.vue'),
+    meta: { titleKey: 'nav.editGoods' },
+    props: true
   },
   {
     path: '/detail/:id',

@@ -75,6 +75,7 @@
   "common.disable": "停用",
   "common.disabled": "已停用",
   "common.done": "完成",
+  "common.pending": "待編輯",
   "common.downloadUpdate": "下載更新",
   "common.downloading": "下載中",
   "common.edit": "編輯",

@@ -474,13 +474,9 @@ onBeforeUnmount(() => {
 }
 .chip:active { transform: scale(0.97); }
 .chip--active {
-  background: #141416;
-  color: #fff;
+  background: var(--app-text);
+  color: var(--app-surface);
   box-shadow: 0 10px 20px rgba(20, 20, 22, 0.18);
-}
-:global(html.theme-dark) .chip--active {
-  background: #f5f5f7;
-  color: #141416;
 }
 
 /* Podium */

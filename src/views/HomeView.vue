@@ -779,7 +779,7 @@ function handleTaobaoImport() {
 
 async function handleBatchAdd() {
   showAddSheet.value = false
-  const images = await pickLinkedLocalImages()
+  const images = await pickLinkedLocalImages(10)
   if (!images.length) return
   saveScrollPosition(true, 'home:handleBatchAdd')
   homeDisplayReady.value = false

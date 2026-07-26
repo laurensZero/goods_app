@@ -75,6 +75,7 @@
   "common.disable": "Disable",
   "common.disabled": "Disabled",
   "common.done": "Done",
+  "common.pending": "Pending",
   "common.downloadUpdate": "Download Update",
   "common.downloading": "Downloading",
   "common.edit": "Edit",
