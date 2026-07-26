@@ -1,9 +1,9 @@
 {
-  "version": "20260726.3",
-  "url": "bundle-20260726.3.zip",
-  "hash": "9f0e8a4ad39d7effa54e832be108a40b3c67f4ebdb2a851d9df4cd87d7845aa5",
+  "version": "20260726.4",
+  "url": "bundle-20260726.4.zip",
+  "hash": "122719be9f837fcd84f1925090c57cd636f47dc4ed926b860f21f4b20ff6ac9d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化英雄动画逻辑，添加 onReady 回调以改善动画体验",
+  "notes": "- style: 统一弹窗过渡、遮罩、圆角、z-index 与加载动画\n  - 14 处 Vant Popup 全部接入 sheet-pop 过渡（shared-ui.css 新增\n    van-popup 支持，居中定位保留 translateY(-50%) 居中）\n  - 遮罩统一为 var(--app-overlay) + 标准毛玻璃，移除硬编码 rgba\n  - 容器级圆角全部令牌化（--radius-*），EventCard 28px 归入 --radius-large\n  - base.css 新增 z-index 层级令牌（--z-float/--z-sheet/--z-modal/--z-dialog\n    等），弹层 z-index 字面量按原层级关系替换\n  - 加载旋转动画收敛为 shared-ui.css 全局 @keyframes spin（0.7s），\n    删除 12 处本地重复定义（含 fb-spin/sheet-spin/mhpicker-spin/scan-spin）\n  - EventCard 补齐深色模式适配（选中标记、类型标签、价格文字）\n  - RankingPopup 底部弹出态改为仅顶部圆角\n\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- fix: 补齐 sync.error.loginRequired 的 ja/ko/zh-TW 翻译\n  Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n- feat: 更新价格计算逻辑，确保入手价按总价计算并排除特定状态商品",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-26T10:38:52Z"
+  "publishedAt": "2026-07-26T10:57:52Z"
 }
