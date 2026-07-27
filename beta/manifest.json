@@ -1,9 +1,9 @@
 {
-  "version": "20260727.7",
-  "url": "bundle-20260727.7.zip",
-  "hash": "8a543e5899c686b64440ef62c9c7faf6a4627fdcfa27de18a0826d524951e703",
+  "version": "20260727.8",
+  "url": "bundle-20260727.8.zip",
+  "hash": "84482904f5b1e8050bbb27a8aca6f3d7fd8270e23bd1192cced223af2b3b429a",
   "minNativeVersion": null,
-  "notes": "- feat: 优化生日数据刷新逻辑，支持绕过缓存直接查询最新数据",
+  "notes": "- feat: 优化生日数据刷新逻辑，支持增量验证和全量拉取",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T06:57:45Z"
+  "publishedAt": "2026-07-27T07:24:56Z"
 }
