@@ -6,5 +6,6 @@
   "defaultMessage": "お誕生日おめでとう！これからも一緒にグッズを集めよう 🎂",
   "countLabel": "グッズ数",
   "countValue": "{count} 点",
-  "spendLabel": "累計金額"
+  "spendLabel": "累計金額",
+  "refresh": "更新"
 }

@@ -6,5 +6,6 @@
   "defaultMessage": "Happy birthday! Here's to another year of collecting together 🎂",
   "countLabel": "Goods collected",
   "countValue": "{count} pcs",
-  "spendLabel": "Total spent"
+  "spendLabel": "Total spent",
+  "refresh": "Refresh"
 }

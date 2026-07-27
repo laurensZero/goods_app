@@ -6,5 +6,6 @@
   "defaultMessage": "생일 축하해요! 앞으로도 함께 굿즈를 모아요 🎂",
   "countLabel": "굿즈 수",
   "countValue": "{count}개",
-  "spendLabel": "누적 지출"
+  "spendLabel": "누적 지출",
+  "refresh": "새로고침"
 }

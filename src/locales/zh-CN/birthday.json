@@ -6,5 +6,6 @@
   "defaultMessage": "生日快乐！这一年也请多多关照，继续和 TA 一起吃谷吧 🎂",
   "countLabel": "TA 的谷子",
   "countValue": "{count} 件",
-  "spendLabel": "累计投入"
+  "spendLabel": "累计投入",
+  "refresh": "刷新"
 }

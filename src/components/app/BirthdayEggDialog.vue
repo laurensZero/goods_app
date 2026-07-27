@@ -34,7 +34,7 @@
               </div>
             </div>
 
-            <div v-if="wallImages.length" class="birthday-wall">
+            <div v-if="wallImages.length" class="birthday-wall" :class="{ 'birthday-wall--fading': wallFading }">
               <img
                 v-for="(url, index) in wallImages"
                 :key="`${current.id}-${index}`"
@@ -59,6 +59,9 @@
         </div>
 
         <div class="dialog-actions">
+          <button type="button" class="dialog-btn dialog-btn--secondary" @click="handleRefresh">
+            {{ t('birthday.refresh') }}
+          </button>
           <button type="button" class="dialog-btn dialog-btn--primary" @click="store.dismiss()">
             {{ t('common.known') }}
           </button>
@@ -78,6 +81,7 @@ const store = useCharacterBirthdayStore()
 
 const activeIndex = ref(0)
 const slideDirection = ref('next')
+const wallFading = ref(false)
 const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
@@ -127,6 +131,19 @@ function goTo(index) {
   activeIndex.value = index
 }
 
+function handleRefresh() {
+  if (wallFading.value) return
+  wallFading.value = true
+  setTimeout(() => {
+    const map = {}
+    for (const entry of birthdays.value) {
+      map[entry.id] = shuffleUrls(entry.imageUrls || [])
+    }
+    shuffledWalls.value = map
+    wallFading.value = false
+  }, 180)
+}
+
 // pointer 事件同时覆盖触屏滑动与 PC 鼠标拖拽
 let pointerStartX = 0
 function onPointerDown(event) {
@@ -168,7 +185,7 @@ function formatMoney(value) {
 }
 
 .birthday-dialog {
-  --birthday-accent: var(--app-text);
+  --birthday-accent: #e2557f;
   /* 拖拽切换轮播时避免框选文字 */
   user-select: none;
   -webkit-user-select: none;
@@ -273,6 +290,11 @@ function formatMoney(value) {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-top: 16px;
+  transition: opacity 0.18s ease;
+}
+
+.birthday-wall--fading {
+  opacity: 0;
 }
 
 .birthday-wall img {
@@ -332,6 +354,7 @@ function formatMoney(value) {
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   margin-top: 20px;
 }
 
@@ -345,8 +368,13 @@ function formatMoney(value) {
 }
 
 .dialog-btn--primary {
-  background: var(--app-text);
-  color: var(--app-bg);
+  background: var(--birthday-accent);
+  color: #fff;
+}
+
+.dialog-btn--secondary {
+  background: var(--app-surface-soft);
+  color: var(--app-text);
 }
 
 /* 平板/桌面：只横向拉宽，字号不变；图片墙按固定尺寸多列铺开避免单图被放大 */

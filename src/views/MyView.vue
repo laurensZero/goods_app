@@ -152,7 +152,7 @@
             <button
               v-if="birthdayStore.todayBirthdays.length"
               type="button"
-              class="shortcut-row"
+              class="shortcut-row shortcut-row--birthday"
               @click="birthdayStore.openDialog()"
             >
               <span class="shortcut-row__icon shortcut-row__icon--birthday">
@@ -1739,6 +1739,10 @@ onActivated(() => {
 
 .shortcut-row--featured {
   background: linear-gradient(180deg, color-mix(in srgb, var(--app-surface-soft) 70%, transparent), transparent);
+}
+
+.shortcut-row--birthday {
+  background: linear-gradient(180deg, rgba(240, 98, 146, 0.1), color-mix(in srgb, var(--app-surface-soft) 40%, transparent));
 }
 
 .shortcut-row__icon {

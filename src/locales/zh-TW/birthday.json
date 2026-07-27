@@ -6,5 +6,6 @@
   "defaultMessage": "生日快樂！這一年也請多多關照，繼續和 TA 一起吃穀吧 🎂",
   "countLabel": "TA 的穀子",
   "countValue": "{count} 件",
-  "spendLabel": "累計投入"
+  "spendLabel": "累計投入",
+  "refresh": "刷新"
 }
