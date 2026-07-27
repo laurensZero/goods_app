@@ -1,9 +1,9 @@
 {
-  "version": "20260727.3",
-  "url": "bundle-20260727.3.zip",
-  "hash": "6b295a65edc1a1b6e97190794109bcb2877cd185d9d32f81b92310e75ebecd33",
+  "version": "20260727.4",
+  "url": "bundle-20260727.4.zip",
+  "hash": "7fd20c3edf25ae276fd8c0a9181dddb91458f737ee2c1de68a011b0a9f9e6de3",
   "minNativeVersion": null,
-  "notes": "- feat: 优化问卷矩阵列管理，支持动态调整评分等级数",
+  "notes": "- feat: 更新 OTA Bundle 管理台标题和描述，优化用户体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T02:32:54Z"
+  "publishedAt": "2026-07-27T02:38:30Z"
 }
