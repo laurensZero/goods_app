@@ -105,16 +105,25 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     return list
   })
 
-  // 刷新生日数据：默认增量拉取（按 updated_at），仅返回变更行；force 或 key 集合变化时全量
+  // 刷新生日数据：force 绕过 24h 缓存直接查 Supabase；否则走正常缓存逻辑
   async function refresh({ force = false } = {}) {
     const names = qualifiedEntries.value.map((entry) => entry.label)
     rows.value = await refreshBirthdayRows(names, { force })
   }
 
-  // 启动检查：开关开启 + 今日有生日 + 今天未弹过 → 弹卡片
+  // 启动检查：开关开启 + 今日有生日 + 今天未弹过 → 弹卡片。
+  // 先在缓存中快速判断今天是否为某角色生日（绝大多数天数命中缓存，无网络开销）；
+  // 确认是生日后再 force 刷新，确保用户在 Supabase Dashboard 刚改的 message/color
+  // 能立即生效，不用等 24h TTL 过期。
   async function checkAndDecide() {
     if (!notifySettings.settings.enabled || !notifySettings.settings.birthdayEgg) return
+
+    // 先用缓存（或首次全量拉取）判断今天是否有生日
     await refresh()
+    if (!todayBirthdays.value.length) return
+
+    // 今天是某角色生日 → 绕过缓存重拉一次，确保拿到最新的 message/color
+    await refresh({ force: true })
     if (!todayBirthdays.value.length) return
 
     // 模拟日期测试不读也不写「今天已弹过」标记，避免影响真实当天的弹窗
