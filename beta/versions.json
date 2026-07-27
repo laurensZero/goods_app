@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260727.3",
+    "url": "bundle-20260727.3.zip",
+    "hash": "6b295a65edc1a1b6e97190794109bcb2877cd185d9d32f81b92310e75ebecd33",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化问卷矩阵列管理，支持动态调整评分等级数",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-27T02:32:54Z"
+  },
+  {
     "version": "20260727.2",
     "url": "bundle-20260727.2.zip",
     "hash": "5eef81ccb239b2945253ba841410749ff7b5d735b3ee27f5ea5ed4ccd980640e",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加刷新按钮和渐变效果，优化生日墙展示",
     "updateLevel": "silent",
     "publishedAt": "2026-07-27T01:51:05Z"
-  },
-  {
-    "version": "20260726.14",
-    "url": "bundle-20260726.14.zip",
-    "hash": "a3729e41009ede03ab81bedbf87858e9f59d2341ce27eb5b61a87c95927fbd08",
-    "minNativeVersion": null,
-    "notes": "- feat: 增强路由转场效果，支持账本详情页的渐变动画",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T15:46:54Z"
   }
 ]

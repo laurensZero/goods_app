@@ -1,9 +1,9 @@
 {
-  "version": "20260727.2",
-  "url": "bundle-20260727.2.zip",
-  "hash": "5eef81ccb239b2945253ba841410749ff7b5d735b3ee27f5ea5ed4ccd980640e",
+  "version": "20260727.3",
+  "url": "bundle-20260727.3.zip",
+  "hash": "6b295a65edc1a1b6e97190794109bcb2877cd185d9d32f81b92310e75ebecd33",
   "minNativeVersion": null,
-  "notes": "- feat: 添加问卷问题类型变更时的重新渲染功能",
+  "notes": "- feat: 优化问卷矩阵列管理，支持动态调整评分等级数",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T02:22:23Z"
+  "publishedAt": "2026-07-27T02:32:54Z"
 }
