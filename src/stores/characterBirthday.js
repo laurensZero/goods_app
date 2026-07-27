@@ -105,7 +105,7 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     return list
   })
 
-  // 按需刷新：达标角色集合变化或缓存过期时才会真正发请求
+  // 刷新生日数据：默认增量拉取（按 updated_at），仅返回变更行；force 或 key 集合变化时全量
   async function refresh({ force = false } = {}) {
     const names = qualifiedEntries.value.map((entry) => entry.label)
     rows.value = await refreshBirthdayRows(names, { force })
