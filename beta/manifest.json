@@ -1,9 +1,9 @@
 {
-  "version": "20260727.9",
-  "url": "bundle-20260727.9.zip",
-  "hash": "bef58dd88e93d0e862dc4c65e4a062ddfb6441d6f47cc24f30554016db81bf36",
+  "version": "20260727.10",
+  "url": "bundle-20260727.10.zip",
+  "hash": "c7afe6cb09a59303c5ef6f0718f0287d5b448cb41bb9298c20dd1362417d0af7",
   "minNativeVersion": null,
-  "notes": "- feat: 优化弹窗显示逻辑，支持缓存数据秒开与后台增量验证",
+  "notes": "- feat: 将生日弹窗图片组件替换为 LazyCachedImage，优化加载性能",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T09:31:08Z"
+  "publishedAt": "2026-07-27T13:55:53Z"
 }
