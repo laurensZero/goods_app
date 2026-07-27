@@ -1,9 +1,9 @@
 {
-  "version": "20260727.10",
-  "url": "bundle-20260727.10.zip",
-  "hash": "c7afe6cb09a59303c5ef6f0718f0287d5b448cb41bb9298c20dd1362417d0af7",
+  "version": "20260727.11",
+  "url": "bundle-20260727.11.zip",
+  "hash": "c86724cb05a24178397014768235d68e94e14628fcbefb6593aedfb74b0582f9",
   "minNativeVersion": null,
-  "notes": "- feat: 将生日弹窗图片组件替换为 LazyCachedImage，优化加载性能",
+  "notes": "- feat: 优化生日墙图片展示，增加容器以支持更好的布局和样式",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T13:55:53Z"
+  "publishedAt": "2026-07-27T14:39:55Z"
 }
