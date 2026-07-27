@@ -1,9 +1,9 @@
 {
-  "version": "20260727.1",
-  "url": "bundle-20260727.1.zip",
-  "hash": "8435e69a4d81315eeddf4ea934654067ab99c104444614a5c942aafc7ebea723",
+  "version": "20260727.2",
+  "url": "bundle-20260727.2.zip",
+  "hash": "5eef81ccb239b2945253ba841410749ff7b5d735b3ee27f5ea5ed4ccd980640e",
   "minNativeVersion": null,
-  "notes": "- feat: 添加刷新按钮和渐变效果，优化生日墙展示",
+  "notes": "- feat: 添加问卷问题类型变更时的重新渲染功能",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T01:51:05Z"
+  "publishedAt": "2026-07-27T02:22:23Z"
 }

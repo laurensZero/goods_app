@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260727.2",
+    "url": "bundle-20260727.2.zip",
+    "hash": "5eef81ccb239b2945253ba841410749ff7b5d735b3ee27f5ea5ed4ccd980640e",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加问卷问题类型变更时的重新渲染功能",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-27T02:22:23Z"
+  },
+  {
     "version": "20260727.1",
     "url": "bundle-20260727.1.zip",
     "hash": "8435e69a4d81315eeddf4ea934654067ab99c104444614a5c942aafc7ebea723",
@@ -16,14 +25,5 @@
     "notes": "- feat: 增强路由转场效果，支持账本详情页的渐变动画",
     "updateLevel": "silent",
     "publishedAt": "2026-07-26T15:46:54Z"
-  },
-  {
-    "version": "20260726.13",
-    "url": "bundle-20260726.13.zip",
-    "hash": "b632c4ec6258d6f286e1a1756034c26ab321928d4494aca29d1a3160d676769b",
-    "minNativeVersion": null,
-    "notes": "- feat: 删除抓取萌娘百科角色生日的脚本",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-26T15:41:21Z"
   }
 ]

@@ -1957,6 +1957,13 @@
         el.addEventListener('change', syncSurveyQuestionFromDOM)
         el.addEventListener('input', syncSurveyQuestionFromDOM)
       })
+      // Re-render when question type changes so the type-specific fields update
+      surveyQuestionsContainer.querySelectorAll('[data-field="type"]').forEach(el => {
+        el.addEventListener('change', () => {
+          syncSurveyQuestionFromDOM()
+          renderSurveyQuestions()
+        })
+      })
     }
 
     function syncSurveyQuestionFromDOM() {
