@@ -10,7 +10,7 @@ import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 
 // 触发彩蛋的最低谷子数（按角色聚合，口径与角色排行榜一致：
 // 排除心愿单与已出/已赠出/丢失，多角色商品按份数分摊）
-export const BIRTHDAY_EGG_MIN_QUANTITY = 3
+export const BIRTHDAY_EGG_MIN_QUANTITY = 9
 
 const RECORD_KEY = 'goods_birthday_egg_record'
 // 收集上限放宽一些（部分商品可能无图），实际显示数量由弹窗按屏宽截取（9/16）
