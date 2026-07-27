@@ -1,9 +1,9 @@
 {
-  "version": "20260727.6",
-  "url": "bundle-20260727.6.zip",
-  "hash": "ee07aae9af361cddfeca0692ad1a6bf0ecb9cfefb660a07aedc4e88fbe02db69",
+  "version": "20260727.7",
+  "url": "bundle-20260727.7.zip",
+  "hash": "8a543e5899c686b64440ef62c9c7faf6a4627fdcfa27de18a0826d524951e703",
   "minNativeVersion": null,
-  "notes": "- feat: 更新触发彩蛋的最低谷子数为 9",
+  "notes": "- feat: 优化生日数据刷新逻辑，支持绕过缓存直接查询最新数据",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T03:13:04Z"
+  "publishedAt": "2026-07-27T06:57:45Z"
 }

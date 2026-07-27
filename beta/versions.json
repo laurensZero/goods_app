@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260727.7",
+    "url": "bundle-20260727.7.zip",
+    "hash": "8a543e5899c686b64440ef62c9c7faf6a4627fdcfa27de18a0826d524951e703",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化生日数据刷新逻辑，支持绕过缓存直接查询最新数据",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-27T06:57:45Z"
+  },
+  {
     "version": "20260727.6",
     "url": "bundle-20260727.6.zip",
     "hash": "ee07aae9af361cddfeca0692ad1a6bf0ecb9cfefb660a07aedc4e88fbe02db69",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化生日数据刷新逻辑，支持增量拉取和全量重查",
     "updateLevel": "silent",
     "publishedAt": "2026-07-27T02:58:31Z"
-  },
-  {
-    "version": "20260727.4",
-    "url": "bundle-20260727.4.zip",
-    "hash": "7fd20c3edf25ae276fd8c0a9181dddb91458f737ee2c1de68a011b0a9f9e6de3",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新 OTA Bundle 管理台标题和描述，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-27T02:38:30Z"
   }
 ]
