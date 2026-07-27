@@ -35,12 +35,11 @@
             </div>
 
             <div v-if="wallImages.length" class="birthday-wall" :class="{ 'birthday-wall--fading': wallFading }">
-              <img
+              <LazyCachedImage
                 v-for="(url, index) in wallImages"
                 :key="`${current.id}-${index}`"
                 :src="url"
                 alt=""
-                loading="lazy"
               />
             </div>
           </div>
@@ -75,6 +74,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
 const store = useCharacterBirthdayStore()
