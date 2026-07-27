@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260727.5",
+    "url": "bundle-20260727.5.zip",
+    "hash": "1020560d0a4a39721cb19cd2000a87f0a81341414bbd22123e1402ce3fd6eb96",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化生日数据刷新逻辑，支持增量拉取和全量重查",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-27T02:58:31Z"
+  },
+  {
     "version": "20260727.4",
     "url": "bundle-20260727.4.zip",
     "hash": "7fd20c3edf25ae276fd8c0a9181dddb91458f737ee2c1de68a011b0a9f9e6de3",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化问卷矩阵列管理，支持动态调整评分等级数",
     "updateLevel": "silent",
     "publishedAt": "2026-07-27T02:32:54Z"
-  },
-  {
-    "version": "20260727.2",
-    "url": "bundle-20260727.2.zip",
-    "hash": "5eef81ccb239b2945253ba841410749ff7b5d735b3ee27f5ea5ed4ccd980640e",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加问卷问题类型变更时的重新渲染功能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-27T02:22:23Z"
   }
 ]

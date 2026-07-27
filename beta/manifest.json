@@ -1,9 +1,9 @@
 {
-  "version": "20260727.4",
-  "url": "bundle-20260727.4.zip",
-  "hash": "7fd20c3edf25ae276fd8c0a9181dddb91458f737ee2c1de68a011b0a9f9e6de3",
+  "version": "20260727.5",
+  "url": "bundle-20260727.5.zip",
+  "hash": "1020560d0a4a39721cb19cd2000a87f0a81341414bbd22123e1402ce3fd6eb96",
   "minNativeVersion": null,
-  "notes": "- feat: 更新 OTA Bundle 管理台标题和描述，优化用户体验",
+  "notes": "- feat: 优化生日数据刷新逻辑，支持增量拉取和全量重查",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T02:38:30Z"
+  "publishedAt": "2026-07-27T02:58:31Z"
 }
