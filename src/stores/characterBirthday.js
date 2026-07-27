@@ -112,25 +112,45 @@ export const useCharacterBirthdayStore = defineStore('characterBirthday', () => 
     rows.value = await refreshBirthdayRows(names, { force })
   }
 
-  // 启动检查：开关开启 + 今日有生日 + 今天未弹过 → 弹卡片
-  async function checkAndDecide() {
-    if (!notifySettings.settings.enabled || !notifySettings.settings.birthdayEgg) return
-    await refresh()
-    if (!todayBirthdays.value.length) return
-
-    // 模拟日期测试不读也不写「今天已弹过」标记，避免影响真实当天的弹窗
+  function recordAndShow() {
     if (!dateOverride.value) {
       const record = readRecord()
       const currentDay = todayKey()
-      if (record.lastShownDay === currentDay) return
+      if (record.lastShownDay === currentDay) return false
       persistRecord({ lastShownDay: currentDay, lastShownAt: new Date().toISOString() })
     }
-
     dialogVisible.value = true
+    return true
   }
 
-  // My 页手动回看：无视「今天已弹过」标记，刷新数据后再展示
+  // 启动检查：开关开启 + 今日有生日 + 今天未弹过 → 弹卡片。
+  // 优先用缓存数据秒开弹窗，后台跑增量验证（p_updated_since），
+  // 检测到 message/color 变更后 rows 响应式更新，弹窗文本自动刷新。
+  async function checkAndDecide() {
+    if (!notifySettings.settings.enabled || !notifySettings.settings.birthdayEgg) return
+
+    // 有缓存且缓存中今天有生日 → 秒开，后台增量验证
+    if (todayBirthdays.value.length) {
+      if (recordAndShow()) {
+        refresh() // 不 await，后台静默更新
+      }
+      return
+    }
+
+    // 无缓存或缓存中今天没生日 → 必须等网络返回才能判断
+    await refresh()
+    if (!todayBirthdays.value.length) return
+    recordAndShow()
+  }
+
+  // My 页手动回看：无视「今天已弹过」标记。
+  // 同策略：有缓存秒开 + 后台刷新；无缓存等网络
   async function openDialog() {
+    if (todayBirthdays.value.length) {
+      dialogVisible.value = true
+      refresh() // 后台更新
+      return
+    }
     await refresh()
     if (todayBirthdays.value.length) dialogVisible.value = true
   }
