@@ -35,12 +35,13 @@
             </div>
 
             <div v-if="wallImages.length" class="birthday-wall" :class="{ 'birthday-wall--fading': wallFading }">
-              <LazyCachedImage
+              <div
                 v-for="(url, index) in wallImages"
                 :key="`${current.id}-${index}`"
-                :src="url"
-                alt=""
-              />
+                class="birthday-wall-item"
+              >
+                <LazyCachedImage :src="url" alt="" />
+              </div>
             </div>
           </div>
         </Transition>
@@ -297,16 +298,19 @@ function formatMoney(value) {
   opacity: 0;
 }
 
-.birthday-wall img {
-  display: block;
-  width: 100%;
+.birthday-wall-item {
   aspect-ratio: 1;
   border-radius: var(--radius-xs);
-  object-fit: cover;
+  overflow: hidden;
   background: var(--app-surface-soft);
   /* 避免 PC 上原生图片拖拽劫持轮播手势 */
   pointer-events: none;
   -webkit-user-drag: none;
+}
+
+.birthday-wall-item :deep(.lazy-image-root) {
+  width: 100%;
+  height: 100%;
 }
 
 /* 轮播切换：按方向滑入滑出 */
@@ -377,11 +381,12 @@ function formatMoney(value) {
   color: var(--app-text);
 }
 
-/* 平板/桌面：只横向拉宽，字号不变；图片墙按固定尺寸多列铺开避免单图被放大 */
+/* 平板/桌面：横向拉宽，加高弹窗上下空间避免按钮被截断 */
 @media (min-width: 768px) {
   .birthday-dialog {
     width: min(100%, 580px);
-    padding: 24px 32px;
+    max-height: 88vh;
+    padding: 28px 32px 24px;
   }
 
   .birthday-wall {
