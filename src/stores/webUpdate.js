@@ -9,7 +9,7 @@ import {
   proxyGitHubDownloadUrl
 } from '@/utils/github/release'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
-import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_WEB_UPDATE_SOURCES, normalizeUpdateLevel, resolveWebSourceCandidates } from '@/utils/updateHelpers'
+import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
 import { createLogger } from '@/utils/logger'
 
 const log = createLogger('web-update')
@@ -247,7 +247,7 @@ function normalizeUpdateChannel(value) {
 
 function normalizeUpdateSource(value) {
   const normalized = String(value || '').trim().toLowerCase()
-  if (AVAILABLE_WEB_UPDATE_SOURCES.includes(normalized)) return normalized
+  if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized
   return 'auto'
 }
 
@@ -464,7 +464,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastError.value = ''
 
       try {
-        const sourceCandidates = resolveWebSourceCandidates(selectedSource.value)
+        const sourceCandidates = resolveSourceCandidates(selectedSource.value)
         let manifest = null
         let resolvedManifestSource = ''
         let resolvedManifestUrl = ''
@@ -745,7 +745,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     selectedSource,
     resolvedSource,
     availableUpdateChannels: AVAILABLE_UPDATE_CHANNELS,
-    availableUpdateSources: AVAILABLE_WEB_UPDATE_SOURCES,
+    availableUpdateSources: AVAILABLE_UPDATE_SOURCES,
     manifestUrl,
     nativeVersion,
     latestVersion,
