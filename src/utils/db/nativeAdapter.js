@@ -57,9 +57,22 @@ export function createNativeAdapter() {
       if (rows.length === 0) return []
       // Capacitor SQLite 可能返回对象数组或位置数组
       // 如果第一行已经是对象，直接返回
-      if (typeof rows[0] === 'object' && !Array.isArray(rows[0])) return rows
+      if (typeof rows[0] === 'object' && !Array.isArray(rows[0])) {
+        // DEBUG
+        const keys = Object.keys(rows[0])
+        const imgIdx = keys.indexOf('images')
+        console.warn('[nativeAdapter] OBJ mode imagesIdx=' + imgIdx + ' totalCols=' + keys.length + ' firstImages=' + String(rows[0].images || '').substring(0, 100))
+        return rows
+      }
       // 否则用 columns 做位置映射
       const cols = result.columns ?? []
+      // DEBUG
+      const imgIdx2 = cols.indexOf('images')
+      if (imgIdx2 >= 0 && rows.length > 0) {
+        console.warn('[nativeAdapter] POS mode imagesCol=' + imgIdx2 + ' totalCols=' + cols.length + ' firstImagesLen=' + String(rows[0][imgIdx2] || '').length + ' firstImages=' + String(rows[0][imgIdx2] || '').substring(0, 100))
+      } else {
+        console.warn('[nativeAdapter] POS mode images NOT FOUND in cols, totalCols=' + cols.length + ' cols=' + cols.join(',').substring(0, 200))
+      }
       if (cols.length === 0) return rows
       return rows.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])))
     },
