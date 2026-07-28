@@ -183,7 +183,6 @@ export function createSyncImageService({
           if (photoStorageMode !== 'cloud-local') return photoEntry
 
           const cloudFileName = String(photoEntry?.cloudFileName || parseCloudImageUri(photoUri)).trim()
-
           if (!cloudFileName) return photoEntry
 
           // Supabase: replace with public URL, skip download

@@ -137,17 +137,27 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
     const uid = getUserId()
     const files = {}
 
-    const record = (list) => {
+    // 同名文件用户目录副本优先于根目录旧副本，使 resolveStoragePath
+    // 能按文件实际所在位置构造下载/公开 URL 路径
+    const record = (list, scoped) => {
       for (const file of list) {
-        const entry = { name: file.name, createdAt: file.createdAt, storagePath: `${uid}/${file.name}` }
+        if (!scoped && files[file.name]) continue
+        const entry = {
+          name: file.name,
+          createdAt: file.createdAt,
+          storagePath: scoped ? `${uid}/${file.name}` : file.name
+        }
         files[file.name] = entry
         // 旧版 .txt 别名指向同一对象，保证按旧文件名查询也能命中
         files[file.name + '.txt'] = entry
       }
     }
 
-    // 只列出用户目录文件（旧根目录文件已迁移到 {userId}/ 下）
-    const listJobs = []
+    // 根目录 = 迁移前的平铺旧文件；"<userId>/" 目录 = 迁移后的新文件
+    const listJobs = [
+      listStorageBucketFiles(db, GOODS_IMAGE_BUCKET),
+      listStorageBucketFiles(db, EVENT_PHOTO_BUCKET)
+    ]
     if (uid) {
       listJobs.push(
         listStorageBucketFiles(db, GOODS_IMAGE_BUCKET, uid),
@@ -155,9 +165,11 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
       )
     }
     const results = await Promise.all(listJobs)
-    const [goodsScopedRes, eventScopedRes] = results
-    if (goodsScopedRes) record(goodsScopedRes.files)
-    if (eventScopedRes) record(eventScopedRes.files)
+    const [goodsRes, eventRes, goodsScopedRes, eventScopedRes] = results
+    if (goodsScopedRes) record(goodsScopedRes.files, true)
+    if (eventScopedRes) record(eventScopedRes.files, true)
+    record(goodsRes.files, false)
+    record(eventRes.files, false)
 
     // complete: 全部列表都完整时才为 true，孤儿图片回收依赖此标记
     const result = { id: GOODS_IMAGE_BUCKET, files, complete: results.every((r) => r.complete) }
