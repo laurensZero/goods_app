@@ -1,6 +1,6 @@
 export const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
-export const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'jsdelivr', 'github', 'gitee'])
+export const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'gitee', 'github'])
 
 export function normalizeUpdateLevel(value) {
   const normalized = String(value || '').trim().toLowerCase()
@@ -9,7 +9,7 @@ export function normalizeUpdateLevel(value) {
 }
 
 export function resolveSourceCandidates(source) {
-  if (source === 'auto') return ['jsdelivr', 'gitee', 'github']
+  if (source === 'auto') return ['gitee', 'github']
   return [source]
 }
 

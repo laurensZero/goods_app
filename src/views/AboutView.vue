@@ -325,9 +325,8 @@ const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v
 
 function formatUpdateSourceLabel(source) {
   const normalized = String(source || '').trim().toLowerCase()
-  if (normalized === 'jsdelivr') return 'jsDelivr'
-  if (normalized === 'github') return 'GitHub'
   if (normalized === 'gitee') return 'Gitee'
+  if (normalized === 'github') return 'GitHub'
   if (normalized === 'auto') return t('about.auto')
   return normalized || '--'
 }

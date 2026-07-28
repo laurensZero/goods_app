@@ -15,9 +15,8 @@ import { createLogger } from '@/utils/logger'
 const log = createLogger('web-update')
 
 const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
-  jsdelivr: 'https://cdn.jsdelivr.net/gh/laurensZero/goods_app@gh-pages',
-  github: 'https://laurenszero.github.io/goods_app',
-  gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages'
+  gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
+  github: 'https://laurenszero.github.io/goods_app'
 })
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
 const UPDATE_SOURCE_STORAGE_KEY = 'goods_web_update_source'
@@ -390,7 +389,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
   const manifestUrl = computed(() => {
     const source = selectedSource.value === 'auto'
-      ? (resolvedSource.value || 'jsdelivr')
+      ? (resolvedSource.value || 'gitee')
       : selectedSource.value
     return buildManifestUrl(selectedChannel.value, source)
   })

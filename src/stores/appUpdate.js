@@ -26,7 +26,6 @@ const log = createLogger('app-update')
 
 const UPDATE_REPO_NAME = 'goods_app'
 const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
-  jsdelivr: 'laurensZero',
   github: 'laurensZero',
   gitee: 'laurenszero'
 })
