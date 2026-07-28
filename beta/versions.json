@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.5",
+    "url": "bundle-20260728.5.zip",
+    "hash": "c7a3bec681378cd28594e3c75d59097db088426b54b138ad58683b113abe4ddd",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化存储操作逻辑，调整文件记录方式，简化用户目录处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T03:38:26Z"
+  },
+  {
     "version": "20260728.4",
     "url": "bundle-20260728.4.zip",
     "hash": "01e3e2015670de28eef79433a56576900e218abce1bef7c292e532b6dd75f45a",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新存储操作测试逻辑",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T03:14:09Z"
-  },
-  {
-    "version": "20260728.2",
-    "url": "bundle-20260728.2.zip",
-    "hash": "b85f93b015f8cc53faa431152074443284772c3a32dadb9705329247865018e6",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化存储操作逻辑，简化文件记录和用户目录文件列出方式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T03:10:04Z"
   }
 ]
