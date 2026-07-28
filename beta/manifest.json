@@ -1,9 +1,9 @@
 {
-  "version": "20260728.10",
-  "url": "bundle-20260728.10.zip",
-  "hash": "67da84f8e69d1390bb5fbf93df4449e03db7a7999cf40ae898c5d53aea00d86f",
+  "version": "20260728.11",
+  "url": "bundle-20260728.11.zip",
+  "hash": "c471904c01823ff4147ff4c090706f54c37115c2504abff5eab6d742e153d502",
   "minNativeVersion": null,
-  "notes": "- feat: 更新时间线条目交互，添加弹窗显示功能，优化用户体验",
+  "notes": "- feat: 在设备日志收集功能中添加 UTF-8 BOM 前缀，以确保兼容性",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T06:51:40Z"
+  "publishedAt": "2026-07-28T06:59:21Z"
 }

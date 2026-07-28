@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.11",
+    "url": "bundle-20260728.11.zip",
+    "hash": "c471904c01823ff4147ff4c090706f54c37115c2504abff5eab6d742e153d502",
+    "minNativeVersion": null,
+    "notes": "- feat: 在设备日志收集功能中添加 UTF-8 BOM 前缀，以确保兼容性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T06:59:21Z"
+  },
+  {
     "version": "20260728.10",
     "url": "bundle-20260728.10.zip",
     "hash": "67da84f8e69d1390bb5fbf93df4449e03db7a7999cf40ae898c5d53aea00d86f",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新设备日志收集逻辑，确保生成的文件为 UTF-8 编码",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T06:34:59Z"
-  },
-  {
-    "version": "20260728.8",
-    "url": "bundle-20260728.8.zip",
-    "hash": "38d1ee2e40df7d1a94af92c0b6d595df2bb3d20030212c800f78c30c6006307d",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加时间线高度测量逻辑，优化可见月份窗口计算，消除裁剪时的跳动",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T06:29:40Z"
   }
 ]
