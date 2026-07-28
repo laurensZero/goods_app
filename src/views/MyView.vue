@@ -24,6 +24,19 @@
               <path d="M12 21v-1" />
             </svg>
           </button>
+          <button
+            type="button"
+            class="toolbar-bell"
+            :class="{ 'toolbar-bell--unread': announcementStore.unreadCount > 0 }"
+            :aria-label="t('my.announcements')"
+            @click.stop="openAnnouncementList"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span v-if="announcementStore.unreadCount > 0" class="toolbar-bell__badge">{{ announcementStore.unreadCount > 99 ? '99+' : announcementStore.unreadCount }}</span>
+          </button>
           <button type="button" class="toolbar-settings" :aria-label="t('my.openSettings')" @click="openSettings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
@@ -627,6 +640,111 @@
       </div>
     </Transition>
 
+    <!-- Announcement List Popup -->
+    <Transition name="sheet-pop">
+      <div v-if="announcementStore.listVisible" class="overlay" @click.self="closeAnnouncementList">
+        <section class="announcement-list-sheet" role="dialog" aria-modal="true" :aria-label="t('my.announcements')">
+          <header class="announcement-list-sheet__header">
+            <h2 class="announcement-list-sheet__title">{{ t('my.announcements') }}</h2>
+            <button type="button" class="announcement-list-sheet__close" :aria-label="t('my.close')" @click="closeAnnouncementList">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </header>
+
+          <div class="announcement-list-sheet__body">
+            <div v-if="announcementStore.listLoading" class="announcement-list-sheet__empty">
+              <p>{{ t('common.loading') }}</p>
+            </div>
+            <div v-else-if="announcementStore.allAnnouncements.length === 0" class="announcement-list-sheet__empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="announcement-list-sheet__empty-icon">
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+                <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+                <path d="M18 8a6 6 0 0 0-9.33-5" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+              <p>{{ t('my.noAnnouncements') }}</p>
+            </div>
+            <ul v-else class="announcement-list">
+              <li
+                v-for="announcement in announcementStore.allAnnouncements"
+                :key="announcement.id"
+                class="announcement-list__item"
+                :class="{ 'announcement-list__item--unread': !isAnnouncementRead(announcement.id) }"
+                role="button"
+                tabindex="0"
+                @click="viewAnnouncementDetail(announcement)"
+                @keydown.enter="viewAnnouncementDetail(announcement)"
+                @keydown.space.prevent="viewAnnouncementDetail(announcement)"
+              >
+                <div class="announcement-list__item-content">
+                  <h3 class="announcement-list__item-title">
+                    <span v-if="!isAnnouncementRead(announcement.id)" class="announcement-list__item-dot" aria-hidden="true" />
+                    {{ announcement.title || t('common.announcement') }}
+                  </h3>
+                  <p class="announcement-list__item-desc">{{ truncateText(announcement.message, 120) }}</p>
+                  <span v-if="announcement.showRule?.startAt" class="announcement-list__item-date">{{ formatAnnouncementDate(announcement.showRule.startAt) }}</span>
+                </div>
+                <svg class="announcement-list__item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </Transition>
+
+    <!-- Announcement Detail Popup -->
+    <Transition name="sheet-pop">
+      <div v-if="detailAnnouncement" class="overlay" @click.self="closeAnnouncementDetail">
+        <div class="dialog announcement-detail-dialog">
+          <p class="announcement-kicker">Announcement</p>
+          <h3 class="dialog-title">{{ detailAnnouncement.title || t('common.announcement') }}</h3>
+
+          <img
+            v-if="detailAnnouncement.imageUrl"
+            :src="detailAnnouncement.imageUrl"
+            :alt="detailAnnouncement.title || 'Announcement'"
+            class="announcement-image"
+            loading="lazy"
+          />
+
+          <div
+            v-if="detailIsMarkdown"
+            class="announcement-body markdown-body"
+            v-html="detailContentHtml"
+          />
+          <p v-else class="dialog-desc">{{ detailContentText }}</p>
+
+          <div class="announcement-meta">
+            <span v-if="detailDateLabel" class="announcement-meta__item">{{ detailDateLabel }}</span>
+          </div>
+
+          <div class="dialog-actions">
+            <button
+              type="button"
+              class="dialog-btn dialog-btn--secondary"
+              @click="closeAnnouncementDetail"
+            >
+              {{ t('common.known') }}
+            </button>
+            <button
+              v-if="detailShowPrimaryButton"
+              type="button"
+              class="dialog-btn dialog-btn--primary"
+              @click="handleDetailPrimaryAction"
+            >
+              {{ detailPrimaryButtonText }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -645,6 +763,8 @@ import { useSyncStore } from '@/stores/sync'
 import { useAuthStore } from '@/stores/auth'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
+import { useAnnouncementStore } from '@/stores/announcement'
+import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
@@ -660,6 +780,7 @@ const syncStore = useSyncStore()
 const authStore = useAuthStore()
 const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
+const announcementStore = useAnnouncementStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
@@ -896,6 +1017,81 @@ function openLogoutDialog() {
 
 function closeLogoutDialog() {
   showLogoutDialog.value = false
+}
+
+// ── 公告列表 ──
+const detailAnnouncement = ref(null)
+const detailContentHtml = ref('')
+const detailIsMarkdown = computed(() => detectMarkdownContent(detailAnnouncement.value?.message))
+const detailContentText = computed(() => detailAnnouncement.value?.message || '')
+const detailDateLabel = computed(() => formatAnnouncementDate(detailAnnouncement.value?.showRule?.startAt))
+const detailShowPrimaryButton = computed(() => {
+  const cta = detailAnnouncement.value?.cta || null
+  const action = String(cta?.action || '').trim().toLowerCase()
+  return (action === 'open_url' || action === 'navigate') && !!String(cta?.url || '').trim()
+})
+const detailPrimaryButtonText = computed(() => {
+  const text = String(detailAnnouncement.value?.cta?.text || '').trim()
+  return text || t('common.viewDetail')
+})
+
+function isAnnouncementRead(id) {
+  return !!announcementStore.listReadRecord[String(id || '').trim()]
+}
+
+function truncateText(text, maxLen) {
+  if (!text) return ''
+  const plain = text.replace(/[#*`>\[\]!\-|]/g, '').replace(/\s+/g, ' ').trim()
+  return plain.length > maxLen ? plain.slice(0, maxLen) + '…' : plain
+}
+
+function formatAnnouncementDate(timestamp) {
+  if (!timestamp) return ''
+  const ts = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime()
+  if (!Number.isFinite(ts) || ts <= 0) return ''
+  const d = new Date(ts)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+async function openAnnouncementList() {
+  // 先打开弹窗显示 loading，再异步加载数据，避免点击后无反馈
+  announcementStore.openList()
+  await announcementStore.fetchAllForList()
+  announcementStore.markAllRead()
+}
+
+function closeAnnouncementList() {
+  announcementStore.closeList()
+}
+
+async function viewAnnouncementDetail(announcement) {
+  announcementStore.markOneRead(announcement.id)
+  detailAnnouncement.value = announcement
+  if (detectMarkdownContent(announcement.message)) {
+    detailContentHtml.value = await renderMarkdown(announcement.message || '')
+  } else {
+    detailContentHtml.value = ''
+  }
+}
+
+function closeAnnouncementDetail() {
+  detailAnnouncement.value = null
+  detailContentHtml.value = ''
+}
+
+function handleDetailPrimaryAction() {
+  const cta = detailAnnouncement.value?.cta || null
+  const action = String(cta?.action || '').trim().toLowerCase()
+  const url = String(cta?.url || '').trim()
+
+  if (action === 'open_url' && url) {
+    window.open(url, '_blank')
+  } else if (action === 'navigate' && url) {
+    router.push(url)
+  }
+
+  closeAnnouncementDetail()
 }
 
 function openProfileEditSheet() {
@@ -1238,6 +1434,404 @@ onActivated(() => {
 
 .toolbar-scan:active {
   transform: scale(0.96);
+}
+
+/* ── 公告小喇叭按钮 ── */
+.toolbar-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-button-size, 40px);
+  height: var(--icon-button-size, 40px);
+  border: none;
+  border-radius: 50%;
+  background: var(--app-glass);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  transition: transform 0.16s ease, background 0.16s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toolbar-bell svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-bell:active {
+  transform: scale(0.96);
+}
+
+.toolbar-bell__badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ── 公告列表弹窗 ── */
+.announcement-list-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(100% - 32px, 480px);
+  max-height: 70vh;
+  border-radius: var(--radius-large);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  overflow: hidden;
+}
+
+.announcement-list-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--app-border, rgba(0, 0, 0, 0.06));
+  flex-shrink: 0;
+}
+
+.announcement-list-sheet__title {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.announcement-list-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.announcement-list-sheet__close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.announcement-list-sheet__body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.announcement-list-sheet__body::-webkit-scrollbar {
+  display: none;
+}
+
+.announcement-list-sheet__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--app-text-tertiary);
+  font-size: 14px;
+}
+
+.announcement-list-sheet__empty-icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.4;
+}
+
+.announcement-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.announcement-list__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.announcement-list__item:active {
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.04));
+}
+
+.announcement-list__item + .announcement-list__item {
+  border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.04));
+}
+
+.announcement-list__item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement-list__item-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.announcement-list__item--unread .announcement-list__item-title {
+  font-weight: 700;
+}
+
+.announcement-list__item-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff3b30;
+  flex-shrink: 0;
+}
+
+.announcement-list__item-desc {
+  margin: 4px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.announcement-list__item-date {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+}
+
+.announcement-list__item-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--app-text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── 公告详情弹窗 ── */
+.announcement-detail-dialog {
+  width: min(100%, 480px);
+  max-height: 80vh;
+  padding: 24px;
+  border-radius: var(--radius-large);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.announcement-detail-dialog::-webkit-scrollbar {
+  display: none;
+}
+
+.announcement-kicker {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dialog-title {
+  margin: 8px 0 0;
+  color: var(--app-text);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.announcement-image {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  border-radius: var(--radius-xs);
+}
+
+.announcement-body {
+  margin-top: 12px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.dialog-desc {
+  margin-top: 12px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.announcement-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 12px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dialog-btn {
+  min-height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dialog-btn--secondary {
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+}
+
+.dialog-btn--primary {
+  background: var(--app-text);
+  color: var(--app-bg);
+}
+
+/* markdown 内容样式 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: var(--app-text);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown-body h1 { font-size: 1.5em; }
+.markdown-body h2 { font-size: 1.3em; }
+.markdown-body h3 { font-size: 1.15em; }
+
+.markdown-body p {
+  margin: 8px 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-body li {
+  margin: 4px 0;
+}
+
+.markdown-body a {
+  color: var(--app-text-link, #1677ff);
+  text-decoration: none;
+}
+
+.markdown-body code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-body pre {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-body blockquote {
+  margin: 12px 0;
+  padding: 8px 16px;
+  border-left: 4px solid var(--app-text-tertiary, #ccc);
+  color: var(--app-text-secondary);
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.03));
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.markdown-body table {
+  width: 100%;
+  margin: 12px 0;
+  border-collapse: collapse;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 12px;
+  border: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.04));
+  font-weight: 600;
+}
+
+.markdown-body hr {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
+}
+
+/* overlay 复用现有 .overlay 样式 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog-high);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--app-overlay);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .account-hero {

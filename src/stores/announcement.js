@@ -10,6 +10,7 @@ import { readPersisted } from '@/utils/platform/storage'
 import router from '@/router'
 
 const ANNOUNCEMENT_RECORD_STORAGE_KEY = 'goods_announcement_record'
+const ANNOUNCEMENT_LIST_READ_KEY = 'goods_announcement_list_read'
 const WEB_UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 
@@ -98,6 +99,26 @@ function readPersistedRecord() {
 function persistRecord(record) {
   try {
     localStorage.setItem(ANNOUNCEMENT_RECORD_STORAGE_KEY, JSON.stringify(record || {}))
+  } catch {
+    // ignore
+  }
+}
+
+function readListReadRecord() {
+  try {
+    const raw = localStorage.getItem(ANNOUNCEMENT_LIST_READ_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function persistListReadRecord(record) {
+  try {
+    localStorage.setItem(ANNOUNCEMENT_LIST_READ_KEY, JSON.stringify(record || {}))
   } catch {
     // ignore
   }
@@ -326,7 +347,24 @@ export const useAnnouncementStore = defineStore('announcement', () => {
   const lastError = ref('')
   const showRecord = ref({})
 
+  // ── 公告列表（小喇叭） ──
+  const allAnnouncements = ref([])
+  const listVisible = ref(false)
+  const listLoading = ref(false)
+  const listReadRecord = ref({})
+  const listOpenedAt = ref(0)
+
   const hasActiveAnnouncement = computed(() => !!activeAnnouncement.value)
+
+  const unreadCount = computed(() => {
+    if (!allAnnouncements.value.length) return 0
+    const read = listReadRecord.value
+    return allAnnouncements.value.filter((a) => {
+      const id = String(a.id || '').trim()
+      if (!id) return false
+      return !read[id]
+    }).length
+  })
 
   async function init() {
     if (initialized.value) return
@@ -374,6 +412,10 @@ export const useAnnouncementStore = defineStore('announcement', () => {
         const currentDay = todayKey(new Date(now))
         const currentAppVersion = appVersion.value || FALLBACK_VERSION
 
+        // 同时加载列表已读记录，用于计算红点
+        listReadRecord.value = readListReadRecord()
+
+        // 第一遍：弹窗候选（受 showRecord 约束，遵循 once/daily 模式）
         let candidate = null
         for (const announcement of announcements) {
           const result = await matchesAnnouncementRule(announcement, {
@@ -389,6 +431,23 @@ export const useAnnouncementStore = defineStore('announcement', () => {
             break
           }
         }
+
+        // 第二遍：列表缓存（不受弹窗 showRecord 约束，展示所有符合条件的公告）
+        const eligible = []
+        for (const announcement of announcements) {
+          const result = await matchesAnnouncementRule(announcement, {
+            now,
+            today: currentDay,
+            appVersion: currentAppVersion,
+            bundleVersion: bundleVersion.value,
+            channel: channel.value,
+            record: {}
+          })
+          if (result) {
+            eligible.push(announcement)
+          }
+        }
+        allAnnouncements.value = eligible
 
         if (!candidate) {
           return { status: 'idle', reason: 'no_match' }
@@ -468,6 +527,77 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     dismissAnnouncement()
   }
 
+  // ── 公告列表方法 ──
+
+  async function fetchAllForList() {
+    if (listLoading.value) return
+    listLoading.value = true
+    try {
+      await init()
+      listReadRecord.value = readListReadRecord()
+
+      const announcements = await fetchAnnouncements()
+      const now = Date.now()
+      const currentDay = todayKey(new Date(now))
+      const currentAppVersion = appVersion.value || FALLBACK_VERSION
+
+      // 列表视图不使用弹窗的 showRecord，确保所有符合条件的公告都能展示
+      const eligible = []
+      for (const announcement of announcements) {
+        const result = await matchesAnnouncementRule(announcement, {
+          now,
+          today: currentDay,
+          appVersion: currentAppVersion,
+          bundleVersion: bundleVersion.value,
+          channel: channel.value,
+          record: {}
+        })
+        if (result) {
+          eligible.push(announcement)
+        }
+      }
+      allAnnouncements.value = eligible
+      return eligible
+    } catch (error) {
+      lastError.value = error?.message || '拉取公告列表失败。'
+      allAnnouncements.value = []
+      return []
+    } finally {
+      listLoading.value = false
+    }
+  }
+
+  function openList() {
+    listOpenedAt.value = Date.now()
+    listVisible.value = true
+  }
+
+  function closeList() {
+    // 防止打开瞬间被移动端 click 事件重定向误关（300ms 保护窗口）
+    if (Date.now() - listOpenedAt.value < 300) return
+    listVisible.value = false
+  }
+
+  function markAllRead() {
+    const record = { ...listReadRecord.value }
+    for (const a of allAnnouncements.value) {
+      const id = String(a.id || '').trim()
+      if (id) {
+        record[id] = new Date().toISOString()
+      }
+    }
+    listReadRecord.value = record
+    persistListReadRecord(record)
+  }
+
+  function markOneRead(announcementId) {
+    const id = String(announcementId || '').trim()
+    if (!id) return
+    const record = { ...listReadRecord.value, [id]: new Date().toISOString() }
+    listReadRecord.value = record
+    persistListReadRecord(record)
+  }
+
   return {
     initialized,
     isChecking,
@@ -479,9 +609,19 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     lastCheckedAt,
     lastError,
     hasActiveAnnouncement,
+    allAnnouncements,
+    listVisible,
+    listLoading,
+    listReadRecord,
+    unreadCount,
     init,
     checkAndDecide,
     dismissAnnouncement,
-    handlePrimaryAction
+    handlePrimaryAction,
+    fetchAllForList,
+    openList,
+    closeList,
+    markAllRead,
+    markOneRead
   }
 })

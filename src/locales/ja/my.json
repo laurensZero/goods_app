@@ -151,5 +151,7 @@
   "my.changeEmail": "メールアドレス変更",
   "my.newEmail": "新しいメールアドレス",
   "my.changeEmailSent": "確認メールを送信しました。新しいメールアドレスで変更を完了してください。",
-  "my.changeEmailFailed": "メールアドレスの変更に失敗しました"
+  "my.changeEmailFailed": "メールアドレスの変更に失敗しました",
+  "my.announcements": "お知らせ",
+  "my.noAnnouncements": "お知らせはありません"
 }
