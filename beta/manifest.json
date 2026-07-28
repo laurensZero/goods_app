@@ -1,9 +1,9 @@
 {
-  "version": "20260728.3",
-  "url": "bundle-20260728.3.zip",
-  "hash": "b99b192f1fd2e2a470fdb4288955df811b3c04a82de55e032841c4ccfda86b7d",
+  "version": "20260728.4",
+  "url": "bundle-20260728.4.zip",
+  "hash": "01e3e2015670de28eef79433a56576900e218abce1bef7c292e532b6dd75f45a",
   "minNativeVersion": null,
-  "notes": "- feat: 更新存储操作测试逻辑",
+  "notes": "- feat: 优化图片同步逻辑，简化云端文件名处理，移除不必要的存储模式检查",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T03:14:09Z"
+  "publishedAt": "2026-07-28T03:31:35Z"
 }
