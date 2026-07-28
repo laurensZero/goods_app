@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.6",
+    "url": "bundle-20260728.6.zip",
+    "hash": "7533554d877ef4ea2bed1f6f90ff52759acb517e6539deaa48b0864316c5a7d8",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加调试日志以优化对象和位置模式下的行处理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T03:53:13Z"
+  },
+  {
     "version": "20260728.5",
     "url": "bundle-20260728.5.zip",
     "hash": "c7a3bec681378cd28594e3c75d59097db088426b54b138ad58683b113abe4ddd",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化图片同步逻辑，简化云端文件名处理，移除不必要的存储模式检查",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T03:31:35Z"
-  },
-  {
-    "version": "20260728.3",
-    "url": "bundle-20260728.3.zip",
-    "hash": "b99b192f1fd2e2a470fdb4288955df811b3c04a82de55e032841c4ccfda86b7d",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新存储操作测试逻辑",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T03:14:09Z"
   }
 ]
