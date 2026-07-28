@@ -1,9 +1,9 @@
 {
-  "version": "20260728.2",
-  "url": "bundle-20260728.2.zip",
-  "hash": "b85f93b015f8cc53faa431152074443284772c3a32dadb9705329247865018e6",
+  "version": "20260728.3",
+  "url": "bundle-20260728.3.zip",
+  "hash": "b99b192f1fd2e2a470fdb4288955df811b3c04a82de55e032841c4ccfda86b7d",
   "minNativeVersion": null,
-  "notes": "- feat: 优化存储操作逻辑，简化文件记录和用户目录文件列出方式",
+  "notes": "- feat: 更新存储操作测试逻辑",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T03:10:04Z"
+  "publishedAt": "2026-07-28T03:14:09Z"
 }

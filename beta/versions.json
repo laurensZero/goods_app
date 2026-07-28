@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.3",
+    "url": "bundle-20260728.3.zip",
+    "hash": "b99b192f1fd2e2a470fdb4288955df811b3c04a82de55e032841c4ccfda86b7d",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新存储操作测试逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T03:14:09Z"
+  },
+  {
     "version": "20260728.2",
     "url": "bundle-20260728.2.zip",
     "hash": "b85f93b015f8cc53faa431152074443284772c3a32dadb9705329247865018e6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 更新分享数据白名单，移除不必要的排除字段，优化数据安全性",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T02:33:16Z"
-  },
-  {
-    "version": "20260727.11",
-    "url": "bundle-20260727.11.zip",
-    "hash": "c86724cb05a24178397014768235d68e94e14628fcbefb6593aedfb74b0582f9",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化生日墙图片展示，增加容器以支持更好的布局和样式",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-27T14:39:55Z"
   }
 ]
