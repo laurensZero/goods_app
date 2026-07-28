@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.15",
+    "url": "bundle-20260728.15.zip",
+    "hash": "7581fc1e11af5bded89a28f327c31fbf46397608cd39ee4e8ace906eea8a1cf4",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加公告列表功能，优化用户体验和通知管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T14:34:45Z"
+  },
+  {
     "version": "20260728.14",
     "url": "bundle-20260728.14.zip",
     "hash": "c3b698b5caa7e28fcac3fd590be51a76b39acb9301aa7ad8964493037a78b583",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加 Supabase Storage 图库备份脚本，支持增量下载和递归处理文件夹",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T08:21:16Z"
-  },
-  {
-    "version": "20260728.12",
-    "url": "bundle-20260728.12.zip",
-    "hash": "52892f155dba1cc1c744cc72053c5b6ffa1982e520f2058c2f37cf75687369d6",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加时间线弹窗关闭逻辑，优化安卓返回按钮处理",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T07:06:25Z"
   }
 ]
