@@ -409,8 +409,16 @@ function primeImageDecode(src) {
  * @returns {string}
  */
 function urlToFilename(url) {
-  const b64 = btoa(unescape(encodeURIComponent(url)))
-  return b64.replace(/[+/=]/g, '_').slice(0, 180) + '.cache'
+  // 旧版仅取前 180 字符，长 URL（如 Supabase Storage 带 userId 前缀）会导致
+  // 不同图片的缓存文件名碰撞。现在用 hash 确保唯一性：前缀保留 b64 前 100 字符
+  // 便于调试，后缀追加 32-bit hash 防碰撞。
+  const b64 = btoa(unescape(encodeURIComponent(url))).replace(/[+/=]/g, '_')
+  let hash = 0
+  for (let i = 0; i < url.length; i++) {
+    hash = ((hash << 5) - hash + url.charCodeAt(i)) | 0
+  }
+  const hashHex = (hash >>> 0).toString(16).padStart(8, '0')
+  return b64.slice(0, 100) + '_' + hashHex + '.cache'
 }
 
 // --- Layer 2: Cache API (Web 端持久化) ---
