@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.17",
+    "url": "bundle-20260728.17.zip",
+    "hash": "76bfbf8a9d80b9254c08296c15915732253aa12dd1518ee05c76c8b0598784b0",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新更新源管理，移除 jsDelivr 并优化源候选解析逻辑",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T14:53:32Z"
+  },
+  {
     "version": "20260728.16",
     "url": "bundle-20260728.16.zip",
     "hash": "f5087305c08524a4da06e4d0cc6def92b646691d08686ab4ed04fb7baefc35f9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加公告列表功能，优化用户体验和通知管理",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T14:34:45Z"
-  },
-  {
-    "version": "20260728.14",
-    "url": "bundle-20260728.14.zip",
-    "hash": "c3b698b5caa7e28fcac3fd590be51a76b39acb9301aa7ad8964493037a78b583",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加时间线尾部 spacer 以限制渲染窗口，优化滚动体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T14:03:35Z"
   }
 ]
