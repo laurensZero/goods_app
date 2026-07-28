@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.2",
+    "url": "bundle-20260728.2.zip",
+    "hash": "b85f93b015f8cc53faa431152074443284772c3a32dadb9705329247865018e6",
+    "minNativeVersion": null,
+    "notes": "- feat: 优化存储操作逻辑，简化文件记录和用户目录文件列出方式",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T03:10:04Z"
+  },
+  {
     "version": "20260728.1",
     "url": "bundle-20260728.1.zip",
     "hash": "109d050f580f8d2c1cd3f251e528b990704997fd7c0c295b89a6bc4f9cd6c304",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化生日墙图片展示，增加容器以支持更好的布局和样式",
     "updateLevel": "silent",
     "publishedAt": "2026-07-27T14:39:55Z"
-  },
-  {
-    "version": "20260727.10",
-    "url": "bundle-20260727.10.zip",
-    "hash": "c7afe6cb09a59303c5ef6f0718f0287d5b448cb41bb9298c20dd1362417d0af7",
-    "minNativeVersion": null,
-    "notes": "- feat: 将生日弹窗图片组件替换为 LazyCachedImage，优化加载性能",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-27T13:55:53Z"
   }
 ]

@@ -1,9 +1,9 @@
 {
-  "version": "20260728.1",
-  "url": "bundle-20260728.1.zip",
-  "hash": "109d050f580f8d2c1cd3f251e528b990704997fd7c0c295b89a6bc4f9cd6c304",
+  "version": "20260728.2",
+  "url": "bundle-20260728.2.zip",
+  "hash": "b85f93b015f8cc53faa431152074443284772c3a32dadb9705329247865018e6",
   "minNativeVersion": null,
-  "notes": "- feat: 更新分享数据白名单，移除不必要的排除字段，优化数据安全性",
+  "notes": "- feat: 优化存储操作逻辑，简化文件记录和用户目录文件列出方式",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T02:33:16Z"
+  "publishedAt": "2026-07-28T03:10:04Z"
 }
