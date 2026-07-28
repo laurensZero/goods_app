@@ -1,9 +1,9 @@
 {
-  "version": "20260728.8",
-  "url": "bundle-20260728.8.zip",
-  "hash": "38d1ee2e40df7d1a94af92c0b6d595df2bb3d20030212c800f78c30c6006307d",
+  "version": "20260728.9",
+  "url": "bundle-20260728.9.zip",
+  "hash": "76b157daff3e265c51ea01e3ad062e31f3260e091119993fe772c884283140ec",
   "minNativeVersion": null,
-  "notes": "- feat: 添加时间线高度测量逻辑，优化可见月份窗口计算，消除裁剪时的跳动",
+  "notes": "- feat: 更新设备日志收集逻辑，确保生成的文件为 UTF-8 编码",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T06:29:40Z"
+  "publishedAt": "2026-07-28T06:34:59Z"
 }
