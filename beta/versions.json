@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.7",
+    "url": "bundle-20260728.7.zip",
+    "hash": "6ee26a6a580ff2a7634f0aec28826c7ff0d64559fc5f780224e0bcae0b8e968e",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新缓存文件名生成逻辑，使用哈希确保唯一性，避免长 URL 碰撞",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T03:59:31Z"
+  },
+  {
     "version": "20260728.6",
     "url": "bundle-20260728.6.zip",
     "hash": "7533554d877ef4ea2bed1f6f90ff52759acb517e6539deaa48b0864316c5a7d8",
@@ -16,14 +25,5 @@
     "notes": "- feat: 优化存储操作逻辑，调整文件记录方式，简化用户目录处理",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T03:38:26Z"
-  },
-  {
-    "version": "20260728.4",
-    "url": "bundle-20260728.4.zip",
-    "hash": "01e3e2015670de28eef79433a56576900e218abce1bef7c292e532b6dd75f45a",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化图片同步逻辑，简化云端文件名处理，移除不必要的存储模式检查",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T03:31:35Z"
   }
 ]

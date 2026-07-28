@@ -1,9 +1,9 @@
 {
-  "version": "20260728.6",
-  "url": "bundle-20260728.6.zip",
-  "hash": "7533554d877ef4ea2bed1f6f90ff52759acb517e6539deaa48b0864316c5a7d8",
+  "version": "20260728.7",
+  "url": "bundle-20260728.7.zip",
+  "hash": "6ee26a6a580ff2a7634f0aec28826c7ff0d64559fc5f780224e0bcae0b8e968e",
   "minNativeVersion": null,
-  "notes": "- feat: 添加调试日志以优化对象和位置模式下的行处理",
+  "notes": "- feat: 更新缓存文件名生成逻辑，使用哈希确保唯一性，避免长 URL 碰撞",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T03:53:13Z"
+  "publishedAt": "2026-07-28T03:59:31Z"
 }
