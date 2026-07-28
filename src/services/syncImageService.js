@@ -44,9 +44,10 @@ export function createSyncImageService({
 
         const hydratedImages = await Promise.all(normalizedImages.map(async (imageEntry) => {
           const storageMode = inferGoodsImageStorageMode(imageEntry.uri, imageEntry.storageMode)
-          if (storageMode !== 'cloud-local') return imageEntry
-
           const cloudFileName = String(imageEntry.cloudFileName || parseCloudImageUri(imageEntry.uri)).trim()
+          // Supabase: 也刷新 remote 模式的图片 URL（迁移后旧根路径 URL 需要更新为用户目录路径）
+          const needsRefresh = storageMode === 'cloud-local' || (isSupabase && storageMode === 'remote' && cloudFileName)
+          if (!needsRefresh) return imageEntry
           if (!cloudFileName) {
             if (isSupabase) return imageEntry
             throw new Error(i18n.global.t('sync.error.imageRefInvalid', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
@@ -129,8 +130,8 @@ export function createSyncImageService({
 
       if (event.coverImage) {
         const storageMode = inferGoodsImageStorageMode(event.coverImage, event?.coverImageData?.storageMode)
-        if (storageMode === 'cloud-local') {
-          const cloudFileName = String(event.coverImageData?.cloudFileName || parseCloudImageUri(event.coverImage)).trim()
+        const cloudFileName = String(event.coverImageData?.cloudFileName || parseCloudImageUri(event.coverImage)).trim()
+        if (storageMode === 'cloud-local' || (isSupabase && storageMode === 'remote' && cloudFileName)) {
           if (cloudFileName) {
             // Supabase: replace with public URL, skip download
             if (isSupabase) {
@@ -180,9 +181,9 @@ export function createSyncImageService({
           if (!photoUri) return photoEntry
 
           const photoStorageMode = inferGoodsImageStorageMode(photoUri, photoEntry?.storageMode)
-          if (photoStorageMode !== 'cloud-local') return photoEntry
-
           const cloudFileName = String(photoEntry?.cloudFileName || parseCloudImageUri(photoUri)).trim()
+          if (photoStorageMode !== 'cloud-local' && !(isSupabase && photoStorageMode === 'remote' && cloudFileName)) return photoEntry
+
           if (!cloudFileName) return photoEntry
 
           // Supabase: replace with public URL, skip download

@@ -866,7 +866,10 @@ BEGIN
     (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos')
       AND name NOT LIKE '%.emptyFolderPlaceholder'
-      AND (position('/' in name) = 0 OR (storage.foldername(name))[1] = auth.uid()::text))
+      AND (
+            (storage.foldername(name))[1] = auth.uid()::text
+            OR (position('/' in name) = 0 AND owner_id = auth.uid()::text)
+          ))
   )
   ON CONFLICT (user_id) DO UPDATE SET
     device_id = EXCLUDED.device_id,
@@ -1175,7 +1178,10 @@ BEGIN
     (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos')
       AND name NOT LIKE '%.emptyFolderPlaceholder'
-      AND (position('/' in name) = 0 OR (storage.foldername(name))[1] = auth.uid()::text))
+      AND (
+            (storage.foldername(name))[1] = auth.uid()::text
+            OR (position('/' in name) = 0 AND owner_id = auth.uid()::text)
+          ))
   ) ON CONFLICT (user_id) DO UPDATE SET
     device_id = EXCLUDED.device_id,
     synced_at = EXCLUDED.synced_at,
