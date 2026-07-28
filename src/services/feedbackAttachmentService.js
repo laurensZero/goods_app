@@ -253,6 +253,8 @@ export async function collectDeviceLog() {
   }
 
   const content = lines.join('\n')
-  const bytes = new TextEncoder().encode(content)
+  // Prepend UTF-8 BOM so tools that rely on BOM-sniffing (e.g. older Windows
+  // Notepad on Chinese Windows defaulting to GBK) correctly detect the encoding.
+  const bytes = new TextEncoder().encode('﻿' + content)
   return new File([bytes], 'device-log.txt', { type: 'text/plain;charset=utf-8' })
 }
