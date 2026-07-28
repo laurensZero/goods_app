@@ -1,5 +1,5 @@
 <template>
-  <div class="tl-wrapper">
+  <div ref="sectionEl" class="tl-wrapper">
     <div
       v-if="headSpacerHeight > 0"
       class="tl-head-spacer"
@@ -17,6 +17,7 @@
         :key="monthGroup.yearMonth"
         class="tl-month-group"
         :class="{ 'tl-month-group--last': midx === yearGroup.months.length - 1 }"
+        :data-tl-month="monthGroup.yearMonth"
       >
         <div class="tl-month-rail" aria-hidden="true">
           <div class="tl-month-dot" />
@@ -66,7 +67,7 @@
       </div>
     </div>
 
-    <div v-if="showUnknown" class="tl-month-group tl-month-group--last">
+    <div v-if="showUnknown" class="tl-month-group tl-month-group--last" data-tl-month="__unknown__">
       <div class="tl-month-rail" aria-hidden="true">
         <div class="tl-month-dot tl-month-dot--muted" />
         <div class="tl-month-line" />
@@ -116,12 +117,17 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import TimelineExpandCard from '@/components/home/TimelineExpandCard.vue'
 
 const { t } = useI18n()
+
+const sectionEl = ref(null)
+
+defineExpose({ sectionEl })
 
 defineProps({
   yearGroups: { type: Array, required: true },

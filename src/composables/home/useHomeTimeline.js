@@ -151,7 +151,7 @@ export function useHomeTimeline({
   visibleTimelineMonthStart,
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths,
-  TIMELINE_MONTH_ESTIMATED_HEIGHT
+  offsetOfMonth
 }) {
   const timelineEntries = computed(() => {
     if (displayDensity.value !== 'timeline') return []
@@ -287,24 +287,16 @@ export function useHomeTimeline({
     return yearGroups
   })
 
-  // Estimated height of pruned months before the visible window (for head spacer)
+  // Height of pruned months before the visible window (for head spacer).
+  // Uses per-month measured heights (offsetOfMonth) so that months which
+  // were previously visible contribute their exact DOM height; unmeasured
+  // months fall back to the measured average. This eliminates the cumulative
+  // error that caused scroll-position jumps on prune/restore.
   const prunedTimelineHeadHeight = computed(() => {
     if (displayDensity.value !== 'timeline') return 0
     const start = visibleTimelineMonthStart.value || 0
     if (start <= 0) return 0
-    // Each month ~TIMELINE_MONTH_ESTIMATED_HEIGHT, plus ~48px per year header
-    const estHeight = TIMELINE_MONTH_ESTIMATED_HEIGHT || 360
-    // Count unique years in pruned range for year header estimation
-    const allMonths = allTimelineMonthList.value
-    let prunedYears = 0
-    let lastYear = ''
-    for (let i = 0; i < start && i < allMonths.length; i++) {
-      if (allMonths[i].year !== lastYear) {
-        prunedYears++
-        lastYear = allMonths[i].year
-      }
-    }
-    return start * estHeight + prunedYears * 48
+    return offsetOfMonth ? offsetOfMonth(start, allTimelineMonthList.value) : (start * 360)
   })
 
   const timelineUnknown = computed(() =>

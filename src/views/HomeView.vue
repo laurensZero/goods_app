@@ -113,6 +113,7 @@
           :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
         >
           <HomeTimelineSection
+            ref="timelineSectionRef"
             :year-groups="visibleTimelineYearGroups"
             :unknown-items="timelineUnknown"
             :show-unknown="showVisibleTimelineUnknown"
@@ -281,6 +282,7 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { createHomeSortOptions, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
+import { useTimelineMetrics } from '@/composables/home/useTimelineMetrics'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
@@ -322,6 +324,7 @@ const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
+const timelineSectionRef = ref(null)
 const batchEditSheetRef = ref(null)
 const addMotionSnapshot = ref(null)
 const addMotionRequest = ref(null)
@@ -834,6 +837,12 @@ const gridMetrics = useVirtualGridMetrics({
   fallbackRowGap: GOODS_GRID_ROW_GAP
 })
 
+const timelineMetrics = useTimelineMetrics({
+  getSectionEl: () => timelineSectionRef.value?.sectionEl ?? null,
+  fallbackMonthHeight: TIMELINE_MONTH_ESTIMATED_HEIGHT,
+  fallbackYearHeaderHeight: 48
+})
+
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   if (displayDensity.value === 'timeline') {
     currentGoodsScrollTop.value = Math.max(0, Number(scrollTop) || 0)
@@ -950,8 +959,9 @@ function _computeTimelineWindow(scrollTop = 0, options = {}) {
     : (getScrollEl()?.clientHeight || window.innerHeight || 800)
 
   const initial = getInitialVisibleTimelineMonths()
-  const endMonth = Math.min(total, Math.ceil((scrollTop + viewportHeight * 1.6) / TIMELINE_MONTH_ESTIMATED_HEIGHT) + 1)
-  const startMonth = Math.max(0, Math.floor(scrollTop / TIMELINE_MONTH_ESTIMATED_HEIGHT) - TIMELINE_MONTH_OVERSCAN)
+  // 用逐月实测高度映射滚动偏移 → 月份索引，替代 scrollTop/estHeight 除法估算
+  const startMonth = Math.max(0, timelineMetrics.monthAtOffset(scrollTop, allTimelineMonthList.value) - TIMELINE_MONTH_OVERSCAN)
+  const endMonth = Math.min(total, timelineMetrics.monthAtOffset(scrollTop + viewportHeight * 1.6, allTimelineMonthList.value) + 1)
   const count = Math.max(initial, endMonth - startMonth)
 
   return { start: Math.min(startMonth, total - count), count: Math.min(count, total) }
@@ -1037,7 +1047,7 @@ function pruneTimelineMonths() {
   if (total === 0) return
 
   const scrollTop = readScrollTop()
-  const desiredStart = Math.max(0, Math.floor(scrollTop / TIMELINE_MONTH_ESTIMATED_HEIGHT) - TIMELINE_MONTH_OVERSCAN - TIMELINE_PRUNE_KEEP_BEHIND)
+  const desiredStart = Math.max(0, timelineMetrics.monthAtOffset(scrollTop, allTimelineMonthList.value) - TIMELINE_MONTH_OVERSCAN - TIMELINE_PRUNE_KEEP_BEHIND)
 
   if (desiredStart > visibleTimelineMonthStart.value) {
     visibleTimelineMonthStart.value = desiredStart
@@ -1306,6 +1316,7 @@ onDeactivated(() => {
 
 onBeforeUnmount(() => {
   gridMetrics.cancelMeasure()
+  timelineMetrics.cancelMeasure()
   window.removeEventListener(STORAGE_FILTER_EVENT, checkNfcStorageFilter)
   if (addMotionRaf) {
     window.cancelAnimationFrame(addMotionRaf)
@@ -1519,7 +1530,7 @@ const {
   visibleTimelineMonthStart,
   visibleTimelineMonthCount,
   getInitialVisibleTimelineMonths,
-  TIMELINE_MONTH_ESTIMATED_HEIGHT
+  offsetOfMonth: timelineMetrics.offsetOfMonth
 })
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
@@ -1572,6 +1583,9 @@ watch(
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
     gridMetrics.scheduleMeasure()
+    if (displayDensity.value === 'timeline') {
+      timelineMetrics.scheduleMeasure()
+    }
   },
   { immediate: true }
 )
@@ -1581,6 +1595,25 @@ watch(gridMetrics.metricsVersion, () => {
   _lastSyncStartRow = -1
   _lastSyncRenderRows = -1
   syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
+})
+
+// 实测时间线月高落地后重算可见月份窗口（head spacer 会随之重新求值）。
+// 但展开/折叠导致的测量不应重算窗口 —— 展开只改变单月高度，
+// 不应让可见月份边界跟着漂移；但若被裁剪月份的旧展开高度被清除，
+// head spacer 会变化，需补偿 scrollTop 防止跳变。
+let _timelineMeasureFromExpand = false
+let _timelineExpandOldSpacer = 0
+watch(timelineMetrics.metricsVersion, () => {
+  if (_timelineMeasureFromExpand) {
+    _timelineMeasureFromExpand = false
+    const delta = prunedTimelineHeadHeight.value - _timelineExpandOldSpacer
+    if (Math.abs(delta) > 0.5) {
+      const el = getScrollEl()
+      if (el) el.scrollTop += delta
+    }
+    return
+  }
+  syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
 })
 
 watch(
@@ -1705,6 +1738,34 @@ function setDisplayDensityWithFlip(mode) {
 
 watch(displayDensity, (v) => {
   if (v !== 'timeline') clearExpandedTimelineItem()
+})
+
+// 时间线展开/折叠：重测月份高度，但分两种情况处理 ——
+// 1. 折叠的月份已被裁剪（在可见窗口上方）：无法从 DOM 重测，
+//    需清除其旧高度（含展开卡的高度），让 offsetOfMonth 回退到估值。
+//    同时用 scrollTop 补偿 spacer 高度变化，避免跳变。
+// 2. 可见月份的高度变化：仅重测，不重算可见窗口（展开不应改变
+//    哪些月份可见）。
+watch(expandedTimelineItemId, (newId, oldId) => {
+  if (displayDensity.value !== 'timeline') return
+
+  // 记录旧 spacer 高度，以便测量完成后补偿 scroll 偏移
+  const oldSpacer = prunedTimelineHeadHeight.value
+
+  // 旧展开项的月份若已被裁剪，清除其已测高度
+  if (oldId && visibleTimelineMonthStart.value > 0) {
+    const oldMonthIndex = timelineMonthIndexByItemId.value.get(oldId)
+    if (oldMonthIndex != null && oldMonthIndex < visibleTimelineMonthStart.value) {
+      const oldEntry = timelineEntryById.value.get(oldId)
+      if (oldEntry?.timelineYearMonth) {
+        timelineMetrics.invalidateMonthHeight(oldEntry.timelineYearMonth)
+      }
+    }
+  }
+
+  _timelineMeasureFromExpand = true
+  _timelineExpandOldSpacer = oldSpacer
+  timelineMetrics.scheduleMeasure()
 })
 
 // -------- Multi-select --------
