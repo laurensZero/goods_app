@@ -241,6 +241,22 @@ jobs:
           publish_dir: ./pages
           keep_files: false
 
+      - name: Purge jsDelivr cache
+        run: |
+          CHANNEL="${{ steps.package.outputs.channel }}"
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+
+          purge_url() {
+            local path="$1"
+            local url="https://purge.jsdelivr.net/gh/${OWNER}/${REPO}@gh-pages/${path}"
+            echo "Purging ${url}"
+            curl -sS -X GET "${url}" || echo "Purge request failed for ${path}, will be picked up by CDN eventually"
+          }
+
+          purge_url "${CHANNEL}/manifest.json"
+          purge_url "${CHANNEL}/versions.json"
+
       - name: Summary
         run: |
           echo "Mode: ${{ steps.package.outputs.mode }}"

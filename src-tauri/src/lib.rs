@@ -28,6 +28,7 @@ const ALLOWED_HTTPS_HOSTS: &[&str] = &[
   "sdk-webstatic.mihoyo.com",
   "music.163.com",
   "laurenszero.github.io",
+  "cdn.jsdelivr.net",
 ];
 
 fn validate_allowed_url(url: &str) -> Result<(), String> {
