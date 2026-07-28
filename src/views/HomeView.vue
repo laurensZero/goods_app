@@ -1137,6 +1137,12 @@ function handleAndroidBackButton(event) {
     return
   }
 
+  if (showTimelinePopup.value) {
+    showTimelinePopup.value = false
+    event.preventDefault()
+    return
+  }
+
   if (batchEditSheetRef.value?.consumeBack()) {
     event.preventDefault()
     return
