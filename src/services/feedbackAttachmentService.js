@@ -252,5 +252,7 @@ export async function collectDeviceLog() {
     })
   }
 
-  return new File([lines.join('\n')], 'device-log.txt', { type: 'text/plain' })
+  const content = lines.join('\n')
+  const bytes = new TextEncoder().encode(content)
+  return new File([bytes], 'device-log.txt', { type: 'text/plain;charset=utf-8' })
 }
