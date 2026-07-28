@@ -40,8 +40,8 @@
               :data-goods-id="item.id"
               data-scroll-anchor="timeline-thumb"
               :data-scroll-index="itemIndexById.get(item.id) ?? -1"
-              :class="{ 'tl-thumb-btn--active': activeItemId === item.id, 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
-              @click="$emit('toggle-item', item.id)"
+              :class="{ 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
+              @click="$emit('tap-item', item)"
             >
               <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
               <div class="tl-thumb-img-wrap">
@@ -56,13 +56,6 @@
               </div>
             </button>
           </div>
-          <transition name="tl-expand">
-            <TimelineExpandCard
-              v-if="expandedItem && expandedSectionKey === monthGroup.yearMonth"
-              :item="expandedItem"
-              @open-detail="$emit('open-detail', expandedItem.sourceId || expandedItem.id)"
-            />
-          </transition>
         </div>
       </div>
     </div>
@@ -88,8 +81,8 @@
             :data-goods-id="item.id"
             data-scroll-anchor="timeline-thumb"
             :data-scroll-index="itemIndexById.get(item.id) ?? -1"
-            :class="{ 'tl-thumb-btn--active': activeItemId === item.id, 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
-            @click="$emit('toggle-item', item.id)"
+            :class="{ 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
+            @click="$emit('tap-item', item)"
           >
             <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
             <div class="tl-thumb-img-wrap">
@@ -104,13 +97,6 @@
             </div>
           </button>
         </div>
-        <transition name="tl-expand">
-          <TimelineExpandCard
-            v-if="expandedItem && expandedSectionKey === unknownSectionKey"
-            :item="expandedItem"
-            @open-detail="$emit('open-detail', expandedItem.sourceId || expandedItem.id)"
-          />
-        </transition>
       </div>
     </div>
   </div>
@@ -121,7 +107,6 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import TimelineExpandCard from '@/components/home/TimelineExpandCard.vue'
 
 const { t } = useI18n()
 
@@ -134,14 +119,10 @@ defineProps({
   unknownItems: { type: Array, required: true },
   showUnknown: { type: Boolean, default: false },
   headSpacerHeight: { type: Number, default: 0 },
-  activeItemId: { type: String, default: null },
-  expandedItem: { type: Object, default: null },
-  expandedSectionKey: { type: String, default: '' },
-  itemIndexById: { type: Map, required: true },
-  unknownSectionKey: { type: String, required: true }
+  itemIndexById: { type: Map, required: true }
 })
 
-defineEmits(['toggle-item', 'open-detail'])
+defineEmits(['tap-item'])
 </script>
 
 <style scoped>

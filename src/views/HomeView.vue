@@ -118,13 +118,8 @@
             :unknown-items="timelineUnknown"
             :show-unknown="showVisibleTimelineUnknown"
             :head-spacer-height="prunedTimelineHeadHeight"
-            :active-item-id="expandedTimelineItemId"
-            :expanded-item="expandedItem"
-            :expanded-section-key="expandedSectionKey"
             :item-index-by-id="timelineItemIndexById"
-            :unknown-section-key="TIMELINE_UNKNOWN_SECTION_KEY"
-            @toggle-item="toggleTimelineItem"
-            @open-detail="openDetail"
+            @tap-item="handleTimelineTap"
           />
         </section>
 
@@ -262,6 +257,12 @@
       @open-detail="handleDailyRecDetail"
     />
 
+    <TimelineItemPopup
+      v-model="showTimelinePopup"
+      :item="popupTimelineItem"
+      @open-detail="handleTimelinePopupDetail"
+    />
+
   </div>
 </template>
 <script setup>
@@ -290,6 +291,7 @@ import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
 import DailyRecommendation from '@/components/home/DailyRecommendation.vue'
+import TimelineItemPopup from '@/components/home/TimelineItemPopup.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
@@ -380,7 +382,6 @@ function persistCollectionTab(tab) {
   }))
 }
 
-const TIMELINE_UNKNOWN_SECTION_KEY = 'timeline:unknown'
 const SELECTION_HEADER_HEIGHT = 64
 // 视口宽度，用于响应式列数计算
 const windowWidth = ref(window.innerWidth)
@@ -427,6 +428,8 @@ let _lastSyncDensity = ''
 // 添加方式面板
 const showAddSheet = ref(false)
 const showDailyRec = ref(false)
+const showTimelinePopup = ref(false)
+const popupTimelineItem = ref(null)
 const DAILY_REC_RESTORE_KEY = '__dailyRecOpen'
 
 let dailyRecClosingForDetail = false
@@ -457,7 +460,6 @@ const {
   sortDirection,
   sortMode,
   groupDisplayMode,
-  expandedTimelineItemId,
   isDensityAnimating,
   isSortAnimating,
   getResponsiveCols,
@@ -466,8 +468,6 @@ const {
   toggleSortDirection,
   setSortMode,
   setGroupDisplayMode,
-  toggleExpandedTimelineItem,
-  clearExpandedTimelineItem,
   restoreHomePreferences
 } = useHomePreferences(windowWidth, { t })
 
@@ -1597,22 +1597,8 @@ watch(gridMetrics.metricsVersion, () => {
   syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
 })
 
-// 实测时间线月高落地后重算可见月份窗口（head spacer 会随之重新求值）。
-// 但展开/折叠导致的测量不应重算窗口 —— 展开只改变单月高度，
-// 不应让可见月份边界跟着漂移；但若被裁剪月份的旧展开高度被清除，
-// head spacer 会变化，需补偿 scrollTop 防止跳变。
-let _timelineMeasureFromExpand = false
-let _timelineExpandOldSpacer = 0
+// 实测时间线月高落地后重算可见月份窗口（head spacer 随之重新求值）
 watch(timelineMetrics.metricsVersion, () => {
-  if (_timelineMeasureFromExpand) {
-    _timelineMeasureFromExpand = false
-    const delta = prunedTimelineHeadHeight.value - _timelineExpandOldSpacer
-    if (Math.abs(delta) > 0.5) {
-      const el = getScrollEl()
-      if (el) el.scrollTop += delta
-    }
-    return
-  }
   syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
 })
 
@@ -1706,27 +1692,15 @@ function updateSelectionHeaderPosition() {
   selectionHeaderTop.value = Math.min(maxTop, Math.max(0, rect.top))
 }
 
-// -------- 时间线条目展开与密度切换 --------
-const expandedItem = computed(() =>
-  expandedTimelineItemId.value
-    ? (displayDensity.value === 'timeline'
-        ? timelineEntryById.value.get(expandedTimelineItemId.value) ?? null
-        : goodsById.value.get(expandedTimelineItemId.value) ?? null)
-    : null
-)
-const expandedSectionKey = computed(() => {
-  if (!expandedItem.value) return ''
+// -------- 时间线弹窗与密度切换 --------
+function handleTimelineTap(item) {
+  popupTimelineItem.value = item
+  showTimelinePopup.value = true
+}
 
-  if (displayDensity.value === 'timeline') {
-    return expandedItem.value.timelineYearMonth || TIMELINE_UNKNOWN_SECTION_KEY
-  }
-
-  const yearMonth = String(expandedItem.value.acquiredAt || '').slice(0, 7)
-  return /^\d{4}-\d{2}$/.test(yearMonth) ? yearMonth : TIMELINE_UNKNOWN_SECTION_KEY
-})
-
-function toggleTimelineItem(id) {
-  toggleExpandedTimelineItem(id)
+function handleTimelinePopupDetail(id) {
+  showTimelinePopup.value = false
+  openDetail(id)
 }
 
 function setDisplayDensityWithFlip(mode) {
@@ -1735,38 +1709,6 @@ function setDisplayDensityWithFlip(mode) {
   setDisplayDensity(mode)
   if (captured) densityFlip.animate()
 }
-
-watch(displayDensity, (v) => {
-  if (v !== 'timeline') clearExpandedTimelineItem()
-})
-
-// 时间线展开/折叠：重测月份高度，但分两种情况处理 ——
-// 1. 折叠的月份已被裁剪（在可见窗口上方）：无法从 DOM 重测，
-//    需清除其旧高度（含展开卡的高度），让 offsetOfMonth 回退到估值。
-//    同时用 scrollTop 补偿 spacer 高度变化，避免跳变。
-// 2. 可见月份的高度变化：仅重测，不重算可见窗口（展开不应改变
-//    哪些月份可见）。
-watch(expandedTimelineItemId, (newId, oldId) => {
-  if (displayDensity.value !== 'timeline') return
-
-  // 记录旧 spacer 高度，以便测量完成后补偿 scroll 偏移
-  const oldSpacer = prunedTimelineHeadHeight.value
-
-  // 旧展开项的月份若已被裁剪，清除其已测高度
-  if (oldId && visibleTimelineMonthStart.value > 0) {
-    const oldMonthIndex = timelineMonthIndexByItemId.value.get(oldId)
-    if (oldMonthIndex != null && oldMonthIndex < visibleTimelineMonthStart.value) {
-      const oldEntry = timelineEntryById.value.get(oldId)
-      if (oldEntry?.timelineYearMonth) {
-        timelineMetrics.invalidateMonthHeight(oldEntry.timelineYearMonth)
-      }
-    }
-  }
-
-  _timelineMeasureFromExpand = true
-  _timelineExpandOldSpacer = oldSpacer
-  timelineMetrics.scheduleMeasure()
-})
 
 // -------- Multi-select --------
 const showDeleteConfirm = ref(false)

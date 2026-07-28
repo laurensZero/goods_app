@@ -29,6 +29,8 @@ export function useTimelineMetrics({
   /** @type {Map<string, number>} yearMonth → measured height */
   const monthHeightMap = new Map()
   let measuredYearHeaderHeight = fallbackYearHeaderHeight
+  let measuredWrapperGap = 28
+  let measuredYearBlockGap = 8
   let measureRaf = 0
   let measureAttempts = 0
 
@@ -83,6 +85,23 @@ export function useTimelineMetrics({
       }
     }
 
+    // 测量 CSS gap（offsetHeight 不含 gap，需单独读取用于 offset 计算）
+    const wrapperStyle = window.getComputedStyle(el)
+    const wGap = parseFloat(wrapperStyle.rowGap) || parseFloat(wrapperStyle.gap) || 0
+    if (wGap > 0 && Math.abs(measuredWrapperGap - wGap) >= 1) {
+      measuredWrapperGap = wGap
+      changed = true
+    }
+    const yearBlock = el.querySelector('.tl-year-block')
+    if (yearBlock) {
+      const ybStyle = window.getComputedStyle(yearBlock)
+      const yGap = parseFloat(ybStyle.rowGap) || parseFloat(ybStyle.gap) || 0
+      if (yGap > 0 && Math.abs(measuredYearBlockGap - yGap) >= 1) {
+        measuredYearBlockGap = yGap
+        changed = true
+      }
+    }
+
     if (changed) metricsVersion.value += 1
     return monthHeightMap.size >= 2
   }
@@ -123,16 +142,22 @@ export function useTimelineMetrics({
     const end = Math.min(monthIndex, allMonths.length)
     let total = 0
     let lastYear = ''
+    let monthsInYear = 0
     for (let i = 0; i < end; i++) {
       const m = allMonths[i]
       if (m.year !== lastYear) {
+        if (lastYear !== '') total += measuredWrapperGap
         total += measuredYearHeaderHeight
         lastYear = m.year
+        monthsInYear = 0
+      } else if (monthsInYear > 0) {
+        total += measuredYearBlockGap
       }
       total += monthHeightMap.get(m.yearMonth) ?? estimateMonthHeight(i)
+      monthsInYear += 1
     }
     if (monthIndex > allMonths.length) {
-      total += (monthIndex - allMonths.length) * getAverageMonthHeight()
+      total += (monthIndex - allMonths.length) * (getAverageMonthHeight() + measuredYearBlockGap)
     }
     return total
   }
@@ -151,26 +176,23 @@ export function useTimelineMetrics({
 
     let total = 0
     let lastYear = ''
+    let monthsInYear = 0
     for (let i = 0; i < allMonths.length; i++) {
       const m = allMonths[i]
       if (m.year !== lastYear) {
+        if (lastYear !== '') total += measuredWrapperGap
         total += measuredYearHeaderHeight
         lastYear = m.year
+        monthsInYear = 0
+      } else if (monthsInYear > 0) {
+        total += measuredYearBlockGap
       }
       const h = monthHeightMap.get(m.yearMonth) ?? estimateMonthHeight(i)
       if (total + h > top) return i
       total += h
+      monthsInYear += 1
     }
     return Math.max(0, allMonths.length - 1)
-  }
-
-  /**
-   * 删除指定月份的已测高度，使其回退到估值。
-   * 用于展开/折叠切换后，已被裁剪的旧展开月份无法从 DOM 重测，
-   * 需要清除其在 map 中的（含展开卡的）旧高度。
-   */
-  function invalidateMonthHeight(yearMonth) {
-    monthHeightMap.delete(yearMonth)
   }
 
   return {
@@ -180,7 +202,6 @@ export function useTimelineMetrics({
     getAverageMonthHeight,
     getAverageYearHeaderHeight: () => measuredYearHeaderHeight,
     offsetOfMonth,
-    monthAtOffset,
-    invalidateMonthHeight
+    monthAtOffset
   }
 }
