@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.10",
+    "url": "bundle-20260728.10.zip",
+    "hash": "67da84f8e69d1390bb5fbf93df4449e03db7a7999cf40ae898c5d53aea00d86f",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新时间线条目交互，添加弹窗显示功能，优化用户体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T06:51:40Z"
+  },
+  {
     "version": "20260728.9",
     "url": "bundle-20260728.9.zip",
     "hash": "76b157daff3e265c51ea01e3ad062e31f3260e091119993fe772c884283140ec",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加时间线高度测量逻辑，优化可见月份窗口计算，消除裁剪时的跳动",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T06:29:40Z"
-  },
-  {
-    "version": "20260728.7",
-    "url": "bundle-20260728.7.zip",
-    "hash": "6ee26a6a580ff2a7634f0aec28826c7ff0d64559fc5f780224e0bcae0b8e968e",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新缓存文件名生成逻辑，使用哈希确保唯一性，避免长 URL 碰撞",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T03:59:31Z"
   }
 ]
