@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.14",
+    "url": "bundle-20260728.14.zip",
+    "hash": "c3b698b5caa7e28fcac3fd590be51a76b39acb9301aa7ad8964493037a78b583",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加时间线尾部 spacer 以限制渲染窗口，优化滚动体验",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T14:03:35Z"
+  },
+  {
     "version": "20260728.13",
     "url": "bundle-20260728.13.zip",
     "hash": "b37a84805bf33817125aab0d3d2d75ab913f8beacb614fa14d1f28c3a919ae49",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加时间线弹窗关闭逻辑，优化安卓返回按钮处理",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T07:06:25Z"
-  },
-  {
-    "version": "20260728.11",
-    "url": "bundle-20260728.11.zip",
-    "hash": "c471904c01823ff4147ff4c090706f54c37115c2504abff5eab6d742e153d502",
-    "minNativeVersion": null,
-    "notes": "- feat: 在设备日志收集功能中添加 UTF-8 BOM 前缀，以确保兼容性",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T06:59:21Z"
   }
 ]

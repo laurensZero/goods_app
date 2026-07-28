@@ -1,9 +1,9 @@
 {
-  "version": "20260728.13",
-  "url": "bundle-20260728.13.zip",
-  "hash": "b37a84805bf33817125aab0d3d2d75ab913f8beacb614fa14d1f28c3a919ae49",
+  "version": "20260728.14",
+  "url": "bundle-20260728.14.zip",
+  "hash": "c3b698b5caa7e28fcac3fd590be51a76b39acb9301aa7ad8964493037a78b583",
   "minNativeVersion": null,
-  "notes": "- feat: 添加 Supabase Storage 图库备份脚本，支持增量下载和递归处理文件夹",
+  "notes": "- feat: 添加时间线尾部 spacer 以限制渲染窗口，优化滚动体验",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T08:21:16Z"
+  "publishedAt": "2026-07-28T14:03:35Z"
 }
