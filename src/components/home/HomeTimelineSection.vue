@@ -99,6 +99,13 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-if="tailSpacerHeight > 0"
+      class="tl-tail-spacer"
+      aria-hidden="true"
+      :style="{ height: `${tailSpacerHeight}px` }"
+    />
   </div>
 </template>
 
@@ -119,6 +126,7 @@ defineProps({
   unknownItems: { type: Array, required: true },
   showUnknown: { type: Boolean, default: false },
   headSpacerHeight: { type: Number, default: 0 },
+  tailSpacerHeight: { type: Number, default: 0 },
   itemIndexById: { type: Map, required: true }
 })
 
@@ -126,7 +134,8 @@ defineEmits(['tap-item'])
 </script>
 
 <style scoped>
-.tl-head-spacer {
+.tl-head-spacer,
+.tl-tail-spacer {
   pointer-events: none;
 }
 

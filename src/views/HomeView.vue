@@ -118,6 +118,7 @@
             :unknown-items="timelineUnknown"
             :show-unknown="showVisibleTimelineUnknown"
             :head-spacer-height="prunedTimelineHeadHeight"
+            :tail-spacer-height="timelineTailSpacerHeight"
             :item-index-by-id="timelineItemIndexById"
             @tap-item="handleTimelineTap"
           />
@@ -406,6 +407,7 @@ function getMaxRenderCards(density) {
 }
 const LOAD_MORE_THRESHOLD_PX = 720
 const INITIAL_TIMELINE_MONTHS = 6
+const TIMELINE_MAX_RENDER_MONTHS = 14
 const LOAD_MORE_TIMELINE_MONTHS = 4
 const TIMELINE_RESTORE_BUFFER_MONTHS = 3
 const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
@@ -960,11 +962,17 @@ function _computeTimelineWindow(scrollTop = 0, options = {}) {
 
   const initial = getInitialVisibleTimelineMonths()
   // 用逐月实测高度映射滚动偏移 → 月份索引，替代 scrollTop/estHeight 除法估算
-  const startMonth = Math.max(0, timelineMetrics.monthAtOffset(scrollTop, allTimelineMonthList.value) - TIMELINE_MONTH_OVERSCAN)
-  const endMonth = Math.min(total, timelineMetrics.monthAtOffset(scrollTop + viewportHeight * 1.6, allTimelineMonthList.value) + 1)
-  const count = Math.max(initial, endMonth - startMonth)
+  const mo = timelineMetrics.monthAtOffset(scrollTop, allTimelineMonthList.value)
+  const moEnd = timelineMetrics.monthAtOffset(scrollTop + viewportHeight * 1.6, allTimelineMonthList.value)
+  const startMonth = Math.max(0, mo - TIMELINE_MONTH_OVERSCAN)
+  const rawEndMonth = moEnd + TIMELINE_MONTH_OVERSCAN + 1
+  // 限制渲染窗口，超出部分用 tail spacer 填充（和网格模式同理）
+  const maxCount = TIMELINE_MAX_RENDER_MONTHS
+  const endMonth = Math.min(total, startMonth + maxCount)
+  const count = Math.max(initial, Math.min(endMonth - startMonth, maxCount))
+  const result = { start: Math.min(startMonth, total - count), count: Math.min(count, total) }
 
-  return { start: Math.min(startMonth, total - count), count: Math.min(count, total) }
+  return result
 }
 
 function syncVisibleTimelineMonthCount(scrollTop = 0, options = {}) {
@@ -1541,6 +1549,16 @@ const {
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
+
+// 时间线尾部 spacer：限制渲染窗口后，尾部未渲染月份的高度
+const timelineTailSpacerHeight = computed(() => {
+  if (displayDensity.value !== 'timeline') return 0
+  const total = allTimelineMonthCount.value
+  const end = visibleTimelineMonthStart.value + visibleTimelineMonthCount.value
+  if (end >= total) return 0
+  return timelineMetrics.offsetOfMonth(total, allTimelineMonthList.value)
+       - timelineMetrics.offsetOfMonth(end, allTimelineMonthList.value)
+})
 const visibleGoodsHeadSpacerHeight = computed(() => {
   if (displayDensity.value === 'timeline') return 0
 
@@ -1603,9 +1621,16 @@ watch(gridMetrics.metricsVersion, () => {
   syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
 })
 
-// 实测时间线月高落地后重算可见月份窗口（head spacer 随之重新求值）
+// 实测时间线月高落地后重算可见月份窗口（head spacer 随之重新求值）。
+// 若 spacer 因高度修正而变化，同步补偿 scrollTop，避免视觉跳变。
 watch(timelineMetrics.metricsVersion, () => {
+  const oldSpacer = prunedTimelineHeadHeight.value
   syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
+  const delta = prunedTimelineHeadHeight.value - oldSpacer
+  if (Math.abs(delta) > 0.5) {
+    const el = getScrollEl()
+    if (el) el.scrollTop += delta
+  }
 })
 
 watch(
