@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.13",
+    "url": "bundle-20260728.13.zip",
+    "hash": "b37a84805bf33817125aab0d3d2d75ab913f8beacb614fa14d1f28c3a919ae49",
+    "minNativeVersion": null,
+    "notes": "- feat: 添加 Supabase Storage 图库备份脚本，支持增量下载和递归处理文件夹",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T08:21:16Z"
+  },
+  {
     "version": "20260728.12",
     "url": "bundle-20260728.12.zip",
     "hash": "52892f155dba1cc1c744cc72053c5b6ffa1982e520f2058c2f37cf75687369d6",
@@ -16,14 +25,5 @@
     "notes": "- feat: 在设备日志收集功能中添加 UTF-8 BOM 前缀，以确保兼容性",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T06:59:21Z"
-  },
-  {
-    "version": "20260728.10",
-    "url": "bundle-20260728.10.zip",
-    "hash": "67da84f8e69d1390bb5fbf93df4449e03db7a7999cf40ae898c5d53aea00d86f",
-    "minNativeVersion": null,
-    "notes": "- feat: 更新时间线条目交互，添加弹窗显示功能，优化用户体验",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T06:51:40Z"
   }
 ]

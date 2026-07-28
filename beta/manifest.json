@@ -1,9 +1,9 @@
 {
-  "version": "20260728.12",
-  "url": "bundle-20260728.12.zip",
-  "hash": "52892f155dba1cc1c744cc72053c5b6ffa1982e520f2058c2f37cf75687369d6",
+  "version": "20260728.13",
+  "url": "bundle-20260728.13.zip",
+  "hash": "b37a84805bf33817125aab0d3d2d75ab913f8beacb614fa14d1f28c3a919ae49",
   "minNativeVersion": null,
-  "notes": "- feat: 添加时间线弹窗关闭逻辑，优化安卓返回按钮处理",
+  "notes": "- feat: 添加 Supabase Storage 图库备份脚本，支持增量下载和递归处理文件夹",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T07:06:25Z"
+  "publishedAt": "2026-07-28T08:21:16Z"
 }
