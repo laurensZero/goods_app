@@ -19,8 +19,10 @@ function makeDb({ listImpl, removeImpl }) {
   }
 }
 
+const MOCK_UID = 'test-user-123'
+
 function makeOps(db) {
-  return createStorageOps({ getDb: () => db, withRetry: (fn) => fn() })
+  return createStorageOps({ getDb: () => db, withRetry: (fn) => fn(), userIdRef: { value: MOCK_UID } })
 }
 
 function makeGoodsEntries(count, startIndex = 0) {
@@ -37,20 +39,23 @@ describe('createStorageOps', () => {
       const listCalls = []
       const db = makeDb({
         listImpl: async (bucket, folder, opts) => {
-          listCalls.push({ bucket, offset: opts.offset })
-          if (bucket === GOODS_IMAGE_BUCKET) {
+          listCalls.push({ bucket, folder, offset: opts.offset })
+          if (bucket === GOODS_IMAGE_BUCKET && folder === MOCK_UID) {
             // 第一页满 1000 条，第二页 5 条（不足一页 → 结束）
             if (opts.offset === 0) return { data: makeGoodsEntries(1000), error: null }
             return { data: makeGoodsEntries(5, 1000), error: null }
           }
-          // event 桶单页，含占位文件（应被过滤）
-          return {
-            data: [
-              { name: 'event-photo__evt1__p1__1.jpg', created_at: '2024-02-01T00:00:00Z' },
-              { name: '.emptyFolderPlaceholder', created_at: '' }
-            ],
-            error: null
+          // event 桶用户目录单页，含占位文件（应被过滤）
+          if (bucket === EVENT_PHOTO_BUCKET && folder === MOCK_UID) {
+            return {
+              data: [
+                { name: 'event-photo__evt1__p1__1.jpg', created_at: '2024-02-01T00:00:00Z' },
+                { name: '.emptyFolderPlaceholder', created_at: '' }
+              ],
+              error: null
+            }
           }
+          return { data: [], error: null }
         },
         removeImpl: async () => ({ error: null })
       })
@@ -58,12 +63,13 @@ describe('createStorageOps', () => {
       const result = await makeOps(db).getExistingImageCloud()
 
       expect(result.complete).toBe(true)
-      // goods 桶翻了两页
+      // goods 用户目录翻了两页
       expect(listCalls.filter((c) => c.bucket === GOODS_IMAGE_BUCKET).map((c) => c.offset)).toEqual([0, 1000])
       // 1005 goods + 1 event，每个文件带 .txt 别名
       expect(Object.keys(result.files)).toHaveLength((1005 + 1) * 2)
       const entry = result.files['event-photo__evt1__p1__1.jpg']
       expect(entry.createdAt).toBe('2024-02-01T00:00:00Z')
+      expect(entry.storagePath).toBe(`${MOCK_UID}/event-photo__evt1__p1__1.jpg`)
       // .txt 别名与真实文件指向同一对象
       expect(result.files['event-photo__evt1__p1__1.jpg.txt']).toBe(entry)
       expect(result.files['.emptyFolderPlaceholder']).toBeUndefined()
@@ -71,9 +77,10 @@ describe('createStorageOps', () => {
 
     it('sets complete=false when any page listing fails', async () => {
       const db = makeDb({
-        listImpl: async (bucket) => {
-          if (bucket === GOODS_IMAGE_BUCKET) return { data: makeGoodsEntries(3), error: null }
-          return { data: null, error: { message: 'boom' } }
+        listImpl: async (bucket, folder) => {
+          if (bucket === GOODS_IMAGE_BUCKET && folder === MOCK_UID) return { data: makeGoodsEntries(3), error: null }
+          if (bucket === EVENT_PHOTO_BUCKET && folder === MOCK_UID) return { data: null, error: { message: 'boom' } }
+          return { data: [], error: null }
         },
         removeImpl: async () => ({ error: null })
       })
@@ -83,6 +90,7 @@ describe('createStorageOps', () => {
       expect(result.complete).toBe(false)
       // 成功列出的桶内容仍可用
       expect(result.files['goods-image__item__img0__1.jpg']).toBeTruthy()
+      expect(result.files['goods-image__item__img0__1.jpg'].storagePath).toBe(`${MOCK_UID}/goods-image__item__img0__1.jpg`)
     })
   })
 
@@ -111,10 +119,10 @@ describe('createStorageOps', () => {
       // goods 桶 251 个路径 → 100 + 100 + 51 三批
       expect(goodsCalls.map((c) => c.batch.length)).toEqual([100, 100, 51])
       expect(eventCalls.map((c) => c.batch.length)).toEqual([1])
-      expect(eventCalls[0].batch).toEqual(['event-photo__evt1__p1__1.jpg'])
+      expect(eventCalls[0].batch).toEqual([`${MOCK_UID}/event-photo__evt1__p1__1.jpg`])
       // 旧版 .txt 后缀被剥离
       const allGoodsPaths = goodsCalls.flatMap((c) => c.batch)
-      expect(allGoodsPaths).toContain('goods-image__legacy__img__1.jpg')
+      expect(allGoodsPaths).toContain(`${MOCK_UID}/goods-image__legacy__img__1.jpg`)
       expect(allGoodsPaths).not.toContain('goods-image__legacy__img__1.jpg.txt')
     })
 
