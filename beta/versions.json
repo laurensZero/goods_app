@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.1",
+    "url": "bundle-20260728.1.zip",
+    "hash": "109d050f580f8d2c1cd3f251e528b990704997fd7c0c295b89a6bc4f9cd6c304",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新分享数据白名单，移除不必要的排除字段，优化数据安全性",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T02:33:16Z"
+  },
+  {
     "version": "20260727.11",
     "url": "bundle-20260727.11.zip",
     "hash": "c86724cb05a24178397014768235d68e94e14628fcbefb6593aedfb74b0582f9",
@@ -16,14 +25,5 @@
     "notes": "- feat: 将生日弹窗图片组件替换为 LazyCachedImage，优化加载性能",
     "updateLevel": "silent",
     "publishedAt": "2026-07-27T13:55:53Z"
-  },
-  {
-    "version": "20260727.9",
-    "url": "bundle-20260727.9.zip",
-    "hash": "bef58dd88e93d0e862dc4c65e4a062ddfb6441d6f47cc24f30554016db81bf36",
-    "minNativeVersion": null,
-    "notes": "- feat: 优化弹窗显示逻辑，支持缓存数据秒开与后台增量验证",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-27T09:31:08Z"
   }
 ]

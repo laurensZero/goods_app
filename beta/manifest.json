@@ -1,9 +1,9 @@
 {
-  "version": "20260727.11",
-  "url": "bundle-20260727.11.zip",
-  "hash": "c86724cb05a24178397014768235d68e94e14628fcbefb6593aedfb74b0582f9",
+  "version": "20260728.1",
+  "url": "bundle-20260728.1.zip",
+  "hash": "109d050f580f8d2c1cd3f251e528b990704997fd7c0c295b89a6bc4f9cd6c304",
   "minNativeVersion": null,
-  "notes": "- feat: 优化生日墙图片展示，增加容器以支持更好的布局和样式",
+  "notes": "- feat: 更新分享数据白名单，移除不必要的排除字段，优化数据安全性",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-27T14:39:55Z"
+  "publishedAt": "2026-07-28T02:33:16Z"
 }
