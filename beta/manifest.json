@@ -1,9 +1,9 @@
 {
-  "version": "20260728.15",
-  "url": "bundle-20260728.15.zip",
-  "hash": "7581fc1e11af5bded89a28f327c31fbf46397608cd39ee4e8ace906eea8a1cf4",
+  "version": "20260728.16",
+  "url": "bundle-20260728.16.zip",
+  "hash": "f5087305c08524a4da06e4d0cc6def92b646691d08686ab4ed04fb7baefc35f9",
   "minNativeVersion": null,
-  "notes": "- feat: 添加公告列表功能，优化用户体验和通知管理",
+  "notes": "- feat: 更新应用程序以支持 jsDelivr 作为更新源，优化更新管理",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T14:34:45Z"
+  "publishedAt": "2026-07-28T14:48:35Z"
 }

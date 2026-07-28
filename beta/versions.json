@@ -1,5 +1,14 @@
 [
   {
+    "version": "20260728.16",
+    "url": "bundle-20260728.16.zip",
+    "hash": "f5087305c08524a4da06e4d0cc6def92b646691d08686ab4ed04fb7baefc35f9",
+    "minNativeVersion": null,
+    "notes": "- feat: 更新应用程序以支持 jsDelivr 作为更新源，优化更新管理",
+    "updateLevel": "silent",
+    "publishedAt": "2026-07-28T14:48:35Z"
+  },
+  {
     "version": "20260728.15",
     "url": "bundle-20260728.15.zip",
     "hash": "7581fc1e11af5bded89a28f327c31fbf46397608cd39ee4e8ace906eea8a1cf4",
@@ -16,14 +25,5 @@
     "notes": "- feat: 添加时间线尾部 spacer 以限制渲染窗口，优化滚动体验",
     "updateLevel": "silent",
     "publishedAt": "2026-07-28T14:03:35Z"
-  },
-  {
-    "version": "20260728.13",
-    "url": "bundle-20260728.13.zip",
-    "hash": "b37a84805bf33817125aab0d3d2d75ab913f8beacb614fa14d1f28c3a919ae49",
-    "minNativeVersion": null,
-    "notes": "- feat: 添加 Supabase Storage 图库备份脚本，支持增量下载和递归处理文件夹",
-    "updateLevel": "silent",
-    "publishedAt": "2026-07-28T08:21:16Z"
   }
 ]
