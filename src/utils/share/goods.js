@@ -2,35 +2,18 @@ import { sanitizeGoodsItemForShare } from '@/utils/goods/images'
 
 const SHARE_PAYLOAD_VERSION = 1
 
-const EXCLUDED_KEYS = new Set([
-  'id',
-  'tags',
-  'storageLocation',
-  'updatedAt',
-  'points',
-  'unitAcquiredAtList',
-  'unitActualPriceList',
-  'unitCharacterList',
-  'unitCollectStatusList',
-  'image',
-  'coverImage',
-  '_imagesExplicit',
-  '__imagesExplicit',
-  'quantity',
-  'note',
-  'collectStatus',
-  'shippingFee',
-  'actualPrice',
-  'actualPriceCurrency',
-  'acquiredAt',
-  'source',
-  'saleAt',
-  'saleReminderEnabled',
-  'saleReminderOffsets',
-  'tracks',
-  'statusTimeline',
-  'isWishlist',
-  'syncedBy'
+// 白名单：只有这些字段会出现在分享数据中。
+// 新增的字段默认不会被分享，避免隐私数据泄露。
+const ALLOWED_KEYS = new Set([
+  'name',
+  'category',
+  'ip',
+  'goodsId',
+  'characters',
+  'variant',
+  'price',
+  'currency',
+  'images'
 ])
 
 /**
@@ -57,8 +40,8 @@ export async function buildSharePayload(goodsItems) {
 
   const goods = sanitized.map((item) => {
     const cleaned = {}
-    for (const key of Object.keys(item)) {
-      if (!EXCLUDED_KEYS.has(key) && !key.startsWith('_')) {
+    for (const key of ALLOWED_KEYS) {
+      if (key in item) {
         cleaned[key] = item[key]
       }
     }
