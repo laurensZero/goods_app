@@ -1,9 +1,9 @@
 {
-  "version": "20260728.11",
-  "url": "bundle-20260728.11.zip",
-  "hash": "c471904c01823ff4147ff4c090706f54c37115c2504abff5eab6d742e153d502",
+  "version": "20260728.12",
+  "url": "bundle-20260728.12.zip",
+  "hash": "52892f155dba1cc1c744cc72053c5b6ffa1982e520f2058c2f37cf75687369d6",
   "minNativeVersion": null,
-  "notes": "- feat: 在设备日志收集功能中添加 UTF-8 BOM 前缀，以确保兼容性",
+  "notes": "- feat: 添加时间线弹窗关闭逻辑，优化安卓返回按钮处理",
   "updateLevel": "silent",
-  "publishedAt": "2026-07-28T06:59:21Z"
+  "publishedAt": "2026-07-28T07:06:25Z"
 }
