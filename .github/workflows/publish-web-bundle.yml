@@ -41,6 +41,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/**'
+      - 'docs/**'
+      - '**.sql'
+      - '.gitignore'
+      - '.gitattributes'
+      - '**.md'
+      - 'LICENSE'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}

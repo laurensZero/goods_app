@@ -302,11 +302,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
         run: |
-          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+          # Try create first; if tag already has a release, fall back to edit
+          gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md --target "$GITHUB_SHA" 2>/dev/null || \
             gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
-          else
-            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md --target "$GITHUB_SHA"
-          fi
 
       - name: Upload APK to GitHub Release
         env:
