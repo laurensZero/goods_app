@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: ''
+      rollback_version:
+        description: '回档目标版本 (仅回档时填写)'
+        required: false
+        type: string
+        default: ''
   push:
     branches:
       - main
@@ -62,16 +67,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build web assets
-        run: npm run build
-
       - name: Determine version
         id: version
         env:
           INPUT_VERSION: ${{ github.event.inputs.version || '' }}
+          ROLLBACK_VERSION: ${{ github.event.inputs.rollback_version || '' }}
           EVENT_NAME: ${{ github.event_name }}
           CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
         run: |
+          ROLLBACK="${ROLLBACK_VERSION}"
+          if [ -n "${ROLLBACK}" ]; then
+            echo "Rollback requested: ${ROLLBACK}"
+            # Look up the bundle from DB
+            BUNDLE_JSON=$(curl -sS -X GET \
+              "${SUPABASE_URL}/rest/v1/ota_bundles?select=*&channel=eq.${CHANNEL}&type=eq.web_bundle&version=eq.${ROLLBACK}&limit=1" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Accept: application/json" || echo "[]")
+            STORED_PATH=$(echo "${BUNDLE_JSON}" | jq -r '.[0].storage_path // empty')
+            STORED_SHA256=$(echo "${BUNDLE_JSON}" | jq -r '.[0].sha256 // empty')
+            STORED_SIZE=$(echo "${BUNDLE_JSON}" | jq -r '.[0].file_size // 0')
+            STORED_MIN=$(echo "${BUNDLE_JSON}" | jq -r '.[0].min_native_version // ""')
+            STORED_NOTES=$(echo "${BUNDLE_JSON}" | jq -r '.[0].notes // ""')
+            if [ -z "${STORED_PATH}" ]; then
+              echo "::error::Rollback version ${ROLLBACK} not found in database"
+              exit 1
+            fi
+            echo "rollback=true" >> "$GITHUB_OUTPUT"
+            echo "version=${ROLLBACK}" >> "$GITHUB_OUTPUT"
+            echo "storage_path=${STORED_PATH}" >> "$GITHUB_OUTPUT"
+            echo "sha256=${STORED_SHA256}" >> "$GITHUB_OUTPUT"
+            echo "file_size=${STORED_SIZE}" >> "$GITHUB_OUTPUT"
+            echo "min_native=${STORED_MIN}" >> "$GITHUB_OUTPUT"
+            echo "stored_notes=${STORED_NOTES}" >> "$GITHUB_OUTPUT"
+            echo "Rollback to ${ROLLBACK}: storage=${STORED_PATH}"
+            exit 0
+          fi
+
           if [ -n "${INPUT_VERSION}" ]; then
             echo "version=${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
             echo "Using manual version: ${INPUT_VERSION}"
@@ -103,7 +135,12 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Auto-generated version: ${VERSION} (channel: ${CHANNEL})"
 
+      - name: Build web assets
+        if: steps.version.outputs.rollback != 'true'
+        run: npm run build
+
       - name: Create bundle archive
+        if: steps.version.outputs.rollback != 'true'
         id: bundle
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -134,6 +171,7 @@ jobs:
           echo "File size: ${FILE_SIZE} bytes"
 
       - name: Upload bundle to Supabase Storage
+        if: steps.version.outputs.rollback != 'true'
         env:
           BUNDLE_NAME: ${{ steps.bundle.outputs.bundle_name }}
           STORAGE_PATH: ${{ steps.bundle.outputs.storage_path }}
@@ -150,15 +188,38 @@ jobs:
       - name: Insert bundle record into ota_bundles
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          STORAGE_PATH: ${{ steps.bundle.outputs.storage_path }}
-          SHA256: ${{ steps.bundle.outputs.sha256 }}
-          FILE_SIZE: ${{ steps.bundle.outputs.file_size }}
+          IS_ROLLBACK: ${{ steps.version.outputs.rollback }}
+          # Normal publish: use bundle step outputs
+          BUNDLE_PATH: ${{ steps.bundle.outputs.storage_path }}
+          BUNDLE_SHA256: ${{ steps.bundle.outputs.sha256 }}
+          BUNDLE_SIZE: ${{ steps.bundle.outputs.file_size }}
+          # Rollback: use version step outputs (from DB lookup)
+          ROLLBACK_PATH: ${{ steps.version.outputs.storage_path }}
+          ROLLBACK_SHA256: ${{ steps.version.outputs.sha256 }}
+          ROLLBACK_SIZE: ${{ steps.version.outputs.file_size }}
+          ROLLBACK_MIN: ${{ steps.version.outputs.min_native }}
+          ROLLBACK_NOTES: ${{ steps.version.outputs.stored_notes }}
           CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
           UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
           NOTES: ${{ github.event.inputs.notes || '' }}
           MIN_NATIVE_VERSION: ${{ github.event.inputs.min_native_version || '' }}
         run: |
           echo "Inserting into ota_bundles table..."
+
+          if [ "${IS_ROLLBACK}" = "true" ]; then
+            STORAGE_PATH="${ROLLBACK_PATH}"
+            SHA256="${ROLLBACK_SHA256}"
+            FILE_SIZE="${ROLLBACK_SIZE}"
+            NOTES="${ROLLBACK_NOTES}"
+            MIN_NATIVE_VERSION="${ROLLBACK_MIN}"
+          else
+            STORAGE_PATH="${BUNDLE_PATH}"
+            SHA256="${BUNDLE_SHA256}"
+            FILE_SIZE="${BUNDLE_SIZE}"
+          fi
+
+          echo "version=${VERSION} path=${STORAGE_PATH} sha256=${SHA256}"
+
           PAYLOAD=$(jq -n \
             --arg channel "${CHANNEL}" \
             --arg type "web_bundle" \

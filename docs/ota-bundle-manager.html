@@ -806,7 +806,7 @@
 
       <!-- APK Release -->
       <article class="publish-card">
-        <h3 style="margin:0 0 12px;font-size:16px">APK Release</h3>
+        <h3 style="margin:0 0 12px;font-size:16px">APK Release <span id="apkLatestVersion" style="font-weight:400;font-size:13px;color:var(--app-text-tertiary)">加载中...</span></h3>
         <div class="publish-grid">
           <label class="field">
             <span class="field-label">Release Tag</span>
@@ -1226,6 +1226,7 @@
     const triggerApkBuildBtn = document.getElementById('triggerApkBuildBtn')
     const openApkWorkflowBtn = document.getElementById('openApkWorkflowBtn')
     const apkBuildStatus = document.getElementById('apkBuildStatus')
+    const apkLatestVersion = document.getElementById('apkLatestVersion')
     const announcementId = document.getElementById('announcementId')
     const announcementPriority = document.getElementById('announcementPriority')
     const announcementTitle = document.getElementById('announcementTitle')
@@ -3331,11 +3332,10 @@
 
       const inputs = {
         channel,
-        bundle_version: bundleVersion,
+        version: bundleVersion,
         min_native_version: minNativeVersion,
         update_level: updateLevel,
-        notes,
-        rollback_version: ''
+        notes
       }
 
       publishBtn.disabled = true
@@ -3422,7 +3422,7 @@
             ref: 'main',
             inputs: {
               channel,
-              bundle_version: '',
+              version: '',
               min_native_version: '',
               update_level: 'prompt',
               notes: '',
@@ -3447,6 +3447,21 @@
     function openActionsPage() {
       const url = `https://github.com/${repoOwner}/${repoName}/actions/workflows/${workflowId}`
       window.open(url, '_blank', 'noopener')
+    }
+
+    async function fetchLatestApkVersion() {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`)
+        if (!res.ok) {
+          apkLatestVersion.textContent = '(无法获取)'
+          return
+        }
+        const release = await res.json()
+        const tag = release?.tag_name || ''
+        apkLatestVersion.textContent = tag ? `最新: ${tag}` : '(无 Release)'
+      } catch {
+        apkLatestVersion.textContent = '(获取失败)'
+      }
     }
 
     async function triggerApkBuild() {
@@ -3679,6 +3694,7 @@
     feedbackDetailCloseBtn.addEventListener('click', () => { feedbackDetailCard.style.display = 'none'; currentFeedbackId = null })
     setupQuickNav()
     loadAllChannels()
+    fetchLatestApkVersion()
     loadAnnouncementList()
     loadSurveyList()
     loadFeedbackList()
