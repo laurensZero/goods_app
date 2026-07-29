@@ -163,6 +163,9 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { submitFeedback } from '@/services/feedbackService'
 import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
 import { getDeviceId } from '@/utils/feedbackDevice'
@@ -205,7 +208,29 @@ const typeOptions = computed(() => [
   }
 ])
 
-const appVersion = import.meta.env.VITE_APP_VERSION || packageJson.version || ''
+const fallbackVersion = import.meta.env.VITE_APP_VERSION || packageJson.version || ''
+
+const appVersion = ref(fallbackVersion)
+const bundleVersion = ref('')
+
+/** Fetch real native app version and OTA bundle version at dialog open. */
+async function refreshVersions() {
+  // 1) Native app version (Android)
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const info = await CapacitorApp.getInfo()
+      const ver = String(info?.version || '').trim()
+      if (ver) appVersion.value = ver
+    } catch { /* keep fallback */ }
+  }
+
+  // 2) OTA bundle version (Capacitor Updater)
+  try {
+    const result = await CapacitorUpdater.current()
+    const bv = result?.bundle?.version || ''
+    if (bv) bundleVersion.value = bv
+  } catch { /* non-native / updater unavailable */ }
+}
 
 function closeDialog() {
   emit('update:modelValue', false)
@@ -275,7 +300,8 @@ async function handleSubmit() {
       title: feedbackTitle.value.trim(),
       content: feedbackContent.value.trim(),
       contact: feedbackContact.value.trim(),
-      appVersion,
+      appVersion: appVersion.value,
+      bundleVersion: bundleVersion.value,
       attachments: attachments.length > 0 ? attachments : undefined
     })
 
@@ -294,7 +320,10 @@ async function handleSubmit() {
 }
 
 watch(() => props.modelValue, (val) => {
-  if (val) resetForm()
+  if (val) {
+    resetForm()
+    refreshVersions()
+  }
 })
 </script>
 

@@ -15,7 +15,7 @@ function db() {
 /**
  * Submit feedback to Supabase.
  */
-export async function submitFeedback({ userId, type, title, content, contact, appVersion, attachments }) {
+export async function submitFeedback({ userId, type, title, content, contact, appVersion, bundleVersion, attachments }) {
   const platform = Capacitor.isNativePlatform() ? 'android' : 'web'
   const userAgent = navigator.userAgent || ''
   const deviceId = getDeviceId()
@@ -26,6 +26,7 @@ export async function submitFeedback({ userId, type, title, content, contact, ap
     content: content || '',
     contact: contact || '',
     app_version: appVersion || '',
+    bundle_version: bundleVersion || '',
     platform,
     user_agent: userAgent,
     device_id: deviceId,

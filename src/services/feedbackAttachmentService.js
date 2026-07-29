@@ -3,6 +3,9 @@
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { getBufferedLogs, getPreviousSessionLogs } from '@/utils/logger'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 
 // appLog 与错误捕获已迁移到 utils/logger（统一缓冲 + localStorage 落盘），保留兼容导出
 export { appLog } from '@/utils/logger'
@@ -132,11 +135,24 @@ export async function collectDeviceLog() {
   lines.push('')
   lines.push('=== App Info ===')
   try {
-    lines.push(`App Version: ${import.meta.env.VITE_APP_VERSION || 'unknown'}`)
-  } catch { lines.push('App Version: unknown') }
+    lines.push(`Vite App Version: ${import.meta.env.VITE_APP_VERSION || 'unknown'}`)
+  } catch { lines.push('Vite App Version: unknown') }
   try {
-    lines.push(`Android Version: ${import.meta.env.VITE_ANDROID_VERSION_NAME || 'N/A'}`)
+    lines.push(`Android Version (build): ${import.meta.env.VITE_ANDROID_VERSION_NAME || 'N/A'}`)
   } catch {}
+  // 运行时原生版本号
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const info = await CapacitorApp.getInfo()
+      lines.push(`Native App Version: ${info?.version || '?'} (build ${info?.build || '?'})`)
+    } catch { lines.push('Native App Version: unavailable') }
+  }
+  // OTA bundle 版本
+  try {
+    const updater = await CapacitorUpdater.current()
+    lines.push(`Bundle Version: ${updater?.bundle?.version || 'none'}`)
+    if (updater?.bundle?.id) lines.push(`Bundle ID: ${updater.bundle.id}`)
+  } catch { lines.push('Bundle Version: N/A') }
   try {
     const perf = performance.getEntriesByType('navigation')[0]
     if (perf) {

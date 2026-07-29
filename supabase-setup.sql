@@ -532,6 +532,7 @@ CREATE TABLE IF NOT EXISTS feedbacks (
   admin_reply TEXT,
   admin_reply_at TIMESTAMPTZ,
   app_version TEXT DEFAULT '',
+  bundle_version TEXT DEFAULT '',
   platform TEXT DEFAULT '',
   user_agent TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now(),
