@@ -239,15 +239,23 @@ jobs:
             fi
           fi
 
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)
-          if [ -z "$PREVIOUS_TAG" ]; then
-            PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -Fxv "$RELEASE_TAG" | head -n 1 || true)
+          PREVIOUS_TAG=""
+          # Check if the tag already exists (push trigger) or is new (workflow_dispatch)
+          if git rev-parse "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            # Tag exists: find the previous tag relative to it
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)
+            if [ -z "$PREVIOUS_TAG" ]; then
+              PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -Fxv "$RELEASE_TAG" | head -n 1 || true)
+            fi
+            RANGE="${PREVIOUS_TAG}..${RELEASE_TAG}"
+          else
+            # New tag (workflow_dispatch): compare against the latest existing tag
+            PREVIOUS_TAG=$(git tag --sort=-creatordate | head -n 1 || true)
+            RANGE="${PREVIOUS_TAG}..HEAD"
           fi
 
-          if [ -n "$PREVIOUS_TAG" ]; then
-            RANGE="$PREVIOUS_TAG..$RELEASE_TAG"
-          else
-            RANGE="$RELEASE_TAG"
+          if [ -z "$PREVIOUS_TAG" ]; then
+            RANGE="HEAD~20..HEAD"
           fi
 
           echo "update_level: ${UPDATE_LEVEL}" > release-notes.md
