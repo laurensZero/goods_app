@@ -1413,8 +1413,7 @@ CREATE TABLE IF NOT EXISTS ota_bundles (
   update_level  TEXT NOT NULL DEFAULT 'prompt'
                 CHECK (update_level IN ('force', 'prompt', 'silent')),
   notes         TEXT,
-  published_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  published_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ota_bundles_channel_published

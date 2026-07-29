@@ -242,6 +242,19 @@ jobs:
 
           echo "Pruning complete."
 
+      - name: Prepare manager page
+        run: |
+          mkdir -p ghpages-deploy
+          cp docs/ota-bundle-manager.html ghpages-deploy/index.html
+
+      - name: Deploy manager page to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ghpages-deploy
+          destination_dir: .
+          keep_files: true
+
       - name: Summary
         env:
           VERSION: ${{ steps.version.outputs.version }}
