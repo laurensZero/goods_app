@@ -669,7 +669,7 @@
     <section class="hero">
       <p class="hero-kicker">Dashboard</p>
       <h1 class="hero-title">Goods App 管理台</h1>
-      <p class="hero-desc">管理 OTA Web Bundle 发布通道。Bundle 存储在 Supabase Storage，元数据由 ota_bundles 表管理，每通道保留最近 3 个版本。</p>
+      <p class="hero-desc">管理 OTA Web Bundle 发布通道。Bundle 存储在 Supabase Storage，元数据由 ota_releases 表管理，每通道保留最近 3 个版本。</p>
       <div class="hero-row">
         <span class="chip" id="updatedAtChip">最近刷新：--</span>
         <button class="btn" id="refreshAllBtn" type="button">刷新全部</button>
@@ -3125,11 +3125,11 @@
     function buildStorageUrl(storagePath) {
       const config = getSupabaseConfig()
       if (!config.url || !storagePath) return ''
-      return `${config.url}/storage/v1/object/public/ota-bundles/${storagePath}`
+      return `${config.url}/storage/v1/object/public/ota-releases/${storagePath}`
     }
 
     async function fetchOtaBundles(channel) {
-      // Query ota_bundles table via Supabase REST API
+      // Query ota_releases table via Supabase REST API
       const select = 'version,storage_path,file_size,sha256,min_native_version,update_level,notes,published_at'
       const params = new URLSearchParams({
         select,
@@ -3139,7 +3139,7 @@
         limit: String(KEEP_BUNDLE_COUNT + 1) // +1 to know if we need pruning
       })
 
-      const res = await supabaseRequest(`/rest/v1/ota_bundles?${params.toString()}`, {
+      const res = await supabaseRequest(`/rest/v1/ota_releases?${params.toString()}`, {
         useServiceKey: false
       })
 
@@ -3242,7 +3242,7 @@
       refs.openManifest.onclick = () => {
         const config = getSupabaseConfig()
         if (config.url) {
-          window.open(`${config.url}/rest/v1/ota_bundles?select=*&channel=eq.${encodeURIComponent(channel)}&order=published_at.desc&limit=3`, '_blank', 'noopener')
+          window.open(`${config.url}/rest/v1/ota_releases?select=*&channel=eq.${encodeURIComponent(channel)}&order=published_at.desc&limit=3`, '_blank', 'noopener')
         }
       }
       refs.openBundle.disabled = !hasBundle
@@ -3518,7 +3518,7 @@
 
         // Get all bundles for this channel, ordered by published_at desc
         const allBundles = await supabaseRequest(
-          `/rest/v1/ota_bundles?select=id,storage_path&channel=eq.${encodeURIComponent(channel)}&type=eq.web_bundle&order=published_at.desc`,
+          `/rest/v1/ota_releases?select=id,storage_path&channel=eq.${encodeURIComponent(channel)}&type=eq.web_bundle&order=published_at.desc`,
           { useServiceKey: true }
         )
 
@@ -3530,7 +3530,7 @@
         for (const bundle of toDelete) {
           // Delete from storage
           if (bundle.storage_path) {
-            await fetch(`${config.url}/storage/v1/object/ota-bundles/${encodeURIComponent(bundle.storage_path)}`, {
+            await fetch(`${config.url}/storage/v1/object/ota-releases/${encodeURIComponent(bundle.storage_path)}`, {
               method: 'DELETE',
               headers: {
                 Authorization: `Bearer ${config.serviceKey}`
@@ -3539,7 +3539,7 @@
           }
           // Delete from table
           await supabaseRequest(
-            `/rest/v1/ota_bundles?id=eq.${encodeURIComponent(bundle.id)}`,
+            `/rest/v1/ota_releases?id=eq.${encodeURIComponent(bundle.id)}`,
             { method: 'DELETE', useServiceKey: true }
           ).catch(() => {})
         }

@@ -18,6 +18,8 @@ import {
 import { readSyncKey } from '@/utils/sync/storage'
 import { AVAILABLE_UPDATE_LEVELS, normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
+import { SUPABASE_URL } from '@/config/supabase'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
 import { createLogger } from '@/utils/logger'
 
@@ -130,6 +132,9 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
   const supportsInAppDownload = computed(() => nativeAndroidDownloadEnabled.value || usingMockDownload.value)
   const releaseNotesPreview = computed(() => buildReleaseNotesPreview(latestRelease.value?.body))
   const releaseApkSha256 = computed(() => resolveApkSha256FromRelease(latestRelease.value))
+  const supabaseApkUrl = ref('')
+  const supabaseApkSha256 = ref('')
+
   const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
   const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
 
@@ -310,8 +315,11 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         console.warn('[appUpdate] release 未提供 apk_sha256，跳过完整性校验（旧版 release 兼容）')
       }
 
-      // 候选下载地址：代理地址优先；校验失败时回退直连 GitHub
-      const candidateUrls = downloadUrl === rawDownloadUrl ? [downloadUrl] : [downloadUrl, rawDownloadUrl]
+      // 候选下载地址：Supabase 优先（国内快），代理次之，直连 GitHub 兜底
+      const candidateUrls = [
+        ...(supabaseApkUrl.value ? [supabaseApkUrl.value] : []),
+        ...(downloadUrl === rawDownloadUrl ? [downloadUrl] : [downloadUrl, rawDownloadUrl])
+      ]
       let verified = false
 
       for (const candidateUrl of candidateUrls) {
@@ -405,6 +413,24 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         latestRelease.value = release
         updateLevel.value = resolveUpdateLevelFromRelease(release)
         lastCheckedAt.value = new Date().toISOString()
+
+        // 同时查询 Supabase 是否有 APK（非阻塞，失败不影响主流程）
+        try {
+          const client = getSupabaseClient()
+          const { data: apkData } = await client
+            .from('ota_releases')
+            .select('storage_path, sha256')
+            .eq('type', 'apk')
+            .order('published_at', { ascending: false })
+            .limit(1)
+          if (apkData?.[0]?.storage_path) {
+            supabaseApkUrl.value = `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${apkData[0].storage_path}`
+            supabaseApkSha256.value = (apkData[0].sha256 || '').toLowerCase()
+          }
+        } catch {
+          supabaseApkUrl.value = ''
+          supabaseApkSha256.value = ''
+        }
 
         if (usingMockDownload.value && source === 'manual' && !hasUpdate.value) {
           forceMockDialog.value = true

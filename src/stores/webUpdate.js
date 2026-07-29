@@ -225,7 +225,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
         // 查询最新 bundle
         const { data, error } = await client
-          .from('ota_bundles')
+          .from('ota_releases')
           .select('*')
           .eq('channel', channel)
           .eq('type', 'web_bundle')
@@ -243,7 +243,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const bundle = data[0]
         latestRelease.value = bundle
         latestVersion.value = normalizeVersionTag(bundle.version)
-        latestZipUrl.value = `${SUPABASE_URL}/storage/v1/object/public/ota-bundles/${bundle.storage_path}`
+        latestZipUrl.value = `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${bundle.storage_path}`
         latestBundleChecksum.value = normalizeChecksum(bundle.sha256)
         latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
         updateLevel.value = normalizeUpdateLevel(bundle.update_level)
@@ -251,7 +251,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
         // 获取历史版本用于累积 release notes
         const { data: history } = await client
-          .from('ota_bundles')
+          .from('ota_releases')
           .select('version, notes, published_at')
           .eq('channel', channel)
           .eq('type', 'web_bundle')

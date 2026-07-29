@@ -88,7 +88,7 @@ jobs:
             echo "Rollback requested: ${ROLLBACK}"
             # Look up the bundle from DB
             BUNDLE_JSON=$(curl -sS -X GET \
-              "${SUPABASE_URL}/rest/v1/ota_bundles?select=*&channel=eq.${CHANNEL}&type=eq.web_bundle&version=eq.${ROLLBACK}&limit=1" \
+              "${SUPABASE_URL}/rest/v1/ota_releases?select=*&channel=eq.${CHANNEL}&type=eq.web_bundle&version=eq.${ROLLBACK}&limit=1" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Accept: application/json" || echo "[]")
@@ -124,7 +124,7 @@ jobs:
 
           # Query Supabase for the latest version with today's date prefix
           RESPONSE=$(curl -sS -X GET \
-            "${SUPABASE_URL}/rest/v1/ota_bundles?select=version&channel=eq.${CHANNEL}&type=eq.web_bundle&version=like.${TODAY}.*&order=published_at.desc&limit=1" \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=version&channel=eq.${CHANNEL}&type=eq.web_bundle&version=like.${TODAY}.*&order=published_at.desc&limit=1" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Accept: application/json" || echo "[]")
@@ -248,14 +248,14 @@ jobs:
         run: |
           echo "Uploading to Supabase Storage: ${STORAGE_PATH}"
           curl -sS -X POST \
-            "${SUPABASE_URL}/storage/v1/object/ota-bundles/${STORAGE_PATH}" \
+            "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_PATH}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
             --data-binary "@${BUNDLE_NAME}" \
             -w "\nHTTP %{http_code}"
 
-      - name: Insert bundle record into ota_bundles
+      - name: Insert bundle record into ota_releases
         env:
           VERSION: ${{ steps.version.outputs.version }}
           IS_ROLLBACK: ${{ steps.version.outputs.rollback }}
@@ -274,7 +274,7 @@ jobs:
           NOTES: ${{ steps.notes.outputs.notes }}
           MIN_NATIVE_VERSION: ${{ github.event.inputs.min_native_version || '' }}
         run: |
-          echo "Inserting into ota_bundles table..."
+          echo "Inserting into ota_releases table..."
 
           if [ "${IS_ROLLBACK}" = "true" ]; then
             STORAGE_PATH="${ROLLBACK_PATH}"
@@ -313,7 +313,7 @@ jobs:
             }')
 
           HTTP_CODE=$(curl -sS -X POST \
-            "${SUPABASE_URL}/rest/v1/ota_bundles" \
+            "${SUPABASE_URL}/rest/v1/ota_releases" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
@@ -335,7 +335,7 @@ jobs:
 
           # Fetch all bundles for this channel, ordered by published_at desc
           ALL_BUNDLES=$(curl -sS -X GET \
-            "${SUPABASE_URL}/rest/v1/ota_bundles?select=id,storage_path&channel=eq.${CHANNEL}&type=eq.web_bundle&order=published_at.desc" \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=id,storage_path&channel=eq.${CHANNEL}&type=eq.web_bundle&order=published_at.desc" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Accept: application/json")
@@ -360,7 +360,7 @@ jobs:
             if [ -n "${STORAGE_PATH}" ]; then
               STORAGE_ENCODED=$(echo -n "${STORAGE_PATH}" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
               curl -sS -X DELETE \
-                "${SUPABASE_URL}/storage/v1/object/ota-bundles/${STORAGE_ENCODED}" \
+                "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_ENCODED}" \
                 -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
                 -o /dev/null -w "  Storage: HTTP %{http_code}\n" || true
             fi
@@ -368,7 +368,7 @@ jobs:
             # Delete from table
             BUNDLE_ENC=$(echo -n "${BUNDLE_ID}" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
             curl -sS -X DELETE \
-              "${SUPABASE_URL}/rest/v1/ota_bundles?id=eq.${BUNDLE_ENC}" \
+              "${SUPABASE_URL}/rest/v1/ota_releases?id=eq.${BUNDLE_ENC}" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -o /dev/null -w "  Table: HTTP %{http_code}\n" || true

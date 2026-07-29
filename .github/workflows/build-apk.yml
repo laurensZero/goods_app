@@ -213,6 +213,7 @@ jobs:
           if-no-files-found: error
 
       - name: Generate release notes from commits
+        id: release_notes
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
@@ -258,6 +259,7 @@ jobs:
             RANGE="HEAD~20..HEAD"
           fi
 
+          echo "update_level=${UPDATE_LEVEL}" >> "$GITHUB_OUTPUT"
           echo "update_level: ${UPDATE_LEVEL}" > release-notes.md
           echo "apk_sha256: ${APK_SHA256}" >> release-notes.md
           echo "" >> release-notes.md
@@ -321,3 +323,103 @@ jobs:
           RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
         run: |
           gh release upload "$RELEASE_TAG" "android/app/build/outputs/apk/release/app-release.apk#$RELEASE_ASSET_NAME" --clobber
+
+      - name: Upload APK to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
+          APK_SHA256: ${{ steps.release_meta.outputs.apk_sha256 }}
+        run: |
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY not set, skipping Supabase upload."
+            exit 0
+          fi
+
+          APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
+          STORAGE_PATH="apk/${RELEASE_ASSET_NAME}"
+
+          # Compute SHA256 if not already done
+          APK_SHA256=$(sha256sum "${APK_FILE}" | awk '{print $1}')
+          FILE_SIZE=$(stat -c%s "${APK_FILE}")
+
+          echo "Uploading APK to Supabase Storage: ${STORAGE_PATH}"
+          curl -sS -X POST \
+            "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            -H "x-upsert: true" \
+            --data-binary "@${APK_FILE}" \
+            -w "\nHTTP %{http_code}"
+
+          echo ""
+          echo "Inserting APK record into ota_releases..."
+
+          PAYLOAD=$(jq -n \
+            --arg channel "stable" \
+            --arg type "apk" \
+            --arg version "${RELEASE_TAG}" \
+            --arg storage_path "${STORAGE_PATH}" \
+            --argjson file_size "${FILE_SIZE}" \
+            --arg sha256 "${APK_SHA256}" \
+            --arg update_level "${UPDATE_LEVEL:-prompt}" \
+            --arg notes "$(cat release-notes.md)" \
+            '{
+              channel: $channel,
+              type: $type,
+              version: $version,
+              storage_path: $storage_path,
+              file_size: $file_size,
+              sha256: $sha256,
+              update_level: $update_level,
+              notes: $notes
+            }')
+
+          curl -sS -X POST \
+            "${SUPABASE_URL}/rest/v1/ota_releases" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "${PAYLOAD}" \
+            -w "\nInsert HTTP %{http_code}"
+
+          echo ""
+          echo "Pruning old APKs, keeping latest 2..."
+
+          ALL_APKS=$(curl -sS -X GET \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=id,storage_path&type=eq.apk&order=published_at.desc" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Accept: application/json")
+
+          TOTAL=$(echo "${ALL_APKS}" | jq 'length')
+          echo "Total APK records: ${TOTAL}"
+
+          if [ "${TOTAL}" -gt 2 ]; then
+            echo "${ALL_APKS}" | jq -c '.[2:]' | while read -r ROW; do
+              OLD_ID=$(echo "${ROW}" | jq -r '.id')
+              OLD_PATH=$(echo "${ROW}" | jq -r '.storage_path // ""')
+
+              echo "Deleting old APK #${OLD_ID} (${OLD_PATH})"
+
+              if [ -n "${OLD_PATH}" ]; then
+                ENCODED_PATH=$(echo -n "${OLD_PATH}" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
+                curl -sS -X DELETE \
+                  "${SUPABASE_URL}/storage/v1/object/ota-releases/${ENCODED_PATH}" \
+                  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                  -o /dev/null || true
+              fi
+
+              ENCODED_ID=$(echo -n "${OLD_ID}" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
+              curl -sS -X DELETE \
+                "${SUPABASE_URL}/rest/v1/ota_releases?id=eq.${ENCODED_ID}" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -o /dev/null || true
+            done
+            echo "Pruning complete."
+          else
+            echo "No pruning needed."
+          fi
