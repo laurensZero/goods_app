@@ -4,6 +4,7 @@ import {
   buildEventCoverFilename,
   buildEventPhotoFilename,
   buildImageFilename,
+  buildRechargeImageFilename,
   buildImageSyncStats,
   getItemTimestamp,
   parseImageDataUrl,
@@ -459,19 +460,111 @@ export function createSyncPayloadService({
     return syncData
   }
 
-  function buildRechargeSyncData({ incremental = false } = {}) {
+  async function buildRechargeSyncData({ incremental = false, imageFiles = null, imageStats = null, referencedImageFiles = null, existingImageFiles = null } = {}) {
     const rechargeStore = useRechargeStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
     const allRecords = rechargeStore.exportBackup({ includeDeleted: true, stripImage: false })
     const allRecharge = allRecords.filter((item) => !item.deleted)
     const allTrash = allRecords.filter((item) => item.deleted)
 
-    const records = incremental
+    const baseRecords = incremental
       ? allRecharge.filter((item) => !lastSyncTime || getItemTimestamp(item) > lastSyncTime)
       : allRecharge
-    const trash = incremental
+    const baseTrash = incremental
       ? allTrash.filter((item) => !lastSyncTime || getItemTimestamp(item) > lastSyncTime)
       : allTrash
+
+    async function processRecordImage(record) {
+      const imageUri = String(record.image || '').trim()
+      if (!imageUri) return record
+
+      const storageMode = inferGoodsImageStorageMode(imageUri)
+      if (storageMode === 'remote') {
+        // Already a remote URL — track cloud filename if it's a Storage URL
+        const cloudFileName = parseCloudImageUri(imageUri)
+        if (cloudFileName && referencedImageFiles) referencedImageFiles.add(cloudFileName)
+        return record
+      }
+
+      if (storageMode === 'cloud-local') {
+        const cloudFileName = parseCloudImageUri(imageUri)
+        if (cloudFileName && existingImageFiles?.has(cloudFileName)) {
+          if (referencedImageFiles) referencedImageFiles.add(cloudFileName)
+          if (imageStats) imageStats.reusedImages += 1
+          return record
+        }
+        // File not confirmed in Storage — try to read local and re-upload
+        if (cloudFileName) {
+          const localDataUrl = await readLocalImageAsDataUrl(imageUri, '').catch(() => null)
+          if (localDataUrl?.startsWith('data:image/')) {
+            return processLocalImageData(record, cloudFileName, localDataUrl)
+          }
+        }
+        // Local file gone — keep cloud-image ref as-is, it may be recoverable
+        return record
+      }
+
+      // linked-local or inline-local — new local image to upload
+      let imageDataUrl = await readLocalImageAsDataUrl(imageUri, '')
+      if (!imageDataUrl?.startsWith('data:image/')) {
+        // Can't read the local image — skip, keep original URI
+        return record
+      }
+
+      return processLocalImageData(record, null, imageDataUrl)
+    }
+
+    async function processLocalImageData(record, existingCloudFileName, imageDataUrl) {
+      let parsedData = parseImageDataUrl(imageDataUrl)
+      if (!parsedData) return record
+
+      // Compress if oversized
+      if (parsedData.fileSize > imageFileSizeLimit) {
+        try {
+          const compressedBlob = await compressImageToBlob(imageDataUrl, {
+            maxBytes: imageFileSizeLimit - 1024,
+            maxEdge: 2048,
+            format: 'image/jpeg'
+          })
+          if (compressedBlob) {
+            const reader = new FileReader()
+            const compressedDataUrl = await new Promise((resolve, reject) => {
+              reader.onload = () => resolve(reader.result)
+              reader.onerror = reject
+              reader.readAsDataURL(compressedBlob)
+            })
+            const compressedParsed = parseImageDataUrl(compressedDataUrl)
+            if (compressedParsed) {
+              parsedData = compressedParsed
+              imageDataUrl = compressedDataUrl
+            }
+          }
+        } catch {
+          // Compression failed — use original
+        }
+      }
+
+      const cloudFileName = existingCloudFileName || buildRechargeImageFilename(record, parsedData.mimeType)
+      if (!cloudFileName) return record
+
+      if (referencedImageFiles) referencedImageFiles.add(cloudFileName)
+
+      if (existingImageFiles?.has(cloudFileName)) {
+        if (imageStats) imageStats.reusedImages += 1
+      } else if (imageFiles) {
+        imageFiles[cloudFileName] = { content: imageDataUrl }
+        if (imageStats) imageStats.uploadedImages += 1
+      }
+
+      return {
+        ...record,
+        image: buildCloudImageUri(cloudFileName),
+        cloudFileName
+      }
+    }
+
+    const records = await processWithConcurrency(baseRecords, processRecordImage, 6)
+    const trash = await processWithConcurrency(baseTrash, processRecordImage, 6)
 
     return {
       version: RECHARGE_PAYLOAD_VERSION,

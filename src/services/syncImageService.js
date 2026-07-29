@@ -14,7 +14,8 @@ export function createSyncImageService({
   trackSyncStep,
   imageFilePrefix,
   eventCoverPrefix,
-  eventPhotoPrefix
+  eventPhotoPrefix,
+  rechargeImagePrefix
 }) {
   function resolveBackend() {
     return typeof getBackend === 'function' ? (getBackend() || backend) : backend
@@ -263,7 +264,7 @@ export function createSyncImageService({
       refs.add(n.endsWith('.txt') ? n.slice(0, -4) : n)
     }
 
-    const prefixes = [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix]
+    const prefixes = [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix, rechargeImagePrefix]
     const orphans = []
     for (const [key, value] of Object.entries(existingImageCloud.files || {})) {
       if (orphans.length >= MAX_ORPHAN_DELETE_PER_SYNC) break
@@ -308,6 +309,7 @@ export function createSyncImageService({
         !filename.startsWith(imageFilePrefix)
         && !filename.startsWith(eventCoverPrefix)
         && !filename.startsWith(eventPhotoPrefix)
+        && !filename.startsWith(rechargeImagePrefix)
       ) continue
       if (referencedImageFiles.has(filename)) continue
       files[filename] = null

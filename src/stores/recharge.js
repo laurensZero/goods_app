@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db/index'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
+import { isLocalImageUri } from '@/utils/image/localImage'
 import { createLogger } from '@/utils/logger'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'
@@ -299,6 +300,29 @@ export const useRechargeStore = defineStore('recharge', () => {
     }
   }
 
+  // ── Image sync ──
+
+  async function markImageAsRemote(imageUrlMap) {
+    if (!(imageUrlMap instanceof Map) || imageUrlMap.size === 0) return
+
+    const updatedRecords = []
+    for (let i = 0; i < records.value.length; i++) {
+      const record = records.value[i]
+      const publicUrl = imageUrlMap.get(record.id)
+      if (!publicUrl) continue
+      // Only replace if the current image is a local URI or cloud-image reference
+      if (isLocalImageUri(record.image) || record.image.startsWith('cloud-image://')) {
+        records.value[i] = { ...record, image: publicUrl }
+        updatedRecords.push(records.value[i])
+      }
+    }
+
+    if (updatedRecords.length > 0) {
+      await saveRechargeRecords(updatedRecords)
+      log.debug('records:markImageAsRemote:done', { updated: updatedRecords.length })
+    }
+  }
+
   // ── Backup ──
 
   function exportBackup({ includeDeleted = true, stripImage = true } = {}) {
@@ -452,6 +476,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     permanentDelete,
     purgeSyncedDeleted,
     clearInvalidRecords,
+    markImageAsRemote,
     exportBackup,
     importBackup,
     replaceBackup

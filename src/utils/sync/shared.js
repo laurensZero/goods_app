@@ -10,6 +10,7 @@ import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constan
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
 const EVENT_PHOTO_PREFIX = 'event-photo__'
+export const RECHARGE_IMAGE_PREFIX = 'recharge-image__'
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -397,7 +398,7 @@ function resolveRefName(entry) {
 // 收集全量本地数据（收藏 + 回收站 + 活动，含已删除活动）的云端图片引用状态，
 // 供孤儿图片回收使用：referencedFiles 为被引用的文件名集合，
 // ownedEntityIds 为当前用户拥有的实体 ID 集合（含原始与 sanitize 后两种形式）
-export function collectReferencedImageState({ goods = [], trash = [], events = [] } = {}) {
+export function collectReferencedImageState({ goods = [], trash = [], events = [], recharge = [] } = {}) {
   const referencedFiles = new Set()
   const ownedEntityIds = new Set()
 
@@ -433,6 +434,15 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
         || parseStoragePublicImageUrl(photo?.uri)
       )
     }
+  }
+
+  for (const record of recharge) {
+    addId(record?.id)
+    addRef(
+      record?.cloudFileName
+      || parseCloudImageUri(record?.image)
+      || parseStoragePublicImageUrl(record?.image)
+    )
   }
 
   return { referencedFiles, ownedEntityIds }
@@ -524,6 +534,16 @@ export function buildEventPhotoFilename(event, photoEntry, mimeType) {
   const updatedAt = String(event?.updatedAt || 0)
   const extension = resolveImageExtension(mimeType, photoEntry?.uri || photoEntry?.cloudFileName || '')
   return `${EVENT_PHOTO_PREFIX}${eventId}__${photoId}__${updatedAt}.${extension}`
+}
+
+export function buildRechargeImageFilename(record, mimeType) {
+  const existingCloudFileName = String(record?.cloudFileName || parseCloudImageUri(record?.image) || '').trim()
+  if (existingCloudFileName) return existingCloudFileName
+
+  const recordId = sanitizeFilenamePart(record?.id)
+  const updatedAt = String(getItemTimestamp(record) || 0)
+  const extension = resolveImageExtension(mimeType, record?.image || '')
+  return `${RECHARGE_IMAGE_PREFIX}${recordId}__${updatedAt}.${extension}`
 }
 
 export function buildImageSyncStats() {

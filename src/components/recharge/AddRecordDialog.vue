@@ -96,7 +96,37 @@
           <textarea v-model.trim="form.note" class="field-textarea" rows="3" :placeholder="t('recharge.dialog.notePlaceholder')" />
 
           <label class="field-label">{{ t('recharge.dialog.imageUrl') }}</label>
-          <input v-model.trim="form.image" class="field-input" type="url" placeholder="https://" />
+          <div class="image-input-row">
+            <input
+              :value="imageInputValue"
+              class="field-input image-url-input"
+              type="text"
+              inputmode="url"
+              :placeholder="imageInputPlaceholder"
+              @input="onImageUrlInput"
+            />
+            <button
+              type="button"
+              class="image-pick-btn"
+              :aria-label="t('recharge.dialog.chooseImage')"
+              @click="pickLocalImage"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </button>
+          </div>
+          <div v-if="form.image && isLocalImage(form.image)" class="image-preview-row">
+            <LazyCachedImage :src="form.image" class="image-preview-thumb" :alt="t('recharge.dialog.imagePreview')" />
+            <button type="button" class="image-remove-btn" :aria-label="t('common.remove')" @click="form.image = ''">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <p v-if="errorText" class="error-text">{{ errorText }}</p>
@@ -133,6 +163,7 @@ import { useTabletViewport } from '@/composables/useTabletViewport'
 import rechargeDistribution from '@/constants/recharge-options-distribution.json'
 import { formatDate } from '@/utils/format'
 import { buildRechargePresetImageMap, resolveRechargePresetImage } from '@/utils/rechargeImages'
+import { pickLinkedLocalImage, isLocalImageUri } from '@/utils/image/localImage'
 import { validatePrice } from '@/utils/validate'
 
 const GAME_LABEL_MAP = {
@@ -287,6 +318,39 @@ function getPresetOptionValue(option, index) {
 
 function resolvePresetImage(record) {
   return resolveRechargePresetImage(record, presetImageMap)
+}
+
+function isLocalImage(uri) {
+  return isLocalImageUri(uri)
+}
+
+const imageInputValue = computed(() => {
+  // Hide raw local URIs from the text input — the preview thumbnail already shows the image.
+  // Only display remote URLs in the input field.
+  const raw = String(form.image || '').trim()
+  if (!raw || isLocalImageUri(raw)) return ''
+  return raw
+})
+
+const imageInputPlaceholder = computed(() => {
+  if (form.image && isLocalImageUri(form.image)) {
+    return t('recharge.dialog.localImageSelected')
+  }
+  return t('recharge.dialog.imagePlaceholder')
+})
+
+function onImageUrlInput(event) {
+  form.image = String(event?.target?.value || '').trim()
+}
+
+async function pickLocalImage() {
+  try {
+    const result = await pickLinkedLocalImage()
+    if (!result?.uri) return
+    form.image = result.uri
+  } catch (err) {
+    console.error('[recharge] local image pick failed:', err)
+  }
 }
 
 function applyPresetOption() {
@@ -607,6 +671,71 @@ onBeforeUnmount(() => {
 .field-input {
   height: var(--input-height);
   padding: 0 12px;
+}
+
+.image-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.image-url-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.image-pick-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--input-height);
+  height: var(--input-height);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-emphasis), border-color var(--motion-fast) var(--motion-emphasis);
+}
+
+.image-pick-btn:active {
+  transform: scale(var(--press-scale-button));
+}
+
+.image-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.image-preview-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+}
+
+.image-remove-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-surface-soft);
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-emphasis);
+}
+
+.image-remove-btn:active {
+  transform: scale(var(--press-scale-button));
 }
 
 .date-field {

@@ -142,7 +142,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(stores, remoteData, { reconcileMissing: false, pullStartMs })
+            const merged = await mergeToLocal(stores, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
           },
@@ -217,7 +217,8 @@ export function createSyncOrchestrator({
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             localSyncTime,
-            dirtyGoodsIds: ctx.getDirtyGoodsIds
+            dirtyGoodsIds: ctx.getDirtyGoodsIds,
+            resolveRechargeImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
@@ -496,7 +497,8 @@ export function createSyncOrchestrator({
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             localSyncTime,
-            dirtyGoodsIds: ctx.getDirtyGoodsIds
+            dirtyGoodsIds: ctx.getDirtyGoodsIds,
+            resolveRechargeImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
@@ -525,11 +527,12 @@ export function createSyncOrchestrator({
   /**
    * Count all unique cloud-referenced image files across all goods + events.
    */
-  function countAllReferencedImageFiles(goodsStore, eventsStore) {
+  function countAllReferencedImageFiles(goodsStore, eventsStore, rechargeStore) {
     const { referencedFiles } = collectReferencedImageState({
       goods: goodsStore.list,
       trash: goodsStore.trashList,
-      events: eventsStore.list || []
+      events: eventsStore.list || [],
+      recharge: rechargeStore?.records || []
     })
     return referencedFiles.size
   }
@@ -566,7 +569,7 @@ export function createSyncOrchestrator({
     // When only dirty items were processed, imageStats only counts their images.
     // The manifest needs the TOTAL image count across all items.
     if (hasDirtyGoodsIds) {
-      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore)
+      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore, stores.rechargeStore)
     }
 
     // Build manifest
@@ -643,7 +646,7 @@ export function createSyncOrchestrator({
     }
 
     // Update local refs (skip images whose upload failed)
-    await updateLocalRefs(stores.goodsStore, stores.eventsStore, syncData, eventSyncData, be, failedImageFiles)
+    await updateLocalRefs(stores.goodsStore, stores.eventsStore, stores.rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles)
 
     // 孤儿图片回收（Supabase）：删除云端不再被引用、且归属当前用户的图片文件。
     // 必须放在 purgeSyncedDeleted 之前：已删除活动的墓碑引用此时仍在本地，其照片会被保留。
@@ -653,7 +656,8 @@ export function createSyncOrchestrator({
         const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
           goods: stores.goodsStore.list,
           trash: stores.goodsStore.trashList,
-          events: stores.eventsStore.list || []
+          events: stores.eventsStore.list || [],
+          recharge: stores.rechargeStore?.records || []
         })
         const orphanFiles = image.collectSupabaseOrphanImageFiles(existingImageCloud, { referencedFiles, ownedEntityIds })
         if (orphanFiles.length > 0) {

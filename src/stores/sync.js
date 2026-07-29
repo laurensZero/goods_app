@@ -25,6 +25,7 @@ import {
   IMAGE_FILE_PREFIX,
   EVENT_COVER_PREFIX,
   EVENT_PHOTO_PREFIX,
+  RECHARGE_IMAGE_PREFIX,
   IMAGE_FILE_SIZE_LIMIT
 } from '@/constants/syncConstants'
 
@@ -253,7 +254,8 @@ export const useSyncStore = defineStore('sync', () => {
     trackSyncStep,
     imageFilePrefix: IMAGE_FILE_PREFIX,
     eventCoverPrefix: EVENT_COVER_PREFIX,
-    eventPhotoPrefix: EVENT_PHOTO_PREFIX
+    eventPhotoPrefix: EVENT_PHOTO_PREFIX,
+    rechargeImagePrefix: RECHARGE_IMAGE_PREFIX
   })
 
   const conflictService = createSyncConflictService({

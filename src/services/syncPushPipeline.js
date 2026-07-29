@@ -2,6 +2,7 @@
 // Push pipeline: build payload → write remote → upload images → update local refs
 
 import { normalizeBudgetValue } from '@/utils/sync/shared'
+import { parseCloudImageUri } from '@/utils/goods/images'
 import { computeDiffRows } from './supabaseAdapter/helpers'
 import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
@@ -20,7 +21,14 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
   // Build recharge payload
   let rechargeSyncData = { recharge: [], rechargeTrash: [] }
   if (shouldWriteRecharge) {
-    rechargeSyncData = payload.buildRechargeSyncData({ incremental: false })
+    const existingImageFileSet = new Map(Object.entries(existingImageCloud?.files || {}))
+    rechargeSyncData = await payload.buildRechargeSyncData({
+      incremental: false,
+      imageFiles,
+      imageStats,
+      referencedImageFiles,
+      existingImageFiles: existingImageFileSet
+    })
   }
 
   // Build event payload (heavy due to images)
@@ -68,6 +76,13 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
             photo.uri = be.getImagePublicUrl(photoFileName)
           }
         }
+      }
+    }
+    // Replace recharge cloud-image:// URIs with public URLs
+    for (const record of [...(rechargeSyncData.recharge || []), ...(rechargeSyncData.rechargeTrash || [])]) {
+      const cloudFileName = parseCloudImageUri(record.image)
+      if (cloudFileName && allReferencedImageFiles.has(cloudFileName)) {
+        record.image = be.getImagePublicUrl(cloudFileName)
       }
     }
   }
@@ -190,7 +205,7 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
  * Marks images as remote so future syncs can dedup.
  * Files listed in failedImageFiles keep their local refs so the next sync retries the upload.
  */
-export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSyncData, be, failedImageFiles = null) {
+export async function updateLocalRefs(goodsStore, eventsStore, rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles = null) {
   const isUploadFailed = (name) => {
     const key = String(name || '').trim()
     return !!key && !!failedImageFiles && failedImageFiles.has(key)
@@ -235,5 +250,19 @@ export async function updateLocalRefs(goodsStore, eventsStore, syncData, eventSy
       })
     }
     await eventsStore.markMediaAsRemote(preparedMediaByEventId)
+  }
+
+  // Update recharge image refs
+  if (be.getImagePublicUrl && rechargeSyncData?.recharge && rechargeStore?.markImageAsRemote) {
+    const rechargeImageMap = new Map()
+    for (const record of [...(rechargeSyncData.recharge || []), ...(rechargeSyncData.rechargeTrash || [])]) {
+      const cloudFileName = parseCloudImageUri(record.image)
+      if (cloudFileName && !isUploadFailed(cloudFileName)) {
+        rechargeImageMap.set(record.id, be.getImagePublicUrl(cloudFileName))
+      }
+    }
+    if (rechargeImageMap.size > 0) {
+      await rechargeStore.markImageAsRemote(rechargeImageMap)
+    }
   }
 }
