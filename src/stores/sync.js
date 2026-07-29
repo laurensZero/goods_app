@@ -320,7 +320,7 @@ export const useSyncStore = defineStore('sync', () => {
     const eventsStore = useEventsStore()
     const goodsGroupStore = useGoodsGroupStore()
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
-    const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: false })
     const timestamps = [
       ...[...resolvedLocal.goodsMap.values()].map((item) => getItemTimestamp(item)),
       ...[...resolvedLocal.trashMap.values()].map((item) => getItemTimestamp(item)),

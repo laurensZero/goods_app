@@ -419,7 +419,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
         goodsStore.trashList,
         useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
       ) : undefined
-    const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) : undefined
+    const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: false }) : undefined
     const rechargeTrash = includeRecharge ? [] : undefined
     const eventsList = includeEvents
       ? await sanitizeSequential(

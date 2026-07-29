@@ -419,7 +419,7 @@ export function createSyncOrchestrator({
     }
     const hasRechargeDataDiff = isRechargeDirty
       ? (() => {
-          const allLocal = stores.rechargeStore.exportBackup({ includeDeleted: true, stripImage: true }) || []
+          const allLocal = stores.rechargeStore.exportBackup({ includeDeleted: true, stripImage: false }) || []
           const localActive = allLocal.filter(r => !r.deleted)
           const localTrash = allLocal.filter(r => r.deleted)
           return compareStateSync(localActive, remoteData.recharge || [], { incremental: false }).hasChanges

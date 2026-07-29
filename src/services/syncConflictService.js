@@ -36,7 +36,7 @@ export function createSyncConflictService({
     const resolvedLocal = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
     const goods = [...resolvedLocal.goodsMap.values()]
     const trash = [...resolvedLocal.trashMap.values()]
-    const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: true })
+    const recharge = rechargeStore.exportBackup({ includeDeleted: false, stripImage: false })
     const events = eventsStore.list || []
     const groups = goodsGroupStore.groupList || []
     const groupItems = goodsGroupStore.groupItemList || []

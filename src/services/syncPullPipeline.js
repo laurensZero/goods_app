@@ -84,7 +84,7 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
     { incremental }
   )
   const rechargeCompare = compareStateSync(
-    rechargeStore.exportBackup({ includeDeleted: false, stripImage: true }) || [],
+    rechargeStore.exportBackup({ includeDeleted: false, stripImage: false }) || [],
     remoteData.recharge || [],
     { incremental }
   )
@@ -301,7 +301,7 @@ function countAppliedChanges(stores, remoteData) {
   }
 
   const localRecharge = new Map(
-    (rechargeStore.exportBackup?.({ includeDeleted: true, stripImage: true }) || []).map(r => [r.id, r])
+    (rechargeStore.exportBackup?.({ includeDeleted: true, stripImage: false }) || []).map(r => [r.id, r])
   )
   for (const r of (remoteData.recharge || [])) {
     const local = localRecharge.get(r.id)

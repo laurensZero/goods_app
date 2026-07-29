@@ -462,7 +462,7 @@ export function createSyncPayloadService({
   function buildRechargeSyncData({ incremental = false } = {}) {
     const rechargeStore = useRechargeStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
-    const allRecords = rechargeStore.exportBackup({ includeDeleted: true, stripImage: true })
+    const allRecords = rechargeStore.exportBackup({ includeDeleted: true, stripImage: false })
     const allRecharge = allRecords.filter((item) => !item.deleted)
     const allTrash = allRecords.filter((item) => item.deleted)
 
