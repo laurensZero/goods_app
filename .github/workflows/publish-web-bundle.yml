@@ -1,0 +1,256 @@
+name: Publish Web Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: '更新频道'
+        required: true
+        type: choice
+        options: ['stable', 'beta']
+        default: 'beta'
+      version:
+        description: '版本号 (留空自动生成 YYYYMMDD.N)'
+        required: false
+        type: string
+        default: ''
+      update_level:
+        description: '更新级别'
+        required: true
+        type: choice
+        options: ['prompt', 'force', 'silent']
+        default: 'prompt'
+      notes:
+        description: '更新说明'
+        required: false
+        type: string
+        default: ''
+      min_native_version:
+        description: '最低原生版本 (留空不限制)'
+        required: false
+        type: string
+        default: ''
+  push:
+    branches:
+      - main
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  # Workflow-level env for ota-bundle-manager.html build
+  VITE_APP_VERSION: ${{ vars.VITE_APP_VERSION || '1.0' }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # 防止在 fork 中运行（fork 没有 secrets）
+    if: github.repository == 'laurensZero/goods_app'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Determine version
+        id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
+        run: |
+          if [ -n "${INPUT_VERSION}" ]; then
+            echo "version=${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "Using manual version: ${INPUT_VERSION}"
+            exit 0
+          fi
+
+          # Auto-generate YYYYMMDD.N version
+          TODAY=$(TZ='Asia/Shanghai' date +%Y%m%d)
+          echo "Today: ${TODAY}"
+
+          # Query Supabase for the latest version with today's date prefix
+          RESPONSE=$(curl -sS -X GET \
+            "${SUPABASE_URL}/rest/v1/ota_bundles?select=version&channel=eq.${CHANNEL}&type=eq.web_bundle&version=like.${TODAY}.*&order=published_at.desc&limit=1" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Accept: application/json" || echo "[]")
+
+          LATEST=$(echo "${RESPONSE}" | jq -r '.[0].version // empty')
+
+          if [ -n "${LATEST}" ]; then
+            # Extract the sequence number and increment
+            SEQ=$(echo "${LATEST}" | sed -E 's/.*\.([0-9]+)$/\1/')
+            NEXT_SEQ=$((SEQ + 1))
+          else
+            NEXT_SEQ=1
+          fi
+
+          VERSION="${TODAY}.${NEXT_SEQ}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Auto-generated version: ${VERSION} (channel: ${CHANNEL})"
+
+      - name: Create bundle archive
+        id: bundle
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          BUNDLE_NAME="bundle-${VERSION}.zip"
+          STORAGE_PATH="stable/${BUNDLE_NAME}"
+
+          if [ "${{ github.event.inputs.channel || 'beta' }}" = "beta" ]; then
+            STORAGE_PATH="beta/${BUNDLE_NAME}"
+          fi
+
+          echo "Bundle: ${BUNDLE_NAME}"
+          echo "Storage path: ${STORAGE_PATH}"
+
+          cd dist
+          zip -r "../${BUNDLE_NAME}" .
+          cd ..
+
+          SHA256=$(sha256sum "${BUNDLE_NAME}" | awk '{print $1}')
+          FILE_SIZE=$(stat -c%s "${BUNDLE_NAME}")
+
+          echo "bundle_name=${BUNDLE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "storage_path=${STORAGE_PATH}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+          echo "file_size=${FILE_SIZE}" >> "$GITHUB_OUTPUT"
+
+          echo "SHA256: ${SHA256}"
+          echo "File size: ${FILE_SIZE} bytes"
+
+      - name: Upload bundle to Supabase Storage
+        env:
+          BUNDLE_NAME: ${{ steps.bundle.outputs.bundle_name }}
+          STORAGE_PATH: ${{ steps.bundle.outputs.storage_path }}
+        run: |
+          echo "Uploading to Supabase Storage: ${STORAGE_PATH}"
+          curl -sS -X POST \
+            "${SUPABASE_URL}/storage/v1/object/ota-bundles/${STORAGE_PATH}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/zip" \
+            -H "x-upsert: true" \
+            --data-binary "@${BUNDLE_NAME}" \
+            -w "\nHTTP %{http_code}"
+
+      - name: Insert bundle record into ota_bundles
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          STORAGE_PATH: ${{ steps.bundle.outputs.storage_path }}
+          SHA256: ${{ steps.bundle.outputs.sha256 }}
+          FILE_SIZE: ${{ steps.bundle.outputs.file_size }}
+          CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
+          UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
+          NOTES: ${{ github.event.inputs.notes || '' }}
+          MIN_NATIVE_VERSION: ${{ github.event.inputs.min_native_version || '' }}
+        run: |
+          echo "Inserting into ota_bundles table..."
+          PAYLOAD=$(jq -n \
+            --arg channel "${CHANNEL}" \
+            --arg type "web_bundle" \
+            --arg version "${VERSION}" \
+            --arg storage_path "${STORAGE_PATH}" \
+            --argjson file_size "${FILE_SIZE}" \
+            --arg sha256 "${SHA256}" \
+            --arg update_level "${UPDATE_LEVEL}" \
+            --arg notes "${NOTES}" \
+            --arg min_native_version "${MIN_NATIVE_VERSION}" \
+            '{
+              channel: $channel,
+              type: $type,
+              version: $version,
+              storage_path: $storage_path,
+              file_size: $file_size,
+              sha256: $sha256,
+              update_level: $update_level,
+              notes: $notes,
+              min_native_version: (if $min_native_version == "" then null else $min_native_version end)
+            }')
+
+          HTTP_CODE=$(curl -sS -X POST \
+            "${SUPABASE_URL}/rest/v1/ota_bundles" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "${PAYLOAD}" \
+            -o /dev/null -w "%{http_code}")
+
+          if [ "${HTTP_CODE}" = "201" ]; then
+            echo "Bundle record inserted successfully."
+          else
+            echo "::warning::Insert returned HTTP ${HTTP_CODE}"
+          fi
+
+      - name: Prune old bundles (keep latest 3)
+        env:
+          CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
+        run: |
+          echo "Pruning old bundles for channel: ${CHANNEL} (keeping latest 3)"
+
+          # Fetch all bundles for this channel, ordered by published_at desc
+          ALL_BUNDLES=$(curl -sS -X GET \
+            "${SUPABASE_URL}/rest/v1/ota_bundles?select=id,storage_path&channel=eq.${CHANNEL}&type=eq.web_bundle&order=published_at.desc" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Accept: application/json")
+
+          TOTAL=$(echo "${ALL_BUNDLES}" | jq 'length')
+          echo "Total bundles: ${TOTAL}"
+
+          if [ "${TOTAL}" -le 3 ] || [ -z "${ALL_BUNDLES}" ]; then
+            echo "No pruning needed (${TOTAL} <= 3)."
+            exit 0
+          fi
+
+          # Keep first 3, delete the rest
+          TO_DELETE=$(echo "${ALL_BUNDLES}" | jq -c '.[3:]')
+          echo "${TO_DELETE}" | jq -c '.[]' | while read -r BUNDLE; do
+            BUNDLE_ID=$(echo "${BUNDLE}" | jq -r '.id')
+            STORAGE_PATH=$(echo "${BUNDLE}" | jq -r '.storage_path // ""')
+
+            echo "Deleting bundle #${BUNDLE_ID} (${STORAGE_PATH})"
+
+            # Delete from storage
+            if [ -n "${STORAGE_PATH}" ]; then
+              STORAGE_ENCODED=$(echo -n "${STORAGE_PATH}" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
+              curl -sS -X DELETE \
+                "${SUPABASE_URL}/storage/v1/object/ota-bundles/${STORAGE_ENCODED}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -o /dev/null -w "  Storage: HTTP %{http_code}\n" || true
+            fi
+
+            # Delete from table
+            BUNDLE_ENC=$(echo -n "${BUNDLE_ID}" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
+            curl -sS -X DELETE \
+              "${SUPABASE_URL}/rest/v1/ota_bundles?id=eq.${BUNDLE_ENC}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -o /dev/null -w "  Table: HTTP %{http_code}\n" || true
+          done
+
+          echo "Pruning complete."
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
+          SHA256: ${{ steps.bundle.outputs.sha256 }}
+          STORAGE_PATH: ${{ steps.bundle.outputs.storage_path }}
+        run: |
+          echo "## Web Bundle Published" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Channel:** ${CHANNEL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version:** ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **SHA256:** \`${SHA256}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Storage:** \`${STORAGE_PATH}\`" >> "$GITHUB_STEP_SUMMARY"

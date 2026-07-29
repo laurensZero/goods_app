@@ -1,272 +1,28 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
   buildReleaseNotesPreview,
   compareVersions,
-  normalizeVersionTag,
-  proxyGitHubDownloadUrl
+  normalizeVersionTag
 } from '@/utils/github/release'
-import { fetchWithPlatformBridge } from '@/utils/platform/http'
-import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, resolveSourceCandidates } from '@/utils/updateHelpers'
+import { AVAILABLE_UPDATE_LEVELS, normalizeUpdateLevel } from '@/utils/updateHelpers'
+import { SUPABASE_URL } from '@/config/supabase'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 
 const log = createLogger('web-update')
 
-const WEB_MANIFEST_BASE_BY_SOURCE = Object.freeze({
-  gitee: 'https://gitee.com/laurenszero/goods_app/raw/gh-pages',
-  github: 'https://laurenszero.github.io/goods_app'
-})
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
-const UPDATE_SOURCE_STORAGE_KEY = 'goods_web_update_source'
 const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
-const REQUEST_TIMEOUT_MS = 15000
 
 let activeCheckPromise = null
-
-function withTimeout(promise, timeoutMs, timeoutMessage) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
-    })
-  ])
-}
-
-function parseManifestPayload(payload) {
-  if (payload && typeof payload === 'object') {
-    return payload
-  }
-
-  if (typeof payload === 'string') {
-    try {
-      return JSON.parse(payload)
-    } catch (e) {
-      throw new Error(`资源清单 JSON 解析失败: ${e.message}`)
-    }
-  }
-
-  throw new Error('资源清单格式无效。')
-}
-
-function buildVersionsUrl(manifestUrl) {
-  try {
-    return new URL('./versions.json', manifestUrl).href
-  } catch {
-    return ''
-  }
-}
-
-function normalizeVersionHistoryItem(item) {
-  if (!item || typeof item !== 'object') return null
-
-  const version = normalizeVersionTag(item.version || '')
-  if (!version) return null
-
-  return {
-    version,
-    notes: String(item.notes || '').trim(),
-    publishedAt: String(item.publishedAt || '').trim()
-  }
-}
-
-function formatPublishedAtToBeijing(utcIsoString) {
-  const raw = String(utcIsoString || '').trim()
-  if (!raw) return ''
-
-  const date = new Date(raw)
-  if (Number.isNaN(date.getTime())) return raw
-
-  return date.toLocaleString('zh-CN', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  })
-}
-
-function buildCumulativeReleaseNotesPreview(historyItems, currentVersion, latestVersion, fallbackNotes = '') {
-  const current = normalizeVersionTag(currentVersion)
-  const latest = normalizeVersionTag(latestVersion)
-
-  if (!latest || (current && compareVersions(latest, current) <= 0)) {
-    return ''
-  }
-
-  const filtered = (Array.isArray(historyItems) ? historyItems : [])
-    .map(normalizeVersionHistoryItem)
-    .filter(Boolean)
-    .sort((left, right) => compareVersions(left.version, right.version))
-    .filter((item) => {
-      if (current && compareVersions(item.version, current) <= 0) return false
-      if (latest && compareVersions(item.version, latest) > 0) return false
-      return true
-    })
-
-  const lines = []
-  filtered.forEach((item) => {
-    lines.push(`v${item.version}`)
-    if (item.publishedAt) {
-      lines.push(`发布时间：${formatPublishedAtToBeijing(item.publishedAt)}`)
-    }
-
-    const note = buildReleaseNotesPreview(item.notes)
-    if (note) {
-      lines.push(note)
-    }
-    lines.push('')
-  })
-
-  const cumulative = lines.join('\n').trim()
-  if (cumulative) return cumulative
-
-  return buildReleaseNotesPreview(fallbackNotes)
-}
-
-async function fetchWebManifest(url) {
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const response = await withTimeout(
-        CapacitorHttp.get({
-          url,
-          headers: {
-            Accept: 'application/json'
-          }
-        }),
-        REQUEST_TIMEOUT_MS,
-        '检查资源更新超时，请稍后再试。'
-      )
-
-      const status = Number(response?.status || 0)
-      if (status < 200 || status >= 300) {
-        throw new Error(`资源清单请求失败（${status || 'unknown'}）。`)
-      }
-
-      return parseManifestPayload(response?.data)
-    } catch (error) {
-      const message = String(error?.message || '')
-      if (message.includes('超时')) {
-        throw error
-      }
-      throw new Error(message || '检查资源更新失败，请稍后再试。')
-    }
-  }
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    const response = await fetchWithPlatformBridge(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json'
-      },
-      cache: 'no-store',
-      signal: controller.signal
-    })
-
-    if (!response.ok) {
-      throw new Error(`资源清单请求失败（${response.status}）。`)
-    }
-
-    return response.json()
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error('检查资源更新超时，请稍后再试。')
-    }
-    throw error
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
-
-async function fetchWebVersions(url) {
-  if (!url) return []
-
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const response = await withTimeout(
-        CapacitorHttp.get({
-          url,
-          headers: {
-            Accept: 'application/json'
-          }
-        }),
-        REQUEST_TIMEOUT_MS,
-        '检查资源更新超时，请稍后再试。'
-      )
-
-      const status = Number(response?.status || 0)
-      if (status < 200 || status >= 300) {
-        return []
-      }
-
-      const payload = parseManifestPayload(response?.data)
-      return Array.isArray(payload) ? payload : []
-    } catch {
-      return []
-    }
-  }
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    const response = await fetchWithPlatformBridge(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json'
-      },
-      cache: 'no-store',
-      signal: controller.signal
-    })
-
-    if (!response.ok) {
-      return []
-    }
-
-    const payload = await response.json().catch(() => [])
-    return Array.isArray(payload) ? payload : []
-  } catch {
-    return []
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
 
 function normalizeUpdateChannel(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (AVAILABLE_UPDATE_CHANNELS.includes(normalized)) return normalized
   return 'stable'
-}
-
-function normalizeUpdateSource(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized
-  return 'auto'
-}
-
-function resolveUpdateLevelFromManifest(manifest) {
-  if (manifest?.forceUpdate === true) return 'force'
-  if (manifest?.silentUpdate === true) return 'silent'
-  return normalizeUpdateLevel(manifest?.updateLevel || manifest?.update_level || 'prompt')
-}
-
-function normalizeBundleUrl(value) {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
-
-  try {
-    const parsed = new URL(raw)
-    parsed.hostname = parsed.hostname.toLowerCase()
-    return parsed.toString()
-  } catch {
-    return raw
-  }
 }
 
 function normalizeChecksum(value) {
@@ -279,19 +35,6 @@ function normalizeChecksum(value) {
   }
 
   return normalized
-}
-
-function resolveBundleUrl(manifestUrl, bundleUrl) {
-  const rawBundleUrl = String(bundleUrl || '').trim()
-  if (!rawBundleUrl) return ''
-
-  try {
-    const resolved = new URL(rawBundleUrl, manifestUrl)
-    resolved.hostname = resolved.hostname.toLowerCase()
-    return resolved.toString()
-  } catch {
-    return normalizeBundleUrl(rawBundleUrl)
-  }
 }
 
 function normalizeErrorMessage(error, fallback) {
@@ -321,14 +64,6 @@ function readPersistedChannel() {
   }
 }
 
-function readPersistedSource() {
-  try {
-    return normalizeUpdateSource(localStorage.getItem(UPDATE_SOURCE_STORAGE_KEY))
-  } catch {
-    return 'auto'
-  }
-}
-
 function persistChannel(channel) {
   try {
     localStorage.setItem(UPDATE_CHANNEL_STORAGE_KEY, channel)
@@ -337,28 +72,12 @@ function persistChannel(channel) {
   }
 }
 
-function persistSource(source) {
-  try {
-    localStorage.setItem(UPDATE_SOURCE_STORAGE_KEY, source)
-  } catch {
-    // ignore persistence failures
-  }
-}
-
-function buildManifestUrl(channel, source) {
-  const base = WEB_MANIFEST_BASE_BY_SOURCE[source]
-  if (!base) return ''
-  return `${base}/${channel}/manifest.json`
-}
-
 export const useWebUpdateStore = defineStore('webUpdate', () => {
   const initialized = ref(false)
   const supported = ref(false)
   const currentVersion = ref('')
   const currentBundleId = ref('builtin')
   const selectedChannel = ref('stable')
-  const selectedSource = ref('auto')
-  const resolvedSource = ref('')
   const nativeVersion = ref('')
   const latestVersion = ref('')
   const latestZipUrl = ref('')
@@ -387,20 +106,59 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     return compareVersions(latestVersion.value, currentVersion.value) > 0
   })
 
-  const manifestUrl = computed(() => {
-    const source = selectedSource.value === 'auto'
-      ? (resolvedSource.value || 'gitee')
-      : selectedSource.value
-    return buildManifestUrl(selectedChannel.value, source)
-  })
   const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
   const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
-  const releaseNotesPreview = computed(() => buildCumulativeReleaseNotesPreview(
-    latestVersions.value,
-    currentVersion.value,
-    latestVersion.value,
-    latestRelease.value?.notes || latestRelease.value?.body || ''
-  ))
+
+  const releaseNotesPreview = computed(() => {
+    if (!hasUpdate.value) return ''
+
+    // 优先使用累积 release notes
+    const historyItems = latestVersions.value
+    if (Array.isArray(historyItems) && historyItems.length > 0) {
+      const current = normalizeVersionTag(currentVersion.value)
+      const latest = normalizeVersionTag(latestVersion.value)
+      const filtered = historyItems
+        .filter((item) => {
+          const v = normalizeVersionTag(item.version)
+          if (!v) return false
+          if (current && compareVersions(v, current) <= 0) return false
+          if (latest && compareVersions(v, latest) > 0) return false
+          return true
+        })
+        .sort((a, b) => compareVersions(
+          normalizeVersionTag(a.version),
+          normalizeVersionTag(b.version)
+        ))
+
+      const lines = []
+      filtered.forEach((item) => {
+        lines.push(`v${normalizeVersionTag(item.version)}`)
+        if (item.published_at) {
+          const date = new Date(item.published_at)
+          if (!Number.isNaN(date.getTime())) {
+            const timeStr = date.toLocaleString('zh-CN', {
+              timeZone: 'Asia/Shanghai',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            })
+            lines.push(`发布时间：${timeStr}`)
+          }
+        }
+        const note = buildReleaseNotesPreview(item.notes)
+        if (note) lines.push(note)
+        lines.push('')
+      })
+
+      const cumulative = lines.join('\n').trim()
+      if (cumulative) return cumulative
+    }
+
+    return buildReleaseNotesPreview(latestRelease.value?.notes || '')
+  })
 
   async function notifyAppReady() {
     if (!Capacitor.isNativePlatform()) return false
@@ -417,7 +175,6 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     if (initialized.value) return
 
     selectedChannel.value = readPersistedChannel()
-    selectedSource.value = readPersistedSource()
 
     supported.value = Capacitor.isNativePlatform()
     if (!supported.value) {
@@ -463,40 +220,44 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastError.value = ''
 
       try {
-        const sourceCandidates = resolveSourceCandidates(selectedSource.value)
-        let manifest = null
-        let resolvedManifestSource = ''
-        let resolvedManifestUrl = ''
-        let lastRequestError = null
+        const client = getSupabaseClient()
+        const channel = selectedChannel.value
 
-        for (const source of sourceCandidates) {
-          try {
-            const candidateUrl = buildManifestUrl(selectedChannel.value, source)
-            manifest = await fetchWebManifest(candidateUrl)
-            resolvedManifestSource = source
-            resolvedManifestUrl = candidateUrl
-            break
-          } catch (error) {
-            log.warn('check:manifest-fetch-failed', { source, error: error?.message })
-            lastRequestError = error
-          }
+        // 查询最新 bundle
+        const { data, error } = await client
+          .from('ota_bundles')
+          .select('*')
+          .eq('channel', channel)
+          .eq('type', 'web_bundle')
+          .order('published_at', { ascending: false })
+          .limit(1)
+
+        if (error) {
+          throw new Error(`查询更新信息失败: ${error.message}`)
         }
 
-        if (!manifest) {
-          throw lastRequestError || new Error('未获取到可用 manifest。')
+        if (!data || data.length === 0) {
+          throw new Error(`${channel} 频道暂无可用资源包。`)
         }
 
-        resolvedSource.value = resolvedManifestSource
-        latestRelease.value = manifest
-        updateLevel.value = resolveUpdateLevelFromManifest(manifest)
+        const bundle = data[0]
+        latestRelease.value = bundle
+        latestVersion.value = normalizeVersionTag(bundle.version)
+        latestZipUrl.value = `${SUPABASE_URL}/storage/v1/object/public/ota-bundles/${bundle.storage_path}`
+        latestBundleChecksum.value = normalizeChecksum(bundle.sha256)
+        latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
+        updateLevel.value = normalizeUpdateLevel(bundle.update_level)
         lastCheckedAt.value = new Date().toISOString()
 
-        latestVersion.value = normalizeVersionTag(manifest?.version || '')
-        latestZipUrl.value = resolveBundleUrl(resolvedManifestUrl, manifest?.url)
-        const rawChecksum = manifest?.hash ?? manifest?.checksum ?? manifest?.sha256 ?? ''
-        latestBundleChecksum.value = normalizeChecksum(rawChecksum)
-        latestMinNativeVersion.value = normalizeVersionTag(manifest?.minNativeVersion || '')
-        latestVersions.value = await fetchWebVersions(buildVersionsUrl(resolvedManifestUrl))
+        // 获取历史版本用于累积 release notes
+        const { data: history } = await client
+          .from('ota_bundles')
+          .select('version, notes, published_at')
+          .eq('channel', channel)
+          .eq('type', 'web_bundle')
+          .order('published_at', { ascending: false })
+          .limit(3)
+        latestVersions.value = history || []
 
         if (!latestVersion.value || !latestZipUrl.value) {
           latestVersion.value = ''
@@ -504,43 +265,43 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
           latestBundleChecksum.value = ''
           latestMinNativeVersion.value = ''
           lastStatus.value = 'missing-asset'
-          return { status: 'missing-asset', manifest, source: resolvedManifestSource }
+          return { status: 'missing-asset', bundle }
         }
 
-        // 强制校验：manifest 必须携带合法 SHA-256，否则拒绝该资源更新（防止未校验的 bundle 被激活）
+        // 强制校验：bundle 必须携带合法 SHA-256
         if (!latestBundleChecksum.value) {
           latestVersion.value = ''
           latestZipUrl.value = ''
           latestMinNativeVersion.value = ''
-          throw new Error(String(rawChecksum || '').trim()
-            ? '资源清单 hash 格式无效，应为 64 位 SHA-256。'
-            : '资源清单缺少 hash 校验字段，已拒绝该资源更新。')
+          throw new Error(String(bundle.sha256 || '').trim()
+            ? '资源包 hash 格式无效，应为 64 位 SHA-256。'
+            : '资源包缺少 hash 校验字段，已拒绝该资源更新。')
         }
 
         if (latestMinNativeVersion.value && nativeVersion.value) {
           if (compareVersions(nativeVersion.value, latestMinNativeVersion.value) < 0) {
             lastStatus.value = 'incompatible-native'
-            return { status: 'incompatible-native', manifest, source: resolvedManifestSource }
+            return { status: 'incompatible-native', bundle }
           }
         }
 
         if (!latestVersion.value || !currentVersion.value) {
           lastStatus.value = 'ready'
-          return { status: 'ready', manifest, source: resolvedManifestSource }
+          return { status: 'ready', bundle }
         }
 
         if (compareVersions(latestVersion.value, currentVersion.value) > 0) {
           lastStatus.value = 'available'
           dialogVisible.value = !isSilentUpdate.value
-          log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, source: resolvedManifestSource, level: updateLevel.value })
-          return { status: 'available', manifest, source: resolvedManifestSource }
+          log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, channel, level: updateLevel.value })
+          return { status: 'available', bundle }
         }
 
         lastStatus.value = 'latest'
         dialogVisible.value = false
         updateLevel.value = 'prompt'
         latestVersions.value = []
-        return { status: 'latest', manifest, source: resolvedManifestSource }
+        return { status: 'latest', bundle }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
         if (parseNoUpdateError(error)) {
@@ -549,7 +310,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         }
         lastStatus.value = 'error'
         lastError.value = normalizeErrorMessage(error, '检查资源更新失败，请稍后再试。')
-        log.error('check:failed', { channel: selectedChannel.value, source: selectedSource.value }, error)
+        log.error('check:failed', { channel: selectedChannel.value }, error)
         throw error
       } finally {
         isChecking.value = false
@@ -572,7 +333,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       return false
     }
 
-    // 纵深防御：无校验哈希绝不启动下载（与 checkForUpdates 的强制校验双保险）
+    // 纵深防御：无校验哈希绝不启动下载
     if (!latestBundleChecksum.value) {
       lastError.value = '资源包缺少校验哈希，已取消下载。'
       return false
@@ -591,7 +352,6 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
-      // checksum 必传：CapacitorUpdater 仅在提供 checksum 时才执行校验
       const downloadOptions = {
         version: latestVersion.value,
         url: latestZipUrl.value,
@@ -703,27 +463,6 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     latestVersions.value = []
     latestBundleChecksum.value = ''
     latestMinNativeVersion.value = ''
-    resolvedSource.value = ''
-    dialogVisible.value = false
-    updateLevel.value = 'prompt'
-    lastStatus.value = 'ready'
-    lastError.value = ''
-  }
-
-  function setUpdateSource(source) {
-    const nextSource = normalizeUpdateSource(source)
-    if (selectedSource.value === nextSource) return
-
-    selectedSource.value = nextSource
-    persistSource(nextSource)
-
-    latestVersion.value = ''
-    latestZipUrl.value = ''
-    latestRelease.value = null
-    latestVersions.value = []
-    latestBundleChecksum.value = ''
-    latestMinNativeVersion.value = ''
-    resolvedSource.value = ''
     dialogVisible.value = false
     updateLevel.value = 'prompt'
     lastStatus.value = 'ready'
@@ -741,11 +480,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     currentVersion,
     currentBundleId,
     selectedChannel,
-    selectedSource,
-    resolvedSource,
     availableUpdateChannels: AVAILABLE_UPDATE_CHANNELS,
-    availableUpdateSources: AVAILABLE_UPDATE_SOURCES,
-    manifestUrl,
     nativeVersion,
     latestVersion,
     latestZipUrl,
@@ -769,7 +504,6 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     notifyAppReady,
     init,
     setUpdateChannel,
-    setUpdateSource,
     dismissDialog,
     checkForUpdates,
     downloadAndPrepareUpdate,

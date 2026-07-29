@@ -9,7 +9,6 @@ import {
   buildReleaseNotesPreview,
   compareVersions,
   getLatestRelease,
-  getLatestReleaseFromGitee,
   normalizeVersionTag,
   resolveReleaseAsset,
   resolveReleaseTargetUrl,
@@ -17,19 +16,15 @@ import {
   TokenExpiredError
 } from '@/utils/github/release'
 import { readSyncKey } from '@/utils/sync/storage'
-import { AVAILABLE_UPDATE_LEVELS, AVAILABLE_UPDATE_SOURCES, normalizeUpdateLevel, parseApkSha256FromText, resolveSourceCandidates } from '@/utils/updateHelpers'
+import { AVAILABLE_UPDATE_LEVELS, normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
 import i18n from '@/locales'
 import { createLogger } from '@/utils/logger'
 
 const log = createLogger('app-update')
 
+const UPDATE_REPO_OWNER = 'laurensZero'
 const UPDATE_REPO_NAME = 'goods_app'
-const UPDATE_REPO_OWNER_BY_SOURCE = Object.freeze({
-  github: 'laurensZero',
-  gitee: 'laurenszero'
-})
-const UPDATE_SOURCE_STORAGE_KEY = 'goods_app_update_source'
 const SYNC_TOKEN_STORAGE_KEY = 'sync_github_token'
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
@@ -52,12 +47,6 @@ export async function cleanupDownloadedApkFiles() {
   }
 }
 
-function normalizeUpdateSource(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (AVAILABLE_UPDATE_SOURCES.includes(normalized)) return normalized
-  return 'auto'
-}
-
 function resolveUpdateTargetPlatform() {
   if (Capacitor.isNativePlatform()) {
     return Capacitor.getPlatform()
@@ -71,22 +60,6 @@ function resolveUpdateTargetPlatform() {
   }
 
   return 'android'
-}
-
-function readPersistedSource() {
-  try {
-    return normalizeUpdateSource(localStorage.getItem(UPDATE_SOURCE_STORAGE_KEY))
-  } catch {
-    return 'auto'
-  }
-}
-
-function persistSource(source) {
-  try {
-    localStorage.setItem(UPDATE_SOURCE_STORAGE_KEY, source)
-  } catch {
-    // ignore persistence failures
-  }
 }
 
 function resolveUpdateLevelFromRelease(release) {
@@ -111,22 +84,13 @@ function resolveApkSha256FromRelease(release) {
   return parseApkSha256FromText(release?.body)
 }
 
-async function fetchLatestReleaseBySource(source) {
-  const owner = UPDATE_REPO_OWNER_BY_SOURCE[source]
-  if (!owner) {
-    throw new Error(i18n.global.t('about.unsupportedUpdateSource', { source }))
-  }
-
-  if (source === 'gitee') {
-    return getLatestReleaseFromGitee(owner, UPDATE_REPO_NAME)
-  }
-
+async function fetchLatestRelease() {
   const token = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
   try {
-    return await getLatestRelease(owner, UPDATE_REPO_NAME, token)
+    return await getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, token)
   } catch (error) {
     if (token && error instanceof TokenExpiredError) {
-      return getLatestRelease(owner, UPDATE_REPO_NAME, '')
+      return getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, '')
     }
     throw error
   }
@@ -134,8 +98,6 @@ async function fetchLatestReleaseBySource(source) {
 
 export const useAppUpdateStore = defineStore('appUpdate', () => {
   const initialized = ref(false)
-  const selectedSource = ref('auto')
-  const resolvedSource = ref('')
   const currentVersion = ref(FALLBACK_VERSION)
   const currentBuild = ref('')
   const latestRelease = ref(null)
@@ -194,8 +156,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
   async function init() {
     if (initialized.value) return
-
-    selectedSource.value = readPersistedSource()
 
     try {
       if (Capacitor.isNativePlatform()) {
@@ -350,7 +310,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         console.warn('[appUpdate] release 未提供 apk_sha256，跳过完整性校验（旧版 release 兼容）')
       }
 
-      // 候选下载地址：代理地址优先；校验失败时回退直连 GitHub（代理仅作为不可信字节传输通道）
+      // 候选下载地址：代理地址优先；校验失败时回退直连 GitHub
       const candidateUrls = downloadUrl === rawDownloadUrl ? [downloadUrl] : [downloadUrl, rawDownloadUrl]
       let verified = false
 
@@ -377,7 +337,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
           }
         }
 
-        // 旧版 release 无 apk_sha256：跳过校验（fail-open，见上方 warn）
+        // 旧版 release 无 apk_sha256：跳过校验
         if (!expectedSha256) {
           verified = true
           break
@@ -441,27 +401,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
           return { status: 'disabled', release: null }
         }
 
-        const sourceCandidates = resolveSourceCandidates(selectedSource.value)
-        let release = null
-        let resolvedReleaseSource = ''
-        let lastRequestError = null
-
-        for (const candidate of sourceCandidates) {
-          try {
-            release = await fetchLatestReleaseBySource(candidate)
-            resolvedReleaseSource = candidate
-            break
-          } catch (error) {
-            log.warn('check:release-fetch-failed', { source: candidate, error: error?.message })
-            lastRequestError = error
-          }
-        }
-
-        if (!release) {
-          throw lastRequestError || new Error(i18n.global.t('about.noVersionInfo'))
-        }
-
-        resolvedSource.value = resolvedReleaseSource
+        const release = await fetchLatestRelease()
         latestRelease.value = release
         updateLevel.value = resolveUpdateLevelFromRelease(release)
         lastCheckedAt.value = new Date().toISOString()
@@ -473,8 +413,8 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         if (hasUpdate.value) {
           lastStatus.value = 'available'
           dialogVisible.value = !isSilentUpdate.value
-          log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, source: resolvedReleaseSource, level: updateLevel.value })
-          return { status: 'available', release, source: resolvedReleaseSource }
+          log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, level: updateLevel.value })
+          return { status: 'available', release }
         }
 
         lastStatus.value = 'latest'
@@ -482,12 +422,12 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         if (source === 'manual') {
           dialogVisible.value = false
         }
-        return { status: 'latest', release, source: resolvedReleaseSource }
+        return { status: 'latest', release }
       } catch (error) {
         lastCheckedAt.value = new Date().toISOString()
         lastStatus.value = 'error'
         lastError.value = error?.message || i18n.global.t('about.checkUpdateFailedRetry')
-        log.error('check:failed', { source: selectedSource.value }, error)
+        log.error('check:failed', error)
         throw error
       } finally {
         isChecking.value = false
@@ -498,23 +438,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     return activeCheckPromise
   }
 
-  function setUpdateSource(source) {
-    const nextSource = normalizeUpdateSource(source)
-    if (selectedSource.value === nextSource) return
-
-    selectedSource.value = nextSource
-    persistSource(nextSource)
-    resolvedSource.value = ''
-    latestRelease.value = null
-    updateLevel.value = 'prompt'
-    lastStatus.value = 'idle'
-    lastError.value = ''
-  }
-
   return {
-    selectedSource,
-    resolvedSource,
-    availableUpdateSources: AVAILABLE_UPDATE_SOURCES,
     currentVersion,
     currentBuild,
     latestRelease,
@@ -539,7 +463,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     updateLevel,
     isForceUpdate,
     isSilentUpdate,
-    setUpdateSource,
     init,
     dismissDialog,
     openReleasePage,

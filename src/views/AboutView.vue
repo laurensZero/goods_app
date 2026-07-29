@@ -63,20 +63,6 @@
             <p class="info-kicker">App Release</p>
             <h3 class="info-value">{{ t('about.currentVersionLabel', { version: updateStore.currentVersion }) }}</h3>
             <p class="info-desc">{{ IS_NATIVE ? t('about.appUpdateDescNative') : t('about.appUpdateDescWeb') }}</p>
-            <div class="update-channel-row">
-              <span class="update-channel-label">{{ t('about.updateSource') }}</span>
-              <div class="update-channel-actions">
-                <button
-                  v-for="source in updateStore.availableUpdateSources"
-                  :key="`app-${source}`"
-                  type="button"
-                  :class="['update-channel-btn', { 'update-channel-btn--active': updateStore.selectedSource === source }]"
-                  @click="handleAppUpdateSourceChange(source)"
-                >
-                  {{ source }}
-                </button>
-              </div>
-            </div>
             <p class="update-status">{{ updateStatusText }}</p>
             <p v-if="updateStore.downloadError" class="update-status update-status--error">{{ updateStore.downloadError }}</p>
             <div v-if="updateStore.isDownloading" class="update-download-progress">
@@ -119,20 +105,6 @@
             <p class="info-kicker">Web Bundle</p>
             <h3 class="info-value">{{ t('about.currentResourceLabel', { version: webBundleVersionLabel }) }}</h3>
             <p class="info-desc">{{ t('about.webUpdateDesc') }}</p>
-            <div class="update-channel-row">
-              <span class="update-channel-label">{{ t('about.updateSource') }}</span>
-              <div class="update-channel-actions">
-                <button
-                  v-for="source in webUpdateStore.availableUpdateSources"
-                  :key="`bundle-${source}`"
-                  type="button"
-                  :class="['update-channel-btn', { 'update-channel-btn--active': webUpdateStore.selectedSource === source }]"
-                  @click="handleWebUpdateSourceChange(source)"
-                >
-                  {{ source }}
-                </button>
-              </div>
-            </div>
             <div class="update-channel-row">
               <span class="update-channel-label">{{ t('about.updateChannel') }}</span>
               <div class="update-channel-actions">
@@ -323,14 +295,6 @@ const appVersion = ref(import.meta.env.VITE_APP_VERSION || packageJson.version |
 const androidVersionName = ref(import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0')
 const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v${appVersion.value}`)
 
-function formatUpdateSourceLabel(source) {
-  const normalized = String(source || '').trim().toLowerCase()
-  if (normalized === 'gitee') return 'Gitee'
-  if (normalized === 'github') return 'GitHub'
-  if (normalized === 'auto') return t('about.auto')
-  return normalized || '--'
-}
-
 const statsCards = computed(() => [
   {
     label: t('about.collectionItems'),
@@ -365,22 +329,14 @@ const statsCards = computed(() => [
 ])
 
 const updateStatusText = computed(() => {
-  const sourceLabel = formatUpdateSourceLabel(updateStore.selectedSource)
-  const resolvedLabel = updateStore.resolvedSource ? formatUpdateSourceLabel(updateStore.resolvedSource) : ''
-
-  if (updateStore.isChecking) return t('about.checkingVersion', { source: sourceLabel })
+  if (updateStore.isChecking) return t('about.checking')
   if (updateStore.lastStatus === 'disabled') return t('about.versionDisabled')
   if (updateStore.lastStatus === 'available' && updateStore.latestVersion) {
-    return resolvedLabel
-      ? t('about.newVersionFoundWithSource', { version: updateStore.latestVersion, source: resolvedLabel })
-      : t('about.newVersionFound', { version: updateStore.latestVersion })
+    return t('about.newVersionFound', { version: updateStore.latestVersion })
   }
   if (updateStore.lastStatus === 'latest') return t('about.noUpdate')
   if (updateStore.lastStatus === 'error') return updateStore.lastError || t('about.checkUpdateFailed')
-  if (resolvedLabel) {
-    return t('about.canCheckManuallyWithResolved', { source: sourceLabel, resolved: resolvedLabel })
-  }
-  return t('about.canCheckManually', { source: sourceLabel })
+  return t('about.canCheckManuallyDefault')
 })
 
 const updateCheckedAtLabel = computed(() => (
@@ -388,18 +344,13 @@ const updateCheckedAtLabel = computed(() => (
 ))
 
 const webUpdateStatusText = computed(() => {
-  const sourceLabel = formatUpdateSourceLabel(webUpdateStore.selectedSource)
-  const resolvedLabel = webUpdateStore.resolvedSource ? formatUpdateSourceLabel(webUpdateStore.resolvedSource) : ''
-
   if (!webUpdateStore.supported) return t('about.webOnlyNativeSupported')
-  if (webUpdateStore.isChecking) return t('about.checkingResource', { source: sourceLabel })
+  if (webUpdateStore.isChecking) return t('about.checkingResourceDefault')
   if (webUpdateStore.lastStatus === 'pending' && webUpdateStore.pendingVersion) {
     return t('about.resourceReady', { version: webUpdateStore.pendingVersion })
   }
   if (webUpdateStore.lastStatus === 'available' && webUpdateStore.latestVersion) {
-    return resolvedLabel
-      ? t('about.resourceUpdateFoundWithSource', { version: webUpdateStore.latestVersion, source: resolvedLabel })
-      : t('about.resourceUpdateFound', { version: webUpdateStore.latestVersion })
+    return t('about.resourceUpdateFound', { version: webUpdateStore.latestVersion })
   }
   if (webUpdateStore.lastStatus === 'incompatible-native' && webUpdateStore.latestMinNativeVersion) {
     return t('about.incompatibleNative', { version: webUpdateStore.latestMinNativeVersion })
@@ -409,10 +360,7 @@ const webUpdateStatusText = computed(() => {
   }
   if (webUpdateStore.lastStatus === 'latest') return t('about.resourceLatest')
   if (webUpdateStore.lastStatus === 'error') return webUpdateStore.lastError || t('about.resourceCheckFailed')
-  if (resolvedLabel) {
-    return t('about.canCheckResourceWithResolved', { channel: webUpdateStore.selectedChannel, source: sourceLabel, resolved: resolvedLabel })
-  }
-  return t('about.canCheckResource', { channel: webUpdateStore.selectedChannel, source: sourceLabel })
+  return t('about.canCheckResourceDefault', { channel: webUpdateStore.selectedChannel })
 })
 
 const webUpdateCheckedAtLabel = computed(() => (
@@ -475,13 +423,6 @@ async function handleStartUpdate() {
   }
 }
 
-async function handleAppUpdateSourceChange(source) {
-  if (updateStore.selectedSource === source) return
-  updateStore.setUpdateSource(source)
-  showToast(t('about.updateSourceChanged', { source }), 2200)
-  await handleManualCheckUpdate()
-}
-
 async function handleManualCheckWebUpdate() {
   if (!webUpdateStore.supported || webUpdateStore.isChecking) return
 
@@ -514,13 +455,6 @@ async function handleWebUpdateChannelChange(channel) {
   if (webUpdateStore.selectedChannel === channel) return
   webUpdateStore.setUpdateChannel(channel)
   showToast(t('about.resourceChannelChanged', { channel }), 2200)
-  await handleManualCheckWebUpdate()
-}
-
-async function handleWebUpdateSourceChange(source) {
-  if (webUpdateStore.selectedSource === source) return
-  webUpdateStore.setUpdateSource(source)
-  showToast(t('about.resourceSourceChanged', { source }), 2200)
   await handleManualCheckWebUpdate()
 }
 

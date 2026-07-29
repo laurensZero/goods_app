@@ -2,7 +2,6 @@ import { fetchWithPlatformBridge } from '@/utils/platform/http'
 import i18n from '@/locales'
 
 const GITHUB_API_BASE = 'https://api.github.com'
-const GITEE_API_BASE = 'https://gitee.com/api/v5'
 const REQUEST_TIMEOUT_MS = 15000
 
 export class TokenExpiredError extends Error {
@@ -24,12 +23,6 @@ function buildGitHubHeaders(token = '') {
   }
 
   return headers
-}
-
-function buildGiteeHeaders() {
-  return {
-    Accept: 'application/json'
-  }
 }
 
 function normalizeBaseVersionPart(value) {
@@ -74,14 +67,10 @@ function normalizeRelease(release, source = 'github') {
     ? release.assets.map((item) => normalizeReleaseAsset(item)).filter(Boolean)
     : []
 
-  const fallbackHtmlUrl = source === 'gitee'
-    ? (release.html_url || release.url || release.tag_name ? `https://gitee.com/${release?.namespace || ''}` : '')
-    : ''
-
   return {
     ...release,
     assets,
-    html_url: String(release.html_url || release.target_url || fallbackHtmlUrl || '').trim(),
+    html_url: String(release.html_url || release.target_url || '').trim(),
     tag_name: String(release.tag_name || release.tag || '').trim(),
     body: String(release.body || release.description || '').trim(),
     source
@@ -187,30 +176,6 @@ export async function getLatestRelease(owner, repo, token = '') {
       buildGitHubHeaders(token)
     )
     return normalizeRelease(release, 'github')
-  } catch (error) {
-    if (String(error?.message || '').includes('404')) {
-      throw new Error(i18n.global.t('about.noReleaseAvailable'))
-    }
-    throw error
-  }
-}
-
-export async function getLatestReleaseFromGitee(owner, repo) {
-  if (!owner || !repo) {
-    throw new Error(i18n.global.t('about.missingRepoInfo'))
-  }
-
-  try {
-    const release = await request(
-      GITEE_API_BASE,
-      `/repos/${owner}/${repo}/releases/latest`,
-      buildGiteeHeaders()
-    )
-    const normalized = normalizeRelease(release, 'gitee')
-    if (normalized && !normalized.html_url) {
-      normalized.html_url = `https://gitee.com/${owner}/${repo}/releases`
-    }
-    return normalized
   } catch (error) {
     if (String(error?.message || '').includes('404')) {
       throw new Error(i18n.global.t('about.noReleaseAvailable'))
