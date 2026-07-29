@@ -3122,7 +3122,7 @@
     }
 
     function buildStorageUrl(storagePath) {
-      const config = getCurrentSupabaseConfig()
+      const config = getSupabaseConfig()
       if (!config.url || !storagePath) return ''
       return `${config.url}/storage/v1/object/public/ota-bundles/${storagePath}`
     }
@@ -3239,7 +3239,7 @@
       refs.openManifest.textContent = '打开记录'
       refs.openManifest.disabled = false
       refs.openManifest.onclick = () => {
-        const config = getCurrentSupabaseConfig()
+        const config = getSupabaseConfig()
         if (config.url) {
           window.open(`${config.url}/rest/v1/ota_bundles?select=*&channel=eq.${encodeURIComponent(channel)}&order=published_at.desc&limit=3`, '_blank', 'noopener')
         }
@@ -3498,7 +3498,7 @@
     // Prune old bundles: keep only the latest KEEP_BUNDLE_COUNT per channel
     async function pruneOldBundles(channel) {
       try {
-        const config = getCurrentSupabaseConfig()
+        const config = getSupabaseConfig()
         if (!config.url || !config.serviceKey) return
 
         // Get all bundles for this channel, ordered by published_at desc
