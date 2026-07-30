@@ -19,6 +19,7 @@
           v-if="item._type === 'group'"
           v-memo="[item, density, selectionMode]"
           :ref="(instance) => setCardRef(item.id, instance)"
+          :class="{ 'goods-card-enter': filterTransitionActive }"
           :group="item._group"
           :items="item._members"
           :total-price="item._totalPrice || 0"
@@ -37,6 +38,7 @@
           v-else
           v-memo="[item, density, selectionMode, cardMotionStyles[item.id]]"
           :ref="(instance) => setCardRef(item.id, instance)"
+          :class="{ 'goods-card-enter': filterTransitionActive }"
           :item="item"
           :density="density"
           :transitioning="transitioning"
@@ -138,6 +140,17 @@ const emit = defineEmits(['long-press', 'toggle-select', 'open-detail', 'open-gr
 const goodsListEl = ref(null)
 const cardRefs = new Map()
 const cardMotionStyles = reactive({})
+const filterTransitionActive = ref(false)
+let _filterTransitionTimer = 0
+
+function triggerFilterTransition() {
+  filterTransitionActive.value = false
+  cancelAnimationFrame(_filterTransitionTimer)
+  _filterTransitionTimer = requestAnimationFrame(() => {
+    filterTransitionActive.value = true
+    setTimeout(() => { filterTransitionActive.value = false }, 350)
+  })
+}
 
 let _cardObserver = null
 const _observedEls = new WeakSet()
@@ -385,8 +398,11 @@ watch(
     // Compare length + first/last IDs as a cheap change proxy
     return `${items.length}:${items[0]?.id}:${items[items.length - 1]?.id}`
   },
-  () => {
+  (next, prev) => {
     observeCurrentCards()
+    const prevLen = Number(prev?.split(':')[0]) || 0
+    const nextLen = Number(next?.split(':')[0]) || 0
+    if (nextLen !== prevLen) triggerFilterTransition()
   }
 )
 
@@ -406,6 +422,21 @@ defineExpose({
 </script>
 
 <style scoped>
+.goods-card-enter {
+  animation: goods-card-fade-in 0.3s ease both;
+}
+
+@keyframes goods-card-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .goods-list {
   display: grid;
   gap: var(--card-gap);
