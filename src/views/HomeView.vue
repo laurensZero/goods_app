@@ -1624,6 +1624,8 @@ const preloadTargetList = computed(() =>
 watch(
   [() => displayList.value.length, displayDensity, sortDirection, sortMode, windowWidth],
   () => {
+    _lastSyncStartRow = -1
+    _lastSyncRenderRows = -1
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
     gridMetrics.scheduleMeasure()
