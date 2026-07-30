@@ -153,5 +153,6 @@
   "my.changeEmailSent": "Verification email sent. Please check your new email to complete the change.",
   "my.changeEmailFailed": "Failed to change email",
   "my.announcements": "Announcements",
-  "my.noAnnouncements": "No announcements"
+  "my.noAnnouncements": "No announcements",
+  "my.changelog": "Changelog"
 }

@@ -658,17 +658,9 @@
             <div v-if="announcementStore.listLoading" class="announcement-list-sheet__empty">
               <p>{{ t('common.loading') }}</p>
             </div>
-            <div v-else-if="announcementStore.allAnnouncements.length === 0" class="announcement-list-sheet__empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="announcement-list-sheet__empty-icon">
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
-                <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
-                <path d="M18 8a6 6 0 0 0-9.33-5" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-              <p>{{ t('my.noAnnouncements') }}</p>
-            </div>
-            <ul v-else class="announcement-list">
+            <template v-else>
+              <!-- 公告列表 -->
+              <ul v-if="announcementStore.allAnnouncements.length > 0" class="announcement-list">
               <li
                 v-for="announcement in announcementStore.allAnnouncements"
                 :key="announcement.id"
@@ -693,6 +685,37 @@
                 </svg>
               </li>
             </ul>
+
+              <!-- 更新日志（仅 beta 频道用户可见） -->
+              <div v-if="announcementStore.isBetaChannel && announcementStore.changelogEntries.length > 0" class="changelog-section">
+                <h3 class="changelog-section__title">{{ t('my.changelog') }}</h3>
+                <ul class="changelog-list">
+                  <li
+                    v-for="entry in announcementStore.changelogEntries"
+                    :key="entry.version"
+                    class="changelog-list__item"
+                  >
+                    <div class="changelog-list__header">
+                      <span class="changelog-list__version">v{{ entry.version }}</span>
+                      <span v-if="entry.publishedAt" class="changelog-list__date">{{ formatChangelogDate(entry.publishedAt) }}</span>
+                    </div>
+                    <p v-if="entry.notes" class="changelog-list__notes">{{ entry.notes }}</p>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- 空态：无公告 + 无更新日志 -->
+              <div v-if="announcementStore.allAnnouncements.length === 0 && (!announcementStore.isBetaChannel || announcementStore.changelogEntries.length === 0)" class="announcement-list-sheet__empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="announcement-list-sheet__empty-icon">
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+                  <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+                  <path d="M18 8a6 6 0 0 0-9.33-5" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+                <p>{{ t('my.noAnnouncements') }}</p>
+              </div>
+            </template>
           </div>
         </section>
       </div>
@@ -1054,10 +1077,21 @@ function formatAnnouncementDate(timestamp) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+function formatChangelogDate(timestamp) {
+  if (!timestamp) return ''
+  const d = new Date(timestamp)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function openAnnouncementList() {
   // 先打开弹窗显示 loading，再异步加载数据，避免点击后无反馈
   announcementStore.openList()
-  await announcementStore.fetchAllForList()
+  await Promise.all([
+    announcementStore.fetchAllForList(),
+    announcementStore.fetchChangelog()
+  ])
   announcementStore.markAllRead()
 }
 
@@ -1632,6 +1666,64 @@ onActivated(() => {
   height: 18px;
   color: var(--app-text-tertiary);
   flex-shrink: 0;
+}
+
+/* ── 更新日志 ── */
+.changelog-section {
+  padding: 8px 0;
+  border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.06));
+}
+
+.changelog-section__title {
+  margin: 0;
+  padding: 10px 20px 4px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.changelog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.changelog-list__item {
+  padding: 10px 20px;
+}
+
+.changelog-list__item + .changelog-list__item {
+  border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.04));
+}
+
+.changelog-list__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.changelog-list__version {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.changelog-list__date {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.changelog-list__notes {
+  margin: 4px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* ── 公告详情弹窗 ── */

@@ -153,5 +153,6 @@
   "my.changeEmailSent": "验证邮件已发送，请检查新邮箱完成换绑。",
   "my.changeEmailFailed": "换绑失败",
   "my.announcements": "公告",
-  "my.noAnnouncements": "暂无公告"
+  "my.noAnnouncements": "暂无公告",
+  "my.changelog": "更新日志"
 }

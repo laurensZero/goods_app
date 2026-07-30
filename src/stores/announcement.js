@@ -128,9 +128,11 @@ function readCurrentChannel() {
   try {
     const value = String(localStorage.getItem(WEB_UPDATE_CHANNEL_STORAGE_KEY) || '').trim().toLowerCase()
     if (value === 'beta') return 'beta'
-    return 'stable'
+    if (value === 'stable') return 'stable'
+    // 未选择过频道时，dev 模式默认 beta
+    return import.meta.env.DEV ? 'beta' : 'stable'
   } catch {
-    return 'stable'
+    return import.meta.env.DEV ? 'beta' : 'stable'
   }
 }
 
@@ -354,6 +356,11 @@ export const useAnnouncementStore = defineStore('announcement', () => {
   const listReadRecord = ref({})
   const listOpenedAt = ref(0)
 
+  // ── 更新日志（仅 beta 频道） ──
+  const changelogEntries = ref([])
+  const changelogLoading = ref(false)
+  const isBetaChannel = computed(() => channel.value === 'beta')
+
   const hasActiveAnnouncement = computed(() => !!activeAnnouncement.value)
 
   const unreadCount = computed(() => {
@@ -567,6 +574,39 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     }
   }
 
+  async function fetchChangelog() {
+    if (!isBetaChannel.value) return
+    if (changelogLoading.value) return
+    changelogLoading.value = true
+    try {
+      await init()
+      const db = getSupabaseClient()
+      const { data, error } = await db
+        .from('ota_releases')
+        .select('version, notes, published_at')
+        .eq('channel', 'beta')
+        .eq('type', 'web_bundle')
+        .order('published_at', { ascending: false })
+        .limit(10)
+
+      if (error) {
+        console.warn('[announcement] fetchChangelog error:', error.message)
+        changelogEntries.value = []
+        return
+      }
+      changelogEntries.value = (data || []).map((row) => ({
+        version: String(row.version || '').trim(),
+        notes: String(row.notes || '').trim(),
+        publishedAt: row.published_at || ''
+      })).filter((e) => e.version)
+    } catch (e) {
+      console.warn('[announcement] fetchChangelog failed:', e.message)
+      changelogEntries.value = []
+    } finally {
+      changelogLoading.value = false
+    }
+  }
+
   function openList() {
     listOpenedAt.value = Date.now()
     listVisible.value = true
@@ -614,11 +654,15 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     listLoading,
     listReadRecord,
     unreadCount,
+    changelogEntries,
+    changelogLoading,
+    isBetaChannel,
     init,
     checkAndDecide,
     dismissAnnouncement,
     handlePrimaryAction,
     fetchAllForList,
+    fetchChangelog,
     openList,
     closeList,
     markAllRead,

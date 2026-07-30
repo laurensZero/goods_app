@@ -22,7 +22,8 @@ let activeCheckPromise = null
 function normalizeUpdateChannel(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (AVAILABLE_UPDATE_CHANNELS.includes(normalized)) return normalized
-  return 'stable'
+  // 未选择过频道时，dev 模式默认 beta
+  return import.meta.env.DEV ? 'beta' : 'stable'
 }
 
 function normalizeChecksum(value) {
@@ -58,9 +59,11 @@ function normalizeErrorMessage(error, fallback) {
 
 function readPersistedChannel() {
   try {
-    return normalizeUpdateChannel(localStorage.getItem(UPDATE_CHANNEL_STORAGE_KEY))
+    const value = localStorage.getItem(UPDATE_CHANNEL_STORAGE_KEY)
+    if (value !== null) return normalizeUpdateChannel(value)
+    return import.meta.env.DEV ? 'beta' : 'stable'
   } catch {
-    return 'stable'
+    return import.meta.env.DEV ? 'beta' : 'stable'
   }
 }
 
@@ -77,7 +80,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const supported = ref(false)
   const currentVersion = ref('')
   const currentBundleId = ref('builtin')
-  const selectedChannel = ref('stable')
+  const selectedChannel = ref(import.meta.env.DEV ? 'beta' : 'stable')
   const nativeVersion = ref('')
   const latestVersion = ref('')
   const latestZipUrl = ref('')

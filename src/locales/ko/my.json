@@ -153,5 +153,6 @@
   "my.changeEmailSent": "인증 이메일이 전송되었습니다. 새 이메일에서 변경을 완료하세요.",
   "my.changeEmailFailed": "이메일 변경 실패",
   "my.announcements": "공지사항",
-  "my.noAnnouncements": "공지사항 없음"
+  "my.noAnnouncements": "공지사항 없음",
+  "my.changelog": "업데이트 로그"
 }

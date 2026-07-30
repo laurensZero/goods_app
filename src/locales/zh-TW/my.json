@@ -153,5 +153,6 @@
   "my.changeEmailSent": "驗證郵件已發送，請檢查新郵箱完成換綁。",
   "my.changeEmailFailed": "換綁失敗",
   "my.announcements": "公告",
-  "my.noAnnouncements": "暫無公告"
+  "my.noAnnouncements": "暫無公告",
+  "my.changelog": "更新日誌"
 }
