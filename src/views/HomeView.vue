@@ -24,18 +24,20 @@
             </svg>
           </button>
 
-          <button
-            v-if="searchActiveFilterCount > 0"
-            class="hero-reset"
-            type="button"
-            :aria-label="t('home.resetFilter')"
-            @click="searchResetFilters()"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M18 6L6 18" />
-              <path d="M6 6L18 18" />
-            </svg>
-          </button>
+          <Transition name="filter-reset-fade">
+            <button
+              v-if="searchActiveFilterCount > 0"
+              class="hero-reset"
+              type="button"
+              :aria-label="t('home.resetFilter')"
+              @click="searchResetFilters()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M18 6L6 18" />
+                <path d="M6 6L18 18" />
+              </svg>
+            </button>
+          </Transition>
 
           <HomeViewModeSwitch
             v-if="!selectionMode"
@@ -440,7 +442,25 @@ function handleDailyRecDetail(goodsId) {
   sessionStorage.setItem(DAILY_REC_RESTORE_KEY, '1')
   dailyRecClosingForDetail = true
   showDailyRec.value = false
-  nextTick(() => openDetail(goodsId))
+  nextTick(() => {
+    const now = Date.now()
+    if (now - lastDetailNavigationTime < 320) return
+    lastDetailNavigationTime = now
+    saveScrollPosition(true, `home:openDetail:${goodsId}`)
+    primeActivatedRestoreWindow(getStoredScrollState())
+    clearRouteTransitionFallback()
+    runWithRouteTransition(
+      () => router.push(`/detail/${goodsId}`).catch(() => {
+        homeDisplayReady.value = true
+        clearPendingDetailTransitionKind()
+      }),
+      {
+        direction: 'forward',
+        returnPath: route.fullPath,
+        detailTransitionKind: 'detail-fade'
+      }
+    )
+  })
 }
 
 watch(showDailyRec, (open) => {
@@ -2093,6 +2113,17 @@ async function applyBatchEditPayload(payload) {
   height: 8px;
   border-radius: 50%;
   background: var(--color-primary, #07c160);
+}
+
+.filter-reset-fade-enter-active,
+.filter-reset-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.filter-reset-fade-enter-from,
+.filter-reset-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
 }
 
 .hero-reset {

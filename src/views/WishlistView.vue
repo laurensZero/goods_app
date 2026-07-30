@@ -19,18 +19,20 @@
             </svg>
           </button>
 
-          <button
-            v-if="searchActiveFilterCount > 0"
-            class="hero-reset"
-            type="button"
-            :aria-label="t('home.resetFilter')"
-            @click="searchResetFilters()"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M18 6L6 18" />
-              <path d="M6 6L18 18" />
-            </svg>
-          </button>
+          <Transition name="filter-reset-fade">
+            <button
+              v-if="searchActiveFilterCount > 0"
+              class="hero-reset"
+              type="button"
+              :aria-label="t('home.resetFilter')"
+              @click="searchResetFilters()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M18 6L6 18" />
+                <path d="M6 6L18 18" />
+              </svg>
+            </button>
+          </Transition>
 
           <HomeViewModeSwitch
             model-value="wishlist"
@@ -1434,6 +1436,17 @@ onBeforeRouteLeave(() => {
   height: 8px;
   border-radius: 50%;
   background: var(--color-primary, #07c160);
+}
+
+.filter-reset-fade-enter-active,
+.filter-reset-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.filter-reset-fade-enter-from,
+.filter-reset-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
 }
 
 .hero-reset {

@@ -14,44 +14,46 @@
         aria-hidden="true"
         :style="{ height: `${beforeSpacerHeight}px` }"
       />
-      <template v-for="(item, index) in items" :key="item.id">
-        <GroupCard
-          v-if="item._type === 'group'"
-          v-memo="[item, density, selectionMode]"
-          :ref="(instance) => setCardRef(item.id, instance)"
-          :group="item._group"
-          :items="item._members"
-          :total-price="item._totalPrice || 0"
-          :currency="item._currency || 'CNY'"
-          :density="density"
-          :selected="selectedIds?.has?.(item.id) ?? false"
-          :selection-mode="selectionMode"
-          :data-goods-id="item.id"
-          :data-scroll-anchor="'goods-card'"
-          :data-scroll-index="index + indexOffset"
-          @long-press="emit('long-press', item.id)"
-          @toggle-select="emit('toggle-select', item.id)"
-          @open-group="(groupId) => emit('open-group', groupId)"
-        />
-        <GoodsCard
-          v-else
-          v-memo="[item, density, selectionMode, cardMotionStyles[item.id]]"
-          :ref="(instance) => setCardRef(item.id, instance)"
-          :item="item"
-          :density="density"
-          :transitioning="transitioning"
-          :motion-style="cardMotionStyles[item.id]"
-          :window-width="windowWidth"
-          :data-goods-id="item.id"
-          :data-scroll-anchor="'goods-card'"
-          :data-scroll-index="index + indexOffset"
-          :selected="selectedIds?.has?.(item.id) ?? false"
-          :selection-mode="selectionMode"
-          @long-press="emit('long-press', item.id)"
-          @toggle-select="emit('toggle-select', item.id)"
-          @open-detail="(payload) => emit('open-detail', payload || item.id)"
-        />
-      </template>
+      <TransitionGroup name="goods-card-fade">
+        <template v-for="(item, index) in items" :key="item.id">
+          <GroupCard
+            v-if="item._type === 'group'"
+            v-memo="[item, density, selectionMode]"
+            :ref="(instance) => setCardRef(item.id, instance)"
+            :group="item._group"
+            :items="item._members"
+            :total-price="item._totalPrice || 0"
+            :currency="item._currency || 'CNY'"
+            :density="density"
+            :selected="selectedIds?.has?.(item.id) ?? false"
+            :selection-mode="selectionMode"
+            :data-goods-id="item.id"
+            :data-scroll-anchor="'goods-card'"
+            :data-scroll-index="index + indexOffset"
+            @long-press="emit('long-press', item.id)"
+            @toggle-select="emit('toggle-select', item.id)"
+            @open-group="(groupId) => emit('open-group', groupId)"
+          />
+          <GoodsCard
+            v-else
+            v-memo="[item, density, selectionMode, cardMotionStyles[item.id]]"
+            :ref="(instance) => setCardRef(item.id, instance)"
+            :item="item"
+            :density="density"
+            :transitioning="transitioning"
+            :motion-style="cardMotionStyles[item.id]"
+            :window-width="windowWidth"
+            :data-goods-id="item.id"
+            :data-scroll-anchor="'goods-card'"
+            :data-scroll-index="index + indexOffset"
+            :selected="selectedIds?.has?.(item.id) ?? false"
+            :selection-mode="selectionMode"
+            @long-press="emit('long-press', item.id)"
+            @toggle-select="emit('toggle-select', item.id)"
+            @open-detail="(payload) => emit('open-detail', payload || item.id)"
+          />
+        </template>
+      </TransitionGroup>
       <div
         v-if="afterSpacerHeight > 0"
         class="goods-list-spacer"
@@ -406,6 +408,17 @@ defineExpose({
 </script>
 
 <style scoped>
+.goods-card-fade-enter-active,
+.goods-card-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.goods-card-fade-enter-from,
+.goods-card-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
 .goods-list {
   display: grid;
   gap: var(--card-gap);
