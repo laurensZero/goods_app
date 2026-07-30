@@ -30,7 +30,7 @@
               class="hero-reset"
               type="button"
               :aria-label="t('home.resetFilter')"
-              @click="searchResetFilters()"
+              @click="handleResetFilters()"
             >
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M18 6L6 18" />
@@ -103,6 +103,7 @@
           :selection-mode="selectionMode"
           :selected-ids="selectedIds"
           :window-width="windowWidth"
+          :filter-transition-active="filterTransitionActive"
           @long-press="enterSelectionMode"
           @toggle-select="toggleSelect"
           @open-detail="openDetail"
@@ -247,7 +248,7 @@
       @update-field="handleSearchUpdateField"
       @toggle-filter="handleSearchToggleFilter"
       @toggle-character-expand="handleSearchToggleCharacterExpand"
-      @reset="searchResetFilters"
+      @reset="handleResetFilters"
       @select-preset="searchApplyPreset"
       @save-preset="searchSaveNewPreset"
       @update-preset="searchUpdateActivePreset"
@@ -519,6 +520,18 @@ const {
 } = useGoodsSearch(computed(() => store.collectionViewList), { scope: 'collection' })
 
 const showSearchPopup = ref(false)
+const filterTransitionActive = ref(false)
+let _filterTransitionTimer = 0
+
+function handleResetFilters() {
+  searchResetFilters()
+  filterTransitionActive.value = false
+  cancelAnimationFrame(_filterTransitionTimer)
+  _filterTransitionTimer = requestAnimationFrame(() => {
+    filterTransitionActive.value = true
+    setTimeout(() => { filterTransitionActive.value = false }, 350)
+  })
+}
 
 const translatedSortOptions = computed(() => createHomeSortOptions(t))
 const timelineSortOptions = computed(() => translatedSortOptions.value.filter((option) => option.value === 'acquiredAt'))

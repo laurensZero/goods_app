@@ -132,6 +132,10 @@ const props = defineProps({
   windowWidth: {
     type: Number,
     default: 0
+  },
+  filterTransitionActive: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -140,17 +144,6 @@ const emit = defineEmits(['long-press', 'toggle-select', 'open-detail', 'open-gr
 const goodsListEl = ref(null)
 const cardRefs = new Map()
 const cardMotionStyles = reactive({})
-const filterTransitionActive = ref(false)
-let _filterTransitionTimer = 0
-
-function triggerFilterTransition() {
-  filterTransitionActive.value = false
-  cancelAnimationFrame(_filterTransitionTimer)
-  _filterTransitionTimer = requestAnimationFrame(() => {
-    filterTransitionActive.value = true
-    setTimeout(() => { filterTransitionActive.value = false }, 350)
-  })
-}
 
 let _cardObserver = null
 const _observedEls = new WeakSet()
@@ -398,11 +391,8 @@ watch(
     // Compare length + first/last IDs as a cheap change proxy
     return `${items.length}:${items[0]?.id}:${items[items.length - 1]?.id}`
   },
-  (next, prev) => {
+  () => {
     observeCurrentCards()
-    const prevLen = Number(prev?.split(':')[0]) || 0
-    const nextLen = Number(next?.split(':')[0]) || 0
-    if (nextLen !== prevLen) triggerFilterTransition()
   }
 )
 
