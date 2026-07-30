@@ -270,7 +270,7 @@ jobs:
           ROLLBACK_MIN: ${{ steps.version.outputs.min_native }}
           ROLLBACK_NOTES: ${{ steps.version.outputs.stored_notes }}
           CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
-          UPDATE_LEVEL: ${{ github.event.inputs.update_level || 'prompt' }}
+          UPDATE_LEVEL: ${{ github.event.inputs.update_level || (github.event.inputs.channel == 'beta' && 'silent' || 'prompt') }}
           NOTES: ${{ steps.notes.outputs.notes }}
           MIN_NATIVE_VERSION: ${{ github.event.inputs.min_native_version || '' }}
         run: |
