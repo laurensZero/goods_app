@@ -344,8 +344,8 @@ function openDetail(id) {
 
 .ledger-no-price { font-size: 13px; color: var(--app-text-tertiary); }
 
-.profit--gain { color: var(--app-success, #16a34a) !important; }
-.profit--loss { color: var(--app-danger, #dc2626) !important; }
+.profit--gain { color: var(--app-danger, #dc2626) !important; }
+.profit--loss { color: var(--app-success, #16a34a) !important; }
 
 /* 已出/在售内容切换过渡(方向随 tab 顺序) */
 .ledger-swap-enter-active,

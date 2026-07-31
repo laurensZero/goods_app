@@ -621,8 +621,8 @@ onBeforeUnmount(() => {
   font-size: 17px;
   font-weight: 700;
 }
-.sale-profit--gain { color: var(--app-success, #16a34a); }
-.sale-profit--loss { color: var(--app-danger, #dc2626); }
+.sale-profit--gain { color: var(--app-danger, #dc2626); }
+.sale-profit--loss { color: var(--app-success, #16a34a); }
 .sale-overview-arrow {
   width: 18px;
   height: 18px;
