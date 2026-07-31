@@ -50,7 +50,11 @@
     "padMaxVisible": "태블릿 최대 표시 수",
     "padMaxVisibleDesc": "태블릿 기기에서 표시되는 최대 알림 수",
     "padDuration": "태블릿 표시 시간",
-    "padDurationDesc": "태블릿 기기에서 알림이 유지되는 표시 시간"
+    "padDurationDesc": "태블릿 기기에서 알림이 유지되는 표시 시간",
+    "qqPushSection": "푸시 채널",
+    "qqPush": "QQ 푸시",
+    "qqPushDesc": "QQ 봇으로 판매 알림을 받습니다 (앱을 열 필요 없음)",
+    "qqPushNeedBind": "먼저 '마이'에서 QQ를 연동하세요"
   },
   "notify.saleTimeReached": "판매 시간이 되었습니다",
   "notify.saleCountdown": "판매까지"

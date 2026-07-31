@@ -3,3 +3,12 @@ id = "zvqzicimowfqshgjsrri"
 
 [functions.delete-user]
 verify_jwt = false
+
+# QQ 机器人 webhook：接收 QQ 平台事件（绑定码激活）
+[functions.qq-webhook]
+verify_jwt = false
+
+# 通知分发器：每分钟投递队列
+[functions.notify-dispatch]
+verify_jwt = false
+schedule = "*/1 * * * *"

@@ -539,6 +539,27 @@
             </div>
           </div>
 
+          <!-- QQ 推送绑定 -->
+          <div class="account-manage-section">
+            <h3 class="account-manage-section__title">{{ t('my.qqBindingTitle') }}</h3>
+            <div class="account-manage-item">
+              <div class="account-manage-item__info">
+                <span class="account-manage-item__provider">QQ Push</span>
+                <span class="account-manage-item__email">
+                  {{ qqStore.isBound ? (qqStore.qqNickname || t('my.qqBound')) : t('my.qqNotBound') }}
+                </span>
+              </div>
+              <button
+                type="button"
+                class="login-sheet__button login-sheet__button--secondary-sm"
+                :disabled="qqStore.isLoading"
+                @click="openQQBindingSheet"
+              >
+                {{ qqStore.isBound ? t('my.qqManage') : t('my.qqBind') }}
+              </button>
+            </div>
+          </div>
+
           <!-- Link New Provider -->
           <div class="account-manage-section">
             <h3 class="account-manage-section__title">{{ t('my.linkProvider') }}</h3>
@@ -592,6 +613,8 @@
         </section>
       </div>
     </Transition>
+
+    <QQBindingSheet :show="showQQBindingSheet" @close="closeQQBindingSheet" @bound="onQQBound" />
 
     <!-- Delete Account Dialog -->
     <Transition name="sheet-pop">
@@ -787,11 +810,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAnnouncementStore } from '@/stores/announcement'
+import { useQQBindingStore } from '@/stores/qqBinding'
 import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useQrScanner } from '@/composables/my/useQrScanner'
+import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 
@@ -804,6 +829,7 @@ const authStore = useAuthStore()
 const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
+const qqStore = useQQBindingStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
@@ -821,6 +847,7 @@ const changePasswordError = ref('')
 const changePasswordLoading = ref(false)
 
 const showAccountManageSheet = ref(false)
+const showQQBindingSheet = ref(false)
 
 const showChangeEmailForm = ref(false)
 const changeEmailNew = ref('')
@@ -1170,6 +1197,7 @@ function handleLogin() {
 async function handleLogout() {
   if (!authStore.isLoggedIn) return
   await authStore.logout()
+  qqStore.reset() // 清空 QQ 绑定缓存，避免换账号串用
   closeLogoutDialog()
 }
 
@@ -1216,13 +1244,33 @@ async function confirmChangePassword() {
 }
 
 // Account Management
-async function openAccountManageSheet() {
+function openAccountManageSheet() {
   showAccountManageSheet.value = true
-  await authStore.fetchLinkedProviders()
+  // 优先用缓存立即显示，后台静默刷新（不阻塞弹窗打开）
+  authStore.fetchLinkedProviders().catch(() => {})
+  if (!qqStore.isInitialized) qqStore.init().catch(() => {})
 }
 
 function closeAccountManageSheet() {
   showAccountManageSheet.value = false
+}
+
+// QQ 推送绑定
+function openQQBindingSheet() {
+  if (!qqStore.isInitialized) qqStore.init().catch(() => {})
+  showQQBindingSheet.value = true
+}
+
+function closeQQBindingSheet() {
+  showQQBindingSheet.value = false
+}
+
+async function onQQBound() {
+  try {
+    await qqStore.refreshBinding()
+  } catch {
+    // 静默失败，绑定状态下次打开账户管理时刷新
+  }
 }
 
 function openChangePasswordFromManage() {

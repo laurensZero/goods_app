@@ -216,6 +216,45 @@
         </div>
       </section>
 
+      <section class="settings-section" :class="{ 'settings-section--disabled': !qqStore.isBound }">
+        <div class="settings-card">
+          <div class="settings-card__header">
+            <p class="settings-card__label">PUSH CHANNEL</p>
+            <h2 class="settings-card__title">{{ t('notifySettings.qqPushSection') }}</h2>
+          </div>
+
+          <div class="settings-list">
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--qq">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" y1="9" x2="9.01" y2="9" />
+                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.qqPush') }}</span>
+                  <span class="settings-item__desc">
+                    {{ qqStore.isBound ? t('notifySettings.qqPushDesc') : t('notifySettings.qqPushNeedBind') }}
+                  </span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.qqPush')">
+                <input
+                  :checked="qqStore.isEnabled"
+                  :disabled="!qqStore.isBound || qqStore.isLoading"
+                  type="checkbox"
+                  @change="onQQPushChange"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="settings-section" :class="{ 'settings-section--disabled': !settings.enabled }">
         <div class="settings-card">
           <div class="settings-card__header">
@@ -428,6 +467,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
+import { useQQBindingStore } from '@/stores/qqBinding'
 
 defineOptions({ name: 'NotifySettingsView' })
 
@@ -435,6 +475,7 @@ const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 
 const notifySettingsStore = useNotifySettingsStore()
+const qqStore = useQQBindingStore()
 
 // 检测是否是移动端
 const isMobileDevice = ref(false)
@@ -442,6 +483,7 @@ onMounted(() => {
   isMobileDevice.value = typeof navigator !== 'undefined'
     ? (navigator.userAgentData?.mobile ?? /Mobile|iPhone|iPod|Windows Phone/i.test(navigator.userAgent || ''))
     : false
+  qqStore.init().catch(() => {})
 })
 
 // 设置引用
@@ -482,6 +524,17 @@ const positionOptions = computed(() => [
 // 保存单个设置
 function saveSetting(key, value) {
   notifySettingsStore.updateSetting(key, value)
+}
+
+// QQ 推送开关（同步到服务端 user_qq_bindings.enabled）
+async function onQQPushChange(e) {
+  const enabled = e.target.checked
+  try {
+    await qqStore.toggleEnabled(enabled)
+  } catch (err) {
+    e.target.checked = !enabled
+    showToast(err.message || t('common.failed'))
+  }
 }
 
 // 更新位置
@@ -754,6 +807,11 @@ function resetSettings() {
 .settings-item__icon--feedback {
   background: rgba(175, 82, 222, 0.12);
   color: #af52de;
+}
+
+.settings-item__icon--qq {
+  background: rgba(18, 183, 245, 0.12);
+  color: #12b7f5;
 }
 
 .settings-item__title {

@@ -50,7 +50,11 @@
     "padMaxVisible": "平板最大显示数",
     "padMaxVisibleDesc": "平板设备上同时显示的最大通知数量",
     "padDuration": "平板显示时长",
-    "padDurationDesc": "平板设备上通知自动关闭前的显示时间"
+    "padDurationDesc": "平板设备上通知自动关闭前的显示时间",
+    "qqPushSection": "推送渠道",
+    "qqPush": "QQ 推送",
+    "qqPushDesc": "通过 QQ 机器人接收开售提醒，无需打开应用",
+    "qqPushNeedBind": "需先在「我的」中绑定 QQ"
   },
   "notify.saleTimeReached": "已到开售时间",
   "notify.saleCountdown": "距开售"

@@ -50,7 +50,11 @@
     "padMaxVisible": "タブレットの最大表示数",
     "padMaxVisibleDesc": "タブレット端末での通知の最大表示数",
     "padDuration": "タブレットの表示時間",
-    "padDurationDesc": "タブレット端末での通知の表示時間"
+    "padDurationDesc": "タブレット端末での通知の表示時間",
+    "qqPushSection": "プッシュチャネル",
+    "qqPush": "QQ プッシュ",
+    "qqPushDesc": "QQ ボットから発売リマインダーを受け取れます（アプリを開く必要なし）",
+    "qqPushNeedBind": "先に「マイ」で QQ を連携してください"
   },
   "notify.saleTimeReached": "発売時刻になりました",
   "notify.saleCountdown": "発売まで"

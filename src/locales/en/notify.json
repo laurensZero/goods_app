@@ -50,7 +50,11 @@
     "padMaxVisible": "Tablet Max Visible",
     "padMaxVisibleDesc": "Maximum notifications shown on tablet devices",
     "padDuration": "Tablet Display Duration",
-    "padDurationDesc": "How long notifications stay on tablet devices"
+    "padDurationDesc": "How long notifications stay on tablet devices",
+    "qqPushSection": "Push Channel",
+    "qqPush": "QQ Push",
+    "qqPushDesc": "Receive sale reminders via the QQ bot without opening the app",
+    "qqPushNeedBind": "Bind QQ in the My page first"
   },
   "notify.saleTimeReached": "Sale time reached",
   "notify.saleCountdown": "Until sale"
