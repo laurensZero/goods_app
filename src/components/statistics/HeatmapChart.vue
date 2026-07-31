@@ -270,6 +270,8 @@ const monthPositions = computed(() => {
 .heatmap-grid {
   display: grid;
   grid-template-rows: repeat(7, var(--hm-size));
+  /* 格子按列填充：每列代表一周，与月份/星期标签对齐（缺省为按行填充会导致整图转置） */
+  grid-auto-flow: column;
   gap: var(--hm-gap);
 }
 
