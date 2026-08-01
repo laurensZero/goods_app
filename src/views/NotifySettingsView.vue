@@ -251,6 +251,68 @@
                 <span class="toggle-slider" />
               </label>
             </div>
+
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--mihoyo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.mihoyoPush') }}</span>
+                  <span class="settings-item__desc">
+                    {{ qqStore.isBound ? t('notifySettings.mihoyoPushDesc') : t('notifySettings.mihoyoPushNeedBind') }}
+                  </span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('notifySettings.mihoyoPush')">
+                <input
+                  :checked="qqStore.isMihoyoEnabled"
+                  :disabled="!qqStore.isBound || qqStore.isLoading"
+                  type="checkbox"
+                  @change="onMihoyoPushChange"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
+            <div v-if="qqStore.isBound" class="settings-item settings-item--column">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--mihoyo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" y1="9" x2="9.01" y2="9" />
+                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.mihoyoShops') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.mihoyoShopsDesc') }}</span>
+                </div>
+              </div>
+              <div class="mihoyo-shop-picker">
+                <button
+                  v-for="shop in mihoyoShopOptions"
+                  :key="shop.code"
+                  type="button"
+                  class="mihoyo-shop-chip"
+                  :class="{ 'mihoyo-shop-chip--active': isShopSelected(shop.code) }"
+                  :disabled="!qqStore.isMihoyoEnabled"
+                  @click="toggleShop(shop.code)"
+                >
+                  {{ shop.label }}
+                </button>
+              </div>
+              <p
+                v-if="qqStore.isMihoyoEnabled && qqStore.mihoyoShops.length === 0"
+                class="mihoyo-shop-hint"
+              >
+                {{ t('notifySettings.mihoyoShopsNeedPick') }}
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -537,6 +599,42 @@ async function onQQPushChange(e) {
   }
 }
 
+// 米游铺上新开关（同步到服务端 user_qq_bindings.mihoyo_enabled，默认关闭）
+async function onMihoyoPushChange(e) {
+  const enabled = e.target.checked
+  try {
+    await qqStore.toggleMihoyoEnabled(enabled)
+  } catch (err) {
+    e.target.checked = !enabled
+    showToast(err.message || t('common.failed'))
+  }
+}
+
+// 米游铺监听店铺选项（与 scan-mihoyo 的 SHOP_CODES 保持一致）
+const mihoyoShopOptions = computed(() => [
+  { code: 'ys', label: t('notifySettings.mihoyoShopYs') },
+  { code: 'xqtd', label: t('notifySettings.mihoyoShopXqtd') },
+  { code: 'bh3', label: t('notifySettings.mihoyoShopBh3') },
+  { code: 'zzz', label: t('notifySettings.mihoyoShopZzz') },
+])
+
+function isShopSelected(code) {
+  return qqStore.mihoyoShops.includes(code)
+}
+
+// 切换某个店铺的监听（同步到服务端 user_qq_bindings.mihoyo_shops）
+async function toggleShop(code) {
+  const current = qqStore.mihoyoShops
+  const next = current.includes(code)
+    ? current.filter((c) => c !== code)
+    : [...current, code]
+  try {
+    await qqStore.toggleMihoyoShops(next)
+  } catch (err) {
+    showToast(err.message || t('common.failed'))
+  }
+}
+
 // 更新位置
 function updatePosition(value) {
   if (notifySettingsStore.isTabletViewport) {
@@ -814,6 +912,11 @@ function resetSettings() {
   color: #12b7f5;
 }
 
+.settings-item__icon--mihoyo {
+  background: rgba(84, 184, 253, 0.12);
+  color: #54b8fd;
+}
+
 .settings-item__title {
   display: block;
   color: var(--app-text);
@@ -925,6 +1028,43 @@ function resetSettings() {
   background: var(--app-text);
   color: var(--app-surface);
   border-color: var(--app-text);
+}
+
+/* Mihoyo Shop Picker */
+.mihoyo-shop-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mihoyo-shop-chip {
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mihoyo-shop-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mihoyo-shop-chip--active {
+  background: var(--app-text);
+  color: var(--app-surface);
+  border-color: var(--app-text);
+}
+
+.mihoyo-shop-hint {
+  margin: 10px 0 0;
+  color: #ff9500;
+  font-size: 12px;
 }
 
 /* Number Picker */

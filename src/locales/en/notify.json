@@ -54,7 +54,17 @@
     "qqPushSection": "Push Channel",
     "qqPush": "QQ Push",
     "qqPushDesc": "Receive sale reminders via the QQ bot without opening the app",
-    "qqPushNeedBind": "Bind QQ in the My page first"
+    "qqPushNeedBind": "Bind QQ in the My page first",
+    "mihoyoPush": "Mihoyo Shop New Arrivals",
+    "mihoyoPushDesc": "Get notified when new items appear on the mihoyo shop (upcoming / points redemption)",
+    "mihoyoPushNeedBind": "Bind QQ in the My page first",
+    "mihoyoShops": "Monitored Shops",
+    "mihoyoShopsDesc": "Choose which mihoyo shop new arrivals to receive",
+    "mihoyoShopsNeedPick": "Pick at least one shop",
+    "mihoyoShopYs": "Genshin Impact",
+    "mihoyoShopXqtd": "Honkai: Star Rail",
+    "mihoyoShopBh3": "Honkai Impact 3",
+    "mihoyoShopZzz": "Zenless Zone Zero"
   },
   "notify.saleTimeReached": "Sale time reached",
   "notify.saleCountdown": "Until sale"

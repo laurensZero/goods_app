@@ -12,3 +12,10 @@ verify_jwt = false
 [functions.notify-dispatch]
 verify_jwt = false
 schedule = "*/1 * * * *"
+
+# 米游铺上新扫描：由 pg_cron 或网页端 schedule 两套调度触发
+#   ?catalog=shop   商店「即将上架」每天 6 次（北京 12:01/12:10/12:30/18:01/18:10/18:30）
+#   ?catalog=point  积分商城每小时
+# （config.toml 每个函数只能写一个 schedule，两个调度用 pg_cron SQL 注册，见计划文档）
+[functions.scan-mihoyo]
+verify_jwt = false

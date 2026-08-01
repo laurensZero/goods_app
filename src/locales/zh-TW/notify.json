@@ -54,7 +54,17 @@
     "qqPushSection": "推播管道",
     "qqPush": "QQ 推播",
     "qqPushDesc": "透過 QQ 機器人接收開售提醒，無需開啟 App",
-    "qqPushNeedBind": "需先在「我的」中綁定 QQ"
+    "qqPushNeedBind": "需先在「我的」中綁定 QQ",
+    "mihoyoPush": "米遊鋪上新",
+    "mihoyoPushDesc": "米遊鋪新上架商品通知（即將上架 / 積分兌換）",
+    "mihoyoPushNeedBind": "需先在「我的」中綁定 QQ",
+    "mihoyoShops": "監聽店鋪",
+    "mihoyoShopsDesc": "選擇要接收新上架的米遊鋪店鋪",
+    "mihoyoShopsNeedPick": "請至少選擇一個店鋪",
+    "mihoyoShopYs": "原神",
+    "mihoyoShopXqtd": "崩壞：星穹鐵道",
+    "mihoyoShopBh3": "崩壞3",
+    "mihoyoShopZzz": "絕區零"
   },
   "notify.saleTimeReached": "已到開售時間",
   "notify.saleCountdown": "距離開售"

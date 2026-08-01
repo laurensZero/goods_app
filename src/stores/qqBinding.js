@@ -14,6 +14,8 @@ import {
   requestBindCode,
   getQQBinding,
   setQQEnabled,
+  setMihoyoEnabled,
+  setMihoyoShops,
   unbindQQ,
 } from '@/services/qqService'
 
@@ -26,6 +28,12 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   const isBound = computed(() => binding.value?.status === 'active')
   const isPending = computed(() => binding.value?.status === 'pending')
   const isEnabled = computed(() => isBound.value && !!binding.value?.enabled)
+  // 米游铺上新开关：绑定且主动开启才收（服务端 user_qq_bindings.mihoyo_enabled，默认关闭）
+  const isMihoyoEnabled = computed(() => isBound.value && !!binding.value?.mihoyo_enabled)
+  // 用户自选的米游铺监听店铺（空数组 = 全不选）
+  const mihoyoShops = computed(() =>
+    Array.isArray(binding.value?.mihoyo_shops) ? binding.value.mihoyo_shops : []
+  )
   const bindCode = computed(() => binding.value?.bind_code || '')
   const qqNickname = computed(() => binding.value?.qq_nickname || '')
 
@@ -86,6 +94,41 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   }
 
   /**
+   * 设置「米游铺上新」推送开关，并同步到服务端。
+   * 乐观更新：本地立即生效，网络失败回滚。
+   */
+  async function toggleMihoyoEnabled(enabled) {
+    const next = !!enabled
+    const prev = !!binding.value?.mihoyo_enabled
+    if (binding.value) binding.value.mihoyo_enabled = next
+    try {
+      await setMihoyoEnabled(next)
+    } catch (e) {
+      if (binding.value) binding.value.mihoyo_enabled = prev
+      throw e
+    }
+  }
+
+  /**
+   * 设置米游铺监听的店铺集合，并同步到服务端。
+   * 乐观更新：本地立即生效，网络失败回滚。
+   * @param {string[]} shops - 店铺码数组（空 = 全不选）
+   */
+  async function toggleMihoyoShops(shops) {
+    const next = Array.isArray(shops) ? [...shops] : []
+    const prev = Array.isArray(binding.value?.mihoyo_shops)
+      ? [...binding.value.mihoyo_shops]
+      : []
+    if (binding.value) binding.value.mihoyo_shops = next
+    try {
+      await setMihoyoShops(next)
+    } catch (e) {
+      if (binding.value) binding.value.mihoyo_shops = prev
+      throw e
+    }
+  }
+
+  /**
    * 解绑。
    */
   async function doUnbind() {
@@ -114,12 +157,16 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     isBound,
     isPending,
     isEnabled,
+    isMihoyoEnabled,
+    mihoyoShops,
     bindCode,
     qqNickname,
     init,
     startBinding,
     refreshBinding,
     toggleEnabled,
+    toggleMihoyoEnabled,
+    toggleMihoyoShops,
     doUnbind,
     reset,
   }

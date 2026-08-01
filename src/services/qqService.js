@@ -89,6 +89,33 @@ export async function setQQEnabled(enabled) {
 }
 
 /**
+ * 更新「米游铺上新」推送开关（服务端据此判断是否发送，默认关闭）
+ */
+export async function setMihoyoEnabled(enabled) {
+  const db = getSupabaseClient()
+  const { error } = await db
+    .from(BINDINGS_TABLE)
+    .update({ mihoyo_enabled: !!enabled })
+    .eq('user_id', (await db.auth.getUser()).data.user?.id ?? '')
+
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * 更新「米游铺上新」监听的店铺集合（空数组 = 全不选，需至少选一个才生效）
+ * @param {string[]} shops - 店铺码数组，如 ['ys', 'xqtd']
+ */
+export async function setMihoyoShops(shops) {
+  const db = getSupabaseClient()
+  const { error } = await db
+    .from(BINDINGS_TABLE)
+    .update({ mihoyo_shops: Array.isArray(shops) ? shops : [] })
+    .eq('user_id', (await db.auth.getUser()).data.user?.id ?? '')
+
+  if (error) throw new Error(error.message)
+}
+
+/**
  * 解绑：状态置 unbound，服务端不再推送
  */
 export async function unbindQQ() {

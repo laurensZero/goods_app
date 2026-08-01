@@ -54,7 +54,17 @@
     "qqPushSection": "プッシュチャネル",
     "qqPush": "QQ プッシュ",
     "qqPushDesc": "QQ ボットから発売リマインダーを受け取れます（アプリを開く必要なし）",
-    "qqPushNeedBind": "先に「マイ」で QQ を連携してください"
+    "qqPushNeedBind": "先に「マイ」で QQ を連携してください",
+    "mihoyoPush": "米遊舗の新着",
+    "mihoyoPushDesc": "米遊舗の新着商品を通知します（近日発売 / ポイント交換）",
+    "mihoyoPushNeedBind": "先に「マイ」で QQ を連携してください",
+    "mihoyoShops": "監視店舗",
+    "mihoyoShopsDesc": "新着を受け取る米遊舗の店舗を選択",
+    "mihoyoShopsNeedPick": "少なくとも1つの店舗を選択してください",
+    "mihoyoShopYs": "原神",
+    "mihoyoShopXqtd": "崩壊：スターレイル",
+    "mihoyoShopBh3": "崩壊3rd",
+    "mihoyoShopZzz": "ゼンレスゾーンゼロ"
   },
   "notify.saleTimeReached": "発売時刻になりました",
   "notify.saleCountdown": "発売まで"
