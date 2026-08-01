@@ -49,6 +49,7 @@ on:
       - '.gitattributes'
       - '**.md'
       - 'LICENSE'
+      - 'supabase/**'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
