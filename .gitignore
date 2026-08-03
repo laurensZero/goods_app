@@ -23,3 +23,4 @@ scripts/supabase-backup.sh
 # 线上升级用 SQL(本地保留,不入库)
 supabase-update.sql
 supabase-migration-*.sql
+scripts/mihoyo-checkout.mjs

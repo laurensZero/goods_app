@@ -7,6 +7,13 @@
           <h1 class="hero-title">{{ t('nav.my') }}</h1>
         </div>
         <div class="hero-actions">
+          <button type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+          </button>
           <button type="button" class="toolbar-scan" :aria-label="t('my.scanImport')" :disabled="scanning" @click="openScanner">
             <span v-if="scanning" class="toolbar-scan-spinner" />
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1042,6 +1049,10 @@ function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
+function openCheckout() {
+  runWithRouteTransition(() => router.push('/checkout'), { direction: 'forward' })
+}
+
 function openSync() {
   runWithRouteTransition(() => router.push('/manage/sync'), { direction: 'forward' })
 }
@@ -1500,6 +1511,34 @@ onActivated(() => {
 }
 
 .toolbar-settings:active {
+  transform: scale(0.96);
+}
+
+.toolbar-checkout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-button-size, 40px);
+  height: var(--icon-button-size, 40px);
+  border: none;
+  border-radius: 50%;
+  background: var(--app-glass);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  transition: transform 0.16s ease, background 0.16s ease;
+  flex-shrink: 0;
+}
+
+.toolbar-checkout svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-checkout:active {
   transform: scale(0.96);
 }
 

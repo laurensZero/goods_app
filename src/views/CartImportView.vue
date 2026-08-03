@@ -182,7 +182,7 @@
           </div>
           <p class="done-title">{{ t('import.importComplete') }}</p>
           <p class="done-sub">{{ t('import.cartDoneSub', { count: importedCount, qty: importedTotalQty }) }}</p>
-          <button class="primary-btn" type="button" @click="router.replace(doneTargetPath)">
+          <button class="primary-btn" type="button" @click="runWithRouteTransition(() => router.replace(doneTargetPath), { direction: 'back', fallbackTransitionKind: 'detail-fade' })">
             {{ t('import.backTo', { target: isWishlistMode ? t('common.wishlist') : t('import.home') }) }}
           </button>
         </section>
@@ -213,6 +213,7 @@ import {
   resolveMihoyoImportDraft,
 } from '@/utils/mihoyo/importResolver'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
