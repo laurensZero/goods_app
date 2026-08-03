@@ -276,5 +276,9 @@
   "sync.error.localDataNotLoaded": "로컬 데이터 로드에 실패했습니다. 클라우드 백업 보호를 위해 동기화를 중단했습니다. 앱을 재시작한 후 다시 시도해 주세요",
   "sync.error.localDataNotLoadedStatus": "로컬 데이터 미로드",
   "sync.error.loginRequired": "동기화하기 전에 Supabase 계정에 로그인하세요",
-  "sync.error.loginRequiredStatus": "로그인되지 않음"
+  "sync.error.loginRequiredStatus": "로그인되지 않음",
+  "sync.error.maintenanceMode": "시스템 유지보수 중입니다. 동기화 기능은 일시적으로 사용할 수 없습니다.",
+  "sync.error.maintenanceModeStatus": "유지보수 모드",
+  "sync.maintenance.title": "시스템 유지보수 중",
+  "sync.maintenance.defaultMessage": "동기화 기능은 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."
 }

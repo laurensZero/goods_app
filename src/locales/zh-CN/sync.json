@@ -276,5 +276,9 @@
   "sync.error.loginRequired": "请先登录 Supabase 账号后再同步",
   "sync.error.loginRequiredStatus": "未登录",
   "sync.error.localDataNotLoaded": "本地数据加载失败，已暂停云同步以保护云端备份，请重启应用后重试",
-  "sync.error.localDataNotLoadedStatus": "本地数据未加载"
+  "sync.error.localDataNotLoadedStatus": "本地数据未加载",
+  "sync.error.maintenanceMode": "系统维护中，同步功能暂时不可用",
+  "sync.error.maintenanceModeStatus": "维护模式",
+  "sync.maintenance.title": "系统维护中",
+  "sync.maintenance.defaultMessage": "同步功能暂时不可用，请稍后再试"
 }

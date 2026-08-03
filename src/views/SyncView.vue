@@ -2,6 +2,23 @@
   <div class="page sync-page">
     <NavBar :title="t('sync.title')" show-back />
 
+    <!-- 维护模式横幅 - 最高优先级显示 -->
+    <Transition name="toast-fade">
+      <div v-if="maintenanceBanner" class="maintenance-banner" role="alert">
+        <div class="maintenance-banner__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <div class="maintenance-banner__content">
+          <span class="maintenance-banner__title">{{ t('sync.maintenance.title') }}</span>
+          <span class="maintenance-banner__message">{{ maintenanceBanner }}</span>
+        </div>
+      </div>
+    </Transition>
+
     <Transition name="toast-fade">
       <div v-if="syncNoticeText" class="sync-notice" :class="`sync-notice--${syncNoticeLevel}`" role="alert">
         <span class="sync-notice__title">{{ syncNoticeLevel === 'error' ? t('sync.errorTitle') : t('sync.syncNotice') }}</span>
@@ -153,7 +170,7 @@
           <button
             type="button"
             class="entry-card"
-            :disabled="syncStore.isSyncing || !syncStore.isConfigured"
+            :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance"
             @click="handleSync"
           >
             <span class="entry-icon sync-icon">
@@ -178,7 +195,7 @@
           <button
             type="button"
             class="entry-card"
-            :disabled="syncStore.isSyncing || !syncStore.isConfigured"
+            :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance"
             @click="handlePull"
           >
             <span class="entry-icon pull-icon">
@@ -526,6 +543,22 @@ const syncConflictData = ref({})
 const { toastMsg, showToast } = useToast()
 const syncNoticeText = computed(() => syncStore.syncNotice?.message || '')
 const syncNoticeLevel = computed(() => syncStore.syncNotice?.level || 'error')
+
+// 维护模式横幅
+const maintenanceBanner = computed(() => {
+  const mode = syncStore.maintenanceMode
+  if (!mode?.enabled) return null
+  return mode.message || t('sync.maintenance.defaultMessage')
+})
+
+// 维护模式是否阻止同步
+const syncBlockedByMaintenance = computed(() => {
+  const mode = syncStore.maintenanceMode
+  if (!mode?.enabled) return false
+  const blocks = mode.blocks || []
+  return blocks.includes('sync_all')
+})
+
 const cloudInfo = ref(null)
 const pullConflictData = ref({})
 const showSupabaseUrlDialog = ref(false)
@@ -1089,6 +1122,65 @@ onMounted(async () => {
   padding: 0;
   font: inherit;
 }
+
+/* 维护模式横幅 - 醒目的警告样式 */
+.maintenance-banner {
+  margin: 12px 16px 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: maintenance-pulse 2s ease-in-out infinite;
+}
+
+@keyframes maintenance-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+  50% { box-shadow: 0 4px 24px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+}
+
+.maintenance-banner__icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: #d97706;
+}
+
+.maintenance-banner__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.maintenance-banner__content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.maintenance-banner__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.maintenance-banner__message {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #a16207;
+}
+
+/* 深色模式适配 */
+.theme-dark .maintenance-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.15) 100%);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.theme-dark .maintenance-banner__icon { color: #fbbf24; }
+.theme-dark .maintenance-banner__title { color: #fcd34d; }
+.theme-dark .maintenance-banner__message { color: #fde68a; }
 
 .sync-notice {
   margin: 12px 16px 0;

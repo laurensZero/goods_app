@@ -276,5 +276,9 @@
   "sync.error.localDataNotLoaded": "本地資料載入失敗，已暫停雲同步以保護雲端備份，請重啟應用後重試",
   "sync.error.localDataNotLoadedStatus": "本地資料未載入",
   "sync.error.loginRequired": "請先登入 Supabase 帳號後再同步",
-  "sync.error.loginRequiredStatus": "未登入"
+  "sync.error.loginRequiredStatus": "未登入",
+  "sync.error.maintenanceMode": "系統維護中，同步功能暫時不可用",
+  "sync.error.maintenanceModeStatus": "維護模式",
+  "sync.maintenance.title": "系統維護中",
+  "sync.maintenance.defaultMessage": "同步功能暫時不可用，請稍後再試"
 }

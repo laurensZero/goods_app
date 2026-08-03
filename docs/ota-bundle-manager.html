@@ -687,6 +687,7 @@
       <button class="quick-nav-btn" type="button" data-nav-target="announcementAdminSection">公告管理</button>
       <button class="quick-nav-btn" type="button" data-nav-target="surveyAdminSection">问卷管理</button>
       <button class="quick-nav-btn" type="button" data-nav-target="feedbackAdminSection">反馈管理</button>
+      <button class="quick-nav-btn" type="button" data-nav-target="maintenanceSection">维护模式</button>
       <button class="quick-nav-btn focus-toggle" id="showAllSectionsBtn" type="button">显示全部区域</button>
     </aside>
 
@@ -697,6 +698,7 @@
       <button class="top-nav-btn" type="button" data-nav-target-mobile="announcementAdminSection">公告</button>
       <button class="top-nav-btn" type="button" data-nav-target-mobile="surveyAdminSection">问卷</button>
       <button class="top-nav-btn" type="button" data-nav-target-mobile="feedbackAdminSection">反馈</button>
+      <button class="top-nav-btn" type="button" data-nav-target-mobile="maintenanceSection">维护</button>
       <button class="top-nav-btn focus-toggle" id="showAllSectionsMobileBtn" type="button">全部</button>
     </div>
 
@@ -1168,6 +1170,80 @@
         <p id="feedbackDetailStatus" class="publish-status">等待操作</p>
       </article>
     </section>
+
+    <section class="section" id="maintenanceSection">
+      <h2 class="section-title">维护模式管理（Supabase）</h2>
+      <article class="publish-card">
+        <div class="publish-grid">
+          <label class="field field--full">
+            <span class="field-label">适用范围</span>
+            <select id="maintenanceScope" class="select">
+              <option value="global">全局（所有用户）</option>
+              <option value="user">指定用户</option>
+              <option value="device">指定设备</option>
+            </select>
+          </label>
+          <label class="field field--full" id="maintenanceUserIdsField" style="display:none">
+            <span class="field-label">目标用户 UUID（逗号分隔）</span>
+            <input id="maintenanceUserIds" class="input" type="text" placeholder="uuid1, uuid2 留空=全部用户" />
+          </label>
+          <label class="field field--full" id="maintenanceDeviceIdField" style="display:none">
+            <span class="field-label">目标设备 ID（留空=全部设备）</span>
+            <input id="maintenanceDeviceId" class="input" type="text" placeholder="device_web_xxx" />
+          </label>
+          <label class="field field--full">
+            <span class="field-label">维护模式状态</span>
+            <div class="checkbox-row">
+              <input id="maintenanceEnabled" type="checkbox" />
+              <label for="maintenanceEnabled">启用维护模式（开启后将阻止用户执行选定功能）</label>
+            </div>
+          </label>
+          <label class="field field--full">
+            <span class="field-label">维护提示信息（显示在用户界面上）</span>
+            <input id="maintenanceMessage" class="input" type="text" placeholder="例如：系统维护中，同步功能暂时不可用" />
+          </label>
+          <div class="field field--full">
+            <span class="field-label">阻止的功能（可多选）</span>
+            <div style="display:grid;gap:6px;margin-top:6px">
+              <div class="checkbox-row">
+                <input id="maintenanceBlockSyncAll" type="checkbox" />
+                <label for="maintenanceBlockSyncAll">全部同步功能（sync_all）</label>
+              </div>
+              <div class="checkbox-row">
+                <input id="maintenanceBlockGoodsData" type="checkbox" />
+                <label for="maintenanceBlockGoodsData">商品数据同步（goods_data）</label>
+              </div>
+              <div class="checkbox-row">
+                <input id="maintenanceBlockGoodsImage" type="checkbox" />
+                <label for="maintenanceBlockGoodsImage">商品图片上传（goods_image）</label>
+              </div>
+              <div class="checkbox-row">
+                <input id="maintenanceBlockEventPhoto" type="checkbox" />
+                <label for="maintenanceBlockEventPhoto">活动照片上传（event_photo）</label>
+              </div>
+              <div class="checkbox-row">
+                <input id="maintenanceBlockFeedbackAttachment" type="checkbox" />
+                <label for="maintenanceBlockFeedbackAttachment">反馈附件上传（feedback_attachment）</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="publish-actions">
+          <button class="btn" id="maintenanceSaveBtn" type="button">保存维护配置</button>
+          <button class="btn" id="maintenanceClearBtn" type="button">清除维护模式</button>
+          <button class="btn" id="maintenanceRefreshBtn" type="button">刷新状态</button>
+        </div>
+        <p id="maintenanceStatus" class="publish-status">等待操作</p>
+      </article>
+      <article class="publish-card">
+        <h3 class="section-title">用户维护状态一览</h3>
+        <div class="publish-actions" style="margin-bottom:10px">
+          <button class="btn" id="maintenanceListRefreshBtn" type="button">刷新列表</button>
+        </div>
+        <p id="maintenanceListStatus" class="publish-status">等待操作</p>
+        <div id="maintenanceListContainer"></div>
+      </article>
+    </section>
   </main>
 
   <template id="channelCardTpl">
@@ -1330,6 +1406,27 @@
     const feedbackUpdateStatusBtn = document.getElementById('feedbackUpdateStatusBtn')
     const feedbackDetailCloseBtn = document.getElementById('feedbackDetailCloseBtn')
     const feedbackDetailStatus = document.getElementById('feedbackDetailStatus')
+
+    // Maintenance mode elements
+    const maintenanceScope = document.getElementById('maintenanceScope')
+    const maintenanceUserIdsField = document.getElementById('maintenanceUserIdsField')
+    const maintenanceUserIds = document.getElementById('maintenanceUserIds')
+    const maintenanceDeviceIdField = document.getElementById('maintenanceDeviceIdField')
+    const maintenanceDeviceId = document.getElementById('maintenanceDeviceId')
+    const maintenanceEnabled = document.getElementById('maintenanceEnabled')
+    const maintenanceMessage = document.getElementById('maintenanceMessage')
+    const maintenanceBlockSyncAll = document.getElementById('maintenanceBlockSyncAll')
+    const maintenanceBlockGoodsData = document.getElementById('maintenanceBlockGoodsData')
+    const maintenanceBlockGoodsImage = document.getElementById('maintenanceBlockGoodsImage')
+    const maintenanceBlockEventPhoto = document.getElementById('maintenanceBlockEventPhoto')
+    const maintenanceBlockFeedbackAttachment = document.getElementById('maintenanceBlockFeedbackAttachment')
+    const maintenanceSaveBtn = document.getElementById('maintenanceSaveBtn')
+    const maintenanceClearBtn = document.getElementById('maintenanceClearBtn')
+    const maintenanceRefreshBtn = document.getElementById('maintenanceRefreshBtn')
+    const maintenanceStatus = document.getElementById('maintenanceStatus')
+    const maintenanceListRefreshBtn = document.getElementById('maintenanceListRefreshBtn')
+    const maintenanceListContainer = document.getElementById('maintenanceListContainer')
+    const maintenanceListStatus = document.getElementById('maintenanceListStatus')
 
     const repoOwner = 'laurenszero'
     const repoName = 'goods_app'
@@ -1495,6 +1592,116 @@
       supabaseConfigStatus.className = 'publish-status'
       if (type === 'ok') supabaseConfigStatus.classList.add('publish-status--ok')
       if (type === 'error') supabaseConfigStatus.classList.add('publish-status--error')
+    }
+
+    // ── Maintenance Mode ──
+
+    function setMaintenanceStatus(message, type = 'default') {
+      maintenanceStatus.textContent = message
+      maintenanceStatus.className = 'publish-status'
+      if (type === 'ok') maintenanceStatus.classList.add('publish-status--ok')
+      if (type === 'error') maintenanceStatus.classList.add('publish-status--error')
+    }
+
+    function getMaintenanceBlocksFromForm() {
+      const blocks = []
+      if (maintenanceBlockSyncAll.checked) blocks.push('sync_all')
+      if (maintenanceBlockGoodsData.checked) blocks.push('goods_data')
+      if (maintenanceBlockGoodsImage.checked) blocks.push('goods_image')
+      if (maintenanceBlockEventPhoto.checked) blocks.push('event_photo')
+      if (maintenanceBlockFeedbackAttachment.checked) blocks.push('feedback_attachment')
+      return blocks
+    }
+
+    function setMaintenanceFormFromData(data) {
+      if (!data || typeof data !== 'object') {
+        maintenanceEnabled.checked = false
+        maintenanceMessage.value = ''
+        maintenanceBlockSyncAll.checked = false
+        maintenanceBlockGoodsData.checked = false
+        maintenanceBlockGoodsImage.checked = false
+        maintenanceBlockEventPhoto.checked = false
+        maintenanceBlockFeedbackAttachment.checked = false
+        return
+      }
+      maintenanceEnabled.checked = !!data.enabled
+      maintenanceMessage.value = data.message || ''
+      const blocks = Array.isArray(data.blocks) ? data.blocks : []
+      maintenanceBlockSyncAll.checked = blocks.includes('sync_all')
+      maintenanceBlockGoodsData.checked = blocks.includes('goods_data')
+      maintenanceBlockGoodsImage.checked = blocks.includes('goods_image')
+      maintenanceBlockEventPhoto.checked = blocks.includes('event_photo')
+      maintenanceBlockFeedbackAttachment.checked = blocks.includes('feedback_attachment')
+    }
+
+    async function loadMaintenanceMode() {
+      setMaintenanceStatus('正在加载维护模式配置...', 'default')
+      maintenanceRefreshBtn.disabled = true
+      try {
+        const data = await supabaseRequest('/rest/v1/sync_manifest', {
+          params: { select: 'maintenance_mode', limit: 1 }
+        })
+        if (Array.isArray(data) && data.length > 0 && data[0].maintenance_mode) {
+          setMaintenanceFormFromData(data[0].maintenance_mode)
+          setMaintenanceStatus('已加载维护模式配置。', 'ok')
+        } else {
+          setMaintenanceFormFromData(null)
+          setMaintenanceStatus('维护模式未配置。', 'ok')
+        }
+      } catch (e) {
+        setMaintenanceStatus(e?.message || '加载失败。', 'error')
+      } finally {
+        maintenanceRefreshBtn.disabled = false
+      }
+    }
+
+    async function saveMaintenanceMode() {
+      const maintenanceModeData = {
+        enabled: maintenanceEnabled.checked,
+        message: String(maintenanceMessage.value || '').trim(),
+        blocks: getMaintenanceBlocksFromForm()
+      }
+
+      if (maintenanceModeData.enabled && maintenanceModeData.blocks.length === 0) {
+        setMaintenanceStatus('启用维护模式时需要至少选择一个阻止的功能。', 'error')
+        return
+      }
+
+      maintenanceSaveBtn.disabled = true
+      setMaintenanceStatus('正在保存维护模式配置...', 'default')
+      try {
+        // Update ALL users' manifests for global maintenance mode
+        await supabaseRequest('/rest/v1/sync_manifest', {
+          method: 'PATCH',
+          body: { maintenance_mode: maintenanceModeData },
+          params: { user_id: 'neq.00000000-0000-0000-0000-000000000000' }
+        })
+        setMaintenanceStatus('维护模式配置已保存！（已应用到所有用户）', 'ok')
+        setMaintenanceFormFromData(maintenanceModeData)
+      } catch (e) {
+        setMaintenanceStatus(e?.message || '保存失败。', 'error')
+      } finally {
+        maintenanceSaveBtn.disabled = false
+      }
+    }
+
+    async function clearMaintenanceMode() {
+      if (!confirm('确认清除维护模式配置？所有功能将恢复正常。')) return
+      maintenanceClearBtn.disabled = true
+      setMaintenanceStatus('正在清除维护模式配置...', 'default')
+      try {
+        await supabaseRequest('/rest/v1/sync_manifest', {
+          method: 'PATCH',
+          body: { maintenance_mode: null },
+          params: { user_id: 'neq.00000000-0000-0000-0000-000000000000' }
+        })
+        setMaintenanceStatus('维护模式配置已清除。', 'ok')
+        setMaintenanceFormFromData(null)
+      } catch (e) {
+        setMaintenanceStatus(e?.message || '清除失败。', 'error')
+      } finally {
+        maintenanceClearBtn.disabled = false
+      }
     }
 
     // ── Supabase Config ──
@@ -3692,12 +3899,17 @@
     feedbackReplyBtn.addEventListener('click', sendAdminReply)
     feedbackUpdateStatusBtn.addEventListener('click', updateFeedbackStatus)
     feedbackDetailCloseBtn.addEventListener('click', () => { feedbackDetailCard.style.display = 'none'; currentFeedbackId = null })
+    // Maintenance mode
+    maintenanceSaveBtn.addEventListener('click', saveMaintenanceMode)
+    maintenanceClearBtn.addEventListener('click', clearMaintenanceMode)
+    maintenanceRefreshBtn.addEventListener('click', loadMaintenanceMode)
     setupQuickNav()
     loadAllChannels()
     fetchLatestApkVersion()
     loadAnnouncementList()
     loadSurveyList()
     loadFeedbackList()
+    loadMaintenanceMode()
   </script>
 </body>
 </html>

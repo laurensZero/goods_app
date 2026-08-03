@@ -276,5 +276,9 @@
   "sync.error.loginRequired": "Please log in to Supabase before syncing",
   "sync.error.loginRequiredStatus": "Not logged in",
   "sync.error.localDataNotLoaded": "Local data failed to load. Cloud sync is paused to protect your cloud backup. Please restart the app and try again.",
-  "sync.error.localDataNotLoadedStatus": "Local data not loaded"
+  "sync.error.localDataNotLoadedStatus": "Local data not loaded",
+  "sync.error.maintenanceMode": "System maintenance in progress. Sync functionality is temporarily unavailable.",
+  "sync.error.maintenanceModeStatus": "Maintenance mode",
+  "sync.maintenance.title": "System Maintenance",
+  "sync.maintenance.defaultMessage": "Sync functionality is temporarily unavailable. Please try again later."
 }

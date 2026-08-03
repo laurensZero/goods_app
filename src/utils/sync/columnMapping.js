@@ -53,6 +53,7 @@ const CAMEL_TO_SNAKE = {
   imageBucket: 'image_bucket',
   budgetMonthly: 'budget_monthly',
   budgetYearly: 'budget_yearly',
+  maintenanceMode: 'maintenance_mode',
   // sync_presets
   storageLocations: 'storage_locations',
   // goods_groups

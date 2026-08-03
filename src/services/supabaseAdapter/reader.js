@@ -48,7 +48,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
       lastSyncAt: m.syncedAt || m.lastSyncAt || '',
       imageCloudId: m.imageBucket || m.imageCloudId || '',
       budgetMonthly: Number(m.budgetMonthly) || 0,
-      budgetYearly: Number(m.budgetYearly) || 0
+      budgetYearly: Number(m.budgetYearly) || 0,
+      maintenanceMode: m.maintenanceMode || null
     }
   }
 
@@ -277,7 +278,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
         lastSyncAt: m.syncedAt || m.lastSyncAt || '',
         imageCloudId: m.imageBucket || m.imageCloudId || '',
         budgetMonthly: Number(m.budgetMonthly) || 0,
-        budgetYearly: Number(m.budgetYearly) || 0
+        budgetYearly: Number(m.budgetYearly) || 0,
+        maintenanceMode: m.maintenanceMode || null
       }
     })() : null
 

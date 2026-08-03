@@ -130,6 +130,11 @@ export function createSyncOrchestrator({
         await ctx.saveImageCloudId(remoteData.manifest.imageCloudId)
       }
 
+      // 缓存维护模式状态
+      if (remoteData.manifest?.maintenanceMode && ctx.saveMaintenanceMode) {
+        await ctx.saveMaintenanceMode(remoteData.manifest.maintenanceMode)
+      }
+
       // 中断推送恢复：上次推送若已写入远端但本地水位线未保存，先快进水位线避免误报冲突
       if (!isIncremental && remoteData.manifest) await reconcilePendingPush(ctx, remoteData.manifest)
 
@@ -255,6 +260,16 @@ export function createSyncOrchestrator({
       dirtyDomains: dirtyDomains ? [...dirtyDomains] : null,
       dirtyGoodsCount: dirtyGoodsIds ? dirtyGoodsIds.size : 0
     })
+
+    // 读取 manifest 缓存维护模式（覆盖 quickPush 路径不经过 fullSync 的情况）
+    if (be.readManifest) {
+      try {
+        const preManifest = await be.readManifest()
+        if (preManifest?.maintenanceMode && ctx.saveMaintenanceMode) {
+          await ctx.saveMaintenanceMode(preManifest.maintenanceMode)
+        }
+      } catch (_) {}
+    }
 
     try {
       // Quick push path: single goods edit, no remote read needed
@@ -389,6 +404,11 @@ export function createSyncOrchestrator({
         : (await readRemoteData(be, { trackSyncStep })).manifest
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageCloudId) await ctx.saveImageCloudId(remoteManifest.imageCloudId)
+
+    // 缓存维护模式状态（从 manifest 中提取，零额外请求）
+    if (remoteManifest?.maintenanceMode && ctx.saveMaintenanceMode) {
+      await ctx.saveMaintenanceMode(remoteManifest.maintenanceMode)
+    }
 
     // 中断推送恢复（crash-safe push）
     await reconcilePendingPush(ctx, remoteManifest)

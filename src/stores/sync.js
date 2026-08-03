@@ -20,6 +20,7 @@ import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
 import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
+import { isFeatureBlocked, FEATURE_KEYS, MaintenanceModeError } from '@/services/maintenanceModeService'
 import i18n from '@/locales'
 import {
   IMAGE_FILE_PREFIX,
@@ -67,6 +68,10 @@ export const useSyncStore = defineStore('sync', () => {
   // 供 remote-ahead / 冲突分支判定，消除跨时钟域比较造成的误报冲突
   const lastServerSyncedAt = ref('')
   const pendingPush = ref(null) // crash-safe push 标记：{ ts, eventTs, deviceId }
+
+  // ── Maintenance Mode ──
+  // 从 sync_manifest.maintenance_mode JSONB 字段读取，零额外请求
+  const maintenanceMode = ref(null) // { enabled, message, blocks } | null
 
   // 同步代际：3 分钟超时重置后旧管道可能仍在后台运行；每轮同步开始与每次强制
   // 重置都 bump 代际，旧代际管道的关键落盘（水位线 / pendingPush）会被守卫拒绝，
@@ -361,6 +366,7 @@ export const useSyncStore = defineStore('sync', () => {
       saveLastServerSyncedAt: guarded(saveLastServerSyncedAt),
       pendingPush: pendingPush.value, savePendingPush: guarded(savePendingPush), clearPendingPush: guarded(clearPendingPush),
       saveImageCloudId: async () => {},
+      saveMaintenanceMode: guarded((mode) => { maintenanceMode.value = mode }),
       getLatestLocalModifiedAt, buildPresetsData, ensureEventsStoreReady,
       shouldApplyRemoteItem
     }
@@ -595,6 +601,7 @@ export const useSyncStore = defineStore('sync', () => {
       console.log('[sync] sync paused, skipping auto sync (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
     }
+    
     if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
     const authStore = useAuthStore()
     if (!authStore.isLoggedIn) {
@@ -602,6 +609,25 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
+
+    // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
+    try {
+      const manifest = await activeBackend.readManifest()
+      if (manifest?.maintenanceMode) {
+        maintenanceMode.value = manifest.maintenanceMode
+      }
+    } catch (_) {}
+
+    // 检查维护模式
+    if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
+      const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
+      applySyncError(new Error(msg), msg)
+      if (source !== 'manual') {
+        publishSyncNotice({ source, level: 'warning', message: msg })
+      }
+      return { action: 'skipped', reason: 'maintenance_mode' }
+    }
+
     const runGen = ++syncGeneration
     syncSource.value = source
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
@@ -678,10 +704,38 @@ export const useSyncStore = defineStore('sync', () => {
       console.log('[sync] pull paused, skipping auto pull (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
     }
+
     const isIncremental = tables && since > 0
 
     if (isIncremental) {
       if (isSyncing.value || isPulling.value) return
+      const authStore = useAuthStore()
+      if (!authStore.isLoggedIn) {
+        if (!silent) applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+        return { action: 'skipped', reason: 'not_logged_in' }
+      }
+      ensureBackendReady()
+
+      // 增量 pull：预读 manifest 缓存维护模式
+      try {
+        const manifest = await activeBackend.readManifest()
+        if (manifest?.maintenanceMode) {
+          maintenanceMode.value = manifest.maintenanceMode
+        }
+      } catch (_) {}
+    }
+
+    // 检查维护模式
+    if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
+      const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
+      if (!silent) {
+        applySyncError(new Error(msg), msg)
+        publishSyncNotice({ source, level: 'warning', message: msg })
+      }
+      return { action: 'skipped', reason: 'maintenance_mode' }
+    }
+
+    if (isIncremental) {
       const authStore = useAuthStore()
       if (!authStore.isLoggedIn) return { action: 'skipped', reason: 'not_logged_in' }
       ensureBackendReady()
@@ -728,6 +782,25 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
+
+    // 全量 pull：预读 manifest 缓存维护模式
+    try {
+      const manifest = await activeBackend.readManifest()
+      if (manifest?.maintenanceMode) {
+        maintenanceMode.value = manifest.maintenanceMode
+      }
+    } catch (_) {}
+
+    // 检查维护模式（full pull 路径）
+    if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
+      const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
+      if (!silent) {
+        applySyncError(new Error(msg), msg)
+        publishSyncNotice({ source, level: 'warning', message: msg })
+      }
+      return { action: 'skipped', reason: 'maintenance_mode' }
+    }
+
     const runGen = ++syncGeneration
     syncSource.value = source
     isSyncing.value = true; isPulling.value = true; lastError.value = ''
@@ -885,6 +958,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncBackend, supabaseUrl, supabaseAnonKey,
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
     syncPaused, setSyncPaused,
-    restoreImageFromCloud
+    restoreImageFromCloud,
+    maintenanceMode
   }
 })

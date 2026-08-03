@@ -6,6 +6,7 @@ import { getBufferedLogs, getPreviousSessionLogs } from '@/utils/logger'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
+import { isFeatureBlocked, FEATURE_KEYS, MaintenanceModeError } from '@/services/maintenanceModeService'
 
 // appLog 与错误捕获已迁移到 utils/logger（统一缓冲 + localStorage 落盘），保留兼容导出
 export { appLog } from '@/utils/logger'
@@ -21,6 +22,19 @@ function db() {
  * Bucket must be pre-created in Supabase Dashboard.
  */
 export async function uploadAttachment(file, feedbackId) {
+  // 检查维护模式（从 sync store 缓存读取，零额外网络请求）
+  try {
+    const { useSyncStore } = await import('@/stores/sync')
+    const syncStore = useSyncStore()
+    if (isFeatureBlocked(syncStore.maintenanceMode, FEATURE_KEYS.FEEDBACK_ATTACHMENT)) {
+      const msg = syncStore.maintenanceMode?.message || '反馈附件上传功能正在维护中，请稍后再试'
+      throw new MaintenanceModeError('feedback_attachment', msg)
+    }
+  } catch (e) {
+    if (e instanceof MaintenanceModeError) throw e
+    // 导入失败时允许上传（不阻塞）
+  }
+
   const ext = file.name.split('.').pop() || 'bin'
   const path = `fb-${feedbackId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
