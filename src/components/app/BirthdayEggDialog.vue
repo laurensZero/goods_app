@@ -87,7 +87,7 @@ const wallFading = ref(false)
 const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 
-useDialogBackButton(() => store.dismiss())
+useDialogBackButton(() => store.dismiss(), showDialog)
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
 
 // 手机 3×3 共 9 张；宽屏（与卡片拉宽同断点）4 列 12 张

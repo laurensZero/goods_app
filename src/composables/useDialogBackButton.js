@@ -7,19 +7,18 @@ import { APP_BACK_BUTTON_EVENT } from '@/utils/platform/androidBackButton'
  * 维护一个 LIFO 的 overlayStack，按注册顺序（后进先出）关闭弹窗。
  * 全局 listener 仅在 stack 非空时注册，空时自动移除。
  *
- * 两种使用模式：
- *   1. v-if 控制的弹窗（挂载=打开，卸载=关闭）— 只传 close
- *   2. prop 或 ref 始终挂载/KeepAlive 的弹窗 — 传 close + isOpened，动态注册/注销
+ * 所有弹窗统一使用 isOpened 模式：
+ *   useDialogBackButton(closeFn, isOpened)
  *
  * @example
- * // v-if 弹窗（非 KeepAlive 组件内的独立弹窗）
- * useDialogBackButton(closeDialog)
+ * // ref 控制（MyView 内联弹窗）
+ * useDialogBackButton(closeBudgetDialog, showBudgetDialog)
  *
- * // ref/prop 控制的弹窗（QQBindingSheet、FeedbackDialog 等）
+ * // prop 控制（子组件）
  * useDialogBackButton(close, () => props.show)
  *
- * // KeepAlive 组件内的弹窗（必须用 isOpened 模式，因为 onMounted 只触发一次）
- * useDialogBackButton(closeDialog, showDialog)
+ * // store 控制（全局弹窗）
+ * useDialogBackButton(() => store.dismiss(), () => store.dialogVisible)
  */
 
 const overlayStack = []
@@ -50,44 +49,27 @@ export function hasOverlays() {
 /**
  * 注册弹窗的 Android 返回键关闭行为。
  * @param {Function} close - 关闭弹窗的回调
- * @param {Ref|Function|boolean} [isOpened] - 弹窗是否打开的状态
- *   - 非 KeepAlive 组件内的 v-if 弹窗可不传（挂载=注册，卸载=注销）
- *   - KeepAlive 组件或 prop 控制的弹窗必须传入（动态注册/注销）
+ * @param {Ref|Function|boolean} isOpened - 弹窗是否打开的状态（ref / getter / boolean）
  */
 export function useDialogBackButton(close, isOpened) {
-  if (isOpened !== undefined) {
-    // prop 控制的弹窗：动态注册/注销
-    const openRef = computed(() => !!toValue(isOpened))
+  const openRef = computed(() => !!toValue(isOpened))
 
-    onMounted(() => {
-      watch(openRef, (open) => {
-        const idx = overlayStack.lastIndexOf(close)
-        if (open && idx === -1) {
-          overlayStack.push(close)
-          ensureGlobalListener()
-        } else if (!open && idx !== -1) {
-          overlayStack.splice(idx, 1)
-          removeGlobalListenerIfNeeded()
-        }
-      }, { immediate: true })
-    })
-
-    onUnmounted(() => {
+  onMounted(() => {
+    watch(openRef, (open) => {
       const idx = overlayStack.lastIndexOf(close)
-      if (idx !== -1) overlayStack.splice(idx, 1)
-      removeGlobalListenerIfNeeded()
-    })
-  } else {
-    // v-if 控制的弹窗：挂载时注册，卸载时注销
-    onMounted(() => {
-      overlayStack.push(close)
-      ensureGlobalListener()
-    })
+      if (open && idx === -1) {
+        overlayStack.push(close)
+        ensureGlobalListener()
+      } else if (!open && idx !== -1) {
+        overlayStack.splice(idx, 1)
+        removeGlobalListenerIfNeeded()
+      }
+    }, { immediate: true })
+  })
 
-    onUnmounted(() => {
-      const idx = overlayStack.lastIndexOf(close)
-      if (idx !== -1) overlayStack.splice(idx, 1)
-      removeGlobalListenerIfNeeded()
-    })
-  }
+  onUnmounted(() => {
+    const idx = overlayStack.lastIndexOf(close)
+    if (idx !== -1) overlayStack.splice(idx, 1)
+    removeGlobalListenerIfNeeded()
+  })
 }

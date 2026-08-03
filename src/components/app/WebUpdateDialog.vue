@@ -68,7 +68,7 @@ const restartReady = ref(false)
 
 const showDialog = computed(() => webUpdateStore.dialogVisible && webUpdateStore.hasUpdate)
 
-useDialogBackButton(() => webUpdateStore.dismissDialog())
+useDialogBackButton(() => webUpdateStore.dismissDialog(), showDialog)
 const releaseNotesPreview = computed(() => {
   return String(webUpdateStore.releaseNotesPreview || '').trim()
 })

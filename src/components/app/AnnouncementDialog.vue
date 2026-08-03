@@ -58,7 +58,7 @@ const announcementStore = useAnnouncementStore()
 
 const showDialog = computed(() => announcementStore.dialogVisible && !!announcementStore.activeAnnouncement)
 
-useDialogBackButton(() => announcementStore.dismissAnnouncement())
+useDialogBackButton(() => announcementStore.dismissAnnouncement(), showDialog)
 const activeAnnouncement = computed(() => announcementStore.activeAnnouncement)
 
 const contentHtml = ref('')

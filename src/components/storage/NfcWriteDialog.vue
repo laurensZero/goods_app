@@ -57,7 +57,7 @@ function cancel() {
   emit('cancel')
 }
 
-useDialogBackButton(cancel)
+useDialogBackButton(cancel, () => props.show)
 </script>
 
 <style scoped>

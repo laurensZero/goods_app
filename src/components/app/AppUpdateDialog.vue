@@ -70,7 +70,7 @@ const updateStore = useAppUpdateStore()
 
 const showDialog = computed(() => updateStore.dialogVisible && updateStore.hasUpdate)
 
-useDialogBackButton(() => updateStore.dismissDialog())
+useDialogBackButton(() => updateStore.dismissDialog(), showDialog)
 const publishedAtLabel = computed(() => {
   const value = updateStore.latestRelease?.published_at
   if (!value) return ''

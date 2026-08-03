@@ -104,7 +104,7 @@ function close() {
   emit('close')
 }
 
-useDialogBackButton(close)
+useDialogBackButton(close, () => props.show)
 
 async function copyLink() {
   if (!qrUrl.value) return
