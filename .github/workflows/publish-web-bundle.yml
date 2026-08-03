@@ -151,6 +151,8 @@ jobs:
         env:
           INPUT_NOTES: ${{ github.event.inputs.notes || '' }}
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE_SHA: ${{ github.event.before || '' }}
+          GITHUB_SHA: ${{ github.sha }}
           CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
         run: |
           if [ -n "${INPUT_NOTES}" ]; then
@@ -161,18 +163,23 @@ jobs:
             exit 0
           fi
 
-          # Auto-generate notes from commits since last release tag
+          # Auto-generate notes from commits since the previous bundle's source commit.
+          # beta 包随每次 push main 自动发布，github.event.before 恰好是上一次 push 的
+          # HEAD，即上一个 beta 包编译时的 commit —— 因此只列出该包之后新增的 commit。
+          # 手动触发（workflow_dispatch）无 event.before，回退到 HEAD^。
           if [ "${EVENT_NAME}" = "push" ] || [ "${CHANNEL}" = "beta" ]; then
-            git fetch --tags --force 2>/dev/null || true
-
-            # Find the last bundle publish commit (look for the deploy step marker)
-            PREV_TAG=$(git tag --sort=-creatordate | grep -E '^v?[0-9]' | head -1 || true)
-
-            if [ -n "${PREV_TAG}" ]; then
-              RANGE="${PREV_TAG}..HEAD"
+            RANGE_FROM=""
+            if [ "${EVENT_NAME}" = "push" ] && [ -n "${EVENT_BEFORE_SHA}" ] && [ "${EVENT_BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+              RANGE_FROM="${EVENT_BEFORE_SHA}"
             else
-              RANGE="HEAD~20..HEAD"
+              RANGE_FROM="$(git rev-parse HEAD^ 2>/dev/null || true)"
             fi
+
+            if [ -z "${RANGE_FROM}" ]; then
+              RANGE_FROM="${GITHUB_SHA}"
+            fi
+
+            RANGE="${RANGE_FROM}..${GITHUB_SHA}"
 
             NOTES=""
             for COMMIT in $(git rev-list --reverse "${RANGE}" 2>/dev/null || true); do
