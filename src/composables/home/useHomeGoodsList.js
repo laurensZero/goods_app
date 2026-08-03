@@ -45,12 +45,14 @@ export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exc
     }
 
     // Add manual group totals (converted to CNY)
-    for (const [, group] of manualGroups) {
-      const amount = Number(group.totalAmount) || 0
-      if (exchangeRate) {
-        totalVal += exchangeRate.convertToCNY(amount, group.currency || 'CNY')
-      } else {
-        totalVal += amount
+    if (items.length > 0) {
+      for (const [, group] of manualGroups) {
+        const amount = Number(group.totalAmount) || 0
+        if (exchangeRate) {
+          totalVal += exchangeRate.convertToCNY(amount, group.currency || 'CNY')
+        } else {
+          totalVal += amount
+        }
       }
     }
 

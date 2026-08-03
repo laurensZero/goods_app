@@ -13,6 +13,7 @@ import 'vant/lib/index.css'
 import './assets/base.css'
 import './assets/shared-ui.css'
 import { initDB } from './utils/db/index'
+import { ensurePinyin } from './utils/pinyin'
 import { useGoodsStore } from './stores/goods'
 import { useEventsStore } from './stores/events'
 import { usePresetsStore } from './stores/presets'
@@ -182,6 +183,7 @@ async function bootstrap() {
   // ── 并行启动不互相依赖的初始化 ──
   // theme.init() 和 presets.init() 只读 Preferences，不依赖 DB
   // initDB() 是其他 store 的前置依赖
+  // ensurePinyin() 预加载拼音库，确保 store.init() → enrichItem → buildSearchText 时拼音就绪
   const t1 = performance.now()
   const [,] = await Promise.all([
     // DB 初始化（其他 store 依赖它）
@@ -198,7 +200,9 @@ async function bootstrap() {
     // 预设初始化（只读 Preferences，可并行）
     presets.init().catch((e) => {
       log.warn('presets:init:failed', e)
-    })
+    }),
+    // 预加载 pinyin-pro，避免 enrichItem 时拼音未就绪导致 searchText 缺失
+    ensurePinyin()
   ])
   timings.parallelInit = performance.now() - t1
 

@@ -2,13 +2,40 @@
 let _pinyinFn = null
 let _pinyinPromise = null
 
-function ensurePinyin() {
+export function ensurePinyin() {
   if (!_pinyinFn && !_pinyinPromise) {
     _pinyinPromise = import('pinyin-pro').then((mod) => {
       _pinyinFn = mod.pinyin
     })
   }
   return _pinyinPromise
+}
+
+/**
+ * 展开多音字的所有读音组合
+ * ["qiàn,xī","te","la","li"] → [["qiàn","te","la","li"],["xī","te","la","li"]]
+ * @param {string[]} readings - 每个字的逗号分隔读音
+ * @param {number} maxCombos - 上限防止组合爆炸
+ * @returns {string[][]}
+ */
+function expandCombos(readings, maxCombos = 64) {
+  let combos = [[]]
+  for (const reading of readings) {
+    const options = reading.split(',')
+    if (options.length <= 1) {
+      combos = combos.map((c) => [...c, reading])
+    } else {
+      const expanded = []
+      for (const c of combos) {
+        for (const opt of options) {
+          expanded.push([...c, opt])
+          if (expanded.length >= maxCombos) return expanded
+        }
+      }
+      combos = expanded
+    }
+  }
+  return combos
 }
 
 // 同步缓存：避免重复转换
@@ -29,8 +56,11 @@ function _cacheSet(key, value) {
 
 /**
  * 生成中文文本的拼音搜索字符串（同步）
- * 返回格式: "全拼\n首字母" (小写)
- * 例: "龙华花园" → "longhuayuan\nlhhy"
+ * 返回格式: "全拼\n首字母" (小写)，多音字展开所有组合
+ * 例: "茜特菈莉" → "qiantelali\nqtll\nxitelali\nxtll"
+ *
+ * 逐字转换避免上下文引擎合并多音字读音，
+ * pinyin-pro 内置字典自动处理所有多音字，无需手动维护。
  *
  * 注意: 首次调用时 pinyin-pro 可能尚未加载完成，
  * 此时返回空字符串。后台加载完成后后续调用正常工作。
@@ -44,15 +74,26 @@ export function toPinyinSearchText(text) {
   if (cached !== undefined) return cached
 
   if (!_pinyinFn) {
-    // pinyin-pro 尚未加载，触发后台加载，当前返回空
     ensurePinyin()
     return ''
   }
 
-  const full = _pinyinFn(str, { toneType: 'none', type: 'array' }).join('')
-  const initials = _pinyinFn(str, { pattern: 'first', toneType: 'none', type: 'array' }).join('')
+  // 逐字转换：避免上下文引擎将多音字合并为单一读音
+  const chars = [...str]
+  const perCharReadings = chars.map((char) => {
+    const readings = _pinyinFn(char, { toneType: 'none', type: 'array', multiple: true })
+    return readings.join(',')
+  })
 
-  const result = `${full.toLowerCase()}\n${initials.toLowerCase()}`
+  const combos = expandCombos(perCharReadings)
+
+  const results = combos.map((combo) => {
+    const full = combo.join('')
+    const initials = combo.map((p) => p[0]).join('')
+    return `${full}\n${initials}`
+  })
+
+  const result = [...new Set(results)].join('\n').toLowerCase()
   _cacheSet(str, result)
   return result
 }

@@ -463,9 +463,11 @@ const _wishlistTotals = computed(() => {
   }
 
   // Add manual group totals (converted to CNY)
-  for (const [, group] of manualGroups) {
-    const amount = Number(group.totalAmount) || 0
-    val += exchangeRate.convertToCNY(amount, group.currency || 'CNY')
+  if (searchFilteredList.value.length > 0) {
+    for (const [, group] of manualGroups) {
+      const amount = Number(group.totalAmount) || 0
+      val += exchangeRate.convertToCNY(amount, group.currency || 'CNY')
+    }
   }
 
   return { qty, val: val.toFixed(2) }
