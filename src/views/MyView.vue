@@ -7,7 +7,7 @@
           <h1 class="hero-title">{{ t('nav.my') }}</h1>
         </div>
         <div class="hero-actions">
-          <button type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
+          <button v-if="checkoutPermission.allowed" type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -827,6 +827,7 @@ import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useCheckoutPermission } from '@/composables/checkout/useCheckoutPermission'
 
 defineOptions({ name: 'MyView' })
 
@@ -834,6 +835,7 @@ const { t } = useI18n()
 const router = useRouter()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
+const checkoutPermission = useCheckoutPermission()
 const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
@@ -1419,6 +1421,17 @@ onMounted(async () => {
   const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
   if (saved) customAvatarUrl.value = saved
   await Promise.all([syncStore.init(), authStore.init(), loadBudgetSettings()])
+  // 白名单权限：决定是否显示自助下单入口（60s 缓存内复用，无重复请求）
+  await checkoutPermission.check()
+})
+
+// 登录后重新校验白名单；登出时立即隐藏入口
+watch(() => authStore.isLoggedIn, (loggedIn) => {
+  if (loggedIn) {
+    checkoutPermission.check()
+  } else {
+    checkoutPermission.reset()
+  }
 })
 
 onActivated(() => {
@@ -1426,6 +1439,8 @@ onActivated(() => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
   void loadBudgetSettings()
+  // 每次回到「我的」页重新校验（缓存内直接复用）
+  void checkoutPermission.check()
 })
 </script>
 

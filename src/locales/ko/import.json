@@ -269,6 +269,7 @@
   "checkout.retryCount": "재시도 횟수",
   "checkout.retryForever": "성공할 때까지 재시도",
   "checkout.retryExhausted": "여러 번 재시도했지만 실패했습니다. 잠시 후 다시 시도해주세요",
+  "checkout.notAuthorized": "이 기능은 아직 이용할 수 없습니다",
   "checkout.orderCreated": "주문 완료",
   "checkout.orderNo": "주문 번호",
   "checkout.payInMihoyoApp": "miHoYo 기프트 앱에서 결제해주세요",

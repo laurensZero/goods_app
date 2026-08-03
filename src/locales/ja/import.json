@@ -269,6 +269,7 @@
   "checkout.retryCount": "再試行回数",
   "checkout.retryForever": "成功するまで再試行",
   "checkout.retryExhausted": "何度か再試行しても失敗しました。しばらくしてからお試しください",
+  "checkout.notAuthorized": "この機能はまだご利用いただけません",
   "checkout.orderCreated": "注文完了",
   "checkout.orderNo": "注文番号",
   "checkout.payInMihoyoApp": "miHoYoギフトアプリで支払ってください",

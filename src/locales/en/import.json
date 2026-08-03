@@ -269,6 +269,7 @@
   "checkout.retryCount": "Retry count",
   "checkout.retryForever": "Retry until order succeeds",
   "checkout.retryExhausted": "Still failing after retries, please try again later",
+  "checkout.notAuthorized": "This feature is not available to you yet",
   "checkout.orderCreated": "Order Created",
   "checkout.orderNo": "Order No.",
   "checkout.payInMihoyoApp": "Please pay in mihoyo gift app",

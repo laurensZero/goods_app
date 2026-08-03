@@ -19,3 +19,7 @@ schedule = "*/1 * * * *"
 # （config.toml 每个函数只能写一个 schedule，两个调度用 pg_cron SQL 注册，见计划文档）
 [functions.scan-mihoyo]
 verify_jwt = false
+
+# 米游铺自助下单白名单校验：必须携带登录 JWT（verify_jwt=true）
+[functions.check-checkout-permission]
+verify_jwt = true

@@ -269,6 +269,7 @@
   "checkout.retryCount": "重試次數",
   "checkout.retryForever": "無限重試，搶到為止",
   "checkout.retryExhausted": "多次重試仍失敗，請稍後再試",
+  "checkout.notAuthorized": "此功能暫未對您開放",
   "checkout.orderCreated": "訂單已建立",
   "checkout.orderNo": "訂單號",
   "checkout.payInMihoyoApp": "請前往米遊鋪 App 支付",
