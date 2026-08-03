@@ -135,3 +135,33 @@ export async function warmPinyinCache(texts) {
     }
   }
 }
+
+let _sortKeyCache = new Map()
+
+function getSortKey(text) {
+  if (!text) return ''
+  const str = String(text).trim()
+  if (!str) return ''
+  if (_sortKeyCache.has(str)) return _sortKeyCache.get(str)
+  if (!_pinyinFn) {
+    ensurePinyin()
+    return str
+  }
+  const key = _pinyinFn(str, { toneType: 'none', type: 'array', multiple: false })
+    .map((p) => (Array.isArray(p) ? p[0] : p))
+    .join('')
+    .toLowerCase()
+  if (_sortKeyCache.size >= 2000) _sortKeyCache = new Map([..._sortKeyCache].slice(-1000))
+  _sortKeyCache.set(str, key)
+  return key
+}
+
+/**
+ * 按拼音排序比较函数，用于 Array.sort()
+ * 同拼音前缀的项自然聚拢（如 "彦卿" "彦元" 相邻）
+ */
+export function compareByPinyin(a, b) {
+  const ka = getSortKey(a)
+  const kb = getSortKey(b)
+  return ka < kb ? -1 : ka > kb ? 1 : 0
+}

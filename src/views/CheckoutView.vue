@@ -1,6 +1,21 @@
 <template>
   <div class="page checkout-page">
-    <NavBar :title="t('checkout.title')" show-back @back="handleBack" />
+    <NavBar :title="t('checkout.title')" show-back @back="handleBack">
+      <template #right>
+        <button
+          type="button"
+          class="nav-icon-btn queue-entry-btn"
+          :aria-label="t('checkout.queueOpen')"
+          :title="t('checkout.queueOpen')"
+          @click="showQueueManager = true"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M4 12h10M4 17h16" />
+          </svg>
+          <span v-if="queueItems.length" class="queue-entry-btn__badge">{{ queueItems.length }}</span>
+        </button>
+      </template>
+    </NavBar>
 
     <main class="page-body">
       <StepProgress :progress="progress" />
@@ -202,8 +217,23 @@
                     </button>
                   </div>
                 </div>
+                <div v-else-if="!item.skuLocked && item.skus.length === 1" class="sku-section">
+                  <p class="sku-label">{{ t('checkout.sku') }}</p>
+                  <div class="sku-chips">
+                    <span
+                      class="sku-chip"
+                      :class="{ 'sku-chip--disabled': item.skus[0].soldOut }"
+                    >
+                      {{ item.skus[0].text }}
+                      <span v-if="item.skus[0].soldOut" class="sku-chip__soldout">{{ t('checkout.soldOut') }}</span>
+                      <span v-else-if="item.skus[0].stock >= 0" class="sku-chip__stock">{{ t('checkout.stock', { n: item.skus[0].stock }) }}</span>
+                    </span>
+                  </div>
+                </div>
                 <p v-else-if="item.skuLocked && item.selectedSkuText" class="item-sku-locked">
                   {{ t('checkout.sku') }}：{{ item.selectedSkuText }}
+                  <span v-if="getLockedSkuStock(item) === 0" class="item-sku-locked__soldout">{{ t('checkout.soldOut') }}</span>
+                  <span v-else-if="getLockedSkuStock(item) > 0" class="item-sku-locked__stock">{{ t('checkout.stock', { n: getLockedSkuStock(item) }) }}</span>
                 </p>
 
                 <!-- Quantity -->
@@ -288,6 +318,8 @@
                       :disabled="gift.stock <= 0"
                       @click="toggleGift(act.activityId, gift.goods_id, getMatchedStage(act, totalAmount)?.num || 1)"
                     >
+                      <img v-if="getGiftImageUrl(gift)" :src="getGiftImageUrl(gift)" class="gift-card__img" loading="lazy" />
+                      <div v-else class="gift-card__img gift-card__img--fallback">礼</div>
                       <div class="gift-card__check">
                         <svg v-if="isGiftSelected(act.activityId, gift.goods_id)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                           <polyline points="20 6 9 17 4 12" />
@@ -321,6 +353,23 @@
                 <span class="review-item__sku">{{ item.selectedSkuText || '' }}</span>
                 <span class="review-item__qty">x{{ item.quantity }}</span>
                 <span class="review-item__price">{{ formatFen(getItemPrice(item)) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="selectedGiftSections.length" class="field-card">
+            <p class="card-label">{{ t('checkout.selectedGifts') }}</p>
+            <div v-for="activity in selectedGiftSections" :key="activity.activityId" class="review-gift-activity">
+              <p class="review-gift-activity__title">{{ activity.name }}</p>
+              <div class="review-gift-list">
+                <div v-for="gift in activity.gifts" :key="gift.goods_id" class="review-gift-item">
+                  <img v-if="getGiftImageUrl(gift)" :src="getGiftImageUrl(gift)" class="review-gift-item__img" loading="lazy" />
+                  <div v-else class="review-gift-item__img review-gift-item__img--fallback">礼</div>
+                  <div class="review-gift-item__body">
+                    <p class="review-gift-item__name">{{ gift.name }}</p>
+                    <p class="review-gift-item__meta">{{ t('checkout.selectN', { n: activity.gifts.length }) }}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -402,6 +451,10 @@
                     >∞</button>
                   </div>
                 </div>
+                <button v-if="queueItems.length" type="button" class="queue-preview-btn" @click="showQueueManager = true">
+                  <span>{{ t('checkout.queueTitle') }}</span>
+                  <span class="queue-preview-btn__count">{{ queueItems.length }}</span>
+                </button>
               </div>
             </div>
 
@@ -453,6 +506,50 @@
       @confirm="onTimerConfirm"
     />
 
+      <Popup
+        v-model:show="showQueueManager"
+        :position="queueManagerPosition"
+        :round="!isTabletViewport"
+        :lock-scroll="false"
+        :class="['picker-popup', 'queue-manager-popup', { 'picker-popup--center': isTabletViewport }]"
+      >
+        <div class="queue-manager">
+          <div class="queue-manager__head">
+            <div>
+              <p class="queue-manager__label">{{ t('checkout.queueTitle') }}</p>
+              <h3 class="queue-manager__title">{{ t('checkout.queueManageTitle') }}</h3>
+            </div>
+            <button type="button" class="queue-manager__close" @click="showQueueManager = false">
+              {{ t('common.close') }}
+            </button>
+          </div>
+          <p class="queue-manager__desc">{{ t('checkout.queueManageDesc') }}</p>
+
+          <div v-if="queueItems.length" class="queue-list">
+            <div v-for="entry in queueItems" :key="entry.id" class="queue-item" :class="{ 'queue-item--failed': entry.status === 'failed', 'queue-item--running': entry.status === 'running' }">
+              <div class="queue-item__body">
+                <p class="queue-item__title">{{ entry.summary.goodsText || t('checkout.queueTitle') }}</p>
+                <p class="queue-item__meta">{{ formatQueueTime(entry.displayAt || entry.scheduledAt) }}</p>
+                <p v-if="entry.summary.giftText" class="queue-item__meta queue-item__meta--gift">{{ entry.summary.giftText }}</p>
+                <p v-if="entry.lastError" class="queue-item__error">{{ entry.lastError }}</p>
+              </div>
+              <div class="queue-item__actions">
+                <span class="queue-item__status">{{ entry.status === 'failed' ? t('checkout.queueFailed') : (entry.status === 'running' ? t('checkout.queueRunning') : t('checkout.queuePending')) }}</span>
+                <button v-if="entry.status === 'failed'" type="button" class="queue-item__btn" @click="retryQueuedOrder(entry.id)">{{ t('checkout.queueRetry') }}</button>
+                <button type="button" class="queue-item__btn queue-item__btn--ghost" @click="removeQueuedOrder(entry.id)">{{ t('checkout.queueRemove') }}</button>
+              </div>
+            </div>
+          </div>
+          <p v-else class="queue-manager__empty">{{ t('checkout.queueEmpty') }}</p>
+
+          <div v-if="failedQueueItems.length" class="queue-manager__footer">
+            <button type="button" class="queue-manager__clear" @click="failedQueueItems.forEach((item) => removeQueuedOrder(item.id))">
+              {{ t('checkout.queueClearFailed') }}
+            </button>
+          </div>
+        </div>
+      </Popup>
+
     <!-- 从购物车选择 -->
     <Popup
       v-model:show="showCartPicker"
@@ -475,7 +572,7 @@
             v-for="item in cartItems"
             :key="item.key"
             class="cart-picker-item"
-            :class="{ 'cart-picker-item--selected': cartSelected.has(item.key) }"
+            :class="{ 'cart-picker-item--selected': cartSelected.has(item.key), 'cart-picker-item--soldout': item.soldOut }"
             @click="toggleCartItem(item.key)"
           >
             <img v-if="item.cover" :src="item.cover" class="cart-picker-item__thumb" loading="lazy" />
@@ -484,7 +581,8 @@
               <p class="cart-picker-item__name">{{ item.name }}</p>
               <p v-if="item.skuText" class="cart-picker-item__sku">{{ item.skuText }}</p>
             </div>
-            <span class="cart-picker-item__check">
+            <span v-if="item.soldOut" class="cart-picker-item__soldout-tag">{{ t('checkout.soldOut') }}</span>
+            <span v-else class="cart-picker-item__check">
               <svg v-if="cartSelected.has(item.key)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -524,10 +622,11 @@ import { useCheckoutFlow, STEPS } from '@/composables/checkout/useCheckoutFlow'
 import { useCheckoutAddress } from '@/composables/checkout/useCheckoutAddress'
 import { useCheckoutGoods } from '@/composables/checkout/useCheckoutGoods'
 import { useCheckoutGifts } from '@/composables/checkout/useCheckoutGifts'
+import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 import { useCheckoutTimer } from '@/composables/checkout/useCheckoutTimer'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { useTabletViewport } from '@/composables/useTabletViewport'
-import { receiveCoupon, preCreateOrder, createOrder } from '@/utils/mihoyo/checkout'
+import { receiveCoupon, submitCheckoutOrder } from '@/utils/mihoyo/checkout'
 import { canUseNativeMihoyoImport, getNativeMihoyoCookie, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
 import { formatPrice, formatDate } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
@@ -542,6 +641,7 @@ const flow = useCheckoutFlow()
 const address = useCheckoutAddress()
 const goods = useCheckoutGoods()
 const gifts = useCheckoutGifts()
+const orderQueue = useCheckoutOrderQueue()
 const timer = useCheckoutTimer()
 
 const {
@@ -586,10 +686,21 @@ const handleSearch = goods.handleSearch
 const giftActivities = gifts.activities
 const giftLoading = gifts.loading
 const giftError = gifts.error
+const selectedGifts = gifts.selectedGifts
 const toggleGift = gifts.toggleGift
 const isGiftSelected = gifts.isGiftSelected
+const getSelectedGiftItems = gifts.getSelectedGiftItems
 const getMatchedStage = gifts.getMatchedStage
 const buildGiftPayload = gifts.buildGiftPayload
+
+const queueItems = orderQueue.queue
+const failedQueueItems = orderQueue.failedQueueItems
+const queueProcessing = orderQueue.processing
+const enqueueOrder = orderQueue.enqueueOrder
+const removeQueuedOrder = orderQueue.removeQueuedOrder
+const retryQueuedOrder = orderQueue.retryQueuedOrder
+
+const showQueueManager = ref(false)
 
 const timerEnabled = timer.enabled
 const timerTargetTime = timer.targetTime
@@ -630,7 +741,7 @@ const stepAction = computed(() => {
       return {
         label: t('checkout.next'),
         handler: handleGoodsNext,
-        disabled: !items.value.length || items.value.some((i) => i.loading),
+        disabled: !items.value.length || items.value.some((i) => i.loading || i.error),
         busy: false,
       }
     case 'coupon':
@@ -659,13 +770,12 @@ const stepAction = computed(() => {
         return { label: t('checkout.submitting'), handler: handleSubmit, disabled: true, busy: true }
       }
       if (timerEnabled.value) {
-        // 定时模式：设好时间后到点自动下单，按钮仅作倒计时/重试展示
-        const label = scheduledRetrying.value
-          ? t('checkout.retrying', { n: retryDisplay.value.n, total: retryDisplay.value.total })
-          : timerTargetTime.value
-            ? `${t('checkout.scheduleOrder')}${remainingText.value ? ` · ${remainingText.value}` : ''}`
-            : t('checkout.scheduleOrder')
-        return { label, handler: () => {}, disabled: true, busy: false }
+        return {
+          label: timerTargetTime.value ? `${t('checkout.addToQueue')}${remainingText.value ? ` · ${remainingText.value}` : ''}` : t('checkout.addToQueue'),
+          handler: handleQueueOrder,
+          disabled: !timerTargetTime.value || !items.value.length || items.value.some((i) => i.loading || i.error) || queueProcessing.value,
+          busy: queueProcessing.value,
+        }
       }
       return { label: t('checkout.placeOrder'), handler: handleSubmit, disabled: false, busy: false }
     }
@@ -701,6 +811,23 @@ function couponName(c) {
   return c.name || `满${((c.threshold || 0) / 100).toFixed(0)}减${((c.deduction || 0) / 100).toFixed(0)}`
 }
 
+const selectedGiftSections = computed(() => {
+  return giftActivities.value
+    .map((activity) => {
+      const stage = getMatchedStage(activity, totalAmount.value)
+      const gifts = getSelectedGiftItems(activity, totalAmount.value)
+      if (!stage || !gifts.length) return null
+      return {
+        activityId: activity.activityId,
+        name: activity.name || t('checkout.giftActivity'),
+        threshold: stage.threshold,
+        num: stage.num,
+        gifts,
+      }
+    })
+    .filter(Boolean)
+})
+
 // 当前选中 SKU 的单价（单位：分）
 function getItemUnitPrice(item) {
   if (item.skus.length > 0) {
@@ -723,6 +850,15 @@ function formatSaleTime(ts) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function formatQueueTime(ts) {
+  if (!ts) return ''
+  return formatDate(new Date(ts), 'YYYY-MM-DD HH:mm:ss')
+}
+
+function getGiftImageUrl(gift) {
+  return gift?.cover_url || gift?.img_url || gift?.image_url || gift?.goods_cover_url || ''
 }
 
 function getAvailableGifts(act, totalFee) {
@@ -789,17 +925,14 @@ watch(() => currentStep.value.key, (key) => {
   }
 })
 
-// 定时下单：仅在「提交步骤 + 定时开启 + 已设时间」时启动到点自动下单（失败自动重试）
+// 定时下单：仅在「提交步骤 + 定时开启 + 已设时间」时启动倒计时展示
 watch([timerEnabled, timerTargetTime, () => currentStep.value.key], ([enabled, target, key]) => {
   if (enabled && target && key === 'submit') {
-    timerStartWatching(() => fireScheduledSubmit())
+    timerStartWatching(() => {})
   } else {
     timerStopWatching()
-    clearScheduledRetry()
   }
 })
-
-onUnmounted(clearScheduledRetry)
 
 async function handleCookieNext() {
   let activeCookie = cookieInput.value.trim()
@@ -839,6 +972,11 @@ async function handleCookieNext() {
 function handleGoodsNext() {
   if (!items.value.length) {
     setError(t('checkout.noGoods'))
+    return
+  }
+  const invalid = items.value.find((item) => item.error)
+  if (invalid) {
+    setError(invalid.error)
     return
   }
   nextStep()
@@ -898,9 +1036,39 @@ function handleGiftsNext() {
   nextStep()
 }
 
+function buildOrderSnapshot() {
+  const itemsPayload = items.value.map((item) => ({
+    goodsId: item.goodsId,
+    skuId: item.selectedSkuId,
+    shopCode: item.shopCode,
+    nums: item.quantity,
+    fromCart: Boolean(item.fromCart),
+  }))
+  const isFromShopCar = itemsPayload.length > 0 && itemsPayload.every((item) => item.fromCart)
+  const giftPayload = buildGiftPayload(items.value[0]?.shopCode || '', totalAmount.value)
+  return {
+    itemsPayload,
+    giftPayload,
+    isFromShopCar,
+    snapshot: {
+      cookie: cookie.value,
+      addressId: selectedAddressId.value,
+      remark: remark.value,
+      isFromShopCar,
+      items: itemsPayload,
+      giftActivities: giftPayload,
+    },
+    summary: {
+      goodsText: items.value.map((item) => item.name || item.goodsId).filter(Boolean).join('、'),
+      giftText: selectedGiftSections.value.map((activity) => `${activity.name}：${activity.gifts.map((gift) => gift.name).join('、')}`).filter(Boolean).join('；'),
+    },
+  }
+}
+
 /* ── 从购物车选择 ── */
 const { isTabletViewport } = useTabletViewport()
 const cartPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+const queueManagerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const showCartPicker = ref(false)
 const cartLoading = ref(false)
 const cartError = ref('')
@@ -944,6 +1112,7 @@ function flattenCart(shops) {
         name: item.goods_name || item.name || '',
         cover: item.cover_url || '',
         skuText: item.sale_attr_val || item.sku_text || '',
+        soldOut: Number(item.sold_out_status || 0) !== 0,
       })
     }
   }
@@ -951,6 +1120,8 @@ function flattenCart(shops) {
 }
 
 function toggleCartItem(key) {
+  const item = cartItems.value.find((i) => i.key === key)
+  if (item?.soldOut) return
   const next = new Set(cartSelected.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
@@ -979,6 +1150,12 @@ function getItemCover(item) {
   return sku?.cover || item.cover || ''
 }
 
+// 锁定 SKU 的库存（购物车导入时）
+function getLockedSkuStock(item) {
+  const sku = item.skus.find((s) => s.id === item.selectedSkuId)
+  return sku?.stock ?? -1
+}
+
 /**
  * 提交订单
  * @returns {{ok: boolean, retriable: boolean}} retriable 为 false 表示无需重试（如 cookie 失效）
@@ -989,26 +1166,19 @@ async function handleSubmit() {
   setError('')
 
   try {
-    const itemsPayload = items.value.map((item) => ({
-      goodsId: item.goodsId,
-      skuId: item.selectedSkuId,
-      shopCode: item.shopCode,
-      nums: item.quantity,
-    }))
+    await orderQueue.syncServerClock(cookie.value, true)
+    if (items.value.some((item) => item.error)) {
+      throw new Error(items.value.find((item) => item.error)?.error || t('checkout.orderFailed'))
+    }
 
-    const giftPayload = buildGiftPayload(items.value[0]?.shopCode || '')
+    const { itemsPayload, giftPayload, isFromShopCar } = buildOrderSnapshot()
 
-    const { code } = await preCreateOrder(cookie.value, {
+    const result = await submitCheckoutOrder(cookie.value, {
       addressId: selectedAddressId.value,
       items: itemsPayload,
       giftActivities: giftPayload,
-    })
-
-    const result = await createOrder(cookie.value, {
-      addressId: selectedAddressId.value,
-      code,
+      isFromShopCar,
       remark: remark.value,
-      items: itemsPayload,
     })
 
     orderResult.value = result
@@ -1027,16 +1197,42 @@ async function handleSubmit() {
   }
 }
 
-/* ── 定时抢购重试（次数由用户设置，0-10；∞ 表示抢到为止） ── */
-const retryCount = ref(3)
-const scheduledRetrying = ref(false)
-const scheduledRetryCount = ref(0)
-let scheduledSubmitTimer = null
+async function handleQueueOrder() {
+  if (queueProcessing.value) return
+  if (!timerEnabled.value || !timerTargetTime.value) {
+    setError(t('checkout.timerPast'))
+    return
+  }
+  if (!items.value.length || !selectedAddressId.value) {
+    setError(t('checkout.noGoods'))
+    return
+  }
+  const invalid = items.value.find((item) => item.error)
+  if (invalid) {
+    setError(invalid.error)
+    return
+  }
 
-const retryDisplay = computed(() => ({
-  n: String(scheduledRetryCount.value),
-  total: retryCount.value === Infinity ? '∞' : String(retryCount.value),
-}))
+  const serverNow = await orderQueue.syncServerClock(cookie.value, true)
+  const offsetMs = serverNow - Date.now()
+  const { itemsPayload, giftPayload, snapshot, summary } = buildOrderSnapshot()
+  enqueueOrder({
+    scheduledAt: timerManuallySet.value ? timerTargetTime.value + offsetMs : timerTargetTime.value,
+    displayAt: timerTargetTime.value,
+    retryCount: retryCount.value,
+    snapshot: {
+      ...snapshot,
+      items: itemsPayload,
+      giftActivities: giftPayload,
+      displayAt: timerTargetTime.value,
+    },
+    summary,
+  })
+
+  showToast(t('checkout.queueAdded', { n: 1 }))
+}
+
+const retryCount = ref(3)
 
 function decreaseRetryCount() {
   if (retryCount.value === Infinity) {
@@ -1053,43 +1249,6 @@ function increaseRetryCount() {
 
 function setInfiniteRetry() {
   retryCount.value = Infinity
-}
-
-function clearScheduledRetry() {
-  if (scheduledSubmitTimer) {
-    clearTimeout(scheduledSubmitTimer)
-    scheduledSubmitTimer = null
-  }
-  scheduledRetryCount.value = 0
-  scheduledRetrying.value = false
-}
-
-// 到点触发：先做一次提交，失败则带退避重试
-async function fireScheduledSubmit() {
-  clearScheduledRetry()
-  await runScheduledAttempt()
-}
-
-async function runScheduledAttempt() {
-  const { ok, retriable } = await handleSubmit()
-  if (ok || !retriable) return
-
-  scheduledRetryCount.value++
-  // 无限重试：抢到为止；有限次数：超过则放弃
-  if (retryCount.value !== Infinity && scheduledRetryCount.value > retryCount.value) {
-    scheduledRetrying.value = false
-    setError(t('checkout.retryExhausted'))
-    return
-  }
-  scheduledRetrying.value = true
-  showToast(t('checkout.retrying', { n: retryDisplay.value.n, total: retryDisplay.value.total }))
-  // 退避：0.5s 起步翻倍，上限 10s，避免无限模式下持续高频轰炸
-  const delay = Math.min(500 * Math.pow(2, scheduledRetryCount.value - 1), 10000)
-  scheduledSubmitTimer = setTimeout(() => {
-    scheduledSubmitTimer = null
-    scheduledRetrying.value = false
-    runScheduledAttempt()
-  }, delay)
 }
 
 function handleBack() {
@@ -1119,6 +1278,18 @@ onMounted(async () => {
     applySavedCookieToInput()
     await handleCookieNext()
   }
+})
+
+watch([timerEnabled, timerTargetTime, () => currentStep.value.key], ([enabled, target, key]) => {
+  if (enabled && target && key === 'submit') {
+    timerStartWatching(() => {})
+  } else {
+    timerStopWatching()
+  }
+})
+
+onUnmounted(() => {
+  timerStopWatching()
 })
 </script>
 
@@ -1642,6 +1813,19 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--app-text-secondary);
   line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item-sku-locked__soldout {
+  font-size: 11px;
+  color: #c74444;
+}
+
+.item-sku-locked__stock {
+  font-size: 11px;
+  color: var(--app-text-tertiary);
 }
 
 .sku-chips {
@@ -1864,6 +2048,24 @@ onMounted(async () => {
   border-color: var(--app-border);
 }
 
+.gift-card__img {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--app-surface-soft);
+}
+
+.gift-card__img--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .gift-card__check {
   flex-shrink: 0;
   width: 20px;
@@ -1954,6 +2156,74 @@ onMounted(async () => {
   flex-shrink: 0;
   font-weight: 500;
   color: #2070c0;
+}
+
+.review-gift-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.review-gift-activity + .review-gift-activity {
+  padding-top: 14px;
+  border-top: 1px solid var(--app-border);
+}
+
+.review-gift-activity__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.review-gift-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-gift-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-small);
+  background: var(--app-surface-soft);
+}
+
+.review-gift-item__img {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--app-surface);
+}
+
+.review-gift-item__img--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.review-gift-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-gift-item__name {
+  font-size: 13px;
+  color: var(--app-text);
+  line-height: 1.45;
+}
+
+.review-gift-item__meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
 }
 
 .review-address {
@@ -2144,6 +2414,234 @@ onMounted(async () => {
   color: #2070c0;
 }
 
+.queue-entry-btn {
+  position: relative;
+}
+
+.queue-entry-btn__badge {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #c74444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--app-bg);
+}
+
+.queue-preview-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.queue-preview-btn__count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #4a7aec 14%, var(--app-surface));
+  color: #2070c0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+.queue-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  max-height: 78dvh;
+}
+
+.queue-manager__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.queue-manager__label {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.queue-manager__title {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.queue-manager__desc {
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.queue-manager__close {
+  border: none;
+  background: none;
+  color: #2070c0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.queue-manager__empty {
+  padding: 16px 0 8px;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.queue-manager__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.queue-manager__clear {
+  border: none;
+  background: none;
+  color: #c74444;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.queue-manager-popup {
+  overflow: hidden;
+}
+
+.queue-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.queue-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.queue-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.queue-panel__clear {
+  border: none;
+  background: none;
+  color: #c74444;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.queue-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-small);
+  background: var(--app-surface-soft);
+}
+
+.queue-item--running {
+  background: color-mix(in srgb, #4a7aec 8%, var(--app-surface-soft));
+}
+
+.queue-item--failed {
+  background: color-mix(in srgb, #c74444 9%, var(--app-surface-soft));
+}
+
+.queue-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-item__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-item__meta {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-item__meta--gift {
+  color: var(--app-text-tertiary);
+}
+
+.queue-item__error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #c74444;
+}
+
+.queue-item__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.queue-item__status {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.queue-item__btn {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xs);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.queue-item__btn--ghost {
+  background: transparent;
+}
+
 /* ── 购物车选择面板 ── */
 .cart-picker {
   display: flex;
@@ -2187,6 +2685,23 @@ onMounted(async () => {
 .cart-picker-item--selected {
   border-color: color-mix(in srgb, #4a7aec 60%, var(--app-border));
   background: color-mix(in srgb, #4a7aec 8%, var(--app-surface));
+}
+
+.cart-picker-item--soldout {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.cart-picker-item__soldout-tag {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--app-danger, #e74c3c);
+  border: 1px solid var(--app-danger, #e74c3c);
+  border-radius: 4px;
+  padding: 1px 6px;
+  line-height: 1.4;
 }
 
 .cart-picker-item__thumb {
