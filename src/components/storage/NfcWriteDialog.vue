@@ -33,6 +33,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -55,6 +56,8 @@ const promptMessage = computed(() => {
 function cancel() {
   emit('cancel')
 }
+
+useDialogBackButton(cancel)
 </script>
 
 <style scoped>

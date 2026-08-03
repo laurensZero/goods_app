@@ -111,9 +111,12 @@ import { useI18n } from 'vue-i18n'
 import { useClipboardImport } from '@/composables/useClipboardImport'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { formatCurrency } from '@/utils/format'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const { showPrompt, incomingShareId, dismissImport } = useClipboardImport()
+
+useDialogBackButton(dismissImport, showPrompt)
 
 const {
   fetching,

@@ -200,11 +200,14 @@ import { ref, reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSurveyStore } from '@/stores/survey'
 import { submitSurveyResponse } from '@/services/surveyService'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const surveyStore = useSurveyStore()
 
 const visible = ref(false)
+
+useDialogBackButton(dismiss, visible)
 const activeSurvey = ref(null)
 const currentIndex = ref(0)
 const answers = reactive({})

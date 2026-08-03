@@ -23,6 +23,7 @@ import { useRechargeStore } from './stores/recharge'
 import { useGoodsGroupStore } from './stores/goodsGroup'
 import { useSurveyStore } from './stores/survey'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
+import { hasOverlays } from './composables/useDialogBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
@@ -101,6 +102,9 @@ function setupAndroidBackButton() {
 
   CapacitorApp.addListener('backButton', async ({ canGoBack }) => {
     if (dispatchAndroidBackButton({ canGoBack })) return
+
+    // 全局弹窗注册的 listener 已在 dispatch 中被调用，此处为额外保底
+    if (hasOverlays()) return
 
     const currentRoute = router.currentRoute.value
     const isAndroidRootRoute = ANDROID_ROOT_ROUTE_NAMES.has(String(currentRoute.name || ''))

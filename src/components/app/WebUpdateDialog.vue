@@ -60,12 +60,15 @@ import { computed, ref, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { useI18n } from 'vue-i18n'
 import { useWebUpdateStore } from '@/stores/webUpdate'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const webUpdateStore = useWebUpdateStore()
 const restartReady = ref(false)
 
 const showDialog = computed(() => webUpdateStore.dialogVisible && webUpdateStore.hasUpdate)
+
+useDialogBackButton(() => webUpdateStore.dismissDialog())
 const releaseNotesPreview = computed(() => {
   return String(webUpdateStore.releaseNotesPreview || '').trim()
 })

@@ -30,6 +30,7 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -42,6 +43,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'cancel', 'confirm'])
+
+useDialogBackButton(handleCancel, () => props.show)
 
 function handleCancel() {
   emit('update:show', false)

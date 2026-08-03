@@ -167,6 +167,7 @@ import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { submitFeedback } from '@/services/feedbackService'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
 import { getDeviceId } from '@/utils/feedbackDevice'
 import packageJson from '../../../package.json'
@@ -177,6 +178,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'submitted'])
+
+useDialogBackButton(closeDialog, () => props.modelValue)
 
 const { t } = useI18n()
 

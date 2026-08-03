@@ -48,6 +48,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatLeaderboardMetricValue } from '@/utils/goods/leaderboard'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -60,13 +61,15 @@ function onResize() {
 onMounted(() => window.addEventListener('resize', onResize))
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
-defineProps({
+const props = defineProps({
   show: { type: Boolean, default: false },
   entries: { type: Array, default: () => [] },
   metric: { type: String, default: 'quantity' }
 })
 
-defineEmits(['update:show'])
+const emit = defineEmits(['update:show'])
+
+useDialogBackButton(() => emit('update:show', false), () => props.show)
 </script>
 
 <style scoped>

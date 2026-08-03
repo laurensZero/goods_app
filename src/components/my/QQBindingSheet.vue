@@ -136,6 +136,7 @@ import { useToast } from '@/composables/useToast'
 import AppToast from '@/components/common/AppToast.vue'
 import { useQQBindingStore } from '@/stores/qqBinding'
 import { BOT_QQ } from '@/services/qqService'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 defineOptions({ name: 'QQBindingSheet' })
 
@@ -152,6 +153,8 @@ const qqStore = useQQBindingStore()
 function close() {
   emit('close')
 }
+
+useDialogBackButton(close, () => props.show)
 
 // unbound → 未绑定；pending → 绑定中；bound → 已绑定
 const view = computed(() => {

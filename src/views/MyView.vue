@@ -819,6 +819,7 @@ import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 defineOptions({ name: 'MyView' })
 
@@ -1388,6 +1389,16 @@ async function confirmDeleteAccount() {
   }
 }
 
+
+// ── Android 返回键：关闭所有弹窗 ──
+useDialogBackButton(closeBudgetDialog)
+useDialogBackButton(closeLogoutDialog)
+useDialogBackButton(closeProfileEditSheet)
+useDialogBackButton(closeChangePasswordSheet)
+useDialogBackButton(closeAccountManageSheet)
+useDialogBackButton(closeDeleteAccountSheet)
+useDialogBackButton(closeAnnouncementList)
+useDialogBackButton(closeAnnouncementDetail)
 
 onMounted(async () => {
   resetPageScrollTop()
