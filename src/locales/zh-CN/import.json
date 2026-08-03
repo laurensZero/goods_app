@@ -249,6 +249,8 @@
   "checkout.tierThreshold": "满 {amount} 可选",
   "checkout.selectN": "选 {n} 件",
   "checkout.giftThresholdNotMet": "未达到赠品门槛",
+  "checkout.giftNotStarted": "活动未开始",
+  "checkout.giftEnded": "活动已结束",
   "checkout.orderItems": "订单商品",
   "checkout.shippingAddress": "收货地址",
   "checkout.claimedCoupons": "已领优惠券",

@@ -249,6 +249,8 @@
   "checkout.tierThreshold": "{amount} 이상 결제 시 선택 가능",
   "checkout.selectN": "{n}개 선택",
   "checkout.giftThresholdNotMet": "선물 조건 미충족",
+  "checkout.giftNotStarted": "이벤트 미시작",
+  "checkout.giftEnded": "이벤트 종료",
   "checkout.orderItems": "주문 상품",
   "checkout.shippingAddress": "배송지",
   "checkout.claimedCoupons": "수령한 쿠폰",

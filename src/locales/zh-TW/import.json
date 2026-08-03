@@ -249,6 +249,8 @@
   "checkout.tierThreshold": "滿 {amount} 可選",
   "checkout.selectN": "選 {n} 件",
   "checkout.giftThresholdNotMet": "未達到贈品門檻",
+  "checkout.giftNotStarted": "活動未開始",
+  "checkout.giftEnded": "活動已結束",
   "checkout.orderItems": "訂單商品",
   "checkout.shippingAddress": "收貨地址",
   "checkout.claimedCoupons": "已領優惠券",

@@ -249,6 +249,8 @@
   "checkout.tierThreshold": "{amount}以上で選択可",
   "checkout.selectN": "{n}個選択",
   "checkout.giftThresholdNotMet": "ギフト条件未達成",
+  "checkout.giftNotStarted": "キャンペーン未開始",
+  "checkout.giftEnded": "キャンペーン終了",
   "checkout.orderItems": "注文商品",
   "checkout.shippingAddress": "配送先住所",
   "checkout.claimedCoupons": "取得したクーポン",

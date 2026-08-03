@@ -301,6 +301,7 @@
               <div v-for="act in giftActivities" :key="act.activityId" class="field-card">
                 <p class="gift-activity__title">{{ act.name || t('checkout.giftActivity') }}</p>
                 <template v-if="getMatchedStage(act, totalAmount)">
+                  <p v-if="!isActivityActive(act)" class="gift-activity__notice">{{ giftActivityStateText(act) }}</p>
                   <p class="gift-activity__tier">
                     {{ t('checkout.tierThreshold', { amount: formatFen(getMatchedStage(act, totalAmount)?.threshold || 0) }) }}
                     — {{ t('checkout.selectN', { n: getMatchedStage(act, totalAmount).num }) }}
@@ -691,6 +692,7 @@ const toggleGift = gifts.toggleGift
 const isGiftSelected = gifts.isGiftSelected
 const getSelectedGiftItems = gifts.getSelectedGiftItems
 const getMatchedStage = gifts.getMatchedStage
+const isActivityActive = gifts.isActivityActive
 const buildGiftPayload = gifts.buildGiftPayload
 
 const queueItems = orderQueue.queue
@@ -868,6 +870,18 @@ function getAvailableGifts(act, totalFee) {
   return stage.gifts || []
 }
 
+// 未开始 / 已结束活动的提示文案（未开始附上开始时间）
+function giftActivityStateText(act) {
+  if (!act) return ''
+  const nowSec = act.serverTime || Math.floor(Date.now() / 1000)
+  if (act.startTime && nowSec < act.startTime) {
+    const timeStr = formatSaleTime(act.startTime)
+    return timeStr ? `${t('checkout.giftNotStarted')} · ${timeStr}` : t('checkout.giftNotStarted')
+  }
+  if (act.endTime && nowSec > act.endTime) return t('checkout.giftEnded')
+  return ''
+}
+
 const showTimerPicker = ref(false)
 const timerDateTime = ref('')
 const timerManuallySet = ref(false)
@@ -911,12 +925,16 @@ function onTimerConfirm(value) {
   showTimerPicker.value = false
 }
 
-// 进入下单步骤时：若已添加的商品含晚于当前的开售时间，自动预填并开启定时
+// 进入下单步骤时：自动预填定时时间 = max(商品开售时间, 满赠活动开始时间) 中最晚的未来时刻
 watch(() => currentStep.value.key, (key) => {
   if (key !== 'submit' || timerManuallySet.value) return
   let latest = 0
   for (const item of items.value) {
     const t = Number(item.saleTime) * 1000
+    if (t > Date.now() && t > latest) latest = t
+  }
+  for (const act of giftActivities.value) {
+    const t = Number(act.startTime) * 1000
     if (t > Date.now() && t > latest) latest = t
   }
   if (latest && latest !== timerTargetTime.value) {
@@ -1998,6 +2016,12 @@ onUnmounted(() => {
   font-size: 15px;
   font-weight: 600;
   color: var(--app-text);
+}
+
+.gift-activity__notice {
+  font-size: 12px;
+  color: #c77700;
+  margin-bottom: 4px;
 }
 
 .gift-activity__tier {

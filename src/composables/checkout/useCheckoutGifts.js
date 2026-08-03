@@ -13,6 +13,20 @@ export function useCheckoutGifts() {
   const selectedGifts = ref(new Map())
 
   /**
+   * 活动是否处于可下单时段（未到开始 / 已结束则不可选）
+   * 优先用接口返回的 server_time 作为时间基准，避免设备时钟偏差
+   */
+  function isActivityActive(activity) {
+    if (!activity) return false
+    // 无起止时间（旧接口）视为进行中
+    if (!activity.startTime && !activity.endTime) return true
+    const nowSec = activity.serverTime || Math.floor(Date.now() / 1000)
+    if (activity.startTime && nowSec < activity.startTime) return false
+    if (activity.endTime && nowSec > activity.endTime) return false
+    return true
+  }
+
+  /**
    * 加载赠品活动详情（合并多个商品的赠品活动）
    * @param {Array<{activity_id}>} activityRefs - from goods detail
    * @param {string} cookie
@@ -126,5 +140,6 @@ export function useCheckoutGifts() {
     getSelectedGiftItems,
     getMatchedStage,
     buildGiftPayload,
+    isActivityActive,
   }
 }

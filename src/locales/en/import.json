@@ -249,6 +249,8 @@
   "checkout.tierThreshold": "Spend {amount} to select",
   "checkout.selectN": "Select {n}",
   "checkout.giftThresholdNotMet": "Threshold not met",
+  "checkout.giftNotStarted": "Activity not started",
+  "checkout.giftEnded": "Activity ended",
   "checkout.orderItems": "Order Items",
   "checkout.shippingAddress": "Shipping Address",
   "checkout.claimedCoupons": "Claimed Coupons",

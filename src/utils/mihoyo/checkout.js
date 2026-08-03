@@ -201,7 +201,16 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
     }),
   }))
   log.debug('gift:detail', { activityId, stageCount: stages.length })
-  return { activityId, stages, name: data.name || '' }
+  return {
+    activityId,
+    stages,
+    name: data.name || '',
+    // 活动起止时间（Unix 秒）与服务器当前时间，用于判断活动是否可下单
+    startTime: Number(data.start_time) || 0,
+    endTime: Number(data.end_time) || 0,
+    serverTime: Number(data.server_time) || 0,
+    status: Number(data.status) ?? 0,
+  }
 }
 
 /**
