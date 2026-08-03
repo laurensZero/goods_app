@@ -456,10 +456,10 @@
     <!-- 从购物车选择 -->
     <Popup
       v-model:show="showCartPicker"
-      position="bottom"
-      round
+      :position="cartPickerPosition"
+      :round="!isTabletViewport"
       :lock-scroll="false"
-      class="picker-popup"
+      :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
     >
       <div class="cart-picker">
         <p class="cart-picker__title">{{ t('checkout.fromCart') }}</p>
@@ -526,6 +526,7 @@ import { useCheckoutGoods } from '@/composables/checkout/useCheckoutGoods'
 import { useCheckoutGifts } from '@/composables/checkout/useCheckoutGifts'
 import { useCheckoutTimer } from '@/composables/checkout/useCheckoutTimer'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
+import { useTabletViewport } from '@/composables/useTabletViewport'
 import { receiveCoupon, preCreateOrder, createOrder } from '@/utils/mihoyo/checkout'
 import { canUseNativeMihoyoImport, getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
 import { formatPrice, formatDate } from '@/utils/format'
@@ -896,6 +897,8 @@ function handleGiftsNext() {
 }
 
 /* ── 从购物车选择 ── */
+const { isTabletViewport } = useTabletViewport()
+const cartPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const showCartPicker = ref(false)
 const cartLoading = ref(false)
 const cartError = ref('')
