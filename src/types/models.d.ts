@@ -103,6 +103,8 @@ export interface GoodsItem {
   sellDate: string
   unitSaleInfoList: (UnitSaleInfo | null)[]
   statusTimeline: StatusTimelineEntry[]
+  /** 本地软删除标记：trashed=1 的行 getItems 不返回，回收站通过 Preferences 单独管理 */
+  trashed: boolean
 }
 
 /** 商品表单状态（GoodsItem 去掉 id/updatedAt/coverImage） */

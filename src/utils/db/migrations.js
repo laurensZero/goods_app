@@ -185,4 +185,15 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 9,
+    description: 'Add trashed column for local soft-delete (tombstone parity with Supabase)',
+    up: async (db) => {
+      // 本地软删除:与远端 trashed 墓碑对齐。存量行该列取 NULL，读取时按 0（未删除）处理
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('trashed')) {
+        await db.run('ALTER TABLE goods ADD COLUMN trashed INTEGER DEFAULT 0')
+      }
+    }
+  },
 ]

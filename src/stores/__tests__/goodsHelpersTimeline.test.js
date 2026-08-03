@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeStatusTimeline, normalizeGoodsInput } from '../goodsHelpers'
+import { normalizeStatusTimeline, normalizeGoodsInput, normalizeTrashItem } from '../goodsHelpers'
 
 describe('normalizeStatusTimeline (pure status history)', () => {
   it('strips legacy sale fields from entries', () => {
@@ -73,5 +73,21 @@ describe('normalizeGoodsInput sell* columns', () => {
   it('returns empty unitSaleInfoList for quantity < 2', () => {
     const item = normalizeGoodsInput({ ...base, quantity: 1, unitSaleInfoList: [{ price: '80' }] }, 'g1')
     expect(item.unitSaleInfoList).toEqual([])
+  })
+})
+
+describe('trashed flag', () => {
+  const base = { id: 'g1', name: '吧唧', quantity: 1, updatedAt: 1 }
+
+  it('normalizeGoodsInput defaults trashed=false，true 输入归一化为 true', () => {
+    expect(normalizeGoodsInput(base, 'g1').trashed).toBe(false)
+    expect(normalizeGoodsInput({ ...base, trashed: 1 }, 'g1').trashed).toBe(true)
+    expect(normalizeGoodsInput({ ...base, trashed: 'true' }, 'g1').trashed).toBe(true)
+  })
+
+  it('normalizeTrashItem 强制 trashed=true（回收站条目写回 SQLite 时保持软删除）', () => {
+    const trashItem = normalizeTrashItem(base, 'g1')
+    expect(trashItem.trashed).toBe(true)
+    expect(trashItem.deletedAt).toBeTruthy()
   })
 })

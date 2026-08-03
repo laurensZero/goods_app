@@ -67,9 +67,35 @@ async function refreshList(list) {
   list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
 }
 
-async function importGoodsBackup(items, list) {
+async function importGoodsBackup(items, list, trashList) {
   const existingIds = new Set(list.value.map((item) => item.id))
-  const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
+  const trashIdMap = new Map(trashList.value.map((item) => [item.id, item]))
+
+  // 关键守卫：本地刚删除（在回收站里）的条目，远端若仍是 trashed=0 会把它当活跃行拉回。
+  // 按 LWW 判定——本地删除时间不早于远端更新时间则保持删除，不恢复；
+  // 远端更新时间更新（比如另一台设备重新添加）才恢复并同时移出本地回收站
+  const importableItems = []
+  const idsToUnTrash = []
+  for (const remoteItem of items) {
+    if (!remoteItem?.id) continue
+    if (existingIds.has(remoteItem.id)) continue
+
+    const localTrash = trashIdMap.get(remoteItem.id)
+    if (localTrash) {
+      const remoteTs = Number(remoteItem.updatedAt) || 0
+      const localTs = Number(localTrash.updatedAt) || 0
+      if (remoteTs > localTs) {
+        importableItems.push(remoteItem)
+        idsToUnTrash.push(remoteItem.id)
+      }
+      // 否则：本地删除较新，远端活跃行是旧快照，跳过不恢复
+    } else {
+      importableItems.push(remoteItem)
+    }
+  }
+
+  if (importableItems.length === 0) return 0
+
   const newItems = await Promise.all(
     importableItems.map(async (item) => normalizeGoodsInput({
       ...(await restoreImportedGoodsItem(item)),
@@ -79,9 +105,13 @@ async function importGoodsBackup(items, list) {
     }, item.id))
   )
 
-  if (newItems.length === 0) return 0
-
   list.value = [...newItems, ...list.value]
+
+  if (idsToUnTrash.length > 0) {
+    const untrashSet = new Set(idsToUnTrash)
+    trashList.value = trashList.value.filter((item) => !untrashSet.has(item.id))
+    await persistTrash(trashList)
+  }
 
   await saveItems(newItems)
   return newItems.length

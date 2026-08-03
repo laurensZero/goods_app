@@ -399,7 +399,8 @@ function normalizeGoodsInput(data, fallbackId = '') {
     sellFee: isWishlist ? '' : normalizeUnitPriceValue(data.sellFee),
     sellDate: isWishlist ? '' : normalizeSellDateValue(data.sellDate),
     unitSaleInfoList: isWishlist ? [] : normalizeUnitSaleInfoList(data.unitSaleInfoList, data.quantity),
-    statusTimeline: normalizeStatusTimeline(data.statusTimeline)
+    statusTimeline: normalizeStatusTimeline(data.statusTimeline),
+    trashed: normalizeBooleanFlag(data.trashed)
   }
 }
 
@@ -411,6 +412,10 @@ function normalizeGoodsInput(data, fallbackId = '') {
 function normalizeTrashItem(data, fallbackId = '') {
   return {
     ...normalizeGoodsInput(data, fallbackId),
+    // 回收站条目对象恒为 trashed=true：任何 saveItems/addItem 把回收站条目写回
+    // SQLite（如 markImagesAsRemote / cleanupBase64Images）都必须保持 trashed=1，
+    // 否则软删除行会被复活成活跃行，刷新后 getItems 又把它捞回列表
+    trashed: true,
     deletedAt: String(data.deletedAt || new Date().toISOString()).trim()
   }
 }

@@ -249,7 +249,7 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   function importGoodsBackup(items) {
-    return _importGoodsBackup(items, list)
+    return _importGoodsBackup(items, list, trashList)
   }
 
   function updateGoodsBackup(items) {

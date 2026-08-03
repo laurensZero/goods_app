@@ -93,7 +93,8 @@ const CREATE_TABLE_SQL = `
     sellFee    TEXT DEFAULT '',
     sellDate   TEXT DEFAULT '',
     unitSaleInfoList TEXT DEFAULT '[]',
-    updatedAt  INTEGER DEFAULT 0
+    updatedAt  INTEGER DEFAULT 0,
+    trashed    INTEGER DEFAULT 0
   );
 `
 
@@ -218,7 +219,8 @@ const GOODS_REQUIRED_COLUMNS = [
   ['sellFee', "TEXT DEFAULT ''"],
   ['sellDate', "TEXT DEFAULT ''"],
   ['unitSaleInfoList', "TEXT DEFAULT '[]'"],
-  ['updatedAt', 'INTEGER DEFAULT 0']
+  ['updatedAt', 'INTEGER DEFAULT 0'],
+  ['trashed', 'INTEGER DEFAULT 0']
 ]
 
 const EVENTS_REQUIRED_COLUMNS = [
@@ -336,7 +338,8 @@ function prepareGoodsRecord(item) {
     sellFee = '',
     sellDate = '',
     unitSaleInfoList = [],
-    statusTimeline = []
+    statusTimeline = [],
+    trashed = false
   } = item
 
   return {
@@ -376,7 +379,8 @@ function prepareGoodsRecord(item) {
     sellFee: String(sellFee || ''),
     sellDate: String(sellDate || ''),
     unitSaleInfoStr: JSON.stringify(Array.isArray(unitSaleInfoList) ? unitSaleInfoList : []),
-    statusTimelineStr: JSON.stringify(Array.isArray(statusTimeline) ? statusTimeline : [])
+    statusTimelineStr: JSON.stringify(Array.isArray(statusTimeline) ? statusTimeline : []),
+    trashed: trashed ? 1 : 0
   }
 }
 
@@ -388,10 +392,10 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,trashed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.trashed]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -584,9 +588,12 @@ export async function getItems() {
     // ORDER BY rowid DESC：「最近写入在前」语义。INSERT OR REPLACE 会重建 rowid，
     // 整批保存会把行挪到最前，顺序不稳定；主页展示由 sortHomeGoodsList 按业务字段
     // 在内存重排，上层勿直接依赖此顺序
-    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline FROM goods ORDER BY rowid DESC')
+    // WHERE (trashed IS NULL OR trashed = 0)：软删除行不进入 active list，
+    // 回收站通过 Preferences 单独管理。存量行 trashed 为 NULL，等价未删除
+    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,trashed FROM goods WHERE (trashed IS NULL OR trashed = 0) ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
+      trashed: Boolean(r.trashed),
       isWishlist: normalizeWishlistFlag(r.isWishlist),
       goodsId: String(r.goodsId || '').trim(),
       characters: parseJsonArray(r.characters),
@@ -660,6 +667,28 @@ export async function deleteItems(ids) {
     await db.executeSet(stmts)
   } catch (e) {
     console.error('[db] deleteItems failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 软删除：把行标记为 trashed=1 并刷新 updatedAt，不物理删除。
+ * 行仍在 goods 表内（getItems 过滤掉），回收站数据存 Preferences。
+ * updatedAt 必须一起刷新：删除需要作为"最新写入"推到远端（LWW 胜出）。
+ * @param {string[]} ids
+ */
+export async function softDeleteItems(ids) {
+  if (!ids || ids.length === 0) return
+  await initDB()
+  try {
+    const now = Date.now()
+    const stmts = ids.map(id => ({
+      statement: 'UPDATE goods SET trashed = 1, updatedAt = ? WHERE id = ?',
+      values: [now, id]
+    }))
+    await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] softDeleteItems failed:', e)
     throw e
   }
 }

@@ -1,6 +1,6 @@
 // @ts-check
 import { triggerRef } from 'vue'
-import { addItem, saveItems, deleteItems } from '@/utils/db/index'
+import { addItem, saveItems, deleteItems, softDeleteItems } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import {
   collectManagedLocalImagePathsFromGoodsItem,
@@ -209,7 +209,7 @@ export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
   }
   try {
     await Promise.all([
-      deleteItems([id]),
+      softDeleteItems([id]),
       cancelSaleReminderNotifications(id, item.saleReminderOffsets)
     ])
   } catch (e) {
@@ -254,7 +254,7 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
   }
   try {
     await Promise.all([
-      deleteItems(Array.from(ids)),
+      softDeleteItems(Array.from(ids)),
       ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets))
     ])
   } catch (e) {
@@ -275,7 +275,8 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
   const item = trashList.value.find((entry) => entry.id === id)
   if (!item) return null
 
-  const restored = normalizeGoodsInput({ ...item, updatedAt: Date.now() }, item.id)
+  // 回收站条目恒 trashed=true，恢复时必须显式清掉，否则 addItem 会写回 trashed=1
+  const restored = normalizeGoodsInput({ ...item, trashed: false, updatedAt: Date.now() }, item.id)
   if (list.value.some((entry) => entry.id === restored.id)) {
     restored.id = String(Date.now())
   }
@@ -319,8 +320,12 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
     throw e
   }
   try {
-    await cancelSaleReminderNotifications(id, existing?.saleReminderOffsets)
-    await deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
+    // 回收站永久删除：同步物理删除 goods 表里的软删除行（removeGoods 只标记 trashed=1）
+    await Promise.all([
+      deleteItems([id]),
+      cancelSaleReminderNotifications(id, existing?.saleReminderOffsets),
+      deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
+    ])
   } catch (e) {
     console.error('[goods] deleteTrashItem DB write failed:', e)
     throw e
@@ -352,7 +357,11 @@ export async function emptyTrash(trashList, persistTrash, onMutate) {
     throw e
   }
   try {
-    await Promise.all(removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)))
+    // 清空回收站：同步物理删除 goods 表里所有软删除行（removeGoods 只标记 trashed=1）
+    await Promise.all([
+      deleteItems(removedItems.map((item) => item.id)),
+      ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets))
+    ])
     await deleteManagedLocalImages(removedPaths)
   } catch (e) {
     console.error('[goods] emptyTrash DB write failed:', e)
