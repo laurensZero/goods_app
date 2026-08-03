@@ -18,6 +18,12 @@ export default [
     meta: { titleKey: 'nav.accountImport' }
   },
   {
+    path: '/checkout',
+    name: 'checkout',
+    component: () => import('@/views/CheckoutView.vue'),
+    meta: { titleKey: 'checkout.title' }
+  },
+  {
     path: '/taobao-import',
     name: 'taobao-import',
     component: () => import('@/views/TaobaoImportView.vue'),

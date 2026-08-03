@@ -116,7 +116,7 @@
         <button
           class="import-entry import-entry--cart"
           type="button"
-          @click="$router.push(isWishlistMode ? '/cart-import?mode=wishlist' : '/cart-import')"
+          @click="runWithRouteTransition(() => $router.push(isWishlistMode ? '/cart-import?mode=wishlist' : '/cart-import'), { direction: 'forward' })"
         >
           <div class="ie-icon ie-icon--cart">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -136,7 +136,7 @@
           </svg>
         </button>
 
-        <button v-if="!isWishlistMode" class="import-entry" type="button" @click="$router.push('/account-import')">
+        <button v-if="!isWishlistMode" class="import-entry" type="button" @click="runWithRouteTransition(() => $router.push('/account-import'), { direction: 'forward' })">
           <div class="ie-icon ie-icon--account">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
             stroke-linecap="round" stroke-linejoin="round">

@@ -243,7 +243,7 @@
           </div>
           <p class="done-title">{{ t('import.importComplete') }}</p>
           <p class="done-sub">{{ t('import.importDoneSub', { count: importedCount, qty: importedTotalQty }) }}</p>
-          <button class="primary-btn" type="button" @click="$router.push('/home')">
+          <button class="primary-btn" type="button" @click="runWithRouteTransition(() => router.push('/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })">
             {{ t('import.backToHome') }}
           </button>
         </section>
@@ -271,6 +271,7 @@ import '@/assets/common/loading.css'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
+import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
 import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo/index'
@@ -280,11 +281,13 @@ import {
   resolveMihoyoImportDraft,
 } from '@/utils/mihoyo/importResolver'
 import { buildGoodsIdentityAliases, buildGoodsIdentityKey } from '@/utils/goods/identity'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 
 defineOptions({ name: 'AccountImportView' })
 
 const { t } = useI18n()
+const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
 const {

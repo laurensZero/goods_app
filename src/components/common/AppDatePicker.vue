@@ -12,8 +12,13 @@
     <DatePicker
       v-model="valueProxy"
       :title="title"
+      :type="type"
       :min-date="minDate"
       :max-date="maxDate"
+      :min-hour="minHour"
+      :max-hour="maxHour"
+      :min-minute="minMinute"
+      :max-minute="maxMinute"
       @cancel="handleCancel"
       @confirm="handleConfirm"
     />
@@ -37,6 +42,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  type: {
+    type: String,
+    default: 'date'
+  },
   minDate: {
     type: Date,
     default: null
@@ -44,6 +53,22 @@ const props = defineProps({
   maxDate: {
     type: Date,
     default: null
+  },
+  minHour: {
+    type: Number,
+    default: 0
+  },
+  maxHour: {
+    type: Number,
+    default: 23
+  },
+  minMinute: {
+    type: Number,
+    default: 0
+  },
+  maxMinute: {
+    type: Number,
+    default: 59
   },
   isTablet: {
     type: Boolean,
