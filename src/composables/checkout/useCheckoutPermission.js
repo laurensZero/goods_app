@@ -14,11 +14,9 @@ import { createLogger } from '@/utils/logger'
 
 const log = createLogger('checkout-permission')
 
-// 模块级短时缓存：同一次访问内复用（MyView 与路由守卫不重复请求）；
-// 撤销白名单后最长 CACHE_TTL 内生效
-const CACHE_TTL_MS = 60000
+// 模块级缓存：同一次会话内复用（MyView 与路由守卫不重复请求）；
+// 一旦查到结果就不再重复请求，直到页面刷新
 let cachedAllowed = null
-let cachedAt = 0
 
 /**
  * 独立权限检查（组件与路由守卫共用），返回 Promise<boolean>
@@ -29,11 +27,10 @@ export async function checkCheckoutPermission() {
 
   if (!authStore.isLoggedIn) {
     cachedAllowed = false
-    cachedAt = 0
     return false
   }
 
-  if (cachedAt && Date.now() - cachedAt < CACHE_TTL_MS) {
+  if (cachedAllowed !== null) {
     return cachedAllowed
   }
 
@@ -46,7 +43,6 @@ export async function checkCheckoutPermission() {
     log.error('check:failed', { message: e?.message })
     cachedAllowed = false
   }
-  cachedAt = Date.now()
   return cachedAllowed
 }
 
@@ -75,6 +71,7 @@ export function useCheckoutPermission() {
     checked.value = false
     loading.value = false
     error.value = ''
+    cachedAllowed = null
   }
 
   return { allowed, loading, checked, error, check, reset }
