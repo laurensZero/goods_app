@@ -819,7 +819,7 @@ import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
-import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
 
 defineOptions({ name: 'MyView' })
 
@@ -1399,6 +1399,8 @@ useDialogBackButton(closeAccountManageSheet)
 useDialogBackButton(closeDeleteAccountSheet)
 useDialogBackButton(closeAnnouncementList)
 useDialogBackButton(closeAnnouncementDetail)
+
+ensureOverlayListener()
 
 onMounted(async () => {
   resetPageScrollTop()

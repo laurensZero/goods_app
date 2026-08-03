@@ -8,12 +8,13 @@ import { APP_BACK_BUTTON_EVENT } from '@/utils/platform/androidBackButton'
  * 全局 listener 仅在 stack 非空时注册，空时自动移除。
  *
  * 两种使用模式：
- *   1. v-if 控制的弹窗（挂载=打开，卸载=关闭）— 只传 close
- *   2. prop 始终挂载的弹窗 — 传 close + isOpened，动态注册/注销
+ *   1. v-if 控制的弹窗（挂载=打开，卸载=关闭）— 只传 close，需在调用后额外调用 ensureOverlayListener()
+ *   2. prop 始终挂载的弹窗 — 传 close + isOpened，动态注册/注销，自动处理
  *
  * @example
  * // v-if 弹窗（MyView 内联弹窗、AnnouncementDialog 等）
  * useDialogBackButton(closeBudgetDialog)
+ * ensureOverlayListener()
  *
  * // prop 控制的弹窗（QQBindingSheet、FeedbackDialog 等）
  * useDialogBackButton(close, () => props.show)
@@ -42,6 +43,10 @@ function removeGlobalListenerIfNeeded() {
 
 export function hasOverlays() {
   return overlayStack.length > 0
+}
+
+export function ensureOverlayListener() {
+  ensureGlobalListener()
 }
 
 /**

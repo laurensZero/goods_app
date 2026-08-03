@@ -76,7 +76,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const store = useCharacterBirthdayStore()
@@ -88,6 +88,8 @@ const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 
 useDialogBackButton(() => store.dismiss())
+
+ensureOverlayListener()
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
 
 // 手机 3×3 共 9 张；宽屏（与卡片拉宽同断点）4 列 12 张

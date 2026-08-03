@@ -63,7 +63,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppUpdateStore } from '@/stores/appUpdate'
-import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const updateStore = useAppUpdateStore()
@@ -71,6 +71,8 @@ const updateStore = useAppUpdateStore()
 const showDialog = computed(() => updateStore.dialogVisible && updateStore.hasUpdate)
 
 useDialogBackButton(() => updateStore.dismissDialog())
+
+ensureOverlayListener()
 const publishedAtLabel = computed(() => {
   const value = updateStore.latestRelease?.published_at
   if (!value) return ''

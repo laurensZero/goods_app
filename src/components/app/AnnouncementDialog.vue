@@ -51,7 +51,7 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
-import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const announcementStore = useAnnouncementStore()
@@ -59,6 +59,8 @@ const announcementStore = useAnnouncementStore()
 const showDialog = computed(() => announcementStore.dialogVisible && !!announcementStore.activeAnnouncement)
 
 useDialogBackButton(() => announcementStore.dismissAnnouncement())
+
+ensureOverlayListener()
 const activeAnnouncement = computed(() => announcementStore.activeAnnouncement)
 
 const contentHtml = ref('')
