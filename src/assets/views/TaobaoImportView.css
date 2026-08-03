@@ -740,7 +740,7 @@
 .sheet-backdrop-enter-from,
 .sheet-backdrop-leave-to     { opacity: 0; }
 
-.sheet-slide-enter-active { transition: transform .3s var(--motion-ease-spring); }
+.sheet-slide-enter-active { transition: transform .32s cubic-bezier(0.16, 1, 0.3, 1); }
 .sheet-slide-leave-active { transition: transform .3s var(--motion-ease-default); }
 .sheet-slide-enter-from,
 .sheet-slide-leave-to     { transform: translateX(-50%) translateY(100%); }
