@@ -1328,7 +1328,8 @@
 }
 
 .batch-sheet-slide-enter-active {
-  transition: transform 0.3s var(--motion-ease-spring);
+  /* 不用 --motion-ease-spring：整屏距离滑入时其过冲曲线会让面板飞过头再弹回，跳动过大 */
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .batch-sheet-slide-leave-active {
   transition: transform 0.22s ease-in;
