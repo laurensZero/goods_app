@@ -71,6 +71,14 @@ export function useCheckoutGifts() {
     return selectedGifts.value.get(activityId)?.has(String(goodsId)) || false
   }
 
+  function getSelectedGiftItems(activity, totalFeeYuan) {
+    const stage = getMatchedStage(activity, totalFeeYuan)
+    if (!stage) return []
+    const selected = selectedGifts.value.get(activity.activityId)
+    if (!selected || !selected.size) return []
+    return (stage.gifts || []).filter((gift) => selected.has(String(gift.goods_id)))
+  }
+
   /**
    * 获取匹配当前金额的阶梯信息
    */
@@ -82,17 +90,14 @@ export function useCheckoutGifts() {
   /**
    * 构建 pre_create_order 所需的 gift_activities 数组
    */
-  function buildGiftPayload(shopCode = '') {
+  function buildGiftPayload(shopCode = '', totalFeeYuan = 0) {
     const result = []
     for (const act of activities.value) {
+      const stage = getMatchedStage(act, totalFeeYuan)
       const selected = selectedGifts.value.get(act.activityId)
-      if (!selected || !selected.size) continue
-      const stage = act.stages.find((s) => {
-        const matched = [...act.stages].reverse().find((st) => st.gifts?.some((g) => selected.has(String(g.goods_id))))
-        return matched === s
-      })
+      if (!stage || !selected || !selected.size) continue
       const gifts = []
-      for (const gift of (stage?.gifts || [])) {
+      for (const gift of (stage.gifts || [])) {
         if (selected.has(String(gift.goods_id))) {
           gifts.push({
             goods_id: gift.goods_id,
@@ -118,6 +123,7 @@ export function useCheckoutGifts() {
     autoSelectGifts,
     toggleGift,
     isGiftSelected,
+    getSelectedGiftItems,
     getMatchedStage,
     buildGiftPayload,
   }

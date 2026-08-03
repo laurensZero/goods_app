@@ -274,5 +274,19 @@
   "checkout.orderNo": "注文番号",
   "checkout.payInMihoyoApp": "miHoYoギフトアプリで支払ってください",
   "checkout.orderSuccess": "注文成功",
-  "checkout.orderFailed": "注文失敗"
+  "checkout.orderFailed": "注文失敗",
+  "checkout.selectedGifts": "選択したギフト",
+  "checkout.addToQueue": "キューに追加",
+  "checkout.queueTitle": "注文キュー",
+  "checkout.queuePending": "待機中",
+  "checkout.queueRunning": "送信中",
+  "checkout.queueFailed": "失敗",
+  "checkout.queueRetry": "再試行",
+  "checkout.queueRemove": "削除",
+  "checkout.queueClearFailed": "失敗を消去",
+  "checkout.queueAdded": "キューに追加しました ({n})",
+  "checkout.queueOpen": "キュー",
+  "checkout.queueManageTitle": "保留中の注文をすばやく確認・管理",
+  "checkout.queueManageDesc": "ここで保留中、失敗、再試行可能な注文を確認できます。",
+  "checkout.queueEmpty": "現在、保留中の注文はありません"
 }

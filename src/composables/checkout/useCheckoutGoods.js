@@ -21,7 +21,9 @@ function createItem(goodsId) {
     skus: [],
     selectedSkuId: null,
     selectedSkuText: '',
+    selectedSkuStock: -1,
     quantity: 1,
+    fromCart: false,
     cover: '',
     loading: false,
     error: '',
@@ -32,6 +34,29 @@ function createItem(goodsId) {
     status: 0,
     remainingTime: 0,
   })
+}
+
+function getStockText(sku) {
+  if (!sku) return ''
+  if (sku.soldOut) return '商品已售罄'
+  return ''
+}
+
+function validateItemStock(item) {
+  const selectedSku = item.skus.find((s) => s.id === item.selectedSkuId) || null
+  const selectedStock = Number.isFinite(Number(item.selectedSkuStock)) ? Number(item.selectedSkuStock) : Number(selectedSku?.stock ?? -1)
+  if (selectedStock === 0 || selectedSku?.soldOut) {
+    item.error = '商品已售罄'
+    return false
+  }
+  if (selectedStock > 0 && Number(item.quantity || 0) > selectedStock) {
+    item.error = `当前规格库存不足（库存 ${selectedStock}，需要 ${item.quantity}）`
+    return false
+  }
+  if (selectedSku && item.error && /库存不足|已售罄/.test(item.error)) {
+    item.error = ''
+  }
+  return true
 }
 
 export function useCheckoutGoods() {
@@ -92,21 +117,35 @@ export function useCheckoutGoods() {
       item.remainingTime = detail.remainingTime
       if (detail.skus.length > 0) {
         const preset = detail.skus.find((s) => s.id === presetSkuId)
+        const availableSku = detail.skus.find((s) => !s.soldOut) || detail.skus[0]
         if (preset) {
           item.selectedSkuId = preset.id
           item.selectedSkuText = preset.text
+          item.selectedSkuStock = preset.stock
+          if (preset.soldOut) {
+            item.error = '当前选中的规格已售罄，请重新选择'
+          }
         } else {
-          item.selectedSkuId = detail.skus[0].id
-          item.selectedSkuText = detail.skus[0].text
+          item.selectedSkuId = availableSku.id
+          item.selectedSkuText = availableSku.text
+          item.selectedSkuStock = availableSku.stock
           // 购物车指定的 SKU 已不存在（下架/改版），解除锁定允许重新选择
           if (presetSkuId != null) item.skuLocked = false
+          if (availableSku.soldOut) {
+            item.error = getStockText(availableSku)
+          }
         }
+        validateItemStock(item)
+      } else if (detail.status === 0) {
+        item.error = '商品已售罄'
       }
+      return validateItemStock(item)
     } catch (e) {
       item.error = e.message || '获取详情失败'
     } finally {
       item.loading = false
     }
+    return false
   }
 
   /**
@@ -127,10 +166,15 @@ export function useCheckoutGoods() {
     item.shopCode = cartItem.shopCode || ''
     item.selectedSkuId = skuId
     item.selectedSkuText = cartItem.skuText || ''
+    item.fromCart = true
     // 购物车已确定 SKU，不再让用户重选
     item.skuLocked = true
     items.value.push(item)
-    await fetchItemDetail(item, cookie, item.selectedSkuId)
+    const ok = await fetchItemDetail(item, cookie, item.selectedSkuId)
+    if (!ok) {
+      removeItem(item.id)
+      return false
+    }
     return true
   }
 
@@ -151,7 +195,11 @@ export function useCheckoutGoods() {
     }
     const item = createItem(goodsId)
     items.value.push(item)
-    await fetchItemDetail(item, cookie)
+    const ok = await fetchItemDetail(item, cookie)
+    if (!ok) {
+      removeItem(item.id)
+      return false
+    }
     searchError.value = ''
     urlInput.value = ''
     return true
@@ -166,7 +214,11 @@ export function useCheckoutGoods() {
     item.name = result.name
     item.cover = result.cover_url || ''
     items.value.push(item)
-    await fetchItemDetail(item, cookie)
+    const ok = await fetchItemDetail(item, cookie)
+    if (!ok) {
+      removeItem(item.id)
+      return false
+    }
     searchError.value = ''
     searchKeyword.value = ''
     searchResults.value = []
@@ -182,6 +234,8 @@ export function useCheckoutGoods() {
     if (item) {
       item.selectedSkuId = skuId
       item.selectedSkuText = skuText
+      item.selectedSkuStock = item.skus.find((sku) => sku.id === skuId)?.stock ?? -1
+      validateItemStock(item)
     }
   }
 
@@ -189,6 +243,7 @@ export function useCheckoutGoods() {
     const item = items.value.find((i) => i.id === itemId)
     if (item) {
       item.quantity = Math.max(1, Math.min(99, qty))
+      validateItemStock(item)
     }
   }
 

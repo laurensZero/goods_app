@@ -2,8 +2,9 @@
  * 米游铺下单 API 层
  * 流程：地址 → 商品详情 → 领券 → 赠品详情 → 预创建订单 → 创建订单
  */
-import { mihoyoRequest } from '@/utils/mihoyo/request'
+import { mihoyoRequest, mihoyoRequestWithResponse } from '@/utils/mihoyo/request'
 import { createLogger } from '@/utils/logger'
+import { compareByPinyin } from '@/utils/pinyin'
 
 const log = createLogger('checkout')
 
@@ -64,11 +65,37 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
   const status = detail.status || 0
   const remainingTime = detail.remaining_time || 0
 
+  // 从 quantity.sku_quantities 构建库存映射（售罄判断依据）
+  // quantity 位于 data.goods.quantity（与 detail 平级），个别接口变体可能在 detail 下，做多位置兜底
+  // sku_quantities 格式: { "款式key_发货时间key": stockNumber, ... }
+  // 同时登记完整 key 与拆分的单个 contentKey，兼容 skus 的完整 key 与 sale_attrs 的 contentKey
+  const goodsQuantity = json.data?.goods?.quantity ?? detail.quantity ?? json.data?.quantity ?? {}
+  const skuQuantities = goodsQuantity.sku_quantities || {}
+  const stockByKey = new Map()
+  for (const [qKey, qStock] of Object.entries(skuQuantities)) {
+    const stock = Number(qStock ?? 0)
+    stockByKey.set(qKey, stock)
+    for (const part of String(qKey).split('_')) {
+      if (part) stockByKey.set(part, stock)
+    }
+  }
+
+  // 按候选 key 顺序解析 SKU 库存：skus 对象 key（完整组合 key）优先，其次 sku.id（可能是 contentKey）
+  function resolveSkuStock(sku, key) {
+    for (const candidate of [key, sku?.id]) {
+      if (candidate != null && stockByKey.has(String(candidate))) {
+        return stockByKey.get(String(candidate))
+      }
+    }
+    return Number(sku?.stock ?? sku?.quantity ?? sku?.sku_stock ?? -1)
+  }
+
+  // 优先从 detail.skus 构建，若为空则从 sale_attrs 提取 SKU 选项
   const skus = []
-  if (detail.skus && typeof detail.skus === 'object') {
+  if (detail.skus && typeof detail.skus === 'object' && Object.keys(detail.skus).length > 0) {
     for (const [key, sku] of Object.entries(detail.skus)) {
       if (!sku?.id) continue
-      const stock = Number(sku.stock ?? sku.quantity ?? sku.sku_stock ?? -1)
+      const stock = resolveSkuStock(sku, key)
       const rawPrice = sku.price ?? sku.sale_price ?? sku.activity_price ?? sku.actual_price
       const skuPrice = rawPrice != null && rawPrice > 0 ? rawPrice : null
       skus.push({
@@ -82,6 +109,29 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
       })
     }
   }
+
+  // fallback: 从 sale_attrs 提取 SKU 选项（detail.skus 为空时）
+  if (skus.length === 0 && Array.isArray(detail.sale_attrs)) {
+    for (const attr of detail.sale_attrs) {
+      if (!Array.isArray(attr.content)) continue
+      for (const opt of attr.content) {
+        const key = opt.key || ''
+        if (!key) continue
+        const stock = stockByKey.get(key) ?? -1
+        skus.push({
+          id: key,
+          text: opt.text || key,
+          key,
+          stock,
+          soldOut: stock === 0,
+          price: null,
+          cover: opt.img_url || '',
+        })
+      }
+    }
+  }
+
+  skus.sort((a, b) => compareByPinyin(a.text, b.text))
 
   const giftActivities = json.data?.goods?.detail?.promotion?.gift_activities
     || json.data?.promotion?.gift_activities
@@ -135,9 +185,41 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
     throw new Error(json.message || `获取赠品活动失败 (${json.retcode})`)
   }
   const data = json.data
-  const stages = data.stages || []
+  const stages = (data.stages || []).map((stage) => ({
+    ...stage,
+    gifts: (stage.gifts || []).map((gift) => {
+      const stock = Number(gift.stock ?? gift.quantity ?? gift.sku_stock ?? -1)
+      return {
+        ...gift,
+        goods_id: gift.goods_id,
+        sku_id: gift.sku_id || 0,
+        name: gift.name || '',
+        stock,
+        soldOut: stock <= 0,
+        cover_url: gift.cover_url || gift.img_url || gift.image_url || gift.goods_cover_url || '',
+      }
+    }),
+  }))
   log.debug('gift:detail', { activityId, stageCount: stages.length })
   return { activityId, stages, name: data.name || '' }
+}
+
+/**
+ * 拉取米游铺服务器时间，用响应头 Date 作为基准。
+ * @param {string} cookie
+ * @returns {Promise<{serverTime: number, offsetMs: number}>}
+ */
+export async function fetchMihoyoServerTime(cookie) {
+  const { response } = await mihoyoRequestWithResponse(API_ADDRESS_LIST, {
+    headers: authHeaders(cookie),
+  })
+  const serverDate = response?.headers?.get?.('date') || response?.headers?.get?.('Date') || ''
+  const parsed = serverDate ? new Date(serverDate).getTime() : NaN
+  const serverTime = Number.isFinite(parsed) ? parsed : Date.now()
+  return {
+    serverTime,
+    offsetMs: serverTime - Date.now(),
+  }
 }
 
 /**
@@ -147,9 +229,10 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
  * @param {string} payload.addressId
  * @param {Array} payload.items - [{goodsId, skuId, shopCode, nums}]
  * @param {Array} [payload.giftActivities] - [{activity_id, gifts: [{goods_id, sku_id, nums, shop_code}]}]
+ * @param {boolean} [payload.isFromShopCar=false]
  * @returns {Promise<{code, totalFee, shopOrders, respGifts}>}
  */
-export async function preCreateOrder(cookie, { addressId, items, giftActivities = [] }) {
+export async function preCreateOrder(cookie, { addressId, items, giftActivities = [], isFromShopCar = false }) {
   const body = {
     address_id: String(addressId),
     list: items.map((item) => ({
@@ -159,7 +242,7 @@ export async function preCreateOrder(cookie, { addressId, items, giftActivities 
       goods_id: item.goodsId,
     })),
     gift_activities: giftActivities,
-    is_from_shop_car: false,
+    is_from_shop_car: Boolean(isFromShopCar),
   }
 
   const json = await mihoyoRequest(API_PRE_CREATE_ORDER, {
@@ -227,4 +310,38 @@ export async function createOrder(cookie, { addressId, code, remark = '', items 
 
   log.debug('order:create', { orderNo, amount })
   return { orderNo, amount, productName }
+}
+
+/**
+ * 提交整单：预创建 + 创建订单。
+ * @param {string} cookie
+ * @param {Object} payload
+ * @param {string} payload.addressId
+ * @param {Array} payload.items
+ * @param {Array} [payload.giftActivities]
+ * @param {boolean} [payload.isFromShopCar]
+ * @param {string} [payload.remark]
+ * @returns {Promise<{orderNo, amount, productName, totalFee, shopOrders, respGifts}>}
+ */
+export async function submitCheckoutOrder(cookie, { addressId, items, giftActivities = [], isFromShopCar = false, remark = '' }) {
+  const preCreated = await preCreateOrder(cookie, {
+    addressId,
+    items,
+    giftActivities,
+    isFromShopCar,
+  })
+
+  const result = await createOrder(cookie, {
+    addressId,
+    code: preCreated.code,
+    remark,
+    items,
+  })
+
+  return {
+    ...result,
+    totalFee: preCreated.totalFee,
+    shopOrders: preCreated.shopOrders,
+    respGifts: preCreated.respGifts,
+  }
 }

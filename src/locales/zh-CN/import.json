@@ -274,5 +274,19 @@
   "checkout.orderNo": "订单号",
   "checkout.payInMihoyoApp": "请前往米游铺 App 支付",
   "checkout.orderSuccess": "下单成功",
-  "checkout.orderFailed": "下单失败"
+  "checkout.orderFailed": "下单失败",
+  "checkout.selectedGifts": "已选赠品",
+  "checkout.addToQueue": "加入队列",
+  "checkout.queueTitle": "订单队列",
+  "checkout.queuePending": "待下单",
+  "checkout.queueRunning": "下单中",
+  "checkout.queueFailed": "下单失败",
+  "checkout.queueRetry": "重试",
+  "checkout.queueRemove": "移除",
+  "checkout.queueClearFailed": "清理失败项",
+  "checkout.queueAdded": "已加入队列 ({n})",
+  "checkout.queueOpen": "队列管理",
+  "checkout.queueManageTitle": "快速查看和管理待下单订单",
+  "checkout.queueManageDesc": "这里可以查看待执行、失败和可重试的订单。",
+  "checkout.queueEmpty": "当前没有待执行的订单"
 }

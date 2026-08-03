@@ -16,6 +16,31 @@ export const DEFAULT_READ_TIMEOUT_MS = 30000
 // 该文案绝不能命中 isMihoyoCookieExpiredError 的正则，否则超时会误判为 Cookie 失效
 export const MIHOYO_TIMEOUT_MESSAGE = '请求超时，请检查网络连接'
 
+function buildResponseLike({ status = 0, headers = {}, body = '', url = '' }) {
+  const normalizedHeaders = Object.entries(headers || {}).reduce((result, [key, value]) => {
+    result[String(key || '').toLowerCase()] = String(value || '')
+    return result
+  }, {})
+
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    url,
+    headers: {
+      get(name) {
+        return normalizedHeaders[String(name || '').toLowerCase()] ?? null
+      },
+    },
+    async json() {
+      if (body == null || body === '') return {}
+      return typeof body === 'string' ? JSON.parse(body) : body
+    },
+    async text() {
+      return typeof body === 'string' ? body : JSON.stringify(body ?? {})
+    },
+  }
+}
+
 /** 判断错误是否为超时/中止类错误 */
 function isTimeoutLikeError(error) {
   return error?.name === 'AbortError' || /timeout|timed\s*out|超时/i.test(String(error?.message || ''))
@@ -55,6 +80,23 @@ export async function mihoyoRequest(path, {
   connectTimeoutMs = DEFAULT_CONNECT_TIMEOUT_MS,
   readTimeoutMs = DEFAULT_READ_TIMEOUT_MS,
 } = {}) {
+  const { json } = await mihoyoRequestWithResponse(path, {
+    method,
+    headers,
+    data,
+    connectTimeoutMs,
+    readTimeoutMs,
+  })
+  return json
+}
+
+export async function mihoyoRequestWithResponse(path, {
+  method = 'GET',
+  headers = {},
+  data = null,
+  connectTimeoutMs = DEFAULT_CONNECT_TIMEOUT_MS,
+  readTimeoutMs = DEFAULT_READ_TIMEOUT_MS,
+} = {}) {
   const totalTimeoutMs = connectTimeoutMs + readTimeoutMs
 
   if (Capacitor.isNativePlatform()) {
@@ -77,7 +119,16 @@ export async function mihoyoRequest(path, {
         }),
       ])
       // 与旧实现保持一致：原生端不检查 HTTP 状态码，仅由调用方检查 retcode
-      return typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+      const response = buildResponseLike({
+        status: Number(res.status || 0),
+        headers: res.headers || {},
+        body: res.data,
+        url: `${MIHOYO_API_BASE}${path}`,
+      })
+      return {
+        json: typeof res.data === 'string' ? JSON.parse(res.data) : res.data,
+        response,
+      }
     } catch (error) {
       if (isTimeoutLikeError(error)) throw new Error(MIHOYO_TIMEOUT_MESSAGE)
       throw error
@@ -99,7 +150,10 @@ export async function mihoyoRequest(path, {
       timeoutMs: totalTimeoutMs,
     })
     if (!res.ok) throw new Error(`请求失败（${res.status}）`)
-    return await res.json()
+    return {
+      json: await res.json(),
+      response: res,
+    }
   } catch (error) {
     if (isTimeoutLikeError(error)) throw new Error(MIHOYO_TIMEOUT_MESSAGE)
     throw error
