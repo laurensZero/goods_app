@@ -8,16 +8,18 @@ import { APP_BACK_BUTTON_EVENT } from '@/utils/platform/androidBackButton'
  * 全局 listener 仅在 stack 非空时注册，空时自动移除。
  *
  * 两种使用模式：
- *   1. v-if 控制的弹窗（挂载=打开，卸载=关闭）— 只传 close，需在调用后额外调用 ensureOverlayListener()
- *   2. prop 始终挂载的弹窗 — 传 close + isOpened，动态注册/注销，自动处理
+ *   1. v-if 控制的弹窗（挂载=打开，卸载=关闭）— 只传 close
+ *   2. prop 或 ref 始终挂载/KeepAlive 的弹窗 — 传 close + isOpened，动态注册/注销
  *
  * @example
- * // v-if 弹窗（MyView 内联弹窗、AnnouncementDialog 等）
- * useDialogBackButton(closeBudgetDialog)
- * ensureOverlayListener()
+ * // v-if 弹窗（非 KeepAlive 组件内的独立弹窗）
+ * useDialogBackButton(closeDialog)
  *
- * // prop 控制的弹窗（QQBindingSheet、FeedbackDialog 等）
+ * // ref/prop 控制的弹窗（QQBindingSheet、FeedbackDialog 等）
  * useDialogBackButton(close, () => props.show)
+ *
+ * // KeepAlive 组件内的弹窗（必须用 isOpened 模式，因为 onMounted 只触发一次）
+ * useDialogBackButton(closeDialog, showDialog)
  */
 
 const overlayStack = []
@@ -45,16 +47,12 @@ export function hasOverlays() {
   return overlayStack.length > 0
 }
 
-export function ensureOverlayListener() {
-  ensureGlobalListener()
-}
-
 /**
  * 注册弹窗的 Android 返回键关闭行为。
  * @param {Function} close - 关闭弹窗的回调
- * @param {Ref|Function|boolean} [isOpened] - 弹窗是否打开的状态，用于 prop 控制的弹窗（始终挂载）
- *   - v-if 控制的弹窗（挂载=打开，卸载=关闭）不需要传此参数
- *   - prop 控制的弹窗（始终挂载，visibility 由 prop 控制）需要传入
+ * @param {Ref|Function|boolean} [isOpened] - 弹窗是否打开的状态
+ *   - 非 KeepAlive 组件内的 v-if 弹窗可不传（挂载=注册，卸载=注销）
+ *   - KeepAlive 组件或 prop 控制的弹窗必须传入（动态注册/注销）
  */
 export function useDialogBackButton(close, isOpened) {
   if (isOpened !== undefined) {

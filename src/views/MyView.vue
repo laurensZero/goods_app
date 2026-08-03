@@ -819,7 +819,7 @@ import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
-import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 defineOptions({ name: 'MyView' })
 
@@ -1391,16 +1391,16 @@ async function confirmDeleteAccount() {
 
 
 // ── Android 返回键：关闭所有弹窗 ──
-useDialogBackButton(closeBudgetDialog)
-useDialogBackButton(closeLogoutDialog)
-useDialogBackButton(closeProfileEditSheet)
-useDialogBackButton(closeChangePasswordSheet)
-useDialogBackButton(closeAccountManageSheet)
-useDialogBackButton(closeDeleteAccountSheet)
-useDialogBackButton(closeAnnouncementList)
-useDialogBackButton(closeAnnouncementDetail)
-
-ensureOverlayListener()
+// 使用 isOpened 模式：KeepAlive 组件 onMounted 只触发一次，
+// 必须用 watcher 动态注册/注销，否则栈顺序与实际弹窗层级不匹配
+useDialogBackButton(closeBudgetDialog, showBudgetDialog)
+useDialogBackButton(closeLogoutDialog, showLogoutDialog)
+useDialogBackButton(closeProfileEditSheet, showProfileEditSheet)
+useDialogBackButton(closeChangePasswordSheet, showChangePasswordSheet)
+useDialogBackButton(closeAccountManageSheet, showAccountManageSheet)
+useDialogBackButton(closeDeleteAccountSheet, showDeleteAccountSheet)
+useDialogBackButton(closeAnnouncementList, () => announcementStore.listVisible)
+useDialogBackButton(closeAnnouncementDetail, () => detailAnnouncement.value !== null)
 
 onMounted(async () => {
   resetPageScrollTop()

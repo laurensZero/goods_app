@@ -56,7 +56,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { buildStorageQrUrl } from '@/utils/storageQr'
-import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
@@ -105,8 +105,6 @@ function close() {
 }
 
 useDialogBackButton(close)
-
-ensureOverlayListener()
 
 async function copyLink() {
   if (!qrUrl.value) return

@@ -33,7 +33,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useDialogBackButton, ensureOverlayListener } from '@/composables/useDialogBackButton'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -58,8 +58,6 @@ function cancel() {
 }
 
 useDialogBackButton(cancel)
-
-ensureOverlayListener()
 </script>
 
 <style scoped>
