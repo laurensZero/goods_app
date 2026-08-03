@@ -528,7 +528,7 @@ import { useCheckoutTimer } from '@/composables/checkout/useCheckoutTimer'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { receiveCoupon, preCreateOrder, createOrder } from '@/utils/mihoyo/checkout'
-import { canUseNativeMihoyoImport, getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
+import { canUseNativeMihoyoImport, getNativeMihoyoCookie, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
 import { formatPrice, formatDate } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -808,6 +808,8 @@ async function handleCookieNext() {
   }
   if (!activeCookie && isNativePlatform) {
     try {
+      // 参考购物车导入流程：调用原生插件，内部会自动打开 WebView 让用户登录
+      await importMihoyoCartWithSession()
       const nativeCookie = await getNativeMihoyoCookie()
       if (nativeCookie) activeCookie = nativeCookie
     } catch {}
