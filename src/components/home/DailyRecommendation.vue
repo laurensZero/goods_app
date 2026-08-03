@@ -65,6 +65,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -135,6 +136,8 @@ const priceText = computed(() => {
 })
 
 function close() { emit('update:modelValue', false) }
+
+useDialogBackButton(close, () => props.modelValue)
 function openDetail() { if (item.value) emit('open-detail', item.value.id) }
 
 watch(() => props.items, () => {

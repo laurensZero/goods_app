@@ -86,6 +86,7 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }
@@ -106,8 +107,9 @@ const registerSuccess = ref(false)
 
 function closeDialog() {
   emit('update:modelValue', false)
-  resetForm()
 }
+
+useDialogBackButton(closeDialog, () => props.modelValue)
 
 function goToLogin() {
   emit('switch-to-login')

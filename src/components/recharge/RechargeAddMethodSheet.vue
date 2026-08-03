@@ -53,11 +53,12 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   modelValue: { type: Boolean, default: false }
 })
 
 import { useI18n } from 'vue-i18n'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -66,6 +67,8 @@ const emit = defineEmits(['update:modelValue', 'manual', 'preset'])
 function close() {
   emit('update:modelValue', false)
 }
+
+useDialogBackButton(close, () => props.modelValue)
 
 function onManual() {
   emit('manual')

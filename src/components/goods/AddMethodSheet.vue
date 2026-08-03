@@ -232,6 +232,7 @@ import { useI18n } from 'vue-i18n'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { formatCurrency } from '@/utils/format'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -297,6 +298,8 @@ watch(view, (next) => {
 function close() {
   emit('update:modelValue', false)
 }
+
+useDialogBackButton(close, () => props.modelValue)
 
 function onManual() {
   emit('manual')

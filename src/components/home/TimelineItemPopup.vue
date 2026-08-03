@@ -62,6 +62,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -113,6 +114,8 @@ const displayAcquiredAtText = computed(() => {
 })
 
 function close() { emit('update:modelValue', false) }
+
+useDialogBackButton(close, () => props.modelValue)
 function openDetail() { emit('open-detail', props.item.sourceId || props.item.id) }
 </script>
 

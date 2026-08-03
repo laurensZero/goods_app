@@ -165,6 +165,7 @@ import { formatDate } from '@/utils/format'
 import { buildRechargePresetImageMap, resolveRechargePresetImage } from '@/utils/rechargeImages'
 import { pickLinkedLocalImage, isLocalImageUri } from '@/utils/image/localImage'
 import { validatePrice } from '@/utils/validate'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const GAME_LABEL_MAP = {
   hk4e_cn: '原神',
@@ -373,6 +374,8 @@ function close() {
   showDatePicker.value = false
   emit('update:show', false)
 }
+
+useDialogBackButton(close, () => props.show)
 
 function openDatePicker() {
   datePickerValue.value = toDatePickerValue(form.chargedAt)

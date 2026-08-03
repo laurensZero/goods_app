@@ -174,6 +174,7 @@ import { useAuthStore } from '@/stores/auth'
 import { createShare, updateShare, findMatchingShare, toggleShareDisabled } from '@/services/shareService'
 import { buildSharePosterDataUrl } from '@/utils/share/poster'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
   show: {
@@ -217,6 +218,8 @@ function getGoodsCover(item) {
 function handleClose() {
   emit('close')
 }
+
+useDialogBackButton(handleClose, () => props.show)
 
 function goToLogin() {
   emit('close')

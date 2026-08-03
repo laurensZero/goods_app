@@ -36,6 +36,7 @@
 import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -61,6 +62,8 @@ watch(() => props.modelValue, (open) => {
 function close() {
   emit('update:modelValue', false)
 }
+
+useDialogBackButton(close, () => props.modelValue)
 
 function onAfterLeave() {}
 
