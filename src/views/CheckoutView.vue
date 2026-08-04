@@ -456,6 +456,15 @@
                     >∞</button>
                   </div>
                 </div>
+                <div class="concurrency-row">
+                  <span class="retry-label">{{ t('checkout.concurrency') }}</span>
+                  <div class="qty-controls">
+                    <button type="button" class="qty-btn" :disabled="concurrency <= 1" @click="decreaseConcurrency">−</button>
+                    <span class="qty-value">{{ concurrency }}</span>
+                    <button type="button" class="qty-btn" :disabled="concurrency >= maxConcurrency" @click="increaseConcurrency">+</button>
+                  </div>
+                </div>
+                <p v-if="concurrency > 1" class="concurrency-warn">{{ t('checkout.concurrencyWarn') }}</p>
                 <button v-if="queueItems.length" type="button" class="queue-preview-btn" @click="showQueueManager = true">
                   <span>{{ t('checkout.queueTitle') }}</span>
                   <span class="queue-preview-btn__count">{{ queueItems.length }}</span>
@@ -671,7 +680,8 @@ const address = useCheckoutAddress()
 const goods = useCheckoutGoods()
 const gifts = useCheckoutGifts()
 const orderQueue = useCheckoutOrderQueue()
-const timer = useCheckoutTimer()
+// 倒计时基准时钟：手动时间用本地时钟，自动预填（开售/活动时间，服务器域）用服务器时钟
+const timer = useCheckoutTimer(() => (timerManuallySet.value ? Date.now() : orderQueue.getServerNow()))
 
 const {
   cookieInput, rememberCookie, hasSavedCookie, cookieValid,
@@ -730,6 +740,7 @@ const queueProcessing = orderQueue.processing
 const enqueueOrder = orderQueue.enqueueOrder
 const removeQueuedOrder = orderQueue.removeQueuedOrder
 const retryQueuedOrder = orderQueue.retryQueuedOrder
+const syncServerClock = orderQueue.syncServerClock
 
 const showQueueManager = ref(false)
 const showLeaveConfirm = ref(false)
@@ -976,6 +987,10 @@ watch(() => currentStep.value.key, (key) => {
 // 定时下单：仅在「提交步骤 + 定时开启 + 已设时间」时启动倒计时展示
 watch([timerEnabled, timerTargetTime, () => currentStep.value.key], ([enabled, target, key]) => {
   if (enabled && target && key === 'submit') {
+    // 刷新服务器时钟偏移，确保自动预填时间的倒计时与服务器同步
+    if (!timerManuallySet.value) {
+      void syncServerClock(cookie.value)
+    }
     timerStartWatching(() => {})
   } else {
     timerStopWatching()
@@ -1270,6 +1285,7 @@ async function handleQueueOrder() {
     scheduledAt: timerManuallySet.value ? timerTargetTime.value + offsetMs : timerTargetTime.value,
     displayAt: timerTargetTime.value,
     retryCount: retryCount.value,
+    concurrency: concurrency.value,
     snapshot: {
       ...snapshot,
       items: itemsPayload,
@@ -1300,6 +1316,18 @@ function increaseRetryCount() {
 
 function setInfiniteRetry() {
   retryCount.value = Infinity
+}
+
+// 同一笔订单的并发提交数（1-5），应对热门商品
+const maxConcurrency = 5
+const concurrency = ref(1)
+
+function decreaseConcurrency() {
+  concurrency.value = Math.max(1, concurrency.value - 1)
+}
+
+function increaseConcurrency() {
+  concurrency.value = Math.min(maxConcurrency, concurrency.value + 1)
 }
 
 function handleBack() {
@@ -1342,6 +1370,10 @@ onMounted(async () => {
 
 watch([timerEnabled, timerTargetTime, () => currentStep.value.key], ([enabled, target, key]) => {
   if (enabled && target && key === 'submit') {
+    // 刷新服务器时钟偏移，确保自动预填时间的倒计时与服务器同步
+    if (!timerManuallySet.value) {
+      void syncServerClock(cookie.value)
+    }
     timerStartWatching(() => {})
   } else {
     timerStopWatching()
@@ -2474,6 +2506,18 @@ onUnmounted(() => {
 .retry-label {
   font-size: 13px;
   color: var(--app-text-secondary);
+}
+
+.concurrency-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.concurrency-warn {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #c74444;
 }
 
 .retry-controls {
