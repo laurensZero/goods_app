@@ -511,6 +511,29 @@
       @confirm="onTimerConfirm"
     />
 
+    <Popup
+      v-model:show="showLeaveConfirm"
+      :position="leaveConfirmPosition"
+      :round="!isTabletViewport"
+      :close-on-click-overlay="false"
+      :class="['picker-popup', 'leave-confirm-popup', { 'picker-popup--center': isTabletViewport }]"
+    >
+      <div class="leave-confirm">
+        <div class="leave-confirm__content">
+          <h3 class="leave-confirm__title">{{ t('checkout.leaveTitle') }}</h3>
+          <p class="leave-confirm__message">{{ t('checkout.leaveConfirm') }}</p>
+        </div>
+        <div class="leave-confirm__actions">
+          <button type="button" class="leave-confirm__button leave-confirm__button--secondary" @click="showLeaveConfirm = false">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="button" class="leave-confirm__button leave-confirm__button--primary" @click="confirmLeave">
+            {{ t('common.confirm') }}
+          </button>
+        </div>
+      </div>
+    </Popup>
+
       <Popup
         v-model:show="showQueueManager"
         :position="queueManagerPosition"
@@ -616,7 +639,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
 import { Popup } from 'vant'
@@ -639,6 +662,7 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { isMihoyoCookieExpiredError, fetchCartList } from '@/utils/mihoyo/index'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const { showToast } = useToast()
 
@@ -657,13 +681,14 @@ const {
 
 const isNativePlatform = computed(() => canUseNativeMihoyoImport())
 
-const { currentStepIndex, currentStep, isFirstStep, progress, cookie, remark, error, loading, setError, nextStep, prevStep } = flow
+const { currentStepIndex, currentStep, progress, cookie, remark, error, loading, setError, nextStep, prevStep } = flow
 
 const couponProcessing = ref(false)
 const couponResults = ref([])
 const claimedCoupons = ref([])
 const submitting = ref(false)
 const orderResult = ref(null)
+const currentOrderQueued = ref(false)
 
 const addressLoading = address.loading
 const addressError = address.error
@@ -707,6 +732,7 @@ const removeQueuedOrder = orderQueue.removeQueuedOrder
 const retryQueuedOrder = orderQueue.retryQueuedOrder
 
 const showQueueManager = ref(false)
+const showLeaveConfirm = ref(false)
 
 const timerEnabled = timer.enabled
 const timerTargetTime = timer.targetTime
@@ -1091,6 +1117,7 @@ function buildOrderSnapshot() {
 const { isTabletViewport } = useTabletViewport()
 const cartPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const queueManagerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+const leaveConfirmPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const showCartPicker = ref(false)
 const cartLoading = ref(false)
 const cartError = ref('')
@@ -1252,6 +1279,7 @@ async function handleQueueOrder() {
     summary,
   })
 
+  currentOrderQueued.value = true
   showToast(t('checkout.queueAdded', { n: 1 }))
 }
 
@@ -1275,23 +1303,28 @@ function setInfiniteRetry() {
 }
 
 function handleBack() {
-  if (orderResult.value) {
-    runWithRouteTransition(() => router.push('/my'), { direction: 'back' })
-  } else if (isFirstStep.value) {
-    runWithRouteTransition(() => router.back(), { direction: 'back' })
-  } else {
-    prevStep()
+  if (!orderResult.value && items.value.length && !currentOrderQueued.value) {
+    showLeaveConfirm.value = true
+    return
   }
+  leaveCheckout()
+}
+
+function confirmLeave() {
+  showLeaveConfirm.value = false
+  leaveCheckout()
+}
+
+function leaveCheckout() {
+  runWithRouteTransition(() => router.push('/manage'), { direction: 'back' })
 }
 
 useDialogBackButton(() => {
-  if (orderResult.value) {
-    runWithRouteTransition(() => router.push('/my'), { direction: 'back' })
-  } else if (!isFirstStep.value) {
-    prevStep()
-  } else {
-    runWithRouteTransition(() => router.back(), { direction: 'back' })
+  if (showLeaveConfirm.value) {
+    showLeaveConfirm.value = false
+    return
   }
+  handleBack()
 }, computed(() => !orderResult.value))
 
 onMounted(async () => {
@@ -1300,6 +1333,10 @@ onMounted(async () => {
   if (canAutoSubmitSavedCookie.value) {
     applySavedCookieToInput()
     await handleCookieNext()
+  }
+  // 从「我的」页快速进入队列管理（/checkout?queue=1）
+  if (route.query?.queue && queueItems.value.length) {
+    showQueueManager.value = true
   }
 })
 
@@ -2582,6 +2619,62 @@ onUnmounted(() => {
 
 .queue-manager-popup {
   overflow: hidden;
+}
+
+.leave-confirm-popup {
+  overflow: hidden;
+}
+
+.leave-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 18px);
+}
+
+.leave-confirm__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leave-confirm__title {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.leave-confirm__message {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.leave-confirm__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.leave-confirm__button {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius-small);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.leave-confirm__button--secondary {
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+}
+
+.leave-confirm__button--primary {
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 .queue-panel {

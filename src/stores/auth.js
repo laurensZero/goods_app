@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isInitialized = ref(false)
   const linkedProviders = ref([])
   let authSubscription = null
+  let initPromise = null
 
   const isLoggedIn = computed(() => !!user.value)
   const userEmail = computed(() => user.value?.email || '')
@@ -76,7 +77,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   let wasConfigured = false
 
-  async function init() {
+  async function initializeAuth() {
     const configured = isSupabaseConfigured()
 
     // Already initialized with same config state — skip
@@ -140,6 +141,17 @@ export const useAuthStore = defineStore('auth', () => {
 
     isInitialized.value = true
     wasConfigured = true
+  }
+
+  async function init() {
+    if (initPromise) return initPromise
+
+    initPromise = initializeAuth()
+    try {
+      return await initPromise
+    } finally {
+      initPromise = null
+    }
   }
 
   async function loginWithEmail(email, password) {

@@ -27,6 +27,8 @@ export default [
       const { useAuthStore } = await import('@/stores/auth')
       const auth = useAuthStore()
       const fallback = from?.name && from.name !== 'checkout' ? from.fullPath : '/home'
+      // 确保 session 已恢复（刷新后 Supabase auth 异步加载，否则 isLoggedIn 可能为 false）
+      await auth.init()
       if (!auth.isLoggedIn) return fallback
       const { checkCheckoutPermission } = await import('@/composables/checkout/useCheckoutPermission')
       const allowed = await checkCheckoutPermission()
