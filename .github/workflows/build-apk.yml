@@ -405,7 +405,7 @@ jobs:
           echo "Total APK records: ${TOTAL}"
 
           if [ "${TOTAL}" -gt 2 ]; then
-            echo "${ALL_APKS}" | jq -c '.[2:]' | while read -r ROW; do
+            echo "${ALL_APKS}" | jq -c '.[2:][]' | while read -r ROW; do
               OLD_ID=$(echo "${ROW}" | jq -r '.id')
               OLD_PATH=$(echo "${ROW}" | jq -r '.storage_path // ""')
 
