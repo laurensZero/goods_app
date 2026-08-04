@@ -178,6 +178,56 @@ export function useCheckoutGoods() {
     return true
   }
 
+  /**
+   * 从购物车批量添加：一次性 push 全部选中项（用购物车已有信息立即填充并展示），
+   * 立即返回，详情在后台受限并发拉取补齐 SKU 库存/价格等，避免阻塞弹窗关闭。
+   * @param {Array<Object>} cartItems
+   * @param {string} cookie
+   * @returns {number} 实际 push 进列表的数量
+   */
+  function addItemsFromCart(cartItems, cookie) {
+    const addedItems = []
+    for (const cartItem of cartItems) {
+      const goodsId = String(cartItem.goodsId || cartItem.goods_id || '')
+      if (!goodsId) continue
+      const skuId = cartItem.skuId != null ? Number(cartItem.skuId) : null
+      // 与现有 items 判重（基于 push 前的快照，批量场景不会互相冲突）
+      const duplicate = items.value.some(
+        (i) => i.goodsId === goodsId && (skuId == null || i.selectedSkuId === skuId)
+      )
+      if (duplicate) continue
+      const item = createItem(goodsId)
+      item.name = cartItem.name || ''
+      item.cover = cartItem.cover || ''
+      item.shopCode = cartItem.shopCode || ''
+      item.price = Number(cartItem.price) || 0
+      item.quantity = Math.max(1, Number(cartItem.quantity) || 1)
+      item.selectedSkuId = skuId
+      item.selectedSkuText = cartItem.skuText || ''
+      item.fromCart = true
+      // 购物车已确定 SKU，不再让用户重选
+      item.skuLocked = true
+      items.value.push(item)
+      addedItems.push(item)
+    }
+    if (addedItems.length === 0) return 0
+
+    // 后台受限并发拉详情：避免对米游铺接口同时发起过多请求，且不阻塞调用方
+    const CONCURRENCY = 4
+    let next = 0
+    async function worker() {
+      while (next < addedItems.length) {
+        const item = addedItems[next++]
+        const ok = await fetchItemDetail(item, cookie, item.selectedSkuId)
+        if (!ok) {
+          removeItem(item.id)
+        }
+      }
+    }
+    void Promise.all(Array.from({ length: Math.min(CONCURRENCY, addedItems.length) }, worker))
+    return addedItems.length
+  }
+
   async function addItemFromUrl(url, cookie) {
     if (!isMihoyoGiftUrl(url)) {
       searchError.value = '请输入有效的米游铺商品链接'
@@ -284,6 +334,7 @@ export function useCheckoutGoods() {
     addItemFromUrl,
     addItemFromSearch,
     addItemFromCart,
+    addItemsFromCart,
     removeItem,
     updateItemSku,
     updateItemQuantity,

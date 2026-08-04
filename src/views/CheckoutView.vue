@@ -349,11 +349,15 @@
           <div class="field-card">
             <p class="card-label">{{ t('checkout.orderItems') }}</p>
             <div v-for="item in items" :key="item.id" class="review-item">
-              <p class="review-item__name">{{ item.name }}</p>
-              <div class="review-item__meta">
-                <span class="review-item__sku">{{ item.selectedSkuText || '' }}</span>
-                <span class="review-item__qty">x{{ item.quantity }}</span>
-                <span class="review-item__price">{{ formatFen(getItemPrice(item)) }}</span>
+              <img v-if="getItemCover(item)" :src="getItemCover(item)" class="review-item__img" loading="lazy" />
+              <div v-else class="review-item__img review-item__img--fallback">商</div>
+              <div class="review-item__body">
+                <p class="review-item__name">{{ item.name }}</p>
+                <div class="review-item__meta">
+                  <span class="review-item__sku">{{ item.selectedSkuText || '' }}</span>
+                  <span class="review-item__qty">x{{ item.quantity }}</span>
+                  <span class="review-item__price">{{ formatFen(getItemPrice(item)) }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -678,7 +682,7 @@ const totalAmount = goods.totalAmount
 const allCoupons = goods.allCoupons
 const allGiftActivities = goods.allGiftActivities
 const addItemFromSearch = goods.addItemFromSearch
-const addItemFromCart = goods.addItemFromCart
+const addItemsFromCart = goods.addItemsFromCart
 const removeItem = goods.removeItem
 const updateItemSku = goods.updateItemSku
 const updateItemQuantity = goods.updateItemQuantity
@@ -1130,6 +1134,9 @@ function flattenCart(shops) {
         name: item.goods_name || item.name || '',
         cover: item.cover_url || '',
         skuText: item.sale_attr_val || item.sku_text || '',
+        // 购物车自带单价（分）与数量，先填充避免等待详情；详情返回后以 SKU 价为准
+        price: Number(item.new_price_fee ?? item.price_fee ?? item.old_price_fee ?? 0) || 0,
+        quantity: Math.max(1, Number(item.nums) || Number(item.quantity_buy) || 1),
         soldOut: Number(item.sold_out_status || 0) !== 0,
       })
     }
@@ -1146,14 +1153,12 @@ function toggleCartItem(key) {
   cartSelected.value = next
 }
 
-async function handleAddFromCart() {
+function handleAddFromCart() {
   if (!cartSelected.value.size || cartAdding.value) return
   cartAdding.value = true
   const selected = cartItems.value.filter((i) => cartSelected.value.has(i.key))
-  let added = 0
-  for (const item of selected) {
-    if (await addItemFromCart(item, cookie.value)) added++
-  }
+  // 批量添加：一次性 push 全部并立即关闭弹窗，详情在后台加载补齐
+  const added = addItemsFromCart(selected, cookie.value)
   cartAdding.value = false
   showCartPicker.value = false
   cartSelected.value = new Set()
@@ -2134,12 +2139,38 @@ onUnmounted(() => {
 }
 
 .review-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 8px 0;
   border-bottom: 1px solid var(--app-border);
 }
 
 .review-item:last-child {
   border-bottom: none;
+}
+
+.review-item__img {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--app-surface);
+}
+
+.review-item__img--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.review-item__body {
+  flex: 1;
+  min-width: 0;
 }
 
 .review-item__name {
