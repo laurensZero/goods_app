@@ -2,6 +2,8 @@
 
 一款用于管理动漫/游戏周边（谷子）收藏的 Android 应用，同时支持 Tauri 桌面端和 Web 端。界面支持简体中文、繁体中文、English、日本語、한국어。
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/laurensZero/goods_app)
+
 ## 功能特性
 
 - **谷子管理**：添加、编辑、删除和查看谷子详情，支持状态时间线（预订/发货/到手等）与开售倒计时提醒
