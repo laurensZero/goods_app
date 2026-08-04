@@ -50,6 +50,8 @@ on:
       - '**.md'
       - 'LICENSE'
       - 'supabase/**'
+      - 'package.json'
+      - 'package-lock.json'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
