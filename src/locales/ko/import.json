@@ -290,5 +290,7 @@
   "checkout.queueOpen": "대기열",
   "checkout.queueManageTitle": "대기 중인 주문을 빠르게 확인하고 관리",
   "checkout.queueManageDesc": "여기에서 대기, 실패, 재시도 가능한 주문을 볼 수 있습니다.",
-  "checkout.queueEmpty": "현재 대기 중인 주문이 없습니다"
+  "checkout.queueEmpty": "현재 대기 중인 주문이 없습니다",
+  "checkout.leaveTitle": "나가기 확인",
+  "checkout.leaveConfirm": "상품이 추가되었지만 주문 대기열에 추가되지 않았습니다. 나가시겠습니까?"
 }

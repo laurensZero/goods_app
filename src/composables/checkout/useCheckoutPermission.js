@@ -9,6 +9,7 @@
  */
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { getSession } from '@/utils/supabase/auth'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 
@@ -25,6 +26,9 @@ let cachedAllowed = null
 export async function checkCheckoutPermission() {
   const authStore = useAuthStore()
 
+  // 硬刷新时 Supabase 的持久化 session 可能还在恢复，先等待认证初始化完成。
+  await authStore.init()
+
   if (!authStore.isLoggedIn) {
     cachedAllowed = false
     return false
@@ -36,7 +40,15 @@ export async function checkCheckoutPermission() {
 
   try {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.functions.invoke('check-checkout-permission', { method: 'GET' })
+    const session = await getSession()
+    if (!session?.access_token) {
+      cachedAllowed = false
+      return cachedAllowed
+    }
+    const { data, error } = await supabase.functions.invoke('check-checkout-permission', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
     if (error) throw error
     cachedAllowed = data?.allowed === true
   } catch (e) {

@@ -290,5 +290,7 @@
   "checkout.queueOpen": "キュー",
   "checkout.queueManageTitle": "保留中の注文をすばやく確認・管理",
   "checkout.queueManageDesc": "ここで保留中、失敗、再試行可能な注文を確認できます。",
-  "checkout.queueEmpty": "現在、保留中の注文はありません"
+  "checkout.queueEmpty": "現在、保留中の注文はありません",
+  "checkout.leaveTitle": "終了の確認",
+  "checkout.leaveConfirm": "商品が追加されていますが、注文キューには追加されていません。終了しますか？"
 }

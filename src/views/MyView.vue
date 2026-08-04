@@ -274,6 +274,15 @@
               <span class="detail-row__label">{{ t('my.syncStatus') }}</span>
               <span class="detail-row__value">{{ syncStore.syncStatus || (authStore.isLoggedIn ? t('my.ready') : t('my.unprocessed')) }}</span>
             </div>
+            <!-- 自助下单队列：仅在有待处理/失败订单时展示，点击进入队列管理 -->
+            <div
+              v-if="queueItems.length"
+              class="detail-row detail-row--clickable"
+              @click="openCheckoutQueue"
+            >
+              <span class="detail-row__label">{{ t('checkout.queueTitle') }}</span>
+              <span class="detail-row__value">{{ checkoutQueueSummary }}</span>
+            </div>
             <div class="detail-row detail-row--clickable" @click="refreshExchangeRates">
               <span class="detail-row__label">{{ t('my.exchangeRateUpdate') }}</span>
               <span class="detail-row__value" :class="{ 'detail-row__value--error': exchangeRateStore.error }">
@@ -828,6 +837,7 @@ import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useCheckoutPermission } from '@/composables/checkout/useCheckoutPermission'
+import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 
 defineOptions({ name: 'MyView' })
 
@@ -836,6 +846,9 @@ const router = useRouter()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
 const checkoutPermission = useCheckoutPermission()
+const checkoutQueue = useCheckoutOrderQueue()
+const queueItems = checkoutQueue.queue
+const failedQueueItems = checkoutQueue.failedQueueItems
 const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
@@ -1053,6 +1066,21 @@ function resetPageScrollTop() {
 
 function openCheckout() {
   runWithRouteTransition(() => router.push('/checkout'), { direction: 'forward' })
+}
+
+// 自助下单队列：待处理 + 失败数量，可点击快速进入队列管理
+const checkoutQueueSummary = computed(() => {
+  const total = queueItems.value.length
+  const failed = failedQueueItems.value.length
+  const pending = Math.max(0, total - failed)
+  const parts = []
+  if (pending > 0) parts.push(t('checkout.queuePending') + ` ${pending}`)
+  if (failed > 0) parts.push(t('checkout.queueFailed') + ` ${failed}`)
+  return parts.join(' · ')
+})
+
+function openCheckoutQueue() {
+  runWithRouteTransition(() => router.push({ path: '/checkout', query: { queue: '1' } }), { direction: 'forward' })
 }
 
 function openSync() {

@@ -290,5 +290,7 @@
   "checkout.queueOpen": "队列管理",
   "checkout.queueManageTitle": "快速查看和管理待下单订单",
   "checkout.queueManageDesc": "这里可以查看待执行、失败和可重试的订单。",
-  "checkout.queueEmpty": "当前没有待执行的订单"
+  "checkout.queueEmpty": "当前没有待执行的订单",
+  "checkout.leaveTitle": "确认退出",
+  "checkout.leaveConfirm": "当前已添加商品但尚未加入订单队列，确定要退出吗？"
 }
