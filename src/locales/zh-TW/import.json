@@ -290,6 +290,9 @@
   "checkout.queueOpen": "佇列管理",
   "checkout.queueManageTitle": "快速查看和管理待下單訂單",
   "checkout.queueManageDesc": "這裡可以查看待執行、失敗和可重試的訂單。",
+  "checkout.concurrency": "並發數",
+  "checkout.concurrencyHint": "同一筆訂單到點後同時並發提交多份請求，提高搶購成功率",
+  "checkout.concurrencyWarn": "並發下單可能導致重複下單，請謹慎使用",
   "checkout.queueEmpty": "目前沒有待執行的訂單",
   "checkout.leaveTitle": "確認退出",
   "checkout.leaveConfirm": "目前已添加商品但尚未加入訂單佇列，確定要退出嗎？"

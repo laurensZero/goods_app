@@ -2,9 +2,9 @@ import { computed, ref } from 'vue'
 import { submitCheckoutOrder, fetchMihoyoServerTime } from '@/utils/mihoyo/checkout'
 
 const STORAGE_KEY = 'checkout-order-queue-v1'
+const CONCURRENCY_MAX = 5
 const CLOCK_CACHE_TTL = 60 * 1000
-const RETRY_BASE_DELAY = 500
-const RETRY_MAX_DELAY = 10 * 1000
+const RETRY_DELAY = 500
 
 const queue = ref([])
 const hydrated = ref(false)
@@ -16,6 +16,10 @@ let queueWatcherId = 0
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined'
+}
+
+function clampConcurrency(n) {
+  return Math.min(CONCURRENCY_MAX, Math.max(1, Number(n) || 1))
 }
 
 function readStorageQueue() {
@@ -51,6 +55,8 @@ function normalizeQueueItem(item) {
     nextAttemptAt: Number(item?.nextAttemptAt) || Number(item?.scheduledAt) || Date.now(),
     attempts: Number(item?.attempts) || 0,
     maxAttempts: item?.maxAttempts === Infinity ? Infinity : Math.max(1, Number(item?.maxAttempts) || 3),
+    // 同一笔订单的并发提交数：入队时快照，到点同时发起多份提交
+    concurrency: clampConcurrency(snapshot.concurrency),
     status: ['pending', 'running', 'failed'].includes(item?.status) ? item.status : 'pending',
     lastError: String(item?.lastError || ''),
     snapshot: {
@@ -95,7 +101,7 @@ async function syncServerClock(cookie, force = false) {
   return getServerNow()
 }
 
-function createQueueEntry({ scheduledAt, displayAt, retryCount, snapshot, summary }) {
+function createQueueEntry({ scheduledAt, displayAt, retryCount, concurrency = 1, snapshot, summary }) {
   return normalizeQueueItem({
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     createdAt: Date.now(),
@@ -106,7 +112,10 @@ function createQueueEntry({ scheduledAt, displayAt, retryCount, snapshot, summar
     maxAttempts: retryCount === Infinity ? Infinity : Math.max(1, Number(retryCount) || 1),
     status: 'pending',
     lastError: '',
-    snapshot,
+    snapshot: {
+      ...snapshot,
+      concurrency: clampConcurrency(concurrency),
+    },
     summary,
   })
 }
@@ -147,6 +156,69 @@ function clearQueue() {
   persistQueue()
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// 固定 0.5s 重试，附加 ±0.2s 随机抖动，避免多线程同时发请求
+function getRetryDelay() {
+  return RETRY_DELAY + (Math.random() * 400 - 200)
+}
+
+function buildOrderPayload(entry) {
+  return {
+    addressId: entry.snapshot.addressId,
+    items: entry.snapshot.items,
+    giftActivities: entry.snapshot.giftActivities,
+    isFromShopCar: Boolean(entry.snapshot.isFromShopCar),
+    remark: entry.snapshot.remark,
+  }
+}
+
+// 单个并发线程：按重试次数自行重试（非重试类错误立即抛出不等待），直到成功或耗尽次数
+async function submitWithRetry(cookie, payload, maxAttempts) {
+  let attempt = 0
+  for (;;) {
+    try {
+      return await submitCheckoutOrder(cookie, payload)
+    } catch (error) {
+      const message = String(error?.message || '下单失败')
+      const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
+      attempt += 1
+      if (!retriable) throw error
+      if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
+      await sleep(getRetryDelay())
+    }
+  }
+}
+
+// 同一笔订单并发 n 个线程：任一线程成功即返回成功（其余线程继续跑完，结果忽略）；
+// 全部线程耗尽重试次数仍失败才返回失败
+function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
+  return new Promise((resolve) => {
+    let settled = false
+    let rejected = 0
+    let lastError = null
+    for (let i = 0; i < n; i++) {
+      submitWithRetry(cookie, payload, maxAttempts)
+        .then((result) => {
+          if (!settled) {
+            settled = true
+            resolve({ ok: true, result })
+          }
+        })
+        .catch((error) => {
+          lastError = error
+          rejected += 1
+          if (!settled && rejected >= n) {
+            settled = true
+            resolve({ ok: false, error: lastError })
+          }
+        })
+    }
+  })
+}
+
 async function executeQueuedOrder(entry) {
   const serverNow = await syncServerClock(entry.snapshot.cookie)
   if (serverNow < entry.nextAttemptAt) return false
@@ -155,35 +227,24 @@ async function executeQueuedOrder(entry) {
   entry.lastError = ''
   persistQueue()
 
-  try {
-    const result = await submitCheckoutOrder(entry.snapshot.cookie, {
-      addressId: entry.snapshot.addressId,
-      items: entry.snapshot.items,
-      giftActivities: entry.snapshot.giftActivities,
-      isFromShopCar: Boolean(entry.snapshot.isFromShopCar),
-      remark: entry.snapshot.remark,
-    })
+  const n = clampConcurrency(entry.concurrency)
+  const result = await runConcurrentSubmits(
+    entry.snapshot.cookie,
+    buildOrderPayload(entry),
+    n,
+    entry.maxAttempts,
+  )
+
+  if (result.ok) {
     queue.value = queue.value.filter((item) => item.id !== entry.id)
     persistQueue()
-    return { ok: true, result }
-  } catch (error) {
-    const message = String(error?.message || '下单失败')
-    const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
-    entry.attempts += 1
-    entry.lastError = message
-
-    if (!retriable || (entry.maxAttempts !== Infinity && entry.attempts >= entry.maxAttempts)) {
-      entry.status = 'failed'
-      persistQueue()
-      return { ok: false, retriable: false, error: error }
-    }
-
-    entry.status = 'pending'
-    const backoff = Math.min(RETRY_BASE_DELAY * Math.pow(2, entry.attempts - 1), RETRY_MAX_DELAY)
-    entry.nextAttemptAt = getServerNow() + backoff
-    persistQueue()
-    return { ok: false, retriable: true, error: error }
+    return { ok: true, result: result.result }
   }
+
+  entry.lastError = String(result.error?.message || '下单失败')
+  entry.status = 'failed'
+  persistQueue()
+  return { ok: false, retriable: false, error: result.error }
 }
 
 async function processQueue() {

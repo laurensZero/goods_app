@@ -4,7 +4,8 @@
  */
 import { ref, computed, onUnmounted } from 'vue'
 
-export function useCheckoutTimer() {
+export function useCheckoutTimer(nowProvider) {
+  const getNow = typeof nowProvider === 'function' ? nowProvider : () => Date.now()
   const targetTime = ref(0)
   const enabled = ref(false)
   const remaining = ref(0)
@@ -49,7 +50,7 @@ export function useCheckoutTimer() {
     onFireCallback = callback
     const update = () => {
       if (!enabled.value || !targetTime.value) return
-      const now = Date.now()
+      const now = getNow()
       remaining.value = targetTime.value - now
       if (remaining.value <= 0 && !autoFired.value) {
         autoFired.value = true
@@ -75,7 +76,7 @@ export function useCheckoutTimer() {
   function setTargetTime(timestamp) {
     targetTime.value = timestamp
     autoFired.value = false
-    remaining.value = Math.max(0, timestamp - Date.now())
+    remaining.value = Math.max(0, timestamp - getNow())
   }
 
   function setEnabled(val) {
