@@ -4,7 +4,8 @@
 // notify-dispatch（每分钟 cron）负责投递 QQ。
 //
 // 触发方式（两套调度，见 docs/mihoyo-new-arrival-monitor-plan.md）：
-//   GET .../scan-mihoyo?catalog=shop    商店「即将上架」(show_sale_type=2) —— 每天 6 次
+//   GET .../scan-mihoyo?catalog=shop    商店「即将上架」(show_sale_type=2) —— 全天每 20 分钟
+//                                          + 北京 12:00-12:05 / 18:00-18:05 每分钟补扫
 //   GET .../scan-mihoyo?catalog=point   积分商城（7 店，需手机头）          —— 每小时
 //   GET .../scan-mihoyo?catalog=all     全量（手动/补数据）
 //
