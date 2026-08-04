@@ -18,7 +18,7 @@
     </NavBar>
 
     <main class="page-body">
-      <StepProgress :progress="progress" />
+      <StepProgress :progress="displayProgress" />
 
       <Transition name="step-fade" mode="out-in">
         <!-- Step 0: Cookie -->
@@ -133,48 +133,142 @@
             <h2 class="section-title">{{ stepTitle }}</h2>
           </div>
 
-          <div class="field-card">
-            <div class="search-row">
-              <input
-                v-model="searchKeyword"
-                type="text"
-                class="search-input"
-                :placeholder="t('checkout.searchOrUrl')"
-                @keydown.enter.prevent="handleSearch(cookie)"
-              />
-              <button class="search-btn" type="button" :disabled="searching" @click="handleSearch(cookie)">
-                {{ searching ? t('import.searching') : t('common.search') }}
-              </button>
-            </div>
-            <p v-if="searchError" class="field-error">{{ searchError }}</p>
-
-            <div v-if="searchResults.length" class="search-results">
-              <button
-                v-for="r in searchResults"
-                :key="r.goods_id"
-                type="button"
-                class="search-result-row"
-                @click="addItemFromSearch(r, cookie)"
-              >
-                <img v-if="r.cover_url" :src="r.cover_url" class="search-result-thumb" loading="lazy" />
-                <span class="search-result-name">{{ r.name }}</span>
-              </button>
-            </div>
-
-            <button class="cart-entry" type="button" @click="openCartPicker">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="9" cy="20" r="1.5" />
-                <circle cx="18" cy="20" r="1.5" />
-                <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h9.9a1 1 0 0 0 1-.77L21 7H7.4" />
-              </svg>
-              <span>{{ t('checkout.fromCart') }}</span>
-              <svg class="cart-entry__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+          <div class="checkout-mode-switch" role="tablist" :aria-label="t('checkout.orderMode')">
+            <button
+              type="button"
+              class="checkout-mode-switch__item"
+              :class="{ 'checkout-mode-switch__item--active': !isPointOrder }"
+              role="tab"
+              :aria-selected="!isPointOrder"
+              @click="setOrderMode(false)"
+            >
+              {{ t('checkout.normalOrder') }}
+            </button>
+            <button
+              type="button"
+              class="checkout-mode-switch__item"
+              :class="{ 'checkout-mode-switch__item--active': isPointOrder }"
+              role="tab"
+              :aria-selected="isPointOrder"
+              @click="setOrderMode(true)"
+            >
+              {{ t('checkout.pointExchange') }}
             </button>
           </div>
 
-          <div v-if="!items.length" class="field-card">
+          <template v-if="!isPointOrder">
+            <div class="field-card">
+              <div class="search-row">
+                <input
+                  v-model="searchKeyword"
+                  type="text"
+                  class="search-input"
+                  :placeholder="t('checkout.searchOrUrl')"
+                  @keydown.enter.prevent="handleSearch(cookie)"
+                />
+                <button class="search-btn" type="button" :disabled="searching" @click="handleSearch(cookie)">
+                  {{ searching ? t('import.searching') : t('common.search') }}
+                </button>
+              </div>
+              <p v-if="searchError" class="field-error">{{ searchError }}</p>
+
+              <div v-if="searchResults.length" class="search-results">
+                <button
+                  v-for="r in searchResults"
+                  :key="r.goods_id"
+                  type="button"
+                  class="search-result-row"
+                  @click="addItemFromSearch(r, cookie)"
+                >
+                  <img v-if="r.cover_url" :src="r.cover_url" class="search-result-thumb" loading="lazy" />
+                  <span class="search-result-name">{{ r.name }}</span>
+                </button>
+              </div>
+
+              <button class="cart-entry" type="button" @click="openCartPicker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="9" cy="20" r="1.5" />
+                  <circle cx="18" cy="20" r="1.5" />
+                  <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h9.9a1 1 0 0 0 1-.77L21 7H7.4" />
+                </svg>
+                <span>{{ t('checkout.fromCart') }}</span>
+                <svg class="cart-entry__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            </div>
+
+          </template>
+
+          <div v-else class="points-panel">
+            <div class="points-panel__head">
+              <div>
+                <p class="points-panel__label">{{ t('checkout.currentPoints') }}</p>
+                <p class="points-panel__balance">{{ pointBalance }} <span>{{ t('checkout.pointsUnit') }}</span></p>
+              </div>
+              <button type="button" class="points-panel__refresh" :disabled="pointLoading" @click="loadPointGoods(true)">
+                {{ pointLoading ? t('checkout.loadingPoints') : t('checkout.refreshPoints') }}
+              </button>
+            </div>
+
+            <div class="points-tabs" role="tablist" :aria-label="t('checkout.pointCategory')">
+              <button
+                type="button"
+                class="points-tab"
+                :class="{ 'points-tab--active': activePointShopCode === 'all' }"
+                role="tab"
+                :aria-selected="activePointShopCode === 'all'"
+                @click="activePointShopCode = 'all'"
+              >
+                {{ t('checkout.allIps') }}
+              </button>
+              <button
+                v-for="shop in pointShopOptions"
+                :key="shop.code"
+                type="button"
+                class="points-tab"
+                :class="{ 'points-tab--active': activePointShopCode === shop.code }"
+                role="tab"
+                :aria-selected="activePointShopCode === shop.code"
+                @click="activePointShopCode = shop.code"
+              >
+                {{ pointShopLabel(shop) }}
+              </button>
+            </div>
+
+            <div v-if="pointLoading" class="loading-state points-panel__loading">
+              <div class="parse-spinner" />
+              <p class="loading-text">{{ t('checkout.loadingPointGoods') }}</p>
+            </div>
+            <p v-else-if="pointError" class="step-error">{{ pointError }}</p>
+            <p v-else-if="!visiblePointGoods.length" class="empty-hint">{{ t('checkout.noPointGoods') }}</p>
+            <div v-else class="points-grid">
+              <button
+                v-for="pointGoodsItem in visiblePointGoods"
+                :key="`${pointGoodsItem.shop_code}:${pointGoodsItem.goods_id}`"
+                type="button"
+                class="points-card"
+                :class="{
+                  'points-card--selected': items.some((item) => item.goodsId === pointGoodsItem.goods_id),
+                  'points-card--soldout': pointGoodsItem.is_sold_out,
+                  'points-card--unaffordable': !isPointGoodsAffordable(pointGoodsItem),
+                }"
+                :disabled="pointGoodsItem.is_sold_out || !isPointGoodsAffordable(pointGoodsItem) || pointSelectingId === pointGoodsItem.goods_id"
+                @click="selectPointGoods(pointGoodsItem)"
+              >
+                <img v-if="pointGoodsItem.cover_url" :src="pointGoodsItem.cover_url" class="points-card__image" loading="lazy" />
+                <div v-else class="points-card__image points-card__image--fallback">礼</div>
+                <span class="points-card__name">{{ pointGoodsItem.name }}</span>
+                <span class="points-card__cost">{{ pointGoodsItem.point }} {{ t('checkout.pointsUnit') }}</span>
+                <span class="points-card__cash">{{ formatFen(pointGoodsItem.price) }}</span>
+                <span v-if="pointGoodsItem.is_sold_out" class="points-card__status">{{ t('checkout.soldOut') }}</span>
+                <span v-else-if="!isPointGoodsAffordable(pointGoodsItem)" class="points-card__status">{{ t('checkout.notEnoughPoints') }}</span>
+              </button>
+            </div>
+            <p v-if="items.length" class="points-panel__hint">{{ t('checkout.pointSkuHint') }}</p>
+          </div>
+
+          <div v-if="!items.length && !isPointOrder" class="field-card">
             <p class="empty-hint">{{ t('checkout.addGoodsHint') }}</p>
           </div>
 
@@ -189,7 +283,10 @@
                   <img v-if="getItemCover(item)" :src="getItemCover(item)" class="item-cover" loading="lazy" />
                   <div class="item-info">
                     <h3 class="item-name">{{ item.name || item.goodsId }}</h3>
-                    <p class="item-price">{{ formatFen(getItemUnitPrice(item)) }}</p>
+                    <p class="item-price">
+                      <template v-if="item.isPointOrder">{{ item.pointCost }} {{ t('checkout.pointsUnit') }} + {{ formatFen(getItemUnitPrice(item)) }}</template>
+                      <template v-else>{{ formatFen(getItemUnitPrice(item)) }}</template>
+                    </p>
                   </div>
                   <button class="item-remove" type="button" :aria-label="t('common.delete')" @click="removeItem(item.id)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -237,13 +334,17 @@
                 </p>
 
                 <!-- Quantity -->
-                <div class="qty-row">
+                <div v-if="!item.isPointOrder" class="qty-row">
                   <span class="qty-label">{{ t('checkout.quantity') }}</span>
                   <div class="qty-controls">
                     <button type="button" class="qty-btn" :disabled="item.quantity <= 1" @click="updateItemQuantity(item.id, item.quantity - 1)">−</button>
                     <span class="qty-value">{{ item.quantity }}</span>
                     <button type="button" class="qty-btn" @click="updateItemQuantity(item.id, item.quantity + 1)">+</button>
                   </div>
+                </div>
+                <div v-else class="qty-row qty-row--fixed">
+                  <span class="qty-label">{{ t('checkout.exchangeQuantity') }}</span>
+                  <span class="qty-value">1</span>
                 </div>
 
                 <!-- Sale time -->
@@ -356,7 +457,10 @@
                 <div class="review-item__meta">
                   <span class="review-item__sku">{{ item.selectedSkuText || '' }}</span>
                   <span class="review-item__qty">x{{ item.quantity }}</span>
-                  <span class="review-item__price">{{ formatFen(getItemPrice(item)) }}</span>
+                  <span class="review-item__price">
+                    <template v-if="item.isPointOrder">{{ item.pointCost }} {{ t('checkout.pointsUnit') }} + {{ formatFen(getItemPrice(item)) }}</template>
+                    <template v-else>{{ formatFen(getItemPrice(item)) }}</template>
+                  </span>
                 </div>
               </div>
             </div>
@@ -393,18 +497,30 @@
           </div>
 
           <div class="review-total">
-            <div class="review-total__row">
-              <span>{{ t('checkout.goodsAmount') }}</span>
-              <span>{{ formatFen(totalAmount) }}</span>
-            </div>
-            <div v-if="bestCoupon" class="review-total__row review-total__row--discount">
-              <span>{{ couponName(bestCoupon) }}</span>
-              <span>-{{ formatFen(discountAmount) }}</span>
-            </div>
-            <div class="review-total__row review-total__row--pay">
-              <span>{{ t('checkout.total') }}</span>
-              <span class="review-total__amount">{{ formatFen(payTotal) }}</span>
-            </div>
+            <template v-if="isPointOrder">
+              <div class="review-total__row">
+                <span>{{ t('checkout.goodsAmount') }}</span>
+                <span>{{ formatFen(totalAmount) }}</span>
+              </div>
+              <div class="review-total__row review-total__row--pay">
+                <span>{{ t('checkout.exchangePoints') }}</span>
+                <span class="review-total__amount">{{ totalPointCost }} {{ t('checkout.pointsUnit') }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="review-total__row">
+                <span>{{ t('checkout.goodsAmount') }}</span>
+                <span>{{ formatFen(totalAmount) }}</span>
+              </div>
+              <div v-if="bestCoupon" class="review-total__row review-total__row--discount">
+                <span>{{ couponName(bestCoupon) }}</span>
+                <span>-{{ formatFen(discountAmount) }}</span>
+              </div>
+              <div class="review-total__row review-total__row--pay">
+                <span>{{ t('checkout.total') }}</span>
+                <span class="review-total__amount">{{ formatFen(payTotal) }}</span>
+              </div>
+            </template>
           </div>
         </section>
 
@@ -485,7 +601,10 @@
                 </svg>
               </div>
               <h2 class="order-success__title">{{ t('checkout.orderCreated') }}</h2>
-              <p class="order-success__amount">{{ formatFen(orderResult.amount || 0) }}</p>
+              <p class="order-success__amount">
+                <template v-if="isPointOrder">{{ formatFen(orderResult.amount || 0) }} + {{ orderResult.orderPoints || totalPointCost }} {{ t('checkout.pointsUnit') }}</template>
+                <template v-else>{{ formatFen(orderResult.amount || 0) }}</template>
+              </p>
               <div class="order-success__info">
                 <p>{{ t('checkout.orderNo') }}: {{ orderResult.orderNo }}</p>
                 <p v-if="orderResult.productName" class="order-success__product">{{ orderResult.productName }}</p>
@@ -500,7 +619,7 @@
     <!-- Floating action footer -->
     <div v-if="!orderResult" class="float-footer">
       <div class="float-footer__btns">
-        <button v-if="!isFirstStep" class="btn-float btn-float--ghost" type="button" @click="prevStep">
+        <button v-if="!isFirstStep" class="btn-float btn-float--ghost" type="button" @click="handlePreviousStep">
           {{ t('checkout.back') }}
         </button>
         <button class="btn-float btn-float--primary" type="button" :disabled="stepAction.disabled" @click="stepAction.handler">
@@ -659,6 +778,7 @@ import { useCheckoutFlow, STEPS } from '@/composables/checkout/useCheckoutFlow'
 import { useCheckoutAddress } from '@/composables/checkout/useCheckoutAddress'
 import { useCheckoutGoods } from '@/composables/checkout/useCheckoutGoods'
 import { useCheckoutGifts } from '@/composables/checkout/useCheckoutGifts'
+import { POINT_SHOP_OPTIONS, useCheckoutPoints } from '@/composables/checkout/useCheckoutPoints'
 import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 import { useCheckoutTimer } from '@/composables/checkout/useCheckoutTimer'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
@@ -678,6 +798,7 @@ const { showToast } = useToast()
 const flow = useCheckoutFlow()
 const address = useCheckoutAddress()
 const goods = useCheckoutGoods()
+const points = useCheckoutPoints()
 const gifts = useCheckoutGifts()
 const orderQueue = useCheckoutOrderQueue()
 // 倒计时基准时钟：手动时间用本地时钟，自动预填（开售/活动时间，服务器域）用服务器时钟
@@ -691,7 +812,7 @@ const {
 
 const isNativePlatform = computed(() => canUseNativeMihoyoImport())
 
-const { currentStepIndex, currentStep, progress, cookie, remark, error, loading, setError, nextStep, prevStep } = flow
+const { currentStepIndex, currentStep, progress, cookie, remark, error, loading, setError, nextStep, prevStep, goToStep } = flow
 
 const couponProcessing = ref(false)
 const couponResults = ref([])
@@ -699,6 +820,8 @@ const claimedCoupons = ref([])
 const submitting = ref(false)
 const orderResult = ref(null)
 const currentOrderQueued = ref(false)
+const isPointOrder = ref(false)
+const pointSelectingId = ref('')
 
 const addressLoading = address.loading
 const addressError = address.error
@@ -722,6 +845,16 @@ const removeItem = goods.removeItem
 const updateItemSku = goods.updateItemSku
 const updateItemQuantity = goods.updateItemQuantity
 const handleSearch = goods.handleSearch
+const addItemFromPointGoods = goods.addItemFromPointGoods
+const clearItems = goods.clearItems
+
+const pointBalance = points.point
+const pointGoods = points.goods
+const visiblePointGoods = points.visibleGoods
+const activePointShopCode = points.activeShopCode
+const pointLoading = points.loading
+const pointError = points.error
+const pointShopOptions = POINT_SHOP_OPTIONS
 
 const giftActivities = gifts.activities
 const giftLoading = gifts.loading
@@ -754,12 +887,26 @@ const timerStopWatching = timer.stopWatching
 
 /* ── Step 页头 ── */
 const stepLabel = computed(() =>
-  t('checkout.stepLabel', { current: currentStepIndex.value + 1, total: STEPS.length })
+  t('checkout.stepLabel', { current: displayStepIndex.value + 1, total: displayStepCount.value })
 )
+const displayStepKeys = computed(() => isPointOrder.value
+  ? ['cookie', 'address', 'goods', 'review', 'submit']
+  : STEPS.map((step) => step.key))
+const displayStepIndex = computed(() => {
+  const index = displayStepKeys.value.indexOf(currentStep.value.key)
+  return index >= 0 ? index : currentStepIndex.value
+})
+const displayStepCount = computed(() => displayStepKeys.value.length)
+const displayProgress = computed(() => ((displayStepIndex.value + 1) / displayStepCount.value) * 100)
 const stepTitle = computed(() => {
   const key = currentStep.value.key
   return t(`checkout.step${key.charAt(0).toUpperCase()}${key.slice(1)}`)
 })
+
+const totalPointCost = computed(() => items.value.reduce(
+  (sum, item) => sum + (Number(item.pointCost) || 0) * Math.max(1, Number(item.quantity) || 1),
+  0,
+))
 
 /* ── 底部主操作按钮 ── */
 const stepAction = computed(() => {
@@ -783,7 +930,7 @@ const stepAction = computed(() => {
       return {
         label: t('checkout.next'),
         handler: handleGoodsNext,
-        disabled: !items.value.length || items.value.some((i) => i.loading || i.error),
+        disabled: !items.value.length || items.value.some((i) => i.loading || i.error) || (isPointOrder.value && totalPointCost.value > pointBalance.value),
         busy: false,
       }
     case 'coupon':
@@ -854,6 +1001,7 @@ function couponName(c) {
 }
 
 const selectedGiftSections = computed(() => {
+  if (isPointOrder.value) return []
   return giftActivities.value
     .map((activity) => {
       const stage = getMatchedStage(activity, totalAmount.value)
@@ -920,6 +1068,54 @@ function giftActivityStateText(act) {
   }
   if (act.endTime && nowSec > act.endTime) return t('checkout.giftEnded')
   return ''
+}
+
+function pointShopLabel(shop) {
+  const translated = t(shop.labelKey)
+  return translated === shop.labelKey ? shop.fallback : translated
+}
+
+function isPointGoodsAffordable(item) {
+  return Number(item?.point) <= Number(pointBalance.value)
+}
+
+async function loadPointGoods(force = false) {
+  if (!cookie.value) return
+  if (!force && points.loaded.value) return
+  await points.load(cookie.value)
+}
+
+function setOrderMode(pointMode) {
+  const next = Boolean(pointMode)
+  if (isPointOrder.value === next) return
+  isPointOrder.value = next
+  clearItems()
+  setError('')
+  if (next) void loadPointGoods()
+}
+
+async function selectPointGoods(pointGoodsItem) {
+  if (!pointGoodsItem || pointSelectingId.value) return
+  if (pointGoodsItem.is_sold_out || !isPointGoodsAffordable(pointGoodsItem)) return
+  if (items.value.some((item) => item.goodsId === pointGoodsItem.goods_id)) return
+
+  clearItems()
+  pointSelectingId.value = pointGoodsItem.goods_id
+  try {
+    const ok = await addItemFromPointGoods(pointGoodsItem, cookie.value)
+    if (!ok) setError(t('checkout.pointGoodsUnavailable'))
+  } finally {
+    pointSelectingId.value = ''
+  }
+}
+
+function handlePreviousStep() {
+  // 积分订单跳过优惠券/满赠，确认页返回时直接回到商品页。
+  if (isPointOrder.value && currentStep.value.key === 'review') {
+    goToStep(STEPS.findIndex((step) => step.key === 'goods'))
+    return
+  }
+  prevStep()
 }
 
 const showTimerPicker = ref(false)
@@ -1041,6 +1237,14 @@ function handleGoodsNext() {
     setError(invalid.error)
     return
   }
+  if (isPointOrder.value) {
+    goToStep(STEPS.findIndex((step) => step.key === 'review'))
+    return
+  }
+  if (isPointOrder.value && totalPointCost.value > pointBalance.value) {
+    setError(t('checkout.notEnoughPoints'))
+    return
+  }
   nextStep()
   claimCoupons()
 }
@@ -1107,7 +1311,9 @@ function buildOrderSnapshot() {
     fromCart: Boolean(item.fromCart),
   }))
   const isFromShopCar = itemsPayload.length > 0 && itemsPayload.every((item) => item.fromCart)
-  const giftPayload = buildGiftPayload(items.value[0]?.shopCode || '', totalAmount.value)
+  const giftPayload = isPointOrder.value
+    ? []
+    : buildGiftPayload(items.value[0]?.shopCode || '', totalAmount.value)
   return {
     itemsPayload,
     giftPayload,
@@ -1117,11 +1323,12 @@ function buildOrderSnapshot() {
       addressId: selectedAddressId.value,
       remark: remark.value,
       isFromShopCar,
+      isPointOrder: isPointOrder.value,
       items: itemsPayload,
       giftActivities: giftPayload,
     },
     summary: {
-      goodsText: items.value.map((item) => item.name || item.goodsId).filter(Boolean).join('、'),
+      goodsText: `${isPointOrder.value ? `${t('checkout.pointExchange')}：` : ''}${items.value.map((item) => item.name || item.goodsId).filter(Boolean).join('、')}`,
       giftText: selectedGiftSections.value.map((activity) => `${activity.name}：${activity.gifts.map((gift) => gift.name).join('、')}`).filter(Boolean).join('；'),
     },
   }
@@ -1670,6 +1877,220 @@ onUnmounted(() => {
   font-size: 13px;
   color: var(--app-text-secondary);
   line-height: 1.5;
+}
+
+/* ── 订单类型与积分兑换 ── */
+.checkout-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small);
+  background: var(--app-surface-soft);
+}
+
+.checkout-mode-switch__item {
+  min-height: 40px;
+  border: 0;
+  border-radius: calc(var(--radius-small) - 2px);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.checkout-mode-switch__item--active {
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+
+.points-panel {
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+}
+
+.points-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.points-panel__label {
+  margin: 0 0 3px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.points-panel__balance {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.points-panel__balance span,
+.points-card__cost,
+.points-card__status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.points-panel__refresh {
+  padding: 7px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small);
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.points-panel__refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.points-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  scrollbar-width: none;
+}
+
+.points-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.points-tab {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.points-tab--active {
+  border-color: color-mix(in srgb, #4a7aec 55%, var(--app-border));
+  background: color-mix(in srgb, #4a7aec 11%, var(--app-surface));
+  color: #2070c0;
+}
+
+.points-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.points-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
+  column-gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease, transform 0.12s ease;
+}
+
+.points-card:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.points-card--selected {
+  border-color: color-mix(in srgb, #4a7aec 70%, var(--app-border));
+  background: color-mix(in srgb, #4a7aec 10%, var(--app-surface));
+}
+
+.points-card--soldout,
+.points-card--unaffordable {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.points-card__image {
+  grid-row: 1 / -1;
+  grid-column: 1;
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--app-surface-soft);
+}
+
+.points-card__image--fallback {
+  display: grid;
+  place-items: center;
+  color: var(--app-text-tertiary);
+  font-size: 24px;
+}
+
+.points-card__name {
+  grid-row: 1;
+  grid-column: 2;
+  display: -webkit-box;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.points-card__cost {
+  grid-row: 2;
+  grid-column: 2;
+  margin-top: 4px;
+  color: #c97918;
+}
+
+.points-card__cash {
+  grid-row: 3;
+  grid-column: 2;
+  margin-top: 2px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.points-card__status {
+  grid-row: 4;
+  grid-column: 2;
+  margin-top: 2px;
+  color: var(--app-text-tertiary);
+}
+
+.points-panel__hint {
+  margin: 10px 2px 0;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.points-panel__loading {
+  min-height: 100px;
 }
 
 /* ── 商品搜索 ── */
@@ -3208,6 +3629,18 @@ onUnmounted(() => {
 
 /* ── 平板端 ── */
 @media (min-width: 900px) {
+  .points-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .points-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .points-card__image {
+    height: 64px;
+  }
+
   .float-footer {
     width: min(calc(100vw - 48px), 520px);
   }
