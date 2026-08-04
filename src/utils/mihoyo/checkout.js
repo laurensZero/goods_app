@@ -10,6 +10,8 @@ const log = createLogger('checkout')
 
 const API_ADDRESS_LIST = '/common/homeishop/v1/address/list'
 const API_GOODS_DETAIL = '/common/homeishop/v1/goods/detail'
+const API_USER_POINTS = '/common/hm_app/v1/point/user_point'
+const API_POINT_GOODS_LIST = '/common/hm_app/v1/goods/point_goods_list'
 const API_RECEIVE_COUPON = '/common/homeishop/v1/coupon/receive_coupon'
 const API_GIFT_ACTIVITY = '/common/homeishop/v1/activity/gift'
 const API_PRE_CREATE_ORDER = '/common/homeishop/v1/shop_car/pre_create_order'
@@ -60,6 +62,7 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
   const name = detail.name || ''
   const shopCode = detail.shop_code || ''
   const price = detail.price || 0
+  const point = Number(detail.point ?? detail.points ?? json.data?.goods?.point ?? 0) || 0
   const cover = detail.cover_url || ''
   const saleTime = detail.sale_time || 0
   const status = detail.status || 0
@@ -98,6 +101,7 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
       const stock = resolveSkuStock(sku, key)
       const rawPrice = sku.price ?? sku.sale_price ?? sku.activity_price ?? sku.actual_price
       const skuPrice = rawPrice != null && rawPrice > 0 ? rawPrice : null
+      const rawPoint = sku.point ?? sku.points ?? detail.point ?? detail.points
       skus.push({
         id: sku.id,
         text: sku.attr || sku.name || `SKU ${sku.id}`,
@@ -105,6 +109,7 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
         stock,
         soldOut: stock === 0,
         price: skuPrice,
+        point: rawPoint != null ? Number(rawPoint) || 0 : point,
         cover: sku.cover_url || '',
       })
     }
@@ -125,6 +130,7 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
           stock,
           soldOut: stock === 0,
           price: null,
+          point,
           cover: opt.img_url || '',
         })
       }
@@ -142,7 +148,65 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
 
   log.debug('goods:detail', { goodsId, name, shopCode, skuCount: skus.length, couponCount: coupons.length })
 
-  return { name, shopCode, price, cover, skus, giftActivities, coupons, saleTime, status, remainingTime }
+  return { name, shopCode, price, point, cover, skus, giftActivities, coupons, saleTime, status, remainingTime }
+}
+
+/**
+ * 获取当前用户米游铺积分。
+ * @param {string} cookie
+ * @returns {Promise<number>}
+ */
+export async function fetchUserPoints(cookie) {
+  const json = await mihoyoRequest(`${API_USER_POINTS}?need_detail=true`, {
+    headers: authHeaders(cookie),
+  })
+  if (json.retcode !== 0) {
+    throw new Error(json.message || `获取积分失败 (${json.retcode})`)
+  }
+  return Number(json.data?.point) || 0
+}
+
+/**
+ * 获取积分兑换商品列表。
+ * price / market_price 的单位均为分，point 为兑换所需积分。
+ * @param {string} cookie
+ * @param {{shopCode?: string, limit?: number, page?: number}} options
+ * @returns {Promise<{count: number, list: Array}>}
+ */
+export async function fetchPointGoodsList(cookie, { shopCode = '', limit = 100, page = 1 } = {}) {
+  const query = new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+  })
+  if (shopCode) query.set('shop_code', String(shopCode))
+
+  const json = await mihoyoRequest(`${API_POINT_GOODS_LIST}?${query.toString()}`, {
+    headers: authHeaders(cookie),
+  })
+  if (json.retcode !== 0) {
+    throw new Error(json.message || `获取积分商品失败 (${json.retcode})`)
+  }
+
+  const list = (json.data?.list || []).map((item) => ({
+    ...item,
+    goods_id: String(item.goods_id || ''),
+    name: item.name || '',
+    cover_url: item.cover_url || '',
+    price: Number(item.price) || 0,
+    market_price: Number(item.market_price) || Number(item.price) || 0,
+    point: Number(item.point ?? item.points) || 0,
+    sale_time: Number(item.sale_time) || 0,
+    remaining_time: Number(item.remaining_time) || 0,
+    shop_code: String(item.shop_code || item.shopCode || shopCode || ''),
+    is_sold_out: item.is_sold_out === true
+      || String(item.is_sold_out || '').toLowerCase() === 'true'
+      || Number(item.is_sold_out) === 1,
+  })).filter((item) => item.goods_id && item.name)
+
+  return {
+    count: Number(json.data?.count) || list.length,
+    list,
+  }
 }
 
 /**
@@ -239,7 +303,7 @@ export async function fetchMihoyoServerTime(cookie) {
  * @param {Array} payload.items - [{goodsId, skuId, shopCode, nums}]
  * @param {Array} [payload.giftActivities] - [{activity_id, gifts: [{goods_id, sku_id, nums, shop_code}]}]
  * @param {boolean} [payload.isFromShopCar=false]
- * @returns {Promise<{code, totalFee, shopOrders, respGifts}>}
+ * @returns {Promise<{code, totalFee, orderPoints, shopOrders, respGifts}>}
  */
 export async function preCreateOrder(cookie, { addressId, items, giftActivities = [], isFromShopCar = false }) {
   const body = {
@@ -271,11 +335,12 @@ export async function preCreateOrder(cookie, { addressId, items, giftActivities 
   }
 
   const totalFee = json.data?.order_total_fee ?? 0
+  const orderPoints = Number(json.data?.order_points) || 0
   const shopOrders = json.data?.shop_order || []
   const respGifts = json.data?.gift_activities || []
 
   log.debug('pre:create', { code, totalFee })
-  return { code, totalFee, shopOrders, respGifts }
+  return { code, totalFee, orderPoints, shopOrders, respGifts }
 }
 
 /**
@@ -330,7 +395,7 @@ export async function createOrder(cookie, { addressId, code, remark = '', items 
  * @param {Array} [payload.giftActivities]
  * @param {boolean} [payload.isFromShopCar]
  * @param {string} [payload.remark]
- * @returns {Promise<{orderNo, amount, productName, totalFee, shopOrders, respGifts}>}
+ * @returns {Promise<{orderNo, amount, orderPoints, productName, totalFee, shopOrders, respGifts}>}
  */
 export async function submitCheckoutOrder(cookie, { addressId, items, giftActivities = [], isFromShopCar = false, remark = '' }) {
   const preCreated = await preCreateOrder(cookie, {
@@ -350,6 +415,7 @@ export async function submitCheckoutOrder(cookie, { addressId, items, giftActivi
   return {
     ...result,
     totalFee: preCreated.totalFee,
+    orderPoints: preCreated.orderPoints,
     shopOrders: preCreated.shopOrders,
     respGifts: preCreated.respGifts,
   }

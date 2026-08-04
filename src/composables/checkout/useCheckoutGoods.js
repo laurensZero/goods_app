@@ -24,6 +24,8 @@ function createItem(goodsId) {
     selectedSkuStock: -1,
     quantity: 1,
     fromCart: false,
+    isPointOrder: false,
+    pointCost: 0,
     cover: '',
     loading: false,
     error: '',
@@ -108,6 +110,7 @@ export function useCheckoutGoods() {
       item.name = detail.name
       item.shopCode = detail.shopCode
       item.price = detail.price
+      if (item.isPointOrder && detail.point > 0) item.pointCost = detail.point
       item.cover = detail.cover || item.cover
       item.skus = detail.skus
       item.giftActivities = detail.giftActivities
@@ -122,6 +125,7 @@ export function useCheckoutGoods() {
           item.selectedSkuId = preset.id
           item.selectedSkuText = preset.text
           item.selectedSkuStock = preset.stock
+          if (item.isPointOrder && preset.point > 0) item.pointCost = preset.point
           if (preset.soldOut) {
             item.error = '当前选中的规格已售罄，请重新选择'
           }
@@ -129,6 +133,7 @@ export function useCheckoutGoods() {
           item.selectedSkuId = availableSku.id
           item.selectedSkuText = availableSku.text
           item.selectedSkuStock = availableSku.stock
+          if (item.isPointOrder && availableSku.point > 0) item.pointCost = availableSku.point
           // 购物车指定的 SKU 已不存在（下架/改版），解除锁定允许重新选择
           if (presetSkuId != null) item.skuLocked = false
           if (availableSku.soldOut) {
@@ -275,6 +280,34 @@ export function useCheckoutGoods() {
     return true
   }
 
+  /**
+   * 从积分商品列表加入单个商品。
+   * 积分商品仍然要走详情接口，以获取实际 SKU、库存和 SKU 对应的积分。
+   */
+  async function addItemFromPointGoods(result, cookie) {
+    const goodsId = String(result?.goods_id || result?.goodsId || '')
+    if (!goodsId) return false
+    if (items.value.some((i) => i.goodsId === goodsId)) return true
+
+    const item = createItem(goodsId)
+    item.name = result.name || ''
+    item.cover = result.cover_url || ''
+    item.shopCode = result.shop_code || ''
+    item.isPointOrder = true
+    item.pointCost = Number(result.point) || 0
+    item.saleTime = Number(result.sale_time) || 0
+    item.remainingTime = Number(result.remaining_time) || 0
+    if (result.is_sold_out) item.error = '商品已售罄'
+    items.value.push(item)
+
+    const ok = await fetchItemDetail(item, cookie)
+    if (!ok) {
+      removeItem(item.id)
+      return false
+    }
+    return true
+  }
+
   function removeItem(id) {
     items.value = items.value.filter((i) => i.id !== id)
   }
@@ -285,13 +318,26 @@ export function useCheckoutGoods() {
       item.selectedSkuId = skuId
       item.selectedSkuText = skuText
       item.selectedSkuStock = item.skus.find((sku) => sku.id === skuId)?.stock ?? -1
+      const selectedSku = item.skus.find((sku) => sku.id === skuId)
+      if (item.isPointOrder && selectedSku?.point > 0) item.pointCost = selectedSku.point
       validateItemStock(item)
     }
+  }
+
+  function clearItems() {
+    items.value = []
+    searchKeyword.value = ''
+    searchResults.value = []
+    searchError.value = ''
   }
 
   function updateItemQuantity(itemId, qty) {
     const item = items.value.find((i) => i.id === itemId)
     if (item) {
+      if (item.isPointOrder) {
+        item.quantity = 1
+        return
+      }
       item.quantity = Math.max(1, Math.min(99, qty))
       validateItemStock(item)
     }
@@ -333,9 +379,11 @@ export function useCheckoutGoods() {
     isMultiItem,
     addItemFromUrl,
     addItemFromSearch,
+    addItemFromPointGoods,
     addItemFromCart,
     addItemsFromCart,
     removeItem,
+    clearItems,
     updateItemSku,
     updateItemQuantity,
     handleSearch,
