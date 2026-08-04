@@ -565,7 +565,6 @@ const showSupabaseUrlDialog = ref(false)
 const showSupabaseKeyDialog = ref(false)
 const supabaseUrlInput = ref('')
 const supabaseKeyInput = ref('')
-const isTestingSupabase = ref(false)
 const LOG_GROUP_SEQUENCE = [
   'manifest',
   'data',
@@ -794,30 +793,9 @@ async function loadCloudInfo() {
   }
 }
 
-function buildImageSyncText(result) {
-  const parts = []
-  if (result?.uploadedImages > 0) parts.push(t('sync.uploadImages', { count: result.uploadedImages }))
-  if (result?.reusedImages > 0) parts.push(t('sync.reuseImages', { count: result.reusedImages }))
-  if (result?.restoredImages > 0) parts.push(t('sync.restoreImages', { count: result.restoredImages }))
-  return parts.join('，')
-}
-
 async function handlePauseSyncToggle(event) {
   const paused = event.target.checked
   await syncStore.setSyncPaused(paused)
-}
-
-function buildEventSyncSummary(result) {
-  if (!result) return ''
-  if (result.action === 'no_changes') return ''
-  return `，${t('sync.eventsAdded', { count: result.totalEvents ?? 0 })}`
-}
-
-function buildEventPullSummary(result) {
-  if (!result) return ''
-  const changed = Number(result.added || 0) + Number(result.updated || 0)
-  if (changed <= 0) return ''
-  return `，${t('sync.eventsAdded', { count: result.added || 0 })}、${t('sync.eventsUpdated', { count: result.updated || 0 })}`
 }
 
 function buildPullResultParts(result) {
@@ -981,15 +959,6 @@ const supabaseKeyDisplay = computed(() => {
   return t('sync.notConfigured')
 })
 
-const selectedBackend = computed({
-  get: () => syncStore.syncBackend,
-  set: async (val) => {
-    if (val === syncStore.syncBackend) return
-    // selection is handled via confirm dialog; setter kept for reactivity
-    syncStore.syncBackend = val
-  }
-})
-
 const showBackendConfirm = ref(false)
 const pendingBackend = ref('')
 
@@ -1017,16 +986,6 @@ function cancelChooseBackend() {
   pendingBackend.value = ''
 }
 
-function openSupabaseUrlDialog() {
-  supabaseUrlInput.value = syncStore.supabaseUrl || ''
-  showSupabaseUrlDialog.value = true
-}
-
-function openSupabaseKeyDialog() {
-  supabaseKeyInput.value = syncStore.supabaseAnonKey || ''
-  showSupabaseKeyDialog.value = true
-}
-
 async function handleSaveSupabaseUrl() {
   const url = supabaseUrlInput.value.trim()
   if (!url) return
@@ -1047,26 +1006,6 @@ async function handleSaveSupabaseKey() {
   // If we were in a backend switch flow and both config values are now set, confirm the switch
   if (pendingBackend.value === 'supabase' && syncStore.supabaseUrl && syncStore.supabaseAnonKey) {
     showBackendConfirm.value = true
-  }
-}
-
-async function handleTestSupabase() {
-  if (!syncStore.supabaseUrl || !syncStore.supabaseAnonKey) {
-    showToast(t('sync.pleaseConfigFirst'))
-    return
-  }
-  isTestingSupabase.value = true
-  try {
-    const result = await syncStore.testSupabaseConnection(syncStore.supabaseUrl, syncStore.supabaseAnonKey)
-    if (result.ok) {
-      showToast(t('sync.connectionTestSuccess'))
-    } else {
-      showToast(result.error || t('sync.connectionTestFailed'))
-    }
-  } catch (e) {
-    showToast(e.message || t('sync.connectionTestFailed'))
-  } finally {
-    isTestingSupabase.value = false
   }
 }
 

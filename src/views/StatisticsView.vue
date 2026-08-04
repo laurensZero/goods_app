@@ -194,8 +194,7 @@ import {
   buildHeatmapData,
   getHeatmapYears,
   buildSpendingTrendData,
-  buildGoodsExtremes,
-  buildOverviewStats
+  buildGoodsExtremes
 } from '@/utils/goods/statistics'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'

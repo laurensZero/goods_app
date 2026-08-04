@@ -269,12 +269,6 @@ function clearTrackTapTimer() {
   }
 }
 
-function handleTrackActivate(track, event) {
-  if (isActionTarget(event)) return
-  clearTrackTapTimer()
-  void handlePlay(track)
-}
-
 function handleTrackClick(track, event) {
   if (isActionTarget(event)) return
 

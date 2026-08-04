@@ -198,13 +198,6 @@ function selectAtLevel(depth, value) {
   emitCurrentPath(nextIds)
 }
 
-function toggleQuickCreate() {
-  showQuickCreate.value = !showQuickCreate.value
-  if (!showQuickCreate.value) {
-    quickCreateName.value = ''
-  }
-}
-
 function openQuickCreate(mode) {
   quickCreateParentMode.value = mode
   showQuickCreate.value = true

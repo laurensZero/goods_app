@@ -93,7 +93,7 @@ export const useRechargeStore = defineStore('recharge', () => {
     syncDomain: 'recharge'
   })
 
-  const { list: records, isReady, getById, init: coreInit, add, update, remove, removeMultiple, refreshList, importBackup: coreImportBackup } = core
+  const { list: records, isReady, getById, init: coreInit } = core
 
   const triggerSync = createAutoPush('recharge')
 

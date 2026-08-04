@@ -1,4 +1,3 @@
-import { triggerRef } from 'vue'
 import { saveItems } from '@/utils/db/index'
 import { normalizeCharacterName } from '@/stores/presets'
 import { normalizeCharacterList } from '@/stores/goodsHelpers'

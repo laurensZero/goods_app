@@ -16,7 +16,7 @@ import {
   TokenExpiredError
 } from '@/utils/github/release'
 import { readSyncKey } from '@/utils/sync/storage'
-import { AVAILABLE_UPDATE_LEVELS, normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
 import { SUPABASE_URL } from '@/config/supabase'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'

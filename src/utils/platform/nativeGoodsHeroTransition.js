@@ -315,20 +315,6 @@ function readBoxShadow(el) {
   }
 }
 
-function findLazyImageRoot(el) {
-  if (!el || typeof el.querySelector !== 'function') return null
-  if (typeof el.hasAttribute === 'function' && el.hasAttribute('data-lazy-image-ready')) {
-    return el
-  }
-  return el.querySelector('[data-lazy-image-ready]')
-}
-
-function isHeroImageReady(el) {
-  const imageRoot = findLazyImageRoot(el)
-  if (!imageRoot) return true
-  return imageRoot.getAttribute('data-lazy-image-ready') === 'true'
-}
-
 function readRadius(el) {
   if (!el || typeof window === 'undefined') return 0
   const style = window.getComputedStyle(el)
@@ -536,12 +522,6 @@ async function waitForImageDecode(src, timeoutMs = 400) {
   } catch (e) {
     return false
   }
-}
-
-function waitForNextFrame() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => resolve())
-  })
 }
 
 async function animateHero(snapshot, targetRect, targetRadius, options = {}) {

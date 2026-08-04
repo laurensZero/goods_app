@@ -255,16 +255,6 @@ async function loadShares() {
   }
 }
 
-async function copyText(text) {
-  if (!text) return false
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    return false
-  }
-}
-
 async function shareAgain(share) {
   // Load full payload from DB for poster generation
   let loadedItems = []

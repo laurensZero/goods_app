@@ -261,11 +261,6 @@ const {
 } = useImageCutout()
 const { exportForUpload } = useImageExport()
 
-const WHITE_BG_STYLE_OPTIONS = [
-  { label: '标准白底', value: 'standard' },
-  { label: '商品图增强', value: 'product' }
-]
-
 const tabOptions = computed(() => {
   if (props.simpleMode) {
     return [{ value: 'basic', label: '基础调整' }]
@@ -280,16 +275,6 @@ const tabOptions = computed(() => {
 const editorHistory = useEditorHistory()
 const { canUndo, canRedo } = editorHistory
 
-const brushModeActive = computed(() => false)
-const brushDrawingActive = computed(() => false)
-const brushEntryDisabled = true
-const previewRenderBox = ref({ left: 0, top: 0, width: 0, height: 0 })
-const previewOverlayStyle = computed(() => ({
-  left: `${previewRenderBox.value.left}px`,
-  top: `${previewRenderBox.value.top}px`,
-  width: `${previewRenderBox.value.width}px`,
-  height: `${previewRenderBox.value.height}px`
-}))
 const whiteBgPreviewImageStyle = computed(() => ({
   transform: whiteBgEnabled.value ? `scale(${Math.max(0.4, Number(whiteBgScalePercent.value || 88) / 100)})` : 'scale(1)'
 }))
@@ -301,9 +286,9 @@ let previousHtmlOverflow = ''
 let previousHtmlOverscrollBehavior = ''
 let previousBodyOverflow = ''
 let previousBodyOverscrollBehavior = ''
-let cutoutPreparedBlob = null
+let _cutoutPreparedBlob = null
 let cutoutCurrentMaskBlob = null
-let cutoutOriginalMaskBlob = null
+let _cutoutOriginalMaskBlob = null
 const cutoutInputImageUrl = ref('')
 let cutoutMeta = null
 let editorSessionId = 0
@@ -321,9 +306,9 @@ function clearCutoutSession() {
   cutoutPreparedImageUrl.value = ''
   cutoutMaskUrl.value = ''
   cutoutInputImageUrl.value = ''
-  cutoutPreparedBlob = null
+  _cutoutPreparedBlob = null
   cutoutCurrentMaskBlob = null
-  cutoutOriginalMaskBlob = null
+  _cutoutOriginalMaskBlob = null
   cutoutMeta = null
   cutoutBrushMode.value = ''
   cutoutBrushSize.value = 28
@@ -414,9 +399,9 @@ async function applyEditorSnapshot(snapshot) {
       cutoutMaskUrl.value = snapshot.cutoutMaskUrl || ''
       cutoutInputImageUrl.value = snapshot.cutoutPreparedImageUrl || snapshot.cutoutPreviewUrl || ''
       cutoutMeta = snapshot.cutoutMeta ? { ...snapshot.cutoutMeta } : null
-      cutoutPreparedBlob = await readBlobFromObjectUrl(cutoutPreparedImageUrl.value)
+      _cutoutPreparedBlob = await readBlobFromObjectUrl(cutoutPreparedImageUrl.value)
       cutoutCurrentMaskBlob = await readBlobFromObjectUrl(cutoutMaskUrl.value)
-      cutoutOriginalMaskBlob = cutoutCurrentMaskBlob
+      _cutoutOriginalMaskBlob = cutoutCurrentMaskBlob
       cutoutBrushMode.value = ''
       cutoutBrushSize.value = 28
       cutoutHasPendingStrokes.value = false
@@ -538,54 +523,6 @@ async function initCropper() {
 
 
 
-function loadImageFromBlob(blob) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob)
-    const img = new Image()
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      resolve(img)
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('图片加载失败'))
-    }
-    img.src = url
-  })
-}
-
-function loadImage(url) {
-  return new Promise((resolve, reject) => {
-    if (!url) {
-      reject(new Error('图片地址不能为空'))
-      return
-    }
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('图片加载失败'))
-    image.src = url
-  })
-}
-
-function createCanvas(width, height) {
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.round(width))
-  canvas.height = Math.max(1, Math.round(height))
-  return canvas
-}
-
-function canvasToBlob(canvas, type = 'image/png', quality = 1) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('导出蒙版失败'))
-        return
-      }
-      resolve(blob)
-    }, type, quality)
-  })
-}
-
 function openFromFile(file) {
   editorSessionId += 1
   const sessionId = editorSessionId
@@ -703,9 +640,9 @@ async function runCutout() {
     const cutoutBlob = await applyCutoutMask(preparedBlob, maskBlob, meta)
 
     clearCutoutSession()
-    cutoutPreparedBlob = preparedBlob
+    _cutoutPreparedBlob = preparedBlob
     cutoutCurrentMaskBlob = maskBlob
-    cutoutOriginalMaskBlob = maskBlob
+    _cutoutOriginalMaskBlob = maskBlob
     cutoutMeta = meta
     cutoutPreparedImageUrl.value = createTrackedObjectUrl(preparedBlob)
     cutoutMaskUrl.value = createTrackedObjectUrl(maskBlob)
@@ -775,13 +712,6 @@ function handleCancel() {
 function formatSignedValue(value) {
   const number = Number(value) || 0
   return number > 0 ? `+${number}` : `${number}`
-}
-
-function formatFileSize(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
 watch(

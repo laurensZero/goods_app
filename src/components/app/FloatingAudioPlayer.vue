@@ -198,7 +198,7 @@ import { useI18n } from 'vue-i18n'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { formatTrackDuration } from '@/utils/neteaseMusic'
 
-const props = defineProps({
+defineProps({
   withTabBar: { type: Boolean, default: false }
 })
 
@@ -311,10 +311,6 @@ function commitSeek(event) {
 function cancelSeek() {
   isDragging.value = false
   previewTime.value = Number(playerStore.currentTime) || 0
-}
-
-function toggleMute() {
-  playerStore.toggleMute()
 }
 
 function toggleQueuePanel() {

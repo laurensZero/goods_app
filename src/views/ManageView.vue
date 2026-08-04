@@ -212,7 +212,6 @@ import { Popup } from 'vant'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
-import { Capacitor } from '@capacitor/core'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useManageExport, exportSectionOptions } from '@/composables/manage/useManageExport'
 import { useManageEntries } from '@/config/manageEntries'
@@ -247,7 +246,7 @@ function goManageChild(path) {
 async function ensureEventsReady() {}
 
 // ---- entries & export (extracted composables) ----
-const { manageEntries, manageEntryGroups, exportSummaryText, formatSyncTime } = useManageEntries()
+const { manageEntries, manageEntryGroups, exportSummaryText } = useManageEntries()
 
 const {
   importFileRef, showExportPicker, exportSelection, allExportSectionsSelected,

@@ -9,8 +9,7 @@ import {
   saveGroups,
   saveGroupItems,
   deleteGroups,
-  deleteGroupItems,
-  deleteGroupItemsByGroupId
+  deleteGroupItems
 } from '@/utils/db/index'
 
 function generateGroupId() {

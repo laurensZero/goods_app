@@ -141,7 +141,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useSurveyStore } from '@/stores/survey'
 import { submitSurveyResponse } from '@/services/surveyService'
 import NavBar from '@/components/common/NavBar.vue'
@@ -159,7 +159,6 @@ const props = defineProps({
 
 const { t } = useI18n()
 const router = useRouter()
-const route = useRoute()
 const surveyStore = useSurveyStore()
 
 const answers = reactive({})

@@ -247,7 +247,7 @@ const allMonthCardRecords = computed(() => {
 
   const result = []
 
-  for (const [game, records] of grouped.entries()) {
+  for (const [, records] of grouped.entries()) {
     const sorted = [...records].sort((a, b) => {
       const diff = a.purchaseDate.getTime() - b.purchaseDate.getTime()
       if (diff !== 0) return diff
@@ -359,12 +359,6 @@ const latestExpiryText = computed(() => {
     item.endDate.getTime() > target.getTime() ? item.endDate : target
   ), scopedRecords.value[0].endDate)
   return formatDate(latest)
-})
-
-const visibleMonths = computed(() => {
-  if (!hasMonthCardRecords.value) return []
-
-  return visibleMonthKeys.value.map((key) => buildMonthView(key, scopedRecords.value))
 })
 
 const calendarPages = computed(() => {

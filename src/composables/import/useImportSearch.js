@@ -1,6 +1,5 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { usePresetsStore } from '@/stores/presets'
 import { normalizeCharacterName, displayVariantText } from '@/utils/variantText'
 import {
   searchGoodsList,
@@ -21,7 +20,6 @@ export function normalizeSearchHintText(value) {
 
 export function useImportSearch({ goodsStore, wishlistCharacterOptions, setUrlInputValue, handleParse }) {
   const { t } = useI18n()
-  const presets = usePresetsStore()
 
   const searchKeyword = ref('')
   const searchResults = ref([])

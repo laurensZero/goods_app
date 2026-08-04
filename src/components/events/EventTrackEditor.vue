@@ -133,7 +133,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
-import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid, extractQQPlaylistId } from '@/utils/qqMusic'
+import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
 
 const { t } = useI18n()
 
@@ -167,8 +167,6 @@ const searchResults = ref([])
 const searchPage = ref(1)
 const searchHasMore = ref(true)
 const searchResultListRef = ref(null)
-
-const resolvedTitle = computed(() => props.title || t('events.addEdit.concertSetlist'))
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
 

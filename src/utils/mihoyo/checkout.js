@@ -209,7 +209,7 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
     startTime: Number(data.start_time) || 0,
     endTime: Number(data.end_time) || 0,
     serverTime: Number(data.server_time) || 0,
-    status: Number(data.status) ?? 0,
+    status: Number(data.status) || 0,
   }
 }
 

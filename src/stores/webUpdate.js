@@ -7,7 +7,7 @@ import {
   compareVersions,
   normalizeVersionTag
 } from '@/utils/github/release'
-import { AVAILABLE_UPDATE_LEVELS, normalizeUpdateLevel } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel } from '@/utils/updateHelpers'
 import { SUPABASE_URL } from '@/config/supabase'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'

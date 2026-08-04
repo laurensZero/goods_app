@@ -253,21 +253,15 @@ function normalizeCutoutError(error, fallbackMessage) {
   return new Error(fallbackMessage || '抠图失败')
 }
 
-function blobToCanvas(blob) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const bitmap = await createImageBitmap(blob)
-      const canvas = document.createElement('canvas')
-      canvas.width = bitmap.width
-      canvas.height = bitmap.height
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })
-      ctx.drawImage(bitmap, 0, 0)
-      bitmap.close?.()
-      resolve(canvas)
-    } catch (error) {
-      reject(error)
-    }
-  })
+async function blobToCanvas(blob) {
+  const bitmap = await createImageBitmap(blob)
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(bitmap, 0, 0)
+  bitmap.close?.()
+  return canvas
 }
 
 function canvasToBlob(canvas, type = 'image/png', quality = 1) {
@@ -350,60 +344,6 @@ function getMaxNeighborAlpha(data, width, height, x, y) {
   }
 
   return maxAlpha
-}
-
-function estimateBackgroundColor(referenceData, maskData, width, height) {
-  const borderSize = Math.max(8, Math.round(Math.min(width, height) * 0.06))
-  let totalR = 0
-  let totalG = 0
-  let totalB = 0
-  let sampleCount = 0
-
-  const collectPixel = (x, y, allowMasked = false) => {
-    const index = (y * width + x) * 4
-    const alpha = maskData[index + 3] / 255
-    if (!allowMasked && alpha > 0.2) return
-    totalR += referenceData[index]
-    totalG += referenceData[index + 1]
-    totalB += referenceData[index + 2]
-    sampleCount += 1
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const isBorder =
-        x < borderSize
-        || y < borderSize
-        || x >= width - borderSize
-        || y >= height - borderSize
-      if (!isBorder) continue
-      collectPixel(x, y, false)
-    }
-  }
-
-  if (!sampleCount) {
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const isBorder =
-          x < borderSize
-          || y < borderSize
-          || x >= width - borderSize
-          || y >= height - borderSize
-        if (!isBorder) continue
-        collectPixel(x, y, true)
-      }
-    }
-  }
-
-  if (!sampleCount) {
-    return { r: 255, g: 255, b: 255 }
-  }
-
-  return {
-    r: totalR / sampleCount,
-    g: totalG / sampleCount,
-    b: totalB / sampleCount
-  }
 }
 
 async function refineCutoutMask(blob, referenceCanvas) {

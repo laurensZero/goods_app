@@ -214,7 +214,6 @@ const answers = reactive({})
 const isSubmitting = ref(false)
 const validationError = ref('')
 
-const swipeContainer = ref(null)
 const touchStartX = ref(0)
 const touchDeltaX = ref(0)
 const isSwiping = ref(false)

@@ -1,7 +1,7 @@
 // src/services/supabaseAdapter/helpers.js
 // Shared constants and utility functions for Supabase adapter
 
-import { toSnakeCase, toCamelCase } from '@/utils/sync/columnMapping'
+import { toSnakeCase } from '@/utils/sync/columnMapping'
 import { asyncBuildComparableRecordMap } from '@/utils/sync/shared'
 import { withRetry } from '@/services/syncRetry'
 import i18n from '@/locales'

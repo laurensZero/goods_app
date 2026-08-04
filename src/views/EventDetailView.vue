@@ -290,40 +290,6 @@ function waitForNextFrame() {
   })
 }
 
-function readElementRect(el) {
-  if (!el) return null
-  const rect = el.getBoundingClientRect()
-  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
-    return null
-  }
-  return {
-    left: rect.left,
-    top: rect.top,
-    width: rect.width,
-    height: rect.height
-  }
-}
-
-function isRectStable(prevRect, nextRect, tolerance = 0.5) {
-  if (!prevRect || !nextRect) return false
-  return Math.abs(prevRect.left - nextRect.left) <= tolerance &&
-    Math.abs(prevRect.top - nextRect.top) <= tolerance &&
-    Math.abs(prevRect.width - nextRect.width) <= tolerance &&
-    Math.abs(prevRect.height - nextRect.height) <= tolerance
-}
-
-async function waitForStableHeroTarget(el, maxFrames = 6) {
-  if (!el) return false
-  let previousRect = null
-  for (let frame = 0; frame < maxFrames; frame += 1) {
-    await waitForNextFrame()
-    const currentRect = readElementRect(el)
-    if (isRectStable(previousRect, currentRect)) return true
-    previousRect = currentRect
-  }
-  return false
-}
-
 function isEventHeroTargetReady(el) {
   if (!el) return false
   const imageRoot = el.querySelector?.('[data-lazy-image-ready]') || null

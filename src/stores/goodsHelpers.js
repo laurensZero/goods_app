@@ -1,6 +1,5 @@
 // @ts-check
 import {
-  buildGoodsIdentityKey,
   getGoodsVariant,
   normalizeGoodsName,
   stripVariantFromNote

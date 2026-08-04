@@ -1,15 +1,12 @@
 // src/services/syncPullPipeline.js
 // Pull pipeline: read remote → diff → hydrate images → merge to local
 
-import { resolveGoodsTrashMaps, getItemTimestamp, getLatestRechargeTimestamp, normalizeBudgetValue, readBudgetSettings, countWishlistSplit } from '@/utils/sync/shared'
+import { resolveGoodsTrashMaps, getItemTimestamp, normalizeBudgetValue, countWishlistSplit } from '@/utils/sync/shared'
 import { parseCloudImageUri } from '@/utils/goods/images'
-import { compareState, compareStateSync } from '@/utils/sync/stateCompare'
+import { compareStateSync } from '@/utils/sync/stateCompare'
 import { writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
-import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
-
-const log = createLogger('sync:pullPipeline')
 
 /**
  * Read remote data from the backend via pullAll RPC.
@@ -153,7 +150,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, diff, shouldApplyRemoteItem, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null } = opts
 
   // 合并前对比本地状态，统计实际会落库的新增/更新数（LWW：仅远端更新时间更新才生效）。
   // 拉取重叠窗口（PULL_CLOCK_OVERLAP_MS）会重复拉到已合并过的行，

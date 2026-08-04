@@ -667,54 +667,6 @@ function extractItemStatusText(goodsWrapper = {}, goods = {}) {
   )
 }
 
-const NON_CHAR_STYLE = new Set([
-  '竖版', '横版', '立式', '挂式', '竖排', '横排',
-  '彩色', '单色', '全彩', '黑白', '双色',
-  '个人', '团体', '全员', '集体',
-  '线稿', '线图', '草稿', '线图版',
-  '小', '中', '大', '特大', '加大',
-  '明信片',
-  // 常见产品类型词（款式属性中出现时不是角色名）
-  '围巾', '帽子', '手套', '杯子', '毛巾', '手帕',
-  '袜子', '发卡', '发夹', '头绳', '耳环', '项链',
-  '背包', '书包', '零钱包', '卡包', '纸巾',
-  '抱枕', '坐垫', '毛毯', '床单', '徽章',
-])
-
-// 商品类型后缀：款式值以这些词结尾时，只取前面的角色名部分
-const STYLE_PRODUCT_SUFFIXES = [
-  '套盒', '套组', '套装', '礼盒', '礼包',
-  '小鸟', '宠物', '玩偶', '公仔', '毛绒',
-]
-
-function tryCharFromStyle(attrValue) {
-  // cleanAttrValue 已去括号 + 去末尾 A-E
-  const cleaned = cleanAttrValue(attrValue)
-
-  // 先剥离商品类型后缀，提取前面的角色名（2-3 字）
-  for (const suf of STYLE_PRODUCT_SUFFIXES) {
-    if (cleaned.endsWith(suf)) {
-      const prefix = cleaned.slice(0, cleaned.length - suf.length)
-      if (
-        /^[\u4e00-\u9fa5]{2,3}$/.test(prefix) &&
-        !NON_CHAR_STYLE.has(prefix) &&
-        !/[的与你我他她版款弹期辑章集号场幕套组盒]/.test(prefix)
-      ) {
-        return prefix
-      }
-      return null // 有商品类型后缀但前缀不像角色名，整体排除
-    }
-  }
-
-  // 2-5 个纯汉字才认定为角色名（活动名往往 6 字以上）
-  if (!/^[\u4e00-\u9fa5]{2,5}$/.test(cleaned)) return null
-  // 排除常见非角色描述词
-  if (NON_CHAR_STYLE.has(cleaned)) return null
-  // 含有产品/语法词 → 是描述短语，不是名字
-  if (/[的与你我他她版款弹期辑章集号场幕套组盒]/.test(cleaned)) return null
-  return cleaned
-}
-
 /** 将单件商品 meta_info 转换为 App 谷子格式（内部辅助） */
 function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
   const sourceTitle =

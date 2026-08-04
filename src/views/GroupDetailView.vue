@@ -144,9 +144,7 @@ const displayReady = ref(true)
 const {
   getScrollEl,
   saveScrollPosition,
-  getStoredScrollState,
-  restoreActivatedScrollPosition,
-  clearStoredScrollState
+  restoreActivatedScrollPosition
 } = createPageScrollRestore('group-detail')(pageBodyRef)
 
 // Group data
@@ -193,8 +191,7 @@ const {
   enterSelectionMode,
   toggleSelect,
   toggleSelectAll,
-  exitSelectionMode,
-  exitSelectionModeQuiet
+  exitSelectionMode
 } = useGoodsSelection(memberGoods)
 
 // Hero back animation

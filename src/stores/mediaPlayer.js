@@ -313,11 +313,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     rafId = window.requestAnimationFrame(loop)
   }
 
-  function setQueue(nextQueue, startIndex = 0) {
-    queue.value = normalizeQueue(nextQueue)
-    currentIndex.value = queue.value.length ? Math.min(Math.max(0, startIndex), queue.value.length - 1) : -1
-  }
-
   function replaceQueue(nextQueue) {
     queue.value = normalizeQueue(nextQueue)
   }

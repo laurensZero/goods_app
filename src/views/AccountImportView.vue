@@ -577,14 +577,6 @@ function deselectAll() {
   selectedSet.value = new Set()
 }
 
-function toggleSelectAll() {
-  if (isAllSelectableSelected.value) {
-    deselectAll()
-  } else {
-    selectAll()
-  }
-}
-
 function toggleItem(itemKey, po) {
   const item = allGoods.value.find((g) => g._itemKey === itemKey)
   if (!item || !isItemSelectable(item, po)) return

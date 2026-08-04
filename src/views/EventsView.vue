@@ -174,6 +174,7 @@
                         </div>
 
                         <div class="event-grid">
+                          <!-- eslint-disable vue/valid-v-memo -->
                           <EventCard
                             v-for="event in monthGroup.items"
                             :key="event.id"
@@ -185,6 +186,7 @@
                             @toggle-select="toggleSelect"
                             @open-detail="openDetail"
                           />
+                          <!-- eslint-enable vue/valid-v-memo -->
                         </div>
                       </div>
                     </section>
@@ -280,7 +282,7 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { cleanupAllHeroes, getHeroBackDurationMs, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
+import { cleanupAllHeroes, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
@@ -290,7 +292,6 @@ const SELECTION_HEADER_HEIGHT = 64
 const SCROLL_TOP_ANCHOR_REASON = 'events:openDetail'
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const EVENT_BACK_HERO_RETRY_MAX_FRAMES = 40
-const EVENT_BACK_HERO_GUARD_TIMEOUT_MS = 620
 
 const router = useRouter()
 const route = useRoute()
@@ -629,43 +630,6 @@ function scheduleEventBackHeroRetry(attempt = 0, hooks = null) {
     }
     scheduleEventBackHeroRetry(attempt + 1, hooks)
   })
-}
-
-function deferActivatedRestoreAfterBackHero(runRestore) {
-  const safeRunRestore = typeof runRestore === 'function' ? runRestore : () => {}
-  const hasPendingBackHero = hasPendingEventHeroBack(route.fullPath)
-  if (!hasPendingBackHero) {
-    safeRunRestore()
-    return
-  }
-
-  clearEventBackHeroDeferredRestoreTimer()
-  let settled = false
-  const settle = () => {
-    if (settled) return
-    settled = true
-    clearEventBackHeroDeferredRestoreTimer()
-    safeRunRestore()
-  }
-
-  scheduleEventBackHeroRetry(0, {
-    // onReady 在 overlay 真正起播时触发（图片解码等待之后），
-    // 让滚动恢复落在动画结束后而不是动画中途。
-    onReady: () => {
-      if (settled) return
-      clearEventBackHeroDeferredRestoreTimer()
-      eventBackHeroDeferredRestoreTimer = window.setTimeout(() => {
-        eventBackHeroDeferredRestoreTimer = 0
-        settle()
-      }, Math.max(0, getHeroBackDurationMs() + 24))
-    },
-    onGiveUp: settle
-  })
-
-  eventBackHeroDeferredRestoreTimer = window.setTimeout(() => {
-    eventBackHeroDeferredRestoreTimer = 0
-    settle()
-  }, EVENT_BACK_HERO_GUARD_TIMEOUT_MS)
 }
 
 function goToAdd() {

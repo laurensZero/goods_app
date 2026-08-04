@@ -8,7 +8,7 @@ import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import packageJson from '../../package.json'
-import { compareVersions, normalizeVersionTag } from '@/utils/github/release'
+import { normalizeVersionTag } from '@/utils/github/release'
 
 const COMPLETED_STORAGE_KEY = 'goods_survey_completed'
 
@@ -51,16 +51,6 @@ function readPopupRecord() {
 
 function persistPopupRecord(record) {
   try { localStorage.setItem(POPUP_RECORD_KEY, JSON.stringify(record || {})) } catch {}
-}
-
-function matchesVersion(current, rule) {
-  if (!rule?.hasConstraint) return true
-  const normalized = normalizeVersionTag(current || '')
-  if (!normalized) return false
-  if (rule.exact && compareVersions(normalized, rule.exact) !== 0) return false
-  if (rule.min && compareVersions(normalized, rule.min) < 0) return false
-  if (rule.max && compareVersions(normalized, rule.max) > 0) return false
-  return true
 }
 
 export const useSurveyStore = defineStore('survey', () => {
@@ -127,20 +117,20 @@ export const useSurveyStore = defineStore('survey', () => {
   }
 
   async function evaluateShowRules() {
-    let appVersion = FALLBACK_VERSION
-    let bundleVersion = ''
+    let _appVersion = FALLBACK_VERSION
+    let _bundleVersion = ''
     let channel = 'stable'
 
     try {
       if (Capacitor.isNativePlatform()) {
         const info = await CapacitorApp.getInfo()
-        appVersion = normalizeVersionTag(info?.version || FALLBACK_VERSION) || FALLBACK_VERSION
+        _appVersion = normalizeVersionTag(info?.version || FALLBACK_VERSION) || FALLBACK_VERSION
         try {
           const bundleInfo = await CapacitorUpdater.current()
-          bundleVersion = normalizeVersionTag(bundleInfo?.bundle?.version || '')
+          _bundleVersion = normalizeVersionTag(bundleInfo?.bundle?.version || '')
         } catch { /* ignore */ }
       } else {
-        bundleVersion = FALLBACK_VERSION
+        _bundleVersion = FALLBACK_VERSION
       }
     } catch { /* ignore */ }
 
@@ -150,7 +140,6 @@ export const useSurveyStore = defineStore('survey', () => {
     } catch { /* ignore */ }
 
     const now = Date.now()
-    const today = todayKey(new Date(now))
 
     return surveys.value.filter(survey => {
       if (!survey.enabled) return false

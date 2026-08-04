@@ -2,7 +2,7 @@
  * 下单流程状态机
  * 步骤: cookie → address → goods → coupon → gifts → review → submit → done
  */
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref } from 'vue'
 
 export const STEPS = [
   { key: 'cookie', label: '登录' },

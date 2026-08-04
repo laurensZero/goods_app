@@ -1,5 +1,5 @@
 import i18n from '@/locales'
-import { SyncError, CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_SERVER } from './syncError'
+import { SyncError } from './syncError'
 
 const OPERATION_TIMEOUT_MS = 60_000
 

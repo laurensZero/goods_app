@@ -17,10 +17,10 @@ import { withRetry } from '@/services/syncRetry'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey, removeSyncKey } from '@/utils/sync/storage'
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
-import { initSupabaseClient, testSupabaseConnection, clearSupabaseClient, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
+import { initSupabaseClient, testSupabaseConnection, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
-import { isFeatureBlocked, FEATURE_KEYS, MaintenanceModeError } from '@/services/maintenanceModeService'
+import { isFeatureBlocked, FEATURE_KEYS } from '@/services/maintenanceModeService'
 import i18n from '@/locales'
 import {
   IMAGE_FILE_PREFIX,

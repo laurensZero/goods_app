@@ -38,7 +38,7 @@ export async function uploadAttachment(file, feedbackId) {
   const ext = file.name.split('.').pop() || 'bin'
   const path = `fb-${feedbackId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-  const { data, error } = await db().storage
+const { error } = await db().storage
     .from(BUCKET)
     .upload(path, file, {
       contentType: file.type || 'application/octet-stream',

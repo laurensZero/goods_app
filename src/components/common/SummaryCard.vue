@@ -144,15 +144,13 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const SUMMARY_VISIBILITY_STORAGE_KEY = 'goods-app:home-total-value-hidden'
-
 const props = defineProps({
   totalValue: { type: String, default: '0.00' },
   totalCount: { type: Number, default: 0 },
   trendItems: { type: Array, default: () => [] },
   trendDateField: { type: String, default: 'updatedAt' },
   label: { type: String, default: 'Collection Value' },
-  storageKey: { type: String, default: SUMMARY_VISIBILITY_STORAGE_KEY },
+  storageKey: { type: String, default: 'goods-app:home-total-value-hidden' },
   currency: { type: String, default: '¥' },
   showTips: { type: Boolean, default: true },
   tipsTitle: { type: String, default: '' },
