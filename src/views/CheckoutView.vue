@@ -812,7 +812,7 @@ const {
 
 const isNativePlatform = computed(() => canUseNativeMihoyoImport())
 
-const { currentStepIndex, currentStep, progress, cookie, remark, error, loading, setError, nextStep, prevStep, goToStep } = flow
+const { currentStepIndex, currentStep, cookie, remark, error, loading, setError, nextStep, prevStep, goToStep } = flow
 
 const couponProcessing = ref(false)
 const couponResults = ref([])
@@ -849,7 +849,6 @@ const addItemFromPointGoods = goods.addItemFromPointGoods
 const clearItems = goods.clearItems
 
 const pointBalance = points.point
-const pointGoods = points.goods
 const visiblePointGoods = points.visibleGoods
 const activePointShopCode = points.activeShopCode
 const pointLoading = points.loading
