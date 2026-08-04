@@ -350,7 +350,6 @@ import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate
 import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
-import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'

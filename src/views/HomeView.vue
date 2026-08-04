@@ -315,8 +315,6 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
 import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
-import { usePresetsStore } from '@/stores/presets'
-import { useFilterPresetsStore } from '@/stores/filterPresets'
 import { STORAGE_FILTER_EVENT, STORAGE_FILTER_STORAGE_KEY } from '@/utils/storageQr'
 import { showGlobalToast } from '@/utils/globalToast'
 
@@ -324,8 +322,6 @@ defineOptions({ name: 'HomeView' })
 const { t } = useI18n()
 
 const store = useGoodsStore()
-const presetsStore = usePresetsStore()
-const filterPresetsStore = useFilterPresetsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
@@ -408,10 +404,8 @@ function getMaxRenderCards(density) {
   const config = GOODS_GRID_MAX_RENDER_CARDS_MAP[density] || { mobile: 54, tablet: 72 }
   return windowWidth.value >= TABLET_BREAKPOINT ? config.tablet : config.mobile
 }
-const LOAD_MORE_THRESHOLD_PX = 720
 const INITIAL_TIMELINE_MONTHS = 6
 const TIMELINE_MAX_RENDER_MONTHS = 14
-const LOAD_MORE_TIMELINE_MONTHS = 4
 const TIMELINE_RESTORE_BUFFER_MONTHS = 3
 const TIMELINE_MONTH_ESTIMATED_HEIGHT = 360
 const TIMELINE_MONTH_OVERSCAN = 3
@@ -562,7 +556,6 @@ const groupDisplayOptions = computed(() => [
 const {
   getScrollEl,
   getActiveScrollSource,
-  getDomScrollSnapshot,
   markScrollSource,
   readScrollTop,
   getStoredScrollState,
@@ -988,17 +981,10 @@ function _computeTimelineWindow(scrollTop = 0, options = {}) {
   const total = allTimelineMonthCount.value
   if (total === 0) return { start: 0, count: 0 }
 
-  const { useFlipViewport = false } = options
-  const viewportHeight = useFlipViewport
-    ? getFlipViewportHeight()
-    : (getScrollEl()?.clientHeight || window.innerHeight || 800)
-
   const initial = getInitialVisibleTimelineMonths()
   // 用逐月实测高度映射滚动偏移 → 月份索引，替代 scrollTop/estHeight 除法估算
   const mo = timelineMetrics.monthAtOffset(scrollTop, allTimelineMonthList.value)
-  const moEnd = timelineMetrics.monthAtOffset(scrollTop + viewportHeight * 1.6, allTimelineMonthList.value)
   const startMonth = Math.max(0, mo - TIMELINE_MONTH_OVERSCAN)
-  const rawEndMonth = moEnd + TIMELINE_MONTH_OVERSCAN + 1
   // 限制渲染窗口，超出部分用 tail spacer 填充（和网格模式同理）
   const maxCount = TIMELINE_MAX_RENDER_MONTHS
   const endMonth = Math.min(total, startMonth + maxCount)
@@ -1080,25 +1066,6 @@ function prepareRestoreState(state) {
   const anchorRow = Math.floor(anchorIndex / cols)
   const restoreTop = Math.max(0, gridMetrics.offsetOfRow(anchorRow) - overscanRows * rowSpan)
   syncVisibleGoodsCount(restoreTop, { useFlipViewport: true })
-}
-
-function pruneTimelineMonths() {
-  if (displayDensity.value !== 'timeline') return
-  const total = allTimelineMonthCount.value
-  if (total === 0) return
-
-  const scrollTop = readScrollTop()
-  const desiredStart = Math.max(0, timelineMetrics.monthAtOffset(scrollTop, allTimelineMonthList.value) - TIMELINE_MONTH_OVERSCAN - TIMELINE_PRUNE_KEEP_BEHIND)
-
-  if (desiredStart > visibleTimelineMonthStart.value) {
-    visibleTimelineMonthStart.value = desiredStart
-    // Adjust count to keep end position stable
-    const currentEnd = visibleTimelineMonthStart.value + visibleTimelineMonthCount.value
-    visibleTimelineMonthCount.value = Math.max(
-      getInitialVisibleTimelineMonths(),
-      currentEnd - desiredStart
-    )
-  }
 }
 
 function handlePageScroll() {
@@ -1450,7 +1417,6 @@ const groupViewItems = computed(() => {
   })
 })
 const groupIdsSet = computed(() => new Set(groupViewItems.value.map(g => g.id)))
-const hasSelectedGroup = computed(() => [...selectedIds.value].some(id => groupIdsSet.value.has(id)))
 const selectedGroupTargetId = computed(() => {
   // If exactly one group is selected and some goods are selected, return the group id
   const selGroups = [...selectedIds.value].filter(id => groupIdsSet.value.has(id))
@@ -1564,7 +1530,6 @@ const {
   allTimelineMonthList,
   timelineMonthIndexByItemId,
   timelineItemIndexById,
-  timelineEntryById,
   timelineUnknownItemIds,
   visibleTimelineYearGroups,
   prunedTimelineHeadHeight,

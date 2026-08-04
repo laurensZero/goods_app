@@ -726,7 +726,6 @@ const handleSearch = goods.handleSearch
 const giftActivities = gifts.activities
 const giftLoading = gifts.loading
 const giftError = gifts.error
-const selectedGifts = gifts.selectedGifts
 const toggleGift = gifts.toggleGift
 const isGiftSelected = gifts.isGiftSelected
 const getSelectedGiftItems = gifts.getSelectedGiftItems

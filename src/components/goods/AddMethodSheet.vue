@@ -313,11 +313,6 @@ function onImport() {
   emit('import')
 }
 
-function onAccountImport() {
-  close()
-  emit('account-import')
-}
-
 function onTaobaoImport() {
   emit('taobao-import')
 }

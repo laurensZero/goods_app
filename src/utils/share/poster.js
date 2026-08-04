@@ -1,7 +1,6 @@
 import QRCode from 'qrcode'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { formatCurrency } from '@/utils/format'
-import { CURRENCY_MAP } from '@/constants/currencies'
 
 const POSTER_WIDTH = 1080
 const POSTER_HEIGHT = 1720

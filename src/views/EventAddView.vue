@@ -386,7 +386,6 @@ import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeac
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { Capacitor } from '@capacitor/core'
 import { pickLinkedLocalImage } from '@/utils/image/localImage'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
@@ -765,11 +764,10 @@ async function handleSubmit() {
     ...form,
     otherExpenses: sanitizeOtherExpenses(form.otherExpenses)
   }
-  let addedRecord = null
   if (isEdit.value) {
     await eventsStore.updateEventRecord(editId.value, payload)
   } else {
-    addedRecord = await eventsStore.addEventRecord(payload)
+    await eventsStore.addEventRecord(payload)
     // 确保列表页面能立刻看到新增项：刷新 store 列表以同步来源数据库
     try {
       await eventsStore.refreshList()

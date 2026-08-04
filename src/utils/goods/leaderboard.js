@@ -66,14 +66,6 @@ function getDimensionConfig(dimension) {
   return DIMENSION_CONFIG[dimension] || DIMENSION_CONFIG.character
 }
 
-function getEntrySortLabel(entry, dimension) {
-  if (dimension === 'month') {
-    return entry.label
-  }
-
-  return entry.label.localeCompare ? entry.label.localeCompare(entry.label, 'zh-Hans-CN') : 0
-}
-
 export function getLeaderboardDimensionMeta(dimension, t) {
   const config = getDimensionConfig(dimension)
   if (t) {

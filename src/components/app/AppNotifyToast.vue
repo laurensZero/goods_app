@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, onUnmounted, computed } from 'vue'
+import { reactive, watch, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { parseSaleAt } from '@/utils/saleReminder'

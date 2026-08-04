@@ -5,8 +5,7 @@ import { toSnakeCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/syncRetry'
 import i18n from '@/locales'
 import {
-  GOODS_COLS, EVENT_COLS, RECHARGE_COLS, GOODS_GROUP_COLS, GOODS_GROUP_ITEM_COLS,
-  pickCols, toTimestamp, syncTableRows,
+  syncTableRows,
   toGoodsRows, toEventRows, toGroupRows, toGroupItemRows, toRechargeRow,
   computeDiffRows, computeDeleteIds
 } from './helpers'

@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { CURRENCY_MAP } from '@/constants/currencies'
@@ -101,7 +101,7 @@ const priceCNYHint = computed(() => {
   const v = props.totalPrice || 0
   if (v <= 0) return ''
   // Read exchangeRate.rates to establish reactive dependency
-  const rates = exchangeRate.rates
+  void exchangeRate.rates
   const cny = exchangeRate.convertToCNY(v, props.currency)
   if (!cny || cny <= 0) return ''
   return `≈ ¥${cny.toFixed(2)}`

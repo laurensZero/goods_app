@@ -739,22 +739,22 @@ const wishlistCharacterOptions = computed(() => {
 
 // ── Composables ──
 const {
-  searchKeyword, searchResults, searchExpanded, searching, searchLoadingMore, searchError,
+  searchKeyword, searchExpanded, searching, searchLoadingMore, searchError,
   variantSearchHint, selectedSearchCharacter, selectedSearchGoodsId, searchLoadMoreRef,
-  visibleSearchResults, showSearchToggle, searchHasMore, showSearchLoadMoreStatus,
-  getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult, shortenUrl, resetSearchState
+  visibleSearchResults, showSearchToggle, showSearchLoadMoreStatus,
+  getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult, shortenUrl
 } = useImportSearch({ goodsStore, wishlistCharacterOptions, setUrlInputValue, handleParse })
 
 const {
   batchStep, batchItems, batchParsing, savingAll, editingBatchIdx,
-  batchEditForm, batchEditPriceError, batchEditImages, batchEditBaseImages,
+  batchEditForm, batchEditPriceError, batchEditImages,
   batchEditVariants, batchEditSelectedVariantKey, batchEditSelectedCharacterName,
-  batchEditSaveAsCharacter, urlEntries, batchMode, batchTotalCount,
+  batchEditSaveAsCharacter, batchMode,
   batchParseButtonText, batchReadyCount, batchErrorCount,
   batchParsedDoneCount, isBatchItemOwned,
   handleBatchImport, cancelBatchParsing, removeBatchItem,
   openBatchEdit, saveBatchEdit, handleBatchVariantSelect,
-  toggleBatchSaveAsCharacter, toggleBatchEditImage, saveAllBatch, resetBatchState
+  toggleBatchSaveAsCharacter, toggleBatchEditImage, saveAllBatch
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
   ensureHistoricalTagContext, updateHistoricalTagContextFromItem
@@ -974,14 +974,6 @@ function handleVariantSelect(v) {
     form.characters = selectedCharacterName.value ? [selectedCharacterName.value] : []
     applySelectedVariantMedia(v)
   }
-}
-
-// ── 用户手动切换"是否记录为角色" ──
-function toggleSaveAsCharacter() {
-  saveAsCharacter.value = !saveAsCharacter.value
-  form.characters = saveAsCharacter.value && selectedCharacterName.value
-    ? [selectedCharacterName.value]
-    : []
 }
 
 async function handleParse() {

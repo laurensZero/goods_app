@@ -262,8 +262,6 @@ import { setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
 import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
-import { usePresetsStore } from '@/stores/presets'
-import { useFilterPresetsStore } from '@/stores/filterPresets'
 
 defineOptions({ name: 'WishlistView' })
 
@@ -315,8 +313,6 @@ const ROW_HEIGHT_MAP = {
 const router = useRouter()
 const route = useRoute()
 const store = useGoodsStore()
-const presetsStore = usePresetsStore()
-const filterPresetsStore = useFilterPresetsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
@@ -377,8 +373,6 @@ const {
   visibleCharacterOptions: searchVisibleCharacterOptions,
   hasCollapsedCharacterOptions: searchHasCollapsedCharacterOptions,
   showAllCharacterOptions: searchShowAllCharacterOptions,
-  hasUnassignedStorageLocation: searchHasUnassignedStorageLocation,
-  storageLocationTree: searchStorageLocationTree,
   searchPresets: searchPresetsList,
   activePresetId: searchActivePresetId,
   activePresetName: searchActivePresetName,
@@ -438,7 +432,6 @@ const {
   scheduleGoodsBackHeroRetry
 } = useGoodsBackHero({ getScrollEl, rootRef: pageBodyRef, maxRetryFrames: 40, guardTimeoutMs: 620 })
 
-const baseGoodsList = computed(() => store.wishlistViewList)
 const _wishlistTotals = computed(() => {
   let qty = 0
   let val = 0
@@ -542,7 +535,6 @@ const groupViewItems = computed(() => {
   })
 })
 const groupIdsSet = computed(() => new Set(groupViewItems.value.map(g => g.id)))
-const hasSelectedGroup = computed(() => [...selectedIds.value].some(id => groupIdsSet.value.has(id)))
 const selectedGroupTargetId = computed(() => {
   const selGroups = [...selectedIds.value].filter(id => groupIdsSet.value.has(id))
   const selGoods = [...selectedIds.value].filter(id => !groupIdsSet.value.has(id))

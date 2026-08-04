@@ -185,7 +185,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const { t } = useI18n()
-const { toastMsg, showToast } = useToast()
+const { showToast } = useToast()
 const authStore = useAuthStore()
 
 const feedback = ref(null)

@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { computed, ref, KeepAlive, onMounted, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'

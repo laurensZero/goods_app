@@ -228,7 +228,7 @@ export function getTaggingSuggestions(inputContext, staticDictionaries, dynamicP
   // 扁平化角色库用于匹配
   const dynamicCharacters = []
   if (dynamicPresets?.characters) {
-    for (const [ipName, chars] of Object.entries(dynamicPresets.characters)) {
+    for (const [, chars] of Object.entries(dynamicPresets.characters)) {
       chars.forEach(c => dynamicCharacters.push(c))
     }
   }

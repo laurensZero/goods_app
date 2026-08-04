@@ -58,7 +58,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
-import { setLocale, SUPPORTED_LOCALES } from '@/locales'
+import { setLocale } from '@/locales'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
 defineOptions({ name: 'LanguageView' })

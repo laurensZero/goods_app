@@ -42,7 +42,7 @@ export async function handleAuthCallback() {
   const client = getSupabaseClient()
 
   try {
-    const { data, error } = await client.auth.setSession({
+    const { error } = await client.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken || '',
       expires_in: Number(expiresIn) || 3600,

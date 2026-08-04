@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeHomeSortMode,
   getHomeSortOption,
-  sortHomeGoodsList,
-  HOME_SORT_OPTIONS
+  sortHomeGoodsList
 } from '../homeSort'
 
 describe('normalizeHomeSortMode', () => {

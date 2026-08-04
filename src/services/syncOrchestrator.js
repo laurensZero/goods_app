@@ -2,7 +2,7 @@
 // Stateless sync orchestrator — coordinates pull/push via pipeline functions.
 // The store only manages state/persistence and delegates to this.
 
-import { buildImageSyncStats, collectReferencedImageState, countWishlistSplit, getItemTimestamp, normalizeBudgetValue, getLatestRechargeTimestamp, shouldPullRechargeByManifest, readBudgetSettings, toTimestampMs } from '@/utils/sync/shared'
+import { collectReferencedImageState, countWishlistSplit, getItemTimestamp, normalizeBudgetValue, readBudgetSettings, toTimestampMs } from '@/utils/sync/shared'
 import { compareStateSync } from '@/utils/sync/stateCompare'
 import { wrapSyncError, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_WRITE_DATA } from './syncError'
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
@@ -110,7 +110,7 @@ export function createSyncOrchestrator({
   // ── pull() — unified pull entry point ──
 
   async function pull(ctx, opts = {}) {
-    const { tables, since = 0, silent = false, forceRecharge = false } = opts
+    const { tables, since = 0, silent = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
     const isIncremental = since > 0 && !!be.pullAll
@@ -558,11 +558,11 @@ export function createSyncOrchestrator({
   }
 
   async function doPush(ctx, stores, be, opts = {}) {
-    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
+    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
 
     // Build payload (without uploading images yet)
     let existingImageCloud = await be.getExistingImageCloud()
-    const { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles, imageUpdates } = await trackSyncStep(
+    const { syncData, rechargeSyncData, eventSyncData, imageStats, imageUpdates } = await trackSyncStep(
       i18n.global.t('sync.step.buildGoodsPayload'),
       () => buildPayloadAndUploadImages(
         payload, image, be, {

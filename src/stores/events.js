@@ -88,7 +88,7 @@ export const useEventsStore = defineStore('events', () => {
     }
   })
 
-  const { list, isReady, getById, init: coreInit, add, update, remove, removeMultiple, refreshList, importBackup: coreImportBackup } = core
+  const { list, isReady, getById, init: coreInit, refreshList } = core
 
   const triggerSync = createAutoPush('events')
 

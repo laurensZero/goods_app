@@ -4,8 +4,7 @@ import {
   buildStorageLocationPath,
   normalizeStorageLocationValue,
   replaceStorageLocationPrefix,
-  isStorageLocationUnderPrefix,
-  STORAGE_LOCATION_SEPARATOR
+  isStorageLocationUnderPrefix
 } from '../storageLocations'
 
 describe('splitStorageLocationPath', () => {

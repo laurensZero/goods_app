@@ -4,10 +4,6 @@
 import { normalizeBudgetValue } from '@/utils/sync/shared'
 import { parseCloudImageUri } from '@/utils/goods/images'
 import { computeDiffRows } from './supabaseAdapter/helpers'
-import { createLogger } from '@/utils/logger'
-import i18n from '@/locales'
-
-const log = createLogger('sync:pushPipeline')
 
 /**
  * Build sync payloads (image upload is deferred to doPush).

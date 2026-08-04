@@ -5,11 +5,9 @@ import {
   getItemTimestamp,
   resolveGoodsTrashMaps,
   normalizeBudgetValue,
-  shouldPullRechargeByManifest,
   readBudgetSettings
 } from '@/utils/sync/shared'
 import { compareStateSync } from '@/utils/sync/stateCompare'
-import i18n from '@/locales'
 
 export function createSyncConflictService({
   backend,
@@ -67,8 +65,6 @@ export function createSyncConflictService({
 
   async function buildPullConflictData(remoteManifest, { forceRecharge = false, sourceTable = 'manual', cachedRemoteData = null, cachedRemoteRechargeData = null, cachedRemoteEventData = null } = {}) {
     const goodsStore = useGoodsStore()
-    const rechargeStore = useRechargeStore()
-    const eventsStore = useEventsStore()
     const currentBackend = resolveBackend()
 
     // Read all remote data via pullAll

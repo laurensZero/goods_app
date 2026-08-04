@@ -14,6 +14,7 @@
         aria-hidden="true"
         :style="{ height: `${beforeSpacerHeight}px` }"
       />
+      <!-- eslint-disable vue/valid-v-memo -->
       <template v-for="(item, index) in items" :key="item.id">
         <GroupCard
           v-if="item._type === 'group'"
@@ -54,6 +55,7 @@
           @open-detail="(payload) => emit('open-detail', payload || item.id)"
         />
       </template>
+      <!-- eslint-enable vue/valid-v-memo -->
       <div
         v-if="afterSpacerHeight > 0"
         class="goods-list-spacer"
@@ -151,10 +153,6 @@ const _observedEls = new WeakSet()
 // IntersectionObserver-based will-change toggling removed — it caused
 // layout jitter on fast scroll. Modern Android WebView handles compositor
 // promotion automatically; no manual force-repaint needed.
-
-function createCardObserver() {
-  // intentionally empty
-}
 
 async function observeCurrentCards() {
   // intentionally empty

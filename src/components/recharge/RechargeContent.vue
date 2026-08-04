@@ -195,7 +195,6 @@ import { useRechargeStore } from '@/stores/recharge'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
-import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { createLogger } from '@/utils/logger'
 import { pinyinIncludes } from '@/utils/pinyin'
 
@@ -222,7 +221,6 @@ const GAME_ORDER = ['原神', '星穹铁道', '绝区零']
 
 const activeRecords = computed(() => rechargeStore.sortedRecords)
 const totalAmountText = computed(() => rechargeStore.totalAmount.toFixed(2))
-const latestRecord = computed(() => activeRecords.value[0] || null)
 const hasFilters = computed(() => Boolean(keyword.value.trim() || gameFilter.value))
 
 const hasMonthCardData = computed(() => activeRecords.value.some((record) => {
@@ -279,7 +277,6 @@ const currentMonthSummary = computed(() => {
 })
 
 const currentMonthTotal = computed(() => currentMonthSummary.value.total)
-const currentMonthCount = computed(() => currentMonthSummary.value.count)
 
 const averageAmount = computed(() => {
   if (activeRecords.value.length === 0) return 0
@@ -401,13 +398,6 @@ function toggleSearch() {
 
   showSearchBar.value = true
   log.debug('search:toggle', { visible: true, hasKeyword: Boolean(keyword.value.trim()) })
-}
-
-function openCreate() {
-  editingRecord.value = null
-  addMode.value = 'manual'
-  showAddDialog.value = true
-  log.debug('dialog:create', { mode: addMode.value })
 }
 
 function openAddMethodSheet() {
@@ -600,13 +590,6 @@ function bindScrollListeners() {
 
 function unbindScrollListeners() {
   scrollListenerCleanup?.()
-}
-
-function scrollToTop() {
-  const pageBody = pageBodyEl.value
-  scrollToTopAnimated(() => pageBody, 260)
-  updateScrollTopButtonVisibility()
-  log.debug('scroll:top', { source: pageBody ? 'page-body' : 'window' })
 }
 
 function handleAndroidBackButton(event) {

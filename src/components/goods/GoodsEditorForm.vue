@@ -835,7 +835,6 @@ import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import StatusTimelineEditor from '@/components/goods/StatusTimelineEditor.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useRouter } from 'vue-router'
 import { resizeTextarea } from '@/utils/textarea'
@@ -917,14 +916,12 @@ const {
   addSaleReminderOffset,
   removeSaleReminderOffset,
   hasActualPriceValue,
-  normalizeUnitDateAt,
   clearUnitAcquiredAtList,
   normalizeUnitPriceValue,
   normalizeUnitPriceAt,
   clearUnitActualPriceList,
   clearUnitCharacterList,
   clearUnitCollectStatusList,
-  syncAllUnitDatesFromPrimaryDate,
   syncAllUnitPricesFromActualPrice,
   openDatePicker,
   openUnitDatePicker,

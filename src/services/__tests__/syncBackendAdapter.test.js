@@ -19,7 +19,8 @@ describe('createSyncBackendAdapter', () => {
   })
 
   it('throws when a required method is missing', () => {
-    const { pushAll, ...incomplete } = fullImpl
+    const incomplete = { ...fullImpl }
+    delete incomplete.pushAll
     expect(() => createSyncBackendAdapter(incomplete)).toThrow('missing required method: pushAll')
   })
 

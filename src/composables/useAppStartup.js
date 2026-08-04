@@ -1,23 +1,15 @@
-import { computed, onMounted, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAuthStore } from '@/stores/auth'
-import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/stores/recharge'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
 
-function resolveArrayValue(source) {
-  if (Array.isArray(source)) return source
-  if (Array.isArray(source?.value)) return source.value
-  return []
-}
-
 export function useAppStartup() {
-  const goodsStore = useGoodsStore()
   const eventsStore = useEventsStore()
   const rechargeStore = useRechargeStore()
   const announcementStore = useAnnouncementStore()
@@ -26,13 +18,6 @@ export function useAppStartup() {
   const webUpdateStore = useWebUpdateStore()
   const syncStore = useSyncStore()
   const authStore = useAuthStore()
-
-  const hasLocalData = computed(() => (
-    resolveArrayValue(goodsStore.list).length > 0
-    || resolveArrayValue(goodsStore.trashList).length > 0
-    || resolveArrayValue(rechargeStore.records).length > 0
-    || resolveArrayValue(eventsStore.list).length > 0
-  ))
 
   onMounted(async () => {
     void appUpdateStore.init()
