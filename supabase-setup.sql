@@ -1271,6 +1271,7 @@ CREATE POLICY "share_delete_own" ON shares
 
 -- RPC: get_share — 他人凭分享码读取单条分享 payload 的唯一通道
 -- disabled 的分享对非创建者返回 NULL（创建者本人仍可读，供分享管理页复用）
+-- 返回信封 { payload, disabled }；码不存在时返回 SQL NULL，便于区分“停用”与“不存在”
 CREATE OR REPLACE FUNCTION get_share(p_share_id TEXT)
 RETURNS JSONB
 LANGUAGE sql
@@ -1278,9 +1279,16 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT payload FROM shares
-  WHERE share_id = p_share_id
-    AND (NOT COALESCE(disabled, false) OR user_id = auth.uid());
+  SELECT
+    CASE
+      WHEN NOT EXISTS (SELECT 1 FROM shares WHERE share_id = p_share_id) THEN NULL
+      ELSE jsonb_build_object(
+        'disabled', COALESCE((SELECT disabled FROM shares WHERE share_id = p_share_id), false),
+        'payload', (SELECT payload FROM shares s
+                    WHERE s.share_id = p_share_id
+                      AND (NOT COALESCE(s.disabled, false) OR s.user_id = auth.uid()))
+      )
+    END;
 $$;
 
 REVOKE ALL ON FUNCTION get_share(TEXT) FROM PUBLIC;

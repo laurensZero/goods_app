@@ -35,5 +35,7 @@
   "share.reEnable": "再有効化",
   "share.disableShare": "無効化",
   "share.unknownTime": "不明",
-  "share.loadFailed": "共有の読み込みに失敗しました"
+  "share.loadFailed": "共有の読み込みに失敗しました",
+  "share.disabledOwnerNote": "この共有は無効化されています。現在表示できるのはあなただけです。",
+  "share.disabledCodeNote": "この共有コードは無効化されています。"
 }

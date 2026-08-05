@@ -35,5 +35,7 @@
   "share.reEnable": "Re-enable",
   "share.disableShare": "Disable",
   "share.unknownTime": "Unknown",
-  "share.loadFailed": "Failed to load shares"
+  "share.loadFailed": "Failed to load shares",
+  "share.disabledOwnerNote": "This share is disabled. Only you can view it now.",
+  "share.disabledCodeNote": "This share code has been disabled."
 }

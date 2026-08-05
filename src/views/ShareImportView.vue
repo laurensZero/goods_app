@@ -85,6 +85,7 @@
       <!-- Preview -->
       <transition name="result-fade">
         <section v-if="payload && !fetching" class="preview-section">
+          <div v-if="disabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
           <div class="section-head">
             <p class="section-label">{{ t('import.shareContent') }}</p>
             <h2 class="section-title">{{ t('import.shareGoodsCount', { count: payload.goods.length }) }}</h2>
@@ -192,7 +193,8 @@ const {
   doFetch,
   handleImport,
   getItemCover,
-  formatSharedAt
+  formatSharedAt,
+  disabledNote
 } = useShareImport({
   onAllImported() {
     runWithRouteTransition(() => router.replace('/home'), {
@@ -458,6 +460,17 @@ onMounted(async () => {
 /* Section head */
 .section-head {
   margin: 24px 0 12px;
+}
+
+.share-disabled-note {
+  margin-top: 20px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-warning, #d97706);
+  background: color-mix(in srgb, var(--app-warning, #d97706) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-warning, #d97706) 30%, transparent);
 }
 
 .section-label {

@@ -35,5 +35,7 @@
   "share.reEnable": "重新启用",
   "share.disableShare": "停用",
   "share.unknownTime": "未知时间",
-  "share.loadFailed": "加载分享列表失败"
+  "share.loadFailed": "加载分享列表失败",
+  "share.disabledOwnerNote": "此分享已停用，当前只有你能读取",
+  "share.disabledCodeNote": "该分享码已停用"
 }

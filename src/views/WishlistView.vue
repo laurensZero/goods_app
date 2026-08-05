@@ -133,6 +133,7 @@
     <AddMethodSheet
       v-model="showAddSheet"
       :show-taobao-import="false"
+      default-import-target="wishlist"
       @manual="goToManualAdd"
       @batch-add="handleBatchAdd"
       @import="goToImport"
