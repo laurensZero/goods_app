@@ -29,6 +29,7 @@
 
         <!-- 解析结果预览 & 导入 -->
         <template v-else-if="payload">
+          <div v-if="disabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
           <div class="share-preview-head">
             <p class="share-preview-count">{{ t('common.itemsCount', { count: payload.goods?.length || 0 }) }}</p>
             <p v-if="payload.sharedAt" class="share-preview-date">{{ formatSharedAt(payload.sharedAt) }}</p>
@@ -256,6 +257,17 @@ watch(showPrompt, (newVal) => {
   display: flex;
   gap: 12px;
   justify-content: center;
+}
+
+.share-disabled-note {
+  margin: 0 4px 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-warning, #d97706);
+  background: color-mix(in srgb, var(--app-warning, #d97706) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-warning, #d97706) 30%, transparent);
 }
 
 /* 解析结果 */

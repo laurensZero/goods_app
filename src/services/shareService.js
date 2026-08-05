@@ -33,7 +33,13 @@ function isMissingRpc(error) {
 }
 
 /**
- * Get a share's payload by shareId. Returns null if not found or disabled.
+ * Get a share by shareId.
+ * Returns { payload, disabled } or null (share code does not exist).
+ * — payload !== null         → success（payload 为数据本体）
+ * — payload === null, disabled === true  → 分享存在但已停用，且读取者非创建者
+ *
+ * `disabled` 创建者本人读到已停用分享时亦为 true（RPC 允许 owner 保留可读），
+ * 供界面提示“已停用”。
  * Goes through the get_share RPC (shares SELECT is owner-only now);
  * falls back to the legacy direct select when the RPC is not deployed yet.
  */
@@ -44,9 +50,40 @@ export async function getShare(shareId) {
     if (!isMissingRpc(error)) throw new Error(error.message)
     return getShareLegacy(shareId)
   }
-  // 基本结构校验：payload 必须是对象
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
-  return data
+
+  // 新版 RPC 信封：{ payload, disabled }；码不存在时 RPC 返回 SQL NULL
+  if (data && typeof data === 'object' && 'payload' in data) {
+    const raw = data.payload
+    const payload = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null
+    return { payload, disabled: !!data.disabled }
+  }
+
+  // 兼容旧版 RPC：直接返回 payload（无 disabled 信息），创建者补充直查
+  if (data && typeof data === 'object' && 'goods' in data) {
+    const disabled = await getShareDisabledForOwner(shareId)
+    return { payload: data, disabled }
+  }
+
+  return null
+}
+
+/**
+ * 读取者即创建者时，直查 shares 表拿 disabled 标志（RLS 仅允许创建者 SELECT，
+ * 非创建者这里返回空数组，disabled 视为 false，正好与 RPC 的语义一致）。
+ */
+async function getShareDisabledForOwner(shareId) {
+  try {
+    const { data, error } = await db()
+      .from(SHARES_TABLE)
+      .select('disabled')
+      .eq('share_id', shareId)
+      .maybeSingle()
+
+    if (error || !data) return false
+    return !!data.disabled
+  } catch {
+    return false
+  }
 }
 
 async function getShareLegacy(shareId) {
@@ -59,7 +96,7 @@ async function getShareLegacy(shareId) {
 
   if (error) throw new Error(error.message)
   if (!data || data.disabled) return null
-  return data.payload
+  return { payload: data.payload, disabled: false }
 }
 
 /**

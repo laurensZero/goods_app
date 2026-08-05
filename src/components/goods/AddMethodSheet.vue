@@ -172,6 +172,7 @@
 
           <!-- 预览 & 导入 -->
           <template v-if="sharePayload && !shareFetching">
+            <div v-if="shareDisabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
             <div class="share-preview-head">
               <p class="share-preview-count">{{ t('goods.addMethod.goodsCount', { count: sharePayload.goods.length }) }}</p>
               <p v-if="sharePayload.sharedAt" class="share-preview-date">{{ formatSharedAt(sharePayload.sharedAt) }}</p>
@@ -244,6 +245,10 @@ const props = defineProps({
   showTaobaoImport: {
     type: Boolean,
     default: true
+  },
+  defaultImportTarget: {
+    type: String,
+    default: 'collection'
   }
 })
 
@@ -261,13 +266,15 @@ const {
   importedIndexes: shareImportedIndexes,
   importTarget,
   remainingCount: shareRemainingCount,
+  disabledNote: shareDisabledNote,
   doFetch,
   handleImport: doImport,
   getItemCover,
   formatSharedAt,
   resetState
 } = useShareImport({
-  onAllImported: close
+  onAllImported: close,
+  defaultImportTarget: props.defaultImportTarget
 })
 
 const codeInputRef = ref(null)
@@ -290,6 +297,7 @@ function handleImport() {
 watch(view, (next) => {
   if (next === 'share-import') {
     codeInput.value = ''
+    importTarget.value = props.defaultImportTarget
     resetState()
     nextTick(() => codeInputRef.value?.focus())
   }
@@ -545,7 +553,7 @@ function onTaobaoImport() {
   width: 36px;
   height: 36px;
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  border-radius: 10px;
+  border-radius: 50%;
   background: color-mix(in srgb, var(--app-glass) 80%, var(--app-surface));
   display: flex;
   align-items: center;
@@ -653,6 +661,17 @@ function onTaobaoImport() {
   font-size: 13px;
   color: var(--app-danger, #e53e3e);
   margin: 8px 0 0;
+}
+
+.share-disabled-note {
+  margin: 0 4px 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-warning, #d97706);
+  background: color-mix(in srgb, var(--app-warning, #d97706) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-warning, #d97706) 30%, transparent);
 }
 
 /* Loading */

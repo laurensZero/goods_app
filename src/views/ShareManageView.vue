@@ -259,9 +259,9 @@ async function shareAgain(share) {
   // Load full payload from DB for poster generation
   let loadedItems = []
   try {
-    const payload = await getShare(share.shareId)
-    if (payload?.goods?.length) {
-      loadedItems = payload.goods
+    const result = await getShare(share.shareId)
+    if (result?.payload?.goods?.length) {
+      loadedItems = result.payload.goods
     }
   } catch {
     // ignore, fall back to summary data

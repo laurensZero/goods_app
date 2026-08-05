@@ -12,7 +12,8 @@ import i18n from '@/locales'
 export function useShareImport(options = {}) {
   const {
     onImportError = null,
-    onAllImported = null
+    onAllImported = null,
+    defaultImportTarget = 'collection'
   } = options
 
   const goodsStore = useGoodsStore()
@@ -23,7 +24,8 @@ export function useShareImport(options = {}) {
   const payload = ref(null)
   const importing = ref(false)
   const importedIndexes = ref(new Set())
-  const importTarget = ref('collection')
+  const importTarget = ref(defaultImportTarget)
+  const disabledNote = ref(false)
 
   const remainingCount = computed(() => {
     if (!payload.value) return 0
@@ -50,6 +52,7 @@ export function useShareImport(options = {}) {
     payload.value = null
     importing.value = false
     importedIndexes.value = new Set()
+    disabledNote.value = false
   }
 
   async function doFetch(shareId) {
@@ -61,14 +64,23 @@ export function useShareImport(options = {}) {
     fetching.value = true
     fetchError.value = ''
     payload.value = null
+    disabledNote.value = false
 
     try {
-      const data = await getShare(shareId)
-      if (!data) {
+      const result = await getShare(shareId)
+      if (!result) {
         fetchError.value = i18n.global.t('share.notFound')
         return
       }
 
+      if (!result.payload) {
+        fetchError.value = result.disabled
+          ? i18n.global.t('share.disabledCodeNote')
+          : i18n.global.t('share.notFound')
+        return
+      }
+
+      const data = result.payload
       const validation = validateSharePayload(data)
       if (!validation.valid) {
         fetchError.value = validation.reason
@@ -76,6 +88,7 @@ export function useShareImport(options = {}) {
       }
 
       payload.value = data
+      disabledNote.value = !!result.disabled
     } catch (e) {
       fetchError.value = e.message || i18n.global.t('share.fetchFailed')
     } finally {
@@ -155,6 +168,7 @@ export function useShareImport(options = {}) {
     importedIndexes,
     importTarget,
     remainingCount,
+    disabledNote,
     doFetch,
     handleImport,
     getItemCover,
