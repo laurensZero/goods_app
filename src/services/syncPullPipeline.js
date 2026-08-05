@@ -39,6 +39,18 @@ export async function readRemoteData(be, { since = 0, trackSyncStep = null } = {
   return pullData
 }
 
+function getPurgedTrashIds(goodsStore) {
+  const value = goodsStore?.purgedTrashIds
+  if (value?.value instanceof Set) return value.value
+  return value instanceof Set ? value : null
+}
+
+function filterPurgedRemoteTrash(goodsStore, items = []) {
+  const purgedIds = getPurgedTrashIds(goodsStore)
+  if (!purgedIds || purgedIds.size === 0) return items
+  return items.filter((item) => !purgedIds.has(String(item?.id || '').trim()))
+}
+
 /**
  * Compare local stores with remote data.
  * Pure function — no side effects.
@@ -47,7 +59,10 @@ export function diffLocalRemote(localStores, remoteData, { domains = null, incre
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore } = localStores
 
   const localResolved = resolveGoodsTrashMaps(goodsStore.list, goodsStore.trashList)
-  const remoteResolved = resolveGoodsTrashMaps(remoteData.goods || [], remoteData.trash || [])
+  const remoteResolved = resolveGoodsTrashMaps(
+    remoteData.goods || [],
+    filterPurgedRemoteTrash(goodsStore, remoteData.trash || [])
+  )
 
   // Collect changed IDs for incremental pull
   const changedGoodsIds = new Set()
@@ -152,10 +167,15 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
   const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null } = opts
 
+  const effectiveRemoteData = {
+    ...remoteData,
+    trash: filterPurgedRemoteTrash(goodsStore, remoteData.trash || [])
+  }
+
   // 合并前对比本地状态，统计实际会落库的新增/更新数（LWW：仅远端更新时间更新才生效）。
   // 拉取重叠窗口（PULL_CLOCK_OVERLAP_MS）会重复拉到已合并过的行，
   // 按拉取行数计数会让 UI 误报「导入 N 件」，必须按实际变化计数
-  const counts = countAppliedChanges(stores, remoteData)
+  const counts = countAppliedChanges(stores, effectiveRemoteData)
 
   // Compute remote watermark
   let remoteWatermark = 0
@@ -176,7 +196,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
 
   // ── Goods ──
   const goods = remoteData.goods || []
-  const trash = remoteData.trash || []
+  const trash = effectiveRemoteData.trash
 
   // Import new + update existing
   if (goods.length > 0) {
@@ -299,7 +319,7 @@ function countAppliedChanges(stores, remoteData) {
       else counts.importedGoods++
     }
   }
-  for (const t of (remoteData.trash || [])) {
+  for (const t of filterPurgedRemoteTrash(goodsStore, remoteData.trash || [])) {
     const inTrash = localResolved.trashMap.get(t.id)
     const local = inTrash || localResolved.goodsMap.get(t.id)
     // 本地不存在或从收藏移入回收站才计数；回收站内容更新对用户不可见，不计

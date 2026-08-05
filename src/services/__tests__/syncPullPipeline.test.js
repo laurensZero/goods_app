@@ -17,6 +17,7 @@ function makeStores(localGoods = [], localTrash = []) {
     goodsStore: {
       list: localGoods,
       trashList: localTrash,
+      purgedTrashIds: new Set(),
       importGoodsBackup: vi.fn(),
       updateGoodsBackup: vi.fn(),
       importTrashBackup: vi.fn(),
@@ -94,5 +95,16 @@ describe('mergeToLocal reconcile', () => {
     await mergeToLocal(stores, remote, { reconcileMissing: true, localSyncTime: 400 })
 
     expect(stores.goodsStore.deleteGoodsPermanently).not.toHaveBeenCalled()
+  })
+
+  it('does not re-import a locally purged remote trash tombstone after its updatedAt changes', async () => {
+    const stores = makeStores([], [])
+    stores.goodsStore.purgedTrashIds = new Set(['gone'])
+    const remote = { goods: [], trash: [makeItem('gone', 500)] }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true, localSyncTime: 400 })
+
+    expect(stores.goodsStore.importTrashBackup).not.toHaveBeenCalled()
+    expect(stores.goodsStore.updateTrashBackup).not.toHaveBeenCalled()
   })
 })

@@ -163,11 +163,14 @@ async function updateGoodsBackup(items, list) {
   return updatedItems.length
 }
 
-async function importTrashBackup(items, trashList) {
+async function importTrashBackup(items, trashList, purgedTrashIds = null) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingIds = new Set(trashList.value.map((item) => item.id))
-  const importableItems = items.filter((item) => item.id && !existingIds.has(item.id))
+  const importableItems = items.filter((item) => {
+    const id = String(item?.id || '').trim()
+    return id && !existingIds.has(item.id) && !purgedTrashIds?.has(id)
+  })
   const newItems = await Promise.all(
     importableItems.map(async (item) => normalizeTrashItem({
       ...(await restoreImportedGoodsItem(item)),
@@ -184,12 +187,13 @@ async function importTrashBackup(items, trashList) {
   return newItems.length
 }
 
-async function updateTrashBackup(items, trashList) {
+async function updateTrashBackup(items, trashList, purgedTrashIds = null) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
 
   const candidates = items.filter((remoteItem) => {
+    if (purgedTrashIds?.has(String(remoteItem?.id || '').trim())) return false
     const localItem = existingMap.get(remoteItem.id)
     return localItem && shouldApplyRemoteBackup(localItem, remoteItem)
   })
