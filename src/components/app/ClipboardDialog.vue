@@ -491,12 +491,6 @@ watch(showPrompt, (newVal) => {
   .sheet-handle {
     display: none;
   }
-
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
-  }
 }
 
 :global(html.theme-dark) .sheet-panel {
