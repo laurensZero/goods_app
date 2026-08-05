@@ -19,10 +19,11 @@ export function createNativeAdapter() {
       // 写入性能优化：WAL 减少每次提交的 fsync；synchronous=NORMAL 在 WAL 下只在
       // checkpoint 时 fsync（崩溃最多丢最近一笔事务，不会损坏库）；调大页缓存减少磁盘读。
       // 仅原生端设置——web 端 sql.js 是内存库，不适用。
-      // transaction=false：PRAGMA 不能被包进事务（WAL 切换在事务内会失败）
-      await _db.execute('PRAGMA journal_mode = WAL', false)
-      await _db.execute('PRAGMA synchronous = NORMAL', false)
-      await _db.execute('PRAGMA cache_size = -8192', false)
+      // 用 query 而非 execute：PRAGMA journal_mode 会返回一行结果，后端 execSQL 不支持
+      // 返回结果的语句（报 "use query or rawQuery methods only"）
+      await _db.query('PRAGMA journal_mode = WAL')
+      await _db.query('PRAGMA synchronous = NORMAL')
+      await _db.query('PRAGMA cache_size = -8192')
     },
 
     async execute(sql) {
