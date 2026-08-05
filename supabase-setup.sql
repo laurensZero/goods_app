@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS goods (
   unit_actual_price_list JSONB DEFAULT '[]',
   unit_character_list JSONB DEFAULT '[]',
   unit_collect_status_list JSONB DEFAULT '[]',
-  image TEXT DEFAULT '',
   images JSONB DEFAULT '[]',
   tracks JSONB DEFAULT '[]',
   note TEXT DEFAULT '',
@@ -181,6 +180,8 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_platform TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_fee TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_date TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_sale_info_list JSONB DEFAULT '[]';
+-- 遗留单图列已全部迁入 images 数组，云端一并删除（新库建表已不含该列，IF EXISTS 幂等）
+ALTER TABLE goods DROP COLUMN IF EXISTS image;
 
 ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -995,7 +996,7 @@ BEGIN
       unit_actual_price_list = EXCLUDED.unit_actual_price_list,
       unit_character_list = EXCLUDED.unit_character_list,
       unit_collect_status_list = EXCLUDED.unit_collect_status_list,
-      image = EXCLUDED.image, images = EXCLUDED.images,
+      images = EXCLUDED.images,
       tracks = EXCLUDED.tracks, note = EXCLUDED.note,
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
@@ -1025,7 +1026,7 @@ BEGIN
       unit_actual_price_list = EXCLUDED.unit_actual_price_list,
       unit_character_list = EXCLUDED.unit_character_list,
       unit_collect_status_list = EXCLUDED.unit_collect_status_list,
-      image = EXCLUDED.image, images = EXCLUDED.images,
+      images = EXCLUDED.images,
       tracks = EXCLUDED.tracks, note = EXCLUDED.note,
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
