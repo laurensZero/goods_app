@@ -385,6 +385,7 @@ function hasPriceValue(value) {
   return value !== '' && value != null
 }
 
+const round2 = (n) => Math.round(n * 100) / 100
 const exchangeRate = useExchangeRateStore()
 const itemCurrencySymbol = computed(() => CURRENCY_MAP[props.item.currency]?.symbol || '¥')
 const actualPriceCurrencySymbol = computed(() => CURRENCY_MAP[props.item.actualPriceCurrency]?.symbol || '¥')
@@ -408,19 +409,19 @@ const priceText = computed(() => {
 
   if (unitActualPriceText.value) {
     const list = Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList : []
-    const total = list.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) + shipping
+    const total = round2(list.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) + shipping)
     return `${toPrefix}${apSym}${total}`
   }
 
   if (props.item.actualPrice !== '' && props.item.actualPrice != null) {
     const base = Number(props.item.actualPrice) || 0
-    const total = base + shipping
+    const total = round2(base + shipping)
     return `${toPrefix}${apSym}${total}`
   }
 
   if (hasPriceValue(props.item.price)) {
     const base = Number(props.item.price) || 0
-    const total = (base * quantity) + shipping
+    const total = round2((base * quantity) + shipping)
     return `${toPrefix}${sym}${total}`
   }
 
@@ -435,8 +436,8 @@ const priceCNYHint = computed(() => {
     ? (Number(props.item.actualPrice) || 0)
     : (hasPriceValue(props.item.price) ? Number(props.item.price) || 0 : 0)
   const rawPrice = unitActualPriceText.value
-    ? (Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) : 0) + shipping
-    : (useActual ? base + shipping : (base * quantity) + shipping)
+    ? round2((Array.isArray(props.item.unitActualPriceList) ? props.item.unitActualPriceList.reduce((sum, value) => sum + (Number.parseFloat(String(value || '').trim()) || 0), 0) : 0) + shipping)
+    : round2(useActual ? base + shipping : (base * quantity) + shipping)
   const currency = useActual ? (props.item.actualPriceCurrency || 'CNY') : (props.item.currency || 'CNY')
   if (currency === 'CNY') return ''
   if (!Number.isFinite(rawPrice) || rawPrice <= 0) return ''
