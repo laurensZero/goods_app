@@ -12,7 +12,7 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 7h16M4 12h10M4 17h16" />
           </svg>
-          <span v-if="queueItems.length" class="queue-entry-btn__badge">{{ queueItems.length }}</span>
+          <span v-if="activeQueueItems.length" class="queue-entry-btn__badge">{{ activeQueueItems.length }}</span>
         </button>
       </template>
     </NavBar>
@@ -583,7 +583,7 @@
                 <p v-if="concurrency > 1" class="concurrency-warn">{{ t('checkout.concurrencyWarn') }}</p>
                 <button v-if="queueItems.length" type="button" class="queue-preview-btn" @click="showQueueManager = true">
                   <span>{{ t('checkout.queueTitle') }}</span>
-                  <span class="queue-preview-btn__count">{{ queueItems.length }}</span>
+                  <span class="queue-preview-btn__count">{{ activeQueueItems.length }}</span>
                 </button>
               </div>
             </div>
@@ -681,18 +681,31 @@
           </div>
           <p class="queue-manager__desc">{{ t('checkout.queueManageDesc') }}</p>
 
-          <div v-if="queueItems.length" class="queue-list">
-            <div v-for="entry in queueItems" :key="entry.id" class="queue-item" :class="{ 'queue-item--failed': entry.status === 'failed', 'queue-item--running': entry.status === 'running' }">
+          <div v-if="displayQueueItems.length" class="queue-list">
+            <div
+              v-for="entry in displayQueueItems"
+              :key="entry.id"
+              class="queue-item"
+              :class="{
+                'queue-item--failed': entry.status === 'failed',
+                'queue-item--running': entry.status === 'running',
+                'queue-item--success': entry.status === 'success',
+              }"
+              @click="openQueueDetail(entry)"
+            >
               <div class="queue-item__body">
                 <p class="queue-item__title">{{ entry.summary.goodsText || t('checkout.queueTitle') }}</p>
                 <p class="queue-item__meta">{{ formatQueueTime(entry.displayAt || entry.scheduledAt) }}</p>
                 <p v-if="entry.summary.giftText" class="queue-item__meta queue-item__meta--gift">{{ entry.summary.giftText }}</p>
+                <p v-if="entry.status === 'success' && entry.result?.orderNo" class="queue-item__meta queue-item__meta--order-no">
+                  {{ t('checkout.orderNo') }}: {{ entry.result.orderNo }}
+                </p>
                 <p v-if="entry.lastError" class="queue-item__error">{{ entry.lastError }}</p>
               </div>
               <div class="queue-item__actions">
-                <span class="queue-item__status">{{ entry.status === 'failed' ? t('checkout.queueFailed') : (entry.status === 'running' ? t('checkout.queueRunning') : t('checkout.queuePending')) }}</span>
-                <button v-if="entry.status === 'failed'" type="button" class="queue-item__btn" @click="retryQueuedOrder(entry.id)">{{ t('checkout.queueRetry') }}</button>
-                <button type="button" class="queue-item__btn queue-item__btn--ghost" @click="removeQueuedOrder(entry.id)">{{ t('checkout.queueRemove') }}</button>
+                <span class="queue-item__status">{{ queueStatusText(entry) }}</span>
+                <button v-if="entry.status === 'failed'" type="button" class="queue-item__btn" @click.stop="retryQueuedOrder(entry.id)">{{ t('checkout.queueRetry') }}</button>
+                <button type="button" class="queue-item__btn queue-item__btn--ghost" @click.stop="removeQueuedOrder(entry.id)">{{ t('checkout.queueRemove') }}</button>
               </div>
             </div>
           </div>
@@ -705,6 +718,68 @@
           </div>
         </div>
       </Popup>
+
+    <!-- 队列订单详情 -->
+    <Popup
+      v-model:show="showQueueDetail"
+      :position="queueDetailPosition"
+      :round="!isTabletViewport"
+      :lock-scroll="false"
+      :class="['picker-popup', 'queue-detail-popup', { 'picker-popup--center': isTabletViewport }]"
+    >
+      <div v-if="activeQueueDetail" class="queue-detail">
+        <div class="queue-detail__head">
+          <div>
+            <p class="queue-detail__label">{{ t('checkout.queueDetailTitle') }}</p>
+            <h3 class="queue-detail__title">{{ activeQueueDetail.summary.goodsText || t('checkout.queueTitle') }}</h3>
+          </div>
+          <span class="queue-item__status" :class="`queue-item__status--${activeQueueDetail.status}`">{{ queueStatusText(activeQueueDetail) }}</span>
+        </div>
+
+        <div class="queue-detail__rows">
+          <div class="queue-detail__row">
+            <span class="queue-detail__row-label">{{ t('checkout.queueScheduledAt') }}</span>
+            <span class="queue-detail__row-value">{{ formatQueueTime(activeQueueDetail.displayAt || activeQueueDetail.scheduledAt) }}</span>
+          </div>
+          <div class="queue-detail__row">
+            <span class="queue-detail__row-label">{{ t('checkout.retryCount') }}</span>
+            <span class="queue-detail__row-value">{{ activeQueueDetail.maxAttempts === Infinity ? '∞' : activeQueueDetail.maxAttempts }}</span>
+          </div>
+          <div class="queue-detail__row">
+            <span class="queue-detail__row-label">{{ t('checkout.concurrency') }}</span>
+            <span class="queue-detail__row-value">{{ activeQueueDetail.concurrency }}</span>
+          </div>
+          <div v-if="activeQueueDetail.summary.giftText" class="queue-detail__row">
+            <span class="queue-detail__row-label">{{ t('checkout.selectedGifts') }}</span>
+            <span class="queue-detail__row-value">{{ activeQueueDetail.summary.giftText }}</span>
+          </div>
+          <template v-if="activeQueueDetail.status === 'success' && activeQueueDetail.result">
+            <div class="queue-detail__row">
+              <span class="queue-detail__row-label">{{ t('checkout.queueOrderNo') }}</span>
+              <span class="queue-detail__row-value">{{ activeQueueDetail.result.orderNo }}</span>
+            </div>
+            <div class="queue-detail__row">
+              <span class="queue-detail__row-label">{{ t('checkout.queueAmount') }}</span>
+              <span class="queue-detail__row-value">{{ formatFen(activeQueueDetail.result.amount || 0) }}</span>
+            </div>
+            <p class="queue-detail__success-hint">{{ t('checkout.payInMihoyoApp') }}</p>
+          </template>
+          <div v-if="activeQueueDetail.lastError" class="queue-detail__row">
+            <span class="queue-detail__row-label">{{ t('checkout.queueFailed') }}</span>
+            <span class="queue-detail__row-value queue-detail__error">{{ activeQueueDetail.lastError }}</span>
+          </div>
+        </div>
+
+        <div class="queue-detail__actions">
+          <button v-if="activeQueueDetail.status === 'failed'" type="button" class="queue-detail__btn" @click="retryQueuedOrder(activeQueueDetail.id); showQueueDetail = false">
+            {{ t('checkout.queueRetry') }}
+          </button>
+          <button type="button" class="queue-detail__btn queue-detail__btn--ghost" @click="removeQueuedOrder(activeQueueDetail.id); showQueueDetail = false">
+            {{ t('checkout.queueRemove') }}
+          </button>
+        </div>
+      </div>
+    </Popup>
 
     <!-- 从购物车选择 -->
     <Popup
@@ -866,6 +941,8 @@ const isActivityActive = gifts.isActivityActive
 const buildGiftPayload = gifts.buildGiftPayload
 
 const queueItems = orderQueue.queue
+const displayQueueItems = orderQueue.displayQueueItems
+const activeQueueItems = orderQueue.activeQueueItems
 const failedQueueItems = orderQueue.failedQueueItems
 const queueProcessing = orderQueue.processing
 const enqueueOrder = orderQueue.enqueueOrder
@@ -1043,7 +1120,28 @@ function formatSaleTime(ts) {
 
 function formatQueueTime(ts) {
   if (!ts) return ''
-  return formatDate(new Date(ts), 'YYYY-MM-DD HH:mm:ss')
+  return formatDate(new Date(ts), 'YYYY-MM-DD HH:mm')
+}
+
+const showQueueDetail = ref(false)
+const activeQueueDetail = ref(null)
+
+function openQueueDetail(entry) {
+  activeQueueDetail.value = entry
+  showQueueDetail.value = true
+}
+
+function queueStatusText(entry) {
+  switch (entry.status) {
+    case 'success':
+      return t('checkout.queueSuccess')
+    case 'failed':
+      return t('checkout.queueFailed')
+    case 'running':
+      return t('checkout.queueRunning')
+    default:
+      return t('checkout.queuePending')
+  }
 }
 
 function getGiftImageUrl(gift) {
@@ -1337,6 +1435,7 @@ function buildOrderSnapshot() {
 const { isTabletViewport } = useTabletViewport()
 const cartPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const queueManagerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
+const queueDetailPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const leaveConfirmPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const showCartPicker = ref(false)
 const cartLoading = ref(false)
@@ -3193,6 +3292,10 @@ onUnmounted(() => {
   background: color-mix(in srgb, #c74444 9%, var(--app-surface-soft));
 }
 
+.queue-item--success {
+  background: color-mix(in srgb, #27a15b 8%, var(--app-surface-soft));
+}
+
 .queue-item__body {
   flex: 1;
   min-width: 0;
@@ -3239,6 +3342,22 @@ onUnmounted(() => {
   color: var(--app-text-tertiary);
 }
 
+.queue-item__status--success {
+  color: #27a15b;
+}
+
+.queue-item__status--failed {
+  color: #c74444;
+}
+
+.queue-item__status--running {
+  color: #4a7aec;
+}
+
+.queue-item__meta--order-no {
+  color: #27a15b;
+}
+
 .queue-item__btn {
   border: 1px solid var(--app-border);
   border-radius: var(--radius-xs);
@@ -3250,6 +3369,92 @@ onUnmounted(() => {
 }
 
 .queue-item__btn--ghost {
+  background: transparent;
+}
+
+.queue-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  max-height: 78dvh;
+  overflow-y: auto;
+}
+
+.queue-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.queue-detail__label {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.queue-detail__title {
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.queue-detail__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.queue-detail__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.queue-detail__row-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.queue-detail__row-value {
+  font-size: 13px;
+  color: var(--app-text);
+  text-align: right;
+  word-break: break-all;
+}
+
+.queue-detail__success-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #27a15b;
+}
+
+.queue-detail__error {
+  color: #c74444;
+}
+
+.queue-detail__actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.queue-detail__btn {
+  flex: 1;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xs);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 14px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.queue-detail__btn--ghost {
   background: transparent;
 }
 
