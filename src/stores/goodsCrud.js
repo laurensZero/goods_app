@@ -303,8 +303,9 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
  * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
+ * @param {(ids: string[]) => Promise<void>} [onPermanentlyDeleted]
  */
-export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
+export async function deleteTrashItem(id, trashList, persistTrash, onMutate, onPermanentlyDeleted) {
   const existing = trashList.value.find((entry) => entry.id === id)
   const next = trashList.value.filter((entry) => entry.id !== id)
   if (next.length === trashList.value.length) return
@@ -314,8 +315,10 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
   trashList.value = next
   try {
     await persistTrash()
+    await onPermanentlyDeleted?.([id])
   } catch (e) {
     trashList.value = prevTrash
+    await persistTrash().catch(() => {})
     console.error('[goods] deleteTrashItem: trash persist failed, aborting delete:', e)
     throw e
   }
@@ -337,8 +340,9 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate) {
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
  * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
+ * @param {(ids: string[]) => Promise<void>} [onPermanentlyDeleted]
  */
-export async function emptyTrash(trashList, persistTrash, onMutate) {
+export async function emptyTrash(trashList, persistTrash, onMutate, onPermanentlyDeleted) {
   if (trashList.value.length === 0) return
   const removedItems = [...trashList.value]
   const removedPaths = new Set()
@@ -351,8 +355,10 @@ export async function emptyTrash(trashList, persistTrash, onMutate) {
   // 先持久化，失败时恢复快照并中止，本地图片不会被误删
   try {
     await persistTrash()
+    await onPermanentlyDeleted?.(removedItems.map((item) => item.id))
   } catch (e) {
     trashList.value = removedItems
+    await persistTrash().catch(() => {})
     console.error('[goods] emptyTrash: trash persist failed, aborting delete:', e)
     throw e
   }

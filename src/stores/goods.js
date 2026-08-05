@@ -8,6 +8,8 @@ import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goodsHelpers'
 import {
   readPersistedTrash,
   writePersistedTrash,
+  readPersistedPurgedTrashIds,
+  writePersistedPurgedTrashIds,
   readImagesMigrationFlag,
   writeImagesMigrationFlag,
   readCharactersMigrationFlag,
@@ -54,6 +56,8 @@ export const useGoodsStore = defineStore('goods', () => {
   const list = shallowRef([])
   /** @type {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} */
   const trashList = shallowRef([])
+  /** @type {import('vue').ShallowRef<Set<string>>} */
+  const purgedTrashIds = shallowRef(new Set())
   const isReady = ref(false)
   // 读库失败标记：为 true 时同步入口会拒绝推送，避免把空列表推上云端覆盖备份
   const loadFailed = ref(false)
@@ -111,6 +115,33 @@ export const useGoodsStore = defineStore('goods', () => {
 
   async function persistTrash() {
     await writePersistedTrash(trashList.value)
+  }
+
+  async function markPermanentlyDeleted(ids = []) {
+    const next = new Set(purgedTrashIds.value)
+    let changed = false
+    for (const id of ids) {
+      const normalizedId = String(id || '').trim()
+      if (normalizedId && !next.has(normalizedId)) {
+        next.add(normalizedId)
+        changed = true
+      }
+    }
+    if (!changed) return
+    await writePersistedPurgedTrashIds([...next])
+    purgedTrashIds.value = next
+  }
+
+  async function clearPurgedTrashIds(ids = []) {
+    const next = new Set(purgedTrashIds.value)
+    let changed = false
+    for (const id of ids) {
+      const normalizedId = String(id || '').trim()
+      if (normalizedId && next.delete(normalizedId)) changed = true
+    }
+    if (!changed) return
+    await writePersistedPurgedTrashIds([...next])
+    purgedTrashIds.value = next
   }
 
   //  Sync helper
@@ -173,7 +204,11 @@ export const useGoodsStore = defineStore('goods', () => {
   //  Init
 
   async function init() {
-    const [itemsResult, trashResult] = await Promise.allSettled([getItems(), readPersistedTrash()])
+    const [itemsResult, trashResult, purgedTrashIdsResult] = await Promise.allSettled([
+      getItems(),
+      readPersistedTrash(),
+      readPersistedPurgedTrashIds()
+    ])
 
     if (itemsResult.status === 'fulfilled') {
       list.value = itemsResult.value.map((item) => normalizeGoodsInput(item, item.id))
@@ -196,6 +231,13 @@ export const useGoodsStore = defineStore('goods', () => {
       trashList.value = []
     }
 
+    if (purgedTrashIdsResult.status === 'fulfilled') {
+      purgedTrashIds.value = purgedTrashIdsResult.value
+    } else {
+      console.error('[goods] init: read purged trash ids failed, starting empty:', purgedTrashIdsResult.reason)
+      purgedTrashIds.value = new Set()
+    }
+
     isReady.value = true
     void startMigrationsInBackground()
   }
@@ -209,8 +251,24 @@ export const useGoodsStore = defineStore('goods', () => {
   function removeGoods(id) { return crud.removeGoods(id, list, trashList, persistTrash, autoPushGoods) }
   function removeMultipleGoods(ids) { return crud.removeMultipleGoods(ids, list, trashList, persistTrash, autoPushGoods) }
   function restoreTrashItem(id) { return crud.restoreTrashItem(id, list, trashList, persistTrash, autoPushGoods) }
-  function deleteTrashItem(id) { return crud.deleteTrashItem(id, trashList, persistTrash, autoPushGoods) }
-  function emptyTrash() { return crud.emptyTrash(trashList, persistTrash, autoPushGoods) }
+  async function importGoodsBackup(items) {
+    const result = await _importGoodsBackup(items, list, trashList)
+    await clearPurgedTrashIds((items || []).map((item) => item?.id))
+    return result
+  }
+
+  async function updateGoodsBackup(items) {
+    const result = await _updateGoodsBackup(items, list)
+    await clearPurgedTrashIds((items || []).map((item) => item?.id))
+    return result
+  }
+
+  function deleteTrashItem(id) {
+    return crud.deleteTrashItem(id, trashList, persistTrash, autoPushGoods, markPermanentlyDeleted)
+  }
+  function emptyTrash() {
+    return crud.emptyTrash(trashList, persistTrash, autoPushGoods, markPermanentlyDeleted)
+  }
   function deleteGoodsPermanently(ids) { return crud.deleteGoodsPermanently(ids, list, autoPushGoods) }
 
   //  Delegated to sub-modules
@@ -248,20 +306,12 @@ export const useGoodsStore = defineStore('goods', () => {
     loadFailed.value = false
   }
 
-  function importGoodsBackup(items) {
-    return _importGoodsBackup(items, list, trashList)
-  }
-
-  function updateGoodsBackup(items) {
-    return _updateGoodsBackup(items, list)
-  }
-
   function importTrashBackup(items) {
-    return _importTrashBackup(items, trashList)
+    return _importTrashBackup(items, trashList, purgedTrashIds.value)
   }
 
   function updateTrashBackup(items) {
-    return _updateTrashBackup(items, trashList)
+    return _updateTrashBackup(items, trashList, purgedTrashIds.value)
   }
 
   function markImagesAsRemote(preparedImagesByItemId) {
@@ -271,6 +321,7 @@ export const useGoodsStore = defineStore('goods', () => {
   return {
     list,
     trashList,
+    purgedTrashIds,
     collectionList,
     wishlistList,
     characterCountMap,

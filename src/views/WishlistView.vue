@@ -58,6 +58,7 @@
           :total-value="totalValue"
           :total-count="goodsList.length"
           :trend-items="goodsList"
+          trend-date-field="id"
           :tips-title="t('home.wishlist.budgetTipsTitle')"
           :tips-items="wishlistTipsItems"
         />

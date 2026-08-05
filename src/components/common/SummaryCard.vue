@@ -213,7 +213,7 @@ function getTrendTimestamp(item) {
     return Number.isFinite(timestamp) ? timestamp : 0
   }
 
-  if (fieldName === 'createdAt' || fieldName === 'updatedAt') {
+  if (fieldName === 'id' || fieldName === 'createdAt' || fieldName === 'updatedAt') {
     return Number(rawValue) || 0
   }
 

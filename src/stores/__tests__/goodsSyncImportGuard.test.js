@@ -13,7 +13,7 @@ vi.mock('@/stores/goodsPersistence', () => ({
   writePersistedTrash: vi.fn(async () => {})
 }))
 
-import { importGoodsBackup } from '../goodsSync'
+import { importGoodsBackup, importTrashBackup } from '../goodsSync'
 import { saveItems } from '@/utils/db/index'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
 
@@ -77,5 +77,18 @@ describe('importGoodsBackup 回收站守卫（本地已删除条目不被远端�
     expect(imported).toBe(0)
     expect(list.value).toHaveLength(1)
     expect(list.value[0].updatedAt).toBe(100) // 不被远端旧行覆盖
+  })
+
+  it('本地已清空回收站的墓碑不会因远端 updatedAt 变化再次导入', async () => {
+    const trashList = shallowRef([])
+    const purgedTrashIds = new Set(['gone'])
+
+    const imported = await importTrashBackup([
+      makeItem('gone', 500, { trashed: true }),
+      makeItem('keep', 500, { trashed: true })
+    ], trashList, purgedTrashIds)
+
+    expect(imported).toBe(1)
+    expect(trashList.value.map((item) => item.id)).toEqual(['keep'])
   })
 })
