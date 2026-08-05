@@ -15,7 +15,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
-import { buildCloudImageUri, getPrimaryGoodsImageUrl, parseCloudImageUri } from '@/utils/goods/images'
+import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 import { MIGRATIONS } from './migrations'
 import { createLogger } from '@/utils/logger'
@@ -77,7 +77,6 @@ const CREATE_TABLE_SQL = `
     unitActualPriceList TEXT DEFAULT '[]',
     unitCharacterList TEXT DEFAULT '[]',
     unitCollectStatusList TEXT DEFAULT '[]',
-    image      TEXT DEFAULT '',
     images     TEXT DEFAULT '[]',
     tracks     TEXT DEFAULT '[]',
     note       TEXT DEFAULT '',
@@ -203,7 +202,6 @@ const GOODS_REQUIRED_COLUMNS = [
   ['unitActualPriceList', "TEXT DEFAULT '[]'"],
   ['unitCharacterList', "TEXT DEFAULT '[]'"],
   ['unitCollectStatusList', "TEXT DEFAULT '[]'"],
-  ['image', "TEXT DEFAULT ''"],
   ['images', "TEXT DEFAULT '[]'"],
   ['tracks', "TEXT DEFAULT '[]'"],
   ['note', "TEXT DEFAULT ''"],
@@ -321,8 +319,6 @@ function prepareGoodsRecord(item) {
     unitActualPriceList = [],
     unitCharacterList = [],
     unitCollectStatusList = [],
-    image = '',
-    coverImage = '',
     images = [],
     tracks = [],
     note = '',
@@ -369,7 +365,6 @@ function prepareGoodsRecord(item) {
     actualPriceCurrency,
     qty: Math.max(1, Number(quantity) || 1),
     pts: points != null && /** @type {any} */ (points) !== '' ? Number(points) : null,
-    legacyImage: getPrimaryGoodsImageUrl(images, coverImage || image),
     note,
     ts: updatedAt || Date.now(),
     collectStatus: String(collectStatus || '已拥有'),
@@ -392,10 +387,10 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,trashed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,trashed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.legacyImage, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.trashed]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.trashed]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -590,7 +585,7 @@ export async function getItems() {
     // 在内存重排，上层勿直接依赖此顺序
     // WHERE (trashed IS NULL OR trashed = 0)：软删除行不进入 active list，
     // 回收站通过 Preferences 单独管理。存量行 trashed 为 NULL，等价未删除
-    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,image,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,trashed FROM goods WHERE (trashed IS NULL OR trashed = 0) ORDER BY rowid DESC')
+    const rows = await db.query('SELECT id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,trashed FROM goods WHERE (trashed IS NULL OR trashed = 0) ORDER BY rowid DESC')
     return rows.map(r => ({
       ...r,
       trashed: Boolean(r.trashed),
