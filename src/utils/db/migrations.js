@@ -196,4 +196,15 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 10,
+    description: 'Drop legacy goods.image column (images array is the source of truth)',
+    up: async (db) => {
+      // 遗留单图列已全部迁入 images 数组(空值/被 images 覆盖)，DROP COLUMN 前确认存在
+      const cols = await db.getTableColumns('goods')
+      if (cols.has('image')) {
+        await db.run('ALTER TABLE goods DROP COLUMN image')
+      }
+    }
+  },
 ]
