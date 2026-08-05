@@ -5,6 +5,8 @@ const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
 const CLOCK_CACHE_TTL = 60 * 1000
 const RETRY_DELAY = 500
+// 成功订单保留时长：供用户查看结果，超时后自动清除
+const SUCCESS_RETENTION_MS = 24 * 60 * 60 * 1000
 // 提前量：时钟偏移已做 RTT 中点 + 秒中点校准，这里只需补偿提交请求自身的网络时延，
 // 让下单请求尽量在开售瞬间到达（提前到未开售时由重试兜底）
 const FIRE_LEAD_MS = 800
@@ -89,7 +91,20 @@ function normalizeQueueItem(item) {
 
 function loadQueue() {
   queue.value = readStorageQueue().map(normalizeQueueItem)
+  pruneExpiredSuccess()
   hydrated.value = true
+}
+
+// 成功订单保留 24 小时后自动清除
+function pruneExpiredSuccess() {
+  const now = Date.now()
+  const kept = queue.value.filter(
+    (item) => item.status !== 'success' || (Number(item.completedAt) || 0) + SUCCESS_RETENTION_MS > now
+  )
+  if (kept.length !== queue.value.length) {
+    queue.value = kept
+    persistQueue()
+  }
 }
 
 function ensureHydrated() {
@@ -291,6 +306,7 @@ async function processQueue() {
 function startQueueWatcher() {
   if (!canUseStorage() || queueWatcherId) return
   queueWatcherId = window.setInterval(() => {
+    pruneExpiredSuccess()
     void processQueue()
   }, WATCH_INTERVAL)
 
