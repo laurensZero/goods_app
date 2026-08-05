@@ -508,10 +508,13 @@ async function _doInitDB() {
   if (!isInitialized) {
     // Combine all CREATE TABLE statements into a single execute() call
     // to reduce overhead of multiple SQL.js invocations
+    // (CREATE TABLE IF NOT EXISTS is idempotent, safe for re-init)
     const allCreateSQL = [
       CREATE_TABLE_SQL,
       CREATE_EVENTS_TABLE_SQL,
       CREATE_RECHARGE_TABLE_SQL,
+      CREATE_GOODS_GROUPS_TABLE_SQL,
+      CREATE_GOODS_GROUP_ITEMS_TABLE_SQL,
       CREATE_VERSION_TABLE_SQL
     ].map(sql => sql.trim()).filter(Boolean).join(';\n') + ';'
 
@@ -519,10 +522,6 @@ async function _doInitDB() {
     isInitialized = true
   }
   const createTablesTime = performance.now() - t2
-
-  // Always ensure new tables exist (CREATE TABLE IF NOT EXISTS is idempotent)
-  await db.execute(CREATE_GOODS_GROUPS_TABLE_SQL)
-  await db.execute(CREATE_GOODS_GROUP_ITEMS_TABLE_SQL)
 
   const t2b = performance.now()
   await Promise.all([
