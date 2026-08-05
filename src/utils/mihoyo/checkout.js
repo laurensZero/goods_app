@@ -278,20 +278,27 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
 }
 
 /**
- * 拉取米游铺服务器时间，用响应头 Date 作为基准。
+ * 拉取米游铺服务器时间。
+ * 用响应头 Date 作为基准，并参考业界标准做法（RFC 7231 Date 秒级精度）：
+ *   - 服务器时刻取该秒中点（+500ms），补偿秒级截断
+ *   - 本地时刻取请求往返的 RTT 中点（(t0+t1)/2），补偿网络时延
+ * 这样 offsetMs 即「服务器时间 − 本地时间」的无偏估计，避免系统性滞后。
  * @param {string} cookie
  * @returns {Promise<{serverTime: number, offsetMs: number}>}
  */
 export async function fetchMihoyoServerTime(cookie) {
+  const t0 = Date.now()
   const { response } = await mihoyoRequestWithResponse(API_ADDRESS_LIST, {
     headers: authHeaders(cookie),
   })
+  const t1 = Date.now()
   const serverDate = response?.headers?.get?.('date') || response?.headers?.get?.('Date') || ''
   const parsed = serverDate ? new Date(serverDate).getTime() : NaN
-  const serverTime = Number.isFinite(parsed) ? parsed : Date.now()
+  const serverTime = Number.isFinite(parsed) ? parsed + 500 : Date.now()
+  const localMidpoint = (t0 + t1) / 2
   return {
     serverTime,
-    offsetMs: serverTime - Date.now(),
+    offsetMs: serverTime - localMidpoint,
   }
 }
 

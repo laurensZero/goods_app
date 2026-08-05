@@ -5,6 +5,10 @@ const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
 const CLOCK_CACHE_TTL = 60 * 1000
 const RETRY_DELAY = 500
+// 提前量：时钟偏移已做 RTT 中点 + 秒中点校准，这里只需补偿提交请求自身的网络时延，
+// 让下单请求尽量在开售瞬间到达（提前到未开售时由重试兜底）
+const FIRE_LEAD_MS = 800
+const WATCH_INTERVAL = 250
 
 const queue = ref([])
 const hydrated = ref(false)
@@ -57,8 +61,16 @@ function normalizeQueueItem(item) {
     maxAttempts: item?.maxAttempts === Infinity ? Infinity : Math.max(1, Number(item?.maxAttempts) || 3),
     // 同一笔订单的并发提交数：入队时快照，到点同时发起多份提交
     concurrency: clampConcurrency(snapshot.concurrency),
-    status: ['pending', 'running', 'failed'].includes(item?.status) ? item.status : 'pending',
+    status: ['pending', 'running', 'success', 'failed'].includes(item?.status) ? item.status : 'pending',
     lastError: String(item?.lastError || ''),
+    completedAt: Number(item?.completedAt) || 0,
+    result: item?.result
+      ? {
+        orderNo: String(item.result.orderNo || ''),
+        amount: Number(item.result.amount) || 0,
+        productName: String(item.result.productName || ''),
+      }
+      : null,
     snapshot: {
       cookie: String(snapshot.cookie || ''),
       addressId: String(snapshot.addressId || ''),
@@ -221,7 +233,7 @@ function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
 
 async function executeQueuedOrder(entry) {
   const serverNow = await syncServerClock(entry.snapshot.cookie)
-  if (serverNow < entry.nextAttemptAt) return false
+  if (serverNow < entry.nextAttemptAt - FIRE_LEAD_MS) return false
 
   entry.status = 'running'
   entry.lastError = ''
@@ -236,7 +248,14 @@ async function executeQueuedOrder(entry) {
   )
 
   if (result.ok) {
-    queue.value = queue.value.filter((item) => item.id !== entry.id)
+    // 成功订单保留在队列中供查看，标记为 success 并记录结果，不再从队列移除
+    entry.status = 'success'
+    entry.result = {
+      orderNo: String(result.result.orderNo || ''),
+      amount: Number(result.result.amount) || 0,
+      productName: String(result.result.productName || ''),
+    }
+    entry.completedAt = getServerNow()
     persistQueue()
     return { ok: true, result: result.result }
   }
@@ -255,10 +274,10 @@ async function processQueue() {
   try {
     while (true) {
       const pending = queue.value
-        .filter((item) => item.status !== 'failed')
+        .filter((item) => item.status === 'pending')
         .sort((a, b) => Number(a.nextAttemptAt) - Number(b.nextAttemptAt))
 
-      const next = pending.find((item) => getServerNow() >= Number(item.nextAttemptAt || 0))
+      const next = pending.find((item) => getServerNow() >= Number(item.nextAttemptAt || 0) - FIRE_LEAD_MS)
       if (!next) break
 
       const result = await executeQueuedOrder(next)
@@ -273,7 +292,7 @@ function startQueueWatcher() {
   if (!canUseStorage() || queueWatcherId) return
   queueWatcherId = window.setInterval(() => {
     void processQueue()
-  }, 1000)
+  }, WATCH_INTERVAL)
 
   window.addEventListener('focus', onQueueFocus, { passive: true })
   document.addEventListener('visibilitychange', onQueueVisibilityChange)
@@ -297,8 +316,17 @@ function stopQueueWatcher() {
   document.removeEventListener('visibilitychange', onQueueVisibilityChange)
 }
 
-const pendingQueueItems = computed(() => queue.value.filter((item) => item.status !== 'failed'))
+const pendingQueueItems = computed(() => queue.value.filter((item) => item.status === 'pending' || item.status === 'running'))
 const failedQueueItems = computed(() => queue.value.filter((item) => item.status === 'failed'))
+// 仍需要处理/失败的项（不含成功项），用于角标与“我的”页计数
+const activeQueueItems = computed(() => queue.value.filter((item) => item.status !== 'success'))
+// 列表展示：待处理/进行中优先，其次失败，成功项沉底
+const displayQueueItems = computed(() => {
+  const rank = { pending: 0, running: 0, failed: 1, success: 2 }
+  return [...queue.value].sort(
+    (a, b) => (rank[a.status] ?? 0) - (rank[b.status] ?? 0) || Number(a.nextAttemptAt) - Number(b.nextAttemptAt)
+  )
+})
 
 export function useCheckoutOrderQueue() {
   ensureHydrated()
@@ -308,6 +336,8 @@ export function useCheckoutOrderQueue() {
     queue,
     pendingQueueItems,
     failedQueueItems,
+    activeQueueItems,
+    displayQueueItems,
     processing,
     hydrated,
     enqueueOrder,

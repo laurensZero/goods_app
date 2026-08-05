@@ -274,9 +274,9 @@
               <span class="detail-row__label">{{ t('my.syncStatus') }}</span>
               <span class="detail-row__value">{{ syncStore.syncStatus || (authStore.isLoggedIn ? t('my.ready') : t('my.unprocessed')) }}</span>
             </div>
-            <!-- 自助下单队列：仅在有待处理/失败订单时展示，点击进入队列管理 -->
+<!-- 自助下单队列：仅在有待处理/失败订单时展示，点击进入队列管理 -->
             <div
-              v-if="queueItems.length"
+              v-if="activeQueueItems.length"
               class="detail-row detail-row--clickable"
               @click="openCheckoutQueue"
             >
@@ -847,7 +847,7 @@ const syncStore = useSyncStore()
 const authStore = useAuthStore()
 const checkoutPermission = useCheckoutPermission()
 const checkoutQueue = useCheckoutOrderQueue()
-const queueItems = checkoutQueue.queue
+const activeQueueItems = checkoutQueue.activeQueueItems
 const failedQueueItems = checkoutQueue.failedQueueItems
 const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
@@ -1068,9 +1068,9 @@ function openCheckout() {
   runWithRouteTransition(() => router.push('/checkout'), { direction: 'forward' })
 }
 
-// 自助下单队列：待处理 + 失败数量，可点击快速进入队列管理
+// 自助下单队列：待处理/进行中 + 失败数量（不含已成功的），可点击快速进入队列管理
 const checkoutQueueSummary = computed(() => {
-  const total = queueItems.value.length
+  const total = activeQueueItems.value.length
   const failed = failedQueueItems.value.length
   const pending = Math.max(0, total - failed)
   const parts = []
