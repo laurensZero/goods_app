@@ -610,24 +610,7 @@ export const useSyncStore = defineStore('sync', () => {
     }
     ensureBackendReady()
 
-    // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
-    try {
-      const manifest = await activeBackend.readManifest()
-      if (manifest?.maintenanceMode) {
-        maintenanceMode.value = manifest.maintenanceMode
-      }
-    } catch (_) {}
-
-    // 检查维护模式
-    if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
-      const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
-      applySyncError(new Error(msg), msg)
-      if (source !== 'manual') {
-        publishSyncNotice({ source, level: 'warning', message: msg })
-      }
-      return { action: 'skipped', reason: 'maintenance_mode' }
-    }
-
+    // 先进入同步状态，让按钮立即给出加载反馈（转圈/禁用），再进行后续网络请求
     const runGen = ++syncGeneration
     syncSource.value = source
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
@@ -644,6 +627,24 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       // 换账号后必须先清掉旧账号的水位线 / pendingPush，再构建同步上下文
       await ensureSyncAccountConsistent()
+
+      // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
+      try {
+        const manifest = await activeBackend.readManifest()
+        if (manifest?.maintenanceMode) {
+          maintenanceMode.value = manifest.maintenanceMode
+        }
+      } catch (_) {}
+
+      // 检查维护模式
+      if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
+        const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
+        applySyncError(new Error(msg), msg)
+        if (source !== 'manual') {
+          publishSyncNotice({ source, level: 'warning', message: msg })
+        }
+        return { action: 'skipped', reason: 'maintenance_mode' }
+      }
 
       // 本地数据读库失败时拒绝推送，避免基于空列表覆盖云端备份
       const goodsStore = useGoodsStore()
@@ -709,101 +710,24 @@ export const useSyncStore = defineStore('sync', () => {
 
     if (isIncremental) {
       if (isSyncing.value || isPulling.value) return
-      const authStore = useAuthStore()
-      if (!authStore.isLoggedIn) {
-        if (!silent) applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
-        return { action: 'skipped', reason: 'not_logged_in' }
-      }
-      ensureBackendReady()
-
-      // 增量 pull：预读 manifest 缓存维护模式
-      try {
-        const manifest = await activeBackend.readManifest()
-        if (manifest?.maintenanceMode) {
-          maintenanceMode.value = manifest.maintenanceMode
-        }
-      } catch (_) {}
+    } else if (isSyncing.value) {
+      return
     }
 
-    // 检查维护模式
-    if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
-      const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
-      if (!silent) {
-        applySyncError(new Error(msg), msg)
-        publishSyncNotice({ source, level: 'warning', message: msg })
-      }
-      return { action: 'skipped', reason: 'maintenance_mode' }
-    }
-
-    if (isIncremental) {
-      const authStore = useAuthStore()
-      if (!authStore.isLoggedIn) return { action: 'skipped', reason: 'not_logged_in' }
-      ensureBackendReady()
-      const runGen = ++syncGeneration
-      isSyncing.value = true; isPulling.value = true
-      syncSource.value = source
-
-      try {
-        // 账号切换后调用方传入的 since 属旧账号水位线：跳过本次增量拉取，
-        // 水位线已被清空，下一次完整同步会走完整对比 + 冲突确认流程
-        if (await ensureSyncAccountConsistent()) {
-          return { action: 'skipped', reason: 'account_switched' }
-        }
-        const result = await orchestrator.pull(buildSyncContext(runGen), { tables, since })
-        return result
-      } catch (error) {
-        if (error?.message === STALE_SYNC_MESSAGE || runGen !== syncGeneration) {
-          return { action: 'skipped', reason: 'stale' }
-        }
-        console.warn('[sync] incremental pull failed, falling back to full pull:', error.message)
-        try {
-          const result = await withRetry(
-            () => orchestrator.pull(buildSyncContext(runGen), { silent: true }),
-            { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
-          )
-          syncStatus.value = translateStatusMessage(result)
-          return result
-        } catch (fallbackError) {
-          applySyncError(fallbackError, i18n.global.t('sync.pullFailed', { error: '' }))
-          throw fallbackError
-        }
-      } finally {
-        if (runGen === syncGeneration) {
-          isPulling.value = false; isSyncing.value = false
-        }
-      }
-    }
-
-    // Full pull
-    if (isSyncing.value) return
     const authStore = useAuthStore()
     if (!authStore.isLoggedIn) {
-      if (!silent) applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+      if (!silent) {
+        applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
+      }
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
 
-    // 全量 pull：预读 manifest 缓存维护模式
-    try {
-      const manifest = await activeBackend.readManifest()
-      if (manifest?.maintenanceMode) {
-        maintenanceMode.value = manifest.maintenanceMode
-      }
-    } catch (_) {}
-
-    // 检查维护模式（full pull 路径）
-    if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
-      const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
-      if (!silent) {
-        applySyncError(new Error(msg), msg)
-        publishSyncNotice({ source, level: 'warning', message: msg })
-      }
-      return { action: 'skipped', reason: 'maintenance_mode' }
-    }
-
+    // 先进入同步状态，让按钮立即给出加载反馈（转圈/禁用），再进行后续网络请求
     const runGen = ++syncGeneration
     syncSource.value = source
-    isSyncing.value = true; isPulling.value = true; lastError.value = ''
+    isSyncing.value = true; isPulling.value = true
+    lastError.value = ''
     if (!silent) conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
     clearSyncLogs(); syncStatus.value = i18n.global.t('sync.syncing')
@@ -816,8 +740,58 @@ export const useSyncStore = defineStore('sync', () => {
     }, SYNC_TIMEOUT_MS)
 
     try {
-      // 换账号后必须先清掉旧账号的水位线 / pendingPush，再构建同步上下文
-      await ensureSyncAccountConsistent()
+      // 账号切换后调用方传入的 since 属旧账号水位线：跳过本次增量拉取，
+      // 水位线已被清空，下一次完整同步会走完整对比 + 冲突确认流程
+      const switched = await ensureSyncAccountConsistent()
+      if (isIncremental && switched) {
+        return { action: 'skipped', reason: 'account_switched' }
+      }
+
+      // 预读 manifest 缓存维护模式
+      try {
+        const manifest = await activeBackend.readManifest()
+        if (manifest?.maintenanceMode) {
+          maintenanceMode.value = manifest.maintenanceMode
+        }
+      } catch (_) {}
+
+      // 检查维护模式
+      if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
+        const msg = maintenanceMode.value?.message || i18n.global.t('sync.error.maintenanceMode')
+        if (!silent) {
+          applySyncError(new Error(msg), msg)
+          publishSyncNotice({ source, level: 'warning', message: msg })
+        }
+        return { action: 'skipped', reason: 'maintenance_mode' }
+      }
+
+      if (isIncremental) {
+        try {
+          const result = await orchestrator.pull(buildSyncContext(runGen), { tables, since })
+          // 代际过期（超时重置已接管 UI）：跳过状态更新
+          if (runGen !== syncGeneration) return result
+          syncStatus.value = translateStatusMessage(result)
+          return result
+        } catch (error) {
+          if (error?.message === STALE_SYNC_MESSAGE || runGen !== syncGeneration) {
+            return { action: 'skipped', reason: 'stale' }
+          }
+          console.warn('[sync] incremental pull failed, falling back to full pull:', error.message)
+          try {
+            const result = await withRetry(
+              () => orchestrator.pull(buildSyncContext(runGen), { silent: true }),
+              { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
+            )
+            syncStatus.value = translateStatusMessage(result)
+            return result
+          } catch (fallbackError) {
+            applySyncError(fallbackError, i18n.global.t('sync.pullFailed', { error: '' }))
+            throw fallbackError
+          }
+        }
+      }
+
+      // Full pull
       const result = await withRetry(
         () => orchestrator.pull(buildSyncContext(runGen), { silent, forceRecharge }),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
