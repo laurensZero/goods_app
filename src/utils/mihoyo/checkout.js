@@ -296,26 +296,45 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
  * @param {number} [sampleCount=3] 采样次数，默认 3，最多 9
  * @returns {Promise<{serverTime: number, offsetMs: number}>}
  */
-export async function fetchMihoyoServerTime(cookie, sampleCount = 3) {
+export async function fetchMihoyoServerTime(cookie, sampleCount = 3, timeoutMs = 8000) {
   const count = Math.max(1, Math.min(9, Math.floor(Number(sampleCount) || 1)))
   const offsets = []
 
-  for (let i = 0; i < count; i++) {
-    const t0 = Date.now()
-    const { response } = await mihoyoRequestWithResponse(API_ADDRESS_LIST, {
-      headers: authHeaders(cookie),
-    })
-    const t1 = Date.now()
-    const serverDate = response?.headers?.get?.('date') || response?.headers?.get?.('Date') || ''
-    const parsed = serverDate ? new Date(serverDate).getTime() : NaN
-    if (Number.isFinite(parsed)) {
-      const serverTime = parsed + 500
-      const localMidpoint = (t0 + t1) / 2
-      offsets.push(serverTime - localMidpoint)
-    }
-    if (i < count - 1) {
-      // 随机延时让下一次请求尽量落在不同秒，去相关截断误差
-      await new Promise((resolve) => setTimeout(resolve, 40 + Math.random() * 120))
+  let timedOut = false
+  const watchdog = new Promise((_, reject) => {
+    setTimeout(() => { timedOut = true; reject(new Error('mihoyo server time sync timed out')) }, timeoutMs)
+  })
+
+  try {
+    await Promise.race([
+      (async () => {
+        for (let i = 0; i < count; i++) {
+          const t0 = Date.now()
+          const { response } = await mihoyoRequestWithResponse(API_ADDRESS_LIST, {
+            headers: authHeaders(cookie),
+          })
+          const t1 = Date.now()
+          const serverDate = response?.headers?.get?.('date') || response?.headers?.get?.('Date') || ''
+          const parsed = serverDate ? new Date(serverDate).getTime() : NaN
+          if (Number.isFinite(parsed)) {
+            const serverTime = parsed + 500
+            const localMidpoint = (t0 + t1) / 2
+            offsets.push(serverTime - localMidpoint)
+          }
+          if (i < count - 1) {
+            // 随机延时让下一次请求尽量落在不同秒，去相关截断误差
+            await new Promise((resolve) => setTimeout(resolve, 40 + Math.random() * 120))
+          }
+        }
+      })(),
+      watchdog,
+    ])
+  } catch (error) {
+    if (timedOut) {
+      // 累计到的采样仍可用则返回，否则抛出
+      if (!offsets.length) throw error
+    } else {
+      throw error
     }
   }
 
@@ -334,12 +353,27 @@ export async function fetchMihoyoServerTime(cookie, sampleCount = 3) {
  * 用 RTT 中点校正消掉往返时延：offsetMs = serverTime − (t0+t1)/2。
  * @returns {Promise<{serverTime: number, offsetMs: number}>}
  */
-export async function fetchEdgeServerTime() {
+export async function fetchEdgeServerTime(timeoutMs = 5000) {
   const t0 = Date.now()
-  const { data, error } = await getSupabaseClient().functions.invoke('get-server-time', {
-    method: 'GET',
+
+  let timedOut = false
+  const watchdog = new Promise((_, reject) => {
+    setTimeout(() => { timedOut = true; reject(new Error('supabase edge server time timed out')) }, timeoutMs)
   })
+
+  let result
+  try {
+    result = await Promise.race([
+      getSupabaseClient().functions.invoke('get-server-time', { method: 'GET' }),
+      watchdog,
+    ])
+  } catch (error) {
+    if (timedOut) throw error
+    throw error
+  }
+
   const t1 = Date.now()
+  const { data, error } = result
   if (error) throw error
   const serverTime = Number(data?.serverTime)
   if (!Number.isFinite(serverTime)) throw new Error('invalid edge server time')

@@ -144,20 +144,24 @@ async function syncServerClock(cookie, force = false) {
   let edgeOffset = null
   let mihoyoOffset = null
 
-  try {
-    const edge = await fetchEdgeServerTime()
-    edgeOffset = Number(edge.offsetMs)
+  // 两个时钟源并行请求，总时延受最慢者约束（edge 5s / mihoyo 8s），互不阻塞
+  const [edgeResult, mihoyoResult] = await Promise.allSettled([
+    fetchEdgeServerTime(),
+    fetchMihoyoServerTime(cookie),
+  ])
+
+  if (edgeResult.status === 'fulfilled') {
+    edgeOffset = Number(edgeResult.value.offsetMs)
     if (Number.isFinite(edgeOffset)) record('edge', edgeOffset)
-  } catch (edgeError) {
-    console.warn('[checkoutQueue] edge clock unavailable', edgeError?.message)
+  } else {
+    console.warn('[checkoutQueue] edge clock unavailable', edgeResult.reason?.message)
   }
 
-  try {
-    const mihoyo = await fetchMihoyoServerTime(cookie)
-    mihoyoOffset = Number(mihoyo.offsetMs)
+  if (mihoyoResult.status === 'fulfilled') {
+    mihoyoOffset = Number(mihoyoResult.value.offsetMs)
     if (Number.isFinite(mihoyoOffset)) record('mihoyo', mihoyoOffset)
-  } catch (mihoyoError) {
-    console.warn('[checkoutQueue] mihoyo clock unavailable', mihoyoError?.message)
+  } else {
+    console.warn('[checkoutQueue] mihoyo clock unavailable', mihoyoResult.reason?.message)
   }
 
   // 双源都拿到时：累积 delta，用「边缘毫秒时间 + delta 均值」得到米游铺时钟域时间
