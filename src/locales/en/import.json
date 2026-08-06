@@ -312,8 +312,8 @@
   "checkout.queueManageTitle": "Quickly view and manage pending orders",
   "checkout.queueManageDesc": "See pending, failed, and retryable orders here.",
   "checkout.concurrency": "Concurrency",
-  "checkout.concurrencyHint": "Submit the same order with parallel requests at fire time for hot items",
-  "checkout.concurrencyWarn": "Concurrent ordering may place duplicate orders, use with caution",
+  "checkout.concurrencyHint": "Fire multiple independent order requests at fire time (each with its own order), improving grab success rate",
+  "checkout.concurrencyWarn": "Concurrency > 1 creates multiple orders; keep one after payment and cancel the rest",
   "checkout.queueEmpty": "No pending orders right now",
   "checkout.leaveTitle": "Leave checkout?",
   "checkout.leaveConfirm": "You have added goods but have not added the order to the queue. Leave anyway?"

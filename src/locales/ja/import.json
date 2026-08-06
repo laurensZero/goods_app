@@ -312,8 +312,8 @@
   "checkout.queueManageTitle": "保留中の注文をすばやく確認・管理",
   "checkout.queueManageDesc": "ここで保留中、失敗、再試行可能な注文を確認できます。",
   "checkout.concurrency": "並行数",
-  "checkout.concurrencyHint": "同じ注文を到着時刻に複数の並行リクエストで送信し、獲得率を向上",
-  "checkout.concurrencyWarn": "並行注文は重複注文につながる可能性があります。注意して使用してください",
+  "checkout.concurrencyHint": "到着時刻に複数の独立した注文リクエスト（それぞれ注文1件）を同時送信し、獲得率を向上",
+  "checkout.concurrencyWarn": "並行数を増やすと複数の注文が生成されます。支払い後は1件を残し、他はキャンセルしてください",
   "checkout.queueEmpty": "現在、保留中の注文はありません",
   "checkout.leaveTitle": "終了の確認",
   "checkout.leaveConfirm": "商品が追加されていますが、注文キューには追加されていません。終了しますか？"

@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { submitCheckoutOrder, fetchMihoyoServerTime, fetchEdgeServerTime } from '@/utils/mihoyo/checkout'
+import { preCreateOrder, createOrder, fetchMihoyoServerTime, fetchEdgeServerTime } from '@/utils/mihoyo/checkout'
 
 const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
@@ -64,7 +64,7 @@ function normalizeQueueItem(item) {
     nextAttemptAt: Number(item?.nextAttemptAt) || Number(item?.scheduledAt) || Date.now(),
     attempts: Number(item?.attempts) || 0,
     maxAttempts: item?.maxAttempts === Infinity ? Infinity : Math.max(1, Number(item?.maxAttempts) || 3),
-    // 同一笔订单的并发提交数：入队时快照，到点同时发起多份提交
+    // 并发提交数：到点同时发起 n 个独立 preCreate（各拿 code、各建一单，可能重复）
     concurrency: clampConcurrency(snapshot.concurrency),
     status: ['pending', 'running', 'success', 'failed'].includes(item?.status) ? item.status : 'pending',
     lastError: String(item?.lastError || ''),
@@ -74,6 +74,8 @@ function normalizeQueueItem(item) {
         orderNo: String(item.result.orderNo || ''),
         amount: Number(item.result.amount) || 0,
         productName: String(item.result.productName || ''),
+        duplicate: Boolean(item.result.duplicate),
+        duplicateMessage: String(item.result.duplicateMessage || ''),
       }
       : null,
     snapshot: {
@@ -245,14 +247,24 @@ function buildOrderPayload(entry) {
   }
 }
 
-// 单个并发线程：按重试次数自行重试（非重试类错误立即抛出不等待），直到成功或耗尽次数
-async function submitWithRetry(cookie, payload, maxAttempts) {
+// 「重复/已存在」类错误：说明 code 已被消费、订单已建 → 视为成功（抢到即达目标）
+const DUPLICATE_ORDER_RE = /重复|已存在|已下单|已购买|已创建|订单已创建|已经.*(订单|下单)|already.*order|order.*exist|duplicate/i
+
+function isDuplicateOrderError(error) {
+  const message = String(error?.message || error || '')
+  if (!message) return false
+  // 注意：不能命中鉴权类词（如「登录已过期」），避免误判
+  return DUPLICATE_ORDER_RE.test(message) && !/cookie|token|login|auth|401|403|鉴权|认证/i.test(message)
+}
+
+// 阶段一：预创建拿 code（可重试）。返回 { code, totalFee, orderPoints, shopOrders, respGifts }
+async function preCreateWithRetry(cookie, payload, maxAttempts) {
   let attempt = 0
   for (;;) {
     try {
-      return await submitCheckoutOrder(cookie, payload)
+      return await preCreateOrder(cookie, payload)
     } catch (error) {
-      const message = String(error?.message || '下单失败')
+      const message = String(error?.message || '预创建订单失败')
       const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
       attempt += 1
       if (!retriable) throw error
@@ -262,28 +274,79 @@ async function submitWithRetry(cookie, payload, maxAttempts) {
   }
 }
 
-// 同一笔订单并发 n 个线程：任一线程成功即返回成功（其余线程继续跑完，结果忽略）；
-// 全部线程耗尽重试次数仍失败才返回失败
-function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
+// 阶段二：用同一 code 创建订单。code 幂等——重复提交报「已创建/重复」时视为成功。
+// 单个提交单元：按重试次数自行重试，直到成功、重复（=成功）、或耗尽次数
+async function createOrderWithRetry(cookie, { addressId, code, remark, items }, maxAttempts) {
+  let attempt = 0
+  for (;;) {
+    try {
+      return await createOrder(cookie, { addressId, code, remark, items })
+    } catch (error) {
+      if (isDuplicateOrderError(error)) {
+        return { duplicate: true, message: String(error?.message || '订单已存在') }
+      }
+      const message = String(error?.message || '创建订单失败')
+      const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
+      attempt += 1
+      if (!retriable) throw error
+      if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
+      await sleep(getRetryDelay())
+    }
+  }
+}
+
+// 单个提交单元：preCreate 拿自己的 code → createOrder 串行重试（B站单 token 模式）。
+// 返回 { ...preCreated, ...orderResult }，orderResult 可能是成功或 { duplicate: true }
+async function submitOrderUnit(cookie, payload, maxAttempts) {
+  const preCreated = await preCreateWithRetry(cookie, payload, maxAttempts)
+  const orderResult = await createOrderWithRetry(cookie, {
+    addressId: payload.addressId,
+    code: preCreated.code,
+    remark: payload.remark,
+    items: payload.items,
+  }, maxAttempts)
+  return { ...preCreated, ...orderResult }
+}
+
+// 一笔订单的提交策略：
+//   concurrency=1：单个单元，preCreate 一次拿单 code → createOrder 串行重试（与 B站一致）
+//   concurrency>1：并发 n 个独立单元，每个都走「自己的 preCreate → 自己的 createOrder」，
+//                  各自拿独立 code、各自建单 → 可能产生多笔订单（重复下单可接受，目标是抢到）
+// 任一单元真实成功（拿到 order_no）即立即返回；否则等全部结束，有「重复/已存在」也算成功
+async function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
   return new Promise((resolve) => {
     let settled = false
-    let rejected = 0
+    let finished = 0
     let lastError = null
+    let duplicate = null
+
+    const finish = () => {
+      if (settled || finished < n) return
+      if (duplicate) {
+        resolve({ ok: true, result: duplicate })
+      } else {
+        resolve({ ok: false, error: lastError || new Error('下单失败') })
+      }
+    }
+
     for (let i = 0; i < n; i++) {
-      submitWithRetry(cookie, payload, maxAttempts)
+      submitOrderUnit(cookie, payload, maxAttempts)
         .then((result) => {
-          if (!settled) {
+          finished += 1
+          if (result.orderNo && !settled) {
             settled = true
             resolve({ ok: true, result })
+            return
           }
+          if (result.duplicate && !duplicate) {
+            duplicate = result
+          }
+          finish()
         })
         .catch((error) => {
           lastError = error
-          rejected += 1
-          if (!settled && rejected >= n) {
-            settled = true
-            resolve({ ok: false, error: lastError })
-          }
+          finished += 1
+          finish()
         })
     }
   })
@@ -312,6 +375,9 @@ async function executeQueuedOrder(entry) {
       orderNo: String(result.result.orderNo || ''),
       amount: Number(result.result.amount) || 0,
       productName: String(result.result.productName || ''),
+      // 复用 code 收到「订单已存在/重复」→ 订单已建但无订单号，标记 duplicate 供 UI 提示
+      duplicate: Boolean(result.result.duplicate),
+      duplicateMessage: String(result.result.message || ''),
     }
     entry.completedAt = getServerNow()
     persistQueue()
