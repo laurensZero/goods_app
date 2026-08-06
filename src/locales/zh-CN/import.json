@@ -295,6 +295,7 @@
   "checkout.orderFailed": "下单失败",
   "checkout.selectedGifts": "已选赠品",
   "checkout.addToQueue": "加入队列",
+  "checkout.syncingClock": "同步服务器时间…",
   "checkout.queueTitle": "订单队列",
   "checkout.queuePending": "待下单",
   "checkout.queueRunning": "下单中",

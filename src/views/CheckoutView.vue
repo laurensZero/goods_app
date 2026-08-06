@@ -447,10 +447,10 @@ const stepAction = computed(() => {
       }
       if (timerEnabled.value) {
         return {
-          label: timerTargetTime.value ? `${t('checkout.addToQueue')}${remainingText.value ? ` · ${remainingText.value}` : ''}` : t('checkout.addToQueue'),
+          label: queueSyncing.value ? t('checkout.syncingClock') : timerTargetTime.value ? `${t('checkout.addToQueue')}${remainingText.value ? ` · ${remainingText.value}` : ''}` : t('checkout.addToQueue'),
           handler: handleQueueOrder,
-          disabled: !timerTargetTime.value || !items.value.length || items.value.some((i) => i.loading || i.error) || queueProcessing.value,
-          busy: queueProcessing.value,
+          disabled: !timerTargetTime.value || !items.value.length || items.value.some((i) => i.loading || i.error) || queueProcessing.value || queueSyncing.value,
+          busy: queueProcessing.value || queueSyncing.value,
         }
       }
       return { label: t('checkout.placeOrder'), handler: handleSubmit, disabled: false, busy: false }
@@ -905,8 +905,10 @@ async function handleSubmit() {
   }
 }
 
+const queueSyncing = ref(false)
+
 async function handleQueueOrder() {
-  if (queueProcessing.value) return
+  if (queueProcessing.value || queueSyncing.value) return
   if (!timerEnabled.value || !timerTargetTime.value) {
     setError(t('checkout.timerPast'))
     return
@@ -921,22 +923,28 @@ async function handleQueueOrder() {
     return
   }
 
-  const serverNow = await orderQueue.syncServerClock(cookie.value, true)
-  const offsetMs = serverNow - Date.now()
-  const { itemsPayload, giftPayload, snapshot, summary } = buildOrderSnapshot()
-  enqueueOrder({
-    scheduledAt: timerManuallySet.value ? timerTargetTime.value + offsetMs : timerTargetTime.value,
-    displayAt: timerTargetTime.value,
-    retryCount: retryCount.value,
-    concurrency: concurrency.value,
-    snapshot: {
-      ...snapshot,
-      items: itemsPayload,
-      giftActivities: giftPayload,
+  queueSyncing.value = true
+  try {
+    // 不强制刷新：60s TTL 内命中缓存的时钟偏移即可，避免加入队列前串行等网络同步拖慢响应
+    const serverNow = await orderQueue.syncServerClock(cookie.value, false)
+    const offsetMs = serverNow - Date.now()
+    const { itemsPayload, giftPayload, snapshot, summary } = buildOrderSnapshot()
+    enqueueOrder({
+      scheduledAt: timerManuallySet.value ? timerTargetTime.value + offsetMs : timerTargetTime.value,
       displayAt: timerTargetTime.value,
-    },
-    summary,
-  })
+      retryCount: retryCount.value,
+      concurrency: concurrency.value,
+      snapshot: {
+        ...snapshot,
+        items: itemsPayload,
+        giftActivities: giftPayload,
+        displayAt: timerTargetTime.value,
+      },
+      summary,
+    })
+  } finally {
+    queueSyncing.value = false
+  }
 
   currentOrderQueued.value = true
   showToast(t('checkout.queueAdded', { n: 1 }))

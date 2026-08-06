@@ -295,6 +295,7 @@
   "checkout.orderFailed": "Order failed",
   "checkout.selectedGifts": "Selected Gifts",
   "checkout.addToQueue": "Add to Queue",
+  "checkout.syncingClock": "Syncing server time…",
   "checkout.queueTitle": "Order Queue",
   "checkout.queuePending": "Pending",
   "checkout.queueRunning": "Submitting",

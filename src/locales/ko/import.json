@@ -295,6 +295,7 @@
   "checkout.orderFailed": "주문 실패",
   "checkout.selectedGifts": "선택한 선물",
   "checkout.addToQueue": "대기열에 추가",
+  "checkout.syncingClock": "서버 시간 동기화 중…",
   "checkout.queueTitle": "주문 대기열",
   "checkout.queuePending": "대기 중",
   "checkout.queueRunning": "제출 중",

@@ -295,6 +295,7 @@
   "checkout.orderFailed": "注文失敗",
   "checkout.selectedGifts": "選択したギフト",
   "checkout.addToQueue": "キューに追加",
+  "checkout.syncingClock": "サーバー時間を同期中…",
   "checkout.queueTitle": "注文キュー",
   "checkout.queuePending": "待機中",
   "checkout.queueRunning": "送信中",

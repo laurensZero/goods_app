@@ -295,6 +295,7 @@
   "checkout.orderFailed": "下單失敗",
   "checkout.selectedGifts": "已選贈品",
   "checkout.addToQueue": "加入佇列",
+  "checkout.syncingClock": "同步伺服器時間…",
   "checkout.queueTitle": "訂單佇列",
   "checkout.queuePending": "待下單",
   "checkout.queueRunning": "下單中",
