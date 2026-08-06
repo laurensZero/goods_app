@@ -18,11 +18,17 @@ import {
   setMihoyoShops,
   unbindQQ,
 } from '@/services/qqService'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
+
+// 本地键：定时抢购成功 → QQ 提醒开关（纯客户端偏好，见 CheckoutView 使用）
+const CHECKOUT_NOTIFY_KEY = 'goods_qq_checkout_notify'
 
 export const useQQBindingStore = defineStore('qqBinding', () => {
   const binding = ref(null)
   const isInitialized = ref(false)
   const isLoading = ref(false)
+  // 定时抢购成功 → QQ 提醒开关（本地偏好，需绑定 QQ 才可用）
+  const checkoutNotify = ref(false)
 
   // 便捷状态
   const isBound = computed(() => binding.value?.status === 'active')
@@ -43,6 +49,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   async function init() {
     if (isInitialized.value) return
     isInitialized.value = true
+    checkoutNotify.value = (await readPersisted(CHECKOUT_NOTIFY_KEY, '0')) === '1'
     const authStore = useAuthStore()
     if (!authStore.isLoggedIn) {
       binding.value = null
@@ -142,6 +149,15 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   }
 
   /**
+   * 设置「定时抢购成功」QQ 提醒开关（本地偏好，同步持久化）。
+   */
+  async function toggleCheckoutNotify(enabled) {
+    const next = !!enabled
+    checkoutNotify.value = next
+    await writePersisted(CHECKOUT_NOTIFY_KEY, next ? '1' : '0')
+  }
+
+  /**
    * 登出/切换账号时重置状态，下次 init 会重新拉取。
    */
   function reset() {
@@ -161,12 +177,14 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     mihoyoShops,
     bindCode,
     qqNickname,
+    checkoutNotify,
     init,
     startBinding,
     refreshBinding,
     toggleEnabled,
     toggleMihoyoEnabled,
     toggleMihoyoShops,
+    toggleCheckoutNotify,
     doUnbind,
     reset,
   }

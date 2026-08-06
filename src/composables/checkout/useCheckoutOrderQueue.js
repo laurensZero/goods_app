@@ -24,6 +24,8 @@ const clockSyncSource = ref('')
 let mihoyoDeltaMean = 0
 
 let queueWatcherId = 0
+// 抢购成功的事件回调（供业务层订阅，如 QQ 提醒）。成功时刻触发一次，天然排除历史遗留项。
+let checkoutSuccessHandler = null
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined'
@@ -434,6 +436,12 @@ async function executeQueuedOrder(entry) {
     }
     entry.completedAt = getServerNow()
     persistQueue()
+    // 抢购成功这一刻通知订阅者（如 QQ 提醒），与「队列里既有」的成功项无关
+    try {
+      checkoutSuccessHandler?.(entry)
+    } catch (error) {
+      console.warn('[checkoutQueue] checkout success handler error', error?.message)
+    }
     return { ok: true, result: result.result }
   }
 
@@ -548,5 +556,11 @@ export function useCheckoutOrderQueue() {
     clockSyncSource,
     startQueueWatcher,
     stopQueueWatcher,
+    // 订阅「抢购成功」事件：回调参数为成功项 entry（含 result/summary），
+    // 每次真正抢到都触发，不含历史遗留的 success 项
+    onCheckoutSuccess(handler) {
+      checkoutSuccessHandler = handler
+      return () => { if (checkoutSuccessHandler === handler) checkoutSuccessHandler = null }
+    },
   }
 }

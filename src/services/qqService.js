@@ -127,3 +127,32 @@ export async function unbindQQ() {
 
   if (error) throw new Error(error.message)
 }
+
+/**
+ * 写入一条「定时抢购成功」通知到 notification_jobs。
+ * 由 notify-dispatch cron 投递给绑定的 QQ，提醒用户及时付款。
+ * RLS 仅允许插入自己 user_id 的行（见 supabase-migration-checkout-qq-notify.sql）。
+ * 文案由调用方按当前语言构造（本服务层不关心 i18n）。
+ * @param {Object} payload
+ * @param {string} payload.title - 通知标题
+ * @param {string} payload.content - 通知正文（含换行）
+ * @param {string} [payload.eventKey] - 去重键；缺省用时间戳保证不重复
+ */
+export async function createCheckoutNotify({ title, content, eventKey }) {
+  const db = getSupabaseClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) throw new Error('not_logged_in')
+
+  const { error } = await db
+    .from('notification_jobs')
+    .insert({
+      user_id: user.id,
+      channel: 'qq',
+      source: 'checkout',
+      event_key: eventKey || `checkout:${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      content,
+    })
+
+  if (error) throw new Error(error.message)
+}

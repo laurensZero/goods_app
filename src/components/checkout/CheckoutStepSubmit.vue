@@ -55,6 +55,21 @@
             </div>
           </div>
           <p v-if="concurrency > 1" class="concurrency-warn">{{ $t('checkout.concurrencyWarn') }}</p>
+          <div class="qq-notify-row" :class="{ 'qq-notify-row--disabled': !qqBound }">
+            <div class="qq-notify-row__info">
+              <span class="qq-notify-row__title">{{ $t('checkout.qqNotifyToggle') }}</span>
+              <span class="qq-notify-row__desc">{{ qqBound ? $t('checkout.qqNotifyDesc') : $t('checkout.qqNotifyUnbound') }}</span>
+            </div>
+            <label class="toggle-switch" :aria-label="$t('checkout.qqNotifyToggle')">
+              <input
+                type="checkbox"
+                :checked="checkoutNotify"
+                :disabled="!qqBound"
+                @change="$emit('toggle-checkout-notify', $event.target.checked)"
+              />
+              <span class="toggle-slider" />
+            </label>
+          </div>
           <button v-if="queueItems.length" type="button" class="queue-preview-btn" @click="$emit('open-queue')">
             <span>{{ $t('checkout.queueTitle') }}</span>
             <span class="queue-preview-btn__count">{{ activeQueueItems.length }}</span>
@@ -101,6 +116,8 @@ defineProps({
   retryCount: { type: Number, default: 3 },
   concurrency: { type: Number, default: 1 },
   maxConcurrency: { type: Number, default: 5 },
+  qqBound: { type: Boolean, default: false },
+  checkoutNotify: { type: Boolean, default: false },
   queueItems: { type: Array, default: () => [] },
   activeQueueItems: { type: Array, default: () => [] },
   error: { type: String, default: '' },
@@ -116,6 +133,7 @@ defineEmits([
   'infinite-retry',
   'decrease-concurrency',
   'increase-concurrency',
+  'toggle-checkout-notify',
   'open-queue',
 ])
 </script>
@@ -257,6 +275,93 @@ defineEmits([
   margin-top: 2px;
   font-size: 12px;
   color: #c74444;
+}
+
+.qq-notify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 2px;
+}
+
+.qq-notify-row--disabled .qq-notify-row__title,
+.qq-notify-row--disabled .qq-notify-row__desc {
+  opacity: 0.5;
+}
+
+.qq-notify-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.qq-notify-row__title {
+  font-size: 13px;
+  color: var(--app-text);
+  font-weight: 500;
+}
+
+.qq-notify-row__desc {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
+/* Toggle Switch（复用设置页样式） */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--app-surface-muted, #e5e5ea);
+  transition: background-color 0.25s ease;
+  border-radius: 31px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--app-chip-accent-text);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .retry-controls {
