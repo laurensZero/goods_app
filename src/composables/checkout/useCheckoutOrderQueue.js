@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { submitCheckoutOrder, fetchMihoyoServerTime } from '@/utils/mihoyo/checkout'
+import { submitCheckoutOrder, fetchMihoyoServerTime, fetchEdgeServerTime } from '@/utils/mihoyo/checkout'
 
 const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
@@ -17,6 +17,9 @@ const hydrated = ref(false)
 const processing = ref(false)
 const clockOffsetMs = ref(0)
 const clockSyncedAt = ref(0)
+const clockSyncSource = ref('')
+// 米游铺时钟相对 UTC 的偏差均值：用于把边缘 UTC 换算成米游铺时钟
+let mihoyoDeltaMean = 0
 
 let queueWatcherId = 0
 
@@ -118,13 +121,53 @@ function getServerNow() {
 async function syncServerClock(cookie, force = false) {
   const shouldRefresh = force || !clockSyncedAt.value || (Date.now() - clockSyncedAt.value) > CLOCK_CACHE_TTL
   if (!cookie || !shouldRefresh) return getServerNow()
-  try {
-    const { offsetMs } = await fetchMihoyoServerTime(cookie)
-    clockOffsetMs.value = Number(offsetMs) || 0
+
+  const record = (source, offsetMs) => {
+    if (offsetMs === null || offsetMs === undefined || Number.isNaN(offsetMs)) return null
+    clockOffsetMs.value = Number(offsetMs)
     clockSyncedAt.value = Date.now()
-  } catch (error) {
-    console.warn('[checkoutQueue] clock sync failed', error)
+    clockSyncSource.value = source
+    return Number(offsetMs)
   }
+
+  // 双锚互相校验：
+  //   1. 边缘函数（毫秒级 NTP，单次即准）做主参考，给出 offset_edge
+  //   2. 米游铺 Date 头（+500ms 秒中点补偿，多采样平均）测 offset_mihoyo
+  //   3. delta = offset_mihoyo − offset_edge = 「米游铺时钟 − 边缘时钟」，逐次累积平均；
+  //      用它把边缘的毫秒级时间换算回米游铺时钟域（与 sale_time 同一时钟，偏移互相抵消）
+  //   若任一层不可用，退到另一层；都不可用则保留上次已知偏移。绝不因时钟同步失败阻塞下单。
+
+  let edgeOffset = null
+  let mihoyoOffset = null
+
+  try {
+    const edge = await fetchEdgeServerTime()
+    edgeOffset = Number(edge.offsetMs)
+    if (Number.isFinite(edgeOffset)) record('edge', edgeOffset)
+  } catch (edgeError) {
+    console.warn('[checkoutQueue] edge clock unavailable', edgeError?.message)
+  }
+
+  try {
+    const mihoyo = await fetchMihoyoServerTime(cookie)
+    mihoyoOffset = Number(mihoyo.offsetMs)
+    if (Number.isFinite(mihoyoOffset)) record('mihoyo', mihoyoOffset)
+  } catch (mihoyoError) {
+    console.warn('[checkoutQueue] mihoyo clock unavailable', mihoyoError?.message)
+  }
+
+  // 双源都拿到时：累积 delta，用「边缘毫秒时间 + delta 均值」得到米游铺时钟域时间
+  if (Number.isFinite(edgeOffset) && Number.isFinite(mihoyoOffset)) {
+    const delta = mihoyoOffset - edgeOffset
+    mihoyoDeltaMean = mihoyoDeltaMean === 0 ? delta : mihoyoDeltaMean * 0.7 + delta * 0.3
+    const combined = edgeOffset + mihoyoDeltaMean
+    if (Number.isFinite(combined)) {
+      clockOffsetMs.value = combined
+      clockSyncedAt.value = Date.now()
+      clockSyncSource.value = 'edge+mihoyo'
+    }
+  }
+
   return getServerNow()
 }
 
@@ -363,6 +406,8 @@ export function useCheckoutOrderQueue() {
     processQueue,
     syncServerClock,
     getServerNow,
+    clockOffsetMs,
+    clockSyncSource,
     startQueueWatcher,
     stopQueueWatcher,
   }

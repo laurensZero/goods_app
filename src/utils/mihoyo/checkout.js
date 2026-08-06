@@ -5,6 +5,7 @@
 import { mihoyoRequest, mihoyoRequestWithResponse } from '@/utils/mihoyo/request'
 import { createLogger } from '@/utils/logger'
 import { compareByPinyin } from '@/utils/pinyin'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
 const log = createLogger('checkout')
 
@@ -278,23 +279,70 @@ export async function fetchGiftActivityDetail(activityId, cookie) {
 }
 
 /**
- * 拉取米游铺服务器时间。
- * 用响应头 Date 作为基准，并参考业界标准做法（RFC 7231 Date 秒级精度）：
- *   - 服务器时刻取该秒中点（+500ms），补偿秒级截断
- *   - 本地时刻取请求往返的 RTT 中点（(t0+t1)/2），补偿网络时延
- * 这样 offsetMs 即「服务器时间 − 本地时间」的无偏估计，避免系统性滞后。
+ * 测米游铺服务器时钟偏移（用于和边缘 UTC 组合，换算进米游铺时钟域）。
+ *
+ * 为什么需要它而不是直接用真实 UTC（边缘函数）：
+ *   sale_time / start_time 是米游铺自身时钟域里的值。若米游铺时钟与 UTC 有偏移，
+ *   用 UTC 对齐会系统性地偏早/偏晚；用本函数实测「米游铺 − 本地」偏移，
+ *   再与边缘偏移相减得 delta = 「米游铺 − 边缘」，即可把边缘的毫秒时间
+ *   换算进米游铺时钟域（与 sale_time 同一时钟，偏移互相抵消）。
+ *
+ * 精度处理（RFC 7231 Date 秒级精度）：
+ *   - 服务器时刻取该秒中点（+500ms），补偿秒级截断的相位盲区
+ *   - 本地时刻取请求往返 RTT 中点（(t0+t1)/2），补偿网络时延
+ *   - 连续采样 N 次取平均：截断误差在 [0,1s) 均匀分布，平均后按 1/√N 收敛；
+ *     采样间随机延时让头尽量落在不同秒，误差去相关
  * @param {string} cookie
+ * @param {number} [sampleCount=3] 采样次数，默认 3，最多 9
  * @returns {Promise<{serverTime: number, offsetMs: number}>}
  */
-export async function fetchMihoyoServerTime(cookie) {
+export async function fetchMihoyoServerTime(cookie, sampleCount = 3) {
+  const count = Math.max(1, Math.min(9, Math.floor(Number(sampleCount) || 1)))
+  const offsets = []
+
+  for (let i = 0; i < count; i++) {
+    const t0 = Date.now()
+    const { response } = await mihoyoRequestWithResponse(API_ADDRESS_LIST, {
+      headers: authHeaders(cookie),
+    })
+    const t1 = Date.now()
+    const serverDate = response?.headers?.get?.('date') || response?.headers?.get?.('Date') || ''
+    const parsed = serverDate ? new Date(serverDate).getTime() : NaN
+    if (Number.isFinite(parsed)) {
+      const serverTime = parsed + 500
+      const localMidpoint = (t0 + t1) / 2
+      offsets.push(serverTime - localMidpoint)
+    }
+    if (i < count - 1) {
+      // 随机延时让下一次请求尽量落在不同秒，去相关截断误差
+      await new Promise((resolve) => setTimeout(resolve, 40 + Math.random() * 120))
+    }
+  }
+
+  if (!offsets.length) throw new Error('no valid mihoyo server time sample')
+
+  const offsetMs = offsets.reduce((sum, n) => sum + n, 0) / offsets.length
+  return {
+    serverTime: Date.now() + offsetMs,
+    offsetMs,
+  }
+}
+
+/**
+ * 从 Supabase Edge Function 拉取毫秒级精确时间（服务器在中立云，NTP 同步）。
+ * 作为毫秒级主参考，与米游铺 Date 头组合（见 fetchMihoyoServerTime）。
+ * 用 RTT 中点校正消掉往返时延：offsetMs = serverTime − (t0+t1)/2。
+ * @returns {Promise<{serverTime: number, offsetMs: number}>}
+ */
+export async function fetchEdgeServerTime() {
   const t0 = Date.now()
-  const { response } = await mihoyoRequestWithResponse(API_ADDRESS_LIST, {
-    headers: authHeaders(cookie),
+  const { data, error } = await getSupabaseClient().functions.invoke('get-server-time', {
+    method: 'GET',
   })
   const t1 = Date.now()
-  const serverDate = response?.headers?.get?.('date') || response?.headers?.get?.('Date') || ''
-  const parsed = serverDate ? new Date(serverDate).getTime() : NaN
-  const serverTime = Number.isFinite(parsed) ? parsed + 500 : Date.now()
+  if (error) throw error
+  const serverTime = Number(data?.serverTime)
+  if (!Number.isFinite(serverTime)) throw new Error('invalid edge server time')
   const localMidpoint = (t0 + t1) / 2
   return {
     serverTime,

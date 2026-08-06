@@ -23,3 +23,7 @@ verify_jwt = false
 # 米游铺自助下单白名单校验：必须携带登录 JWT（verify_jwt=true）
 [functions.check-checkout-permission]
 verify_jwt = true
+
+# 毫秒级精确时间源：自助下单定时校准用，无需登录
+[functions.get-server-time]
+verify_jwt = false
