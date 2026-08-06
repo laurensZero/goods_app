@@ -391,6 +391,13 @@ export function useCheckoutGoods() {
   }
 
   function removeItem(id) {
+    const item = items.value.find((entry) => entry.id === id)
+    if (item) {
+      const searchResult = searchResults.value.find(
+        (result) => String(result.goods_id) === String(item.goodsId),
+      )
+      if (searchResult) searchResult.is_added = false
+    }
     items.value = items.value.filter((i) => i.id !== id)
   }
 
