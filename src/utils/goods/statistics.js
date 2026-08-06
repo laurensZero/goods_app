@@ -27,26 +27,29 @@ function getItemDatesAndPrices(item) {
     ? item.unitActualPriceCNYList
     : (Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : [])
 
+  // 运费与预算口径一致:按份数摊到每份消费上
+  const shipping = Number(item.shippingFee) || 0
+  const shippingPerUnit = shipping / Math.max(1, qty)
+
   if (unitDates.length > 0 && unitPrices.length > 0) {
     const len = Math.min(unitDates.length, unitPrices.length)
     const pairs = []
     for (let i = 0; i < len; i++) {
       const d = safeDate(unitDates[i])
+      if (!d) continue
       const price = Number(unitPrices[i] || 0)
-      if (d && price > 0) pairs.push({ date: d, price })
+      pairs.push({ date: d, price: price + shippingPerUnit })
     }
     return pairs
   }
 
   const d = safeDate(item.acquiredAt)
   if (!d) return []
-  // actualPrice 是全部份数的总入手价，不能再乘数量；仅原价按单价×数量
-  const actual = Number(item.actualPriceCNYNumber || item.actualPriceNumber || 0)
-  const price = actual > 0
-    ? actual
-    : Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0) * qty
-  const shipping = Number(item.shippingFee) || 0
-  return [{ date: d, price: price + shipping }]
+  // 预算口径一致:实际价为 0 也按 0 计入(免费/白得的不算原价),未填实际价才按原价×数量
+  const amount = (item.actualPrice !== '' && item.actualPrice != null)
+    ? (Number(item.actualPriceCNYNumber ?? item.actualPrice) || 0)
+    : (Number(item.officialPriceCNYNumber ?? item.price) || 0) * qty
+  return [{ date: d, price: amount + shipping }]
 }
 
 // ─── Heatmap ───
