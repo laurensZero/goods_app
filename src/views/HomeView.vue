@@ -1370,7 +1370,7 @@ onBeforeRouteLeave(() => {
   unbindPageScroll()
 })
 
-const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection, goodsGroupStore, exchangeRate, searchFilteredList)
+const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection, goodsGroupStore, exchangeRate, searchFilteredList, searchIsFiltering)
 
 // Goods groups — merged into displayList with goods
 const groupViewItems = computed(() => {

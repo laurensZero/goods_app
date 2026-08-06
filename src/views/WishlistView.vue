@@ -438,14 +438,19 @@ const _wishlistTotals = computed(() => {
   let qty = 0
   let val = 0
 
-  // Build set of goodsIds belonging to manual-price wishlist groups
+  // Groups are broken apart during filtering/search, so manual group
+  // aggregation should only apply when not filtering
+  const isSearching = searchIsFiltering.value
+
   const manualGroupMemberIds = new Set()
   const manualGroups = new Map()
-  for (const group of goodsGroupStore.wishlistGroups) {
-    if (group.summaryMode === 'manual') {
-      manualGroups.set(group.id, group)
-      for (const item of goodsGroupStore.groupItemsOf(group.id)) {
-        manualGroupMemberIds.add(item.goodsId)
+  if (!isSearching) {
+    for (const group of goodsGroupStore.wishlistGroups) {
+      if (group.summaryMode === 'manual') {
+        manualGroups.set(group.id, group)
+        for (const item of goodsGroupStore.groupItemsOf(group.id)) {
+          manualGroupMemberIds.add(item.goodsId)
+        }
       }
     }
   }
@@ -457,8 +462,8 @@ const _wishlistTotals = computed(() => {
     }
   }
 
-  // Add manual group totals (converted to CNY)
-  if (searchFilteredList.value.length > 0) {
+  // Add manual group totals (converted to CNY) only when not filtering
+  if (!isSearching && searchFilteredList.value.length > 0) {
     for (const [, group] of manualGroups) {
       const amount = Number(group.totalAmount) || 0
       val += exchangeRate.convertToCNY(amount, group.currency || 'CNY')

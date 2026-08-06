@@ -10,7 +10,7 @@ const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
  * @param {object} [groupStore] - goodsGroup store (optional)
  * @param {object} [exchangeRate] - exchangeRate store (optional)
  */
-export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate, externalList) {
+export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate, externalList, isFiltering) {
   const listData = computed(() => {
     const sourceItems = externalList?.value ?? store.collectionViewList
     const items = sortHomeGoodsList(sourceItems, sortMode.value, sortDirection.value)
@@ -18,10 +18,14 @@ export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exc
     let totalQty = 0
     const byId = new Map()
 
-    // Build set of goodsIds belonging to manual-price groups
+    // Groups are broken apart during filtering/search, so manual group
+    // aggregation should only apply when not filtering
+    const filtering = isFiltering?.value ?? false
+
+    // Build set of manual groups members (skipped when filtering)
     const manualGroupMemberIds = new Set()
     const manualGroups = new Map() // groupId -> group
-    if (groupStore) {
+    if (groupStore && !filtering) {
       for (const group of groupStore.collectionGroups) {
         if (group.summaryMode === 'manual') {
           manualGroups.set(group.id, group)
@@ -44,8 +48,8 @@ export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exc
         }
     }
 
-    // Add manual group totals (converted to CNY)
-    if (items.length > 0) {
+    // Add manual group totals (converted to CNY) only when not filtering
+    if (!filtering && items.length > 0) {
       for (const [, group] of manualGroups) {
         const amount = Number(group.totalAmount) || 0
         if (exchangeRate) {
