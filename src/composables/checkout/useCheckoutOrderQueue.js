@@ -1,10 +1,12 @@
 import { computed, ref } from 'vue'
-import { preCreateOrder, createOrder, fetchMihoyoServerTime, fetchEdgeServerTime } from '@/utils/mihoyo/checkout'
+import { preCreateOrder, createOrder, fetchGoodsDetailForCheckout, fetchMihoyoServerTime, fetchEdgeServerTime } from '@/utils/mihoyo/checkout'
 
 const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
 const CLOCK_CACHE_TTL = 60 * 1000
 const RETRY_DELAY = 500
+// 缺货等回流的重试间隔：商品售罄后库存会陆续回补，间隔拉长以降低对服务器压力
+const REBACK_DELAY = 3000
 // 成功订单保留时长：供用户查看结果，超时后自动清除
 const SUCCESS_RETENTION_MS = 24 * 60 * 60 * 1000
 // 提前量：时钟偏移已做 RTT 中点 + 秒中点校准，这里只需补偿提交请求自身的网络时延，
@@ -257,6 +259,37 @@ function isDuplicateOrderError(error) {
   return DUPLICATE_ORDER_RE.test(message) && !/cookie|token|login|auth|401|403|鉴权|认证/i.test(message)
 }
 
+// 缺货检测：通过商品详情接口确认所选 SKU 是否缺货。
+// 下单失败返回 -502 通用错误无法区分「缺货」与「瞬时错误」，因此单独查 detail 确认。
+// 返回三态：
+//   'out'       已确认缺货（所选 SKU 实时库存为 0）→ 等回流
+//   'unknown'   detail 查询失败 / 无法确认 → 也继续抢（可能瞬时错误或正在回流，不放弃）
+//   'available' 确认仍有货 → 瞬时错误，标失败即可
+async function isGoodsOutOfStock(cookie, items) {
+  if (!Array.isArray(items) || !items.length) return 'available'
+  const checks = items.map(async (item) => {
+    try {
+      const detail = await fetchGoodsDetailForCheckout(item.goodsId, cookie)
+      const sku = (detail.skus || []).find((s) => String(s.id) === String(item.skuId))
+      // 找不到对应 SKU 时无法确认库存，视为 unknown
+      if (!sku) return 'unknown'
+      return sku.soldOut || sku.stock === 0 ? 'out' : 'available'
+    } catch (error) {
+      console.warn('[checkoutQueue] out-of-stock check failed', error?.message)
+      return 'unknown'
+    }
+  })
+  try {
+    const results = await Promise.all(checks)
+    // 任一缺货即缺货；全部确认有货才 available；否则有失败/无法确认 → unknown（继续抢）
+    if (results.includes('out')) return 'out'
+    if (results.every((r) => r === 'available')) return 'available'
+    return 'unknown'
+  } catch (error) {
+    return 'unknown'
+  }
+}
+
 // 阶段一：预创建拿 code（可重试）。返回 { code, totalFee, orderPoints, shopOrders, respGifts }
 async function preCreateWithRetry(cookie, payload, maxAttempts) {
   let attempt = 0
@@ -361,6 +394,9 @@ async function executeQueuedOrder(entry) {
   persistQueue()
 
   const n = clampConcurrency(entry.concurrency)
+  // 抢购与缺货预检并行：同时发起下单与 detail 库存查询。
+  // 下单失败时预检通常已返回，直接消费结论决定「等回流」还是「标失败」，避免串行补查的额外 RTT
+  const stockCheck = isGoodsOutOfStock(entry.snapshot.cookie, entry.snapshot.items)
   const result = await runConcurrentSubmits(
     entry.snapshot.cookie,
     buildOrderPayload(entry),
@@ -382,6 +418,25 @@ async function executeQueuedOrder(entry) {
     entry.completedAt = getServerNow()
     persistQueue()
     return { ok: true, result: result.result }
+  }
+
+  // 下单失败：消费并行预检的库存结论，决定继续抢的节奏。
+  //   缺货(out)         → 等回流慢节奏，3 秒后重试
+  //   有货/无法确认      → 按原节奏继续抢（0.5s±0.2s 抖动）——有货仍失败多是限流/服务端瞬时故障，更该继续
+  //   仅鉴权类错误       → 标 failed，等待用户重新登录/处理，不无限重试
+  const authError = /cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(String(result.error?.message || ''))
+  if (!authError) {
+    const stockStatus = await stockCheck
+    entry.status = 'pending'
+    if (stockStatus === 'out') {
+      entry.lastError = '商品缺货，等待回流，3 秒后重试'
+      entry.nextAttemptAt = getServerNow() + REBACK_DELAY
+    } else {
+      entry.lastError = '下单失败，稍后自动重试'
+      entry.nextAttemptAt = getServerNow() + getRetryDelay()
+    }
+    persistQueue()
+    return { ok: false, retriable: true }
   }
 
   entry.lastError = String(result.error?.message || '下单失败')
