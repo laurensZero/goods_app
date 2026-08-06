@@ -268,7 +268,7 @@ const keywordModel = computed({
 })
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── 订单类型与积分兑换 ── */
 .checkout-mode-switch {

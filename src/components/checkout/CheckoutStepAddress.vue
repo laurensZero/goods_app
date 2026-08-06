@@ -53,7 +53,7 @@ defineProps({
 defineEmits(['select-address'])
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── 地址 ── */
 .address-list {

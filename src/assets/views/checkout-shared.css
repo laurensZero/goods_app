@@ -1,5 +1,5 @@
 /* 结算步骤共用样式：所有选择器以 .checkout-step 为命名空间，避免与其它视图同名类冲突。
-   各步骤组件通过 <style src="@/views/checkout-shared.css"> 引入（非 scoped，但已加前缀兜底隔离）。 */
+   各步骤组件通过 <style src="@/assets/views/checkout-shared.css"> 引入（非 scoped，但已加前缀兜底隔离）。 */
 
 .checkout-step.form-section,
 .checkout-step .form-section {

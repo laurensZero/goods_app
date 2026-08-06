@@ -114,7 +114,7 @@ const remarkModel = computed({
 })
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── 确认页 ── */
 .card-label {

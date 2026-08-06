@@ -120,7 +120,7 @@ defineEmits([
 ])
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── 定时下单 ── */
 .timer-header {

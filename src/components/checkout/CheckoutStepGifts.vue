@@ -76,7 +76,7 @@ defineProps({
 })
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── 赠品 ── */
 .gift-sections {

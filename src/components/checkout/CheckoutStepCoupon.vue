@@ -34,7 +34,7 @@ defineProps({
 })
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── 优惠券 ── */
 .coupon-list {

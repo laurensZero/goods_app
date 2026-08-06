@@ -89,7 +89,7 @@ const cookieModel = computed({
 })
 </script>
 
-<style src="@/views/checkout-shared.css"></style>
+<style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
 /* ── Cookie 说明卡 ── */
 .cookie-textarea {
