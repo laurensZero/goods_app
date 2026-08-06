@@ -3,8 +3,9 @@
  * 支持单品和多件模式：通过 URL 粘贴或搜索添加商品
  */
 import { ref, computed, reactive } from 'vue'
-import { isMihoyoGiftUrl, searchGoodsList } from '@/utils/mihoyo/index'
+import { isMihoyoGiftUrl } from '@/utils/mihoyo/index'
 import { fetchGoodsDetailForCheckout } from '@/utils/mihoyo/checkout'
+import { useMihoyoGoodsSearch } from '@/composables/import/useMihoyoGoodsSearch'
 
 /**
  * 单个下单商品项
@@ -30,6 +31,7 @@ function createItem(goodsId) {
     loading: false,
     error: '',
     skuLocked: false,
+    forceMode: false,
     giftActivities: [],
     coupons: [],
     saleTime: 0,
@@ -44,9 +46,29 @@ function getStockText(sku) {
   return ''
 }
 
+/**
+ * 根据搜索关键词（角色名/款式名）匹配 SKU。优先命中完整包含，其次拼音包含。
+ * @returns {Object|null} 命中的有货 SKU；关键词为空或未命中返回 null
+ */
+function findHintSku(skus, hint, { includeSoldOut = false } = {}) {
+  const keyword = String(hint || '').trim().toLowerCase()
+  if (!keyword || !Array.isArray(skus) || !skus.length) return null
+  const exact = skus.find((s) => {
+    const text = String(s.text || '').toLowerCase()
+    return (includeSoldOut || !s.soldOut) && (text === keyword || text.includes(keyword) || keyword.includes(text))
+  })
+  return exact || null
+}
+
 function validateItemStock(item) {
   const selectedSku = item.skus.find((s) => s.id === item.selectedSkuId) || null
   const selectedStock = Number.isFinite(Number(item.selectedSkuStock)) ? Number(item.selectedSkuStock) : Number(selectedSku?.stock ?? -1)
+  if (item.forceMode) {
+    // 强制模式用于抢回流：允许暂时售罄或库存不足的 SKU 继续进入后续步骤，
+    // 由实际下单接口进行最终库存判断。
+    if (item.error && /库存不足|已售罄/.test(item.error)) item.error = ''
+    return true
+  }
   if (selectedStock === 0 || selectedSku?.soldOut) {
     item.error = '商品已售罄'
     return false
@@ -63,12 +85,18 @@ function validateItemStock(item) {
 
 export function useCheckoutGoods() {
   const items = ref([])
-  const searchKeyword = ref('')
-  const searchResults = ref([])
-  const searching = ref(false)
-  const searchError = ref('')
   const urlInput = ref('')
   const parsingUrl = ref(false)
+
+  // 共用米游铺商品搜索引擎（与收藏导入同一套逻辑）
+  const search = useMihoyoGoodsSearch({
+    scrollRootSelector: '.checkout-page .page-body',
+    autoFill: true,
+  })
+  const searchKeyword = search.searchKeyword
+  const searchResults = search.searchResults
+  const searching = search.searching
+  const searchError = search.searchError
 
   const totalAmount = computed(() =>
     items.value.reduce((sum, item) => {
@@ -102,7 +130,7 @@ export function useCheckoutGoods() {
 
   const isMultiItem = computed(() => items.value.length > 1)
 
-  async function fetchItemDetail(item, cookie, presetSkuId) {
+  async function fetchItemDetail(item, cookie, presetSkuId, hint) {
     item.loading = true
     item.error = ''
     try {
@@ -120,7 +148,11 @@ export function useCheckoutGoods() {
       item.remainingTime = detail.remainingTime
       if (detail.skus.length > 0) {
         const preset = detail.skus.find((s) => s.id === presetSkuId)
-        const availableSku = detail.skus.find((s) => !s.soldOut) || detail.skus[0]
+        // 命中搜索关键词的 SKU（如角色名/款式名），有货时优先自动选中
+        const hintSku = !preset && hint
+          ? findHintSku(detail.skus, hint, { includeSoldOut: true })
+          : null
+        const availableSku = hintSku || detail.skus.find((s) => !s.soldOut) || detail.skus[0]
         if (preset) {
           item.selectedSkuId = preset.id
           item.selectedSkuText = preset.text
@@ -260,24 +292,74 @@ export function useCheckoutGoods() {
     return true
   }
 
-  async function addItemFromSearch(result, cookie) {
+  async function addItemFromSearch(result, cookie, hint) {
     if (items.value.some((i) => i.goodsId === result.goods_id)) {
       searchError.value = '该商品已在列表中'
-      return false
+      return { status: 'duplicate', item: null }
     }
     const item = createItem(result.goods_id)
     item.name = result.name
     item.cover = result.cover_url || ''
     items.value.push(item)
-    const ok = await fetchItemDetail(item, cookie)
+    const ok = await fetchItemDetail(item, cookie, null, hint)
     if (!ok) {
       removeItem(item.id)
-      return false
+      const soldOut = /售罄|库存不足/.test(item.error || '')
+      if (soldOut) {
+        result.is_sold_out = true
+        return { status: 'soldout', item: null }
+      }
+      return { status: 'error', item: null }
     }
     searchError.value = ''
-    searchKeyword.value = ''
-    searchResults.value = []
-    return true
+    result.is_added = true
+    return { status: 'ok', item }
+  }
+
+  /**
+   * 长按强制添加：即使商品售罄也保留在列表中，并强制选中一个 SKU（便于抢回流/切换款式）。
+   * 售罄商品加入后仍可在列表中手动切换其他有货款式。
+   */
+  async function forceAddItemFromSearch(result, cookie, hint) {
+    if (items.value.some((i) => i.goodsId === result.goods_id)) {
+      searchError.value = '该商品已在列表中'
+      return { status: 'duplicate', item: null }
+    }
+    const item = createItem(result.goods_id)
+    item.name = result.name
+    item.cover = result.cover_url || ''
+    item.forceMode = true
+    items.value.push(item)
+    const ok = await fetchItemDetail(item, cookie, null, hint)
+    const soldOut = !ok && /售罄|库存不足/.test(item.error || '')
+    if (!ok && !soldOut) {
+      removeItem(item.id)
+      return { status: 'error', item: null }
+    }
+    if (soldOut) {
+      // 强制选中一个 SKU（优先命中关键词），保留商品等待回流或切换款式
+      if (!item.selectedSkuId && item.skus.length) {
+        const hintSku = hint ? findHintSku(item.skus, hint) : null
+        const sku = hintSku || item.skus[0]
+        item.selectedSkuId = sku.id
+        item.selectedSkuText = sku.text
+        item.selectedSkuStock = sku.stock
+        if (item.isPointOrder && sku.point > 0) item.pointCost = sku.point
+      }
+      result.is_sold_out = true
+    }
+    // 强制模式必须选中搜索对应的款式，即使该款式当前是售罄状态。
+    // fetchItemDetail 普通流程会优先选有货 SKU，这里需要覆盖它的默认选择。
+    const matchedSku = hint ? findHintSku(item.skus, hint, { includeSoldOut: true }) : null
+    if (matchedSku) {
+      item.selectedSkuId = matchedSku.id
+      item.selectedSkuText = matchedSku.text
+      item.selectedSkuStock = matchedSku.stock
+      validateItemStock(item)
+    }
+    searchError.value = ''
+    result.is_added = true
+    return { status: 'forced', item }
   }
 
   /**
@@ -343,26 +425,14 @@ export function useCheckoutGoods() {
     }
   }
 
-  async function handleSearch(cookie) {
+    async function handleSearch(cookie) {
     const keyword = searchKeyword.value.trim()
     if (!keyword) return
-    searching.value = true
-    searchError.value = ''
-    try {
-      if (isMihoyoGiftUrl(keyword)) {
-        await addItemFromUrl(keyword, cookie)
-        return
-      }
-      const results = await searchGoodsList(keyword, 10)
-      searchResults.value = results
-      if (!results.length) {
-        searchError.value = '未找到相关商品'
-      }
-    } catch (e) {
-      searchError.value = e.message || '搜索失败'
-    } finally {
-      searching.value = false
+    if (isMihoyoGiftUrl(keyword)) {
+      await addItemFromUrl(keyword, cookie)
+      return
     }
+    await search.handleGoodsSearch()
   }
 
   return {
@@ -371,6 +441,18 @@ export function useCheckoutGoods() {
     searchResults,
     searching,
     searchError,
+    searchExpanded: search.searchExpanded,
+    searchLoadingMore: search.searchLoadingMore,
+    searchHasMore: search.searchHasMore,
+    showSearchToggle: search.showSearchToggle,
+    showSearchLoadMoreStatus: search.showSearchLoadMoreStatus,
+    searchLoadMoreRef: search.searchLoadMoreRef,
+    visibleSearchResults: search.visibleSearchResults,
+    getSearchResultCover: search.getSearchResultCover,
+    toggleSearchExpanded: search.toggleSearchExpanded,
+    loadMoreSearchResults: search.loadMoreSearchResults,
+    selectSearchResult: search.selectSearchResult,
+    selectedSearchGoodsId: search.selectedSearchGoodsId,
     urlInput,
     parsingUrl,
     totalAmount,
@@ -379,6 +461,7 @@ export function useCheckoutGoods() {
     isMultiItem,
     addItemFromUrl,
     addItemFromSearch,
+    forceAddItemFromSearch,
     addItemFromPointGoods,
     addItemFromCart,
     addItemsFromCart,

@@ -24,6 +24,7 @@ const clockSyncSource = ref('')
 let mihoyoDeltaMean = 0
 
 let queueWatcherId = 0
+const cancelledQueueIds = new Set()
 // 抢购成功的事件回调（供业务层订阅，如 QQ 提醒）。成功时刻触发一次，天然排除历史遗留项。
 let checkoutSuccessHandler = null
 
@@ -212,15 +213,19 @@ function enqueueOrder(payload) {
 
 function removeQueuedOrder(id) {
   ensureHydrated()
-  queue.value = queue.value.filter((item) => item.id !== id)
+  const normalizedId = String(id)
+  cancelledQueueIds.add(normalizedId)
+  queue.value = queue.value.filter((item) => item.id !== normalizedId)
   persistQueue()
 }
 
 function retryQueuedOrder(id) {
   ensureHydrated()
   const now = getServerNow()
-  const next = queue.value.find((item) => item.id === id)
+  const normalizedId = String(id)
+  const next = queue.value.find((item) => item.id === normalizedId)
   if (!next) return false
+  cancelledQueueIds.delete(normalizedId)
   next.status = 'pending'
   next.lastError = ''
   next.nextAttemptAt = Math.max(now + 1000, Number(next.scheduledAt) || now)
@@ -232,8 +237,20 @@ function retryQueuedOrder(id) {
 
 function clearQueue() {
   ensureHydrated()
+  for (const item of queue.value) cancelledQueueIds.add(String(item.id))
   queue.value = []
   persistQueue()
+}
+
+function isQueueEntryCancelled(entry) {
+  return cancelledQueueIds.has(String(entry?.id || ''))
+    || !queue.value.some((item) => item.id === entry?.id)
+}
+
+function createQueueCancelledError() {
+  const error = new Error('Queue task cancelled')
+  error.queueCancelled = true
+  return error
 }
 
 function sleep(ms) {
@@ -297,12 +314,14 @@ async function isGoodsOutOfStock(cookie, items) {
 }
 
 // 阶段一：预创建拿 code（可重试）。返回 { code, totalFee, orderPoints, shopOrders, respGifts }
-async function preCreateWithRetry(cookie, payload, maxAttempts) {
+async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = () => false) {
   let attempt = 0
   for (;;) {
+    if (isCancelled()) throw createQueueCancelledError()
     try {
       return await preCreateOrder(cookie, payload)
     } catch (error) {
+      if (isCancelled()) throw createQueueCancelledError()
       const message = String(error?.message || '预创建订单失败')
       const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
       attempt += 1
@@ -315,12 +334,14 @@ async function preCreateWithRetry(cookie, payload, maxAttempts) {
 
 // 阶段二：用同一 code 创建订单。code 幂等——重复提交报「已创建/重复」时视为成功。
 // 单个提交单元：按重试次数自行重试，直到成功、重复（=成功）、或耗尽次数
-async function createOrderWithRetry(cookie, { addressId, code, remark, items }, maxAttempts) {
+async function createOrderWithRetry(cookie, { addressId, code, remark, items }, maxAttempts, isCancelled = () => false) {
   let attempt = 0
   for (;;) {
+    if (isCancelled()) throw createQueueCancelledError()
     try {
       return await createOrder(cookie, { addressId, code, remark, items })
     } catch (error) {
+      if (isCancelled()) throw createQueueCancelledError()
       if (isDuplicateOrderError(error)) {
         return { duplicate: true, message: String(error?.message || '订单已存在') }
       }
@@ -336,14 +357,14 @@ async function createOrderWithRetry(cookie, { addressId, code, remark, items }, 
 
 // 单个提交单元：preCreate 拿自己的 code → createOrder 串行重试（B站单 token 模式）。
 // 返回 { ...preCreated, ...orderResult }，orderResult 可能是成功或 { duplicate: true }
-async function submitOrderUnit(cookie, payload, maxAttempts) {
-  const preCreated = await preCreateWithRetry(cookie, payload, maxAttempts)
+async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () => false) {
+  const preCreated = await preCreateWithRetry(cookie, payload, maxAttempts, isCancelled)
   const orderResult = await createOrderWithRetry(cookie, {
     addressId: payload.addressId,
     code: preCreated.code,
     remark: payload.remark,
     items: payload.items,
-  }, maxAttempts)
+  }, maxAttempts, isCancelled)
   return { ...preCreated, ...orderResult }
 }
 
@@ -352,12 +373,17 @@ async function submitOrderUnit(cookie, payload, maxAttempts) {
 //   concurrency>1：并发 n 个独立单元，每个都走「自己的 preCreate → 自己的 createOrder」，
 //                  各自拿独立 code、各自建单 → 可能产生多笔订单（重复下单可接受，目标是抢到）
 // 任一单元真实成功（拿到 order_no）即立即返回；否则等全部结束，有「重复/已存在」也算成功
-async function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
+async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled = () => false) {
   return new Promise((resolve) => {
     let settled = false
     let finished = 0
     let lastError = null
     let duplicate = null
+
+    if (isCancelled()) {
+      resolve({ ok: false, cancelled: true, error: createQueueCancelledError() })
+      return
+    }
 
     const finish = () => {
       if (settled || finished < n) return
@@ -369,7 +395,7 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
     }
 
     for (let i = 0; i < n; i++) {
-      submitOrderUnit(cookie, payload, maxAttempts)
+      submitOrderUnit(cookie, payload, maxAttempts, isCancelled)
         .then((result) => {
           finished += 1
           if (result.orderNo && !settled) {
@@ -383,6 +409,11 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
           finish()
         })
         .catch((error) => {
+          if (error?.queueCancelled && !settled) {
+            settled = true
+            resolve({ ok: false, cancelled: true, error })
+            return
+          }
           lastError = error
           finished += 1
           finish()
@@ -392,6 +423,7 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
 }
 
 async function executeQueuedOrder(entry) {
+  if (isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
   // 开抢时机判断不阻塞于时钟同步：
   //   - 已有已知偏移 → 立即用 getServerNow() 判断；若 TTL 过期，仅后台异步刷新供后续重试，不拖慢本次开抢
   //   - 从未同步过（offset 为 0）→ 才等待一次同步，避免用未校准的本地时间
@@ -407,6 +439,7 @@ async function executeQueuedOrder(entry) {
 
   const serverNow = getServerNow()
   if (serverNow < entry.nextAttemptAt - FIRE_LEAD_MS) return false
+  if (isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
 
   entry.status = 'running'
   entry.lastError = ''
@@ -421,7 +454,10 @@ async function executeQueuedOrder(entry) {
     buildOrderPayload(entry),
     n,
     entry.maxAttempts,
+    () => isQueueEntryCancelled(entry),
   )
+
+  if (result.cancelled || isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
 
   if (result.ok) {
     // 成功订单保留在队列中供查看，标记为 success 并记录结果，不再从队列移除

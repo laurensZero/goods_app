@@ -58,6 +58,19 @@
           :search-results="searchResults"
           :searching="searching"
           :search-error="searchError"
+          :search-expanded="searchExpanded"
+          :search-loading-more="searchLoadingMore"
+          :show-search-toggle="showSearchToggle"
+          :show-search-load-more-status="showSearchLoadMoreStatus"
+          :search-load-more-ref="searchLoadMoreRef"
+          :visible-search-results="visibleSearchResults"
+          :get-search-result-cover="getSearchResultCover"
+          :toggle-search-expanded="toggleSearchExpanded"
+          :load-more-search-results="loadMoreSearchResults"
+          :is-tablet="isTabletViewport"
+          :selected-search-goods-id="selectedSearchGoodsId"
+          :select-search-result="handleSelectSearchResult"
+          :long-press-search-result="handleLongPressSearchResult"
           :point-balance="pointBalance"
           :point-loading="pointLoading"
           :point-error="pointError"
@@ -101,6 +114,7 @@
           :gift-loading="giftLoading"
           :gift-error="giftError"
           :total-amount="totalAmount"
+          :is-tablet="isTabletViewport"
           :format-fen="formatFen"
           :get-matched-stage="getMatchedStage"
           :is-activity-active="isActivityActive"
@@ -250,6 +264,8 @@
       :add-items-from-cart="addItemsFromCart"
       @added="handleCartAdded"
     />
+
+    <AppToast :message="toastMsg" />
   </div>
 </template>
 
@@ -272,6 +288,7 @@ import CheckoutStepSubmit from '@/components/checkout/CheckoutStepSubmit.vue'
 import CheckoutQueueManager from '@/components/checkout/CheckoutQueueManager.vue'
 import CheckoutQueueDetail from '@/components/checkout/CheckoutQueueDetail.vue'
 import CheckoutCartPicker from '@/components/checkout/CheckoutCartPicker.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import { useCheckoutFlow, STEPS } from '@/composables/checkout/useCheckoutFlow'
 import { useCheckoutAddress } from '@/composables/checkout/useCheckoutAddress'
 import { useCheckoutGoods } from '@/composables/checkout/useCheckoutGoods'
@@ -293,7 +310,7 @@ import { isMihoyoCookieExpiredError } from '@/utils/mihoyo/index'
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
-const { showToast } = useToast()
+const { showToast, toastMsg } = useToast()
 
 const flow = useCheckoutFlow()
 const address = useCheckoutAddress()
@@ -338,6 +355,17 @@ const searchKeyword = goods.searchKeyword
 const searchResults = goods.searchResults
 const searching = goods.searching
 const searchError = goods.searchError
+const searchExpanded = goods.searchExpanded
+const searchLoadingMore = goods.searchLoadingMore
+const showSearchToggle = goods.showSearchToggle
+const showSearchLoadMoreStatus = goods.showSearchLoadMoreStatus
+const searchLoadMoreRef = goods.searchLoadMoreRef
+const visibleSearchResults = goods.visibleSearchResults
+const getSearchResultCover = goods.getSearchResultCover
+const toggleSearchExpanded = goods.toggleSearchExpanded
+const loadMoreSearchResults = goods.loadMoreSearchResults
+const selectSearchResult = goods.selectSearchResult
+const selectedSearchGoodsId = goods.selectedSearchGoodsId
 const totalAmount = goods.totalAmount
 const allCoupons = goods.allCoupons
 const allGiftActivities = goods.allGiftActivities
@@ -347,6 +375,36 @@ const removeItem = goods.removeItem
 const updateItemSku = goods.updateItemSku
 const updateItemQuantity = goods.updateItemQuantity
 const handleSearch = goods.handleSearch
+
+async function handleSelectSearchResult(result) {
+  if (result.is_added) return
+  if (result.is_sold_out) {
+    showToast(t('checkout.searchSoldOutHint'))
+    return
+  }
+  selectSearchResult(result)
+  const res = await addItemFromSearch(result, cookie.value, searchKeyword.value)
+  if (res?.status === 'soldout') {
+    showToast(t('checkout.searchSkuSoldOutHint'))
+  } else if (res?.status === 'duplicate') {
+    showToast(t('checkout.searchDuplicate'))
+  } else if (res?.status === 'error') {
+    showToast(t('checkout.searchAddFailed'))
+  }
+}
+
+async function handleLongPressSearchResult(result) {
+  if (!result.is_sold_out || result.is_added) return
+  selectSearchResult(result)
+  const res = await goods.forceAddItemFromSearch(result, cookie.value, searchKeyword.value)
+  if (res?.status === 'forced') {
+    showToast(t('checkout.searchForcedAdded'))
+  } else if (res?.status === 'duplicate') {
+    showToast(t('checkout.searchDuplicate'))
+  } else if (res?.status === 'error') {
+    showToast(t('checkout.searchAddFailed'))
+  }
+}
 
 const pointBalance = points.point
 const visiblePointGoods = points.visibleGoods

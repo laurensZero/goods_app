@@ -1,5 +1,5 @@
 <template>
-  <section class="form-section checkout-step">
+  <section class="form-section checkout-step" :class="{ 'checkout-step--tablet': isTablet }">
     <div class="section-head">
       <p class="section-label">{{ $t('checkout.stepLabel', { current: stepNumber, total: stepCount }) }}</p>
       <h2 class="section-title">{{ $t('checkout.stepGoods') }}</h2>
@@ -44,17 +44,55 @@
         </div>
         <p v-if="searchError" class="field-error">{{ searchError }}</p>
 
-        <div v-if="searchResults.length" class="search-results">
+        <div
+          v-if="visibleSearchResults.length"
+          class="search-results"
+          :class="{ 'search-results--expanded': searchExpanded }"
+        >
           <button
-            v-for="r in searchResults"
-            :key="r.goods_id"
+            v-for="item in visibleSearchResults"
+            :key="item.goods_id"
             type="button"
-            class="search-result-row"
-            @click="addItemFromSearch(r, cookie)"
+            class="search-result-card"
+            :class="{
+              'search-result-card--selected': selectedSearchGoodsId === item.goods_id,
+              'search-result-card--added': item.is_added,
+              'search-result-card--soldout': item.is_sold_out,
+            }"
+            :disabled="item.is_added"
+            @pointerdown="startSearchResultPress(item)"
+            @pointerup="finishSearchResultPress"
+            @pointercancel="cancelSearchResultPress"
+            @pointerleave="cancelSearchResultPress"
+            @click="handleSearchResultClick(item)"
           >
-            <img v-if="r.cover_url" :src="r.cover_url" class="search-result-thumb" loading="lazy" />
-            <span class="search-result-name">{{ r.name }}</span>
+            <div class="search-result-thumb">
+              <img v-if="getSearchResultCover(item)" :src="getSearchResultCover(item)" :alt="item.name" loading="lazy" />
+              <span v-else>{{ (item.name || '?').charAt(0) }}</span>
+            </div>
+            <span class="search-result-name">{{ item.name }}</span>
           </button>
+        </div>
+
+        <div v-if="showSearchToggle" class="search-results-toggle-wrap">
+          <button
+            type="button"
+            class="search-results-toggle"
+            :class="{ 'search-results-toggle--expanded': searchExpanded }"
+            @click="toggleSearchExpanded"
+          >
+            {{ searchExpanded ? $t('import.collapseResults') : $t('import.expandMore') }}
+          </button>
+        </div>
+
+        <div v-if="showSearchLoadMoreStatus" ref="searchLoadMoreRef" class="search-results-status">
+          <span v-if="searchLoadingMore">{{ $t('import.loadingMore') }}</span>
+          <template v-else>
+            <span>{{ $t('import.scrollForMore') }}</span>
+            <button type="button" class="search-results-load-more" @click="loadMoreSearchResults">
+              {{ $t('import.loadMore') }}
+            </button>
+          </template>
         </div>
 
         <button class="cart-entry" type="button" @click="$emit('open-cart-picker')">
@@ -175,8 +213,8 @@
                 :key="sku.id"
                 type="button"
                 class="sku-chip"
-                :class="{ 'sku-chip--selected': item.selectedSkuId === sku.id, 'sku-chip--disabled': sku.soldOut }"
-                :disabled="sku.soldOut"
+                :class="{ 'sku-chip--selected': item.selectedSkuId === sku.id, 'sku-chip--disabled': sku.soldOut && !item.forceMode }"
+                :disabled="sku.soldOut && !item.forceMode"
                 @click="updateItemSku(item.id, sku.id, sku.text)"
               >
                 {{ sku.text }}
@@ -236,6 +274,18 @@ const props = defineProps({
   searchResults: { type: Array, default: () => [] },
   searching: { type: Boolean, default: false },
   searchError: { type: String, default: '' },
+  searchExpanded: { type: Boolean, default: false },
+  searchLoadingMore: { type: Boolean, default: false },
+  showSearchToggle: { type: Boolean, default: false },
+  showSearchLoadMoreStatus: { type: Boolean, default: false },
+  searchLoadMoreRef: { type: [Object, null], default: null },
+  visibleSearchResults: { type: Array, default: () => [] },
+  selectedSearchGoodsId: { type: String, default: '' },
+  getSearchResultCover: { type: Function, required: true },
+  toggleSearchExpanded: { type: Function, required: true },
+  loadMoreSearchResults: { type: Function, required: true },
+  selectSearchResult: { type: Function, required: true },
+  longPressSearchResult: { type: Function, required: true },
   pointBalance: { type: Number, default: 0 },
   pointLoading: { type: Boolean, default: false },
   pointError: { type: String, default: '' },
@@ -259,8 +309,40 @@ const props = defineProps({
   getLockedSkuStock: { type: Function, required: true },
   stepNumber: { type: Number, required: true },
   stepCount: { type: Number, required: true },
+  isTablet: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:searchKeyword', 'set-order-mode', 'update:activePointShopCode', 'open-cart-picker'])
+
+let searchResultPressTimer = null
+let longPressTriggered = false
+
+function startSearchResultPress(item) {
+  cancelSearchResultPress()
+  if (!item.is_sold_out) return
+  searchResultPressTimer = setTimeout(() => {
+    longPressTriggered = true
+    props.longPressSearchResult(item)
+  }, 650)
+}
+
+function cancelSearchResultPress() {
+  if (searchResultPressTimer) {
+    clearTimeout(searchResultPressTimer)
+    searchResultPressTimer = null
+  }
+}
+
+function finishSearchResultPress() {
+  cancelSearchResultPress()
+}
+
+function handleSearchResultClick(item) {
+  if (longPressTriggered) {
+    longPressTriggered = false
+    return
+  }
+  props.selectSearchResult(item)
+}
 
 const keywordModel = computed({
   get: () => props.searchKeyword,
@@ -484,18 +566,32 @@ const keywordModel = computed({
   min-height: 100px;
 }
 
-@media (min-width: 900px) {
-  .points-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.checkout-step--tablet .points-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 
-  .points-card {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
+.checkout-step--tablet .points-card {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
 
-  .points-card__image {
-    height: 64px;
-  }
+.checkout-step--tablet .points-card__image {
+  height: 64px;
+}
+
+.checkout-step--tablet .search-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: none;
+  overflow: visible;
+}
+
+.checkout-step--tablet .search-result-thumb {
+  width: 56px;
+  height: 56px;
+}
+
+.checkout-step--tablet .search-result-card {
+  min-width: 0;
 }
 
 /* ── 商品搜索 ── */
@@ -555,7 +651,12 @@ const keywordModel = computed({
   overflow-y: auto;
 }
 
-.search-result-row {
+.search-results--expanded {
+  max-height: none;
+  overflow: visible;
+}
+
+.search-result-card {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -569,17 +670,55 @@ const keywordModel = computed({
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.search-result-row:active {
+.search-result-card:active {
   background: var(--app-surface-soft);
 }
 
+.search-result-card--selected {
+  border-color: color-mix(in srgb, #4a7aec 60%, var(--app-border));
+  background: color-mix(in srgb, #4a7aec 8%, var(--app-surface));
+}
+
+.search-result-card--added {
+  border-color: color-mix(in srgb, #27ae60 55%, var(--app-border));
+  background: color-mix(in srgb, #27ae60 8%, var(--app-surface));
+  cursor: default;
+}
+
+.search-result-card--soldout {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--app-surface-soft);
+  border-color: var(--app-border);
+}
+
+.search-result-card:disabled {
+  pointer-events: none;
+}
+
 .search-result-thumb {
+  position: relative;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radius-xs);
   object-fit: cover;
   background: var(--app-surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.search-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-result-thumb span {
+  font-size: 16px;
+  color: var(--app-text-tertiary);
 }
 
 .search-result-name {
@@ -590,6 +729,40 @@ const keywordModel = computed({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.search-results-toggle-wrap {
+  margin-top: 6px;
+  text-align: center;
+}
+
+.search-results-toggle {
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.search-results-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.search-results-load-more {
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  padding: 5px 14px;
+  cursor: pointer;
 }
 
 /* ── 从购物车选择入口 ── */
@@ -639,8 +812,18 @@ const keywordModel = computed({
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
 }
 
-:global(html.theme-dark) .search-result-row {
+:global(html.theme-dark) .search-result-card {
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(html.theme-dark) .search-result-card--selected {
+  border-color: rgba(109, 157, 255, 0.72);
+  background: color-mix(in srgb, #4a7aec 14%, var(--app-surface));
+}
+
+:global(html.theme-dark) .search-result-card--added {
+  border-color: rgba(91, 205, 122, 0.72);
+  background: color-mix(in srgb, #27ae60 16%, var(--app-surface));
 }
 
 /* ── 商品列表 ── */

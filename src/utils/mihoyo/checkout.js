@@ -79,9 +79,6 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
   for (const [qKey, qStock] of Object.entries(skuQuantities)) {
     const stock = Number(qStock ?? 0)
     stockByKey.set(qKey, stock)
-    for (const part of String(qKey).split('_')) {
-      if (part) stockByKey.set(part, stock)
-    }
   }
 
   // 按候选 key 顺序解析 SKU 库存：skus 对象 key（完整组合 key）优先，其次 sku.id（可能是 contentKey）
@@ -91,6 +88,13 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
         return stockByKey.get(String(candidate))
       }
     }
+    // sale_attrs 只有单个款式 key 时，按所有组合 SKU 聚合：
+    // 只要有一个组合有库存，该款式就不能被判定为售罄。
+    const optionKey = String(key || sku?.id || '')
+    const matchingStocks = Object.entries(skuQuantities)
+      .filter(([qKey]) => String(qKey).split('_').includes(optionKey))
+      .map(([, qStock]) => Number(qStock ?? 0))
+    if (matchingStocks.length) return Math.max(...matchingStocks)
     return Number(sku?.stock ?? sku?.quantity ?? sku?.sku_stock ?? -1)
   }
 
@@ -123,7 +127,7 @@ export async function fetchGoodsDetailForCheckout(goodsId, cookie) {
       for (const opt of attr.content) {
         const key = opt.key || ''
         if (!key) continue
-        const stock = stockByKey.get(key) ?? -1
+        const stock = resolveSkuStock(opt, key)
         skus.push({
           id: key,
           text: opt.text || key,

@@ -1,5 +1,5 @@
 <template>
-  <section class="form-section checkout-step">
+  <section class="form-section checkout-step" :class="{ 'checkout-step--tablet': isTablet }">
     <div class="section-head">
       <p class="section-label">{{ $t('checkout.stepLabel', { current: stepNumber, total: stepCount }) }}</p>
       <h2 class="section-title">{{ $t('checkout.stepGifts') }}</h2>
@@ -73,6 +73,7 @@ defineProps({
   getGiftImageUrl: { type: Function, required: true },
   stepNumber: { type: Number, required: true },
   stepCount: { type: Number, required: true },
+  isTablet: { type: Boolean, default: false },
 })
 </script>
 
@@ -211,5 +212,11 @@ defineProps({
 
 :global(html.theme-dark) .gift-card__check {
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+.checkout-step--tablet .gift-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 </style>
