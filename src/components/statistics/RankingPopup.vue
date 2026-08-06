@@ -82,6 +82,10 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
 :global(.ranking-popup.van-popup--center) {
   border-radius: var(--radius-large) !important;
 }
+:global(.ranking-popup) {
+  scrollbar-width: none;
+}
+:global(.ranking-popup::-webkit-scrollbar) { display: none; }
 .ranking-popup__header {
   display: flex;
   align-items: center;
