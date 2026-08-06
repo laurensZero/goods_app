@@ -390,7 +390,20 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts) {
 }
 
 async function executeQueuedOrder(entry) {
-  const serverNow = await syncServerClock(entry.snapshot.cookie)
+  // 开抢时机判断不阻塞于时钟同步：
+  //   - 已有已知偏移 → 立即用 getServerNow() 判断；若 TTL 过期，仅后台异步刷新供后续重试，不拖慢本次开抢
+  //   - 从未同步过（offset 为 0）→ 才等待一次同步，避免用未校准的本地时间
+  if (clockOffsetMs.value !== 0) {
+    if (Date.now() - clockSyncedAt.value > CLOCK_CACHE_TTL) {
+      void syncServerClock(entry.snapshot.cookie, true).catch((error) => {
+        console.warn('[checkoutQueue] background clock refresh failed', error?.message)
+      })
+    }
+  } else {
+    await syncServerClock(entry.snapshot.cookie)
+  }
+
+  const serverNow = getServerNow()
   if (serverNow < entry.nextAttemptAt - FIRE_LEAD_MS) return false
 
   entry.status = 'running'
