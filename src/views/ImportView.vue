@@ -613,7 +613,6 @@ import {
   parseMihoyoUrl,
   isMihoyoGiftUrl,
   fetchGoodsDetail,
-  getMihoyoShopCodeByIp,
 } from '@/utils/mihoyo/index'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { showGlobalToast } from '@/utils/globalToast'
@@ -717,33 +716,13 @@ const parseError = ref('')
 const formPriceError = ref('')
 const parsed = ref(false)
 
-const wishlistCharacterOptions = computed(() => {
-  const seen = new Map()
-
-  for (const item of presets.characters) {
-    const name = String(item?.name || item || '').trim()
-    const ip = String(item?.ip || '').trim()
-    if (!getMihoyoShopCodeByIp(ip)) continue
-    if (!name) continue
-    if (!seen.has(name)) {
-      seen.set(name, { name, ip })
-      continue
-    }
-    if (!seen.get(name).ip && ip) {
-      seen.set(name, { name, ip })
-    }
-  }
-
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
-})
-
 // ── Composables ──
 const {
   searchKeyword, searchExpanded, searching, searchLoadingMore, searchError,
   variantSearchHint, selectedSearchCharacter, selectedSearchGoodsId, searchLoadMoreRef,
   visibleSearchResults, showSearchToggle, showSearchLoadMoreStatus,
   getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult, shortenUrl
-} = useImportSearch({ goodsStore, wishlistCharacterOptions, setUrlInputValue, handleParse })
+} = useImportSearch({ setUrlInputValue, handleParse })
 
 const {
   batchStep, batchItems, batchParsing, savingAll, editingBatchIdx,
