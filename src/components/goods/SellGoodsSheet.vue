@@ -378,7 +378,8 @@ async function handleSubmit() {
 }
 .sell-sheet__handle { width: 36px; height: 4px; border-radius: 4px; background: rgba(142, 142, 147, 0.28); margin: 0 auto 16px; flex-shrink: 0; }
 .sell-sheet__title { font-size: 13px; font-weight: 500; color: var(--app-text-tertiary); text-align: center; margin: 0 0 16px; }
-.sell-sheet__body { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; max-height: 56vh; padding-bottom: 4px; }
+.sell-sheet__body { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; max-height: 56vh; padding-bottom: 4px; scrollbar-width: none; }
+.sell-sheet__body::-webkit-scrollbar { display: none; }
 
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 .field-label { font-size: 13px; font-weight: 500; color: var(--app-text-secondary); }
