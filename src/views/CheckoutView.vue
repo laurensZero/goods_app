@@ -149,6 +149,8 @@
           :retry-count="retryCount"
           :concurrency="concurrency"
           :max-concurrency="maxConcurrency"
+          :qq-bound="qqBinding.isBound"
+          :checkout-notify="qqBinding.checkoutNotify"
           :queue-items="queueItems"
           :active-queue-items="activeQueueItems"
           :error="error"
@@ -162,6 +164,7 @@
           @infinite-retry="setInfiniteRetry"
           @decrease-concurrency="decreaseConcurrency"
           @increase-concurrency="increaseConcurrency"
+          @toggle-checkout-notify="(v) => qqBinding.toggleCheckoutNotify(v).catch(() => {})"
           @open-queue="showQueueManager = true"
         />
       </Transition>
@@ -283,6 +286,8 @@ import { canUseNativeMihoyoImport, getNativeMihoyoCookie, importMihoyoCartWithSe
 import { formatPrice, formatDate } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useQQBindingStore } from '@/stores/qqBinding'
+import { createCheckoutNotify } from '@/services/qqService'
 import { isMihoyoCookieExpiredError } from '@/utils/mihoyo/index'
 
 const router = useRouter()
@@ -296,6 +301,7 @@ const goods = useCheckoutGoods()
 const points = useCheckoutPoints()
 const gifts = useCheckoutGifts()
 const orderQueue = useCheckoutOrderQueue()
+const qqBinding = useQQBindingStore()
 // 倒计时基准时钟：手动时间用本地时钟，自动预填（开售/活动时间，服务器域）用服务器时钟
 const timer = useCheckoutTimer(() => (timerManuallySet.value ? Date.now() : orderQueue.getServerNow()))
 
@@ -802,6 +808,29 @@ watch(totalAmount, (newTotal) => {
   }
 })
 
+// 定时抢购成功 → 写入 QQ 通知（需绑定 QQ 且开启对应开关）。
+// 通过队列的 onCheckoutSuccess 订阅在「抢到那一刻」触发，
+// 与队列里既有的 success 项无关，因此历史订单不会再次推送。
+function handleCheckoutSuccess(entry) {
+  if (!qqBinding.isBound || !qqBinding.checkoutNotify) return
+  const orderNo = entry.result?.orderNo || ''
+  const amount = entry.result?.amount || 0
+  const productName = entry.result?.productName || ''
+  const goodsText = entry.summary?.goodsText || ''
+  const title = t('checkout.qqNotifyTitle')
+  const contentLines = [
+    `${t('checkout.qqNotifyBodyGreeting')}${goodsText || t('checkout.order')}`,
+    ...(orderNo ? [t('checkout.orderNo') + '：' + orderNo] : []),
+    ...(productName ? [productName] : []),
+    ...(amount ? [t('checkout.qqNotifyAmount') + '：' + (amount / 100).toFixed(2)] : []),
+    t('checkout.qqNotifyBody'),
+  ]
+  void createCheckoutNotify({ title, content: contentLines.join('\n') })
+    .then(() => showToast(t('checkout.qqNotifySent')))
+    .catch(() => showToast(t('checkout.qqNotifyFailed')))
+}
+let unsubscribeCheckoutSuccess = null
+
 function handleGiftsNext() {
   nextStep()
 }
@@ -1008,6 +1037,10 @@ useDialogBackButton(() => {
 
 onMounted(async () => {
   await initializeCookieState()
+  // 加载 QQ 绑定状态（决定定时抢购成功通知开关是否可用）
+  await qqBinding.init().catch(() => {})
+  // 订阅「抢购成功」事件：只在真正抢到那一刻触发一次，不含历史/遗留成功项
+  unsubscribeCheckoutSuccess = orderQueue.onCheckoutSuccess(handleCheckoutSuccess)
   // 有已保存的有效 cookie 时，自动完成登录并直接进入地址步骤
   if (canAutoSubmitSavedCookie.value) {
     applySavedCookieToInput()
@@ -1021,6 +1054,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   timerStopWatching()
+  unsubscribeCheckoutSuccess?.()
 })
 </script>
 
