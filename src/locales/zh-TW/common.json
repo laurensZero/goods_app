@@ -203,6 +203,7 @@
   "imageEditor.cutout": "智能去背",
   "imageEditor.cutoutDone": "去背完成",
   "imageEditor.cutoutHint": "建議先裁切多余边缘，再去背",
+  "imageEditor.cutoutQualityHint": "本地去背模型效果一般，登入並獲邀後可體驗雲端高清去背",
   "imageEditor.cutoutProcessing": "去背处理中...",
   "imageEditor.cutoutProgress": "去背处理中：{percent}%",
   "imageEditor.cutoutResultFailed": "去背結果处理失敗",

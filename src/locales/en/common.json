@@ -203,6 +203,7 @@
   "imageEditor.cutout": "Smart Cutout",
   "imageEditor.cutoutDone": "Cutout complete",
   "imageEditor.cutoutHint": "Crop extra edges first, then cutout",
+  "imageEditor.cutoutQualityHint": "The local cutout model has limited quality. Log in and get invited to try cloud HD cutout",
   "imageEditor.cutoutProcessing": "Cutout processing...",
   "imageEditor.cutoutProgress": "Cutout: {percent}%",
   "imageEditor.cutoutResultFailed": "Failed to process cutout result",
