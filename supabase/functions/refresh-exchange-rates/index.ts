@@ -8,7 +8,10 @@
 //   config.toml schedule 每日定时
 //   GET .../refresh-exchange-rates?force=1   手动强制刷新（首次部署/数据异常时）
 //
-// 幂等：非 force 且远端快照 < 6h 新时直接跳过，节省配额。
+// 幂等：每天的定时必然重新拉取并更新时间戳——不做「数据够新就跳过」的判断，
+// 否则手动强刷/上次触发若紧邻定时槽位，会把整天的更新吃掉（快照 48h 不刷新，
+// 客户端会判定过期回退直连，失去全设备统一口径）。Frankfurter 免费且限流宽松，
+// 每天一次拉取开销可忽略。
 // 依赖表：exchange_rates（RLS 只读开放给 anon/authenticated，写仅 service_role）
 // 依赖 secrets：无（service_role 由平台注入）
 
@@ -16,7 +19,6 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const FRANKFURTER_URL = "https://api.frankfurter.app/latest?from=CNY"
-const SKIP_FRESHER_THAN_MS = 6 * 60 * 60 * 1000
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,21 +48,10 @@ function toCnyPerForeign(rates: Record<string, number>): Record<string, number> 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
-  const url = new URL(req.url)
-  const force = url.searchParams.get("force") === "1"
   const admin = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   )
-
-  // 非 force 且远端已有较新数据时跳过（幂等）
-  if (!force) {
-    const { data } = await admin.from("exchange_rates").select("updated_at").eq("id", 1).maybeSingle()
-    const ageMs = Date.now() - new Date(String(data?.updated_at || 0)).getTime()
-    if (Number.isFinite(ageMs) && ageMs >= 0 && ageMs < SKIP_FRESHER_THAN_MS) {
-      return json({ ok: true, skipped: "fresh" })
-    }
-  }
 
   try {
     const res = await fetch(FRANKFURTER_URL, { signal: AbortSignal.timeout(15_000) })
