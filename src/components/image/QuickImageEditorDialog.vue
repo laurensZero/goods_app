@@ -143,6 +143,22 @@
 
                   <p class="editor-hint">{{ t('imageEditor.cutoutHint') }}</p>
 
+                  <div v-if="cloudCutoutAvailable" class="editor-model">
+                    <span class="editor-model__label">{{ t('imageEditor.cutoutModel') }}</span>
+                    <div class="editor-model__options">
+                      <button
+                        v-for="m in cutoutModelOptions"
+                        :key="m.value"
+                        type="button"
+                        :class="['editor-model__option', cutoutModel === m.value && 'editor-model__option--active']"
+                        @click="cutoutModel = m.value"
+                      >
+                        {{ m.label }}
+                      </button>
+                    </div>
+                    <p class="editor-hint">{{ t('imageEditor.cutoutModelHint') }}</p>
+                  </div>
+
                   <p v-if="cutoutQualityHint" class="editor-hint editor-hint--warn">{{ cutoutQualityHint }}</p>
                 </div>
 
@@ -315,6 +331,8 @@ const cutoutApplyingMask = ref(false)
 const cutoutPreparedImageUrl = ref('')
 const cutoutMaskUrl = ref('')
 const cutoutQualityHint = ref('')
+const cutoutModel = ref('falcon')
+const cloudCutoutAvailable = ref(false)
 const {
   applyCutoutMask,
   applyCloudCutoutMask,
@@ -334,6 +352,16 @@ const tabOptions = computed(() => {
     { value: 'export', label: '导出设置' }
   ]
 })
+
+const cutoutModelOptions = computed(() => [
+  { value: 'falcon', label: t('imageEditor.modelFalcon') },
+  { value: 'aurora', label: t('imageEditor.modelAurora') },
+  { value: 'ghost', label: t('imageEditor.modelGhost') }
+])
+
+async function refreshCloudCutoutAvailability() {
+  cloudCutoutAvailable.value = await checkCloudCutoutPermission().catch(() => false)
+}
 
 const editorHistory = useEditorHistory()
 const { canUndo, canRedo } = editorHistory
@@ -737,6 +765,7 @@ async function runCutout() {
     if (cloudAllowed) {
       try {
         const cloudResult = await createCloudCutoutMask(inputBlob, {
+          model: cutoutModel.value || 'falcon',
           onProgress: ({ percent, text }) => {
             cutoutProgress.value = Number(percent) || 0
             if (text) {
@@ -924,6 +953,8 @@ watch(
       previewUrl.value = ''
       return
     }
+    // 打开即预取云端权限，切换 tab 时直接命中缓存，模型选择器无需等待
+    void refreshCloudCutoutAvailability()
     if (props.sourceFile) {
       openFromFile(props.sourceFile)
     }
@@ -979,6 +1010,9 @@ function isCropMeaningful() {
 watch(
   () => activeTab.value,
   (next, prev) => {
+    if (next === 'cutout') {
+      void refreshCloudCutoutAvailability()
+    }
     if (prev === 'basic' && next !== 'basic') {
       tabTransitionQueue = tabTransitionQueue
         .then(() => commitCrop())
@@ -1374,6 +1408,46 @@ onBeforeUnmount(() => {
 .editor-chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.editor-model {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-model__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.editor-model__options {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-model__option {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small, 14px);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform var(--motion-fast, 200ms) ease, border-color var(--motion-fast, 200ms) ease;
+}
+
+.editor-model__option--active {
+  border-color: var(--app-text);
+  color: var(--app-text);
+}
+
+.editor-model__option:active {
+  transform: scale(var(--press-scale-button, 0.96));
 }
 
 .editor-toggle {
