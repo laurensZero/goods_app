@@ -13,7 +13,7 @@ on:
         options: ['stable', 'beta']
         default: 'beta'
       version:
-        description: '版本号 (留空自动生成 YYYYMMDD.N)'
+        description: '版本号 (留空自动生成 {最新APK版本}.N，如 1.6.0.1)'
         required: false
         type: string
         default: ''
@@ -123,13 +123,26 @@ jobs:
             exit 0
           fi
 
-          # Auto-generate YYYYMMDD.N version
-          TODAY=$(TZ='Asia/Shanghai' date +%Y%m%d)
-          echo "Today: ${TODAY}"
+          # Auto-generate {baseAPK}.{seq} version。baseAPK 取 ota_releases 里最新发布的
+          # APK 版本，使 bundle 版本与原生 semver 版本同尺度可比：安装的 APK 版本 >= baseAPK
+          # 时，客户端 compareVersions 会自然判定该 APK 已包含此 bundle 内容，从而不再推送该 OTA 包。
+          APK_JSON=$(curl -sS -X GET \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=version&type=eq.apk&order=published_at.desc&limit=1" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Accept: application/json" || echo "[]")
 
-          # Query Supabase for the latest version with today's date prefix
+          BASE_APK=$(echo "${APK_JSON}" | jq -r '.[0].version // empty' | sed -E 's/^[vV]//')
+          if [ -z "${BASE_APK}" ]; then
+            echo "No APK release found, falling back to base 0.0.0"
+            BASE_APK="0.0.0"
+          fi
+          echo "Base APK version: ${BASE_APK}"
+
+          # Query Supabase for the latest bundle with the base prefix（跨通道共用一套递增，
+          # 保证版本号全局唯一且单调递增，方便回档/排查/反馈定位）
           RESPONSE=$(curl -sS -X GET \
-            "${SUPABASE_URL}/rest/v1/ota_releases?select=version&channel=eq.${CHANNEL}&type=eq.web_bundle&version=like.${TODAY}.*&order=published_at.desc&limit=1" \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=version&type=eq.web_bundle&version=like.${BASE_APK}.*&order=published_at.desc&limit=1" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Accept: application/json" || echo "[]")
@@ -144,7 +157,7 @@ jobs:
             NEXT_SEQ=1
           fi
 
-          VERSION="${TODAY}.${NEXT_SEQ}"
+          VERSION="${BASE_APK}.${NEXT_SEQ}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Auto-generated version: ${VERSION} (channel: ${CHANNEL})"
 
