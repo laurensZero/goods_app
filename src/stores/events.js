@@ -183,6 +183,19 @@ export const useEventsStore = defineStore('events', () => {
       otherExpenses: normalizeOtherExpenses(data?.otherExpenses)
     }
 
+    // The cloud filename belongs to the specific cover image.  The event
+    // editor only submits coverImage, so retain the metadata for an
+    // unchanged cover but discard it when the user picks a replacement.
+    // Otherwise the next sync can treat the new local image as the old cloud
+    // image and a later pull may restore the old cover.
+    if (Object.prototype.hasOwnProperty.call(data || {}, 'coverImage')) {
+      const previousCover = String(previous.coverImage || '').trim()
+      const nextCover = String(data.coverImage || '').trim()
+      if (previousCover !== nextCover) {
+        normalizedData.coverImageData = null
+      }
+    }
+
     const next = {
       ...previous,
       ...normalizedData,
