@@ -326,32 +326,6 @@ async function prepareCutoutInput(blob, options = {}) {
   }
 }
 
-function getPixelAlpha(data, width, x, y) {
-  if (x < 0 || y < 0 || x >= width) return 0
-  return data[(y * width + x) * 4 + 3] / 255
-}
-
-function getPixelLuminance(data, width, x, y) {
-  const index = (y * width + x) * 4
-  return data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722
-}
-
-function getMaxNeighborAlpha(data, width, height, x, y) {
-  let maxAlpha = 0
-
-  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-      if (offsetX === 0 && offsetY === 0) continue
-      const sampleX = x + offsetX
-      const sampleY = y + offsetY
-      if (sampleX < 0 || sampleY < 0 || sampleX >= width || sampleY >= height) continue
-      maxAlpha = Math.max(maxAlpha, getPixelAlpha(data, width, sampleX, sampleY))
-    }
-  }
-
-  return maxAlpha
-}
-
 async function refineCutoutMask(blob, referenceCanvas) {
   const maskCanvas = await blobToCanvas(blob)
   if (
@@ -370,57 +344,92 @@ async function refineCutoutMask(blob, referenceCanvas) {
   const referenceImage = referenceCtx.getImageData(0, 0, width, height)
   const maskData = maskImage.data
   const referenceData = referenceImage.data
+
+  // 预计算参考图亮度与饱和度，避免循环内重复取像素
+  const pixelCount = width * height
+  const luminance = new Float32Array(pixelCount)
+  const saturation = new Float32Array(pixelCount)
+  for (let i = 0, p = 0; i < pixelCount; i += 1, p += 4) {
+    const r = referenceData[p]
+    const g = referenceData[p + 1]
+    const b = referenceData[p + 2]
+    const maxRgb = Math.max(r, g, b)
+    const minRgb = Math.min(r, g, b)
+    luminance[i] = r * 0.2126 + g * 0.7152 + b * 0.0722
+    saturation[i] = maxRgb <= 0 ? 0 : (maxRgb - minRgb) / maxRgb
+  }
+
+  // 预计算 mask 归一化 alpha，邻域访问用线性索引
+  const alpha = new Float32Array(pixelCount)
+  for (let i = 0, p = 0; i < pixelCount; i += 1, p += 4) {
+    alpha[i] = maskData[p + 3] / 255
+  }
+
   for (let y = 1; y < height - 1; y += 1) {
+    const rowOffset = y * width
     for (let x = 1; x < width - 1; x += 1) {
-      const index = (y * width + x) * 4
-      const alpha = maskData[index + 3] / 255
-      if (alpha <= 0.015) {
-        maskData[index + 3] = 0
+      const index = rowOffset + x
+      const currentAlpha = alpha[index]
+      if (currentAlpha <= 0.015) {
+        maskData[index * 4 + 3] = 0
         continue
       }
-      if (alpha >= 0.985) {
-        maskData[index + 3] = 255
+      if (currentAlpha >= 0.985) {
+        maskData[index * 4 + 3] = 255
         continue
       }
 
-      const r = referenceData[index]
-      const g = referenceData[index + 1]
-      const b = referenceData[index + 2]
-      const maxRgb = Math.max(r, g, b)
-      const minRgb = Math.min(r, g, b)
-      const saturation = maxRgb <= 0 ? 0 : (maxRgb - minRgb) / maxRgb
-      const luminance = r * 0.2126 + g * 0.7152 + b * 0.0722
+      const lum = luminance[index]
       const edgeStrength = Math.max(
-        Math.abs(luminance - getPixelLuminance(referenceData, width, x - 1, y)),
-        Math.abs(luminance - getPixelLuminance(referenceData, width, x + 1, y)),
-        Math.abs(luminance - getPixelLuminance(referenceData, width, x, y - 1)),
-        Math.abs(luminance - getPixelLuminance(referenceData, width, x, y + 1))
+        Math.abs(lum - luminance[index - 1]),
+        Math.abs(lum - luminance[index + 1]),
+        Math.abs(lum - luminance[index - width]),
+        Math.abs(lum - luminance[index + width])
       ) / 255
-      const neighborAlpha = getMaxNeighborAlpha(maskData, width, height, x, y)
-      const detailScore = Math.max(saturation * 0.8, edgeStrength)
 
-      let nextAlpha = alpha
+      // 邻域 alpha 最大值（8 邻域内联展开）
+      let neighborAlpha = 0
+      let na = alpha[index - width - 1]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index - width]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index - width + 1]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index - 1]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index + 1]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index + width - 1]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index + width]
+      if (na > neighborAlpha) neighborAlpha = na
+      na = alpha[index + width + 1]
+      if (na > neighborAlpha) neighborAlpha = na
 
-      if (alpha < 0.12) {
+      const detailScore = Math.max(saturation[index] * 0.8, edgeStrength)
+
+      let nextAlpha = currentAlpha
+
+      if (currentAlpha < 0.12) {
         nextAlpha = neighborAlpha > 0.88 && detailScore > 0.24
-          ? Math.min(0.22, alpha + 0.06)
+          ? Math.min(0.22, currentAlpha + 0.06)
           : 0
-      } else if (alpha < 0.3) {
+      } else if (currentAlpha < 0.3) {
         if (neighborAlpha < 0.62 || detailScore < 0.16) {
-          nextAlpha = alpha * 0.28
+          nextAlpha = currentAlpha * 0.28
         } else {
-          nextAlpha = Math.min(0.34, alpha + 0.04)
+          nextAlpha = Math.min(0.34, currentAlpha + 0.04)
         }
-      } else if (alpha < 0.58) {
+      } else if (currentAlpha < 0.58) {
         if (neighborAlpha < 0.5 && detailScore < 0.12) {
-          nextAlpha = alpha * 0.72
+          nextAlpha = currentAlpha * 0.72
         } else if (neighborAlpha > 0.82 && detailScore > 0.18) {
-          nextAlpha = Math.min(0.68, alpha + 0.06)
+          nextAlpha = Math.min(0.68, currentAlpha + 0.06)
         }
       }
 
-      if (nextAlpha !== alpha) {
-        maskData[index + 3] = Math.round(clamp(nextAlpha, 0, 1) * 255)
+      if (nextAlpha !== currentAlpha) {
+        maskData[index * 4 + 3] = Math.round(clamp(nextAlpha, 0, 1) * 255)
       }
     }
   }
@@ -544,29 +553,41 @@ async function uploadCloudCutoutMask(inputBlob, options = {}) {
   const model = options.model || 'falcon'
   formData.append('model', model)
 
-  emitProgress(45, '上传图片到云端...')
-  const { data, error } = await supabase.functions.invoke('remove-bg', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` },
-    body: formData,
-    timeout: 90000
-  })
+  emitProgress(40, '连接云端...')
+  let progressTimer = null
+  try {
+    // 等待期间平滑推进进度，避免长时间停在固定百分比让用户以为卡死
+    let fakePercent = 40
+    progressTimer = setInterval(() => {
+      fakePercent = Math.min(78, fakePercent + (Math.random() * 2 + 1))
+      emitProgress(fakePercent, '云端处理中，请稍候...')
+    }, 800)
 
-  // 注意：安装的 supabase-js 不支持 parse:false（该选项被静默忽略）。
-  // Edge Function 返回 application/octet-stream，invoke 会自动解析成 Blob。
-  if (error) {
-    // 非 2xx（如 403 白名单失效）会被 invoke 包装成 FunctionsHttpError
-    if (error?.context?.status === 403) {
-      cachedCloudAllowed = false
+    const { data, error } = await supabase.functions.invoke('remove-bg', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: formData,
+      timeout: 90000
+    })
+
+    // 注意：安装的 supabase-js 不支持 parse:false（该选项被静默忽略）。
+    // Edge Function 返回 application/octet-stream，invoke 会自动解析成 Blob。
+    if (error) {
+      // 非 2xx（如 403 白名单失效）会被 invoke 包装成 FunctionsHttpError
+      if (error?.context?.status === 403) {
+        cachedCloudAllowed = false
+      }
+      throw error
     }
-    throw error
-  }
-  if (!(data instanceof Blob)) {
-    throw new Error('云端抠图失败，请稍后重试')
-  }
+    if (!(data instanceof Blob)) {
+      throw new Error('云端抠图失败，请稍后重试')
+    }
 
-  emitProgress(80, '云端处理中...')
-  return data
+    emitProgress(80, '云端处理完成')
+    return data
+  } finally {
+    if (progressTimer) clearInterval(progressTimer)
+  }
 }
 
 export function useImageCutout() {
@@ -695,7 +716,9 @@ export function useImageCutout() {
     }
 
     emitProgress(12, '云端引擎准备中...')
-    const preparedInput = await prepareCutoutInput(inputBlob, options)
+    // 与本地一致用 1800：保留最终输出画质（mask 方案下最终分辨率跟随输入尺寸）
+    const cloudOptions = { ...options, maxProcessSize: 1800 }
+    const preparedInput = await prepareCutoutInput(inputBlob, cloudOptions)
     const maskBlob = await uploadCloudCutoutMask(preparedInput.blob, options)
     emitProgress(86, '修复主体颜色中...')
     const refinedMask = await refineCutoutMask(maskBlob, preparedInput.referenceCanvas)
