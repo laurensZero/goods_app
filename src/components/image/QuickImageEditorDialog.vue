@@ -142,6 +142,8 @@
                   </button>
 
                   <p class="editor-hint">{{ t('imageEditor.cutoutHint') }}</p>
+
+                  <p v-if="cutoutQualityHint" class="editor-hint editor-hint--warn">{{ cutoutQualityHint }}</p>
                 </div>
 
 
@@ -275,7 +277,7 @@ import 'cropperjs/dist/cropper.css'
 import AppSelect from '@/components/common/AppSelect.vue'
 import HslColorPicker from '@/components/common/HslColorPicker.vue'
 import { useEditorHistory } from '@/composables/image/useEditorHistory'
-import { useImageCutout } from '@/composables/image/useImageCutout'
+import { useImageCutout, checkCloudCutoutPermission } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
 
 const props = defineProps({
@@ -312,9 +314,12 @@ const cutoutHasPendingStrokes = ref(false)
 const cutoutApplyingMask = ref(false)
 const cutoutPreparedImageUrl = ref('')
 const cutoutMaskUrl = ref('')
+const cutoutQualityHint = ref('')
 const {
   applyCutoutMask,
+  applyCloudCutoutMask,
   createCutoutMask,
+  createCloudCutoutMask,
   isCutoutModelReady
 } = useImageCutout()
 const { exportForUpload } = useImageExport()
@@ -716,19 +721,56 @@ async function runCutout() {
     ? '模型准备中，请稍候...'
     : '抠图处理中...'
   errorText.value = ''
+  cutoutQualityHint.value = ''
+
+  let usedCloud = false
+  let preparedBlob = null
+  let maskBlob = null
+  let meta = null
 
   try {
     const inputBlob = await getCurrentBlob()
     cutoutInputImageUrl.value = createTrackedObjectUrl(inputBlob)
-    const { preparedBlob, maskBlob, meta } = await createCutoutMask(inputBlob, {
-      onProgress: ({ percent, text }) => {
-        cutoutProgress.value = Number(percent) || 0
-        if (text) {
-          cutoutLoadingText.value = text
-        }
+
+    // 云端优先：白名单用户走 FAPIhub，失败回退本地
+    const cloudAllowed = await checkCloudCutoutPermission().catch(() => false)
+    if (cloudAllowed) {
+      try {
+        const cloudResult = await createCloudCutoutMask(inputBlob, {
+          onProgress: ({ percent, text }) => {
+            cutoutProgress.value = Number(percent) || 0
+            if (text) {
+              cutoutLoadingText.value = text
+            }
+          }
+        })
+        preparedBlob = cloudResult.preparedBlob
+        maskBlob = cloudResult.maskBlob
+        meta = cloudResult.meta
+        usedCloud = true
+      } catch (cloudError) {
+        console.warn('[cutout] 云端抠图失败，回退本地:', cloudError?.message)
       }
-    })
-    const cutoutBlob = await applyCutoutMask(preparedBlob, maskBlob, meta)
+    }
+
+    if (!usedCloud) {
+      const localResult = await createCutoutMask(inputBlob, {
+        onProgress: ({ percent, text }) => {
+          cutoutProgress.value = Number(percent) || 0
+          if (text) {
+            cutoutLoadingText.value = text
+          }
+        }
+      })
+      preparedBlob = localResult.preparedBlob
+      maskBlob = localResult.maskBlob
+      meta = localResult.meta
+      cutoutQualityHint.value = t('imageEditor.cutoutQualityHint')
+    }
+
+    const cutoutBlob = usedCloud
+      ? await applyCloudCutoutMask(preparedBlob, maskBlob, meta)
+      : await applyCutoutMask(preparedBlob, maskBlob, meta)
 
     clearCutoutSession()
     _cutoutPreparedBlob = preparedBlob
@@ -1517,6 +1559,10 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--app-text-tertiary);
   line-height: 1.5;
+}
+
+.editor-hint--warn {
+  color: var(--app-warning, #f5a623);
 }
 
 .editor-progress {

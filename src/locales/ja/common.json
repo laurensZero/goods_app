@@ -203,6 +203,7 @@
   "imageEditor.cutout": "スマート切り抜き",
   "imageEditor.cutoutDone": "切り抜き完了",
   "imageEditor.cutoutHint": "まず余分な端をトリミングしてから切り抜きましょう",
+  "imageEditor.cutoutQualityHint": "ローカルの切り抜きモデルは精度が限られています。ログインして招待を受けるとクラウド高画質切り抜きを利用できます",
   "imageEditor.cutoutProcessing": "切り抜き処理中...",
   "imageEditor.cutoutProgress": "切り抜き: {percent}%",
   "imageEditor.cutoutResultFailed": "切り抜き結果の処理に失敗しました",

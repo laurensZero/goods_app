@@ -203,6 +203,7 @@
   "imageEditor.cutout": "스마트 컷아웃",
   "imageEditor.cutoutDone": "컷아웃 완료",
   "imageEditor.cutoutHint": "먼저 여분의 가장자리를 잘라낸 후 컷아웃하세요",
+  "imageEditor.cutoutQualityHint": "로컬 컷아웃 모델의 품질은 제한적입니다. 로그인하고 초대받으면 클라우드 고화질 컷아웃을 사용할 수 있습니다",
   "imageEditor.cutoutProcessing": "컷아웃 처리 중...",
   "imageEditor.cutoutProgress": "컷아웃: {percent}%",
   "imageEditor.cutoutResultFailed": "컷아웃 결과 처리에 실패했습니다",

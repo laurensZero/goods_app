@@ -203,6 +203,7 @@
   "imageEditor.cutout": "智能抠图",
   "imageEditor.cutoutDone": "抠图完成",
   "imageEditor.cutoutHint": "建议先裁切多余边缘，再抠图",
+  "imageEditor.cutoutQualityHint": "本地抠图模型效果一般，登录并获邀后可体验云端高清抠图",
   "imageEditor.cutoutProcessing": "抠图处理中...",
   "imageEditor.cutoutProgress": "抠图处理中：{percent}%",
   "imageEditor.cutoutResultFailed": "抠图结果处理失败",

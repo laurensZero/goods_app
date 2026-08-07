@@ -1,5 +1,11 @@
 import { Capacitor } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+import { useAuthStore } from '@/stores/auth'
+import { getSession } from '@/utils/supabase/auth'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { createLogger } from '@/utils/logger'
+
+const log = createLogger('cloud-cutout')
 
 let imglyModule = null
 async function getImgly() {
@@ -461,6 +467,108 @@ export async function clearLocalModelAssets() {
   return true
 }
 
+// ---------- 云端抠图（FAPIhub，经 Supabase Edge Function 转发） ----------
+// 白名单权限缓存：同一次会话内复用，登录状态变化后失效由 reset 处理
+let cachedCloudAllowed = null
+
+export function resetCloudCutoutPermission() {
+  cachedCloudAllowed = null
+}
+
+/**
+ * 校验当前登录用户是否在 feature_whitelist（feature='remove_bg'）白名单内。
+ * 安全策略：未登录 / 网络失败 / Edge Function 不可用 → 一律 false。
+ * 结果模块级缓存，同会话内不重复请求。
+ */
+export async function checkCloudCutoutPermission() {
+  const authStore = useAuthStore()
+  try {
+    await authStore.init()
+  } catch {
+    cachedCloudAllowed = false
+    return false
+  }
+
+  if (!authStore.isLoggedIn) {
+    cachedCloudAllowed = false
+    return false
+  }
+  if (cachedCloudAllowed !== null) {
+    return cachedCloudAllowed
+  }
+
+  try {
+    const supabase = getSupabaseClient()
+    const session = await getSession()
+    if (!session?.access_token) {
+      cachedCloudAllowed = false
+      return cachedCloudAllowed
+    }
+    const { data, error } = await supabase.functions.invoke('remove-bg', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    })
+    if (error) throw error
+    cachedCloudAllowed = data?.allowed === true
+  } catch (e) {
+    log.error('check:failed', { message: e?.message })
+    cachedCloudAllowed = false
+  }
+  return cachedCloudAllowed
+}
+
+/**
+ * 上传图片到 Edge Function，经 FAPIhub 抠图后返回 mask（PNG Blob）。
+ * @param {Blob} inputBlob 已预处理（含 padding）的输入图
+ * @param {object} options { model?: 'falcon'|'aurora'|'ghost', onProgress }
+ * @returns {Promise<Blob>} mask 图片
+ */
+async function uploadCloudCutoutMask(inputBlob, options = {}) {
+  const reportProgress = typeof options.onProgress === 'function' ? options.onProgress : null
+  const emitProgress = (percent, text) => {
+    if (!reportProgress) return
+    reportProgress({
+      percent: clamp(Math.round(Number(percent) || 0), 0, 100),
+      text: text || '云端抠图处理中...'
+    })
+  }
+
+  const session = await getSession()
+  if (!session?.access_token) {
+    throw new Error('云端抠图需要登录')
+  }
+
+  const supabase = getSupabaseClient()
+  const formData = new FormData()
+  formData.append('image', inputBlob, 'cutout.png')
+  const model = options.model || 'falcon'
+  formData.append('model', model)
+
+  emitProgress(45, '上传图片到云端...')
+  const { data, error } = await supabase.functions.invoke('remove-bg', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    body: formData,
+    timeout: 90000
+  })
+
+  // 注意：安装的 supabase-js 不支持 parse:false（该选项被静默忽略）。
+  // Edge Function 返回 application/octet-stream，invoke 会自动解析成 Blob。
+  if (error) {
+    // 非 2xx（如 403 白名单失效）会被 invoke 包装成 FunctionsHttpError
+    if (error?.context?.status === 403) {
+      cachedCloudAllowed = false
+    }
+    throw error
+  }
+  if (!(data instanceof Blob)) {
+    throw new Error('云端抠图失败，请稍后重试')
+  }
+
+  emitProgress(80, '云端处理中...')
+  return data
+}
+
 export function useImageCutout() {
   function isCutoutModelReady() {
     return modelReady
@@ -562,7 +670,44 @@ export function useImageCutout() {
       maskBlob: refinedMask,
       meta: preparedInput.meta,
       width: preparedInput.referenceCanvas.width,
-      height: preparedInput.referenceCanvas.height
+      height: preparedInput.referenceCanvas.height,
+      source: 'local'
+    }
+  }
+
+  // 云端抠图：本地预处理（缩放+padding 保证尺寸一致），上传 FAPIhub 取 mask，
+  // 本地 refine 后返回与 createCutoutMask 同构的结果
+  async function createCloudCutoutMask(inputBlob, options = {}) {
+    const reportProgress = typeof options.onProgress === 'function'
+      ? options.onProgress
+      : null
+
+    const emitProgress = (percent, text) => {
+      if (!reportProgress) return
+      reportProgress({
+        percent: clamp(Math.round(Number(percent) || 0), 0, 100),
+        text: text || '云端抠图处理中...'
+      })
+    }
+
+    if (!(await checkCloudCutoutPermission())) {
+      throw new Error('云端抠图未授权')
+    }
+
+    emitProgress(12, '云端引擎准备中...')
+    const preparedInput = await prepareCutoutInput(inputBlob, options)
+    const maskBlob = await uploadCloudCutoutMask(preparedInput.blob, options)
+    emitProgress(86, '修复主体颜色中...')
+    const refinedMask = await refineCutoutMask(maskBlob, preparedInput.referenceCanvas)
+    emitProgress(94, '边缘优化中...')
+
+    return {
+      preparedBlob: preparedInput.blob,
+      maskBlob: refinedMask,
+      meta: preparedInput.meta,
+      width: preparedInput.referenceCanvas.width,
+      height: preparedInput.referenceCanvas.height,
+      source: 'cloud'
     }
   }
 
@@ -585,6 +730,38 @@ export function useImageCutout() {
 
     const { applySegmentationMask } = await getImgly()
     const cutoutBlob = await applySegmentationMask(preparedBlob, maskBlob, applyConfig)
+    return finalizeCutoutResult(cutoutBlob, meta)
+  }
+
+  // 纯 canvas 应用 mask：不依赖本地 imgly 模型，云端模式用。
+  // mask 中不透明像素保留原图颜色，透明像素置空。
+  async function applyCloudCutoutMask(preparedBlob, maskBlob, meta) {
+    const [preparedCanvas, maskCanvas] = await Promise.all([
+      blobToCanvas(preparedBlob),
+      blobToCanvas(maskBlob)
+    ])
+    const width = preparedCanvas.width
+    const height = preparedCanvas.height
+
+    const outputCanvas = createCanvas(width, height)
+    const ctx = outputCanvas.getContext('2d', { willReadFrequently: true })
+    ctx.drawImage(preparedCanvas, 0, 0)
+    const output = ctx.getImageData(0, 0, width, height)
+
+    const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true })
+    const maskImage = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height)
+    const maskData = maskImage.data
+    const outputData = output.data
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = (y * width + x) * 4
+        outputData[index + 3] = maskData[index + 3]
+      }
+    }
+
+    ctx.putImageData(output, 0, 0)
+    const cutoutBlob = await canvasToBlob(outputCanvas, 'image/png', 1)
     return finalizeCutoutResult(cutoutBlob, meta)
   }
 
@@ -676,7 +853,9 @@ export function useImageCutout() {
 
   return {
     applyCutoutMask,
+    applyCloudCutoutMask,
     createCutoutMask,
+    createCloudCutoutMask,
     removeBackgroundWithTimeout,
     ensureCutoutModelReady,
     isCutoutModelReady

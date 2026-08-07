@@ -35,12 +35,15 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function binaryResponse(bytes: Uint8Array, contentType: string): Response {
+// 统一返回 application/octet-stream：supabase-js 的 functions.invoke 只对
+// application/octet-stream 与 application/pdf 自动解析为 Blob（否则走 text()，
+// 会把二进制 PNG 变成乱码字符串）。客户端再根据图片字节自身解码，无需 MIME 精确。
+function binaryResponse(bytes: Uint8Array): Response {
   return new Response(bytes, {
     status: 200,
     headers: {
       ...corsHeaders,
-      "Content-Type": contentType,
+      "Content-Type": "application/octet-stream",
       "Cache-Control": "no-store",
     },
   })
@@ -167,9 +170,8 @@ serve(async (req) => {
       )
     }
 
-    const contentType = upstreamRes.headers.get("content-type") || "image/png"
     const bytes = new Uint8Array(await upstreamRes.arrayBuffer())
-    return binaryResponse(bytes, contentType)
+    return binaryResponse(bytes)
   } catch (e) {
     console.error("remove-bg:upstream-fetch-error", e)
     return json({ error: "upstream_network_error" }, 502)
