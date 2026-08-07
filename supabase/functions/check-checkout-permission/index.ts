@@ -1,7 +1,7 @@
 // supabase/functions/check-checkout-permission/index.ts
 // 米游铺自助下单功能白名单校验
 // verify_jwt=true（见 config.toml）：必须携带登录用户的 JWT，函数内解析 user_id
-// 查询 checkout_whitelist 表，判断该用户是否有下单权限
+// 查询 feature_whitelist 表（feature='checkout'），判断该用户是否有下单权限
 //
 // 用法（客户端 supabase.functions.invoke 会自动带上 Authorization: Bearer <access_token>）：
 //   GET https://<project-ref>.supabase.co/functions/v1/check-checkout-permission
@@ -54,8 +54,9 @@ serve(async (req) => {
       { auth: { persistSession: false, autoRefreshToken: false } },
     )
     const { data, error } = await admin
-      .from("checkout_whitelist")
+      .from("feature_whitelist")
       .select("user_id")
+      .eq("feature", "checkout")
       .eq("user_id", user.id)
       .maybeSingle()
 
