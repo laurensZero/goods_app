@@ -48,8 +48,34 @@
           </div>
 
           <div class="editor-body">
-            <section ref="previewRef" class="editor-preview">
-              <img ref="imageRef" :src="previewUrl" :alt="t('common.aria.editPreview')" class="editor-image" />
+            <section
+              ref="previewRef"
+              class="editor-preview"
+              :class="{
+                'editor-preview--plain': activeTab !== 'basic',
+                'editor-preview--export': activeTab === 'export'
+              }"
+            >
+              <img
+                ref="imageRef"
+                :src="previewUrl"
+                :alt="t('common.aria.editPreview')"
+                class="editor-image"
+                :class="{ 'editor-image--export-hidden': activeTab === 'export' }"
+              />
+
+              <div
+                v-if="activeTab === 'export' && previewUrl"
+                class="editor-export-preview"
+                :style="whiteBgEnabled ? { background: bgColor } : null"
+              >
+                <img
+                  :src="previewUrl"
+                  :alt="t('common.aria.whiteBgPreview')"
+                  class="editor-export-preview__image"
+                  :style="whiteBgPreviewImageStyle"
+                />
+              </div>
 
             </section>
 
@@ -135,24 +161,6 @@
                 <div class="editor-group">
                   <p class="editor-group-title">{{ t('imageEditor.exportSettings') }}</p>
 
-                  <div class="editor-export-preview">
-                    <div
-                      class="editor-export-preview__stage"
-                      :style="whiteBgEnabled ? { background: bgColor } : null"
-                    >
-                      <img
-                        v-if="previewUrl"
-                        :src="previewUrl"
-                        :alt="t('common.aria.whiteBgPreview')"
-                        class="editor-export-preview__image"
-                        :style="whiteBgPreviewImageStyle"
-                      />
-                    </div>
-                    <p class="editor-hint">
-                      {{ whiteBgEnabled ? t('imageEditor.dragHint') : t('imageEditor.closeWhiteBg') }}
-                    </p>
-                  </div>
-
                   <label class="editor-toggle">
                     <div class="editor-toggle__info">
                       <strong>{{ t('imageEditor.autoWhiteBg') }}</strong>
@@ -176,24 +184,37 @@
                   <div v-if="whiteBgEnabled" class="editor-field">
                     <span class="editor-field__label">{{ t('imageEditor.bgColor') }}</span>
                     <div class="editor-bg-color">
-                      <div class="editor-bg-color__presets" :aria-label="t('imageEditor.bgColor')">
-                        <button
-                          v-for="preset in bgColorPresets"
-                          :key="preset"
-                          type="button"
-                          class="editor-bg-color__swatch"
-                          :class="{ 'editor-bg-color__swatch--active': bgColor === preset }"
-                          :style="{ background: preset }"
-                          :aria-label="preset"
-                          :aria-pressed="bgColor === preset"
-                          @click="bgColor = preset"
-                        />
+                      <button
+                        type="button"
+                        class="editor-bg-color__trigger"
+                        :aria-expanded="bgColorPickerOpen"
+                        @click="bgColorPickerOpen = !bgColorPickerOpen"
+                      >
+                        <span class="editor-bg-color__trigger-swatch" :style="{ background: bgColor }" aria-hidden="true" />
+                        <span class="editor-bg-color__trigger-hex">{{ bgColor }}</span>
+                        <svg class="editor-bg-color__trigger-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M7 10L12 15L17 10" />
+                        </svg>
+                      </button>
+
+                      <div v-if="bgColorPickerOpen" class="editor-bg-color__picker">
+                        <HslColorPicker v-model="bgColor" />
                       </div>
+
                       <div class="editor-bg-color__actions">
-                        <label class="editor-bg-color__custom">
-                          <input v-model="bgColor" type="color" class="editor-bg-color__input" :aria-label="t('imageEditor.bgColor')" />
-                          <span class="editor-bg-color__hex">{{ bgColor }}</span>
-                        </label>
+                        <div class="editor-bg-color__presets" :aria-label="t('imageEditor.bgColor')">
+                          <button
+                            v-for="preset in bgColorPresets"
+                            :key="preset"
+                            type="button"
+                            class="editor-bg-color__swatch"
+                            :class="{ 'editor-bg-color__swatch--active': bgColor === preset }"
+                            :style="{ background: preset }"
+                            :aria-label="preset"
+                            :aria-pressed="bgColor === preset"
+                            @click="bgColor = preset"
+                          />
+                        </div>
                         <button
                           type="button"
                           class="editor-btn editor-bg-color__pick"
@@ -252,6 +273,7 @@ import { useI18n } from 'vue-i18n'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
 import AppSelect from '@/components/common/AppSelect.vue'
+import HslColorPicker from '@/components/common/HslColorPicker.vue'
 import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
@@ -279,6 +301,7 @@ const whiteBgEnabled = ref(true)
 const whiteBgStyle = ref('standard')
 const whiteBgScalePercent = ref(88)
 const bgColor = ref('#ffffff')
+const bgColorPickerOpen = ref(false)
 const pickingColor = ref(false)
 const brightness = ref(0)
 const contrast = ref(0)
@@ -334,6 +357,8 @@ let _cutoutOriginalMaskBlob = null
 const cutoutInputImageUrl = ref('')
 let cutoutMeta = null
 let editorSessionId = 0
+let cropperInitToken = 0
+let tabTransitionQueue = Promise.resolve()
 let historyRestoreDepth = 0
 let editorStateSignature = ''
 const editorSessionUrls = new Set()
@@ -526,8 +551,29 @@ function setPageScrollLock(locked) {
   body.style.overscrollBehavior = previousBodyOverscrollBehavior
 }
 
+function waitForImageLoad(img) {
+  return new Promise((resolve) => {
+    if (img.complete && img.naturalWidth > 0) {
+      resolve()
+      return
+    }
+    const done = () => {
+      img.removeEventListener('load', done)
+      img.removeEventListener('error', done)
+      resolve()
+    }
+    img.addEventListener('load', done)
+    img.addEventListener('error', done)
+  })
+}
+
 async function initCropper() {
+  const token = ++cropperInitToken
   await nextTick()
+  if (!imageRef.value || !previewUrl.value) return
+
+  await waitForImageLoad(imageRef.value)
+  if (token !== cropperInitToken) return
   if (!imageRef.value || !previewUrl.value) return
 
   destroyCropper()
@@ -581,6 +627,7 @@ function openFromFile(file) {
   whiteBgStyle.value = 'standard'
   whiteBgScalePercent.value = 88
   bgColor.value = '#ffffff'
+  bgColorPickerOpen.value = false
   pickingColor.value = false
   brightness.value = 0
   contrast.value = 0
@@ -854,6 +901,58 @@ watch([brightness, contrast], () => {
   applyPreviewFilter()
 })
 
+async function commitCrop() {
+  if (!cropper) return
+
+  try {
+    if (isCropMeaningful()) {
+      const blob = await getCurrentBlob()
+      destroyCropper()
+      flipX = 1
+      previewUrl.value = createTrackedObjectUrl(blob)
+    } else {
+      destroyCropper()
+    }
+  } catch (error) {
+    // 保持当前状态，避免裁切提交失败时丢失预览
+  }
+}
+
+function isCropMeaningful() {
+  if (!cropper) return false
+  const data = cropper.getData(true)
+  const img = imageRef.value
+  const naturalWidth = Number(img?.naturalWidth) || 0
+  const naturalHeight = Number(img?.naturalHeight) || 0
+
+  if (Math.abs(Number(data.rotate) || 0) > 0) return true
+  if (Number(data.scaleX) !== 1 || Number(data.scaleY) !== 1) return true
+  if (!naturalWidth || !naturalHeight) return true
+  return (
+    Math.abs(Number(data.width) - naturalWidth) > 1 ||
+    Math.abs(Number(data.height) - naturalHeight) > 1
+  )
+}
+
+watch(
+  () => activeTab.value,
+  (next, prev) => {
+    if (prev === 'basic' && next !== 'basic') {
+      tabTransitionQueue = tabTransitionQueue
+        .then(() => commitCrop())
+        .catch(() => {})
+    } else if (next === 'basic' && prev !== 'basic') {
+      tabTransitionQueue = tabTransitionQueue
+        .then(async () => {
+          if (!cropper && previewUrl.value) {
+            await initCropper()
+          }
+        })
+        .catch(() => {})
+    }
+  }
+)
+
 
 
 
@@ -1032,6 +1131,51 @@ onBeforeUnmount(() => {
   inset: -10px;
   border-radius: 999px;
   background: transparent;
+}
+
+/* Plain preview: hide crop UI for cutout / export tabs so the left area is
+   a clean preview instead of an active cropper. */
+.editor-preview--plain :deep(.cropper-crop-box),
+.editor-preview--plain :deep(.cropper-modal),
+.editor-preview--plain :deep(.cropper-line),
+.editor-preview--plain :deep(.cropper-point),
+.editor-preview--plain :deep(.cropper-dashed),
+.editor-preview--plain :deep(.cropper-face),
+.editor-preview--plain :deep(.cropper-center),
+.editor-preview--plain :deep(.cropper-drag-box) {
+  display: none;
+}
+
+.editor-preview--plain :deep(.cropper-container) {
+  cursor: default;
+}
+
+/* Export tab: draw the scaled preview on a flat backdrop so the user can judge
+   how the background fill will look once saved. */
+.editor-image--export-hidden {
+  opacity: 0;
+}
+
+.editor-export-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-radius: var(--radius-card, 18px);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.editor-export-preview__image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform 160ms ease;
 }
 
 .editor-mask-preview {
@@ -1271,9 +1415,76 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.editor-bg-color__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small, 14px);
+  background: var(--app-surface);
+  color: var(--app-text);
+  transition: transform var(--motion-fast, 200ms) ease, border-color var(--motion-fast, 200ms) ease;
+}
+
+.editor-bg-color__trigger:active {
+  transform: scale(var(--press-scale-button, 0.98));
+}
+
+.editor-bg-color__trigger-swatch {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 1px rgba(20, 20, 22, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+}
+
+.editor-bg-color__trigger-hex {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-bg-color__trigger-arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: var(--app-text-tertiary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+
+.editor-bg-color__trigger[aria-expanded='true'] .editor-bg-color__trigger-arrow {
+  transform: rotate(180deg);
+}
+
+.editor-bg-color__picker {
+  padding: 14px;
+  border-radius: var(--radius-card, 18px);
+  background: var(--app-surface-soft);
+}
+
+.editor-bg-color__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .editor-bg-color__presets {
   display: flex;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .editor-bg-color__swatch {
@@ -1296,77 +1507,9 @@ onBeforeUnmount(() => {
   transform: scale(var(--press-scale-button, 0.96));
 }
 
-.editor-bg-color__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.editor-bg-color__custom {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  height: 44px;
-  padding: 0 12px;
-  border-radius: var(--radius-small, 14px);
-  background: var(--app-surface);
-  cursor: pointer;
-}
-
-.editor-bg-color__input {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.editor-bg-color__hex {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--app-text-secondary);
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .editor-bg-color__pick {
   flex: none;
   min-height: 44px;
-}
-
-.editor-export-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.editor-export-preview__stage {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 180px;
-  padding: 16px;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.08);
-  overflow: hidden;
-}
-
-.editor-export-preview__image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transform-origin: center center;
-  transition: transform 160ms ease;
 }
 
 .editor-hint {

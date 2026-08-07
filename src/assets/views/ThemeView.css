@@ -647,8 +647,7 @@
 
 .custom-field__label,
 .custom-field__input,
-.theme-color-sheet__preview-value,
-.theme-color-sheet__hex-input {
+.theme-color-sheet__preview-value {
   font-size: 14px;
 }
 
@@ -724,8 +723,7 @@
 }
 
 .theme-color-sheet__head,
-.theme-color-sheet__actions,
-.theme-color-sheet__footer {
+.theme-color-sheet__actions {
   display: flex;
   align-items: center;
 }
@@ -828,23 +826,8 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.theme-color-sheet__sliders {
-  display: grid;
-  gap: 14px;
+.theme-color-sheet__picker {
   margin-top: 16px;
-}
-
-.theme-color-slider {
-  display: grid;
-  gap: 8px;
-}
-
-.theme-color-slider__label {
-  color: var(--app-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .theme-color-slider__input {
@@ -854,19 +837,6 @@
   background: var(--slider-track);
   border-radius: 999px;
   outline: none;
-}
-
-.theme-color-slider__input--hue {
-  --slider-track: linear-gradient(
-    90deg,
-    #ff3b30 0%,
-    #ff9500 16%,
-    #ffcc00 32%,
-    #34c759 48%,
-    #32ade6 64%,
-    #5856d6 80%,
-    #ff2d55 100%
-  );
 }
 
 .theme-color-slider__input::-webkit-slider-thumb {
@@ -886,30 +856,6 @@
   border: 3px solid rgba(255, 255, 255, 0.88);
   border-radius: 999px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
-}
-
-.theme-color-sheet__footer {
-  margin-top: 18px;
-}
-
-.theme-color-sheet__hex-input {
-  width: 100%;
-  min-height: 42px;
-  padding: 0 14px;
-  color: var(--app-text);
-  background: color-mix(in srgb, var(--app-surface-soft) 78%, transparent);
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius-small);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.theme-color-sheet__hex-input:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--app-text) 18%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 
 .mode-list {
@@ -986,11 +932,5 @@
 
   .custom-preview__palette {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (min-width: 768px) {
-  .theme-color-sheet__footer {
-    margin-top: 20px;
   }
 }

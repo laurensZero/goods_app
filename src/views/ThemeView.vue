@@ -294,56 +294,8 @@
           </div>
         </div>
 
-        <div class="theme-color-sheet__sliders">
-          <label class="theme-color-slider">
-            <span class="theme-color-slider__label">Hue</span>
-            <input
-              :value="colorPicker.h"
-              class="theme-color-slider__input theme-color-slider__input--hue"
-              type="range"
-              min="0"
-              max="360"
-              step="1"
-              @input="handleHueSlider"
-            >
-          </label>
-          <label class="theme-color-slider">
-            <span class="theme-color-slider__label">Sat</span>
-            <input
-              :value="colorPicker.s"
-              class="theme-color-slider__input"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              :style="getSliderTrackStyle('saturation')"
-              @input="handleSaturationSlider"
-            >
-          </label>
-          <label class="theme-color-slider">
-            <span class="theme-color-slider__label">Light</span>
-            <input
-              :value="colorPicker.l"
-              class="theme-color-slider__input"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              :style="getSliderTrackStyle('lightness')"
-              @input="handleLightnessSlider"
-            >
-          </label>
-        </div>
-
-        <div class="theme-color-sheet__footer">
-          <input
-            :value="pickerHex"
-            type="text"
-            inputmode="text"
-            maxlength="7"
-            class="theme-color-sheet__hex-input"
-            @change="handlePickerHexInput"
-          >
+        <div class="theme-color-sheet__picker">
+          <HslColorPicker v-model="pickerHex" :field="colorPicker.field" />
         </div>
       </div>
     </Popup>
@@ -354,6 +306,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/constants/themes'
 import NavBar from '@/components/common/NavBar.vue'
+import HslColorPicker from '@/components/common/HslColorPicker.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { captureTransitionOrigin, toggleAppearanceWithTransition } from '@/composables/useThemeTransition'
@@ -387,7 +340,6 @@ const CUSTOM_THEME_FIELDS = [
   { key: 'text', label: t('theme.text') }
 ]
 
-const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6})$/
 const TABLET_BREAKPOINT = 768
 
 const themeStore = useThemeStore()
@@ -396,11 +348,9 @@ const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
 const colorPicker = reactive({
   show: false,
   mode: 'light',
-  field: 'bg',
-  h: 0,
-  s: 0,
-  l: 100
+  field: 'bg'
 })
+const pickerHex = ref('')
 
 const visibleThemeOptions = computed(() => {
   const options = THEME_OPTIONS.filter((theme) => !theme.hidden)
@@ -413,7 +363,6 @@ const visibleThemeOptions = computed(() => {
 const isCustomThemeActive = computed(() => themeStore.themeId === 'custom')
 const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
 const pickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-const pickerHex = computed(() => hslToHex(Number(colorPicker.h), Number(colorPicker.s), Number(colorPicker.l)))
 const activePickerFieldLabel = computed(() => (
   CUSTOM_THEME_FIELDS.find((field) => field.key === colorPicker.field)?.label || t('theme.colorPicker')
 ))
@@ -561,99 +510,6 @@ function getCustomBlurTrackStyle(mode) {
   }
 }
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function componentToHex(value) {
-  return clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0')
-}
-
-function hexToRgb(hexColor) {
-  const value = String(hexColor || '').replace('#', '')
-  if (value.length !== 6) {
-    return { r: 255, g: 255, b: 255 }
-  }
-
-  return {
-    r: Number.parseInt(value.slice(0, 2), 16),
-    g: Number.parseInt(value.slice(2, 4), 16),
-    b: Number.parseInt(value.slice(4, 6), 16)
-  }
-}
-
-function hexToHsl(hexColor) {
-  const { r, g, b } = hexToRgb(hexColor)
-  const red = r / 255
-  const green = g / 255
-  const blue = b / 255
-  const max = Math.max(red, green, blue)
-  const min = Math.min(red, green, blue)
-  const lightness = (max + min) / 2
-  const delta = max - min
-
-  if (delta === 0) {
-    return { h: 0, s: 0, l: Math.round(lightness * 100) }
-  }
-
-  const saturation = delta / (1 - Math.abs(2 * lightness - 1))
-  let hue = 0
-
-  switch (max) {
-    case red:
-      hue = ((green - blue) / delta) % 6
-      break
-    case green:
-      hue = (blue - red) / delta + 2
-      break
-    default:
-      hue = (red - green) / delta + 4
-      break
-  }
-
-  return {
-    h: Math.round(((hue * 60) + 360) % 360),
-    s: Math.round(saturation * 100),
-    l: Math.round(lightness * 100)
-  }
-}
-
-function hslToHex(h, s, l) {
-  const hue = ((Number(h) % 360) + 360) % 360
-  const saturation = clamp(Number(s), 0, 100) / 100
-  const lightness = clamp(Number(l), 0, 100) / 100
-  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation
-  const segment = hue / 60
-  const x = chroma * (1 - Math.abs((segment % 2) - 1))
-  const match = lightness - chroma / 2
-
-  let red = 0
-  let green = 0
-  let blue = 0
-
-  if (segment >= 0 && segment < 1) {
-    red = chroma
-    green = x
-  } else if (segment < 2) {
-    red = x
-    green = chroma
-  } else if (segment < 3) {
-    green = chroma
-    blue = x
-  } else if (segment < 4) {
-    green = x
-    blue = chroma
-  } else if (segment < 5) {
-    red = x
-    blue = chroma
-  } else {
-    red = chroma
-    blue = x
-  }
-
-  return `#${componentToHex((red + match) * 255)}${componentToHex((green + match) * 255)}${componentToHex((blue + match) * 255)}`
-}
-
 function getReadableTextColor(hexColor) {
   const value = String(hexColor || '').replace('#', '')
   if (value.length !== 6) return '#ffffff'
@@ -684,52 +540,6 @@ function getPickerPreviewStyle() {
   }
 }
 
-function getSliderTrackStyle(type) {
-  const hue = Number(colorPicker.h)
-  const saturation = Number(colorPicker.s)
-  const lightness = Number(colorPicker.l)
-
-  if (type === 'saturation') {
-    return {
-      '--slider-track': `linear-gradient(90deg, ${hslToHex(hue, 0, lightness)} 0%, ${hslToHex(hue, 100, lightness)} 100%)`
-    }
-  }
-
-  return {
-    '--slider-track': `linear-gradient(90deg, ${hslToHex(hue, saturation, 0)} 0%, ${hslToHex(hue, saturation, 50)} 50%, ${hslToHex(hue, saturation, 100)} 100%)`
-  }
-}
-
-function getModePrimaryHue(mode) {
-  const primary = themeStore.customColors[mode]?.primary || themeStore.customColors.light.primary
-  return hexToHsl(primary).h
-}
-
-function coercePickerFromNeutralForHue() {
-  if (Number(colorPicker.s) > 4) return
-
-  colorPicker.s = colorPicker.field === 'text' ? 10 : 18
-
-  if (Number(colorPicker.l) >= 98) {
-    colorPicker.l = colorPicker.field === 'bg' ? 94 : 92
-  } else if (Number(colorPicker.l) <= 2) {
-    colorPicker.l = colorPicker.field === 'text' ? 14 : 18
-  }
-}
-
-function handleHueSlider(event) {
-  colorPicker.h = Number(event.target.value)
-  coercePickerFromNeutralForHue()
-}
-
-function handleSaturationSlider(event) {
-  colorPicker.s = Number(event.target.value)
-}
-
-function handleLightnessSlider(event) {
-  colorPicker.l = Number(event.target.value)
-}
-
 function handleCustomBlurSlider(mode, event) {
   void themeStore.updateCustomEffects(mode, { blur: Number(event.target.value) })
 }
@@ -744,16 +554,11 @@ function updateViewportWidth() {
 }
 
 function openColorPicker(mode, fieldKey) {
-  const color = getCustomColorValue(mode, fieldKey)
-  const hsl = hexToHsl(color)
-  const resolvedHue = hsl.s === 0 ? getModePrimaryHue(mode) : hsl.h
+  pickerHex.value = getCustomColorValue(mode, fieldKey) || '#ffffff'
 
   colorPicker.show = true
   colorPicker.mode = mode
   colorPicker.field = fieldKey
-  colorPicker.h = resolvedHue
-  colorPicker.s = hsl.s
-  colorPicker.l = hsl.l
 }
 
 function closeColorPicker() {
@@ -763,20 +568,6 @@ function closeColorPicker() {
 function applyColorPicker() {
   themeStore.updateCustomColors(colorPicker.mode, { [colorPicker.field]: pickerHex.value })
   closeColorPicker()
-}
-
-function handlePickerHexInput(event) {
-  const value = String(event.target.value || '').trim().toLowerCase()
-
-  if (!HEX_COLOR_PATTERN.test(value)) {
-    event.target.value = pickerHex.value
-    return
-  }
-
-  const hsl = hexToHsl(value)
-  colorPicker.h = hsl.h
-  colorPicker.s = hsl.s
-  colorPicker.l = hsl.l
 }
 
 onMounted(() => {

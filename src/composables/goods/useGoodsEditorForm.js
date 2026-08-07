@@ -11,7 +11,6 @@ import {
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
-import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
@@ -153,7 +152,13 @@ export function useGoodsEditorForm(options = {}) {
     if (availableCharacters.value.length === 0) return t('goods.editor.noCharacterPresets')
     return t('goods.editor.characterPlaceholder')
   })
-  const primaryPreviewImage = computed(() => getPrimaryGoodsImageUrl(form.images))
+  // 新建/编辑均直接读取当前图片条目的 uri 字段，与图片管理器缩略图、快速编辑弹窗保持一致，
+  // 避免经 getPrimaryGoodsImageUrl 重新规范化后取到非当前主图条目。
+  const primaryPreviewImage = computed(() => {
+    const images = Array.isArray(form.images) ? form.images : []
+    const primary = images.find((image) => image && image.isPrimary) || images[0]
+    return primary?.uri ? String(primary.uri).trim() : ''
+  })
   const quantityNumber = computed(() => Math.max(1, Number(form.quantity) || 1))
   const hasUnitAcquiredAtValue = computed(() => form.unitAcquiredAtList.some((value) => !!String(value || '').trim()))
   const hasUnitActualPriceValue = computed(() => form.unitActualPriceList.some((value) => !!String(value || '').trim()))
