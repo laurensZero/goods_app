@@ -310,7 +310,7 @@ export function useImageExport() {
     }
 
     if (options.applyWhiteBg) {
-      emitProgress(30, '合成白底中...')
+      emitProgress(30, '合成背景中...')
       workingBlob = await composeWhiteBackground(workingBlob, {
         bgColor: options.bgColor || '#ffffff',
         outputWidth: options.whiteBgWidth || 1200,
