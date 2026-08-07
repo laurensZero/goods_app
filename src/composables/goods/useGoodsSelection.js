@@ -7,7 +7,8 @@ export function useGoodsSelection(items, options = {}) {
     onExit = null,
     bodyClass = 'selection-active',
     getScrollTop = null,
-    restoreScrollTop = null
+    restoreScrollTop = null,
+    preserveSelectedIds = false
   } = options
 
   const selectionMode = ref(false)
@@ -23,6 +24,7 @@ export function useGoodsSelection(items, options = {}) {
   })
 
   watch(items, (currentItems) => {
+    if (preserveSelectedIds) return
     const visibleIds = new Set(currentItems.map((item) => item.id))
     const next = new Set([...selectedIds.value].filter((id) => visibleIds.has(id)))
 
